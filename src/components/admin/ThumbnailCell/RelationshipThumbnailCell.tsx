@@ -1,17 +1,50 @@
 'use client'
 
+import type { RelationshipDoc } from './relationshipDocLoader'
 import type { DefaultCellComponentProps, UploadFieldClient } from 'payload'
 
-import { useDocumentDrawer, usePayloadAPI } from '@payloadcms/ui'
-import { useCallback } from 'react'
+import { useDocumentDrawer } from '@payloadcms/ui'
+import { useCallback, useEffect, useState } from 'react'
+
 
 import { BaseThumbnailCell } from './BaseThumbnailCell'
+import { relationshipDocLoader } from './relationshipDocLoader'
 
 /**
- * Thumbnail cell for upload relationship fields (e.g., photo -> images)
- * Fetches the related document via API since cellData contains just the ID
+ * Subscribes to the batched relationship-doc loader so every thumbnail cell on
+ * a list page resolves through one shared request instead of one fetch per row
+ * (the #460 N+1). Returns `undefined` while loading, then the doc or `null`.
+ */
+function useRelationshipDoc(
+  relationTo: string,
+  id: string | null,
+): RelationshipDoc | null | undefined {
+  const [doc, setDoc] = useState<RelationshipDoc | null | undefined>(undefined)
+
+  useEffect(() => {
+    if (id == null) {
+      setDoc(null)
+      return
+    }
+    let active = true
+    void relationshipDocLoader.load(relationTo, id).then((resolved) => {
+      if (active) setDoc(resolved)
+    })
+    return () => {
+      active = false
+    }
+  }, [relationTo, id])
+
+  return doc
+}
+
+/**
+ * Thumbnail cell for upload relationship fields (e.g., photo -> images).
+ * cellData is just the related document ID; the related image's
+ * url/mimeType/filename are resolved via the batched loader (one request per
+ * list page instead of one per row).
  *
- * Opens the related document in a drawer overlay when clicked
+ * Opens the related document in a drawer overlay when clicked.
  */
 export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
   cellData,
@@ -44,24 +77,14 @@ export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
     [openDrawer],
   )
 
-  const [{ data: relatedDoc }] = usePayloadAPI(relatedId ? `/api/${relationTo}` : '', {
-    initialParams: relatedId
-      ? {
-          where: { id: { equals: relatedId } },
-          limit: 1,
-          select: { url: true, mimeType: true, filename: true },
-        }
-      : undefined,
-  })
-
-  const doc = relatedDoc?.docs?.[0]
+  const doc = useRelationshipDoc(relationTo, relatedId)
 
   return (
     <>
       <BaseThumbnailCell
-        thumbnailUrl={doc?.url as string | undefined}
-        mimeType={doc?.mimeType as string | undefined}
-        filename={doc?.filename as string | undefined}
+        thumbnailUrl={doc?.url}
+        mimeType={doc?.mimeType}
+        filename={doc?.filename}
         cellData={cellData}
         collectionSlug={collectionSlug}
         rowData={rowData}
