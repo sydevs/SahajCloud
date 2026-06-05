@@ -616,18 +616,23 @@ describe('Meditations Collection', () => {
       } as Parameters<typeof testData.createUserChoice>[1])
     })
 
+    // The find the admin list view issues for this meditation (restricted to
+    // its active columns, like the real list).
+    const fetchListView = () =>
+      payload.find({
+        collection: 'meditations',
+        where: { id: { equals: listMeditation.id } },
+        depth: 0,
+        draft: true,
+        locale: 'en',
+        select: LIST_VIEW_SELECT,
+      })
+
     it('skips the expensive per-row afterRead hooks on a list-style find', async () => {
       const findSpy = vi.spyOn(payload, 'find')
       const countSpy = vi.spyOn(payload, 'count')
       try {
-        const result = await payload.find({
-          collection: 'meditations',
-          where: { id: { equals: listMeditation.id } },
-          depth: 0,
-          draft: true,
-          locale: 'en',
-          select: LIST_VIEW_SELECT,
-        })
+        const result = await fetchListView()
 
         const findCollections = findSpy.mock.calls.map((c) => c[0].collection)
         const countCollections = countSpy.mock.calls.map((c) => c[0].collection)
@@ -654,14 +659,7 @@ describe('Meditations Collection', () => {
       // audio-42s.mp3 → duration ~42s → ceil(42 / 60) = 1 minute. This only
       // works because `duration` is in the list select; drop it from
       // defaultColumns and the virtual column blanks.
-      const result = await payload.find({
-        collection: 'meditations',
-        where: { id: { equals: listMeditation.id } },
-        depth: 0,
-        draft: true,
-        locale: 'en',
-        select: LIST_VIEW_SELECT,
-      })
+      const result = await fetchListView()
       const doc = result.docs[0]
       expect(doc.label).toBeTruthy()
       expect(doc.durationMinutes).toBe(1)

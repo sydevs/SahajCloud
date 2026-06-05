@@ -142,8 +142,7 @@ export const Meditations: CollectionConfig = {
       name: 'randomSongUrl',
       type: 'text',
       virtual: true,
-      // afterRead runs 2 song queries per row — keep it out of the list view
-      // entirely so it can never be re-activated as a column/filter (#459).
+      // afterRead runs 2 song queries per row.
       admin: { hidden: true, disableListColumn: true, disableListFilter: true },
       hooks: {
         afterRead: [randomSongUrlAfterRead],
@@ -327,8 +326,7 @@ export const Meditations: CollectionConfig = {
                 condition: ({ id }) => !!id,
                 description:
                   'Shows which categories use this meditation for each time of day. Managed from the Categories collection.',
-                // Each virtualJoinField subfield runs a user-choices query per
-                // row; keep the whole group out of the list view (#459).
+                // Each virtualJoinField subfield runs a user-choices query per row.
                 disableListColumn: true,
                 disableListFilter: true,
               },
@@ -358,8 +356,7 @@ export const Meditations: CollectionConfig = {
                       name: 'frames',
                       type: 'json',
                       admin: {
-                        // afterRead runs a frames query per row to enrich the
-                        // keyframes — keep it out of the list view (#459).
+                        // afterRead runs a frames query per row to enrich keyframes.
                         disableListColumn: true,
                         disableListFilter: true,
                         components: {
