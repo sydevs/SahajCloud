@@ -1,6 +1,6 @@
 import type { Payload } from 'payload'
 
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
 import type { Meditation, Narrator, Image, SongTag, Album } from '@/payload-types'
 
@@ -568,6 +568,120 @@ describe('Meditations Collection', () => {
       })
 
       expect(med.title).toBe('Meditation for Right Channel')
+    })
+  })
+
+  describe('Admin list view select (#459)', () => {
+    // Mirrors the field `select` the admin list view builds when
+    // `enableListViewSelectAPI` is on: transformColumnsToSelect(defaultColumns)
+    // — label, thumbnail, _status, type, durationMinutes, duration — plus the
+    // upload thumbnail fields appended by appendUploadSelectFields. Replicated
+    // here because the select is assembled in @payloadcms/next's RSC List view,
+    // which an integration test can't invoke directly.
+    const LIST_VIEW_SELECT = {
+      label: true,
+      thumbnail: true,
+      _status: true,
+      type: true,
+      durationMinutes: true,
+      duration: true,
+      mimeType: true,
+      thumbnailURL: true,
+      url: true,
+    }
+
+    let listMeditation: Meditation
+
+    beforeAll(async () => {
+      // Give every expensive hook real work to do, so skipping it is
+      // observable: a matching song (randomSongUrl), a frame (frames
+      // enrichment), and a category referencing this meditation (tagAssignments
+      // join).
+      const tag = await testData.createSongTag(payload, { title: 'List Select Tag' })
+      await testData.createSong(payload, { album: testAlbum.id, tags: [tag.id] })
+      const frame = await testData.createFrame(payload)
+
+      listMeditation = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        { songTag: tag.id },
+      )
+      await payload.update({
+        collection: 'meditations',
+        id: listMeditation.id,
+        data: { frames: [{ id: frame.id, timestamp: 0 }] as unknown as Meditation['frames'] },
+      })
+      await testData.createUserChoice(payload, {
+        morningMeditation: listMeditation.id,
+      } as Parameters<typeof testData.createUserChoice>[1])
+    })
+
+    // The find the admin list view issues for this meditation (restricted to
+    // its active columns, like the real list).
+    const fetchListView = () =>
+      payload.find({
+        collection: 'meditations',
+        where: { id: { equals: listMeditation.id } },
+        depth: 0,
+        draft: true,
+        locale: 'en',
+        select: LIST_VIEW_SELECT,
+      })
+
+    it('skips the expensive per-row afterRead hooks on a list-style find', async () => {
+      const findSpy = vi.spyOn(payload, 'find')
+      const countSpy = vi.spyOn(payload, 'count')
+      try {
+        const result = await fetchListView()
+
+        const findCollections = findSpy.mock.calls.map((c) => c[0].collection)
+        const countCollections = countSpy.mock.calls.map((c) => c[0].collection)
+
+        // None of the hook-driven sub-queries fire: randomSongUrl (songs count +
+        // find), tagAssignments (user-choices), frames enrichment (frames).
+        expect(findCollections).not.toContain('songs')
+        expect(findCollections).not.toContain('user-choices')
+        expect(findCollections).not.toContain('frames')
+        expect(countCollections).not.toContain('songs')
+
+        // ...and the unselected fields are stripped from the row entirely.
+        const doc = result.docs[0]
+        expect(doc.randomSongUrl).toBeUndefined()
+        expect(doc.frames).toBeUndefined()
+        expect(doc.tagAssignments).toBeUndefined()
+      } finally {
+        findSpy.mockRestore()
+        countSpy.mockRestore()
+      }
+    })
+
+    it('still renders the durationMinutes column (duration stays selected)', async () => {
+      // audio-42s.mp3 → duration ~42s → ceil(42 / 60) = 1 minute. This only
+      // works because `duration` is in the list select; drop it from
+      // defaultColumns and the virtual column blanks.
+      const result = await fetchListView()
+      const doc = result.docs[0]
+      expect(doc.label).toBeTruthy()
+      expect(doc.durationMinutes).toBe(1)
+    })
+
+    it('leaves a full read (REST / edit view) unchanged — all fields present', async () => {
+      // A read without the list select still computes every field, so the public
+      // REST API and the admin edit view are unaffected by the list-only flags.
+      const result = await payload.find({
+        collection: 'meditations',
+        where: { id: { equals: listMeditation.id } },
+        depth: 0,
+        draft: true,
+        locale: 'en',
+      })
+      const doc = result.docs[0]
+      expect(typeof doc.randomSongUrl).toBe('string')
+      expect(Array.isArray(doc.frames)).toBe(true)
+      expect((doc.frames as unknown[]).length).toBeGreaterThan(0)
+
+      const tagAssignments = doc.tagAssignments as { asMorningMeditation?: unknown[] } | undefined
+      expect(tagAssignments?.asMorningMeditation).toHaveLength(1)
     })
   })
 })
