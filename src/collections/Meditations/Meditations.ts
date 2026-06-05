@@ -104,7 +104,14 @@ export const Meditations: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'label',
-    defaultColumns: ['label', 'thumbnail', '_status', 'type', 'durationMinutes'],
+    // Restrict the admin list query to the active columns' fields so the
+    // expensive per-row afterRead hooks on unselected fields (randomSongUrl,
+    // frames, tagAssignments) never run on a list load. See #459.
+    enableListViewSelectAPI: true,
+    // `duration` is hidden and never rendered as a column, but it must be
+    // selected so the `durationMinutes` virtual column — whose afterRead
+    // derives minutes from `duration` — still computes under the list select.
+    defaultColumns: ['label', 'thumbnail', '_status', 'type', 'durationMinutes', 'duration'],
     livePreview: {
       url: ({ data }) => {
         const baseURL = process.env.WEMEDITATE_WEB_URL
@@ -135,7 +142,9 @@ export const Meditations: CollectionConfig = {
       name: 'randomSongUrl',
       type: 'text',
       virtual: true,
-      admin: { hidden: true },
+      // afterRead runs 2 song queries per row — keep it out of the list view
+      // entirely so it can never be re-activated as a column/filter (#459).
+      admin: { hidden: true, disableListColumn: true, disableListFilter: true },
       hooks: {
         afterRead: [randomSongUrlAfterRead],
       },
@@ -318,6 +327,10 @@ export const Meditations: CollectionConfig = {
                 condition: ({ id }) => !!id,
                 description:
                   'Shows which categories use this meditation for each time of day. Managed from the Categories collection.',
+                // Each virtualJoinField subfield runs a user-choices query per
+                // row; keep the whole group out of the list view (#459).
+                disableListColumn: true,
+                disableListFilter: true,
               },
               fields: [
                 virtualJoinField({ name: 'asMorningMeditation', on: 'morningMeditation' }),
@@ -345,6 +358,10 @@ export const Meditations: CollectionConfig = {
                       name: 'frames',
                       type: 'json',
                       admin: {
+                        // afterRead runs a frames query per row to enrich the
+                        // keyframes — keep it out of the list view (#459).
+                        disableListColumn: true,
+                        disableListFilter: true,
                         components: {
                           Field: '@/components/admin/FrameEditor/FrameListManager',
                         },
