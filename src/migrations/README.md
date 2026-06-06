@@ -6,18 +6,26 @@ SQLite dialect, so they do not apply to Postgres. Only the **data** migrates
 1:1 (see the ETL step in the PR / runbook); the schema starts from a fresh
 Postgres baseline.
 
-## TODO(railway): generate the Postgres baseline
+## Postgres baseline
 
-Once a Railway Postgres instance exists and `DATABASE_URL` points at it:
+`20260606_050852_initial_schema.{ts,json}` is the Postgres baseline — generated
+with `pnpm db:migrations:create` and applied (`pnpm db:migrate`) against the
+Railway Postgres 18 instance (117 tables). Production/CI apply it via
+`pnpm db:migrate`; dev uses `push: true` (see `src/payload.config.ts`) and
+doesn't need it.
+
+Regenerate after schema changes:
 
 ```bash
-# Interactive — run locally against the new Postgres DB
-pnpm db:migrations:create        # -> creates src/migrations/<timestamp>_initial_schema.{ts,json}
-pnpm db:migrate                  # applies it (payload migrate)
+pnpm db:migrations:create <name>   # writes the next src/migrations/<ts>_<name>.{ts,json}
+pnpm db:migrate                    # applies pending migrations to DATABASE_URL
 ```
 
-Dev uses `push: true` (see `src/payload.config.ts`), so local schema is synced
-without migrations; production/CI run `pnpm db:migrate` against `DATABASE_URL`.
+Optionally regenerate the Drizzle schema snapshot for editor type-safety:
+
+```bash
+pnpm payload generate:db-schema  # -> src/payload-generated-schema.ts (gitignored from typecheck)
+```
 
 Optionally regenerate the Drizzle schema snapshot for editor type-safety:
 
