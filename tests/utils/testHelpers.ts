@@ -104,6 +104,9 @@ function createBaseTestConfig(emailConfig: any, schemaName: string) {
     db: postgresAdapter({
       pool: {
         connectionString: process.env.DATABASE_URL,
+        // Tests don't need durability — skip the per-commit fsync wait. Large
+        // speed-up for the write-heavy integration suites on Postgres.
+        options: '-c synchronous_commit=off',
       },
       push: true, // Auto-create schema (no migrations in tests)
       schemaName,
