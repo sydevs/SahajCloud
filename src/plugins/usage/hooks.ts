@@ -13,7 +13,7 @@ import { APIError } from 'payload'
 
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 
-import { getPgPool } from './db'
+import { getDbSchema, getPgPool } from './db'
 
 const SKIP_VALIDATION = 'skipClientQueryValidation'
 
@@ -192,10 +192,11 @@ function describeStringPreview(value: unknown): string | null {
 // ============================================================================
 
 /**
- * Atomic Postgres UPDATE for incrementing usage counters.
+ * Atomic Postgres UPDATE for incrementing usage counters. The `clients` table is
+ * schema-qualified because a raw pool query doesn't honor the adapter's schema.
  */
-const USAGE_INCREMENT_SQL = `
-  UPDATE clients
+const usageIncrementSql = (schema: string) => `
+  UPDATE "${schema}".clients
   SET usage_daily_requests = COALESCE(usage_daily_requests, 0) + 1,
       usage_total_requests = COALESCE(usage_total_requests, 0) + 1,
       usage_last_request_at = $1,
@@ -225,7 +226,7 @@ export const usageTrackingHook: CollectionAfterReadHook = async ({ doc, req }) =
       return doc
     }
 
-    await pool.query(USAGE_INCREMENT_SQL, [now, now, clientId])
+    await pool.query(usageIncrementSql(getDbSchema(req)), [now, now, clientId])
   } catch (error) {
     // Fail open - don't block API requests if tracking fails
     req.payload.logger.error({
