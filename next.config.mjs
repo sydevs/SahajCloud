@@ -3,8 +3,6 @@ import { withSentryConfig } from '@sentry/nextjs'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Standalone output keeps the Railway/Docker image small. Host-agnostic.
-  output: 'standalone',
   // Your Next.js config here
   webpack: (webpackConfig) => {
     webpackConfig.resolve.extensionAlias = {
