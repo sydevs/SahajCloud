@@ -1,16 +1,13 @@
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-import { CloudflareContext, getCloudflareContext } from '@opennextjs/cloudflare'
-import { sqliteD1Adapter } from '@payloadcms/db-d1-sqlite'
-import { sqliteAdapter } from '@payloadcms/db-sqlite'
+import { postgresAdapter } from '@payloadcms/db-postgres'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
-import { GetPlatformProxyOptions } from 'wrangler'
 
 import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
@@ -33,22 +30,7 @@ const dirname = path.dirname(filename)
 const isTestEnvironment = process.env.NODE_ENV === 'test'
 const isE2ETest = process.env.E2E_TEST === 'true'
 const isProduction = process.env.NODE_ENV === 'production'
-const isCLI = process.argv.some((value) => value.match(/^(generate|migrate):?/))
 const isSeedScript = process.argv.some((value) => value.includes('seeds/'))
-
-// Get Cloudflare context (following PayloadCMS official template pattern)
-// Development/CLI: Use wrangler's getPlatformProxy for local/remote bindings
-// Production Build: Use OpenNext's getCloudflareContext for build-time bindings
-// Seed scripts: Use wrangler proxy with remote bindings when CLOUDFLARE_ENV !== 'dev'
-// E2E Tests: Skip Cloudflare context entirely (uses SQLite file database)
-const cloudflare = isE2ETest
-  ? (null as unknown as CloudflareContext) // E2E tests use SQLite, not D1
-  : isCLI || isSeedScript || !isProduction
-    ? await getCloudflareContextFromWrangler()
-    : await getCloudflareContext({ async: true })
-
-// E2E test database path (file-based SQLite for persistence)
-const E2E_DATABASE_PATH = path.resolve(dirname, '../tests/.e2e.sqlite')
 
 const payloadConfig = (overrides?: Partial<Config>) => {
   const serverUrl = getServerUrl()
@@ -56,8 +38,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
 
   return buildConfig({
     serverURL: serverUrl,
-    debug: true, // Enable verbose error logging for troubleshooting R2 uploads
-    // Use one logger implementation everywhere so local, CLI, and Worker behavior stay aligned.
+    debug: true, // Enable verbose error logging for troubleshooting uploads
+    // Use one logger implementation everywhere so local, CLI, and server behavior stay aligned.
     logger,
     localization: {
       defaultLocalePublishOption: 'active',
@@ -116,32 +98,22 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // GraphQL is disabled — this project exposes a REST-only API (see
     // src/app/(payload)/api/[[...slug]]/route.ts for the REST handler).
     // Disabling here keeps the GraphQL schema-building cost out of Payload's
-    // bootstrap and lets us avoid bundling @payloadcms/graphql / graphql
-    // into the Cloudflare Worker.
+    // bootstrap and avoids bundling @payloadcms/graphql / graphql into the
+    // server bundle.
     graphQL: { disable: true },
     secret: serverEnv.PAYLOAD_SECRET,
     typescript: {
       outputFile: path.resolve(dirname, 'payload-types.ts'),
     },
-    // Database configuration
-    // - E2E Tests: File-based SQLite for persistence across dev server lifecycle
-    // - All other environments: Cloudflare D1 SQLite
-    db: isE2ETest
-      ? sqliteAdapter({
-          client: {
-            url: `file:${E2E_DATABASE_PATH}`,
-          },
-          push: true, // Auto-sync schema
-        })
-      : sqliteD1Adapter({
-          binding: cloudflare.env.D1,
-          // Disable Drizzle push in all D1 environments. Push silently skips
-          // SQLite ALTER TABLE rebuilds needed for polymorphic-FK renames
-          // (see issue #291 / #292 fallout), which caused production/dev
-          // drift. Local dev now goes through the same migration files as
-          // production: `pnpm payload migrate` before first dev start.
-          push: false,
-        }),
+    // Database configuration — Railway Postgres for every environment.
+    // Dev/test/E2E use Drizzle `push` to auto-sync the schema; production runs
+    // migrations (`pnpm db:migrate`) instead of push.
+    db: postgresAdapter({
+      pool: {
+        connectionString: serverEnv.DATABASE_URL,
+      },
+      push: !isProduction,
+    }),
     jobs: {
       tasks,
       deleteJobOnComplete: true,
@@ -204,10 +176,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         }),
         enabled: !isE2ETest, // Skip in E2E tests
       }),
-      // Cloudflare-native file storage (disabled in E2E tests)
+      // File storage: Cloudflare Images/Stream + R2 over S3 (disabled in E2E tests)
       storagePlugin({
-        env: cloudflare?.env,
-        enabled: !isE2ETest, // Skip in E2E tests - requires Cloudflare bindings
+        enabled: !isE2ETest, // Skip in E2E tests
       }),
       // SEO plugin (enabled in all environments)
       seoPlugin({
@@ -244,20 +215,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // Allow overrides (especially important for test database URIs)
     ...overrides,
   })
-}
-
-// Adapted from PayloadCMS official template
-// https://github.com/payloadcms/payload/blob/main/templates/with-cloudflare-d1/src/payload.config.ts
-// Import scripts can target production by not setting CLOUDFLARE_ENV (or setting it to empty string)
-function getCloudflareContextFromWrangler(): Promise<CloudflareContext> {
-  const targetProduction = isProduction || (isSeedScript && serverEnv.CLOUDFLARE_ENV !== 'dev')
-  return import(/* webpackIgnore: true */ `${'__wrangler'.replaceAll('_', '')}`).then(
-    ({ getPlatformProxy }) =>
-      getPlatformProxy({
-        environment: serverEnv.CLOUDFLARE_ENV || undefined,
-        remoteBindings: targetProduction,
-      } satisfies GetPlatformProxyOptions),
-  )
 }
 
 export { payloadConfig }
