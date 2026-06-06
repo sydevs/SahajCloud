@@ -41,6 +41,13 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   PAYLOAD_SECRET: z.string().min(32, 'PAYLOAD_SECRET must be at least 32 characters'),
 
   /**
+   * Postgres connection string (Railway Postgres).
+   * Consumed by the Payload Postgres adapter in `src/payload.config.ts`.
+   * Example: `postgresql://user:password@host:5432/dbname`
+   */
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required (Postgres connection string)'),
+
+  /**
    * Nirmala Vidya API key for fetching lecture metadata from Vimeo
    * Optional at startup — validated at point of use when creating/refreshing lectures
    */
@@ -50,20 +57,24 @@ const ServerEnvSchema = ClientEnvSchema.extend({
     .optional(),
 
   // ============================================
-  // OPTIONAL - Cloudflare Services (Production)
+  // OPTIONAL - Cloudflare media services (Images, Stream) + R2 over S3
   // ============================================
+  //
+  // Images and Stream stay on Cloudflare (plain HTTPS APIs). R2 is now reached
+  // via the S3-compatible API (see `src/plugins/storage`) rather than a Workers
+  // binding. When the relevant credentials are unset, storage falls back to
+  // local files (development).
 
   /**
    * Cloudflare Account ID
-   * Required for Cloudflare Images, Stream, and R2 in production
-   * Optional in development (falls back to local file storage)
+   * Used for the Images/Stream HTTPS APIs and to derive the R2 S3 endpoint
+   * (`https://<accountId>.r2.cloudflarestorage.com`). Optional in development.
    */
   CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
 
   /**
    * Cloudflare API Key (unified token for Images and Stream)
-   * Required for Cloudflare services in production
-   * Optional in development
+   * Required for the Cloudflare media services in production. Optional in development.
    */
   CLOUDFLARE_API_KEY: z.string().min(20).optional(),
 
@@ -80,32 +91,36 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   CLOUDFLARE_STREAM_DELIVERY_URL: z.url().optional(),
 
   /**
-   * Cloudflare R2 public delivery URL
-   * Custom domain configured in Cloudflare R2 + CDN
+   * R2 public delivery URL (custom domain / CDN in front of the R2 bucket).
+   * Delivery domains are unchanged by the S3 migration (e.g. https://assets.sydevelopers.com).
    */
   CLOUDFLARE_R2_DELIVERY_URL: z.url().optional(),
+
+  /**
+   * R2 bucket name (the S3 bucket the app reads/writes).
+   * Required in production for R2-backed collections; optional in development.
+   */
+  R2_BUCKET: z.string().optional(),
+
+  /**
+   * R2 S3 API access key id (from an R2 API token with object read/write).
+   * Required in production for R2 uploads; optional in development.
+   */
+  R2_ACCESS_KEY_ID: z.string().optional(),
+
+  /**
+   * R2 S3 API secret access key (pairs with R2_ACCESS_KEY_ID).
+   * Required in production for R2 uploads; optional in development.
+   */
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
 
   /**
    * Cloudflare Stream webhook signing secret
    * Returned by `PUT /accounts/{id}/stream/webhook` and used to verify HMAC-SHA256
    * signatures on inbound webhooks. Production only — dev deployments do not
    * subscribe to the account-scoped Stream webhook.
-   * Set via: `wrangler secret put CLOUDFLARE_STREAM_WEBHOOK_SECRET`
    */
   CLOUDFLARE_STREAM_WEBHOOK_SECRET: z.string().min(32).optional(),
-
-  /**
-   * Wrangler environment selection
-   * - 'dev': Uses [env.dev] configuration from wrangler.toml
-   * - 'preview': Uses [env.preview] configuration — e.g. `payload migrate`
-   *   against the remote sahajcloud-preview D1 from CI (deploy:database:preview)
-   * - 'production': Uses [env.production] configuration from wrangler.toml
-   * - undefined/empty: Uses default (production) configuration
-   */
-  CLOUDFLARE_ENV: z.preprocess(
-    (val) => (val === '' ? undefined : val),
-    z.enum(['dev', 'production', 'preview']).optional(),
-  ),
 
   // ============================================
   // OPTIONAL - Email Services
