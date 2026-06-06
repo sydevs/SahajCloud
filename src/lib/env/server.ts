@@ -9,10 +9,10 @@
  *
  * **Usage**:
  * ```typescript
- * import { serverEnv, requireBinding } from '@/lib/env'
+ * import { serverEnv } from '@/lib/env'
  *
  * const secret = serverEnv.PAYLOAD_SECRET
- * const r2 = requireBinding<R2Bucket>(env.R2, 'R2')
+ * const db = serverEnv.DATABASE_URL
  * ```
  */
 import { z } from 'zod'
@@ -260,38 +260,6 @@ export const serverEnv = new Proxy({} as ServerEnv, {
     return Reflect.ownKeys(getServerEnv())
   },
 })
-
-/**
- * Runtime validation helper for Cloudflare Workers bindings
- *
- * Validates that a required Cloudflare binding (R2, D1, KV, etc.) is present
- * and returns it with proper TypeScript typing.
- *
- * **Usage**:
- * ```typescript
- * import type { R2Bucket } from '@cloudflare/workers-types'
- * import { requireBinding } from '@/lib/env'
- *
- * // In storagePlugin or other Cloudflare-specific code
- * const r2Bucket = requireBinding<R2Bucket>(env.R2, 'R2')
- * ```
- *
- * @param binding - The binding value to validate (can be undefined)
- * @param name - Name of the binding for error messages
- * @returns The validated binding with proper type
- * @throws Error if binding is undefined or null
- *
- * @template T - The expected binding type (R2Bucket, D1Database, etc.)
- */
-export function requireBinding<T>(binding: T | undefined | null, name: string): T {
-  if (binding === undefined || binding === null) {
-    throw new Error(
-      `Required Cloudflare binding "${name}" is not available. ` +
-        `Ensure the binding is configured in wrangler.toml and the env object is provided.`,
-    )
-  }
-  return binding
-}
 
 // Re-export client types and values for convenience in server code
 export type { ClientEnv } from './client'
