@@ -1,21 +1,22 @@
 /**
- * Cloudflare-native storage configuration for Payload CMS
+ * Storage configuration for Payload CMS
  *
  * Uses Cloudflare Images for image storage, Cloudflare Stream for video storage,
- * and a custom R2 native adapter for audio files and generic files.
+ * and an R2 adapter (S3-compatible API) for audio files and generic files.
  *
  * All storage adapters handle filename management internally:
  * - Cloudflare Images/Stream: Stores service-generated IDs as filenames
  * - R2: Sanitizes filenames (slugify + random suffix) for all uploads
  *
- * Automatically falls back to local file storage in development when
- * Cloudflare credentials are not configured.
+ * Automatically falls back to local file storage in development when the
+ * storage credentials are not configured.
  */
 import type { Plugin } from 'payload'
 
+import { S3Client } from '@aws-sdk/client-s3'
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
 
-import { requireBinding, serverEnv } from '@/lib/env'
+import { serverEnv } from '@/lib/env'
 
 import { cloudflareImagesAdapter } from './cloudflareImagesAdapter'
 import { cloudflareStreamAdapter } from './cloudflareStreamAdapter'
@@ -24,12 +25,6 @@ import { createR2FilenameBeforeOperationHook } from './r2FilenameHook'
 import { r2NativeAdapter } from './r2NativeAdapter'
 
 interface StoragePluginOptions {
-  /**
-   * Cloudflare environment bindings (from wrangler)
-   * Can be any object with R2/D1 properties from CloudflareContext
-   * Type is unknown - runtime validation ensures correctness
-   */
-  env?: unknown
   /**
    * Whether or not to enable the plugin
    * @default true
@@ -52,13 +47,13 @@ const r2FilenameHookModes: Record<string, keyof typeof r2FilenameHooks> = {
 }
 
 /**
- * Create Cloudflare-native storage configuration
+ * Create the storage configuration (Cloudflare Images/Stream + R2 over S3)
  *
  * @param options - Plugin options
  * @returns PayloadCMS storage plugin
  */
 export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
-  const { env, enabled = true } = options
+  const { enabled = true } = options
 
   return (config) => {
     // Early return if plugin is disabled - use cloudStoragePlugin for consistent behavior
@@ -69,24 +64,31 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
       })(config)
     }
 
-    // Extract and validate Cloudflare credentials from validated env
+    // Extract and validate credentials from validated env. Images/Stream use the
+    // Cloudflare HTTPS APIs; R2 uses the S3-compatible API.
     const accountId = serverEnv.CLOUDFLARE_ACCOUNT_ID
     const apiKey = serverEnv.CLOUDFLARE_API_KEY
     const imagesDeliveryUrl = serverEnv.CLOUDFLARE_IMAGES_DELIVERY_URL
     const streamDeliveryUrl = serverEnv.CLOUDFLARE_STREAM_DELIVERY_URL
+    const r2Bucket = serverEnv.R2_BUCKET
+    const r2AccessKeyId = serverEnv.R2_ACCESS_KEY_ID
+    const r2SecretAccessKey = serverEnv.R2_SECRET_ACCESS_KEY
 
-    // If no env or missing credentials, use local storage (development fallback)
-    if (!env || !accountId || !apiKey || !imagesDeliveryUrl || !streamDeliveryUrl) {
+    // If any credential is missing, use local storage (development fallback)
+    if (
+      !accountId ||
+      !apiKey ||
+      !imagesDeliveryUrl ||
+      !streamDeliveryUrl ||
+      !r2Bucket ||
+      !r2AccessKeyId ||
+      !r2SecretAccessKey
+    ) {
       return cloudStoragePlugin({
         enabled: false, // Disables cloud storage, uses local file storage
         collections: {},
       })(config)
     }
-
-    // Env and credentials provided - validate R2 bucket binding using helper
-    // Type assertion needed since env is unknown - runtime validation ensures correctness
-    const envObj = env as Record<string, unknown>
-    const r2Bucket = requireBinding<R2Bucket>(envObj.R2 as R2Bucket | undefined, 'R2')
 
     // Create storage adapters for Images and Stream using validated credentials
     // TypeScript now knows these are defined (not undefined) after the check above
@@ -102,11 +104,20 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
       deliveryUrl: streamDeliveryUrl,
     })
 
+    // R2 over the S3-compatible API. The endpoint is derived from the account id:
+    // https://<accountId>.r2.cloudflarestorage.com
+    const r2Client = new S3Client({
+      region: 'auto',
+      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      credentials: { accessKeyId: r2AccessKeyId, secretAccessKey: r2SecretAccessKey },
+    })
+
     // Create R2 adapter for audio and file storage
     // All filenames are automatically sanitized (slugify + random suffix)
-    // Note: R2_DELIVERY_URL may be undefined in development, falling back to empty string
-    // The R2 adapter handles empty publicUrl by not generating public URLs
+    // Note: CLOUDFLARE_R2_DELIVERY_URL may be undefined in development, falling
+    // back to empty string; the adapter handles empty publicUrl gracefully.
     const r2Adapter = r2NativeAdapter({
+      client: r2Client,
       bucket: r2Bucket,
       publicUrl: serverEnv.CLOUDFLARE_R2_DELIVERY_URL || '',
     })

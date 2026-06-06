@@ -75,15 +75,9 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
         const originalFilename = file.filename
 
         const formData = new FormData()
-        // Convert Buffer to Uint8Array for Cloudflare Workers compatibility
-        // IMPORTANT: The Workers Buffer polyfill has multiple broken methods.
-        // Do NOT use: Uint8Array.from(), buffer.buffer, buffer.byteOffset, or set().
-        // Use manual indexed copy which is the only reliable method.
-        const uint8Array = new Uint8Array(file.buffer.length)
-        for (let i = 0; i < file.buffer.length; i++) {
-          uint8Array[i] = file.buffer[i]
-        }
-        const blob = new Blob([uint8Array], { type: file.mimeType })
+        // Native Node Buffer works directly with Blob/FormData (the indexed
+        // byte-copy was a Workers Buffer-polyfill workaround).
+        const blob = new Blob([file.buffer], { type: file.mimeType })
         formData.append('file', blob, originalFilename)
         formData.append('id', customId)
 
