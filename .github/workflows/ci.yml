@@ -9,6 +9,7 @@ concurrency:
 
 permissions:
   contents: read
+  statuses: read # read the Railway preview commit status (PR-preview URL discovery)
 
 jobs:
   test:
@@ -51,10 +52,8 @@ jobs:
       - name: Discover Railway preview URL
         id: preview
         env:
-          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
-          RAILWAY_PROJECT_ID: bdff2c72-5af2-4da3-9e2c-913f5e9d1b0f
-          RAILWAY_ENV_NAME: ${{ github.head_ref }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: pnpm tsx scripts/get-railway-preview-url.ts
       - name: Install Playwright (chromium)
         if: ${{ steps.preview.outputs.preview_url != '' }}
