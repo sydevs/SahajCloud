@@ -11,6 +11,7 @@ import { serverEnv } from '@/lib/env'
 import type { Client } from '@/payload-types'
 
 import { HIGH_USAGE_THRESHOLD } from './constants'
+import { getPgPool } from './db'
 
 // ============================================================================
 // ABUSE MILESTONES
@@ -150,7 +151,7 @@ export const resetUsageTask: TaskConfig<'resetUsage'> = {
     await reportAbuseMilestones(req)
 
     // Atomic Postgres reset with abuse tracking (single, race-free query).
-    const pool = (req.payload.db as unknown as { pool?: Pool }).pool ?? null
+    const pool = getPgPool(req)
 
     if (pool) {
       const now = new Date().toISOString()
