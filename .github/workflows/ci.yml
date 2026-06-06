@@ -44,15 +44,24 @@ jobs:
       - run: pnpm test # test:unit + test:int (integration runs against Postgres)
 
       # ── Smoke specs against the Railway PR preview ──────────────────────────
-      # TODO(railway): set the RAILWAY_PREVIEW_URL repo/environment variable to
-      # the PR's Railway preview URL (per-PR preview provisioning is infra work).
-      # Until it is set, these steps are skipped so CI stays green.
+      # Discover the PR's Railway preview URL via the Railway API and wait until
+      # it's healthy, then run the smoke specs against it. Skips gracefully (empty
+      # preview_url) when there's no preview env or no RAILWAY_API_TOKEN secret —
+      # e.g. PRs whose branch is itself a deployed environment.
+      - name: Discover Railway preview URL
+        id: preview
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_PROJECT_ID: bdff2c72-5af2-4da3-9e2c-913f5e9d1b0f
+          RAILWAY_ENV_NAME: ${{ github.head_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: pnpm tsx scripts/get-railway-preview-url.ts
       - name: Install Playwright (chromium)
-        if: ${{ vars.RAILWAY_PREVIEW_URL != '' }}
+        if: ${{ steps.preview.outputs.preview_url != '' }}
         run: pnpm exec playwright install --with-deps chromium
       - name: Run smoke specs against the Railway preview
-        if: ${{ vars.RAILWAY_PREVIEW_URL != '' }}
+        if: ${{ steps.preview.outputs.preview_url != '' }}
         env:
-          PREVIEW_URL: ${{ vars.RAILWAY_PREVIEW_URL }}
+          PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
           SMOKE_RUN_ID: pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
         run: pnpm test:smoke
