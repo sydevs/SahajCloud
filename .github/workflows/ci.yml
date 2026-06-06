@@ -15,8 +15,23 @@ jobs:
     name: Lint, Test & Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: payload_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
-      CF_WORKER_SUBDOMAIN: ${{ vars.CF_WORKER_SUBDOMAIN }}
+      # Integration tests connect here; each suite uses an isolated schema.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/payload_test
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -28,29 +43,18 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      - run: pnpm test # test:unit && test:int — vitest injects its own env
-      # Lint + test usually takes 2-3 min, which is roughly the time CF Workers
-      # Builds needs to publish the preview. By the time we reach the wait step
-      # below, the preview is typically already up — no grace period needed.
-      # CF_WORKER_SUBDOMAIN must be set.
-      - run: pnpm exec playwright install --with-deps chromium
-      - name: Wait for Cloudflare Workers Builds to publish preview
-        id: preview
+      - run: pnpm test # test:unit + test:int (integration runs against Postgres)
+
+      # ── Smoke specs against the Railway PR preview ──────────────────────────
+      # TODO(railway): set the RAILWAY_PREVIEW_URL repo/environment variable to
+      # the PR's Railway preview URL (per-PR preview provisioning is infra work).
+      # Until it is set, these steps are skipped so CI stays green.
+      - name: Install Playwright (chromium)
+        if: ${{ vars.RAILWAY_PREVIEW_URL != '' }}
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run smoke specs against the Railway preview
+        if: ${{ vars.RAILWAY_PREVIEW_URL != '' }}
         env:
-          HEAD_REF: ${{ github.head_ref }}
-        run: |
-          # CF Workers Builds publishes two preview URLs per push: a
-          # commit-hash one (e.g. 13a8c161-…) keyed off a CF-internal build
-          # id we can't derive locally, and a branch-slug one (e.g.
-          # feat-cf-preview-deploys-…) keyed off the source branch name.
-          # The branch slug is deterministic — use that. Both point to the
-          # same latest deploy.
-          BRANCH_SLUG=$(echo "$HEAD_REF" | tr '[:upper:]' '[:lower:]' | sed -E 's|[^a-z0-9]+|-|g; s|^-+||; s|-+$||')
-          PREVIEW_URL="https://${BRANCH_SLUG}-sahajcloud.${CF_WORKER_SUBDOMAIN}.workers.dev"
-          echo "url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
-          ./scripts/wait-for-200.sh "$PREVIEW_URL" 180
-      - name: Run smoke specs
-        env:
-          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+          PREVIEW_URL: ${{ vars.RAILWAY_PREVIEW_URL }}
           SMOKE_RUN_ID: pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
         run: pnpm test:smoke
