@@ -52,8 +52,10 @@ export default defineConfig({
           include: ['tests/int/**/*.int.spec.ts', 'seeds/**/*.test.ts'],
           pool: 'forks',
           maxConcurrency: 1,
-          testTimeout: 30000,
-          hookTimeout: 60000,
+          // Postgres has real per-op latency (vs the old instant in-memory SQLite),
+          // so write-heavy integration tests + per-suite schema push need more headroom.
+          testTimeout: 60000,
+          hookTimeout: 120000,
           env: {
             NODE_ENV: 'test',
             DATABASE_URL:

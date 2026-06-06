@@ -76,6 +76,8 @@ export const e2ePayloadConfig = buildConfig({
   db: postgresAdapter({
     pool: {
       connectionString: process.env.DATABASE_URL,
+      // Tests don't need durability — skip the per-commit fsync wait.
+      options: '-c synchronous_commit=off',
     },
     push: true,
     schemaName: 'e2e',
