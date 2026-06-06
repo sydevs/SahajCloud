@@ -27,3 +27,7 @@ if (clientEnv.NEXT_PUBLIC_SENTRY_DSN) {
     '[Sentry] Client-side error tracking disabled (NEXT_PUBLIC_SENTRY_DSN not configured)',
   )
 }
+
+// Instrument App Router navigations (Sentry requires this export from the
+// client instrumentation file).
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart
