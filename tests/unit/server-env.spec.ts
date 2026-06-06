@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const requiredEnv = {
   PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
+  DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/payload_test',
   WEMEDITATE_WEB_URL: 'https://wemeditate.example.com',
   SAHAJCLOUD_PREVIEW_SECRET: 'preview-secret-16plus',
   SAHAJATLAS_URL: 'https://atlas.example.com',
