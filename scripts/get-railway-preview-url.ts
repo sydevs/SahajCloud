@@ -3,108 +3,76 @@
  * Discover the Railway PR-preview URL for the current pull request, wait until it
  * is healthy, and export it as PREVIEW_URL for the Playwright smoke specs.
  *
- * Railway does not push per-PR preview URLs into GitHub Actions, so CI calls this
- * to look the URL up via the Railway GraphQL API and health-poll it (the Railway
- * deploy is async from the CI run).
- *
- * Auth: a Railway **project token** via the `Project-Access-Token` header
- * (account tokens would use `Authorization: Bearer`; ours is a project token).
+ * When Railway deploys a per-PR preview environment it posts a GitHub **commit
+ * status** on the PR's head commit whose description carries the public URL, e.g.
+ * `"Success - sahajcloud-sahajcloud-pr-470.up.railway.app"`. (The GitHub
+ * Deployment's `environment_url` only points at the Railway dashboard, and a
+ * Railway *project* token can't read other environments' domains over the API —
+ * so the commit-status description is the reliable source.) This reads it with
+ * the built-in GITHUB_TOKEN; no Railway API token is required.
  *
  * Env:
- *   RAILWAY_API_TOKEN   - Railway project token (required)
- *   RAILWAY_PROJECT_ID  - project id (default: the sahajcloud project)
- *   RAILWAY_SERVICE     - app service name (default: "SahajCloud")
- *   RAILWAY_ENV_NAME    - target environment name (default: GITHUB_HEAD_REF)
- *   PR_NUMBER           - PR number, used as a fallback env-name match (pr-<n>)
- *   HEALTH_PATH         - health endpoint (default: "/api/health")
+ *   GITHUB_TOKEN         - GitHub token (CI default); workflow needs `statuses: read`
+ *   GITHUB_REPOSITORY    - "owner/repo" (CI default)
+ *   PR_HEAD_SHA          - PR head commit SHA (github.event.pull_request.head.sha)
+ *   STATUS_CONTEXT_MATCH - substring of the Railway status context (default "SahajCloud")
+ *   HEALTH_PATH          - health endpoint (default "/api/health")
  *
- * Behavior: if no matching PR environment is found within DISCOVER_TIMEOUT, it
- * logs and exits 0 with an empty preview_url so callers can skip smoke gracefully
- * (e.g. PRs whose branch is itself a deployed environment have no preview env).
- * Writes `preview_url=<url>` to $GITHUB_OUTPUT and `PREVIEW_URL=<url>` to
- * $GITHUB_ENV when present; also prints the URL to stdout.
+ * Skips gracefully (empty preview_url, exit 0) when no Railway preview status
+ * appears — e.g. a PR whose branch is itself a deployed environment, or no token.
+ * Writes `preview_url=<url>` to $GITHUB_OUTPUT and `PREVIEW_URL=<url>` to $GITHUB_ENV.
  */
 import { appendFileSync } from 'node:fs'
 
-const TOKEN = process.env.RAILWAY_API_TOKEN
-const PROJECT_ID = process.env.RAILWAY_PROJECT_ID || 'bdff2c72-5af2-4da3-9e2c-913f5e9d1b0f'
-const SERVICE = process.env.RAILWAY_SERVICE || 'SahajCloud'
+const GH_TOKEN = process.env.GITHUB_TOKEN
+const REPO = process.env.GITHUB_REPOSITORY
+const SHA = process.env.PR_HEAD_SHA
+const CONTEXT_MATCH = process.env.STATUS_CONTEXT_MATCH || 'SahajCloud'
 const HEALTH_PATH = process.env.HEALTH_PATH || '/api/health'
-const ENV_NAME = process.env.RAILWAY_ENV_NAME || process.env.GITHUB_HEAD_REF || ''
-const PR_NUMBER = process.env.PR_NUMBER || ''
 
-const GQL_ENDPOINT = 'https://backboard.railway.com/graphql/v2'
-const DISCOVER_TIMEOUT_MS = 5 * 60_000 // wait up to 5 min for the PR env to appear
-const HEALTH_TIMEOUT_MS = 10 * 60_000 // then up to 10 min for it to go healthy
+const DISCOVER_TIMEOUT_MS = 12 * 60_000 // Railway build + deploy is slow
+const HEALTH_TIMEOUT_MS = 5 * 60_000
 const POLL_INTERVAL_MS = 15_000
-
-const PROJECT_QUERY = `query($id: String!) {
-  project(id: $id) {
-    name
-    environments { edges { node { id name } } }
-    services {
-      edges { node {
-        name
-        serviceInstances { edges { node {
-          environmentId
-          domains { serviceDomains { domain } }
-        } } }
-      } }
-    }
-  }
-}`
-
-interface EnvNode {
-  id: string
-  name: string
-}
+const DOMAIN_RE = /([a-z0-9-]+\.(?:up\.)?railway\.app)/i
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
-async function gql(query: string, variables: Record<string, unknown>): Promise<any> {
-  const res = await fetch(GQL_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Project-Access-Token': TOKEN as string,
-      'Content-Type': 'application/json',
-      'User-Agent': 'sahajcloud-preview-discovery',
+interface CommitStatus {
+  context?: string
+  state?: string
+  description?: string
+}
+
+async function fetchStatuses(): Promise<CommitStatus[]> {
+  const res = await fetch(
+    `https://api.github.com/repos/${REPO}/commits/${SHA}/statuses?per_page=100`,
+    {
+      headers: {
+        Authorization: `Bearer ${GH_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'sahajcloud-preview-discovery',
+      },
     },
-    body: JSON.stringify({ query, variables }),
-  })
-  const json = await res.json()
-  if (json.errors) throw new Error(`Railway GraphQL error: ${JSON.stringify(json.errors)}`)
-  return json.data
+  )
+  if (!res.ok) throw new Error(`GitHub statuses API: HTTP ${res.status}`)
+  return (await res.json()) as CommitStatus[]
 }
 
-function matchEnv(envs: EnvNode[]): EnvNode | null {
-  if (ENV_NAME) {
-    const exact = envs.find((e) => e.name === ENV_NAME)
-    if (exact) return exact
+// GitHub returns statuses most-recent first; the first match per context is current.
+async function findRailwayStatus(): Promise<{
+  state: string
+  url: string | null
+  description: string
+} | null> {
+  const statuses = await fetchStatuses()
+  const match = statuses.find((s) => (s.context || '').includes(CONTEXT_MATCH))
+  if (!match) return null
+  const domain = (match.description || '').match(DOMAIN_RE)
+  return {
+    state: match.state || 'unknown',
+    url: domain ? `https://${domain[1]}` : null,
+    description: match.description || '',
   }
-  if (PR_NUMBER) {
-    const byPr = envs.find((e) => e.name === `pr-${PR_NUMBER}` || e.name.includes(PR_NUMBER))
-    if (byPr) return byPr
-  }
-  return null
-}
-
-async function discoverDomain(): Promise<string | null> {
-  const data = await gql(PROJECT_QUERY, { id: PROJECT_ID })
-  const project = data.project
-  const envs: EnvNode[] = project.environments.edges.map((e: any) => e.node)
-  console.error(`environments: ${envs.map((e) => e.name).join(', ') || '(none)'}`)
-  const env = matchEnv(envs)
-  if (!env) return null
-  console.error(`matched environment '${env.name}' (${env.id})`)
-  for (const s of project.services.edges) {
-    if (s.node.name !== SERVICE) continue
-    for (const si of s.node.serviceInstances.edges) {
-      if (si.node.environmentId !== env.id) continue
-      const domain = si.node.domains.serviceDomains[0]?.domain
-      if (domain) return `https://${domain}`
-    }
-  }
-  throw new Error(`environment '${env.name}' has no domain for service '${SERVICE}' yet`)
 }
 
 async function waitHealthy(url: string): Promise<boolean> {
@@ -133,25 +101,40 @@ function exportUrl(url: string): void {
 }
 
 async function main(): Promise<void> {
-  if (!TOKEN) {
-    console.error('RAILWAY_API_TOKEN not set — skipping preview discovery (smoke will skip).')
+  if (!GH_TOKEN || !REPO || !SHA) {
+    console.error('Missing GITHUB_TOKEN / GITHUB_REPOSITORY / PR_HEAD_SHA — skipping discovery.')
     exportUrl('')
     return
   }
-  // The PR env may not exist immediately after the PR opens — retry discovery.
+
   const deadline = Date.now() + DISCOVER_TIMEOUT_MS
   let url: string | null = null
-  while (!url && Date.now() < deadline) {
+  while (Date.now() < deadline) {
+    let status = null
     try {
-      url = await discoverDomain()
+      status = await findRailwayStatus()
     } catch (err) {
-      console.error(`discovery: ${(err as Error).message}; retrying...`)
+      console.error(`status check: ${(err as Error).message}`)
     }
-    if (!url) await sleep(POLL_INTERVAL_MS)
+    if (status) {
+      console.error(`railway status: state=${status.state} desc="${status.description}"`)
+      if (status.state === 'success' && status.url) {
+        url = status.url
+        break
+      }
+      if (status.state === 'failure' || status.state === 'error') {
+        console.error('Railway preview deploy reported failure — skipping smoke.')
+        exportUrl('')
+        return
+      }
+    } else {
+      console.error('no Railway preview status on the PR head commit yet...')
+    }
+    await sleep(POLL_INTERVAL_MS)
   }
 
   if (!url) {
-    console.error('No matching PR preview environment found — skipping smoke.')
+    console.error('No Railway preview URL found within timeout — skipping smoke.')
     exportUrl('')
     return
   }
