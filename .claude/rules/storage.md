@@ -63,7 +63,12 @@ fields: [
 ```typescript
 const client = new S3Client({
   region: 'auto',
-  endpoint: `https://${serverEnv.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  // R2_S3_ENDPOINT overrides this for jurisdiction-specific buckets (e.g. EU:
+  // https://<accountId>.eu.r2.cloudflarestorage.com). The native binding hid the
+  // jurisdiction; the S3 API needs the exact endpoint or the bucket 404s.
+  endpoint:
+    serverEnv.R2_S3_ENDPOINT ??
+    `https://${serverEnv.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   credentials: {
     accessKeyId: serverEnv.R2_ACCESS_KEY_ID,
     secretAccessKey: serverEnv.R2_SECRET_ACCESS_KEY,

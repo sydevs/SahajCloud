@@ -115,6 +115,15 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   R2_SECRET_ACCESS_KEY: z.string().optional(),
 
   /**
+   * Optional R2 S3 endpoint override. Defaults to the account-derived endpoint
+   * `https://<CLOUDFLARE_ACCOUNT_ID>.r2.cloudflarestorage.com`. Set this when the
+   * bucket lives in a jurisdiction — e.g. EU:
+   * `https://<CLOUDFLARE_ACCOUNT_ID>.eu.r2.cloudflarestorage.com`. The native R2
+   * binding hid the jurisdiction; the S3 API needs the exact endpoint.
+   */
+  R2_S3_ENDPOINT: z.url().optional(),
+
+  /**
    * Cloudflare Stream webhook signing secret
    * Returned by `PUT /accounts/{id}/stream/webhook` and used to verify HMAC-SHA256
    * signatures on inbound webhooks. Production only — dev deployments do not

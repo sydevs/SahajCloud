@@ -73,6 +73,9 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
     const r2Bucket = serverEnv.R2_BUCKET
     const r2AccessKeyId = serverEnv.R2_ACCESS_KEY_ID
     const r2SecretAccessKey = serverEnv.R2_SECRET_ACCESS_KEY
+    // Optional S3 endpoint override for jurisdiction-specific buckets (e.g. EU);
+    // falls back to the account-derived default below when unset.
+    const r2Endpoint = serverEnv.R2_S3_ENDPOINT
 
     // If any credential is missing, use local storage (development fallback)
     if (
@@ -104,11 +107,14 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
       deliveryUrl: streamDeliveryUrl,
     })
 
-    // R2 over the S3-compatible API. The endpoint is derived from the account id:
-    // https://<accountId>.r2.cloudflarestorage.com
+    // R2 over the S3-compatible API. Defaults to the account-derived endpoint
+    // (https://<accountId>.r2.cloudflarestorage.com); a jurisdiction-specific
+    // bucket (e.g. EU → https://<accountId>.eu.r2.cloudflarestorage.com) must set
+    // R2_S3_ENDPOINT. The native R2 binding hid this; the S3 API needs the exact
+    // endpoint or it can't find the bucket.
     const r2Client = new S3Client({
       region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      endpoint: r2Endpoint || `https://${accountId}.r2.cloudflarestorage.com`,
       credentials: { accessKeyId: r2AccessKeyId, secretAccessKey: r2SecretAccessKey },
     })
 
