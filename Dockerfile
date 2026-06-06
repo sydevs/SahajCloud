@@ -23,23 +23,27 @@ FROM base AS deps
 # pnpm-workspace.yaml carries the build-script approvals (allowBuilds) + settings
 # pnpm 11 needs, so copy it alongside the manifest + lockfile.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-# CI=true makes scripts/postinstall.cjs skip the Playwright browser download.
+# The root "postinstall" lifecycle (node scripts/postinstall.cjs) runs during
+# install — copy it so the install doesn't crash on a missing file. It no-ops
+# when CI=true (set above), so no Playwright download happens here.
+COPY scripts/postinstall.cjs ./scripts/postinstall.cjs
 RUN pnpm install --frozen-lockfile
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ENV NODE_ENV=production
 # Build-time placeholders so serverEnv (zod) validation passes during `next build`.
-# These are NOT secrets and are NOT used at runtime — Railway injects the real
-# service values for the running container.
-ENV NODE_ENV=production \
-    PAYLOAD_SECRET=build-time-placeholder-secret-0000000 \
+# Scoped to this RUN (not ENV) so they never persist into the image and don't trip
+# Docker's secret-in-ENV lint — these are throwaway, NOT real secrets; Railway
+# injects the real service values at runtime.
+RUN PAYLOAD_SECRET=build-time-placeholder-secret-0000000 \
     DATABASE_URL=postgresql://build:build@localhost:5432/build \
     WEMEDITATE_WEB_URL=https://wemeditate.com \
     SAHAJATLAS_URL=https://atlas.sydevelopers.com \
-    SAHAJCLOUD_PREVIEW_SECRET=build-time-placeholder-secret
-RUN pnpm build
+    SAHAJCLOUD_PREVIEW_SECRET=build-time-placeholder-secret \
+    pnpm build
 
 # ── Runtime ────────────────────────────────────────────────────────────────────
 FROM base AS runner
