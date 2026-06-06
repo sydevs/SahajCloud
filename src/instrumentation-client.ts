@@ -1,12 +1,14 @@
 /**
- * Client-side instrumentation for Sentry
+ * Client-side instrumentation for Sentry (@sentry/nextjs)
  *
  * This file is automatically executed by Next.js when a new browser instance
  * loads the application. It initializes Sentry for client-side error tracking.
+ * Server-side errors initialize in src/sentry.server.config.ts via
+ * src/instrumentation.ts.
  *
  * @see https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
  */
-import * as Sentry from '@sentry/react'
+import * as Sentry from '@sentry/nextjs'
 
 import { clientEnv } from '@/lib/env/client'
 
@@ -21,5 +23,7 @@ if (clientEnv.NEXT_PUBLIC_SENTRY_DSN) {
   })
 } else if (process.env.NODE_ENV === 'development') {
   // eslint-disable-next-line no-console
-  console.info('[Sentry] Client-side error tracking disabled (NEXT_PUBLIC_SENTRY_DSN not configured)')
+  console.info(
+    '[Sentry] Client-side error tracking disabled (NEXT_PUBLIC_SENTRY_DSN not configured)',
+  )
 }

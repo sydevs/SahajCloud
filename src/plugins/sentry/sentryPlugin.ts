@@ -1,16 +1,16 @@
 /**
- * Custom Sentry Plugin for PayloadCMS with Cloudflare Workers Support
+ * Custom Sentry Plugin for PayloadCMS
  *
- * This plugin provides Sentry error capture for Payload CMS operations.
- * Uses @sentry/cloudflare instead of @sentry/nextjs for Cloudflare Workers compatibility.
+ * Provides Sentry error capture for Payload CMS operations via an afterError hook.
+ * Uses @sentry/nextjs (the app runs on a long-lived Node server).
  *
- * Based on the official @payloadcms/plugin-sentry but adapted for edge runtime.
+ * Based on the official @payloadcms/plugin-sentry.
  *
  * @see https://payloadcms.com/docs/plugins/sentry
  */
 import type { Config, PayloadRequest } from 'payload'
 
-import * as Sentry from '@sentry/cloudflare'
+import * as Sentry from '@sentry/nextjs'
 
 import { serverEnv } from '@/lib/env'
 
@@ -43,10 +43,7 @@ export interface SentryPluginOptions {
   /**
    * Custom context function to enrich Sentry error context
    */
-  context?: (args: {
-    defaultContext: SentryContext
-    req: PayloadRequest
-  }) => Partial<SentryContext>
+  context?: (args: { defaultContext: SentryContext; req: PayloadRequest }) => Partial<SentryContext>
 
   /**
    * Enable/disable the plugin
