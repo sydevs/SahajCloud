@@ -5,74 +5,68 @@
 Copy from `.env.example` and configure:
 
 ### Core Configuration
-- `PAYLOAD_SECRET` - Secret key for authentication
-- **Note**: Database (SQLite/D1) is configured via `payload.config.ts` using Wrangler - no DATABASE_URI needed
+
+- `PAYLOAD_SECRET` - Secret key for authentication (min 32 chars)
+- `DATABASE_URL` - PostgreSQL connection string (dev: local; prod: Railway Postgres)
+  - Format: `postgres://user:password@localhost:5432/sy_devs_cms` (local) or `postgres://user:password@host:5432/dbname` (prod)
 
 ### Logging Configuration
+
 - `NEXT_PUBLIC_LOG_LEVEL` - Log level for both Payload's Pino logger and client-side logger
   - Levels: `'silent'` | `'error'` | `'warn'` | `'info'` | `'debug'`
   - Default: `undefined` (uses Pino defaults server-side, `'silent'` client-side)
 
-### Email Configuration (Production)
-- `SMTP_HOST` - SMTP server host (default: smtp.gmail.com)
-- `SMTP_PORT` - SMTP server port (default: 587)
-- `SMTP_USER` - SMTP username
-- `SMTP_PASS` - SMTP password
-- `SMTP_FROM` - From email address (default: contact@sydevelopers.com)
+### Email Configuration
 
-### Cloudflare-Native Storage (Production Only)
+- `RESEND_API_KEY` - Resend email API key (production use; fallback to mock in dev)
 
-**Note**: The system uses Cloudflare-native services in production and automatically falls back to local file storage in development (no configuration needed for local development).
+### Storage (R2 S3-compatible API)
 
-#### Cloudflare Images & Stream (Image & Video Storage)
-- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
-- `CLOUDFLARE_API_KEY` - Unified API token for both Cloudflare Images and Stream (set via `wrangler secret put`)
-- `CLOUDFLARE_IMAGES_DELIVERY_URL` - Full Images delivery URL (e.g., `https://imagedelivery.net/<hash>`)
-- `CLOUDFLARE_STREAM_DELIVERY_URL` - Full Stream delivery URL (e.g., `https://customer-<code>.cloudflarestream.com`)
+**Note**: The system uses Cloudflare R2 (via S3 API) in both dev and prod. Local file storage is automatic when credentials are unset.
 
-#### R2 Native Bindings (Audio & Files)
-- R2 bucket is configured via `wrangler.toml` bindings (no environment variables needed)
-- `CLOUDFLARE_R2_DELIVERY_URL` - Public URL for R2-stored assets (e.g., `https://assets.sydevelopers.com`)
+#### R2 Bucket
 
-#### Rate Limiting Binding (API Rate Limiting)
-- Configured via `wrangler.toml` using modern `[[ratelimits]]` syntax
-- No environment variables needed - binding is accessed via `getCloudflareContext()`
-- Rate limiting is automatically disabled in development environment
+- `R2_BUCKET` - R2 bucket name (e.g., `sahajcloud`)
+- `R2_ACCESS_KEY_ID` - R2 API access key ID
+- `R2_SECRET_ACCESS_KEY` - R2 API secret key
+- `CLOUDFLARE_ACCOUNT_ID` - Cloudflare account ID (used for R2 endpoint derivation)
+- `CLOUDFLARE_R2_DELIVERY_URL` - Public delivery URL (e.g., `https://assets.sydevelopers.com`)
 
-**Wrangler Configuration**:
-```toml
-# Production (top-level)
-[[ratelimits]]
-name = "API_RATE_LIMITER"
-namespace_id = "1001"
-simple = { limit = 500, period = 60 }
+**S3 Endpoint**: Automatically derived as `https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com` with region `auto`.
 
-# Development (must also be defined)
-[[env.dev.ratelimits]]
-name = "API_RATE_LIMITER"
-namespace_id = "1001"
-simple = { limit = 500, period = 60 }
-```
+#### Cloudflare Images & Stream (Media Services)
 
-**Note**: The `namespace_id` is arbitrary and identifies this rate limiter instance. The same ID should be used across environments for consistency.
+- `CLOUDFLARE_IMAGES_DELIVERY_URL` - Images delivery base URL (e.g., `https://imagedelivery.net/<hash>`)
+- `CLOUDFLARE_STREAM_DELIVERY_URL` - Stream video base URL (e.g., `https://customer-<code>.cloudflarestream.com`)
+- `CLOUDFLARE_API_KEY` - API token with Images + Stream edit scope
+- `CLOUDFLARE_STREAM_WEBHOOK_SECRET` - HMAC secret for Cloudflare Stream webhook (production only)
 
 #### Finding Cloudflare Credentials
 
 **Account ID**:
+
 1. Go to Cloudflare Dashboard → Account Home
 2. Look in right sidebar under "Account ID"
 
 **Images Delivery URL**:
+
 1. Go to Images dashboard
 2. Look at any delivery URL: `https://imagedelivery.net/<hash>/<image-id>/public`
 3. Copy the base URL including the hash: `https://imagedelivery.net/<hash>`
 
 **Stream Delivery URL**:
+
 1. Go to Stream dashboard
 2. Look at any video player URL: `https://customer-<code>.cloudflarestream.com/...`
 3. Copy the base URL: `https://customer-<code>.cloudflarestream.com`
 
+**R2 Bucket**:
+
+1. Go to Cloudflare Dashboard → R2 → Buckets
+2. Note bucket name and create API token with R2 write scope
+
 ### Live Preview URLs
+
 - `WEMEDITATE_WEB_URL` - Preview URL for We Meditate Web frontend (required)
 - `SAHAJATLAS_URL` - Preview URL for Sahaj Atlas frontend (required)
 
@@ -85,12 +79,14 @@ The application uses Zod for type-safe environment variable validation. All envi
 **Location**: `src/lib/env.ts`
 
 Exports two validated environment objects:
+
 - `serverEnv` - Server-only variables (secrets, API keys)
-- `clientEnv` - Client-accessible variables (NEXT_PUBLIC_* prefix)
+- `clientEnv` - Client-accessible variables (NEXT*PUBLIC*\* prefix)
 
 ### Usage Patterns
 
 **Server-side code**:
+
 ```typescript
 import { serverEnv } from '@/lib/env'
 
@@ -98,17 +94,27 @@ const accountId = serverEnv.CLOUDFLARE_ACCOUNT_ID // Type-safe, validated
 ```
 
 **Client-side code**:
+
 ```typescript
 import { clientEnv } from '@/lib/env'
 
 const logLevel = clientEnv.NEXT_PUBLIC_LOG_LEVEL // Type-safe, validated
 ```
 
-**Cloudflare Workers bindings**:
-```typescript
-import { requireBinding } from '@/lib/env'
+**S3 client initialization** (Railway):
 
-const r2 = requireBinding<R2Bucket>(env.R2, 'R2')
+```typescript
+import { S3Client } from '@aws-sdk/client-s3'
+import { serverEnv } from '@/lib/env'
+
+const s3 = new S3Client({
+  region: 'auto',
+  credentials: {
+    accessKeyId: serverEnv.R2_ACCESS_KEY_ID,
+    secretAccessKey: serverEnv.R2_SECRET_ACCESS_KEY,
+  },
+  endpoint: `https://${serverEnv.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+})
 ```
 
 ### Adding New Environment Variables
@@ -133,6 +139,7 @@ const r2 = requireBinding<R2Bucket>(env.R2, 'R2')
 ### Error Messages
 
 When validation fails, Zod provides detailed error messages:
+
 ```
 Environment validation error:
 {
@@ -146,26 +153,31 @@ Environment validation error:
 Following Next.js best practices, environment variables are separated into two schemas:
 
 **Server Environment** (`serverEnv`):
+
 - All server-only variables (secrets, API keys)
-- NEXT_PUBLIC_* variables (needed for server-side usage)
+- NEXT*PUBLIC*\* variables (needed for server-side usage)
 - NODE_ENV for type safety
 
 **Client Environment** (`clientEnv`):
-- Only NEXT_PUBLIC_* variables (intentionally public)
+
+- Only NEXT*PUBLIC*\* variables (intentionally public)
 - Exposed to browser bundle
 
 ### Optional vs Required Strategy
 
 **Development (Local)**:
+
 - `PAYLOAD_SECRET` → Required (min 32 chars)
 - Cloudflare credentials → Optional (fallback to local file storage)
 - Email API → Optional (fallback to Ethereal Email)
 - Sentry DSN → Optional (error tracking disabled)
 
-**Production (Cloudflare Workers)**:
+**Production (Railway)**:
+
 - `PAYLOAD_SECRET` → Always required
-- Cloudflare credentials → Required when `env` binding is provided
-- Runtime validation via `requireBinding<T>()` helper for R2/D1 bindings
+- `DATABASE_URL` → Always required (Railway PostgreSQL)
+- Cloudflare credentials (R2, Images, Stream) → Required for full functionality
+- Email (Resend) → Required for transactional emails
 
 ### Fail-Fast vs Graceful Degradation
 
@@ -173,50 +185,45 @@ Following Next.js best practices, environment variables are separated into two s
 - **Graceful Degradation**: Cloudflare vars missing in dev → Use local storage
 - **Module-Level Validation**: Validate on import, not on first access
 
-## Wrangler Configuration
+## Railway Configuration
 
-The application uses **Wrangler Environments** to manage different configurations for development and production.
+The application is built and deployed on Railway, a containerized platform.
 
-**Configuration File**: `wrangler.toml` contains both environments:
-- **Default (top-level)**: Production configuration with remote D1 database
-- **`[env.dev]`**: Development environment with local SQLite database
+**Configuration Files**:
 
-### Important: Environment Variables Are NOT Inherited
+- **Dockerfile** — Multi-stage Docker build for production deployment
+- **railway.toml** — Railway deployment configuration
+  - `build.command = 'pnpm build'` — Next.js build step
+  - `start.command = 'pnpm start'` — Start the server
+  - `preDeployCommand = 'pnpm db:migrate'` — Run migrations before starting app
+- **.env** — Local development environment (git-ignored, copy from .env.example)
 
-**⚠️ Wrangler environments do NOT inherit `[vars]` from the top level.**
+### Local Development Environment
 
-Any variable needed in development MUST be explicitly defined in `[env.dev.vars]`.
+**File**: `.env` (git-ignored)
 
-```toml
-# ❌ WRONG - dev environment won't see this
-[vars]
-NEXT_PUBLIC_LOG_LEVEL = "debug"
-
-# ✅ CORRECT - explicitly define in both
-[vars]
-NEXT_PUBLIC_LOG_LEVEL = "debug"
-
-[env.dev.vars]
-NEXT_PUBLIC_LOG_LEVEL = "debug"
+```env
+DATABASE_URL=postgres://user:password@localhost:5432/sy_devs_cms
+PAYLOAD_SECRET=your-secret-here
+R2_BUCKET=sahajcloud
+R2_ACCESS_KEY_ID=your-key
+R2_SECRET_ACCESS_KEY=your-secret
+CLOUDFLARE_ACCOUNT_ID=your-account-id
+CLOUDFLARE_API_KEY=your-token
+CLOUDFLARE_IMAGES_DELIVERY_URL=https://imagedelivery.net/hash
+CLOUDFLARE_STREAM_DELIVERY_URL=https://customer-code.cloudflarestream.com
+CLOUDFLARE_R2_DELIVERY_URL=https://assets.sydevelopers.com
+NEXT_PUBLIC_LOG_LEVEL=debug
+WEMEDITATE_WEB_URL=http://localhost:5173
+SAHAJATLAS_URL=http://localhost:5173
 ```
 
-### How Environment Selection Works
+### Production Environment (Railway)
 
-**Development** (`pnpm dev`):
-- Automatically uses `[env.dev]` environment from `wrangler.toml`
-- Environment variable `CLOUDFLARE_ENV=dev` (set in `.env` file) tells `getPlatformProxy()` to use dev config
-- Uses local `.wrangler` database (D1 with `database_id = "local"`)
-- Development URLs (localhost:3000, localhost:5173, etc.)
+In Railway, set environment variables via:
 
-**Production** (deployment):
-- Uses default (top-level) configuration
-- Environment variable `CLOUDFLARE_ENV` is undefined (defaults to production)
-- Connects to remote D1 database when `remote = true`
-- Production URLs (cloud.sydevelopers.com, wemeditate.com, etc.)
-
-### Key Files
-- `.env` - Sets `CLOUDFLARE_ENV=dev` for local development
-- `wrangler.toml` - Single source of truth for both environments
-- `src/payload.config.ts` - Uses `process.env.CLOUDFLARE_ENV` to select environment in `getPlatformProxy()`
+- **Railway Dashboard** → Service → Variables tab
+- All values encrypted at rest
+- Variables injected during build and runtime
 
 **See Also**: [DEPLOYMENT.md](../../DEPLOYMENT.md) for comprehensive deployment configuration and troubleshooting.
