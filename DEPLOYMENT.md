@@ -30,8 +30,8 @@ The application is deployed to **Railway**, a modern platform for building and d
 
 **Components**:
 
-- **Compute**: Railway (Node.js 20+)
-- **Database**: Railway PostgreSQL 16
+- **Compute**: Railway (Node.js 22+)
+- **Database**: Railway PostgreSQL 18 (latest major)
 - **Storage**: Cloudflare R2 (S3-compatible object storage via `@aws-sdk/client-s3`)
 - **CDN/Edge**: Cloudflare reverse proxy (rate limiting, Images, Stream, cache rules)
 
