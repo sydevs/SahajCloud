@@ -8,11 +8,12 @@ import type {
   CollectionBeforeOperationHook,
   PayloadRequest,
 } from 'payload'
-import type { Pool } from 'pg'
 
 import { APIError } from 'payload'
 
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
+
+import { getPgPool } from './db'
 
 const SKIP_VALIDATION = 'skipClientQueryValidation'
 
@@ -201,14 +202,6 @@ const USAGE_INCREMENT_SQL = `
       usage_first_request_at = COALESCE(usage_first_request_at, $2)
   WHERE id = $3
 `
-
-/**
- * Get the underlying pg Pool from Payload's Postgres adapter. The pool isn't on
- * the public BaseDatabaseAdapter type, so a narrow cast is needed.
- */
-function getPgPool(req: PayloadRequest): Pool | null {
-  return (req.payload.db as unknown as { pool?: Pool }).pool ?? null
-}
 
 /**
  * afterRead hook for usage tracking.
