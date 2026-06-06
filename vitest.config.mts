@@ -31,6 +31,8 @@ export default defineConfig({
           testTimeout: 5000,
           env: {
             NODE_ENV: 'test',
+            DATABASE_URL:
+              process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/payload_test',
             PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
             SAHAJCLOUD_PREVIEW_SECRET: 'test-preview-secret-32-chars',
             WEMEDITATE_WEB_URL: 'http://localhost:5173',
@@ -54,6 +56,8 @@ export default defineConfig({
           hookTimeout: 60000,
           env: {
             NODE_ENV: 'test',
+            DATABASE_URL:
+              process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/payload_test',
             PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
             SAHAJCLOUD_PREVIEW_SECRET: 'test-preview-secret-32-chars',
             WEMEDITATE_WEB_URL: 'http://localhost:5173',
