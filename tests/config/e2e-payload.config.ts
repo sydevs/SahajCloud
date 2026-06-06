@@ -1,21 +1,19 @@
 /**
  * E2E Test-specific Payload configuration
  *
- * Uses file-based SQLite database for E2E tests to ensure:
- * - Database isolation from development D1 database
- * - Persistence across dev server lifecycle (shared between test runner and server)
- * - Automatic test data seeding via global setup
+ * Uses a dedicated Postgres schema ("e2e") so E2E data stays isolated from dev
+ * and from the per-suite integration-test schemas. DATABASE_URL points at the
+ * test Postgres (Docker locally / a service container in CI).
  *
  * Key differences from production config:
- * - Uses SQLite adapter instead of D1
  * - Disables external services (email, Sentry)
  * - Disables auto-login (tests need to authenticate)
- * - Uses test-specific secret
+ * - Uses a test-specific secret
  */
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-import { sqliteAdapter } from '@payloadcms/db-sqlite'
+import { postgresAdapter } from '@payloadcms/db-postgres'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig } from 'payload'
 
@@ -27,9 +25,6 @@ import { tasks } from '../../src/jobs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-
-// E2E test database path - file-based for persistence
-const E2E_DATABASE_PATH = path.resolve(__dirname, '../.e2e.sqlite')
 
 /**
  * E2E-specific Payload configuration
@@ -77,12 +72,13 @@ export const e2ePayloadConfig = buildConfig({
   typescript: {
     outputFile: path.resolve(__dirname, '../../src/payload-types.ts'),
   },
-  // Use file-based SQLite for E2E tests
-  db: sqliteAdapter({
-    client: {
-      url: `file:${E2E_DATABASE_PATH}`,
+  // Dedicated Postgres schema for E2E (auto-created/synced via push)
+  db: postgresAdapter({
+    pool: {
+      connectionString: process.env.DATABASE_URL,
     },
-    push: true, // Auto-create/sync schema
+    push: true,
+    schemaName: 'e2e',
   }),
   jobs: {
     tasks,
@@ -97,5 +93,4 @@ export const e2ePayloadConfig = buildConfig({
   },
 })
 
-export { E2E_DATABASE_PATH }
 export default e2ePayloadConfig
