@@ -41,7 +41,9 @@ export const CloudflareImagesResponseSchema = CloudflareBaseResponseSchema.exten
       requireSignedURLs: z.boolean().optional(),
       variants: z.array(z.string()).optional(),
     })
-    .optional(),
+    // CF returns `result: null` (not absent) when success is false — accept it so
+    // the adapter can surface the real `errors[]` instead of a schema parse error.
+    .nullish(),
 })
 
 /**
@@ -96,7 +98,8 @@ export const CloudflareStreamResponseSchema = CloudflareBaseResponseSchema.exten
         })
         .nullish(),
     })
-    .optional(),
+    // CF returns `result: null` on failure — see the Images schema note.
+    .nullish(),
 })
 
 /**
@@ -115,7 +118,8 @@ export const CloudflareStreamDownloadsResponseSchema = CloudflareBaseResponseSch
         })
         .optional(),
     })
-    .optional(),
+    // CF returns `result: null` on failure — see the Images schema note.
+    .nullish(),
 })
 
 /**
