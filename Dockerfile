@@ -13,13 +13,16 @@ ENV PNPM_HOME="/pnpm" \
     PATH="/pnpm:$PATH" \
     NODE_OPTIONS="--no-deprecation" \
     NEXT_TELEMETRY_DISABLED=1 \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
     CI=true
 RUN corepack enable
 WORKDIR /app
 
 # ── Install dependencies (layer cached on the lockfile) ───────────────────────
 FROM base AS deps
-COPY package.json pnpm-lock.yaml ./
+# pnpm-workspace.yaml carries the build-script approvals (allowBuilds) + settings
+# pnpm 11 needs, so copy it alongside the manifest + lockfile.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # CI=true makes scripts/postinstall.cjs skip the Playwright browser download.
 RUN pnpm install --frozen-lockfile
 
