@@ -1,0 +1,26 @@
+# Build artifacts + deps (installed fresh in the image)
+node_modules
+.next
+out
+
+# VCS + CI + local tooling
+.git
+.github
+.claude
+.wrangler
+
+# Tests + reports (not needed to build or run the server)
+tests
+playwright-report
+test-results
+coverage
+
+# Local env + logs (Railway injects real env at runtime)
+.env
+.env.*
+*.log
+
+# Editor/OS cruft
+.DS_Store
+.vscode
+.idea
