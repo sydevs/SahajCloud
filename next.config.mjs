@@ -1,27 +1,10 @@
 import { withPayload } from '@payloadcms/next/withPayload'
-
-// Sentry integration uses @sentry/cloudflare for Cloudflare Workers compatibility
-// See: instrumentation.ts and sentry.edge.config.ts for configuration
+import { withSentryConfig } from '@sentry/nextjs'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Required for Cloudflare Workers deployment via OpenNext
+  // Standalone output keeps the Railway/Docker image small. Host-agnostic.
   output: 'standalone',
-  experimental: {
-    // Serialize "Collecting page data" / static generation to a single worker.
-    //
-    // With the default (cpus - 1) workers, each static-worker imports the
-    // route graph → @payload-config → the Cloudflare binding layer, which
-    // boots a miniflare/workerd runtime. @sentry/cloudflare registers a
-    // SQLite-backed `SENTRY_DO` Durable Object, so N concurrent workerd
-    // instances open the same local .wrangler SQLite state and collide with
-    // `SQLITE_BUSY` ("The Workers runtime failed to start"), failing the
-    // build non-deterministically (e.g. on /api/openapi.json).
-    //
-    // One worker = one SQLite handle at a time = no contention. Costs some
-    // build wall-clock; this app is mostly dynamic routes so the hit is small.
-    cpus: 1,
-  },
   // Your Next.js config here
   webpack: (webpackConfig) => {
     webpackConfig.resolve.extensionAlias = {
@@ -73,19 +56,18 @@ const nextConfig = {
         hostname: 'img.shields.io', // For status badges (issue #100)
       },
     ],
-    unoptimized: true, // Required for Cloudflare Workers
+    // Next image optimization runs on the Node server (via sharp); Cloudflare
+    // caches the optimized output at the edge.
   },
-  // External packages for server-side rendering (required for Cloudflare Workers)
-  serverExternalPackages: [
-    'payload',
-    '@payloadcms/db-d1-sqlite',
-    '@payloadcms/db-sqlite',
-    '@libsql/client',
-    '@libsql/isomorphic-ws', // Required for Cloudflare Workers build
-    'better-sqlite3',
-    'jose', // JWT library used by PayloadCMS
-  ],
+  // External packages for server-side rendering
+  serverExternalPackages: ['payload', 'jose'],
 }
 
-// Apply Payload config and export
-export default withPayload(nextConfig, { devBundleServerPackages: false })
+const configWithPayload = withPayload(nextConfig, { devBundleServerPackages: false })
+
+// Wrap with Sentry. Source maps are only uploaded when SENTRY_AUTH_TOKEN (+ org
+// / project) are configured (CI / Railway); otherwise the build proceeds without
+// upload. `silent` keeps local builds quiet.
+export default withSentryConfig(configWithPayload, {
+  silent: !process.env.CI,
+})
