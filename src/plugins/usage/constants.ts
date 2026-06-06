@@ -17,13 +17,14 @@ export const HIGH_USAGE_THRESHOLD = 1000
 
 /**
  * Rate limit: maximum requests per period.
- * Must be kept in sync with wrangler.toml [[ratelimits]] configuration.
+ * Rate limiting is enforced at the Cloudflare edge (Rate Limiting Rules); keep
+ * this in sync with that rule. Retained for docs / a future app-level limiter.
  */
 export const RATE_LIMIT_MAX_REQUESTS = 500
 
 /**
  * Rate limit period in seconds.
- * Must be kept in sync with wrangler.toml [[ratelimits]] configuration.
+ * Keep in sync with the Cloudflare edge Rate Limiting Rule.
  */
 export const RATE_LIMIT_PERIOD_SECONDS = 60
 
@@ -39,5 +40,3 @@ export const SYSTEM_EXCLUSIONS: CollectionSlug[] = [
   'payload-locked-documents' as CollectionSlug,
   'payload-kv' as CollectionSlug,
 ]
-
-
