@@ -11,7 +11,6 @@ allowBuilds:
   sharp: true
   '@sentry/cli': false # only used for source-map upload (gated on SENTRY_AUTH_TOKEN)
   better-sqlite3: false # transitive, unused on Postgres
-  aws-crt: false # optional AWS CRT acceleration we don't use
 
 # Opt out of pnpm 11's default ~24h publish-age cooldown. The committed,
 # PR-reviewed lockfile is our supply-chain boundary (plus the pnpm-audit CI job
