@@ -16,15 +16,14 @@ const nextConfig = {
   // Configure CSP headers for Fathom Analytics and Live Preview iframes
   async headers() {
     // Build frame-src dynamically from environment variables with fallbacks
-    // NOTE: `headers()` is evaluated at BUILD time, where the Docker build has no
-    // WEMEDITATE_WEB_URL, so the fallback below is what actually ships. Keep it
-    // equal to the production live-preview host so this (build-time) frame-src
-    // matches the (runtime) `livePreview.url`, otherwise the browser CSP-blocks
-    // the preview iframe.
+    // `headers()` is evaluated at BUILD time. Railway exposes all service variables
+    // to the build, so this reads the real WEMEDITATE_WEB_URL / SAHAJATLAS_URL and
+    // the build-time frame-src matches the runtime `livePreview.url` (otherwise the
+    // browser CSP-blocks the preview iframe). The literals are local/CI fallbacks.
     const frameSources = [
       "'self'",
       'https://app.usefathom.com',
-      process.env.WEMEDITATE_WEB_URL || 'https://wemeditate-web.contact-c66.workers.dev',
+      process.env.WEMEDITATE_WEB_URL || 'https://wemeditate.com',
       process.env.SAHAJATLAS_URL || 'https://atlas.sydevelopers.com',
     ].join(' ')
 
