@@ -2,9 +2,10 @@
 #
 # Runtime image for the Next.js + Payload app on Railway (Node).
 #
-# - Build:  `pnpm build` (Next + Payload). Real env vars come from Railway; the
-#           build-time placeholders below ONLY satisfy serverEnv (zod) validation
-#           during `next build` and are NOT used at runtime (mirrors the CI build).
+# - Build:  `pnpm build` (Next + Payload). Railway exposes all service variables
+#           to the build, so it reads the real values — both serverEnv (zod)
+#           validation and the build-time CSP frame-src in next.config depend on
+#           them (e.g. WEMEDITATE_WEB_URL). No placeholders needed.
 # - Start:  `pnpm start` (next start). Pending Postgres migrations run as a
 #           Railway preDeployCommand (`pnpm db:migrate`) — see railway.toml.
 
@@ -34,16 +35,7 @@ FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
-# Build-time placeholders so serverEnv (zod) validation passes during `next build`.
-# Scoped to this RUN (not ENV) so they never persist into the image and don't trip
-# Docker's secret-in-ENV lint — these are throwaway, NOT real secrets; Railway
-# injects the real service values at runtime.
-RUN PAYLOAD_SECRET=build-time-placeholder-secret-0000000 \
-    DATABASE_URL=postgresql://build:build@localhost:5432/build \
-    WEMEDITATE_WEB_URL=https://wemeditate.com \
-    SAHAJATLAS_URL=https://atlas.sydevelopers.com \
-    SAHAJCLOUD_PREVIEW_SECRET=build-time-placeholder-secret \
-    pnpm build
+RUN pnpm build
 
 # ── Runtime ────────────────────────────────────────────────────────────────────
 FROM base AS runner
