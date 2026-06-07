@@ -1,31 +1,23 @@
 /**
  * Data Loader
  *
- * Centralized data loading with dual-mode support:
- * - Local development: Read from filesystem with caching
- * - Cloudflare Workers: Fetch from URL (no filesystem access)
- *
- * This module abstracts away isCloudflareWorker() checks from import scripts.
+ * Loads bundled data files from the filesystem with caching support.
  */
 
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
-import { isCloudflareWorker, safeBufferFrom } from './runtime'
+import { safeBufferFrom } from './runtime'
 
 /**
  * Data source configuration for loading bundled data files
  */
 export interface DataSource {
-  /** Local filesystem path (used in local dev) */
+  /** Local filesystem path (required) */
   localPath: string
-  /** Remote URL for Workers mode (e.g., GitHub raw URL) */
-  workerUrl: string
   /**
-   * Pre-supplied raw file contents. When set, bypasses both the filesystem and
-   * the remote fetch. Used when seeding a Worker from a private repo: the CLI
-   * reads the file locally and uploads it in the request body, since the Worker
-   * can't fetch it from a private `workerUrl` (GitHub returns 404).
+   * Pre-supplied raw file contents. When set, bypasses filesystem read.
+   * Used by API routes to upload file contents in the request body.
    */
   inlineContent?: string
 }
@@ -43,9 +35,7 @@ export interface AssetOptions {
 // ============================================================================
 
 /**
- * Load a data file (JSON, etc.) with dual-mode support.
- * - Local dev: Read from filesystem
- * - Workers: Fetch from remote URL
+ * Load a data file (JSON, etc.) from the filesystem.
  *
  * @param source - Data source configuration
  * @returns File contents as string
@@ -53,14 +43,6 @@ export interface AssetOptions {
 export async function loadDataFile(source: DataSource): Promise<string> {
   if (source.inlineContent !== undefined) {
     return source.inlineContent
-  }
-
-  if (isCloudflareWorker()) {
-    const response = await fetch(source.workerUrl)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ${source.workerUrl}: ${response.status}`)
-    }
-    return response.text()
   }
 
   return fs.readFile(source.localPath, 'utf-8')
@@ -82,25 +64,14 @@ export async function loadJsonData<T>(source: DataSource): Promise<T> {
 // ============================================================================
 
 /**
- * Fetch an asset (image, audio, etc.) with dual-mode support.
- * - Workers: Always streams directly (no caching)
- * - Local dev: Uses disk cache if cachePath provided
+ * Fetch an asset (image, audio, etc.) with optional disk caching.
  *
  * @param url - Asset URL to fetch
  * @param options - Fetch options including optional cache path
  * @returns Buffer containing asset data
  */
 export async function fetchAsset(url: string, options?: AssetOptions): Promise<Buffer> {
-  // Workers mode: always stream directly
-  if (isCloudflareWorker()) {
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ${url}: ${response.status}`)
-    }
-    return safeBufferFrom(await response.arrayBuffer())
-  }
-
-  // Local dev: use cache if available
+  // Use cache if available
   if (options?.cachePath) {
     // Check if cached file exists
     const cached = await readCache(options.cachePath)
@@ -132,13 +103,11 @@ export async function fetchAsset(url: string, options?: AssetOptions): Promise<B
 
 /**
  * Check if a local cache file exists and has content.
- * Always returns false in Workers mode (no filesystem access).
  *
  * @param cachePath - Path to check
  * @returns true if file exists with content, false otherwise
  */
 export async function cacheExists(cachePath: string): Promise<boolean> {
-  if (isCloudflareWorker()) return false
   try {
     const stats = await fs.stat(cachePath)
     return stats.size > 0
@@ -149,13 +118,11 @@ export async function cacheExists(cachePath: string): Promise<boolean> {
 
 /**
  * Read from local cache file.
- * Returns null in Workers mode (no filesystem access).
  *
  * @param cachePath - Path to read from
  * @returns Buffer if file exists, null otherwise
  */
 export async function readCache(cachePath: string): Promise<Buffer | null> {
-  if (isCloudflareWorker()) return null
   try {
     const stats = await fs.stat(cachePath)
     if (stats.size > 0) {
@@ -169,20 +136,17 @@ export async function readCache(cachePath: string): Promise<Buffer | null> {
 
 /**
  * Write to local cache file.
- * No-op in Workers mode (no filesystem access).
  *
  * @param cachePath - Path to write to
  * @param content - Content to write (Buffer or string)
  */
 export async function writeCache(cachePath: string, content: Buffer | string): Promise<void> {
-  if (isCloudflareWorker()) return
   await fs.mkdir(path.dirname(cachePath), { recursive: true })
   await fs.writeFile(cachePath, content)
 }
 
 /**
  * Read cache as text (UTF-8 string).
- * Returns null in Workers mode.
  *
  * @param cachePath - Path to read from
  * @returns String content if file exists, null otherwise

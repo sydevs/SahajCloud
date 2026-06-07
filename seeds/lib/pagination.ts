@@ -2,11 +2,9 @@
  * Pagination Types and Utilities
  *
  * Shared types for multi-step seed script execution with pagination.
- * Used to avoid Cloudflare D1 rate limits by splitting work across
+ * Used for long-running imports by splitting work across
  * multiple HTTP requests.
  */
-
-import { isCloudflareWorker } from './runtime'
 
 // ============================================================================
 // TYPES
@@ -66,9 +64,7 @@ export interface ScriptMetadata {
   totalItems: number
   /** Whether any collection in this script requires pagination */
   requiresPagination: boolean
-  /** Current execution environment */
-  environment: 'local' | 'workers'
-  /** Recommended batch size for this environment */
+  /** Recommended batch size */
   recommendedBatchSize: number
 }
 
@@ -95,22 +91,14 @@ export interface PaginationResult {
 // ============================================================================
 
 /**
- * Get default batch size based on environment and upload requirements
+ * Get default batch size based on upload requirements
  *
  * @param hasFileUploads - Whether collection involves file uploads
  * @returns Recommended batch size
  */
 export function getDefaultBatchSize(hasFileUploads: boolean = false): number {
   if (hasFileUploads) return 10
-
-  return isCloudflareWorker() ? 25 : 100
-}
-
-/**
- * Get current execution environment
- */
-export function getEnvironment(): 'local' | 'workers' {
-  return isCloudflareWorker() ? 'workers' : 'local'
+  return 100
 }
 
 /**

@@ -1,11 +1,10 @@
 #!/usr/bin/env tsx
- 
 
 /**
  * Check Tags
  *
  * Shows tag data and tagged documents using Payload API.
- * Works with both SQLite (test) and D1 (production) databases.
+ * Works against the Postgres database.
  */
 
 import type { Payload } from 'payload'

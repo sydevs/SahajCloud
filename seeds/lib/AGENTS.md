@@ -10,7 +10,7 @@ Abstract base class providing common functionality for all imports.
 
 ```typescript
 class MyImporter extends BaseImporter<BaseImportOptions> {
-  protected readonly importName = 'My Import'  // Display name
+  protected readonly importName = 'My Import' // Display name
   protected readonly cacheDir = path.resolve(process.cwd(), 'seeds/cache/my-import')
 
   protected async import(): Promise<void> {
@@ -21,15 +21,16 @@ class MyImporter extends BaseImporter<BaseImportOptions> {
 
 ### Lifecycle Hooks
 
-| Method | Purpose | Default |
-|--------|---------|---------|
-| `setup()` | Custom initialization after Payload | No-op |
-| `import()` | **Required** - Main import logic | Abstract |
+| Method      | Purpose                               | Default           |
+| ----------- | ------------------------------------- | ----------------- |
+| `setup()`   | Custom initialization after Payload   | No-op             |
+| `import()`  | **Required** - Main import logic      | Abstract          |
 | `cleanup()` | Custom cleanup (DB connections, etc.) | Closes Payload DB |
 
 ### Core Methods
 
 **Idempotent Upsert** - Find by natural key, update or create:
+
 ```typescript
 const result = await this.upsert<Lesson>(
   'lessons',
@@ -41,15 +42,17 @@ const result = await this.upsert<Lesson>(
 ```
 
 **Find by Natural Key** (read-only lookup):
+
 ```typescript
 const existing = await this.findByNaturalKey<Page>('pages', { slug: { equals: 'home' } })
 ```
 
 **Error Handling**:
+
 ```typescript
-this.addError('Context', error)     // Log error, increment counter
-this.addWarning('Warning message')  // Log warning
-this.skip('Skipping item')          // Log skip, increment counter
+this.addError('Context', error) // Log error, increment counter
+this.addWarning('Warning message') // Log warning
+this.skip('Skipping item') // Log skip, increment counter
 ```
 
 ### Built-in Properties
@@ -68,12 +71,12 @@ this.skip('Skipping item')          // Log skip, increment counter
 import { Logger } from '../lib'
 const logger = new Logger(CACHE_DIR)
 
-await logger.success('Created record')   // Green
-await logger.error('Failed')             // Red
-await logger.warn('Warning')             // Yellow
-await logger.info('Processing...')       // Cyan
-await logger.skip('Skipped item')        // Gray
-await logger.progress(50, 100, 'Items')  // Progress bar
+await logger.success('Created record') // Green
+await logger.error('Failed') // Red
+await logger.warn('Warning') // Yellow
+await logger.info('Processing...') // Cyan
+await logger.skip('Skipped item') // Gray
+await logger.progress(50, 100, 'Items') // Progress bar
 ```
 
 ### FileUtils
@@ -86,7 +89,7 @@ await fileUtils.downloadFileFetch(url, destPath)
 await fileUtils.ensureDir(dirPath)
 await fileUtils.clearDir(dirPath)
 const exists = await fileUtils.fileExists(path)
-const mime = fileUtils.getMimeType('audio.mp3')  // 'audio/mpeg'
+const mime = fileUtils.getMimeType('audio.mp3') // 'audio/mpeg'
 ```
 
 ### MediaUploader
@@ -104,7 +107,7 @@ const result = await uploader.uploadWithDeduplication(localPath, {
 })
 // Returns: { id, filename, wasReused } | null
 
-const stats = uploader.getStats()  // { uploaded: number, reused: number }
+const stats = uploader.getStats() // { uploaded: number, reused: number }
 ```
 
 ### TagManager
@@ -126,16 +129,17 @@ await tagManager.addTagsToImage(imageId, ['thumbnail', 'meditation'])
 import { convertEditorJSToLexical, ConversionContext } from '../lib'
 
 const context: ConversionContext = {
-  payload, logger,
+  payload,
+  logger,
   pageId: 123,
-  pageTitle: 'Home Page',  // For error messages
+  pageTitle: 'Home Page', // For error messages
   locale: 'en',
-  mediaMap: new Map(),              // image URL → Media ID
-  formMap: new Map(),               // form type → Form ID
-  lectureMap: new Map(),            // vimeo_id → Lecture ID
-  treatmentMap: new Map(),          // treatment ID → Page ID
+  mediaMap: new Map(), // image URL → Media ID
+  formMap: new Map(), // form type → Form ID
+  lectureMap: new Map(), // vimeo_id → Lecture ID
+  treatmentMap: new Map(), // treatment ID → Page ID
   treatmentThumbnailMap: new Map(), // treatment ID → Media ID
-  meditationTitleMap: new Map(),    // meditation title → Meditation ID
+  meditationTitleMap: new Map(), // meditation title → Meditation ID
   meditationRailsTitleMap: new Map(), // Rails meditation ID → title
 }
 
@@ -176,13 +180,14 @@ protected async import(): Promise<void> {
 ```
 
 **Preload Methods:**
+
 - `preloadCollection(collection, naturalKey, additionalFields?)` - Bulk fetch for cache
 - `getPreloaded(collection, keyValue)` - Get cached doc by natural key
 - `hasPreloaded(collection, keyValue)` - Check if doc exists in cache
 
-### Pagination Pattern (Cloudflare Workers)
+### Pagination Pattern
 
-For large imports that exceed Workers CPU limits:
+For large imports, to keep each request bounded and avoid long-running seed requests timing out:
 
 ```typescript
 protected async import(): Promise<void> {
@@ -207,6 +212,7 @@ protected async reconstructIdMaps(): Promise<void> {
 ```
 
 **Pagination Methods:**
+
 - `isPaginated()` - Check if pagination is active
 - `isCollectionTargeted(collection)` - Check if collection should be processed
 - `paginateItems(items)` - Get slice based on offset/limit
@@ -218,11 +224,13 @@ protected async reconstructIdMaps(): Promise<void> {
 Two-tier error handling:
 
 **Helper Classes** (payloadHelpers, fileUtils, MediaUploader):
+
 - Use `logger.error()` - log but don't track
 - Return null/false on failure
 - Caller decides how to handle
 
 **Importer Classes** (extend BaseImporter):
+
 - Use `addError()` - log AND track in report
 - Check helper return values and call addError() if tracking needed
 
@@ -250,7 +258,7 @@ for (const item of items) {
     await this.processItem(item)
   } catch (error) {
     this.addError(`Item ${item.id}`, error)
-    continue  // Keep processing!
+    continue // Keep processing!
   }
 }
 ```
@@ -258,6 +266,7 @@ for (const item of items) {
 ### File Upload Format
 
 Payload expects buffer-based objects:
+
 ```typescript
 const fileData: FileData = {
   data: Buffer.from(content),
