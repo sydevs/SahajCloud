@@ -18,6 +18,7 @@ Type error: Route "path/to/route.ts" does not match the required types of a Next
 ```
 
 **Allowed exports**:
+
 - HTTP methods: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`
 - Config: `dynamic`, `revalidate`, `runtime`, `preferredRegion`, `fetchCache`, `dynamicParams`, `maxDuration`, `generateStaticParams`
 
@@ -48,7 +49,7 @@ import { serverEnv } from '@/lib/env'
 import { handleMyThing } from '@/lib/<domain>/myThingHandler'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 
-// Module-level logger so cold starts don't re-init it on every request.
+// Module-level logger so it isn't re-initialised on every request.
 const logger = createWorkerSafeLogger(serverEnv.NEXT_PUBLIC_LOG_LEVEL ?? 'info')
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 ```
 
-**Prefer `createWorkerSafeLogger` over `getPayload({ config })`** when the handler is pure. Booting Payload just for `payload.logger` adds significant cold-start latency on Cloudflare Workers, which matters for webhooks (Cloudflare retries on non-2xx and on timeouts). Only reach for `getPayload` when the handler genuinely needs Payload features (`payload.find`, `payload.auth`, etc.).
+**Prefer `createWorkerSafeLogger` over `getPayload({ config })`** when the handler is pure. Booting Payload just for `payload.logger` is heavy and slows the response — which matters for webhooks (e.g. the Cloudflare Stream webhook retries on non-2xx and on timeouts). Only reach for `getPayload` when the handler genuinely needs Payload features (`payload.find`, `payload.auth`, etc.).
 
 ## Raw Body vs JSON
 
@@ -72,8 +73,8 @@ If the handler needs to verify a signature (webhooks) or otherwise operate on
 exact bytes, always read the body as text first:
 
 ```typescript
-const rawBody = await request.text()  // exact bytes for HMAC
-const parsed = JSON.parse(rawBody)    // OK to parse AFTER capturing raw
+const rawBody = await request.text() // exact bytes for HMAC
+const parsed = JSON.parse(rawBody) // OK to parse AFTER capturing raw
 ```
 
 Never call `request.json()` and then try to re-serialize — `JSON.stringify`
@@ -88,6 +89,6 @@ for the full decision matrix. Short version:
 - **`src/collections/<Name>/endpoints/*.ts` (Payload endpoint)**: operations tied to a specific
   collection (e.g., `/api/frames/by-narrator/:id`). Registered via the
   collection's `endpoints` array. Has `req.payload` automatically.
-- **`src/app/(payload)/api/**/route.ts` (Next.js route)**: webhooks, health
+- **`src/app/(payload)/api/**/route.ts` (Next.js route)\*\*: webhooks, health
   checks, OpenAPI spec generation, seed triggers, or anything not scoped to
   a single collection.

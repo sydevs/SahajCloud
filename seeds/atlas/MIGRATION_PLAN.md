@@ -4,7 +4,7 @@ End-to-end plan for migrating the legacy **Sahaj Atlas** Rails app into this Pay
 
 Source: `atlas.dump` (PostgreSQL custom-format, PG 16.4) at the repo root. Legacy Rails codebase: `/Users/devindra/Documents/Projects/Atlas`.
 
-**Target platform:** the CMS now runs on **Railway + Postgres 18** (infra migration #466 / PR #468 — code merged-pending; **build + deploy are green on Railway**, the old Cloudflare Workers + D1 stack is being retired pre-cutover). Atlas Phases 2–4 run against this Postgres stack: Phase 2's schema migration uses `pnpm db:migrations:create` (Postgres), and the Phase 3 importer seeds the Railway environment via the seed API.
+**Target platform:** the CMS now runs on **Railway + Postgres 18** (infra migration #466 / PR #468 — **deployed; DNS cutover complete**: `cloud.sydevelopers.com` serves from Railway behind the Cloudflare edge, and the old Cloudflare Workers + D1 stack is being decommissioned). Atlas Phases 2–4 run against this Postgres stack: Phase 2's schema migration uses `pnpm db:migrations:create` (Postgres), and the Phase 3 importer seeds the Railway environment via the seed API.
 
 ## Overview & status
 
