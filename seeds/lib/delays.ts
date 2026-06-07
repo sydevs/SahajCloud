@@ -2,21 +2,14 @@
  * Delay Utilities
  *
  * Centralized delay handling for rate limiting and retries.
- * Automatically adjusts delays based on environment:
- * - Cloudflare Workers: Full delays for API rate limiting
- * - Local development: Delays skipped entirely for faster iteration
  */
-
-import { isCloudflareWorker } from './runtime'
 
 /**
  * Rate limit delay - use between API calls to avoid throttling.
- * Auto-skips in local development for faster iteration.
  *
- * @param ms - Delay in milliseconds (only applied in Workers mode)
+ * @param ms - Delay in milliseconds
  */
 export async function rateLimitDelay(ms: number): Promise<void> {
-  if (!isCloudflareWorker()) return // Skip entirely in local dev
   if (ms > 0) {
     await new Promise((resolve) => setTimeout(resolve, ms))
   }
@@ -85,16 +78,14 @@ export function isRetryableError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
   const msg = error.message.toLowerCase()
   return (
-    // SQLite/D1 database locking errors
-    msg.includes('sqlite_busy') ||
+    // PostgreSQL database locking and connection errors
     msg.includes('database is locked') ||
-    msg.includes('d1_error') ||
     msg.includes('failed query') ||
-    // Network/connection errors from miniflare proxy (undici fetch)
+    msg.includes('connection refused') ||
+    // Network/connection errors
     msg.includes('fetch failed') ||
     msg.includes('other side closed') ||
     msg.includes('socket closed') ||
-    msg.includes('network connection lost') ||
-    msg.includes('und_err_socket')
+    msg.includes('network connection lost')
   )
 }

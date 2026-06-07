@@ -103,8 +103,6 @@ function generateExampleData(schema: SchemaRoot): Record<string, unknown> {
 // ============================================================================
 
 const SEED_DATA_LOCAL_PATH = 'seeds/wm-app-translations/data.en.json'
-const SEED_DATA_WORKER_URL =
-  'https://raw.githubusercontent.com/sydevs/SahajCloud/main/seeds/wm-app-translations/data.en.json'
 
 const LOCALE = 'en' as const
 
@@ -132,7 +130,6 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
     const { loadJsonData } = await import('../lib/dataLoader')
     const seed = await loadJsonData<SeedFile>({
       localPath: SEED_DATA_LOCAL_PATH,
-      workerUrl: SEED_DATA_WORKER_URL,
       inlineContent: this.options.inlineData?.[SEED_DATA_LOCAL_PATH],
     })
 

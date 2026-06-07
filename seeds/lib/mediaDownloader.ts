@@ -3,7 +3,7 @@
  *
  * Downloads media files for import
  *
- * NOTE: Image conversion and processing disabled for Cloudflare Workers compatibility
+ * NOTE: Image conversion and processing disabled from the Workers era
  * Images are downloaded as-is without WebP conversion or dimension extraction
  */
 
@@ -14,8 +14,8 @@ import * as crypto from 'crypto'
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
-import { isCloudflareWorker, safeBufferFrom } from './runtime'
-// import * as sharp from 'sharp' // DISABLED: Removed for Cloudflare Workers compatibility
+import { safeBufferFrom } from './runtime'
+// import * as sharp from 'sharp' // DISABLED: sharp is available on Node and could be re-enabled if conversion is needed
 
 // ============================================================================
 // CONSTANTS
@@ -101,13 +101,8 @@ export class MediaDownloader {
 
   /**
    * Initialize cache directory
-   * Skips filesystem operations in Cloudflare Workers mode (no filesystem access)
    */
   async initialize(): Promise<void> {
-    // Skip filesystem operations in Workers mode (no filesystem access)
-    if (isCloudflareWorker()) {
-      return
-    }
     await fs.mkdir(this.cacheDir, { recursive: true })
   }
 
@@ -132,9 +127,7 @@ export class MediaDownloader {
   }
 
   /**
-   * Download image with dual-mode support:
-   * - Local development: Cache to disk
-   * - Cloudflare Workers: Keep in memory (no filesystem)
+   * Download image with disk caching
    */
   async downloadAndConvertImage(url: string): Promise<DownloadResult> {
     // Normalize URL: Fix legacy domains and Google Storage URLs, then get original quality
@@ -161,29 +154,6 @@ export class MediaDownloader {
       // Extract original filename from normalized URL (after CarrierWave prefix stripped)
       const originalFilename = path.basename(urlPath)
 
-      // Workers mode: stream directly without filesystem
-      if (isCloudflareWorker()) {
-        await this.logger.log(`Downloading image (streaming): ${normalizedUrl}`)
-
-        // Download with automatic fallback for oversized files
-        const { buffer, usedVariant } = await this.downloadWithFallback(normalizedUrl)
-
-        const result: DownloadResult = {
-          localPath: filename, // Virtual path for reference
-          hash,
-          width: 0,
-          height: 0,
-          buffer, // Keep in memory for Workers
-          originalFilename,
-        }
-
-        this.downloadedFiles.set(normalizedUrl, result)
-        const variantInfo = usedVariant ? ` (using ${usedVariant}_ variant)` : ''
-        await this.logger.log(`✓ Downloaded (streaming): ${filename}${variantInfo}`)
-        return result
-      }
-
-      // Local dev mode: use filesystem cache
       // Check if file already exists
       try {
         await fs.access(localPath)
@@ -236,7 +206,7 @@ export class MediaDownloader {
     payload: Payload,
     downloadResult: DownloadResult,
     metadata: MediaMetadata,
-    locale: string = 'all'
+    locale: string = 'all',
   ): Promise<string> {
     try {
       // Read file
@@ -310,7 +280,9 @@ export class MediaDownloader {
    * Try to download a smaller CarrierWave variant if original is too large
    * @private
    */
-  private async downloadWithFallback(originalUrl: string): Promise<{ buffer: Buffer; usedVariant?: string }> {
+  private async downloadWithFallback(
+    originalUrl: string,
+  ): Promise<{ buffer: Buffer; usedVariant?: string }> {
     // Try original first
     const buffer = await this.downloadBuffer(originalUrl)
 
