@@ -584,53 +584,33 @@ Railway pricing is per-minute resource usage (CPU, memory, bandwidth). Productio
 
 ---
 
-## TODO(railway) — Deferred Infrastructure
+## Migration status — Cloudflare Workers + D1 → Railway + Postgres
 
-The following infrastructure steps are required to complete the Railway + Postgres cutover. These are tracked separately and do not block code deployment:
+The migration is **complete and live**: `cloud.sydevelopers.com` is served from Railway behind the Cloudflare edge (proxied).
 
-### Provisioning
+### Done
 
-- [ ] Create Railway PostgreSQL service (16+) with automated backups
-- [ ] Set `DATABASE_URL` in Railway environment
-- [ ] Create Railway service for the app (uses Dockerfile)
-- [ ] Generate a baseline Postgres migration from the live schema (empty database)
-- [ ] Verify CI Postgres service container works (added to `.github/workflows/ci.yml`)
+- **Provisioning** — Railway Postgres 18 + the app service (Dockerfile build); `DATABASE_URL` set via a Railway reference variable; CI runs a `postgres:18` service container.
+- **Schema** — the legacy SQLite/D1 migrations were removed and a fresh Postgres baseline (`src/migrations/`) was applied to Railway (117 tables).
+- **Data ETL** — `scripts/etl-d1-to-postgres.ts` copies all data from the production D1 (read-only) into Railway Postgres: type-aware coercion, FK triggers deferred during load, sequences reset. Verified **111 tables / 7,980 rows**, and **202 FK constraints with 0 orphans**.
+- **Storage** — R2 reached via the S3 API (`@aws-sdk/client-s3`); Cloudflare Images + Stream kept. Uploads verified end-to-end (R2 + Images).
+- **Cutover** — `cloud.sydevelopers.com` repointed to Railway and **proxied** through Cloudflare (edge cache + WAF retained; SSL Full). The Stream webhook was re-registered to the Railway URL and its secret set.
+- **Per-PR previews** — Railway PR environments with CI smoke tests; `scripts/get-railway-preview-url.ts` discovers the preview URL from the Railway-posted GitHub commit status (via `GITHUB_TOKEN`) and the smoke specs self-seed the admin. Validated end-to-end.
 
-### Data Migration
+### Remaining (gated)
 
-- [ ] Set up ETL tooling to migrate prod data from D1 (Cloudflare) to Railway Postgres (1:1 compatibility check)
-- [ ] Verify row counts, referential integrity, and spot-checks in prod data
-- [ ] Test rollback procedure (flip DNS back to Cloudflare Worker if issues arise)
+- [ ] **Verify Railway Postgres automated backups are enabled** (Railway → Postgres → Backups).
+- [ ] **Decommission the Cloudflare Worker + D1** after a soak, and disable the Cloudflare "Workers Builds" check. Note: the Worker **custom domain** was removed during cutover, so a rollback to the Worker would require re-adding it; the D1 data remains as a read-only fallback in the meantime.
+- [ ] **Merge PR #468.**
+- [ ] (Optional) Move Cloudflare SSL from **Full** to **Full (strict)** once Railway's own origin cert is issued.
 
-### Deployment
+### Deferred cleanup (dead Cloudflare-artifact references)
 
-- [ ] Configure Cloudflare as reverse proxy in front of Railway (WAF, rate limiting, Images, Stream)
-- [ ] DNS cutover: `cloud.sydevelopers.com` → Railway origin
-- [ ] Verify production health checks and monitoring
-- [ ] Monitor for 48 hours post-cutover; keep Cloudflare Worker as live rollback path
+These still reference `.wrangler/`, `.open-next/`, and `worker-configuration.d.ts` (none of which exist anymore). Harmless, left in place — remove in a follow-up:
 
-### Per-PR Previews
-
-- [ ] Set up Railway preview environments (optional; currently gated behind `RAILWAY_PREVIEW_URL` env var in CI)
-- [ ] Auto-restore preview Postgres from latest prod backup + sanitize PII (port logic from `scripts/sanitize-preview-dump.ts`)
-- [ ] Gate `pnpm test:smoke` on `RAILWAY_PREVIEW_URL` availability
-
----
-
-## Preview Environment (TODO(railway))
-
-Per-PR Railway preview environments are currently **not deployed**. When they are available:
-
-1. Each non-main branch will have its own Railway preview service (Postgres + Node app)
-2. Preview Postgres will be cloned from prod backup and sanitized (PII removed)
-3. Smoke tests will run against the preview URL
-4. Preview is cleaned up 7 days after PR close
-
-Until then:
-
-- Smoke tests are skipped in CI (gated on `RAILWAY_PREVIEW_URL` env var)
-- Deploy to staging/prod directly for cross-browser testing
-- Use local `pnpm test:smoke` with `PREVIEW_URL=http://localhost:3000`
+- `eslint.config.mjs` — ignore patterns (~lines 120–121, 139)
+- `.gitignore` — Wrangler/OpenNext/SQLite entries (~lines 58–63)
+- `.dockerignore` — `.open-next`, `.wrangler` entries
 
 ---
 
