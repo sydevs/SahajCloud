@@ -49,6 +49,17 @@
         }
       },
       "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "description": "Event admin strings",
+      "properties": {
+        "titlePrefix": {
+          "type": "string",
+          "description": "Prefix for an event's auto-generated title when no name is entered, prepended to the venue/street, e.g. \"Meditation at\" → \"Meditation at Beethovenstraße 12\"."
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

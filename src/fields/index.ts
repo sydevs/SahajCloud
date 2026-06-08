@@ -25,3 +25,5 @@ export type { SchemaEntry, TranslationsSchema } from './translationsField'
 export { scheduleField } from './scheduleField'
 export type { ScheduleFieldOptions } from './scheduleField'
 
+// Legacy migration fields - hidden legacyId + legacyData for the Atlas import
+export { legacyMigrationFields } from './legacyFields'
