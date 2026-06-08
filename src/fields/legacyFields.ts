@@ -24,7 +24,7 @@ export function legacyMigrationFields(): Field[] {
     {
       name: 'legacyData',
       type: 'json',
-      admin: { hidden: true },
+      // admin: { hidden: true },
     },
   ]
 }
