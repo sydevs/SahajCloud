@@ -1,24 +1,15 @@
 # Railway deployment configuration (see DEPLOYMENT.md).
 #
-# TODO(railway): provision the Railway service + Railway Postgres, enable
-# automated backups, and set the service variables/secrets before deploying:
-#   DATABASE_URL, PAYLOAD_SECRET, WEMEDITATE_WEB_URL, SAHAJATLAS_URL,
-#   SAHAJCLOUD_PREVIEW_SECRET, RESEND_API_KEY, NEXT_PUBLIC_SENTRY_DSN,
-#   CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_KEY, CLOUDFLARE_IMAGES_DELIVERY_URL,
-#   CLOUDFLARE_STREAM_DELIVERY_URL, CLOUDFLARE_R2_DELIVERY_URL,
-#   CLOUDFLARE_STREAM_WEBHOOK_SECRET, R2_BUCKET, R2_ACCESS_KEY_ID,
-#   R2_SECRET_ACCESS_KEY.
-# First deploy only: generate the Postgres baseline migration locally against the
-# new DB (`pnpm db:migrations:create`) before the preDeployCommand has anything
-# to apply — see src/migrations/README.md.
+# Build: Railpack (Railway's native builder) — no Dockerfile. Railway exposes all
+# service variables to the build as real env, so `next build` reads them directly
+# (serverEnv validation + the CSP frame-src in next.config) with no ARG plumbing.
+# Migrations: applied in-process on server boot via Payload's `prodMigrations`
+# (see src/payload.config.ts) — no preDeployCommand/CLI needed.
 
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+builder = "RAILPACK"
 
 [deploy]
-# Apply pending Postgres migrations before the new version receives traffic.
-preDeployCommand = "pnpm db:migrate"
 startCommand = "pnpm start"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
