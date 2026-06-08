@@ -20,7 +20,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { createTestEnvironment } from '../utils/testHelpers'
 
-const TRANSLATION_GLOBAL_SLUGS = ['wm-web-translations', 'wm-app-translations', 'sy-atlas-translations'] as const
+const TRANSLATION_GLOBAL_SLUGS = [
+  'wm-web-translations',
+  'wm-app-translations',
+  'sy-atlas-translations',
+] as const
 
 type Slug = (typeof TRANSLATION_GLOBAL_SLUGS)[number]
 
@@ -79,10 +83,10 @@ describe('Translations Globals Configuration', () => {
       expect(labels).toEqual(['Common', 'Navigation'])
     })
 
-    it('sy-atlas-translations has Common, Map, Location tabs', () => {
+    it('sy-atlas-translations has Common, Map, Location, Event tabs', () => {
       const tabsField = findGlobal('sy-atlas-translations').fields[0] as TabsField
       const labels = tabsField.tabs.map((t) => t.label)
-      expect(labels).toEqual(['Common', 'Map', 'Location'])
+      expect(labels).toEqual(['Common', 'Map', 'Location', 'Event'])
     })
   })
 
@@ -157,5 +161,4 @@ describe('Translations Globals Configuration', () => {
       }
     })
   })
-
 })
