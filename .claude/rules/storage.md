@@ -11,11 +11,11 @@ local-file fallback in development.
 
 ## Routing matrix
 
-| Storage               | Collections                                                                                                                   | URL format                                                                                                                                                                                |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Cloudflare Images** | `images` (uploads); also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks              | `https://imagedelivery.net/<hash>/<imageId>/public`                                                                                                                                       |
-| **Cloudflare Stream** | `videos`, `frames` (video MIME types)                                                                                         | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>MP4: `.../downloads/default.mp4` (`mp4Url`)<br>HLS: `.../manifest/video.m3u8` (`hlsUrl`) |
-| **R2 (S3 API)**       | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>`                                                                                                                                    |
+| Storage               | Collections                                                                                                                   | URL format                                                                                                                                                                                                                        |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cloudflare Images** | `images` (uploads); also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks              | `https://imagedelivery.net/<hash>/<imageId>/public`                                                                                                                                                                               |
+| **Cloudflare Stream** | `videos`, `frames` (video MIME types)                                                                                         | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>HLS: `.../manifest/video.m3u8` (`hlsUrl`, also the generic `url` for video files)<br>MP4: `.../downloads/default.mp4` (`mp4Url`) |
+| **R2 (S3 API)**       | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>`                                                                                                                                                                            |
 
 R2 is configured via S3-compatible API (`@aws-sdk/client-s3`) with environment variables (R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY).
 Filenames are sanitized to URL-safe slugs with random 6-char suffixes.
@@ -52,7 +52,7 @@ fields: [
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `virtualUrlField({ collection, adapter })`         | Base URL for any single-storage collection (adapter: `cloudflare-images` or `r2`)                  |
 | `previewUrlField({ collection, width?, height? })` | Preview/thumbnail URL for images/videos                                                            |
-| `mixedMediaUrlField({ collection })`               | Full-resolution URL for mixed media (images → Images, videos → Stream MP4, other → R2)             |
+| `mixedMediaUrlField({ collection })`               | Full-resolution URL for mixed media (images → Images, videos → Stream HLS manifest, other → R2)    |
 | `hlsUrlField({ collection })`                      | HLS manifest (`hlsUrl`); `null` for non-video. Mount on every collection that exposes a video URL. |
 | `mp4UrlField({ collection })`                      | MP4 download (`mp4Url`); `null` for non-video. Mount alongside `hlsUrlField`.                      |
 
