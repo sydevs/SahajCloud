@@ -14,7 +14,8 @@ const nextConfig = {
   // otherwise copies these (large) project dirs into `.next/standalone` — a local
   // `pnpm build` balloons to many GB via `media/` + `seeds/`. Prod stores uploads
   // in R2 (not local `media/`) and never runs seeds/tests, so excluding them is
-  // safe; this mirrors `.railwayignore`. See issue #471.
+  // safe — same intent as `.railwayignore` (drop dev-only/test artifacts), via a
+  // different mechanism (build trace vs. upload filter). See issue #471.
   outputFileTracingExcludes: {
     '*': [
       'media/**/*',

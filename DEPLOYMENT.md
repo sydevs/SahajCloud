@@ -54,7 +54,7 @@ The application is deployed to **Railway**, a modern platform for building and d
 **next.config.mjs**:
 
 - `output: 'standalone'` — self-contained server bundle (see Build & Start above)
-- `outputFileTracingExcludes` — keeps dev-only `media/`/`seeds/`/tests out of the trace (mirrors `.railwayignore`); without it a local `pnpm build` balloons `.next/standalone` to many GB
+- `outputFileTracingExcludes` — keeps dev-only `media/`/`seeds/`/tests out of the trace (same intent as `.railwayignore`, different mechanism); without it a local `pnpm build` balloons `.next/standalone` to many GB
 - Wrapped with `withSentryConfig` from `@sentry/nextjs`
 - Next.js configured with Cloudflare integration for image optimization
 
