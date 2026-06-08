@@ -1,11 +1,4 @@
-import type {
-  Field,
-  GroupField,
-  JSONField,
-  RichTextField,
-  TabsField,
-  UIField,
-} from 'payload'
+import type { Field, GroupField, JSONField, RichTextField, TabsField, UIField } from 'payload'
 
 import { toWords } from 'payload/shared'
 
@@ -81,7 +74,6 @@ function isRichTextProp(prop: LeafPropertySchema | GroupSchema): prop is RichTex
 // ============================================================================
 // Helpers
 // ============================================================================
-
 
 function createScreenshotField(
   groupSlug: string,
@@ -212,8 +204,8 @@ function createLeafFields(
   const screenshot = createScreenshotField(leafSlug, group, globalSlug)
   const props = Object.entries(group.properties || {})
   const hasStringKeys = props.some(([, p]) => isStringProp(p))
-  const richTextEntries = props.filter(
-    (entry): entry is [string, RichTextPropertySchema] => isRichTextProp(entry[1]),
+  const richTextEntries = props.filter((entry): entry is [string, RichTextPropertySchema] =>
+    isRichTextProp(entry[1]),
   )
 
   const fields: Field[] = []
@@ -226,7 +218,6 @@ function createLeafFields(
 
   return [...(screenshot ? [screenshot] : []), ...fields]
 }
-
 
 // ============================================================================
 // Main: buildTranslationTabs
@@ -257,8 +248,8 @@ export function buildTranslationTabs(
     .filter(([groupSlug]) => groupSlug.trim().length > 0)
     .map(([groupSlug, groupSchema]) => {
       const groupProps = groupSchema.properties || {}
-      const subgroups = Object.entries(groupProps).filter(
-        (entry): entry is [string, GroupSchema] => isGroupSchema(entry[1]),
+      const subgroups = Object.entries(groupProps).filter((entry): entry is [string, GroupSchema] =>
+        isGroupSchema(entry[1]),
       )
 
       if (subgroups.length > 0) {

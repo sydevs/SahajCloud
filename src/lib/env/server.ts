@@ -134,6 +134,13 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   WEMEDITATE_WEB_URL: z.url(),
 
   /**
+   * We Meditate App (Flutter) hosted URL for the translations live preview.
+   * Optional until the preview page is deployed. On Railway it must also be set
+   * at build time, since the CSP frame-src in next.config.mjs is baked at build.
+   */
+  WEMEDITATE_APP_URL: z.url().optional(),
+
+  /**
    * Shared secret that allows trusted server-side preview requests to read drafts.
    * This should match the web frontend's SAHAJCLOUD_PREVIEW_SECRET value.
    */

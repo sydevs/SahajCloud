@@ -40,7 +40,11 @@ const nextConfig = {
       'https://app.usefathom.com',
       process.env.WEMEDITATE_WEB_URL || 'https://wemeditate.com',
       process.env.SAHAJATLAS_URL || 'https://atlas.sydevelopers.com',
-    ].join(' ')
+      // WeMeditate App hosted page for the translations live preview.
+      process.env.WEMEDITATE_APP_URL,
+    ]
+      .filter(Boolean)
+      .join(' ')
 
     return [
       {

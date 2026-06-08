@@ -125,6 +125,21 @@ within SQL constraints.
 }
 ```
 
+### Orientation aids (Figma link) + live preview
+
+- **`<leaf>__screenshot`** → `TabScreenshot` — the "View in Figma" link, emitted
+  by `createScreenshotField` in `src/fields/translationsField.ts` above the
+  inputs when a leaf declares a `screenshot` URL in the schema.
+- **Live preview** uses Payload's **native live preview**, not a custom field:
+  `admin.livePreview.url` on the `wm-app-translations` global returns
+  `${WEMEDITATE_APP_URL}/${locale.code}/preview/wm-app-translations?secret=…`
+  (mirrors `Pages`/`Meditations`/`WeMeditateWebConfig`). The hosted WeMeditate
+  App page reimplements Payload's live-preview client (`subscribe`/`ready`) and
+  **auto-follows** whichever section the translator edits (no per-tab admin
+  code). `secret` (`SAHAJCLOUD_PREVIEW_SECRET`) lets that page read unpublished
+  drafts; `WEMEDITATE_APP_URL` must be in the CSP `frame-src` (and set at build
+  time on Railway). See `.claude/docs/environment.md`.
+
 ### Translation key naming
 
 - Lowercase only (no uppercase letters).
