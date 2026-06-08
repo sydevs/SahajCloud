@@ -76,12 +76,7 @@
     "page_true_self_title": {
       "_richText": true,
       "_source": "Collapsed from yaml onboarding.carousel.page_true_self_prefix + .page_true_self_highlight. Highlight rendered bold (Flutter side may also apply accent colour).",
-      "paragraphs": [
-        [
-          { "text": "Get to know your " },
-          { "text": "true self", "bold": true }
-        ]
-      ]
+      "paragraphs": [[{ "text": "Get to know your " }, { "text": "true self", "bold": true }]]
     }
   },
 
@@ -99,8 +94,14 @@
       "_source": "Collapsed from schema's body_intro_prefix/_link/_suffix triple. Link target resolves through wm-app-config.privacyPolicyPage with anchor 'what-we-share' (h3 section 8.1 of the Privacy Policy).",
       "paragraphs": [
         [
-          { "text": "With your permission, we'll share a few basic app usage and device details with Meta, Apple Search Ads and Google Ads, like app installs or completed sessions. (" },
-          { "type": "link", "text": "what we share", "href": "wm-app-config://privacyPolicyPage#what-we-share" },
+          {
+            "text": "With your permission, we'll share a few basic app usage and device details with Meta, Apple Search Ads and Google Ads, like app installs or completed sessions. ("
+          },
+          {
+            "type": "link",
+            "text": "what we share",
+            "href": "wm-app-config://privacyPolicyPage#what-we-share"
+          },
           { "text": ")." }
         ]
       ]
@@ -111,7 +112,9 @@
       "paragraphs": [
         [
           { "text": "We'll never share", "bold": true },
-          { "text": " your mood, goals, hand sensations, reflections, location, or details about your practice." }
+          {
+            "text": " your mood, goals, hand sensations, reflections, location, or details about your practice."
+          }
         ]
       ]
     },
@@ -425,7 +428,7 @@
     "delete_account": "Delete account"
   },
 
-  "profile_privacy_advertising": {
+  "profile_privacy": {
     "_source": "Sourced from Figma node-id 11571-40337 plus the Privacy & Advertising screen design. Includes 5 new keys for the Learn more section (header + privacy_policy_*/terms_and_conditions_* rows) that mirror the labels used on the Profile tab.",
     "_todo": "Editor: confirm the `advertising_platforms_*` values — that section was below the screenshot fold and is not visible in the current design review. May not ship in this iteration.",
     "strings": {
@@ -452,8 +455,14 @@
       "_source": "Collapsed from schema's advertising_body_intro_prefix/_link/_suffix triple. Link target resolves through wm-app-config.privacyPolicyPage with anchor 'what-we-share' (same target as onboarding_consent_modal.body_intro).",
       "paragraphs": [
         [
-          { "text": "With your permission, we'll share a few basic app and device details with Meta, Apple Search Ads and Google Ads, like app installs or completed sessions. (" },
-          { "type": "link", "text": "what we share", "href": "wm-app-config://privacyPolicyPage#what-we-share" },
+          {
+            "text": "With your permission, we'll share a few basic app and device details with Meta, Apple Search Ads and Google Ads, like app installs or completed sessions. ("
+          },
+          {
+            "type": "link",
+            "text": "what we share",
+            "href": "wm-app-config://privacyPolicyPage#what-we-share"
+          },
           { "text": ")." }
         ]
       ]
@@ -464,7 +473,9 @@
       "paragraphs": [
         [
           { "text": "We'll never share", "bold": true },
-          { "text": " your mood, goals, hand sensations, reflections, location, or details about your practice. And " },
+          {
+            "text": " your mood, goals, hand sensations, reflections, location, or details about your practice. And "
+          },
           { "text": "we never sell", "bold": true },
           { "text": " your data, ever." }
         ]
@@ -711,7 +722,11 @@
       "paragraphs": [
         [
           { "text": "I agree to WeMeditate's " },
-          { "type": "link", "text": "Terms & Conditions", "href": "wm-app-config://termsAndConditionsPage" },
+          {
+            "type": "link",
+            "text": "Terms & Conditions",
+            "href": "wm-app-config://termsAndConditionsPage"
+          },
           { "text": " and confirm that I acknowledge the " },
           { "type": "link", "text": "Privacy Policy", "href": "wm-app-config://privacyPolicyPage" }
         ]

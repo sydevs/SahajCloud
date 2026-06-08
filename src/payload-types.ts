@@ -3474,7 +3474,7 @@ export interface WmAppTranslation {
       | number
       | boolean
       | null;
-    privacy_advertising?:
+    privacy?:
       | {
           [k: string]: unknown;
         }
@@ -3486,7 +3486,7 @@ export interface WmAppTranslation {
     /**
      * Third paragraph of the advertising section. Covers both the never-shared categories AND the never-sell statement in a single paragraph with two bold spans ('We'll never share' / 'we never sell'). Must remain consistent with analytics-simplified/03-marketing-event-taxonomy.md §2.
      */
-    privacy_advertising_advertising_body_never_share?: {
+    privacy_advertising_body_never_share?: {
       root: {
         type: string;
         children: {
@@ -3504,7 +3504,7 @@ export interface WmAppTranslation {
     /**
      * First paragraph of the advertising section. Contains an inline link (e.g. 'what we share') that opens the Privacy Policy page (CMS page id 73, scrolled to the 'what we share' heading) — same link target as onboarding_consent_modal.body_intro.
      */
-    privacy_advertising_advertising_body_intro?: {
+    privacy_advertising_body_intro?: {
       root: {
         type: string;
         children: {
@@ -4227,9 +4227,9 @@ export interface WmAppTranslationsSelect<T extends boolean = true> {
         favourites?: T;
         history?: T;
         account?: T;
-        privacy_advertising?: T;
-        privacy_advertising_advertising_body_never_share?: T;
-        privacy_advertising_advertising_body_intro?: T;
+        privacy?: T;
+        privacy_advertising_body_never_share?: T;
+        privacy_advertising_body_intro?: T;
         contact?: T;
       };
   meditation?:

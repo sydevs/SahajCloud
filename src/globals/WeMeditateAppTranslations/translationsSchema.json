@@ -1309,7 +1309,7 @@
           "additionalProperties": false,
           "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=9159-89387"
         },
-        "privacy_advertising": {
+        "privacy": {
           "type": "object",
           "description": "Profile -> Privacy & advertising settings screen — two toggle sections (anonymous product analytics, advertising measurement). Drives productAnalyticsOptOut and adsMarketingConsent. Reached from the Privacy & advertising row on profile.main. See .kiro/specs/analytics-simplified/05-flutter-implementation.md §2 and §8. Figma: node-id 11571-40337.",
           "properties": {

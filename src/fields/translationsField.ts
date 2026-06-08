@@ -1,11 +1,4 @@
-import type {
-  Field,
-  GroupField,
-  JSONField,
-  RichTextField,
-  TabsField,
-  UIField,
-} from 'payload'
+import type { Field, GroupField, JSONField, RichTextField, TabsField, UIField } from 'payload'
 
 import { toWords } from 'payload/shared'
 
@@ -81,7 +74,6 @@ function isRichTextProp(prop: LeafPropertySchema | GroupSchema): prop is RichTex
 // ============================================================================
 // Helpers
 // ============================================================================
-
 
 function createScreenshotField(
   groupSlug: string,
@@ -212,21 +204,28 @@ function createLeafFields(
   const screenshot = createScreenshotField(leafSlug, group, globalSlug)
   const props = Object.entries(group.properties || {})
   const hasStringKeys = props.some(([, p]) => isStringProp(p))
-  const richTextEntries = props.filter(
-    (entry): entry is [string, RichTextPropertySchema] => isRichTextProp(entry[1]),
+  const richTextEntries = props.filter((entry): entry is [string, RichTextPropertySchema] =>
+    isRichTextProp(entry[1]),
   )
 
   const fields: Field[] = []
   if (hasStringKeys) {
     fields.push(createStringsJsonField(leafSlug, group, globalSlug, parentGroup))
   }
+  // Postgres truncates identifiers to 63 bytes. Each richText key becomes its
+  // own column named `<parentGroup>_<leafSlug>_<key>`, and the drafts/versions
+  // table prefixes every column with `version_` (8 chars). So keep the base
+  // column name (`<parentGroup>_<leafSlug>_<key>`) ≤ 55 chars — otherwise the
+  // version-table column overflows 63, Postgres silently truncates it, and dev
+  // `push:true` then emits an impossible self-colliding `RENAME COLUMN` on
+  // boot. String keys are exempt (packed into one JSON blob, no per-key column).
+  // Shorten an over-long group/key slug rather than relying on truncation.
   for (const [key, prop] of richTextEntries) {
     fields.push(createRichTextField(`${leafSlug}_${key}`, key, prop, globalSlug, parentGroup))
   }
 
   return [...(screenshot ? [screenshot] : []), ...fields]
 }
-
 
 // ============================================================================
 // Main: buildTranslationTabs
@@ -257,8 +256,8 @@ export function buildTranslationTabs(
     .filter(([groupSlug]) => groupSlug.trim().length > 0)
     .map(([groupSlug, groupSchema]) => {
       const groupProps = groupSchema.properties || {}
-      const subgroups = Object.entries(groupProps).filter(
-        (entry): entry is [string, GroupSchema] => isGroupSchema(entry[1]),
+      const subgroups = Object.entries(groupProps).filter((entry): entry is [string, GroupSchema] =>
+        isGroupSchema(entry[1]),
       )
 
       if (subgroups.length > 0) {
