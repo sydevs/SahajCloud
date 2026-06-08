@@ -36,6 +36,7 @@
     "@payloadcms/next": "^3.85.0",
     "@payloadcms/plugin-cloud-storage": "^3.85.0",
     "@payloadcms/plugin-form-builder": "^3.85.0",
+    "@payloadcms/plugin-nested-docs": "3.85.0",
     "@payloadcms/plugin-seo": "^3.85.0",
     "@payloadcms/richtext-lexical": "^3.85.0",
     "@payloadcms/ui": "^3.85.0",
