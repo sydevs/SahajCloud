@@ -7,31 +7,17 @@ import {
   getCollectionMetadata,
   type ScriptName,
 } from '../../seeds/lib/expectedCounts'
-import {
-  getDefaultBatchSize,
-  getEnvironment,
-  type PaginationOptions,
-} from '../../seeds/lib/pagination'
-
+import { getDefaultBatchSize, type PaginationOptions } from '../../seeds/lib/pagination'
 
 describe('Pagination Utilities', () => {
-  describe('getEnvironment', () => {
-    it('returns "local" in test environment', () => {
-      const env = getEnvironment()
-      expect(env).toBe('local')
-    })
-  })
-
   describe('getDefaultBatchSize', () => {
-    it('returns 100 for local environment without file uploads', () => {
-      // In test environment, this returns local batch size
+    it('returns 100 without file uploads', () => {
       const batchSize = getDefaultBatchSize(false)
       expect(batchSize).toBe(100)
     })
 
-    it('returns 10 for any environment with file uploads', () => {
-      // File uploads have reduced batch size regardless of environment
-      // to avoid I/O overhead issues
+    it('returns 10 with file uploads', () => {
+      // File uploads use a reduced batch size to avoid I/O overhead
       const batchSize = getDefaultBatchSize(true)
       expect(batchSize).toBe(10)
     })
@@ -70,7 +56,11 @@ describe('Pagination Utilities', () => {
 
       expect(metadata).toBeDefined()
       expect(metadata.collections).toHaveLength(3)
-      expect(metadata.collections.map((c) => c.slug)).toEqual(['narrators', 'frames', 'meditations'])
+      expect(metadata.collections.map((c) => c.slug)).toEqual([
+        'narrators',
+        'frames',
+        'meditations',
+      ])
       expect(metadata.requiresPagination).toBe(true) // frames and meditations require pagination
     })
 
@@ -83,10 +73,9 @@ describe('Pagination Utilities', () => {
       expect(metadata.requiresPagination).toBe(true) // lessons requires pagination for consistency
     })
 
-    it('includes environment and recommended batch size', () => {
+    it('includes a recommended batch size', () => {
       const metadata = getScriptMetadata('tags')
 
-      expect(metadata.environment).toBe('local')
       expect(metadata.recommendedBatchSize).toBeGreaterThan(0)
     })
   })

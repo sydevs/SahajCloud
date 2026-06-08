@@ -314,16 +314,15 @@ seeds/
 │   ├── BaseImporter.ts    # Abstract base class for all importers
 │   ├── pagination.ts      # Pagination types and utilities
 │   ├── expectedCounts.ts  # Collection metadata and verification
-│   ├── runtime.ts         # Cloudflare Worker detection (internal use only)
+│   ├── runtime.ts         # Buffer conversion helpers (Node)
 │   ├── delays.ts          # Rate limiting and retry utilities
-│   ├── dataLoader.ts      # Dual-mode data loading and caching
+│   ├── dataLoader.ts      # Data loading and caching
 │   ├── fileUtils.ts       # File operations and MIME type detection
 │   ├── logger.ts          # Console logging (no file output)
 │   └── ...                # Other shared utilities
 ├── cache/                 # Downloaded files (git-ignored, local dev only)
 ├── run.ts                 # CLI runner (HTTP client that calls API endpoint)
-├── extract-to-json.ts     # One-time PostgreSQL data extraction script
-└── reset-migrations.sh    # Database migration reset script
+└── extract-to-json.ts     # One-time PostgreSQL data extraction script
 
 src/app/(payload)/api/seed/[script]/route.ts  # API route for post-deployment seeding
 ```
@@ -557,77 +556,3 @@ These inconsistencies should be addressed in separate issues:
 1. **Standardize error handling** - Ensure all scripts use per-item try/catch with `this.addError()`
 2. **Add preloadWithCompositeKey helper** - Abstract storyblok's composite key pattern into BaseImporter
 3. **Standardize identifier passing** - Update all scripts to pass explicit identifiers
-
----
-
-## Reset Scripts
-
-### Database and Asset Storage Reset
-
-A comprehensive reset script that clears databases and all Cloudflare asset storage (R2, Images, Stream).
-
-```bash
-# Reset both environments (default, prompts for confirmation)
-pnpm reset
-
-# Reset local environment only
-pnpm reset --local
-
-# Reset production environment only (prompts for confirmation)
-pnpm reset --production
-
-# Skip confirmation prompt (for automation)
-pnpm reset --yes
-```
-
-**Environment Variables Required for Production Reset**:
-
-```bash
-CLOUDFLARE_ACCOUNT_ID=your-account-id           # Already in wrangler.toml
-CLOUDFLARE_API_KEY=your-api-token               # For Images & Stream deletion
-CLOUDFLARE_R2_ACCESS_KEY_ID=your-r2-key         # For R2 bucket deletion
-CLOUDFLARE_R2_SECRET_ACCESS_KEY=your-r2-secret  # For R2 bucket deletion
-```
-
-**What it resets**:
-
-| Component     | Local                                               | Production                                       |
-| ------------- | --------------------------------------------------- | ------------------------------------------------ |
-| Database      | `local.db`, `.wrangler/state/`, `tests/.e2e.sqlite` | D1 `sahajcloud` (drops all tables)               |
-| R2            | N/A                                                 | `sahajcloud` bucket (batch delete via S3 API)    |
-| Images        | N/A                                                 | All Cloudflare Images (individual delete)        |
-| Stream        | N/A                                                 | All Cloudflare Stream videos (individual delete) |
-| Local uploads | `public/{images,meditations,...}`                   | N/A                                              |
-
-**After reset**:
-
-1. Run local migrations: `pnpm payload migrate`
-2. Deploy production migrations: `pnpm run deploy:database`
-3. Re-seed data: `pnpm seed`
-
-### Migration Reset Script (Legacy)
-
-**WARNING**: The `reset-migrations.sh` script is now legacy. Use `pnpm reset --production` instead for database resets.
-
-```bash
-# Preview what will happen (no changes made)
-./seeds/reset-migrations.sh --dry-run
-
-# Execute full reset
-./seeds/reset-migrations.sh
-```
-
-**What it does** (in addition to database reset):
-
-1. Deletes all migration files in `src/migrations/`
-2. Resets `src/migrations/index.ts` to empty array
-3. Generates a fresh initial migration
-4. Renames migration to `*_initial_schema`
-5. Deploys migration to production
-
-**Use cases**:
-
-- Consolidating multiple migrations into a single initial migration
-- Fixing migration state inconsistencies
-
-**Note**: The `payload migrate:fresh` command doesn't work with Cloudflare D1 adapter. This script uses wrangler to drop tables directly.
