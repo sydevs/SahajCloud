@@ -7,16 +7,16 @@ paths:
 # Database Migrations
 
 **Development** uses Postgres with `push: true` (auto-schema-sync via Drizzle).
-**Production** uses explicit migration files via `pnpm db:migrate` (= `payload migrate`).
+**Production** uses explicit migration files, applied automatically in-process on server boot via `prodMigrations`.
 
-The old 36 SQLite/D1 migrations were deleted. The Postgres baseline will be generated fresh on first Railway deploy against a live Postgres DB.
+The old 36 SQLite/D1 migrations were deleted. The Postgres baseline is managed via migration files committed to git; they auto-apply on Railway boot (no manual `pnpm db:migrate` step in the deploy flow).
 
 ## First-time dev setup
 
 Dev uses `push: true`, so the schema auto-syncs against your local Postgres on
 boot — no `pnpm db:migrate` needed locally. Point `DATABASE_URL` at a running
-Postgres (Docker or Railway). Production/CI apply migration files via
-`pnpm db:migrate` instead of push.
+Postgres (Docker or Railway). Production applies migration files automatically
+in-process on server boot via `prodMigrations` (see "Production workflow" below).
 
 ## Creating a migration
 
@@ -30,15 +30,28 @@ Pause, describe the schema changes you made, and ask the user to run the
 command and confirm the new `.ts` + `.json` pair exists. Then augment the
 `.ts` if needed (see "Augmenting" below) and commit both files.
 
-## Running
+## Running locally
 
 ```bash
-pnpm payload migrate          # apply pending
-pnpm payload migrate:down     # roll back last
+pnpm payload migrate          # apply pending migrations to DATABASE_URL
+pnpm payload migrate:down     # roll back last migration
 ```
 
 Never pipe through `| tail` or background — output is buffered and you lose
 visibility into progress and any interactive prompts.
+
+## Production workflow
+
+Migrations are applied **automatically in-process on server boot** via
+`prodMigrations` in `src/payload.config.ts` (see `postgresAdapter({ prodMigrations: migrations })`).
+There is no manual `pnpm db:migrate` step in the deploy flow.
+
+**Local authoring → commit → auto-apply on next Railway boot**, unchanged:
+
+1. Run `pnpm db:migrations:create` locally; commit both `.ts` and `.json` files.
+2. On next deploy, Railway boots the Node app, Payload's `prodMigrations` hook
+   runs automatically, applies any pending migrations, and the server starts.
+3. No separate migration step needed; build → start → migrated in one process.
 
 ## File requirements
 
@@ -82,12 +95,12 @@ otherwise future migrations behave inconsistently.
 Postgres migrations are **atomic transactions** with **real transactional DDL**:
 
 - All statements in a migration succeed or all fail together (no partial state)
-- No statement boundary gotchas (unlike D1's per-call `db.run()` isolation)
-- Deferrable foreign keys eliminate the need for `PRAGMA foreign_keys=OFF` tricks
+- Deferrable foreign keys allow safe constraint reordering
 - `ALTER TABLE` is proper SQL (column rename, type change, constraint update)
-- Connection pooling via Drizzle; no per-call isolation issues
+- Connection pooling via Drizzle
+- Full-featured transaction support for complex migrations
 
-The old SQLite/D1 gotchas (polymorphic-FK renames, `_rels` cascade-null bugs) **no longer apply**. Migrations are much simpler to reason about.
+The old SQLite/D1 gotchas **no longer apply**. Migrations are much simpler to reason about.
 
 ## Augmenting generated migrations
 

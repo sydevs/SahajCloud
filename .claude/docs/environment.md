@@ -191,11 +191,10 @@ The application is built and deployed on Railway, a containerized platform.
 
 **Configuration Files**:
 
-- **Dockerfile** — Multi-stage Docker build for production deployment
 - **railway.toml** — Railway deployment configuration
-  - `build.command = 'pnpm build'` — Next.js build step
-  - `start.command = 'pnpm start'` — Start the server
-  - `preDeployCommand = 'pnpm db:migrate'` — Run migrations before starting app
+  - Uses **Railpack** (Railway's native builder)
+  - `start.command = 'pnpm start'` — Start the server with `next start`
+  - Migrations are applied automatically on server boot (via `prodMigrations` in Payload config)
 - **.env** — Local development environment (git-ignored, copy from .env.example)
 
 ### Local Development Environment
@@ -224,6 +223,7 @@ In Railway, set environment variables via:
 
 - **Railway Dashboard** → Service → Variables tab
 - All values encrypted at rest
-- Variables injected during build and runtime
+- Variables injected during build (by Railpack) and runtime
+- **SAHAJCLOUD_URL** must equal the public production origin (https://cloud.sydevelopers.com) — it feeds CSP, CORS, and CSRF validation
 
 **See Also**: [DEPLOYMENT.md](../../DEPLOYMENT.md) for comprehensive deployment configuration and troubleshooting.

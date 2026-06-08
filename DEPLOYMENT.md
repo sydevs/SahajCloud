@@ -35,11 +35,13 @@ The application is deployed to **Railway**, a modern platform for building and d
 - **Storage**: Cloudflare R2 (S3-compatible object storage via `@aws-sdk/client-s3`)
 - **CDN/Edge**: Cloudflare reverse proxy (rate limiting, Images, Stream, cache rules)
 
-**Docker Build**:
+**Build & Start**:
 
-- `Dockerfile`: `pnpm build` → `pnpm start`
-- `railway.toml`: defines preDeployCommand = `pnpm db:migrate`
-- Next.js configured with `output: 'standalone'` + `sharp` (image optimization re-enabled)
+- **Railpack** (Railway's native builder): Railway detects Node.js project and builds automatically
+- `railway.toml`: defines build and start commands
+  - `build.command = 'pnpm build'`
+  - `start.command = 'pnpm start'`
+- Migrations applied **in-process on server boot** via Payload `prodMigrations` hook (see [Database Migrations](#database-migrations))
 - `Sentry` via `@sentry/nextjs` (wraps `next.config.mjs` with `withSentryConfig`)
 
 **Health Check**:
@@ -51,20 +53,21 @@ The application is deployed to **Railway**, a modern platform for building and d
 
 **next.config.mjs**:
 
-- `output: 'standalone'` for containerized deployment
 - Wrapped with `withSentryConfig` from `@sentry/nextjs`
-- Re-enabled Next.js image optimization (`sharp`)
+- Next.js configured with Cloudflare integration for image optimization
 
 **railway.toml**:
 
-- `build.command = 'pnpm build'`
-- `start.command = 'pnpm start'`
-- `preDeployCommand = 'pnpm db:migrate'` — runs migrations before app start
+```toml
+[build]
+builder = "RAILPACK"
 
-**Dockerfile**:
+[start]
+cmd = "pnpm start"
+```
 
-- Multi-stage build: dependencies → app → runtime
-- Exposes port 3000 (Railway `PORT` env var)
+- Railway uses Railpack (native builder) — no Dockerfile needed
+- Exposes port 3000 via Railway `PORT` env var
 
 ---
 
@@ -73,15 +76,14 @@ The application is deployed to **Railway**, a modern platform for building and d
 ### Production Deployment
 
 ```bash
-# Full deployment (migrations + build; Railway runs via railway.toml)
-pnpm run deploy:prod
+# Build locally
+pnpm build
 
-# This runs locally:
-pnpm db:migrate && pnpm build
-
-# Then push to Railway via git
+# Push to Railway via git (triggers automatic build & deploy)
 git push origin main  # (or your configured Railway deploy branch)
 ```
+
+**Note**: Migrations are applied **automatically on server boot** via Payload's `prodMigrations` hook — there is no separate migration step or preDeployCommand.
 
 ### Monitoring
 
@@ -112,7 +114,8 @@ Migrations are managed via Payload CMS and Drizzle ORM. The workflow differs bet
 **Production** (`DATABASE_URL` points to Railway Postgres):
 
 - `push: false` — schema changes require explicit migration files
-- `railway.toml` runs `pnpm db:migrate` (= `payload migrate`) as a preDeployCommand before app startup
+- Migrations are applied **in-process on server boot** via Payload's `prodMigrations` hook in `src/payload.config.ts`
+- No preDeployCommand or separate migration step needed
 - All 36 legacy SQLite/D1 migrations were deleted; the Postgres baseline is generated fresh on first Railway deploy
 
 ### Creating New Migrations
@@ -142,7 +145,7 @@ pnpm payload migrate:down     # roll back last (dev/test only)
 
 **Production**:
 
-- Railway's `preDeployCommand` runs `pnpm db:migrate` automatically before the app starts
+- Migrations are applied **in-process on server boot** via Payload's `prodMigrations` hook
 - No manual intervention needed; migrations are atomic via Postgres transactions
 
 ### Verifying Migrations
@@ -265,10 +268,8 @@ SENTRY_AUTH_TOKEN=<token>
 3. **Deploy to Production**:
 
    ```bash
-   # Local: run migrations + build
-   pnpm run deploy:prod
-
-   # Then push to Railway's deploy branch (usually main):
+   # Push to Railway's deploy branch (usually main)
+   # Migrations will run automatically on server boot
    git push origin main
    ```
 
@@ -297,9 +298,9 @@ SENTRY_AUTH_TOKEN=<token>
 Railway automatically:
 
 1. Detects a git push to the deploy branch
-2. Builds the Docker image (`Dockerfile` → `pnpm build`)
-3. Runs `preDeployCommand`: `pnpm db:migrate`
-4. Starts the app: `pnpm start`
+2. Builds the app via Railpack (`pnpm build`)
+3. Starts the app: `pnpm start`
+4. Payload **applies all pending migrations in-process on server boot** (via `prodMigrations` hook in `src/payload.config.ts`)
 5. Monitors `/api/health` until the server is ready (health checks passing)
 6. Routes traffic from Cloudflare edge proxy to the new instance
 7. Keeps previous instance running until new instance fully ready (zero-downtime deploy)
@@ -453,19 +454,23 @@ curl https://cloud.sydevelopers.com/api/test-sentry?type=message
 
 - Tables not created after deploy
 - `payload_migrations` table empty
+- Server boots but admin panel shows schema errors
 
 **Solutions**:
 
-1. Verify `railway.toml` has the preDeployCommand:
-
-   ```toml
-   preDeployCommand = "pnpm db:migrate"
-   ```
-
-2. Check migration files exist in `src/migrations/`:
+1. Check migration files exist in `src/migrations/`:
 
    ```bash
    ls src/migrations/
+   ```
+
+2. Verify `src/payload.config.ts` includes `prodMigrations` in the adapter config:
+
+   ```typescript
+   postgresAdapter({
+     prodMigrations: migrations, // <- should be present
+     // ...
+   })
    ```
 
 3. Check Railway logs for migration output:
@@ -474,11 +479,9 @@ curl https://cloud.sydevelopers.com/api/test-sentry?type=message
    railway logs -s sahajcloud --tail | grep -i migrat
    ```
 
-4. If migrations are stuck, manually run them:
-   ```bash
-   railway shell   # opens shell in the deployed container
-   pnpm db:migrate
-   ```
+4. If migrations fail on boot, check the error:
+   - Server will not fully start until migrations succeed
+   - Review Railway logs for Drizzle/Payload migration errors
 
 ### Email Not Sending
 
@@ -590,7 +593,7 @@ The migration is **complete and live**: `cloud.sydevelopers.com` is served from 
 
 ### Done
 
-- **Provisioning** — Railway Postgres 18 + the app service (Dockerfile build); `DATABASE_URL` set via a Railway reference variable; CI runs a `postgres:18` service container.
+- **Provisioning** — Railway Postgres 18 + the app service (Railpack native builder); `DATABASE_URL` set via a Railway reference variable; CI runs a `postgres:18` service container.
 - **Schema** — the legacy SQLite/D1 migrations were removed and a fresh Postgres baseline (`src/migrations/`) was applied to Railway (117 tables).
 - **Data ETL** — `scripts/etl-d1-to-postgres.ts` copies all data from the production D1 (read-only) into Railway Postgres: type-aware coercion, FK triggers deferred during load, sequences reset. Verified **111 tables / 7,980 rows**, and **202 FK constraints with 0 orphans**.
 - **Storage** — R2 reached via the S3 API (`@aws-sdk/client-s3`); Cloudflare Images + Stream kept. Uploads verified end-to-end (R2 + Images).

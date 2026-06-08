@@ -9,28 +9,16 @@ Postgres baseline.
 ## Postgres baseline
 
 `20260606_050852_initial_schema.{ts,json}` is the Postgres baseline — generated
-with `pnpm db:migrations:create` and applied (`pnpm db:migrate`) against the
-Railway Postgres 18 instance (117 tables). Production/CI apply it via
-`pnpm db:migrate`; dev uses `push: true` (see `src/payload.config.ts`) and
-doesn't need it.
+with `pnpm db:migrations:create` and tested locally with `pnpm db:migrate` against
+a local Postgres database. Production applies migrations automatically in-process
+on server boot via `prodMigrations` (see `src/payload.config.ts`); dev uses `push: true`
+and doesn't need the migration files.
 
 Regenerate after schema changes:
 
 ```bash
 pnpm db:migrations:create <name>   # writes the next src/migrations/<ts>_<name>.{ts,json}
 pnpm db:migrate                    # applies pending migrations to DATABASE_URL
-```
-
-Optionally regenerate the Drizzle schema snapshot for editor type-safety:
-
-```bash
-pnpm payload generate:db-schema  # -> src/payload-generated-schema.ts (gitignored from typecheck)
-```
-
-Optionally regenerate the Drizzle schema snapshot for editor type-safety:
-
-```bash
-pnpm payload generate:db-schema  # -> src/payload-generated-schema.ts (gitignored from typecheck)
 ```
 
 See `.claude/rules/migrations.md` for the full workflow.

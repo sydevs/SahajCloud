@@ -23,10 +23,10 @@ pnpm seed <script>
 SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed <script>
 ```
 
-**Required environment variables** (set in `.env` or shell):
+**Required environment variables**:
 
-- `ADMIN_EMAIL` - Admin email for authentication
-- `ADMIN_PASSWORD` - Admin password for authentication
+- `ADMIN_EMAIL` - Admin email for authentication (loaded from `.env.local` by `seeds/env.ts`)
+- `ADMIN_PASSWORD` - Admin password for authentication (loaded from `.env.local` by `seeds/env.ts`)
 - `SAHAJCLOUD_URL` - Target URL (default: `http://localhost:PORT`)
 
 ### API Route
@@ -187,13 +187,12 @@ pnpm seed meditations --update --dry-run
 
 ## Environment Variables
 
+For local development, add to `.env.local` (gitignored):
+
 ```bash
 # CLI Authentication (required for pnpm seed)
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=your-password
-SAHAJCLOUD_URL=https://cloud.sydevelopers.com  # Optional, defaults to localhost
-
-# All scripts
 PAYLOAD_SECRET=your-secret-key
 
 # Storyblok
@@ -201,6 +200,12 @@ STORYBLOK_ACCESS_TOKEN=your-token
 
 # Meditations
 STORAGE_BASE_URL=https://storage.googleapis.com/your-bucket
+```
+
+For seeding production, provide credentials via shell and target production:
+
+```bash
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=prod-password SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed <script>
 ```
 
 ## Design Principles
