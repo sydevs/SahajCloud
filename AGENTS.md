@@ -10,7 +10,7 @@ This file provides guidance to AI coding agents when working with this repositor
 ## Documentation
 
 - **`.claude/rules/`** — path-scoped rules that auto-load when reading matching files (run `ls .claude/rules/` for the inventory; each file's frontmatter declares its globs)
-- **`@.claude/docs/environment.md`** — environment variables and Wrangler configuration
+- **`@.claude/docs/environment.md`** — environment variables and Railway configuration
 - **`@.claude/docs/architecture.md`** — top-level architecture (collections, routes, logging, scheduled jobs)
 - **`.claude/skills/`** — local workflow skills (run `ls .claude/skills/` to discover; each has a `SKILL.md`)
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** — deployment documentation
@@ -49,6 +49,7 @@ Manual fallback: `pnpm dev` (start), `pnpm devsafe` (clean dev — removes `.nex
 ### Code Quality, Types, Testing
 
 - `pnpm lint` — ESLint
+- `pnpm typecheck` — TypeScript type checking
 - `pnpm generate:types` — TypeScript types from Payload schema (after schema changes)
 - `pnpm generate:importmap` — admin-panel import map
 - `pnpm test:unit` — fast unit lane (~1–2 s, no Payload bootstrap)
@@ -98,7 +99,6 @@ Configuration: `src/lib/richEditor/index.ts`.
 - `next.config.mjs` — Next.js configuration
 - `src/payload-types.ts` — auto-generated types (do not edit)
 - `tsconfig.json` — TypeScript path aliases
-- `Dockerfile` — Railway container build + start
 - `railway.toml` — Railway deployment configuration
 
 ### Data Seed Scripts
@@ -110,10 +110,10 @@ Schema migrations live in `src/migrations/` — see `.claude/rules/migrations.md
 ## Development Workflow
 
 1. **Schema changes**: `pnpm generate:types` after modifying collections.
-2. **Database**: PostgreSQL, managed by migrations in `src/migrations/`. Dev uses `push: true` (auto-schema-sync); prod uses `pnpm db:migrate`. See `.claude/rules/migrations.md` for details.
+2. **Database**: PostgreSQL on Railway, managed by migrations in `src/migrations/`. Dev uses `push: true` (auto-schema-sync); prod applies migrations in-process on server boot via `prodMigrations`. See `.claude/rules/migrations.md` for details.
 3. **Admin Access**: `/admin`.
 4. **API Access**: REST API at `/api/*` (GraphQL disabled).
-5. **Migrations**: `pnpm payload migrate` to apply (prod). **Ask the user to create migrations** — `pnpm db:migrations:create` prompts interactively and hangs when piped/backgrounded. See `.claude/rules/migrations.md`.
+5. **Migrations**: Create locally with `pnpm db:migrations:create`, commit, and they auto-apply on the next deploy. **Ask the user to create migrations** — `pnpm db:migrations:create` prompts interactively and hangs when piped/backgrounded. See `.claude/rules/migrations.md`.
 
 ### Git Commands
 
@@ -146,11 +146,11 @@ PR-only triggers; `concurrency: cancel-in-progress` cancels superseded runs on t
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive documentation.
 
-- **Platform**: Railway (Node.js) + PostgreSQL + R2 (S3 API) + Cloudflare edge (Images, Stream, rate limiting, caching)
+- **Platform**: Railway (Node.js, via Railpack builder) + PostgreSQL + R2 (S3 API) + Cloudflare edge (Images, Stream, rate limiting, caching)
 - **Production URL**: https://cloud.sydevelopers.com
-- **Deploy**: `pnpm run deploy:prod` = `pnpm db:migrate && pnpm build`
+- **Deploy**: Push to the branch; Railway auto-detects changes, builds with Railpack, and deploys. Migrations auto-apply in-process on server boot via `prodMigrations` in `src/payload.config.ts`.
 - **Monitor**: Railway deploy logs and `tail` command (see DEPLOYMENT.md)
-- Environment variables set in Railway service (secrets) and platform settings. Production migrations via `pnpm db:migrate` (= `payload migrate`).
+- Environment variables set in Railway service (secrets) and platform settings.
 
 ## Project Structure
 

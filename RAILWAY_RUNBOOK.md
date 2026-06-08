@@ -1,24 +1,44 @@
-# Railway Provisioning & Configuration Runbook
+# Railway + PostgreSQL Operations Runbook
 
-Complete, step-by-step guide for migrating this Next.js + Payload CMS application from Cloudflare Workers + D1 to Railway + PostgreSQL.
+Complete guide for managing and monitoring this Next.js + Payload CMS application deployed on Railway + PostgreSQL.
 
-**Scope**: Provisioning, environment variables, baseline migration, first deployment, data ETL, DNS cutover, CI/preview configuration, monitoring, and rollback procedures.
+**Note**: This application has successfully migrated from Cloudflare Workers + D1 to Railway + PostgreSQL. This runbook documents the production setup, operational procedures, and rollback/disaster recovery plans.
 
-**Estimated time**: 2–4 hours (depending on data size and team familiarity with Railway/PostgreSQL).
+**Scope**: Deployment verification, environment variables, database operations, monitoring, troubleshooting, and rollback procedures.
+
+**Expected time for common tasks**: 10–30 minutes depending on the operation.
 
 ---
 
 ## Table of Contents
 
-1. [Prerequisites & Accounts](#prerequisites--accounts)
-2. [Railway Provisioning & Configuration](#railway-provisioning--configuration)
-3. [Environment Variables & Secrets](#environment-variables--secrets)
-4. [Postgres Baseline Migration & First Deploy](#postgres-baseline-migration--first-deploy)
-5. [1:1 Data ETL (D1 → Postgres)](#11-data-etl-d1--postgres)
-6. [Cloudflare Reverse Proxy & DNS Cutover](#cloudflare-reverse-proxy--dns-cutover)
-7. [CI + Per-PR Preview Environments](#ci--per-pr-preview-environments)
-8. [Post-Cutover Monitoring & Decommissioning](#post-cutover-monitoring--decommissioning)
-9. [Rollback Procedure](#rollback-procedure)
+1. [Quick Start](#quick-start)
+2. [Managing Database & Migrations](#managing-database--migrations)
+3. [Disaster Recovery & Database Backups](#disaster-recovery--database-backups)
+4. [Cloudflare Reverse Proxy & DNS (Reference)](#cloudflare-reverse-proxy--dns-reference)
+5. [CI + Per-PR Preview Environments](#ci--per-pr-preview-environments)
+6. [Ongoing Monitoring & Maintenance](#ongoing-monitoring--maintenance)
+7. [Disaster Recovery & Rollback](#disaster-recovery--rollback)
+8. [Pre-Deployment Checklist](#pre-deployment-checklist-for-any-major-changes)
+9. [Troubleshooting](#troubleshooting)
+10. [References](#references)
+
+---
+
+## Quick Start
+
+**The production infrastructure is live and stable.**
+
+For common tasks:
+
+- **Deploy a change**: Push to `main` → Railway auto-builds and deploys → migrations apply on boot
+- **Create a schema migration**: `pnpm db:migrations:create` (local, interactive)
+- **Apply schema changes**: Commit the migration, push, Railway applies it automatically
+- **View logs**: `railway logs -s <app-service-name> --tail`
+- **Monitor metrics**: https://railway.app/project/[id] (CPU, memory, database pool)
+- **Check errors**: https://sentry.io/ (production error tracking)
+
+For full reference material (Postgres client setup, environment variables, advanced troubleshooting), see the remaining sections.
 
 ---
 
@@ -38,12 +58,8 @@ Before starting, ensure you have access to:
 
 - **GitHub repository access** — for connecting to Railway and CI/CD
 - **Cloudflare account access** (for Images, Stream, R2, DNS configuration)
-  - Account ID and API tokens (to remain unchanged)
-- **Production D1 database access** — for exporting data
-  ```bash
-  wrangler d1 export sahajcloud --remote --output prod-dump.sql
-  ```
-- **PostgreSQL 18 client (or any recent libpq)** installed locally (for psql commands):
+  - Account ID and API tokens (Cloudflare Workers/D1 have been decommissioned)
+- **PostgreSQL 18 client** installed locally (for local database operations and `psql` commands):
 
   ```bash
   brew install postgresql@16  # macOS
@@ -58,7 +74,9 @@ Before starting, ensure you have access to:
 
 ---
 
-## Railway Provisioning & Configuration
+## Railway Provisioning & Configuration (Reference)
+
+**This section documents how the production Railway project was set up. It is provided for reference in case you need to recreate or troubleshoot the configuration.**
 
 ### Step 1: Create a Railway Project
 
@@ -72,7 +90,7 @@ Before starting, ensure you have access to:
 6. Select the branch: `chore/railway-postgres-migration` (or your deployment branch)
 7. Click **"Deploy Now"**
 
-Railway auto-detects the `Dockerfile` and `railway.toml`, creating an app service.
+Railway uses Railpack (native builder) and auto-detects `railway.toml` to create the app service.
 
 #### Via CLI (Alternative)
 
@@ -156,16 +174,16 @@ In the **app service** → **Variables** tab, click **Add Variable** for each:
 4. `SAHAJATLAS_URL`
 5. `SAHAJCLOUD_PREVIEW_SECRET`
 
-Railway's environment injection **overwrites the Dockerfile's build-time placeholders** with real values. If these are missing during `docker build`, the container image will fail to build.
+Railway's Railpack builder injects these as environment variables during the build. If missing, the build will fail during the `pnpm build` stage.
 
 #### Setting Variables
 
 **Core** (required):
 
-| Variable         | Value            | Notes                               |
-| ---------------- | ---------------- | ----------------------------------- |
-| `PAYLOAD_SECRET` | ≥32 random chars | Generate: `openssl rand -base64 24` |
-| `NODE_ENV`       | `production`     | Already set by Docker, but confirm  |
+| Variable         | Value            | Notes                                     |
+| ---------------- | ---------------- | ----------------------------------------- |
+| `PAYLOAD_SECRET` | ≥32 random chars | Generate: `openssl rand -base64 24`       |
+| `NODE_ENV`       | `production`     | Auto-set by Railway; confirm in dashboard |
 
 **Database** (auto-linked in Step 4):
 
@@ -250,11 +268,9 @@ Ensure `railway.toml` is correct in your repository (should already be in place)
 
 ```toml
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+builder = "RAILPACK"
 
 [deploy]
-preDeployCommand = "pnpm db:migrate"
 startCommand = "pnpm start"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
@@ -264,23 +280,23 @@ restartPolicyMaxRetries = 3
 
 **What each setting does**:
 
-- **builder = "DOCKERFILE"**: Use your Dockerfile (not a buildpack)
-- **dockerfilePath**: Path to Dockerfile
-- **preDeployCommand**: Run migrations **before** the new app starts (zero-downtime deploys)
-- **startCommand**: Start the app on port 3000
+- **builder = "RAILPACK"**: Use Railway's native Railpack builder (detects Node.js automatically, builds via `pnpm build`)
+- **startCommand**: Start the app via `pnpm start` (runs `next start`)
 - **healthcheckPath**: Railway polls this endpoint to confirm readiness (verify `/api/health` exists and returns 200; if not, adjust to an endpoint you know exists)
 - **healthcheckTimeout**: Wait up to 300s for the app to be healthy
 - **restartPolicy**: Auto-restart on failure (up to 3 retries)
 
-### Step 9: (HOLD — Do Not Push Yet)
+**Migrations**: Migrations are applied **in-process on server boot** via Payload's `prodMigrations` (configured in `src/payload.config.ts`). There is **no preDeployCommand** — migrations run automatically when the app starts, ensuring zero-downtime deploys.
 
-**IMPORTANT ORDERING HAZARD**: Do **NOT** push your branch to GitHub yet. The baseline migration **must exist in `src/migrations/`** before the first deploy, or `preDeployCommand: pnpm db:migrate` will fail and the app will crash.
+### Step 9: Ready for Deployment
 
-**→ Skip to Section 4 (Postgres Baseline Migration & First Deploy) and complete it locally first. Return here after you have committed the migration.**
+The Railway project is now fully configured. All environment variables are set, and the app service is ready to deploy. Migrations will apply automatically on server boot via Payload's `prodMigrations` configuration — no manual migration step is required.
 
 ---
 
-## Environment Variables & Secrets
+## Environment Variables & Secrets (Reference)
+
+**This section documents all environment variables used in the application. Use this for troubleshooting or adding new integrations.**
 
 ### Complete Inventory
 
@@ -318,7 +334,7 @@ These **must** be set when `pnpm build` runs during Docker build:
 - `SAHAJATLAS_URL`
 - `SAHAJCLOUD_PREVIEW_SECRET`
 
-The `Dockerfile` injects placeholders for these during the build stage; Railway's environment injection **overwrites** them with real values at runtime.
+Railway's Railpack builder injects these as environment variables during the build stage, making them available to `pnpm build` and at runtime.
 
 ### How to Obtain Secrets
 
@@ -382,563 +398,219 @@ S3 endpoint is auto-derived: `https://<CLOUDFLARE_ACCOUNT_ID>.r2.cloudflarestora
 
 ---
 
-## Postgres Baseline Migration & First Deploy
+## Managing Database & Migrations
 
-### Step 1: Provision Railway Postgres (Already Done)
+### Overview
 
-Your Railway Postgres instance is running and accessible via `DATABASE_URL` (from environment variables above).
+Migrations are managed via Payload's `prodMigrations` configuration in `src/payload.config.ts`. On every app boot (including deploys), Payload automatically:
 
-### Step 2: Generate Baseline Migration Against Live Postgres
+1. Detects which migrations have been applied (by checking the `payload_migrations` table)
+2. Runs all pending migrations in order
+3. Updates the migrations table
 
-**Critical**: The baseline migration must be generated **before** the first production deploy. It creates the schema snapshot that migrations apply.
+This ensures zero-downtime deploys — the new app instance applies migrations before serving traffic.
 
-#### Using Railway CLI (Recommended)
+**For local development**, use:
 
 ```bash
-# Run LOCALLY (not piped or in CI) where you can respond to interactive prompts
-# The pnpm db:migrations:create command uses prompts() and cannot run in automated contexts
+# Generate a new migration interactively
+pnpm db:migrations:create
+
+# Apply migrations to your local Postgres
+pnpm db:migrate
+```
+
+**For production**, simply push to `main` and deploy. Migrations apply automatically on boot.
+
+### Creating a Migration (Local Development)
+
+```bash
+# Run LOCALLY where you can respond to interactive prompts
+# The pnpm db:migrations:create command is interactive and requires terminal input
 pnpm db:migrations:create
 
 # Interactive prompt (requires terminal input):
-# ? Name of migration: initial_schema
-# ✓ Created src/migrations/1701234567890_initial_schema.ts
-# ✓ Created src/migrations/1701234567890_initial_schema.json
+# ? Name of migration: add_new_field
+# ✓ Created src/migrations/1701234567890_add_new_field.ts
+# ✓ Created src/migrations/1701234567890_add_new_field.json
 ```
 
-**CRITICAL**: This command is **interactive** — it uses `prompt()` and **cannot run in Railway, CI/CD, or piped contexts**. You must run it locally on your machine where you can respond to prompts. After generating the migration, commit it locally and push to GitHub, then Railway will apply it during deploy.
+**Important**: This command is interactive and cannot run in CI/CD or piped contexts. Always run it locally.
 
-**Postgres 16 Compatibility Check**: If the migration generation fails with syntax errors, verify your schema doesn't use SQLite-specific functions (e.g., `json1`, `date('now')`). Payload's `postgresAdapter` handles SQL dialect automatically, but verify by checking the generated migration for any `PRAGMA` or SQLite-only functions. If found, report to the development team before proceeding.
-
-#### Using Environment Variable (Alternative)
+### Applying Migrations to Local Postgres
 
 ```bash
-# Get Railway's DATABASE_URL
-railway variables get DATABASE_URL -s Postgres
-
-# Export it locally (temporary, this shell session only)
-export DATABASE_URL="postgresql://user:pass@host:5432/dbname"
-
-# Run the migration generator
-pnpm db:migrations:create
-
-# Then unset it when done
-unset DATABASE_URL
-```
-
-### Step 3: Verify Baseline Migration
-
-```bash
-# Apply the migration to the live Postgres
-railway run pnpm db:migrate
+# Apply all pending migrations to your local database
+pnpm db:migrate
 
 # Expected output:
-# ✓ Applied 1701234567890_initial_schema
-
-# Verify schema was created
-railway run psql -c "
-  SELECT table_name
-  FROM information_schema.tables
-  WHERE table_schema = 'public'
-  ORDER BY table_name
-  LIMIT 5;
-"
+# ✓ Applied 1701234567890_add_new_field
 ```
 
-### Step 4: Commit & Push
+### Viewing Migrations on Production
 
 ```bash
-git add src/migrations/
-git commit -m "feat: generate Postgres baseline migration
-
-- Create initial schema snapshot for Railway Postgres
-- Generated interactively against live DB
-- Baseline ready for first production deploy"
-
-git push origin chore/railway-postgres-migration
+# See which migrations have been applied to the production database
+railway run psql -c "SELECT * FROM payload_migrations ORDER BY id DESC LIMIT 10;"
 ```
 
-### Step 5: Deploy to Railway
-
-Push your branch to trigger the Railway build + deploy:
+### Verifying Production Deployment
 
 ```bash
-# Already pushed above, but if needed:
-git push origin chore/railway-postgres-migration
-
-# Monitor the deploy
+# Monitor the deploy logs (migrations apply automatically)
 railway logs -s <app-service-name> --tail
 
 # Expected output:
-# [build] Docker building...
-# [build] ✓ Build successful (pnpm build completed)
-# [deploy] Running preDeployCommand: pnpm db:migrate
-# [deploy] ✓ Applied 1701234567890_initial_schema
 # [start] pnpm start
 # [start] > next start
+# [start] Payload migrations starting...
+# [start] ✓ Applied 1701234567890_add_new_field
 # [start] ready - started server on 0.0.0.0:3000
 # [health] GET /api/health ✓ 200 OK
 # [success] Deployment complete
 ```
 
-### Step 6: Verify Initial Deployment
-
-```bash
-# Health check on Railway's *.railway.app domain
-curl https://sahajcloud-prod.railway.app/api/health
-# Expected: { "status": "ok", ... }
-
-# API test
-curl https://sahajcloud-prod.railway.app/api/meditations
-# Expected: JSON array (empty, since data hasn't been migrated yet)
-
-# Check logs for errors
-railway logs -s <app-service-name> --tail | grep -i error
-```
-
-The app is now running on Railway with an empty database. Next: migrate production data.
-
 ---
 
-## 1:1 Data ETL (D1 → Postgres)
+## Disaster Recovery & Database Backups
 
-### Step 1: Export Data from Production D1
+### Automated Backups
 
-```bash
-# Export the live production D1 database
-pnpm exec wrangler d1 export sahajcloud --remote --output prod-dump.sql
+Railway Postgres automatically creates backups on a schedule configured in the dashboard:
 
-# Verify the dump
-wc -l prod-dump.sql
-head -50 prod-dump.sql
-```
+- **Daily**: Retained for 6 days
+- **Weekly**: Retained for 1 month
+- **Monthly**: Retained for 3 months
 
-This produces a SQLite `.dump` SQL file with all `CREATE TABLE` and `INSERT` statements.
+These are managed in **Project Canvas** → **Postgres service** → **Settings** → **Backups**.
 
-### Step 2: Load into Local SQLite (for inspection)
+### Manual Backup (Before Major Changes)
 
 ```bash
-# Create a local working copy
-sqlite3 local-working-copy.sqlite < prod-dump.sql
+# Export the production database to a local SQL file
+pg_dump $DATABASE_URL > backup-$(date +%Y%m%d-%H%M%S).sql
 
-# Verify tables
-sqlite3 local-working-copy.sqlite "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
-
-# Count rows in key tables
-sqlite3 local-working-copy.sqlite << 'EOF'
-SELECT 'pages' as table_name, COUNT(*) FROM pages
-UNION ALL SELECT 'meditations', COUNT(*) FROM meditations
-UNION ALL SELECT 'managers', COUNT(*) FROM managers
-UNION ALL SELECT 'images', COUNT(*) FROM images
-UNION ALL SELECT 'videos', COUNT(*) FROM videos
-UNION ALL SELECT 'albums', COUNT(*) FROM albums
-UNION ALL SELECT 'songs', COUNT(*) FROM songs
-UNION ALL SELECT 'lectures', COUNT(*) FROM lectures
-UNION ALL SELECT 'lessons', COUNT(*) FROM lessons
-ORDER BY 1;
-EOF
+# Or via Railway CLI:
+railway run pg_dump > backup-$(date +%Y%m%d-%H%M%S).sql
 ```
 
-### Step 3: Migrate Using pgloader (Recommended for Most Data)
+### Restoring from Backup
 
-**Install pgloader**:
+If you need to restore from a backup:
 
 ```bash
-brew install pgloader  # macOS
-# or
-sudo apt-get install pgloader  # Ubuntu/Debian
+# Connect to the backup file
+psql -f backup-20260605-123456.sql $DATABASE_URL
+
+# Or via Railway CLI:
+railway run psql -f backup-20260605-123456.sql
 ```
 
-**Create migration control file** (`migrate.load`):
-
-```pgloader
-LOAD DATABASE
-    FROM sqlite:///path/to/local-working-copy.sqlite
-    INTO $DATABASE_URL
-
-WITH include drop, create tables, no truncate, reset sequences
-
-CAST
-    column managers.active from boolean to boolean,
-    column managers.deleted from boolean to boolean,
-    column managers.created_at from text to timestamptz
-        using pgloader.transforms:sqlite-to-timestamp,
-    column managers.updated_at from text to timestamptz
-        using pgloader.transforms:sqlite-to-timestamp,
-    column pages.content from text to jsonb
-        using pgloader.transforms:sqlite-text-to-jsonb,
-    column meditations.snapshot from text to jsonb
-        using pgloader.transforms:sqlite-text-to-jsonb
-
-BEFORE LOAD DO
-  $$ ALTER TABLE IF EXISTS pages_rels DISABLE TRIGGER ALL $$
-AFTER LOAD DO
-  $$ ALTER TABLE IF EXISTS pages_rels ENABLE TRIGGER ALL $$;
-```
-
-**Run pgloader**:
+### Checking Database Connection Pool Health
 
 ```bash
-pgloader \
-  --verbose \
-  --on-error-resume next \
-  migrate.load
-
-# Monitor progress (check row counts)
-# Expected: "Migrated N tables, M million rows, X time"
-```
-
-**Verify Foreign Key Constraints**
-
-PostgreSQL enforces foreign key constraints by default (unlike SQLite, which requires `PRAGMA foreign_keys=ON`). If the D1 dump contains any orphaned foreign key references, the pgloader migration will fail.
-
-```bash
-# Before loading, check the D1 dump for FK violations
-sqlite3 local-working-copy.sqlite << 'EOF'
--- Check for orphaned meditations_rels
-SELECT COUNT(*) as orphaned_refs
-FROM meditations_rels m
-WHERE parent_id NOT IN (SELECT id FROM meditations)
-  AND parent_collection = 'meditations';
-EOF
-
-# If violations exist, either:
-# 1. Manually remove orphaned rows before loading, OR
-# 2. Add a BEFORE LOAD clause to pgloader that disables triggers:
-#    BEFORE LOAD DO $$ ALTER TABLE meditations_rels DISABLE TRIGGER ALL $$
-```
-
-**Reset Postgres Sequences**
-
-After pgloader loads data with explicit IDs, Postgres sequences need to be reset:
-
-```bash
-psql $DATABASE_URL << 'EOF'
--- Reset all auto-increment sequences
-SELECT setval(
-  pg_get_serial_sequence('pages', 'id'),
-  (SELECT COALESCE(MAX(id), 0) FROM pages) + 1
-);
-
-SELECT setval(
-  pg_get_serial_sequence('meditations', 'id'),
-  (SELECT COALESCE(MAX(id), 0) FROM meditations) + 1
-);
-
-SELECT setval(
-  pg_get_serial_sequence('managers', 'id'),
-  (SELECT COALESCE(MAX(id), 0) FROM managers) + 1
-);
-
--- Repeat for all other tables with auto-increment IDs
--- (albums, songs, lectures, lessons, images, videos, files, etc.)
-
--- Verify sequences are synchronized
-SELECT sequencename, last_value FROM pg_sequences ORDER BY sequencename;
-EOF
-```
-
-### Step 4: Alternative — Custom Node.js Migration Script
-
-If pgloader isn't available or you need custom logic:
-
-**Create `scripts/migrate-d1-to-postgres.ts`** (see the full implementation in the project's scripts folder for details on batching, error handling, and Payload-specific data handling).
-
-**Run the script**:
-
-```bash
-pnpm tsx scripts/migrate-d1-to-postgres.ts
-
-# With explicit env vars:
-LOCAL_SQLITE=./prod-dump.sqlite \
-  DATABASE_URL="postgresql://user:pass@host:5432/sahajcloud" \
-  pnpm tsx scripts/migrate-d1-to-postgres.ts
-```
-
-### Step 5: Verification Gates (Must Pass Before Cutover)
-
-#### 5.1 Row-Count Parity
-
-```bash
-# Compare SQLite and Postgres row counts
-echo "=== SQLite ===" && sqlite3 local-working-copy.sqlite << 'EOF'
-SELECT 'pages' as table_name, COUNT(*) FROM pages
-UNION ALL SELECT 'meditations', COUNT(*) FROM meditations
-UNION ALL SELECT 'managers', COUNT(*) FROM managers
-UNION ALL SELECT 'images', COUNT(*) FROM images
-UNION ALL SELECT 'videos', COUNT(*) FROM videos
-UNION ALL SELECT 'albums', COUNT(*) FROM albums
-UNION ALL SELECT 'songs', COUNT(*) FROM songs
-UNION ALL SELECT 'lectures', COUNT(*) FROM lectures
-ORDER BY 1;
-EOF
-
-echo "=== Postgres ===" && psql $DATABASE_URL << 'EOF'
-SELECT 'pages' as table_name, COUNT(*) FROM pages
-UNION ALL SELECT 'meditations', COUNT(*) FROM meditations
-UNION ALL SELECT 'managers', COUNT(*) FROM managers
-UNION ALL SELECT 'images', COUNT(*) FROM images
-UNION ALL SELECT 'videos', COUNT(*) FROM videos
-UNION ALL SELECT 'albums', COUNT(*) FROM albums
-UNION ALL SELECT 'songs', COUNT(*) FROM songs
-UNION ALL SELECT 'lectures', COUNT(*) FROM lectures
-ORDER BY 1;
-EOF
-```
-
-**Expected result**: All row counts match exactly (or within 1 row for transient records).
-
-#### 5.2 Referential Integrity (No Orphaned Foreign Keys)
-
-```bash
-psql $DATABASE_URL << 'EOF'
--- Check for orphaned meditations_rels
-SELECT COUNT(*) as orphaned_refs
-FROM meditations_rels m
-WHERE parent_id NOT IN (SELECT id FROM meditations)
-  AND parent_collection = 'meditations';
--- Expected: 0
-
--- Check all FK constraints
-SELECT tc.constraint_name, tc.table_name, kcu.column_name
-FROM information_schema.table_constraints tc
-JOIN information_schema.key_column_usage kcu
-  ON tc.constraint_name = kcu.constraint_name
-WHERE tc.constraint_type = 'FOREIGN KEY'
-ORDER BY tc.table_name;
-EOF
-```
-
-#### 5.3 Admin Spot-Checks
-
-```bash
-# Test in the Railway app via admin UI (next step)
-# Or verify via direct queries:
-
-psql $DATABASE_URL << 'EOF'
--- Check key collections
-SELECT
-  'Pages' as entity,
-  COUNT(*) as count,
-  MAX(created_at) as latest
-FROM pages
-WHERE _status = 'published'
-
-UNION ALL SELECT
-  'Meditations',
-  COUNT(*),
-  MAX(created_at)
-FROM meditations
-
-UNION ALL SELECT
-  'Managers',
-  COUNT(*),
-  MAX(created_at)
-FROM managers
-WHERE deleted IS NOT TRUE;
-EOF
-
-# Sample relationship data
-psql $DATABASE_URL -c "
-  SELECT p.id, p.title, JSON_ARRAY_LENGTH(p.content->'root'->'children') as block_count
-  FROM pages
-  WHERE content IS NOT NULL
-  LIMIT 5;
+# View active connections and their state
+railway run psql -c "
+  SELECT
+    datname,
+    usename,
+    application_name,
+    state,
+    COUNT(*) as count
+  FROM pg_stat_activity
+  WHERE datname = 'sahajcloud'
+  GROUP BY datname, usename, application_name, state
+  ORDER BY count DESC;
 "
-```
 
-### Step 6: Deploy and Test the Migrated Data
-
-Once verification passes, the data is ready for production traffic:
-
-```bash
-# Health check
-curl https://cloud.sydevelopers.com/api/health
-
-# API test (should now return production data)
-curl https://cloud.sydevelopers.com/api/meditations | jq '.[] | {id, title}' | head -20
-
-# Test admin login
-# Visit https://cloud.sydevelopers.com/admin in a browser
-# Log in with your Payload credentials
+# Expected: Most connections idle or active, <95% of pool utilized
 ```
 
 ---
 
-## Cloudflare Reverse Proxy & DNS Cutover
+## Cloudflare Reverse Proxy & DNS (Reference)
 
-### Step 1: Verify Railway App is Fully Operational
+**This section describes the Cloudflare proxy configuration. The DNS and cache rules are already in place in production. Update this section only if you need to modify Cloudflare settings.**
 
-Before touching DNS, confirm the Railway app works end-to-end:
+### Verifying the Current Setup
+
+Confirm the current DNS and cache configuration:
 
 ```bash
-# Health check
-curl https://sahajcloud-prod.railway.app/api/health
+# Verify DNS points to Cloudflare
+dig cloud.sydevelopers.com +short
+# Expected: Cloudflare IP (e.g., 104.16.x.x)
 
-# API
-curl https://sahajcloud-prod.railway.app/api/meditations
+# Check that the domain works end-to-end
+curl -I https://cloud.sydevelopers.com/api/health
+# Expected: 200 OK with CF-Cache-Status and CF-Ray headers
 
-# Admin (via browser)
-# https://sahajcloud-prod.railway.app/admin
+# Verify cache is working for static assets
+curl -I https://cloud.sydevelopers.com/_next/static/chunks/main.js
+# Second request should show: CF-Cache-Status: HIT
 ```
 
-### Step 2: Add Custom Domain to Railway
+### Updating Custom Domain (If Needed)
+
+If the Railway app URL changes or you need to add a new domain:
 
 1. In **Project Canvas**, click the **app service**
 2. Click **Settings** → **Domains**
-3. Click **`+ Add Domain`**
-4. Enter `cloud.sydevelopers.com`
+3. Click **`+ Add Domain`** (if not already added)
+4. Enter the domain name
 5. Railway generates a **CNAME target** (e.g., `cname-prod.railway.app.`)
 6. **Copy this CNAME target** — you'll use it in Cloudflare DNS
 
-### Step 3: Update Cloudflare DNS
-
-1. Log in to https://cloudflare.com → **sydevelopers.com** zone
-2. Go to **DNS**
-3. Find or create the `cloud` record:
+7. Log in to https://cloudflare.com → **sydevelopers.com** zone
+8. Go to **DNS**
+9. Find the `cloud` record:
    - **Type**: CNAME
    - **Name**: `cloud`
-   - **Target**: (the Railway CNAME target from Step 2, e.g., `cname-prod.railway.app.`)
+   - **Target**: Railway CNAME target (e.g., `cname-prod.railway.app.`)
    - **Proxy status**: **Proxied** (orange cloud icon)
-   - **TTL**: Auto
-4. Click **Save**
+10. If updating the target, edit and **Save**
 
-### Step 4: Verify DNS Propagation
+After DNS changes, verify propagation (1–2 minutes):
 
 ```bash
-# Wait 1–2 minutes, then:
 dig cloud.sydevelopers.com +short
-# Expected: Points to Cloudflare IP (e.g., 104.16.x.x)
-
-# Verify CNAME chain
-nslookup cloud.sydevelopers.com
-# Should show: cloud.sydevelopers.com → Railway CNAME
+# Expected: Cloudflare IP (e.g., 104.16.x.x)
 ```
 
-### Step 5: Configure Cloudflare SSL/TLS
+### Cloudflare SSL/TLS Configuration
 
-1. In **Cloudflare Dashboard** → **SSL/TLS** (left menu)
-2. Click **Overview**
-3. Set **SSL/TLS encryption mode** to **Full (strict)**
-   - This enforces HTTPS between Cloudflare and Railway
-   - Railway's certificate (_.railway.app) is valid for both _.railway.app and custom domains
+Cloudflare SSL/TLS is already set to **Full (strict)**, which enforces HTTPS between Cloudflare and Railway. No changes needed unless troubleshooting.
 
-### Step 6: Configure Cache Rules
+### Cache Rules (Already Configured)
 
-Cache rules control what Cloudflare caches, reducing origin load. **Rules are evaluated in order; the first matching rule applies.**
+Cache rules are already configured in Cloudflare to control caching, reduce origin load, and bypass routes that shouldn't be cached. **Rules are evaluated in order; the first matching rule applies.**
 
-1. Go to **Caching** → **Cache Rules**
-2. Create rules (in order):
+Current rules (do not modify unless needed for troubleshooting):
 
-**Rule 1: Cache Next.js static assets** (aggressive caching)
+1. Cache Next.js static assets (1 year TTL)
+2. Bypass admin panel
+3. Bypass authenticated routes
+4. Cache GET API responses (5 minutes TTL)
+5. Bypass webhooks
 
-```
-Matching conditions:
-  - URI Path: matches regex → ^/(_next/static|public)/.*
+For the current rule details, check the Cloudflare dashboard: **Caching** → **Cache Rules**. Only modify if you need to exclude new routes or adjust TTLs.
 
-Then:
-  - Cache status: Cache
-  - Cache TTL: 1 year (31536000)
-  - Browser TTL: 1 year
-```
+### Rate Limiting (Already Configured)
 
-**Rule 2: Bypass admin panel** (no cache)
+Cloudflare rate limiting rules are already in place to replace the removed in-Worker rate limiter. They protect against abuse while exempting webhooks.
 
-```
-Matching conditions:
-  - URI Path: starts with → /admin
+**Rule 1**: General API rate limit (500 requests/60s, excludes `/api/webhooks/`)
+**Rule 2**: Auth endpoint protection (10 requests/60s per IP)
 
-Then:
-  - Cache status: Bypass
-```
+Webhooks are exempted because external services (Cloudflare Stream, Resend) retry on 429 responses.
 
-**Rule 3: Bypass authenticated routes** (no cache)
+For the current rate limiting rules, check the Cloudflare dashboard: **Security** → **Rate limiting rules**. Only modify if you need to adjust thresholds.
 
-```
-Matching conditions:
-  - URI Path: starts with → /api/users/me
-  - Request Header: authorization, contains, (any value)
+### WAF (Web Application Firewall)
 
-Then:
-  - Cache status: Bypass
-```
+WAF is enabled with the Cloudflare Managed Ruleset (OWASP). Check **Security** → **WAF** in the Cloudflare dashboard for the current configuration.
 
-**Rule 4: Cache GET API responses** (short TTL)
-
-```
-Matching conditions:
-  - URI Path: matches regex → ^/api/(meditations|users|managers|posts)$
-  - Request Method: equals → GET
-
-Then:
-  - Cache status: Cache
-  - Cache TTL: 5 minutes (300)
-  - Browser TTL: 1 minute (60)
-```
-
-**Rule 5: Bypass webhooks** (no cache)
-
-```
-Matching conditions:
-  - URI Path: matches regex → ^/api/webhooks/.*
-
-Then:
-  - Cache status: Bypass
-```
-
-### Step 7: Configure Rate Limiting
-
-Replace the removed in-Worker rate limiter with Cloudflare rate limiting rules:
-
-1. Go to **Security** → **Rate limiting rules**
-2. Create rules:
-
-**Rule 1: General API rate limit** (excludes webhooks)
-
-```
-Matching conditions:
-  - Request Path: matches regex → ^/api/.*
-  - Request Path: does not match → ^/api/webhooks/.*
-  - Request Method: POST, PUT, PATCH, DELETE
-
-Rate limiting:
-  - Requests: 500
-  - Per: 60 seconds
-  - Counting expression: cf.colo (per Cloudflare data center)
-
-Then:
-  - Action: Block
-  - Response: 429 Too Many Requests
-  - Duration: 1 minute
-```
-
-**Why exclude `/api/webhooks/`**: Webhooks are triggered by external services (Cloudflare Stream, Resend) that retry on 429 responses. Excluding them ensures external retries aren't rate-limited.
-
-**Rule 2: Auth endpoint protection**
-
-```
-Matching conditions:
-  - Request Path: matches regex → ^/api/auth/(login|register|reset-password)$
-  - Request Method: POST
-
-Rate limiting:
-  - Requests: 10
-  - Per: 60 seconds
-  - Counting expression: cf.client.ip (per client IP)
-
-Then:
-  - Action: Block
-  - Response: 429 Too Many Requests
-  - Duration: 5 minutes
-```
-
-### Step 8: Enable WAF (Web Application Firewall)
-
-1. Go to **Security** → **WAF** (or **Firewall** → **Managed rules**)
-2. Enable **Cloudflare Managed Ruleset** (OWASP)
-3. Enable **Cloudflare Rate Limiting Ruleset**
-4. Set action to **Challenge** (medium severity) or **Block** (high severity)
-
-### Step 9: Final Verification (Before Going Live)
+### Verifying Cloudflare Configuration is Live
 
 ```bash
 # Test via Cloudflare edge
@@ -952,25 +624,6 @@ curl -I https://cloud.sydevelopers.com/_next/static/chunks/main.js
 # Test admin route (should bypass cache)
 curl -I https://cloud.sydevelopers.com/admin
 # Should show: Cache-Control: no-store, no-cache, must-revalidate
-
-# Verify cache headers
-curl -I https://cloud.sydevelopers.com/api/meditations
-# Should show: Cache-Control: public, max-age=300 (if rule applied)
-```
-
-### Step 10: Go Live (DNS Cutover is Complete)
-
-**Announcement**: "DNS cutover in progress — zero downtime expected due to Cloudflare + Railway zero-downtime deploys."
-
-Traffic now routes: Cloudflare edge → Railway origin.
-
-```bash
-# Confirm traffic is routing
-dig cloud.sydevelopers.com +short
-# Should resolve to Cloudflare IP
-
-# Monitor for 30 minutes
-railway logs -s <app-service-name> --tail | head -100
 ```
 
 ---
@@ -996,7 +649,7 @@ Each PR gets its own Railway preview environment with a unique URL.
 1. Create a new branch for the PR: `feature/my-feature`
 2. Push the branch to GitHub
 3. In Railway dashboard → **Project Canvas** → Click `+ New` → **GitHub Repo**
-4. Configure the preview service (same Dockerfile + railway.toml as production)
+4. Configure the preview service (Railpack builder + railway.toml, same as production)
 5. Wait for Railway to assign a preview URL (e.g., `https://sahajcloud-pr-123.railway.app`)
 6. In GitHub repo settings, add a **Repository Variable** (or **Environment Variable**):
    - Name: `RAILWAY_PREVIEW_URL`
@@ -1083,9 +736,9 @@ gh workflow run ci.yml -f preview_url="https://sahajcloud-pr-123.railway.app"
 
 ---
 
-## Post-Cutover Monitoring & Decommissioning
+## Ongoing Monitoring & Maintenance
 
-### Monitoring (First 24 Hours)
+### Monitoring (First 24 Hours After Major Changes)
 
 | Metric                     | Expected           | Action if not met                |
 | -------------------------- | ------------------ | -------------------------------- |
@@ -1114,31 +767,16 @@ gh workflow run ci.yml -f preview_url="https://sahajcloud-pr-123.railway.app"
 - [ ] Test email delivery: trigger a password reset, check inbox (Resend dashboard)
 - [ ] Verify no data loss: spot-check a few production records
 
-### Decommissioning D1 (After 48 Hours of Stable Operation)
+### Production Database Maintenance
 
-Once Railway + Postgres is stable:
+The application uses Railway Postgres 18 with automated backups. Maintenance consists primarily of:
 
-```bash
-# 1. Final backup of D1 (for archival)
-wrangler d1 export sahajcloud --remote --output d1-final-backup.sql
+1. **Monitor connection pool health** — check `pg_stat_activity` weekly
+2. **Review slow query logs** — use Railway's metrics dashboard
+3. **Vacuum & analyze** — Railway runs these automatically; no manual intervention needed
+4. **Scale compute if needed** — increase CPU/RAM in Railway service settings if metrics exceed thresholds
 
-# 2. Delete the D1 instance from wrangler.toml
-# Remove the binding: [[d1_databases]]
-
-# 3. Remove D1-specific environment variables
-# (None remain; Cloudflare now only hosts Images, Stream, R2)
-
-# 4. Verify Workers/D1 are no longer in use
-# (If the app still uses a Cloudflare Worker, keep it as a fallback)
-
-# 5. Archive the backup
-# Store d1-final-backup.sql in your backup system (AWS S3, B2, etc.)
-
-# 6. Commit & deploy
-git add -A
-git commit -m "chore: decommission D1, finalize Railway migration"
-git push origin main
-```
+D1 has been decommissioned. All data lives in Railway Postgres with automated backups.
 
 ### Long-Term Monitoring
 
@@ -1153,129 +791,126 @@ Set up Sentry/Railway alerts:
 
 ---
 
-## Rollback Procedure
+## Disaster Recovery & Rollback
 
-If critical issues arise post-cutover, rollback takes ~5 minutes:
+If critical issues arise in production, you can rollback quickly:
 
-### Rollback Steps
+### Immediate Rollback (5 minutes)
 
-1. **In Cloudflare DNS**:
-   - Go to **DNS → Records**
-   - Change the `cloud` CNAME **back to the Cloudflare Worker route** (if still deployed as fallback)
-   - Or change it to a known-good revision of Railway
-   - Click **Save**
+1. **Revert the problematic code change**:
 
-2. **Verify traffic is back on the fallback**:
+   ```bash
+   git revert HEAD
+   git push origin main
+   ```
+
+   Railway will automatically detect the push and deploy the reverted version.
+
+2. **Monitor the rollback**:
+
+   ```bash
+   railway logs -s <app-service-name> --tail
+
+   # Watch for:
+   # - Successful deployment
+   # - Migrations applying (if any new migrations were in the reverted code)
+   # - Health checks passing
+   ```
+
+3. **Verify traffic is restored**:
 
    ```bash
    curl https://cloud.sydevelopers.com/api/health
-   # Should respond with the fallback's response (or show the Worker is no longer available)
+   # Expected: 200 OK
    ```
 
-3. **Investigate root cause**:
+### Investigating Root Cause
 
-   ```bash
-   # Check Railway logs for crashes
-   railway logs -s <app-service-name> --tail -n 1000
+If you need to understand what went wrong before rolling back again:
 
-   # Check Sentry for new errors
-   # https://sentry.io/organizations/your-org/issues/
+```bash
+# Check Railway logs for errors
+railway logs -s <app-service-name> --tail -n 1000
 
-   # Check Postgres connection pool
-   psql $DATABASE_URL -c "SELECT * FROM pg_stat_activity WHERE datname = 'sahajcloud';"
+# Check Sentry for new errors
+# https://sentry.io/organizations/your-org/issues/
 
-   # Check if migrations failed
-   railway run psql -c "SELECT * FROM payload_migrations ORDER BY id DESC LIMIT 5;"
-   ```
+# Check Postgres connection pool
+railway run psql -c "SELECT * FROM pg_stat_activity WHERE datname = 'sahajcloud';"
 
-4. **Fix the issue**:
-   - Revert the problematic change
-   - Deploy a fixed version to Railway
-   - Re-apply the DNS change to point back to Railway
+# Check migration status (if a migration was the problem)
+railway run psql -c "SELECT * FROM payload_migrations ORDER BY id DESC LIMIT 5;"
 
-5. **Re-attempt cutover** once root cause is resolved
+# Check for database locks
+railway run psql -c "SELECT * FROM pg_locks WHERE NOT granted;"
+```
 
-### Keeping the Fallback Alive (Optional)
+### Database Rollback (If Data Was Corrupted)
 
-To ensure a fast rollback, keep the old Cloudflare Worker deployed as a live fallback:
+If the issue is data corruption, restore from backup:
 
-- The Worker remains deployed on the `main` branch (or a specific `worker-fallback` branch)
-- DNS points to Railway in normal operation
-- If needed, revert DNS CNAME to the Worker's route in <1 minute
-- No data loss (D1 remains available alongside Postgres for the rollback window)
+```bash
+# List available backups in Railway dashboard
+# Project → Postgres service → Backups
+
+# Restore to a point-in-time (via Railway dashboard or CLI)
+# This creates a new Postgres instance; you must update DATABASE_URL after
+
+# After restore, update the DATABASE_URL in Railway variables:
+railway variables --set DATABASE_URL='${{ <new-postgres-service>.DATABASE_URL }}'
+
+# Redeploy the app to use the restored database:
+git push origin main
+```
 
 ---
 
-## Pre-Cutover Checklist
+## Pre-Deployment Checklist (For Any Major Changes)
 
-### 24 Hours Before
+### Before Deploying to Production
 
-- [ ] Railway project created and service deployed
-- [ ] Postgres 16 instance running with backups enabled
-- [ ] All 18+ environment variables set in Railway
-- [ ] Baseline migration generated: `src/migrations/<timestamp>_initial_schema.ts + .json`
-- [ ] First deploy successful; app is healthy on \*.railway.app domain
-- [ ] All tests pass: `pnpm lint && pnpm test`
+- [ ] Code changes tested locally: `pnpm lint && pnpm test:unit`
+- [ ] Migration tested locally (if schema changes): `pnpm db:migrate`
+- [ ] All required environment variables verified in Railway
+- [ ] Backup exists (automated backups run daily)
+- [ ] Sentry is set up and receiving events from staging
+- [ ] Cloudflare cache rules are appropriate for the change
 
-### Data Migration (Before DNS Cutover)
-
-- [ ] D1 data exported: `prod-dump.sql`
-- [ ] pgloader (or custom script) completed without errors
-- [ ] Row-count parity verified (SQLite vs. Postgres)
-- [ ] Referential integrity checks passed (no orphaned FKs)
-- [ ] Spot-checks passed (admin login, data visible, file uploads work)
-- [ ] Sentry is receiving events from Railway
-
-### Cloudflare Configuration (Before DNS Cutover)
-
-- [ ] Custom domain added to Railway (`cloud.sydevelopers.com` → Railway CNAME target)
-- [ ] Cloudflare DNS updated (CNAME record created, proxied)
-- [ ] DNS propagation verified (dig confirms Cloudflare IP)
-- [ ] SSL/TLS set to "Full (strict)"
-- [ ] Cache Rules configured (bypass admin + auth, cache statics)
-- [ ] Rate Limiting Rules active
-- [ ] WAF enabled
-
-### Final Smoke Tests (Right Before Going Live)
+### After Deploying to Production
 
 - [ ] `curl https://cloud.sydevelopers.com/api/health` → 200 OK
 - [ ] Admin login works via https://cloud.sydevelopers.com/admin
-- [ ] API returns production data: `curl https://cloud.sydevelopers.com/api/meditations`
-- [ ] Large file upload works (R2 integration)
-- [ ] Email delivery works (Resend)
-- [ ] Sentry receives events
-- [ ] Logs are clean (no error spikes in `railway logs`)
-
-### Post-Cutover Checklist (First 24 Hours)
-
-- [ ] Error rate stable (<0.5% new errors in Sentry)
-- [ ] Response times acceptable (p95 <500ms)
-- [ ] Cache hit ratio good (>80% for static assets)
+- [ ] Logs are clean: `railway logs -s <app-service-name> --tail -n 50` (no errors)
+- [ ] Sentry shows no new error spikes: https://sentry.io/
+- [ ] Response times remain normal (check Railway metrics dashboard)
 - [ ] Database connection pool healthy (<95% used)
-- [ ] Admin can create/edit records
-- [ ] File uploads complete successfully
-- [ ] No data loss (spot-check key records)
 
 ---
 
 ## Troubleshooting
 
-### Deployment Hangs on "Running preDeployCommand"
+### Deployment Fails During Migration Application
 
-**Cause**: Migrations aren't in `src/migrations/`, or DATABASE_URL is invalid.
+**Cause**: A migration has a syntax error, or there's a data constraint violation.
 
 **Fix**:
 
 ```bash
-# Verify baseline migration exists
-ls -la src/migrations/
-# Should show: <timestamp>_initial_schema.ts + .json
+# Check the deployment logs
+railway logs -s <app-service-name> --tail -n 200
 
-# Verify DATABASE_URL is correct
-railway variables get DATABASE_URL -s Postgres
+# Look for the migration error; fix it in src/migrations/<timestamp>.ts
 
-# Re-generate if missing
-railway run pnpm db:migrations:create
+# Test the migration locally before re-deploying
+pnpm db:migrate
+
+# If the migration partially applied, you may need to manually rollback
+# (consult .claude/rules/migrations.md for migration rollback procedures)
+
+# After fixing, commit and push
+git add src/migrations/
+git commit -m "fix: correct migration syntax"
+git push origin main
 ```
 
 ### Health Check Timeout (300s)
@@ -1322,7 +957,7 @@ psql "$DATABASE_URL" -c "SELECT 1;"
 
 ### Database Table Doesn't Exist
 
-**Cause**: Baseline migration was never applied.
+**Cause**: Migrations were never applied (shouldn't happen in production, but can occur in development).
 
 **Fix**:
 
@@ -1330,9 +965,11 @@ psql "$DATABASE_URL" -c "SELECT 1;"
 # Check if migrations were applied
 railway run psql -c "SELECT * FROM payload_migrations;"
 
-# If empty, re-generate and apply
-railway run pnpm db:migrations:create
-railway run pnpm db:migrate
+# If the table is completely missing, check the deployment logs
+railway logs -s <app-service-name> --tail -n 500
+
+# Migrations should run automatically on every app boot
+# If they haven't, check that prodMigrations is configured in src/payload.config.ts
 ```
 
 ### Memory Limit Exceeded (Hobby Plan)
@@ -1360,7 +997,7 @@ railway variables --set DATABASE_URL='${{ <exact-postgres-service-name>.DATABASE
 ## References
 
 - **Railway Documentation**: https://docs.railway.app/
-  - [Dockerfile builder](https://docs.railway.app/deployment/builds#dockerfile)
+  - [Railpack builder](https://docs.railway.app/deployment/builds)
   - [Environment variables](https://docs.railway.app/guides/variables)
   - [Health checks](https://docs.railway.app/guides/healthchecks)
   - [Backups](https://docs.railway.app/volumes/backups)
@@ -1378,12 +1015,11 @@ railway variables --set DATABASE_URL='${{ <exact-postgres-service-name>.DATABASE
 - **This Project**:
   - [Payload CMS Config](./src/payload.config.ts)
   - [Railway Config](./railway.toml)
-  - [Dockerfile](./Dockerfile)
   - [Environment Variables](./src/lib/env/)
   - [Migrations](./src/migrations/README.md)
   - [Deployment Docs](./DEPLOYMENT.md)
 
 ---
 
-**Last Updated**: 2026-06-06  
-**Status**: Ready for implementation
+**Last Updated**: 2026-06-08  
+**Status**: Production — D1 migrated, Railway + PostgreSQL live

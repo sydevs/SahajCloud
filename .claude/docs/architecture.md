@@ -146,13 +146,13 @@ Source maps are uploaded to Sentry when `SENTRY_AUTH_TOKEN` is set during build.
 
 ## Scheduled Jobs
 
-PayloadCMS's built-in autoRun job system handles background task processing on a long-lived Node.js process (Railway).
+PayloadCMS's built-in autoRun job system handles background task processing on Railway's long-lived Node.js process.
 
 **How it works**:
 
 - `payload.autoRun` initializes the job queue on server start
 - Jobs run asynchronously in the same Node process (no separate workers needed)
-- Drizzle Postgres pool handles concurrent queries across jobs
+- Drizzle Postgres pool handles concurrent queries across jobs (Railway Postgres 18)
 
 ### `CleanupOrphanedMedia` (`src/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia.ts`)
 
@@ -185,7 +185,7 @@ The usage plugin auto-registers two tasks:
   `peakDailyRequests` if current is higher, then resets `dailyRequests`
   to 0.
 
-Previously used fork between D1 (prod) and better-sqlite3 (dev); now uses a single atomic **Postgres path** in both.
+Uses a single atomic **Postgres path** in development and production (Railway Postgres 18).
 
 Configuration and rate-limiting details are in
 `.claude/rules/api-clients.md` (auto-loads when editing `src/plugins/usage/`
@@ -193,13 +193,12 @@ or `src/collections/Clients/Clients.ts`).
 
 ## Key Configuration Files
 
-- `src/payload.config.ts` — main Payload CMS configuration (Postgres adapter)
+- `src/payload.config.ts` — main Payload CMS configuration (Postgres adapter, `prodMigrations` for in-process migration on boot)
 - `next.config.mjs` — Next.js configuration (wrapped with `withSentryConfig`)
 - `src/payload-types.ts` — auto-generated types (do not edit)
 - `tsconfig.json` — TypeScript path aliases
 - `eslint.config.mjs` — ESLint configuration
 - `vitest.config.mts` — Vitest (integration test) configuration
 - `playwright.config.ts` — Playwright (E2E) configuration
-- `Dockerfile` — Docker build for Railway (multi-stage, Node 20+)
-- `railway.toml` — Railway deployment configuration
+- `railway.toml` — Railway deployment configuration (Railpack builder)
 - `src/lib/richEditor/index.ts` — Lexical editor presets

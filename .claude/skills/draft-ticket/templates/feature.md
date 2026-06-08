@@ -47,4 +47,4 @@ Skip if the Summary covers it.]
 - For schema changes: include "Migration required" near the top so the implementer doesn't forget.
 - For new admin components: link to `.claude/rules/admin-ui.md` for server/client patterns.
 - For new endpoints: include the expected URL shape and the Payload auth model (`/api/...` vs. `src/collections/<Name>/endpoints/`).
-- For Cloudflare-related work: call out which environment (dev / prod) is impacted and any wrangler.toml changes needed.
+- For Railway deployment: call out environment variables needed in Railway service settings or secrets.
