@@ -6,13 +6,9 @@ import type { CollectionAfterReadHook } from 'payload'
  */
 const SKIP_FLAG = 'skipRegionLanguageFallback'
 
-/** Extract a numeric region id from a breadcrumb `doc` (id or populated object). */
+/** Extract a numeric region id from a breadcrumb `doc` (a bare id, or a populated object). */
 function breadcrumbDocId(doc: unknown): number | null {
   if (typeof doc === 'number') return doc
-  if (typeof doc === 'string') {
-    const parsed = Number(doc)
-    return Number.isInteger(parsed) ? parsed : null
-  }
   if (doc && typeof doc === 'object' && 'id' in doc) {
     const id = (doc as { id: unknown }).id
     return typeof id === 'number' ? id : null
