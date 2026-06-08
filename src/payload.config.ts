@@ -213,6 +213,12 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       }),
     ],
     upload: {
+      // Per-chunk stall watchdog (NOT total upload time). Payload's default is
+      // 60s, which large audio uploads on slow/unstable connections can exceed
+      // → unhandled "Upload timeout" rejection (SAHAJCLOUD-40). 5 min gives
+      // generous slack. The Railway/Cloudflare hops don't impose this; it's
+      // purely Payload's default. See plans/...luminous-dusk.md (Track A).
+      uploadTimeout: 300000,
       limits: {
         fileSize: 104857600, // 100MB global limit, written in bytes (collections will have their own limits)
       },
