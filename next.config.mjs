@@ -3,6 +3,29 @@ import { withSentryConfig } from '@sentry/nextjs'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Self-hosted output: bundle only traced production deps + a minimal server
+  // into `.next/standalone` instead of shipping the full `node_modules`. Railpack
+  // runs `pnpm build`, then `scripts/standalone-postbuild.mjs` copies `.next/static`
+  // and `public/` next to `server.js` (Next does not copy these automatically).
+  // Migrations (`prodMigrations`) and the admin `importMap.js` are statically
+  // imported, so they trace into the bundle and still run on boot. See issue #471.
+  output: 'standalone',
+  // Keep dev-only and test artifacts out of the standalone trace. Next/Turbopack
+  // otherwise copies these (large) project dirs into `.next/standalone` — a local
+  // `pnpm build` balloons to many GB via `media/` + `seeds/`. Prod stores uploads
+  // in R2 (not local `media/`) and never runs seeds/tests, so excluding them is
+  // safe — same intent as `.railwayignore` (drop dev-only/test artifacts), via a
+  // different mechanism (build trace vs. upload filter). See issue #471.
+  outputFileTracingExcludes: {
+    '*': [
+      'media/**/*',
+      'seeds/**/*',
+      'tests/**/*',
+      'playwright-report/**/*',
+      'test-results/**/*',
+      'coverage/**/*',
+    ],
+  },
   // Your Next.js config here
   webpack: (webpackConfig) => {
     webpackConfig.resolve.extensionAlias = {

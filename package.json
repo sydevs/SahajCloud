@@ -5,10 +5,10 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "NODE_OPTIONS=--max-old-space-size=8000 next build",
+    "build": "NODE_OPTIONS=--max-old-space-size=8000 next build && node scripts/standalone-postbuild.mjs",
     "dev": "next dev",
     "devsafe": "rm -rf .next && next dev",
-    "start": "NODE_OPTIONS=--max-http-header-size=65536 next start",
+    "start": "HOSTNAME=0.0.0.0 NODE_OPTIONS=--max-http-header-size=65536 node .next/standalone/server.js",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/postinstall.cjs",

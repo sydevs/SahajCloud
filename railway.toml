@@ -3,6 +3,10 @@
 # Build: Railpack (Railway's native builder) — no Dockerfile. Railway exposes all
 # service variables to the build as real env, so `next build` reads them directly
 # (serverEnv validation + the CSP frame-src in next.config) with no ARG plumbing.
+# `pnpm build` emits a self-contained `.next/standalone` (output: 'standalone')
+# and a postbuild step copies `.next/static` + `public/` next to its server.js.
+# Serve: `pnpm start` runs `node .next/standalone/server.js` (HOSTNAME=0.0.0.0) —
+# only traced production deps, not the full node_modules.
 # Migrations: applied in-process on server boot via Payload's `prodMigrations`
 # (see src/payload.config.ts) — no preDeployCommand/CLI needed.
 
