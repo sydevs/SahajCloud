@@ -35,7 +35,11 @@ async function resolveTitlePrefix(req: PayloadRequest): Promise<string> {
     })
     const prefix = (translations as { event?: { titlePrefix?: unknown } }).event?.titlePrefix
     return typeof prefix === 'string' && prefix.trim() ? prefix : DEFAULT_EVENT_TITLE_PREFIX
-  } catch {
+  } catch (error) {
+    req.payload.logger.debug({
+      msg: 'Failed to read sy-atlas-translations event.titlePrefix; using default',
+      error,
+    })
     return DEFAULT_EVENT_TITLE_PREFIX
   }
 }
@@ -56,7 +60,10 @@ export const eventTitleBeforeChange: FieldHook = async ({ value, data, originalD
   if (current && current.trim()) return current
 
   const address = (data?.address ?? originalDoc?.address) as { street?: unknown } | undefined
+  // No usable street → leave the title empty (useAsTitle falls back to the id).
   if (!firstAddressSegment(address?.street)) return value
 
-  return composeEventTitle(await resolveTitlePrefix(req), address?.street) ?? value
+  // The guard above guarantees a usable venue, so composeEventTitle returns a
+  // non-null string here.
+  return composeEventTitle(await resolveTitlePrefix(req), address?.street)
 }

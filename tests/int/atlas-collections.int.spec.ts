@@ -76,6 +76,46 @@ describe('Atlas collections', () => {
       const areaRead = await payload.findByID({ collection: 'regions', id: area.id })
       expect(areaRead.defaultEventLanguage).toBe('de')
     })
+
+    it('resolves inheritance across rows in one list read (shared-request memo)', async () => {
+      const country = await payload.create({
+        collection: 'regions',
+        data: { name: 'Country 3', level: 'country', osmId: 'c3', defaultEventLanguage: 'en' },
+      })
+      const blankA = await payload.create({
+        collection: 'regions',
+        data: { name: 'Area 3a', level: 'area', osmId: 'a3a', parent: country.id },
+      })
+      const blankB = await payload.create({
+        collection: 'regions',
+        data: { name: 'Area 3b', level: 'area', osmId: 'a3b', parent: country.id },
+      })
+      const explicit = await payload.create({
+        collection: 'regions',
+        data: {
+          name: 'Area 3c',
+          level: 'area',
+          osmId: 'a3c',
+          parent: country.id,
+          defaultEventLanguage: 'de',
+        },
+      })
+
+      // A single list read runs every row's afterRead against one shared req,
+      // so the second blank sibling resolves the country from the per-request
+      // memo rather than a second query — results must still be correct.
+      const { docs } = await payload.find({
+        collection: 'regions',
+        where: { id: { in: [country.id, blankA.id, blankB.id, explicit.id] } },
+        pagination: false,
+      })
+      const languageById = new Map(docs.map((doc) => [doc.id, doc.defaultEventLanguage]))
+
+      expect(languageById.get(country.id)).toBe('en')
+      expect(languageById.get(blankA.id)).toBe('en')
+      expect(languageById.get(blankB.id)).toBe('en')
+      expect(languageById.get(explicit.id)).toBe('de')
+    })
   })
 
   describe('Events title auto-fill', () => {

@@ -150,6 +150,9 @@ export const Events: CollectionConfig = {
             {
               name: 'address',
               type: 'group',
+              // Physical address only applies to offline events; online ones
+              // keep `region` (above) but hide the street/coords.
+              admin: { condition: (data) => data?.eventType === 'offline' },
               fields: [
                 {
                   name: 'street',
