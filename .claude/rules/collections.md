@@ -112,13 +112,13 @@ Use it to exclude expensive virtual fields from relationship hydration:
 ```typescript
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
-  defaultPopulate: { randomSongUrl: false },  // skip during relationship population
+  defaultPopulate: { tagAssignments: false },  // skip during relationship population
   fields: [
     {
-      name: 'randomSongUrl',
-      type: 'text',
-      virtual: true,
-      hooks: { afterRead: [randomSongUrlAfterRead] },  // 2 DB queries per read
+      name: 'tagAssignments',
+      type: 'group',
+      // each subfield's afterRead runs a user-choices query per row
+      fields: [virtualJoinField({ name: 'asMorningMeditation', on: 'morningMeditation' })],
     },
   ],
 }
@@ -130,11 +130,11 @@ queries always include all fields:
 ```typescript
 // ❌ Direct query always includes virtual fields
 const m = await payload.findByID({ collection: 'meditations', id })
-expect(m.randomSongUrl).toBeFalsy()  // FAILS
+expect(m.tagAssignments).toBeFalsy()  // FAILS
 
 // ✅ Test through a populating relationship
 const lesson = await payload.findByID({ collection: 'lessons', id, depth: 1 })
-expect((lesson.meditation as Meditation).randomSongUrl).toBeFalsy()
+expect((lesson.meditation as Meditation).tagAssignments).toBeFalsy()
 ```
 
 ## Plugins

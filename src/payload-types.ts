@@ -480,7 +480,6 @@ export interface Video {
  */
 export interface Meditation {
   id: number;
-  randomSongUrl?: string | null;
   label: string;
   locale:
     | 'en'
@@ -2240,7 +2239,6 @@ export interface PagesSelect<T extends boolean = true> {
  * via the `definition` "meditations_select".
  */
 export interface MeditationsSelect<T extends boolean = true> {
-  randomSongUrl?: T;
   label?: T;
   locale?: T;
   narrator?: T;
