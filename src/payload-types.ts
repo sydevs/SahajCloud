@@ -2076,36 +2076,16 @@ export interface Event {
   /**
    * Event name. Leave blank to auto-fill from the address (e.g. "Meditation at Beethovenstraße 12").
    */
-  title?: string | null;
+  title: string;
   eventType: 'offline' | 'online';
   /**
    * Link attendees join the online event through.
    */
   onlineUrl?: string | null;
-  category: 'dropin' | 'single' | 'course' | 'festival' | 'concert';
-  /**
-   * Room or floor within the venue, if any.
-   */
-  room?: string | null;
-  description?: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  } | null;
   /**
    * Language this event is conducted in.
    */
-  languageCode?:
+  language?:
     | (
         | 'ab'
         | 'aa'
@@ -2292,12 +2272,35 @@ export interface Event {
         | 'zu'
       )
     | null;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  /**
+   * Photos for this event.
+   */
+  images?: (number | Image)[] | null;
+  contactInfo?: {
+    name?: string | null;
+    phone?: string | null;
+  };
   /**
    * Configure when this event occurs and repeats
    */
-  schedule?: {
-    firstDate?: string | null;
-    firstDate_tz?: SupportedTimezones;
+  schedule: {
+    firstDate: string;
+    firstDate_tz: SupportedTimezones;
     /**
      * Optional, same day (24-hour format)
      */
@@ -2344,6 +2347,10 @@ export interface Event {
    * The area or center this event belongs to.
    */
   region?: (number | null) | Region;
+  /**
+   * Room or floor within the venue, if any.
+   */
+  room?: string | null;
   address?: {
     street?: string | null;
     city?: string | null;
@@ -2355,60 +2362,6 @@ export interface Event {
     regionCode?: string | null;
     latitude?: number | null;
     longitude?: number | null;
-    /**
-     * IANA timezone of this address.
-     */
-    timeZone?:
-      | (
-          | 'Pacific/Midway'
-          | 'Pacific/Niue'
-          | 'Pacific/Honolulu'
-          | 'Pacific/Rarotonga'
-          | 'America/Anchorage'
-          | 'Pacific/Gambier'
-          | 'America/Los_Angeles'
-          | 'America/Tijuana'
-          | 'America/Denver'
-          | 'America/Phoenix'
-          | 'America/Chicago'
-          | 'America/Guatemala'
-          | 'America/New_York'
-          | 'America/Bogota'
-          | 'America/Caracas'
-          | 'America/Santiago'
-          | 'America/Buenos_Aires'
-          | 'America/Sao_Paulo'
-          | 'Atlantic/South_Georgia'
-          | 'Atlantic/Azores'
-          | 'Atlantic/Cape_Verde'
-          | 'Europe/London'
-          | 'Europe/Berlin'
-          | 'Africa/Lagos'
-          | 'Europe/Athens'
-          | 'Africa/Cairo'
-          | 'Europe/Moscow'
-          | 'Asia/Riyadh'
-          | 'Asia/Dubai'
-          | 'Asia/Baku'
-          | 'Asia/Karachi'
-          | 'Asia/Tashkent'
-          | 'Asia/Calcutta'
-          | 'Asia/Dhaka'
-          | 'Asia/Almaty'
-          | 'Asia/Jakarta'
-          | 'Asia/Bangkok'
-          | 'Asia/Shanghai'
-          | 'Asia/Singapore'
-          | 'Asia/Tokyo'
-          | 'Asia/Seoul'
-          | 'Australia/Brisbane'
-          | 'Australia/Sydney'
-          | 'Pacific/Guam'
-          | 'Pacific/Noumea'
-          | 'Pacific/Auckland'
-          | 'Pacific/Fiji'
-        )
-      | null;
   };
   registrationMode: 'native' | 'external' | 'meetup' | 'eventbrite' | 'facebook';
   /**
@@ -2419,15 +2372,10 @@ export interface Event {
    * Maximum registrations (blank = unlimited).
    */
   registrationLimit?: number | null;
-  registrationNotification?: ('digest' | 'immediate' | 'disabled') | null;
   /**
    * Which optional questions to ask registrants.
    */
   registrationQuestions?: ('questions' | 'experience' | 'aspirations' | 'referral')[] | null;
-  contactInfo?: {
-    name?: string | null;
-    phone?: string | null;
-  };
   registrations?: {
     docs?: (number | Registration)[];
     hasNextPage?: boolean;
@@ -3573,10 +3521,15 @@ export interface EventsSelect<T extends boolean = true> {
   title?: T;
   eventType?: T;
   onlineUrl?: T;
-  category?: T;
-  room?: T;
+  language?: T;
   description?: T;
-  languageCode?: T;
+  images?: T;
+  contactInfo?:
+    | T
+    | {
+        name?: T;
+        phone?: T;
+      };
   schedule?:
     | T
     | {
@@ -3605,6 +3558,7 @@ export interface EventsSelect<T extends boolean = true> {
         upcomingDates?: T;
       };
   region?: T;
+  room?: T;
   address?:
     | T
     | {
@@ -3615,19 +3569,11 @@ export interface EventsSelect<T extends boolean = true> {
         regionCode?: T;
         latitude?: T;
         longitude?: T;
-        timeZone?: T;
       };
   registrationMode?: T;
   registrationUrl?: T;
   registrationLimit?: T;
-  registrationNotification?: T;
   registrationQuestions?: T;
-  contactInfo?:
-    | T
-    | {
-        name?: T;
-        phone?: T;
-      };
   registrations?: T;
   manager?: T;
   status?: T;

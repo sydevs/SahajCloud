@@ -122,9 +122,11 @@ describe('Atlas collections', () => {
     it('auto-fills an empty title from the first segment of the street address', async () => {
       const event = await payload.create({
         collection: 'events',
+        // draft: the now-required title/schedule are validated only on publish;
+        // the title beforeChange hook still runs and auto-fills from the street.
+        draft: true,
         data: {
           eventType: 'offline',
-          category: 'dropin',
           status: 'active',
           registrationMode: 'native',
           manager: managerId,
@@ -138,10 +140,10 @@ describe('Atlas collections', () => {
     it('keeps an explicitly provided title', async () => {
       const event = await payload.create({
         collection: 'events',
+        draft: true,
         data: {
           title: 'Diwali Special',
           eventType: 'offline',
-          category: 'festival',
           status: 'active',
           registrationMode: 'native',
           manager: managerId,
@@ -155,9 +157,9 @@ describe('Atlas collections', () => {
     it('leaves the title empty when there is no street to build from', async () => {
       const event = await payload.create({
         collection: 'events',
+        draft: true,
         data: {
           eventType: 'online',
-          category: 'single',
           status: 'active',
           registrationMode: 'native',
           manager: managerId,

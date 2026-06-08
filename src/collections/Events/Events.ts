@@ -10,12 +10,9 @@ import {
 
 import { legacyMigrationFields, scheduleField, urlField } from '@/fields'
 import { getLanguageOptions } from '@/lib/locales'
-import { getTimezoneOptions } from '@/lib/timezones'
 
 import {
-  EVENT_CATEGORY_OPTIONS,
   EVENT_REGISTRATION_MODE_OPTIONS,
-  EVENT_REGISTRATION_NOTIFICATION_OPTIONS,
   EVENT_REGISTRATION_QUESTION_OPTIONS,
   EVENT_STATUS_OPTIONS,
   EVENT_TYPE_OPTIONS,
@@ -41,8 +38,8 @@ const eventDescriptionEditor = lexicalEditor({
  * Events — Sahaj Atlas events (offline meetups + online sessions), migrated
  * from the Atlas `events` table. Drafts replace Atlas's `published` boolean
  * (Payload owns the publish control). The schedule lives in the project
- * `scheduleField`; Atlas `finishDate` maps into its ending (not a standalone
- * field).
+ * `scheduleField` (which also stores the timezone on its First Date & Time);
+ * Atlas `finishDate` maps into its ending (not a standalone field).
  */
 export const Events: CollectionConfig = {
   slug: 'events',
@@ -51,31 +48,34 @@ export const Events: CollectionConfig = {
   admin: {
     group: 'Sahaj Atlas',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'category', 'status', '_status'],
+    defaultColumns: ['title', 'status', '_status'],
   },
   fields: [
-    {
-      // Primary event name + useAsTitle. Stored and localized. When left
-      // blank, a beforeChange hook auto-fills "<localized prefix> <venue>"
-      // from the first segment of the street address (see ./hooks/eventTitle).
-      // The prefix ("Meditation at") is editable per locale in the
-      // sy-atlas-translations global.
-      name: 'title',
-      type: 'text',
-      localized: true,
-      hooks: { beforeChange: [eventTitleBeforeChange] },
-      admin: {
-        placeholder: 'Meditation at …',
-        description:
-          'Event name. Leave blank to auto-fill from the address (e.g. "Meditation at Beethovenstraße 12").',
-      },
-    },
     {
       type: 'tabs',
       tabs: [
         {
           label: 'Details',
           fields: [
+            {
+              // Primary event name + useAsTitle. Stored and localized. Required,
+              // but a beforeChange hook auto-fills an empty title with
+              // "<localized prefix> <venue>" from the first segment of the
+              // street address (see ./hooks/eventTitle) before validation runs,
+              // so the requirement is satisfied whenever there's an address.
+              // The prefix ("Meditation at") is editable per locale in the
+              // sy-atlas-translations global.
+              name: 'title',
+              type: 'text',
+              localized: true,
+              required: true,
+              hooks: { beforeChange: [eventTitleBeforeChange] },
+              admin: {
+                placeholder: 'Meditation at …',
+                description:
+                  'Event name. Leave blank to auto-fill from the address (e.g. "Meditation at Beethovenstraße 12").',
+              },
+            },
             {
               name: 'eventType',
               type: 'select',
@@ -93,20 +93,10 @@ export const Events: CollectionConfig = {
               },
             }),
             {
-              name: 'category',
+              name: 'language',
               type: 'select',
-              required: true,
-              defaultValue: 'dropin',
-              options: [...EVENT_CATEGORY_OPTIONS],
-              admin: { components: { Field: TOGGLE_GROUP_FIELD } },
-            },
-            {
-              name: 'room',
-              type: 'text',
-              admin: {
-                width: '50%',
-                description: 'Room or floor within the venue, if any.',
-              },
+              options: getLanguageOptions(),
+              admin: { description: 'Language this event is conducted in.' },
             },
             {
               name: 'description',
@@ -114,10 +104,24 @@ export const Events: CollectionConfig = {
               editor: eventDescriptionEditor,
             },
             {
-              name: 'languageCode',
-              type: 'select',
-              options: getLanguageOptions(),
-              admin: { description: 'Language this event is conducted in.' },
+              name: 'images',
+              type: 'upload',
+              relationTo: 'images',
+              hasMany: true,
+              admin: { description: 'Photos for this event.' },
+            },
+            {
+              name: 'contactInfo',
+              type: 'group',
+              fields: [
+                {
+                  type: 'row',
+                  fields: [
+                    { name: 'name', type: 'text', admin: { width: '50%' } },
+                    { name: 'phone', type: 'text', admin: { width: '50%' } },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -126,9 +130,7 @@ export const Events: CollectionConfig = {
           fields: [
             scheduleField({
               label: false,
-              // Atlas has scheduleless events (e.g. inactive ones with no
-              // recurrence), so the schedule — and its firstDate — is optional.
-              required: false,
+              required: true,
               hasComplexWeekly: true,
               hasComplexMonthly: true,
               hasEndTime: true,
@@ -146,6 +148,14 @@ export const Events: CollectionConfig = {
               relationTo: 'regions',
               filterOptions: () => ({ level: { in: ['area', 'center'] } }),
               admin: { description: 'The area or center this event belongs to.' },
+            },
+            {
+              name: 'room',
+              type: 'text',
+              admin: {
+                width: '50%',
+                description: 'Room or floor within the venue, if any.',
+              },
             },
             {
               name: 'address',
@@ -178,12 +188,6 @@ export const Events: CollectionConfig = {
                     { name: 'longitude', type: 'number', admin: { width: '50%' } },
                   ],
                 },
-                {
-                  name: 'timeZone',
-                  type: 'select',
-                  options: getTimezoneOptions(),
-                  admin: { description: 'IANA timezone of this address.' },
-                },
               ],
             },
           ],
@@ -208,25 +212,13 @@ export const Events: CollectionConfig = {
               },
             }),
             {
-              type: 'row',
-              fields: [
-                {
-                  name: 'registrationLimit',
-                  type: 'number',
-                  min: 0,
-                  admin: {
-                    width: '50%',
-                    description: 'Maximum registrations (blank = unlimited).',
-                  },
-                },
-                {
-                  name: 'registrationNotification',
-                  type: 'select',
-                  defaultValue: 'digest',
-                  options: [...EVENT_REGISTRATION_NOTIFICATION_OPTIONS],
-                  admin: { width: '50%', components: { Field: TOGGLE_GROUP_FIELD } },
-                },
-              ],
+              name: 'registrationLimit',
+              type: 'number',
+              min: 0,
+              admin: {
+                width: '50%',
+                description: 'Maximum registrations (blank = unlimited).',
+              },
             },
             {
               name: 'registrationQuestions',
@@ -237,19 +229,6 @@ export const Events: CollectionConfig = {
                 description: 'Which optional questions to ask registrants.',
                 components: { Field: TOGGLE_GROUP_FIELD },
               },
-            },
-            {
-              name: 'contactInfo',
-              type: 'group',
-              fields: [
-                {
-                  type: 'row',
-                  fields: [
-                    { name: 'name', type: 'text', admin: { width: '50%' } },
-                    { name: 'phone', type: 'text', admin: { width: '50%' } },
-                  ],
-                },
-              ],
             },
             {
               name: 'registrations',
@@ -286,7 +265,7 @@ export const Events: CollectionConfig = {
               type: 'number',
               min: 0,
               defaultValue: 0,
-              admin: { description: 'Consecutive successful verifications.' },
+              admin: { readOnly: true, description: 'Consecutive successful verifications.' },
             },
           ],
         },
