@@ -75,3 +75,6 @@ tests/.e2e.sqlite-shm
 
 # Seed logs
 seed*.log
+
+# Local debug/log files (e.g. pasted console output)
+*.log
