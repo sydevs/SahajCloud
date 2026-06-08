@@ -240,9 +240,11 @@ export const mixedMediaUrlField = (options: MixedMediaUrlFieldOptions): Field =>
     const category = getMimeCategory(data.mimeType)
 
     if (category === 'video') {
-      // Return MP4 download URL for direct file access
+      // Return the HLS manifest URL. HLS is available as soon as the video
+      // finishes transcoding, unlike the MP4 download which 404s until the
+      // Stream webhook enables downloads (`mp4Url` exposes that separately).
       return (
-        getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
+        getCloudflareStreamHlsUrl(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
       )
     }
 

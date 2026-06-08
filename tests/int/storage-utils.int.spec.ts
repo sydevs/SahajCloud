@@ -305,7 +305,7 @@ describe('URL Field Factories', () => {
       expect(url).toBe('https://imagedelivery.net/abc123/image-id/public')
     })
 
-    it('generates Cloudflare Stream MP4 URL for videos', async () => {
+    it('generates Cloudflare Stream HLS manifest URL for videos', async () => {
       process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
@@ -315,8 +315,9 @@ describe('URL Field Factories', () => {
 
       const hook = getAfterReadHook(field)
       const url = callHook(hook!, { filename: 'video-id', mimeType: 'video/mp4' })
-      // mixedMediaUrlField returns MP4 download URL for videos (use hlsUrlField for HLS)
-      expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4')
+      // `url` resolves to the HLS manifest (live immediately after transcode);
+      // the MP4 download 404s until the Stream webhook enables it (see `mp4Url`).
+      expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/manifest/video.m3u8')
     })
 
     it('generates R2 URL for other file types', async () => {
