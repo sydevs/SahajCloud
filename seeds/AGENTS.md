@@ -23,9 +23,10 @@ pnpm seed <script>
 SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed <script>
 ```
 
-**Required environment variables** (set in `.env` or shell):
-- `ADMIN_EMAIL` - Admin email for authentication
-- `ADMIN_PASSWORD` - Admin password for authentication
+**Required environment variables**:
+
+- `ADMIN_EMAIL` - Admin email for authentication (loaded from `.env.local` by `seeds/env.ts`)
+- `ADMIN_PASSWORD` - Admin password for authentication (loaded from `.env.local` by `seeds/env.ts`)
 - `SAHAJCLOUD_URL` - Target URL (default: `http://localhost:PORT`)
 
 ### API Route
@@ -44,39 +45,39 @@ POST /api/seed/<script>?collection=X&offset=0&limit=25  # Paginated import
 
 ## Pagination Support
 
-Pagination enables large imports to run on Cloudflare Workers without hitting D1 rate limits (~10 queries/sec, 6 simultaneous connections). The CLI uses pagination for all collections where `requiresPagination: true`, regardless of environment, ensuring test parity between local and production.
+Pagination enables large imports to run efficiently by splitting work across multiple HTTP requests. The CLI uses pagination for all collections where `requiresPagination: true`.
 
 ### How It Works
 
 1. **Metadata Fetch**: CLI fetches metadata via GET to determine batch sizes
-2. **Pagination Decision**: Uses pagination when `requiresPagination: true` in metadata (batch sizes are environment-aware)
+2. **Pagination Decision**: Uses pagination when `requiresPagination: true` in metadata
 3. **Collection Ordering**: Collections are imported in dependency order
 4. **Stateless Execution**: Each request is independent; ID maps are reconstructed from database
 
 ### Batch Sizes
 
-| Environment | Without Uploads | With File Uploads |
-|-------------|-----------------|-------------------|
-| Local Dev   | 100             | 10                |
-| Workers     | 25              | 10                |
+| Collection Type   | Batch Size |
+| ----------------- | ---------- |
+| Without Uploads   | 100        |
+| With File Uploads | 10         |
 
 ### Collection Metadata
 
 Each script has collection-level metadata in `seeds/lib/expectedCounts.ts`:
 
-| Script | Collection | Items | Paginated? | Dependencies |
-|--------|------------|-------|------------|--------------|
-| tags | user-choices | 27 | No | None |
-| tags | music-tags | 7 | No | None |
-| wemeditate | authors | 18 | No | None |
-| wemeditate | albums | 8 | No | None |
-| wemeditate | music | 27 | No | albums |
-| wemeditate | pages | 60 | Yes | authors |
-| meditations | narrators | 2 | No | None |
-| meditations | frames | 60 | Yes | None |
-| meditations | meditations | 73 | Yes | narrators, frames, tags |
-| storyblok | lessons | 17 | Yes | None |
-| storyblok | lectures | 0 | No | None |
+| Script      | Collection   | Items | Paginated? | Dependencies            |
+| ----------- | ------------ | ----- | ---------- | ----------------------- |
+| tags        | user-choices | 27    | No         | None                    |
+| tags        | music-tags   | 7     | No         | None                    |
+| wemeditate  | authors      | 18    | No         | None                    |
+| wemeditate  | albums       | 8     | No         | None                    |
+| wemeditate  | music        | 27    | No         | albums                  |
+| wemeditate  | pages        | 60    | Yes        | authors                 |
+| meditations | narrators    | 2     | No         | None                    |
+| meditations | frames       | 60    | Yes        | None                    |
+| meditations | meditations  | 73    | Yes        | narrators, frames, tags |
+| storyblok   | lessons      | 17    | Yes        | None                    |
+| storyblok   | lectures     | 0     | No         | None                    |
 
 > **Note (meditations script)**: When targeting `collection=meditations`, the importer automatically runs `narrators`, `frames`, and `tags` imports in the same request (in bulk, without pagination). This ensures the ID maps are populated for keyframe and tag references. The meditations themselves are then processed with pagination if enabled.
 
@@ -123,36 +124,37 @@ The CLI automatically orchestrates paginated imports on Workers:
 
 ## Available Scripts
 
-| Script | Command | Prerequisites | Target Collections |
-|--------|---------|---------------|-------------------|
-| storyblok | `pnpm seed storyblok` | STORYBLOK_ACCESS_TOKEN | lessons, images, files |
-| wemeditate | `pnpm seed wemeditate` | data.json (pre-extracted) | pages, authors, page-tags, albums |
+| Script      | Command                 | Prerequisites                              | Target Collections                    |
+| ----------- | ----------------------- | ------------------------------------------ | ------------------------------------- |
+| storyblok   | `pnpm seed storyblok`   | STORYBLOK_ACCESS_TOKEN                     | lessons, images, files                |
+| wemeditate  | `pnpm seed wemeditate`  | data.json (pre-extracted)                  | pages, authors, page-tags, albums     |
 | meditations | `pnpm seed meditations` | Run `tags` + `wemeditate` first, data.json | meditations, frames, music, narrators |
-| tags | `pnpm seed tags` | None | user-choices, music-tags |
+| tags        | `pnpm seed tags`        | None                                       | user-choices, music-tags              |
 
 **Seed Order**: For a full seed, run scripts in this order:
+
 1. `pnpm seed tags` - Creates tag definitions
 2. `pnpm seed wemeditate` - Creates albums (music requires albums)
 3. `pnpm seed meditations` - Creates meditations and music (matches music to albums by credit/artist)
 
 ## Common Flags
 
-| Flag | Description |
-|------|-------------|
-| `--dry-run` | Validate data without writing to database |
-| `--clear-cache` | Clear downloaded files before import |
-| `--update` | Update existing records (default: skip existing) |
+| Flag            | Description                                      |
+| --------------- | ------------------------------------------------ |
+| `--dry-run`     | Validate data without writing to database        |
+| `--clear-cache` | Clear downloaded files before import             |
+| `--update`      | Update existing records (default: skip existing) |
 
 ## Skip Mode vs Update Mode
 
-By default, seed scripts run in **skip mode** - existing documents are skipped entirely (no updates, no file re-uploads). This dramatically reduces D1 queries and speeds up imports when adding new content.
+By default, seed scripts run in **skip mode** - existing documents are skipped entirely (no updates, no file re-uploads). This dramatically reduces DB queries and speeds up imports when adding new content.
 
 Use `--update` flag to enable **update mode** (upsert behavior) when content has changed:
 
-| Mode | Behavior | D1 Queries | Use Case |
-|------|----------|------------|----------|
-| Skip (default) | Skip existing docs, only create new | Minimal (bulk preload + creates) | Adding new content, resuming failed imports |
-| Update (`--update`) | Update existing + create new | Bulk preload + update/create per doc | Content has changed, fixing data issues |
+| Mode                | Behavior                            | DB Queries                           | Use Case                                    |
+| ------------------- | ----------------------------------- | ------------------------------------ | ------------------------------------------- |
+| Skip (default)      | Skip existing docs, only create new | Minimal (bulk preload + creates)     | Adding new content, resuming failed imports |
+| Update (`--update`) | Update existing + create new        | Bulk preload + update/create per doc | Content has changed, fixing data issues     |
 
 ### How It Works
 
@@ -163,10 +165,10 @@ Use `--update` flag to enable **update mode** (upsert behavior) when content has
 
 ### Query Reduction
 
-| Scenario | Before (per-doc find) | After (bulk preload) |
-|----------|----------------------|---------------------|
-| 73 meditations, all exist | 146 queries (find + skip) | 2 queries (preload + done) |
-| 73 meditations, all new | 146 queries (find + create) | ~75 queries (preload + creates) |
+| Scenario                     | Before (per-doc find)       | After (bulk preload)            |
+| ---------------------------- | --------------------------- | ------------------------------- |
+| 73 meditations, all exist    | 146 queries (find + skip)   | 2 queries (preload + done)      |
+| 73 meditations, all new      | 146 queries (find + create) | ~75 queries (preload + creates) |
 | 73 meditations with --update | 146 queries (find + update) | ~75 queries (preload + updates) |
 
 ### Examples
@@ -185,13 +187,12 @@ pnpm seed meditations --update --dry-run
 
 ## Environment Variables
 
+For local development, add to `.env.local` (gitignored):
+
 ```bash
 # CLI Authentication (required for pnpm seed)
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=your-password
-SAHAJCLOUD_URL=https://cloud.sydevelopers.com  # Optional, defaults to localhost
-
-# All scripts
 PAYLOAD_SECRET=your-secret-key
 
 # Storyblok
@@ -201,12 +202,17 @@ STORYBLOK_ACCESS_TOKEN=your-token
 STORAGE_BASE_URL=https://storage.googleapis.com/your-bucket
 ```
 
+For seeding production, provide credentials via shell and target production:
+
+```bash
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=prod-password SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed <script>
+```
+
 ## Design Principles
 
 1. **Idempotent**: Uses slug-based upsert - finds existing records and updates, or creates new
 2. **Resilient**: Continues on errors, reports all issues at end
 3. **Comprehensive Reporting**: Summary with counts, warnings, errors
-4. **Dual-Mode**: Works identically in local development and Cloudflare Workers
 
 ## Maintenance: Updating Seed Scripts
 
@@ -215,6 +221,7 @@ STORAGE_BASE_URL=https://storage.googleapis.com/your-bucket
 If you add a new field to a collection (e.g., adding `timings` to Meditations), the seed script must be updated to populate that field. Otherwise, seeded documents will have the field empty/default.
 
 **Checklist for field additions:**
+
 1. Identify which seed script populates the collection
 2. Update the importer to extract/compute the new field value from source data
 3. Add the field to the `upsert()` data object
@@ -222,6 +229,7 @@ If you add a new field to a collection (e.g., adding `timings` to Meditations), 
 5. Run full seed with `--update` flag to update existing documents
 
 **Example** (adding `timings` field to meditations):
+
 ```typescript
 // Extract timing values from legacy tags
 const TIMING_SLUGS = new Set(['morning', 'afternoon', 'evening'])
@@ -245,30 +253,26 @@ await this.upsert('meditations', where, {
 })
 ```
 
-## Dual-Mode Architecture
+## Utility Architecture
 
-Import scripts run in two environments with different capabilities:
-- **Local development**: Full filesystem access, caching for faster iteration
-- **Cloudflare Workers**: No filesystem, streaming only
-
-All environment-specific logic is abstracted into `seeds/lib/` utilities. **Seed scripts should never call `isCloudflareWorker()` directly or use `fs` imports.**
+Import scripts use centralized utilities in `seeds/lib/` for common patterns like rate limiting, retries, and data loading.
 
 ### Delay Utilities (`delays.ts`)
 
 ```typescript
 import { rateLimitDelay, withRetry } from '../lib'
 
-// Rate limit delay - skips entirely in local mode (0ms)
+// Rate limit delay
 await rateLimitDelay(300)
 
-// Retry with exponential backoff (delays skip locally)
+// Retry with exponential backoff
 const result = await withRetry(() => fetchData(), { maxRetries: 3 })
 ```
 
-| Function | Local Mode | Workers Mode |
-|----------|------------|--------------|
-| `rateLimitDelay(ms)` | Skips (0ms) | Waits ms |
-| `withRetry(fn, opts)` | Retries with 0ms delays | Retries with exponential backoff |
+| Function              | Behavior                         |
+| --------------------- | -------------------------------- |
+| `rateLimitDelay(ms)`  | Waits ms                         |
+| `withRetry(fn, opts)` | Retries with exponential backoff |
 
 ### Data Loading (`dataLoader.ts`)
 
@@ -289,13 +293,13 @@ const cached = await readCache('seeds/cache/file.jpg')
 await writeCache('seeds/cache/file.jpg', buffer)
 ```
 
-| Function | Local Mode | Workers Mode |
-|----------|------------|--------------|
-| `loadDataFile(source)` | Reads from `localPath` | Fetches from `workerUrl` |
-| `fetchAsset(url, opts)` | Caches to `cachePath` | Streams directly |
-| `readCache(path)` | Returns file buffer | Returns `null` |
-| `writeCache(path, data)` | Writes to disk | No-op |
-| `cacheExists(path)` | Checks file exists | Returns `false` |
+| Function                 | Local Mode             | Workers Mode             |
+| ------------------------ | ---------------------- | ------------------------ |
+| `loadDataFile(source)`   | Reads from `localPath` | Fetches from `workerUrl` |
+| `fetchAsset(url, opts)`  | Caches to `cachePath`  | Streams directly         |
+| `readCache(path)`        | Returns file buffer    | Returns `null`           |
+| `writeCache(path, data)` | Writes to disk         | No-op                    |
+| `cacheExists(path)`      | Checks file exists     | Returns `false`          |
 
 ## File Organization
 
@@ -315,16 +319,15 @@ seeds/
 │   ├── BaseImporter.ts    # Abstract base class for all importers
 │   ├── pagination.ts      # Pagination types and utilities
 │   ├── expectedCounts.ts  # Collection metadata and verification
-│   ├── runtime.ts         # Cloudflare Worker detection (internal use only)
+│   ├── runtime.ts         # Buffer conversion helpers (Node)
 │   ├── delays.ts          # Rate limiting and retry utilities
-│   ├── dataLoader.ts      # Dual-mode data loading and caching
+│   ├── dataLoader.ts      # Data loading and caching
 │   ├── fileUtils.ts       # File operations and MIME type detection
 │   ├── logger.ts          # Console logging (no file output)
 │   └── ...                # Other shared utilities
 ├── cache/                 # Downloaded files (git-ignored, local dev only)
 ├── run.ts                 # CLI runner (HTTP client that calls API endpoint)
-├── extract-to-json.ts     # One-time PostgreSQL data extraction script
-└── reset-migrations.sh    # Database migration reset script
+└── extract-to-json.ts     # One-time PostgreSQL data extraction script
 
 src/app/(payload)/api/seed/[script]/route.ts  # API route for post-deployment seeding
 ```
@@ -332,6 +335,7 @@ src/app/(payload)/api/seed/[script]/route.ts  # API route for post-deployment se
 ## Troubleshooting
 
 ### Script Won't Run
+
 ```bash
 # Check environment variables
 echo $PAYLOAD_SECRET
@@ -342,17 +346,21 @@ pnpm generate:types
 ```
 
 ### Errors During Import
+
 1. Run with `--dry-run` first to validate data
 2. Use `--clear-cache` to re-download files
 3. Check console output for detailed error messages
 
 ### Missing data.json Files
+
 The `wemeditate` and `meditations` imports require pre-extracted JSON data files:
+
 - `seeds/wemeditate/data.json` - WeMeditate Rails database extract
 - `seeds/meditations/data.json` - Meditations database extract
 
 These files were generated from PostgreSQL dumps using `seeds/extract-to-json.ts` (one-time extraction).
 If you need to regenerate them from original `data.bin` files:
+
 ```bash
 # Requires PostgreSQL installed locally
 pnpm tsx seeds/extract-to-json.ts
@@ -423,7 +431,7 @@ export class MyScriptImporter extends BaseImporter<MyScriptOptions> {
             slug: item.slug,
             // ... other fields
           },
-          { identifier: item.slug } // Always pass explicit identifier
+          { identifier: item.slug }, // Always pass explicit identifier
         )
       } catch (error) {
         // Resilient error handling - continue processing other items
@@ -438,7 +446,8 @@ export class MyScriptImporter extends BaseImporter<MyScriptOptions> {
     const { loadJsonData } = await import('../lib/dataLoader')
     return loadJsonData<MyDataType[]>({
       localPath: 'seeds/my-script/data.json',
-      workerUrl: 'https://raw.githubusercontent.com/sydevs/SahajCloud/main/seeds/my-script/data.json',
+      workerUrl:
+        'https://raw.githubusercontent.com/sydevs/SahajCloud/main/seeds/my-script/data.json',
     })
   }
 }
@@ -449,7 +458,9 @@ export default MyScriptImporter
 ### Required Patterns
 
 #### 1. Preload Pattern
+
 Preload collections in `setup()` for skip/update optimization:
+
 ```typescript
 protected async setup(): Promise<void> {
   // Single field preload
@@ -461,31 +472,37 @@ protected async setup(): Promise<void> {
 ```
 
 #### 2. Upsert Pattern with Natural Keys
+
 Always use natural keys (not IDs) for idempotent imports:
+
 ```typescript
 await this.upsert(
   'pages',
-  { slug: { equals: page.slug } },  // Natural key where clause
+  { slug: { equals: page.slug } }, // Natural key where clause
   { title: page.title, slug: page.slug },
-  { identifier: page.slug }  // Explicit identifier for logging
+  { identifier: page.slug }, // Explicit identifier for logging
 )
 ```
 
 #### 3. Error Handling
+
 Use per-item try/catch with `this.addError()` for resilient imports:
+
 ```typescript
 for (const item of items) {
   try {
     await this.processItem(item)
   } catch (error) {
     this.addError(`Item ${item.id}`, error)
-    continue  // Keep processing other items
+    continue // Keep processing other items
   }
 }
 ```
 
 #### 4. Pagination Support
+
 For collections that may exceed 25 items in production, enable pagination in `expectedCounts.ts`:
+
 ```typescript
 'my-collection': {
   expectedCount: 100,
@@ -495,7 +512,9 @@ For collections that may exceed 25 items in production, enable pagination in `ex
 ```
 
 #### 5. Media Upload Pattern
+
 For file uploads, use the MediaUploader helper:
+
 ```typescript
 import { MediaUploader } from '../lib/MediaUploader'
 
@@ -509,13 +528,15 @@ const media = await uploader.uploadFromUrl({
 ```
 
 #### 6. Locale Handling
+
 For localized content, specify locale in upsert:
+
 ```typescript
 await this.upsert(
   'pages',
   { slug: { equals: page.slug } },
   { title: { en: page.title_en, cs: page.title_cs } },
-  { identifier: page.slug, locale: 'en' }
+  { identifier: page.slug, locale: 'en' },
 )
 ```
 
@@ -525,13 +546,13 @@ await this.upsert(
 
 The following inconsistencies exist across seed scripts and are documented for future standardization:
 
-| Area | Current State | Recommended Pattern | Priority |
-|------|---------------|---------------------|----------|
-| Data source | Mixed: embedded constants (tags), JSON files (wemeditate/meditations), API fetch (storyblok) | Document rationale for each approach | Low |
-| Error handling | Mixed: try/catch per-item vs entire loop | Per-item with `this.addError()` continuation | Medium |
-| Locale handling | Varies: hardcoded 'en', full 16-locale, none | Document requirements per script | Low |
-| Custom preload | storyblok uses manual composite keys | Consider `preloadWithCompositeKey()` helper | Medium |
-| Identifier passing | Inconsistent explicit vs auto-generated | Always pass explicit `identifier` | Low |
+| Area               | Current State                                                                                | Recommended Pattern                          | Priority |
+| ------------------ | -------------------------------------------------------------------------------------------- | -------------------------------------------- | -------- |
+| Data source        | Mixed: embedded constants (tags), JSON files (wemeditate/meditations), API fetch (storyblok) | Document rationale for each approach         | Low      |
+| Error handling     | Mixed: try/catch per-item vs entire loop                                                     | Per-item with `this.addError()` continuation | Medium   |
+| Locale handling    | Varies: hardcoded 'en', full 16-locale, none                                                 | Document requirements per script             | Low      |
+| Custom preload     | storyblok uses manual composite keys                                                         | Consider `preloadWithCompositeKey()` helper  | Medium   |
+| Identifier passing | Inconsistent explicit vs auto-generated                                                      | Always pass explicit `identifier`            | Low      |
 
 ### Follow-up Issues
 
@@ -540,73 +561,3 @@ These inconsistencies should be addressed in separate issues:
 1. **Standardize error handling** - Ensure all scripts use per-item try/catch with `this.addError()`
 2. **Add preloadWithCompositeKey helper** - Abstract storyblok's composite key pattern into BaseImporter
 3. **Standardize identifier passing** - Update all scripts to pass explicit identifiers
-
----
-
-## Reset Scripts
-
-### Database and Asset Storage Reset
-
-A comprehensive reset script that clears databases and all Cloudflare asset storage (R2, Images, Stream).
-
-```bash
-# Reset both environments (default, prompts for confirmation)
-pnpm reset
-
-# Reset local environment only
-pnpm reset --local
-
-# Reset production environment only (prompts for confirmation)
-pnpm reset --production
-
-# Skip confirmation prompt (for automation)
-pnpm reset --yes
-```
-
-**Environment Variables Required for Production Reset**:
-```bash
-CLOUDFLARE_ACCOUNT_ID=your-account-id           # Already in wrangler.toml
-CLOUDFLARE_API_KEY=your-api-token               # For Images & Stream deletion
-CLOUDFLARE_R2_ACCESS_KEY_ID=your-r2-key         # For R2 bucket deletion
-CLOUDFLARE_R2_SECRET_ACCESS_KEY=your-r2-secret  # For R2 bucket deletion
-```
-
-**What it resets**:
-
-| Component | Local | Production |
-|-----------|-------|------------|
-| Database | `local.db`, `.wrangler/state/`, `tests/.e2e.sqlite` | D1 `sahajcloud` (drops all tables) |
-| R2 | N/A | `sahajcloud` bucket (batch delete via S3 API) |
-| Images | N/A | All Cloudflare Images (individual delete) |
-| Stream | N/A | All Cloudflare Stream videos (individual delete) |
-| Local uploads | `public/{images,meditations,...}` | N/A |
-
-**After reset**:
-1. Run local migrations: `pnpm payload migrate`
-2. Deploy production migrations: `pnpm run deploy:database`
-3. Re-seed data: `pnpm seed`
-
-### Migration Reset Script (Legacy)
-
-**WARNING**: The `reset-migrations.sh` script is now legacy. Use `pnpm reset --production` instead for database resets.
-
-```bash
-# Preview what will happen (no changes made)
-./seeds/reset-migrations.sh --dry-run
-
-# Execute full reset
-./seeds/reset-migrations.sh
-```
-
-**What it does** (in addition to database reset):
-1. Deletes all migration files in `src/migrations/`
-2. Resets `src/migrations/index.ts` to empty array
-3. Generates a fresh initial migration
-4. Renames migration to `*_initial_schema`
-5. Deploys migration to production
-
-**Use cases**:
-- Consolidating multiple migrations into a single initial migration
-- Fixing migration state inconsistencies
-
-**Note**: The `payload migrate:fresh` command doesn't work with Cloudflare D1 adapter. This script uses wrangler to drop tables directly.

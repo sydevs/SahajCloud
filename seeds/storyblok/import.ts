@@ -120,8 +120,8 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     if (!this.options.dryRun) {
       this.mediaUploader = new MediaUploader(this.payload, this.logger)
 
-      // Pre-load existing media to avoid D1 queries during import
-      // This significantly reduces database load in Workers environment
+      // Pre-load existing media to avoid repeated DB queries during import
+      // This significantly reduces database load
       await this.mediaUploader.preloadExistingMedia()
 
       await this.setupImageTags()
@@ -137,7 +137,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       await this.preloadMeditationTitles()
     }
 
-    // Setup additional cache directories (ensureDir is a no-op in Workers mode)
+    // Setup additional cache directories
     await this.fileUtils.ensureDir(path.join(this.cacheDir, 'videos'))
     await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/audio'))
     await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/images'))
@@ -295,7 +295,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   private async fetchStoryByUuid(uuid: string): Promise<StoryblokStory> {
     const cacheFile = path.join(this.cacheDir, 'videos', `${uuid}.json`)
 
-    // Check cache first (returns null in Workers mode)
+    // Check cache first
     const cached = await readCacheText(cacheFile)
     if (cached) {
       return JSON.parse(cached).story as StoryblokStory
@@ -311,7 +311,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     }
     const responseData = (await response.json()) as { story: StoryblokStory }
 
-    // Cache for local dev (no-op in Workers mode)
+    // Cache for local dev
     await writeCache(cacheFile, JSON.stringify(responseData, null, 2))
 
     return responseData.story
@@ -624,7 +624,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // Fetch asset with caching (fetchAsset handles Workers vs local mode)
+        // Fetch asset with caching
         const buffer = await fetchAsset(url, { cachePath })
 
         const result = await this.mediaUploader.uploadWithDeduplication(filename, {
@@ -706,7 +706,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       // Determine cache path based on file type
       const cachePath = path.join(this.cacheDir, `assets/${cacheSubdir}`, filename)
 
-      // Fetch asset with caching (fetchAsset handles Workers vs local mode)
+      // Fetch asset with caching
       const fileBuffer = await fetchAsset(url, { cachePath })
 
       const attachment = await this.payload.create({

@@ -21,6 +21,33 @@ export async function loginAsAdmin(request: APIRequestContext): Promise<string> 
   return body.token
 }
 
+/**
+ * Ensure an admin exists on the preview database and return a JWT.
+ *
+ * A per-PR Railway preview starts with an empty database (only the schema from
+ * the pre-deploy `payload migrate`), so there's no admin to log in as. Try to
+ * log in; if that fails, create the first admin via Payload's `first-register`
+ * endpoint (only succeeds while the auth collection is empty), then return its
+ * token. Idempotent and safe against an already-seeded environment.
+ */
+export async function ensureAdmin(request: APIRequestContext): Promise<string> {
+  const login = await request.post('/api/managers/login', { data: PREVIEW_ADMIN })
+  if (login.ok()) {
+    const body = (await login.json()) as { token?: string }
+    if (body.token) return body.token
+  }
+  const register = await request.post('/api/managers/first-register', {
+    data: { ...PREVIEW_ADMIN, name: 'Preview Admin', type: 'admin' },
+  })
+  if (!register.ok()) {
+    throw new Error(
+      `ensureAdmin: first-register failed: ${register.status()} ${await register.text()}`,
+    )
+  }
+  const body = (await register.json()) as { token?: string }
+  return body.token ?? loginAsAdmin(request)
+}
+
 export function authHeaders(token: string): Record<string, string> {
   return { Authorization: `JWT ${token}` }
 }

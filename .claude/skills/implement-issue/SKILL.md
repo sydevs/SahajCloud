@@ -128,7 +128,7 @@ Run the **lean local gate**. Per `.claude/rules/testing-reqs.md`: never run test
 
 ```bash
 .claude/skills/implement-issue/scripts/validate.sh          # lint + pnpm test:unit
-.claude/skills/implement-issue/scripts/validate.sh --full   # mirror CI: lint + full pnpm test + Cloudflare build
+.claude/skills/implement-issue/scripts/validate.sh --full   # mirror CI: lint + full pnpm test
 ```
 
 Or manually (lean gate):
@@ -139,7 +139,7 @@ pnpm test:unit
 pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts   # targeted to your change
 ```
 
-CI (`.github/workflows/ci.yml`) runs the full `pnpm test` suite + the Cloudflare build on the PR — that is the gate. Use `--full` locally only to reproduce a red CI check.
+CI (`.github/workflows/ci.yml`) runs the full `pnpm test` suite on the PR — that is the gate. Use `--full` locally only to reproduce a red CI check.
 
 If anything fails (locally or in CI):
 
@@ -182,7 +182,7 @@ See `pr-template.md` for the body format.
 
 ### 12. Wait for CI and verify the checks pass
 
-After the PR is open, **wait for the CI checks to resolve** — do not report the PR as ready while they're still pending or red. CI runs the two jobs in `.github/workflows/ci.yml` (**Lint & Test** and **Cloudflare Build**).
+After the PR is open, **wait for the CI checks to resolve** — do not report the PR as ready while they're still pending or red. CI runs the single job in `.github/workflows/ci.yml` (**Lint, Test & Smoke**), which includes linting, the full test suite, and Playwright smoke tests (gated on a preview URL).
 
 Watch the run to completion:
 
@@ -211,21 +211,6 @@ gh pr checks <pr-number-or-branch>
 
 Do NOT mark the PR ready while CI is red.
 
-#### If the `Cloudflare Build` job fails
-
-The CI has two jobs (`.github/workflows/ci.yml`): **Lint & Test** and **Cloudflare Build**. The Cloudflare Build job runs the OpenNext + Wrangler dry-run deploy (`wrangler types` → `wrangler deploy src/worker.ts … --dry-run`), so its failures are usually build/bundling or env-validation errors rather than test failures. Don't waste tokens hunting for the right log path — go straight to that job by name:
-
-```bash
-# Failed steps of just the Cloudflare Build job for a run:
-gh run view <run-id> --log-failed --job "Cloudflare Build"
-
-# Or resolve the job id first, then view its full log:
-gh run view <run-id> --json jobs --jq '.jobs[] | select(.name=="Cloudflare Build") | {id, conclusion, url}'
-gh run view --job <job-id> --log
-```
-
-To reproduce locally, run the same dry-run build CI uses (the job's `Package Worker` step): `validate.sh --full` includes it, or run the Cloudflare build directly per `.claude/skills/pr-prep/SKILL.md`. The job sets dummy env values (`PAYLOAD_SECRET`, `WEMEDITATE_WEB_URL`, etc.) so `serverEnv` zod validation passes at build time — a local repro needs those too.
-
 ### 13. Report
 
 Output the PR URL to the user and confirm CI is green. Note any unchecked acceptance criteria the user should verify manually (e.g., UI screenshots, manual repro of edge cases).
@@ -240,7 +225,7 @@ Output the PR URL to the user and confirm CI is green. Note any unchecked accept
 - **Never** report the PR as ready before CI checks have resolved green
 - **Always** create commits incrementally; never one monolithic commit at the end
 - **Always** use `--body-file` for PR creation (preserves markdown)
-- **Always** run the lean local gate before opening the PR; CI runs the full suite + Cloudflare build
+- **Always** run the lean local gate before opening the PR; CI runs the full suite
 - **Always** run `/simplify` over the full branch diff before pushing
 - **Always** wait for CI to finish and verify it passed after pushing — resolve any failures before reporting
 

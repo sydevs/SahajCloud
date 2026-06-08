@@ -1,81 +1,68 @@
 # Reset Database and Migrations
 
-Reset all PayloadCMS migrations and D1 databases (local and production) to start fresh with the current schema.
+Reset local PayloadCMS migrations and PostgreSQL database to start fresh with the current schema.
 
-**WARNING: This is a destructive operation. All data in local and production databases will be lost.**
+**WARNING: This is a destructive operation. All data in the local database will be lost.**
 
-## Instructions
+## Local Workflow
 
-Execute the following steps in order. Ask for user confirmation before resetting the production database.
+Local development uses PostgreSQL with Drizzle `push: true` (auto-schema-sync). To reset:
 
-### Step 1: Delete Migration Files
+### Step 1: Delete the local database
 
-Remove all migration files except `index.ts`:
-
-```bash
-# Find and delete all .ts migration files (not index.ts)
-find src/migrations -name "*.ts" ! -name "index.ts" -delete
-
-# Delete all .json metadata files
-find src/migrations -name "*.json" -delete
-```
-
-### Step 2: Reset migrations/index.ts
-
-Update the migrations index to an empty array:
-
-```typescript
-export const migrations = [];
-```
-
-### Step 3: Reset Local D1 Database
-
-Delete the local D1 database directory:
+Drop and recreate your local PostgreSQL database:
 
 ```bash
-rm -rf .wrangler/state/v3/d1
+# Replace 'sahajcloud' with your actual local DB name if different
+dropdb sahajcloud
+createdb sahajcloud
 ```
 
-### Step 4: Generate Fresh Migration
+### Step 2: Restart the dev server
 
-Create a new initial migration from the current schema:
+The dev server will auto-sync the schema on next boot:
 
 ```bash
-pnpm payload migrate:create initial_schema
+pnpm devsafe  # clears .next and restarts, or
+.claude/skills/dev-server/dev-server.sh restart
 ```
 
-This will regenerate `src/migrations/index.ts` with the new migration.
+This will run Drizzle `push` and populate the schema from `src/payload.config.ts`.
 
-### Step 5: Reset Production D1 Database
+### Step 3: Re-seed data (optional)
 
-**ASK USER FOR CONFIRMATION BEFORE PROCEEDING.**
-
-Delete and recreate the production database:
+If needed, re-populate test/seed data:
 
 ```bash
-# Delete existing database
-pnpm exec wrangler d1 delete sahajcloud
-
-# Create new database in EU jurisdiction
-pnpm exec wrangler d1 create sahajcloud --jurisdiction=eu
+pnpm seed <script-name>  # e.g., pnpm seed meditations
 ```
 
-### Step 6: Update wrangler.toml
+See `seeds/AGENTS.md` for available scripts.
 
-Extract the new `database_id` from the wrangler output and update `wrangler.toml`:
+## Migration Workflow (if editing schema)
 
-```toml
-[[d1_databases]]
-binding = "D1"
-database_name = "sahajcloud"
-database_id = "<NEW_DATABASE_ID>"
-remote = true
-```
+If you modified `src/collections/`, `src/fields/`, `src/globals/`, or `src/payload.config.ts`:
+
+1. **Create migration** (ask the user to run this interactively):
+
+   ```bash
+   pnpm db:migrations:create <name>
+   ```
+
+2. **Commit migration files** in a separate commit:
+
+   ```bash
+   git add src/migrations/
+   git commit -m "chore(migrations): <description>"
+   ```
+
+3. **Apply on next dev boot** — migrations auto-apply during server startup via Payload's `prodMigrations`.
+
+See `.claude/rules/migrations.md` for the full migration workflow.
 
 ## Key Details
 
-- **Database name**: `sahajcloud`
-- **Jurisdiction**: `eu` (EEUR region - required for data residency)
-- **Wrangler command**: Use `pnpm exec wrangler` (not bare `wrangler`)
-- **Local database location**: `.wrangler/state/v3/d1`
+- **Local database**: PostgreSQL (dev uses Drizzle `push: true`)
 - **Migrations directory**: `src/migrations/`
+- **Production migrations**: Applied in-process on server boot (no preDeployCommand)
+- **Dev server**: `pnpm dev` or `.claude/skills/dev-server/dev-server.sh` (shared across sessions)

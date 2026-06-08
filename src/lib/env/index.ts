@@ -15,7 +15,7 @@
  * **Usage**:
  * ```typescript
  * // Server-side
- * import { serverEnv, requireBinding } from '@/lib/env'
+ * import { serverEnv } from '@/lib/env'
  * const secret = serverEnv.PAYLOAD_SECRET
  *
  * // Client-side - use the client module directly
@@ -25,5 +25,5 @@
  */
 
 // Re-export everything from server module for backwards compatibility
-export { clientEnv, requireBinding, serverEnv } from './server'
+export { clientEnv, serverEnv } from './server'
 export type { ClientEnv, ServerEnv } from './server'

@@ -3,8 +3,8 @@
  *
  * Automatically applies rate limiting and usage tracking to all collections.
  *
- * - beforeOperation: Rate limiting via Cloudflare Workers binding
- * - afterRead: Usage tracking via direct Payload update (dev) or D1 atomic SQL (prod)
+ * - beforeOperation: Rate limiting (enforced at the Cloudflare edge; the app hook is a no-op)
+ * - afterRead: Usage tracking via an atomic Postgres UPDATE
  */
 
 import type { CollectionSlug, Config } from 'payload'
@@ -33,11 +33,7 @@ export function usagePlugin(
   }
 
   // Build exclusion set
-  const exclusions = new Set<CollectionSlug>([
-    ...SYSTEM_EXCLUSIONS,
-    'clients',
-    ...exclude,
-  ])
+  const exclusions = new Set<CollectionSlug>([...SYSTEM_EXCLUSIONS, 'clients', ...exclude])
 
   return (config: Config): Config => ({
     ...config,

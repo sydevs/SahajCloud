@@ -125,28 +125,18 @@ export const MANAGER_ROLES = { ... }
 
 ## Global Type Declarations in Next.js
 
-**Important**: Next.js doesn't reliably pick up root-level `.d.ts` files (like `worker-configuration.d.ts`) even when added to tsconfig `include`. This is because Next.js uses its own TypeScript plugin.
+**Important**: Next.js doesn't reliably pick up root-level `.d.ts` files even when added to tsconfig `include`, because it uses its own TypeScript plugin.
 
 ### Pattern: Declare Types Inside `declare global {}`
 
 When you need global types that Next.js won't pick up from external files, declare them in a `.d.ts` file within `src/`:
 
 ```typescript
-// src/types/cloudflare.d.ts
+// src/types/globals.d.ts
 declare global {
-  interface R2Bucket {
-    put(
-      key: string,
-      value: ArrayBuffer | ReadableStream,
-      options?: R2PutOptions,
-    ): Promise<R2Object | null>
-    get(key: string): Promise<R2Object | null>
-    delete(key: string | string[]): Promise<void>
-  }
-
-  interface D1Database {
-    prepare(query: string): D1PreparedStatement
-  }
+  // Declare external/global types Next.js won't pick up from a root-level .d.ts
+  // here — e.g. third-party globals or build-time constants.
+  var __APP_BUILD_ID__: string | undefined
 }
 
 export {} // Makes this a module file
@@ -169,6 +159,5 @@ export {} // Makes this a module file
 ### When to Use This Pattern
 
 - Migrating away from deprecated `@types/*` packages
-- Using wrangler-generated types that aren't picked up
-- Needing Cloudflare Workers types (R2Bucket, D1Database, RateLimit)
+- Declaring third-party globals or build-time constants
 - Any external type declarations that Next.js build doesn't recognize

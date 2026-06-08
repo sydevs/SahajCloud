@@ -2,7 +2,7 @@
  * Count how many frame timestamps fall beyond the audio duration.
  *
  * Intentionally self-contained — it does NOT reuse `normalizeMeditationFrames`
- * from `./frames`, which imports `@sentry/cloudflare` (and `payload`) and would
+ * from `./frames`, which imports `@sentry/nextjs` (and `payload`) and would
  * bloat the admin client bundle. This helper is imported by the `'use client'`
  * AudioUpload drift banner, so it must stay free of server-only dependencies.
  *

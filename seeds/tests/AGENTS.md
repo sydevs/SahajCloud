@@ -1,17 +1,18 @@
 # Import Tests
 
-Testing infrastructure for import scripts using in-memory SQLite.
+Testing infrastructure for import scripts, run against a Postgres test schema.
 
 ## Database Architecture
 
 **Two separate databases**:
 
-1. **SQLite (Payload Storage)**
-   - In-memory for tests (fast, isolated)
-   - Production uses Wrangler D1
-   - Automatically initialized by Payload
+1. **Payload storage (Postgres)**
+   - A dedicated `seed_test` schema in the same Postgres the app uses
+     (`DATABASE_URL`), auto-synced via Drizzle `push` — see
+     `seeds/tests/test-payload.config.ts`.
+   - Production runs on Railway Postgres.
 
-2. **PostgreSQL (Source Data)**
+2. **Source data (Postgres)**
    - Temporary database for meditations/wemeditate imports
    - Created from `data.bin` files
    - Requires PostgreSQL installed
@@ -58,12 +59,12 @@ pnpm tsx seeds/tests/check-db-stats.ts
 
 ## Test Results
 
-| Script | Status | Notes |
-|--------|--------|-------|
-| Meditations | PASSING | 255 documents created |
-| Tags | PASSING | 28 tags created |
-| Storyblok | Requires API token | Structure verified |
-| WeMeditate | Requires PostgreSQL | Structure verified |
+| Script      | Status              | Notes                 |
+| ----------- | ------------------- | --------------------- |
+| Meditations | PASSING             | 255 documents created |
+| Tags        | PASSING             | 28 tags created       |
+| Storyblok   | Requires API token  | Structure verified    |
+| WeMeditate  | Requires PostgreSQL | Structure verified    |
 
 ## Success Criteria
 
@@ -76,18 +77,23 @@ pnpm tsx seeds/tests/check-db-stats.ts
 ## Troubleshooting
 
 ### "PostgreSQL command not found"
+
 ```bash
 brew install postgresql  # macOS
 ```
+
 Note: PostgreSQL only needed for meditations/wemeditate imports
 
 ### "STORYBLOK_ACCESS_TOKEN not set"
+
 Expected for Storyblok tests without API access.
 
 ### "data.bin not found"
+
 Place PostgreSQL dump at `seeds/meditations/data.bin`
 
-### "Better SQLite build errors"
-```bash
-pnpm rebuild better-sqlite3
-```
+### "DATABASE_URL not set / connection refused"
+
+Set `DATABASE_URL` to a reachable Postgres — the test config (`test-payload.config.ts`)
+uses the `seed_test` schema and auto-syncs via Drizzle `push`. Locally, point it
+at your dev Postgres.

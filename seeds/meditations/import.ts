@@ -113,7 +113,7 @@ interface ImportedData {
 const CACHE_DIR = path.resolve(process.cwd(), 'seeds/cache/meditations')
 
 /**
- * GitHub raw URL base for fetching data files when running in Cloudflare Workers
+ * Raw URL base for fetching seed media assets from the repo
  */
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/sydevs/SahajCloud/main'
 
@@ -358,7 +358,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       this.mediaUploader = new MediaUploader(this.payload, this.logger)
 
       // Preload collections for efficient skip/update mode
-      // This dramatically reduces D1 queries by caching existence checks
+      // This dramatically reduces DB queries by caching existence checks
       // Note: meditations preloaded by label (the unique natural key after duplicate-title suffixing)
       await Promise.all([
         this.preloadCollection('frames', 'filename'),
@@ -654,9 +654,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('Loading data from JSON...')
 
     const localPath = path.resolve(process.cwd(), 'seeds/meditations/data.json')
-    const workerUrl = `${GITHUB_RAW_BASE}/seeds/meditations/data.json`
 
-    const jsonContent = await this.loadDataFile(localPath, workerUrl)
+    const jsonContent = await this.loadDataFile(localPath)
     const data = JSON.parse(jsonContent) as ImportedData
 
     await this.logger.info(
@@ -696,9 +695,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   /**
-   * Download file with dual-mode support:
-   * - Local development: Cache to disk for faster iteration
-   * - Cloudflare Workers: Stream directly without disk
+   * Download a file, caching to disk for faster re-runs.
    */
   private async downloadFile(storageKey: string, filename: string): Promise<Buffer | null> {
     const baseUrl = seedEnv.STORAGE_BASE_URL

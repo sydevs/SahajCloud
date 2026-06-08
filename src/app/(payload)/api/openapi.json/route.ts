@@ -12,7 +12,8 @@
  * - ?project=sahaj-atlas: Shows only Sahaj Atlas collections
  *
  * Note: This endpoint generates the spec directly using payload-oapi internals
- * to avoid self-referential fetch issues in Cloudflare Workers (causes 522 timeout).
+ * to avoid a self-referential fetch when generating the spec. Response caching is
+ * handled at the Cloudflare edge (Cache Rules + the Cache-Control header).
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -27,13 +28,8 @@ import { filterSpec, type OpenAPISpec } from '@/plugins/openapi/specFilter'
 
 import config from '@payload-config'
 
-// Import the generator directly from payload-oapi internals
-// This avoids the internal fetch that causes 522 timeouts in Cloudflare Workers
-
-// Cloudflare Workers Cache API extends standard CacheStorage with a default cache
-interface CloudflareCacheStorage extends CacheStorage {
-  default: Cache
-}
+// generateV31Spec is imported directly from payload-oapi internals to avoid an
+// internal self-referential fetch when generating the spec.
 
 const CACHE_TTL = 300 // 5 minutes
 
@@ -66,21 +62,9 @@ export async function GET(request: NextRequest) {
     const project: ProjectSlug | null =
       projectParam && isValidProject(projectParam) ? (projectParam as ProjectSlug) : null
 
-    // Create cache key including project parameter
-    const cacheUrl = `https://cache.internal/openapi.json${project ? `?project=${project}` : ''}`
-    const cacheKey = new Request(cacheUrl, { method: 'GET' })
-
-    // Check Cloudflare Cache API (only available in production Workers, skip when password-protected)
-    const cfCaches = typeof caches !== 'undefined' ? (caches as CloudflareCacheStorage) : null
-    const cache = docsPassword ? null : (cfCaches?.default ?? null)
-    if (cache) {
-      const cachedResponse = await cache.match(cacheKey)
-      if (cachedResponse) {
-        return cachedResponse
-      }
-    }
-
-    // Generate spec directly using payload-oapi internals (no internal fetch)
+    // Generate spec directly using payload-oapi internals (no internal fetch).
+    // Edge caching is handled by Cloudflare (Cache Rules / the Cache-Control
+    // header below) in front of the Railway origin — there is no in-app cache.
     const payload = await getPayload({ config })
 
     // Create a request-like object for the generator
@@ -124,12 +108,6 @@ export async function GET(request: NextRequest) {
         Vary: 'Accept',
       },
     })
-
-    // Store in Cloudflare Cache API (non-blocking)
-    if (cache) {
-      const responseToCache = response.clone()
-      cache.put(cacheKey, responseToCache)
-    }
 
     return response
   } catch (error) {

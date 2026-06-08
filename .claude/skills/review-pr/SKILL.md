@@ -9,7 +9,7 @@ allowed-tools: Bash(gh pr:*), Bash(gh issue:*), Bash(git diff:*), Bash(git log:*
 
 # Review PR
 
-End-to-end code review for the sy-devs-cms repo. Tailored to the PayloadCMS + Next.js + Cloudflare Workers stack and the project's conventions.
+End-to-end code review for the sy-devs-cms repo. Tailored to the PayloadCMS + Next.js + Railway + PostgreSQL stack and the project's conventions.
 
 ## Invocation
 
@@ -78,17 +78,17 @@ For each file, check:
 
 ### 6. Stack-specific gotchas to look for
 
-| Area               | Common issue                                                                                               |
-| ------------------ | ---------------------------------------------------------------------------------------------------------- |
-| Payload hooks      | Hook mutates but doesn't return data → silently drops change                                               |
-| Payload access     | Mixed up boolean vs Where-clause return → bypass or denial                                                 |
-| D1 migrations      | Child-then-parent FK rebuild → cascade-null (see [feedback_d1_pragma_foreign_keys])                        |
-| `payload-types.ts` | Schema changed but types not regenerated → TS drift                                                        |
-| `importMap.js`     | New admin component added but not in import map                                                            |
-| Locale handling    | New field added but not wired up in all required locales                                                   |
-| API clients        | Missing `select` / `populate` in REST queries (see `src/plugins/usage/hooks.ts:validateClientQueryParamsHook`) |
-| Cloudflare Workers | Binding referenced but not declared in `wrangler.toml`                                                     |
-| Tests              | Mocking the database in integration tests (see [feedback_no_core_payload_tests])                           |
+| Area                | Common issue                                                                                                   |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Payload hooks       | Hook mutates but doesn't return data → silently drops change                                                   |
+| Payload access      | Mixed up boolean vs Where-clause return → bypass or denial                                                     |
+| Postgres migrations | Parent-before-child table order, FK constraint handling, no drop-column issues (Postgres !== SQLite)           |
+| `payload-types.ts`  | Schema changed but types not regenerated → TS drift                                                            |
+| `importMap.js`      | New admin component added but not in import map                                                                |
+| Locale handling     | New field added but not wired up in all required locales                                                       |
+| API clients         | Missing `select` / `populate` in REST queries (see `src/plugins/usage/hooks.ts:validateClientQueryParamsHook`) |
+| Railway env vars    | Environment variables set in Railway service settings or secrets, not hardcoded in `railway.toml`              |
+| Tests               | Mocking the database in integration tests (see [feedback_no_core_payload_tests])                               |
 
 ### 7. Compose the review
 

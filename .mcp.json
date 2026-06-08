@@ -2,11 +2,18 @@
   "mcpServers": {
     "cloudflare-docs": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://docs.mcp.cloudflare.com/mcp"]
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://docs.mcp.cloudflare.com/mcp"
+      ]
     },
     "puppeteer": {
       "command": "npx",
-      "args": ["-y", "puppeteer-mcp-server"]
+      "args": [
+        "-y",
+        "puppeteer-mcp-server"
+      ]
     },
     "sentry": {
       "type": "http",
@@ -15,6 +22,14 @@
     "github": {
       "type": "http",
       "url": "https://api.githubcopilot.com/mcp/"
+    },
+    "railway": {
+      "type": "stdio",
+      "command": "railway",
+      "args": [
+        "mcp"
+      ],
+      "env": {}
     }
   }
 }

@@ -33,11 +33,6 @@ import { safeBufferFromUint8Array } from '../lib/runtime'
 
 const CACHE_DIR = path.resolve(process.cwd(), 'seeds/cache/tags')
 
-/**
- * GitHub raw URL base for fetching local files when running in Cloudflare Workers
- */
-const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/sydevs/SahajCloud/main'
-
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -446,7 +441,6 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
 
   /**
    * Download SVG from URL or load from local file (local: prefix)
-   * Uses dataLoader utilities to abstract Workers vs local mode
    */
   private async downloadSvg(url: string, cacheFilename: string): Promise<string | null> {
     try {
@@ -454,15 +448,14 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
       if (url.startsWith('local:')) {
         const localFilename = url.slice(6) // Remove 'local:' prefix
         const localPath = path.resolve(process.cwd(), 'seeds/tags', localFilename)
-        const workerUrl = `${GITHUB_RAW_BASE}/seeds/tags/${localFilename}`
 
-        return this.loadDataFile(localPath, workerUrl)
+        return this.loadDataFile(localPath)
       }
 
       // For remote URLs: check cache, download if needed, cache result
       const cachePath = path.join(this.cacheDir, 'assets', cacheFilename)
 
-      // Check cache first (returns null in Workers mode)
+      // Check cache first
       const cached = await readCacheText(cachePath)
       if (cached) {
         return cached
@@ -480,7 +473,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
 
       const svgContent = await response.text()
 
-      // Cache for local dev (no-op in Workers mode)
+      // Cache for local dev
       await writeCache(cachePath, svgContent)
 
       return svgContent
@@ -501,13 +494,12 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
 
   /**
    * Create a file object from SVG content for Payload upload
-   * Uses TextEncoder for Workers compatibility (Buffer.from with encoding arg doesn't work in Workers)
    */
   private createSvgFileObject(
     svgContent: string,
     filename: string,
   ): { data: Buffer; mimetype: string; name: string; size: number } {
-    // Use TextEncoder for Workers-compatible string to buffer conversion
+    // Convert SVG content to buffer
     const encoder = new TextEncoder()
     const uint8Array = encoder.encode(svgContent)
     const buffer = safeBufferFromUint8Array(uint8Array)
