@@ -38,10 +38,10 @@ The application is deployed to **Railway**, a modern platform for building and d
 **Build & Start**:
 
 - **Railpack** (Railway's native builder): Railway detects Node.js project and builds automatically
-- `railway.toml`: defines build and start commands
-  - `build.command = 'pnpm build'`
-  - `start.command = 'pnpm start'`
-- Migrations applied **in-process on server boot** via Payload `prodMigrations` hook (see [Database Migrations](#database-migrations))
+- `railway.toml`: `[build] builder = "RAILPACK"` and `[deploy] startCommand = "pnpm start"`
+  - `pnpm build` → `next build` (emits a self-contained `.next/standalone`, `output: 'standalone'`) followed by a postbuild step (`scripts/standalone-postbuild.mjs`) that copies `.next/static` + `public/` next to `server.js` — Next does not copy these automatically
+  - `pnpm start` → `node .next/standalone/server.js` (`HOSTNAME=0.0.0.0`): ships only traced production deps + a minimal server, not the full `node_modules` (much smaller runtime image)
+- Migrations applied **in-process on server boot** via Payload `prodMigrations` hook (see [Database Migrations](#database-migrations)) — the migration files are statically imported, so they trace into the standalone bundle and still run on boot
 - `Sentry` via `@sentry/nextjs` (wraps `next.config.mjs` with `withSentryConfig`)
 
 **Health Check**:
@@ -53,6 +53,8 @@ The application is deployed to **Railway**, a modern platform for building and d
 
 **next.config.mjs**:
 
+- `output: 'standalone'` — self-contained server bundle (see Build & Start above)
+- `outputFileTracingExcludes` — keeps dev-only `media/`/`seeds/`/tests out of the trace (same intent as `.railwayignore`, different mechanism); without it a local `pnpm build` balloons `.next/standalone` to many GB
 - Wrapped with `withSentryConfig` from `@sentry/nextjs`
 - Next.js configured with Cloudflare integration for image optimization
 
@@ -298,8 +300,8 @@ SENTRY_AUTH_TOKEN=<token>
 Railway automatically:
 
 1. Detects a git push to the deploy branch
-2. Builds the app via Railpack (`pnpm build`)
-3. Starts the app: `pnpm start`
+2. Builds the app via Railpack (`pnpm build` → `.next/standalone` + asset copy)
+3. Starts the app: `pnpm start` → `node .next/standalone/server.js`
 4. Payload **applies all pending migrations in-process on server boot** (via `prodMigrations` hook in `src/payload.config.ts`)
 5. Monitors `/api/health` until the server is ready (health checks passing)
 6. Routes traffic from Cloudflare edge proxy to the new instance
