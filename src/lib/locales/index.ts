@@ -7,6 +7,9 @@ import type { Locale } from 'payload'
 
 import ISO6391 from 'iso-639-1'
 
+export { getLanguageOptions } from './languageOptions'
+export type { LanguageOption } from './languageOptions'
+
 export const LOCALES = [
   { code: 'en', label: 'English' },
   { code: 'es', label: 'Spanish' },
