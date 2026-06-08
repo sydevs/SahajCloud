@@ -36,7 +36,7 @@ Rules for writing and running tests in this codebase.
 | --------------- | ---------------------------- | ----------------------- | ------------------------------------------------------------------------------------- |
 | **Unit**        | `tests/unit/**/*.spec.ts`    | ~1–2 s for ~200 cases   | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.              |
 | **Integration** | `tests/int/**/*.int.spec.ts` | ~8 s bootstrap per file | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. |
-| **E2E**         | `tests/e2e/**/*.e2e.spec.ts` | Playwright              | Full UI flows, file-based SQLite.                                                     |
+| **E2E**         | `tests/e2e/**/*.e2e.spec.ts` | Playwright              | Full UI flows, Postgres (`e2e` schema).                                               |
 
 ### When to put a test in `tests/unit/`
 
@@ -155,10 +155,11 @@ describe('My Collection', () => {
 
 ## Integration test isolation
 
-Each integration test file gets its own in-memory SQLite database (via
-`better-sqlite3`). Automatic creation/destruction per test suite. No
-external dependencies. No data conflicts between suites. Tests run
-sequentially (`maxConcurrency: 1`) to prevent resource conflicts.
+Each integration test file gets its own isolated **Postgres schema** (created
+via Drizzle `push`, dropped on cleanup) against `DATABASE_URL` — same per-suite
+isolation the in-memory SQLite previously provided. Requires a reachable
+Postgres (Docker locally / a service container in CI). No data conflicts between
+suites. Tests run sequentially (`maxConcurrency: 1`) to prevent resource conflicts.
 
 ## Test file organization
 
@@ -284,9 +285,9 @@ const result = await payload.find({
 
 ## E2E test database isolation
 
-E2E tests use a separate file-based SQLite DB at `tests/.e2e.sqlite`,
-isolated from the dev D1 database. Run on port 4567 (separate from dev
-server).
+E2E tests use a dedicated Postgres schema (`e2e`) against `DATABASE_URL`,
+isolated from dev and from the per-suite integration schemas. Run on port 4567
+(separate from dev server).
 
 | File                                        | Purpose                              |
 | ------------------------------------------- | ------------------------------------ |
@@ -305,11 +306,11 @@ server).
 
 ### Env vars
 
-| Var                 | Purpose                                      |
-| ------------------- | -------------------------------------------- |
-| `E2E_TEST=true`     | Enables E2E mode (file-based SQLite, not D1) |
-| `CLEAN_E2E_DB=true` | Removes the E2E database after teardown      |
-| `PAYLOAD_SECRET`    | `e2e-test-secret-key` for E2E                |
+| Var                 | Purpose                                  |
+| ------------------- | ---------------------------------------- |
+| `E2E_TEST=true`     | Enables E2E mode (Postgres `e2e` schema) |
+| `CLEAN_E2E_DB=true` | Removes the E2E database after teardown  |
+| `PAYLOAD_SECRET`    | `e2e-test-secret-key` for E2E            |
 
 The DB is reset at the start of every run to prevent `drizzle-kit push`
 from prompting on stale schemas (which would hang Playwright's

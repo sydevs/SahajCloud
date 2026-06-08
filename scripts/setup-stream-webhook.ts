@@ -26,9 +26,7 @@ const EXPECTED_HOST = 'cloud.sydevelopers.com'
 
 const WebhookResponseSchema = z.object({
   success: z.boolean(),
-  errors: z
-    .array(z.object({ code: z.number().optional(), message: z.string() }))
-    .default([]),
+  errors: z.array(z.object({ code: z.number().optional(), message: z.string() })).default([]),
   result: z
     .object({
       notificationUrl: z.string().optional(),
@@ -166,12 +164,7 @@ async function main(): Promise<void> {
   // Inspect current registration first
   const current = await cf('GET', accountId, apiKey)
   const currentUrl = current.result?.notificationUrl
-  if (
-    current.success &&
-    currentUrl &&
-    currentUrl !== args.url &&
-    !args.force
-  ) {
+  if (current.success && currentUrl && currentUrl !== args.url && !args.force) {
     console.error(
       `\nRefusing to overwrite existing webhook.\n  Current: ${currentUrl}\n  New:     ${args.url}\n\nPass --force to override.\n`,
     )
@@ -196,10 +189,11 @@ async function main(): Promise<void> {
   console.log(`  Signing secret:   ${secret}`)
   console.log('')
   console.log('Next steps:')
-  console.log('  1. Copy the signing secret above.')
-  console.log('  2. Run: wrangler secret put CLOUDFLARE_STREAM_WEBHOOK_SECRET')
-  console.log('  3. Paste the secret when prompted.')
-  console.log('  4. Deploy: pnpm run deploy:prod')
+  console.log('  1. Copy the signing secret above (Cloudflare only shows it now).')
+  console.log('  2. Set it on Railway:')
+  console.log('       railway variables --set "CLOUDFLARE_STREAM_WEBHOOK_SECRET=<secret>"')
+  console.log('     (or add it via the Railway dashboard / setup-railway.sh).')
+  console.log('  3. Redeploy the Railway service to pick it up.')
   console.log('')
 }
 

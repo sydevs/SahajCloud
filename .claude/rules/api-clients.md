@@ -22,22 +22,21 @@ access is REST-only.
 
 ## Usage plugin (`src/plugins/usage/`)
 
-| File             | Purpose                                                            |
-| ---------------- | ------------------------------------------------------------------ |
-| `usagePlugin.ts` | Plugin orchestration                                               |
-| `hooks.ts`       | `rateLimitHook` (beforeOperation), `usageTrackingHook` (afterRead) |
-| `tasks.ts`       | `trackUsageTask`, `resetUsageTask` factories                       |
-| `types.ts`       | Type definitions and constants                                     |
-| `wrangler.toml`  | Cloudflare Rate Limiting Binding configuration                     |
+| File             | Purpose                                                             |
+| ---------------- | ------------------------------------------------------------------- |
+| `usagePlugin.ts` | Plugin orchestration                                                |
+| `hooks.ts`       | `usageTrackingHook` (afterRead); `rateLimitHook` (no-op on Railway) |
+| `tasks.ts`       | `trackUsageTask`, `resetUsageTask` factories (Postgres atomic ops)  |
+| `types.ts`       | Type definitions and constants                                      |
 
 ## Authentication flow
 
 1. Client sends `Authorization: clients API-Key <key>` (+ optional `X-User-ID`).
 2. Payload authenticates via the encrypted API key.
-3. `rateLimitHook` checks rate limits (production only).
+3. Cloudflare edge (rate limiting rules) checks rate limits (no app-level limiter needed).
 4. Access middleware enforces read-only RBAC permissions.
 5. `usageTrackingHook` queues a `trackUsageTask` (afterRead).
-6. Task increments stats asynchronously.
+6. Task increments stats asynchronously via atomic Postgres UPDATE.
 
 ## Security
 
@@ -118,7 +117,7 @@ Fails the `typeof === 'object'` check, returns 400.
 
 On rejection the hook logs the offending shape at WARN level — type +
 top-level keys + a 100-char preview when the value is a string (no full
-payload, no secrets). Filter `wrangler tail` by `clientId` if a client reports
+payload, no secrets). Filter the application logs (`railway logs`) by `clientId` if a client reports
 an unexpected 400; the log entry identifies whether the param arrived as a
 string, an empty object, or missing entirely.
 
@@ -150,22 +149,22 @@ meditations, pages, and wemeditate-web live previews.
 
 ## Usage monitoring
 
-- **Async tracking** via job queue (no in-request DB write).
+- **Async tracking** via Payload job queue (no in-request DB write).
 - **Daily limits** — alerts logged when daily count exceeds threshold (>1,000/day).
 - **Peak tracking** — `peakDailyRequests` records the historical max.
 - **Reset schedule** — `resetUsageTask` runs daily at midnight UTC.
+- **Implementation** — atomic Postgres UPDATE via Drizzle pool (single transaction, no race conditions)
 
-## Rate limiting (Cloudflare Workers Rate Limiting Binding)
+## Rate limiting (Cloudflare Edge)
 
-Per-user rate limiting prevents one abusive end-user from exhausting
-quota for everyone sharing a client's API key.
+Per-user rate limiting is now handled by **Cloudflare Rate Limiting Rules** at the edge, in front of Railway. This eliminates the need for an app-level rate limiter binding.
 
 ### How it works
 
-1. Request arrives with API key (+ optional `X-User-ID`).
-2. `rateLimitHook` extracts `clientId`, IP, `userId`.
-3. Composite key: `user:{clientId}:{ip}:{userId}`.
-4. Cloudflare Rate Limiter checks; allow → 200, exceeded → 429.
+1. Request arrives at Cloudflare edge (reverse proxy).
+2. Cloudflare Rate Limiting Rules evaluate the request.
+3. Allow → forwards to Railway, blocked → returns 429.
+4. No app-level `rateLimitHook` needed; it's a no-op.
 
 ### Limits
 
@@ -173,15 +172,14 @@ quota for everyone sharing a client's API key.
 | ------- | ---------------------------------- |
 | Limit   | 500 requests                       |
 | Period  | 60 seconds                         |
-| Scope   | per `(client, IP, user-id)` triple |
+| Scope   | per `(client, IP)` tuple (at edge) |
 
 ### `X-User-ID` header
 
-Optional, for per-end-user isolation:
+The header is still present for API semantic clarity but is not rate-limited at the edge. Clients can pass it to identify their end-users in logs.
 
 - Format: `^[a-zA-Z0-9-_]{8,64}$`
-- Without the header: rate-limit falls back to IP-only.
-- **Privacy**: user ID is **never** included in error responses.
+- **Privacy**: user ID is visible to the app but not enforced by Cloudflare rules.
 
 ```http
 GET /api/meditations HTTP/1.1
@@ -192,26 +190,15 @@ X-User-ID: user_12345678
 ### Error responses
 
 ```json
-// 400 — invalid X-User-ID
-{ "errors": [{ "message": "Invalid X-User-ID format. Must be 8-64 alphanumeric characters, dashes, or underscores." }] }
-
-// 429 — rate limit exceeded
+// 429 — rate limit exceeded (Cloudflare)
 { "errors": [{ "message": "Rate limit exceeded. Maximum 500 requests per minute." }] }
 ```
 
-### Excluded from rate limiting
-
-- Admin/manager routes (Managers collection).
-- Development environment (rate limiting disabled).
-- Non-client requests (only API clients are tracked).
-- Consumer collections — Client collection is excluded from tracking hooks.
-
 ### Monitoring
 
-- Sentry: warning-level events when limits are hit.
-- Pino: `clientId`, IP, timestamp logged.
-- **Fail-open**: rate-limiter errors allow the request through (better to
-  allow than incorrectly block).
+- Cloudflare Analytics: view rate limit hits per rule.
+- Sentry: `usageTrackingHook` logs client requests (no rate limiter events).
+- Pino: `clientId`, IP, timestamp logged at usage tracking time.
 
 ## Testing
 

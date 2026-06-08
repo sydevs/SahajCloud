@@ -15,9 +15,9 @@ local-file fallback in development.
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Cloudflare Images** | `images` (uploads); also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks              | `https://imagedelivery.net/<hash>/<imageId>/public`                                                                                                                                       |
 | **Cloudflare Stream** | `videos`, `frames` (video MIME types)                                                                                         | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>MP4: `.../downloads/default.mp4` (`mp4Url`)<br>HLS: `.../manifest/video.m3u8` (`hlsUrl`) |
-| **R2 native binding** | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>`                                                                                                                                    |
+| **R2 (S3 API)**       | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>`                                                                                                                                    |
 
-R2 is configured via `wrangler.toml` bindings (no S3-compatible API).
+R2 is configured via S3-compatible API (`@aws-sdk/client-s3`) with environment variables (R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY).
 Filenames are sanitized to URL-safe slugs with random 6-char suffixes.
 
 Development falls back to local file storage when Cloudflare credentials
@@ -56,16 +56,33 @@ fields: [
 | `hlsUrlField({ collection })`                      | HLS manifest (`hlsUrl`); `null` for non-video. Mount on every collection that exposes a video URL. |
 | `mp4UrlField({ collection })`                      | MP4 download (`mp4Url`); `null` for non-video. Mount alongside `hlsUrlField`.                      |
 
-## R2 native adapter (`r2NativeAdapter.ts`)
+## R2 S3 adapter (`r2NativeAdapter.ts`)
+
+`storagePlugin.ts` builds the S3 client and passes it to the adapter:
 
 ```typescript
+const client = new S3Client({
+  region: 'auto',
+  // R2_S3_ENDPOINT overrides this for jurisdiction-specific buckets (e.g. EU:
+  // https://<accountId>.eu.r2.cloudflarestorage.com). The native binding hid the
+  // jurisdiction; the S3 API needs the exact endpoint or the bucket 404s.
+  endpoint:
+    serverEnv.R2_S3_ENDPOINT ??
+    `https://${serverEnv.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: serverEnv.R2_ACCESS_KEY_ID,
+    secretAccessKey: serverEnv.R2_SECRET_ACCESS_KEY,
+  },
+})
+
 r2NativeAdapter({
-  bucket: env.R2,
-  publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL,
+  client,
+  bucket: serverEnv.R2_BUCKET,
+  publicUrl: serverEnv.CLOUDFLARE_R2_DELIVERY_URL,
 })
 ```
 
-**`CLOUDFLARE_R2_DELIVERY_URL` is per-env.** It's set in each `wrangler.toml` env block — prod uses the custom domain `https://assets.sydevelopers.com`, preview uses the default R2 dev URL `https://pub-<hash>.r2.dev`, and dev/E2E leave it empty. Cloned preview rows still reference the prod CDN URL (preview's Worker has no binding to the prod bucket, so it never writes there) — see [DEPLOYMENT.md → Preview Environment](../../DEPLOYMENT.md#preview-environment) for the file-protection invariant.
+**`CLOUDFLARE_R2_DELIVERY_URL` is per-env**: prod uses `https://assets.sydevelopers.com`, dev/staging uses a different delivery domain. Endpoint and credentials come from environment variables set in Railway or `.env`.
 
 **Filename sanitization** (every upload):
 
@@ -228,7 +245,7 @@ Video has MP4 URL
 - Raw body read via `request.text()` _before_ any JSON parse, so the
   bytes used for HMAC verification are byte-identical to what Cloudflare
   signed.
-- Web Crypto (`crypto.subtle`) — same code path runs in Workers and in
+- Web Crypto (`crypto.subtle`) — same code path runs in Node and in
   vitest.
 
 ### One-time production setup
@@ -245,11 +262,11 @@ pnpm tsx scripts/setup-stream-webhook.ts \
 # Inspect current registration without changing
 pnpm tsx scripts/setup-stream-webhook.ts --get
 
-# 2. Store the secret in Workers
-wrangler secret put CLOUDFLARE_STREAM_WEBHOOK_SECRET
+# 2. Store the secret as a Railway service variable:
+#    CLOUDFLARE_STREAM_WEBHOOK_SECRET=<printed-secret>
+#    (Railway dashboard → Variables, or `railway variables --set ...`)
 
-# 3. Redeploy
-pnpm run deploy:prod
+# 3. Redeploy on Railway (git push, or trigger a redeploy) to pick it up
 ```
 
 If a different URL is already registered, the script refuses and prints
@@ -259,7 +276,7 @@ the current value. Pass `--force` to override.
 
 1. Log into admin at `https://cloud.sydevelopers.com/admin`.
 2. Upload a small test video (videos / frames / files).
-3. `wrangler tail sahajcloud --format pretty` — expect:
+3. `railway logs` (or the Railway dashboard logs) — expect:
    - `Uploading video to Cloudflare Stream`
    - `Video uploaded successfully`
    - 15–60 s later: `MP4 downloads enabled via webhook`
@@ -299,10 +316,10 @@ The video's `filename` field in Payload is the Stream UID.
 
 ### Debugging
 
-- `wrangler tail sahajcloud --format pretty`
+- `railway logs` (or the Railway dashboard logs)
 - Look for `MP4 downloads enabled via webhook` (success) or
   `Failed to enable MP4 downloads` / `Cloudflare Stream reported processing error`.
-- A 400/401 from the webhook usually means the signing secret in Workers
+- A 400/401 from the webhook usually means the signing secret in Railway
   doesn't match what Cloudflare has — re-run
   `scripts/setup-stream-webhook.ts --get` and compare.
 - Cloudflare retries non-2xx with exponential backoff, so transient errors

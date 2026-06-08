@@ -10,7 +10,7 @@
  * - Idempotent: safely re-runnable (updates existing, creates new)
  * - Uses slug as natural key for pages and authors
  * - Uses videoUrl as natural key for external videos
- * - No PostgreSQL dependency - can run anywhere (migrations, CI/CD, Workers)
+ * - No PostgreSQL dependency - can run anywhere (migrations, CI/CD, production)
  *
  * DATA SOURCE:
  * - JSON file (seeds/wemeditate/data.json) - pre-extracted from legacy Rails PostgreSQL
@@ -36,7 +36,6 @@ import {
   MediaUploader,
   rateLimitDelay,
   readCache,
-  safeBufferCopy,
   safeBufferFromUint8Array,
 } from '../lib'
 import {
@@ -161,7 +160,7 @@ const CACHE_DIR = path.resolve(process.cwd(), 'seeds/cache/wemeditate')
 const STORAGE_BASE_URL = 'https://assets.wemeditate.com/uploads/'
 
 /**
- * GitHub raw URL base for fetching data files when running in Cloudflare Workers
+ * Raw URL base for fetching seed media assets from the repo
  */
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/sydevs/SahajCloud/main'
 
@@ -273,7 +272,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       await this.setupImageTags()
 
       // Preload collections for efficient skip/update mode
-      // This dramatically reduces D1 queries by caching existence checks
+      // This dramatically reduces DB queries by caching existence checks
       // Note: page-tags removed - now inline enum strings on Pages collection
       await Promise.all([
         this.preloadCollection('authors', 'slug'),
@@ -373,9 +372,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('Loading data from JSON...')
 
     const localPath = path.resolve(process.cwd(), 'seeds/wemeditate/data.json')
-    const workerUrl = `${GITHUB_RAW_BASE}/seeds/wemeditate/data.json`
 
-    const jsonContent = await this.loadDataFile(localPath, workerUrl)
+    const jsonContent = await this.loadDataFile(localPath)
     this.data = JSON.parse(jsonContent) as WeMeditateData
 
     await this.logger.info(
@@ -987,8 +985,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         const filename = path.basename(downloadResult.localPath)
         const mimeType = this.fileUtils.getMimeType(filename)
 
-        // In Workers, ensure we pass a clean Buffer without ArrayBuffer offset issues
-        const cleanBuffer = safeBufferCopy(fileBuffer)
+        const cleanBuffer = fileBuffer
 
         // Upload artwork to Images collection first
         let artworkId: number
@@ -1073,7 +1070,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           total,
         })
 
-        // Add delay between albums to avoid rate limiting in Workers environment
+        // Add delay between albums to avoid rate limiting
         // Reduced from 300ms since bulk preloading reduces DB queries
         if (i < total - 1) {
           await rateLimitDelay(100)
@@ -1086,7 +1083,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
   /**
    * Get placeholder image for albums without artwork.
-   * Uses mediaDownloader for consistent handling across local/Workers modes.
    */
   private async getOrCreatePlaceholderImage(): Promise<{ localPath: string; buffer?: Buffer }> {
     const githubUrl = `${GITHUB_RAW_BASE}/seeds/wemeditate/preview.png`
@@ -1297,13 +1293,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         return
       }
 
-      // Try to read SVG from filesystem (returns null in Workers mode)
+      // Try to read SVG from filesystem
       const svgPath = path.resolve(process.cwd(), 'seeds/tags/music-tag.svg')
       let svgBuffer = await readCache(svgPath)
 
       if (!svgBuffer) {
-        // Workers mode (or file missing): use minimal music note SVG
-        // Use TextEncoder + safeBufferFromUint8Array for Workers compatibility
+        // File missing: use minimal music note SVG
         const svgContent =
           '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>'
         const encoder = new TextEncoder()
@@ -1632,11 +1627,9 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     // Batch pause configuration to avoid Cloudflare Images rate limiting
     // Cloudflare Images has rate limits of ~100 requests per 5-minute window
     // Using small batches (25) with 25s pause = ~300 requests/5min (under limit with margin)
-    // CRITICAL: Pause must be <30s to avoid Cloudflare Workers I/O inactivity timeout
-    // The Workers runtime times out if no I/O operations happen for 30 seconds
     // OPTIMIZATION: Only count actual uploads, not skipped/reused images
     const BATCH_SIZE = 25
-    const BATCH_PAUSE_MS = 25000 // 25 seconds (must be under Cloudflare's 30s I/O inactivity timeout)
+    const BATCH_PAUSE_MS = 25000 // 25 seconds pause between batches
     let actualUploadsInBatch = 0 // Track actual uploads, not iterations
 
     for (let i = 0; i < total; i++) {

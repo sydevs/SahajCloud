@@ -1,11 +1,12 @@
 // Node.js and external dependencies
 import type { PayloadRequest, UploadConfig, CollectionConfig } from 'payload'
+import type { Pool } from 'pg'
 
 import path from 'path'
 import { fileURLToPath } from 'url'
 
 // Payload CMS
-import { sqliteAdapter } from '@payloadcms/db-sqlite'
+import { postgresAdapter } from '@payloadcms/db-postgres'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { getPayload, Payload } from 'payload'
@@ -64,12 +65,22 @@ function getTestCollections(): CollectionConfig[] {
 }
 
 /**
+ * Unique Postgres schema name per test suite for full isolation. Each
+ * `createTestEnvironment()` gets its own schema (created via `push`, dropped on
+ * cleanup), mirroring the previous per-suite in-memory SQLite isolation.
+ */
+function makeTestSchemaName(): string {
+  return `test_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e9).toString(36)}`
+}
+
+/**
  * Creates the base Payload configuration for test environments
  * @param emailConfig Optional email configuration
+ * @param schemaName Isolated Postgres schema for this suite
  * @returns Payload configuration object
  */
- 
-function createBaseTestConfig(emailConfig?: any) {
+
+function createBaseTestConfig(emailConfig: any, schemaName: string) {
   // Build config with usagePlugin to get tasks auto-registered
   const baseConfig = buildConfig({
     admin: {
@@ -88,12 +99,17 @@ function createBaseTestConfig(emailConfig?: any) {
       locales: buildPayloadLocales(),
       defaultLocale: DEFAULT_LOCALE,
     },
-    // Use in-memory SQLite database for tests
-    db: sqliteAdapter({
-      client: {
-        url: ':memory:', // In-memory SQLite database
+    // Postgres test database — each suite gets an isolated schema (dropped on
+    // cleanup). DATABASE_URL is injected by vitest.config.mts.
+    db: postgresAdapter({
+      pool: {
+        connectionString: process.env.DATABASE_URL,
+        // Tests don't need durability — skip the per-commit fsync wait. Large
+        // speed-up for the write-heavy integration suites on Postgres.
+        options: '-c synchronous_commit=off',
       },
-      push: true, // Auto-create schema
+      push: true, // Auto-create schema (no migrations in tests)
+      schemaName,
     }),
     jobs: {
       tasks,
@@ -114,7 +130,6 @@ function createBaseTestConfig(emailConfig?: any) {
           // Use streamTransport to avoid Ethereal email logging
           streamTransport: true,
           newline: 'unix',
-           
         } as any,
       }),
   })
@@ -126,16 +141,24 @@ function createBaseTestConfig(emailConfig?: any) {
  * Performs cleanup operations for test environments
  * @param payload The Payload instance to cleanup
  */
-async function cleanupTestEnvironment(payload: Payload): Promise<void> {
-  // Close Payload connection and destroy in-memory database
+async function cleanupTestEnvironment(payload: Payload, schemaName: string): Promise<void> {
+  // Drop the suite's isolated Postgres schema, then close the connection.
+  try {
+    const pool = (payload.db as unknown as { pool?: Pool }).pool
+    if (pool) {
+      await pool.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`)
+    }
+  } catch (_error) {
+    // Best-effort schema cleanup — a leaked test schema doesn't fail the suite.
+  }
+  // Close Payload connection
   try {
     if (payload.db && typeof payload.db.destroy === 'function') {
       await payload.db.destroy()
     }
   } catch (_error) {
-    // Failed to close Payload connection - not critical for in-memory DB
+    // Failed to close Payload connection - not critical
   }
-  // Note: In-memory SQLite database is automatically destroyed when connection closes
 }
 
 /**
@@ -147,15 +170,15 @@ export async function createTestEnvironment(): Promise<{
   cleanup: () => Promise<void>
   adminUser: Awaited<ReturnType<typeof testData.createManager>>
 }> {
-  // Creating test environment with in-memory SQLite database
-  const config = createBaseTestConfig()
+  const schemaName = makeTestSchemaName()
+  const config = createBaseTestConfig(undefined, schemaName)
   const payload = await getPayload({ config })
   const adminUser = await testData.createManager(payload, {
     email: 'admin@example.com',
     type: 'admin' as const,
   })
 
-  const cleanup = () => cleanupTestEnvironment(payload)
+  const cleanup = () => cleanupTestEnvironment(payload, schemaName)
 
   return { payload, cleanup, adminUser }
 }
@@ -184,9 +207,10 @@ export async function createTestEnvironmentWithEmail(): Promise<{
   }
 
   // Create config with email adapter
-  const config = createBaseTestConfig(enhancedFn)
+  const schemaName = makeTestSchemaName()
+  const config = createBaseTestConfig(enhancedFn, schemaName)
   const payload = await getPayload({ config })
-  const cleanup = () => cleanupTestEnvironment(payload)
+  const cleanup = () => cleanupTestEnvironment(payload, schemaName)
 
   return { payload, cleanup, emailAdapter }
 }

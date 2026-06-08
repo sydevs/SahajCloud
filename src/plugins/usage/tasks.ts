@@ -5,13 +5,13 @@
  */
 import type { Payload, TaskConfig } from 'payload'
 
-import { getCloudflareContext } from '@opennextjs/cloudflare'
-import * as Sentry from '@sentry/cloudflare'
+import * as Sentry from '@sentry/nextjs'
 
 import { serverEnv } from '@/lib/env'
 import type { Client } from '@/payload-types'
 
 import { HIGH_USAGE_THRESHOLD } from './constants'
+import { getDbSchema, getPgPool } from './db'
 
 // ============================================================================
 // ABUSE MILESTONES
@@ -134,8 +134,8 @@ async function reportAbuseMilestones(req: { payload: Payload }): Promise<void> {
  * - Updates lastHighUsageAt if threshold exceeded
  * - Resets dailyRequests to 0
  *
- * In production: Uses D1 atomic SQL for race-condition-free updates.
- * In development: Falls back to Payload API (race conditions acceptable in dev).
+ * Uses a single atomic Postgres UPDATE for race-free updates; falls back to the
+ * Payload API only if the pg pool is unavailable.
  */
 export const resetUsageTask: TaskConfig<'resetUsage'> = {
   slug: 'resetUsage',
@@ -150,55 +150,44 @@ export const resetUsageTask: TaskConfig<'resetUsage'> = {
     // =========================================================================
     await reportAbuseMilestones(req)
 
-    // Production - use D1 atomic SQL
-    if (process.env.NODE_ENV === 'production') {
-      try {
-        const { env } = await getCloudflareContext({ async: true })
-        const db = (env as { D1?: D1Database }).D1
+    // Atomic Postgres reset with abuse tracking (single, race-free query).
+    const pool = getPgPool(req)
 
-        if (db) {
-          const now = new Date().toISOString()
+    if (pool) {
+      const now = new Date().toISOString()
 
-          // Atomic reset with abuse tracking (single query)
-          await db
-            .prepare(
-              `
-            UPDATE clients
-            SET
-              usage_peak_daily_requests = MAX(
-                COALESCE(usage_peak_daily_requests, 0),
-                COALESCE(usage_daily_requests, 0)
-              ),
-              usage_high_usage_days = CASE
-                WHEN COALESCE(usage_daily_requests, 0) > ?
-                THEN COALESCE(usage_high_usage_days, 0) + 1
-                ELSE COALESCE(usage_high_usage_days, 0)
-              END,
-              usage_last_high_usage_at = CASE
-                WHEN COALESCE(usage_daily_requests, 0) > ?
-                THEN ?
-                ELSE usage_last_high_usage_at
-              END,
-              usage_daily_requests = 0
-            WHERE usage_daily_requests > 0
-          `,
-            )
-            .bind(HIGH_USAGE_THRESHOLD, HIGH_USAGE_THRESHOLD, now)
-            .run()
+      await pool.query(
+        `
+        UPDATE "${getDbSchema(req)}".clients
+        SET
+          usage_peak_daily_requests = GREATEST(
+            COALESCE(usage_peak_daily_requests, 0),
+            COALESCE(usage_daily_requests, 0)
+          ),
+          usage_high_usage_days = CASE
+            WHEN COALESCE(usage_daily_requests, 0) > $1
+            THEN COALESCE(usage_high_usage_days, 0) + 1
+            ELSE COALESCE(usage_high_usage_days, 0)
+          END,
+          usage_last_high_usage_at = CASE
+            WHEN COALESCE(usage_daily_requests, 0) > $2
+            THEN $3
+            ELSE usage_last_high_usage_at
+          END,
+          usage_daily_requests = 0
+        WHERE usage_daily_requests > 0
+      `,
+        [HIGH_USAGE_THRESHOLD, HIGH_USAGE_THRESHOLD, now],
+      )
 
-          return { output: null }
-        }
-
-        req.payload.logger.warn({ msg: 'D1 binding not available for reset, using fallback' })
-      } catch (error) {
-        req.payload.logger.error({
-          msg: 'D1 reset failed, using fallback',
-          error: error instanceof Error ? error.message : String(error),
-        })
-      }
+      return { output: null }
     }
 
-    // Development fallback - use Payload API
+    // Fallback - use the Payload API if the pg pool isn't exposed
+    req.payload.logger.warn({
+      msg: 'Postgres pool not available for reset, using Payload API fallback',
+    })
+
     const clientsWithUsage = await req.payload.find({
       collection: 'clients',
       where: { 'usage.dailyRequests': { greater_than: 0 } },

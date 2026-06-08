@@ -10,7 +10,7 @@
 
 import type { CollectionMetadata, ScriptMetadata } from './pagination'
 
-import { getDefaultBatchSize, getEnvironment } from './pagination'
+import { getDefaultBatchSize } from './pagination'
 
 export type ScriptName =
   | 'tags'
@@ -170,7 +170,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       dependencies: ['authors'],
       naturalKey: 'slug',
       hasFileUploads: true, // Media in content
-      batchSize: 1, // Pages have many embedded images, use 1 to avoid D1 rate limits
+      batchSize: 1, // Pages have many embedded images, use 1 for long-running imports
     },
     {
       // 40 unique vimeo_ids in data.json — one Lecture per ID. The
@@ -260,7 +260,6 @@ export function getScriptMetadata(script: ScriptName): ScriptMetadata {
     collections,
     totalItems,
     requiresPagination,
-    environment: getEnvironment(),
     recommendedBatchSize,
   }
 }

@@ -31,8 +31,6 @@ import appSchema from '../../src/globals/WeMeditateAppTranslations/translationsS
 // ============================================================================
 
 const SEED_DATA_LOCAL_PATH = 'seeds/wm-app-translations/data.en.json'
-const SEED_DATA_WORKER_URL =
-  'https://raw.githubusercontent.com/sydevs/SahajCloud/main/seeds/wm-app-translations/data.en.json'
 
 const GLOBAL_SLUG = 'wm-app-translations'
 const LOCALE = 'en' as const
@@ -46,11 +44,10 @@ export class WeMeditateAppTranslationsImporter extends BaseImporter<BaseImportOp
   protected readonly cacheDir = path.resolve(process.cwd(), 'seeds/cache/wm-app-translations')
 
   protected async import(): Promise<void> {
-    // 1. Load seed data (works in both local dev and Workers).
+    // 1. Load seed data
     const { loadJsonData } = await import('../lib/dataLoader')
     const seed = await loadJsonData<SeedFile>({
       localPath: SEED_DATA_LOCAL_PATH,
-      workerUrl: SEED_DATA_WORKER_URL,
       inlineContent: this.options.inlineData?.[SEED_DATA_LOCAL_PATH],
     })
 

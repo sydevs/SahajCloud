@@ -3,7 +3,7 @@ import type { Payload } from 'payload'
 import fs from 'fs'
 import path from 'path'
 
-import { sql } from '@payloadcms/db-sqlite'
+import { sql } from '@payloadcms/db-postgres'
 import { parseBuffer } from 'music-metadata'
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
@@ -113,9 +113,16 @@ describe('Meditation Duration Extraction', () => {
       const originalDuration = meditation.duration
       expect(originalDuration).toBeGreaterThan(0)
 
-      // 2. Null out duration via raw SQL (simulates pre-migration state)
-      const db = (payload.db as unknown as { drizzle: { run: (q: unknown) => unknown } }).drizzle
-      await db.run(sql`UPDATE meditations SET duration = NULL WHERE id = ${meditation.id}`)
+      // 2. Null out duration via raw SQL (simulates pre-migration state). The
+      // table is schema-qualified because Payload's adapter binds to a per-suite
+      // schema in tests, which a raw drizzle query doesn't pick up implicitly.
+      const schema = (payload.db as unknown as { schemaName?: string }).schemaName || 'public'
+      const db = (
+        payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } }
+      ).drizzle
+      await db.execute(
+        sql`UPDATE ${sql.identifier(schema)}.meditations SET duration = NULL WHERE id = ${meditation.id}`,
+      )
 
       // 3. Verify duration is NULL in DB
       const nulled = await payload.findByID({

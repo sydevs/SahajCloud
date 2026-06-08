@@ -1,12 +1,12 @@
 ---
 name: migration-validator
-description: Validate a Payload schema migration before applying it. Checks syntax, exported up/down functions, .json snapshot presence, data-loss risk patterns, and the D1 PRAGMA foreign_keys gotcha. Use before `pnpm payload migrate`.
+description: Validate a Payload schema migration before applying it. Checks syntax, exported up/down functions, .json snapshot presence, data-loss risk patterns, and PostgreSQL FK constraints. Use before `pnpm payload migrate`.
 allowed-tools: Bash, Read, Grep
 ---
 
 # Migration Validator
 
-Pre-flight checks for Payload migrations in `src/migrations/`. Catches the most common ways a migration goes wrong on D1 before you apply it.
+Pre-flight checks for Payload migrations in `src/migrations/`. Catches the most common ways a migration goes wrong on PostgreSQL before you apply it.
 
 ## Workflow
 
@@ -33,17 +33,17 @@ Pre-flight checks for Payload migrations in `src/migrations/`. Catches the most 
 
 ## What it checks
 
-| Check                         | Why it matters                                                                                                                                                                                                                 |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| File exists & is `.ts`        | Catches typos in invocation                                                                                                                                                                                                    |
-| Matching `.json` snapshot     | Drizzle uses the snapshot to compute future diffs; missing one breaks subsequent `db:migrations:create`                                                                                                                        |
-| `export async function up`    | Migration without `up` does nothing on apply                                                                                                                                                                                   |
-| `export async function down`  | Reversibility — without `down`, rollback is impossible                                                                                                                                                                         |
-| `pnpm tsc --noEmit`           | Compile-time errors block migration from being importable from `src/migrations/index.ts`                                                                                                                                       |
-| `DROP TABLE` / `DROP COLUMN`  | Data loss — confirm the data is no longer needed                                                                                                                                                                               |
-| `RENAME COLUMN`               | Breaks reads from old code while migration applies — coordinate with deploy                                                                                                                                                    |
-| Child-then-parent FK rebuilds | **D1 PRAGMA foreign_keys gotcha**: D1 does not honor `PRAGMA foreign_keys=OFF` across `db.run()` calls. Rebuilding a child table before its parent will cascade-null FK columns. See [feedback_d1_pragma_foreign_keys] memory. |
-| Hardcoded secrets             | Tokens/keys committed via migration files                                                                                                                                                                                      |
+| Check                        | Why it matters                                                                                                        |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| File exists & is `.ts`       | Catches typos in invocation                                                                                           |
+| Matching `.json` snapshot    | Drizzle uses the snapshot to compute future diffs; missing one breaks subsequent `db:migrations:create`               |
+| `export async function up`   | Migration without `up` does nothing on apply                                                                          |
+| `export async function down` | Reversibility — without `down`, rollback is impossible                                                                |
+| `pnpm tsc --noEmit`          | Compile-time errors block migration from being importable from `src/migrations/index.ts`                              |
+| `DROP TABLE` / `DROP COLUMN` | Data loss — confirm the data is no longer needed                                                                      |
+| `RENAME COLUMN`              | Breaks reads from old code while migration applies — coordinate with deploy                                           |
+| Foreign key constraints      | PostgreSQL enforces FK constraints during migration. Ensure parent-before-child order and proper constraint handling. |
+| Hardcoded secrets            | Tokens/keys committed via migration files                                                                             |
 
 ## Limitations
 
@@ -61,10 +61,9 @@ For semantic review, follow up with the `migration-reviewer` subagent (if availa
 - After `pnpm db:migrations:create` (user-run, interactive)
 - Before opening a PR that contains migrations
 - Before `pnpm payload migrate` in any environment
-- Before `pnpm run deploy:prod` (production migrations are irreversible without DB restore)
+- Before deploying to production (migrations auto-apply on server boot; irreversible without DB restore)
 
 ## References
 
 - `.claude/rules/migrations.md` — full migration workflow + push mode rationale
-- [feedback_d1_pragma_foreign_keys] memory — the FK cascade-null gotcha
 - `src/migrations/` — existing migrations as examples
