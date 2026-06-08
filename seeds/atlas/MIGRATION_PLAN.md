@@ -11,7 +11,7 @@ Source: `atlas.dump` (PostgreSQL custom-format, PG 16.4) at the repo root. Legac
 | Phase                        | Scope                                                                          | Status      |
 | ---------------------------- | ------------------------------------------------------------------------------ | ----------- |
 | **1 — Data export**          | Decide keep/discard; extract `seeds/atlas/data/*.json` in target-shaped format | **done** ✅ |
-| **2 — Collections & schema** | Create collections + nested-docs plugin + Payload migration                    | planned     |
+| **2 — Collections & schema** | Create collections + nested-docs plugin + Payload migration                    | implemented (PR for #457) |
 | **3 — Seed importer**        | `seeds/atlas/import.ts` reads the JSON into Payload                            | planned     |
 | **4 — Verification**         | Counts, referential integrity, spot-checks against a seeded env                | planned     |
 
@@ -23,15 +23,24 @@ Restore the dump into a scratch local Postgres, run a one-shot `tsx` extractor (
 
 8 output files: `events.json`, `registrations.json`, `regions.json`, `venues.json`, `users.json`, `managers.json`, `clients.json`, `pictures.json`. (`managed_records` is folded into `managers.json`; it is not its own file.)
 
-### Phase 2 — Collections & schema
+### Phase 2 — Collections & schema (#457)
 
-- New collections: **Events**, **Registrations**, **Users**, **Venues**.
-- Nested **Regions** collection (Country → Region → Area) via `@payloadcms/plugin-nested-docs` (install + configure).
-- Extend **Managers** `customResourceAccess` `relationTo` from `['pages']` to include `regions`.
-- Add a `location` / `region` relationship field (relationTo `regions`) to **Clients/Services** to receive the Atlas geo scope.
-- Confirm **Images** collection reuse for event pictures.
-- Reconcile Atlas clients → existing **Clients/Services** shape (see impedance notes below).
-- One Payload migration (`pnpm db:migrations:create` — **ask the user to run it**; see `.claude/rules/migrations.md`).
+Implemented as **schema only** — no edits to existing collections, and **no Venues collection**.
+
+- New collections: **Events**, **Registrations**, **Users** (registrants), and the nested **Regions** tree — via `@payloadcms/plugin-nested-docs` (installed + configured for `regions`, providing `parent` + `breadcrumbs` for Country → Region → Area → Center). All under the **Sahaj Atlas** admin group.
+- **Venues eliminated**: a venue referenced by >1 event becomes a Regions `center`; a single-use venue's address is lifted onto its Event (`address` group). Street addresses live on Events, not on geo nodes. At import, a venue's Google `place_id` resolves to an OSM id.
+- Fields remapped to Payload-native shapes: drafts (Events) replace Atlas's `published`; ToggleGroup for every Rails enum/bitmask; the project `scheduleField` (Atlas `finishDate` maps into the schedule's ending, not a standalone field); ISO-639-1 language selects; timezone selects sourced from Payload's bundled `defaultTimezones` (deterministic across hosts — `Intl.supportedValuesOf` is ICU-version-dependent and would bake a host-specific enum into the migration).
+- **`legacyId`** (hidden, indexed) + **`legacyData`** (hidden json — full raw source record) on all four, populated by the Phase 3 importer and dropped in a future cleanup once the import is verified.
+- Project visibility: `events`, `registrations`, `regions` added to `sahaj-atlas`; **`users` is admin-only** (in no project).
+- One Payload migration (`pnpm db:migrations:create` — **maintainer runs it**; interactive, hangs when piped — see `.claude/rules/migrations.md`), then `pnpm generate:types`.
+
+**Implementation notes / deviations from the original sketch:**
+
+- **Event title**: Payload forbids a virtual field as `useAsTitle`, so Atlas `customName` becomes a stored, **localized** `title`. A `beforeChange` hook auto-fills an empty title with `"<prefix> <first comma-segment of street>"`; the prefix ("Meditation at") is a per-locale, admin-editable string in the `sy-atlas-translations` global (with an English code default). A live placeholder mirroring the typed address needs a custom field component — **follow-up**.
+- **Events `status`** (active/expired/inactive) sets an explicit `enumName` so its Postgres enum doesn't collide with the drafts `_status` enum (`enum_events_status`).
+- **Schedule is optional** on Events — Atlas has scheduleless events (inactive ones with no recurrence).
+
+**Deferred to a follow-up ticket** (out of #457's scope): Managers `customResourceAccess` `relationTo += regions`; a `location`/`region` relationship on Clients/Services; Images reuse confirmation for event pictures; `legacyId`/`legacyData` removal.
 
 ### Phase 3 — Seed importer
 
@@ -79,7 +88,9 @@ Single array of geo nodes. Each: `legacyId`, `level` (`country`|`region`|`area`)
 - `translations`: **dropped** — names will be derived from a package downstream instead of carried in the data.
 - Drop: `summary_*`, `last_activity_on`, `bounds`, `geojson`, `translations`. Keep `osm_id`.
 
-### venues.json — new Venues collection
+### venues.json — folded into Regions + Event addresses
+
+> **Phase 2 update:** there is **no Venues collection**. Venues referenced by >1 event become Regions `center` nodes; single-use venues' addresses are lifted onto their Event's `address` group. This `venues.json` extract still feeds the Phase 3 importer, which routes each venue to a center or an event address.
 
 Pruned to the 407 venues referenced by an event. Deduped by unique `place_id`. Fields: `legacyId`, `placeId`, `name`, `street`, `city`, `countryCode`, `postCode`, `regionCode`, `latitude`, `longitude`, `timeZone`.
 
