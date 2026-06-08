@@ -2,10 +2,12 @@
 #
 # Runtime image for the Next.js + Payload app on Railway (Node).
 #
-# - Build:  `pnpm build` (Next + Payload). Railway exposes all service variables
-#           to the build, so it reads the real values — both serverEnv (zod)
-#           validation and the build-time CSP frame-src in next.config depend on
-#           them (e.g. WEMEDITATE_WEB_URL). No placeholders needed.
+# - Build:  `pnpm build` (Next + Payload). Railway exposes service variables to a
+#           Dockerfile build as build ARGs (not auto-env), so the build stage
+#           declares the ones `next build` needs and passes them through — both
+#           serverEnv (zod) validation and the build-time CSP frame-src in
+#           next.config read them (e.g. WEMEDITATE_WEB_URL). Real values from
+#           Railway, no hardcoding; nothing persists into the runtime image.
 # - Start:  `pnpm start` (next start). Pending Postgres migrations run as a
 #           Railway preDeployCommand (`pnpm db:migrate`) — see railway.toml.
 
@@ -35,7 +37,22 @@ FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
-RUN pnpm build
+# Railway provides service variables to a Dockerfile build as build args; declare
+# the ones `next build` validates (serverEnv) or bakes in (next.config's CSP
+# frame-src reads WEMEDITATE_WEB_URL / SAHAJATLAS_URL at build time) and pass them
+# inline to the build — scoped to this RUN, so they're not baked into the image
+# layers and don't trip Docker's secret-in-ENV lint.
+ARG PAYLOAD_SECRET
+ARG DATABASE_URL
+ARG WEMEDITATE_WEB_URL
+ARG SAHAJATLAS_URL
+ARG SAHAJCLOUD_PREVIEW_SECRET
+RUN PAYLOAD_SECRET="$PAYLOAD_SECRET" \
+    DATABASE_URL="$DATABASE_URL" \
+    WEMEDITATE_WEB_URL="$WEMEDITATE_WEB_URL" \
+    SAHAJATLAS_URL="$SAHAJATLAS_URL" \
+    SAHAJCLOUD_PREVIEW_SECRET="$SAHAJCLOUD_PREVIEW_SECRET" \
+    pnpm build
 
 # ── Runtime ────────────────────────────────────────────────────────────────────
 FROM base AS runner
