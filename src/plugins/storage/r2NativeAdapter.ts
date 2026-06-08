@@ -1,12 +1,17 @@
 /**
- * Cloudflare R2 Native Storage Adapter for PayloadCMS
+ * Cloudflare R2 Storage Adapter for PayloadCMS (S3 API)
  *
- * Uses Cloudflare R2 native bindings (not S3-compatible API) for direct bucket access.
- * Better performance and simpler authentication than S3 API layer.
+ * Reads/writes R2 over the S3-compatible API (@aws-sdk/client-s3) pointed at the
+ * R2 endpoint `https://<accountId>.r2.cloudflarestorage.com`. Previously this
+ * used the Workers R2Bucket native binding; on a Node host the S3 API is the
+ * supported path. Delivery domains (e.g. assets.sydevelopers.com) are unchanged.
  *
  * Automatically sanitizes filenames to create URL-safe slugs with unique suffixes.
  */
+import type { S3Client } from '@aws-sdk/client-s3'
 import type { Adapter, HandleUpload } from '@payloadcms/plugin-cloud-storage/types'
+
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 
 import { serverEnv } from '@/lib/env'
 
@@ -24,62 +29,59 @@ export const getR2Url = (filename: string): string | undefined => {
 }
 
 /**
- * Configuration for R2 native storage adapter
+ * Configuration for the R2 (S3 API) storage adapter
  */
 export interface R2NativeConfig {
-  /** R2 bucket instance from Cloudflare Workers bindings */
-  bucket: R2Bucket
-  /** Public URL for accessing R2 assets (e.g., "https://assets.sydevelopers.com") */
+  /** S3 client configured against the R2 S3 endpoint */
+  client: S3Client
+  /** R2 bucket name */
+  bucket: string
+  /** Public URL for accessing R2 assets (e.g., "https://assets.sydevelopers.com"); empty in dev */
   publicUrl: string
 }
 
 /**
- * Create R2 native storage adapter
- *
- * Uses Cloudflare R2 native bindings for direct bucket access with high performance.
- * Does not use S3-compatible API layer.
+ * Create the R2 storage adapter (S3-compatible API)
  *
  * Automatically sanitizes all filenames to URL-safe slugs with random suffixes.
  *
- * @param config - R2 native configuration
+ * @param config - R2 (S3) configuration
  * @returns PayloadCMS storage adapter
  *
  * @example
  * ```ts
  * const adapter = r2NativeAdapter({
- *   bucket: env.R2,
- *   publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL,
+ *   client: s3Client,
+ *   bucket: serverEnv.R2_BUCKET,
+ *   publicUrl: serverEnv.CLOUDFLARE_R2_DELIVERY_URL,
  * })
  * ```
  */
 export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
-  const { bucket } = config
+  const { client, bucket } = config
 
   return ({ prefix }) => ({
     name: 'r2-native',
 
     handleUpload: (async ({ data, file, req }) => {
+      const filenamePreassigned = Boolean(req.context?.[R2_PREASSIGNED_FILENAME_CONTEXT_KEY])
+      const finalFilename = filenamePreassigned ? file.filename : generateR2Key(file.filename)
+
+      applyFilename(file, data, req, finalFilename)
+
+      const key = prefix ? `${prefix}/${finalFilename}` : finalFilename
+
       try {
-        const filenamePreassigned = Boolean(req.context?.[R2_PREASSIGNED_FILENAME_CONTEXT_KEY])
-        const finalFilename = filenamePreassigned ? file.filename : generateR2Key(file.filename)
-
-        applyFilename(file, data, req, finalFilename)
-
-        const key = prefix ? `${prefix}/${finalFilename}` : finalFilename
-
-        // Convert Buffer to clean Uint8Array for Cloudflare Workers compatibility
-        // IMPORTANT: The Workers Buffer polyfill has broken methods that cause
-        // "offset argument must be of type number" errors. Use manual indexed copy.
-        const uint8Array = new Uint8Array(file.buffer.length)
-        for (let i = 0; i < file.buffer.length; i++) {
-          uint8Array[i] = file.buffer[i]
-        }
-
-        await bucket.put(key, uint8Array, {
-          httpMetadata: {
-            contentType: file.mimeType,
-          },
-        })
+        // Native Node Buffer works directly with the S3 SDK — no byte-copy
+        // workaround needed (that was a Workers Buffer-polyfill quirk).
+        await client.send(
+          new PutObjectCommand({
+            Bucket: bucket,
+            Key: key,
+            Body: file.buffer,
+            ContentType: file.mimeType,
+          }),
+        )
 
         // When the filename was pre-assigned by r2FilenameHook, it's already
         // saved to the DB by the cloud-storage plugin's beforeChange hook.
@@ -89,7 +91,6 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
         if (filenamePreassigned) return
         return { filename: finalFilename }
       } catch (error) {
-        const key = prefix ? `${prefix}/${file.filename}` : file.filename
         // eslint-disable-next-line no-console
         console.error('[R2] Upload error:', key, error)
         throw error
@@ -97,11 +98,10 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
     }) as HandleUpload,
 
     handleDelete: async ({ filename }) => {
+      const key = prefix ? `${prefix}/${filename}` : filename
       try {
-        const key = prefix ? `${prefix}/${filename}` : filename
-        await config.bucket.delete(key)
+        await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))
       } catch (error) {
-        const key = prefix ? `${prefix}/${filename}` : filename
         // Using console.error because storage adapters don't have access to Payload's logger.
         // The adapter is initialized before Payload and doesn't receive req context.
         // eslint-disable-next-line no-console
@@ -111,26 +111,30 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
     },
 
     staticHandler: async (_req, { params }) => {
+      const key = params.collection ? `${params.collection}/${params.filename}` : params.filename
+
       try {
-        const key = params.collection ? `${params.collection}/${params.filename}` : params.filename
+        const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
 
-        const object = await config.bucket.get(key)
-
-        if (!object) {
+        if (!object.Body) {
           return new Response('Not Found', { status: 404 })
         }
 
         // Return file with appropriate headers
-        // Cast R2 ReadableStream to web standard ReadableStream
-        return new Response(object.body as unknown as ReadableStream, {
+        return new Response(object.Body.transformToWebStream(), {
           headers: {
-            'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
+            'Content-Type': object.ContentType || 'application/octet-stream',
             'Cache-Control': 'public, max-age=31536000', // Cache for 1 year
-            ETag: object.etag,
+            ...(object.ETag ? { ETag: object.ETag } : {}),
           },
         })
       } catch (error) {
-        const key = params.collection ? `${params.collection}/${params.filename}` : params.filename
+        // S3 returns NoSuchKey / 404 when the object is missing
+        const httpStatus = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata
+          ?.httpStatusCode
+        if ((error instanceof Error && error.name === 'NoSuchKey') || httpStatus === 404) {
+          return new Response('Not Found', { status: 404 })
+        }
         // eslint-disable-next-line no-console
         console.error('[R2] Static handler error:', key, error)
         return new Response('Internal Server Error', { status: 500 })

@@ -3,22 +3,17 @@
  *
  * Hooks for rate limiting and usage tracking.
  */
-import type { Database as BetterSqlite3Database } from 'better-sqlite3'
 import type {
   CollectionAfterReadHook,
   CollectionBeforeOperationHook,
   PayloadRequest,
 } from 'payload'
 
-import { getCloudflareContext } from '@opennextjs/cloudflare'
-import * as Sentry from '@sentry/cloudflare'
 import { APIError } from 'payload'
-import { z } from 'zod'
 
-import { serverEnv } from '@/lib/env'
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 
-import { RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_SECONDS } from './constants'
+import { getDbSchema, getPgPool } from './db'
 
 const SKIP_VALIDATION = 'skipClientQueryValidation'
 
@@ -44,73 +39,22 @@ export function buildRateLimitKey(
   return `user:${clientId}:${ip || 'no-ip'}:${userId || 'no-user-id'}`
 }
 
-/**
- * Zod schema for X-User-ID header validation.
- * Valid format: 8-64 alphanumeric characters (including dash and underscore)
- */
-const userIdSchema = z
-  .string()
-  .regex(
-    /^[a-zA-Z0-9-_]{8,64}$/,
-    'Invalid X-User-ID format. Must be 8-64 alphanumeric characters (including dash and underscore).',
-  )
-
 // ============================================================================
 // RATE LIMIT HOOK
 // ============================================================================
 
 /**
- * Core rate limiting logic. Throws APIError on validation failure or rate limit exceeded.
- * Does NOT catch errors - that's handled by the hook wrapper.
+ * beforeOperation hook slot for API client rate limiting.
+ *
+ * Rate limiting now lives at the Cloudflare edge (Rate Limiting Rules in front
+ * of the Railway origin), so this hook is intentionally a no-op in the app. It's
+ * kept as an extension point: if app-level limits become necessary, implement
+ * them here (e.g. a Railway Redis limiter keyed by `buildRateLimitKey`).
+ *
+ * TODO(railway): finalize the rate-limiter home — Cloudflare edge rules vs Redis (#466).
  */
-async function checkRateLimit(req: PayloadRequest): Promise<void> {
-  const { env } = await getCloudflareContext({ async: true })
-  const rateLimiter = (env as { API_RATE_LIMITER?: RateLimit }).API_RATE_LIMITER
-
-  // Fail open if binding unavailable
-  if (!rateLimiter) {
-    req.payload.logger.warn({ msg: 'Rate limiter binding not available' })
-    return
-  }
-
-  // Extract and validate X-User-ID header
-  const rawUserId = req.headers?.get?.('x-user-id') || null
-  let userId: string | null = null
-
-  if (rawUserId) {
-    const result = userIdSchema.safeParse(rawUserId)
-    if (!result.success) {
-      throw new APIError(result.error.issues[0].message, 400)
-    }
-    userId = result.data
-  }
-
-  // Check rate limit
-  const clientIP = req.headers?.get?.('cf-connecting-ip') || null
-  const key = buildRateLimitKey(req.user!.id, clientIP, userId)
-  const { success } = await rateLimiter.limit({ key })
-
-  if (!success) {
-    // Log to Sentry and Pino
-    if (serverEnv.NEXT_PUBLIC_SENTRY_DSN) {
-      Sentry.withScope((scope) => {
-        scope.setTag('clientId', String(req.user!.id))
-        scope.setLevel('warning')
-        Sentry.captureMessage('API rate limit exceeded')
-      })
-    }
-
-    req.payload.logger.warn({
-      msg: 'Rate limit exceeded',
-      clientId: req.user!.id,
-      userId: userId || 'none',
-    })
-
-    throw new APIError(
-      `Rate limit exceeded. Maximum ${RATE_LIMIT_MAX_REQUESTS} requests per ${RATE_LIMIT_PERIOD_SECONDS === 60 ? 'minute' : `${RATE_LIMIT_PERIOD_SECONDS} seconds`}.`,
-      429,
-    )
-  }
+export const rateLimitHook: CollectionBeforeOperationHook = () => {
+  // Enforced at the Cloudflare edge; intentionally a no-op here.
 }
 
 // ============================================================================
@@ -139,7 +83,7 @@ async function checkRateLimit(req: PayloadRequest): Promise<void> {
  *
  * On rejection, logs the offending shape (type + keys + short string preview)
  * and effective depth at WARN level so production failures are debuggable from
- * `wrangler tail`.
+ * the application logs.
  *
  * Payload also performs internal Local API reads while populating selected
  * relationship/upload fields. Those reads carry a numeric `currentDepth`; they
@@ -243,93 +187,28 @@ function describeStringPreview(value: unknown): string | null {
   return null
 }
 
-/**
- * beforeOperation hook for rate limiting API client requests.
- *
- * Only applies to requests from API consumer collections (e.g., clients).
- * Skipped in development since rate limiting requires Cloudflare edge infrastructure.
- */
-export const rateLimitHook: CollectionBeforeOperationHook = async ({ req }) => {
-  // Only rate limit client requests
-  if (req.user?.collection !== 'clients') {
-    return
-  }
-
-  // Skip in development - rate limiting requires Cloudflare edge
-  if (process.env.NODE_ENV !== 'production') {
-    return
-  }
-
-  try {
-    await checkRateLimit(req)
-  } catch (error) {
-    // Re-throw API errors (validation failures, rate limit exceeded)
-    if (error instanceof APIError) {
-      throw error
-    }
-
-    // Fail open for unexpected errors (Cloudflare binding issues, etc.)
-    req.payload.logger.error({
-      msg: 'Rate limiting error - failing open',
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
-}
-
 // ============================================================================
 // USAGE TRACKING
 // ============================================================================
 
 /**
- * Atomic SQL query for incrementing usage counters.
- * Works identically on both D1 (production) and better-sqlite3 (development).
+ * Atomic Postgres UPDATE for incrementing usage counters. The `clients` table is
+ * schema-qualified because a raw pool query doesn't honor the adapter's schema.
  */
-const USAGE_INCREMENT_SQL = `
-  UPDATE clients
+const usageIncrementSql = (schema: string) => `
+  UPDATE "${schema}".clients
   SET usage_daily_requests = COALESCE(usage_daily_requests, 0) + 1,
       usage_total_requests = COALESCE(usage_total_requests, 0) + 1,
-      usage_last_request_at = ?,
-      usage_first_request_at = COALESCE(usage_first_request_at, ?)
-  WHERE id = ?
+      usage_last_request_at = $1,
+      usage_first_request_at = COALESCE(usage_first_request_at, $2)
+  WHERE id = $3
 `
-
-/**
- * Increment usage counters via D1 (Cloudflare's SQLite).
- * Used in production environment.
- */
-async function incrementUsageD1(db: D1Database, clientId: string | number, now: string) {
-  await db.prepare(USAGE_INCREMENT_SQL).bind(now, now, clientId).run()
-}
-
-/**
- * Increment usage counters via better-sqlite3.
- * Used in development/test environments.
- */
-function incrementUsageSqlite(db: BetterSqlite3Database, clientId: string | number, now: string) {
-  db.prepare(USAGE_INCREMENT_SQL).run(now, now, clientId)
-}
-
-/**
- * Get the raw SQLite database from Payload's Drizzle adapter.
- * Returns the better-sqlite3 Database instance used in development/test.
- */
-function getLocalSqliteDb(req: PayloadRequest): BetterSqlite3Database | null {
-  try {
-    // Access raw better-sqlite3 connection via Drizzle's $client
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const drizzle = (req.payload.db as any).drizzle
-    return drizzle?.$client as BetterSqlite3Database | null
-  } catch {
-    return null
-  }
-}
 
 /**
  * afterRead hook for usage tracking.
  *
- * Both environments use atomic SQLite increment queries:
- * - Production: D1 (Cloudflare's distributed SQLite)
- * - Development/Test: better-sqlite3 (local SQLite)
+ * Uses a single atomic Postgres UPDATE for race-free increments in every
+ * environment (replaces the former D1-vs-better-sqlite3 fork).
  */
 export const usageTrackingHook: CollectionAfterReadHook = async ({ doc, req }) => {
   // Only track for client requests
@@ -340,29 +219,14 @@ export const usageTrackingHook: CollectionAfterReadHook = async ({ doc, req }) =
   try {
     const now = new Date().toISOString()
     const clientId = req.user.id
+    const pool = getPgPool(req)
 
-    if (process.env.NODE_ENV === 'production') {
-      // Production - use D1
-      const { env } = await getCloudflareContext({ async: true })
-      const db = (env as { D1?: D1Database }).D1
-
-      if (!db) {
-        req.payload.logger.error({ msg: 'D1 binding not available for usage tracking' })
-        return doc
-      }
-
-      await incrementUsageD1(db, clientId, now)
-    } else {
-      // Development/Test - use local SQLite via Drizzle
-      const db = getLocalSqliteDb(req)
-
-      if (!db) {
-        req.payload.logger.error({ msg: 'Local SQLite not available for usage tracking' })
-        return doc
-      }
-
-      incrementUsageSqlite(db, clientId, now)
+    if (!pool) {
+      req.payload.logger.error({ msg: 'Postgres pool not available for usage tracking' })
+      return doc
     }
+
+    await pool.query(usageIncrementSql(getDbSchema(req)), [now, now, clientId])
   } catch (error) {
     // Fail open - don't block API requests if tracking fails
     req.payload.logger.error({

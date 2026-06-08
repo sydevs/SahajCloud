@@ -2,9 +2,6 @@
  * File Utilities
  *
  * Common file download, caching, and manipulation utilities.
- * Supports dual-mode operation:
- * - Local development: File caching in `seeds/cache/`
- * - Cloudflare Workers: Streaming without disk
  */
 
 import type { Logger } from './logger'
@@ -12,7 +9,7 @@ import type { Logger } from './logger'
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
-import { isCloudflareWorker, safeBufferFrom } from './runtime'
+import { safeBufferFrom } from './runtime'
 
 export interface DownloadOptions {
   maxRetries?: number
@@ -62,14 +59,9 @@ export class FileUtils {
   }
 
   /**
-   * Download file using fetch (alternative method)
-   * Not supported in Workers mode - use streaming instead
+   * Download file using fetch
    */
   async downloadFileFetch(url: string, destPath: string): Promise<void> {
-    if (isCloudflareWorker()) {
-      throw new Error('downloadFileFetch is not supported in Workers mode - use buffer streaming instead')
-    }
-
     if (await this.fileExists(destPath)) {
       return
     }
@@ -87,19 +79,15 @@ export class FileUtils {
 
   /**
    * Ensure directory exists
-   * No-op in Workers mode (no filesystem access)
    */
   async ensureDir(dirPath: string): Promise<void> {
-    if (isCloudflareWorker()) return
     await fs.mkdir(dirPath, { recursive: true })
   }
 
   /**
    * Clear directory contents
-   * No-op in Workers mode (no filesystem access)
    */
   async clearDir(dirPath: string): Promise<void> {
-    if (isCloudflareWorker()) return
     await fs.rm(dirPath, { recursive: true, force: true })
     await fs.mkdir(dirPath, { recursive: true })
   }
@@ -107,10 +95,7 @@ export class FileUtils {
   /**
    * Safe operation wrapper with error handling
    */
-  async safeOperation<T>(
-    operation: () => Promise<T>,
-    errorContext: string,
-  ): Promise<T | null> {
+  async safeOperation<T>(operation: () => Promise<T>, errorContext: string): Promise<T | null> {
     try {
       return await operation()
     } catch (error) {
@@ -121,25 +106,14 @@ export class FileUtils {
   }
 
   /**
-   * Download file with dual-mode support:
-   * - Local development: Cache to disk for faster iteration
-   * - Cloudflare Workers: Stream directly without disk
+   * Download file with optional disk caching for faster iteration
    *
    * @param url - URL to download from
-   * @param cachePath - Optional cache file path (ignored in Workers)
+   * @param cachePath - Optional cache file path
    * @returns Buffer containing file contents
    */
   async downloadFile(url: string, cachePath?: string): Promise<Buffer> {
-    // In Workers mode: always stream directly
-    if (isCloudflareWorker()) {
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(`Failed to download ${url}: ${response.status}`)
-      }
-      return safeBufferFrom(await response.arrayBuffer())
-    }
-
-    // In local dev: use disk cache if available
+    // Use disk cache if available
     if (cachePath) {
       if (await this.fileExists(cachePath)) {
         await this.logger.info(`  Using cached: ${path.basename(cachePath)}`)
@@ -170,7 +144,7 @@ export class FileUtils {
    *
    * @param url - URL to download from
    * @param filename - Desired filename for the upload
-   * @param cachePath - Optional cache file path (ignored in Workers)
+   * @param cachePath - Optional cache file path
    * @returns FileData object ready for Payload upload
    */
   async downloadAsFileData(

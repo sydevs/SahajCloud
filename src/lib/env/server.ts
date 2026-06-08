@@ -9,10 +9,10 @@
  *
  * **Usage**:
  * ```typescript
- * import { serverEnv, requireBinding } from '@/lib/env'
+ * import { serverEnv } from '@/lib/env'
  *
  * const secret = serverEnv.PAYLOAD_SECRET
- * const r2 = requireBinding<R2Bucket>(env.R2, 'R2')
+ * const db = serverEnv.DATABASE_URL
  * ```
  */
 import { z } from 'zod'
@@ -41,6 +41,13 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   PAYLOAD_SECRET: z.string().min(32, 'PAYLOAD_SECRET must be at least 32 characters'),
 
   /**
+   * Postgres connection string (Railway Postgres).
+   * Consumed by the Payload Postgres adapter in `src/payload.config.ts`.
+   * Example: `postgresql://user:password@host:5432/dbname`
+   */
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required (Postgres connection string)'),
+
+  /**
    * Nirmala Vidya API key for fetching lecture metadata from Vimeo
    * Optional at startup — validated at point of use when creating/refreshing lectures
    */
@@ -50,20 +57,24 @@ const ServerEnvSchema = ClientEnvSchema.extend({
     .optional(),
 
   // ============================================
-  // OPTIONAL - Cloudflare Services (Production)
+  // OPTIONAL - Cloudflare media services (Images, Stream) + R2 over S3
   // ============================================
+  //
+  // Images and Stream stay on Cloudflare (plain HTTPS APIs). R2 is now reached
+  // via the S3-compatible API (see `src/plugins/storage`) rather than a Workers
+  // binding. When the relevant credentials are unset, storage falls back to
+  // local files (development).
 
   /**
    * Cloudflare Account ID
-   * Required for Cloudflare Images, Stream, and R2 in production
-   * Optional in development (falls back to local file storage)
+   * Used for the Images/Stream HTTPS APIs and to derive the R2 S3 endpoint
+   * (`https://<accountId>.r2.cloudflarestorage.com`). Optional in development.
    */
   CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
 
   /**
    * Cloudflare API Key (unified token for Images and Stream)
-   * Required for Cloudflare services in production
-   * Optional in development
+   * Required for the Cloudflare media services in production. Optional in development.
    */
   CLOUDFLARE_API_KEY: z.string().min(20).optional(),
 
@@ -80,32 +91,45 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   CLOUDFLARE_STREAM_DELIVERY_URL: z.url().optional(),
 
   /**
-   * Cloudflare R2 public delivery URL
-   * Custom domain configured in Cloudflare R2 + CDN
+   * R2 public delivery URL (custom domain / CDN in front of the R2 bucket).
+   * Delivery domains are unchanged by the S3 migration (e.g. https://assets.sydevelopers.com).
    */
   CLOUDFLARE_R2_DELIVERY_URL: z.url().optional(),
+
+  /**
+   * R2 bucket name (the S3 bucket the app reads/writes).
+   * Required in production for R2-backed collections; optional in development.
+   */
+  R2_BUCKET: z.string().optional(),
+
+  /**
+   * R2 S3 API access key id (from an R2 API token with object read/write).
+   * Required in production for R2 uploads; optional in development.
+   */
+  R2_ACCESS_KEY_ID: z.string().optional(),
+
+  /**
+   * R2 S3 API secret access key (pairs with R2_ACCESS_KEY_ID).
+   * Required in production for R2 uploads; optional in development.
+   */
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+
+  /**
+   * Optional R2 S3 endpoint override. Defaults to the account-derived endpoint
+   * `https://<CLOUDFLARE_ACCOUNT_ID>.r2.cloudflarestorage.com`. Set this when the
+   * bucket lives in a jurisdiction — e.g. EU:
+   * `https://<CLOUDFLARE_ACCOUNT_ID>.eu.r2.cloudflarestorage.com`. The native R2
+   * binding hid the jurisdiction; the S3 API needs the exact endpoint.
+   */
+  R2_S3_ENDPOINT: z.url().optional(),
 
   /**
    * Cloudflare Stream webhook signing secret
    * Returned by `PUT /accounts/{id}/stream/webhook` and used to verify HMAC-SHA256
    * signatures on inbound webhooks. Production only — dev deployments do not
    * subscribe to the account-scoped Stream webhook.
-   * Set via: `wrangler secret put CLOUDFLARE_STREAM_WEBHOOK_SECRET`
    */
   CLOUDFLARE_STREAM_WEBHOOK_SECRET: z.string().min(32).optional(),
-
-  /**
-   * Wrangler environment selection
-   * - 'dev': Uses [env.dev] configuration from wrangler.toml
-   * - 'preview': Uses [env.preview] configuration — e.g. `payload migrate`
-   *   against the remote sahajcloud-preview D1 from CI (deploy:database:preview)
-   * - 'production': Uses [env.production] configuration from wrangler.toml
-   * - undefined/empty: Uses default (production) configuration
-   */
-  CLOUDFLARE_ENV: z.preprocess(
-    (val) => (val === '' ? undefined : val),
-    z.enum(['dev', 'production', 'preview']).optional(),
-  ),
 
   // ============================================
   // OPTIONAL - Email Services
@@ -245,38 +269,6 @@ export const serverEnv = new Proxy({} as ServerEnv, {
     return Reflect.ownKeys(getServerEnv())
   },
 })
-
-/**
- * Runtime validation helper for Cloudflare Workers bindings
- *
- * Validates that a required Cloudflare binding (R2, D1, KV, etc.) is present
- * and returns it with proper TypeScript typing.
- *
- * **Usage**:
- * ```typescript
- * import type { R2Bucket } from '@cloudflare/workers-types'
- * import { requireBinding } from '@/lib/env'
- *
- * // In storagePlugin or other Cloudflare-specific code
- * const r2Bucket = requireBinding<R2Bucket>(env.R2, 'R2')
- * ```
- *
- * @param binding - The binding value to validate (can be undefined)
- * @param name - Name of the binding for error messages
- * @returns The validated binding with proper type
- * @throws Error if binding is undefined or null
- *
- * @template T - The expected binding type (R2Bucket, D1Database, etc.)
- */
-export function requireBinding<T>(binding: T | undefined | null, name: string): T {
-  if (binding === undefined || binding === null) {
-    throw new Error(
-      `Required Cloudflare binding "${name}" is not available. ` +
-        `Ensure the binding is configured in wrangler.toml and the env object is provided.`,
-    )
-  }
-  return binding
-}
 
 // Re-export client types and values for convenience in server code
 export type { ClientEnv } from './client'

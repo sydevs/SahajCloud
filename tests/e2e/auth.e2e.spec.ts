@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
 
-import { PREVIEW_ADMIN, authHeaders, loginAsAdmin } from './_helpers/preview'
+import { PREVIEW_ADMIN, authHeaders, ensureAdmin } from './_helpers/preview'
 
 test('admin can log in via REST and fetch /me', async ({ request }) => {
-  const token = await loginAsAdmin(request)
+  const token = await ensureAdmin(request)
   expect(token).toBeTruthy()
 
   const meRes = await request.get('/api/managers/me', { headers: authHeaders(token) })

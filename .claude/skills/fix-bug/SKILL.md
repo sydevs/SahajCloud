@@ -7,7 +7,7 @@ allowed-tools: Bash, Read, Edit, Write, Grep, Glob
 
 # Fix Bug
 
-End-to-end bug troubleshooting for the sy-devs-cms PayloadCMS + Next.js + Cloudflare Workers stack. Gathers diagnostics, narrows root cause, applies a minimal fix.
+End-to-end bug troubleshooting for the sy-devs-cms PayloadCMS + Next.js + Railway + Postgres stack (Cloudflare edge proxy). Gathers diagnostics, narrows root cause, applies a minimal fix.
 
 ## Workflow
 
@@ -16,7 +16,7 @@ End-to-end bug troubleshooting for the sy-devs-cms PayloadCMS + Next.js + Cloudf
 3. **Narrow the root cause.** Consult the supporting files for stack-specific patterns:
    - `debug-checklist.md` — general diagnostic flow
    - `payload-errors.md` — PayloadCMS hooks/access/types
-   - `cloudflare-errors.md` — Workers, D1, R2, Cloudflare Stream
+   - `cloudflare-errors.md` — R2, Cloudflare Stream, Cloudflare Images (legacy Workers/D1 sections archived)
 4. **Propose the fix.** Single-paragraph diagnosis + minimal change. Don't add defensive cleanup or speculative edits.
 5. **Apply the fix.** Edit the relevant files. Run the narrowest validation that proves it: targeted test, manual repro, or `pnpm tsc --noEmit` for type fixes.
 6. **Stop.** Do NOT commit. The user reviews the diff and commits when ready.

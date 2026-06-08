@@ -7,6 +7,7 @@
  * BEFORE modules are loaded. This is necessary because the storage adapters now
  * use validated serverEnv which is evaluated at module load time.
  */
+import type { S3Client } from '@aws-sdk/client-s3'
 import type { Field, FieldHook } from 'payload'
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -33,6 +34,17 @@ type TestHookData = { filename?: string; mimeType?: string; url?: string } | nul
 const callHook = (hook: FieldHook, data: TestHookData): unknown => {
   return hook({ data } as Parameters<FieldHook>[0])
 }
+
+// Mock S3 client for R2 adapter tests. `send` captures the AWS SDK command
+// objects so assertions can inspect `command.input` (Bucket / Key / Body).
+const makeMockS3 = () => {
+  const send = vi.fn().mockResolvedValue({})
+  return { client: { send } as unknown as S3Client, send }
+}
+
+// Read the Key off a captured PutObject/DeleteObject command.
+const sentKey = (send: ReturnType<typeof vi.fn>, callIndex = 0): string =>
+  (send.mock.calls[callIndex][0] as { input: { Key: string } }).input.Key
 
 describe('URL Field Factories', () => {
   const originalEnv = process.env
@@ -816,11 +828,11 @@ describe('Storage Adapter handleUpload', () => {
     it('writes a sanitized R2 key and returns it as the filename', async () => {
       const { r2NativeAdapter } = await import('@/plugins/storage/r2NativeAdapter')
 
-      const put = vi.fn().mockResolvedValue(null)
-      const bucket = { put } as unknown as R2Bucket
+      const { client, send } = makeMockS3()
 
       const adapter = r2NativeAdapter({
-        bucket,
+        client,
+        bucket: 'test-bucket',
         publicUrl: 'https://assets.test',
       })({ collection: { slug: 'meditations' } as never, prefix: 'meditations' })
 
@@ -843,20 +855,19 @@ describe('Storage Adapter handleUpload', () => {
       expect(result).toMatchObject({
         filename: expect.stringMatching(/^my-audio-1-[a-z0-9]{6}\.mp3$/),
       })
-      expect(put).toHaveBeenCalledOnce()
-      const [key] = put.mock.calls[0]
-      expect(key).toBe(`meditations/${(result as { filename: string }).filename}`)
+      expect(send).toHaveBeenCalledOnce()
+      expect(sentKey(send)).toBe(`meditations/${(result as { filename: string }).filename}`)
       expect(data.filename).toBe((result as { filename: string }).filename)
     })
 
     it('reuses a preassigned R2 key instead of appending a second suffix', async () => {
       const { r2NativeAdapter } = await import('@/plugins/storage/r2NativeAdapter')
 
-      const put = vi.fn().mockResolvedValue(null)
-      const bucket = { put } as unknown as R2Bucket
+      const { client, send } = makeMockS3()
 
       const adapter = r2NativeAdapter({
-        bucket,
+        client,
+        bucket: 'test-bucket',
         publicUrl: 'https://assets.test',
       })({ collection: { slug: 'meditations' } as never, prefix: 'meditations' })
 
@@ -881,8 +892,8 @@ describe('Storage Adapter handleUpload', () => {
       // Returns undefined to skip the cloud-storage plugin's follow-up payload.update()
       // (the filename is already persisted by beforeChange, so no update is needed).
       expect(result).toBeUndefined()
-      expect(put).toHaveBeenCalledOnce()
-      expect(put.mock.calls[0][0]).toBe('meditations/my-audio-1-abc123.mp3')
+      expect(send).toHaveBeenCalledOnce()
+      expect(sentKey(send)).toBe('meditations/my-audio-1-abc123.mp3')
       // applyFilename still runs, keeping in-memory state consistent
       expect(data.filename).toBe('my-audio-1-abc123.mp3')
     })
@@ -941,8 +952,8 @@ describe('Storage Adapter handleUpload', () => {
  * added to `cloudStoragePlugin`'s collections block but missing from
  * `r2FilenameHookModes`, which would silently reintroduce DB↔R2 filename drift.
  *
- * Drives `storagePlugin` directly with a synthetic config + mock R2 bucket,
- * captures the hooks it attaches, and verifies hook + adapter cooperate
+ * Drives `storagePlugin` directly with a synthetic config (R2 S3 creds come from
+ * env), captures the hooks it attaches, and verifies hook + adapter cooperate
  * through the actual contract (preassignment → adapter no-op).
  */
 describe('storagePlugin R2 filename hook wiring', () => {
@@ -953,11 +964,15 @@ describe('storagePlugin R2 filename hook wiring', () => {
     process.env = {
       ...originalEnv,
       PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/payload_test',
       CLOUDFLARE_ACCOUNT_ID: 'test-account',
       CLOUDFLARE_API_KEY: 'test-api-key-with-20-chars-min',
       CLOUDFLARE_IMAGES_DELIVERY_URL: 'https://imagedelivery.net/test-hash',
       CLOUDFLARE_STREAM_DELIVERY_URL: 'https://customer-test.cloudflarestream.com',
       CLOUDFLARE_R2_DELIVERY_URL: 'https://assets.test',
+      R2_BUCKET: 'test-bucket',
+      R2_ACCESS_KEY_ID: 'test-access-key-id',
+      R2_SECRET_ACCESS_KEY: 'test-secret-access-key',
     }
   })
 
@@ -973,21 +988,19 @@ describe('storagePlugin R2 filename hook wiring', () => {
     collections: slugs.map((slug) => ({ slug, hooks: {}, fields: [] })),
   })
 
-  const runStoragePlugin = async (slugs: string[], r2Bucket: R2Bucket) => {
+  const runStoragePlugin = async (slugs: string[]) => {
     const { storagePlugin } = await import('@/plugins/storage/storagePlugin')
     const inputConfig = buildSyntheticConfig(slugs)
-    return await storagePlugin({ env: { R2: r2Bucket }, enabled: true })(inputConfig as never)
+    return await storagePlugin({ enabled: true })(inputConfig as never)
   }
 
   it('attaches a beforeOperation hook to every R2-backed collection (and only those)', async () => {
-    const r2Bucket = { put: vi.fn(), delete: vi.fn(), get: vi.fn() } as unknown as R2Bucket
-
     // Cover every collection currently in `r2FilenameHookModes` plus a
     // non-R2 collection (`pages`) and the pure Cloudflare-Images collection
     // (`images`) which must NOT receive the hook.
     const r2Backed = ['meditations', 'songs', 'user-choices', 'song-tags', 'frames', 'files']
     const nonR2 = ['pages', 'images', 'videos']
-    const result = (await runStoragePlugin([...r2Backed, ...nonR2], r2Bucket)) as {
+    const result = (await runStoragePlugin([...r2Backed, ...nonR2])) as {
       collections: Array<{ slug: string; hooks?: { beforeOperation?: unknown[] } }>
     }
 
@@ -1012,10 +1025,9 @@ describe('storagePlugin R2 filename hook wiring', () => {
     // The DB↔R2 drift bug manifests when the hook's renamed filename is NOT
     // the same as the key the adapter uploads under. Drive both through the
     // real wiring and assert they agree.
-    const put = vi.fn().mockResolvedValue(null)
-    const r2Bucket = { put, delete: vi.fn(), get: vi.fn() } as unknown as R2Bucket
+    const { client, send } = makeMockS3()
 
-    const result = (await runStoragePlugin(['meditations'], r2Bucket)) as {
+    const result = (await runStoragePlugin(['meditations'])) as {
       collections: Array<{ slug: string; hooks?: { beforeOperation?: unknown[] } }>
     }
 
@@ -1042,7 +1054,11 @@ describe('storagePlugin R2 filename hook wiring', () => {
     // `file.filename` Payload passes here mirrors what was written to the DB
     // (= req.file.name post-hook). The adapter must NOT regenerate the key.
     const { r2NativeAdapter } = await import('@/plugins/storage/r2NativeAdapter')
-    const adapter = r2NativeAdapter({ bucket: r2Bucket, publicUrl: 'https://assets.test' })({
+    const adapter = r2NativeAdapter({
+      client,
+      bucket: 'test-bucket',
+      publicUrl: 'https://assets.test',
+    })({
       collection: { slug: 'meditations' } as never,
       prefix: 'meditations',
     })
@@ -1069,7 +1085,7 @@ describe('storagePlugin R2 filename hook wiring', () => {
     // In-memory state (data.filename) and the actual R2 key must still agree.
     expect(adapterResult).toBeUndefined()
     expect(data.filename).toBe(preassignedFilename)
-    expect(put).toHaveBeenCalledOnce()
-    expect(put.mock.calls[0][0]).toBe(`meditations/${preassignedFilename}`)
+    expect(send).toHaveBeenCalledOnce()
+    expect(sentKey(send)).toBe(`meditations/${preassignedFilename}`)
   })
 })

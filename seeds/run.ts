@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
- 
+
 /**
  * Unified Seed Script Runner
  *
@@ -552,7 +552,6 @@ async function runPaginatedImport(
   console.log(`\n${'='.repeat(60)}`)
   console.log(`${scriptName} import (paginated)`)
   if (options.dryRun) console.log('Mode: DRY RUN')
-  console.log(`Environment: ${metadata.environment}`)
   console.log(`Batch size: ${batchSize}`)
   console.log('='.repeat(60))
 
@@ -621,7 +620,7 @@ async function runPaginatedImport(
 
         batchNumber++
 
-        // Add delay between batches to reduce D1 contention
+        // Add delay between batches to pace long-running imports
         // Reduced from 1000ms since bulk preloading reduces DB queries
         if (hasMore) {
           await delay(200)
@@ -798,7 +797,6 @@ async function main(): Promise<void> {
       try {
         console.log(`\n📋 Fetching metadata for ${scriptName}...`)
         metadata = await fetchScriptMetadata(scriptName, baseUrl, token)
-        console.log(`   Environment: ${metadata.environment}`)
         console.log(`   Total items: ${metadata.totalItems}`)
         console.log(`   Requires pagination: ${metadata.requiresPagination}`)
       } catch (error) {

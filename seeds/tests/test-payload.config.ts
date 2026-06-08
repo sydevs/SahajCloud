@@ -1,7 +1,7 @@
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-import { sqliteAdapter } from '@payloadcms/db-sqlite'
+import { postgresAdapter } from '@payloadcms/db-postgres'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
 
@@ -15,8 +15,9 @@ const dirname = path.dirname(filename)
 /**
  * Test Payload Configuration
  *
- * This configuration is used for migration script testing with an in-memory SQLite database.
- * It's simplified compared to the main config - no email, no plugins, no admin UI.
+ * Used for migration/import-script testing against a Postgres test database
+ * (dedicated `seed_test` schema, auto-synced via push). Simplified vs the main
+ * config — no email, no plugins, no admin UI.
  */
 export const testPayloadConfig = (overrides?: Partial<Config>) => {
   return buildConfig({
@@ -36,11 +37,14 @@ export const testPayloadConfig = (overrides?: Partial<Config>) => {
     typescript: {
       outputFile: path.resolve(dirname, '../../src/payload-types.ts'),
     },
-    // Use in-memory SQLite for fast, isolated tests
-    db: sqliteAdapter({
-      client: {
-        url: ':memory:', // In-memory database - no file persistence
+    // Postgres test database — dedicated schema, auto-created/synced via push.
+    db: postgresAdapter({
+      pool: {
+        connectionString: process.env.DATABASE_URL,
+        options: '-c synchronous_commit=off',
       },
+      push: true,
+      schemaName: 'seed_test',
     }),
     // No plugins for tests - keeps it simple and fast
     plugins: [],

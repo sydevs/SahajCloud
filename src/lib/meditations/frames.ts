@@ -17,7 +17,7 @@
  */
 import type { Payload, PayloadRequest } from 'payload'
 
-import * as Sentry from '@sentry/cloudflare'
+import * as Sentry from '@sentry/nextjs'
 
 import type { KeyframeDefinition } from '@/types/frames'
 
@@ -156,9 +156,7 @@ export function meditationFramesChanged(previousFrames: unknown, nextFrames: unk
   return false
 }
 
-export function hasFrameNormalizationIssues(
-  diagnostics: FrameNormalizationDiagnostics,
-): boolean {
+export function hasFrameNormalizationIssues(diagnostics: FrameNormalizationDiagnostics): boolean {
   return diagnostics.droppedCount > 0 || Object.keys(diagnostics.invalidFrameReasons).length > 0
 }
 

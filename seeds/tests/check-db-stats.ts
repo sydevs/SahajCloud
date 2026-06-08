@@ -1,11 +1,10 @@
 #!/usr/bin/env tsx
- 
 
 /**
  * Check Database Statistics
  *
  * Shows the document counts in the test database using Payload API.
- * Works with both SQLite (test) and D1 (production) databases.
+ * Works against the Postgres database.
  */
 
 import type { Payload } from 'payload'
@@ -142,7 +141,6 @@ async function checkDatabaseStats() {
     } catch (_error) {
       // Lessons collection might not exist or have tags
     }
-
   } catch (error) {
     console.error('❌ Error checking database:', error)
     throw error

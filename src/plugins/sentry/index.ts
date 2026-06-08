@@ -1,7 +1,7 @@
 /**
  * Sentry Plugin
  *
- * Cloudflare Workers-compatible error tracking via @sentry/cloudflare.
+ * Server-side error tracking for Payload operations via @sentry/nextjs.
  *
  * @example
  * ```typescript

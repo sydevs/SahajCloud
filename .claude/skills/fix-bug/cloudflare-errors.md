@@ -1,50 +1,14 @@
-# Cloudflare Workers / D1 / R2 Error Patterns
+# Cloudflare Edge Services Error Patterns
 
-Stack-specific debugging for the Cloudflare runtime, D1 (SQLite), R2 storage, and Cloudflare Stream/Images.
+Stack-specific debugging for Cloudflare edge services (R2 storage, Stream, Images). The application runs on Railway + PostgreSQL; Cloudflare provides storage and CDN services in front.
 
-## Worker bootstrap errors
+**Legacy note:** Cloudflare Workers and D1 (SQLite) runtime were decommissioned during migration to Railway. For historical context, see archived sections at the end of this file.
 
-**Symptoms:** "Worker exceeded CPU limit on startup", "Binding X is undefined", 500 with empty body on every request.
+## PostgreSQL errors (Railway)
 
-**Where to look:**
+**Symptoms:** "no such table", "FOREIGN KEY constraint failed", "connection refused".
 
-- `src/worker.ts` — Worker entry, Sentry wrapping
-- `src/payload.config.ts` — Payload bootstrap, D1/R2 initialization
-- `wrangler.toml` — bindings (D1, R2, Rate Limiter), env selection
-
-**Common causes:**
-
-- Missing binding in `wrangler.toml` for the current environment (top-level vs `[env.dev]`)
-- Binding declared but not deployed (run `wrangler deploy` after `wrangler.toml` changes)
-- `getCloudflareContext()` called before context is ready → check call site
-- Env validation failure at module load (`src/lib/env.ts` Zod errors)
-
-## D1 errors
-
-**Symptoms:** "no such table", "FOREIGN KEY constraint failed", "table X already exists", migration partially applied.
-
-### D1 PRAGMA foreign_keys gotcha (project-known)
-
-D1 does **not** honor `PRAGMA foreign_keys=OFF` across `db.run()` calls. Migrations that rebuild child tables before parent tables will cascade-null FK columns.
-
-**Rule:** Always rebuild parent tables first, or use a single SQL transaction string.
-
-See [feedback_d1_pragma_foreign_keys](file:///Users/devindra/.claude/projects/-Users-devindra-Documents-Projects-sy-devs-cms/memory/feedback_d1_pragma_foreign_keys.md) memory.
-
-### Common D1 errors
-
-| Symptom                         | Likely cause                                                          |
-| ------------------------------- | --------------------------------------------------------------------- |
-| `no such table: X`              | Migration not run (`pnpm payload migrate`) or wrong env (dev vs prod) |
-| `FOREIGN KEY constraint failed` | Cascade-null bug, or actual data integrity issue                      |
-| `UNIQUE constraint failed`      | Slug/email collision; check the field's `unique: true` setting        |
-| `database is locked`            | Concurrent write during dev; usually clears on retry                  |
-
-### Local vs remote D1
-
-- Local D1 (dev): `.wrangler/state/v3/d1/...` SQLite file
-- Remote D1 (prod): `wrangler d1 execute sahajcloud --remote --command "..."`
-- `wrangler.toml` `database_id = "local"` for `[env.dev]`; real UUID for top-level
+Consult Payload's error logs in `.claude/skills/dev-server/state/server.log` and the `payload` skill for database-specific issues. Migrations are applied on server boot (see `src/payload.config.ts`: `prodMigrations`); for local/manual migration authoring, see `.claude/rules/migrations.md`.
 
 ## R2 storage errors
 
@@ -54,10 +18,11 @@ See [feedback_d1_pragma_foreign_keys](file:///Users/devindra/.claude/projects/-U
 
 - `src/plugins/storage/` — adapter routing logic
 - `src/collections/Files.ts`, `src/collections/Frames.ts` — mixed-media collections
+- Environment variables: `AWS_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (Railway secrets)
 
 **Common causes:**
 
-- R2 binding missing in wrangler.toml for the env
+- Missing or incorrect R2 API credentials in Railway environment
 - `r2Filename` hook not running → file uploaded but URL doesn't match
 - MIME-type fallthrough: image expected but content is video, so it routes to Stream instead of Images
 - Local dev: R2 falls back to local file storage; check the storage adapter's dev branch
@@ -94,32 +59,24 @@ See [feedback_d1_pragma_foreign_keys](file:///Users/devindra/.claude/projects/-U
 
 ## Rate limiting
 
-The `[[ratelimits]]` binding in `wrangler.toml` provides rate limiting (500/min per default).
+Cloudflare's Firewall Rate Limiting (configured at the WAF level on cloud.sydevelopers.com) provides rate limiting.
 
 **Symptoms:** Sudden 429s in production, none in dev.
 
-**Where to look:** `API_RATE_LIMITER` binding usage in routes.
+**Where to look:** Cloudflare dashboard → Rules → Rate limiting. Local dev is unaffected.
 
-**Note:** Rate limiting is **automatically disabled in dev** (see `.claude/docs/environment.md`). If you see 429s locally, something's misconfigured.
+**Note:** If you see 429s locally, it's likely a local middleware or test config issue; check `src/lib/` for any custom rate-limit logic.
 
 ## When to use Cloudflare's MCP docs
 
-For Workers / D1 / R2 / Stream / Images framework questions:
+For R2 / Stream / Images framework questions:
 
 ```
 mcp__cloudflare-docs__search_cloudflare_documentation
 ```
 
-(Or, if not yet migrated: `mcp__plugin_sydevs-web_cloudflare-docs__*`.)
+## Application logs
 
-## Worker logs
+**Local dev:** `.claude/skills/dev-server/state/server.log`
 
-```bash
-# Production (streams real-time)
-wrangler tail sahajcloud --format pretty
-
-# Filter by status, sampling rate, etc.
-wrangler tail sahajcloud --status error
-```
-
-Local dev logs are in `.claude/skills/dev-server/state/server.log`.
+**Production (Railway):** View in Railway dashboard or tail logs via Railway CLI. S3 / Stream API errors appear in application logs with clear diagnostic info.

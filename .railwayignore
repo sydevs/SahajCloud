@@ -1,0 +1,41 @@
+# Build artifacts + deps (installed/rebuilt fresh in the image)
+node_modules
+.next
+.open-next
+out
+*.tsbuildinfo
+
+# VCS + CI + agent/editor tooling
+.git
+.github
+.claude
+.agents
+.wrangler
+.vscode
+.idea
+.DS_Store
+
+# Tests + reports (not needed to build or run the server)
+tests
+playwright-report
+test-results
+coverage
+*-report.md
+
+# Local data artifacts — NOT needed in the image. Production stores uploads in
+# R2/Images/Stream and data in Railway Postgres; these are dev-only and huge.
+media
+seeds/cache
+seeds/**/data.bin
+*.dump
+*.sqlite
+local.db
+
+# Local env + logs (Railway injects real env at runtime)
+.env
+.env.*
+*.log
+
+# Local-only helpers / docs not needed at runtime
+setup-railway.sh
+RAILWAY_RUNBOOK.md

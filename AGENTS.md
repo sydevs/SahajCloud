@@ -10,7 +10,7 @@ This file provides guidance to AI coding agents when working with this repositor
 ## Documentation
 
 - **`.claude/rules/`** — path-scoped rules that auto-load when reading matching files (run `ls .claude/rules/` for the inventory; each file's frontmatter declares its globs)
-- **`@.claude/docs/environment.md`** — environment variables and Wrangler configuration
+- **`@.claude/docs/environment.md`** — environment variables and Railway configuration
 - **`@.claude/docs/architecture.md`** — top-level architecture (collections, routes, logging, scheduled jobs)
 - **`.claude/skills/`** — local workflow skills (run `ls .claude/skills/` to discover; each has a `SKILL.md`)
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** — deployment documentation
@@ -24,7 +24,7 @@ This file provides guidance to AI coding agents when working with this repositor
 
 ## Project Overview
 
-A **Next.js 15** application integrated with **Payload CMS 3.0** — a headless content management system. TypeScript, SQLite (Cloudflare D1), configured for both development and production.
+A **Next.js 15** application integrated with **Payload CMS 3.0** — a headless content management system. TypeScript, PostgreSQL, deployed on Railway with Cloudflare R2 (S3 API) for storage and Cloudflare's edge services (Images, Stream, rate limiting, caching) in front.
 
 ## Admin Access
 
@@ -49,16 +49,17 @@ Manual fallback: `pnpm dev` (start), `pnpm devsafe` (clean dev — removes `.nex
 ### Code Quality, Types, Testing
 
 - `pnpm lint` — ESLint
+- `pnpm typecheck` — TypeScript type checking
 - `pnpm generate:types` — TypeScript types from Payload schema (after schema changes)
 - `pnpm generate:importmap` — admin-panel import map
 - `pnpm test:unit` — fast unit lane (~1–2 s, no Payload bootstrap)
 - `pnpm test` / `pnpm test:int` / `pnpm test:e2e` — full / integration / E2E
 
-**Local vs CI**: GitHub Actions runs the **full test suite + the Cloudflare build** on every PR (see [Continuous Integration](#continuous-integration)). Locally, default to **targeted** validation — lint, `pnpm test:unit`, and the specific integration spec(s) for the area you touched: `pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts`. Don't routinely run the full `pnpm test:int` locally or `check.sh --full` / `validate.sh --full` — let CI catch the less-common, cross-cutting failures. Run them only to reproduce a red CI check or when explicitly asked.
+**Local vs CI**: GitHub Actions runs the **full test suite + the Next.js build** on every PR (see [Continuous Integration](#continuous-integration)). Locally, default to **targeted** validation — lint, `pnpm test:unit`, and the specific integration spec(s) for the area you touched: `pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts`. Don't routinely run the full `pnpm test:int` locally or `check.sh --full` / `validate.sh --full` — let CI catch the less-common, cross-cutting failures. Run them only to reproduce a red CI check or when explicitly asked.
 
 If wrapping any of these in `timeout` (only when actually needed — most one-shot runs don't need it), use these canonical values; other values will trigger a permission prompt:
 
-- `timeout 600 pnpm build:*` — Next.js + Cloudflare adapter cold builds
+- `timeout 600 pnpm build` — Next.js cold build
 - `timeout 300 pnpm test:*` — full integration/E2E suites
 - `timeout 120 pnpm generate:*` — `generate:types` / `generate:importmap`
 
@@ -98,7 +99,7 @@ Configuration: `src/lib/richEditor/index.ts`.
 - `next.config.mjs` — Next.js configuration
 - `src/payload-types.ts` — auto-generated types (do not edit)
 - `tsconfig.json` — TypeScript path aliases
-- `wrangler.toml` — Cloudflare deployment configuration
+- `railway.toml` — Railway deployment configuration
 
 ### Data Seed Scripts
 
@@ -109,10 +110,10 @@ Schema migrations live in `src/migrations/` — see `.claude/rules/migrations.md
 ## Development Workflow
 
 1. **Schema changes**: `pnpm generate:types` after modifying collections.
-2. **Database**: SQLite (Cloudflare D1), managed by migrations in `src/migrations/`. Push mode is disabled — see `.claude/rules/migrations.md` for the rationale.
+2. **Database**: PostgreSQL on Railway, managed by migrations in `src/migrations/`. Dev uses `push: true` (auto-schema-sync); prod applies migrations in-process on server boot via `prodMigrations`. See `.claude/rules/migrations.md` for details.
 3. **Admin Access**: `/admin`.
 4. **API Access**: REST API at `/api/*` (GraphQL disabled).
-5. **Migrations**: `pnpm payload migrate` to apply. **Ask the user to create migrations** — `pnpm db:migrations:create` prompts interactively and hangs when piped/backgrounded. See `.claude/rules/migrations.md`.
+5. **Migrations**: Create locally with `pnpm db:migrations:create`, commit, and they auto-apply on the next deploy. **Ask the user to create migrations** — `pnpm db:migrations:create` prompts interactively and hangs when piped/backgrounded. See `.claude/rules/migrations.md`.
 
 ### Git Commands
 
@@ -136,10 +137,8 @@ Before marking a PR ready, run the **Tier 2** lean gate plus the targeted integr
 GitHub Actions runs on every pull request (`.github/workflows/ci.yml`) as one job, **Lint, Test & Smoke**:
 
 1. `pnpm lint`
-2. `pnpm test` — unit + integration (Vitest injects its own env, so no secrets needed)
-3. `pnpm test:smoke` — Playwright specs against a Cloudflare PR preview environment seeded from cloned prod data
-
-The preview deploy is published by Cloudflare Workers Builds independently of GitHub Actions; the CI job waits for the preview URL to return 200, then runs the smoke specs against it. Preview data is re-cloned weekly by `.github/workflows/preview-reclone.yml`.
+2. `pnpm test` — unit + integration via a postgres:16 service container (Vitest injects DATABASE_URL env)
+3. `pnpm test:smoke` — Playwright specs (currently skipped — gated on `RAILWAY_PREVIEW_URL` env var; per-PR Railway previews are TODO(railway))
 
 PR-only triggers; `concurrency: cancel-in-progress` cancels superseded runs on the same branch. CI **reports** status but does not block merges unless a branch-protection rule on `main` requires the `Lint, Test & Smoke` check to pass.
 
@@ -147,11 +146,11 @@ PR-only triggers; `concurrency: cancel-in-progress` cancels superseded runs on t
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive documentation.
 
-- **Platform**: Cloudflare Workers + D1 + R2
+- **Platform**: Railway (Node.js, via Railpack builder) + PostgreSQL + R2 (S3 API) + Cloudflare edge (Images, Stream, rate limiting, caching)
 - **Production URL**: https://cloud.sydevelopers.com
-- **Deploy**: `pnpm run deploy:prod` (migrations + app)
-- **Monitor**: `wrangler tail sahajcloud --format pretty`
-- `wrangler.toml` uses environments (`[env.dev]` for development). Set secrets via `wrangler secret put PAYLOAD_SECRET`, `SENTRY_DSN`, `RESEND_API_KEY`. Production migrations require `remote = true` in the D1 binding.
+- **Deploy**: Push to the branch; Railway auto-detects changes, builds with Railpack, and deploys. Migrations auto-apply in-process on server boot via `prodMigrations` in `src/payload.config.ts`.
+- **Monitor**: Railway deploy logs and `tail` command (see DEPLOYMENT.md)
+- Environment variables set in Railway service (secrets) and platform settings.
 
 ## Project Structure
 

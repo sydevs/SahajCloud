@@ -1,0 +1,17 @@
+# Railway deployment configuration (see DEPLOYMENT.md).
+#
+# Build: Railpack (Railway's native builder) — no Dockerfile. Railway exposes all
+# service variables to the build as real env, so `next build` reads them directly
+# (serverEnv validation + the CSP frame-src in next.config) with no ARG plumbing.
+# Migrations: applied in-process on server boot via Payload's `prodMigrations`
+# (see src/payload.config.ts) — no preDeployCommand/CLI needed.
+
+[build]
+builder = "RAILPACK"
+
+[deploy]
+startCommand = "pnpm start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

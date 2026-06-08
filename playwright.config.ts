@@ -3,11 +3,11 @@ import { defineConfig, devices } from '@playwright/test'
 import 'dotenv/config'
 
 /**
- * Playwright config for smoke specs that hit a deployed preview Worker.
+ * Playwright config for smoke specs that hit a deployed preview environment.
  *
- * CI sets PREVIEW_URL to the per-PR `<branch>-sahajcloud-preview.<account>.workers.dev`
- * alias before invoking `pnpm test:smoke`. Locally, falls back to the dev-server
- * URL on port 3000 (matches the dev-server skill).
+ * CI sets PREVIEW_URL to the per-PR Railway preview URL (a `*.up.railway.app`
+ * domain, discovered via the Railway API) before invoking `pnpm test:smoke`.
+ * Locally, falls back to the dev-server URL on port 3000 (dev-server skill).
  */
 export default defineConfig({
   testDir: './tests/e2e',

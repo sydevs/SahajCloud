@@ -5,31 +5,25 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "cross-env NODE_OPTIONS=\"--no-deprecation --max-old-space-size=8000\" next build",
-    "dev": "cross-env NODE_OPTIONS=--no-deprecation next dev",
-    "devsafe": "rm -rf .next && cross-env NODE_OPTIONS=--no-deprecation next dev",
-    "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
-    "lint": "cross-env NODE_OPTIONS=--no-deprecation eslint . --max-warnings 0",
+    "build": "NODE_OPTIONS=--max-old-space-size=8000 next build",
+    "dev": "next dev",
+    "devsafe": "rm -rf .next && next dev",
+    "start": "next start",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/postinstall.cjs",
     "test": "pnpm run test:unit && pnpm run test:int",
-    "test:smoke": "cross-env NODE_OPTIONS=--no-deprecation pnpm exec playwright test",
-    "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --project int --config ./vitest.config.mts",
-    "test:unit": "cross-env NODE_OPTIONS=--no-deprecation vitest run --project unit --config ./vitest.config.mts",
-    "seed": "cross-env NODE_OPTIONS=--no-deprecation tsx seeds/run.ts",
-    "seed:dev": "cross-env NODE_OPTIONS=--no-deprecation ADMIN_EMAIL=contact@sydevelopers.com ADMIN_PASSWORD=evk1VTH5dxz_nhg-mzk tsx seeds/run.ts",
-    "seed:prod": "cross-env NODE_OPTIONS=--no-deprecation SAHAJCLOUD_URL=https://cloud.sydevelopers.com ADMIN_EMAIL=contact@sydevelopers.com tsx seeds/run.ts",
-    "reset": "cross-env NODE_OPTIONS=--no-deprecation tsx seeds/reset-storage.ts",
-    "generate:importmap": "cross-env NODE_OPTIONS=--no-deprecation payload generate:importmap",
-    "generate:types": "cross-env NODE_OPTIONS=--no-deprecation payload generate:types && wrangler types && pnpm generate:statusConfig",
-    "generate:statusConfig": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/generate-status-config.ts",
-    "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
-    "deploy:prod": "pnpm run deploy:database && pnpm run deploy:app",
-    "deploy:database": "cross-env NODE_ENV=production CLOUDFLARE_ENV= PAYLOAD_SECRET=migration-only-dummy-secret-32chars payload migrate && wrangler d1 execute sahajcloud --command 'PRAGMA optimize' --remote",
-    "deploy:database:preview": "cross-env NODE_ENV=production CLOUDFLARE_ENV=preview PAYLOAD_SECRET=migration-only-dummy-secret-32chars payload migrate && wrangler d1 execute sahajcloud-preview --env=preview --command 'PRAGMA optimize' --remote",
-    "deploy:app": "wrangler deploy src/worker.ts --experimental-autoconfig=false --env=\"\"",
-    "db:create": "wrangler d1 create",
-    "db:migrations:create": "cross-env NODE_OPTIONS=--no-deprecation payload migrate:create",
-    "db:schema": "wrangler d1 execute sahajcloud --command '.schema' --remote"
+    "test:smoke": "pnpm exec playwright test",
+    "test:int": "vitest run --project int --config ./vitest.config.mts",
+    "test:unit": "vitest run --project unit --config ./vitest.config.mts",
+    "seed": "tsx seeds/run.ts",
+    "seed:prod": "SAHAJCLOUD_URL=https://cloud.sydevelopers.com tsx seeds/run.ts",
+    "generate:importmap": "payload generate:importmap",
+    "generate:types": "payload generate:types && pnpm generate:statusConfig",
+    "generate:statusConfig": "tsx scripts/generate-status-config.ts",
+    "payload": "payload",
+    "db:migrate": "payload migrate",
+    "db:migrations:create": "payload migrate:create"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1055.0",
@@ -37,9 +31,7 @@
     "@js-temporal/polyfill": "^0.5.1",
     "@lexical/react": "0.41.0",
     "@lexical/rich-text": "0.41.0",
-    "@opennextjs/cloudflare": "^1.17.1",
-    "@payloadcms/db-d1-sqlite": "^3.85.0",
-    "@payloadcms/db-sqlite": "^3.85.0",
+    "@payloadcms/db-postgres": "^3.85.0",
     "@payloadcms/email-nodemailer": "^3.85.0",
     "@payloadcms/next": "^3.85.0",
     "@payloadcms/plugin-cloud-storage": "^3.85.0",
@@ -47,11 +39,9 @@
     "@payloadcms/plugin-seo": "^3.85.0",
     "@payloadcms/richtext-lexical": "^3.85.0",
     "@payloadcms/ui": "^3.85.0",
-    "@sentry/cloudflare": "^10.27.0",
+    "@sentry/nextjs": "^10.29.0",
     "@sentry/react": "^10.29.0",
     "@types/styled-components": "^5.1.35",
-    "aws-crt": "^1.27.5",
-    "cross-env": "^7.0.3",
     "dotenv": "16.4.7",
     "i18n-iso-countries": "^7.14.0",
     "image-size": "^2.0.2",
@@ -61,12 +51,14 @@
     "next": "^16.2.6",
     "payload": "^3.85.0",
     "payload-oapi": "^0.2.5",
+    "pg": "^8.16.3",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "react-inlinesvg": "^4.2.0",
     "react-range": "^1.10.0",
     "resend": "^6.5.2",
     "rrule-temporal": "^1.4.5",
+    "sharp": "^0.34.5",
     "slugify": "^1.6.6",
     "styled-components": "^6.1.19",
     "swr": "^2.3.8",
@@ -78,7 +70,6 @@
     "@payloadcms/typescript-plugin": "^3.85.0",
     "@playwright/test": "1.57.0",
     "@testing-library/react": "16.3.0",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^22.18.13",
     "@types/nodemailer": "^8.0.0",
@@ -87,7 +78,6 @@
     "@types/react-dom": "19.1.2",
     "@types/tmp": "^0.2.6",
     "@vitejs/plugin-react": "4.5.2",
-    "better-sqlite3": "^12.4.6",
     "eslint": "^9.38.0",
     "eslint-config-next": "^16.2.6",
     "eslint-plugin-import": "^2.32.0",
@@ -95,7 +85,6 @@
     "eslint-plugin-unused-imports": "^4.3.0",
     "jsdom": "26.1.0",
     "nodemailer": "^7.0.10",
-    "pg": "^8.16.3",
     "playwright": "1.57.0",
     "playwright-core": "1.57.0",
     "prettier": "^3.6.2",
@@ -103,23 +92,11 @@
     "tsx": "^4.20.6",
     "typescript": "5.7.3",
     "vite-tsconfig-paths": "5.1.4",
-    "vitest": "3.2.3",
-    "wrangler": "^4.95.0"
+    "vitest": "3.2.3"
   },
   "engines": {
     "node": ">=22.0.0",
-    "pnpm": "^9 || ^10"
+    "pnpm": "^9 || ^10 || ^11"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "unrs-resolver"
-    ],
-    "peerDependencyRules": {
-      "ignoreMissing": []
-    },
-    "patchedDependencies": {
-      "@opennextjs/cloudflare@1.19.11": "patches/@opennextjs__cloudflare@1.19.11.patch"
-    }
-  }
+  "packageManager": "pnpm@11.5.2"
 }

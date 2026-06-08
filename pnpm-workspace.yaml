@@ -1,0 +1,20 @@
+# pnpm settings (pnpm 10+ reads these here, not from the package.json "pnpm" field).
+
+# Per-package install/build-script approval. pnpm 11 errors on any undecided
+# build script, so every dependency that ships one must be listed.
+#   true  = run it (these fetch prebuilt binaries — no compiler needed)
+#   false = skip it (transitive/unused, or build-time-only; avoids a native compile
+#           that would fail in the slim runtime image)
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
+  sharp: true
+  '@sentry/cli': false # only used for source-map upload (gated on SENTRY_AUTH_TOKEN)
+  better-sqlite3: false # transitive, unused on Postgres
+
+# Opt out of pnpm 11's default ~24h publish-age cooldown. The committed,
+# PR-reviewed lockfile is our supply-chain boundary (plus the pnpm-audit CI job
+# and Dependabot); a moving wall-clock cooldown only makes frozen-lockfile builds
+# non-deterministic (fails on any freshly-published transitive until it ages out).
+# Set to a positive minute value to re-enable a cooldown.
+minimumReleaseAge: 0

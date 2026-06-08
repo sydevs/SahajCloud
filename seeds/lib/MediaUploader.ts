@@ -8,13 +8,12 @@
 import type { Logger } from './logger'
 import type { Payload } from 'payload'
 
-
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
 import type { ImageTag } from '@/types/tags'
 
-import { isCloudflareWorker, safeBufferCopy } from './runtime'
+// (no runtime imports needed)
 
 // ============================================================================
 // ERRORS
@@ -255,7 +254,9 @@ export class MediaUploader {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       const sourceInfo = options.sourceUrl ? ` from ${options.sourceUrl}` : ''
-      await this.logger.error(`Failed to upload ${path.basename(localPath)}${sourceInfo}: ${message}`)
+      await this.logger.error(
+        `Failed to upload ${path.basename(localPath)}${sourceInfo}: ${message}`,
+      )
       throw new MediaUploadError(message, path.basename(localPath), options.sourceUrl)
     }
   }
@@ -374,26 +375,14 @@ export class MediaUploader {
 
   /**
    * Upload new media file to Payload
-   * Supports dual-mode: filesystem (local dev) or buffer (Workers)
    */
   private async uploadNewMedia(
     localPath: string,
     options: MediaUploadOptions,
   ): Promise<MediaUploadResult> {
     try {
-      // In Workers mode, buffer is required (no filesystem access)
-      if (!options.buffer && isCloudflareWorker()) {
-        throw new Error('Buffer is required for uploads in Workers mode')
-      }
-
-      // Use buffer if provided (Workers mode), otherwise read from filesystem
-      let fileBuffer: Buffer = options.buffer || (await fs.readFile(localPath))
-
-      // In Workers, ensure we pass a clean Buffer without ArrayBuffer offset issues.
-      // Uses safeBufferCopy() which does a manual indexed copy - the only reliable method.
-      if (isCloudflareWorker() && options.buffer) {
-        fileBuffer = safeBufferCopy(fileBuffer)
-      }
+      // Use buffer if provided, otherwise read from filesystem
+      const fileBuffer: Buffer = options.buffer || (await fs.readFile(localPath))
       const filename = path.basename(localPath)
       const ext = path.extname(filename).toLowerCase()
 

@@ -29,7 +29,6 @@ import {
   createInitialPaginationState,
   calculatePaginationState,
 } from './pagination'
-import { isCloudflareWorker } from './runtime'
 import { ValidationReport } from './validationReport'
 import configPromise from '../../src/payload.config'
 
@@ -135,9 +134,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   // Cache of preloaded collections for skip/update decisions
   protected preloadCache: Map<CollectionSlug, PreloadCache> = new Map()
 
-  // Track if running in Cloudflare Workers (no filesystem)
-  private readonly isWorker: boolean
-
   // Track current operation for heartbeat progress (SSE keep-alive)
   private currentOperation: string = ''
 
@@ -146,7 +142,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
   constructor(options: TOptions) {
     this.options = options
-    this.isWorker = isCloudflareWorker()
   }
 
   // ============================================================================
@@ -459,30 +454,25 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    * Main entry point - handles initialization, execution, and cleanup
    */
   async run(): Promise<void> {
-    // Console output only for CLI mode (not Workers)
-    if (!this.isWorker) {
-      console.log(`\n${'='.repeat(60)}`)
-      console.log(`${this.importName} Import`)
-      console.log('='.repeat(60))
+    console.log(`\n${'='.repeat(60)}`)
+    console.log(`${this.importName} Import`)
+    console.log('='.repeat(60))
 
-      if (this.options.dryRun) {
-        console.log('\nMode: DRY RUN - No data will be written\n')
-      }
+    if (this.options.dryRun) {
+      console.log('\nMode: DRY RUN - No data will be written\n')
     }
 
     try {
-      // 1. Setup cache directory (skip in Workers - no filesystem)
-      if (!this.isWorker) {
-        await this.setupCacheDirectory()
-      }
+      // 1. Setup cache directory
+      await this.setupCacheDirectory()
 
       // 2. Initialize core utilities
       this.logger = new Logger()
       this.fileUtils = new FileUtils(this.logger)
       this.report = new ValidationReport()
 
-      // 3. Handle cache clearing (skip in Workers - no filesystem)
-      if (this.options.clearCache && !this.isWorker) {
+      // 3. Handle cache clearing
+      if (this.options.clearCache) {
         await this.clearCache()
       }
 
@@ -551,34 +541,17 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   // ============================================================================
 
   private async setupCacheDirectory(): Promise<void> {
-    // Skip in Workers mode (no filesystem access)
-    if (this.isWorker) return
     await fs.mkdir(this.cacheDir, { recursive: true })
     await fs.mkdir(path.join(this.cacheDir, 'assets'), { recursive: true })
   }
 
   /**
-   * Load data file with dual-mode support:
-   * - Local development: Read from filesystem
-   * - Cloudflare Workers: Fetch from URL
+   * Load data file from the filesystem.
    *
-   * @param localPath - Path to local file (used in local dev)
-   * @param workerUrl - URL to fetch from (required in Workers mode)
+   * @param localPath - Path to local file
    * @returns File contents as string
    */
-  protected async loadDataFile(localPath: string, workerUrl?: string): Promise<string> {
-    if (this.isWorker) {
-      if (!workerUrl) {
-        throw new Error(`Worker mode requires URL for data file: ${localPath}`)
-      }
-      const response = await fetch(workerUrl)
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ${workerUrl}: ${response.status}`)
-      }
-      return response.text()
-    }
-
-    // Local development: read from filesystem
+  protected async loadDataFile(localPath: string): Promise<string> {
     return fs.readFile(localPath, 'utf-8')
   }
 
@@ -590,8 +563,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   private async clearCache(): Promise<void> {
-    // Skip in Workers mode (no filesystem access)
-    if (this.isWorker) return
     await this.logger.info('Clearing cache directory...')
     await this.fileUtils.clearDir(this.cacheDir)
     // Recreate assets directory
@@ -600,20 +571,17 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   private async finalize(): Promise<void> {
-    // File operations only for CLI mode (not Workers)
-    if (!this.isWorker) {
-      // Write slug collisions file if any
-      await this.writeCollisionsFile()
+    // Write slug collisions file if any
+    await this.writeCollisionsFile()
 
-      // Generate markdown report
-      const reportPath = path.join(this.cacheDir, 'import-report.md')
-      await this.report.generate(reportPath, this.importName)
+    // Generate markdown report
+    const reportPath = path.join(this.cacheDir, 'import-report.md')
+    await this.report.generate(reportPath, this.importName)
 
-      // Print console summary
-      this.printSummary()
+    // Print console summary
+    this.printSummary()
 
-      await this.logger.success(`\nReport saved to: ${reportPath}`)
-    }
+    await this.logger.success(`\nReport saved to: ${reportPath}`)
   }
 
   // ============================================================================
@@ -662,17 +630,15 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       total: options?.total,
     })
 
-    // Console output (CLI mode)
-    if (!this.isWorker) {
-      const icon =
-        action === 'created' ? '✓' : action === 'updated' ? '↻' : action === 'skipped' ? '○' : '✗'
-      const status = action === 'error' ? `error: ${options?.error}` : action
-      console.log(`  ${identifier} ${icon} ${status}`)
+    // Console output
+    const icon =
+      action === 'created' ? '✓' : action === 'updated' ? '↻' : action === 'skipped' ? '○' : '✗'
+    const status = action === 'error' ? `error: ${options?.error}` : action
+    console.log(`  ${identifier} ${icon} ${status}`)
 
-      if (options?.warnings?.length) {
-        for (const w of options.warnings) {
-          console.log(`    ⚠ ${w}`)
-        }
+    if (options?.warnings?.length) {
+      for (const w of options.warnings) {
+        console.log(`    ⚠ ${w}`)
       }
     }
   }
@@ -687,10 +653,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       message,
     })
 
-    // Also log to console in non-worker mode
-    if (!this.isWorker) {
-      console.log(`  ${message}`)
-    }
+    // Also log to console
+    console.log(`  ${message}`)
   }
 
   // ============================================================================
