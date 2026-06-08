@@ -8,7 +8,7 @@
     "build": "NODE_OPTIONS=--max-old-space-size=8000 next build",
     "dev": "next dev",
     "devsafe": "rm -rf .next && next dev",
-    "start": "next start",
+    "start": "NODE_OPTIONS=--max-http-header-size=65536 next start",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/postinstall.cjs",
