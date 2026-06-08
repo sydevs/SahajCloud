@@ -23,6 +23,7 @@ import { usagePlugin } from '@/plugins/usage'
 import { collections, Managers } from './collections'
 import { globals } from './globals'
 import { tasks } from './jobs'
+import { migrations } from './migrations'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -113,6 +114,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         connectionString: serverEnv.DATABASE_URL,
       },
       push: !isProduction,
+      // Production runs as a long-running container, so apply any pending
+      // migrations in-process on boot (Payload only runs these when
+      // NODE_ENV=production). Dev/test use Drizzle `push` above instead.
+      prodMigrations: migrations,
     }),
     jobs: {
       tasks,
