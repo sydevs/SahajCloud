@@ -31,7 +31,7 @@ export const Regions: CollectionConfig = {
   admin: {
     group: 'Sahaj Atlas',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'level', 'osmId'],
+    defaultColumns: ['name', 'level'],
   },
   hooks: {
     // Inherit eventDefaults (language + timeZone) from the nearest ancestor when blank.
@@ -68,21 +68,23 @@ export const Regions: CollectionConfig = {
               },
             },
             {
-              name: 'osmId',
+              name: 'mapboxId',
               type: 'text',
-              label: 'OpenStreetMap ID',
+              label: 'Location',
               required: true,
               admin: {
+                components: { Field: '@/components/admin/AddressSearchField' },
+                custom: { searchTypes: 'country,region,place,poi' },
                 description:
-                  'This is used to fetch geographic data about this region. Set a value of `custom` to create your own region',
+                  'Search for this place (country, region, city, or venue) to set its geographic identity, or "Enter manually" to provide your own coordinates.',
               },
             },
             {
               type: 'row',
               admin: {
-                // Non-`custom` nodes resolve geometry from `osmId` downstream;
-                // only manual ("custom") nodes carry explicit coordinates.
-                condition: (data) => data?.osmId === 'custom',
+                // Nodes with a Mapbox id resolve geometry from it downstream;
+                // only manually-entered nodes carry explicit coordinates.
+                condition: (data) => data?.mapboxId === 'manual',
               },
               fields: [
                 {

@@ -1785,9 +1785,9 @@ export interface Region {
    */
   subtitle?: string | null;
   /**
-   * This is used to fetch geographic data about this region. Set a value of `custom` to create your own region
+   * Search for this place (country, region, city, or venue) to set its geographic identity, or "Enter manually" to provide your own coordinates.
    */
-  osmId: string;
+  mapboxId: string;
   latitude?: number | null;
   longitude?: number | null;
   /**
@@ -3487,7 +3487,7 @@ export interface RegionsSelect<T extends boolean = true> {
   level?: T;
   name?: T;
   subtitle?: T;
-  osmId?: T;
+  mapboxId?: T;
   latitude?: T;
   longitude?: T;
   radius?: T;

@@ -74,7 +74,10 @@ export function addressFields(options: AddressFieldsOptions = {}): Field {
               name: 'mapboxId',
               type: 'text' as const,
               label: 'Address',
-              admin: { components: { Field: ADDRESS_SEARCH_FIELD } },
+              admin: {
+                components: { Field: ADDRESS_SEARCH_FIELD },
+                custom: { searchTypes: 'address,poi', populateAddress: true },
+              },
             },
           ]
         : []),

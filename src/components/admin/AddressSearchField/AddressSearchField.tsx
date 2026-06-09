@@ -130,17 +130,30 @@ function usePayloadSearchTheme(): MapboxTheme | undefined {
 const MANUAL = 'manual'
 
 /**
- * Field component for the address `mapboxId` field: a Mapbox address search.
- * Selecting a result stores the Mapbox feature id (this field's value) and
- * populates the sibling address fields (street, city, region, country,
- * postCode, latitude, longitude) via the form. The other address fields are
- * hidden until `mapboxId` is set (see `addressFields`), so setting it here via
+ * Mapbox Search Box field component, bound to a `mapboxId` text field — used by
+ * the Event address (`addressFields`) and the Regions location. Selecting a
+ * result stores the Mapbox feature id (this field's value). Two `admin.custom`
+ * options tune it:
+ *  - `searchTypes` — the Mapbox `types` filter (default `address,poi`; Regions
+ *    use `country,region,place,poi`).
+ *  - `populateAddress` — when set, also fills the sibling address fields
+ *    (street/city/region/country/postCode/lat/long) from the result. Off for
+ *    id-only use (Regions store just the id).
+ *
+ * Dependent fields reveal off this field's value (the address siblings in
+ * `addressFields`; the manual-coordinates row in Regions), so writing it via
  * `useField().setValue` is what reveals them. "Enter manually" stores the
- * `manual` sentinel to reveal the empty fields for hand entry; that path is
- * also the fallback when no `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` is configured.
+ * `manual` sentinel — also the fallback when no `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN`
+ * is configured.
  */
 export const AddressSearchField: TextFieldClientComponent = ({ field, path }) => {
-  const { label } = field
+  const { label, admin } = field
+  // `searchTypes`: Mapbox Search Box `types` filter (default address+POI).
+  // `populateAddress`: fill sibling address fields on retrieve (default off —
+  // Regions use this in id-only mode, where there are no address siblings).
+  const config = (admin?.custom ?? {}) as { searchTypes?: string; populateAddress?: boolean }
+  const searchTypes = config.searchTypes ?? 'address,poi'
+
   const { value, setValue } = useField<string>({ path })
   const { dispatchFields } = useForm()
   const theme = usePayloadSearchTheme()
@@ -154,22 +167,24 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path }) =>
   const handleRetrieve = (res: MapboxRetrieveResponse) => {
     const feature = res?.features?.[0]
     if (!feature) return
-    const context = feature.properties?.context
-    setSibling(
-      'street',
-      feature.properties?.address ?? context?.address?.name ?? feature.properties?.name,
-    )
-    setSibling('city', context?.place?.name)
-    setSibling('region', resolveRegionCode(context?.region, context?.country?.country_code))
-    setSibling('country', context?.country?.country_code)
-    setSibling('postCode', context?.postcode?.name)
-    const coordinates = feature.geometry?.coordinates
-    if (coordinates) {
-      setSibling('longitude', coordinates[0])
-      setSibling('latitude', coordinates[1])
+    if (config.populateAddress) {
+      const context = feature.properties?.context
+      setSibling(
+        'street',
+        feature.properties?.address ?? context?.address?.name ?? feature.properties?.name,
+      )
+      setSibling('city', context?.place?.name)
+      setSibling('region', resolveRegionCode(context?.region, context?.country?.country_code))
+      setSibling('country', context?.country?.country_code)
+      setSibling('postCode', context?.postcode?.name)
+      const coordinates = feature.geometry?.coordinates
+      if (coordinates) {
+        setSibling('longitude', coordinates[0])
+        setSibling('latitude', coordinates[1])
+      }
     }
     // Set our own value last: this triggers the form's condition recompute, which
-    // reveals the (now-populated) sibling fields.
+    // reveals dependent fields (the address siblings, or the manual-coordinates row).
     setValue(feature.properties?.mapbox_id ?? MANUAL)
   }
 
@@ -185,7 +200,7 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path }) =>
           accessToken={token}
           onRetrieve={handleRetrieve}
           placeholder="Search for your address…"
-          options={{ types: 'address,poi', language: 'en' }}
+          options={{ types: searchTypes, language: 'en' }}
           theme={theme}
         />
       ) : null}
