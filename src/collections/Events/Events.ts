@@ -8,7 +8,7 @@ import {
   lexicalEditor,
 } from '@payloadcms/richtext-lexical'
 
-import { legacyMigrationFields, scheduleField, urlField } from '@/fields'
+import { addressFields, legacyMigrationFields, scheduleFields, urlField } from '@/fields'
 import { getLanguageOptions } from '@/lib/locales'
 
 import {
@@ -38,7 +38,7 @@ const eventDescriptionEditor = lexicalEditor({
  * Events — Sahaj Atlas events (offline meetups + online sessions), migrated
  * from the Atlas `events` table. Drafts replace Atlas's `published` boolean
  * (Payload owns the publish control). The schedule lives in the project
- * `scheduleField` (which also stores the timezone on its First Date & Time);
+ * `scheduleFields` (which also stores the timezone on its First Date & Time);
  * Atlas `finishDate` maps into its ending (not a standalone field).
  */
 export const Events: CollectionConfig = {
@@ -77,26 +77,23 @@ export const Events: CollectionConfig = {
               },
             },
             {
-              name: 'eventType',
-              type: 'select',
-              required: true,
-              defaultValue: 'offline',
-              options: [...EVENT_TYPE_OPTIONS],
-              admin: { components: { Field: TOGGLE_GROUP_FIELD } },
-            },
-            urlField({
-              name: 'onlineUrl',
-              label: 'Online URL',
-              admin: {
-                condition: (data) => data?.eventType === 'online',
-                description: 'Link attendees join the online event through.',
-              },
-            }),
-            {
               name: 'language',
               type: 'select',
+              required: true,
               options: getLanguageOptions(),
               admin: { description: 'Language this event is conducted in.' },
+            },
+            {
+              type: 'row',
+              fields: [
+                { name: 'contactPhone', type: 'text' },
+                {
+                  name: 'contactName',
+                  type: 'text',
+                  required: true,
+                  admin: { condition: (data) => !!data?.contactPhone },
+                },
+              ],
             },
             {
               name: 'description',
@@ -110,25 +107,12 @@ export const Events: CollectionConfig = {
               hasMany: true,
               admin: { description: 'Photos for this event.' },
             },
-            {
-              name: 'contactInfo',
-              type: 'group',
-              fields: [
-                {
-                  type: 'row',
-                  fields: [
-                    { name: 'name', type: 'text', admin: { width: '50%' } },
-                    { name: 'phone', type: 'text', admin: { width: '50%' } },
-                  ],
-                },
-              ],
-            },
           ],
         },
         {
           label: 'Schedule',
           fields: [
-            scheduleField({
+            scheduleFields({
               label: false,
               required: true,
               hasComplexWeekly: true,
@@ -150,46 +134,23 @@ export const Events: CollectionConfig = {
               admin: { description: 'The area or center this event belongs to.' },
             },
             {
-              name: 'room',
-              type: 'text',
+              name: 'eventType',
+              type: 'select',
+              required: true,
+              defaultValue: 'offline',
+              options: [...EVENT_TYPE_OPTIONS],
+              admin: { components: { Field: TOGGLE_GROUP_FIELD } },
+            },
+            urlField({
+              name: 'onlineUrl',
+              label: 'Online URL',
+              required: true,
               admin: {
-                width: '50%',
-                description: 'Room or floor within the venue, if any.',
+                condition: (data) => data?.eventType === 'online',
+                description: 'Link attendees join the online event through.',
               },
-            },
-            {
-              name: 'address',
-              type: 'group',
-              // Physical address only applies to offline events; online ones
-              // keep `region` (above) but hide the street/coords.
-              admin: { condition: (data) => data?.eventType === 'offline' },
-              fields: [
-                {
-                  name: 'street',
-                  type: 'text',
-                },
-                {
-                  type: 'row',
-                  fields: [
-                    { name: 'city', type: 'text', admin: { width: '25%' } },
-                    { name: 'postCode', type: 'text', admin: { width: '25%' } },
-                    {
-                      name: 'countryCode',
-                      type: 'text',
-                      admin: { width: '25%', description: 'ISO 3166-1 alpha-2.' },
-                    },
-                    { name: 'regionCode', type: 'text', admin: { width: '25%' } },
-                  ],
-                },
-                {
-                  type: 'row',
-                  fields: [
-                    { name: 'latitude', type: 'number', admin: { width: '50%' } },
-                    { name: 'longitude', type: 'number', admin: { width: '50%' } },
-                  ],
-                },
-              ],
-            },
+            }),
+            addressFields({ admin: { condition: (data) => data?.eventType === 'offline' } }),
           ],
         },
         {
@@ -216,7 +177,6 @@ export const Events: CollectionConfig = {
               type: 'number',
               min: 0,
               admin: {
-                width: '50%',
                 description: 'Maximum registrations (blank = unlimited).',
               },
             },

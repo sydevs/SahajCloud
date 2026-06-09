@@ -1,6 +1,4 @@
-import countries from 'i18n-iso-countries'
-import enLocale from 'i18n-iso-countries/langs/en.json'
-
+import { getCountryOptions } from '@/lib/geography'
 import { buildStatusGlobalConfig, type StatusGlobalSpec } from '@/lib/status'
 import { adminOnlyFieldAccess } from '@/plugins/access'
 
@@ -17,11 +15,7 @@ import {
 import { translationsSection } from './sections/translations'
 import { userChoicesSection } from './sections/userChoices'
 
-countries.registerLocale(enLocale)
-
-const COUNTRY_OPTIONS = Object.entries(countries.getNames('en'))
-  .map(([value, label]) => ({ label: label as string, value }))
-  .sort((a, b) => a.label.localeCompare(b.label))
+const COUNTRY_OPTIONS = getCountryOptions()
 
 export const WeMeditateAppStatusSpec: StatusGlobalSpec<WeMeditateAppStatusConfig> = {
   slug: 'wm-app-status',
