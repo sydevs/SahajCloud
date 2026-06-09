@@ -6,7 +6,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
  * Custom-logic coverage for the Phase 2 Atlas collections:
- * - Regions `defaultEventLanguage` ancestor inheritance (afterRead hook)
+ * - Regions `eventDefaults` (language + timeZone) ancestor inheritance (afterRead hook)
  * - Events `title` auto-fill from the street address (beforeChange hook)
  *
  * Built-in Payload behavior (joins, relationships, drafts, nested-docs
@@ -28,11 +28,16 @@ describe('Atlas collections', () => {
     await cleanup?.()
   })
 
-  describe('Regions defaultEventLanguage inheritance', () => {
-    it('inherits the nearest ancestor value when blank, and tracks the nearest', async () => {
+  describe('Regions eventDefaults inheritance', () => {
+    it('inherits language + timeZone from the nearest ancestor when blank, and tracks the nearest', async () => {
       const country = await payload.create({
         collection: 'regions',
-        data: { name: 'Country', level: 'country', osmId: 'c1', defaultEventLanguage: 'en' },
+        data: {
+          name: 'Country',
+          level: 'country',
+          osmId: 'c1',
+          eventDefaults: { language: 'en', timeZone: ['Europe/London'] },
+        },
       })
       const region = await payload.create({
         collection: 'regions',
@@ -43,24 +48,31 @@ describe('Atlas collections', () => {
         data: { name: 'Area', level: 'area', osmId: 'a1', parent: region.id },
       })
 
-      // Neither region nor area set a value → both inherit the country's 'en'.
+      // Neither region nor area set values → both inherit the country's.
       const areaRead = await payload.findByID({ collection: 'regions', id: area.id })
-      expect(areaRead.defaultEventLanguage).toBe('en')
+      expect(areaRead.eventDefaults?.language).toBe('en')
+      expect(areaRead.eventDefaults?.timeZone).toEqual(['Europe/London'])
 
-      // Give the region its own value → it becomes the area's nearest ancestor.
+      // Give the region its own values → it becomes the area's nearest ancestor.
       await payload.update({
         collection: 'regions',
         id: region.id,
-        data: { defaultEventLanguage: 'fr' },
+        data: { eventDefaults: { language: 'fr', timeZone: ['America/New_York'] } },
       })
       const areaAfter = await payload.findByID({ collection: 'regions', id: area.id })
-      expect(areaAfter.defaultEventLanguage).toBe('fr')
+      expect(areaAfter.eventDefaults?.language).toBe('fr')
+      expect(areaAfter.eventDefaults?.timeZone).toEqual(['America/New_York'])
     })
 
     it('keeps an explicit value rather than inheriting', async () => {
       const country = await payload.create({
         collection: 'regions',
-        data: { name: 'Country 2', level: 'country', osmId: 'c2', defaultEventLanguage: 'en' },
+        data: {
+          name: 'Country 2',
+          level: 'country',
+          osmId: 'c2',
+          eventDefaults: { language: 'en' },
+        },
       })
       const area = await payload.create({
         collection: 'regions',
@@ -69,18 +81,55 @@ describe('Atlas collections', () => {
           level: 'area',
           osmId: 'a2',
           parent: country.id,
-          defaultEventLanguage: 'de',
+          eventDefaults: { language: 'de' },
         },
       })
 
       const areaRead = await payload.findByID({ collection: 'regions', id: area.id })
-      expect(areaRead.defaultEventLanguage).toBe('de')
+      expect(areaRead.eventDefaults?.language).toBe('de')
+    })
+
+    it('inherits language and timeZone independently from their nearest setters', async () => {
+      const country = await payload.create({
+        collection: 'regions',
+        data: {
+          name: 'Country I',
+          level: 'country',
+          osmId: 'ci',
+          eventDefaults: { language: 'en', timeZone: ['Europe/London'] },
+        },
+      })
+      // Region sets only language → the area takes language from the region but
+      // timeZone from the country (each field resolves its own nearest setter).
+      const region = await payload.create({
+        collection: 'regions',
+        data: {
+          name: 'Region I',
+          level: 'region',
+          osmId: 'ri',
+          parent: country.id,
+          eventDefaults: { language: 'fr' },
+        },
+      })
+      const area = await payload.create({
+        collection: 'regions',
+        data: { name: 'Area I', level: 'area', osmId: 'ai', parent: region.id },
+      })
+
+      const areaRead = await payload.findByID({ collection: 'regions', id: area.id })
+      expect(areaRead.eventDefaults?.language).toBe('fr')
+      expect(areaRead.eventDefaults?.timeZone).toEqual(['Europe/London'])
     })
 
     it('resolves inheritance across rows in one list read (shared-request memo)', async () => {
       const country = await payload.create({
         collection: 'regions',
-        data: { name: 'Country 3', level: 'country', osmId: 'c3', defaultEventLanguage: 'en' },
+        data: {
+          name: 'Country 3',
+          level: 'country',
+          osmId: 'c3',
+          eventDefaults: { language: 'en' },
+        },
       })
       const blankA = await payload.create({
         collection: 'regions',
@@ -97,7 +146,7 @@ describe('Atlas collections', () => {
           level: 'area',
           osmId: 'a3c',
           parent: country.id,
-          defaultEventLanguage: 'de',
+          eventDefaults: { language: 'de' },
         },
       })
 
@@ -109,7 +158,7 @@ describe('Atlas collections', () => {
         where: { id: { in: [country.id, blankA.id, blankB.id, explicit.id] } },
         pagination: false,
       })
-      const languageById = new Map(docs.map((doc) => [doc.id, doc.defaultEventLanguage]))
+      const languageById = new Map(docs.map((doc) => [doc.id, doc.eventDefaults?.language]))
 
       expect(languageById.get(country.id)).toBe('en')
       expect(languageById.get(blankA.id)).toBe('en')
@@ -128,7 +177,7 @@ describe('Atlas collections', () => {
         data: {
           eventType: 'offline',
           status: 'active',
-          registrationMode: 'native',
+          registrationMode: 'sahaj-atlas',
           manager: managerId,
           address: { street: 'Hall A, Wing 2' },
         },
@@ -145,7 +194,7 @@ describe('Atlas collections', () => {
           title: 'Diwali Special',
           eventType: 'offline',
           status: 'active',
-          registrationMode: 'native',
+          registrationMode: 'sahaj-atlas',
           manager: managerId,
           address: { street: 'Hall A' },
         },
@@ -161,7 +210,7 @@ describe('Atlas collections', () => {
         data: {
           eventType: 'online',
           status: 'active',
-          registrationMode: 'native',
+          registrationMode: 'sahaj-atlas',
           manager: managerId,
         },
       })

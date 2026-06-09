@@ -10,8 +10,8 @@ export interface LanguageOption {
  * alphabetically by English name. Each option's value is the two-letter
  * ISO 639-1 code.
  *
- * Shared by the Atlas Events `languageCode` and Regions
- * `defaultEventLanguage` fields. This is the broad language set — distinct
+ * Shared by the Atlas Events `language` and Regions
+ * `eventDefaults.language` fields. This is the broad language set — distinct
  * from the 16 app `LOCALES` in this folder, which are the locales the CMS
  * itself is translated into.
  */

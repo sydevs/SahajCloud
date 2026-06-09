@@ -17,17 +17,26 @@ export const EVENT_STATUS_OPTIONS = [
   { label: 'Inactive', value: 'inactive' },
 ] as const
 
+/**
+ * Where registrants sign up. `sahaj-atlas` = handled natively in the Atlas app
+ * (registrations stored here); `external` = any third-party link (Meetup,
+ * Eventbrite, Facebook, etc. all collapse into this).
+ */
 export const EVENT_REGISTRATION_MODE_OPTIONS = [
-  { label: 'Native', value: 'native' },
+  { label: 'Sahaj Atlas', value: 'sahaj-atlas' },
   { label: 'External', value: 'external' },
-  { label: 'Meetup', value: 'meetup' },
-  { label: 'Eventbrite', value: 'eventbrite' },
-  { label: 'Facebook', value: 'facebook' },
 ] as const
 
-export const EVENT_REGISTRATION_QUESTION_OPTIONS = [
-  { label: 'Questions', value: 'questions' },
-  { label: 'Experience', value: 'experience' },
-  { label: 'Aspirations', value: 'aspirations' },
-  { label: 'Referral', value: 'referral' },
+/**
+ * Optional questions an event can ask registrants. Rendered as a group of
+ * checkboxes on the Event (each label IS the question shown to the registrant);
+ * checking one includes that question on the registration form. Placeholder
+ * wording — refine per the real registration flow.
+ */
+export const EVENT_REGISTRATION_QUESTIONS = [
+  { name: 'priorExperience', label: 'Have you practised Sahaja Yoga meditation before?' },
+  { name: 'referralSource', label: 'How did you hear about this event?' },
+  { name: 'healthInfo', label: 'Is there anything about your health we should know?' },
+  { name: 'accessibility', label: 'Do you have any accessibility requirements?' },
+  { name: 'guests', label: 'Will you be bringing any guests?' },
 ] as const

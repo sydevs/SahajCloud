@@ -39,3 +39,44 @@
   --box-shadow-m: 0 2px 12px rgba(0, 0, 0, 0.06);
   --box-shadow-s: 0 1px 6px rgba(0, 0, 0, 0.04);
 }
+
+/* ============================================================================
+   4. ADDRESS SEARCH FIELD (AddressSearchField — bound to the `mapboxId` field)
+   ============================================================================ */
+
+/* The Mapbox <SearchBox> renders + themes itself (colors resolved in JS); just
+   give the field room. */
+.field-type.address-search {
+  margin-bottom: var(--base);
+}
+
+.field-type.address-search .field-label {
+  margin-bottom: calc(var(--base) / 4);
+}
+
+/* "Enter manually" link-style toggle, shown until an address is chosen. */
+.address-search__toggle {
+  margin-top: calc(var(--base) / 4);
+  padding: 0;
+  font-size: calc(var(--base-body-size) * 0.85px);
+  color: var(--theme-elevation-600);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.address-search__toggle:hover {
+  color: var(--theme-text);
+}
+
+/* ============================================================================
+   5. STRING SELECT FIELD (StringSelectField — country/region dropdowns)
+   ============================================================================ */
+
+/* A single-value ReactSelect renders bare `.react-select` (Payload only wraps
+   it in the full-width `.react-select-container` on its sortable path), so it
+   doesn't fill its slot like built-in inputs. Force it full width. */
+.field-type.string-select .react-select {
+  width: 100%;
+}

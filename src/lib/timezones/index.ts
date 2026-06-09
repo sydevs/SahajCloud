@@ -19,8 +19,7 @@ export interface TimezoneOption {
  * enum rejects. `defaultTimezones` ships with the pinned payload package,
  * so it is identical everywhere.
  *
- * Shared by the Atlas Regions `timeZone` (multi-select) and Events
- * `address.timeZone` fields.
+ * Used by the Atlas Regions `eventDefaults.timeZone` (multi-select) field.
  *
  * NOTE: this is the curated ~47-zone set (roughly one representative per
  * major UTC offset). If the Phase 3 Atlas importer needs zones beyond it,

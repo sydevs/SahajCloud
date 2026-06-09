@@ -1778,261 +1778,16 @@ export interface Client {
  */
 export interface Region {
   id: number;
-  name: string;
   level: 'country' | 'region' | 'area' | 'center';
+  name: string;
   /**
-   * ISO 3166-1 alpha-2 country code.
+   * Text that appears below the region name in listings
    */
-  countryCode?: string | null;
-  /**
-   * OpenStreetMap id. Accepts sentinels like 'custom' (manual coordinates); centers resolve a real OSM id at import.
-   */
-  osmId: string;
-  /**
-   * Default language for events here. Inherits from the nearest ancestor when left blank.
-   */
-  defaultEventLanguage?:
-    | (
-        | 'ab'
-        | 'aa'
-        | 'af'
-        | 'ak'
-        | 'sq'
-        | 'am'
-        | 'ar'
-        | 'an'
-        | 'hy'
-        | 'as'
-        | 'av'
-        | 'ae'
-        | 'ay'
-        | 'az'
-        | 'bm'
-        | 'ba'
-        | 'eu'
-        | 'be'
-        | 'bn'
-        | 'bi'
-        | 'bs'
-        | 'br'
-        | 'bg'
-        | 'my'
-        | 'ca'
-        | 'ch'
-        | 'ce'
-        | 'ny'
-        | 'zh'
-        | 'cv'
-        | 'kw'
-        | 'co'
-        | 'cr'
-        | 'hr'
-        | 'cs'
-        | 'da'
-        | 'dv'
-        | 'nl'
-        | 'dz'
-        | 'en'
-        | 'eo'
-        | 'et'
-        | 'ee'
-        | 'fo'
-        | 'fj'
-        | 'fi'
-        | 'fr'
-        | 'ff'
-        | 'gl'
-        | 'lg'
-        | 'ka'
-        | 'de'
-        | 'el'
-        | 'gn'
-        | 'gu'
-        | 'ht'
-        | 'ha'
-        | 'he'
-        | 'hz'
-        | 'hi'
-        | 'ho'
-        | 'hu'
-        | 'is'
-        | 'io'
-        | 'ig'
-        | 'id'
-        | 'ia'
-        | 'ie'
-        | 'iu'
-        | 'ik'
-        | 'ga'
-        | 'it'
-        | 'ja'
-        | 'jv'
-        | 'kl'
-        | 'kn'
-        | 'kr'
-        | 'ks'
-        | 'kk'
-        | 'km'
-        | 'ki'
-        | 'rw'
-        | 'rn'
-        | 'kv'
-        | 'kg'
-        | 'ko'
-        | 'ku'
-        | 'kj'
-        | 'ky'
-        | 'lo'
-        | 'la'
-        | 'lv'
-        | 'li'
-        | 'ln'
-        | 'lt'
-        | 'lu'
-        | 'lb'
-        | 'mk'
-        | 'mg'
-        | 'ms'
-        | 'ml'
-        | 'mt'
-        | 'gv'
-        | 'mi'
-        | 'mr'
-        | 'mh'
-        | 'mn'
-        | 'na'
-        | 'nv'
-        | 'ng'
-        | 'ne'
-        | 'nd'
-        | 'se'
-        | 'no'
-        | 'nb'
-        | 'nn'
-        | 'ii'
-        | 'oc'
-        | 'oj'
-        | 'cu'
-        | 'or'
-        | 'om'
-        | 'os'
-        | 'pi'
-        | 'pa'
-        | 'ps'
-        | 'fa'
-        | 'pl'
-        | 'pt'
-        | 'qu'
-        | 'ro'
-        | 'rm'
-        | 'ru'
-        | 'sm'
-        | 'sg'
-        | 'sa'
-        | 'sc'
-        | 'gd'
-        | 'sr'
-        | 'sn'
-        | 'sd'
-        | 'si'
-        | 'sk'
-        | 'sl'
-        | 'so'
-        | 'nr'
-        | 'st'
-        | 'es'
-        | 'su'
-        | 'sw'
-        | 'ss'
-        | 'sv'
-        | 'tl'
-        | 'ty'
-        | 'tg'
-        | 'ta'
-        | 'tt'
-        | 'te'
-        | 'th'
-        | 'bo'
-        | 'ti'
-        | 'to'
-        | 'ts'
-        | 'tn'
-        | 'tr'
-        | 'tk'
-        | 'tw'
-        | 'uk'
-        | 'ur'
-        | 'ug'
-        | 'uz'
-        | 've'
-        | 'vi'
-        | 'vo'
-        | 'wa'
-        | 'cy'
-        | 'fy'
-        | 'wo'
-        | 'xh'
-        | 'yi'
-        | 'yo'
-        | 'za'
-        | 'zu'
-      )
-    | null;
   subtitle?: string | null;
   /**
-   * IANA timezone(s) this region spans.
+   * This is used to fetch geographic data about this region. Set a value of `custom` to create your own region
    */
-  timeZone?:
-    | (
-        | 'Pacific/Midway'
-        | 'Pacific/Niue'
-        | 'Pacific/Honolulu'
-        | 'Pacific/Rarotonga'
-        | 'America/Anchorage'
-        | 'Pacific/Gambier'
-        | 'America/Los_Angeles'
-        | 'America/Tijuana'
-        | 'America/Denver'
-        | 'America/Phoenix'
-        | 'America/Chicago'
-        | 'America/Guatemala'
-        | 'America/New_York'
-        | 'America/Bogota'
-        | 'America/Caracas'
-        | 'America/Santiago'
-        | 'America/Buenos_Aires'
-        | 'America/Sao_Paulo'
-        | 'Atlantic/South_Georgia'
-        | 'Atlantic/Azores'
-        | 'Atlantic/Cape_Verde'
-        | 'Europe/London'
-        | 'Europe/Berlin'
-        | 'Africa/Lagos'
-        | 'Europe/Athens'
-        | 'Africa/Cairo'
-        | 'Europe/Moscow'
-        | 'Asia/Riyadh'
-        | 'Asia/Dubai'
-        | 'Asia/Baku'
-        | 'Asia/Karachi'
-        | 'Asia/Tashkent'
-        | 'Asia/Calcutta'
-        | 'Asia/Dhaka'
-        | 'Asia/Almaty'
-        | 'Asia/Jakarta'
-        | 'Asia/Bangkok'
-        | 'Asia/Shanghai'
-        | 'Asia/Singapore'
-        | 'Asia/Tokyo'
-        | 'Asia/Seoul'
-        | 'Australia/Brisbane'
-        | 'Australia/Sydney'
-        | 'Pacific/Guam'
-        | 'Pacific/Noumea'
-        | 'Pacific/Auckland'
-        | 'Pacific/Fiji'
-      )[]
-    | null;
+  osmId: string;
   latitude?: number | null;
   longitude?: number | null;
   /**
@@ -2043,6 +1798,249 @@ export interface Region {
     docs?: (number | Event)[];
     hasNextPage?: boolean;
     totalDocs?: number;
+  };
+  /**
+   * These fields will be used to set defaults for Events in this region
+   */
+  eventDefaults?: {
+    language?:
+      | (
+          | 'ab'
+          | 'aa'
+          | 'af'
+          | 'ak'
+          | 'sq'
+          | 'am'
+          | 'ar'
+          | 'an'
+          | 'hy'
+          | 'as'
+          | 'av'
+          | 'ae'
+          | 'ay'
+          | 'az'
+          | 'bm'
+          | 'ba'
+          | 'eu'
+          | 'be'
+          | 'bn'
+          | 'bi'
+          | 'bs'
+          | 'br'
+          | 'bg'
+          | 'my'
+          | 'ca'
+          | 'ch'
+          | 'ce'
+          | 'ny'
+          | 'zh'
+          | 'cv'
+          | 'kw'
+          | 'co'
+          | 'cr'
+          | 'hr'
+          | 'cs'
+          | 'da'
+          | 'dv'
+          | 'nl'
+          | 'dz'
+          | 'en'
+          | 'eo'
+          | 'et'
+          | 'ee'
+          | 'fo'
+          | 'fj'
+          | 'fi'
+          | 'fr'
+          | 'ff'
+          | 'gl'
+          | 'lg'
+          | 'ka'
+          | 'de'
+          | 'el'
+          | 'gn'
+          | 'gu'
+          | 'ht'
+          | 'ha'
+          | 'he'
+          | 'hz'
+          | 'hi'
+          | 'ho'
+          | 'hu'
+          | 'is'
+          | 'io'
+          | 'ig'
+          | 'id'
+          | 'ia'
+          | 'ie'
+          | 'iu'
+          | 'ik'
+          | 'ga'
+          | 'it'
+          | 'ja'
+          | 'jv'
+          | 'kl'
+          | 'kn'
+          | 'kr'
+          | 'ks'
+          | 'kk'
+          | 'km'
+          | 'ki'
+          | 'rw'
+          | 'rn'
+          | 'kv'
+          | 'kg'
+          | 'ko'
+          | 'ku'
+          | 'kj'
+          | 'ky'
+          | 'lo'
+          | 'la'
+          | 'lv'
+          | 'li'
+          | 'ln'
+          | 'lt'
+          | 'lu'
+          | 'lb'
+          | 'mk'
+          | 'mg'
+          | 'ms'
+          | 'ml'
+          | 'mt'
+          | 'gv'
+          | 'mi'
+          | 'mr'
+          | 'mh'
+          | 'mn'
+          | 'na'
+          | 'nv'
+          | 'ng'
+          | 'ne'
+          | 'nd'
+          | 'se'
+          | 'no'
+          | 'nb'
+          | 'nn'
+          | 'ii'
+          | 'oc'
+          | 'oj'
+          | 'cu'
+          | 'or'
+          | 'om'
+          | 'os'
+          | 'pi'
+          | 'pa'
+          | 'ps'
+          | 'fa'
+          | 'pl'
+          | 'pt'
+          | 'qu'
+          | 'ro'
+          | 'rm'
+          | 'ru'
+          | 'sm'
+          | 'sg'
+          | 'sa'
+          | 'sc'
+          | 'gd'
+          | 'sr'
+          | 'sn'
+          | 'sd'
+          | 'si'
+          | 'sk'
+          | 'sl'
+          | 'so'
+          | 'nr'
+          | 'st'
+          | 'es'
+          | 'su'
+          | 'sw'
+          | 'ss'
+          | 'sv'
+          | 'tl'
+          | 'ty'
+          | 'tg'
+          | 'ta'
+          | 'tt'
+          | 'te'
+          | 'th'
+          | 'bo'
+          | 'ti'
+          | 'to'
+          | 'ts'
+          | 'tn'
+          | 'tr'
+          | 'tk'
+          | 'tw'
+          | 'uk'
+          | 'ur'
+          | 'ug'
+          | 'uz'
+          | 've'
+          | 'vi'
+          | 'vo'
+          | 'wa'
+          | 'cy'
+          | 'fy'
+          | 'wo'
+          | 'xh'
+          | 'yi'
+          | 'yo'
+          | 'za'
+          | 'zu'
+        )
+      | null;
+    timeZone?:
+      | (
+          | 'Pacific/Midway'
+          | 'Pacific/Niue'
+          | 'Pacific/Honolulu'
+          | 'Pacific/Rarotonga'
+          | 'America/Anchorage'
+          | 'Pacific/Gambier'
+          | 'America/Los_Angeles'
+          | 'America/Tijuana'
+          | 'America/Denver'
+          | 'America/Phoenix'
+          | 'America/Chicago'
+          | 'America/Guatemala'
+          | 'America/New_York'
+          | 'America/Bogota'
+          | 'America/Caracas'
+          | 'America/Santiago'
+          | 'America/Buenos_Aires'
+          | 'America/Sao_Paulo'
+          | 'Atlantic/South_Georgia'
+          | 'Atlantic/Azores'
+          | 'Atlantic/Cape_Verde'
+          | 'Europe/London'
+          | 'Europe/Berlin'
+          | 'Africa/Lagos'
+          | 'Europe/Athens'
+          | 'Africa/Cairo'
+          | 'Europe/Moscow'
+          | 'Asia/Riyadh'
+          | 'Asia/Dubai'
+          | 'Asia/Baku'
+          | 'Asia/Karachi'
+          | 'Asia/Tashkent'
+          | 'Asia/Calcutta'
+          | 'Asia/Dhaka'
+          | 'Asia/Almaty'
+          | 'Asia/Jakarta'
+          | 'Asia/Bangkok'
+          | 'Asia/Shanghai'
+          | 'Asia/Singapore'
+          | 'Asia/Tokyo'
+          | 'Asia/Seoul'
+          | 'Australia/Brisbane'
+          | 'Australia/Sydney'
+          | 'Pacific/Guam'
+          | 'Pacific/Noumea'
+          | 'Pacific/Auckland'
+          | 'Pacific/Fiji'
+        )[]
+      | null;
   };
   legacyId?: number | null;
   legacyData?:
@@ -2342,21 +2340,22 @@ export interface Event {
    */
   onlineUrl?: string | null;
   address?: {
+    mapboxId?: string | null;
     street?: string | null;
     /**
      * Room or floor within the venue, if any.
      */
     room?: string | null;
-    city?: string | null;
     postCode?: string | null;
     country?: string | null;
     region?: string | null;
+    city?: string | null;
     latitude?: number | null;
     longitude?: number | null;
   };
-  registrationMode: 'native' | 'external' | 'meetup' | 'eventbrite' | 'facebook';
+  registrationMode: 'sahaj-atlas' | 'external';
   /**
-   * External registration link (non-native modes).
+   * External registration link.
    */
   registrationUrl?: string | null;
   /**
@@ -2364,9 +2363,15 @@ export interface Event {
    */
   registrationLimit?: number | null;
   /**
-   * Which optional questions to ask registrants.
+   * Optional questions to ask registrants — each enabled question appears on the registration form.
    */
-  registrationQuestions?: ('questions' | 'experience' | 'aspirations' | 'referral')[] | null;
+  registrationQuestions?: {
+    priorExperience?: boolean | null;
+    referralSource?: boolean | null;
+    healthInfo?: boolean | null;
+    accessibility?: boolean | null;
+    guests?: boolean | null;
+  };
   registrations?: {
     docs?: (number | Registration)[];
     hasNextPage?: boolean;
@@ -3479,17 +3484,20 @@ export interface AppCardsSelect<T extends boolean = true> {
  * via the `definition` "regions_select".
  */
 export interface RegionsSelect<T extends boolean = true> {
-  name?: T;
   level?: T;
-  countryCode?: T;
-  osmId?: T;
-  defaultEventLanguage?: T;
+  name?: T;
   subtitle?: T;
-  timeZone?: T;
+  osmId?: T;
   latitude?: T;
   longitude?: T;
   radius?: T;
   events?: T;
+  eventDefaults?:
+    | T
+    | {
+        language?: T;
+        timeZone?: T;
+      };
   legacyId?: T;
   legacyData?: T;
   parent?: T;
@@ -3548,19 +3556,28 @@ export interface EventsSelect<T extends boolean = true> {
   address?:
     | T
     | {
+        mapboxId?: T;
         street?: T;
         room?: T;
-        city?: T;
         postCode?: T;
         country?: T;
         region?: T;
+        city?: T;
         latitude?: T;
         longitude?: T;
       };
   registrationMode?: T;
   registrationUrl?: T;
   registrationLimit?: T;
-  registrationQuestions?: T;
+  registrationQuestions?:
+    | T
+    | {
+        priorExperience?: T;
+        referralSource?: T;
+        healthInfo?: T;
+        accessibility?: T;
+        guests?: T;
+      };
   registrations?: T;
   manager?: T;
   status?: T;

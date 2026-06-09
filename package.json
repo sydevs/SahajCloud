@@ -31,6 +31,7 @@
     "@js-temporal/polyfill": "^0.5.1",
     "@lexical/react": "0.41.0",
     "@lexical/rich-text": "0.41.0",
+    "@mapbox/search-js-react": "^1.5.1",
     "@payloadcms/db-postgres": "^3.85.0",
     "@payloadcms/email-nodemailer": "^3.85.0",
     "@payloadcms/next": "^3.85.0",

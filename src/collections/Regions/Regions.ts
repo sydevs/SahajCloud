@@ -4,7 +4,7 @@ import { legacyMigrationFields } from '@/fields'
 import { getLanguageOptions } from '@/lib/locales'
 import { getTimezoneOptions } from '@/lib/timezones'
 
-import { defaultEventLanguageFallback } from './hooks/defaultEventLanguageFallback'
+import { eventDefaultsFallback } from './hooks/eventDefaultsFallback'
 
 /**
  * The four geo levels of the Atlas region tree. Country → Region → Area form
@@ -31,11 +31,11 @@ export const Regions: CollectionConfig = {
   admin: {
     group: 'Sahaj Atlas',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'level', 'countryCode'],
+    defaultColumns: ['name', 'level', 'osmId'],
   },
   hooks: {
-    // Inherit defaultEventLanguage from the nearest ancestor when blank.
-    afterRead: [defaultEventLanguageFallback],
+    // Inherit eventDefaults (language + timeZone) from the nearest ancestor when blank.
+    afterRead: [eventDefaultsFallback],
   },
   fields: [
     {
@@ -44,11 +44,6 @@ export const Regions: CollectionConfig = {
         {
           label: 'Details',
           fields: [
-            {
-              name: 'name',
-              type: 'text',
-              required: true,
-            },
             {
               name: 'level',
               type: 'select',
@@ -60,55 +55,26 @@ export const Regions: CollectionConfig = {
               },
             },
             {
-              type: 'row',
-              fields: [
-                {
-                  name: 'countryCode',
-                  type: 'text',
-                  admin: {
-                    width: '50%',
-                    description: 'ISO 3166-1 alpha-2 country code.',
-                  },
-                },
-                {
-                  name: 'osmId',
-                  type: 'text',
-                  required: true,
-                  admin: {
-                    width: '50%',
-                    description:
-                      "OpenStreetMap id. Accepts sentinels like 'custom' (manual coordinates); centers resolve a real OSM id at import.",
-                  },
-                },
-              ],
-            },
-            {
-              name: 'defaultEventLanguage',
-              type: 'select',
-              options: getLanguageOptions(),
-              // Inheritance is applied by the collection-level afterRead hook
-              // (needs the fully-assembled breadcrumbs array).
-              admin: {
-                description:
-                  'Default language for events here. Inherits from the nearest ancestor when left blank.',
-              },
+              name: 'name',
+              type: 'text',
+              required: true,
             },
             {
               name: 'subtitle',
               type: 'text',
-            },
-          ],
-        },
-        {
-          label: 'Location',
-          fields: [
-            {
-              name: 'timeZone',
-              type: 'select',
-              hasMany: true,
-              options: getTimezoneOptions(),
               admin: {
-                description: 'IANA timezone(s) this region spans.',
+                description: 'Text that appears below the region name in listings',
+                condition: (data) => ['area', 'center'].includes(data?.level as string),
+              },
+            },
+            {
+              name: 'osmId',
+              type: 'text',
+              label: 'OpenStreetMap ID',
+              required: true,
+              admin: {
+                description:
+                  'This is used to fetch geographic data about this region. Set a value of `custom` to create your own region',
               },
             },
             {
@@ -122,29 +88,65 @@ export const Regions: CollectionConfig = {
                 {
                   name: 'latitude',
                   type: 'number',
-                  admin: { width: '33%' },
                 },
                 {
                   name: 'longitude',
                   type: 'number',
-                  admin: { width: '33%' },
                 },
                 {
                   name: 'radius',
                   type: 'number',
-                  admin: { width: '33%', description: 'Radius in meters.' },
+                  admin: { description: 'Radius in meters.' },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          label: 'Events',
+          fields: [
+            {
+              name: 'events',
+              type: 'join',
+              collection: 'events',
+              on: 'region',
+            },
+            {
+              name: 'eventDefaults',
+              type: 'group',
+              admin: {
+                description: 'These fields will be used to set defaults for Events in this region',
+              },
+              fields: [
+                {
+                  type: 'row',
+                  fields: [
+                    {
+                      name: 'language',
+                      type: 'select',
+                      options: getLanguageOptions(),
+                      // Inheritance is applied by the collection-level afterRead hook
+                      // (needs the fully-assembled breadcrumbs array).
+                      admin: {
+                        width: '50%',
+                      },
+                    },
+                    {
+                      name: 'timeZone',
+                      type: 'select',
+                      hasMany: true,
+                      options: getTimezoneOptions(),
+                      admin: {
+                        width: '50%',
+                      },
+                    },
+                  ],
                 },
               ],
             },
           ],
         },
       ],
-    },
-    {
-      name: 'events',
-      type: 'join',
-      collection: 'events',
-      on: 'region',
     },
     ...legacyMigrationFields(),
   ],

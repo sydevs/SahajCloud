@@ -53,7 +53,13 @@ export const StringSelectField: TextFieldClientComponent = ({ field, path, readO
   const disabled = Boolean(readOnly) || (isRegion && !countryValue)
   const selected = options.find((option) => option.value === value) ?? null
 
-  const fieldClasses = ['field-type', 'select', showError && 'error', disabled && 'read-only']
+  const fieldClasses = [
+    'field-type',
+    'select',
+    'string-select',
+    showError && 'error',
+    disabled && 'read-only',
+  ]
     .filter(Boolean)
     .join(' ')
 

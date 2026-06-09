@@ -13,7 +13,7 @@ import { getLanguageOptions } from '@/lib/locales'
 
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
-  EVENT_REGISTRATION_QUESTION_OPTIONS,
+  EVENT_REGISTRATION_QUESTIONS,
   EVENT_STATUS_OPTIONS,
   EVENT_TYPE_OPTIONS,
 } from './eventOptions'
@@ -150,7 +150,11 @@ export const Events: CollectionConfig = {
                 description: 'Link attendees join the online event through.',
               },
             }),
-            addressFields({ admin: { condition: (data) => data?.eventType === 'offline' } }),
+            addressFields({
+              label: false,
+              required: ['street', 'city', 'country', 'latitude', 'longitude'],
+              admin: { condition: (data) => data?.eventType === 'offline' },
+            }),
           ],
         },
         {
@@ -160,7 +164,7 @@ export const Events: CollectionConfig = {
               name: 'registrationMode',
               type: 'select',
               required: true,
-              defaultValue: 'native',
+              defaultValue: 'sahaj-atlas',
               options: [...EVENT_REGISTRATION_MODE_OPTIONS],
               admin: { components: { Field: TOGGLE_GROUP_FIELD } },
             },
@@ -168,8 +172,8 @@ export const Events: CollectionConfig = {
               name: 'registrationUrl',
               label: 'Registration URL',
               admin: {
-                condition: (data) => data?.registrationMode !== 'native',
-                description: 'External registration link (non-native modes).',
+                condition: (data) => data?.registrationMode === 'external',
+                description: 'External registration link.',
               },
             }),
             {
@@ -182,13 +186,16 @@ export const Events: CollectionConfig = {
             },
             {
               name: 'registrationQuestions',
-              type: 'select',
-              hasMany: true,
-              options: [...EVENT_REGISTRATION_QUESTION_OPTIONS],
+              type: 'group',
               admin: {
-                description: 'Which optional questions to ask registrants.',
-                components: { Field: TOGGLE_GROUP_FIELD },
+                description:
+                  'Optional questions to ask registrants — each enabled question appears on the registration form.',
               },
+              fields: EVENT_REGISTRATION_QUESTIONS.map((question) => ({
+                name: question.name,
+                type: 'checkbox' as const,
+                label: question.label,
+              })),
             },
             {
               name: 'registrations',
