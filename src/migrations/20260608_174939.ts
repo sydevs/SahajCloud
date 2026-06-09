@@ -8,33 +8,27 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum_events_schedule_weekdays" AS ENUM('MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU');
   CREATE TYPE "public"."enum_events_registration_questions" AS ENUM('questions', 'experience', 'aspirations', 'referral');
   CREATE TYPE "public"."enum_events_event_type" AS ENUM('offline', 'online');
-  CREATE TYPE "public"."enum_events_category" AS ENUM('dropin', 'single', 'course', 'festival', 'concert');
-  CREATE TYPE "public"."enum_events_language_code" AS ENUM('ab', 'aa', 'af', 'ak', 'sq', 'am', 'ar', 'an', 'hy', 'as', 'av', 'ae', 'ay', 'az', 'bm', 'ba', 'eu', 'be', 'bn', 'bi', 'bs', 'br', 'bg', 'my', 'ca', 'ch', 'ce', 'ny', 'zh', 'cv', 'kw', 'co', 'cr', 'hr', 'cs', 'da', 'dv', 'nl', 'dz', 'en', 'eo', 'et', 'ee', 'fo', 'fj', 'fi', 'fr', 'ff', 'gl', 'lg', 'ka', 'de', 'el', 'gn', 'gu', 'ht', 'ha', 'he', 'hz', 'hi', 'ho', 'hu', 'is', 'io', 'ig', 'id', 'ia', 'ie', 'iu', 'ik', 'ga', 'it', 'ja', 'jv', 'kl', 'kn', 'kr', 'ks', 'kk', 'km', 'ki', 'rw', 'rn', 'kv', 'kg', 'ko', 'ku', 'kj', 'ky', 'lo', 'la', 'lv', 'li', 'ln', 'lt', 'lu', 'lb', 'mk', 'mg', 'ms', 'ml', 'mt', 'gv', 'mi', 'mr', 'mh', 'mn', 'na', 'nv', 'ng', 'ne', 'nd', 'se', 'no', 'nb', 'nn', 'ii', 'oc', 'oj', 'cu', 'or', 'om', 'os', 'pi', 'pa', 'ps', 'fa', 'pl', 'pt', 'qu', 'ro', 'rm', 'ru', 'sm', 'sg', 'sa', 'sc', 'gd', 'sr', 'sn', 'sd', 'si', 'sk', 'sl', 'so', 'nr', 'st', 'es', 'su', 'sw', 'ss', 'sv', 'tl', 'ty', 'tg', 'ta', 'tt', 'te', 'th', 'bo', 'ti', 'to', 'ts', 'tn', 'tr', 'tk', 'tw', 'uk', 'ur', 'ug', 'uz', 've', 'vi', 'vo', 'wa', 'cy', 'fy', 'wo', 'xh', 'yi', 'yo', 'za', 'zu');
+  CREATE TYPE "public"."enum_events_language" AS ENUM('ab', 'aa', 'af', 'ak', 'sq', 'am', 'ar', 'an', 'hy', 'as', 'av', 'ae', 'ay', 'az', 'bm', 'ba', 'eu', 'be', 'bn', 'bi', 'bs', 'br', 'bg', 'my', 'ca', 'ch', 'ce', 'ny', 'zh', 'cv', 'kw', 'co', 'cr', 'hr', 'cs', 'da', 'dv', 'nl', 'dz', 'en', 'eo', 'et', 'ee', 'fo', 'fj', 'fi', 'fr', 'ff', 'gl', 'lg', 'ka', 'de', 'el', 'gn', 'gu', 'ht', 'ha', 'he', 'hz', 'hi', 'ho', 'hu', 'is', 'io', 'ig', 'id', 'ia', 'ie', 'iu', 'ik', 'ga', 'it', 'ja', 'jv', 'kl', 'kn', 'kr', 'ks', 'kk', 'km', 'ki', 'rw', 'rn', 'kv', 'kg', 'ko', 'ku', 'kj', 'ky', 'lo', 'la', 'lv', 'li', 'ln', 'lt', 'lu', 'lb', 'mk', 'mg', 'ms', 'ml', 'mt', 'gv', 'mi', 'mr', 'mh', 'mn', 'na', 'nv', 'ng', 'ne', 'nd', 'se', 'no', 'nb', 'nn', 'ii', 'oc', 'oj', 'cu', 'or', 'om', 'os', 'pi', 'pa', 'ps', 'fa', 'pl', 'pt', 'qu', 'ro', 'rm', 'ru', 'sm', 'sg', 'sa', 'sc', 'gd', 'sr', 'sn', 'sd', 'si', 'sk', 'sl', 'so', 'nr', 'st', 'es', 'su', 'sw', 'ss', 'sv', 'tl', 'ty', 'tg', 'ta', 'tt', 'te', 'th', 'bo', 'ti', 'to', 'ts', 'tn', 'tr', 'tk', 'tw', 'uk', 'ur', 'ug', 'uz', 've', 'vi', 'vo', 'wa', 'cy', 'fy', 'wo', 'xh', 'yi', 'yo', 'za', 'zu');
   CREATE TYPE "public"."enum_events_schedule_firstdate_tz" AS ENUM('Pacific/Midway', 'Pacific/Niue', 'Pacific/Honolulu', 'Pacific/Rarotonga', 'America/Anchorage', 'Pacific/Gambier', 'America/Los_Angeles', 'America/Tijuana', 'America/Denver', 'America/Phoenix', 'America/Chicago', 'America/Guatemala', 'America/New_York', 'America/Bogota', 'America/Caracas', 'America/Santiago', 'America/Buenos_Aires', 'America/Sao_Paulo', 'Atlantic/South_Georgia', 'Atlantic/Azores', 'Atlantic/Cape_Verde', 'Europe/London', 'Europe/Berlin', 'Africa/Lagos', 'Europe/Athens', 'Africa/Cairo', 'Europe/Moscow', 'Asia/Riyadh', 'Asia/Dubai', 'Asia/Baku', 'Asia/Karachi', 'Asia/Tashkent', 'Asia/Calcutta', 'Asia/Dhaka', 'Asia/Almaty', 'Asia/Jakarta', 'Asia/Bangkok', 'Asia/Shanghai', 'Asia/Singapore', 'Asia/Tokyo', 'Asia/Seoul', 'Australia/Brisbane', 'Australia/Sydney', 'Pacific/Guam', 'Pacific/Noumea', 'Pacific/Auckland', 'Pacific/Fiji');
   CREATE TYPE "public"."enum_events_schedule_recurrence_type" AS ENUM('DAILY', 'WEEKLY', 'MONTHLY');
   CREATE TYPE "public"."enum_events_schedule_monthly_mode" AS ENUM('date', 'weekday');
   CREATE TYPE "public"."enum_events_schedule_week_number" AS ENUM('1', '2', '3', '4', '-1');
   CREATE TYPE "public"."enum_events_schedule_weekday_of_month" AS ENUM('MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU');
   CREATE TYPE "public"."enum_events_schedule_ending_type" AS ENUM('count', 'until');
-  CREATE TYPE "public"."enum_events_address_time_zone" AS ENUM('Pacific/Midway', 'Pacific/Niue', 'Pacific/Honolulu', 'Pacific/Rarotonga', 'America/Anchorage', 'Pacific/Gambier', 'America/Los_Angeles', 'America/Tijuana', 'America/Denver', 'America/Phoenix', 'America/Chicago', 'America/Guatemala', 'America/New_York', 'America/Bogota', 'America/Caracas', 'America/Santiago', 'America/Buenos_Aires', 'America/Sao_Paulo', 'Atlantic/South_Georgia', 'Atlantic/Azores', 'Atlantic/Cape_Verde', 'Europe/London', 'Europe/Berlin', 'Africa/Lagos', 'Europe/Athens', 'Africa/Cairo', 'Europe/Moscow', 'Asia/Riyadh', 'Asia/Dubai', 'Asia/Baku', 'Asia/Karachi', 'Asia/Tashkent', 'Asia/Calcutta', 'Asia/Dhaka', 'Asia/Almaty', 'Asia/Jakarta', 'Asia/Bangkok', 'Asia/Shanghai', 'Asia/Singapore', 'Asia/Tokyo', 'Asia/Seoul', 'Australia/Brisbane', 'Australia/Sydney', 'Pacific/Guam', 'Pacific/Noumea', 'Pacific/Auckland', 'Pacific/Fiji');
   CREATE TYPE "public"."enum_events_registration_mode" AS ENUM('native', 'external', 'meetup', 'eventbrite', 'facebook');
-  CREATE TYPE "public"."enum_events_registration_notification" AS ENUM('digest', 'immediate', 'disabled');
   CREATE TYPE "public"."enum_events_activity_status" AS ENUM('active', 'expired', 'inactive');
   CREATE TYPE "public"."enum_events_status" AS ENUM('draft', 'published');
   CREATE TYPE "public"."enum__events_v_version_schedule_weekdays" AS ENUM('MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU');
   CREATE TYPE "public"."enum__events_v_version_registration_questions" AS ENUM('questions', 'experience', 'aspirations', 'referral');
   CREATE TYPE "public"."enum__events_v_version_event_type" AS ENUM('offline', 'online');
-  CREATE TYPE "public"."enum__events_v_version_category" AS ENUM('dropin', 'single', 'course', 'festival', 'concert');
-  CREATE TYPE "public"."enum__events_v_version_language_code" AS ENUM('ab', 'aa', 'af', 'ak', 'sq', 'am', 'ar', 'an', 'hy', 'as', 'av', 'ae', 'ay', 'az', 'bm', 'ba', 'eu', 'be', 'bn', 'bi', 'bs', 'br', 'bg', 'my', 'ca', 'ch', 'ce', 'ny', 'zh', 'cv', 'kw', 'co', 'cr', 'hr', 'cs', 'da', 'dv', 'nl', 'dz', 'en', 'eo', 'et', 'ee', 'fo', 'fj', 'fi', 'fr', 'ff', 'gl', 'lg', 'ka', 'de', 'el', 'gn', 'gu', 'ht', 'ha', 'he', 'hz', 'hi', 'ho', 'hu', 'is', 'io', 'ig', 'id', 'ia', 'ie', 'iu', 'ik', 'ga', 'it', 'ja', 'jv', 'kl', 'kn', 'kr', 'ks', 'kk', 'km', 'ki', 'rw', 'rn', 'kv', 'kg', 'ko', 'ku', 'kj', 'ky', 'lo', 'la', 'lv', 'li', 'ln', 'lt', 'lu', 'lb', 'mk', 'mg', 'ms', 'ml', 'mt', 'gv', 'mi', 'mr', 'mh', 'mn', 'na', 'nv', 'ng', 'ne', 'nd', 'se', 'no', 'nb', 'nn', 'ii', 'oc', 'oj', 'cu', 'or', 'om', 'os', 'pi', 'pa', 'ps', 'fa', 'pl', 'pt', 'qu', 'ro', 'rm', 'ru', 'sm', 'sg', 'sa', 'sc', 'gd', 'sr', 'sn', 'sd', 'si', 'sk', 'sl', 'so', 'nr', 'st', 'es', 'su', 'sw', 'ss', 'sv', 'tl', 'ty', 'tg', 'ta', 'tt', 'te', 'th', 'bo', 'ti', 'to', 'ts', 'tn', 'tr', 'tk', 'tw', 'uk', 'ur', 'ug', 'uz', 've', 'vi', 'vo', 'wa', 'cy', 'fy', 'wo', 'xh', 'yi', 'yo', 'za', 'zu');
+  CREATE TYPE "public"."enum__events_v_version_language" AS ENUM('ab', 'aa', 'af', 'ak', 'sq', 'am', 'ar', 'an', 'hy', 'as', 'av', 'ae', 'ay', 'az', 'bm', 'ba', 'eu', 'be', 'bn', 'bi', 'bs', 'br', 'bg', 'my', 'ca', 'ch', 'ce', 'ny', 'zh', 'cv', 'kw', 'co', 'cr', 'hr', 'cs', 'da', 'dv', 'nl', 'dz', 'en', 'eo', 'et', 'ee', 'fo', 'fj', 'fi', 'fr', 'ff', 'gl', 'lg', 'ka', 'de', 'el', 'gn', 'gu', 'ht', 'ha', 'he', 'hz', 'hi', 'ho', 'hu', 'is', 'io', 'ig', 'id', 'ia', 'ie', 'iu', 'ik', 'ga', 'it', 'ja', 'jv', 'kl', 'kn', 'kr', 'ks', 'kk', 'km', 'ki', 'rw', 'rn', 'kv', 'kg', 'ko', 'ku', 'kj', 'ky', 'lo', 'la', 'lv', 'li', 'ln', 'lt', 'lu', 'lb', 'mk', 'mg', 'ms', 'ml', 'mt', 'gv', 'mi', 'mr', 'mh', 'mn', 'na', 'nv', 'ng', 'ne', 'nd', 'se', 'no', 'nb', 'nn', 'ii', 'oc', 'oj', 'cu', 'or', 'om', 'os', 'pi', 'pa', 'ps', 'fa', 'pl', 'pt', 'qu', 'ro', 'rm', 'ru', 'sm', 'sg', 'sa', 'sc', 'gd', 'sr', 'sn', 'sd', 'si', 'sk', 'sl', 'so', 'nr', 'st', 'es', 'su', 'sw', 'ss', 'sv', 'tl', 'ty', 'tg', 'ta', 'tt', 'te', 'th', 'bo', 'ti', 'to', 'ts', 'tn', 'tr', 'tk', 'tw', 'uk', 'ur', 'ug', 'uz', 've', 'vi', 'vo', 'wa', 'cy', 'fy', 'wo', 'xh', 'yi', 'yo', 'za', 'zu');
   CREATE TYPE "public"."enum__events_v_version_schedule_firstdate_tz" AS ENUM('Pacific/Midway', 'Pacific/Niue', 'Pacific/Honolulu', 'Pacific/Rarotonga', 'America/Anchorage', 'Pacific/Gambier', 'America/Los_Angeles', 'America/Tijuana', 'America/Denver', 'America/Phoenix', 'America/Chicago', 'America/Guatemala', 'America/New_York', 'America/Bogota', 'America/Caracas', 'America/Santiago', 'America/Buenos_Aires', 'America/Sao_Paulo', 'Atlantic/South_Georgia', 'Atlantic/Azores', 'Atlantic/Cape_Verde', 'Europe/London', 'Europe/Berlin', 'Africa/Lagos', 'Europe/Athens', 'Africa/Cairo', 'Europe/Moscow', 'Asia/Riyadh', 'Asia/Dubai', 'Asia/Baku', 'Asia/Karachi', 'Asia/Tashkent', 'Asia/Calcutta', 'Asia/Dhaka', 'Asia/Almaty', 'Asia/Jakarta', 'Asia/Bangkok', 'Asia/Shanghai', 'Asia/Singapore', 'Asia/Tokyo', 'Asia/Seoul', 'Australia/Brisbane', 'Australia/Sydney', 'Pacific/Guam', 'Pacific/Noumea', 'Pacific/Auckland', 'Pacific/Fiji');
   CREATE TYPE "public"."enum__events_v_version_schedule_recurrence_type" AS ENUM('DAILY', 'WEEKLY', 'MONTHLY');
   CREATE TYPE "public"."enum__events_v_version_schedule_monthly_mode" AS ENUM('date', 'weekday');
   CREATE TYPE "public"."enum__events_v_version_schedule_week_number" AS ENUM('1', '2', '3', '4', '-1');
   CREATE TYPE "public"."enum__events_v_version_schedule_weekday_of_month" AS ENUM('MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU');
   CREATE TYPE "public"."enum__events_v_version_schedule_ending_type" AS ENUM('count', 'until');
-  CREATE TYPE "public"."enum__events_v_version_address_time_zone" AS ENUM('Pacific/Midway', 'Pacific/Niue', 'Pacific/Honolulu', 'Pacific/Rarotonga', 'America/Anchorage', 'Pacific/Gambier', 'America/Los_Angeles', 'America/Tijuana', 'America/Denver', 'America/Phoenix', 'America/Chicago', 'America/Guatemala', 'America/New_York', 'America/Bogota', 'America/Caracas', 'America/Santiago', 'America/Buenos_Aires', 'America/Sao_Paulo', 'Atlantic/South_Georgia', 'Atlantic/Azores', 'Atlantic/Cape_Verde', 'Europe/London', 'Europe/Berlin', 'Africa/Lagos', 'Europe/Athens', 'Africa/Cairo', 'Europe/Moscow', 'Asia/Riyadh', 'Asia/Dubai', 'Asia/Baku', 'Asia/Karachi', 'Asia/Tashkent', 'Asia/Calcutta', 'Asia/Dhaka', 'Asia/Almaty', 'Asia/Jakarta', 'Asia/Bangkok', 'Asia/Shanghai', 'Asia/Singapore', 'Asia/Tokyo', 'Asia/Seoul', 'Australia/Brisbane', 'Australia/Sydney', 'Pacific/Guam', 'Pacific/Noumea', 'Pacific/Auckland', 'Pacific/Fiji');
   CREATE TYPE "public"."enum__events_v_version_registration_mode" AS ENUM('native', 'external', 'meetup', 'eventbrite', 'facebook');
-  CREATE TYPE "public"."enum__events_v_version_registration_notification" AS ENUM('digest', 'immediate', 'disabled');
   CREATE TYPE "public"."enum__events_v_version_status" AS ENUM('draft', 'published');
   CREATE TYPE "public"."enum__events_v_published_locale" AS ENUM('en', 'es', 'de', 'it', 'fr', 'ru', 'ro', 'cs', 'uk', 'el', 'hy', 'pl', 'pt-br', 'fa', 'bg', 'tr');
   CREATE TYPE "public"."enum_registrations_startingat_tz" AS ENUM('Pacific/Midway', 'Pacific/Niue', 'Pacific/Honolulu', 'Pacific/Rarotonga', 'America/Anchorage', 'Pacific/Gambier', 'America/Los_Angeles', 'America/Tijuana', 'America/Denver', 'America/Phoenix', 'America/Chicago', 'America/Guatemala', 'America/New_York', 'America/Bogota', 'America/Caracas', 'America/Santiago', 'America/Buenos_Aires', 'America/Sao_Paulo', 'Atlantic/South_Georgia', 'Atlantic/Azores', 'Atlantic/Cape_Verde', 'Europe/London', 'Europe/Berlin', 'Africa/Lagos', 'Europe/Athens', 'Africa/Cairo', 'Europe/Moscow', 'Asia/Riyadh', 'Asia/Dubai', 'Asia/Baku', 'Asia/Karachi', 'Asia/Tashkent', 'Asia/Calcutta', 'Asia/Dhaka', 'Asia/Almaty', 'Asia/Jakarta', 'Asia/Bangkok', 'Asia/Shanghai', 'Asia/Singapore', 'Asia/Tokyo', 'Asia/Seoul', 'Australia/Brisbane', 'Australia/Sydney', 'Pacific/Guam', 'Pacific/Noumea', 'Pacific/Auckland', 'Pacific/Fiji');
@@ -100,10 +94,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"id" serial PRIMARY KEY NOT NULL,
   	"event_type" "enum_events_event_type" DEFAULT 'offline',
   	"online_url" varchar,
-  	"category" "enum_events_category" DEFAULT 'dropin',
-  	"room" varchar,
+  	"language" "enum_events_language",
   	"description" jsonb,
-  	"language_code" "enum_events_language_code",
+  	"contact_info_name" varchar,
+  	"contact_info_phone" varchar,
   	"schedule_first_date" timestamp(3) with time zone,
   	"schedule_firstdate_tz" "enum_events_schedule_firstdate_tz",
   	"schedule_end_time" varchar,
@@ -117,6 +111,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"schedule_count" numeric DEFAULT 10,
   	"schedule_until_date" timestamp(3) with time zone,
   	"region_id" integer,
+  	"room" varchar,
   	"address_street" varchar,
   	"address_city" varchar,
   	"address_post_code" varchar,
@@ -124,13 +119,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"address_region_code" varchar,
   	"address_latitude" numeric,
   	"address_longitude" numeric,
-  	"address_time_zone" "enum_events_address_time_zone",
   	"registration_mode" "enum_events_registration_mode" DEFAULT 'native',
   	"registration_url" varchar,
   	"registration_limit" numeric,
-  	"registration_notification" "enum_events_registration_notification" DEFAULT 'digest',
-  	"contact_info_name" varchar,
-  	"contact_info_phone" varchar,
   	"manager_id" integer,
   	"status" "enum_events_activity_status" DEFAULT 'active',
   	"verification_streak" numeric DEFAULT 0,
@@ -146,6 +137,14 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"id" serial PRIMARY KEY NOT NULL,
   	"_locale" "_locales" NOT NULL,
   	"_parent_id" integer NOT NULL
+  );
+  
+  CREATE TABLE "events_rels" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"order" integer,
+  	"parent_id" integer NOT NULL,
+  	"path" varchar NOT NULL,
+  	"images_id" integer
   );
   
   CREATE TABLE "_events_v_version_schedule_weekdays" (
@@ -177,10 +176,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"parent_id" integer,
   	"version_event_type" "enum__events_v_version_event_type" DEFAULT 'offline',
   	"version_online_url" varchar,
-  	"version_category" "enum__events_v_version_category" DEFAULT 'dropin',
-  	"version_room" varchar,
+  	"version_language" "enum__events_v_version_language",
   	"version_description" jsonb,
-  	"version_language_code" "enum__events_v_version_language_code",
+  	"version_contact_info_name" varchar,
+  	"version_contact_info_phone" varchar,
   	"version_schedule_first_date" timestamp(3) with time zone,
   	"version_schedule_firstdate_tz" "enum__events_v_version_schedule_firstdate_tz",
   	"version_schedule_end_time" varchar,
@@ -194,6 +193,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"version_schedule_count" numeric DEFAULT 10,
   	"version_schedule_until_date" timestamp(3) with time zone,
   	"version_region_id" integer,
+  	"version_room" varchar,
   	"version_address_street" varchar,
   	"version_address_city" varchar,
   	"version_address_post_code" varchar,
@@ -201,13 +201,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"version_address_region_code" varchar,
   	"version_address_latitude" numeric,
   	"version_address_longitude" numeric,
-  	"version_address_time_zone" "enum__events_v_version_address_time_zone",
   	"version_registration_mode" "enum__events_v_version_registration_mode" DEFAULT 'native',
   	"version_registration_url" varchar,
   	"version_registration_limit" numeric,
-  	"version_registration_notification" "enum__events_v_version_registration_notification" DEFAULT 'digest',
-  	"version_contact_info_name" varchar,
-  	"version_contact_info_phone" varchar,
   	"version_manager_id" integer,
   	"version_status" "enum_events_activity_status" DEFAULT 'active',
   	"version_verification_streak" numeric DEFAULT 0,
@@ -228,6 +224,14 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"id" serial PRIMARY KEY NOT NULL,
   	"_locale" "_locales" NOT NULL,
   	"_parent_id" integer NOT NULL
+  );
+  
+  CREATE TABLE "_events_v_rels" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"order" integer,
+  	"parent_id" integer NOT NULL,
+  	"path" varchar NOT NULL,
+  	"images_id" integer
   );
   
   CREATE TABLE "registrations" (
@@ -271,6 +275,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "events" ADD CONSTRAINT "events_region_id_regions_id_fk" FOREIGN KEY ("region_id") REFERENCES "public"."regions"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "events" ADD CONSTRAINT "events_manager_id_managers_id_fk" FOREIGN KEY ("manager_id") REFERENCES "public"."managers"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "events_locales" ADD CONSTRAINT "events_locales_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."events"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "events_rels" ADD CONSTRAINT "events_rels_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."events"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "events_rels" ADD CONSTRAINT "events_rels_images_fk" FOREIGN KEY ("images_id") REFERENCES "public"."images"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_events_v_version_schedule_weekdays" ADD CONSTRAINT "_events_v_version_schedule_weekdays_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."_events_v"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_events_v_version_schedule_exclusions" ADD CONSTRAINT "_events_v_version_schedule_exclusions_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_events_v"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "_events_v_version_registration_questions" ADD CONSTRAINT "_events_v_version_registration_questions_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."_events_v"("id") ON DELETE cascade ON UPDATE no action;
@@ -278,6 +284,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "_events_v" ADD CONSTRAINT "_events_v_version_region_id_regions_id_fk" FOREIGN KEY ("version_region_id") REFERENCES "public"."regions"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_events_v" ADD CONSTRAINT "_events_v_version_manager_id_managers_id_fk" FOREIGN KEY ("version_manager_id") REFERENCES "public"."managers"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "_events_v_locales" ADD CONSTRAINT "_events_v_locales_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."_events_v"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "_events_v_rels" ADD CONSTRAINT "_events_v_rels_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."_events_v"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "_events_v_rels" ADD CONSTRAINT "_events_v_rels_images_fk" FOREIGN KEY ("images_id") REFERENCES "public"."images"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "registrations" ADD CONSTRAINT "registrations_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "public"."events"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "registrations" ADD CONSTRAINT "registrations_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
   CREATE INDEX "regions_time_zone_order_idx" ON "regions_time_zone" USING btree ("order");
@@ -303,6 +311,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "events_created_at_idx" ON "events" USING btree ("created_at");
   CREATE INDEX "events__status_idx" ON "events" USING btree ("_status");
   CREATE UNIQUE INDEX "events_locales_locale_parent_id_unique" ON "events_locales" USING btree ("_locale","_parent_id");
+  CREATE INDEX "events_rels_order_idx" ON "events_rels" USING btree ("order");
+  CREATE INDEX "events_rels_parent_idx" ON "events_rels" USING btree ("parent_id");
+  CREATE INDEX "events_rels_path_idx" ON "events_rels" USING btree ("path");
+  CREATE INDEX "events_rels_images_id_idx" ON "events_rels" USING btree ("images_id");
   CREATE INDEX "_events_v_version_schedule_weekdays_order_idx" ON "_events_v_version_schedule_weekdays" USING btree ("order");
   CREATE INDEX "_events_v_version_schedule_weekdays_parent_idx" ON "_events_v_version_schedule_weekdays" USING btree ("parent_id");
   CREATE INDEX "_events_v_version_schedule_exclusions_order_idx" ON "_events_v_version_schedule_exclusions" USING btree ("_order");
@@ -322,6 +334,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "_events_v_published_locale_idx" ON "_events_v" USING btree ("published_locale");
   CREATE INDEX "_events_v_latest_idx" ON "_events_v" USING btree ("latest");
   CREATE UNIQUE INDEX "_events_v_locales_locale_parent_id_unique" ON "_events_v_locales" USING btree ("_locale","_parent_id");
+  CREATE INDEX "_events_v_rels_order_idx" ON "_events_v_rels" USING btree ("order");
+  CREATE INDEX "_events_v_rels_parent_idx" ON "_events_v_rels" USING btree ("parent_id");
+  CREATE INDEX "_events_v_rels_path_idx" ON "_events_v_rels" USING btree ("path");
+  CREATE INDEX "_events_v_rels_images_id_idx" ON "_events_v_rels" USING btree ("images_id");
   CREATE INDEX "registrations_event_idx" ON "registrations" USING btree ("event_id");
   CREATE INDEX "registrations_user_idx" ON "registrations" USING btree ("user_id");
   CREATE UNIQUE INDEX "registrations_uuid_idx" ON "registrations" USING btree ("uuid");
@@ -352,11 +368,13 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   ALTER TABLE "events_registration_questions" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "events" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "events_locales" DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE "events_rels" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_events_v_version_schedule_weekdays" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_events_v_version_schedule_exclusions" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_events_v_version_registration_questions" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_events_v" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_events_v_locales" DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE "_events_v_rels" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "registrations" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "users" DISABLE ROW LEVEL SECURITY;
   DROP TABLE "regions_time_zone" CASCADE;
@@ -367,11 +385,13 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "events_registration_questions" CASCADE;
   DROP TABLE "events" CASCADE;
   DROP TABLE "events_locales" CASCADE;
+  DROP TABLE "events_rels" CASCADE;
   DROP TABLE "_events_v_version_schedule_weekdays" CASCADE;
   DROP TABLE "_events_v_version_schedule_exclusions" CASCADE;
   DROP TABLE "_events_v_version_registration_questions" CASCADE;
   DROP TABLE "_events_v" CASCADE;
   DROP TABLE "_events_v_locales" CASCADE;
+  DROP TABLE "_events_v_rels" CASCADE;
   DROP TABLE "registrations" CASCADE;
   DROP TABLE "users" CASCADE;
   ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_regions_fk";
@@ -398,33 +418,27 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TYPE "public"."enum_events_schedule_weekdays";
   DROP TYPE "public"."enum_events_registration_questions";
   DROP TYPE "public"."enum_events_event_type";
-  DROP TYPE "public"."enum_events_category";
-  DROP TYPE "public"."enum_events_language_code";
+  DROP TYPE "public"."enum_events_language";
   DROP TYPE "public"."enum_events_schedule_firstdate_tz";
   DROP TYPE "public"."enum_events_schedule_recurrence_type";
   DROP TYPE "public"."enum_events_schedule_monthly_mode";
   DROP TYPE "public"."enum_events_schedule_week_number";
   DROP TYPE "public"."enum_events_schedule_weekday_of_month";
   DROP TYPE "public"."enum_events_schedule_ending_type";
-  DROP TYPE "public"."enum_events_address_time_zone";
   DROP TYPE "public"."enum_events_registration_mode";
-  DROP TYPE "public"."enum_events_registration_notification";
   DROP TYPE "public"."enum_events_activity_status";
   DROP TYPE "public"."enum_events_status";
   DROP TYPE "public"."enum__events_v_version_schedule_weekdays";
   DROP TYPE "public"."enum__events_v_version_registration_questions";
   DROP TYPE "public"."enum__events_v_version_event_type";
-  DROP TYPE "public"."enum__events_v_version_category";
-  DROP TYPE "public"."enum__events_v_version_language_code";
+  DROP TYPE "public"."enum__events_v_version_language";
   DROP TYPE "public"."enum__events_v_version_schedule_firstdate_tz";
   DROP TYPE "public"."enum__events_v_version_schedule_recurrence_type";
   DROP TYPE "public"."enum__events_v_version_schedule_monthly_mode";
   DROP TYPE "public"."enum__events_v_version_schedule_week_number";
   DROP TYPE "public"."enum__events_v_version_schedule_weekday_of_month";
   DROP TYPE "public"."enum__events_v_version_schedule_ending_type";
-  DROP TYPE "public"."enum__events_v_version_address_time_zone";
   DROP TYPE "public"."enum__events_v_version_registration_mode";
-  DROP TYPE "public"."enum__events_v_version_registration_notification";
   DROP TYPE "public"."enum__events_v_version_status";
   DROP TYPE "public"."enum__events_v_published_locale";
   DROP TYPE "public"."enum_registrations_startingat_tz";`)

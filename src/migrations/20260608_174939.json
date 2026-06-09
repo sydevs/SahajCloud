@@ -10710,17 +10710,10 @@
           "primaryKey": false,
           "notNull": false
         },
-        "category": {
-          "name": "category",
-          "type": "enum_events_category",
+        "language": {
+          "name": "language",
+          "type": "enum_events_language",
           "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'dropin'"
-        },
-        "room": {
-          "name": "room",
-          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
@@ -10730,10 +10723,15 @@
           "primaryKey": false,
           "notNull": false
         },
-        "language_code": {
-          "name": "language_code",
-          "type": "enum_events_language_code",
-          "typeSchema": "public",
+        "contact_info_name": {
+          "name": "contact_info_name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_info_phone": {
+          "name": "contact_info_phone",
+          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
@@ -10827,6 +10825,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "room": {
+          "name": "room",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
         "address_street": {
           "name": "address_street",
           "type": "varchar",
@@ -10869,13 +10873,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "address_time_zone": {
-          "name": "address_time_zone",
-          "type": "enum_events_address_time_zone",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
         "registration_mode": {
           "name": "registration_mode",
           "type": "enum_events_registration_mode",
@@ -10893,26 +10890,6 @@
         "registration_limit": {
           "name": "registration_limit",
           "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "registration_notification": {
-          "name": "registration_notification",
-          "type": "enum_events_registration_notification",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'digest'"
-        },
-        "contact_info_name": {
-          "name": "contact_info_name",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contact_info_phone": {
-          "name": "contact_info_phone",
-          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
@@ -11158,6 +11135,137 @@
           "tableTo": "events",
           "columnsFrom": [
             "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.events_rels": {
+      "name": "events_rels",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "path": {
+          "name": "path",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "images_id": {
+          "name": "images_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "events_rels_order_idx": {
+          "name": "events_rels_order_idx",
+          "columns": [
+            {
+              "expression": "order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "events_rels_parent_idx": {
+          "name": "events_rels_parent_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "events_rels_path_idx": {
+          "name": "events_rels_path_idx",
+          "columns": [
+            {
+              "expression": "path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "events_rels_images_id_idx": {
+          "name": "events_rels_images_id_idx",
+          "columns": [
+            {
+              "expression": "images_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "events_rels_parent_fk": {
+          "name": "events_rels_parent_fk",
+          "tableFrom": "events_rels",
+          "tableTo": "events",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "events_rels_images_fk": {
+          "name": "events_rels_images_fk",
+          "tableFrom": "events_rels",
+          "tableTo": "images",
+          "columnsFrom": [
+            "images_id"
           ],
           "columnsTo": [
             "id"
@@ -11468,17 +11576,10 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_category": {
-          "name": "version_category",
-          "type": "enum__events_v_version_category",
+        "version_language": {
+          "name": "version_language",
+          "type": "enum__events_v_version_language",
           "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'dropin'"
-        },
-        "version_room": {
-          "name": "version_room",
-          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
@@ -11488,10 +11589,15 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_language_code": {
-          "name": "version_language_code",
-          "type": "enum__events_v_version_language_code",
-          "typeSchema": "public",
+        "version_contact_info_name": {
+          "name": "version_contact_info_name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_contact_info_phone": {
+          "name": "version_contact_info_phone",
+          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
@@ -11585,6 +11691,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "version_room": {
+          "name": "version_room",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
         "version_address_street": {
           "name": "version_address_street",
           "type": "varchar",
@@ -11627,13 +11739,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_address_time_zone": {
-          "name": "version_address_time_zone",
-          "type": "enum__events_v_version_address_time_zone",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
         "version_registration_mode": {
           "name": "version_registration_mode",
           "type": "enum__events_v_version_registration_mode",
@@ -11651,26 +11756,6 @@
         "version_registration_limit": {
           "name": "version_registration_limit",
           "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_registration_notification": {
-          "name": "version_registration_notification",
-          "type": "enum__events_v_version_registration_notification",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'digest'"
-        },
-        "version_contact_info_name": {
-          "name": "version_contact_info_name",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_contact_info_phone": {
-          "name": "version_contact_info_phone",
-          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
@@ -12050,6 +12135,137 @@
           "tableTo": "_events_v",
           "columnsFrom": [
             "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public._events_v_rels": {
+      "name": "_events_v_rels",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "path": {
+          "name": "path",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "images_id": {
+          "name": "images_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "_events_v_rels_order_idx": {
+          "name": "_events_v_rels_order_idx",
+          "columns": [
+            {
+              "expression": "order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_events_v_rels_parent_idx": {
+          "name": "_events_v_rels_parent_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_events_v_rels_path_idx": {
+          "name": "_events_v_rels_path_idx",
+          "columns": [
+            {
+              "expression": "path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_events_v_rels_images_id_idx": {
+          "name": "_events_v_rels_images_id_idx",
+          "columns": [
+            {
+              "expression": "images_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "_events_v_rels_parent_fk": {
+          "name": "_events_v_rels_parent_fk",
+          "tableFrom": "_events_v_rels",
+          "tableTo": "_events_v",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "_events_v_rels_images_fk": {
+          "name": "_events_v_rels_images_fk",
+          "tableFrom": "_events_v_rels",
+          "tableTo": "images",
+          "columnsFrom": [
+            "images_id"
           ],
           "columnsTo": [
             "id"
@@ -18323,20 +18539,20 @@
           "primaryKey": false,
           "notNull": false
         },
-        "profile_privacy_advertising": {
-          "name": "profile_privacy_advertising",
+        "profile_privacy": {
+          "name": "profile_privacy",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "profile_privacy_advertising_advertising_body_never_share": {
-          "name": "profile_privacy_advertising_advertising_body_never_share",
+        "profile_privacy_advertising_body_never_share": {
+          "name": "profile_privacy_advertising_body_never_share",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "profile_privacy_advertising_advertising_body_intro": {
-          "name": "profile_privacy_advertising_advertising_body_intro",
+        "profile_privacy_advertising_body_intro": {
+          "name": "profile_privacy_advertising_body_intro",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -18854,20 +19070,20 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_profile_privacy_advertising": {
-          "name": "version_profile_privacy_advertising",
+        "version_profile_privacy": {
+          "name": "version_profile_privacy",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "version_profile_privacy_advertising_advertising_body_never_share": {
-          "name": "version_profile_privacy_advertising_advertising_body_never_share",
+        "version_profile_privacy_advertising_body_never_share": {
+          "name": "version_profile_privacy_advertising_body_never_share",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "version_profile_privacy_advertising_advertising_body_intro": {
-          "name": "version_profile_privacy_advertising_advertising_body_intro",
+        "version_profile_privacy_advertising_body_intro": {
+          "name": "version_profile_privacy_advertising_body_intro",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -21128,19 +21344,8 @@
         "online"
       ]
     },
-    "public.enum_events_category": {
-      "name": "enum_events_category",
-      "schema": "public",
-      "values": [
-        "dropin",
-        "single",
-        "course",
-        "festival",
-        "concert"
-      ]
-    },
-    "public.enum_events_language_code": {
-      "name": "enum_events_language_code",
+    "public.enum_events_language": {
+      "name": "enum_events_language",
       "schema": "public",
       "values": [
         "ab",
@@ -21430,59 +21635,6 @@
         "until"
       ]
     },
-    "public.enum_events_address_time_zone": {
-      "name": "enum_events_address_time_zone",
-      "schema": "public",
-      "values": [
-        "Pacific/Midway",
-        "Pacific/Niue",
-        "Pacific/Honolulu",
-        "Pacific/Rarotonga",
-        "America/Anchorage",
-        "Pacific/Gambier",
-        "America/Los_Angeles",
-        "America/Tijuana",
-        "America/Denver",
-        "America/Phoenix",
-        "America/Chicago",
-        "America/Guatemala",
-        "America/New_York",
-        "America/Bogota",
-        "America/Caracas",
-        "America/Santiago",
-        "America/Buenos_Aires",
-        "America/Sao_Paulo",
-        "Atlantic/South_Georgia",
-        "Atlantic/Azores",
-        "Atlantic/Cape_Verde",
-        "Europe/London",
-        "Europe/Berlin",
-        "Africa/Lagos",
-        "Europe/Athens",
-        "Africa/Cairo",
-        "Europe/Moscow",
-        "Asia/Riyadh",
-        "Asia/Dubai",
-        "Asia/Baku",
-        "Asia/Karachi",
-        "Asia/Tashkent",
-        "Asia/Calcutta",
-        "Asia/Dhaka",
-        "Asia/Almaty",
-        "Asia/Jakarta",
-        "Asia/Bangkok",
-        "Asia/Shanghai",
-        "Asia/Singapore",
-        "Asia/Tokyo",
-        "Asia/Seoul",
-        "Australia/Brisbane",
-        "Australia/Sydney",
-        "Pacific/Guam",
-        "Pacific/Noumea",
-        "Pacific/Auckland",
-        "Pacific/Fiji"
-      ]
-    },
     "public.enum_events_registration_mode": {
       "name": "enum_events_registration_mode",
       "schema": "public",
@@ -21492,15 +21644,6 @@
         "meetup",
         "eventbrite",
         "facebook"
-      ]
-    },
-    "public.enum_events_registration_notification": {
-      "name": "enum_events_registration_notification",
-      "schema": "public",
-      "values": [
-        "digest",
-        "immediate",
-        "disabled"
       ]
     },
     "public.enum_events_activity_status": {
@@ -21551,19 +21694,8 @@
         "online"
       ]
     },
-    "public.enum__events_v_version_category": {
-      "name": "enum__events_v_version_category",
-      "schema": "public",
-      "values": [
-        "dropin",
-        "single",
-        "course",
-        "festival",
-        "concert"
-      ]
-    },
-    "public.enum__events_v_version_language_code": {
-      "name": "enum__events_v_version_language_code",
+    "public.enum__events_v_version_language": {
+      "name": "enum__events_v_version_language",
       "schema": "public",
       "values": [
         "ab",
@@ -21853,59 +21985,6 @@
         "until"
       ]
     },
-    "public.enum__events_v_version_address_time_zone": {
-      "name": "enum__events_v_version_address_time_zone",
-      "schema": "public",
-      "values": [
-        "Pacific/Midway",
-        "Pacific/Niue",
-        "Pacific/Honolulu",
-        "Pacific/Rarotonga",
-        "America/Anchorage",
-        "Pacific/Gambier",
-        "America/Los_Angeles",
-        "America/Tijuana",
-        "America/Denver",
-        "America/Phoenix",
-        "America/Chicago",
-        "America/Guatemala",
-        "America/New_York",
-        "America/Bogota",
-        "America/Caracas",
-        "America/Santiago",
-        "America/Buenos_Aires",
-        "America/Sao_Paulo",
-        "Atlantic/South_Georgia",
-        "Atlantic/Azores",
-        "Atlantic/Cape_Verde",
-        "Europe/London",
-        "Europe/Berlin",
-        "Africa/Lagos",
-        "Europe/Athens",
-        "Africa/Cairo",
-        "Europe/Moscow",
-        "Asia/Riyadh",
-        "Asia/Dubai",
-        "Asia/Baku",
-        "Asia/Karachi",
-        "Asia/Tashkent",
-        "Asia/Calcutta",
-        "Asia/Dhaka",
-        "Asia/Almaty",
-        "Asia/Jakarta",
-        "Asia/Bangkok",
-        "Asia/Shanghai",
-        "Asia/Singapore",
-        "Asia/Tokyo",
-        "Asia/Seoul",
-        "Australia/Brisbane",
-        "Australia/Sydney",
-        "Pacific/Guam",
-        "Pacific/Noumea",
-        "Pacific/Auckland",
-        "Pacific/Fiji"
-      ]
-    },
     "public.enum__events_v_version_registration_mode": {
       "name": "enum__events_v_version_registration_mode",
       "schema": "public",
@@ -21915,15 +21994,6 @@
         "meetup",
         "eventbrite",
         "facebook"
-      ]
-    },
-    "public.enum__events_v_version_registration_notification": {
-      "name": "enum__events_v_version_registration_notification",
-      "schema": "public",
-      "values": [
-        "digest",
-        "immediate",
-        "disabled"
       ]
     },
     "public.enum__events_v_version_status": {
@@ -22442,6 +22512,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "85ca9c12-19e6-4f4d-950f-c2d365f26e35",
+  "id": "48f21c95-c5f1-45dc-aef6-561b8e4ac912",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }
