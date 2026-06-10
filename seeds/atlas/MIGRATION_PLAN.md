@@ -11,7 +11,7 @@ Source: `atlas.dump` (PostgreSQL custom-format, PG 16.4) at the repo root. Legac
 | Phase                        | Scope                                                                          | Status      |
 | ---------------------------- | ------------------------------------------------------------------------------ | ----------- |
 | **1 — Data export**          | Decide keep/discard; extract `seeds/atlas/data/*.json` in target-shaped format | **done** ✅ |
-| **2 — Collections & schema** | Create collections + nested-docs plugin + Payload migration                    | implemented (PR for #457) |
+| **2 — Collections & schema** | Create collections + nested-docs plugin + Payload migration                    | #457 (new collections); #462 (extend Managers + Clients) |
 | **3 — Seed importer**        | `seeds/atlas/import.ts` reads the JSON into Payload                            | planned     |
 | **4 — Verification**         | Counts, referential integrity, spot-checks against a seeded env                | planned     |
 
@@ -23,9 +23,9 @@ Restore the dump into a scratch local Postgres, run a one-shot `tsx` extractor (
 
 8 output files: `events.json`, `registrations.json`, `regions.json`, `venues.json`, `users.json`, `managers.json`, `clients.json`, `pictures.json`. (`managed_records` is folded into `managers.json`; it is not its own file.)
 
-### Phase 2 — Collections & schema (#457)
+### Phase 2 — Collections & schema (#457, #462)
 
-Implemented as **schema only** — no edits to existing collections, and **no Venues collection**.
+#457 implemented the **new** collections as schema only — no edits to existing collections, and **no Venues collection**. #462 is the **existing-collection** half: it extends Managers + Clients/Services and links Regions ↔ Managers (see the managers.json / clients.json Payload mappings below).
 
 - New collections: **Events**, **Registrations**, **Users** (registrants), and the nested **Regions** tree — via `@payloadcms/plugin-nested-docs` (installed + configured for `regions`, providing `parent` + `breadcrumbs` for Country → Region → Area → Center). All under the **Sahaj Atlas** admin group.
 - **Venues eliminated**: a venue referenced by >1 event becomes a Regions `center`; a single-use venue's address is lifted onto its Event (`address` group). Street addresses live on Events, not on geo nodes. At import, a venue's Google `place_id` resolves to an OSM id.
@@ -43,7 +43,7 @@ Implemented as **schema only** — no edits to existing collections, and **no Ve
 - **Registration**: `registrationMode` is `sahaj-atlas` (native, default) or `external` (every third-party link — Atlas meetup/eventbrite/facebook collapse here). `registrationQuestions` is a **group of checkbox fields**, each label being the question shown to the registrant (a placeholder set, to be finalised against the real flow); enabling one includes that question on the registration form.
 - **Regions location**: each geo node's identity is a **`mapboxId`** (Mapbox feature id) set via the same `AddressSearchField` — configured (`admin.custom`) to search `country,region,place,poi` and to skip address-field population (id-only mode). This replaces the former `osmId`. The search's "Enter manually" stores a `manual` sentinel that reveals explicit `latitude`/`longitude`/`radius`.
 
-**Deferred to a follow-up ticket** (out of #457's scope): Managers `customResourceAccess` `relationTo += regions`; a `location`/`region` relationship on Clients/Services; Images reuse confirmation for event pictures; `legacyId`/`legacyData` removal.
+**Resolved in #462** (the existing-collection half): region responsibility is modeled by a `managers` relationship on **Regions** + read-only `managedRegions`/`managedEvents` joins on **Managers** — superseding the earlier "`customResourceAccess` `relationTo += regions`" sketch (`customResourceAccess` stays `pages`-only); Clients/Services gains a `region` relationship; Managers gains the contact/notification model and Clients the Atlas config; both carry `legacyId`/`legacyData`. Events' `images` → Images link (added in #457) is confirmed as the event-picture target. **Still deferred:** `legacyId`/`legacyData` removal (shared cleanup ticket), geo-cascade access logic, and notification delivery.
 
 ### Phase 3 — Seed importer
 
@@ -117,11 +117,14 @@ Pruned to the 407 venues referenced by an event. Deduped by unique `place_id`. F
 
 `legacyId`, `name`, `email`, `type` (`administrator=true` → `admin`, else `manager`), `languageCode`, `phone`, `phoneVerified`, `emailVerified`, `contactMethod` (`{0:email,1:whatsapp,2:telegram,3:wechat}`), `notifications` (`flag` bitmask → array of `new_managed_record`/`event_verification`/`event_registrations`/`place_summary`/`country_summary`/`application_summary`/`client_summary`; `2147483647` = all), `lastLoginAt`. (`contactSettings` dropped — null in all 327 records.)
 
-- **`customResourceAccess`**: from `managed_records` — array of `{level, legacyId}` geo refs. `record_type` `Area`/`LocalArea` → `area`, `Region` → `region`, `Country` → `country`. Orphan refs (1 `LocalArea` → missing area 59) dropped; duplicates deduped. Phase 3 resolves to `regions` docs.
+- **`managed_records`** (region responsibility): array of `{level, legacyId}` geo refs. `record_type` `Area`/`LocalArea` → `area`, `Region` → `region`, `Country` → `country`. Orphan refs (1 `LocalArea` → missing area 59) dropped; duplicates deduped. Phase 3 resolves each to a `regions` doc and **adds this manager to that region's `managers`** (the owning side; `Managers.managedRegions`/`managedEvents` are joins, derived automatically). Managers `customResourceAccess` stays `pages`-only — it is **not** used for geo responsibility.
+- **Payload mapping (Phase 2/3, #462):** `languageCode` (UPPER → lower ISO-639-1); `contactDetails` ← `contactMethod` ∈ (whatsapp, telegram, wechat) → `[{ platform: contactMethod, identifier: phone, verified: phoneVerified }]` (a `contactMethod` of `email` produces no entry); `notificationPreferences` ← the `notifications` bitmask + `contactMethod`, with the type remap `new_managed_record`→`new_responsibility`, `event_verification`→`event_verification`, `event_registrations`→`event_registration`, all `*_summary` bits → `regional_summary`. Per mapped type, `method = contactMethod or 'email'`; Atlas has no frequency, so defaults apply: `new_responsibility` = Immediate (Never if the bit is off), `event_verification` = Monthly, `event_registration` = Immediate (Never if off), `regional_summary` = Monthly (Never if no summary bits set). `emailVerified` → Payload auth's built-in `_verified` (no new field).
 
 ### clients.json — existing Clients/Services collection
 
-`legacyId`, `label`, `config` (object: domain/embed_type/default_view/routing_type/locale), `managerId`, `clientId` (← Atlas `public_key`), `enabled`, `createdAt`, and `location` — Atlas geo scope (`location_type` + `location_id`) → `{level, legacyId}` geo ref (or null; 4 clients have none). The Atlas `secret_key` is **dropped** (not migrated); `lastAccessedAt` dropped (null in all 25). **Impedance notes for Phase 2/3:** Payload uses `useAPIKey` (one encrypted key it generates) — the Atlas `clientId` is reference-only; `managers` + `primaryContact` + `roles` are required on target (map `managerId` → both; default role `sahaj-atlas-client`); Phase 2 adds a `location` relationship field (relationTo `regions`) to Clients.
+`legacyId`, `label`, `config` (object: domain/embed_type/default_view/routing_type/locale), `managerId`, `clientId` (← Atlas `public_key`), `enabled`, `createdAt`, and `location` — Atlas geo scope (`location_type` + `location_id`) → `{level, legacyId}` geo ref (or null; 4 clients have none). The Atlas `secret_key` is **dropped** (not migrated); `lastAccessedAt` dropped (null in all 25). **Impedance notes for Phase 2/3:** Payload uses `useAPIKey` (one encrypted key it generates) — the Atlas `clientId` is reference-only; `managers` + `primaryContact` + `roles` are required on target (map `managerId` → both; default role `sahaj-atlas-client`); #462 adds a `region` relationship field (relationTo `regions`) to Clients.
+
+- **Payload mapping (Phase 2/3, #462):** `clientId` ← `public_key` (readOnly); `active` ← `enabled`; `domains` ← `config.domain`; `color1` ← `config.primary_color` (`color2`/`color3` ship empty — not in the extract); `locale` ← `config.locale` (ISO-639-1, any language); `region` ← `location` geo ref → `regions` doc; `legacyConfig` ← `{ routing_type, embed_type, default_view }` (readOnly json — `config.default_view` is folded in here, not separately dropped).
 
 ### pictures.json — event images → Images collection
 
