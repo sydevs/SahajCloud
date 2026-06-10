@@ -207,11 +207,14 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // Usage Plugin: Rate limiting and usage tracking (disabled in E2E tests)
       // Note: 'clients' is auto-excluded as a consumer collection; 'managers' excluded to skip admin users
       usagePlugin({ enabled: !isE2ETest, exclude: ['managers'] }),
-      // Nested docs: injects parent + breadcrumbs into the Sahaj Atlas region
-      // tree (Country → Region → Area → Center). Registered before accessPlugin
-      // so the latter sees the injected fields.
+      // Nested docs: adds breadcrumbs + uses the region tree's `parent` field
+      // (Country → Region → Area → Center). Registered before accessPlugin so
+      // the latter sees the injected fields. `parentFieldSlug: 'parent'` tells
+      // the plugin Regions defines its own `parent` (in the Details tab, with
+      // a level-based filter) so it doesn't inject a duplicate into the sidebar.
       nestedDocsPlugin({
         collections: ['regions'],
+        parentFieldSlug: 'parent',
         generateLabel: (_docs, currentDoc) => String(currentDoc?.name ?? ''),
       }),
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)

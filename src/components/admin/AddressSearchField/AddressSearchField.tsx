@@ -139,6 +139,11 @@ const MANUAL = 'manual'
  *  - `populateAddress` — when set, also fills the sibling address fields
  *    (street/city/region/country/postCode/lat/long) from the result. Off for
  *    id-only use (Regions store just the id).
+ *  - `populateName` — when set, fills the sibling `name` field from the result
+ *    (used by Regions to name a node after the place picked).
+ *
+ * All sibling writes are skip-if-already-populated, so a selection never
+ * clobbers values already entered.
  *
  * Dependent fields reveal off this field's value (the address siblings in
  * `addressFields`; the manual-coordinates row in Regions), so writing it via
@@ -151,17 +156,27 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path }) =>
   // `searchTypes`: Mapbox Search Box `types` filter (default address+POI).
   // `populateAddress`: fill sibling address fields on retrieve (default off —
   // Regions use this in id-only mode, where there are no address siblings).
-  const config = (admin?.custom ?? {}) as { searchTypes?: string; populateAddress?: boolean }
+  // `populateName`: fill the sibling `name` field from the result (Regions).
+  const config = (admin?.custom ?? {}) as {
+    searchTypes?: string
+    populateAddress?: boolean
+    populateName?: boolean
+  }
   const searchTypes = config.searchTypes ?? 'address,poi'
 
   const { value, setValue } = useField<string>({ path })
-  const { dispatchFields } = useForm()
+  const { dispatchFields, getDataByPath } = useForm()
   const theme = usePayloadSearchTheme()
   const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
 
+  // Only fill a sibling that isn't already populated, so a chosen result never
+  // clobbers a value the user (or a prior selection) already set.
   const setSibling = (siblingName: string, siblingValue: number | string | null | undefined) => {
     if (siblingValue === undefined || siblingValue === null || siblingValue === '') return
-    dispatchFields({ type: 'UPDATE', path: toSiblingPath(path, siblingName), value: siblingValue })
+    const targetPath = toSiblingPath(path, siblingName)
+    const existing = getDataByPath(targetPath)
+    if (existing !== undefined && existing !== null && existing !== '') return
+    dispatchFields({ type: 'UPDATE', path: targetPath, value: siblingValue })
   }
 
   const handleRetrieve = (res: MapboxRetrieveResponse) => {
@@ -182,6 +197,10 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path }) =>
         setSibling('longitude', coordinates[0])
         setSibling('latitude', coordinates[1])
       }
+    }
+    // Regions: adopt the selected place's name (only if not already filled).
+    if (config.populateName) {
+      setSibling('name', feature.properties?.name)
     }
     // Set our own value last: this triggers the form's condition recompute, which
     // reveals dependent fields (the address siblings, or the manual-coordinates row).

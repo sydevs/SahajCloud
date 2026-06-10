@@ -63,6 +63,10 @@ export {
   Albums,
   Videos,
   Lessons,
+  // Classes
+  Regions,
+  Events,
+  Registrations,
   // Resources
   Lectures,
   Frames,
@@ -78,11 +82,7 @@ export {
   // Access
   Managers,
   Clients,
+  Users,
   // Project-specific
   AppCards,
-  // Sahaj Atlas
-  Regions,
-  Events,
-  Registrations,
-  Users,
 }

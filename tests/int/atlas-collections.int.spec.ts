@@ -45,7 +45,7 @@ describe('Atlas collections', () => {
       })
       const area = await payload.create({
         collection: 'regions',
-        data: { name: 'Area', level: 'area', mapboxId: 'a1', parent: region.id },
+        data: { name: 'Area', level: 'city', mapboxId: 'a1', parent: region.id },
       })
 
       // Neither region nor area set values → both inherit the country's.
@@ -78,7 +78,7 @@ describe('Atlas collections', () => {
         collection: 'regions',
         data: {
           name: 'Area 2',
-          level: 'area',
+          level: 'city',
           mapboxId: 'a2',
           parent: country.id,
           eventDefaults: { language: 'de' },
@@ -113,7 +113,7 @@ describe('Atlas collections', () => {
       })
       const area = await payload.create({
         collection: 'regions',
-        data: { name: 'Area I', level: 'area', mapboxId: 'ai', parent: region.id },
+        data: { name: 'Area I', level: 'city', mapboxId: 'ai', parent: region.id },
       })
 
       const areaRead = await payload.findByID({ collection: 'regions', id: area.id })
@@ -133,17 +133,17 @@ describe('Atlas collections', () => {
       })
       const blankA = await payload.create({
         collection: 'regions',
-        data: { name: 'Area 3a', level: 'area', mapboxId: 'a3a', parent: country.id },
+        data: { name: 'Area 3a', level: 'city', mapboxId: 'a3a', parent: country.id },
       })
       const blankB = await payload.create({
         collection: 'regions',
-        data: { name: 'Area 3b', level: 'area', mapboxId: 'a3b', parent: country.id },
+        data: { name: 'Area 3b', level: 'city', mapboxId: 'a3b', parent: country.id },
       })
       const explicit = await payload.create({
         collection: 'regions',
         data: {
           name: 'Area 3c',
-          level: 'area',
+          level: 'city',
           mapboxId: 'a3c',
           parent: country.id,
           eventDefaults: { language: 'de' },

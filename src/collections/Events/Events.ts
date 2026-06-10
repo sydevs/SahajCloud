@@ -46,7 +46,7 @@ export const Events: CollectionConfig = {
   labels: { singular: 'Event', plural: 'Events' },
   versions: { drafts: true },
   admin: {
-    group: 'Sahaj Atlas',
+    group: 'Classes',
     useAsTitle: 'title',
     defaultColumns: ['title', 'status', '_status'],
   },
@@ -130,8 +130,8 @@ export const Events: CollectionConfig = {
               name: 'region',
               type: 'relationship',
               relationTo: 'regions',
-              filterOptions: () => ({ level: { in: ['area', 'center'] } }),
-              admin: { description: 'The area or center this event belongs to.' },
+              filterOptions: () => ({ level: { in: ['city', 'center'] } }),
+              admin: { description: 'The city or center this event belongs to.' },
             },
             {
               name: 'eventType',

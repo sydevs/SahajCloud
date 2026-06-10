@@ -15,9 +15,19 @@ import { eventDefaultsFallback } from './hooks/eventDefaultsFallback'
 export const REGION_LEVEL_OPTIONS = [
   { label: 'Country', value: 'country' },
   { label: 'Region', value: 'region' },
-  { label: 'Area', value: 'area' },
-  { label: 'Center', value: 'center' },
+  { label: 'City', value: 'city' },
+  { label: 'SY Center', value: 'center' },
 ] as const
+
+/**
+ * Manual coordinates apply only to nodes whose location was entered by hand
+ * (`mapboxId === 'manual'`); a Mapbox-identified node resolves geometry from
+ * its id downstream. Used as each coordinate field's own `condition` so that —
+ * being `required` only when visible — Payload keeps the columns nullable (a
+ * `required` field with no own condition would force a NOT NULL column and
+ * reject every Mapbox-identified region).
+ */
+const isManualLocation = (data: Record<string, unknown>): boolean => data?.mapboxId === 'manual'
 
 /**
  * Regions — the nested Sahaj Atlas geo tree. `parent` + `breadcrumbs` are
@@ -29,7 +39,7 @@ export const Regions: CollectionConfig = {
   slug: 'regions',
   labels: { singular: 'Region', plural: 'Regions' },
   admin: {
-    group: 'Sahaj Atlas',
+    group: 'Classes',
     useAsTitle: 'name',
     defaultColumns: ['name', 'level'],
   },
@@ -55,6 +65,29 @@ export const Regions: CollectionConfig = {
               },
             },
             {
+              // The nested-docs plugin would otherwise inject `parent` into the
+              // sidebar with a default filter. Defining it here moves it into
+              // the main area and restricts it — the plugin reuses an existing
+              // `parent` field and keeps our `filterOptions`.
+              name: 'parent',
+              type: 'relationship',
+              relationTo: 'regions',
+              maxDepth: 1,
+              filterOptions: ({ data }) => {
+                const levels: string[] = REGION_LEVEL_OPTIONS.map((option) => option.value)
+                const currentIndex = levels.indexOf(data?.level as string)
+                // Parent must be a strictly higher level (closer to country);
+                // this also prevents cycles (no same-/lower-level parent).
+                if (currentIndex <= 0) return false
+                return { level: { in: levels.slice(0, currentIndex) } }
+              },
+              admin: {
+                // A country is the tree root, so it has no parent.
+                condition: (data) => data?.level !== 'country',
+                description: 'The geographic parent of this node (a higher level).',
+              },
+            },
+            {
               name: 'name',
               type: 'text',
               required: true,
@@ -64,7 +97,7 @@ export const Regions: CollectionConfig = {
               type: 'text',
               admin: {
                 description: 'Text that appears below the region name in listings',
-                condition: (data) => ['area', 'center'].includes(data?.level as string),
+                condition: (data) => ['city', 'center'].includes(data?.level as string),
               },
             },
             {
@@ -74,31 +107,32 @@ export const Regions: CollectionConfig = {
               required: true,
               admin: {
                 components: { Field: '@/components/admin/AddressSearchField' },
-                custom: { searchTypes: 'country,region,place,poi' },
+                custom: { searchTypes: 'country,region,place,poi', populateName: true },
                 description:
                   'Search for this place (country, region, city, or venue) to set its geographic identity, or "Enter manually" to provide your own coordinates.',
               },
             },
             {
               type: 'row',
-              admin: {
-                // Nodes with a Mapbox id resolve geometry from it downstream;
-                // only manually-entered nodes carry explicit coordinates.
-                condition: (data) => data?.mapboxId === 'manual',
-              },
+              admin: { condition: isManualLocation },
               fields: [
                 {
                   name: 'latitude',
                   type: 'number',
+                  required: true,
+                  admin: { condition: isManualLocation },
                 },
                 {
                   name: 'longitude',
                   type: 'number',
+                  required: true,
+                  admin: { condition: isManualLocation },
                 },
                 {
                   name: 'radius',
                   type: 'number',
-                  admin: { description: 'Radius in meters.' },
+                  required: true,
+                  admin: { description: 'Radius in meters.', condition: isManualLocation },
                 },
               ],
             },
@@ -108,43 +142,52 @@ export const Regions: CollectionConfig = {
           label: 'Events',
           fields: [
             {
-              name: 'events',
-              type: 'join',
-              collection: 'events',
-              on: 'region',
-            },
-            {
-              name: 'eventDefaults',
-              type: 'group',
-              admin: {
-                description: 'These fields will be used to set defaults for Events in this region',
-              },
+              type: 'collapsible',
+              label: 'Event Defaults',
+              admin: { initCollapsed: false },
               fields: [
                 {
-                  type: 'row',
+                  name: 'eventDefaults',
+                  type: 'group',
+                  label: false,
+                  admin: {
+                    description:
+                      'These fields will be used to set defaults for Events in this region',
+                  },
                   fields: [
                     {
-                      name: 'language',
-                      type: 'select',
-                      options: getLanguageOptions(),
-                      // Inheritance is applied by the collection-level afterRead hook
-                      // (needs the fully-assembled breadcrumbs array).
-                      admin: {
-                        width: '50%',
-                      },
-                    },
-                    {
-                      name: 'timeZone',
-                      type: 'select',
-                      hasMany: true,
-                      options: getTimezoneOptions(),
-                      admin: {
-                        width: '50%',
-                      },
+                      type: 'row',
+                      fields: [
+                        {
+                          name: 'language',
+                          type: 'select',
+                          options: getLanguageOptions(),
+                          // Inheritance is applied by the collection-level afterRead hook
+                          // (needs the fully-assembled breadcrumbs array).
+                          admin: {
+                            width: '50%',
+                          },
+                        },
+                        {
+                          name: 'timeZone',
+                          type: 'select',
+                          hasMany: true,
+                          options: getTimezoneOptions(),
+                          admin: {
+                            width: '50%',
+                          },
+                        },
+                      ],
                     },
                   ],
                 },
               ],
+            },
+            {
+              name: 'events',
+              type: 'join',
+              collection: 'events',
+              on: 'region',
             },
           ],
         },

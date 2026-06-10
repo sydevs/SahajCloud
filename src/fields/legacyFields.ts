@@ -19,12 +19,12 @@ export function legacyMigrationFields(): Field[] {
       name: 'legacyId',
       type: 'number',
       index: true,
-      admin: { hidden: true },
+      admin: { readOnly: true, hidden: true },
     },
     {
       name: 'legacyData',
       type: 'json',
-      // admin: { hidden: true },
+      admin: { readOnly: true, position: 'sidebar' },
     },
   ]
 }

@@ -1778,7 +1778,11 @@ export interface Client {
  */
 export interface Region {
   id: number;
-  level: 'country' | 'region' | 'area' | 'center';
+  level: 'country' | 'region' | 'city' | 'center';
+  /**
+   * The geographic parent of this node (a higher level).
+   */
+  parent?: (number | null) | Region;
   name: string;
   /**
    * Text that appears below the region name in listings
@@ -1794,11 +1798,6 @@ export interface Region {
    * Radius in meters.
    */
   radius?: number | null;
-  events?: {
-    docs?: (number | Event)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   /**
    * These fields will be used to set defaults for Events in this region
    */
@@ -2042,6 +2041,11 @@ export interface Region {
         )[]
       | null;
   };
+  events?: {
+    docs?: (number | Event)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   legacyId?: number | null;
   legacyData?:
     | {
@@ -2052,7 +2056,6 @@ export interface Region {
     | number
     | boolean
     | null;
-  parent?: (number | null) | Region;
   breadcrumbs?:
     | {
         doc?: (number | null) | Region;
@@ -2331,7 +2334,7 @@ export interface Event {
       | null;
   };
   /**
-   * The area or center this event belongs to.
+   * The city or center this event belongs to.
    */
   region?: (number | null) | Region;
   eventType: 'offline' | 'online';
@@ -2428,7 +2431,7 @@ export interface Registration {
     | number
     | boolean
     | null;
-  uuid?: string | null;
+  uuid: string;
   mailingListSubscribedAt?: string | null;
   legacyId?: number | null;
   legacyData?:
@@ -3485,22 +3488,22 @@ export interface AppCardsSelect<T extends boolean = true> {
  */
 export interface RegionsSelect<T extends boolean = true> {
   level?: T;
+  parent?: T;
   name?: T;
   subtitle?: T;
   mapboxId?: T;
   latitude?: T;
   longitude?: T;
   radius?: T;
-  events?: T;
   eventDefaults?:
     | T
     | {
         language?: T;
         timeZone?: T;
       };
+  events?: T;
   legacyId?: T;
   legacyData?: T;
-  parent?: T;
   breadcrumbs?:
     | T
     | {

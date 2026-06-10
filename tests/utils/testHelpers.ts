@@ -122,6 +122,7 @@ function createBaseTestConfig(emailConfig: any, schemaName: string) {
       // real payload.config.ts so collection hooks relying on them are tested).
       nestedDocsPlugin({
         collections: ['regions'],
+        parentFieldSlug: 'parent',
         generateLabel: (_docs, currentDoc) => String(currentDoc?.name ?? ''),
       }),
       // Access Plugin must be LAST to process plugin-created collections

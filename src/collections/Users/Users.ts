@@ -15,9 +15,10 @@ export const Users: CollectionConfig = {
   slug: 'users',
   labels: { singular: 'Registrant', plural: 'Registrants' },
   admin: {
-    group: 'Sahaj Atlas',
+    group: 'Access',
     useAsTitle: 'name',
     defaultColumns: ['name', 'email'],
+    hidden: true,
   },
   fields: [
     {

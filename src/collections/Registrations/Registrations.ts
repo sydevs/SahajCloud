@@ -10,8 +10,9 @@ export const Registrations: CollectionConfig = {
   slug: 'registrations',
   labels: { singular: 'Registration', plural: 'Registrations' },
   admin: {
-    group: 'Sahaj Atlas',
+    group: 'Classes',
     defaultColumns: ['event', 'user', 'startingAt'],
+    hidden: true,
   },
   fields: [
     {
@@ -52,9 +53,13 @@ export const Registrations: CollectionConfig = {
     {
       // unique already creates a (unique) index — no separate index: true needed.
       name: 'uuid',
+      label: 'Identifier',
       type: 'text',
       unique: true,
-      label: 'UUID',
+      required: true,
+      admin: {
+        readOnly: true,
+      },
     },
     {
       name: 'mailingListSubscribedAt',
