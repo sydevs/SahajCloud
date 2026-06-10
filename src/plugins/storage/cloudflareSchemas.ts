@@ -102,57 +102,6 @@ export const CloudflareStreamResponseSchema = CloudflareBaseResponseSchema.exten
     .nullish(),
 })
 
-/**
- * Cloudflare Stream downloads API response
- *
- * @see https://developers.cloudflare.com/stream/api-reference/downloads/#enable-downloads
- */
-export const CloudflareStreamDownloadsResponseSchema = CloudflareBaseResponseSchema.extend({
-  result: z
-    .object({
-      default: z
-        .object({
-          status: z.enum(['inprogress', 'ready', 'error']),
-          url: z.url().optional(),
-          percentComplete: z.number().min(0).max(100).optional(),
-        })
-        .optional(),
-    })
-    // CF returns `result: null` on failure — see the Images schema note.
-    .nullish(),
-})
-
-/**
- * Cloudflare Stream webhook payload
- *
- * Sent when a video reaches a terminal state (ready or error). The shape
- * mirrors `GET /stream/{uid}` — we only validate the fields we actually use
- * and pass unknown fields through so Cloudflare can add new ones without
- * breaking us.
- *
- * @see https://developers.cloudflare.com/stream/manage-video-library/using-webhooks/
- */
-export const CloudflareStreamWebhookPayloadSchema = z
-  .object({
-    uid: z.string().min(1),
-    readyToStream: z.boolean().optional(),
-    status: z.object({
-      state: z.string(),
-      pctComplete: z.string().optional(),
-      errorReasonCode: z.string().optional(),
-      errorReasonText: z.string().optional(),
-    }),
-    meta: z.record(z.string(), z.string()).optional(),
-    created: z.string().optional(),
-    modified: z.string().optional(),
-    duration: z.number().optional(),
-  })
-  .passthrough()
-
 // Type inference for TypeScript
 export type CloudflareImagesResponse = z.infer<typeof CloudflareImagesResponseSchema>
 export type CloudflareStreamResponse = z.infer<typeof CloudflareStreamResponseSchema>
-export type CloudflareStreamDownloadsResponse = z.infer<
-  typeof CloudflareStreamDownloadsResponseSchema
->
-export type CloudflareStreamWebhookPayload = z.infer<typeof CloudflareStreamWebhookPayloadSchema>
