@@ -48,7 +48,6 @@ const cellStyle: React.CSSProperties = {
 }
 
 const selectStyle: React.CSSProperties = {
-  width: '100%',
   padding: 'calc(var(--base) * 0.25) calc(var(--base) * 0.4)',
   fontSize: '13px',
   color: 'var(--theme-elevation-800)',
@@ -101,13 +100,13 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
         >
           <thead>
             <tr style={{ backgroundColor: 'var(--theme-elevation-50)' }}>
-              <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left' }}>Notification</th>
-              <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left', width: '30%' }}>
-                Method
+              {/* The Notification column absorbs spare width so Method +
+                  Frequency shrink to just their dropdown content. */}
+              <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left', width: '100%' }}>
+                Notification
               </th>
-              <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left', width: '30%' }}>
-                Frequency
-              </th>
+              <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left' }}>Method</th>
+              <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left' }}>Frequency</th>
             </tr>
           </thead>
           <tbody>

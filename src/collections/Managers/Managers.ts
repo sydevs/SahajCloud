@@ -193,29 +193,34 @@ export const Managers: CollectionConfig = {
               admin: { description: 'Messaging handles used to deliver notifications.' },
               fields: [
                 {
-                  name: 'platform',
-                  type: 'select',
-                  required: true,
-                  options: [
-                    { label: 'WhatsApp', value: 'whatsapp' },
-                    { label: 'Telegram', value: 'telegram' },
-                    { label: 'WeChat', value: 'wechat' },
+                  type: 'row',
+                  fields: [
+                    {
+                      name: 'platform',
+                      type: 'select',
+                      required: true,
+                      options: [
+                        { label: 'WhatsApp', value: 'whatsapp' },
+                        { label: 'Telegram', value: 'telegram' },
+                        { label: 'WeChat', value: 'wechat' },
+                      ],
+                    },
+                    {
+                      name: 'identifier',
+                      type: 'text',
+                      required: true,
+                      label: 'Phone / Username',
+                      admin: { description: 'Phone number or username for this platform.' },
+                    },
+                    {
+                      name: 'verified',
+                      type: 'checkbox',
+                      admin: {
+                        readOnly: true,
+                        description: 'Set by the import / a future verification flow.',
+                      },
+                    },
                   ],
-                  admin: { components: { Field: '@/components/admin/ToggleGroupField' } },
-                },
-                {
-                  name: 'identifier',
-                  type: 'text',
-                  required: true,
-                  admin: { description: 'Phone number or username for this platform.' },
-                },
-                {
-                  name: 'verified',
-                  type: 'checkbox',
-                  admin: {
-                    readOnly: true,
-                    description: 'Set by the import / a future verification flow.',
-                  },
                 },
               ],
             },
