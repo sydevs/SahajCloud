@@ -39,7 +39,6 @@ Copy from `.env.example` and configure:
 - `CLOUDFLARE_IMAGES_DELIVERY_URL` - Images delivery base URL (e.g., `https://imagedelivery.net/<hash>`)
 - `CLOUDFLARE_STREAM_DELIVERY_URL` - Stream video base URL (e.g., `https://customer-<code>.cloudflarestream.com`)
 - `CLOUDFLARE_API_KEY` - API token with Images + Stream edit scope
-- `CLOUDFLARE_STREAM_WEBHOOK_SECRET` - HMAC secret for Cloudflare Stream webhook (production only)
 
 #### Finding Cloudflare Credentials
 
