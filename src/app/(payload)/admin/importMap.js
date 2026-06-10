@@ -36,6 +36,7 @@ import { default as default_216b4fefb509fb8787bce46ede901332 } from '@/component
 import { default as default_673fb432cb45f37a951f8916cb366397 } from '@/components/admin/ColorField/ColorCell'
 import { default as default_c76ed6d3c3881bbd4c90e56dac27b1a7 } from '@/components/admin/ColorField/ColorField'
 import { default as default_49cc57155f60c2bacf9eaa38c760d251 } from '@/components/admin/PermissionsTable'
+import { default as default_62cc53570223acc00863adec1af8b6de } from '@/components/admin/NotificationPreferences'
 import { default as default_acdce971efa051c30eee554c2f9f8336 } from '@/components/admin/AbuseScore/AbuseScoreCell'
 import { default as default_d600b4f81bb40d92e487891c4971de20 } from '@/components/admin/AbuseScore/AbuseScoreField'
 import { default as default_0a6b8160e35e150007da27e645325d20 } from '@/components/admin/AppCardViewSchedule'
@@ -109,6 +110,7 @@ export const importMap = {
   "@/components/admin/ColorField/ColorCell#default": default_673fb432cb45f37a951f8916cb366397,
   "@/components/admin/ColorField/ColorField#default": default_c76ed6d3c3881bbd4c90e56dac27b1a7,
   "@/components/admin/PermissionsTable#default": default_49cc57155f60c2bacf9eaa38c760d251,
+  "@/components/admin/NotificationPreferences#default": default_62cc53570223acc00863adec1af8b6de,
   "@/components/admin/AbuseScore/AbuseScoreCell#default": default_acdce971efa051c30eee554c2f9f8336,
   "@/components/admin/AbuseScore/AbuseScoreField#default": default_d600b4f81bb40d92e487891c4971de20,
   "@/components/admin/AppCardViewSchedule#default": default_0a6b8160e35e150007da27e645325d20,
