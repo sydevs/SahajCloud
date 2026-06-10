@@ -149,6 +149,17 @@ export const Regions: CollectionConfig = {
                 },
               ],
             },
+            {
+              // Owning side of Managers.managedRegions (a join on this field).
+              // Populated by the Atlas `managed_records` import.
+              name: 'managers',
+              type: 'relationship',
+              relationTo: 'managers',
+              hasMany: true,
+              admin: {
+                description: 'Managers responsible for this region.',
+              },
+            },
           ],
         },
         {
