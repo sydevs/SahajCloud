@@ -11,7 +11,7 @@ import type { FieldHook, NamedGroupField } from 'payload'
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-import { scheduleField } from '@/fields/scheduleField'
+import { scheduleFields } from '@/fields/scheduleFields'
 import {
   cleanupExpiredExclusions,
   computeIcalRule,
@@ -79,7 +79,10 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('returns COUNT=1 RRULE when recurrenceType is "none"', () => {
-        const result = callHook(computeIcalRule, { ...baseFields, recurrenceType: 'none' }) as string
+        const result = callHook(computeIcalRule, {
+          ...baseFields,
+          recurrenceType: 'none',
+        }) as string
         expect(result).toContain('FREQ=DAILY')
         expect(result).toContain('COUNT=1')
       })
@@ -1119,9 +1122,7 @@ describe('Schedule Field Hooks', () => {
     it('keeps items within 1-day grace period', () => {
       // March 14 end-of-day + 1 day grace = March 15 23:59:59.999
       // Current time is March 15 12:00 — within grace period
-      const exclusions = [
-        { startDate: '2025-03-13', endDate: '2025-03-14' },
-      ]
+      const exclusions = [{ startDate: '2025-03-13', endDate: '2025-03-14' }]
 
       const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions)
       expect(result).toHaveLength(1)
@@ -1130,9 +1131,7 @@ describe('Schedule Field Hooks', () => {
     it('removes items past grace period (with endDate)', () => {
       // March 10 + 1 day grace = March 11 23:59:59.999
       // Current time is March 15 — well past grace
-      const exclusions = [
-        { startDate: '2025-03-08', endDate: '2025-03-10', reason: 'Old break' },
-      ]
+      const exclusions = [{ startDate: '2025-03-08', endDate: '2025-03-10', reason: 'Old break' }]
 
       const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions) as unknown[]
       expect(result).toHaveLength(0)
@@ -1140,9 +1139,7 @@ describe('Schedule Field Hooks', () => {
 
     it('removes single-date items past grace (no endDate)', () => {
       // March 10 + 1 day grace = expired before March 15
-      const exclusions = [
-        { startDate: '2025-03-10' },
-      ]
+      const exclusions = [{ startDate: '2025-03-10' }]
 
       const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions) as unknown[]
       expect(result).toHaveLength(0)
@@ -1156,7 +1153,9 @@ describe('Schedule Field Hooks', () => {
         { startDate: '2025-01-01' }, // expired
       ]
 
-      const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions) as Array<{ startDate: string }>
+      const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions) as Array<{
+        startDate: string
+      }>
       expect(result).toHaveLength(2)
       expect(result[0].startDate).toBe('2025-03-14')
       expect(result[1].startDate).toBe('2025-04-01')
@@ -1189,7 +1188,9 @@ describe('Schedule Field Hooks', () => {
         { startDate: '2025-04-01T00:00:00.000Z' }, // future
       ]
 
-      const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions) as Array<{ startDate: string }>
+      const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions) as Array<{
+        startDate: string
+      }>
       expect(result).toHaveLength(1)
       expect(result[0].startDate).toBe('2025-04-01T00:00:00.000Z')
     })
@@ -1202,23 +1203,19 @@ describe('Schedule Field Hooks', () => {
   })
 
   // ──────────────────────────────────────────────────────────────────────
-  // scheduleField factory — structural assertions
+  // scheduleFields factory — structural assertions
   // ──────────────────────────────────────────────────────────────────────
-  describe('scheduleField factory', () => {
+  describe('scheduleFields factory', () => {
     it('registers ScheduleSummary beforeInput component on the group field', () => {
-      const field = scheduleField() as NamedGroupField
+      const field = scheduleFields() as NamedGroupField
       expect(field.type).toBe('group')
-      expect(field.admin?.components?.beforeInput).toEqual([
-        '@/components/admin/ScheduleSummary',
-      ])
+      expect(field.admin?.components?.beforeInput).toEqual(['@/components/admin/ScheduleSummary'])
     })
 
     it('registers beforeInput with custom group name', () => {
-      const field = scheduleField({ name: 'eventSchedule' }) as NamedGroupField
+      const field = scheduleFields({ name: 'eventSchedule' }) as NamedGroupField
       expect(field.name).toBe('eventSchedule')
-      expect(field.admin?.components?.beforeInput).toEqual([
-        '@/components/admin/ScheduleSummary',
-      ])
+      expect(field.admin?.components?.beforeInput).toEqual(['@/components/admin/ScheduleSummary'])
     })
   })
 })

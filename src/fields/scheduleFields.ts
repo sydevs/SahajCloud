@@ -10,7 +10,7 @@ import {
 /**
  * Field factory options
  */
-export interface ScheduleFieldOptions {
+export interface ScheduleFieldsOptions {
   /** Field name (default: 'schedule') */
   name?: string
   /** Field label (default: 'Schedule', false to hide) */
@@ -32,7 +32,7 @@ export interface ScheduleFieldOptions {
 }
 
 /** Internal configuration for sub-field builders */
-type SubFieldConfig = Omit<ScheduleFieldOptions, 'name' | 'label' | 'admin'>
+type SubFieldConfig = Omit<ScheduleFieldsOptions, 'name' | 'label' | 'admin'>
 
 /**
  * Weekday options for the multi-select field
@@ -93,14 +93,14 @@ const ENDING_OPTIONS = [
  * @example Basic usage (core fields only)
  * ```typescript
  * fields: [
- *   scheduleField({ name: 'schedule' }),
+ *   scheduleFields({ name: 'schedule' }),
  * ]
  * ```
  *
  * @example With feature flags
  * ```typescript
  * fields: [
- *   scheduleField({
+ *   scheduleFields({
  *     name: 'schedule',
  *     hasEndTime: true,
  *     hasEnding: true,
@@ -108,7 +108,7 @@ const ENDING_OPTIONS = [
  * ]
  * ```
  */
-export function scheduleField(options: ScheduleFieldOptions = {}): Field {
+export function scheduleFields(options: ScheduleFieldsOptions = {}): Field {
   const {
     name = 'schedule',
     label = 'Schedule',

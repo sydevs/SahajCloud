@@ -72,7 +72,8 @@ const PROJECTS = {
   'sahaj-atlas': {
     label: 'Sahaj Atlas',
     icon: '/images/sahaj-atlas.webp',
-    collections: ['images', 'files'],
+    // `users` (registrants) is intentionally omitted — it stays admin-only.
+    collections: ['regions', 'events', 'registrations', 'images', 'files'],
     globals: ['sy-atlas-config', 'sy-atlas-translations'],
   },
 } as const
