@@ -38,7 +38,7 @@ function toSiblingPath(path: string, siblingName: string): string {
  *    nested inside a group (e.g. `address`).
  */
 export const StringSelectField: TextFieldClientComponent = ({ field, path, readOnly }) => {
-  const { label, localized, required, admin: { description, custom } = {} } = field
+  const { label, localized, required, admin: { description, custom, style, width } = {} } = field
   const config = (custom ?? {}) as StringSelectCustom
   const isRegion = config.source === 'region'
 
@@ -63,8 +63,19 @@ export const StringSelectField: TextFieldClientComponent = ({ field, path, readO
     .filter(Boolean)
     .join(' ')
 
+  // Match built-in fields (mirrors Payload's internal `mergeFieldStyles`):
+  // `admin.width` → `--field-width`, otherwise `flex: 1 1 auto` so the dropdown
+  // grows to fill its slot in a row. Without this the custom component is
+  // content-width while sibling built-in fields flex. Payload's `.field-type`
+  // SCSS consumes `--field-width`.
+  const styles = {
+    ...style,
+    ...(width ? { '--field-width': width } : { flex: '1 1 auto' }),
+    ...(style?.flex ? { flex: style.flex } : {}),
+  } as React.CSSProperties
+
   return (
-    <div className={fieldClasses} id={`field-${path.replace(/\./g, '__')}`}>
+    <div className={fieldClasses} id={`field-${path.replace(/\./g, '__')}`} style={styles}>
       <FieldLabel label={label} localized={localized} path={path} required={required} />
       <div className="field-type__wrap">
         <FieldError path={path} showError={showError} />

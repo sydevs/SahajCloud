@@ -2357,10 +2357,7 @@ export interface Event {
     longitude?: number | null;
   };
   registrationMode: 'sahaj-atlas' | 'external';
-  /**
-   * External registration link.
-   */
-  registrationUrl?: string | null;
+  externalRegistrationUrl?: string | null;
   /**
    * Maximum registrations (blank = unlimited).
    */
@@ -3570,7 +3567,7 @@ export interface EventsSelect<T extends boolean = true> {
         longitude?: T;
       };
   registrationMode?: T;
-  registrationUrl?: T;
+  externalRegistrationUrl?: T;
   registrationLimit?: T;
   registrationQuestions?:
     | T

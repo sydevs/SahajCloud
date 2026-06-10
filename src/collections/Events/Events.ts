@@ -161,21 +161,25 @@ export const Events: CollectionConfig = {
           label: 'Registration',
           fields: [
             {
-              name: 'registrationMode',
-              type: 'select',
-              required: true,
-              defaultValue: 'sahaj-atlas',
-              options: [...EVENT_REGISTRATION_MODE_OPTIONS],
-              admin: { components: { Field: TOGGLE_GROUP_FIELD } },
+              type: 'row',
+              fields: [
+                {
+                  name: 'registrationMode',
+                  type: 'select',
+                  required: true,
+                  defaultValue: 'sahaj-atlas',
+                  options: [...EVENT_REGISTRATION_MODE_OPTIONS],
+                  admin: { components: { Field: TOGGLE_GROUP_FIELD } },
+                },
+                urlField({
+                  name: 'externalRegistrationUrl',
+                  label: 'External Registration URL',
+                  admin: {
+                    condition: (data) => data?.registrationMode === 'external',
+                  },
+                }),
+              ],
             },
-            urlField({
-              name: 'registrationUrl',
-              label: 'Registration URL',
-              admin: {
-                condition: (data) => data?.registrationMode === 'external',
-                description: 'External registration link.',
-              },
-            }),
             {
               name: 'registrationLimit',
               type: 'number',
