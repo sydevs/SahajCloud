@@ -141,6 +141,10 @@ export interface Config {
     'song-tags': {
       songs: 'songs';
     };
+    managers: {
+      managedRegions: 'regions';
+      managedEvents: 'events';
+    };
     regions: {
       events: 'events';
     };
@@ -1664,6 +1668,251 @@ export interface Manager {
         value: number | Page;
       }[]
     | null;
+  /**
+   * Regions this manager is responsible for.
+   */
+  managedRegions?: {
+    docs?: (number | Region)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * Events this manager owns.
+   */
+  managedEvents?: {
+    docs?: (number | Event)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * The manager's preferred language.
+   */
+  languageCode?:
+    | (
+        | 'ab'
+        | 'aa'
+        | 'af'
+        | 'ak'
+        | 'sq'
+        | 'am'
+        | 'ar'
+        | 'an'
+        | 'hy'
+        | 'as'
+        | 'av'
+        | 'ae'
+        | 'ay'
+        | 'az'
+        | 'bm'
+        | 'ba'
+        | 'eu'
+        | 'be'
+        | 'bn'
+        | 'bi'
+        | 'bs'
+        | 'br'
+        | 'bg'
+        | 'my'
+        | 'ca'
+        | 'ch'
+        | 'ce'
+        | 'ny'
+        | 'zh'
+        | 'cv'
+        | 'kw'
+        | 'co'
+        | 'cr'
+        | 'hr'
+        | 'cs'
+        | 'da'
+        | 'dv'
+        | 'nl'
+        | 'dz'
+        | 'en'
+        | 'eo'
+        | 'et'
+        | 'ee'
+        | 'fo'
+        | 'fj'
+        | 'fi'
+        | 'fr'
+        | 'ff'
+        | 'gl'
+        | 'lg'
+        | 'ka'
+        | 'de'
+        | 'el'
+        | 'gn'
+        | 'gu'
+        | 'ht'
+        | 'ha'
+        | 'he'
+        | 'hz'
+        | 'hi'
+        | 'ho'
+        | 'hu'
+        | 'is'
+        | 'io'
+        | 'ig'
+        | 'id'
+        | 'ia'
+        | 'ie'
+        | 'iu'
+        | 'ik'
+        | 'ga'
+        | 'it'
+        | 'ja'
+        | 'jv'
+        | 'kl'
+        | 'kn'
+        | 'kr'
+        | 'ks'
+        | 'kk'
+        | 'km'
+        | 'ki'
+        | 'rw'
+        | 'rn'
+        | 'kv'
+        | 'kg'
+        | 'ko'
+        | 'ku'
+        | 'kj'
+        | 'ky'
+        | 'lo'
+        | 'la'
+        | 'lv'
+        | 'li'
+        | 'ln'
+        | 'lt'
+        | 'lu'
+        | 'lb'
+        | 'mk'
+        | 'mg'
+        | 'ms'
+        | 'ml'
+        | 'mt'
+        | 'gv'
+        | 'mi'
+        | 'mr'
+        | 'mh'
+        | 'mn'
+        | 'na'
+        | 'nv'
+        | 'ng'
+        | 'ne'
+        | 'nd'
+        | 'se'
+        | 'no'
+        | 'nb'
+        | 'nn'
+        | 'ii'
+        | 'oc'
+        | 'oj'
+        | 'cu'
+        | 'or'
+        | 'om'
+        | 'os'
+        | 'pi'
+        | 'pa'
+        | 'ps'
+        | 'fa'
+        | 'pl'
+        | 'pt'
+        | 'qu'
+        | 'ro'
+        | 'rm'
+        | 'ru'
+        | 'sm'
+        | 'sg'
+        | 'sa'
+        | 'sc'
+        | 'gd'
+        | 'sr'
+        | 'sn'
+        | 'sd'
+        | 'si'
+        | 'sk'
+        | 'sl'
+        | 'so'
+        | 'nr'
+        | 'st'
+        | 'es'
+        | 'su'
+        | 'sw'
+        | 'ss'
+        | 'sv'
+        | 'tl'
+        | 'ty'
+        | 'tg'
+        | 'ta'
+        | 'tt'
+        | 'te'
+        | 'th'
+        | 'bo'
+        | 'ti'
+        | 'to'
+        | 'ts'
+        | 'tn'
+        | 'tr'
+        | 'tk'
+        | 'tw'
+        | 'uk'
+        | 'ur'
+        | 'ug'
+        | 'uz'
+        | 've'
+        | 'vi'
+        | 'vo'
+        | 'wa'
+        | 'cy'
+        | 'fy'
+        | 'wo'
+        | 'xh'
+        | 'yi'
+        | 'yo'
+        | 'za'
+        | 'zu'
+      )
+    | null;
+  /**
+   * Messaging handles used to deliver notifications.
+   */
+  contactDetails?:
+    | {
+        platform: 'whatsapp' | 'telegram' | 'wechat';
+        /**
+         * Phone number or username for this platform.
+         */
+        identifier: string;
+        /**
+         * Set by the import / a future verification flow.
+         */
+        verified?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Choose how and how often to receive each kind of notification.
+   */
+  notificationPreferences?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -1684,93 +1933,6 @@ export interface Manager {
     | null;
   password?: string | null;
   collection: 'managers';
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "clients".
- */
-export interface Client {
-  id: number;
-  /**
-   * Client organization or application name
-   */
-  name: string;
-  /**
-   * Purpose and usage notes for this client
-   */
-  notes?: string | null;
-  /**
-   * Assign API client roles. Roles apply to all locales.
-   */
-  roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null;
-  /**
-   * Users who can manage this client
-   */
-  managers: (number | Manager)[];
-  /**
-   * Primary user contact for this client
-   */
-  primaryContact: number | Manager;
-  /**
-   * What domains are associated with this client. Put each domain on a new line.
-   */
-  domains?: string | null;
-  /**
-   * Enable or disable API access for this client
-   */
-  active?: boolean | null;
-  /**
-   * Timestamp of last API key generation
-   */
-  keyGeneratedAt?: string | null;
-  /**
-   * API usage statistics
-   */
-  usage?: {
-    abuseScore?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    /**
-     * Today's request count
-     */
-    dailyRequests?: number | null;
-    /**
-     * Maximum historical request count
-     */
-    peakDailyRequests?: number | null;
-    /**
-     * Last API call timestamp
-     */
-    lastRequestAt?: string | null;
-    /**
-     * Lifetime total requests (never resets)
-     */
-    totalRequests?: number | null;
-    /**
-     * Count of days exceeding threshold
-     */
-    highUsageDays?: number | null;
-    /**
-     * Last date threshold was exceeded
-     */
-    lastHighUsageAt?: string | null;
-    /**
-     * First API request (tracking start)
-     */
-    firstRequestAt?: string | null;
-  };
-  updatedAt: string;
-  createdAt: string;
-  enableAPIKey?: boolean | null;
-  apiKey?: string | null;
-  apiKeyIndex?: string | null;
-  collection: 'clients';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1798,6 +1960,10 @@ export interface Region {
    * Radius in meters.
    */
   radius?: number | null;
+  /**
+   * Managers responsible for this region.
+   */
+  managers?: (number | Manager)[] | null;
   /**
    * These fields will be used to set defaults for Events in this region
    */
@@ -2468,6 +2634,325 @@ export interface User {
     | null;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "clients".
+ */
+export interface Client {
+  id: number;
+  /**
+   * Client organization or application name
+   */
+  name: string;
+  /**
+   * Purpose and usage notes for this client
+   */
+  notes?: string | null;
+  /**
+   * Assign API client roles. Roles apply to all locales.
+   */
+  roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null;
+  /**
+   * Users who can manage this client
+   */
+  managers: (number | Manager)[];
+  /**
+   * Primary user contact for this client
+   */
+  primaryContact: number | Manager;
+  /**
+   * What domains are associated with this client. Put each domain on a new line.
+   */
+  domains?: string | null;
+  /**
+   * Enable or disable API access for this client
+   */
+  active?: boolean | null;
+  /**
+   * Atlas public key — reference only. Payload issues its own API key for this service.
+   */
+  clientId?: string | null;
+  /**
+   * Hex color code (e.g., #FF5733)
+   */
+  color1?: string | null;
+  /**
+   * Hex color code (e.g., #FF5733)
+   */
+  color2?: string | null;
+  /**
+   * Hex color code (e.g., #FF5733)
+   */
+  color3?: string | null;
+  /**
+   * Primary language for this service (any language).
+   */
+  locale?:
+    | (
+        | 'ab'
+        | 'aa'
+        | 'af'
+        | 'ak'
+        | 'sq'
+        | 'am'
+        | 'ar'
+        | 'an'
+        | 'hy'
+        | 'as'
+        | 'av'
+        | 'ae'
+        | 'ay'
+        | 'az'
+        | 'bm'
+        | 'ba'
+        | 'eu'
+        | 'be'
+        | 'bn'
+        | 'bi'
+        | 'bs'
+        | 'br'
+        | 'bg'
+        | 'my'
+        | 'ca'
+        | 'ch'
+        | 'ce'
+        | 'ny'
+        | 'zh'
+        | 'cv'
+        | 'kw'
+        | 'co'
+        | 'cr'
+        | 'hr'
+        | 'cs'
+        | 'da'
+        | 'dv'
+        | 'nl'
+        | 'dz'
+        | 'en'
+        | 'eo'
+        | 'et'
+        | 'ee'
+        | 'fo'
+        | 'fj'
+        | 'fi'
+        | 'fr'
+        | 'ff'
+        | 'gl'
+        | 'lg'
+        | 'ka'
+        | 'de'
+        | 'el'
+        | 'gn'
+        | 'gu'
+        | 'ht'
+        | 'ha'
+        | 'he'
+        | 'hz'
+        | 'hi'
+        | 'ho'
+        | 'hu'
+        | 'is'
+        | 'io'
+        | 'ig'
+        | 'id'
+        | 'ia'
+        | 'ie'
+        | 'iu'
+        | 'ik'
+        | 'ga'
+        | 'it'
+        | 'ja'
+        | 'jv'
+        | 'kl'
+        | 'kn'
+        | 'kr'
+        | 'ks'
+        | 'kk'
+        | 'km'
+        | 'ki'
+        | 'rw'
+        | 'rn'
+        | 'kv'
+        | 'kg'
+        | 'ko'
+        | 'ku'
+        | 'kj'
+        | 'ky'
+        | 'lo'
+        | 'la'
+        | 'lv'
+        | 'li'
+        | 'ln'
+        | 'lt'
+        | 'lu'
+        | 'lb'
+        | 'mk'
+        | 'mg'
+        | 'ms'
+        | 'ml'
+        | 'mt'
+        | 'gv'
+        | 'mi'
+        | 'mr'
+        | 'mh'
+        | 'mn'
+        | 'na'
+        | 'nv'
+        | 'ng'
+        | 'ne'
+        | 'nd'
+        | 'se'
+        | 'no'
+        | 'nb'
+        | 'nn'
+        | 'ii'
+        | 'oc'
+        | 'oj'
+        | 'cu'
+        | 'or'
+        | 'om'
+        | 'os'
+        | 'pi'
+        | 'pa'
+        | 'ps'
+        | 'fa'
+        | 'pl'
+        | 'pt'
+        | 'qu'
+        | 'ro'
+        | 'rm'
+        | 'ru'
+        | 'sm'
+        | 'sg'
+        | 'sa'
+        | 'sc'
+        | 'gd'
+        | 'sr'
+        | 'sn'
+        | 'sd'
+        | 'si'
+        | 'sk'
+        | 'sl'
+        | 'so'
+        | 'nr'
+        | 'st'
+        | 'es'
+        | 'su'
+        | 'sw'
+        | 'ss'
+        | 'sv'
+        | 'tl'
+        | 'ty'
+        | 'tg'
+        | 'ta'
+        | 'tt'
+        | 'te'
+        | 'th'
+        | 'bo'
+        | 'ti'
+        | 'to'
+        | 'ts'
+        | 'tn'
+        | 'tr'
+        | 'tk'
+        | 'tw'
+        | 'uk'
+        | 'ur'
+        | 'ug'
+        | 'uz'
+        | 've'
+        | 'vi'
+        | 'vo'
+        | 'wa'
+        | 'cy'
+        | 'fy'
+        | 'wo'
+        | 'xh'
+        | 'yi'
+        | 'yo'
+        | 'za'
+        | 'zu'
+      )
+    | null;
+  /**
+   * Atlas geographic scope for this service.
+   */
+  region?: (number | null) | Region;
+  /**
+   * Deprecated Atlas config (routing_type, embed_type, default_view).
+   */
+  legacyConfig?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Timestamp of last API key generation
+   */
+  keyGeneratedAt?: string | null;
+  /**
+   * API usage statistics
+   */
+  usage?: {
+    abuseScore?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    /**
+     * Today's request count
+     */
+    dailyRequests?: number | null;
+    /**
+     * Maximum historical request count
+     */
+    peakDailyRequests?: number | null;
+    /**
+     * Last API call timestamp
+     */
+    lastRequestAt?: string | null;
+    /**
+     * Lifetime total requests (never resets)
+     */
+    totalRequests?: number | null;
+    /**
+     * Count of days exceeding threshold
+     */
+    highUsageDays?: number | null;
+    /**
+     * Last date threshold was exceeded
+     */
+    lastHighUsageAt?: string | null;
+    /**
+     * First API request (tracking start)
+     */
+    firstRequestAt?: string | null;
+  };
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  enableAPIKey?: boolean | null;
+  apiKey?: string | null;
+  apiKeyIndex?: string | null;
+  collection: 'clients';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3331,6 +3816,20 @@ export interface ManagersSelect<T extends boolean = true> {
   type?: T;
   roles?: T;
   customResourceAccess?: T;
+  managedRegions?: T;
+  managedEvents?: T;
+  languageCode?: T;
+  contactDetails?:
+    | T
+    | {
+        platform?: T;
+        identifier?: T;
+        verified?: T;
+        id?: T;
+      };
+  notificationPreferences?: T;
+  legacyId?: T;
+  legacyData?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -3362,6 +3861,13 @@ export interface ClientsSelect<T extends boolean = true> {
   primaryContact?: T;
   domains?: T;
   active?: T;
+  clientId?: T;
+  color1?: T;
+  color2?: T;
+  color3?: T;
+  locale?: T;
+  region?: T;
+  legacyConfig?: T;
   keyGeneratedAt?: T;
   usage?:
     | T
@@ -3375,6 +3881,8 @@ export interface ClientsSelect<T extends boolean = true> {
         lastHighUsageAt?: T;
         firstRequestAt?: T;
       };
+  legacyId?: T;
+  legacyData?: T;
   updatedAt?: T;
   createdAt?: T;
   enableAPIKey?: T;
@@ -3492,6 +4000,7 @@ export interface RegionsSelect<T extends boolean = true> {
   latitude?: T;
   longitude?: T;
   radius?: T;
+  managers?: T;
   eventDefaults?:
     | T
     | {
