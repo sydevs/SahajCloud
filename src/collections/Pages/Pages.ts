@@ -6,6 +6,7 @@ import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMedita
 import { removeDanglingLexicalReferencesAfterRead } from '@/hooks/lexicalHooks'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { pageBlocks } from '@/lib/richEditor/blocks'
+import { adminOnlyFieldAccess } from '@/plugins/access'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
@@ -83,6 +84,23 @@ export const Pages: CollectionConfig = {
       options: PAGE_TAGS,
       admin: {
         position: 'sidebar',
+      },
+    },
+    {
+      // Document-level access: managers listed here can read + update this page
+      // even without role-based access (see src/plugins/access/documentManagers.ts).
+      // Assigning editors is admin-only; editors edit content, not the editor list.
+      name: 'managers',
+      type: 'relationship',
+      relationTo: 'managers',
+      hasMany: true,
+      label: 'Page Editors',
+      access: {
+        update: adminOnlyFieldAccess,
+      },
+      admin: {
+        position: 'sidebar',
+        description: 'Managers who can edit this page without broader permissions.',
       },
     },
     {

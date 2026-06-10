@@ -10,10 +10,16 @@
  */
 
 import type { BypassPermissionFunction, ContentSlug, FieldAccessConfig } from './types'
-import type { AccessArgs, CollectionConfig, CollectionSlug, PayloadRequest } from 'payload'
+import type { AccessArgs, CollectionConfig, CollectionSlug, PayloadRequest, Where } from 'payload'
 
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 
+import {
+  getDocManagerFields,
+  hasDocManagerAccess,
+  resolveManagedDocIds,
+  userManagesDocument,
+} from './documentManagers'
 import { hasPermission } from './permissions'
 
 /**
@@ -27,6 +33,15 @@ import { hasPermission } from './permissions'
 function collectionHasDrafts(req: PayloadRequest, collectionSlug: string): boolean {
   const collection = req.payload.collections[collectionSlug as CollectionSlug]
   return !!collection?.config?.versions?.drafts
+}
+
+/**
+ * True for an active, non-admin manager (`type === 'manager'`). Admins are
+ * already granted by the bypass; inactive managers are denied there. This is
+ * the only user class eligible for document-level manager access.
+ */
+function isActiveNonAdminManager(user: PayloadRequest['user']): boolean {
+  return user?.collection === 'managers' && (user as { type?: string }).type === 'manager'
 }
 
 /**
@@ -45,7 +60,7 @@ export function createAccessConfig(
   const accessConfig: CollectionConfig['access'] = {}
 
   for (const operation of operations) {
-    accessConfig[operation] = ({ req, id }: AccessArgs) => {
+    accessConfig[operation] = async ({ req, id }: AccessArgs): Promise<boolean | Where> => {
       const args = {
         user: req.user,
         collection,
@@ -56,18 +71,38 @@ export function createAccessConfig(
 
       const hasAccess = hasPermission(args, bypassFn)
 
-      if (
-        hasAccess &&
-        operation === 'read' &&
-        req.user?.collection === 'clients' &&
-        collectionHasDrafts(req, collection) &&
-        !hasValidPreviewSecret(req) // External connections must use preview secret
-      ) {
-        // Restrict to published only unless all requirements are met.
-        return { _status: { equals: 'published' } }
+      if (hasAccess) {
+        if (
+          operation === 'read' &&
+          req.user?.collection === 'clients' &&
+          collectionHasDrafts(req, collection) &&
+          !hasValidPreviewSecret(req) // External connections must use preview secret
+        ) {
+          // Restrict to published only unless all requirements are met.
+          return { _status: { equals: 'published' } }
+        }
+        return true
       }
 
-      return hasAccess
+      // Role-based access denied. An active non-admin manager may still reach
+      // read/update on documents that list them (or an ancestor) via a manager
+      // field — see documentManagers.ts. This DB-touching path runs only after
+      // the query-free permission check has already failed.
+      if ((operation === 'read' || operation === 'update') && isActiveNonAdminManager(req.user)) {
+        const fields = getDocManagerFields(req.payload, collection)
+        if (hasDocManagerAccess(fields)) {
+          const userId = req.user!.id
+          // Single-document update → boolean; read or bulk update → constrain
+          // the query to the managed set (or deny outright when it's empty).
+          if (operation === 'update' && id !== undefined) {
+            return userManagesDocument(req, collection, userId, id, fields)
+          }
+          const ids = await resolveManagedDocIds(req, collection, userId, fields)
+          return ids.length ? { id: { in: ids } } : false
+        }
+      }
+
+      return false
     }
   }
 

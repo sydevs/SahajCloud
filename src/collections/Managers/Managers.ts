@@ -142,24 +142,17 @@ export const Managers: CollectionConfig = {
               },
             },
 
-            // Custom Resource Access
+            // Read-only inverses of the document-level manager relationships.
+            // Each is the join side of a `managers`/`manager` field that grants
+            // this manager document-level read + edit access (see
+            // src/plugins/access/documentManagers.ts).
             {
-              name: 'customResourceAccess',
-              type: 'relationship',
-              relationTo: ['pages'],
-              hasMany: true,
-              admin: {
-                description:
-                  'Grant update access to specific documents. Useful for giving access to individual pages without broader permissions.',
-                condition: (data) => data.type === 'manager',
-              },
-              access: {
-                // Only admins can update custom resource access
-                update: adminOnlyFieldAccess,
-              },
+              name: 'managedPages',
+              type: 'join',
+              collection: 'pages',
+              on: 'managers',
+              admin: { description: 'Pages this manager can edit.' },
             },
-
-            // Read-only inverse of the region/event responsibility relationships.
             {
               name: 'managedRegions',
               type: 'join',

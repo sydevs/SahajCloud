@@ -68,7 +68,7 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 | Schema introspection (`discoverReferencesForCollection`, `extractIdsFromLexicalContent`)                       | `schema-utils`              |
 | Content-Index block API endpoint generation (`computeApiEndpoint` virtual)                                     | `content-index-block`       |
 | Project-based admin visibility (`createHidden` from accessPlugin)                                              | `project-visibility`        |
-| RBAC (`hasPermission`, `hasAnyPermission`, `customResourceAccess`, locale roles, translator scopes)            | `role-based-access`         |
+| RBAC (`hasPermission`, `hasAnyPermission`, document-level manager access, locale roles, translator scopes)     | `role-based-access`         |
 
 ## Gaps
 

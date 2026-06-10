@@ -177,9 +177,7 @@ async function main() {
   const all = async (sql: string): Promise<Row[]> => (await db.query(sql)).rows
 
   // --- Reference sets for orphan pruning ---
-  const countryIds = new Set((await all('select id from countries')).map((r) => r.id))
   const regionIds = new Set((await all('select id from regions')).map((r) => r.id))
-  const areaIds = new Set((await all('select id from areas')).map((r) => r.id))
   const referencedVenueIds = new Set(
     (await all('select distinct venue_id from events where venue_id is not null')).map(
       (r) => r.venue_id,
@@ -324,27 +322,12 @@ async function main() {
     users.map((u) => ({ legacyId: u.id, email: u.email, name: u.name, createdAt: u.created_at })),
   )
 
-  // --- managers.json (with folded managed_records → customResourceAccess) ---
+  // --- managers.json ---
+  // Region responsibility (Atlas `managed_records`) is no longer folded onto
+  // the manager here: it now lives on the owning side, `regions.managers`
+  // (#462 / #476). The Phase-3 importer resolves those geo refs from the Atlas
+  // source directly — see seeds/atlas/MIGRATION_PLAN.md.
   const managers = await all('select * from managers order by id')
-  const managedRecords = await all('select * from managed_records')
-  const craByManager = new Map<number, Row[]>()
-  const seenCra = new Set<string>()
-  for (const mr of managedRecords) {
-    const level = recordTypeToLevel(mr.record_type)
-    if (!level) continue
-    // Drop refs whose target no longer exists (1 orphan LocalArea → area 59).
-    const exists =
-      (level === 'country' && countryIds.has(mr.record_id)) ||
-      (level === 'region' && regionIds.has(mr.record_id)) ||
-      (level === 'area' && areaIds.has(mr.record_id))
-    if (!exists) continue
-    const key = `${mr.manager_id}:${level}:${mr.record_id}`
-    if (seenCra.has(key)) continue
-    seenCra.add(key)
-    const list = craByManager.get(mr.manager_id) ?? []
-    list.push({ level, legacyId: mr.record_id })
-    craByManager.set(mr.manager_id, list)
-  }
   write(
     'managers',
     managers.map((m) => ({
@@ -359,7 +342,6 @@ async function main() {
       contactMethod: enumMap(CONTACT_METHOD, m.contact_method),
       notifications: decodeFlags(NOTIFICATION_FLAGS, m.notifications),
       lastLoginAt: m.last_login_at,
-      customResourceAccess: craByManager.get(m.id) ?? [],
     })),
   )
 

@@ -13,7 +13,7 @@ Rules for writing and running tests in this codebase.
 
 - Custom hooks (`src/hooks/`) — `validateClientData`, `checkHighUsageAlert`, etc.
 - Storage utilities (`src/plugins/storage/`) — URL field factories, R2 filename sanitization
-- Access control (`hasPermission`, `roleBasedAccess`, `customResourceAccess`)
+- Access control (`hasPermission`, `roleBasedAccess`, document-level manager access)
 - Custom field logic — virtual fields, computed values, custom validators
 - Document-level permissions
 - Business-critical workflows — usage tracking, API auth
@@ -170,7 +170,7 @@ suites. Tests run sequentially (`maxConcurrency: 1`) to prevent resource conflic
 | `meditation-duration.int.spec.ts` | Audio duration extraction + `durationMinutes` virtual field                                                                                                                                                                                                                |
 | `field-utils.int.spec.ts`         | `processFile` utility                                                                                                                                                                                                                                                      |
 | `storage-utils.int.spec.ts`       | URL field factories, R2 adapter                                                                                                                                                                                                                                            |
-| `role-based-access.int.spec.ts`   | `hasPermission`, `customResourceAccess`, locale permissions                                                                                                                                                                                                                |
+| `role-based-access.int.spec.ts`   | `hasPermission`, document-level manager access, locale permissions                                                                                                                                                                                                         |
 | `usage-tracking.int.spec.ts`      | API usage tracking job handlers                                                                                                                                                                                                                                            |
 | `[collection].int.spec.ts`        | **Collection-specific custom behavior only** — don't duplicate smoke coverage                                                                                                                                                                                              |
 

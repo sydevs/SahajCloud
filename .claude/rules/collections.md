@@ -35,9 +35,10 @@ const canUpdate = hasPermission({
 
 Permission flow (in order):
 1. Block null users.
-2. Bypass function (admin → allow; inactive → deny; `customResourceAccess` → allow; self-access → allow).
+2. Bypass function (admin → allow; inactive → deny; self-access → allow).
 3. Extract roles (flat array for clients, localized for managers).
 4. Per-role check: implicit project read access, explicit permissions, translate-only for localized field updates.
+5. Document-level manager access: when the above deny an active non-admin manager a read/update, `createAccessConfig` grants it if the doc (or an ancestor) lists them via a `managers`/`manager` field.
 5. Default: deny.
 
 Behaviors worth knowing:

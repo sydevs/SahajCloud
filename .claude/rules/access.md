@@ -52,8 +52,8 @@ plugins: [accessPlugin({ enabled: true, bypassPermissions })]
 Manager `type` field controls top-level access:
 
 - `inactive` — denied
-- `manager` — uses `roles` + `customResourceAccess`
-- `admin` — full bypass; `roles` and `customResourceAccess` hidden in admin UI
+- `manager` — uses `roles` + document-level manager access (see below)
+- `admin` — full bypass; `roles` hidden in admin UI
 
 ### Available manager roles
 
@@ -108,11 +108,13 @@ hasPermission({ user, collection: 'pages', operation: 'update' }, bypassFn)
    - Self-access — read/update own document
    - Inactive user blocking — managers + clients
    - Admin bypass — full access
-   - `customResourceAccess` — document-level grants
 3. O(1) permission lookup via pre-computed tables.
 4. Translate-permission check for localized field updates.
 5. Project-based implicit read access — collections in the role's project +
    shared collections (those listed in no project).
+6. Document-level manager access — when all the above deny an active non-admin
+   manager a read/update, `createAccessConfig` (async) grants it if the target
+   document, or an ancestor, lists them via a `managers`/`manager` field.
 
 Bypass return values: `'allow'` / `'deny'` / `'continue'`.
 
@@ -142,12 +144,19 @@ Both managers and API clients read everything in their role's project
 - `wemeditate-app-client` reads meditations, lessons, lectures, lecture-clips, etc. + shared.
 - `sahaj-atlas-client` reads images, files (sahaj-atlas) + shared.
 
-### `customResourceAccess` — document-level permissions
+### Document-level manager access
 
-Allows managers to update specific documents without collection-level update
-permission. Currently only applies to `pages`. Grants update only — never
-create or delete. Checked in the bypass function before collection-level
-permissions.
+Any collection that declares a `managers` (hasMany) or `manager` relationship
+to `managers` grants **read + update** on its documents to the listed managers
+— even with no role-based access. A self-referential `parent` relationship lets
+a document inherit managers from its ancestors, resolved through the nested-docs
+`breadcrumbs` trail (depth-independent) with a cycle-guarded parent-walk
+fallback. Fields are discovered by introspecting `flattenedFields`
+(`src/plugins/access/documentManagers.ts`) — no collection slugs are hardcoded,
+so it applies to any collection that adds them (currently Pages via "Page
+Editors", Regions, and Clients). Grants read + update only — never create or
+delete. Resolved asynchronously in `createAccessConfig`, only after the
+query-free permission check has already failed.
 
 ### Self-access
 
