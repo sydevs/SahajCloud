@@ -65,8 +65,6 @@ export type TypedAuthUser = TypedUser & {
   collection: 'managers' | 'clients'
   /** User's roles - can be flat array or localized object */
   roles?: RoleSlug[] | Record<LocaleCode, RoleSlug[]>
-  /** Custom resource access for document-level permissions */
-  customResourceAccess?: Array<{ relationTo: CollectionSlug; value: string | number }>
   /** Currently selected project (for managers) */
   currentProject?: ProjectSlug | null
   /** Whether the user is active (for clients) */
