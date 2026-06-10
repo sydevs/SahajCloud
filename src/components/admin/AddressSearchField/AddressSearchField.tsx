@@ -134,8 +134,10 @@ const MANUAL = 'manual'
  * the Event address (`addressFields`) and the Regions location. Selecting a
  * result stores the Mapbox feature id (this field's value). Two `admin.custom`
  * options tune it:
- *  - `searchTypes` — the Mapbox `types` filter (default `address,poi`; Regions
- *    use `country,region,place,poi`).
+ *  - `searchTypes` — the Mapbox `types` filter (default `address,poi`).
+ *  - `searchTypesField` + `searchTypesByValue` — scope `types` to a sibling
+ *    field's value (Regions narrow the search by `level`); read reactively, with
+ *    `searchTypes` as the fallback.
  *  - `populateAddress` — when set, also fills the sibling address fields
  *    (street/city/region/country/postCode/lat/long) from the result. Off for
  *    id-only use (Regions store just the id).
@@ -161,13 +163,26 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path }) =>
     searchTypes?: string
     populateAddress?: boolean
     populateName?: boolean
+    searchTypesField?: string
+    searchTypesByValue?: Record<string, string>
   }
-  const searchTypes = config.searchTypes ?? 'address,poi'
 
   const { value, setValue } = useField<string>({ path })
   const { dispatchFields, getDataByPath } = useForm()
   const theme = usePayloadSearchTheme()
   const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
+
+  // Scope the Mapbox `types` filter to a sibling field's value when configured
+  // (Regions narrow the search by `level`); read it reactively via useField so
+  // the search re-scopes live as that field changes. Falls back to a static
+  // `searchTypes`, then to address+POI. (Functions can't be passed through
+  // `admin.custom` — it's serialized to the client — so the mapping is data.)
+  const scopePath = config.searchTypesField ? toSiblingPath(path, config.searchTypesField) : path
+  const { value: scopeValue } = useField<string>({ path: scopePath })
+  const searchTypes =
+    (config.searchTypesField ? config.searchTypesByValue?.[scopeValue ?? ''] : undefined) ??
+    config.searchTypes ??
+    'address,poi'
 
   // Only fill a sibling that isn't already populated, so a chosen result never
   // clobbers a value the user (or a prior selection) already set.
@@ -215,7 +230,7 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path }) =>
         // toggle (key), so the search box always paints with the correct,
         // concrete colors rather than Mapbox's default dark text.
         <SearchBox
-          key={theme.variables?.colorText}
+          key={`${theme.variables?.colorText}:${searchTypes}`}
           accessToken={token}
           onRetrieve={handleRetrieve}
           placeholder="Search for your address…"

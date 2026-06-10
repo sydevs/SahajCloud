@@ -107,7 +107,20 @@ export const Regions: CollectionConfig = {
               required: true,
               admin: {
                 components: { Field: '@/components/admin/AddressSearchField' },
-                custom: { searchTypes: 'country,region,place,poi', populateName: true },
+                custom: {
+                  // Scope the search to what each level resolves to: a country,
+                  // a region/state, a city, or a venue (POI/address). Read live
+                  // off the `level` field by AddressSearchField.
+                  searchTypesField: 'level',
+                  searchTypesByValue: {
+                    country: 'country',
+                    region: 'region',
+                    city: 'place,locality',
+                    center: 'poi,address',
+                  },
+                  searchTypes: 'country,region,place,poi', // fallback if level unset
+                  populateName: true,
+                },
                 description:
                   'Search for this place (country, region, city, or venue) to set its geographic identity, or "Enter manually" to provide your own coordinates.',
               },
