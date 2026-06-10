@@ -44,7 +44,7 @@ function collectContactPlatforms(formState: FormState): string[] {
 const cellStyle: React.CSSProperties = {
   padding: 'calc(var(--base) * 0.35) calc(var(--base) * 0.5)',
   color: 'var(--theme-elevation-800)',
-  verticalAlign: 'top',
+  verticalAlign: 'middle',
 }
 
 const selectStyle: React.CSSProperties = {
@@ -122,21 +122,20 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
                   ? [...methodOptions, pref.method]
                   : methodOptions
 
+              // Fade only the Notification + Method cells when muted ("Never")
+              // — the Frequency cell stays full-opacity so it never reads as
+              // uneditable (it's how the user un-mutes the row).
+              const mutedStyle = { ...cellStyle, opacity: isNever ? 0.55 : 1 }
+
               return (
-                <tr
-                  key={type.key}
-                  style={{
-                    borderTop: '1px solid var(--theme-elevation-150)',
-                    opacity: isNever ? 0.55 : 1,
-                  }}
-                >
-                  <td style={cellStyle}>
+                <tr key={type.key} style={{ borderTop: '1px solid var(--theme-elevation-150)' }}>
+                  <td style={mutedStyle}>
                     <div style={{ fontWeight: 500 }}>{type.title}</div>
                     <div style={{ color: 'var(--theme-elevation-500)', marginTop: '2px' }}>
                       {type.description}
                     </div>
                   </td>
-                  <td style={cellStyle}>
+                  <td style={mutedStyle}>
                     {isNever ? (
                       <span style={{ color: 'var(--theme-elevation-400)' }}>—</span>
                     ) : (
