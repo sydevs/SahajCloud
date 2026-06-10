@@ -12,7 +12,7 @@
 
 import type { BypassPermissionFunction } from './types'
 
-import type { Client, Manager } from '@/payload-types'
+import type { Client } from '@/payload-types'
 
 export const bypassPermissions: BypassPermissionFunction = (user, context) => {
   const { collection, operation, docId } = context
@@ -21,33 +21,18 @@ export const bypassPermissions: BypassPermissionFunction = (user, context) => {
   // MANAGER BYPASS (ordered by frequency for optimal short-circuiting)
   // =========================================================================
   if (user.collection === 'managers') {
-    const manager = user as unknown as Manager
+    const managerType = (user as { type?: string }).type
 
     // 1. Admin bypass (most common success path for managers)
-    if (manager.type === 'admin') return 'allow'
+    if (managerType === 'admin') return 'allow'
 
     // 2. Inactive manager blocking (quick rejection)
-    if (manager.type === 'inactive') return 'deny'
+    if (managerType === 'inactive') return 'deny'
 
-    // 3. customResourceAccess: Allow update for specific documents
-    //    Only checked for update operations with a docId
-    if (
-      operation === 'update' &&
-      docId &&
-      manager.customResourceAccess &&
-      Array.isArray(manager.customResourceAccess)
-    ) {
-      const hasAccess = manager.customResourceAccess.some(
-        (access) =>
-          typeof access === 'object' &&
-          access !== null &&
-          access.relationTo === collection &&
-          String(access.value) === String(docId),
-      )
-      if (hasAccess) return 'allow'
-    }
-
-    // Fall through to self-access check below
+    // Active non-admin managers fall through to the self-access check below.
+    // Document-level manager access (the successor to customResourceAccess) is
+    // resolved asynchronously in createAccessConfig — it needs the target
+    // document's fields and a DB query, which this synchronous bypass cannot do.
   }
 
   // =========================================================================

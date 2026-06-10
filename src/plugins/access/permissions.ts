@@ -30,7 +30,6 @@ import { getPermissionsForRole, getRoleProject, isCollectionVisibleInProject } f
  * 2. Bypass checks (if provided) → allow/deny/continue
  *    - Admin managers: allow
  *    - Inactive managers/clients: deny
- *    - customResourceAccess: allow for specific documents
  *    - Self-access: allow read/update of own document
  * 3. Extract roles (handles flat array for clients, localized for managers)
  * 4. Unified permission check (single loop per role):
