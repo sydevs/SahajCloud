@@ -74,11 +74,10 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
   const prefs = value ?? {}
 
   const updateRow = (key: string, patch: Partial<{ frequency: string; method: string }>) => {
-    const current = prefs[key] ?? { frequency: '', method: '' }
-    const next = { ...current, ...patch }
+    const updated = { ...(prefs[key] ?? { frequency: '', method: '' }), ...patch }
     // Switching to "Never" clears the now-hidden method to keep data honest.
-    if (next.frequency === NEVER_FREQUENCY) next.method = ''
-    setValue({ ...prefs, [key]: next })
+    if (updated.frequency === NEVER_FREQUENCY) updated.method = ''
+    setValue({ ...prefs, [key]: updated })
   }
 
   const fieldClasses = ['field-type', 'json', showError && 'error', readOnly && 'read-only']
