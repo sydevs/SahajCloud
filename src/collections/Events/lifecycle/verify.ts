@@ -1,0 +1,105 @@
+import type { Payload, PayloadRequest } from 'payload'
+
+import type { ActorRef, VerificationMethod } from '@/lib/eventVerification/log'
+import { buildVerificationEntry } from '@/lib/eventVerification/log'
+import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
+import type { Event, Manager } from '@/payload-types'
+
+/**
+ * Shared "verify" semantics used by both verify paths (the save hook and the
+ * explicit endpoint). Opening a fresh cycle means: stage → `verified`,
+ * re-publish, `nextCheckAt` = now + the manager's cadence, and
+ * `notificationLog` reset to a single `verification` first entry recording who
+ * verified and how.
+ */
+
+/** Field patch applied to an event when it's verified. */
+export interface VerifyFields {
+  verificationStage: 'verified'
+  _status: 'published'
+  nextCheckAt: string
+  notificationLog: ReturnType<typeof buildVerificationEntry>[]
+}
+
+/** Resolve a relationship value (id | populated doc) to its numeric id. */
+export function relationId(value: unknown): number | null {
+  if (typeof value === 'number') return value
+  if (value && typeof value === 'object' && 'id' in value) {
+    const id = (value as { id: unknown }).id
+    return typeof id === 'number' ? id : null
+  }
+  return null
+}
+
+/** Pull the `event_verification` cadence off a (possibly unpopulated) manager. */
+export function managerCadence(manager: Manager | number | null | undefined): string | undefined {
+  if (!manager || typeof manager !== 'object') return undefined
+  const prefs = manager.notificationPreferences as
+    | Record<string, { frequency?: string } | undefined>
+    | null
+    | undefined
+  return prefs?.event_verification?.frequency
+}
+
+/** Build a log actor reference from the acting user (a manager). */
+export function actorFromUser(user: PayloadRequest['user']): ActorRef | null {
+  if (!user || user.collection !== 'managers') return null
+  const manager = user as { id: number; name?: string | null; email?: string | null }
+  return { id: manager.id, name: manager.name || manager.email || `#${manager.id}` }
+}
+
+/** Compute the verify field patch. Pure — the cadence + clock are inputs. */
+export function computeVerifyFields(args: {
+  method: VerificationMethod
+  by: ActorRef | null
+  frequency?: string | null
+  now: Date
+}): VerifyFields {
+  const { method, by, frequency, now } = args
+  return {
+    verificationStage: 'verified',
+    _status: 'published',
+    nextCheckAt: addDays(now, verificationPeriodDays(frequency)).toISOString(),
+    notificationLog: [buildVerificationEntry(method, by, now.toISOString())],
+  }
+}
+
+/**
+ * Run the verify op against an event by id: load it (for the manager's
+ * cadence), then write the verified fields with `skipVerifyHook` so it doesn't
+ * re-trip the save hook. Used by the explicit verify endpoints.
+ *
+ * `overrideAccess` gates the write: `false` for the logged-in admin action
+ * (enforces the user's update access via the access plugin), `true` for the
+ * tokenized email link (the signed token is the authorization).
+ */
+export async function applyVerification(args: {
+  payload: Payload
+  eventId: number
+  method: VerificationMethod
+  by: ActorRef | null
+  now?: Date
+  req?: PayloadRequest
+  overrideAccess?: boolean
+}): Promise<Event> {
+  const { payload, eventId, method, by, now = new Date(), req, overrideAccess = true } = args
+
+  const event = await payload.findByID({
+    collection: 'events',
+    id: eventId,
+    depth: 1,
+    overrideAccess: true,
+    req,
+  })
+
+  const fields = computeVerifyFields({ method, by, frequency: managerCadence(event.manager), now })
+
+  return payload.update({
+    collection: 'events',
+    id: eventId,
+    data: fields,
+    context: { skipVerifyHook: true },
+    overrideAccess,
+    req,
+  })
+}

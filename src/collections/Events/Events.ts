@@ -12,6 +12,8 @@ import { addressFields, legacyMigrationFields, scheduleFields, urlField } from '
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 
+import { verifyEventAction } from './endpoints/verifyEventAction'
+import { verifyEventLink } from './endpoints/verifyEventLink'
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
   EVENT_REGISTRATION_QUESTIONS,
@@ -19,6 +21,7 @@ import {
   VERIFICATION_STAGE_OPTIONS,
 } from './eventOptions'
 import { eventTitleBeforeChange } from './hooks/eventTitle'
+import { verifyOnSave } from './hooks/verifyOnSave'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
 
@@ -54,6 +57,12 @@ export const Events: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'verificationStage', '_status'],
   },
+  // Re-verify on any manager save; the explicit endpoints back the notice
+  // banner's Verify button (POST) and the tokenized email link (GET).
+  hooks: {
+    beforeChange: [verifyOnSave],
+  },
+  endpoints: [verifyEventAction, verifyEventLink],
   fields: [
     {
       // Contextual banner above the tabs: warns when the event is due for or
