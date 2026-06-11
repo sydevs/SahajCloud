@@ -200,7 +200,6 @@ Railway's Railpack builder injects these as environment variables during the bui
 | `CLOUDFLARE_IMAGES_DELIVERY_URL`   | `https://imagedelivery.net/<hash>`             | Cloudflare Images dashboard                                                           |
 | `CLOUDFLARE_STREAM_DELIVERY_URL`   | `https://customer-<code>.cloudflarestream.com` | Cloudflare Stream dashboard                                                           |
 | `CLOUDFLARE_R2_DELIVERY_URL`       | `https://assets.sydevelopers.com`              | CDN domain in front of R2                                                             |
-| `CLOUDFLARE_STREAM_WEBHOOK_SECRET` | ≥32 chars                                      | Generate: `openssl rand -hex 32`; configure webhook URL in Cloudflare Stream settings |
 
 **R2 S3-Compatible Storage**:
 
@@ -314,7 +313,6 @@ The Railway project is now fully configured. All environment variables are set, 
 | `CLOUDFLARE_IMAGES_DELIVERY_URL`   | No       | Runtime       | URL                | Images delivery domain                                       |
 | `CLOUDFLARE_STREAM_DELIVERY_URL`   | No       | Runtime       | URL                | Stream delivery domain                                       |
 | `CLOUDFLARE_R2_DELIVERY_URL`       | No       | Runtime       | URL                | R2 delivery CDN domain                                       |
-| `CLOUDFLARE_STREAM_WEBHOOK_SECRET` | No       | Runtime       | ≥32 chars          | Stream webhook signature key; see Step 1 note below          |
 | `R2_BUCKET`                        | No       | Runtime       | String             | R2 bucket name                                               |
 | `R2_ACCESS_KEY_ID`                 | No       | Runtime       | ≥27 chars          | R2 S3 API access key                                         |
 | `R2_SECRET_ACCESS_KEY`             | No       | Runtime       | String             | R2 S3 API secret key                                         |
