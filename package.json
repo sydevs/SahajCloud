@@ -101,46 +101,5 @@
     "node": ">=22.0.0",
     "pnpm": "^9 || ^10 || ^11"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "unrs-resolver"
-    ],
-    "peerDependencyRules": {
-      "ignoreMissing": []
-    },
-    "auditConfig": {
-      "_comment": "Baselined High/Critical advisories. Each GHSA below MUST have a documented reason in .github/audit-baseline.md. A new advisory (any GHSA not listed) still fails CI.",
-      "ignoreGhsas": [
-        "GHSA-5xrq-8626-4rwp",
-        "GHSA-35jp-ww65-95wh",
-        "GHSA-3g43-6gmg-66jw",
-        "GHSA-43fc-jf86-j433",
-        "GHSA-6chq-wfr3-2hj9",
-        "GHSA-777c-7fjr-54vf",
-        "GHSA-hfxv-24rg-xrqf",
-        "GHSA-j5f8-grm9-p9fc",
-        "GHSA-p92q-9vqr-4j8v",
-        "GHSA-pf86-5x62-jrwf",
-        "GHSA-pjwm-pj3p-43mv",
-        "GHSA-pmwg-cvhr-8vh7",
-        "GHSA-q8qp-cvcw-x6jj",
-        "GHSA-23c5-xmqv-rm74",
-        "GHSA-3ppc-4f35-3m26",
-        "GHSA-7r86-cg39-jmmj",
-        "GHSA-c2c7-rcm5-vvqj",
-        "GHSA-j3q9-mxjg-w52f",
-        "GHSA-r5fr-rjxr-66jc",
-        "GHSA-q3j6-qgpj-74h6",
-        "GHSA-v39h-62p7-jpjc",
-        "GHSA-p9ff-h696-f583",
-        "GHSA-v2wj-q39q-566r",
-        "GHSA-mw96-cpmx-2vgc",
-        "GHSA-wf6x-7x77-mvgw",
-        "GHSA-25h7-pfq9-p65f",
-        "GHSA-rf6f-7fwh-wjgh"
-      ]
-    }
-  },
   "packageManager": "pnpm@11.5.2"
 }
