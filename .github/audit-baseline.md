@@ -38,12 +38,6 @@ in-range patch — `tmp` ([GHSA-ph9p-34f9-6g65](https://github.com/advisories/GH
 
 ## Baseline (introduced in #465)
 
-### `vitest` — dev/test only · **Critical**
-
-| GHSA                                                                                      | Why baselined                                                                                                                                                                                                                                                                                                                 |
-| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [GHSA-5xrq-8626-4rwp](https://github.com/advisories/GHSA-5xrq-8626-4rwp) (CVE-2026-47429) | Arbitrary file read/exec **only when the Vitest UI server is listening**. We run `vitest run` (see `test:unit`/`test:int`); `@vitest/ui` is not installed and the `--ui` server is never started, so the precondition never holds. Test-only dependency, not in the deployed Worker. Clears when we move to `vitest@>=4.1.0`. |
-
 ### `axios` via `aws-crt` — native AWS runtime, not in the Worker
 
 All paths are `aws-crt > axios` (pinned `1.13.2`; patched `>=1.16.0`). `aws-crt`
@@ -92,16 +86,15 @@ schemas, not on runtime user input.
 | [GHSA-q3j6-qgpj-74h6](https://github.com/advisories/GHSA-q3j6-qgpj-74h6) (CVE-2026-6321) | `fast-uri` via `payload > ajv`                     | Path traversal via percent-encoded dots       |
 | [GHSA-v39h-62p7-jpjc](https://github.com/advisories/GHSA-v39h-62p7-jpjc) (CVE-2026-6322) | `fast-uri` via `payload > ajv`                     | Host confusion via percent-encoded delimiters |
 
-### Vite / Sass / ESLint toolchain — `vite`, `rollup`, `immutable`, `flatted`
+### Vite / Sass / ESLint toolchain — `vite`, `immutable`, `flatted`
 
 Dev/test/lint tooling. The Vite **dev server** is never run (we use only Vitest's
-transform); `rollup`/`sass`/`eslint` operate on our own sources at build/lint time.
+transform); `sass`/`eslint` operate on our own sources at build/lint time.
 
 | GHSA                                                                                      | Package · path                                         | Advisory                                     |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------- |
 | [GHSA-p9ff-h696-f583](https://github.com/advisories/GHSA-p9ff-h696-f583) (CVE-2026-39363) | `vite` via `@vitejs/plugin-react`                      | Arbitrary file read via dev-server WebSocket |
 | [GHSA-v2wj-q39q-566r](https://github.com/advisories/GHSA-v2wj-q39q-566r) (CVE-2026-39364) | `vite` via `@vitejs/plugin-react`                      | `server.fs.deny` bypassed with queries       |
-| [GHSA-mw96-cpmx-2vgc](https://github.com/advisories/GHSA-mw96-cpmx-2vgc) (CVE-2026-27606) | `rollup` via `vite`                                    | Arbitrary file write via path traversal      |
 | [GHSA-wf6x-7x77-mvgw](https://github.com/advisories/GHSA-wf6x-7x77-mvgw) (CVE-2026-29063) | `immutable` via `vite > sass`                          | Prototype pollution                          |
 | [GHSA-25h7-pfq9-p65f](https://github.com/advisories/GHSA-25h7-pfq9-p65f) (CVE-2026-32141) | `flatted` via `eslint > file-entry-cache > flat-cache` | Unbounded-recursion DoS in `parse()`         |
 | [GHSA-rf6f-7fwh-wjgh](https://github.com/advisories/GHSA-rf6f-7fwh-wjgh) (CVE-2026-33228) | `flatted` via `eslint > file-entry-cache > flat-cache` | Prototype pollution via `parse()`            |
