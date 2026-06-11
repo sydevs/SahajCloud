@@ -3,19 +3,21 @@
 CI runs `pnpm audit --audit-level=high` as the **Audit dependencies** job in
 [`ci.yml`](./workflows/ci.yml) on every pull request. **High** and **Critical**
 advisories fail the check; **Moderate**/**Low** are reported but do not. The job
-reads the committed `pnpm-lock.yaml` + `package.json` directly — it runs **no
-`pnpm install`**. Reproduce locally with `pnpm audit` (the `audit` script).
+reads the committed `pnpm-lock.yaml`, `package.json`, and `pnpm-workspace.yaml`
+(the `ignoreGhsas` config) directly — it runs **no `pnpm install`**. Reproduce
+locally with `pnpm audit` (the `audit` script).
 
 ## How suppression works
 
 `pnpm audit` has no "new advisories only" mode, so the High/Critical advisories
 that already existed when this gate was introduced are baselined in
-[`package.json`](../package.json) under **`pnpm.auditConfig.ignoreGhsas`**. A
+[`pnpm-workspace.yaml`](../pnpm-workspace.yaml) under **`auditConfig.ignoreGhsas`**
+(pnpm 10+ reads pnpm settings here, not from the package.json `pnpm` field). A
 _new_ advisory — any GHSA not in that list — still fails CI. That is the point
 of the gate: it catches vulnerabilities that enter `pnpm-lock.yaml` from here on.
 
-Every GHSA in `ignoreGhsas` **must** have a row below (reason + link). package
-JSON can't hold inline comments, so this file is the authoritative reason log.
+Every GHSA in `ignoreGhsas` **must** have a row below (reason + link). The YAML
+lists only the ids, so this file is the authoritative reason log.
 
 - **To suppress a new advisory:** add its `GHSA-…` id to `ignoreGhsas`, add a row
   here with the reason and the advisory link, and note when to revisit it. Never
@@ -37,12 +39,6 @@ in-range patch — `tmp` ([GHSA-ph9p-34f9-6g65](https://github.com/advisories/GH
 — was fixed by bumping `tmp` to `^0.2.7` rather than ignored.
 
 ## Baseline (introduced in #465)
-
-### `vitest` — dev/test only · **Critical**
-
-| GHSA                                                                                      | Why baselined                                                                                                                                                                                                                                                                                                                 |
-| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [GHSA-5xrq-8626-4rwp](https://github.com/advisories/GHSA-5xrq-8626-4rwp) (CVE-2026-47429) | Arbitrary file read/exec **only when the Vitest UI server is listening**. We run `vitest run` (see `test:unit`/`test:int`); `@vitest/ui` is not installed and the `--ui` server is never started, so the precondition never holds. Test-only dependency, not in the deployed Worker. Clears when we move to `vitest@>=4.1.0`. |
 
 ### `axios` via `aws-crt` — native AWS runtime, not in the Worker
 
@@ -92,16 +88,15 @@ schemas, not on runtime user input.
 | [GHSA-q3j6-qgpj-74h6](https://github.com/advisories/GHSA-q3j6-qgpj-74h6) (CVE-2026-6321) | `fast-uri` via `payload > ajv`                     | Path traversal via percent-encoded dots       |
 | [GHSA-v39h-62p7-jpjc](https://github.com/advisories/GHSA-v39h-62p7-jpjc) (CVE-2026-6322) | `fast-uri` via `payload > ajv`                     | Host confusion via percent-encoded delimiters |
 
-### Vite / Sass / ESLint toolchain — `vite`, `rollup`, `immutable`, `flatted`
+### Vite / Sass / ESLint toolchain — `vite`, `immutable`, `flatted`
 
 Dev/test/lint tooling. The Vite **dev server** is never run (we use only Vitest's
-transform); `rollup`/`sass`/`eslint` operate on our own sources at build/lint time.
+transform); `sass`/`eslint` operate on our own sources at build/lint time.
 
 | GHSA                                                                                      | Package · path                                         | Advisory                                     |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------- |
 | [GHSA-p9ff-h696-f583](https://github.com/advisories/GHSA-p9ff-h696-f583) (CVE-2026-39363) | `vite` via `@vitejs/plugin-react`                      | Arbitrary file read via dev-server WebSocket |
 | [GHSA-v2wj-q39q-566r](https://github.com/advisories/GHSA-v2wj-q39q-566r) (CVE-2026-39364) | `vite` via `@vitejs/plugin-react`                      | `server.fs.deny` bypassed with queries       |
-| [GHSA-mw96-cpmx-2vgc](https://github.com/advisories/GHSA-mw96-cpmx-2vgc) (CVE-2026-27606) | `rollup` via `vite`                                    | Arbitrary file write via path traversal      |
 | [GHSA-wf6x-7x77-mvgw](https://github.com/advisories/GHSA-wf6x-7x77-mvgw) (CVE-2026-29063) | `immutable` via `vite > sass`                          | Prototype pollution                          |
 | [GHSA-25h7-pfq9-p65f](https://github.com/advisories/GHSA-25h7-pfq9-p65f) (CVE-2026-32141) | `flatted` via `eslint > file-entry-cache > flat-cache` | Unbounded-recursion DoS in `parse()`         |
 | [GHSA-rf6f-7fwh-wjgh](https://github.com/advisories/GHSA-rf6f-7fwh-wjgh) (CVE-2026-33228) | `flatted` via `eslint > file-entry-cache > flat-cache` | Prototype pollution via `parse()`            |
