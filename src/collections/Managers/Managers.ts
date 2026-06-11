@@ -19,6 +19,9 @@ export const Managers: CollectionConfig = {
   slug: 'managers',
   // Access control is applied by accessPlugin with self-access pattern
   auth: {
+    // Auth emails intentionally use the default brand (wemeditate-web) rather
+    // than the recipient's currentProject — branding is an explicit per-send
+    // choice, so the templates' `project` prop is left at its default here (#483).
     verify: {
       generateEmailHTML: ({ token, user }) =>
         renderEmail(
