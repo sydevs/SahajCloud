@@ -1,6 +1,8 @@
 import type { CollectionBeforeChangeHook } from 'payload'
 
-import { actorFromUser, computeVerifyFields, managerCadence, relationId } from '../lifecycle/verify'
+import { relationId } from '@/lib/utilities/relationId'
+
+import { actorFromUser, computeVerifyFields, managerCadence } from '../lifecycle/verify'
 
 /**
  * Re-verify on save: any meaningful manager edit re-opens the verification

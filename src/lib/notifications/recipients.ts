@@ -1,17 +1,9 @@
 import type { NotificationChannel, ResolvedRecipient } from './types'
 import type { Payload, PayloadRequest } from 'payload'
 
+import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Manager } from '@/payload-types'
 
-/** Resolve a relationship value (id | populated doc) to its numeric id. */
-function toId(value: unknown): number | null {
-  if (typeof value === 'number') return value
-  if (value && typeof value === 'object' && 'id' in value) {
-    const id = (value as { id: unknown }).id
-    return typeof id === 'number' ? id : null
-  }
-  return null
-}
 
 /**
  * Pick the delivery channel + destination for a manager from their
@@ -47,18 +39,22 @@ async function regionChainManagers(
   event: Event,
   req?: PayloadRequest,
 ): Promise<Manager[]> {
-  const regionId = toId(event.region)
+  const regionId = relationId(event.region)
   if (!regionId) return []
 
-  // Load the event's region for its ancestor breadcrumb chain (root → self).
-  const region = await payload
-    .findByID({ collection: 'regions', id: regionId, depth: 0, overrideAccess: true, req })
-    .catch(() => null)
-  if (!region) return []
+  // Reuse the already-populated region's breadcrumbs (the job loads events at
+  // depth 1); fetch only when region arrived as a bare id.
+  const region =
+    typeof event.region === 'object' && event.region && Array.isArray(event.region.breadcrumbs)
+      ? event.region
+      : await payload
+          .findByID({ collection: 'regions', id: regionId, depth: 0, overrideAccess: true, req })
+          .catch(() => null)
 
-  const ancestorIds = Array.isArray(region.breadcrumbs)
-    ? region.breadcrumbs.map((crumb) => toId(crumb?.doc)).filter((id): id is number => id !== null)
-    : []
+  const breadcrumbs = Array.isArray(region?.breadcrumbs) ? region.breadcrumbs : []
+  const ancestorIds = breadcrumbs
+    .map((crumb) => relationId(crumb?.doc))
+    .filter((id): id is number => id !== null)
   const regionIds = [...new Set([regionId, ...ancestorIds])]
 
   // Load the whole chain with managers populated (depth 1).
@@ -101,7 +97,7 @@ export async function resolveRecipients(args: {
   if (typeof event.manager === 'object' && event.manager) {
     managers.push(event.manager)
   } else {
-    const managerId = toId(event.manager)
+    const managerId = relationId(event.manager)
     if (managerId) {
       const manager = await payload
         .findByID({ collection: 'managers', id: managerId, depth: 0, overrideAccess: true, req })
