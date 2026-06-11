@@ -1,6 +1,7 @@
+import type { ReminderLevel } from '@/emails/EventVerificationReminderEmail'
 import type { Manager } from '@/payload-types'
 
-export type { ReminderLevel } from '@/emails/EventVerificationReminderEmail'
+export type { ReminderLevel }
 
 /** Delivery channels. Only `email` is wired in v1; the rest are stubbed. */
 export type NotificationChannel = 'email' | 'whatsapp' | 'telegram' | 'wechat'
@@ -9,7 +10,7 @@ export type NotificationChannel = 'email' | 'whatsapp' | 'telegram' | 'wechat'
 export interface ReminderPayload {
   eventTitle: string
   /** Escalation level — selects email copy. */
-  level: import('@/emails/EventVerificationReminderEmail').ReminderLevel
+  level: ReminderLevel
   /** Per-recipient tokenized verify link. */
   verifyUrl: string
 }

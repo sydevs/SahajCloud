@@ -25,16 +25,6 @@ export interface VerifyFields {
   notificationLog: ReturnType<typeof buildVerificationEntry>[]
 }
 
-/** Resolve a relationship value (id | populated doc) to its numeric id. */
-export function relationId(value: unknown): number | null {
-  if (typeof value === 'number') return value
-  if (value && typeof value === 'object' && 'id' in value) {
-    const id = (value as { id: unknown }).id
-    return typeof id === 'number' ? id : null
-  }
-  return null
-}
-
 /** Pull the `event_verification` cadence off a (possibly unpopulated) manager. */
 export function managerCadence(manager: Manager | number | null | undefined): string | undefined {
   if (!manager || typeof manager !== 'object') return undefined
