@@ -119,8 +119,12 @@ const header: CSSProperties = {
 }
 
 const icon: CSSProperties = {
-  margin: '0 auto 12px',
   display: 'block',
+  margin: '0 auto 12px',
+  padding: '8px',
+  borderRadius: '50%',
+  backgroundColor: '#ffffff',
+  objectFit: 'contain',
 }
 
 const headerTitle: CSSProperties = {

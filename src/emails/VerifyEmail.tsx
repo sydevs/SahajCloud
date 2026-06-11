@@ -14,7 +14,7 @@ interface VerifyEmailProps {
   project?: ProjectSlug
 }
 
-/** Account email-verification message for the Managers auth flow. */
+/** Invitation / email-verification message for the Managers auth flow (managers are invited, never self-registered). */
 export function VerifyEmail({ name, verifyUrl, project = 'wemeditate-web' }: VerifyEmailProps) {
   const brand = getEmailBrand(project)
 
@@ -22,14 +22,14 @@ export function VerifyEmail({ name, verifyUrl, project = 'wemeditate-web' }: Ver
     <EmailLayout
       brand={brand}
       heading="Verify Your Email Address"
-      previewText={`Verify your email to finish setting up your ${brand.productName} account.`}
+      previewText={`You've been invited to manage content for ${brand.productName} — verify your email to get started.`}
     >
       <Text style={styles.paragraph}>
         Hello <strong>{name}</strong>,
       </Text>
       <Text style={styles.paragraph}>
-        Thank you for creating an account with {brand.productName}. To complete your registration
-        and access the admin panel, please verify your email address by clicking the button below:
+        You&apos;ve been invited to help manage content for {brand.productName}. To activate your
+        account and access the admin panel, please verify your email address using the button below:
       </Text>
       <BrandButton href={verifyUrl} brand={brand}>
         Verify Email Address
@@ -43,7 +43,7 @@ export function VerifyEmail({ name, verifyUrl, project = 'wemeditate-web' }: Ver
       </Text>
       <Hr style={styles.hr} />
       <Text style={styles.footer}>
-        If you didn&apos;t create this account, you can safely ignore this email.
+        If you weren&apos;t expecting this invitation, you can safely ignore this email.
       </Text>
     </EmailLayout>
   )
