@@ -9,13 +9,14 @@ import {
 } from '@payloadcms/richtext-lexical'
 
 import { addressFields, legacyMigrationFields, scheduleFields, urlField } from '@/fields'
+import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
   EVENT_REGISTRATION_QUESTIONS,
-  EVENT_STATUS_OPTIONS,
   EVENT_TYPE_OPTIONS,
+  VERIFICATION_STAGE_OPTIONS,
 } from './eventOptions'
 import { eventTitleBeforeChange } from './hooks/eventTitle'
 
@@ -45,12 +46,27 @@ export const Events: CollectionConfig = {
   slug: 'events',
   labels: { singular: 'Event', plural: 'Events' },
   versions: { drafts: true },
+  // Soft-delete: "archiving" a long-expired event = trashing it (recoverable
+  // from the admin trash view) — replaces Atlas's `archived` terminal.
+  trash: true,
   admin: {
     group: 'Classes',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'status', '_status'],
+    defaultColumns: ['title', 'verificationStage', '_status'],
   },
   fields: [
+    {
+      // Contextual banner above the tabs: warns when the event is due for or
+      // past verification and offers a Verify button (the explicit endpoint).
+      // Renders nothing for a freshly verified or unsaved event.
+      name: 'verificationNotice',
+      type: 'ui',
+      admin: {
+        components: {
+          Field: '@/components/admin/EventVerificationNotice',
+        },
+      },
+    },
     {
       type: 'tabs',
       tabs: [
@@ -112,6 +128,20 @@ export const Events: CollectionConfig = {
         {
           label: 'Schedule',
           fields: [
+            {
+              // Dormant events have no active schedule. They still require
+              // verification (and can expire), but never auto-`finished` — the
+              // ExpireEvents finished-check skips inactive events. Hiding the
+              // schedule when inactive also drops its `required` validation
+              // (Payload skips required + validate when a condition is false).
+              name: 'inactive',
+              type: 'checkbox',
+              defaultValue: false,
+              admin: {
+                description:
+                  'Mark this event dormant (no active schedule). Inactive events still need verification but never auto-finish.',
+              },
+            },
             scheduleFields({
               label: false,
               required: true,
@@ -120,6 +150,7 @@ export const Events: CollectionConfig = {
               hasEndTime: true,
               hasEnding: true,
               hasExclusions: true,
+              admin: { condition: (data) => !data?.inactive },
             }),
           ],
         },
@@ -220,23 +251,55 @@ export const Events: CollectionConfig = {
               admin: { description: 'Manager responsible for verifying this event.' },
             },
             {
-              name: 'status',
+              name: 'verificationStage',
               type: 'select',
               required: true,
-              defaultValue: 'active',
-              options: [...EVENT_STATUS_OPTIONS],
-              // Drafts already own the `_status` field, whose Postgres enum is
-              // `enum_events_status` — the default name this field would also
-              // generate. Override it so the two enums don't collide.
-              enumName: 'enum_events_activity_status',
-              admin: { components: { Field: TOGGLE_GROUP_FIELD } },
+              defaultValue: DEFAULT_VERIFICATION_STAGE,
+              options: [...VERIFICATION_STAGE_OPTIONS],
+              // System-managed: advanced by the ExpireEvents job, reset to
+              // `verified` by the verify op. `enumName` is pinned so it never
+              // collides with drafts' `_status` enum (`enum_events_status`).
+              enumName: 'enum_events_verification_stage',
+              admin: {
+                readOnly: true,
+                description:
+                  'Lifecycle stage — advanced automatically by the daily verification job, reset to “Verified” whenever the event is verified.',
+              },
             },
             {
-              name: 'verificationStreak',
-              type: 'number',
-              min: 0,
-              defaultValue: 0,
-              admin: { readOnly: true, description: 'Consecutive successful verifications.' },
+              // `should_update_status_at` analog the job filters on
+              // (`nextCheckAt <= now`). Set to now + cadence on verification,
+              // then to the per-stage offset as the job advances. Hidden — the
+              // verification time itself lives in `notificationLog[0]`.
+              name: 'nextCheckAt',
+              type: 'date',
+              admin: { hidden: true },
+            },
+            {
+              // Current cycle's ledger: the verification that opened it plus a
+              // reminder entry per send. Reset on every verification, and the
+              // job's exactly-once marker (skip recipients already logged this
+              // stage). Read-only, rendered as a table by RecordTable.
+              name: 'notificationLog',
+              type: 'json',
+              admin: {
+                readOnly: true,
+                description:
+                  'Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.',
+                components: { Field: '@/components/admin/RecordTable' },
+                custom: {
+                  columns: [
+                    { key: 'kind', label: 'Event' },
+                    { key: 'at', label: 'When', format: 'datetime' },
+                    { key: 'stage', label: 'Stage' },
+                    { key: 'method', label: 'Method' },
+                    { key: 'by', label: 'Verified By', format: 'name' },
+                    { key: 'manager', label: 'Sent To', format: 'name' },
+                    { key: 'channel', label: 'Channel' },
+                    { key: 'destination', label: 'Destination' },
+                  ],
+                },
+              },
             },
           ],
         },

@@ -1307,9 +1307,13 @@ export interface Event {
    */
   images?: (number | Image)[] | null;
   /**
+   * Mark this event dormant (no active schedule). Inactive events still need verification but never auto-finish.
+   */
+  inactive?: boolean | null;
+  /**
    * Configure when this event occurs and repeats
    */
-  schedule: {
+  schedule?: {
     firstDate: string;
     firstDate_tz: SupportedTimezones;
     /**
@@ -1402,11 +1406,23 @@ export interface Event {
    * Manager responsible for verifying this event.
    */
   manager: number | Manager;
-  status: 'active' | 'expired' | 'inactive';
   /**
-   * Consecutive successful verifications.
+   * Lifecycle stage — advanced automatically by the daily verification job, reset to “Verified” whenever the event is verified.
    */
-  verificationStreak?: number | null;
+  verificationStage: 'verified' | 'reminded' | 'escalated' | 'expired' | 'finished';
+  nextCheckAt?: string | null;
+  /**
+   * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.
+   */
+  notificationLog?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -1419,6 +1435,7 @@ export interface Event {
     | null;
   updatedAt: string;
   createdAt: string;
+  deletedAt?: string | null;
   _status?: ('draft' | 'published') | null;
 }
 /**
@@ -4031,6 +4048,7 @@ export interface EventsSelect<T extends boolean = true> {
   contactName?: T;
   description?: T;
   images?: T;
+  inactive?: T;
   schedule?:
     | T
     | {
@@ -4088,12 +4106,14 @@ export interface EventsSelect<T extends boolean = true> {
       };
   registrations?: T;
   manager?: T;
-  status?: T;
-  verificationStreak?: T;
+  verificationStage?: T;
+  nextCheckAt?: T;
+  notificationLog?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;
   createdAt?: T;
+  deletedAt?: T;
   _status?: T;
 }
 /**
