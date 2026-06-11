@@ -143,7 +143,11 @@ async function processEvent(args: {
   }
 
   // Advance only once every recipient is logged; otherwise leave the stage +
-  // past nextCheckAt so the next run retries the un-logged recipients.
+  // past nextCheckAt so the next run retries the un-logged recipients. This is
+  // deliberately block-until-delivered: a stage that can't reach a recipient
+  // won't age the event further. Managers are an auth collection (email always
+  // present), so the only non-delivery is a transient transport outage, which
+  // self-heals on the next daily run rather than silently skipping a reminder.
   if (allDelivered) {
     await payload.update({
       collection: 'events',
