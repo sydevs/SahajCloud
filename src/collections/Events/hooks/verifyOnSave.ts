@@ -5,8 +5,10 @@ import { actorFromUser, computeVerifyFields, managerCadence, relationId } from '
 /**
  * Re-verify on save: any meaningful manager edit re-opens the verification
  * cycle (Atlas re-verified on every save). Merges the verify field patch
- * (stage → `verified`, re-publish, fresh `nextCheckAt`, reset `notificationLog`
- * with a `re-save` first entry) into the outgoing data.
+ * (stage → `verified`, fresh `nextCheckAt`, reset `notificationLog` with a
+ * `re-save` first entry) into the outgoing data — `_status` is left to the
+ * manager's save choice (publish vs draft); the explicit verify endpoints are
+ * what re-publish an unpublished event.
  *
  * Guards:
  * - `req.context.skipVerifyHook` — the ExpireEvents job's and the verify

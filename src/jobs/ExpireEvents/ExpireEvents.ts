@@ -72,8 +72,17 @@ async function processEvent(args: {
   if (!transition) return
 
   // Expired grace elapsed → soft-delete (the "archived" terminal, no email).
+  // Trashing = setting `deletedAt` (payload.delete is a hard delete); the doc
+  // is then excluded from default queries but recoverable from the admin trash.
   if (transition.nextStage === 'trash') {
-    await payload.delete({ collection: 'events', id: event.id, overrideAccess: true, req })
+    await payload.update({
+      collection: 'events',
+      id: event.id,
+      data: { deletedAt: now.toISOString() },
+      context: { skipVerifyHook: true },
+      overrideAccess: true,
+      req,
+    })
     result.trashed++
     return
   }

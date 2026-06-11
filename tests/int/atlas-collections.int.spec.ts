@@ -176,7 +176,6 @@ describe('Atlas collections', () => {
         draft: true,
         data: {
           eventType: 'offline',
-          status: 'active',
           registrationMode: 'sahaj-atlas',
           manager: managerId,
           address: { street: 'Hall A, Wing 2' },
@@ -193,7 +192,6 @@ describe('Atlas collections', () => {
         data: {
           title: 'Diwali Special',
           eventType: 'offline',
-          status: 'active',
           registrationMode: 'sahaj-atlas',
           manager: managerId,
           address: { street: 'Hall A' },
@@ -209,7 +207,6 @@ describe('Atlas collections', () => {
         draft: true,
         data: {
           eventType: 'online',
-          status: 'active',
           registrationMode: 'sahaj-atlas',
           manager: managerId,
         },

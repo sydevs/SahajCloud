@@ -8,15 +8,19 @@ import type { Event, Manager } from '@/payload-types'
 /**
  * Shared "verify" semantics used by both verify paths (the save hook and the
  * explicit endpoint). Opening a fresh cycle means: stage → `verified`,
- * re-publish, `nextCheckAt` = now + the manager's cadence, and
- * `notificationLog` reset to a single `verification` first entry recording who
- * verified and how.
+ * `nextCheckAt` = now + the manager's cadence, and `notificationLog` reset to a
+ * single `verification` first entry recording who verified and how.
+ *
+ * Re-publishing (`_status: 'published'`) is NOT part of this patch: the save
+ * hook merges it into whatever the manager is saving, so forcing publish there
+ * would override a deliberate "Save Draft" (and fail validation on an
+ * incomplete draft). The explicit verify endpoints re-publish on top of this
+ * patch — that's the path that revives an unpublished event.
  */
 
 /** Field patch applied to an event when it's verified. */
 export interface VerifyFields {
   verificationStage: 'verified'
-  _status: 'published'
   nextCheckAt: string
   notificationLog: ReturnType<typeof buildVerificationEntry>[]
 }
@@ -58,7 +62,6 @@ export function computeVerifyFields(args: {
   const { method, by, frequency, now } = args
   return {
     verificationStage: 'verified',
-    _status: 'published',
     nextCheckAt: addDays(now, verificationPeriodDays(frequency)).toISOString(),
     notificationLog: [buildVerificationEntry(method, by, now.toISOString())],
   }
@@ -97,7 +100,9 @@ export async function applyVerification(args: {
   return payload.update({
     collection: 'events',
     id: eventId,
-    data: fields,
+    // The explicit verify action re-publishes (revives an expired/finished
+    // event); the save hook leaves `_status` to the manager's save choice.
+    data: { ...fields, _status: 'published' },
     context: { skipVerifyHook: true },
     overrideAccess,
     req,
