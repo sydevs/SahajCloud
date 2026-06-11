@@ -282,6 +282,9 @@ export const Events: CollectionConfig = {
               // verification time itself lives in `notificationLog[0]`.
               name: 'nextCheckAt',
               type: 'date',
+              // Indexed: the daily ExpireEvents sweep selects on
+              // `nextCheckAt <= now`, so this is the one column it filters on.
+              index: true,
               admin: { hidden: true },
             },
             {
