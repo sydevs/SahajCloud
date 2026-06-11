@@ -25,7 +25,6 @@ minimumReleaseAge: 0
 # package.json "pnpm" field.
 auditConfig:
   ignoreGhsas:
-    - 'GHSA-5xrq-8626-4rwp'
     - 'GHSA-35jp-ww65-95wh'
     - 'GHSA-3g43-6gmg-66jw'
     - 'GHSA-43fc-jf86-j433'
@@ -48,7 +47,6 @@ auditConfig:
     - 'GHSA-v39h-62p7-jpjc'
     - 'GHSA-p9ff-h696-f583'
     - 'GHSA-v2wj-q39q-566r'
-    - 'GHSA-mw96-cpmx-2vgc'
     - 'GHSA-wf6x-7x77-mvgw'
     - 'GHSA-25h7-pfq9-p65f'
     - 'GHSA-rf6f-7fwh-wjgh'
