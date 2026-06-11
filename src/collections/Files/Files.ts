@@ -1,12 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { restrictUploadToAdmin } from '@/plugins/access'
-import {
-  hlsUrlField,
-  mixedMediaUrlField,
-  mp4UrlField,
-  previewUrlField,
-} from '@/plugins/storage/urlFields'
+import { hlsUrlField, mixedMediaUrlField, previewUrlField } from '@/plugins/storage/urlFields'
 
 export const Files: CollectionConfig = {
   slug: 'files',
@@ -49,10 +44,9 @@ export const Files: CollectionConfig = {
       },
     },
     // url: direct file URL (mixed-media), hlsUrl: HLS manifest (videos),
-    // mp4Url: MP4 download (videos), previewUrl: thumbnail
+    // previewUrl: thumbnail
     mixedMediaUrlField({ collection: 'files' }),
     hlsUrlField({ collection: 'files' }),
-    mp4UrlField({ collection: 'files' }),
     previewUrlField({ collection: 'files' }),
   ],
 }

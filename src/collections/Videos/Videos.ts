@@ -4,12 +4,7 @@ import { mediaField } from '@/fields'
 import { subtitlesJsonSchema, validateSubtitles } from '@/lib/utilities/subtitles'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { getCloudflareStreamThumbnailUrl } from '@/plugins/storage/cloudflareStreamAdapter'
-import {
-  hlsUrlField,
-  mixedMediaUrlField,
-  mp4UrlField,
-  previewUrlField,
-} from '@/plugins/storage/urlFields'
+import { hlsUrlField, mixedMediaUrlField, previewUrlField } from '@/plugins/storage/urlFields'
 
 export const Videos: CollectionConfig = {
   slug: 'videos',
@@ -41,12 +36,9 @@ export const Videos: CollectionConfig = {
     // `url` resolves to the Stream HLS manifest (mirrors Frames). This overrides
     // Payload's default file-route url (`/api/videos/file/<id>`), which 500s in
     // production because Cloudflare Stream serves the bytes, not the Worker. HLS
-    // is used over the MP4 download so the link is live immediately after
-    // transcoding — the MP4 URL 404s until the Stream webhook enables downloads
-    // (exposed separately as `mp4Url`).
+    // is live immediately after transcoding.
     mixedMediaUrlField({ collection: 'videos' }),
     hlsUrlField({ collection: 'videos' }),
-    mp4UrlField({ collection: 'videos' }),
     previewUrlField({ collection: 'videos' }),
     mediaField({ name: 'thumbnail' }),
     {

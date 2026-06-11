@@ -17,14 +17,13 @@ one-time backfills, deployment helpers, etc.
   require unrelated env vars to be set.
 - **Safety**: For destructive or state-changing scripts, add a `--force`
   flag guard and print a warning before making mutations.
-- **Example**: [scripts/setup-stream-webhook.ts](../../scripts/setup-stream-webhook.ts)
-  registers the Cloudflare Stream webhook and prints the signing secret.
+- **Example**: [scripts/repair-r2-meditation-filenames.ts](../../scripts/repair-r2-meditation-filenames.ts)
+  backfills / fixes R2 filenames on existing meditations.
 
 ## Existing scripts
 
 | File | Purpose |
 |---|---|
-| `setup-stream-webhook.ts` | Register / inspect / delete the account-level Cloudflare Stream webhook |
 | `repair-r2-meditation-filenames.ts` | Backfill / fix R2 filenames on existing meditations |
 | `create-sample-page.ts` | Generate a sample Pages document |
 | `postinstall.cjs` | Run after `pnpm install` |
