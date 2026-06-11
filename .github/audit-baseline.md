@@ -3,19 +3,21 @@
 CI runs `pnpm audit --audit-level=high` as the **Audit dependencies** job in
 [`ci.yml`](./workflows/ci.yml) on every pull request. **High** and **Critical**
 advisories fail the check; **Moderate**/**Low** are reported but do not. The job
-reads the committed `pnpm-lock.yaml` + `package.json` directly — it runs **no
-`pnpm install`**. Reproduce locally with `pnpm audit` (the `audit` script).
+reads the committed `pnpm-lock.yaml`, `package.json`, and `pnpm-workspace.yaml`
+(the `ignoreGhsas` config) directly — it runs **no `pnpm install`**. Reproduce
+locally with `pnpm audit` (the `audit` script).
 
 ## How suppression works
 
 `pnpm audit` has no "new advisories only" mode, so the High/Critical advisories
 that already existed when this gate was introduced are baselined in
-[`package.json`](../package.json) under **`pnpm.auditConfig.ignoreGhsas`**. A
+[`pnpm-workspace.yaml`](../pnpm-workspace.yaml) under **`auditConfig.ignoreGhsas`**
+(pnpm 10+ reads pnpm settings here, not from the package.json `pnpm` field). A
 _new_ advisory — any GHSA not in that list — still fails CI. That is the point
 of the gate: it catches vulnerabilities that enter `pnpm-lock.yaml` from here on.
 
-Every GHSA in `ignoreGhsas` **must** have a row below (reason + link). package
-JSON can't hold inline comments, so this file is the authoritative reason log.
+Every GHSA in `ignoreGhsas` **must** have a row below (reason + link). The YAML
+lists only the ids, so this file is the authoritative reason log.
 
 - **To suppress a new advisory:** add its `GHSA-…` id to `ignoreGhsas`, add a row
   here with the reason and the advisory link, and note when to revisit it. Never
