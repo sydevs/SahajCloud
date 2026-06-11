@@ -1,14 +1,23 @@
 /**
- * Email Adapter
+ * Email plugin
  *
- * Resend transactional-email adapter for Payload's `email` config.
+ * - `resendAdapter` — Payload `email` adapter (Resend in prod, Ethereal in dev).
+ * - `renderEmail` — render a React Email template to inline HTML.
+ * - `getEmailBrand` — resolve per-project branding (`EmailBrand`) for a template.
+ *
+ * Templates live in `src/emails/`; all email glue lives here in the plugin.
  *
  * @example
  * ```typescript
- * import { resendAdapter } from '@/plugins/email'
+ * import { getEmailBrand, renderEmail, resendAdapter } from '@/plugins/email'
  *
  * email: resendAdapter(),
+ * generateEmailHTML: ({ token, user }) =>
+ *   renderEmail(createElement(VerifyEmail, { name: user.name, verifyUrl })),
  * ```
  */
 
 export { resendAdapter } from './resendAdapter'
+export { renderEmail } from './render'
+export { getEmailBrand } from './brand'
+export type { EmailBrand } from './brand'

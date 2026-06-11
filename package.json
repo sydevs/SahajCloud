@@ -41,6 +41,8 @@
     "@payloadcms/plugin-seo": "^3.85.0",
     "@payloadcms/richtext-lexical": "^3.85.0",
     "@payloadcms/ui": "^3.85.0",
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.0.8",
     "@sentry/nextjs": "^10.29.0",
     "@sentry/react": "^10.29.0",
     "@types/styled-components": "^5.1.35",
