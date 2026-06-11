@@ -258,6 +258,7 @@ export interface Config {
   jobs: {
     tasks: {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
+      expireEvents: TaskExpireEvents;
       syncLectureMetadata: TaskSyncLectureMetadata;
       resetUsage: TaskResetUsage;
       schedulePublish: TaskSchedulePublish;
@@ -3232,7 +3233,13 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'cleanupOrphanedMedia' | 'syncLectureMetadata' | 'resetUsage' | 'schedulePublish';
+        taskSlug:
+          | 'inline'
+          | 'cleanupOrphanedMedia'
+          | 'expireEvents'
+          | 'syncLectureMetadata'
+          | 'resetUsage'
+          | 'schedulePublish';
         taskID: string;
         input?:
           | {
@@ -3265,7 +3272,9 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'cleanupOrphanedMedia' | 'syncLectureMetadata' | 'resetUsage' | 'schedulePublish') | null;
+  taskSlug?:
+    | ('inline' | 'cleanupOrphanedMedia' | 'expireEvents' | 'syncLectureMetadata' | 'resetUsage' | 'schedulePublish')
+    | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -5755,6 +5764,21 @@ export interface TaskCleanupOrphanedMedia {
     trashedImages: number;
     skippedImages: number;
     errors: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskExpireEvents".
+ */
+export interface TaskExpireEvents {
+  input?: unknown;
+  output: {
+    processed: number;
+    finished: number;
+    advanced: number;
+    trashed: number;
+    remindersSent: number;
+    failed: number;
   };
 }
 /**
