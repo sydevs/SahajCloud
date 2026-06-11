@@ -1,16 +1,11 @@
 import type { CollectionConfig } from 'payload'
 
-import countries from 'i18n-iso-countries'
-import enLocale from 'i18n-iso-countries/langs/en.json'
+import { getCountryOptions } from '@/lib/geography'
 
 import { audiencesForUser } from './endpoints/forUser'
 import { progressRangeField } from './progressRangeField'
 
-countries.registerLocale(enLocale)
-
-const COUNTRY_OPTIONS = Object.entries(countries.getNames('en'))
-  .map(([value, label]) => ({ label: label as string, value }))
-  .sort((a, b) => a.label.localeCompare(b.label))
+const COUNTRY_OPTIONS = getCountryOptions()
 
 export const Audiences: CollectionConfig = {
   slug: 'audiences',

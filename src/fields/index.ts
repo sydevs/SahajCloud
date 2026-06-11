@@ -21,7 +21,13 @@ export type { SlugFieldOptions } from './slugField'
 export { buildTranslationTabs } from './translationsField'
 export type { SchemaEntry, TranslationsSchema } from './translationsField'
 
-// Schedule field - JSON field with datetime, timezone, and RRULE support
-export { scheduleField } from './scheduleField'
-export type { ScheduleFieldOptions } from './scheduleField'
+// Schedule fields - group of datetime, timezone, and RRULE sub-fields
+export { scheduleFields } from './scheduleFields'
+export type { ScheduleFieldsOptions } from './scheduleFields'
 
+// Address fields - group of postal-address sub-fields with country/region dropdowns
+export { addressFields } from './addressFields'
+export type { AddressFieldsOptions } from './addressFields'
+
+// Legacy migration fields - hidden legacyId + legacyData for the Atlas import
+export { legacyMigrationFields } from './legacyFields'

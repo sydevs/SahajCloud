@@ -2,7 +2,7 @@ import type { CollectionConfig, Field, FieldHook } from 'payload'
 
 import { Temporal } from '@js-temporal/polyfill'
 
-import { mediaField, scheduleField, urlField } from '@/fields'
+import { mediaField, scheduleFields, urlField } from '@/fields'
 import type { ScheduleSubFields } from '@/hooks/scheduleHooks'
 import { buildRRuleTemporal } from '@/hooks/scheduleHooks'
 
@@ -580,7 +580,7 @@ export const AppCards: CollectionConfig = {
             condition: (data) => data.type === 'event',
           },
           fields: [
-            scheduleField({
+            scheduleFields({
               hasExclusions: true,
               hasComplexWeekly: true,
               hasEndTime: true,

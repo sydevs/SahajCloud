@@ -8,27 +8,27 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 
 ## Collections
 
-| Slug                  | Custom logic                                                                                                                                              | Covered by                                                     |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `clients`             | `validateClientData` beforeChange, query-validation beforeOperation (security gate), usage stats lifecycle, document-level access                         | `client-hooks`, `client-query-validation`, `role-based-access` |
-| `managers`            | `bypassPermissions`, locale-role inheritance, project-scoped visibility                                                                                   | `role-based-access`, `project-visibility`, `client-hooks`      |
-| `albums`              | Cascade delete (album → songs); soft-delete does NOT cascade                                                                                              | `albums`                                                       |
-| `app-cards`           | Audience targeting / OR-match / AND-gate / cache headers (in the endpoint)                                                                                | `app-cards-for-audience`, `collections-smoke` (reachability)   |
-| `lessons`             | Lexical relationship cleanup (strip stale collection refs), locale-specific meditation assignments, subtitle JSON                                         | `lessons`                                                      |
-| `meditations`         | `filterMeditationsByLocale` beforeOperation, `extractAudioDuration` beforeChange, `randomSongUrl` virtual, `durationMinutes` virtual, weight invalidation | `meditations`, `meditation-duration`, `meditation-lectures`    |
-| `pages`               | `webUrl` virtual, Lexical block relationship depth, stale-content stripping                                                                               | `pages`                                                        |
-| `songs`               | `autoSetIncludeForMeditationsOnCreate` beforeChange                                                                                                       | `meditations` (via `includeForMeditations` behavior)           |
-| `videos`              | `previewUrl` virtual, `validateSubtitles` validator                                                                                                       | `videos`                                                       |
-| `authors`             | Reachability only                                                                                                                                         | `collections-smoke`                                            |
-| `images`              | `detectOrientationHook` beforeChange (auto-tags landscape/portrait/square)                                                                                | `image-orientation`                                            |
-| `lectures`            | `populateFromNirmalaVidya` beforeChange, clip ↔ parent linking, subtitle language normalization, custom validators (stopTime > startTime)                 | `lectures`, `sync-lecture-metadata`, `meditation-lectures`     |
-| `narrators`           | Reachability only                                                                                                                                         | `collections-smoke`                                            |
-| `files`               | Reachability only                                                                                                                                         | `collections-smoke`                                            |
-| `frames`              | `cascadeFrameNodeChange` afterChange; meditation-frame validation / rounding / sorting / enrichment hooks                                                 | `meditationFrames`                                             |
-| `audiences`           | Range validator (max > min), reverse joins, audience-resolution helpers                                                                                   | `audiences`, `audiencesResolve`, `audiences-for-user`          |
-| `song-tags`           | Reachability only                                                                                                                                         | `collections-smoke`                                            |
-| `subtle-system-nodes` | Reachability only                                                                                                                                         | `collections-smoke`                                            |
-| `user-choices`        | Parent-child nesting hooks, `isParent` maintenance, localized timing-based meditation joins                                                               | `user-choices`, `user-choices-by-timing`                       |
+| Slug                  | Custom logic                                                                                                                              | Covered by                                                     |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `clients`             | `validateClientData` beforeChange, query-validation beforeOperation (security gate), usage stats lifecycle, document-level access         | `client-hooks`, `client-query-validation`, `role-based-access` |
+| `managers`            | `bypassPermissions`, locale-role inheritance, project-scoped visibility                                                                   | `role-based-access`, `project-visibility`, `client-hooks`      |
+| `albums`              | Cascade delete (album → songs); soft-delete does NOT cascade                                                                              | `albums`                                                       |
+| `app-cards`           | Audience targeting / OR-match / AND-gate / cache headers (in the endpoint)                                                                | `app-cards-for-audience`, `collections-smoke` (reachability)   |
+| `lessons`             | Lexical relationship cleanup (strip stale collection refs), locale-specific meditation assignments, subtitle JSON                         | `lessons`                                                      |
+| `meditations`         | `filterMeditationsByLocale` beforeOperation, `extractAudioDuration` beforeChange, `durationMinutes` virtual, weight invalidation          | `meditations`, `meditation-duration`, `meditation-lectures`    |
+| `pages`               | `webUrl` virtual, Lexical block relationship depth, stale-content stripping                                                               | `pages`                                                        |
+| `songs`               | `autoSetIncludeForMeditationsOnCreate` beforeChange                                                                                       | `meditations` (via `includeForMeditations` behavior)           |
+| `videos`              | `previewUrl` virtual, `validateSubtitles` validator                                                                                       | `videos`                                                       |
+| `authors`             | Reachability only                                                                                                                         | `collections-smoke`                                            |
+| `images`              | `detectOrientationHook` beforeChange (auto-tags landscape/portrait/square)                                                                | `image-orientation`                                            |
+| `lectures`            | `populateFromNirmalaVidya` beforeChange, clip ↔ parent linking, subtitle language normalization, custom validators (stopTime > startTime) | `lectures`, `sync-lecture-metadata`, `meditation-lectures`     |
+| `narrators`           | Reachability only                                                                                                                         | `collections-smoke`                                            |
+| `files`               | Reachability only                                                                                                                         | `collections-smoke`                                            |
+| `frames`              | `cascadeFrameNodeChange` afterChange; meditation-frame validation / rounding / sorting / enrichment hooks                                 | `meditationFrames`                                             |
+| `audiences`           | Range validator (max > min), reverse joins, audience-resolution helpers                                                                   | `audiences`, `audiencesResolve`, `audiences-for-user`          |
+| `song-tags`           | Reachability only                                                                                                                         | `collections-smoke`                                            |
+| `subtle-system-nodes` | Reachability only                                                                                                                         | `collections-smoke`                                            |
+| `user-choices`        | Parent-child nesting hooks, `isParent` maintenance, localized timing-based meditation joins                                               | `user-choices`, `user-choices-by-timing`                       |
 
 ## Globals
 
@@ -62,13 +62,12 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 
 | Subject                                                                                                        | Covered by                  |
 | -------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| URL field factories (`virtualUrlField`, `previewUrlField`, `mixedMediaUrlField`, `hlsUrlField`, `mp4UrlField`) | `storage-utils`             |
+| URL field factories (`virtualUrlField`, `previewUrlField`, `mixedMediaUrlField`, `hlsUrlField`)                | `storage-utils`             |
 | R2 filename sanitization (`generateR2Key`, `generateCloudflareImageId`); R2 preassign hook                     | `storage-utils`             |
-| Cloudflare Stream webhook signature verification + MP4-download handler                                        | `cloudflare-stream-webhook` |
 | Schema introspection (`discoverReferencesForCollection`, `extractIdsFromLexicalContent`)                       | `schema-utils`              |
 | Content-Index block API endpoint generation (`computeApiEndpoint` virtual)                                     | `content-index-block`       |
 | Project-based admin visibility (`createHidden` from accessPlugin)                                              | `project-visibility`        |
-| RBAC (`hasPermission`, `hasAnyPermission`, `customResourceAccess`, locale roles, translator scopes)            | `role-based-access`         |
+| RBAC (`hasPermission`, `hasAnyPermission`, document-level manager access, locale roles, translator scopes)     | `role-based-access`         |
 
 ## Gaps
 

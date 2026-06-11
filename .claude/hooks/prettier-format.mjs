@@ -13,7 +13,10 @@ import { readFileSync, statSync } from 'fs'
 const input = JSON.parse(readFileSync(0, 'utf-8'))
 const filePath = input?.tool_input?.file_path ?? ''
 
-if (!filePath || !/\.(js|jsx|ts|tsx|json|css|md|mjs)$/.test(filePath)) {
+// Markdown is intentionally excluded: prettier's table/heading normalization
+// rewrites hand-formatted docs wholesale, so a one-line edit produces a large
+// unrelated diff. Docs in this repo are maintained by hand — don't re-add `md`.
+if (!filePath || !/\.(js|jsx|ts|tsx|json|css|mjs)$/.test(filePath)) {
   console.log(JSON.stringify({ continue: true, suppressOutput: true }))
   process.exit(0)
 }

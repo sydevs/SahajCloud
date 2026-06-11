@@ -1,5 +1,12 @@
 import type { CollectionConfig } from 'payload'
 
+import {
+  buildDefaultNotificationPreferences,
+  NOTIFICATION_TYPES,
+  validateNotificationPreferences,
+} from '@/components/admin/NotificationPreferences/config'
+import { legacyMigrationFields } from '@/fields'
+import { getLanguageOptions } from '@/lib/locales'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
 
@@ -84,66 +91,147 @@ export const Managers: CollectionConfig = {
         ],
       },
     },
-    // Manager type field (segmented control for access level)
     {
-      name: 'type',
-      type: 'select',
-      required: true,
-      defaultValue: 'manager',
-      options: [
-        { label: 'Inactive', value: 'inactive' },
-        { label: 'Manager', value: 'manager' },
-        { label: 'Admin', value: 'admin' },
+      type: 'tabs',
+      tabs: [
+        {
+          label: 'Access',
+          fields: [
+            // Manager type field (segmented control for access level)
+            {
+              name: 'type',
+              type: 'select',
+              required: true,
+              defaultValue: 'manager',
+              options: [
+                { label: 'Inactive', value: 'inactive' },
+                { label: 'Manager', value: 'manager' },
+                { label: 'Admin', value: 'admin' },
+              ],
+              admin: {
+                description:
+                  "Set the manager's access level. Admin grants full access, Manager uses role-based permissions, Inactive blocks all access.",
+                components: {
+                  Field: '@/components/admin/ToggleGroupField',
+                },
+              },
+              access: {
+                // Only admins can update the type field
+                update: adminOnlyFieldAccess,
+              },
+            },
+
+            // Roles field (localized multi-select)
+            {
+              name: 'roles',
+              type: 'select',
+              hasMany: true,
+              localized: true,
+              options: getRoleOptions(['meditations-editor', 'path-editor', 'web-translator']),
+              admin: {
+                description:
+                  'Assign roles for each locale. Different roles can be assigned for different languages.',
+                condition: (data) => data.type === 'manager',
+                components: {
+                  afterInput: ['@/components/admin/PermissionsTable'],
+                },
+              },
+              access: {
+                // Only admins can update roles
+                update: adminOnlyFieldAccess,
+              },
+            },
+
+            // Read-only inverses of the document-level manager relationships.
+            // Each is the join side of a `managers`/`manager` field that grants
+            // this manager document-level read + edit access (see
+            // src/plugins/access/documentManagers.ts).
+            {
+              name: 'managedPages',
+              type: 'join',
+              collection: 'pages',
+              on: 'managers',
+              admin: { description: 'Pages this manager can edit.' },
+            },
+            {
+              name: 'managedRegions',
+              type: 'join',
+              collection: 'regions',
+              on: 'managers',
+              admin: { description: 'Regions this manager is responsible for.' },
+            },
+            {
+              name: 'managedEvents',
+              type: 'join',
+              collection: 'events',
+              on: 'manager',
+              admin: { description: 'Events this manager owns.' },
+            },
+          ],
+        },
+        {
+          // All Contact-tab fields are self-editable — no adminOnlyFieldAccess.
+          label: 'Contact',
+          fields: [
+            {
+              name: 'languageCode',
+              type: 'select',
+              options: getLanguageOptions(),
+              admin: { description: "The manager's preferred language." },
+            },
+            {
+              name: 'contactDetails',
+              type: 'array',
+              labels: { singular: 'Contact Method', plural: 'Contact Methods' },
+              admin: { description: 'Messaging handles used to deliver notifications.' },
+              fields: [
+                {
+                  type: 'row',
+                  fields: [
+                    {
+                      name: 'platform',
+                      type: 'select',
+                      required: true,
+                      options: [
+                        { label: 'WhatsApp', value: 'whatsapp' },
+                        { label: 'Telegram', value: 'telegram' },
+                        { label: 'WeChat', value: 'wechat' },
+                      ],
+                    },
+                    {
+                      name: 'identifier',
+                      type: 'text',
+                      required: true,
+                      label: 'Phone / Username',
+                      admin: { description: 'Phone number or username for this platform.' },
+                    },
+                    {
+                      name: 'verified',
+                      type: 'checkbox',
+                      admin: {
+                        readOnly: true,
+                        description: 'Set by the import / a future verification flow.',
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: 'notificationPreferences',
+              type: 'json',
+              defaultValue: buildDefaultNotificationPreferences(),
+              validate: (value: unknown) => validateNotificationPreferences(value),
+              admin: {
+                description: 'Choose how and how often to receive each kind of notification.',
+                custom: { notificationTypes: NOTIFICATION_TYPES },
+                components: { Field: '@/components/admin/NotificationPreferences' },
+              },
+            },
+          ],
+        },
       ],
-      admin: {
-        description:
-          "Set the manager's access level. Admin grants full access, Manager uses role-based permissions, Inactive blocks all access.",
-        components: {
-          Field: '@/components/admin/ToggleGroupField',
-        },
-      },
-      access: {
-        // Only admins can update the type field
-        update: adminOnlyFieldAccess,
-      },
     },
-
-    // Roles field (localized multi-select)
-    {
-      name: 'roles',
-      type: 'select',
-      hasMany: true,
-      localized: true,
-      options: getRoleOptions(['meditations-editor', 'path-editor', 'web-translator']),
-      admin: {
-        description:
-          'Assign roles for each locale. Different roles can be assigned for different languages.',
-        condition: (data) => data.type === 'manager',
-        components: {
-          afterInput: ['@/components/admin/PermissionsTable'],
-        },
-      },
-      access: {
-        // Only admins can update roles
-        update: adminOnlyFieldAccess,
-      },
-    },
-
-    // Custom Resource Access
-    {
-      name: 'customResourceAccess',
-      type: 'relationship',
-      relationTo: ['pages'],
-      hasMany: true,
-      admin: {
-        description:
-          'Grant update access to specific documents. Useful for giving access to individual pages without broader permissions.',
-        condition: (data) => data.type === 'manager',
-      },
-      access: {
-        // Only admins can update custom resource access
-        update: adminOnlyFieldAccess,
-      },
-    },
+    ...legacyMigrationFields(),
   ],
 }

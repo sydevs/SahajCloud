@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url'
 // Payload CMS
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
+import { nestedDocsPlugin } from '@payloadcms/plugin-nested-docs'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { getPayload, Payload } from 'payload'
 import { buildConfig } from 'payload'
@@ -117,6 +118,13 @@ function createBaseTestConfig(emailConfig: any, schemaName: string) {
     },
     plugins: [
       usagePlugin({ enabled: true }),
+      // Nested docs: injects parent + breadcrumbs into Regions (mirrors the
+      // real payload.config.ts so collection hooks relying on them are tested).
+      nestedDocsPlugin({
+        collections: ['regions'],
+        parentFieldSlug: 'parent',
+        generateLabel: (_docs, currentDoc) => String(currentDoc?.name ?? ''),
+      }),
       // Access Plugin must be LAST to process plugin-created collections
       accessPlugin({ enabled: true, bypassPermissions }),
     ],

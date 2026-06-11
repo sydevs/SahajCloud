@@ -215,139 +215,187 @@ describe('Role-Based Access Control', () => {
     })
   })
 
-  describe('Document-Level Permissions (customResourceAccess)', () => {
-    it('allows manager to update specific page via customResourceAccess', async () => {
-      // Create a test page
-      const admin = await testData.createManager(payload, {
-        name: 'Admin for Page Creation',
-        type: 'admin' as const,
+  describe('Document-Level Manager Access', () => {
+    // A manager (type: 'manager') with no roles — relies purely on being listed
+    // on a document (or an ancestor) for access.
+    const managerUser = (m: { id: number }) => ({ ...m, collection: 'managers' as const })
+
+    describe('Pages — direct managers ("Page Editors")', () => {
+      it('lets a listed manager with no roles read + update the page', async () => {
+        const editor = await testData.createManager(payload, { name: 'Page Editor', roles: [] })
+        const page = await testData.createPage(payload, {
+          title: 'Editable Page',
+          managers: [editor.id],
+        })
+
+        const read = await payload.findByID({
+          collection: 'pages',
+          id: page.id,
+          user: managerUser(editor),
+          overrideAccess: false,
+        })
+        expect(read.id).toBe(page.id)
+
+        const updated = await payload.update({
+          collection: 'pages',
+          id: page.id,
+          data: { title: 'Edited By Page Editor' },
+          user: managerUser(editor),
+          overrideAccess: false,
+        })
+        expect(updated.title).toBe('Edited By Page Editor')
       })
 
-      const page = await payload.create({
-        collection: 'pages',
-        data: {
-          title: 'Test Page',
-          content: {
-            root: {
-              type: 'root',
-              children: [
-                {
-                  type: 'paragraph',
-                  children: [{ type: 'text', text: 'Test content' }],
-                  version: 0,
-                },
-              ],
-              direction: null,
-              format: '',
-              indent: 0,
-              version: 0,
-            },
-          },
-        },
-        user: { ...admin, collection: 'managers' },
+      it('scopes a listed manager to only the pages they manage', async () => {
+        const editor = await testData.createManager(payload, { name: 'Scoped Editor', roles: [] })
+        const mine = await testData.createPage(payload, {
+          title: 'My Page',
+          managers: [editor.id],
+        })
+        const other = await testData.createPage(payload, { title: 'Someone Else Page' })
+
+        const result = await payload.find({
+          collection: 'pages',
+          user: managerUser(editor),
+          overrideAccess: false,
+        })
+        const ids = result.docs.map((doc) => doc.id)
+        expect(ids).toContain(mine.id)
+        expect(ids).not.toContain(other.id)
       })
 
-      // Create manager with customResourceAccess to this specific page
-      const manager = await testData.createManager(payload, {
-        name: 'Restricted Manager',
-        roles: [], // No collection-level permissions
-        customResourceAccess: [
-          {
-            relationTo: 'pages',
-            value: page.id,
-          },
-        ],
-      })
+      it('denies a manager not listed on the page', async () => {
+        const outsider = await testData.createManager(payload, { name: 'Outsider', roles: [] })
+        const page = await testData.createPage(payload, { title: 'Locked Page' })
 
-      // Manager should have update permission for this specific page
-      const managerUser = testData.dummyUser('managers', {
-        id: manager.id,
-        roles: [],
-        permissions: {},
-        customResourceAccess: [{ relationTo: 'pages', value: page.id }],
-      })
-
-      expect(
-        hasPermission(
-          {
-            user: managerUser,
+        await expect(
+          payload.findByID({
             collection: 'pages',
-            operation: 'update',
-            docId: String(page.id),
-          },
-          bypassPermissions,
-        ),
-      ).toBe(true)
-
-      // But should NOT have access to other pages
-      expect(
-        hasPermission(
-          {
-            user: managerUser,
+            id: page.id,
+            user: managerUser(outsider),
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
+        await expect(
+          payload.update({
             collection: 'pages',
-            operation: 'update',
-            docId: '999999',
-          },
-          bypassPermissions,
-        ),
-      ).toBe(false)
+            id: page.id,
+            data: { title: 'Should Not Save' },
+            user: managerUser(outsider),
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
+      })
+
+      it('does not grant create or delete via the managers field', async () => {
+        const editor = await testData.createManager(payload, { name: 'No CRUD Editor', roles: [] })
+        const page = await testData.createPage(payload, {
+          title: 'No Delete Page',
+          managers: [editor.id],
+        })
+
+        await expect(
+          payload.create({
+            collection: 'pages',
+            data: { title: 'Editor Created', content: createTestLexicalContent() },
+            user: managerUser(editor),
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
+        await expect(
+          payload.delete({
+            collection: 'pages',
+            id: page.id,
+            user: managerUser(editor),
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
+      })
     })
 
-    it('does not grant create or delete permission via customResourceAccess', async () => {
-      const page = await payload.create({
-        collection: 'pages',
-        data: {
-          title: 'Another Test Page',
-          content: {
-            root: {
-              type: 'root',
-              children: [
-                {
-                  type: 'paragraph',
-                  children: [{ type: 'text', text: 'Test content' }],
-                  version: 0,
-                },
-              ],
-              direction: null,
-              format: '',
-              indent: 0,
-              version: 0,
-            },
+    describe('Regions — recursive inheritance via breadcrumbs', () => {
+      // Non-'manual' mapboxId keeps the conditionally-required coordinate fields
+      // out of validation.
+      const createRegion = (data: Record<string, unknown>) =>
+        payload.create({
+          collection: 'regions',
+          data: {
+            level: 'country',
+            name: 'Region',
+            mapboxId: `place.${Math.random().toString(36).slice(2)}`,
+            ...data,
           },
-        },
+          depth: 0,
+        })
+
+      it('an ancestor manager reaches every descendant but not a sibling branch', async () => {
+        // Country → Region → City → Center (the 4-level Atlas tree).
+        const country = await createRegion({ level: 'country', name: 'Atlasia' })
+        const region = await createRegion({ level: 'region', name: 'North', parent: country.id })
+        const city = await createRegion({ level: 'city', name: 'Capital', parent: region.id })
+        const center = await createRegion({ level: 'center', name: 'Downtown', parent: city.id })
+
+        // A separate branch the manager must NOT reach.
+        const otherCountry = await createRegion({ level: 'country', name: 'Otherland' })
+        const otherCenter = await createRegion({
+          level: 'center',
+          name: 'Far Center',
+          parent: otherCountry.id,
+        })
+
+        // List the manager on the country root only.
+        const mgr = await testData.createManager(payload, { name: 'Country Manager', roles: [] })
+        await payload.update({
+          collection: 'regions',
+          id: country.id,
+          data: { managers: [mgr.id] },
+        })
+
+        // Reads: every node in the managed subtree resolves; the sibling does not.
+        const visible = await payload.find({
+          collection: 'regions',
+          user: managerUser(mgr),
+          overrideAccess: false,
+          pagination: false,
+        })
+        const visibleIds = visible.docs.map((doc) => doc.id)
+        expect(visibleIds).toEqual(
+          expect.arrayContaining([country.id, region.id, city.id, center.id]),
+        )
+        expect(visibleIds).not.toContain(otherCenter.id)
+        expect(visibleIds).not.toContain(otherCountry.id)
+
+        // Updates: inherited down the whole chain, including the deepest leaf.
+        for (const node of [country, region, city, center]) {
+          const updated = await payload.update({
+            collection: 'regions',
+            id: node.id,
+            data: { subtitle: 'managed' },
+            user: managerUser(mgr),
+            overrideAccess: false,
+          })
+          expect(updated.id).toBe(node.id)
+        }
+
+        // The sibling-branch center is denied for both read and update.
+        await expect(
+          payload.findByID({
+            collection: 'regions',
+            id: otherCenter.id,
+            user: managerUser(mgr),
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
+        await expect(
+          payload.update({
+            collection: 'regions',
+            id: otherCenter.id,
+            data: { subtitle: 'nope' },
+            user: managerUser(mgr),
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
       })
-
-      const managerUser = testData.dummyUser('managers', {
-        id: 100,
-        roles: [],
-        permissions: {},
-        customResourceAccess: [{ relationTo: 'pages', value: page.id }],
-      })
-
-      // Should NOT have create permission
-      expect(
-        hasPermission(
-          {
-            user: managerUser,
-            collection: 'pages',
-            operation: 'create',
-          },
-          bypassPermissions,
-        ),
-      ).toBe(false)
-
-      // Should NOT have delete permission
-      expect(
-        hasPermission(
-          {
-            user: managerUser,
-            collection: 'pages',
-            operation: 'delete',
-            docId: String(page.id),
-          },
-          bypassPermissions,
-        ),
-      ).toBe(false)
     })
   })
 

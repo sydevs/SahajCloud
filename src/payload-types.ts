@@ -103,6 +103,10 @@ export interface Config {
     managers: Manager;
     clients: Client;
     'app-cards': AppCard;
+    regions: Region;
+    events: Event;
+    registrations: Registration;
+    users: User;
     forms: Form;
     'form-submissions': FormSubmission;
     'payload-kv': PayloadKv;
@@ -137,6 +141,20 @@ export interface Config {
     'song-tags': {
       songs: 'songs';
     };
+    managers: {
+      managedPages: 'pages';
+      managedRegions: 'regions';
+      managedEvents: 'events';
+    };
+    regions: {
+      events: 'events';
+    };
+    events: {
+      registrations: 'registrations';
+    };
+    users: {
+      registrations: 'registrations';
+    };
   };
   collectionsSelect: {
     pages: PagesSelect<false> | PagesSelect<true>;
@@ -158,6 +176,10 @@ export interface Config {
     managers: ManagersSelect<false> | ManagersSelect<true>;
     clients: ClientsSelect<false> | ClientsSelect<true>;
     'app-cards': AppCardsSelect<false> | AppCardsSelect<true>;
+    regions: RegionsSelect<false> | RegionsSelect<true>;
+    events: EventsSelect<false> | EventsSelect<true>;
+    registrations: RegistrationsSelect<false> | RegistrationsSelect<true>;
+    users: UsersSelect<false> | UsersSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -327,6 +349,10 @@ export interface Page {
    */
   featuredVideo?: (number | null) | Video;
   tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null;
+  /**
+   * Managers who can edit this page without broader permissions.
+   */
+  managers?: (number | Manager)[] | null;
   webUrl?: string | null;
   appUrl?: string | null;
   updatedAt: string;
@@ -436,7 +462,6 @@ export interface Author {
 export interface Video {
   id: number;
   hlsUrl?: string | null;
-  mp4Url?: string | null;
   previewUrl?: string | null;
   thumbnail?: (number | null) | Image;
   /**
@@ -476,11 +501,1001 @@ export interface Video {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "managers".
+ */
+export interface Manager {
+  id: number;
+  name: string;
+  currentProject?: ('' | 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas') | null;
+  /**
+   * Set the manager's access level. Admin grants full access, Manager uses role-based permissions, Inactive blocks all access.
+   */
+  type: 'inactive' | 'manager' | 'admin';
+  /**
+   * Assign roles for each locale. Different roles can be assigned for different languages.
+   */
+  roles?: ('meditations-editor' | 'path-editor' | 'web-translator')[] | null;
+  /**
+   * Pages this manager can edit.
+   */
+  managedPages?: {
+    docs?: (number | Page)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * Regions this manager is responsible for.
+   */
+  managedRegions?: {
+    docs?: (number | Region)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * Events this manager owns.
+   */
+  managedEvents?: {
+    docs?: (number | Event)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * The manager's preferred language.
+   */
+  languageCode?:
+    | (
+        | 'ab'
+        | 'aa'
+        | 'af'
+        | 'ak'
+        | 'sq'
+        | 'am'
+        | 'ar'
+        | 'an'
+        | 'hy'
+        | 'as'
+        | 'av'
+        | 'ae'
+        | 'ay'
+        | 'az'
+        | 'bm'
+        | 'ba'
+        | 'eu'
+        | 'be'
+        | 'bn'
+        | 'bi'
+        | 'bs'
+        | 'br'
+        | 'bg'
+        | 'my'
+        | 'ca'
+        | 'ch'
+        | 'ce'
+        | 'ny'
+        | 'zh'
+        | 'cv'
+        | 'kw'
+        | 'co'
+        | 'cr'
+        | 'hr'
+        | 'cs'
+        | 'da'
+        | 'dv'
+        | 'nl'
+        | 'dz'
+        | 'en'
+        | 'eo'
+        | 'et'
+        | 'ee'
+        | 'fo'
+        | 'fj'
+        | 'fi'
+        | 'fr'
+        | 'ff'
+        | 'gl'
+        | 'lg'
+        | 'ka'
+        | 'de'
+        | 'el'
+        | 'gn'
+        | 'gu'
+        | 'ht'
+        | 'ha'
+        | 'he'
+        | 'hz'
+        | 'hi'
+        | 'ho'
+        | 'hu'
+        | 'is'
+        | 'io'
+        | 'ig'
+        | 'id'
+        | 'ia'
+        | 'ie'
+        | 'iu'
+        | 'ik'
+        | 'ga'
+        | 'it'
+        | 'ja'
+        | 'jv'
+        | 'kl'
+        | 'kn'
+        | 'kr'
+        | 'ks'
+        | 'kk'
+        | 'km'
+        | 'ki'
+        | 'rw'
+        | 'rn'
+        | 'kv'
+        | 'kg'
+        | 'ko'
+        | 'ku'
+        | 'kj'
+        | 'ky'
+        | 'lo'
+        | 'la'
+        | 'lv'
+        | 'li'
+        | 'ln'
+        | 'lt'
+        | 'lu'
+        | 'lb'
+        | 'mk'
+        | 'mg'
+        | 'ms'
+        | 'ml'
+        | 'mt'
+        | 'gv'
+        | 'mi'
+        | 'mr'
+        | 'mh'
+        | 'mn'
+        | 'na'
+        | 'nv'
+        | 'ng'
+        | 'ne'
+        | 'nd'
+        | 'se'
+        | 'no'
+        | 'nb'
+        | 'nn'
+        | 'ii'
+        | 'oc'
+        | 'oj'
+        | 'cu'
+        | 'or'
+        | 'om'
+        | 'os'
+        | 'pi'
+        | 'pa'
+        | 'ps'
+        | 'fa'
+        | 'pl'
+        | 'pt'
+        | 'qu'
+        | 'ro'
+        | 'rm'
+        | 'ru'
+        | 'sm'
+        | 'sg'
+        | 'sa'
+        | 'sc'
+        | 'gd'
+        | 'sr'
+        | 'sn'
+        | 'sd'
+        | 'si'
+        | 'sk'
+        | 'sl'
+        | 'so'
+        | 'nr'
+        | 'st'
+        | 'es'
+        | 'su'
+        | 'sw'
+        | 'ss'
+        | 'sv'
+        | 'tl'
+        | 'ty'
+        | 'tg'
+        | 'ta'
+        | 'tt'
+        | 'te'
+        | 'th'
+        | 'bo'
+        | 'ti'
+        | 'to'
+        | 'ts'
+        | 'tn'
+        | 'tr'
+        | 'tk'
+        | 'tw'
+        | 'uk'
+        | 'ur'
+        | 'ug'
+        | 'uz'
+        | 've'
+        | 'vi'
+        | 'vo'
+        | 'wa'
+        | 'cy'
+        | 'fy'
+        | 'wo'
+        | 'xh'
+        | 'yi'
+        | 'yo'
+        | 'za'
+        | 'zu'
+      )
+    | null;
+  /**
+   * Messaging handles used to deliver notifications.
+   */
+  contactDetails?:
+    | {
+        platform: 'whatsapp' | 'telegram' | 'wechat';
+        /**
+         * Phone number or username for this platform.
+         */
+        identifier: string;
+        /**
+         * Set by the import / a future verification flow.
+         */
+        verified?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Choose how and how often to receive each kind of notification.
+   */
+  notificationPreferences?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  email: string;
+  resetPasswordToken?: string | null;
+  resetPasswordExpiration?: string | null;
+  salt?: string | null;
+  hash?: string | null;
+  _verified?: boolean | null;
+  _verificationToken?: string | null;
+  loginAttempts?: number | null;
+  lockUntil?: string | null;
+  sessions?:
+    | {
+        id: string;
+        createdAt?: string | null;
+        expiresAt: string;
+      }[]
+    | null;
+  password?: string | null;
+  collection: 'managers';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "regions".
+ */
+export interface Region {
+  id: number;
+  level: 'country' | 'region' | 'city' | 'center';
+  /**
+   * The geographic parent of this node (a higher level).
+   */
+  parent?: (number | null) | Region;
+  name: string;
+  /**
+   * Text that appears below the region name in listings
+   */
+  subtitle?: string | null;
+  /**
+   * Search for this place (country, region, city, or venue) to set its geographic identity, or "Enter manually" to provide your own coordinates.
+   */
+  mapboxId: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  /**
+   * Radius in meters.
+   */
+  radius?: number | null;
+  /**
+   * Managers responsible for this region.
+   */
+  managers?: (number | Manager)[] | null;
+  /**
+   * These fields will be used to set defaults for Events in this region
+   */
+  eventDefaults?: {
+    language?:
+      | (
+          | 'ab'
+          | 'aa'
+          | 'af'
+          | 'ak'
+          | 'sq'
+          | 'am'
+          | 'ar'
+          | 'an'
+          | 'hy'
+          | 'as'
+          | 'av'
+          | 'ae'
+          | 'ay'
+          | 'az'
+          | 'bm'
+          | 'ba'
+          | 'eu'
+          | 'be'
+          | 'bn'
+          | 'bi'
+          | 'bs'
+          | 'br'
+          | 'bg'
+          | 'my'
+          | 'ca'
+          | 'ch'
+          | 'ce'
+          | 'ny'
+          | 'zh'
+          | 'cv'
+          | 'kw'
+          | 'co'
+          | 'cr'
+          | 'hr'
+          | 'cs'
+          | 'da'
+          | 'dv'
+          | 'nl'
+          | 'dz'
+          | 'en'
+          | 'eo'
+          | 'et'
+          | 'ee'
+          | 'fo'
+          | 'fj'
+          | 'fi'
+          | 'fr'
+          | 'ff'
+          | 'gl'
+          | 'lg'
+          | 'ka'
+          | 'de'
+          | 'el'
+          | 'gn'
+          | 'gu'
+          | 'ht'
+          | 'ha'
+          | 'he'
+          | 'hz'
+          | 'hi'
+          | 'ho'
+          | 'hu'
+          | 'is'
+          | 'io'
+          | 'ig'
+          | 'id'
+          | 'ia'
+          | 'ie'
+          | 'iu'
+          | 'ik'
+          | 'ga'
+          | 'it'
+          | 'ja'
+          | 'jv'
+          | 'kl'
+          | 'kn'
+          | 'kr'
+          | 'ks'
+          | 'kk'
+          | 'km'
+          | 'ki'
+          | 'rw'
+          | 'rn'
+          | 'kv'
+          | 'kg'
+          | 'ko'
+          | 'ku'
+          | 'kj'
+          | 'ky'
+          | 'lo'
+          | 'la'
+          | 'lv'
+          | 'li'
+          | 'ln'
+          | 'lt'
+          | 'lu'
+          | 'lb'
+          | 'mk'
+          | 'mg'
+          | 'ms'
+          | 'ml'
+          | 'mt'
+          | 'gv'
+          | 'mi'
+          | 'mr'
+          | 'mh'
+          | 'mn'
+          | 'na'
+          | 'nv'
+          | 'ng'
+          | 'ne'
+          | 'nd'
+          | 'se'
+          | 'no'
+          | 'nb'
+          | 'nn'
+          | 'ii'
+          | 'oc'
+          | 'oj'
+          | 'cu'
+          | 'or'
+          | 'om'
+          | 'os'
+          | 'pi'
+          | 'pa'
+          | 'ps'
+          | 'fa'
+          | 'pl'
+          | 'pt'
+          | 'qu'
+          | 'ro'
+          | 'rm'
+          | 'ru'
+          | 'sm'
+          | 'sg'
+          | 'sa'
+          | 'sc'
+          | 'gd'
+          | 'sr'
+          | 'sn'
+          | 'sd'
+          | 'si'
+          | 'sk'
+          | 'sl'
+          | 'so'
+          | 'nr'
+          | 'st'
+          | 'es'
+          | 'su'
+          | 'sw'
+          | 'ss'
+          | 'sv'
+          | 'tl'
+          | 'ty'
+          | 'tg'
+          | 'ta'
+          | 'tt'
+          | 'te'
+          | 'th'
+          | 'bo'
+          | 'ti'
+          | 'to'
+          | 'ts'
+          | 'tn'
+          | 'tr'
+          | 'tk'
+          | 'tw'
+          | 'uk'
+          | 'ur'
+          | 'ug'
+          | 'uz'
+          | 've'
+          | 'vi'
+          | 'vo'
+          | 'wa'
+          | 'cy'
+          | 'fy'
+          | 'wo'
+          | 'xh'
+          | 'yi'
+          | 'yo'
+          | 'za'
+          | 'zu'
+        )
+      | null;
+    timeZone?:
+      | (
+          | 'Pacific/Midway'
+          | 'Pacific/Niue'
+          | 'Pacific/Honolulu'
+          | 'Pacific/Rarotonga'
+          | 'America/Anchorage'
+          | 'Pacific/Gambier'
+          | 'America/Los_Angeles'
+          | 'America/Tijuana'
+          | 'America/Denver'
+          | 'America/Phoenix'
+          | 'America/Chicago'
+          | 'America/Guatemala'
+          | 'America/New_York'
+          | 'America/Bogota'
+          | 'America/Caracas'
+          | 'America/Santiago'
+          | 'America/Buenos_Aires'
+          | 'America/Sao_Paulo'
+          | 'Atlantic/South_Georgia'
+          | 'Atlantic/Azores'
+          | 'Atlantic/Cape_Verde'
+          | 'Europe/London'
+          | 'Europe/Berlin'
+          | 'Africa/Lagos'
+          | 'Europe/Athens'
+          | 'Africa/Cairo'
+          | 'Europe/Moscow'
+          | 'Asia/Riyadh'
+          | 'Asia/Dubai'
+          | 'Asia/Baku'
+          | 'Asia/Karachi'
+          | 'Asia/Tashkent'
+          | 'Asia/Calcutta'
+          | 'Asia/Dhaka'
+          | 'Asia/Almaty'
+          | 'Asia/Jakarta'
+          | 'Asia/Bangkok'
+          | 'Asia/Shanghai'
+          | 'Asia/Singapore'
+          | 'Asia/Tokyo'
+          | 'Asia/Seoul'
+          | 'Australia/Brisbane'
+          | 'Australia/Sydney'
+          | 'Pacific/Guam'
+          | 'Pacific/Noumea'
+          | 'Pacific/Auckland'
+          | 'Pacific/Fiji'
+        )[]
+      | null;
+  };
+  events?: {
+    docs?: (number | Event)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  breadcrumbs?:
+    | {
+        doc?: (number | null) | Region;
+        url?: string | null;
+        label?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "events".
+ */
+export interface Event {
+  id: number;
+  /**
+   * Event name. Leave blank to auto-fill from the address (e.g. "Meditation at Beethovenstraße 12").
+   */
+  title: string;
+  /**
+   * Language this event is conducted in.
+   */
+  language:
+    | 'ab'
+    | 'aa'
+    | 'af'
+    | 'ak'
+    | 'sq'
+    | 'am'
+    | 'ar'
+    | 'an'
+    | 'hy'
+    | 'as'
+    | 'av'
+    | 'ae'
+    | 'ay'
+    | 'az'
+    | 'bm'
+    | 'ba'
+    | 'eu'
+    | 'be'
+    | 'bn'
+    | 'bi'
+    | 'bs'
+    | 'br'
+    | 'bg'
+    | 'my'
+    | 'ca'
+    | 'ch'
+    | 'ce'
+    | 'ny'
+    | 'zh'
+    | 'cv'
+    | 'kw'
+    | 'co'
+    | 'cr'
+    | 'hr'
+    | 'cs'
+    | 'da'
+    | 'dv'
+    | 'nl'
+    | 'dz'
+    | 'en'
+    | 'eo'
+    | 'et'
+    | 'ee'
+    | 'fo'
+    | 'fj'
+    | 'fi'
+    | 'fr'
+    | 'ff'
+    | 'gl'
+    | 'lg'
+    | 'ka'
+    | 'de'
+    | 'el'
+    | 'gn'
+    | 'gu'
+    | 'ht'
+    | 'ha'
+    | 'he'
+    | 'hz'
+    | 'hi'
+    | 'ho'
+    | 'hu'
+    | 'is'
+    | 'io'
+    | 'ig'
+    | 'id'
+    | 'ia'
+    | 'ie'
+    | 'iu'
+    | 'ik'
+    | 'ga'
+    | 'it'
+    | 'ja'
+    | 'jv'
+    | 'kl'
+    | 'kn'
+    | 'kr'
+    | 'ks'
+    | 'kk'
+    | 'km'
+    | 'ki'
+    | 'rw'
+    | 'rn'
+    | 'kv'
+    | 'kg'
+    | 'ko'
+    | 'ku'
+    | 'kj'
+    | 'ky'
+    | 'lo'
+    | 'la'
+    | 'lv'
+    | 'li'
+    | 'ln'
+    | 'lt'
+    | 'lu'
+    | 'lb'
+    | 'mk'
+    | 'mg'
+    | 'ms'
+    | 'ml'
+    | 'mt'
+    | 'gv'
+    | 'mi'
+    | 'mr'
+    | 'mh'
+    | 'mn'
+    | 'na'
+    | 'nv'
+    | 'ng'
+    | 'ne'
+    | 'nd'
+    | 'se'
+    | 'no'
+    | 'nb'
+    | 'nn'
+    | 'ii'
+    | 'oc'
+    | 'oj'
+    | 'cu'
+    | 'or'
+    | 'om'
+    | 'os'
+    | 'pi'
+    | 'pa'
+    | 'ps'
+    | 'fa'
+    | 'pl'
+    | 'pt'
+    | 'qu'
+    | 'ro'
+    | 'rm'
+    | 'ru'
+    | 'sm'
+    | 'sg'
+    | 'sa'
+    | 'sc'
+    | 'gd'
+    | 'sr'
+    | 'sn'
+    | 'sd'
+    | 'si'
+    | 'sk'
+    | 'sl'
+    | 'so'
+    | 'nr'
+    | 'st'
+    | 'es'
+    | 'su'
+    | 'sw'
+    | 'ss'
+    | 'sv'
+    | 'tl'
+    | 'ty'
+    | 'tg'
+    | 'ta'
+    | 'tt'
+    | 'te'
+    | 'th'
+    | 'bo'
+    | 'ti'
+    | 'to'
+    | 'ts'
+    | 'tn'
+    | 'tr'
+    | 'tk'
+    | 'tw'
+    | 'uk'
+    | 'ur'
+    | 'ug'
+    | 'uz'
+    | 've'
+    | 'vi'
+    | 'vo'
+    | 'wa'
+    | 'cy'
+    | 'fy'
+    | 'wo'
+    | 'xh'
+    | 'yi'
+    | 'yo'
+    | 'za'
+    | 'zu';
+  contactPhone?: string | null;
+  contactName?: string | null;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  /**
+   * Photos for this event.
+   */
+  images?: (number | Image)[] | null;
+  /**
+   * Configure when this event occurs and repeats
+   */
+  schedule: {
+    firstDate: string;
+    firstDate_tz: SupportedTimezones;
+    /**
+     * Optional, same day (24-hour format)
+     */
+    endTime?: string | null;
+    recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
+    /**
+     * Repeat every N days/weeks/months
+     */
+    interval?: number | null;
+    weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
+    monthlyMode?: ('date' | 'weekday') | null;
+    /**
+     * Day of the month (1-31)
+     */
+    monthDay?: number | null;
+    weekNumber?: ('1' | '2' | '3' | '4' | '-1') | null;
+    weekdayOfMonth?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU') | null;
+    endingType?: ('count' | 'until') | null;
+    count?: number | null;
+    untilDate?: string | null;
+    /**
+     * Dates when this recurring event will not occur, such as holidays or seasonal breaks.
+     */
+    exclusions?:
+      | {
+          startDate: string;
+          endDate?: string | null;
+          reason?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    icalRule?: string | null;
+    upcomingDates?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  /**
+   * The city or center this event belongs to.
+   */
+  region?: (number | null) | Region;
+  eventType: 'offline' | 'online';
+  /**
+   * Link attendees join the online event through.
+   */
+  onlineUrl?: string | null;
+  address?: {
+    mapboxId?: string | null;
+    street?: string | null;
+    /**
+     * Room or floor within the venue, if any.
+     */
+    room?: string | null;
+    postCode?: string | null;
+    country?: string | null;
+    region?: string | null;
+    city?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+  registrationMode: 'sahaj-atlas' | 'external';
+  externalRegistrationUrl?: string | null;
+  /**
+   * Maximum registrations (blank = unlimited).
+   */
+  registrationLimit?: number | null;
+  /**
+   * Optional questions to ask registrants — each enabled question appears on the registration form.
+   */
+  registrationQuestions?: {
+    priorExperience?: boolean | null;
+    referralSource?: boolean | null;
+    healthInfo?: boolean | null;
+    accessibility?: boolean | null;
+    guests?: boolean | null;
+  };
+  registrations?: {
+    docs?: (number | Registration)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * Manager responsible for verifying this event.
+   */
+  manager: number | Manager;
+  status: 'active' | 'expired' | 'inactive';
+  /**
+   * Consecutive successful verifications.
+   */
+  verificationStreak?: number | null;
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "registrations".
+ */
+export interface Registration {
+  id: number;
+  event: number | Event;
+  /**
+   * The registrant.
+   */
+  user: number | User;
+  /**
+   * When the registrant is attending.
+   */
+  startingAt?: string | null;
+  startingAt_tz?: SupportedTimezones;
+  /**
+   * Raw registration answers (keys: questions / experience / aspirations / referral).
+   */
+  questions?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  uuid: string;
+  mailingListSubscribedAt?: string | null;
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "users".
+ */
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  registrations?: {
+    docs?: (number | Registration)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "meditations".
  */
 export interface Meditation {
   id: number;
-  randomSongUrl?: string | null;
   label: string;
   locale:
     | 'en'
@@ -787,7 +1802,6 @@ export interface File {
   id: number;
   createdAt: string;
   hlsUrl?: string | null;
-  mp4Url?: string | null;
   previewUrl?: string | null;
   updatedAt: string;
   deletedAt?: string | null;
@@ -992,10 +2006,13 @@ export interface Audience {
           | 'CF'
           | 'TD'
           | 'CL'
+          | 'CN'
           | 'CX'
           | 'CC'
           | 'CO'
           | 'KM'
+          | 'CG'
+          | 'CD'
           | 'CK'
           | 'CR'
           | 'CI'
@@ -1004,7 +2021,6 @@ export interface Audience {
           | 'CW'
           | 'CY'
           | 'CZ'
-          | 'CD'
           | 'DK'
           | 'DJ'
           | 'DM'
@@ -1026,6 +2042,7 @@ export interface Audience {
           | 'PF'
           | 'TF'
           | 'GA'
+          | 'GM'
           | 'GE'
           | 'DE'
           | 'GH'
@@ -1049,9 +2066,9 @@ export interface Audience {
           | 'IS'
           | 'IN'
           | 'ID'
+          | 'IR'
           | 'IQ'
           | 'IE'
-          | 'IR'
           | 'IM'
           | 'IL'
           | 'IT'
@@ -1062,6 +2079,8 @@ export interface Audience {
           | 'KZ'
           | 'KE'
           | 'KI'
+          | 'KP'
+          | 'KR'
           | 'XK'
           | 'KW'
           | 'KG'
@@ -1075,6 +2094,7 @@ export interface Audience {
           | 'LT'
           | 'LU'
           | 'MO'
+          | 'MK'
           | 'MG'
           | 'MW'
           | 'MY'
@@ -1107,16 +2127,15 @@ export interface Audience {
           | 'NG'
           | 'NU'
           | 'NF'
-          | 'KP'
           | 'MP'
           | 'NO'
           | 'OM'
           | 'PK'
           | 'PW'
+          | 'PS'
           | 'PA'
           | 'PG'
           | 'PY'
-          | 'CN'
           | 'PE'
           | 'PH'
           | 'PN'
@@ -1124,8 +2143,6 @@ export interface Audience {
           | 'PT'
           | 'PR'
           | 'QA'
-          | 'CG'
-          | 'GM'
           | 'RE'
           | 'RO'
           | 'RU'
@@ -1153,21 +2170,18 @@ export interface Audience {
           | 'SO'
           | 'ZA'
           | 'GS'
-          | 'KR'
           | 'SS'
           | 'ES'
           | 'LK'
-          | 'PS'
           | 'SD'
           | 'SR'
-          | 'SJ'
           | 'SE'
           | 'CH'
           | 'SY'
           | 'TW'
           | 'TJ'
+          | 'TZ'
           | 'TH'
-          | 'MK'
           | 'TL'
           | 'TG'
           | 'TK'
@@ -1182,9 +2196,8 @@ export interface Audience {
           | 'UA'
           | 'AE'
           | 'GB'
-          | 'TZ'
-          | 'UM'
           | 'US'
+          | 'UM'
           | 'UY'
           | 'UZ'
           | 'VU'
@@ -1560,7 +2573,6 @@ export interface SubtleSystemNode {
 export interface Frame {
   id: number;
   hlsUrl?: string | null;
-  mp4Url?: string | null;
   previewUrl?: string | null;
   imageSet: 'male' | 'female';
   /**
@@ -1626,52 +2638,6 @@ export interface Frame {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "managers".
- */
-export interface Manager {
-  id: number;
-  name: string;
-  currentProject?: ('' | 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas') | null;
-  /**
-   * Set the manager's access level. Admin grants full access, Manager uses role-based permissions, Inactive blocks all access.
-   */
-  type: 'inactive' | 'manager' | 'admin';
-  /**
-   * Assign roles for each locale. Different roles can be assigned for different languages.
-   */
-  roles?: ('meditations-editor' | 'path-editor' | 'web-translator')[] | null;
-  /**
-   * Grant update access to specific documents. Useful for giving access to individual pages without broader permissions.
-   */
-  customResourceAccess?:
-    | {
-        relationTo: 'pages';
-        value: number | Page;
-      }[]
-    | null;
-  updatedAt: string;
-  createdAt: string;
-  email: string;
-  resetPasswordToken?: string | null;
-  resetPasswordExpiration?: string | null;
-  salt?: string | null;
-  hash?: string | null;
-  _verified?: boolean | null;
-  _verificationToken?: string | null;
-  loginAttempts?: number | null;
-  lockUntil?: string | null;
-  sessions?:
-    | {
-        id: string;
-        createdAt?: string | null;
-        expiresAt: string;
-      }[]
-    | null;
-  password?: string | null;
-  collection: 'managers';
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "clients".
  */
 export interface Client {
@@ -1704,6 +2670,228 @@ export interface Client {
    * Enable or disable API access for this client
    */
   active?: boolean | null;
+  /**
+   * Atlas public key — reference only. Payload issues its own API key for this service.
+   */
+  clientId?: string | null;
+  /**
+   * Hex color code (e.g., #FF5733)
+   */
+  color1?: string | null;
+  /**
+   * Hex color code (e.g., #FF5733)
+   */
+  color2?: string | null;
+  /**
+   * Hex color code (e.g., #FF5733)
+   */
+  color3?: string | null;
+  /**
+   * Primary language for this service (any language).
+   */
+  locale?:
+    | (
+        | 'ab'
+        | 'aa'
+        | 'af'
+        | 'ak'
+        | 'sq'
+        | 'am'
+        | 'ar'
+        | 'an'
+        | 'hy'
+        | 'as'
+        | 'av'
+        | 'ae'
+        | 'ay'
+        | 'az'
+        | 'bm'
+        | 'ba'
+        | 'eu'
+        | 'be'
+        | 'bn'
+        | 'bi'
+        | 'bs'
+        | 'br'
+        | 'bg'
+        | 'my'
+        | 'ca'
+        | 'ch'
+        | 'ce'
+        | 'ny'
+        | 'zh'
+        | 'cv'
+        | 'kw'
+        | 'co'
+        | 'cr'
+        | 'hr'
+        | 'cs'
+        | 'da'
+        | 'dv'
+        | 'nl'
+        | 'dz'
+        | 'en'
+        | 'eo'
+        | 'et'
+        | 'ee'
+        | 'fo'
+        | 'fj'
+        | 'fi'
+        | 'fr'
+        | 'ff'
+        | 'gl'
+        | 'lg'
+        | 'ka'
+        | 'de'
+        | 'el'
+        | 'gn'
+        | 'gu'
+        | 'ht'
+        | 'ha'
+        | 'he'
+        | 'hz'
+        | 'hi'
+        | 'ho'
+        | 'hu'
+        | 'is'
+        | 'io'
+        | 'ig'
+        | 'id'
+        | 'ia'
+        | 'ie'
+        | 'iu'
+        | 'ik'
+        | 'ga'
+        | 'it'
+        | 'ja'
+        | 'jv'
+        | 'kl'
+        | 'kn'
+        | 'kr'
+        | 'ks'
+        | 'kk'
+        | 'km'
+        | 'ki'
+        | 'rw'
+        | 'rn'
+        | 'kv'
+        | 'kg'
+        | 'ko'
+        | 'ku'
+        | 'kj'
+        | 'ky'
+        | 'lo'
+        | 'la'
+        | 'lv'
+        | 'li'
+        | 'ln'
+        | 'lt'
+        | 'lu'
+        | 'lb'
+        | 'mk'
+        | 'mg'
+        | 'ms'
+        | 'ml'
+        | 'mt'
+        | 'gv'
+        | 'mi'
+        | 'mr'
+        | 'mh'
+        | 'mn'
+        | 'na'
+        | 'nv'
+        | 'ng'
+        | 'ne'
+        | 'nd'
+        | 'se'
+        | 'no'
+        | 'nb'
+        | 'nn'
+        | 'ii'
+        | 'oc'
+        | 'oj'
+        | 'cu'
+        | 'or'
+        | 'om'
+        | 'os'
+        | 'pi'
+        | 'pa'
+        | 'ps'
+        | 'fa'
+        | 'pl'
+        | 'pt'
+        | 'qu'
+        | 'ro'
+        | 'rm'
+        | 'ru'
+        | 'sm'
+        | 'sg'
+        | 'sa'
+        | 'sc'
+        | 'gd'
+        | 'sr'
+        | 'sn'
+        | 'sd'
+        | 'si'
+        | 'sk'
+        | 'sl'
+        | 'so'
+        | 'nr'
+        | 'st'
+        | 'es'
+        | 'su'
+        | 'sw'
+        | 'ss'
+        | 'sv'
+        | 'tl'
+        | 'ty'
+        | 'tg'
+        | 'ta'
+        | 'tt'
+        | 'te'
+        | 'th'
+        | 'bo'
+        | 'ti'
+        | 'to'
+        | 'ts'
+        | 'tn'
+        | 'tr'
+        | 'tk'
+        | 'tw'
+        | 'uk'
+        | 'ur'
+        | 'ug'
+        | 'uz'
+        | 've'
+        | 'vi'
+        | 'vo'
+        | 'wa'
+        | 'cy'
+        | 'fy'
+        | 'wo'
+        | 'xh'
+        | 'yi'
+        | 'yo'
+        | 'za'
+        | 'zu'
+      )
+    | null;
+  /**
+   * Atlas geographic scope for this service.
+   */
+  region?: (number | null) | Region;
+  /**
+   * Deprecated Atlas config (routing_type, embed_type, default_view).
+   */
+  legacyConfig?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   /**
    * Timestamp of last API key generation
    */
@@ -1750,6 +2938,16 @@ export interface Client {
      */
     firstRequestAt?: string | null;
   };
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
   enableAPIKey?: boolean | null;
@@ -2150,6 +3348,22 @@ export interface PayloadLockedDocument {
         value: number | AppCard;
       } | null)
     | ({
+        relationTo: 'regions';
+        value: number | Region;
+      } | null)
+    | ({
+        relationTo: 'events';
+        value: number | Event;
+      } | null)
+    | ({
+        relationTo: 'registrations';
+        value: number | Registration;
+      } | null)
+    | ({
+        relationTo: 'users';
+        value: number | User;
+      } | null)
+    | ({
         relationTo: 'forms';
         value: number | Form;
       } | null)
@@ -2228,6 +3442,7 @@ export interface PagesSelect<T extends boolean = true> {
   author?: T;
   featuredVideo?: T;
   tags?: T;
+  managers?: T;
   webUrl?: T;
   appUrl?: T;
   updatedAt?: T;
@@ -2240,7 +3455,6 @@ export interface PagesSelect<T extends boolean = true> {
  * via the `definition` "meditations_select".
  */
 export interface MeditationsSelect<T extends boolean = true> {
-  randomSongUrl?: T;
   label?: T;
   locale?: T;
   narrator?: T;
@@ -2317,7 +3531,6 @@ export interface AlbumsSelect<T extends boolean = true> {
  */
 export interface VideosSelect<T extends boolean = true> {
   hlsUrl?: T;
-  mp4Url?: T;
   previewUrl?: T;
   thumbnail?: T;
   title?: T;
@@ -2397,7 +3610,6 @@ export interface LecturesSelect<T extends boolean = true> {
  */
 export interface FramesSelect<T extends boolean = true> {
   hlsUrl?: T;
-  mp4Url?: T;
   previewUrl?: T;
   imageSet?: T;
   subtleSystemNode?: T;
@@ -2473,7 +3685,6 @@ export interface ImagesSelect<T extends boolean = true> {
 export interface FilesSelect<T extends boolean = true> {
   createdAt?: T;
   hlsUrl?: T;
-  mp4Url?: T;
   previewUrl?: T;
   updatedAt?: T;
   deletedAt?: T;
@@ -2603,7 +3814,21 @@ export interface ManagersSelect<T extends boolean = true> {
   currentProject?: T;
   type?: T;
   roles?: T;
-  customResourceAccess?: T;
+  managedPages?: T;
+  managedRegions?: T;
+  managedEvents?: T;
+  languageCode?: T;
+  contactDetails?:
+    | T
+    | {
+        platform?: T;
+        identifier?: T;
+        verified?: T;
+        id?: T;
+      };
+  notificationPreferences?: T;
+  legacyId?: T;
+  legacyData?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -2635,6 +3860,13 @@ export interface ClientsSelect<T extends boolean = true> {
   primaryContact?: T;
   domains?: T;
   active?: T;
+  clientId?: T;
+  color1?: T;
+  color2?: T;
+  color3?: T;
+  locale?: T;
+  region?: T;
+  legacyConfig?: T;
   keyGeneratedAt?: T;
   usage?:
     | T
@@ -2648,6 +3880,8 @@ export interface ClientsSelect<T extends boolean = true> {
         lastHighUsageAt?: T;
         firstRequestAt?: T;
       };
+  legacyId?: T;
+  legacyData?: T;
   updatedAt?: T;
   createdAt?: T;
   enableAPIKey?: T;
@@ -2751,6 +3985,146 @@ export interface AppCardsSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "regions_select".
+ */
+export interface RegionsSelect<T extends boolean = true> {
+  level?: T;
+  parent?: T;
+  name?: T;
+  subtitle?: T;
+  mapboxId?: T;
+  latitude?: T;
+  longitude?: T;
+  radius?: T;
+  managers?: T;
+  eventDefaults?:
+    | T
+    | {
+        language?: T;
+        timeZone?: T;
+      };
+  events?: T;
+  legacyId?: T;
+  legacyData?: T;
+  breadcrumbs?:
+    | T
+    | {
+        doc?: T;
+        url?: T;
+        label?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "events_select".
+ */
+export interface EventsSelect<T extends boolean = true> {
+  title?: T;
+  language?: T;
+  contactPhone?: T;
+  contactName?: T;
+  description?: T;
+  images?: T;
+  schedule?:
+    | T
+    | {
+        firstDate?: T;
+        firstDate_tz?: T;
+        endTime?: T;
+        recurrenceType?: T;
+        interval?: T;
+        weekdays?: T;
+        monthlyMode?: T;
+        monthDay?: T;
+        weekNumber?: T;
+        weekdayOfMonth?: T;
+        endingType?: T;
+        count?: T;
+        untilDate?: T;
+        exclusions?:
+          | T
+          | {
+              startDate?: T;
+              endDate?: T;
+              reason?: T;
+              id?: T;
+            };
+        icalRule?: T;
+        upcomingDates?: T;
+      };
+  region?: T;
+  eventType?: T;
+  onlineUrl?: T;
+  address?:
+    | T
+    | {
+        mapboxId?: T;
+        street?: T;
+        room?: T;
+        postCode?: T;
+        country?: T;
+        region?: T;
+        city?: T;
+        latitude?: T;
+        longitude?: T;
+      };
+  registrationMode?: T;
+  externalRegistrationUrl?: T;
+  registrationLimit?: T;
+  registrationQuestions?:
+    | T
+    | {
+        priorExperience?: T;
+        referralSource?: T;
+        healthInfo?: T;
+        accessibility?: T;
+        guests?: T;
+      };
+  registrations?: T;
+  manager?: T;
+  status?: T;
+  verificationStreak?: T;
+  legacyId?: T;
+  legacyData?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "registrations_select".
+ */
+export interface RegistrationsSelect<T extends boolean = true> {
+  event?: T;
+  user?: T;
+  startingAt?: T;
+  startingAt_tz?: T;
+  questions?: T;
+  uuid?: T;
+  mailingListSubscribedAt?: T;
+  legacyId?: T;
+  legacyData?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "users_select".
+ */
+export interface UsersSelect<T extends boolean = true> {
+  name?: T;
+  email?: T;
+  registrations?: T;
+  legacyId?: T;
+  legacyData?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3476,7 +4850,7 @@ export interface WmAppTranslation {
       | number
       | boolean
       | null;
-    privacy_advertising?:
+    privacy?:
       | {
           [k: string]: unknown;
         }
@@ -3488,7 +4862,7 @@ export interface WmAppTranslation {
     /**
      * Third paragraph of the advertising section. Covers both the never-shared categories AND the never-sell statement in a single paragraph with two bold spans ('We'll never share' / 'we never sell'). Must remain consistent with analytics-simplified/03-marketing-event-taxonomy.md §2.
      */
-    privacy_advertising_advertising_body_never_share?: {
+    privacy_advertising_body_never_share?: {
       root: {
         type: string;
         children: {
@@ -3506,7 +4880,7 @@ export interface WmAppTranslation {
     /**
      * First paragraph of the advertising section. Contains an inline link (e.g. 'what we share') that opens the Privacy Policy page (CMS page id 73, scrolled to the 'what we share' heading) — same link target as onboarding_consent_modal.body_intro.
      */
-    privacy_advertising_advertising_body_intro?: {
+    privacy_advertising_body_intro?: {
       root: {
         type: string;
         children: {
@@ -3835,10 +5209,13 @@ export interface WmAppStatus {
     | 'CF'
     | 'TD'
     | 'CL'
+    | 'CN'
     | 'CX'
     | 'CC'
     | 'CO'
     | 'KM'
+    | 'CG'
+    | 'CD'
     | 'CK'
     | 'CR'
     | 'CI'
@@ -3847,7 +5224,6 @@ export interface WmAppStatus {
     | 'CW'
     | 'CY'
     | 'CZ'
-    | 'CD'
     | 'DK'
     | 'DJ'
     | 'DM'
@@ -3869,6 +5245,7 @@ export interface WmAppStatus {
     | 'PF'
     | 'TF'
     | 'GA'
+    | 'GM'
     | 'GE'
     | 'DE'
     | 'GH'
@@ -3892,9 +5269,9 @@ export interface WmAppStatus {
     | 'IS'
     | 'IN'
     | 'ID'
+    | 'IR'
     | 'IQ'
     | 'IE'
-    | 'IR'
     | 'IM'
     | 'IL'
     | 'IT'
@@ -3905,6 +5282,8 @@ export interface WmAppStatus {
     | 'KZ'
     | 'KE'
     | 'KI'
+    | 'KP'
+    | 'KR'
     | 'XK'
     | 'KW'
     | 'KG'
@@ -3918,6 +5297,7 @@ export interface WmAppStatus {
     | 'LT'
     | 'LU'
     | 'MO'
+    | 'MK'
     | 'MG'
     | 'MW'
     | 'MY'
@@ -3950,16 +5330,15 @@ export interface WmAppStatus {
     | 'NG'
     | 'NU'
     | 'NF'
-    | 'KP'
     | 'MP'
     | 'NO'
     | 'OM'
     | 'PK'
     | 'PW'
+    | 'PS'
     | 'PA'
     | 'PG'
     | 'PY'
-    | 'CN'
     | 'PE'
     | 'PH'
     | 'PN'
@@ -3967,8 +5346,6 @@ export interface WmAppStatus {
     | 'PT'
     | 'PR'
     | 'QA'
-    | 'CG'
-    | 'GM'
     | 'RE'
     | 'RO'
     | 'RU'
@@ -3996,21 +5373,18 @@ export interface WmAppStatus {
     | 'SO'
     | 'ZA'
     | 'GS'
-    | 'KR'
     | 'SS'
     | 'ES'
     | 'LK'
-    | 'PS'
     | 'SD'
     | 'SR'
-    | 'SJ'
     | 'SE'
     | 'CH'
     | 'SY'
     | 'TW'
     | 'TJ'
+    | 'TZ'
     | 'TH'
-    | 'MK'
     | 'TL'
     | 'TG'
     | 'TK'
@@ -4025,9 +5399,8 @@ export interface WmAppStatus {
     | 'UA'
     | 'AE'
     | 'GB'
-    | 'TZ'
-    | 'UM'
     | 'US'
+    | 'UM'
     | 'UY'
     | 'UZ'
     | 'VU'
@@ -4082,6 +5455,15 @@ export interface SyAtlasTranslation {
     | boolean
     | null;
   location?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  event?:
     | {
         [k: string]: unknown;
       }
@@ -4229,9 +5611,9 @@ export interface WmAppTranslationsSelect<T extends boolean = true> {
         favourites?: T;
         history?: T;
         account?: T;
-        privacy_advertising?: T;
-        privacy_advertising_advertising_body_never_share?: T;
-        privacy_advertising_advertising_body_intro?: T;
+        privacy?: T;
+        privacy_advertising_body_never_share?: T;
+        privacy_advertising_body_intro?: T;
         contact?: T;
       };
   meditation?:
@@ -4304,6 +5686,7 @@ export interface SyAtlasTranslationsSelect<T extends boolean = true> {
   common?: T;
   map?: T;
   location?: T;
+  event?: T;
   _status?: T;
   updatedAt?: T;
   createdAt?: T;
