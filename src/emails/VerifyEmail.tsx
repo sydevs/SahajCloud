@@ -1,4 +1,4 @@
-import { Hr, Link, Text } from '@react-email/components'
+import { Hr, Link, Text } from 'react-email'
 
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'

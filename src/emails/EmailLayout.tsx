@@ -1,16 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 
-import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Img,
-  Preview,
-  Section,
-} from '@react-email/components'
+import { Body, Button, Container, Head, Heading, Html, Img, Preview, Section } from 'react-email'
 
 import type { BrandColors } from '@/lib/branding'
 import type { EmailBrand } from '@/plugins/email'

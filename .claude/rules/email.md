@@ -32,6 +32,9 @@ RESEND_API_KEY=your-resend-api-key-here   # production only
 
 Transactional emails are authored as [React Email](https://react.email) (by
 Resend) components under `src/emails/`, rendered to inline HTML at send time.
+Components and the `render()` util both come from the single `react-email`
+package (v6 unified them — the older `@react-email/components` and
+`@react-email/render` packages are deprecated).
 
 | File | Purpose |
 |---|---|
@@ -42,7 +45,7 @@ Resend) components under `src/emails/`, rendered to inline HTML at send time.
 Email glue lives in the plugin (`@/plugins/email`); only the JSX templates live
 in `src/emails/`.
 
-- **Render**: `renderEmail(element)` wraps `@react-email/render`'s async
+- **Render**: `renderEmail(element)` wraps `react-email`'s async
   `render()`. Payload's `generateEmailHTML` accepts the async return, so a
   collection wires a template in one call. `.ts` files use `createElement`
   (JSX needs `.tsx`):
@@ -63,8 +66,8 @@ in `src/emails/`.
   (`wemeditate-app`, `sahaj-atlas`). Templates never hardcode a color or name.
 
 - **Preview**: render a template in a unit test
-  (`tests/unit/email-templates.spec.ts`), or add the optional `react-email` CLI
-  to run its local preview server against `src/emails/`.
+  (`tests/unit/email-templates.spec.ts`), or run the `react-email` CLI's local
+  preview server against `src/emails/` (`pnpm exec email dev`).
 
 ## Authentication features
 
