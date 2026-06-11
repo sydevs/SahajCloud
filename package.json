@@ -141,6 +141,6 @@
         "GHSA-rf6f-7fwh-wjgh"
       ]
     }
-  }
+  },
   "packageManager": "pnpm@11.5.2"
 }
