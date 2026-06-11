@@ -1,6 +1,7 @@
 ---
 paths:
   - src/plugins/email/**/*.ts
+  - src/emails/**/*.tsx
 ---
 
 # Email Configuration
@@ -27,6 +28,47 @@ The application uses different email providers based on environment:
 RESEND_API_KEY=your-resend-api-key-here   # production only
 ```
 
+## Templates (React Email)
+
+Transactional emails are authored as [React Email](https://react.email) (by
+Resend) components under `src/emails/`, rendered to inline HTML at send time.
+
+| File | Purpose |
+|---|---|
+| `EmailLayout.tsx` | Shared shell — gradient brand header, card body, footer. Exports `BrandButton` + shared `styles`. |
+| `VerifyEmail.tsx` | Managers email-verification message. |
+| `ResetPasswordEmail.tsx` | Managers password-reset message (replaces Payload's bare default). |
+
+Email glue lives in the plugin (`@/plugins/email`); only the JSX templates live
+in `src/emails/`.
+
+- **Render**: `renderEmail(element)` wraps `@react-email/render`'s async
+  `render()`. Payload's `generateEmailHTML` accepts the async return, so a
+  collection wires a template in one call. `.ts` files use `createElement`
+  (JSX needs `.tsx`):
+
+  ```typescript
+  import { createElement } from 'react'
+  import { VerifyEmail } from '@/emails/VerifyEmail'
+  import { getEmailBrand, renderEmail } from '@/plugins/email'
+
+  generateEmailHTML: ({ token, user }) =>
+    renderEmail(createElement(VerifyEmail, { name: user.name, verifyUrl })),
+  ```
+
+- **Branding is per-project**: `getEmailBrand(project)` composes
+  `{ productName, colors, iconUrl }` from the existing `getProjectLabel` /
+  `getBrandColors` / `getProjectIcon` helpers. Defaults to `wemeditate-web`;
+  pass a `project` prop to a template to brand a send for another project
+  (`wemeditate-app`, `sahaj-atlas`). Templates never hardcode a color or name.
+
+- **Preview**: render a template in a unit test
+  (`tests/unit/email-templates.spec.ts`), or add the optional `react-email` CLI
+  to run its local preview server against `src/emails/`.
+
 ## Authentication features
 
-- Email verification + password reset use Payload's default flow and templates.
+- **Email verification** (`VerifyEmail`) and **password reset**
+  (`ResetPasswordEmail`) are custom React Email templates wired on the Managers
+  collection (`auth.verify` / `auth.forgotPassword`) — no longer Payload's bare
+  defaults. Subjects derive from the resolved brand product name.
