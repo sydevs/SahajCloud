@@ -9,6 +9,8 @@ import { signVerifyToken } from '@/lib/eventVerification/token'
 import { buildVerifyEmailLink } from '@/lib/eventVerification/verifyUrl'
 import {
   buildEventEmailDetails,
+  formatLongDate,
+  humanDurationSince,
   resolveRecipients,
   sendNotification,
   type ReminderPayload,
@@ -105,6 +107,15 @@ async function processEvent(args: {
   const details = await buildEventEmailDetails({ payload, event, req })
 
   let log = asNotificationLog(event.notificationLog)
+
+  // Reminder-cycle timing, shared across recipients: the deadline this stage
+  // sets (when an unverified event is unpublished — used by the final reminder)
+  // and how long it's been since the last verification (shown once expired).
+  const nextCheckAtIso = computeNextCheckAt(transition, now)
+  const deadline = nextCheckAtIso ? formatLongDate(nextCheckAtIso) : undefined
+  const verifiedAt = log.find((entry) => entry.kind === 'verification')?.at
+  const sinceLastVerified = verifiedAt ? humanDurationSince(verifiedAt, now) : undefined
+
   let allDelivered = true
 
   for (const recipient of recipients) {
@@ -120,6 +131,8 @@ async function processEvent(args: {
       level: transition.level!,
       verifyUrl: buildVerifyEmailLink(event.id, token),
       details,
+      deadline,
+      sinceLastVerified,
     }
 
     const delivered = await sendNotification({ client: payload, recipient, reminder })
@@ -163,7 +176,7 @@ async function processEvent(args: {
       id: event.id,
       data: {
         verificationStage: transition.nextStage,
-        nextCheckAt: computeNextCheckAt(transition, now),
+        nextCheckAt: nextCheckAtIso,
         ...(transition.unpublish ? { _status: 'draft' } : {}),
       },
       context: { skipVerifyHook: true },

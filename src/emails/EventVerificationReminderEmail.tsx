@@ -38,44 +38,102 @@ interface EventVerificationReminderEmailProps {
   level: ReminderLevel
   /** Key event facts (rendered as a summary table). */
   details?: EventDetails
+  /** Formatted date the event is unpublished if unverified (final reminder). */
+  deadline?: string
+  /** Human duration since the event was last verified (expired level). */
+  sinceLastVerified?: string
   /** Project to brand for. Defaults to `sahaj-atlas` (events are Atlas). */
   project?: ProjectSlug
 }
 
-const COPY: Record<ReminderLevel, { heading: string; preview: string; body: string; cta: string }> =
-  {
-    due: {
-      heading: 'Please verify your event',
-      preview: 'One of your events is due for verification.',
-      body: 'is due for verification. Please confirm it’s still running so it stays listed publicly.',
-      cta: 'Verify this event',
-    },
-    escalated: {
-      heading: 'Action needed: verify your event',
-      preview: 'One of your events is overdue for verification.',
-      body: 'is overdue for verification. Please verify it soon — if it isn’t verified it will be unpublished and hidden from the public.',
-      cta: 'Verify now',
-    },
-    expired: {
-      heading: 'Your event has been unpublished',
-      preview: 'An unverified event has been hidden from the public.',
-      body: 'has been unpublished because it wasn’t verified in time, so it’s no longer visible to the public. Verify it now to restore the listing.',
-      cta: 'Verify to restore',
-    },
-  }
-
-/** Prominent banner for the escalation + unpublished states (none for `due`). */
-const ALERTS: Partial<Record<ReminderLevel, { text: string; bg: string; border: string }>> = {
+const COPY: Record<ReminderLevel, { heading: string; preview: string; cta: string }> = {
+  due: {
+    heading: 'Please verify your event',
+    preview: 'A quick check that your event is still running.',
+    cta: 'Verify this event',
+  },
   escalated: {
-    text: '⚠️ Final reminder — if this event isn’t verified, it will be unpublished and hidden from the public.',
-    bg: '#fff4e5',
-    border: '#f59e0b',
+    heading: 'Final reminder: verify your event',
+    preview: 'Last reminder before your event is unpublished.',
+    cta: 'Verify now',
   },
   expired: {
-    text: '🚫 This event is currently unpublished and hidden from the public until it’s verified.',
-    bg: '#fdecea',
-    border: '#ef4444',
+    heading: 'Your event has been unpublished',
+    preview: 'Your unverified event is now hidden from the public.',
+    cta: 'Verify to restore',
   },
+}
+
+/** Body paragraph — briefly explains the verification progression per level. */
+function bodyFor(level: ReminderLevel, eventTitle: string, brandName: string): ReactNode {
+  const title = <strong>{eventTitle}</strong>
+  switch (level) {
+    case 'due':
+      return (
+        <>
+          To keep public listings accurate, {brandName} events are re-verified periodically. Please
+          confirm {title} is still running. If it isn’t verified you’ll get one final reminder, and
+          then it’s unpublished from public listings until verified.
+        </>
+      )
+    case 'escalated':
+      return (
+        <>
+          {title} still needs verification. Earlier reminders went unanswered, so this is the final
+          reminder before it’s unpublished and hidden from the public.
+        </>
+      )
+    case 'expired':
+      return (
+        <>
+          {title} wasn’t verified despite earlier reminders, so it’s now unpublished and hidden from
+          the public. Verifying it restores the listing right away.
+        </>
+      )
+  }
+}
+
+/** The escalated/expired alert banner, parametrised by deadline / duration. */
+function alertFor(
+  level: ReminderLevel,
+  deadline?: string,
+  sinceLastVerified?: string,
+): { node: ReactNode; bg: string; border: string } | null {
+  if (level === 'escalated') {
+    return {
+      bg: '#fff4e5',
+      border: '#f59e0b',
+      node: deadline ? (
+        <>
+          ⚠️ <strong>Final reminder.</strong> If it isn’t verified by <strong>{deadline}</strong>,
+          this event will be unpublished and hidden from the public.
+        </>
+      ) : (
+        <>
+          ⚠️ <strong>Final reminder.</strong> If it isn’t verified soon, this event will be
+          unpublished and hidden from the public.
+        </>
+      ),
+    }
+  }
+  if (level === 'expired') {
+    return {
+      bg: '#fdecea',
+      border: '#ef4444',
+      node: sinceLastVerified ? (
+        <>
+          🚫 This event hasn’t been verified in <strong>{sinceLastVerified}</strong>, despite
+          earlier reminders — so it’s now unpublished and hidden from the public.
+        </>
+      ) : (
+        <>
+          🚫 This event hasn’t been verified, despite earlier reminders — so it’s now unpublished
+          and hidden from the public.
+        </>
+      ),
+    }
+  }
+  return null
 }
 
 const detailsTable: CSSProperties = {
@@ -111,12 +169,12 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
 }
 
 /**
- * Event verification reminder — the escalating nudge the ExpireEvents job
- * sends as an event ages `verified → reminded → escalated → expired`. Copy is
- * parametrized by escalation `level`; the `escalated`/`expired` levels show an
- * alert. A summary table lets the manager confirm the key details (location,
- * schedule, contact, breaks, recent registrations) straight from the email,
- * and the CTA is the tokenized verify link. Branded `sahaj-atlas`.
+ * Event verification reminder — the escalating nudge the ExpireEvents job sends
+ * as an event ages `verified → reminded → escalated → expired`. The body
+ * explains the progression; the final reminder shows the unpublish deadline and
+ * the expired notice shows how long it's gone unverified (so the outcome reads
+ * as fair). A summary table lets the manager confirm the key details straight
+ * from the email; the CTA is the tokenized verify link. Branded `sahaj-atlas`.
  */
 export function EventVerificationReminderEmail({
   name,
@@ -124,11 +182,13 @@ export function EventVerificationReminderEmail({
   verifyUrl,
   level,
   details,
+  deadline,
+  sinceLastVerified,
   project = 'sahaj-atlas',
 }: EventVerificationReminderEmailProps) {
   const brand = getEmailBrand(project)
   const copy = COPY[level]
-  const alert = ALERTS[level]
+  const alert = alertFor(level, deadline, sinceLastVerified)
   const isUrl = details ? /^https?:\/\//.test(details.location) : false
 
   return (
@@ -136,9 +196,7 @@ export function EventVerificationReminderEmail({
       <Text style={styles.paragraph}>
         Hello <strong>{name}</strong>,
       </Text>
-      <Text style={styles.paragraph}>
-        Your event <strong>{eventTitle}</strong> {copy.body}
-      </Text>
+      <Text style={styles.paragraph}>{bodyFor(level, eventTitle, brand.productName)}</Text>
 
       {alert ? (
         <Section
@@ -153,7 +211,7 @@ export function EventVerificationReminderEmail({
             lineHeight: 1.5,
           }}
         >
-          {alert.text}
+          {alert.node}
         </Section>
       ) : null}
 
@@ -208,8 +266,9 @@ export function EventVerificationReminderEmail({
       </Text>
       <Hr style={styles.hr} />
       <Text style={styles.footer}>
-        You’re receiving this because you manage this event on {brand.productName}. Saving any
-        change to the event also counts as verifying it.
+        You’re receiving this because you manage this event on {brand.productName}; saving any
+        change to it also counts as verifying it. This verify link is unique to you and acts on your
+        behalf — please don’t forward this email.
       </Text>
     </EmailLayout>
   )
