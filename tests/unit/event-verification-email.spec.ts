@@ -11,7 +11,7 @@ const details: EventDetails = {
   title: 'Saturday Morning Sahaja Yoga Meditation',
   locationLabel: 'Address',
   location: '12 MG Road, Pune, Maharashtra, IN 411001',
-  schedule: 'Weekly on Saturday, 09:00–10:30 (Asia/Kolkata)',
+  schedule: 'Every week on Saturday at 9:26 AM',
   contact: 'Priya Deshmukh · +91 98765 43210',
   breaks: ['Diwali break: 21 Jul – 23 Jul 2026'],
   recentRegistrations: 4,
@@ -22,6 +22,8 @@ const baseProps = {
   eventTitle: 'Morning Meditation',
   verifyUrl: 'https://cloud.test/api/events/42/verify?token=TKN123',
   details,
+  deadline: 'Saturday, 19 July 2026',
+  sinceLastVerified: '3 months',
 }
 
 describe('EventVerificationReminderEmail', () => {
@@ -45,7 +47,7 @@ describe('EventVerificationReminderEmail', () => {
       createElement(EventVerificationReminderEmail, { ...baseProps, level: 'due' }),
     )
     expect(html).toContain('12 MG Road, Pune, Maharashtra, IN 411001')
-    expect(html).toContain('Weekly on Saturday')
+    expect(html).toContain('Every week on Saturday at 9:26 AM')
     expect(html).toContain('Priya Deshmukh · +91 98765 43210')
     expect(html).toContain('Diwali break: 21 Jul – 23 Jul 2026')
     expect(html).toContain('Registrations (last 30 days)')
@@ -75,21 +77,42 @@ describe('EventVerificationReminderEmail', () => {
     expect(html).not.toContain('Registrations (last 30 days)')
   })
 
-  it('shows an alert for escalated and expired, but not for due', async () => {
-    const due = await renderEmail(
+  it('explains the verification progression in the due email', async () => {
+    const html = await renderEmail(
       createElement(EventVerificationReminderEmail, { ...baseProps, level: 'due' }),
     )
-    const escalated = await renderEmail(
+    expect(html).toContain('re-verified periodically')
+    expect(html).toContain('final reminder')
+  })
+
+  it('shows the unpublish deadline in the final (escalated) reminder', async () => {
+    const html = await renderEmail(
       createElement(EventVerificationReminderEmail, { ...baseProps, level: 'escalated' }),
     )
-    const expired = await renderEmail(
+    expect(html).toContain('Final reminder')
+    expect(html).toContain('Saturday, 19 July 2026')
+  })
+
+  it('shows how long it has gone unverified in the expired notice', async () => {
+    const html = await renderEmail(
       createElement(EventVerificationReminderEmail, { ...baseProps, level: 'expired' }),
     )
+    expect(html).toContain('3 months')
+    expect(html).toContain('unpublished')
+  })
 
-    expect(escalated).toContain('Final reminder')
-    expect(expired).toContain('currently unpublished')
-    expect(due).not.toContain('Final reminder')
-    expect(due).not.toContain('currently unpublished')
+  it('shows no alert for the first (due) reminder', async () => {
+    const html = await renderEmail(
+      createElement(EventVerificationReminderEmail, { ...baseProps, level: 'due' }),
+    )
+    expect(html).not.toContain('Final reminder')
+  })
+
+  it('warns against forwarding the email', async () => {
+    const html = await renderEmail(
+      createElement(EventVerificationReminderEmail, { ...baseProps, level: 'due' }),
+    )
+    expect(html).toContain('forward this email')
   })
 
   it('renders without a details table when none is supplied', async () => {

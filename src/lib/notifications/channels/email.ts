@@ -29,6 +29,8 @@ export async function sendEmailReminder(
       verifyUrl: reminder.verifyUrl,
       level: reminder.level,
       details: reminder.details,
+      deadline: reminder.deadline,
+      sinceLastVerified: reminder.sinceLastVerified,
     }),
   )
 

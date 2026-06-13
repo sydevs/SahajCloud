@@ -15,6 +15,10 @@ export interface ReminderPayload {
   verifyUrl: string
   /** Key event facts for the summary table (same for every recipient). */
   details?: EventDetails
+  /** Formatted date the event is unpublished if unverified (escalated level). */
+  deadline?: string
+  /** Human duration since the event was last verified (expired level). */
+  sinceLastVerified?: string
 }
 
 /** A recipient resolved to a concrete channel + destination. */

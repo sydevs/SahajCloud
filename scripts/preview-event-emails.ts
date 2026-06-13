@@ -262,6 +262,7 @@ async function main() {
   const { renderEmail } = await import('@/plugins/email')
   const { signVerifyToken } = await import('@/lib/eventVerification/token')
   const { buildVerifyEmailLink } = await import('@/lib/eventVerification/verifyUrl')
+  const { formatLongDate } = await import('@/lib/notifications')
 
   const sample: SampleData = process.env.PERSIST_EVENT
     ? await persistSampleEvent()
@@ -275,7 +276,7 @@ async function main() {
           title: 'Saturday Morning Sahaja Yoga Meditation',
           locationLabel: 'Address',
           location: '12 MG Road, 2nd Floor, Cultural Hall, Pune, Maharashtra, IN 411001',
-          schedule: 'Weekly on Saturday, 09:00–10:30 (Asia/Calcutta)',
+          schedule: 'Every week on Saturday at 9:26 AM',
           contact: 'Priya Deshmukh · +91 98765 43210',
           breaks: ['Diwali break: 21 Jul – 23 Jul 2026'],
           recentRegistrations: 8,
@@ -297,6 +298,11 @@ async function main() {
     auth: { user: account.user, pass: account.pass },
   })
 
+  // Illustrative timing for the alerts: a one-week unpublish deadline (final
+  // reminder) and a sample "last verified" age (expired notice).
+  const deadline = formatLongDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
+  const sinceLastVerified = '3 months'
+
   const previews: { level: ReminderLevel; url: string | false }[] = []
   for (const level of ['due', 'escalated', 'expired'] as ReminderLevel[]) {
     const token = signVerifyToken({ eventId: sample.eventId, managerId: sample.managerId }, secret)
@@ -307,6 +313,8 @@ async function main() {
         verifyUrl: buildVerifyEmailLink(sample.eventId, token),
         level,
         details: sample.details,
+        deadline: level === 'escalated' ? deadline : undefined,
+        sinceLastVerified: level === 'expired' ? sinceLastVerified : undefined,
       }),
     )
     const info = await transport.sendMail({
