@@ -28,6 +28,7 @@ export async function sendEmailReminder(
       eventTitle: reminder.eventTitle,
       verifyUrl: reminder.verifyUrl,
       level: reminder.level,
+      details: reminder.details,
     }),
   )
 
