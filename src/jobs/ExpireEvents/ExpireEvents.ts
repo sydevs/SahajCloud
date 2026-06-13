@@ -7,7 +7,12 @@ import {
 } from '@/lib/eventVerification/log'
 import { signVerifyToken } from '@/lib/eventVerification/token'
 import { buildVerifyEmailLink } from '@/lib/eventVerification/verifyUrl'
-import { resolveRecipients, sendNotification, type ReminderPayload } from '@/lib/notifications'
+import {
+  buildEventEmailDetails,
+  resolveRecipients,
+  sendNotification,
+  type ReminderPayload,
+} from '@/lib/notifications'
 import type { Event } from '@/payload-types'
 
 import { computeNextCheckAt, nextStageTransition, shouldFinish } from './stageMachine'
@@ -96,6 +101,9 @@ async function processEvent(args: {
     req,
   })
 
+  // Key event facts for the summary table — same for every recipient.
+  const details = await buildEventEmailDetails({ payload, event, req })
+
   let log = asNotificationLog(event.notificationLog)
   let allDelivered = true
 
@@ -111,6 +119,7 @@ async function processEvent(args: {
       eventTitle: typeof event.title === 'string' ? event.title : `Event #${event.id}`,
       level: transition.level!,
       verifyUrl: buildVerifyEmailLink(event.id, token),
+      details,
     }
 
     const delivered = await sendNotification({ client: payload, recipient, reminder })
