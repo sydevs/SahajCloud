@@ -15,6 +15,7 @@ const details: EventDetails = {
   schedule: 'Every week on Saturday at 9:26 AM',
   contact: 'Priya Deshmukh · +91 98765 43210',
   breaks: ['Diwali break: 21 Jul – 23 Jul 2026'],
+  lastVerified: 'Wednesday, 12 March 2026',
   recentRegistrations: 4,
 }
 
@@ -40,12 +41,10 @@ describe('EventVerificationEmail', () => {
   it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
     'renders the %s reminder with the verify link + sahaj-atlas brand',
     async (level) => {
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, { ...baseProps, level }),
-      )
+      const html = await renderEmail(createElement(EventVerificationEmail, { ...baseProps, level }))
       const brand = getEmailBrand('sahaj-atlas')
 
-      expect(html).toContain('Morning Meditation')
+      expect(html).toContain(details.title) // event named in the summary table
       expect(html).toContain(baseProps.verifyUrl)
       expect(html).toContain(brand.productName) // "Sahaj Atlas"
       expect(html).toContain(brand.colors.primary) // "#4a8cd4"
@@ -53,11 +52,9 @@ describe('EventVerificationEmail', () => {
   )
 
   it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
-    'states the unpublish date in the body for the %s level',
+    'states the unpublish date in the callout for the %s level',
     async (level) => {
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, { ...baseProps, level }),
-      )
+      const html = await renderEmail(createElement(EventVerificationEmail, { ...baseProps, level }))
       expect(html).toContain('Saturday, 19 July 2026')
     },
   )
@@ -70,6 +67,15 @@ describe('EventVerificationEmail', () => {
     expect(html).toContain('Every week on Saturday at 9:26 AM')
     expect(html).toContain('4 registrations in the last 30 days')
   })
+
+  it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
+    'shows the last-verified date in the details table for the %s level',
+    async (level) => {
+      const html = await renderEmail(createElement(EventVerificationEmail, { ...baseProps, level }))
+      expect(html).toContain('Last verified')
+      expect(html).toContain('Wednesday, 12 March 2026')
+    },
+  )
 
   it('marks the urgent level as the final reminder, expired as unpublished', async () => {
     const urgent = await renderEmail(
@@ -88,6 +94,7 @@ describe('EventVerificationEmail', () => {
       ...baseProps,
       audience: 'region' as const,
       name: 'Rohan Patil',
+      regionName: 'Maharashtra',
       eventManager,
     }
 
@@ -95,9 +102,17 @@ describe('EventVerificationEmail', () => {
       const html = await renderEmail(
         createElement(EventVerificationEmail, { ...regionProps, level: 'escalated' }),
       )
-      expect(html).toContain('in your region')
+      expect(html).toContain('event in')
       expect(html).not.toContain('your event')
       expect(html.toLowerCase()).toMatch(/reach out|get in touch|contact/)
+    })
+
+    it('names the region that links the manager to the event in the body', async () => {
+      const html = await renderEmail(
+        createElement(EventVerificationEmail, { ...regionProps, level: 'escalated' }),
+      )
+      expect(html).toContain('event in')
+      expect(html).toContain('Maharashtra')
     })
 
     it('includes the event manager name and every contact method', async () => {
@@ -108,6 +123,21 @@ describe('EventVerificationEmail', () => {
       expect(html).toContain('priya@example.com')
       expect(html).toContain('+91 98765 43210')
       expect(html).toContain('Event manager')
+    })
+
+    it('points its CTA at the event manager (mailto), not the verify link', async () => {
+      const html = await renderEmail(
+        createElement(EventVerificationEmail, { ...regionProps, level: 'escalated' }),
+      )
+      expect(html).toContain('mailto:priya@example.com')
+      // Region managers don't verify the event themselves.
+      expect(html).not.toContain(baseProps.verifyUrl)
+    })
+
+    it('throws for the unsupported region "due" reminder', async () => {
+      await expect(
+        renderEmail(createElement(EventVerificationEmail, { ...regionProps, level: 'due' })),
+      ).rejects.toThrow(/not supported for region/)
     })
   })
 
@@ -124,11 +154,12 @@ describe('EventVerificationEmail', () => {
         name: 'Sam',
         eventTitle: 'Untitled',
         verifyUrl: 'https://cloud.test/verify',
-        level: 'due',
+        level: 'escalated',
         audience: 'manager',
+        sinceLastVerified: '3 months',
       }),
     )
-    expect(html).toContain('Untitled')
+    expect(html).toContain('Sam') // renders (greeting), just without a table
     expect(html).not.toContain('registrations in the last 30 days')
   })
 })

@@ -210,6 +210,58 @@ describe('Event verification lifecycle', () => {
     expect(trashed.deletedAt).toBeTruthy()
   })
 
+  it('escalates past a region manager who is also the event manager', async () => {
+    // The event manager also manages the event's own (city) region. Escalation
+    // must skip them — no duplicate email — and walk up to the country manager.
+    const country = await payload.create({
+      collection: 'regions',
+      overrideAccess: true,
+      data: { name: 'Country DD', level: 'country', mapboxId: 'dd-country' },
+    })
+    const countryManager = await testData.createManager(payload, {
+      name: 'Country Manager',
+      email: 'country-manager@example.com',
+    })
+    await payload.update({
+      collection: 'regions',
+      id: country.id,
+      overrideAccess: true,
+      data: { managers: [countryManager.id] },
+    })
+    const city = await payload.create({
+      collection: 'regions',
+      overrideAccess: true,
+      data: {
+        name: 'City DD',
+        level: 'city',
+        mapboxId: 'dd-city',
+        parent: country.id,
+        // The event manager is *also* this region's manager.
+        managers: [eventManager.id],
+      },
+    })
+    const event = await createEvent({ region: city.id })
+
+    // verified → reminded (manager only), then reminded → escalated.
+    await makeDue(payload, event.id)
+    await runJob(payload)
+    await makeDue(payload, event.id)
+    const r = await runJob(payload)
+
+    // Two recipients: the event manager + the country manager (city manager skipped).
+    expect(r).toMatchObject({ advanced: 1, remindersSent: 2 })
+    const fresh = await getEvent(payload, event.id)
+    expect(fresh.verificationStage).toBe('escalated')
+    const escalatedDestinations = reminders(fresh.notificationLog)
+      .filter((e) => e.stage === 'reminded')
+      .map((e) => e.destination)
+      .sort()
+    expect(escalatedDestinations).toEqual([
+      'country-manager@example.com',
+      'event-manager@example.com',
+    ])
+  })
+
   it('re-running immediately sends nothing and advances nothing', async () => {
     const event = await createEvent()
     await makeDue(payload, event.id)

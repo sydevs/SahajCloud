@@ -15,11 +15,7 @@
  * apply the pending migration). Without the flag, no database is touched.
  */
 
-import type {
-  EventDetails,
-  ReminderAudience,
-  ReminderLevel,
-} from '@/emails/EventVerificationEmail'
+import type { EventDetails, ReminderAudience, ReminderLevel } from '@/emails/EventVerificationEmail'
 import type { Event } from '@/payload-types'
 
 import dotenv from 'dotenv'
@@ -283,6 +279,7 @@ async function main() {
           schedule: 'Every week on Saturday at 9:26 AM',
           contact: 'Priya Deshmukh · +91 98765 43210',
           breaks: ['Diwali break: 21 Jul – 23 Jul 2026'],
+          lastVerified: 'Wednesday, 12 March 2026',
           recentRegistrations: 8,
         },
       }
@@ -336,7 +333,8 @@ async function main() {
         audience,
         details: sample.details,
         deadline: level === 'expired' ? today : futureDeadline,
-        sinceLastVerified: level === 'expired' ? sinceLastVerified : undefined,
+        sinceLastVerified,
+        regionName: audience === 'region' ? 'Maharashtra' : undefined,
         eventManager: audience === 'region' ? eventManager : undefined,
       }),
     )

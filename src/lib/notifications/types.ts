@@ -24,8 +24,10 @@ export interface ReminderPayload {
   details?: EventDetails
   /** Formatted date the event is / was unpublished (all levels). */
   deadline?: string
-  /** Human duration the event has gone unverified (expired level). */
-  sinceLastVerified?: string
+  /** Human duration the event has gone unverified. */
+  sinceLastVerified: string
+  /** The ancestor region linking a region manager to the event. */
+  regionName?: string
   /** Event manager's contacts — included for region-manager recipients. */
   eventManager?: EventManagerContact
 }
@@ -38,4 +40,6 @@ export interface ResolvedRecipient {
   channel: NotificationChannel
   /** Email address or platform handle the reminder goes to. */
   destination: string
+  /** The region linking a region manager to the event (role `region`). */
+  regionName?: string
 }

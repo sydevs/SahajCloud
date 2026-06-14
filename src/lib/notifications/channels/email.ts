@@ -49,6 +49,7 @@ export async function sendEmailReminder(
       details: reminder.details,
       deadline: reminder.deadline,
       sinceLastVerified: reminder.sinceLastVerified,
+      regionName: reminder.regionName,
       eventManager: reminder.eventManager,
     }),
   )
