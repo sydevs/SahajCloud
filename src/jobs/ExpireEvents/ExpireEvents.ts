@@ -145,7 +145,7 @@ async function processEvent(args: {
       eventTitle: typeof event.title === 'string' ? event.title : `Event #${event.id}`,
       level: transition.level!,
       audience: recipient.role,
-      verifyUrl: buildVerifyEmailLink(event.id, token),
+      verifyUrl: buildVerifyEmailLink(token),
       eventUrl,
       details,
       eventManager: recipient.role === 'region' ? eventManagerCard : undefined,

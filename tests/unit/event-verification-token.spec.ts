@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  readVerifyToken,
   signVerifyToken,
   VERIFY_TOKEN_TTL_MS,
   verifyVerifyToken,
@@ -41,5 +42,33 @@ describe('verify token', () => {
     expect(verifyVerifyToken('', SECRET, NOW)).toBeNull()
     expect(verifyVerifyToken('no-dot', SECRET, NOW)).toBeNull()
     expect(verifyVerifyToken('a.b.c', SECRET, NOW)).toBeNull()
+  })
+
+  describe('readVerifyToken (discriminated)', () => {
+    it('returns valid + claims for a genuine, unexpired token', () => {
+      const token = signVerifyToken({ eventId: 42, managerId: 7 }, SECRET, NOW)
+      expect(readVerifyToken(token, SECRET, NOW)).toEqual({
+        status: 'valid',
+        claims: { eventId: 42, managerId: 7 },
+      })
+    })
+
+    it('distinguishes an authentic-but-expired token as expired (not invalid)', () => {
+      const token = signVerifyToken({ eventId: 1, managerId: 2 }, SECRET, NOW)
+      const justAfter = new Date(NOW.getTime() + VERIFY_TOKEN_TTL_MS + 1000)
+      expect(readVerifyToken(token, SECRET, justAfter)).toEqual({ status: 'expired' })
+    })
+
+    it('reports invalid for missing / malformed / wrong-secret / tampered tokens', () => {
+      const token = signVerifyToken({ eventId: 1, managerId: 2 }, SECRET, NOW)
+      expect(readVerifyToken('', SECRET, NOW)).toEqual({ status: 'invalid' })
+      expect(readVerifyToken('no-dot', SECRET, NOW)).toEqual({ status: 'invalid' })
+      expect(readVerifyToken(token, 'other-secret', NOW)).toEqual({ status: 'invalid' })
+      const [, signature] = token.split('.')
+      const forged = Buffer.from(
+        JSON.stringify({ eventId: 999, managerId: 2, exp: NOW.getTime() + VERIFY_TOKEN_TTL_MS }),
+      ).toString('base64url')
+      expect(readVerifyToken(`${forged}.${signature}`, SECRET, NOW)).toEqual({ status: 'invalid' })
+    })
   })
 })

@@ -4,18 +4,18 @@ import type { FieldHook, PayloadRequest, TextField } from 'payload'
 type UrlBase = string | (() => string | null | undefined)
 
 /** Which platform a URL is being built for. */
-export type UrlPlatform = 'web' | 'app'
+export type PublicUrlPlatform = 'web' | 'app'
 
 /** Context handed to the path builder + guard for one virtual URL read. */
-export interface UrlFieldContext {
+export interface PublicUrlFieldContext {
   /** The platform this field targets (`web` or `app`). */
-  platform: UrlPlatform
+  platform: PublicUrlPlatform
   /** The document being read. */
   data: Record<string, unknown> | undefined
   req: PayloadRequest
 }
 
-export interface UrlFieldsOptions {
+export interface PublicUrlFieldsOptions {
   /** Web base URL (include the trailing separator, e.g. `https://x/map#/!/`). */
   web?: UrlBase
   /** App base URL (include the trailing separator, e.g. `wemeditate://`). */
@@ -25,13 +25,13 @@ export interface UrlFieldsOptions {
    * Branch on `ctx.platform` when web/app paths differ. Return `null` to omit
    * the URL (e.g. a missing slug).
    */
-  buildPath: (ctx: UrlFieldContext) => string | null | Promise<string | null>
+  buildPath: (ctx: PublicUrlFieldContext) => string | null | Promise<string | null>
   /**
    * Optional guard: when it resolves false the field reads `null`. Use for
    * conditions like "document is published" or "is a registered app page".
    * (Named `exposeWhen` rather than "guard" to read as a predicate.)
    */
-  exposeWhen?: (ctx: UrlFieldContext) => boolean | Promise<boolean>
+  exposeWhen?: (ctx: PublicUrlFieldContext) => boolean | Promise<boolean>
   /** Field name overrides (default `webUrl` / `appUrl`). */
   webName?: string
   appName?: string
@@ -39,16 +39,16 @@ export interface UrlFieldsOptions {
 
 /** afterRead hook for one virtual URL field: guard → path → `base + path`. */
 function urlHook(
-  platform: UrlPlatform,
+  platform: PublicUrlPlatform,
   base: UrlBase,
-  buildPath: UrlFieldsOptions['buildPath'],
-  exposeWhen: UrlFieldsOptions['exposeWhen'],
+  buildPath: PublicUrlFieldsOptions['buildPath'],
+  exposeWhen: PublicUrlFieldsOptions['exposeWhen'],
 ): FieldHook {
   return async ({ data, req }) => {
     const resolved = typeof base === 'function' ? base() : base
     if (!resolved) return null
 
-    const ctx: UrlFieldContext = { platform, data, req }
+    const ctx: PublicUrlFieldContext = { platform, data, req }
     if (exposeWhen && !(await exposeWhen(ctx))) return null
 
     const path = await buildPath(ctx)
@@ -77,20 +77,20 @@ function virtualUrlField(name: string, hook: FieldHook): TextField {
  * the per-collection wiring stays a few lines.
  *
  * @example
- * urlFields({
+ * publicUrlFields({
  *   web: () => process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/map#/!/` : null,
  *   buildPath: ({ data }) => (data?.id ? `events/${data.id}` : null),
  *   exposeWhen: ({ data }) => data?._status === 'published',
  * })
  */
-export function urlFields({
+export function publicUrlFields({
   web,
   app,
   buildPath,
   exposeWhen,
   webName = 'webUrl',
   appName = 'appUrl',
-}: UrlFieldsOptions): TextField[] {
+}: PublicUrlFieldsOptions): TextField[] {
   const fields: TextField[] = []
   if (web !== undefined) {
     fields.push(virtualUrlField(webName, urlHook('web', web, buildPath, exposeWhen)))

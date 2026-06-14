@@ -8,12 +8,17 @@ import {
   lexicalEditor,
 } from '@payloadcms/richtext-lexical'
 
-import { addressFields, legacyMigrationFields, scheduleFields, urlField, urlFields } from '@/fields'
+import {
+  addressFields,
+  legacyMigrationFields,
+  scheduleFields,
+  urlField,
+  publicUrlFields,
+} from '@/fields'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 
 import { verifyEventAction } from './endpoints/verifyEventAction'
-import { verifyEventLink } from './endpoints/verifyEventLink'
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
   EVENT_REGISTRATION_QUESTIONS,
@@ -57,12 +62,13 @@ export const Events: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'verificationStage', '_status'],
   },
-  // Re-verify on any manager save; the explicit endpoints back the notice
-  // banner's Verify button (POST) and the tokenized email link (GET).
+  // Re-verify on any manager save; the explicit POST endpoint backs the notice
+  // banner's Verify button. The tokenized email link is the `/events/verify`
+  // frontend page (it calls the shared verify op via a Server Action).
   hooks: {
     beforeChange: [verifyOnSave],
   },
-  endpoints: [verifyEventAction, verifyEventLink],
+  endpoints: [verifyEventAction],
   fields: [
     {
       // Contextual banner above the tabs: warns when the event is due for or
@@ -319,7 +325,7 @@ export const Events: CollectionConfig = {
     },
     // Virtual public link to the event on the Sahaj Atlas map — only while the
     // event is published (an unpublished/expired event has no public page).
-    ...urlFields({
+    ...publicUrlFields({
       web: () =>
         process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/map#/!/` : null,
       buildPath: ({ data }) => (data?.id ? `events/${data.id}` : null),
