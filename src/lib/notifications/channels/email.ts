@@ -3,7 +3,7 @@ import type { Payload } from 'payload'
 
 import { createElement } from 'react'
 
-import { EventVerificationReminderEmail } from '@/emails/EventVerificationReminderEmail'
+import { EventVerificationEmail } from '@/emails/EventVerificationEmail'
 import { renderEmail } from '@/plugins/email'
 
 function subjectFor(level: ReminderLevel, audience: ReminderAudience, title: string): string {
@@ -40,7 +40,7 @@ export async function sendEmailReminder(
   reminder: ReminderPayload,
 ): Promise<void> {
   const html = await renderEmail(
-    createElement(EventVerificationReminderEmail, {
+    createElement(EventVerificationEmail, {
       name: recipient.manager.name || recipient.destination,
       eventTitle: reminder.eventTitle,
       verifyUrl: reminder.verifyUrl,
