@@ -1,6 +1,6 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import type { EventDetails } from '@/emails/EventVerificationReminderEmail'
+import type { EventDetails } from '@/emails/EventVerificationEmail'
 import type { Event } from '@/payload-types'
 
 const DAY_MS = 24 * 60 * 60 * 1000

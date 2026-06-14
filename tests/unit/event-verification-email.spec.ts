@@ -2,10 +2,10 @@ import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
 import {
-  EventVerificationReminderEmail,
+  EventVerificationEmail,
   type EventDetails,
   type EventManagerContact,
-} from '@/emails/EventVerificationReminderEmail'
+} from '@/emails/EventVerificationEmail'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
 const details: EventDetails = {
@@ -36,12 +36,12 @@ const baseProps = {
   sinceLastVerified: '3 months',
 }
 
-describe('EventVerificationReminderEmail', () => {
+describe('EventVerificationEmail', () => {
   it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
     'renders the %s reminder with the verify link + sahaj-atlas brand',
     async (level) => {
       const html = await renderEmail(
-        createElement(EventVerificationReminderEmail, { ...baseProps, level }),
+        createElement(EventVerificationEmail, { ...baseProps, level }),
       )
       const brand = getEmailBrand('sahaj-atlas')
 
@@ -56,7 +56,7 @@ describe('EventVerificationReminderEmail', () => {
     'states the unpublish date in the body for the %s level',
     async (level) => {
       const html = await renderEmail(
-        createElement(EventVerificationReminderEmail, { ...baseProps, level }),
+        createElement(EventVerificationEmail, { ...baseProps, level }),
       )
       expect(html).toContain('Saturday, 19 July 2026')
     },
@@ -64,7 +64,7 @@ describe('EventVerificationReminderEmail', () => {
 
   it('renders the event details summary table', async () => {
     const html = await renderEmail(
-      createElement(EventVerificationReminderEmail, { ...baseProps, level: 'due' }),
+      createElement(EventVerificationEmail, { ...baseProps, level: 'due' }),
     )
     expect(html).toContain('12 MG Road, Pune, Maharashtra, IN 411001')
     expect(html).toContain('Every week on Saturday at 9:26 AM')
@@ -73,10 +73,10 @@ describe('EventVerificationReminderEmail', () => {
 
   it('marks the urgent level as the final reminder, expired as unpublished', async () => {
     const urgent = await renderEmail(
-      createElement(EventVerificationReminderEmail, { ...baseProps, level: 'urgent' }),
+      createElement(EventVerificationEmail, { ...baseProps, level: 'urgent' }),
     )
     const expired = await renderEmail(
-      createElement(EventVerificationReminderEmail, { ...baseProps, level: 'expired' }),
+      createElement(EventVerificationEmail, { ...baseProps, level: 'expired' }),
     )
     expect(urgent.toLowerCase()).toContain('final reminder')
     expect(expired).toContain('unpublished')
@@ -93,7 +93,7 @@ describe('EventVerificationReminderEmail', () => {
 
     it('frames it as an event in their region and asks them to follow up', async () => {
       const html = await renderEmail(
-        createElement(EventVerificationReminderEmail, { ...regionProps, level: 'escalated' }),
+        createElement(EventVerificationEmail, { ...regionProps, level: 'escalated' }),
       )
       expect(html).toContain('in your region')
       expect(html).not.toContain('your event')
@@ -102,7 +102,7 @@ describe('EventVerificationReminderEmail', () => {
 
     it('includes the event manager name and every contact method', async () => {
       const html = await renderEmail(
-        createElement(EventVerificationReminderEmail, { ...regionProps, level: 'urgent' }),
+        createElement(EventVerificationEmail, { ...regionProps, level: 'urgent' }),
       )
       expect(html).toContain('Priya Deshmukh')
       expect(html).toContain('priya@example.com')
@@ -113,14 +113,14 @@ describe('EventVerificationReminderEmail', () => {
 
   it('warns against forwarding the email', async () => {
     const html = await renderEmail(
-      createElement(EventVerificationReminderEmail, { ...baseProps, level: 'due' }),
+      createElement(EventVerificationEmail, { ...baseProps, level: 'due' }),
     )
     expect(html).toContain('forward this email')
   })
 
   it('renders without a details table when none is supplied', async () => {
     const html = await renderEmail(
-      createElement(EventVerificationReminderEmail, {
+      createElement(EventVerificationEmail, {
         name: 'Sam',
         eventTitle: 'Untitled',
         verifyUrl: 'https://cloud.test/verify',

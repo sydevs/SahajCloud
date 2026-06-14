@@ -19,7 +19,7 @@ import type {
   EventDetails,
   ReminderAudience,
   ReminderLevel,
-} from '@/emails/EventVerificationReminderEmail'
+} from '@/emails/EventVerificationEmail'
 import type { Event } from '@/payload-types'
 
 import dotenv from 'dotenv'
@@ -262,7 +262,7 @@ async function persistSampleEvent(): Promise<SampleData> {
 async function main() {
   const { createElement } = await import('react')
   const nodemailer = (await import('nodemailer')).default
-  const { EventVerificationReminderEmail } = await import('@/emails/EventVerificationReminderEmail')
+  const { EventVerificationEmail } = await import('@/emails/EventVerificationEmail')
   const { renderEmail } = await import('@/plugins/email')
   const { signVerifyToken } = await import('@/lib/eventVerification/token')
   const { buildVerifyEmailLink } = await import('@/lib/eventVerification/verifyUrl')
@@ -328,7 +328,7 @@ async function main() {
   for (const { level, audience } of combos) {
     const token = signVerifyToken({ eventId: sample.eventId, managerId: sample.managerId }, secret)
     const html = await renderEmail(
-      createElement(EventVerificationReminderEmail, {
+      createElement(EventVerificationEmail, {
         name: audience === 'region' ? 'Rohan Patil' : sample.managerName,
         eventTitle: sample.eventTitle,
         verifyUrl: buildVerifyEmailLink(sample.eventId, token),

@@ -3,7 +3,7 @@ import type {
   EventManagerContact,
   ReminderAudience,
   ReminderLevel,
-} from '@/emails/EventVerificationReminderEmail'
+} from '@/emails/EventVerificationEmail'
 import type { Manager } from '@/payload-types'
 
 export type { EventDetails, EventManagerContact, ReminderAudience, ReminderLevel }
