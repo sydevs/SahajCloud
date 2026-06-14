@@ -3,7 +3,7 @@ import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { verifyEventAction } from '@/collections/Events/endpoints/verifyEventAction'
-import { verifyEventLink } from '@/collections/Events/endpoints/verifyEventLink'
+import { verifyEventFromToken } from '@/collections/Events/lifecycle/verify'
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 import type { NotificationLogEntry } from '@/lib/eventVerification/log'
 import { signVerifyToken } from '@/lib/eventVerification/token'
@@ -416,41 +416,29 @@ describe('Event verification lifecycle', () => {
     expect(log[0]).toMatchObject({ kind: 'verification', method: 'verify-action' })
   })
 
-  it('the tokenized email link verifies while logged out (method email-link)', async () => {
+  it('verifyEventFromToken verifies a logged-out event link (method email-link)', async () => {
     const event = await createEvent()
     await makeDue(payload, event.id)
     await runJob(payload) // → reminded
 
     const token = signVerifyToken({ eventId: event.id, managerId: eventManager.id }, payload.secret)
-    const req = {
-      payload,
-      routeParams: { id: String(event.id) },
-      query: { token },
-      headers: new Headers(),
-    } as unknown as Parameters<typeof verifyEventLink.handler>[0]
-    const res = await verifyEventLink.handler(req)
-    expect(res.status).toBe(200)
+    const verified = await verifyEventFromToken({ payload, token })
 
-    const fresh = await getEvent(payload, event.id)
-    expect(fresh.verificationStage).toBe('verified')
-    const log = fresh.notificationLog as NotificationLogEntry[]
+    expect(verified).not.toBeNull()
+    expect(verified?.verificationStage).toBe('verified')
+    expect(verified?._status).toBe('published')
+    const log = (verified as Event).notificationLog as NotificationLogEntry[]
     expect(log[0]).toMatchObject({ kind: 'verification', method: 'email-link' })
     expect((log[0] as Extract<NotificationLogEntry, { kind: 'verification' }>).by?.id).toBe(
       eventManager.id,
     )
   })
 
-  it('rejects an invalid token without changing the event', async () => {
+  it('verifyEventFromToken returns null for an invalid token, leaving the event unchanged', async () => {
     const event = await createEvent()
     const before = await getEvent(payload, event.id)
-    const req = {
-      payload,
-      routeParams: { id: String(event.id) },
-      query: { token: 'not-a-valid-token' },
-      headers: new Headers(),
-    } as unknown as Parameters<typeof verifyEventLink.handler>[0]
-    const res = await verifyEventLink.handler(req)
-    expect(res.status).toBe(400)
+    const result = await verifyEventFromToken({ payload, token: 'not-a-valid-token' })
+    expect(result).toBeNull()
     const after = await getEvent(payload, event.id)
     expect(after.updatedAt).toBe(before.updatedAt)
   })

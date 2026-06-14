@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { PAGE_TAGS } from '@/collections/Pages/pageTags'
-import { slugField, urlFields } from '@/fields'
+import { slugField, publicUrlFields } from '@/fields'
 import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import { removeDanglingLexicalReferencesAfterRead } from '@/hooks/lexicalHooks'
 import { fullRichTextEditor } from '@/lib/richEditor'
@@ -105,7 +105,7 @@ export const Pages: CollectionConfig = {
     },
     // Virtual deep links: public web URL (any status) + in-app URL (registered
     // app pages only). Web path carries the optional locale + primary tag.
-    ...urlFields({
+    ...publicUrlFields({
       web: () => (process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/` : null),
       app: 'wemeditate://',
       buildPath: ({ platform, data, req }) => {

@@ -3,6 +3,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import type { ActorRef, VerificationMethod } from '@/lib/eventVerification/log'
 import { buildVerificationEntry } from '@/lib/eventVerification/log'
 import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
+import { verifyVerifyToken } from '@/lib/eventVerification/token'
 import type { Event, Manager } from '@/payload-types'
 
 /**
@@ -96,5 +97,42 @@ export async function applyVerification(args: {
     context: { skipVerifyHook: true },
     overrideAccess,
     req,
+  })
+}
+
+/**
+ * Verify an event from a tokenized email link (the logged-out path). Validates
+ * the signed token, resolves the manager's display name for the log, and runs
+ * the shared verify op with `overrideAccess: true` (the token is the
+ * authorization). Returns the updated event (carries the virtual `webUrl`), or
+ * `null` when the token is missing/expired/invalid. `applyVerification` errors
+ * propagate to the caller.
+ *
+ * Kept out of the route/action layer so it's testable with a plain `payload`
+ * instance — the Server Action is a thin `getPayload` wrapper around this.
+ */
+export async function verifyEventFromToken(args: {
+  payload: Payload
+  token: string
+  now?: Date
+}): Promise<Event | null> {
+  const { payload, token, now = new Date() } = args
+
+  const claims = verifyVerifyToken(token, payload.secret, now)
+  if (!claims) return null
+
+  // Resolve the manager's display name for the log's `by` entry.
+  const manager = await payload
+    .findByID({ collection: 'managers', id: claims.managerId, depth: 0, overrideAccess: true })
+    .catch(() => null)
+  const name = manager?.name || manager?.email || `#${claims.managerId}`
+
+  return applyVerification({
+    payload,
+    eventId: claims.eventId,
+    method: 'email-link',
+    by: { id: claims.managerId, name },
+    now,
+    overrideAccess: true,
   })
 }

@@ -328,7 +328,7 @@ async function main() {
       createElement(EventVerificationEmail, {
         name: audience === 'region' ? 'Rohan Patil' : sample.managerName,
         eventTitle: sample.eventTitle,
-        verifyUrl: buildVerifyEmailLink(sample.eventId, token),
+        verifyUrl: buildVerifyEmailLink(token),
         // Published events link to the map; expired (unpublished) ones don't.
         eventUrl:
           level === 'expired' ? null : `https://wemeditate.com/map#/!/events/${sample.eventId}`,

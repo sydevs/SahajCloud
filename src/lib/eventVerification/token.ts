@@ -45,34 +45,68 @@ export function signVerifyToken(
 }
 
 /**
- * Validate a verify-link token. Returns its claims when the signature matches
- * and it hasn't expired, else `null`. `now` is injectable for tests.
+ * Outcome of inspecting a verify-link token.
+ * - `valid` — signature matches and it hasn't expired (carries the claims).
+ * - `expired` — signature matches but the token is past its TTL (an authentic,
+ *   aged link — callers may show a friendly "link expired" message).
+ * - `invalid` — missing / malformed / tampered / bad signature (treat as 404).
  */
-export function verifyVerifyToken(
+export type VerifyTokenResult =
+  | { status: 'valid'; claims: VerifyTokenClaims }
+  | { status: 'expired' }
+  | { status: 'invalid' }
+
+/**
+ * Inspect a verify-link token, distinguishing an authentic-but-expired token
+ * from a missing/tampered one. The signature must validate before we trust the
+ * `exp` claim, so only a genuine link can ever be reported `expired`. `now` is
+ * injectable for tests.
+ */
+export function readVerifyToken(
   token: string,
   secret: string,
   now: Date = new Date(),
-): VerifyTokenClaims | null {
-  if (typeof token !== 'string') return null
+): VerifyTokenResult {
+  if (typeof token !== 'string') return { status: 'invalid' }
   const [payloadB64, signature] = token.split('.')
-  if (!payloadB64 || !signature) return null
+  if (!payloadB64 || !signature) return { status: 'invalid' }
 
   // Constant-time signature comparison (lengths must match first).
   const expected = Buffer.from(hmac(payloadB64, secret))
   const actual = Buffer.from(signature)
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-    return null
+    return { status: 'invalid' }
   }
 
   let claims: SignedClaims
   try {
     claims = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf-8')) as SignedClaims
   } catch {
-    return null
+    return { status: 'invalid' }
   }
 
-  if (typeof claims.exp !== 'number' || claims.exp < now.getTime()) return null
-  if (typeof claims.eventId !== 'number' || typeof claims.managerId !== 'number') return null
+  if (typeof claims.eventId !== 'number' || typeof claims.managerId !== 'number') {
+    return { status: 'invalid' }
+  }
+  // Signature is authentic from here — an aged link is `expired`, not `invalid`.
+  if (typeof claims.exp !== 'number' || claims.exp < now.getTime()) {
+    return { status: 'expired' }
+  }
 
-  return { eventId: claims.eventId, managerId: claims.managerId }
+  return { status: 'valid', claims: { eventId: claims.eventId, managerId: claims.managerId } }
+}
+
+/**
+ * Validate a verify-link token. Returns its claims when the signature matches
+ * and it hasn't expired, else `null`. Thin wrapper over {@link readVerifyToken}
+ * for callers that only need the authorize-or-reject decision. `now` is
+ * injectable for tests.
+ */
+export function verifyVerifyToken(
+  token: string,
+  secret: string,
+  now: Date = new Date(),
+): VerifyTokenClaims | null {
+  const result = readVerifyToken(token, secret, now)
+  return result.status === 'valid' ? result.claims : null
 }

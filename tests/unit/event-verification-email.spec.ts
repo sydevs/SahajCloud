@@ -30,7 +30,7 @@ const eventManager: EventManagerContact = {
 const baseProps = {
   name: 'Jo Manager',
   eventTitle: 'Morning Meditation',
-  verifyUrl: 'https://cloud.test/api/events/42/verify?token=TKN123',
+  verifyUrl: 'https://cloud.test/events/verify?token=TKN123',
   audience: 'manager' as const,
   details,
   deadline: 'Saturday, 19 July 2026',

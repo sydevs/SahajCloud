@@ -9,9 +9,13 @@ export type { MediaFieldOptions } from './mediaField'
 export { urlField } from './urlField'
 export type { UrlFieldOptions } from './urlField'
 
-// URL fields - virtual webUrl/appUrl pair (base + shared path + exposeWhen guard)
-export { urlFields } from './urlFields'
-export type { UrlFieldContext, UrlFieldsOptions, UrlPlatform } from './urlFields'
+// Public URL fields - virtual webUrl/appUrl pair (base + shared path + exposeWhen guard)
+export { publicUrlFields } from './publicUrlFields'
+export type {
+  PublicUrlFieldContext,
+  PublicUrlFieldsOptions,
+  PublicUrlPlatform,
+} from './publicUrlFields'
 
 // Color field - text field with hex color validation and color picker
 export { colorField } from './colorField'
