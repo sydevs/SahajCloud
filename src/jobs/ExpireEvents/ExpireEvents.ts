@@ -121,7 +121,7 @@ async function processEvent(args: {
   const nextCheckAtIso = computeNextCheckAt(transition, now)
   const deadline = formatLongDate(unpublishDate(stage, now).toISOString())
   const verifiedAt = log.find((entry) => entry.kind === 'verification')?.at
-  const sinceLastVerified = verifiedAt ? humanDurationSince(verifiedAt, now) : undefined
+  const sinceLastVerified = verifiedAt ? humanDurationSince(verifiedAt, now) : 'some time'
   const eventManagerCard =
     typeof event.manager === 'object' && event.manager
       ? buildManagerContacts(event.manager)
@@ -146,6 +146,7 @@ async function processEvent(args: {
       eventManager: recipient.role === 'region' ? eventManagerCard : undefined,
       deadline,
       sinceLastVerified,
+      regionName: recipient.regionName,
     }
 
     const delivered = await sendNotification({ client: payload, recipient, reminder })

@@ -1,6 +1,7 @@
 import type { Payload, PayloadRequest } from 'payload'
 
 import type { EventDetails } from '@/emails/EventVerificationEmail'
+import { asNotificationLog } from '@/lib/eventVerification/log'
 import type { Event } from '@/payload-types'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -188,6 +189,9 @@ export async function buildEventEmailDetails(args: {
     .filter(Boolean)
     .join(' · ')
   const breaks = formatBreaks(event.schedule)
+  const verifiedAt = asNotificationLog(event.notificationLog).find(
+    (entry) => entry.kind === 'verification',
+  )?.at
 
   return {
     title: typeof event.title === 'string' ? event.title : `Event #${event.id}`,
@@ -196,6 +200,7 @@ export async function buildEventEmailDetails(args: {
     schedule: scheduleOneLine(event.schedule),
     contact: contact || undefined,
     breaks: breaks.length > 0 ? breaks : undefined,
+    lastVerified: verifiedAt ? formatLongDate(verifiedAt) : 'Never',
     recentRegistrations,
   }
 }

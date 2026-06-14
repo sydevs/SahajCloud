@@ -1,10 +1,7 @@
-import type {
-  EventManagerContact,
-  NotificationChannel,
-  ReminderAudience,
-  ResolvedRecipient,
-} from './types'
+import type { EventManagerContact, NotificationChannel, ResolvedRecipient } from './types'
 import type { Payload, PayloadRequest } from 'payload'
+
+import * as Sentry from '@sentry/nextjs'
 
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Manager } from '@/payload-types'
@@ -58,55 +55,68 @@ export function pickChannel(manager: Manager): {
   return { channel: 'email', destination: manager.email ?? '' }
 }
 
-/** Collect the managers of every region in an event's breadcrumb chain. */
-async function regionChainManagers(
+/**
+ * Find the region manager to escalate to: the first manager up the region
+ * parent chain (nearest region first) who is NOT the event manager — so we
+ * never email the same person twice. Returns that manager plus the name of the
+ * region that links them to the event, or `null` if no distinct manager exists
+ * anywhere up the chain.
+ */
+async function findRegionRecipient(
   payload: Payload,
   event: Event,
+  eventManagerId: number | null,
   req?: PayloadRequest,
-): Promise<Manager[]> {
+): Promise<{ manager: Manager; regionName: string } | null> {
   const regionId = relationId(event.region)
-  if (!regionId) return []
+  if (!regionId) return null
 
   // Reuse the already-populated region's breadcrumbs (the job loads events at
   // depth 1); fetch only when region arrived as a bare id.
-  const region =
+  const eventRegion =
     typeof event.region === 'object' && event.region && Array.isArray(event.region.breadcrumbs)
       ? event.region
       : await payload
           .findByID({ collection: 'regions', id: regionId, depth: 0, overrideAccess: true, req })
           .catch(() => null)
 
-  const breadcrumbs = Array.isArray(region?.breadcrumbs) ? region.breadcrumbs : []
-  const ancestorIds = breadcrumbs
-    .map((crumb) => relationId(crumb?.doc))
-    .filter((id): id is number => id !== null)
-  const regionIds = [...new Set([regionId, ...ancestorIds])]
+  const breadcrumbIds = Array.isArray(eventRegion?.breadcrumbs)
+    ? eventRegion.breadcrumbs
+        .map((crumb) => relationId(crumb?.doc))
+        .filter((id): id is number => id !== null)
+    : []
+  // Nearest region first (the event's own region), then up to the country.
+  const chainIds = [...new Set([regionId, ...breadcrumbIds.reverse()])]
 
-  // Load the whole chain with managers populated (depth 1).
   const { docs: regions } = await payload.find({
     collection: 'regions',
-    where: { id: { in: regionIds } },
+    where: { id: { in: chainIds } },
     depth: 1,
-    limit: regionIds.length,
+    limit: chainIds.length,
     overrideAccess: true,
     req,
   })
+  const byId = new Map(regions.map((region) => [region.id, region]))
 
-  const managers: Manager[] = []
-  for (const chainRegion of regions) {
-    for (const manager of chainRegion.managers ?? []) {
-      if (typeof manager === 'object' && manager) managers.push(manager)
+  for (const id of chainIds) {
+    const region = byId.get(id)
+    if (!region) continue
+    for (const manager of region.managers ?? []) {
+      if (typeof manager === 'object' && manager && manager.id !== eventManagerId) {
+        return { manager, regionName: region.name }
+      }
     }
   }
-  return managers
+  return null
 }
 
 /**
- * Resolve the managers to notify for an event, deduped by id and each mapped to
- * a concrete channel + destination. The event manager is always included;
- * `includeRegion` adds the managers of every ancestor region (#476 breadcrumb
- * walk) — the event manager is nudged first, region managers join as expiry
- * nears.
+ * Resolve who to notify for an event. The event manager is always included
+ * (role `manager`). When `includeRegion` is set (from `escalated` onward), a
+ * single region manager — the nearest one up the parent chain who is NOT the
+ * event manager — is added (role `region`, tagged with the linking region's
+ * name). If no distinct region manager exists anywhere up the chain, a warning
+ * is sent to Sentry and only the event manager is returned.
  */
 export async function resolveRecipients(args: {
   payload: Payload
@@ -115,38 +125,48 @@ export async function resolveRecipients(args: {
   req?: PayloadRequest
 }): Promise<ResolvedRecipient[]> {
   const { payload, event, includeRegion, req } = args
+  const recipients: ResolvedRecipient[] = []
 
-  const tagged: { manager: Manager; role: ReminderAudience }[] = []
-
-  // Event manager first (populate if it arrived as a bare id).
+  // Event manager (populate if it arrived as a bare id).
+  let eventManager: Manager | null = null
   if (typeof event.manager === 'object' && event.manager) {
-    tagged.push({ manager: event.manager, role: 'manager' })
+    eventManager = event.manager
   } else {
     const managerId = relationId(event.manager)
     if (managerId) {
-      const manager = await payload
+      eventManager = await payload
         .findByID({ collection: 'managers', id: managerId, depth: 0, overrideAccess: true, req })
         .catch(() => null)
-      if (manager) tagged.push({ manager, role: 'manager' })
     }
+  }
+  if (eventManager) {
+    const { channel, destination } = pickChannel(eventManager)
+    recipients.push({ manager: eventManager, role: 'manager', channel, destination })
   }
 
   if (includeRegion) {
-    for (const manager of await regionChainManagers(payload, event, req)) {
-      tagged.push({ manager, role: 'region' })
+    const region = await findRegionRecipient(payload, event, eventManager?.id ?? null, req)
+    if (region) {
+      const { channel, destination } = pickChannel(region.manager)
+      recipients.push({
+        manager: region.manager,
+        role: 'region',
+        channel,
+        destination,
+        regionName: region.regionName,
+      })
+    } else {
+      const message =
+        'ExpireEvents: no region manager (distinct from the event manager) found to escalate to'
+      const extra = {
+        eventId: event.id,
+        regionId: relationId(event.region),
+        eventManagerId: eventManager?.id ?? null,
+      }
+      payload.logger.warn({ msg: message, ...extra })
+      Sentry.captureMessage(message, { level: 'warning', extra })
     }
   }
 
-  // Dedupe by manager id (first occurrence wins, so the event manager keeps the
-  // `manager` role even if they also manage an ancestor region), then map to a
-  // channel.
-  const seen = new Set<number>()
-  const recipients: ResolvedRecipient[] = []
-  for (const { manager, role } of tagged) {
-    if (seen.has(manager.id)) continue
-    seen.add(manager.id)
-    const { channel, destination } = pickChannel(manager)
-    recipients.push({ manager, role, channel, destination })
-  }
   return recipients
 }
