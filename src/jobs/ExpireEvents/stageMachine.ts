@@ -2,7 +2,6 @@ import { addDays } from '@/lib/eventVerification/periods'
 import type { VerificationStage } from '@/lib/eventVerification/stages'
 import type { ReminderLevel } from '@/lib/notifications'
 
-
 /** What to do when a due event at a given stage is processed. */
 export interface StageTransition {
   /** Reminder copy level, or `null` for the no-email terminal (trash). */
@@ -18,12 +17,16 @@ export interface StageTransition {
 }
 
 /**
- * Reminder ladder. Offsets mirror Atlas's ~2wk-to-expire / ~2wk-to-archive
- * spread: 1wk to escalate to region, 1wk to the final notice, then a 2wk grace
- * before trashing. The dedup key for a stage's sends is the *current* (from)
- * stage, so advancing never re-sends.
+ * Reminder ladder. The four reminders are due → escalated → urgent (final),
+ * each 1wk apart, then a 2wk grace before unpublishing, then 2wk before
+ * trashing. Region managers are looped in from `escalated` onward. The dedup
+ * key for a stage's sends is the *current* (from) stage, so advancing never
+ * re-sends.
  */
-const TRANSITIONS: Record<'verified' | 'reminded' | 'escalated' | 'expired', StageTransition> = {
+const TRANSITIONS: Record<
+  'verified' | 'reminded' | 'escalated' | 'urgent' | 'expired',
+  StageTransition
+> = {
   verified: {
     level: 'due',
     includeRegion: false,
@@ -39,6 +42,13 @@ const TRANSITIONS: Record<'verified' | 'reminded' | 'escalated' | 'expired', Sta
     unpublish: false,
   },
   escalated: {
+    level: 'urgent',
+    includeRegion: true,
+    nextStage: 'urgent',
+    offsetDays: 7,
+    unpublish: false,
+  },
+  urgent: {
     level: 'expired',
     includeRegion: true,
     nextStage: 'expired',
@@ -62,6 +72,32 @@ export function nextStageTransition(stage: VerificationStage): StageTransition |
 /** `nextCheckAt` for a transition (null when terminal). */
 export function computeNextCheckAt(transition: StageTransition, now: Date): string | null {
   return transition.offsetDays == null ? null : addDays(now, transition.offsetDays).toISOString()
+}
+
+/**
+ * Days from now until an unverified event at `stage` is unpublished — the sum
+ * of the offsets up to the unpublish transition (`urgent → expired`). Every
+ * reminder shows the same absolute unpublish date; once processing the
+ * unpublish stage itself, it's 0 (unpublished today).
+ */
+export function daysUntilUnpublish(stage: VerificationStage): number {
+  let total = 0
+  let current: VerificationStage | 'trash' = stage
+  const seen = new Set<string>()
+  while (current !== 'trash' && !seen.has(current)) {
+    seen.add(current)
+    const transition: StageTransition | undefined = TRANSITIONS[current as keyof typeof TRANSITIONS]
+    if (!transition) break
+    if (transition.unpublish) break // processing this stage unpublishes — no further wait
+    total += transition.offsetDays ?? 0
+    current = transition.nextStage
+  }
+  return total
+}
+
+/** The date an unverified event at `stage` is (or was) unpublished. */
+export function unpublishDate(stage: VerificationStage, now: Date): Date {
+  return addDays(now, daysUntilUnpublish(stage))
 }
 
 /** Minimal shape the finished-check reads off an event. */

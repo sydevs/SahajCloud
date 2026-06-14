@@ -17,6 +17,7 @@ const VERIFICATION_STAGE_LABELS: Record<(typeof VERIFICATION_STAGES)[number], st
   verified: 'Verified',
   reminded: 'Reminded',
   escalated: 'Escalated',
+  urgent: 'Urgent',
   expired: 'Expired',
   finished: 'Finished',
 }

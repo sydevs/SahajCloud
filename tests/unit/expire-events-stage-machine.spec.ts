@@ -2,16 +2,17 @@ import { describe, expect, it } from 'vitest'
 
 import {
   computeNextCheckAt,
+  daysUntilUnpublish,
   nextStageTransition,
   shouldFinish,
+  unpublishDate,
 } from '@/jobs/ExpireEvents/stageMachine'
 
 const NOW = new Date('2026-06-11T02:00:00.000Z')
 
 describe('nextStageTransition', () => {
-  it('verified → reminded (manager only, +1wk, stays published)', () => {
-    const t = nextStageTransition('verified')
-    expect(t).toMatchObject({
+  it('verified → reminded (due, manager only, +1wk, stays published)', () => {
+    expect(nextStageTransition('verified')).toMatchObject({
       level: 'due',
       includeRegion: false,
       nextStage: 'reminded',
@@ -30,8 +31,18 @@ describe('nextStageTransition', () => {
     })
   })
 
-  it('escalated → expired (region, +2wk, unpublishes)', () => {
+  it('escalated → urgent (final reminder, region, +1wk, still published)', () => {
     expect(nextStageTransition('escalated')).toMatchObject({
+      level: 'urgent',
+      includeRegion: true,
+      nextStage: 'urgent',
+      offsetDays: 7,
+      unpublish: false,
+    })
+  })
+
+  it('urgent → expired (region, +2wk, unpublishes)', () => {
+    expect(nextStageTransition('urgent')).toMatchObject({
       level: 'expired',
       includeRegion: true,
       nextStage: 'expired',
@@ -58,13 +69,29 @@ describe('computeNextCheckAt', () => {
     expect(computeNextCheckAt(nextStageTransition('verified')!, NOW)).toBe(
       '2026-06-18T02:00:00.000Z',
     )
-    expect(computeNextCheckAt(nextStageTransition('escalated')!, NOW)).toBe(
-      '2026-06-25T02:00:00.000Z',
-    )
   })
 
   it('returns null for the terminal (trash) transition', () => {
     expect(computeNextCheckAt(nextStageTransition('expired')!, NOW)).toBeNull()
+  })
+})
+
+describe('daysUntilUnpublish', () => {
+  it('sums the remaining offsets up to the urgent → expired transition', () => {
+    expect(daysUntilUnpublish('verified')).toBe(21) // 7 + 7 + 7
+    expect(daysUntilUnpublish('reminded')).toBe(14) // 7 + 7
+    expect(daysUntilUnpublish('escalated')).toBe(7) // 7
+    expect(daysUntilUnpublish('urgent')).toBe(0) // processing urgent unpublishes now
+  })
+
+  it('every pre-expiry stage points at the same absolute unpublish date', () => {
+    const fromVerified = unpublishDate('verified', NOW).toISOString()
+    const fromReminded = unpublishDate(
+      'reminded',
+      new Date('2026-06-18T02:00:00.000Z'),
+    ).toISOString()
+    expect(fromVerified).toBe('2026-07-02T02:00:00.000Z')
+    expect(fromReminded).toBe(fromVerified)
   })
 })
 

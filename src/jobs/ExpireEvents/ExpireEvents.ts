@@ -9,6 +9,7 @@ import { signVerifyToken } from '@/lib/eventVerification/token'
 import { buildVerifyEmailLink } from '@/lib/eventVerification/verifyUrl'
 import {
   buildEventEmailDetails,
+  buildManagerContacts,
   formatLongDate,
   humanDurationSince,
   resolveRecipients,
@@ -17,7 +18,12 @@ import {
 } from '@/lib/notifications'
 import type { Event } from '@/payload-types'
 
-import { computeNextCheckAt, nextStageTransition, shouldFinish } from './stageMachine'
+import {
+  computeNextCheckAt,
+  nextStageTransition,
+  shouldFinish,
+  unpublishDate,
+} from './stageMachine'
 
 const PAGINATION_LIMIT = 200
 
@@ -108,13 +114,18 @@ async function processEvent(args: {
 
   let log = asNotificationLog(event.notificationLog)
 
-  // Reminder-cycle timing, shared across recipients: the deadline this stage
-  // sets (when an unverified event is unpublished — used by the final reminder)
-  // and how long it's been since the last verification (shown once expired).
+  // Shared across recipients: the absolute date this event is (or was)
+  // unpublished — every reminder shows the same date; how long it's gone
+  // unverified (for the expired notice); and the event manager's contacts,
+  // included in region-manager emails so they can follow up.
   const nextCheckAtIso = computeNextCheckAt(transition, now)
-  const deadline = nextCheckAtIso ? formatLongDate(nextCheckAtIso) : undefined
+  const deadline = formatLongDate(unpublishDate(stage, now).toISOString())
   const verifiedAt = log.find((entry) => entry.kind === 'verification')?.at
   const sinceLastVerified = verifiedAt ? humanDurationSince(verifiedAt, now) : undefined
+  const eventManagerCard =
+    typeof event.manager === 'object' && event.manager
+      ? buildManagerContacts(event.manager)
+      : undefined
 
   let allDelivered = true
 
@@ -129,8 +140,10 @@ async function processEvent(args: {
     const reminder: ReminderPayload = {
       eventTitle: typeof event.title === 'string' ? event.title : `Event #${event.id}`,
       level: transition.level!,
+      audience: recipient.role,
       verifyUrl: buildVerifyEmailLink(event.id, token),
       details,
+      eventManager: recipient.role === 'region' ? eventManagerCard : undefined,
       deadline,
       sinceLastVerified,
     }

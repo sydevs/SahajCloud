@@ -5,13 +5,16 @@
  * from a collection.
  *
  * The single `verificationStage` enum consolidates both the lifecycle status
- * and the escalation step: `verified → reminded → escalated → expired`, plus
- * terminal `finished`. ("Archived" is a Payload soft-delete, not a stage.)
+ * and the escalation step: `verified → reminded → escalated → urgent → expired`,
+ * plus terminal `finished`. Each pre-expiry stage marks the last reminder sent
+ * (reminded = due, escalated, urgent = final). ("Archived" is a Payload
+ * soft-delete, not a stage.)
  */
 export const VERIFICATION_STAGES = [
   'verified',
   'reminded',
   'escalated',
+  'urgent',
   'expired',
   'finished',
 ] as const
@@ -24,7 +27,7 @@ export const DEFAULT_VERIFICATION_STAGE: VerificationStage = 'verified'
  * Stages where the event stays published (publicly visible). `expired` and
  * `finished` unpublish (`_status: 'draft'`); verifying restores `verified`.
  */
-export const PUBLISHED_STAGES = ['verified', 'reminded', 'escalated'] as const
+export const PUBLISHED_STAGES = ['verified', 'reminded', 'escalated', 'urgent'] as const
 
 /** Whether an event at this stage should be published. */
 export function isPublishedStage(stage: string | null | undefined): boolean {
