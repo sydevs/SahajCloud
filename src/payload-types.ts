@@ -1410,7 +1410,7 @@ export interface Event {
   /**
    * Lifecycle stage — advanced automatically by the daily verification job, reset to “Verified” whenever the event is verified.
    */
-  verificationStage: 'verified' | 'reminded' | 'escalated' | 'expired' | 'finished';
+  verificationStage: 'verified' | 'reminded' | 'escalated' | 'urgent' | 'expired' | 'finished';
   nextCheckAt?: string | null;
   /**
    * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.

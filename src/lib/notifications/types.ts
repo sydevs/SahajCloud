@@ -1,7 +1,12 @@
-import type { EventDetails, ReminderLevel } from '@/emails/EventVerificationReminderEmail'
+import type {
+  EventDetails,
+  EventManagerContact,
+  ReminderAudience,
+  ReminderLevel,
+} from '@/emails/EventVerificationReminderEmail'
 import type { Manager } from '@/payload-types'
 
-export type { EventDetails, ReminderLevel }
+export type { EventDetails, EventManagerContact, ReminderAudience, ReminderLevel }
 
 /** Delivery channels. Only `email` is wired in v1; the rest are stubbed. */
 export type NotificationChannel = 'email' | 'whatsapp' | 'telegram' | 'wechat'
@@ -11,19 +16,25 @@ export interface ReminderPayload {
   eventTitle: string
   /** Escalation level — selects email copy. */
   level: ReminderLevel
+  /** Whether this recipient is the event manager or a region manager. */
+  audience: ReminderAudience
   /** Per-recipient tokenized verify link. */
   verifyUrl: string
   /** Key event facts for the summary table (same for every recipient). */
   details?: EventDetails
-  /** Formatted date the event is unpublished if unverified (escalated level). */
+  /** Formatted date the event is / was unpublished (all levels). */
   deadline?: string
-  /** Human duration since the event was last verified (expired level). */
+  /** Human duration the event has gone unverified (expired level). */
   sinceLastVerified?: string
+  /** Event manager's contacts — included for region-manager recipients. */
+  eventManager?: EventManagerContact
 }
 
 /** A recipient resolved to a concrete channel + destination. */
 export interface ResolvedRecipient {
   manager: Manager
+  /** The event's own manager, or a region manager above it. */
+  role: ReminderAudience
   channel: NotificationChannel
   /** Email address or platform handle the reminder goes to. */
   destination: string

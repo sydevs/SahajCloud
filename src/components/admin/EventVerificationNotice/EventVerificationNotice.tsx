@@ -28,6 +28,11 @@ const NOTICES: Partial<Record<VerificationStage, NoticeConfig>> = {
     message: (due) =>
       `This event is overdue for verification${due ? ` (due ${due})` : ''}. Region managers have been notified — verify to stop further escalation.`,
   },
+  urgent: {
+    severity: 'error',
+    message: (due) =>
+      `Final reminder${due ? ` — verify by ${due}` : ''} before this event is unpublished and hidden from the public.`,
+  },
   expired: {
     severity: 'error',
     message: () => 'This event is hidden from the public. Verify it to restore the listing.',

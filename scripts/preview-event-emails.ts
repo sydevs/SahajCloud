@@ -15,7 +15,11 @@
  * apply the pending migration). Without the flag, no database is touched.
  */
 
-import type { EventDetails, ReminderLevel } from '@/emails/EventVerificationReminderEmail'
+import type {
+  EventDetails,
+  ReminderAudience,
+  ReminderLevel,
+} from '@/emails/EventVerificationReminderEmail'
 import type { Event } from '@/payload-types'
 
 import dotenv from 'dotenv'
@@ -284,11 +288,6 @@ async function main() {
       }
 
   const secret = process.env.PAYLOAD_SECRET || 'preview-secret'
-  const subjects: Record<ReminderLevel, string> = {
-    due: `Please verify your event: ${sample.eventTitle}`,
-    escalated: `Action needed — verify your event: ${sample.eventTitle}`,
-    expired: `Your event has been unpublished: ${sample.eventTitle}`,
-  }
 
   const account = await nodemailer.createTestAccount()
   const transport = nodemailer.createTransport({
@@ -298,32 +297,56 @@ async function main() {
     auth: { user: account.user, pass: account.pass },
   })
 
-  // Illustrative timing for the alerts: a one-week unpublish deadline (final
-  // reminder) and a sample "last verified" age (expired notice).
-  const deadline = formatLongDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
+  // Illustrative timing: a shared unpublish date in the future, "today" once
+  // expired, and a sample "last verified" age + event-manager contact card.
+  const futureDeadline = formatLongDate(
+    new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+  )
+  const today = formatLongDate(new Date().toISOString())
   const sinceLastVerified = '3 months'
+  const eventManager = {
+    name: sample.managerName,
+    contacts: [
+      { label: 'Email', value: sample.managerEmail },
+      { label: 'WhatsApp', value: '+91 98765 43210' },
+    ],
+  }
 
-  const previews: { level: ReminderLevel; url: string | false }[] = []
-  for (const level of ['due', 'escalated', 'expired'] as ReminderLevel[]) {
+  // The event manager gets all four levels; region managers are looped in from
+  // escalated onward (a different framing + the manager's contacts).
+  const combos: { level: ReminderLevel; audience: ReminderAudience }[] = [
+    { level: 'due', audience: 'manager' },
+    { level: 'escalated', audience: 'manager' },
+    { level: 'urgent', audience: 'manager' },
+    { level: 'expired', audience: 'manager' },
+    { level: 'escalated', audience: 'region' },
+    { level: 'urgent', audience: 'region' },
+    { level: 'expired', audience: 'region' },
+  ]
+
+  const previews: { label: string; url: string | false }[] = []
+  for (const { level, audience } of combos) {
     const token = signVerifyToken({ eventId: sample.eventId, managerId: sample.managerId }, secret)
     const html = await renderEmail(
       createElement(EventVerificationReminderEmail, {
-        name: sample.managerName,
+        name: audience === 'region' ? 'Rohan Patil' : sample.managerName,
         eventTitle: sample.eventTitle,
         verifyUrl: buildVerifyEmailLink(sample.eventId, token),
         level,
+        audience,
         details: sample.details,
-        deadline: level === 'escalated' ? deadline : undefined,
+        deadline: level === 'expired' ? today : futureDeadline,
         sinceLastVerified: level === 'expired' ? sinceLastVerified : undefined,
+        eventManager: audience === 'region' ? eventManager : undefined,
       }),
     )
     const info = await transport.sendMail({
       from: 'Sahaj Atlas <dev@wemeditate.com>',
-      to: sample.managerEmail,
-      subject: subjects[level],
+      to: audience === 'region' ? 'rohan.patil@example.com' : sample.managerEmail,
+      subject: `[${audience}/${level}] ${sample.eventTitle}`,
       html,
     })
-    previews.push({ level, url: nodemailer.getTestMessageUrl(info) })
+    previews.push({ label: `${audience} · ${level}`, url: nodemailer.getTestMessageUrl(info) })
   }
 
   console.log('\n━━━ Event verification reminder previews ━━━\n')
@@ -333,11 +356,11 @@ async function main() {
   if (sample.regionLine) console.log(`Region:   ${sample.regionLine}`)
   if (!process.env.PERSIST_EVENT)
     console.log('(render-only — no database written; set PERSIST_EVENT=1 to seed the event)')
-  console.log(`\nEthereal inbox (all 3 messages): https://ethereal.email/login`)
+  console.log(`\nEthereal inbox (all messages): https://ethereal.email/login`)
   console.log(`  user: ${account.user}`)
   console.log(`  pass: ${account.pass}`)
   console.log(`\nDirect preview links:`)
-  for (const { level, url } of previews) console.log(`  ${level.padEnd(10)} ${url}`)
+  for (const { label, url } of previews) console.log(`  ${label.padEnd(20)} ${url}`)
   console.log('')
 
   process.exit(0)

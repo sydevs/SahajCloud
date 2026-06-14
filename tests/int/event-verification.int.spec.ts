@@ -132,7 +132,7 @@ describe('Event verification lifecycle', () => {
     expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
   })
 
-  it('drives an event verified → reminded → escalated → expired → trashed', async () => {
+  it('drives an event verified → reminded → escalated → urgent → expired → trashed', async () => {
     const region = await payload.create({
       collection: 'regions',
       overrideAccess: true,
@@ -186,18 +186,26 @@ describe('Event verification lifecycle', () => {
       'region-manager@example.com',
     ])
 
-    // escalated → expired: unpublishes.
+    // escalated → urgent: final reminder, region included, still published.
     await makeDue(payload, event.id)
     const r3 = await runJob(payload)
     expect(r3).toMatchObject({ advanced: 1, remindersSent: 2 })
+    fresh = await getEvent(payload, event.id)
+    expect(fresh.verificationStage).toBe('urgent')
+    expect(fresh._status).toBe('published')
+
+    // urgent → expired: unpublishes.
+    await makeDue(payload, event.id)
+    const r4 = await runJob(payload)
+    expect(r4).toMatchObject({ advanced: 1, remindersSent: 2 })
     fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('expired')
     expect(fresh._status).toBe('draft')
 
     // expired → trashed (no email).
     await makeDue(payload, event.id)
-    const r4 = await runJob(payload)
-    expect(r4).toMatchObject({ trashed: 1, remindersSent: 0, advanced: 0 })
+    const r5 = await runJob(payload)
+    expect(r5).toMatchObject({ trashed: 1, remindersSent: 0, advanced: 0 })
     const trashed = await getEvent(payload, event.id, true)
     expect(trashed.deletedAt).toBeTruthy()
   })
@@ -269,7 +277,7 @@ describe('Event verification lifecycle', () => {
     // Only the region manager (still missing) is sent — no duplicate.
     expect(result.remindersSent).toBe(1)
     const fresh = await getEvent(payload, event.id)
-    expect(fresh.verificationStage).toBe('expired')
+    expect(fresh.verificationStage).toBe('urgent')
     const escalatedDestinations = reminders(fresh.notificationLog)
       .filter((e) => e.stage === 'escalated')
       .map((e) => e.destination)
@@ -302,8 +310,8 @@ describe('Event verification lifecycle', () => {
 
   it('the admin verify endpoint re-publishes an expired event (method verify-action)', async () => {
     const event = await createEvent()
-    // Drive to expired.
-    for (let i = 0; i < 3; i++) {
+    // Drive to expired (verified → reminded → escalated → urgent → expired).
+    for (let i = 0; i < 4; i++) {
       await makeDue(payload, event.id)
       await runJob(payload)
     }

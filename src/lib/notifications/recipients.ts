@@ -1,9 +1,34 @@
-import type { NotificationChannel, ResolvedRecipient } from './types'
+import type {
+  EventManagerContact,
+  NotificationChannel,
+  ReminderAudience,
+  ResolvedRecipient,
+} from './types'
 import type { Payload, PayloadRequest } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Manager } from '@/payload-types'
 
+const PLATFORM_LABELS: Record<string, string> = {
+  whatsapp: 'WhatsApp',
+  telegram: 'Telegram',
+  wechat: 'WeChat',
+}
+
+/** The manager's name + every contact method (email + messaging handles). */
+export function buildManagerContacts(manager: Manager): EventManagerContact {
+  const contacts: { label: string; value: string }[] = []
+  if (manager.email) contacts.push({ label: 'Email', value: manager.email })
+  for (const entry of manager.contactDetails ?? []) {
+    if (entry?.platform && entry?.identifier) {
+      contacts.push({
+        label: PLATFORM_LABELS[entry.platform] ?? entry.platform,
+        value: entry.identifier,
+      })
+    }
+  }
+  return { name: manager.name || manager.email || `#${manager.id}`, contacts }
+}
 
 /**
  * Pick the delivery channel + destination for a manager from their
@@ -91,33 +116,37 @@ export async function resolveRecipients(args: {
 }): Promise<ResolvedRecipient[]> {
   const { payload, event, includeRegion, req } = args
 
-  const managers: Manager[] = []
+  const tagged: { manager: Manager; role: ReminderAudience }[] = []
 
-  // Event manager (populate if it arrived as a bare id).
+  // Event manager first (populate if it arrived as a bare id).
   if (typeof event.manager === 'object' && event.manager) {
-    managers.push(event.manager)
+    tagged.push({ manager: event.manager, role: 'manager' })
   } else {
     const managerId = relationId(event.manager)
     if (managerId) {
       const manager = await payload
         .findByID({ collection: 'managers', id: managerId, depth: 0, overrideAccess: true, req })
         .catch(() => null)
-      if (manager) managers.push(manager)
+      if (manager) tagged.push({ manager, role: 'manager' })
     }
   }
 
   if (includeRegion) {
-    managers.push(...(await regionChainManagers(payload, event, req)))
+    for (const manager of await regionChainManagers(payload, event, req)) {
+      tagged.push({ manager, role: 'region' })
+    }
   }
 
-  // Dedupe by manager id (first occurrence wins), then map to a channel.
+  // Dedupe by manager id (first occurrence wins, so the event manager keeps the
+  // `manager` role even if they also manage an ancestor region), then map to a
+  // channel.
   const seen = new Set<number>()
   const recipients: ResolvedRecipient[] = []
-  for (const manager of managers) {
+  for (const { manager, role } of tagged) {
     if (seen.has(manager.id)) continue
     seen.add(manager.id)
     const { channel, destination } = pickChannel(manager)
-    recipients.push({ manager, channel, destination })
+    recipients.push({ manager, role, channel, destination })
   }
   return recipients
 }
