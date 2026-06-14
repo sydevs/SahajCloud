@@ -122,6 +122,10 @@ async function processEvent(args: {
   const deadline = formatLongDate(unpublishDate(stage, now).toISOString())
   const verifiedAt = log.find((entry) => entry.kind === 'verification')?.at
   const sinceLastVerified = verifiedAt ? humanDurationSince(verifiedAt, now) : 'some time'
+  // Public map link, but only while the event stays published: the in-memory
+  // event still reads `published` during the unpublishing (expired) transition,
+  // so suppress the link there — the page is about to disappear.
+  const eventUrl = transition.unpublish ? null : (event.webUrl ?? null)
   const eventManagerCard =
     typeof event.manager === 'object' && event.manager
       ? buildManagerContacts(event.manager)
@@ -142,6 +146,7 @@ async function processEvent(args: {
       level: transition.level!,
       audience: recipient.role,
       verifyUrl: buildVerifyEmailLink(event.id, token),
+      eventUrl,
       details,
       eventManager: recipient.role === 'region' ? eventManagerCard : undefined,
       deadline,

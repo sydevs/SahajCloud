@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { PAGE_TAGS } from '@/collections/Pages/pageTags'
-import { slugField } from '@/fields'
+import { slugField, urlFields } from '@/fields'
 import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import { removeDanglingLexicalReferencesAfterRead } from '@/hooks/lexicalHooks'
 import { fullRichTextEditor } from '@/lib/richEditor'
@@ -103,68 +103,46 @@ export const Pages: CollectionConfig = {
         description: 'Managers who can edit this page without broader permissions.',
       },
     },
-    {
-      name: 'webUrl',
-      type: 'text',
-      virtual: true,
-      admin: {
-        readOnly: true,
-        disableListColumn: true,
-        disableListFilter: true,
+    // Virtual deep links: public web URL (any status) + in-app URL (registered
+    // app pages only). Web path carries the optional locale + primary tag.
+    ...urlFields({
+      web: () => (process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/` : null),
+      app: 'wemeditate://',
+      buildPath: ({ platform, data, req }) => {
+        const slug = typeof data?.slug === 'string' ? data.slug : null
+        if (!slug) return null
+        if (platform === 'app') return slug
+        const tags = data?.tags
+        const tag = Array.isArray(tags) && tags.length > 0 ? (tags[0] as string) : null
+        const locale = req.locale && req.locale !== 'en' && req.locale !== 'all' ? req.locale : null
+        return [locale, tag, slug].filter(Boolean).join('/')
       },
-      hooks: {
-        afterRead: [
-          ({ data, req }) => {
-            const baseURL = process.env.WEMEDITATE_WEB_URL
-            if (!baseURL || !data?.slug) return null
-            const tag = Array.isArray(data.tags) && data.tags.length > 0 ? data.tags[0] : null
-            const locale =
-              req.locale && req.locale !== 'en' && req.locale !== 'all' ? req.locale : null
-            const parts = [locale, tag, data.slug].filter(Boolean)
-            return `${baseURL}/${parts.join('/')}`
-          },
-        ],
-      },
-    },
-    {
-      name: 'appUrl',
-      type: 'text',
-      virtual: true,
-      admin: {
-        readOnly: true,
-        disableListColumn: true,
-        disableListFilter: true,
-      },
-      hooks: {
-        afterRead: [
-          async ({ data, req }) => {
-            if (!data?.id || !data?.slug) return null
+      // Web link is public for any status; the app link is gated to pages
+      // registered in the WeMeditate app config.
+      exposeWhen: async ({ platform, data, req }) => {
+        if (platform === 'web') return true
+        const id = data?.id
+        if (!id) return false
 
-            const ctx = (req?.context ?? {}) as Record<string, unknown>
-            const CACHE_KEY = 'appUrlWmConfig'
-            let config = ctx[CACHE_KEY] as Record<string, unknown> | undefined
-            if (!config) {
-              config = (await req.payload.findGlobal({
-                slug: 'wm-app-config',
-                depth: 0,
-                req,
-              })) as unknown as Record<string, unknown>
-              ctx[CACHE_KEY] = config
-              req.context = ctx
-            }
+        const ctx = (req?.context ?? {}) as Record<string, unknown>
+        const CACHE_KEY = 'appUrlWmConfig'
+        let config = ctx[CACHE_KEY] as Record<string, unknown> | undefined
+        if (!config) {
+          config = (await req.payload.findGlobal({
+            slug: 'wm-app-config',
+            depth: 0,
+            req,
+          })) as unknown as Record<string, unknown>
+          ctx[CACHE_KEY] = config
+          req.context = ctx
+        }
 
-            const isAppPage = APP_REQUIRED_PAGE_FIELDS.some((field) => {
-              const val = config![field]
-              if (val === data.id) return true
-              return (
-                typeof val === 'object' && val !== null && (val as { id: unknown }).id === data.id
-              )
-            })
-
-            return isAppPage ? `wemeditate://${data.slug}` : null
-          },
-        ],
+        return APP_REQUIRED_PAGE_FIELDS.some((field) => {
+          const val = config![field]
+          if (val === id) return true
+          return typeof val === 'object' && val !== null && (val as { id: unknown }).id === id
+        })
       },
-    },
+    }),
   ],
 }

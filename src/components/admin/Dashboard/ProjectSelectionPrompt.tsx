@@ -2,6 +2,7 @@
 
 import { useAuth } from '@payloadcms/ui'
 
+import { CONTACT_EMAIL } from '@/lib/contact'
 import type { ProjectSlug } from '@/payload-types'
 import { getProjectLabel, getProjectsFromRoles } from '@/plugins/access'
 
@@ -84,14 +85,14 @@ export default function ProjectSelectionPrompt() {
             >
               Contact:{' '}
               <a
-                href="mailto:contact@sydevelopers.com"
+                href={`mailto:${CONTACT_EMAIL}`}
                 style={{
                   color: 'var(--theme-elevation-800)',
                   fontWeight: '600',
                   textDecoration: 'underline',
                 }}
               >
-                contact@sydevelopers.com
+                {CONTACT_EMAIL}
               </a>
             </p>
           </div>

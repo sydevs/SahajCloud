@@ -45,6 +45,8 @@ interface EventVerificationEmailProps {
   eventTitle: string
   /** Absolute, tokenized verify link (works logged-out). */
   verifyUrl: string
+  /** Public link to the event on the Sahaj Atlas map — omitted when unpublished. */
+  eventUrl?: string | null
   /** Escalation level — selects the copy. */
   level: ReminderLevel
   /** Whether the recipient is the event manager or a region manager. */
@@ -320,6 +322,7 @@ export function EventVerificationEmail({
   name,
   eventTitle,
   verifyUrl,
+  eventUrl,
   level,
   audience,
   deadline,
@@ -430,6 +433,11 @@ export function EventVerificationEmail({
       <BrandButton href={ctaHref} brand={brand}>
         {variant.cta}
       </BrandButton>
+      {eventUrl ? (
+        <BrandButton href={eventUrl} brand={brand} variant="secondary" tight>
+          View event
+        </BrandButton>
+      ) : null}
       {audience === 'region' ? null : (
         <Text style={styles.hint}>
           {COPY.buttonHint}
