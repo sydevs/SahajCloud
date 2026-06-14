@@ -210,6 +210,36 @@ describe('Event verification lifecycle', () => {
     expect(trashed.deletedAt).toBeTruthy()
   })
 
+  describe('webUrl virtual field', () => {
+    it('links a published event to the Sahaj Atlas map', async () => {
+      const event = await createEvent()
+      const fetched = await payload.findByID({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+      })
+      expect(fetched.webUrl).toBe(`http://localhost:5173/map#/!/events/${event.id}`)
+    })
+
+    it('is null while the event is unpublished', async () => {
+      const event = await createEvent()
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { _status: 'draft' },
+        context: { skipVerifyHook: true },
+        overrideAccess: true,
+      })
+      const draft = await payload.findByID({
+        collection: 'events',
+        id: event.id,
+        draft: true,
+        overrideAccess: true,
+      })
+      expect(draft.webUrl).toBeNull()
+    })
+  })
+
   it('escalates past a region manager who is also the event manager', async () => {
     // The event manager also manages the event's own (city) region. Escalation
     // must skip them — no duplicate email — and walk up to the country manager.

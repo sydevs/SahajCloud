@@ -20,6 +20,8 @@ export interface ReminderPayload {
   audience: ReminderAudience
   /** Per-recipient tokenized verify link. */
   verifyUrl: string
+  /** Public link to the event on the map — null when the event is unpublished. */
+  eventUrl?: string | null
   /** Key event facts for the summary table (same for every recipient). */
   details?: EventDetails
   /** Formatted date the event is / was unpublished (all levels). */

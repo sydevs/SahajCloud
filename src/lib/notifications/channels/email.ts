@@ -44,6 +44,7 @@ export async function sendEmailReminder(
       name: recipient.manager.name || recipient.destination,
       eventTitle: reminder.eventTitle,
       verifyUrl: reminder.verifyUrl,
+      eventUrl: reminder.eventUrl,
       level: reminder.level,
       audience: reminder.audience,
       details: reminder.details,

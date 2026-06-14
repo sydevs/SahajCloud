@@ -2,6 +2,7 @@ import type { EmailAdapter } from 'payload'
 
 import { Resend } from 'resend'
 
+import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
 
 export const resendAdapter = (): EmailAdapter => {
@@ -16,7 +17,7 @@ export const resendAdapter = (): EmailAdapter => {
 
     return {
       name: 'resend',
-      defaultFromAddress: 'contact@sydevelopers.com',
+      defaultFromAddress: CONTACT_EMAIL,
       defaultFromName: 'We Meditate Admin',
 
       async sendEmail(message) {
@@ -28,7 +29,7 @@ export const resendAdapter = (): EmailAdapter => {
         try {
           // Convert Payload's SendEmailOptions to Resend's format
           const { data, error } = await resend.emails.send({
-            from: (message.from as string) || 'contact@sydevelopers.com',
+            from: (message.from as string) || CONTACT_EMAIL,
             to: Array.isArray(message.to) ? (message.to as string[]) : [message.to as string],
             subject: message.subject as string,
             html: message.html as string,

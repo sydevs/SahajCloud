@@ -8,7 +8,7 @@ import {
   lexicalEditor,
 } from '@payloadcms/richtext-lexical'
 
-import { addressFields, legacyMigrationFields, scheduleFields, urlField } from '@/fields'
+import { addressFields, legacyMigrationFields, scheduleFields, urlField, urlFields } from '@/fields'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 
@@ -317,6 +317,14 @@ export const Events: CollectionConfig = {
         },
       ],
     },
+    // Virtual public link to the event on the Sahaj Atlas map — only while the
+    // event is published (an unpublished/expired event has no public page).
+    ...urlFields({
+      web: () =>
+        process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/map#/!/` : null,
+      buildPath: ({ data }) => (data?.id ? `events/${data.id}` : null),
+      exposeWhen: ({ data }) => data?._status === 'published',
+    }),
     ...legacyMigrationFields(),
   ],
 }

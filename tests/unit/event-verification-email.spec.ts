@@ -77,6 +77,22 @@ describe('EventVerificationEmail', () => {
     },
   )
 
+  it('renders a "View event" button when eventUrl is given', async () => {
+    const eventUrl = 'https://wemeditate.com/map#/!/events/1042'
+    const html = await renderEmail(
+      createElement(EventVerificationEmail, { ...baseProps, level: 'due', eventUrl }),
+    )
+    expect(html).toContain(eventUrl)
+    expect(html).toContain('View event')
+  })
+
+  it('omits the "View event" button when eventUrl is null (unpublished)', async () => {
+    const html = await renderEmail(
+      createElement(EventVerificationEmail, { ...baseProps, level: 'expired', eventUrl: null }),
+    )
+    expect(html).not.toContain('View event')
+  })
+
   it('marks the urgent level as the final reminder, expired as unpublished', async () => {
     const urgent = await renderEmail(
       createElement(EventVerificationEmail, { ...baseProps, level: 'urgent' }),

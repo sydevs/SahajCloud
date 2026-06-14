@@ -10,6 +10,7 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 
+import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
@@ -196,7 +197,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       }),
       // Form builder plugin (enabled in all environments)
       formBuilderPlugin({
-        defaultToEmail: 'contact@sydevelopers.com',
+        defaultToEmail: CONTACT_EMAIL,
         formOverrides: {
           admin: { group: 'Content', enableRichTextRelationship: true },
         },

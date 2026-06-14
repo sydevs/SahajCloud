@@ -1424,6 +1424,7 @@ export interface Event {
     | number
     | boolean
     | null;
+  webUrl?: string | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -4118,6 +4119,7 @@ export interface EventsSelect<T extends boolean = true> {
   verificationStage?: T;
   nextCheckAt?: T;
   notificationLog?: T;
+  webUrl?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;

@@ -2,6 +2,8 @@
 
 import { useAuth } from '@payloadcms/ui'
 
+import { CONTACT_EMAIL } from '@/lib/contact'
+
 export default function InactiveAccountAlert() {
   const { user } = useAuth()
 
@@ -53,7 +55,8 @@ export default function InactiveAccountAlert() {
             marginBottom: 'calc(var(--base) * 1.5)',
           }}
         >
-          Your account has been temporarily disabled. Please contact an administrator for assistance.
+          Your account has been temporarily disabled. Please contact an administrator for
+          assistance.
         </p>
         <div
           style={{
@@ -72,14 +75,14 @@ export default function InactiveAccountAlert() {
           >
             Contact:{' '}
             <a
-              href="mailto:contact@sydevelopers.com"
+              href={`mailto:${CONTACT_EMAIL}`}
               style={{
                 color: 'var(--theme-elevation-800)',
                 fontWeight: '600',
                 textDecoration: 'underline',
               }}
             >
-              contact@sydevelopers.com
+              {CONTACT_EMAIL}
             </a>
           </p>
         </div>
