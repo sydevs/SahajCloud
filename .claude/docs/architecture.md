@@ -74,7 +74,7 @@ shim, and the known-limitations list are in `.claude/rules/openapi.md`
 - **Albums** — music album groupings with `artwork` relationship to Images and a join field for related songs.
 - **Songs** — background music tracks with audio upload, required album relationship, hidden from sidebar (managed via Albums).
 - **Lessons** ("Path Steps") — audio + panels array, unit selection (1–4), step number, optional meditation relationship, localized rich text article.
-- **Videos** — Cloudflare Stream uploads with HLS streaming, virtual `url` (MP4) and `previewUrl` (thumbnail) fields.
+- **Videos** — Cloudflare Stream uploads with HLS streaming, virtual `url` (HLS, live immediately) and `previewUrl` (thumbnail) fields; `mp4Url` exposes the MP4 download separately (404s until the Stream webhook enables it).
 - **AppCards** — mobile cards with `type` discriminator (`standard` / `event`). Three named view tabs under Appearance: `default` (always shown), `startingSoon` and `liveNow` (event-only, each gated by `enabled` + `threshold` HH:MM). Every view tab has `header`, `image`, `overlay`, `title`, `subtitle`, `button`, and a `destination` row (appPage / lecture / album / meditation / url). Event cards carry a `scheduleField` in the Rules tab. `audiences` hasMany (OR semantics — shown if any overlap), `conditions` hasMany (AND semantics — all context audience IDs must be in the caller's resolved list), weight (1–5). A `AppCardViewSchedule` admin component shows the active time window for each view when schedule + threshold are configured.
 
 ### Resources
