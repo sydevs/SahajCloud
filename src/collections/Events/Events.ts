@@ -8,16 +8,25 @@ import {
   lexicalEditor,
 } from '@payloadcms/richtext-lexical'
 
-import { addressFields, legacyMigrationFields, scheduleFields, urlField } from '@/fields'
+import {
+  addressFields,
+  legacyMigrationFields,
+  scheduleFields,
+  urlField,
+  publicUrlFields,
+} from '@/fields'
+import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 
+import { verifyEventAction } from './endpoints/verifyEventAction'
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
   EVENT_REGISTRATION_QUESTIONS,
-  EVENT_STATUS_OPTIONS,
   EVENT_TYPE_OPTIONS,
+  VERIFICATION_STAGE_OPTIONS,
 } from './eventOptions'
 import { eventTitleBeforeChange } from './hooks/eventTitle'
+import { verifyOnSave } from './hooks/verifyOnSave'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
 
@@ -45,12 +54,34 @@ export const Events: CollectionConfig = {
   slug: 'events',
   labels: { singular: 'Event', plural: 'Events' },
   versions: { drafts: true },
+  // Soft-delete: "archiving" a long-expired event = trashing it (recoverable
+  // from the admin trash view) — replaces Atlas's `archived` terminal.
+  trash: true,
   admin: {
     group: 'Classes',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'status', '_status'],
+    defaultColumns: ['title', 'verificationStage', '_status'],
   },
+  // Re-verify on any manager save; the explicit POST endpoint backs the notice
+  // banner's Verify button. The tokenized email link is the `/events/verify`
+  // frontend page (it calls the shared verify op via a Server Action).
+  hooks: {
+    beforeChange: [verifyOnSave],
+  },
+  endpoints: [verifyEventAction],
   fields: [
+    {
+      // Contextual banner above the tabs: warns when the event is due for or
+      // past verification and offers a Verify button (the explicit endpoint).
+      // Renders nothing for a freshly verified or unsaved event.
+      name: 'verificationNotice',
+      type: 'ui',
+      admin: {
+        components: {
+          Field: '@/components/admin/EventVerificationNotice',
+        },
+      },
+    },
     {
       type: 'tabs',
       tabs: [
@@ -112,6 +143,20 @@ export const Events: CollectionConfig = {
         {
           label: 'Schedule',
           fields: [
+            {
+              // Dormant events have no active schedule. They still require
+              // verification (and can expire), but never auto-`finished` — the
+              // ExpireEvents finished-check skips inactive events. Hiding the
+              // schedule when inactive also drops its `required` validation
+              // (Payload skips required + validate when a condition is false).
+              name: 'inactive',
+              type: 'checkbox',
+              defaultValue: false,
+              admin: {
+                description:
+                  'Mark this event dormant (no active schedule). Inactive events still need verification but never auto-finish.',
+              },
+            },
             scheduleFields({
               label: false,
               required: true,
@@ -120,6 +165,7 @@ export const Events: CollectionConfig = {
               hasEndTime: true,
               hasEnding: true,
               hasExclusions: true,
+              admin: { condition: (data) => !data?.inactive },
             }),
           ],
         },
@@ -220,28 +266,61 @@ export const Events: CollectionConfig = {
               admin: { description: 'Manager responsible for verifying this event.' },
             },
             {
-              name: 'status',
+              name: 'verificationStage',
+              label: 'Verification Process',
               type: 'select',
               required: true,
-              defaultValue: 'active',
-              options: [...EVENT_STATUS_OPTIONS],
-              // Drafts already own the `_status` field, whose Postgres enum is
-              // `enum_events_status` — the default name this field would also
-              // generate. Override it so the two enums don't collide.
-              enumName: 'enum_events_activity_status',
-              admin: { components: { Field: TOGGLE_GROUP_FIELD } },
+              defaultValue: DEFAULT_VERIFICATION_STAGE,
+              options: [...VERIFICATION_STAGE_OPTIONS],
+              // System-managed: advanced by the ExpireEvents job, reset to
+              // `verified` by the verify op. `enumName` is pinned so it never
+              // collides with drafts' `_status` enum (`enum_events_status`).
+              enumName: 'enum_events_verification_stage',
+              admin: {
+                readOnly: true,
+                description:
+                  'Public events are re-verified periodically so the map stays accurate. If an event isn’t re-verified in time, its manager — then the region managers above it — are reminded, and it’s eventually unpublished. Saving or publishing the event re-verifies it and restarts this cycle.',
+                components: { Field: '@/components/admin/VerificationStageField' },
+              },
             },
             {
-              name: 'verificationStreak',
-              type: 'number',
-              min: 0,
-              defaultValue: 0,
-              admin: { readOnly: true, description: 'Consecutive successful verifications.' },
+              // `should_update_status_at` analog the job filters on
+              // (`nextCheckAt <= now`). Set to now + cadence on verification,
+              // then to the per-stage offset as the job advances. Hidden — the
+              // verification time itself lives in `notificationLog[0]`.
+              name: 'nextCheckAt',
+              type: 'date',
+              // Indexed: the daily ExpireEvents sweep selects on
+              // `nextCheckAt <= now`, so this is the one column it filters on.
+              index: true,
+              admin: { hidden: true },
+            },
+            {
+              // Current cycle's ledger: the verification that opened it plus a
+              // reminder entry per send. Reset on every verification, and the
+              // job's exactly-once marker (skip recipients already logged this
+              // stage). Read-only, rendered by NotificationLogTable.
+              name: 'notificationLog',
+              type: 'json',
+              admin: {
+                readOnly: true,
+                description:
+                  'Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.',
+                components: { Field: '@/components/admin/NotificationLogTable' },
+              },
             },
           ],
         },
       ],
     },
+    // Virtual public link to the event on the Sahaj Atlas map — only while the
+    // event is published (an unpublished/expired event has no public page).
+    ...publicUrlFields({
+      web: () =>
+        process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/map#/!/` : null,
+      buildPath: ({ data }) => (data?.id ? `events/${data.id}` : null),
+      exposeWhen: ({ data }) => data?._status === 'published',
+    }),
     ...legacyMigrationFields(),
   ],
 }

@@ -258,6 +258,7 @@ export interface Config {
   jobs: {
     tasks: {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
+      expireEvents: TaskExpireEvents;
       syncLectureMetadata: TaskSyncLectureMetadata;
       resetUsage: TaskResetUsage;
       schedulePublish: TaskSchedulePublish;
@@ -1307,9 +1308,13 @@ export interface Event {
    */
   images?: (number | Image)[] | null;
   /**
+   * Mark this event dormant (no active schedule). Inactive events still need verification but never auto-finish.
+   */
+  inactive?: boolean | null;
+  /**
    * Configure when this event occurs and repeats
    */
-  schedule: {
+  schedule?: {
     firstDate: string;
     firstDate_tz: SupportedTimezones;
     /**
@@ -1402,11 +1407,24 @@ export interface Event {
    * Manager responsible for verifying this event.
    */
   manager: number | Manager;
-  status: 'active' | 'expired' | 'inactive';
   /**
-   * Consecutive successful verifications.
+   * Public events are re-verified periodically so the map stays accurate. If an event isn’t re-verified in time, its manager — then the region managers above it — are reminded, and it’s eventually unpublished. Saving or publishing the event re-verifies it and restarts this cycle.
    */
-  verificationStreak?: number | null;
+  verificationStage: 'verified' | 'reminded' | 'escalated' | 'urgent' | 'expired' | 'finished';
+  nextCheckAt?: string | null;
+  /**
+   * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.
+   */
+  notificationLog?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  webUrl?: string | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -1419,6 +1437,7 @@ export interface Event {
     | null;
   updatedAt: string;
   createdAt: string;
+  deletedAt?: string | null;
   _status?: ('draft' | 'published') | null;
 }
 /**
@@ -3215,7 +3234,13 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'cleanupOrphanedMedia' | 'syncLectureMetadata' | 'resetUsage' | 'schedulePublish';
+        taskSlug:
+          | 'inline'
+          | 'cleanupOrphanedMedia'
+          | 'expireEvents'
+          | 'syncLectureMetadata'
+          | 'resetUsage'
+          | 'schedulePublish';
         taskID: string;
         input?:
           | {
@@ -3248,7 +3273,9 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'cleanupOrphanedMedia' | 'syncLectureMetadata' | 'resetUsage' | 'schedulePublish') | null;
+  taskSlug?:
+    | ('inline' | 'cleanupOrphanedMedia' | 'expireEvents' | 'syncLectureMetadata' | 'resetUsage' | 'schedulePublish')
+    | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -4031,6 +4058,7 @@ export interface EventsSelect<T extends boolean = true> {
   contactName?: T;
   description?: T;
   images?: T;
+  inactive?: T;
   schedule?:
     | T
     | {
@@ -4088,12 +4116,15 @@ export interface EventsSelect<T extends boolean = true> {
       };
   registrations?: T;
   manager?: T;
-  status?: T;
-  verificationStreak?: T;
+  verificationStage?: T;
+  nextCheckAt?: T;
+  notificationLog?: T;
+  webUrl?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;
   createdAt?: T;
+  deletedAt?: T;
   _status?: T;
 }
 /**
@@ -5735,6 +5766,21 @@ export interface TaskCleanupOrphanedMedia {
     trashedImages: number;
     skippedImages: number;
     errors: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskExpireEvents".
+ */
+export interface TaskExpireEvents {
+  input?: unknown;
+  output: {
+    processed: number;
+    finished: number;
+    advanced: number;
+    trashed: number;
+    remindersSent: number;
+    failed: number;
   };
 }
 /**

@@ -4,12 +4,12 @@ description: Implement and test a GitHub issue end-to-end. Reads the issue, plan
 argument-hint: '[issue-number]'
 disable-model-invocation: true
 effort: max
-allowed-tools: Bash(*), Read, Edit, Write, Grep, Glob
+allowed-tools: Bash(*), Read, Edit, Write, Grep, Glob, Task
 ---
 
 # Implement Issue
 
-End-to-end implementation of a GitHub issue: read → plan → branch → implement → test → simplify → PR → verify CI.
+End-to-end implementation of a GitHub issue: read → plan → branch → implement → test → simplify → code-review → push → PR → review → verify CI.
 
 ## Invocation
 
@@ -161,13 +161,28 @@ Before pushing, run the `/simplify` slash command against the **entire diff of t
   ```
 - If `/simplify` made no changes, proceed straight to push.
 
-### 10. Push the branch
+### 10. Code review (`/code-review`)
+
+After `/simplify`, run a deeper code review over the branch — in an **isolated
+context** so the review's file reading doesn't bloat the implementation thread.
+**Dispatch a subagent** (Task tool) whose sole job is to run `/code-review` over
+the full branch diff (every commit since `main`) and return its findings as a
+summary (severity + `file:line` + suggested fix). Do not run `/code-review`
+inline in the main thread.
+
+- Launch **one** subagent; it invokes `/code-review` and reports back.
+- **Blocking**: triage every finding. Fix the valid ones (each as its own
+  commit), then **re-run the lean validation gate** (step 8). Note any finding
+  you dismiss with a one-line reason for the report.
+- Proceed to push only once the actionable findings are resolved.
+
+### 11. Push the branch
 
 ```bash
 git push -u origin <branch>
 ```
 
-### 11. Open the PR
+### 12. Open the PR
 
 Write the body to `/tmp/pr-body.md` (preserves markdown), then:
 
@@ -180,7 +195,20 @@ gh pr create \
 
 See `pr-template.md` for the body format.
 
-### 12. Wait for CI and verify the checks pass
+### 13. Review the PR (`/review`)
+
+Once the PR is open, run the built-in `/review` over it — again in an
+**isolated context**: **dispatch a subagent** (Task tool) to run `/review`
+against the PR and return its findings as a summary. Do not run `/review`
+inline in the main thread.
+
+- **Blocking**: address valid findings before reporting the PR ready. Commit +
+  push fixes (which re-triggers CI), and re-dispatch `/review` if the changes
+  were substantial. Note dismissed findings (with reasons) for the report.
+- Do NOT report the PR as ready until `/review`'s actionable findings are
+  resolved **and** CI is green (step 14).
+
+### 14. Wait for CI and verify the checks pass
 
 After the PR is open, **wait for the CI checks to resolve** — do not report the PR as ready while they're still pending or red. CI runs the single job in `.github/workflows/ci.yml` (**Lint, Test & Smoke**), which includes linting, the full test suite, and Playwright smoke tests (gated on a preview URL).
 
@@ -211,7 +239,7 @@ gh pr checks <pr-number-or-branch>
 
 Do NOT mark the PR ready while CI is red.
 
-### 13. Report
+### 15. Report
 
 Output the PR URL to the user and confirm CI is green. Note any unchecked acceptance criteria the user should verify manually (e.g., UI screenshots, manual repro of edge cases).
 
@@ -227,6 +255,9 @@ Output the PR URL to the user and confirm CI is green. Note any unchecked accept
 - **Always** use `--body-file` for PR creation (preserves markdown)
 - **Always** run the lean local gate before opening the PR; CI runs the full suite
 - **Always** run `/simplify` over the full branch diff before pushing
+- **Always** run `/code-review` after `/simplify` (in an isolated subagent) and resolve its findings before pushing
+- **Always** run `/review` after opening the PR (in an isolated subagent) and resolve its findings before reporting
+- **Always** run `/code-review` and `/review` via a dispatched subagent, never inline in the main thread
 - **Always** wait for CI to finish and verify it passed after pushing — resolve any failures before reporting
 
 ## Edge cases

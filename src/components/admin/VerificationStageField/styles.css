@@ -1,0 +1,122 @@
+/*
+ * VerificationStage tracker — the verification journey (Verified → Reminders →
+ * Expired) as a compact vertical timeline. Each step: a rail (dot + connector)
+ * beside a label, date, and one-line caption. Done = success, current =
+ * highlighted, the terminal `expired` = error, upcoming = muted. All spacing
+ * derives from Payload's `--base` so it matches surrounding fields.
+ */
+
+.vstage {
+  list-style: none;
+  margin: 0;
+  /* a little breathing room above the first step and below the last */
+  padding: calc(var(--base) * 0.5) 0;
+}
+
+.vstage__step {
+  display: flex;
+  gap: calc(var(--base) * 0.6);
+}
+
+/* rail = dot + the connector line down to the next step */
+.vstage__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* per-stage colour for the dot (and the current-step ring); `finished`
+   reuses the completed/positive green treatment */
+.vstage__step--verified,
+.vstage__step--finished {
+  --vstage-color: var(--theme-success-500);
+}
+.vstage__step--reminders {
+  --vstage-color: var(--theme-warning-500);
+}
+.vstage__step--expired {
+  --vstage-color: var(--theme-error-500);
+}
+
+.vstage__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  margin-top: 3px; /* nudge onto the label's cap height */
+  box-sizing: border-box;
+  /* upcoming: hollow ring in the stage colour; reached: filled (below) */
+  background: var(--theme-elevation-0);
+  border: 2px solid var(--vstage-color);
+}
+
+.vstage__line {
+  flex: 1;
+  width: 2px;
+  margin-top: 4px;
+  min-height: calc(var(--base) * 0.5);
+  background: var(--theme-elevation-200);
+}
+
+.vstage__step:last-child .vstage__line {
+  display: none;
+}
+
+.vstage__content {
+  min-width: 0;
+  padding-bottom: calc(var(--base) * 0.9);
+}
+
+.vstage__step:last-child .vstage__content {
+  padding-bottom: 0;
+}
+
+.vstage__head {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--base) * 0.4);
+}
+
+.vstage__label {
+  font-size: calc(var(--base-body-size) * 1px);
+  color: var(--theme-elevation-600);
+}
+
+.vstage__date {
+  font-size: calc(var(--base-body-size) * 0.85px);
+  color: var(--theme-elevation-500);
+}
+
+.vstage__caption {
+  display: block;
+  margin-top: 2px;
+  font-size: calc(var(--base-body-size) * 0.8px);
+  line-height: 1.4;
+  color: var(--theme-elevation-500);
+}
+
+/* --- states ------------------------------------------------------------ */
+
+/* reached (done/current) → filled with the stage colour */
+.vstage__step--done .vstage__dot,
+.vstage__step--current .vstage__dot {
+  background: var(--vstage-color);
+}
+
+/* current → emphasis ring + a traversed connector behind it */
+.vstage__step--current .vstage__dot {
+  box-shadow: 0 0 0 4px var(--theme-elevation-100);
+}
+
+.vstage__step--done .vstage__line {
+  background: var(--theme-elevation-400);
+}
+
+.vstage__step--done .vstage__label {
+  color: var(--theme-elevation-800);
+}
+
+.vstage__step--current .vstage__label {
+  font-weight: 600;
+  color: var(--theme-elevation-1000);
+}

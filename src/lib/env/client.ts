@@ -45,6 +45,14 @@ export const ClientEnvSchema = z.object({
    * When unset, the address field degrades to plain manual entry.
    */
   NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: z.string().optional(),
+
+  /**
+   * Public support / contact address shown in mailto links and used as the
+   * transactional from/to address. Read everywhere via `CONTACT_EMAIL`
+   * (`@/lib/contact`), which falls back to `contact@sydevelopers.com` when
+   * unset; this schema entry validates the format when it is set.
+   */
+  NEXT_PUBLIC_CONTACT_EMAIL: z.email().optional(),
 })
 
 // Type inference for TypeScript

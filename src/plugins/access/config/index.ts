@@ -17,6 +17,7 @@ export {
   // Type generation
   getProjectSlugs,
   // UI/Branding functions
+  getProjectEmailIcon,
   getProjectIcon,
   getProjectLabel,
   getProjectOptions,

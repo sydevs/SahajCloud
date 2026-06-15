@@ -45,6 +45,7 @@ export {
   getProjectSlugs,
   getRoleSlugs,
   // UI/Branding functions (from config/projects.ts)
+  getProjectEmailIcon,
   getProjectIcon,
   getProjectLabel,
   getProjectOptions,

@@ -1,7 +1,9 @@
 'use client'
 
 import { useAuth } from '@payloadcms/ui'
+import { TriangleAlert } from 'lucide-react'
 
+import { CONTACT_EMAIL } from '@/lib/contact'
 import type { ProjectSlug } from '@/payload-types'
 import { getProjectLabel, getProjectsFromRoles } from '@/plugins/access'
 
@@ -39,13 +41,8 @@ export default function ProjectSelectionPrompt() {
             border: '2px solid var(--theme-elevation-200)',
           }}
         >
-          <div
-            style={{
-              fontSize: 'calc(var(--base-body-size) * 4px)',
-              marginBottom: 'calc(var(--base) * 1.5)',
-            }}
-          >
-            ⚠️
+          <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+            <TriangleAlert size={52} color="var(--theme-warning-500)" aria-hidden />
           </div>
           <h2
             style={{
@@ -84,14 +81,14 @@ export default function ProjectSelectionPrompt() {
             >
               Contact:{' '}
               <a
-                href="mailto:contact@sydevelopers.com"
+                href={`mailto:${CONTACT_EMAIL}`}
                 style={{
                   color: 'var(--theme-elevation-800)',
                   fontWeight: '600',
                   textDecoration: 'underline',
                 }}
               >
-                contact@sydevelopers.com
+                {CONTACT_EMAIL}
               </a>
             </p>
           </div>
