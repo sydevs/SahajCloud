@@ -49,6 +49,15 @@ pnpm lint
 pnpm generate:types  # After schema changes
 ```
 
+## Prefer built-in components
+
+Before building or styling a UI component, check for an existing one and reuse
+it — fewer custom components means less maintenance and a consistent look.
+In the **admin panel**, prefer `@payloadcms/ui`'s built-ins (Banner, Pill,
+Table, Card, Tooltip, Drawer, Button, field primitives, icons, …); the catalog
++ rule live in `.claude/rules/admin-ui.md`. Only hand-roll a custom-styled
+component when no built-in fits, and note what was missing.
+
 ## Icons (no emojis in UI)
 
 Don't use emojis as UI icons. Use a real icon component so size, colour, and
