@@ -24,6 +24,22 @@ export type VerificationStage = (typeof VERIFICATION_STAGES)[number]
 export const DEFAULT_VERIFICATION_STAGE: VerificationStage = 'verified'
 
 /**
+ * Days an event sits at a stage before the ExpireEvents job advances it to the
+ * next. Single source of truth for the stage machine's transition offsets and
+ * for projecting upcoming stage dates in the admin stepper. `expired` (→ trash)
+ * and `finished` have no fixed offset, so they're omitted.
+ */
+export const STAGE_DURATION_DAYS: Record<
+  Exclude<VerificationStage, 'expired' | 'finished'>,
+  number
+> = {
+  verified: 7,
+  reminded: 7,
+  escalated: 7,
+  urgent: 14,
+}
+
+/**
  * Stages where the event stays published (publicly visible). `expired` and
  * `finished` unpublish (`_status: 'draft'`); verifying restores `verified`.
  */

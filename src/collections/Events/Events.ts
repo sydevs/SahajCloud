@@ -267,6 +267,7 @@ export const Events: CollectionConfig = {
             },
             {
               name: 'verificationStage',
+              label: 'Verification Process',
               type: 'select',
               required: true,
               defaultValue: DEFAULT_VERIFICATION_STAGE,
@@ -278,7 +279,8 @@ export const Events: CollectionConfig = {
               admin: {
                 readOnly: true,
                 description:
-                  'Lifecycle stage — advanced automatically by the daily verification job, reset to “Verified” whenever the event is verified.',
+                  'Public events are re-verified periodically so the map stays accurate. If an event isn’t re-verified in time, its manager — then the region managers above it — are reminded, and it’s eventually unpublished. Saving or publishing the event re-verifies it and restarts this cycle.',
+                components: { Field: '@/components/admin/VerificationStageField' },
               },
             },
             {

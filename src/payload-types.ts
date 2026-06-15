@@ -1408,7 +1408,7 @@ export interface Event {
    */
   manager: number | Manager;
   /**
-   * Lifecycle stage — advanced automatically by the daily verification job, reset to “Verified” whenever the event is verified.
+   * Public events are re-verified periodically so the map stays accurate. If an event isn’t re-verified in time, its manager — then the region managers above it — are reminded, and it’s eventually unpublished. Saving or publishing the event re-verifies it and restarts this cycle.
    */
   verificationStage: 'verified' | 'reminded' | 'escalated' | 'urgent' | 'expired' | 'finished';
   nextCheckAt?: string | null;
