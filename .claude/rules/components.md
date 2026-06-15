@@ -7,6 +7,18 @@ paths:
 
 Rules for creating React components in this codebase.
 
+## Prefer built-in components over custom ones
+
+Before building or styling a component, check for an existing one and use it —
+custom components add maintenance burden and drift from the CMS look & feel.
+
+- **Admin panel**: prefer `@payloadcms/ui`'s built-ins (Banner, Pill, Table,
+  Card, Tooltip, Drawer, Button, field primitives, icons, …). See the catalog
+  in `.claude/rules/admin-ui.md` ("Prefer Payload's built-in components"). Only
+  write a custom-styled component when no built-in fits, and note why.
+- **Public frontend / non-admin**: use `lucide-react` for icons (see
+  `.claude/rules/code-style.md`); Payload UI components don't apply there.
+
 ## Server vs Client Components
 
 ### Server Components (Preferred for Data Fetching)
