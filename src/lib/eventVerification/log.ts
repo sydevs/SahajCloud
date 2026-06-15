@@ -1,5 +1,8 @@
 import type { VerificationStage } from './stages'
 
+import type { ReminderAudience, ReminderLevel } from '@/lib/notifications'
+
+
 /**
  * The on-document `notificationLog` — the **current verification cycle**.
  *
@@ -31,7 +34,14 @@ export interface VerificationLogEntry {
 /** One reminder delivery (appended per recipient, per stage). */
 export interface ReminderLogEntry {
   kind: 'reminder'
+  /** Internal dedup key — the from-stage. Not shown in the admin table. */
   stage: VerificationStage
+  /** Escalation level (the "why"): due / escalated / urgent / expired. */
+  level: ReminderLevel
+  /** Recipient tier: the event's own manager, or a region manager above it. */
+  role: ReminderAudience
+  /** The ancestor region that linked a region manager to the event (`role: 'region'`). */
+  region?: string
   at: string // ISO 8601
   manager: ActorRef
   /** Delivery method used, e.g. `email` / `whatsapp`. */
@@ -52,14 +62,29 @@ export function buildVerificationEntry(
 }
 
 /** Build a reminder entry for one successful send. */
-export function buildReminderEntry(
-  stage: VerificationStage,
-  manager: ActorRef,
-  channel: string,
-  destination: string,
-  at: string,
-): ReminderLogEntry {
-  return { kind: 'reminder', stage, at, manager, channel, destination }
+export function buildReminderEntry(args: {
+  stage: VerificationStage
+  level: ReminderLevel
+  role: ReminderAudience
+  /** Linking region — included only for region-manager recipients. */
+  region?: string
+  manager: ActorRef
+  channel: string
+  destination: string
+  at: string
+}): ReminderLogEntry {
+  const { stage, level, role, region, manager, channel, destination, at } = args
+  return {
+    kind: 'reminder',
+    stage,
+    level,
+    role,
+    ...(region ? { region } : {}),
+    at,
+    manager,
+    channel,
+    destination,
+  }
 }
 
 /**

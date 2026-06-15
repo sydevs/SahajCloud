@@ -164,13 +164,19 @@ async function processEvent(args: {
     // crash mid-fan-out resumes by sending only the still-missing recipients.
     log = [
       ...log,
-      buildReminderEntry(
+      buildReminderEntry({
         stage,
-        { id: recipient.manager.id, name: recipient.manager.name || recipient.destination },
-        recipient.channel,
-        recipient.destination,
-        now.toISOString(),
-      ),
+        level: transition.level!,
+        role: recipient.role,
+        region: recipient.regionName,
+        manager: {
+          id: recipient.manager.id,
+          name: recipient.manager.name || recipient.destination,
+        },
+        channel: recipient.channel,
+        destination: recipient.destination,
+        at: now.toISOString(),
+      }),
     ]
     await payload.update({
       collection: 'events',

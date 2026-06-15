@@ -297,26 +297,14 @@ export const Events: CollectionConfig = {
               // Current cycle's ledger: the verification that opened it plus a
               // reminder entry per send. Reset on every verification, and the
               // job's exactly-once marker (skip recipients already logged this
-              // stage). Read-only, rendered as a table by RecordTable.
+              // stage). Read-only, rendered by NotificationLogTable.
               name: 'notificationLog',
               type: 'json',
               admin: {
                 readOnly: true,
                 description:
                   'Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.',
-                components: { Field: '@/components/admin/RecordTable' },
-                custom: {
-                  columns: [
-                    { key: 'kind', label: 'Event' },
-                    { key: 'at', label: 'When', format: 'datetime' },
-                    { key: 'stage', label: 'Stage' },
-                    { key: 'method', label: 'Method' },
-                    { key: 'by', label: 'Verified By', format: 'name' },
-                    { key: 'manager', label: 'Sent To', format: 'name' },
-                    { key: 'channel', label: 'Channel' },
-                    { key: 'destination', label: 'Destination' },
-                  ],
-                },
+                components: { Field: '@/components/admin/NotificationLogTable' },
               },
             },
           ],

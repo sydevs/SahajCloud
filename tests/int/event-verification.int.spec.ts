@@ -185,6 +185,16 @@ describe('Event verification lifecycle', () => {
       'event-manager@example.com',
       'region-manager@example.com',
     ])
+    // The job records the escalation level + recipient tier (+ linking region).
+    const regionEntry = reminders(fresh.notificationLog).find(
+      (e) => e.stage === 'reminded' && e.destination === 'region-manager@example.com',
+    )
+    expect(regionEntry).toMatchObject({ level: 'escalated', role: 'region', region: 'City LC' })
+    const managerEntry = reminders(fresh.notificationLog).find(
+      (e) => e.stage === 'reminded' && e.destination === 'event-manager@example.com',
+    )
+    expect(managerEntry).toMatchObject({ level: 'escalated', role: 'manager' })
+    expect(managerEntry?.region).toBeUndefined()
 
     // escalated → urgent: final reminder, region included, still published.
     await makeDue(payload, event.id)
