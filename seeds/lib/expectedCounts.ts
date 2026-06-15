@@ -19,6 +19,7 @@ export type ScriptName =
   | 'storyblok'
   | 'wm-app-translations'
   | 'translations'
+  | 'atlas'
 
 export interface ExpectedCounts {
   [collection: string]: number
@@ -64,6 +65,16 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   'wm-app-translations': {},
   // translations updates three PayloadCMS globals, not collections.
   translations: {},
+  atlas: {
+    managers: 327,
+    // 482 source geo nodes (29 + 100 + 353); multi-use venues add ~41 centers.
+    regions: 482,
+    // 910 source registrants dedupe to 755 unique emails.
+    users: 755,
+    events: 511,
+    registrations: 886,
+    clients: 25,
+  },
 }
 
 /**
@@ -234,6 +245,63 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   'wm-app-translations': [],
   // translations targets three PayloadCMS globals, not collections.
   translations: [],
+  // Atlas migration. Order is the import order (the runner iterates this array):
+  // managers + regions before events/clients; events + users before
+  // registrations; events before pictures. Managers/regions/clients run in bulk
+  // (regions builds the country→region→city→center tree in one pass); the large
+  // collections paginate. `pictures` is a logical step that uploads to `images`.
+  atlas: [
+    {
+      slug: 'managers',
+      totalItems: 327,
+      requiresPagination: false,
+      dependencies: [],
+      naturalKey: 'legacyId',
+    },
+    {
+      slug: 'regions',
+      totalItems: 482,
+      requiresPagination: false,
+      dependencies: ['managers'],
+      naturalKey: 'legacyId',
+    },
+    {
+      slug: 'users',
+      totalItems: 910,
+      requiresPagination: true,
+      dependencies: [],
+      naturalKey: 'email',
+    },
+    {
+      slug: 'events',
+      totalItems: 511,
+      requiresPagination: true,
+      dependencies: ['managers', 'regions'],
+      naturalKey: 'legacyId',
+    },
+    {
+      slug: 'registrations',
+      totalItems: 886,
+      requiresPagination: true,
+      dependencies: ['events', 'users'],
+      naturalKey: 'legacyId',
+    },
+    {
+      slug: 'clients',
+      totalItems: 25,
+      requiresPagination: false,
+      dependencies: ['managers', 'regions'],
+      naturalKey: 'legacyId',
+    },
+    {
+      slug: 'pictures',
+      totalItems: 134,
+      requiresPagination: true,
+      dependencies: ['events'],
+      naturalKey: 'legacyId',
+      hasFileUploads: true, // GCS downloads → Images uploads
+    },
+  ],
 }
 
 /**

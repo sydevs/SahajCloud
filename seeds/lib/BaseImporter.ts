@@ -688,6 +688,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       publishSpecificLocale?: TypedLocale
       /** Force file upload even on update (default: false - skips file on update, assumes existing file is correct) */
       forceFileUpload?: boolean
+      /** Extra `req.context` forwarded to create/update (e.g. `{ skipVerifyHook: true }`). */
+      context?: Record<string, unknown>
     },
   ): Promise<UpsertResult<T>> {
     const identifier = options?.identifier || this.summarizeKey(naturalKey)
@@ -747,6 +749,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             locale: options?.locale,
             file: fileForUpdate,
             publishSpecificLocale: options?.publishSpecificLocale,
+            context: options?.context,
           }),
         )
         if (DEBUG)
@@ -780,6 +783,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             data,
             locale: options?.locale,
             file: options?.file,
+            context: options?.context,
           }),
         )
         if (DEBUG)
@@ -846,6 +850,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             locale: options?.locale,
             file: fileForUpdate,
             publishSpecificLocale: options?.publishSpecificLocale,
+            context: options?.context,
           }),
         )
         if (DEBUG)
@@ -881,6 +886,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           data,
           locale: options?.locale,
           file: options?.file,
+          context: options?.context,
         }),
       )
       if (DEBUG)
