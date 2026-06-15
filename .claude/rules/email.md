@@ -69,6 +69,13 @@ in `src/emails/`.
   (`tests/unit/email-templates.spec.ts`), or run the `react-email` CLI's local
   preview server against `src/emails/` (`pnpm exec email dev`).
 
+- **Icons — emails are the exception to the no-emoji rule.** The repo uses
+  `lucide-react` for HTML UI (see `.claude/rules/code-style.md`), but email
+  clients (Gmail strips inline `<svg>`, Outlook can't render it) won't show SVG
+  icons. In templates, keep **emoji** (they render as native glyphs) or use a
+  **hosted PNG** via react-email's `<Img>` — never `lucide-react` or
+  `@payloadcms/ui` icons.
+
 ## Authentication features
 
 - **Email verification** (`VerifyEmail`) and **password reset**

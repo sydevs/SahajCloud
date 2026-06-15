@@ -49,6 +49,27 @@ pnpm lint
 pnpm generate:types  # After schema changes
 ```
 
+## Icons (no emojis in UI)
+
+Don't use emojis as UI icons. Use a real icon component so size, colour, and
+accessibility are controllable and rendering is consistent:
+
+- **Payload admin components** (`src/components/**`, custom fields/views/cells):
+  prefer the icons already shipped by `@payloadcms/ui` — `WarningIcon`,
+  `ErrorIcon`, `InfoIcon`, `SuccessIcon`, `CalendarIcon`, `CheckIcon`,
+  `ExternalLinkIcon`, etc. They're theme-coloured (`--theme-*`) and add no new
+  dependency. Reach for `lucide-react` only when `@payloadcms/ui` lacks the glyph.
+- **Public frontend / non-admin React** (`src/app/(frontend)/**`): use
+  [`lucide-react`](https://lucide.dev) (`<TriangleAlert size={20} color="…" />`).
+  Payload's icons colour themselves from admin `--theme-*` variables that don't
+  exist outside the admin, so they render wrong on public pages — use lucide there.
+- **Emails** (`src/emails/**`): the exception — see `.claude/rules/email.md`.
+  Email clients don't render `<svg>`, so icon libraries (lucide / Payload) won't
+  work; keep emoji or use a hosted PNG via react-email's `<Img>`.
+
+`lucide-react` is the project's icon library for HTML UI. Don't introduce a
+second one.
+
 ## Editing generated output (migrations, payload-types.ts, importmap, etc.)
 
 When you need to patch a generated file, change only what actually breaks or what the spec explicitly requires. Don't add defensive NULL-ing, redundant cleanups, or cascading safety edits "just in case" — they inflate the diff, obscure the real fix, and are the first thing a reviewer will push back on. If you catch yourself adding a second or third edit, stop and ask: *would this change fail a specific, named scenario?* If not, revert it.
