@@ -47,7 +47,7 @@ import { default as default_7994614945cfe693dd6db5da6470f962 } from '@/component
 import { default as default_ef5838f2c1b8d0747618a584b33f2f1e } from '@/components/admin/AddressSearchField'
 import { default as default_ed3b039830992dc45486e37aaf03df7c } from '@/components/admin/EventVerificationNotice'
 import { default as default_1dd99abed7767ee797cacf1ad150de88 } from '@/components/admin/StringSelectField'
-import { default as default_60a26fbd4369aa3842df18aed236e9ce } from '@/components/admin/RecordTable'
+import { default as default_e9940a7953b8550d5f74ed2aed219091 } from '@/components/admin/NotificationLogTable'
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ChecklistFeatureClient as ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { IndentFeatureClient as IndentFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -123,7 +123,7 @@ export const importMap = {
   "@/components/admin/AddressSearchField#default": default_ef5838f2c1b8d0747618a584b33f2f1e,
   "@/components/admin/EventVerificationNotice#default": default_ed3b039830992dc45486e37aaf03df7c,
   "@/components/admin/StringSelectField#default": default_1dd99abed7767ee797cacf1ad150de88,
-  "@/components/admin/RecordTable#default": default_60a26fbd4369aa3842df18aed236e9ce,
+  "@/components/admin/NotificationLogTable#default": default_e9940a7953b8550d5f74ed2aed219091,
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#ChecklistFeatureClient": ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#IndentFeatureClient": IndentFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
