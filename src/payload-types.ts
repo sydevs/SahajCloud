@@ -1308,7 +1308,7 @@ export interface Event {
    */
   images?: (number | Image)[] | null;
   /**
-   * Mark this event dormant (no active schedule). Inactive events still need verification but never auto-finish.
+   * Mark this event dormant — it has no active schedule. With no schedule to show, you must provide contact info (phone + name) so seekers can reach out and find out more. Inactive events still need verification but never auto-finish.
    */
   inactive?: boolean | null;
   /**
