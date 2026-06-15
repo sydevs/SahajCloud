@@ -169,6 +169,15 @@ const ATLAS_TO_PAYLOAD_LEVEL: Record<GeoRef['level'], RegionLevel> = {
 }
 
 /**
+ * The `idMaps.regions` key for an Atlas geo-ref, applying the area→city rename.
+ * Centralised so the transform can't be forgotten at one call site. (Node keys
+ * built from an already-Payload level — `city:areaId`, `center:venueId` — are
+ * written inline since there's no ref to translate.)
+ */
+const geoRefKey = (ref: { level: GeoRef['level']; legacyId: number }): string =>
+  `${ATLAS_TO_PAYLOAD_LEVEL[ref.level]}:${ref.legacyId}`
+
+/**
  * Best-effort map of Atlas registration-question flags → the Events
  * `registrationQuestions` checkbox group. The legacy flags don't fully line up
  * with the placeholder question set, so unmapped flags are warned about for the
@@ -229,9 +238,13 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
    * every Atlas legacyId (including email-duplicates) to the one stored user.
    */
   protected async reconstructIdMaps(): Promise<void> {
-    const data = await this.getData()
+    // Each paginated batch is a fresh importer, so rebuild the legacyId→id maps
+    // from the DB — but only the ones the targeted collection consumes:
+    // managers ← regions/events/clients; regions ← events/clients;
+    // events ← registrations/pictures; users ← registrations.
+    const need = (slug: string): boolean => !this.isPaginated() || this.isCollectionTargeted(slug)
 
-    for (const slug of ['managers', 'events'] as const) {
+    const rebuildLegacyIdMap = async (slug: 'managers' | 'events'): Promise<void> => {
       const docs = await this.payload.find({
         collection: slug,
         limit: 100000,
@@ -244,32 +257,40 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       }
     }
 
-    const regions = await this.payload.find({
-      collection: 'regions',
-      limit: 100000,
-      depth: 0,
-      select: { legacyId: true, level: true },
-    })
-    this.idMaps.regions.clear()
-    for (const region of regions.docs) {
-      if (region.legacyId != null)
-        this.idMaps.regions.set(`${region.level}:${region.legacyId}`, region.id)
+    if (need('regions') || need('events') || need('clients')) await rebuildLegacyIdMap('managers')
+    if (need('registrations') || need('pictures')) await rebuildLegacyIdMap('events')
+
+    if (need('events') || need('clients')) {
+      const regions = await this.payload.find({
+        collection: 'regions',
+        limit: 100000,
+        depth: 0,
+        select: { legacyId: true, level: true },
+      })
+      this.idMaps.regions.clear()
+      for (const region of regions.docs) {
+        if (region.legacyId != null)
+          this.idMaps.regions.set(`${region.level}:${region.legacyId}`, region.id)
+      }
     }
 
-    const users = await this.payload.find({
-      collection: 'users',
-      limit: 100000,
-      depth: 0,
-      select: { legacyId: true, email: true },
-    })
-    const idByEmail = new Map<string, number | string>()
-    for (const user of users.docs) {
-      if (user.email) idByEmail.set(user.email, user.id)
-    }
-    this.idMaps.users.clear()
-    for (const user of data.users) {
-      const id = idByEmail.get(user.email)
-      if (id != null) this.idMaps.users.set(user.legacyId, id)
+    if (need('registrations')) {
+      const data = await this.getData()
+      const users = await this.payload.find({
+        collection: 'users',
+        limit: 100000,
+        depth: 0,
+        select: { legacyId: true, email: true },
+      })
+      const idByEmail = new Map<string, number | string>()
+      for (const user of users.docs) {
+        if (user.email) idByEmail.set(user.email, user.id)
+      }
+      this.idMaps.users.clear()
+      for (const user of data.users) {
+        const id = idByEmail.get(user.email)
+        if (id != null) this.idMaps.users.set(user.legacyId, id)
+      }
     }
   }
 
@@ -329,9 +350,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     if (this.options.pagination?.offset) return
     const t = (slug: string): boolean => !this.isPaginated() || this.isCollectionTargeted(slug)
     const ids = (rows: { legacyId: number }[]): Set<number> => new Set(rows.map((r) => r.legacyId))
-    const geoKeys = new Set(
-      data.regions.map((r) => `${ATLAS_TO_PAYLOAD_LEVEL[r.level]}:${r.legacyId}`),
-    )
+    const geoKeys = new Set(data.regions.map((r) => geoRefKey(r)))
     const userIds = ids(data.users)
     const eventIds = ids(data.events)
     const managerIds = ids(data.managers)
@@ -350,7 +369,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         'managers.customResourceAccess',
         data.managers
           .flatMap((m) => m.customResourceAccess ?? [])
-          .filter((r) => !geoKeys.has(`${ATLAS_TO_PAYLOAD_LEVEL[r.level]}:${r.legacyId}`)).length,
+          .filter((r) => !geoKeys.has(geoRefKey(r))).length,
       )
     }
     if (t('regions')) {
@@ -454,7 +473,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       const managerId = this.idMaps.managers.get(manager.legacyId)
       if (managerId == null) continue
       for (const ref of manager.customResourceAccess ?? []) {
-        const key = `${ATLAS_TO_PAYLOAD_LEVEL[ref.level]}:${ref.legacyId}`
+        const key = geoRefKey(ref)
         const list = managersByRegion.get(key) ?? []
         if (!list.includes(managerId)) list.push(managerId)
         managersByRegion.set(key, list)
@@ -797,9 +816,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         continue
       }
       const region = client.location
-        ? this.idMaps.regions.get(
-            `${ATLAS_TO_PAYLOAD_LEVEL[client.location.level]}:${client.location.legacyId}`,
-          )
+        ? this.idMaps.regions.get(geoRefKey(client.location))
         : undefined
       try {
         await this.upsert(
