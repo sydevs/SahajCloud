@@ -11,6 +11,53 @@ Rules for PayloadCMS admin-panel components — server vs client, field
 components, cells, branding, dashboard, project visibility, and the
 frame editor.
 
+## Prefer Payload's built-in components (don't hand-roll)
+
+**Before building or styling any admin UI, check whether `@payloadcms/ui`
+already exports it, and use that.** Custom components are a maintenance burden
+and drift from the CMS's look & feel. Only write a custom-styled component when
+no built-in fits — and when you do, say so in the PR / commit (what was missing).
+
+Everything below is exported from `@payloadcms/ui` (import directly, e.g.
+`import { Banner, Button, Pill } from '@payloadcms/ui'`). This is a curated
+list; for the full set see `node_modules/@payloadcms/ui/dist/exports/client/index.d.ts`.
+
+| Need | Use |
+|---|---|
+| Inline notice / callout | `Banner` (`type` default/error/success; `icon`) |
+| Status / tag chip | `Pill`, `ErrorPill` |
+| Tabular data | `Table` (columns + `renderedCells`), `OrderableTable` |
+| Buttons / actions | `Button`, `SaveButton`, `PublishButton`, `SaveDraftButton`, `CopyToClipboard` |
+| Cards / layout | `Card`, `Gutter`, `Collapsible`, `AnimateHeight` |
+| Tooltip / popover | `Tooltip`, `Popup`, `PopupList` |
+| Modals / drawers | `Drawer` + `useModal`/`useDrawerSlug`, `ConfirmationModal`, `FullscreenModal` |
+| Loading | `LoadingOverlay`, `ProgressBar`, `ShimmerEffect` |
+| Pagination / list | `Pagination`, `PerPage`, `ListControls` |
+| Drag & drop | `DraggableSortable`, `DraggableSortableItem` |
+| Uploads | `Dropzone`, `Upload`, `FileDetails` |
+| Toasts | `toast` (from `@payloadcms/ui`) |
+| Severity icons | `WarningIcon`, `ErrorIcon`, `InfoIcon`, `SuccessIcon` |
+| Other icons | `CalendarIcon`, `CheckIcon`, `ChevronIcon`, `CopyIcon`, `EditIcon`, `ExternalLinkIcon`, `GearIcon`, `PlusIcon`, `SearchIcon`, `XIcon`, … |
+
+`Table` is list-view-shaped: pass `data` (row objects with an `id`) + `columns:
+Column[]`, where each column carries pre-rendered `renderedCells` (one node per
+row), `accessor`, and `active: true`. The `Column` type also requires a `field`
+that the component never reads at runtime — stub it (`field: {} as never`). See
+`src/components/admin/NotificationLogTable/` for the working pattern.
+
+**Building a custom field component?** Compose Payload's field primitives instead
+of bespoke markup (see "Custom field components" below): `FieldLabel`,
+`FieldError`, `FieldDescription`, plus the input fields `TextField`,
+`TextareaField`, `NumberField`, `SelectField`, `RadioGroupField`,
+`CheckboxField`, `DateTimeField`, `EmailField`, `JSONField`, `CodeField`,
+`RelationshipField`, `UploadField`, `ArrayField`, `GroupField`, `BlocksField`,
+and `RenderFields` (render a whole field set). Hooks: `useField`, `useForm`,
+`useFormFields`, `useDocumentInfo`, `useConfig`, `useAuth`, `useTranslation`.
+
+For non-admin (public) React, Payload's components don't apply — use
+`lucide-react` (see `.claude/rules/code-style.md`). Emails never use either
+(no SVG) — see `.claude/rules/email.md`.
+
 ## Styling — PayloadCMS CSS variables
 
 **Always use PayloadCMS CSS variables** for theme compatibility (dark/light

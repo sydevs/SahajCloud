@@ -1,6 +1,9 @@
 'use client'
 
 import { useAuth } from '@payloadcms/ui'
+import { Ban } from 'lucide-react'
+
+import { CONTACT_EMAIL } from '@/lib/contact'
 
 export default function InactiveAccountAlert() {
   const { user } = useAuth()
@@ -27,13 +30,8 @@ export default function InactiveAccountAlert() {
           border: '2px solid var(--theme-elevation-300)',
         }}
       >
-        <div
-          style={{
-            fontSize: 'calc(var(--base-body-size) * 4px)',
-            marginBottom: 'calc(var(--base) * 1.5)',
-          }}
-        >
-          🚫
+        <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+          <Ban size={52} color="var(--theme-error-500)" aria-hidden />
         </div>
         <h2
           style={{
@@ -53,7 +51,8 @@ export default function InactiveAccountAlert() {
             marginBottom: 'calc(var(--base) * 1.5)',
           }}
         >
-          Your account has been temporarily disabled. Please contact an administrator for assistance.
+          Your account has been temporarily disabled. Please contact an administrator for
+          assistance.
         </p>
         <div
           style={{
@@ -72,14 +71,14 @@ export default function InactiveAccountAlert() {
           >
             Contact:{' '}
             <a
-              href="mailto:contact@sydevelopers.com"
+              href={`mailto:${CONTACT_EMAIL}`}
               style={{
                 color: 'var(--theme-elevation-800)',
                 fontWeight: '600',
                 textDecoration: 'underline',
               }}
             >
-              contact@sydevelopers.com
+              {CONTACT_EMAIL}
             </a>
           </p>
         </div>

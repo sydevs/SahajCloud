@@ -25,20 +25,36 @@ interface BrandButtonProps {
   href: string
   brand: EmailBrand
   children: ReactNode
+  /** `primary` (filled brand gradient) or `secondary` (outlined). */
+  variant?: 'primary' | 'secondary'
+  /** Trim the top margin so a secondary button sits close under the primary. */
+  tight?: boolean
 }
 
-/** Call-to-action button rendered in the project's brand gradient. */
-export function BrandButton({ href, brand, children }: BrandButtonProps) {
-  return (
-    <Section style={buttonContainer}>
-      <Button
-        href={href}
-        style={{
-          ...button,
+/** Call-to-action button — filled brand gradient, or an outlined secondary. */
+export function BrandButton({
+  href,
+  brand,
+  children,
+  variant = 'primary',
+  tight,
+}: BrandButtonProps) {
+  const variantStyle: CSSProperties =
+    variant === 'secondary'
+      ? {
+          color: brand.colors.primary,
+          backgroundColor: '#ffffff',
+          border: `1px solid ${brand.colors.primary}`,
+        }
+      : {
+          color: '#ffffff',
           backgroundColor: brand.colors.primary,
           backgroundImage: brandGradient(brand.colors),
-        }}
-      >
+        }
+
+  return (
+    <Section style={tight ? buttonContainerTight : buttonContainer}>
+      <Button href={href} style={{ ...button, ...variantStyle }}>
         {children}
       </Button>
     </Section>
@@ -147,6 +163,11 @@ const cardHeading: CSSProperties = {
 const buttonContainer: CSSProperties = {
   textAlign: 'center',
   margin: '30px 0',
+}
+
+const buttonContainerTight: CSSProperties = {
+  textAlign: 'center',
+  margin: '0 0 30px',
 }
 
 const button: CSSProperties = {

@@ -100,3 +100,17 @@ transform); `sass`/`eslint` operate on our own sources at build/lint time.
 | [GHSA-wf6x-7x77-mvgw](https://github.com/advisories/GHSA-wf6x-7x77-mvgw) (CVE-2026-29063) | `immutable` via `vite > sass`                          | Prototype pollution                          |
 | [GHSA-25h7-pfq9-p65f](https://github.com/advisories/GHSA-25h7-pfq9-p65f) (CVE-2026-32141) | `flatted` via `eslint > file-entry-cache > flat-cache` | Unbounded-recursion DoS in `parse()`         |
 | [GHSA-rf6f-7fwh-wjgh](https://github.com/advisories/GHSA-rf6f-7fwh-wjgh) (CVE-2026-33228) | `flatted` via `eslint > file-entry-cache > flat-cache` | Prototype pollution via `parse()`            |
+
+### esbuild — dev/build bundler (`tsx`, `vite`)
+
+Build/test-only. `esbuild` is pulled transitively by `tsx` (running our `.ts`
+scripts) and Vitest's `vite` transform; it never runs in the deployed Worker
+bundle. The advisory's RCE vector requires a Deno install pointed at an
+attacker-controlled `NPM_CONFIG_REGISTRY` — not how our CI/dev installs run.
+Revisit once `tsx`/`payload` resolve `esbuild >=0.28.1` (a forced override is
+not honoured from `pnpm-workspace.yaml` on pnpm 11.5.2, so this is baselined
+rather than pinned).
+
+| GHSA                                                                                      | Package · path                       | Advisory                                          |
+| ----------------------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------- |
+| [GHSA-gv7w-rqvm-qjhr](https://github.com/advisories/GHSA-gv7w-rqvm-qjhr) | `esbuild` via `payload > tsx` (build) | Missing binary integrity verification (Deno) → RCE |

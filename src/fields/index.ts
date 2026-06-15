@@ -9,6 +9,14 @@ export type { MediaFieldOptions } from './mediaField'
 export { urlField } from './urlField'
 export type { UrlFieldOptions } from './urlField'
 
+// Public URL fields - virtual webUrl/appUrl pair (base + shared path + exposeWhen guard)
+export { publicUrlFields } from './publicUrlFields'
+export type {
+  PublicUrlFieldContext,
+  PublicUrlFieldsOptions,
+  PublicUrlPlatform,
+} from './publicUrlFields'
+
 // Color field - text field with hex color validation and color picker
 export { colorField } from './colorField'
 export type { ColorFieldOptions } from './colorField'

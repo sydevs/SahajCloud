@@ -26,6 +26,8 @@ const PROJECTS = {
   'wemeditate-web': {
     label: 'WeMeditate Web',
     icon: '/images/wemeditate-web.svg',
+    // PNG alternative for emails (SVG/WebP render poorly in email clients).
+    emailIcon: '/images/wemeditate-web.png',
     collections: [
       'pages',
       'meditations',
@@ -49,6 +51,7 @@ const PROJECTS = {
   'wemeditate-app': {
     label: 'WeMeditate App',
     icon: '/images/wemeditate-app.svg',
+    emailIcon: '/images/wemeditate-app.png',
     collections: [
       'pages',
       'meditations',
@@ -72,6 +75,7 @@ const PROJECTS = {
   'sahaj-atlas': {
     label: 'Sahaj Atlas',
     icon: '/images/sahaj-atlas.webp',
+    emailIcon: '/images/sahaj-atlas.png',
     // `users` (registrants) is intentionally omitted — it stays admin-only.
     collections: ['regions', 'events', 'registrations', 'images', 'files'],
     globals: ['sy-atlas-config', 'sy-atlas-translations'],
@@ -83,6 +87,7 @@ const PROJECTS = {
  */
 const ADMIN_VIEW_LABEL = 'Sahaj Cloud'
 const ADMIN_VIEW_ICON = '/images/sahaj-cloud.svg'
+const ADMIN_VIEW_EMAIL_ICON = '/images/sahaj-cloud.png'
 
 // =============================================================================
 // Type Export (for use by roles.ts)
@@ -167,6 +172,19 @@ export function getProjectIcon(project: InternalProjectSlug | null): string {
   if (!project) return ADMIN_VIEW_ICON
   const projectConfig = PROJECTS[project]
   return projectConfig?.icon || ADMIN_VIEW_ICON
+}
+
+/**
+ * Get the email-safe (PNG) icon path for a project (or default for admin view).
+ * Email clients render SVG/WebP poorly, so transactional emails use this PNG
+ * alternative instead of {@link getProjectIcon}.
+ * @param project - Project slug or null for admin view
+ * @returns PNG icon file path
+ */
+export function getProjectEmailIcon(project: InternalProjectSlug | null): string {
+  if (!project) return ADMIN_VIEW_EMAIL_ICON
+  const projectConfig = PROJECTS[project]
+  return projectConfig?.emailIcon || ADMIN_VIEW_EMAIL_ICON
 }
 
 /**

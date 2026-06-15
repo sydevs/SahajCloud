@@ -50,3 +50,4 @@ auditConfig:
     - 'GHSA-wf6x-7x77-mvgw'
     - 'GHSA-25h7-pfq9-p65f'
     - 'GHSA-rf6f-7fwh-wjgh'
+    - 'GHSA-gv7w-rqvm-qjhr'

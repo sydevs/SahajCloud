@@ -1,9 +1,8 @@
-
 import type { BrandColors } from '@/lib/branding'
 import { getBrandColors } from '@/lib/branding'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { ProjectSlug } from '@/payload-types'
-import { getProjectIcon, getProjectLabel } from '@/plugins/access'
+import { getProjectEmailIcon, getProjectLabel } from '@/plugins/access'
 
 /**
  * Resolved per-project branding for a transactional email.
@@ -17,7 +16,8 @@ export interface EmailBrand {
   productName: string
   /** Brand colors (primary / dark / light) for the project. */
   colors: BrandColors
-  /** Absolute URL to the project icon (emails cannot resolve relative paths). */
+  /** Absolute URL to the project icon — a PNG (email-safe), since emails can't
+   * resolve relative paths and render SVG/WebP poorly. */
   iconUrl: string
 }
 
@@ -31,6 +31,6 @@ export function getEmailBrand(project: ProjectSlug = 'wemeditate-web'): EmailBra
   return {
     productName: getProjectLabel(project),
     colors: getBrandColors(project),
-    iconUrl: `${getServerUrl()}${getProjectIcon(project)}`,
+    iconUrl: `${getServerUrl()}${getProjectEmailIcon(project)}`,
   }
 }
