@@ -30,6 +30,7 @@ set -euo pipefail
 # R2_S3_ENDPOINT: set ONLY for a jurisdiction-specific bucket, e.g. EU:
 #   export R2_S3_ENDPOINT=https://c66c53a69689eb030b228c450515fff2.eu.r2.cloudflarestorage.com
 R2_S3_ENDPOINT="${R2_S3_ENDPOINT:-}"
+CLOUDFLARE_STREAM_WEBHOOK_SECRET="${CLOUDFLARE_STREAM_WEBHOOK_SECRET:-}"
 DOCS_PASSWORD="${DOCS_PASSWORD:-}"
 NIRMALA_VIDYA_API_KEY="${NIRMALA_VIDYA_API_KEY:-}"
 
@@ -53,6 +54,7 @@ railway variables \
 
 # Optional ones — only set when provided
 [ -n "$R2_S3_ENDPOINT" ] && railway variables --set "R2_S3_ENDPOINT=$R2_S3_ENDPOINT"
+[ -n "$CLOUDFLARE_STREAM_WEBHOOK_SECRET" ] && railway variables --set "CLOUDFLARE_STREAM_WEBHOOK_SECRET=$CLOUDFLARE_STREAM_WEBHOOK_SECRET"
 [ -n "$DOCS_PASSWORD" ] && railway variables --set "DOCS_PASSWORD=$DOCS_PASSWORD"
 [ -n "$NIRMALA_VIDYA_API_KEY" ] && railway variables --set "NIRMALA_VIDYA_API_KEY=$NIRMALA_VIDYA_API_KEY"
 

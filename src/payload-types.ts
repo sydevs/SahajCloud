@@ -463,6 +463,7 @@ export interface Author {
 export interface Video {
   id: number;
   hlsUrl?: string | null;
+  mp4Url?: string | null;
   previewUrl?: string | null;
   thumbnail?: (number | null) | Image;
   /**
@@ -1821,6 +1822,7 @@ export interface File {
   id: number;
   createdAt: string;
   hlsUrl?: string | null;
+  mp4Url?: string | null;
   previewUrl?: string | null;
   updatedAt: string;
   deletedAt?: string | null;
@@ -2592,6 +2594,7 @@ export interface SubtleSystemNode {
 export interface Frame {
   id: number;
   hlsUrl?: string | null;
+  mp4Url?: string | null;
   previewUrl?: string | null;
   imageSet: 'male' | 'female';
   /**
@@ -3558,6 +3561,7 @@ export interface AlbumsSelect<T extends boolean = true> {
  */
 export interface VideosSelect<T extends boolean = true> {
   hlsUrl?: T;
+  mp4Url?: T;
   previewUrl?: T;
   thumbnail?: T;
   title?: T;
@@ -3637,6 +3641,7 @@ export interface LecturesSelect<T extends boolean = true> {
  */
 export interface FramesSelect<T extends boolean = true> {
   hlsUrl?: T;
+  mp4Url?: T;
   previewUrl?: T;
   imageSet?: T;
   subtleSystemNode?: T;
@@ -3712,6 +3717,7 @@ export interface ImagesSelect<T extends boolean = true> {
 export interface FilesSelect<T extends boolean = true> {
   createdAt?: T;
   hlsUrl?: T;
+  mp4Url?: T;
   previewUrl?: T;
   updatedAt?: T;
   deletedAt?: T;

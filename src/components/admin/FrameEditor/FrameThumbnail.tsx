@@ -5,7 +5,7 @@ import type { CSSProperties } from 'react'
 import type { Frame } from '@/payload-types'
 
 interface FrameThumbnailProps {
-  frame: Partial<Pick<Frame, 'previewUrl' | 'hlsUrl' | 'mimeType'>>
+  frame: Partial<Pick<Frame, 'previewUrl' | 'mp4Url' | 'hlsUrl' | 'mimeType'>>
   style: CSSProperties
   lazyLoad?: boolean
 }
@@ -35,7 +35,7 @@ export const FrameThumbnail: React.FC<FrameThumbnailProps> = ({
   style,
   lazyLoad = true,
 }) => {
-  const { previewUrl, hlsUrl, mimeType } = frame
+  const { previewUrl, mp4Url, hlsUrl, mimeType } = frame
   const isVideo = mimeType?.startsWith('video/')
   const alt = 'Frame'
 
@@ -57,7 +57,7 @@ export const FrameThumbnail: React.FC<FrameThumbnailProps> = ({
     )
   }
 
-  if (isVideo && hlsUrl) {
+  if (isVideo && (mp4Url || hlsUrl)) {
     return (
       <div style={{ position: 'relative', ...style }}>
         <video
@@ -69,10 +69,13 @@ export const FrameThumbnail: React.FC<FrameThumbnailProps> = ({
           controlsList="nodownload nofullscreen noremoteplayback"
           disableRemotePlayback
         >
-          <source
-            src={hlsUrl}
-            type={hlsUrl.endsWith('.m3u8') ? 'application/x-mpegURL' : undefined}
-          />
+          {hlsUrl ? (
+            <source
+              src={hlsUrl}
+              type={hlsUrl.endsWith('.m3u8') ? 'application/x-mpegURL' : undefined}
+            />
+          ) : null}
+          {mp4Url ? <source src={mp4Url} type="video/mp4" /> : null}
         </video>
         {videoIndicator}
       </div>

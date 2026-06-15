@@ -123,6 +123,14 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   R2_S3_ENDPOINT: z.url().optional(),
 
+  /**
+   * Cloudflare Stream webhook signing secret
+   * Returned by `PUT /accounts/{id}/stream/webhook` and used to verify HMAC-SHA256
+   * signatures on inbound webhooks. Production only — dev deployments do not
+   * subscribe to the account-scoped Stream webhook.
+   */
+  CLOUDFLARE_STREAM_WEBHOOK_SECRET: z.string().min(32).optional(),
+
   // ============================================
   // OPTIONAL - Email Services
   // ============================================

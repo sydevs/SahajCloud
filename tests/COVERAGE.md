@@ -62,8 +62,9 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 
 | Subject                                                                                                        | Covered by                  |
 | -------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| URL field factories (`virtualUrlField`, `previewUrlField`, `mixedMediaUrlField`, `hlsUrlField`)                | `storage-utils`             |
+| URL field factories (`virtualUrlField`, `previewUrlField`, `mixedMediaUrlField`, `hlsUrlField`, `mp4UrlField`) | `storage-utils`             |
 | R2 filename sanitization (`generateR2Key`, `generateCloudflareImageId`); R2 preassign hook                     | `storage-utils`             |
+| Cloudflare Stream webhook signature verification + MP4-download handler                                        | `cloudflare-stream-webhook` |
 | Schema introspection (`discoverReferencesForCollection`, `extractIdsFromLexicalContent`)                       | `schema-utils`              |
 | Content-Index block API endpoint generation (`computeApiEndpoint` virtual)                                     | `content-index-block`       |
 | Project-based admin visibility (`createHidden` from accessPlugin)                                              | `project-visibility`        |
