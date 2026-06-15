@@ -280,8 +280,10 @@ the current value. Pass `--force` to override.
    - `Uploading video to Cloudflare Stream`
    - `Video uploaded successfully`
    - 15–60 s later: `MP4 downloads enabled via webhook`
-4. The document's `url` virtual field should resolve to
-   `https://customer-aorobtik2fce41s5.cloudflarestream.com/<uid>/downloads/default.mp4`.
+4. The document's `url` / `hlsUrl` fields resolve to the HLS manifest
+   (`.../<uid>/manifest/video.m3u8`) immediately. After the webhook fires,
+   `mp4Url` resolves to `.../<uid>/downloads/default.mp4` (the second-class,
+   prefetchable MP4).
 
 ### Dev environment
 

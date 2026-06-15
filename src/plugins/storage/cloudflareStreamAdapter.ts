@@ -195,9 +195,12 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
     },
 
     staticHandler: async (_req, { params }) => {
-      // Redirect to Cloudflare Stream MP4 download URL
+      // Redirect to the Cloudflare Stream HLS manifest. HLS is the first-class
+      // deliverable — live the instant transcoding finishes, whereas the MP4
+      // download 404s until the Stream webhook enables it. The MP4 is exposed
+      // second-class via the `mp4Url` virtual field for clients that prefetch it.
       const videoId = params.filename
-      const url = `${config.deliveryUrl}/${videoId}/downloads/default.mp4`
+      const url = `${config.deliveryUrl}/${videoId}/manifest/video.m3u8`
       return Response.redirect(url, 302)
     },
   })
