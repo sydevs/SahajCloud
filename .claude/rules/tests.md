@@ -80,7 +80,8 @@ afterEach(() => {
 })
 ```
 
-Example: `tests/int/storage-utils.int.spec.ts`.
+Examples: `tests/int/storage-utils.int.spec.ts`,
+`tests/int/cloudflare-stream-webhook.int.spec.ts`.
 
 ## Running tests locally
 

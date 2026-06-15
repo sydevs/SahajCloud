@@ -33,9 +33,9 @@ side-effect orchestration), extract the logic to a sibling file under
 logic trivially unit-testable without booting Payload.
 
 ```
-src/lib/<domain>/myThingHandler.ts          ← pure helpers (exported freely)
-src/app/(payload)/api/<path>/route.ts        ← thin POST wrapper
-tests/int/my-thing.int.spec.ts              ← imports + tests the pure helpers
+src/plugins/storage/cloudflareStreamWebhook.ts    ← pure helpers (exported freely)
+src/app/(payload)/api/webhooks/cloudflare-stream/route.ts    ← thin POST wrapper
+tests/int/cloudflare-stream-webhook.int.spec.ts    ← imports helpers from @/lib/
 ```
 
 **Route wrapper shape** (when the handler is pure and doesn't need Payload):

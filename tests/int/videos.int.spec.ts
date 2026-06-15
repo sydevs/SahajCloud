@@ -75,7 +75,7 @@ describe('Videos Collection — custom behavior', () => {
     // Payload's default `/api/videos/file/<id>` route, that request 500s in
     // production. Both must resolve to Cloudflare instead.
 
-    it('overrides `url` with a virtual field (Stream HLS, not the file route)', () => {
+    it('overrides `url` with a virtual field (Stream MP4, not the file route)', () => {
       const urlField = payload.collections['videos'].config.fields.find(
         (f) => 'name' in f && f.name === 'url',
       )

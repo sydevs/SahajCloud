@@ -52,6 +52,7 @@ Score each finding **Critical / High / Medium / Low**. Be specific — `src/plug
 
 - **R2 signed URL leaks**: URLs with long TTL embedded in responses or stored in DB.
 - **Rate limiting bypass**: routes that skip the rate-limit middleware.
+- **Webhook auth**: Cloudflare Stream webhook (`src/app/(payload)/api/webhooks/cloudflare-stream/route.ts`) — confirm shared-secret or signature verification.
 - **R2 misuse**: signed URLs with excessive TTL, unvalidated R2 key generation from user input.
 
 ### 6. Dependency / supply chain

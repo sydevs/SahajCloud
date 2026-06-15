@@ -3,6 +3,7 @@
  *
  * Uploads videos to Cloudflare Stream API and stores Video IDs as filenames.
  * Automatic transcoding, HLS streaming, and thumbnail generation.
+ * Enables MP4 downloads for HTML5 video compatibility.
  */
 import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
@@ -13,6 +14,17 @@ import { serverEnv } from '@/lib/env'
 import { CloudflareStreamResponseSchema } from './cloudflareSchemas'
 import { applyFilename } from './filenameUtils'
 import { validateFileUpload } from './uploadValidation'
+
+/**
+ * Get Cloudflare Stream MP4 download URL for a video
+ * @param filename - The Cloudflare Stream video ID
+ * @returns URL string or undefined if delivery URL not configured
+ */
+export const getCloudflareStreamMp4Url = (filename: string): string | undefined => {
+  const deliveryUrl = serverEnv.CLOUDFLARE_STREAM_DELIVERY_URL
+  if (!deliveryUrl) return undefined
+  return `${deliveryUrl}/${filename}/downloads/default.mp4`
+}
 
 /**
  * Get Cloudflare Stream HLS manifest URL for a video
@@ -56,7 +68,7 @@ export interface CloudflareStreamConfig {
  * Create Cloudflare Stream storage adapter
  *
  * Uploads videos to Cloudflare Stream with automatic transcoding, HLS streaming,
- * and thumbnail generation.
+ * and thumbnail generation. Enables MP4 downloads for HTML5 video compatibility.
  *
  * @param config - Cloudflare Stream configuration
  * @returns PayloadCMS storage adapter
@@ -115,6 +127,10 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         }
 
         req.payload.logger.info({ msg: 'Video uploaded successfully', videoId })
+
+        // Note: MP4 downloads are enabled asynchronously via a Cloudflare Stream webhook
+        // once the video finishes transcoding. See src/app/(payload)/api/webhooks/cloudflare-stream/
+        // and .claude/rules/storage.md.
 
         const originalFilename = file.filename
         const existingMetadata =
@@ -179,9 +195,9 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
     },
 
     staticHandler: async (_req, { params }) => {
-      // Redirect to the Cloudflare Stream HLS manifest
+      // Redirect to Cloudflare Stream MP4 download URL
       const videoId = params.filename
-      const url = `${config.deliveryUrl}/${videoId}/manifest/video.m3u8`
+      const url = `${config.deliveryUrl}/${videoId}/downloads/default.mp4`
       return Response.redirect(url, 302)
     },
   })
