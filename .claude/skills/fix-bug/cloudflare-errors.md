@@ -29,18 +29,18 @@ Consult Payload's error logs in `.claude/skills/dev-server/state/server.log` and
 
 ## Cloudflare Stream errors
 
-**Symptoms:** Video upload succeeds but `hlsUrl` is empty or the thumbnail never appears.
+**Symptoms:** Video upload succeeds but `hlsUrl` empty, thumbnail never appears, webhook never fires.
 
 **Where to look:**
 
-- `src/plugins/storage/cloudflareStreamAdapter.ts` — upload + Stream URL helpers
-- `src/plugins/storage/urlFields.ts` — `hlsUrl` / `url` virtual fields
+- `src/app/(payload)/api/webhooks/cloudflare-stream/route.ts` — webhook handler
+- `src/plugins/storage/cloudflareStreamAdapter.ts` (or similar)
 
 **Common causes:**
 
+- Webhook secret mismatch → Cloudflare can't reach the handler
 - Video still processing (Stream takes 1–N minutes); `readyToStream: false` until done
 - API token lacks Stream permission
-- `CLOUDFLARE_STREAM_DELIVERY_URL` unset → `url`/`hlsUrl` fall back to the local `/api/<collection>/file/...` route (500s in prod)
 
 ## Cloudflare Images errors
 

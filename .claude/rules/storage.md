@@ -1,6 +1,7 @@
 ---
 paths:
   - src/plugins/storage/**/*.ts
+  - src/app/(payload)/api/webhooks/**/*.ts
 ---
 
 # Storage architecture
@@ -13,7 +14,7 @@ local-file fallback in development.
 | Storage               | Collections                                                                                                                   | URL format                                                                                                                                                                                                                        |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Cloudflare Images** | `images` (uploads); also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks              | `https://imagedelivery.net/<hash>/<imageId>/public`                                                                                                                                                                               |
-| **Cloudflare Stream** | `videos`, `frames` (video MIME types)                                                                                         | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>HLS: `.../manifest/video.m3u8` (`hlsUrl`, also the generic `url` for video files) |
+| **Cloudflare Stream** | `videos`, `frames` (video MIME types)                                                                                         | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>HLS: `.../manifest/video.m3u8` (`hlsUrl`, also the generic `url` for video files)<br>MP4: `.../downloads/default.mp4` (`mp4Url`) |
 | **R2 (S3 API)**       | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>`                                                                                                                                                                            |
 
 R2 is configured via S3-compatible API (`@aws-sdk/client-s3`) with environment variables (R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY).
@@ -28,8 +29,9 @@ are unset — no setup required.
 | ---------------------------- | ------------------------------------------------------------------------------ |
 | `storagePlugin.ts`           | Plugin orchestration, adapter routing, R2 hook injection                       |
 | `cloudflareImagesAdapter.ts` | Image uploads to Cloudflare Images                                             |
-| `cloudflareStreamAdapter.ts` | Video uploads to Cloudflare Stream (transcoding, HLS, thumbnails)              |
-| `cloudflareSchemas.ts`       | Zod schemas for all Cloudflare API responses (Images, Stream)                  |
+| `cloudflareStreamAdapter.ts` | Video uploads to Cloudflare Stream (does NOT enable downloads — webhook does)  |
+| `cloudflareStreamWebhook.ts` | Pure helpers for the webhook handler (signature verify + downloads call)       |
+| `cloudflareSchemas.ts`       | Zod schemas for all Cloudflare API responses (Images, Stream, webhook payload) |
 | `r2NativeAdapter.ts`         | Custom R2 adapter with filename sanitization                                   |
 | `r2FilenameHook.ts`          | `beforeOperation` hook that pre-assigns the final R2 key                       |
 | `mixedMediaAdapter.ts`       | Routes by MIME type → Images/Stream/R2                                         |
@@ -52,6 +54,7 @@ fields: [
 | `previewUrlField({ collection, width?, height? })` | Preview/thumbnail URL for images/videos                                                            |
 | `mixedMediaUrlField({ collection })`               | Full-resolution URL for mixed media (images → Images, videos → Stream HLS manifest, other → R2)    |
 | `hlsUrlField({ collection })`                      | HLS manifest (`hlsUrl`); `null` for non-video. Mount on every collection that exposes a video URL. |
+| `mp4UrlField({ collection })`                      | MP4 download (`mp4Url`); `null` for non-video. Mount alongside `hlsUrlField`.                      |
 
 ## R2 S3 adapter (`r2NativeAdapter.ts`)
 
@@ -192,6 +195,148 @@ file is deleted alongside the parent Frame.
 `sizes.small.url`. Falls back to a video element if generation fails.
 
 Implementation: `src/lib/videoThumbnailUtils.ts`.
+
+## Cloudflare Stream webhook
+
+Cloudflare Stream uploads are not immediately playable as MP4 — the
+`/<uid>/downloads/default.mp4` URL returns 404 until MP4 downloads are
+explicitly enabled, and that API rejects the request until
+`readyToStream: true`. We can't enable downloads synchronously inside
+the storage adapter; instead we subscribe to the account-scoped Stream
+webhook and enable downloads from a signed handler once Cloudflare
+notifies us the video is ready.
+
+### Architecture
+
+```
+Admin upload
+   │
+   ▼
+cloudflareStreamAdapter.handleUpload
+   │  POST /accounts/{id}/stream    (upload bytes)
+   │  ◄── { uid, readyToStream: false }
+   │  filename set to uid, document saved
+   ▼
+(Cloudflare transcodes in the background)
+   │
+   ▼
+Cloudflare Stream
+   │  POST https://cloud.sydevelopers.com/api/webhooks/cloudflare-stream
+   │  Webhook-Signature: time=<unix>,sig1=<hmac-sha256-hex>
+   │  body = full video object
+   ▼
+Webhook route handler (src/app/(payload)/api/webhooks/cloudflare-stream/route.ts)
+   │  1. Read raw body via request.text() BEFORE parsing
+   │  2. Verify HMAC-SHA256 over `${time}.${rawBody}` (constant-time)
+   │  3. Parse with Zod
+   │  4. If status.state === "ready": POST /accounts/{id}/stream/{uid}/downloads
+   │  5. Respond 200 (Cloudflare retries on non-2xx)
+   ▼
+Video has MP4 URL
+```
+
+### Security
+
+- **HMAC-SHA256** signature over `{time}.{rawBody}`, keyed with
+  `CLOUDFLARE_STREAM_WEBHOOK_SECRET`.
+- **5-minute freshness window** on the timestamp — past or future stale
+  values are rejected (replay protection).
+- **Constant-time comparison** on the hex signature (timing-attack safe).
+- Raw body read via `request.text()` _before_ any JSON parse, so the
+  bytes used for HMAC verification are byte-identical to what Cloudflare
+  signed.
+- Web Crypto (`crypto.subtle`) — same code path runs in Node and in
+  vitest.
+
+### One-time production setup
+
+```bash
+# 1. Register the webhook
+export CLOUDFLARE_ACCOUNT_ID=<prod-account-id>
+export CLOUDFLARE_API_KEY=<token-with-stream-edit>
+
+pnpm tsx scripts/setup-stream-webhook.ts \
+  --url https://cloud.sydevelopers.com/api/webhooks/cloudflare-stream
+# prints the signing secret
+
+# Inspect current registration without changing
+pnpm tsx scripts/setup-stream-webhook.ts --get
+
+# 2. Store the secret as a Railway service variable:
+#    CLOUDFLARE_STREAM_WEBHOOK_SECRET=<printed-secret>
+#    (Railway dashboard → Variables, or `railway variables --set ...`)
+
+# 3. Redeploy on Railway (git push, or trigger a redeploy) to pick it up
+```
+
+If a different URL is already registered, the script refuses and prints
+the current value. Pass `--force` to override.
+
+### Verify end-to-end
+
+1. Log into admin at `https://cloud.sydevelopers.com/admin`.
+2. Upload a small test video (videos / frames / files).
+3. `railway logs` (or the Railway dashboard logs) — expect:
+   - `Uploading video to Cloudflare Stream`
+   - `Video uploaded successfully`
+   - 15–60 s later: `MP4 downloads enabled via webhook`
+4. The document's `url` / `hlsUrl` fields resolve to the HLS manifest
+   (`.../<uid>/manifest/video.m3u8`) immediately. After the webhook fires,
+   `mp4Url` resolves to `.../<uid>/downloads/default.mp4` (the second-class,
+   prefetchable MP4).
+
+### Dev environment
+
+Dev does **not** subscribe to the webhook and **does not** auto-enable MP4
+downloads. The webhook is account-scoped — if dev registered its own URL,
+the next production upload would silently fail until prod was
+re-registered.
+
+The route handler is still deployed in dev, but without
+`CLOUDFLARE_STREAM_WEBHOOK_SECRET` set it returns 503 for any POST.
+
+**Trade-off**: dev-uploaded videos have broken MP4 URLs until enabled
+manually. For local QA needing a working MP4, upload against production
+or backfill the specific video.
+
+### Manual backfill
+
+For videos uploaded before the webhook was wired up, or for dev uploads
+that need to play:
+
+```bash
+export CLOUDFLARE_ACCOUNT_ID=<account-id>
+export CLOUDFLARE_API_KEY=<token-with-stream-edit>
+export VIDEO_UID=<the-videos-filename-field>
+
+curl -X POST \
+  -H "Authorization: Bearer ${CLOUDFLARE_API_KEY}" \
+  https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/stream/${VIDEO_UID}/downloads
+```
+
+The video's `filename` field in Payload is the Stream UID.
+
+### Debugging
+
+- `railway logs` (or the Railway dashboard logs)
+- Look for `MP4 downloads enabled via webhook` (success) or
+  `Failed to enable MP4 downloads` / `Cloudflare Stream reported processing error`.
+- A 400/401 from the webhook usually means the signing secret in Railway
+  doesn't match what Cloudflare has — re-run
+  `scripts/setup-stream-webhook.ts --get` and compare.
+- Cloudflare retries non-2xx with exponential backoff, so transient errors
+  recover on their own.
+
+### Webhook key files
+
+- `src/app/(payload)/api/webhooks/cloudflare-stream/route.ts` — Next.js
+  POST handler (thin wrapper, see `routes.md`)
+- `src/plugins/storage/cloudflareStreamWebhook.ts` — pure helpers
+  (`parseSignatureHeader`, `verifySignature`, `handleStreamWebhook`)
+- `src/plugins/storage/cloudflareSchemas.ts` —
+  `CloudflareStreamWebhookPayloadSchema`
+- `scripts/setup-stream-webhook.ts` — setup / teardown script
+- `tests/int/cloudflare-stream-webhook.int.spec.ts` — handler unit tests
 
 ## External Cloudflare API response validation (Zod)
 

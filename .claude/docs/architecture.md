@@ -11,17 +11,17 @@ Hybrid approach: Cloudflare Images & Stream for media processing + CDN, R2 (S3 A
 | Storage               | Collections                                                                                                                   | URL format                                                                                                                                                                                |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Cloudflare Images** | `images` (also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks)                       | `https://imagedelivery.net/<hash>/<imageId>/public`                                                                                                                                       |
-| **Cloudflare Stream** | `videos`, `frames` (video MIME types)                                                                                         | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>HLS: `.../manifest/video.m3u8` (`hlsUrl`, also the generic `url` for video files) |
+| **Cloudflare Stream** | `videos`, `frames` (video MIME types)                                                                                         | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>MP4: `.../downloads/default.mp4` (`mp4Url`)<br>HLS: `.../manifest/video.m3u8` (`hlsUrl`) |
 | **R2 (S3 API)**       | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>`                                                                                                                                    |
 
 ### Canonical URL field names
 
-`videos`, `frames`, and `files` expose an `hlsUrl` (HLS manifest) virtual field. The generic `url` field resolves by MIME — for video it is the HLS manifest (on `frames` and `files`: image / R2 / HLS). Lecture player-data responses (`/api/lectures/for-audience`, `/api/meditations/:id/related-lectures`) expose `hlsUrl`.
+`videos`, `frames`, and `files` expose `hlsUrl` (HLS manifest) and `mp4Url` (MP4 download) virtual fields. On `frames` and `files` the generic `url` field is the mixed-media file URL (image / R2 / MP4 by MIME); read `mp4Url` when you specifically need the MP4. Lecture player-data responses (`/api/lectures/for-audience`, `/api/meditations/:id/related-lectures`) expose `hlsUrl`.
 
-Adapter routing, the R2 filename preassignment hook, and
-Zod-validated Cloudflare API responses are all documented in
-`.claude/rules/storage.md` (auto-loads when editing
-`src/plugins/storage/`).
+Adapter routing, the R2 filename preassignment hook, the
+Cloudflare Stream webhook, and Zod-validated Cloudflare API responses
+are all documented in `.claude/rules/storage.md` (auto-loads when
+editing `src/plugins/storage/`).
 
 ## Route Structure
 
@@ -51,6 +51,7 @@ Two places to add HTTP endpoints, chosen by scope:
 | `health/route.ts`                     | `/api/health`                     | liveness check                    |
 | `openapi.json/route.ts`               | `/api/openapi.json`               | filtered OpenAPI spec             |
 | `seed/[script]/route.ts`              | `/api/seed/:script`               | seed trigger with SSE             |
+| `webhooks/cloudflare-stream/route.ts` | `/api/webhooks/cloudflare-stream` | Cloudflare Stream webhook handler |
 
 ## OpenAPI / Scalar API Docs
 
@@ -73,7 +74,7 @@ shim, and the known-limitations list are in `.claude/rules/openapi.md`
 - **Albums** — music album groupings with `artwork` relationship to Images and a join field for related songs.
 - **Songs** — background music tracks with audio upload, required album relationship, hidden from sidebar (managed via Albums).
 - **Lessons** ("Path Steps") — audio + panels array, unit selection (1–4), step number, optional meditation relationship, localized rich text article.
-- **Videos** — Cloudflare Stream uploads with HLS streaming, virtual `url` (HLS) and `previewUrl` (thumbnail) fields.
+- **Videos** — Cloudflare Stream uploads with HLS streaming, virtual `url` (HLS, live immediately) and `previewUrl` (thumbnail) fields; `mp4Url` exposes the MP4 download separately (404s until the Stream webhook enables it).
 - **AppCards** — mobile cards with `type` discriminator (`standard` / `event`). Three named view tabs under Appearance: `default` (always shown), `startingSoon` and `liveNow` (event-only, each gated by `enabled` + `threshold` HH:MM). Every view tab has `header`, `image`, `overlay`, `title`, `subtitle`, `button`, and a `destination` row (appPage / lecture / album / meditation / url). Event cards carry a `scheduleField` in the Rules tab. `audiences` hasMany (OR semantics — shown if any overlap), `conditions` hasMany (AND semantics — all context audience IDs must be in the caller's resolved list), weight (1–5). A `AppCardViewSchedule` admin component shows the active time window for each view when schedule + threshold are configured.
 
 ### Resources
