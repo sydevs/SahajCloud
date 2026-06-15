@@ -9,9 +9,7 @@ const computeTabTitleUrls: FieldHook = ({ value, siblingData }) => {
   if ((siblingData as { style?: string })?.style !== 'tabs') return value
   return (value as Array<{ title?: string; titleUrl?: string }>).map((item) => ({
     ...item,
-    titleUrl: item.title
-      ? `#${slugify(item.title, { strict: true, lower: true })}`
-      : item.titleUrl,
+    titleUrl: item.title ? `#${slugify(item.title, { strict: true, lower: true })}` : item.titleUrl,
   }))
 }
 
@@ -125,7 +123,7 @@ export const LayoutBlock: Block = {
         plural: 'Items',
       },
       minRows: 1,
-      maxRows: 10,
+      maxRows: 12,
       hooks: {
         afterRead: [computeTabTitleUrls],
         beforeChange: [computeTabTitleUrls],
