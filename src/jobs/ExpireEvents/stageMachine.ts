@@ -1,5 +1,5 @@
 import { addDays } from '@/lib/eventVerification/periods'
-import type { VerificationStage } from '@/lib/eventVerification/stages'
+import { STAGE_DURATION_DAYS, type VerificationStage } from '@/lib/eventVerification/stages'
 import type { ReminderLevel } from '@/lib/notifications'
 
 /** What to do when a due event at a given stage is processed. */
@@ -31,28 +31,28 @@ const TRANSITIONS: Record<
     level: 'due',
     includeRegion: false,
     nextStage: 'reminded',
-    offsetDays: 7,
+    offsetDays: STAGE_DURATION_DAYS.verified,
     unpublish: false,
   },
   reminded: {
     level: 'escalated',
     includeRegion: true,
     nextStage: 'escalated',
-    offsetDays: 7,
+    offsetDays: STAGE_DURATION_DAYS.reminded,
     unpublish: false,
   },
   escalated: {
     level: 'urgent',
     includeRegion: true,
     nextStage: 'urgent',
-    offsetDays: 7,
+    offsetDays: STAGE_DURATION_DAYS.escalated,
     unpublish: false,
   },
   urgent: {
     level: 'expired',
     includeRegion: true,
     nextStage: 'expired',
-    offsetDays: 14,
+    offsetDays: STAGE_DURATION_DAYS.urgent,
     unpublish: true,
   },
   expired: {

@@ -39,6 +39,12 @@ list; for the full set see `node_modules/@payloadcms/ui/dist/exports/client/inde
 | Severity icons | `WarningIcon`, `ErrorIcon`, `InfoIcon`, `SuccessIcon` |
 | Other icons | `CalendarIcon`, `CheckIcon`, `ChevronIcon`, `CopyIcon`, `EditIcon`, `ExternalLinkIcon`, `GearIcon`, `PlusIcon`, `SearchIcon`, `XIcon`, … |
 
+`Table` is list-view-shaped: pass `data` (row objects with an `id`) + `columns:
+Column[]`, where each column carries pre-rendered `renderedCells` (one node per
+row), `accessor`, and `active: true`. The `Column` type also requires a `field`
+that the component never reads at runtime — stub it (`field: {} as never`). See
+`src/components/admin/NotificationLogTable/` for the working pattern.
+
 **Building a custom field component?** Compose Payload's field primitives instead
 of bespoke markup (see "Custom field components" below): `FieldLabel`,
 `FieldError`, `FieldDescription`, plus the input fields `TextField`,
