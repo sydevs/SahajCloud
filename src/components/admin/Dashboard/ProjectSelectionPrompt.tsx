@@ -1,6 +1,7 @@
 'use client'
 
 import { useAuth } from '@payloadcms/ui'
+import { TriangleAlert } from 'lucide-react'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
 import type { ProjectSlug } from '@/payload-types'
@@ -40,13 +41,8 @@ export default function ProjectSelectionPrompt() {
             border: '2px solid var(--theme-elevation-200)',
           }}
         >
-          <div
-            style={{
-              fontSize: 'calc(var(--base-body-size) * 4px)',
-              marginBottom: 'calc(var(--base) * 1.5)',
-            }}
-          >
-            ⚠️
+          <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+            <TriangleAlert size={52} color="var(--theme-warning-500)" aria-hidden />
           </div>
           <h2
             style={{
