@@ -117,12 +117,29 @@ export const Events: CollectionConfig = {
             {
               type: 'row',
               fields: [
-                { name: 'contactPhone', type: 'text' },
+                {
+                  name: 'contactPhone',
+                  type: 'text',
+                  // Inactive events have no schedule, so a public contact is the
+                  // only way a seeker can reach out — require it (and the name
+                  // below) when inactive. Always visible, so this can't gate on
+                  // an `admin.condition`; a validate keeps active events optional.
+                  validate: (
+                    value: string | null | undefined,
+                    { data }: { data?: { inactive?: boolean } },
+                  ) =>
+                    data?.inactive && !value
+                      ? 'Add a contact phone — inactive events have no schedule for seekers to rely on.'
+                      : true,
+                },
                 {
                   name: 'contactName',
                   type: 'text',
                   required: true,
-                  admin: { condition: (data) => !!data?.contactPhone },
+                  // Required (and shown) when a phone is given, or when the event
+                  // is inactive. A false condition skips both `required` + this,
+                  // so active events without a phone stay unaffected.
+                  admin: { condition: (data) => !!data?.contactPhone || !!data?.inactive },
                 },
               ],
             },
@@ -154,7 +171,7 @@ export const Events: CollectionConfig = {
               defaultValue: false,
               admin: {
                 description:
-                  'Mark this event dormant (no active schedule). Inactive events still need verification but never auto-finish.',
+                  'Mark this event dormant — it has no active schedule. With no schedule to show, you must provide contact info (phone + name) so seekers can reach out and find out more. Inactive events still need verification but never auto-finish.',
               },
             },
             scheduleFields({
