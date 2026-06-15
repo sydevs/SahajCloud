@@ -1,18 +1,19 @@
 import type { CSSProperties, ReactNode } from 'react'
 
+import { CircleCheck, Clock, TriangleAlert, type LucideIcon } from 'lucide-react'
 import Image from 'next/image'
 
 import type { EventDetails } from '@/emails/EventVerificationEmail'
 import type { EmailBrand } from '@/plugins/email'
 
-/** Outcome flavour → emblem + accent colour. */
-export const TONES = {
-  success: { emoji: '✅', accent: '#16a34a' },
-  warning: { emoji: '⏰', accent: '#f59e0b' },
-  error: { emoji: '⚠️', accent: '#ef4444' },
-} as const
+export type VerifyTone = 'success' | 'warning' | 'error'
 
-export type VerifyTone = keyof typeof TONES
+/** Outcome flavour → emblem icon + accent colour. */
+export const TONES: Record<VerifyTone, { Icon: LucideIcon; accent: string }> = {
+  success: { Icon: CircleCheck, accent: '#16a34a' },
+  warning: { Icon: Clock, accent: '#f59e0b' },
+  error: { Icon: TriangleAlert, accent: '#ef4444' },
+}
 
 /** A button rendered under the message (`primary` filled, `secondary` outlined). */
 export interface PageAction {
@@ -161,10 +162,12 @@ export function VerificationCard({
   message,
   actions = [],
 }: VerificationCardProps) {
-  const { emoji, accent } = TONES[tone]
+  const { Icon, accent } = TONES[tone]
   return (
     <CardShell brand={brand} iconSrc={iconSrc}>
-      <div style={emblem}>{emoji}</div>
+      <div style={emblem}>
+        <Icon size={44} color={accent} strokeWidth={1.75} aria-hidden />
+      </div>
       <h2 style={{ ...cardTitle, color: accent }}>{title}</h2>
       <p style={cardMessage}>{message}</p>
       <ActionButtons brand={brand} actions={actions} />
