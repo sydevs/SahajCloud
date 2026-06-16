@@ -139,6 +139,8 @@ export const meditationSongs: Endpoint = {
     const trimmed: SongResult[] = (result.docs as Song[]).map((doc) => {
       const out: SongResult = { id: doc.id }
       for (const field of selectedFields) {
+        // `field` keys both types with matching value types, but TS can't
+        // track that correlation across the loop — hence the `as never`.
         out[field] = doc[field] as never
       }
       return out
