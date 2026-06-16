@@ -24,20 +24,66 @@ export type StepStatus = 'done' | 'current' | 'upcoming'
 
 const STEP_ORDER: JourneyKey[] = ['verified', 'reminders', 'expired']
 
-/** One-line explanation per step (status-independent). */
-const STEP_CAPTIONS: Record<StepKey, string> = {
-  verified: 'Confirmed accurate and publicly listed.',
-  reminders:
-    'Managers are contacted with weekly reminders to check and verify the event details are still accurate.',
-  expired: 'Will be unpublished and hidden from the public until the event is re-verified.',
-  finished: 'The event’s schedule has ended, so it’s no longer publicly listed.',
+interface StepCopy {
+  label: string
+  caption: string
 }
 
-/** Label, tensed by status — past steps read in the past tense, etc. */
-function stepLabel(key: JourneyKey, status: StepStatus): string {
-  if (key === 'verified') return 'Last Verified'
-  if (key === 'reminders') return status === 'done' ? 'Reminders Sent' : 'Needs Verification'
-  return status === 'current' ? 'Expired' : 'Will Expire' // expired
+/**
+ * Label + one-line caption for every step, tensed by status — `done` reads in
+ * the past, `current` in the present, `upcoming` in the future. The component
+ * looks up `STEP_COPY[key][status]`; `finished` is rendered as `current`.
+ */
+const STEP_COPY: Record<StepKey, Record<StepStatus, StepCopy>> = {
+  verified: {
+    done: { label: 'Last Verified', caption: 'Was confirmed accurate and publicly listed.' },
+    current: { label: 'Last Verified', caption: 'Confirmed accurate and publicly listed.' },
+    upcoming: { label: 'Verification', caption: 'Will be confirmed accurate and publicly listed.' },
+  },
+  reminders: {
+    done: {
+      label: 'Reminders Sent',
+      caption: 'Managers were reminded to check and re-verify the event details.',
+    },
+    current: {
+      label: 'Needs Verification',
+      caption:
+        'Managers are being reminded weekly to check and verify the event details are still accurate.',
+    },
+    upcoming: {
+      label: 'Will Need Verification',
+      caption:
+        'Managers will be reminded weekly to check and verify the event details are still accurate.',
+    },
+  },
+  expired: {
+    done: {
+      label: 'Expired',
+      caption: 'Was unpublished and hidden from the public until re-verified.',
+    },
+    current: {
+      label: 'Expired',
+      caption: 'Unpublished and hidden from the public until the event is re-verified.',
+    },
+    upcoming: {
+      label: 'Will Expire',
+      caption: 'Will be unpublished and hidden from the public until the event is re-verified.',
+    },
+  },
+  finished: {
+    done: {
+      label: 'Finished',
+      caption: 'The event’s schedule has ended, so it’s no longer publicly listed.',
+    },
+    current: {
+      label: 'Finished',
+      caption: 'The event’s schedule has ended, so it’s no longer publicly listed.',
+    },
+    upcoming: {
+      label: 'Finishes',
+      caption: 'Will no longer be publicly listed once its schedule ends.',
+    },
+  },
 }
 
 export interface TrackerStep {
@@ -47,7 +93,7 @@ export interface TrackerStep {
   status: StepStatus
   /** ISO date to show, or null. */
   date: string | null
-  /** Small qualifier before the date, e.g. `next reminder on` / `if not updated by`. */
+  /** Small qualifier before the date, e.g. `next reminder on` / `if not verified by`. */
   datePrefix?: string
 }
 
@@ -120,8 +166,8 @@ export function buildStageTracker(args: {
       steps: [
         {
           key: 'finished',
-          label: 'Finished',
-          caption: STEP_CAPTIONS.finished,
+          label: STEP_COPY.finished.current.label,
+          caption: STEP_COPY.finished.current.caption,
           status: 'current',
           date: updatedAt ?? null,
         },
@@ -150,6 +196,10 @@ export function buildStageTracker(args: {
       if (status === 'current') {
         date = nextCheckAt ?? null
         datePrefix = 'next reminder on'
+      } else if (status === 'upcoming') {
+        // While verified: when this event will first need re-verification.
+        date = nextCheckAt ?? null
+        datePrefix = 'on'
       }
     } else if (status === 'current' && expiredActual) {
       // already expired — the actual unpublish date
@@ -158,13 +208,14 @@ export function buildStageTracker(args: {
     } else if (currentStage) {
       // not yet expired — the projected date if it isn't re-verified first
       date = projectedExpiry(currentStage, nextCheckAt)
-      if (date) datePrefix = 'if not updated by'
+      if (date) datePrefix = 'if not verified by'
     }
 
+    const copy = STEP_COPY[key][status]
     return {
       key,
-      label: stepLabel(key, status),
-      caption: STEP_CAPTIONS[key],
+      label: copy.label,
+      caption: copy.caption,
       status,
       date,
       datePrefix,

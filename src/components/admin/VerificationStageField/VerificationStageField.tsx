@@ -2,7 +2,7 @@
 
 import type { FieldClientComponent, SelectFieldClient } from 'payload'
 
-import { FieldDescription, FieldLabel, useFormFields } from '@payloadcms/ui'
+import { FieldLabel, useFormFields } from '@payloadcms/ui'
 import React from 'react'
 
 import type { VerificationStage } from '@/lib/eventVerification/stages'
@@ -10,7 +10,7 @@ import type { VerificationStage } from '@/lib/eventVerification/stages'
 import './styles.css'
 import { buildStageTracker, formatStageDate, type TrackerStep } from './timeline'
 
-/** `if not updated by 10 Jul 2026` / `next reminder on 26 Jun 2026` / `9 May 2026`. */
+/** `if not verified by 10 Jul 2026` / `next reminder on 26 Jun 2026` / `9 May 2026`. */
 function stepDateText(step: TrackerStep): string | null {
   const date = formatStageDate(step.date)
   if (!date) return null
@@ -29,7 +29,7 @@ function stepClassName(step: TrackerStep): string {
  * a terminal note above a muted tracker.
  */
 export const VerificationStageField: FieldClientComponent = ({ field }) => {
-  const { name, label, admin } = field as SelectFieldClient
+  const { name, label } = field as SelectFieldClient
   const stage = useFormFields(
     ([fields]) => fields?.verificationStage?.value as VerificationStage | undefined,
   )
@@ -64,7 +64,6 @@ export const VerificationStageField: FieldClientComponent = ({ field }) => {
           })}
         </ol>
       </div>
-      <FieldDescription description={admin?.description} path={name} />
     </div>
   )
 }

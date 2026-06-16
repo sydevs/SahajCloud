@@ -45,6 +45,7 @@
     "@sentry/nextjs": "^10.29.0",
     "@sentry/react": "^10.29.0",
     "@types/styled-components": "^5.1.35",
+    "@vvo/tzdb": "^6.198.0",
     "country-region-data": "^4.1.0",
     "dotenv": "16.4.7",
     "image-size": "^2.0.2",

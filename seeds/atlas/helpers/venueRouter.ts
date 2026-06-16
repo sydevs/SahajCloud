@@ -1,0 +1,106 @@
+/**
+ * Venue routing for the Atlas import. There is no Venues collection: a venue
+ * referenced by more than one event becomes a Regions `center` node (events
+ * point their `region` at it); a single-use venue's address is lifted inline
+ * onto the event's `address` group. Pure helpers — the actual center creation +
+ * Mapbox geocoding live in the importer.
+ */
+
+export interface AtlasVenue {
+  legacyId: number
+  placeId: string | null
+  name: string | null
+  street: string | null
+  city: string | null
+  countryCode: string | null
+  postCode: string | null
+  regionCode: string | null
+  latitude: number | null
+  longitude: number | null
+  timeZone: string | null
+}
+
+/** The two event fields venue routing reads. */
+export interface VenueEventRef {
+  venueId: number | null
+  areaId: number | null
+}
+
+/** Count events per venue (events with no venue are ignored). */
+export function countVenueUsage(events: VenueEventRef[]): Map<number, number> {
+  const counts = new Map<number, number>()
+  for (const event of events) {
+    if (event.venueId == null) continue
+    counts.set(event.venueId, (counts.get(event.venueId) ?? 0) + 1)
+  }
+  return counts
+}
+
+/** Venues referenced by more than one event → become Regions `center` nodes. */
+export function multiUseVenueIds(events: VenueEventRef[]): Set<number> {
+  const ids = new Set<number>()
+  for (const [venueId, count] of countVenueUsage(events)) {
+    if (count > 1) ids.add(venueId)
+  }
+  return ids
+}
+
+/**
+ * The area (→ city) a venue's center should hang under: the most common
+ * `areaId` among the events that reference it (ties broken by first seen).
+ * Null when none of its events carry an area.
+ */
+export function venueParentAreaId(venueId: number, events: VenueEventRef[]): number | null {
+  const counts = new Map<number, number>()
+  for (const event of events) {
+    if (event.venueId !== venueId || event.areaId == null) continue
+    counts.set(event.areaId, (counts.get(event.areaId) ?? 0) + 1)
+  }
+  let best: number | null = null
+  let bestCount = 0
+  for (const [areaId, count] of counts) {
+    if (count > bestCount) {
+      best = areaId
+      bestCount = count
+    }
+  }
+  return best
+}
+
+/** A display name for a center node: the venue name, else its street/city. */
+export function venueDisplayName(venue: AtlasVenue): string {
+  const name = venue.name?.trim()
+  if (name) return name
+  const parts = [venue.street?.trim(), venue.city?.trim()].filter(Boolean)
+  return parts.join(', ') || `Venue ${venue.legacyId}`
+}
+
+/** The event `address` group shape (mapboxId resolved by the caller's geocoder). */
+export interface EventAddress {
+  mapboxId: string
+  street?: string
+  postCode?: string
+  country?: string
+  region?: string
+  city?: string
+  latitude?: number
+  longitude?: number
+}
+
+/**
+ * Lift a single-use venue's address onto an event's inline `address` group.
+ * `mapboxId` is resolved by the caller (geocode → real id, or `manual`). Empty
+ * fields are omitted; the venue's own coordinates back the manual fallback.
+ */
+export function venueToEventAddress(venue: AtlasVenue, mapboxId: string): EventAddress {
+  const address: EventAddress = { mapboxId }
+  const street = venue.street?.trim()
+  if (street) address.street = street
+  if (venue.city) address.city = venue.city
+  if (venue.countryCode) address.country = venue.countryCode
+  if (venue.regionCode) address.region = venue.regionCode
+  if (venue.postCode) address.postCode = venue.postCode
+  if (venue.latitude != null) address.latitude = venue.latitude
+  if (venue.longitude != null) address.longitude = venue.longitude
+  return address
+}

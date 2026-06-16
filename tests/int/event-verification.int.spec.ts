@@ -97,7 +97,7 @@ describe('Event verification lifecycle', () => {
     const { schedule: scheduleOverride, ...rest } = overrides as Record<string, unknown>
     const data: Record<string, unknown> = {
       title: 'Lifecycle Event',
-      language: 'en',
+      languages: ['en'],
       eventType: 'online',
       onlineUrl: 'https://example.com/meet',
       registrationMode: 'sahaj-atlas',
@@ -470,7 +470,13 @@ describe('Event verification lifecycle', () => {
   })
 
   it('an inactive event expires through the ladder and never finishes', async () => {
-    const event = await createEvent({ inactive: true, schedule: null } as Partial<Event>)
+    // Inactive events have no schedule, so contact info is required (#479).
+    const event = await createEvent({
+      inactive: true,
+      schedule: null,
+      contactPhone: '+44 20 7946 0000',
+      contactName: 'Event Contact',
+    } as Partial<Event>)
     await makeDue(payload, event.id)
     const result = await runJob(payload)
 

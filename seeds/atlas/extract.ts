@@ -46,7 +46,6 @@ const REGISTRATION_NOTIFICATION: Record<number, string> = {
   1: 'immediate',
   2: 'disabled',
 }
-const EVENT_STATUS: Record<number, string> = { 0: 'active', 6: 'expired' }
 const CONTACT_METHOD: Record<number, string> = {
   0: 'email',
   1: 'whatsapp',
@@ -268,6 +267,13 @@ async function main() {
   )
 
   // --- events.json ---
+  // The raw Atlas status integer is preserved verbatim (`0` and `6` are the only
+  // values in the dump); the importer maps it to #484's `verificationStage`
+  // (`0 → verified`, `6 → finished`). The full raw row rides along in
+  // `legacyData` so the deferred verification/expiry state machine (#484) can
+  // read the lifecycle timestamps (`verified_at`, `expiration_period`,
+  // `should_update_status_at`, …) without re-accessing `atlas.dump`. Events carry
+  // no secrets, so keeping the entire row is safe.
   const events = await all('select * from events order by id')
   write(
     'events',
@@ -275,7 +281,7 @@ async function main() {
       legacyId: e.id,
       eventType: e.type === 'OnlineEvent' ? 'online' : 'offline',
       category: enumMap(EVENT_CATEGORY, e.category),
-      status: enumMap(EVENT_STATUS, e.status),
+      status: e.status,
       customName: e.custom_name,
       room: e.room,
       description: e.description,
@@ -295,6 +301,9 @@ async function main() {
       finishDate: e.finish_date ? normalizeDate(String(e.finish_date)) : null,
       schedule: parseSchedule(e.recurrence_data),
       createdAt: e.created_at,
+      // Full raw Atlas row (all columns, jsonb parsed) for the deferred #484
+      // lifecycle work — keeps `verified_at`, `expiration_period`, etc.
+      legacyData: e,
     })),
   )
 
@@ -322,11 +331,36 @@ async function main() {
     users.map((u) => ({ legacyId: u.id, email: u.email, name: u.name, createdAt: u.created_at })),
   )
 
-  // --- managers.json ---
-  // Region responsibility (Atlas `managed_records`) is no longer folded onto
-  // the manager here: it now lives on the owning side, `regions.managers`
-  // (#462 / #476). The Phase-3 importer resolves those geo refs from the Atlas
-  // source directly — see seeds/atlas/MIGRATION_PLAN.md.
+  // --- managers.json (with folded managed_records → customResourceAccess) ---
+  // Atlas `managed_records` is each manager's geographic responsibility. It's
+  // folded onto the manager here as `customResourceAccess` so the Phase-3
+  // importer (which only sees these JSON files, not `atlas.dump`) can resolve
+  // each ref to a `regions` doc and add the manager to that region's `managers`
+  // — the owning side of geo responsibility post-#476. The name is historical
+  // (the Payload `Managers.customResourceAccess` field was dropped in #476); the
+  // importer never writes it back to a manager.
+  const countryIds = new Set(countries.map((c) => c.id))
+  const areaIds = new Set(areas.map((a) => a.id))
+  const managedRecords = await all('select * from managed_records order by id')
+  const craByManager = new Map<number, Row[]>()
+  const seenCra = new Set<string>()
+  for (const mr of managedRecords) {
+    const level = recordTypeToLevel(mr.record_type)
+    if (!level) continue
+    // Drop refs whose target no longer exists (1 orphan LocalArea → area 59).
+    const exists =
+      (level === 'country' && countryIds.has(mr.record_id)) ||
+      (level === 'region' && regionIds.has(mr.record_id)) ||
+      (level === 'area' && areaIds.has(mr.record_id))
+    if (!exists) continue
+    const key = `${mr.manager_id}:${level}:${mr.record_id}`
+    if (seenCra.has(key)) continue
+    seenCra.add(key)
+    const list = craByManager.get(mr.manager_id) ?? []
+    list.push({ level, legacyId: mr.record_id })
+    craByManager.set(mr.manager_id, list)
+  }
+
   const managers = await all('select * from managers order by id')
   write(
     'managers',
@@ -342,6 +376,7 @@ async function main() {
       contactMethod: enumMap(CONTACT_METHOD, m.contact_method),
       notifications: decodeFlags(NOTIFICATION_FLAGS, m.notifications),
       lastLoginAt: m.last_login_at,
+      customResourceAccess: craByManager.get(m.id) ?? [],
     })),
   )
 

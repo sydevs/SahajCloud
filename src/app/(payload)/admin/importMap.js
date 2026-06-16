@@ -47,6 +47,7 @@ import { default as default_7994614945cfe693dd6db5da6470f962 } from '@/component
 import { default as default_ef5838f2c1b8d0747618a584b33f2f1e } from '@/components/admin/AddressSearchField'
 import { default as default_ed3b039830992dc45486e37aaf03df7c } from '@/components/admin/EventVerificationNotice'
 import { default as default_1dd99abed7767ee797cacf1ad150de88 } from '@/components/admin/StringSelectField'
+import { default as default_d749fd4cc4f11cb94ed2d6b537f6015d } from '@/components/admin/InfoBanner'
 import { default as default_d73215fe105de40829b40e0975052656 } from '@/components/admin/VerificationStageField'
 import { default as default_e9940a7953b8550d5f74ed2aed219091 } from '@/components/admin/NotificationLogTable'
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -65,7 +66,6 @@ import { default as default_ffac54d067109368ad5684d6ea4e1327 } from '@/component
 import { default as default_8dcebb2ea41c850ff8532af16196e52b } from '@/components/admin/ReadinessField'
 import { default as default_7b4ba381140135af5cae014b3533be0b } from '@/components/branding/Icon'
 import { default as default_742835b254059f88bfb2f781ea75df90 } from '@/components/branding/Logo'
-import { default as default_99ec85ba93967a6d388d145a54b117df } from '@/components/admin/Dashboard/InactiveAccountAlert'
 import { default as default_1035e04fd02d13e92bb29364184fcf83 } from '@/components/admin/Dashboard/ProjectSelectionPrompt'
 import { default as default_b4b93444e002b46abfd0c5006e1279a0 } from '@/components/admin/ProjectSelector'
 import { default as default_f5da5fa50c48fc2ef14afcb84f969fcf } from '@/components/admin/AdminNavLinks'
@@ -124,6 +124,7 @@ export const importMap = {
   "@/components/admin/AddressSearchField#default": default_ef5838f2c1b8d0747618a584b33f2f1e,
   "@/components/admin/EventVerificationNotice#default": default_ed3b039830992dc45486e37aaf03df7c,
   "@/components/admin/StringSelectField#default": default_1dd99abed7767ee797cacf1ad150de88,
+  "@/components/admin/InfoBanner#default": default_d749fd4cc4f11cb94ed2d6b537f6015d,
   "@/components/admin/VerificationStageField#default": default_d73215fe105de40829b40e0975052656,
   "@/components/admin/NotificationLogTable#default": default_e9940a7953b8550d5f74ed2aed219091,
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
@@ -142,7 +143,6 @@ export const importMap = {
   "@/components/admin/ReadinessField#default": default_8dcebb2ea41c850ff8532af16196e52b,
   "@/components/branding/Icon#default": default_7b4ba381140135af5cae014b3533be0b,
   "@/components/branding/Logo#default": default_742835b254059f88bfb2f781ea75df90,
-  "@/components/admin/Dashboard/InactiveAccountAlert#default": default_99ec85ba93967a6d388d145a54b117df,
   "@/components/admin/Dashboard/ProjectSelectionPrompt#default": default_1035e04fd02d13e92bb29364184fcf83,
   "@/components/admin/ProjectSelector#default": default_b4b93444e002b46abfd0c5006e1279a0,
   "@/components/admin/AdminNavLinks#default": default_f5da5fa50c48fc2ef14afcb84f969fcf,

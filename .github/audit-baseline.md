@@ -97,6 +97,7 @@ transform); `sass`/`eslint` operate on our own sources at build/lint time.
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------- |
 | [GHSA-p9ff-h696-f583](https://github.com/advisories/GHSA-p9ff-h696-f583) (CVE-2026-39363) | `vite` via `@vitejs/plugin-react`                      | Arbitrary file read via dev-server WebSocket |
 | [GHSA-v2wj-q39q-566r](https://github.com/advisories/GHSA-v2wj-q39q-566r) (CVE-2026-39364) | `vite` via `@vitejs/plugin-react`                      | `server.fs.deny` bypassed with queries       |
+| [GHSA-fx2h-pf6j-xcff](https://github.com/advisories/GHSA-fx2h-pf6j-xcff)                   | `vite` via `@vitejs/plugin-react` + `vitest`           | `server.fs.deny` bypass on Windows alt paths |
 | [GHSA-wf6x-7x77-mvgw](https://github.com/advisories/GHSA-wf6x-7x77-mvgw) (CVE-2026-29063) | `immutable` via `vite > sass`                          | Prototype pollution                          |
 | [GHSA-25h7-pfq9-p65f](https://github.com/advisories/GHSA-25h7-pfq9-p65f) (CVE-2026-32141) | `flatted` via `eslint > file-entry-cache > flat-cache` | Unbounded-recursion DoS in `parse()`         |
 | [GHSA-rf6f-7fwh-wjgh](https://github.com/advisories/GHSA-rf6f-7fwh-wjgh) (CVE-2026-33228) | `flatted` via `eslint > file-entry-cache > flat-cache` | Prototype pollution via `parse()`            |
@@ -114,3 +115,17 @@ rather than pinned).
 | GHSA                                                                                      | Package · path                       | Advisory                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------- |
 | [GHSA-gv7w-rqvm-qjhr](https://github.com/advisories/GHSA-gv7w-rqvm-qjhr) | `esbuild` via `payload > tsx` (build) | Missing binary integrity verification (Deno) → RCE |
+
+### `ws` — WebSocket lib in dev/test transitive paths only
+
+`ws <8.21.0` (memory-exhaustion DoS from tiny fragments). Every path is
+dev/test/build-only and not reachable in the deployed runtime: `@payloadcms/
+db-postgres > … > @libsql/… > ws` is the SQLite driver, **unused** on this
+Postgres deployment, and `react-email > socket.io > ws` is React Email's local
+preview server, not the rendered-email output. No WebSocket fed by
+attacker-controlled traffic runs in production. Clear by bumping the transitive
+`ws` to `>=8.21.0` once the intermediate deps allow it.
+
+| GHSA                                                                                      | Package · path                                                        | Advisory                                |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------- |
+| [GHSA-96hv-2xvq-fx4p](https://github.com/advisories/GHSA-96hv-2xvq-fx4p) | `ws` via `@payloadcms/db-postgres > … > @libsql` (unused) + `react-email` (dev) | Memory-exhaustion DoS from tiny fragments |
