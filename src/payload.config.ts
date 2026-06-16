@@ -82,10 +82,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           },
         ],
         beforeNavLinks: ['@/components/admin/ProjectSelector', '@/components/admin/AdminNavLinks'],
-        beforeDashboard: [
-          '@/components/admin/Dashboard/InactiveAccountAlert',
-          '@/components/admin/Dashboard/ProjectSelectionPrompt',
-        ],
+        beforeDashboard: ['@/components/admin/Dashboard/ProjectSelectionPrompt'],
         graphics: {
           Logo: '@/components/branding/Logo',
           Icon: '@/components/branding/Icon',
