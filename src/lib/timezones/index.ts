@@ -33,6 +33,15 @@ export const SUPPORTED_TIMEZONES: TimezoneOption[] = (() => {
       if (!byValue.has(value)) byValue.set(value, { label: zone.rawFormat, value })
     }
   }
+  // `@vvo/tzdb` also omits the POSIX `Etc/GMT*` zones (the Atlas registrations
+  // carry e.g. `Etc/GMT-3`). Add the full range. The name's sign is inverted
+  // from the offset (`Etc/GMT-3` is UTC+3), so the label shows the real offset.
+  for (let offset = -14; offset <= 12; offset++) {
+    const value = offset === 0 ? 'Etc/GMT' : `Etc/GMT${offset < 0 ? offset : `+${offset}`}`
+    const sign = offset >= 0 ? '+' : '-'
+    const hh = String(Math.abs(offset)).padStart(2, '0')
+    if (!byValue.has(value)) byValue.set(value, { label: `(UTC${sign}${hh}:00) ${value}`, value })
+  }
   return [...byValue.values()]
 })()
 

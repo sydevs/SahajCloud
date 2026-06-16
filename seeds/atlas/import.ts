@@ -690,9 +690,15 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         : undefined
 
     const inactive = event.category === 'inactive'
-    const contactName = event.contactInfo?.phone_name?.trim() || undefined
-    const contactPhone = event.contactInfo?.phone_number?.trim() || undefined
-    const hasContact = !!contactPhone && !!contactName
+    // Contact is all-or-nothing: contactName is required whenever contactPhone
+    // is set, so a lone phone (no name) — ~61 Atlas events — can't satisfy the
+    // schema. Import the pair only when both are present (raw values ride along
+    // in legacyData regardless).
+    const rawContactName = event.contactInfo?.phone_name?.trim() || undefined
+    const rawContactPhone = event.contactInfo?.phone_number?.trim() || undefined
+    const hasContact = !!rawContactName && !!rawContactPhone
+    const contactName = hasContact ? rawContactName : undefined
+    const contactPhone = hasContact ? rawContactPhone : undefined
 
     // Schedule timezone: the venue's (offline) or the event's area's (online).
     const timeZone =
@@ -841,7 +847,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             roles: ['sahaj-atlas-client'],
             active: client.enabled,
             domains: client.config?.domain || undefined,
-            color1: client.config?.primary_color || undefined,
+            color1: isHexColor(client.config?.primary_color)
+              ? client.config?.primary_color
+              : undefined,
             locale: mapLanguageCode(client.config?.locale),
             region,
             clientId: client.clientId ?? undefined,
@@ -1009,6 +1017,11 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 /** A throwaway strong password for an imported (passwordless) manager. */
 function randomPassword(): string {
   return `Atlas-${randomUUID()}`
+}
+
+/** Whether a value is a #RGB / #RRGGBB hex color (what `colorField` accepts). */
+function isHexColor(value: string | null | undefined): boolean {
+  return !!value && /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(value)
 }
 
 export default AtlasImporter
