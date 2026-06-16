@@ -83,6 +83,16 @@ describe('notification-log format', () => {
     it('falls back to #id when an actor has no name', () => {
       expect(whoCell({ ...verification, by: { id: 42, name: '' } })).toEqual({ name: '#42' })
     })
+
+    it('attributes seed-imported verifications to "Sahaj Atlas Import"', () => {
+      const imported: NotificationLogEntry = {
+        kind: 'verification',
+        at: '2026-06-13T14:30:00.000Z',
+        by: null,
+        method: 'import',
+      }
+      expect(whoCell(imported)).toEqual({ name: 'Sahaj Atlas Import' })
+    })
   })
 
   describe('deliveryCell', () => {

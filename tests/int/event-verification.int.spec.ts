@@ -97,7 +97,7 @@ describe('Event verification lifecycle', () => {
     const { schedule: scheduleOverride, ...rest } = overrides as Record<string, unknown>
     const data: Record<string, unknown> = {
       title: 'Lifecycle Event',
-      language: 'en',
+      languages: ['en'],
       eventType: 'online',
       onlineUrl: 'https://example.com/meet',
       registrationMode: 'sahaj-atlas',

@@ -33,6 +33,7 @@ import {
 } from '@/lib/mapbox/geocoder'
 
 import { BaseImporter, type BaseImportOptions, fetchAsset, MediaUploader } from '../lib'
+import { plainTextToLexical } from './helpers/lexical'
 import {
   mapContactDetails,
   mapLanguageCode,
@@ -734,10 +735,11 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       title:
         event.customName?.trim() ||
         (event.eventType === 'online' ? 'Online Sahaj Yoga Meditation' : undefined),
-      language: language ?? DEFAULT_LOCALE,
+      languages: [language ?? DEFAULT_LOCALE],
       contactPhone,
       contactName,
-      description: event.description?.trim() || undefined,
+      // Atlas stores descriptions as plain text; the richText field needs Lexical.
+      description: plainTextToLexical(event.description),
       inactive,
       ...(inactive ? {} : { schedule: mapSchedule(event.schedule, timeZone) ?? undefined }),
       region: regionId,

@@ -243,6 +243,18 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path }) =>
           Enter manually
         </button>
       ) : null}
+      {value && value !== MANUAL ? (
+        <div
+          style={{
+            marginTop: 'calc(var(--base) * 0.3)',
+            fontSize: 'calc(var(--base-body-size) * 1px * 0.85)',
+            color: 'var(--theme-elevation-400)',
+            opacity: 0.7,
+          }}
+        >
+          Mapbox ID: {value}
+        </div>
+      ) : null}
     </div>
   )
 }

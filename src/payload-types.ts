@@ -681,6 +681,7 @@ export interface Config {
       managedEvents: 'events';
     };
     regions: {
+      children: 'regions';
       events: 'events';
     };
     events: {
@@ -1335,15 +1336,15 @@ export interface Region {
    * The geographic parent of this node (a higher level).
    */
   parent?: (number | null) | Region;
+  /**
+   * Search for this place (country, region, city, or venue) to set its geographic identity, or "Enter manually" to provide your own coordinates.
+   */
+  mapboxId: string;
   name: string;
   /**
    * Text that appears below the region name in listings
    */
   subtitle?: string | null;
-  /**
-   * Search for this place (country, region, city, or venue) to set its geographic identity, or "Enter manually" to provide your own coordinates.
-   */
-  mapboxId: string;
   latitude?: number | null;
   longitude?: number | null;
   /**
@@ -1354,6 +1355,14 @@ export interface Region {
    * Managers responsible for this region.
    */
   managers?: (number | Manager)[] | null;
+  /**
+   * Regions nested directly beneath this one.
+   */
+  children?: {
+    docs?: (number | Region)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   /**
    * These fields will be used to set defaults for Events in this region
    */
@@ -2136,6 +2145,14 @@ export interface Region {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  breadcrumbs?:
+    | {
+        doc?: (number | null) | Region;
+        url?: string | null;
+        label?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -2145,14 +2162,6 @@ export interface Region {
     | string
     | number
     | boolean
-    | null;
-  breadcrumbs?:
-    | {
-        doc?: (number | null) | Region;
-        url?: string | null;
-        label?: string | null;
-        id?: string | null;
-      }[]
     | null;
   updatedAt: string;
   createdAt: string;
@@ -2168,9 +2177,9 @@ export interface Event {
    */
   title: string;
   /**
-   * Language this event is conducted in.
+   * Language(s) this event is conducted in.
    */
-  language:
+  languages: (
     | 'ab'
     | 'aa'
     | 'af'
@@ -2353,8 +2362,15 @@ export interface Event {
     | 'yi'
     | 'yo'
     | 'za'
-    | 'zu';
+    | 'zu'
+  )[];
+  /**
+   * A phone number that seekers can call to learn more about the program.
+   */
   contactPhone?: string | null;
+  /**
+   * The name of the person they are calling
+   */
   contactName?: string | null;
   description?: {
     root: {
@@ -2439,9 +2455,6 @@ export interface Event {
   address?: {
     mapboxId?: string | null;
     street?: string | null;
-    /**
-     * Room or floor within the venue, if any.
-     */
     room?: string | null;
     postCode?: string | null;
     country?: string | null;
@@ -2475,9 +2488,6 @@ export interface Event {
    * Manager responsible for verifying this event.
    */
   manager: number | Manager;
-  /**
-   * Public events are re-verified periodically so the map stays accurate. If an event isn’t re-verified in time, its manager — then the region managers above it — are reminded, and it’s eventually unpublished. Saving or publishing the event re-verifies it and restarts this cycle.
-   */
   verificationStage: 'verified' | 'reminded' | 'escalated' | 'urgent' | 'expired' | 'finished';
   nextCheckAt?: string | null;
   /**
@@ -5088,13 +5098,14 @@ export interface AppCardsSelect<T extends boolean = true> {
 export interface RegionsSelect<T extends boolean = true> {
   level?: T;
   parent?: T;
+  mapboxId?: T;
   name?: T;
   subtitle?: T;
-  mapboxId?: T;
   latitude?: T;
   longitude?: T;
   radius?: T;
   managers?: T;
+  children?: T;
   eventDefaults?:
     | T
     | {
@@ -5102,8 +5113,6 @@ export interface RegionsSelect<T extends boolean = true> {
         timeZone?: T;
       };
   events?: T;
-  legacyId?: T;
-  legacyData?: T;
   breadcrumbs?:
     | T
     | {
@@ -5112,6 +5121,8 @@ export interface RegionsSelect<T extends boolean = true> {
         label?: T;
         id?: T;
       };
+  legacyId?: T;
+  legacyData?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -5121,7 +5132,7 @@ export interface RegionsSelect<T extends boolean = true> {
  */
 export interface EventsSelect<T extends boolean = true> {
   title?: T;
-  language?: T;
+  languages?: T;
   contactPhone?: T;
   contactName?: T;
   description?: T;
