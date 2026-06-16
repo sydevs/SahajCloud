@@ -730,44 +730,57 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
     const status = wantsPublish && !draftReason ? 'published' : 'draft'
 
-    const result = await this.upsert<{ id: number }>(
-      'events',
-      { legacyId: { equals: event.legacyId } },
-      {
-        title:
-          event.customName?.trim() ||
-          (event.eventType === 'online' ? 'Online Sahaj Yoga Meditation' : undefined),
-        language: language ?? DEFAULT_LOCALE,
-        contactPhone,
-        contactName,
-        description: event.description?.trim() || undefined,
-        inactive,
-        ...(inactive ? {} : { schedule: mapSchedule(event.schedule, timeZone) ?? undefined }),
-        region: regionId,
-        eventType: event.eventType,
-        onlineUrl: event.eventType === 'online' ? event.onlineUrl?.trim() || undefined : undefined,
-        ...(address ? { address } : {}),
-        registrationMode: event.registrationMode === 'native' ? 'sahaj-atlas' : 'external',
-        externalRegistrationUrl:
-          event.registrationMode !== 'native'
-            ? event.registrationUrl?.trim() || undefined
-            : undefined,
-        registrationLimit: event.registrationLimit ?? undefined,
-        registrationQuestions: this.mapRegistrationQuestions(event),
-        manager: managerId,
-        ...verification,
-        _status: status,
-        legacyId: event.legacyId,
-        legacyData: event.legacyData,
-      },
-      {
-        identifier: event.customName || `event-${event.legacyId}`,
-        current: ctx.current,
-        total: ctx.total,
-        // Keep the imported verification snapshot — don't let verifyOnSave reset it.
-        context: { skipVerifyHook: true },
-      },
-    )
+    const eventData: Record<string, unknown> = {
+      title:
+        event.customName?.trim() ||
+        (event.eventType === 'online' ? 'Online Sahaj Yoga Meditation' : undefined),
+      language: language ?? DEFAULT_LOCALE,
+      contactPhone,
+      contactName,
+      description: event.description?.trim() || undefined,
+      inactive,
+      ...(inactive ? {} : { schedule: mapSchedule(event.schedule, timeZone) ?? undefined }),
+      region: regionId,
+      eventType: event.eventType,
+      onlineUrl: event.eventType === 'online' ? event.onlineUrl?.trim() || undefined : undefined,
+      ...(address ? { address } : {}),
+      registrationMode: event.registrationMode === 'native' ? 'sahaj-atlas' : 'external',
+      externalRegistrationUrl:
+        event.registrationMode !== 'native'
+          ? event.registrationUrl?.trim() || undefined
+          : undefined,
+      registrationLimit: event.registrationLimit ?? undefined,
+      registrationQuestions: this.mapRegistrationQuestions(event),
+      manager: managerId,
+      ...verification,
+      _status: status,
+      legacyId: event.legacyId,
+      legacyData: event.legacyData,
+    }
+    const upsertOpts = {
+      identifier: event.customName || `event-${event.legacyId}`,
+      current: ctx.current,
+      total: ctx.total,
+      // Keep the imported verification snapshot — don't let verifyOnSave reset it.
+      context: { skipVerifyHook: true },
+    }
+    const where = { legacyId: { equals: event.legacyId } }
+
+    let result: { doc: { id: number } }
+    try {
+      result = await this.upsert<{ id: number }>('events', where, eventData, upsertOpts)
+    } catch (error) {
+      // Don't drop a published event with incomplete/malformed source data (e.g.
+      // a bad onlineUrl) — re-import it as a draft so an admin can fix + publish.
+      if (status !== 'published' || (error as Error)?.name !== 'ValidationError') throw error
+      this.addWarning(`Event #${event.legacyId}: imported as draft — ${(error as Error).message}`)
+      result = await this.upsert<{ id: number }>(
+        'events',
+        where,
+        { ...eventData, _status: 'draft' },
+        upsertOpts,
+      )
+    }
     this.idMaps.events.set(event.legacyId, result.doc.id)
   }
 
