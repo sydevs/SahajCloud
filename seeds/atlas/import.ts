@@ -439,7 +439,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             name: manager.name,
             email: manager.email,
             type: manager.type,
-            languageCode: mapLanguageCode(manager.languageCode),
+            language: mapLanguageCode(manager.languageCode),
             contactDetails: mapContactDetails(
               manager.contactMethod,
               manager.phone,
@@ -630,6 +630,10 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const venuesById = new Map(data.venues.map((v) => [v.legacyId, v]))
     const centerVenueIds = multiUseVenueIds(data.events)
     const managersByLegacyId = new Map(data.managers.map((m) => [m.legacyId, m]))
+    // Area (→ city) timezone, the schedule timezone for venue-less (online) events.
+    const areaTimeZoneById = new Map(
+      data.regions.filter((r) => r.level === 'area').map((r) => [r.legacyId, r.timeZone]),
+    )
 
     for (let i = 0; i < batch.length; i++) {
       const event = batch[i]
@@ -640,6 +644,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
           venuesById,
           centerVenueIds,
           managersByLegacyId,
+          areaTimeZoneById,
           current: offset + i + 1,
           total,
         })
@@ -656,6 +661,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       venuesById: Map<number, AtlasVenue>
       centerVenueIds: Set<number>
       managersByLegacyId: Map<number, AtlasManager>
+      areaTimeZoneById: Map<number, string | null | undefined>
       current: number
       total: number
     },
@@ -683,8 +689,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const contactPhone = event.contactInfo?.phone_number?.trim() || undefined
     const hasContact = !!contactPhone && !!contactName
 
-    // Address (offline events only — every offline Atlas event has a venue).
-    const timeZone = venue?.timeZone ?? undefined
+    // Schedule timezone: the venue's (offline) or the event's area's (online).
+    const timeZone =
+      venue?.timeZone ?? (event.areaId != null ? ctx.areaTimeZoneById.get(event.areaId) : undefined)
     let address: Record<string, unknown> | undefined
     if (event.eventType === 'offline' && venue) {
       const mapboxId = await this.resolveVenueMapbox(venue)

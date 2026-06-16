@@ -163,7 +163,7 @@ export const Managers: CollectionConfig = {
           label: 'Contact',
           fields: [
             {
-              name: 'languageCode',
+              name: 'language',
               type: 'select',
               options: getLanguageOptions(),
               admin: { description: "The manager's preferred language." },

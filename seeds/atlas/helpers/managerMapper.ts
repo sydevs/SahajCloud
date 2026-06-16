@@ -2,7 +2,7 @@
  * Pure field mappers for the Atlas Managers import (#462 / #479). Kept side-
  * effect free so they're unit testable without a Payload bootstrap.
  */
-import { isValidLocale } from '@/lib/locales'
+import ISO6391 from 'iso-639-1'
 
 export type ContactPlatform = 'whatsapp' | 'telegram' | 'wechat'
 
@@ -76,13 +76,14 @@ export function mapContactDetails(
 }
 
 /**
- * Atlas UPPER language code → a supported lower ISO-639-1 locale, or undefined
- * when blank/unsupported. `PT` aliases to `pt-br` (the only Portuguese locale).
- * Callers that need a required value fall back to the default locale themselves.
+ * Atlas UPPER language code → a lower two-letter ISO 639-1 code, or undefined
+ * when blank/unsupported. The Managers `languageCode`, Events `language`, and
+ * Regions/Clients language fields all use `getLanguageOptions()` — the full
+ * ISO 639-1 set (value = the 2-letter code) — so we validate against that
+ * standard, not the 16 CMS UI locales (which include `pt-br` and exclude
+ * `nl`/`fi`/`sl`). Callers needing a required value fall back themselves.
  */
 export function mapLanguageCode(code: string | null | undefined): string | undefined {
   const lower = code?.trim().toLowerCase()
-  if (!lower) return undefined
-  const aliased = lower === 'pt' ? 'pt-br' : lower
-  return isValidLocale(aliased) ? aliased : undefined
+  return lower && ISO6391.validate(lower) ? lower : undefined
 }

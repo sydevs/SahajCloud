@@ -67,14 +67,18 @@ describe('mapLanguageCode', () => {
     expect(mapLanguageCode('EN')).toBe('en')
   })
 
-  it('aliases PT to the only Portuguese locale', () => {
-    expect(mapLanguageCode('PT')).toBe('pt-br')
+  it('accepts any valid ISO 639-1 code (the language field is the full set)', () => {
+    // pt/nl/fi/sl aren't CMS UI locales, but the language field allows all ISO codes.
+    expect(mapLanguageCode('PT')).toBe('pt')
+    expect(mapLanguageCode('NL')).toBe('nl')
+    expect(mapLanguageCode('SL')).toBe('sl')
+    expect(mapLanguageCode('FI')).toBe('fi')
   })
 
-  it('returns undefined for blank or unsupported codes', () => {
+  it('returns undefined for blank or non-ISO codes', () => {
     expect(mapLanguageCode(null)).toBeUndefined()
     expect(mapLanguageCode('')).toBeUndefined()
-    expect(mapLanguageCode('SL')).toBeUndefined() // Slovenian — not a CMS locale
-    expect(mapLanguageCode('FI')).toBeUndefined() // Finnish — not a CMS locale
+    expect(mapLanguageCode('pt-br')).toBeUndefined() // not a 2-letter ISO 639-1 code
+    expect(mapLanguageCode('xx')).toBeUndefined()
   })
 })

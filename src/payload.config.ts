@@ -14,6 +14,7 @@ import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
+import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/plugins/access'
 import { resendAdapter } from '@/plugins/email'
@@ -54,6 +55,12 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     csrf: [serverUrl, serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
     admin: {
       user: Managers.slug,
+      // Widen the timezone picker (and every `timezone: true` companion's enum)
+      // to the full IANA set — the Atlas data uses zones beyond Payload's
+      // curated default list. Deterministic: see @/lib/timezones.
+      timezones: {
+        supportedTimezones: SUPPORTED_TIMEZONES,
+      },
       importMap: {
         baseDir: path.resolve(dirname),
       },
