@@ -51,3 +51,5 @@ auditConfig:
     - 'GHSA-25h7-pfq9-p65f'
     - 'GHSA-rf6f-7fwh-wjgh'
     - 'GHSA-gv7w-rqvm-qjhr'
+    - 'GHSA-96hv-2xvq-fx4p' # ws — dev/test only (libsql unused on Postgres; react-email dev)
+    - 'GHSA-fx2h-pf6j-xcff' # vite — test only (vitest), Windows-only, not deployed

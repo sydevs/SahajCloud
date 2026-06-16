@@ -35,10 +35,10 @@ describe('buildStageTracker', () => {
   it('always renders the three steps in order', () => {
     const { steps } = buildStageTracker({ log: [], currentStage: 'verified', nextCheckAt: null })
     expect(steps.map((s) => s.key)).toEqual(['verified', 'reminders', 'expired'])
-    // upcoming expired reads as "Will Expire"
+    // upcoming reminders read as "Will Need Verification"; upcoming expired as "Will Expire"
     expect(steps.map((s) => s.label)).toEqual([
       'Last Verified',
-      'Needs Verification',
+      'Will Need Verification',
       'Will Expire',
     ])
     steps.forEach((s) => expect(s.caption).toBeTruthy())
@@ -50,12 +50,18 @@ describe('buildStageTracker', () => {
       buildStageTracker({ log: [verification], currentStage: 'verified', nextCheckAt }).steps,
     )
     expect(s.verified).toMatchObject({ status: 'current', date: T0 })
-    expect(s.reminders).toMatchObject({ status: 'upcoming', date: null })
+    // upcoming reminders: future tense + when it will first need re-verification
+    expect(s.reminders).toMatchObject({
+      status: 'upcoming',
+      label: 'Will Need Verification',
+      date: nextCheckAt,
+      datePrefix: 'on',
+    })
     // expiry = nextCheckAt + 7 (reminded) + 7 (escalated) + 14 (urgent) = +28d
     expect(s.expired).toMatchObject({
       status: 'upcoming',
       label: 'Will Expire',
-      datePrefix: 'if not updated by',
+      datePrefix: 'if not verified by',
     })
     expect(s.expired.date).toBe('2026-07-11T00:00:00.000Z')
   })
@@ -75,7 +81,7 @@ describe('buildStageTracker', () => {
     expect(s.expired).toMatchObject({
       status: 'upcoming',
       label: 'Will Expire',
-      datePrefix: 'if not updated by',
+      datePrefix: 'if not verified by',
     })
     expect(s.expired.date).toBe('2026-07-11T00:00:00.000Z')
   })

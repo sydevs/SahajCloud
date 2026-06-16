@@ -108,21 +108,47 @@ export const Events: CollectionConfig = {
               },
             },
             {
-              name: 'language',
+              name: 'languages',
               type: 'select',
+              hasMany: true,
               required: true,
               options: getLanguageOptions(),
-              admin: { description: 'Language this event is conducted in.' },
+              admin: { description: 'Language(s) this event is conducted in.' },
             },
             {
               type: 'row',
               fields: [
-                { name: 'contactPhone', type: 'text' },
+                {
+                  name: 'contactPhone',
+                  label: 'Contact Phone Number',
+                  type: 'text',
+                  // Inactive events have no schedule, so a public contact is the
+                  // only way a seeker can reach out — require it (and the name
+                  // below) when inactive. Always visible, so this can't gate on
+                  // an `admin.condition`; a validate keeps active events optional.
+                  validate: (
+                    value: string | null | undefined,
+                    { data }: { data?: { inactive?: boolean } },
+                  ) =>
+                    data?.inactive && !value
+                      ? 'Add a contact phone — inactive events have no schedule for seekers to rely on.'
+                      : true,
+                  admin: {
+                    description:
+                      'A phone number that seekers can call to learn more about the program.',
+                  },
+                },
                 {
                   name: 'contactName',
                   type: 'text',
                   required: true,
-                  admin: { condition: (data) => !!data?.contactPhone },
+                  // Required (and shown) when a phone is given, or when the event
+                  // is inactive. A false condition skips both `required` + this,
+                  // so active events without a phone stay unaffected.
+                  admin: {
+                    condition: (data) => !!data?.contactPhone || !!data?.inactive,
+                    description: 'The name of the person they are calling',
+                  },
                 },
               ],
             },
@@ -154,7 +180,7 @@ export const Events: CollectionConfig = {
               defaultValue: false,
               admin: {
                 description:
-                  'Mark this event dormant (no active schedule). Inactive events still need verification but never auto-finish.',
+                  'Mark this event dormant — it has no active schedule. With no schedule to show, you must provide contact info (phone + name) so seekers can reach out and find out more. Inactive events still need verification but never auto-finish.',
               },
             },
             scheduleFields({
@@ -224,15 +250,16 @@ export const Events: CollectionConfig = {
                     condition: (data) => data?.registrationMode === 'external',
                   },
                 }),
+                {
+                  name: 'registrationLimit',
+                  type: 'number',
+                  min: 0,
+                  admin: {
+                    description: 'Maximum registrations (blank = unlimited).',
+                    condition: (data) => data?.registrationMode === 'sahaj-atlas',
+                  },
+                },
               ],
-            },
-            {
-              name: 'registrationLimit',
-              type: 'number',
-              min: 0,
-              admin: {
-                description: 'Maximum registrations (blank = unlimited).',
-              },
             },
             {
               name: 'registrationQuestions',
@@ -259,6 +286,21 @@ export const Events: CollectionConfig = {
           label: 'Verification',
           fields: [
             {
+              // Tutorial banner explaining the verification lifecycle, shown above
+              // the manager + stage tracker. Generic InfoBanner (icon/title/text
+              // via `custom`) — see @/components/admin/InfoBanner.
+              name: 'verificationGuide',
+              type: 'ui',
+              admin: {
+                custom: {
+                  icon: 'tutorial',
+                  title: 'How verification works',
+                  text: 'Public events are re-verified periodically so the map stays accurate. If an event isn’t re-verified in time, its manager — then the region managers above it — are reminded, and it’s eventually unpublished. Saving or publishing the event re-verifies it and restarts this cycle.',
+                },
+                components: { Field: '@/components/admin/InfoBanner' },
+              },
+            },
+            {
               name: 'manager',
               type: 'relationship',
               relationTo: 'managers',
@@ -278,8 +320,6 @@ export const Events: CollectionConfig = {
               enumName: 'enum_events_verification_stage',
               admin: {
                 readOnly: true,
-                description:
-                  'Public events are re-verified periodically so the map stays accurate. If an event isn’t re-verified in time, its manager — then the region managers above it — are reminded, and it’s eventually unpublished. Saving or publishing the event re-verifies it and restarts this cycle.',
                 components: { Field: '@/components/admin/VerificationStageField' },
               },
             },

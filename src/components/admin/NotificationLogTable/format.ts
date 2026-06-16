@@ -67,6 +67,8 @@ export interface WhoCell {
  */
 export function whoCell(entry: NotificationLogEntry): WhoCell {
   if (entry.kind === 'verification') {
+    // The Atlas seed importer verifies events with no acting manager.
+    if (entry.method === 'import') return { name: 'Sahaj Atlas Import' }
     return { name: actorName(entry.by) }
   }
   const role = ROLE_LABELS[entry.role]
