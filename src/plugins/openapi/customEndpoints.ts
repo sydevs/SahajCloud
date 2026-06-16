@@ -150,6 +150,46 @@ const jsonDocsResponse = (itemSchemaRef: string): OpenAPIResponse => ({
 })
 
 /**
+ * Full Payload paginated list envelope (`docs` + pagination metadata), matching
+ * the built-in collection list endpoints. Use for custom endpoints that return
+ * `Response.json({ ...payloadFindResult })` unchanged except for `docs` ordering.
+ */
+const paginatedDocsResponse = (itemSchemaRef: string, description: string): OpenAPIResponse => ({
+  description,
+  content: {
+    'application/json': {
+      schema: {
+        type: 'object',
+        required: [
+          'docs',
+          'totalDocs',
+          'limit',
+          'totalPages',
+          'page',
+          'pagingCounter',
+          'hasPrevPage',
+          'hasNextPage',
+          'prevPage',
+          'nextPage',
+        ],
+        properties: {
+          docs: { type: 'array', items: { $ref: itemSchemaRef } },
+          totalDocs: { type: 'integer' },
+          limit: { type: 'integer' },
+          totalPages: { type: 'integer' },
+          page: { type: 'integer' },
+          pagingCounter: { type: 'integer' },
+          hasPrevPage: { type: 'boolean' },
+          hasNextPage: { type: 'boolean' },
+          prevPage: { type: ['integer', 'null'] },
+          nextPage: { type: ['integer', 'null'] },
+        },
+      },
+    },
+  },
+})
+
+/**
  * Lecture player-data subtitle map: `{ [localeCode]: subtitleFileUrl }`.
  * Distinct from the inline caption-data shape in `src/lib/utilities/subtitles.ts`
  * (which is what Videos / Lessons / Lecture authoring fields store).
@@ -328,9 +368,9 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       summary: 'Lectures related to a meditation',
       description:
         'Returns lectures contextually relevant to a meditation, ranked by ' +
-        'the topical overlap between the meditation\'s on-screen chakras ' +
-        '(its frames\' `subtleSystemNodes`, weighted by on-screen seconds) ' +
-        'and each lecture\'s tagged `subtleSystemNodes`. ' +
+        "the topical overlap between the meditation's on-screen chakras " +
+        "(its frames' `subtleSystemNodes`, weighted by on-screen seconds) " +
+        "and each lecture's tagged `subtleSystemNodes`. " +
         'By default, lectures with no chakra overlap are excluded — they ' +
         'have no relevance signal. ' +
         'When `userChoice` is set, candidates expand to lectures that ' +
@@ -398,6 +438,53 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       },
     },
   },
+
+  '/api/meditations/{id}/songs': {
+    get: {
+      tags: ['Meditations'],
+      summary: 'Background-music songs for a meditation',
+      description:
+        'Returns the songs offered as background music for a meditation: every ' +
+        "song tagged with the meditation's single `songTag` that is flagged " +
+        '`includeForMeditations`, returned in randomized order (the set is ' +
+        'deterministic for a fixed meditation; only ordering varies). Capped at ' +
+        'an internal limit of 100 — there is no client-facing `limit` param. ' +
+        'Each song is trimmed to `id`, `title`, `url`, and `tags` (an array of ' +
+        'song-tag IDs); the `select` query param narrows the response within ' +
+        'that allowlist (`id` is always present). A meditation with no `songTag` ' +
+        'returns an empty paginated response. The body matches the built-in ' +
+        'Payload list shape (`docs` plus pagination metadata).',
+      operationId: 'meditationSongs',
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          description: 'ID of the meditation whose background-music songs to fetch.',
+          schema: { type: 'string' },
+        },
+        {
+          name: 'select',
+          in: 'query',
+          required: false,
+          description:
+            'Optional Payload REST bracket-notation select to narrow the ' +
+            'returned fields within the `{ id, title, url, tags }` allowlist, ' +
+            'e.g. `?select[title]=true`. Out-of-allowlist keys are ignored; ' +
+            '`id` is always returned; omitting `select` returns all four fields.',
+          schema: { type: 'string' },
+        },
+      ],
+      responses: {
+        '200': paginatedDocsResponse(
+          '#/components/schemas/MeditationSong',
+          'Paginated list of background-music songs (randomized order).',
+        ),
+        '400': errorResponse('Missing or invalid meditation id.'),
+        '404': errorResponse('Meditation not found.'),
+      },
+    },
+  },
 }
 
 // ── Schema definitions ────────────────────────────────────────────────────────
@@ -453,6 +540,26 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       stopTime: { type: ['number', 'null'] },
       duration: { type: ['number', 'null'] },
       fullLectureId: { type: ['integer', 'null'] },
+    },
+  },
+  /**
+   * Trimmed song doc returned by `GET /api/meditations/{id}/songs`. `url` is the
+   * virtual R2 file URL; `tags` is an array of song-tag IDs (depth: 0). Keep in
+   * lockstep with the allowlist in `src/collections/Meditations/endpoints/songs.ts`.
+   * `additionalProperties: false` keeps the shape tight so no other Song field leaks.
+   */
+  MeditationSong: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id'],
+    properties: {
+      id: { type: 'integer' },
+      title: { type: ['string', 'null'] },
+      url: { type: ['string', 'null'] },
+      tags: {
+        type: 'array',
+        items: { type: 'integer' },
+      },
     },
   },
   /**
