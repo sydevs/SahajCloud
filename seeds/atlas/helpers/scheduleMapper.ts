@@ -64,10 +64,23 @@ const WEEKDAY_CODES: Record<string, string> = {
 const WEEK_NUMBERS = new Set(['1', '2', '3', '4', '-1'])
 const DEFAULT_TIME = '00:00'
 
+/** RFC 5545 weekday codes indexed by Temporal `dayOfWeek` (1 = Monday … 7 = Sunday). */
+const WEEKDAY_BY_INDEX = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
+
 /** Map an Atlas weekday name (case-insensitive) to its two-letter code. */
 function weekdayCode(weekday: string | null | undefined): string | undefined {
   if (!weekday) return undefined
   return WEEKDAY_CODES[weekday.trim().toLowerCase()]
+}
+
+/** The weekday of a `YYYY-MM-DD` date — the fallback for weekly events with no `weekday`. */
+function weekdayFromDate(startDate: string | null | undefined): string | undefined {
+  if (!startDate) return undefined
+  try {
+    return WEEKDAY_BY_INDEX[Temporal.PlainDate.from(startDate).dayOfWeek - 1]
+  } catch {
+    return undefined
+  }
 }
 
 /**
@@ -113,7 +126,9 @@ export function mapSchedule(
   }
 
   if (recurrenceType === 'WEEKLY') {
-    const code = weekdayCode(schedule.weekday)
+    // Atlas leaves `weekday` null for ~42 weekly events; fall back to the start
+    // date's weekday (the `weekdays` field is required for weekly recurrence).
+    const code = weekdayCode(schedule.weekday) ?? weekdayFromDate(schedule.startDate)
     if (code) result.weekdays = [code]
   }
 

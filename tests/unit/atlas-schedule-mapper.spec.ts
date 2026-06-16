@@ -49,6 +49,12 @@ describe('mapSchedule', () => {
     expect(result?.interval).toBe(2)
   })
 
+  it('derives the weekday from the start date when weekly weekday is null', () => {
+    // 2021-07-27 is a Tuesday; the required weekdays must still be set.
+    const result = mapSchedule({ ...base, weekday: null, startDate: '2021-07-27' }, 'UTC')
+    expect(result?.weekdays).toEqual(['TU'])
+  })
+
   it('defaults a missing/zero interval to 1', () => {
     expect(mapSchedule({ ...base, interval: null }, 'UTC')?.interval).toBe(1)
     expect(mapSchedule({ ...base, interval: 0 }, 'UTC')?.interval).toBe(1)

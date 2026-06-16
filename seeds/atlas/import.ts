@@ -227,8 +227,10 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       this.preloadCollection('events', 'legacyId'),
       this.preloadCollection('registrations', 'legacyId'),
       this.preloadCollection('clients', 'legacyId'),
-      // Users dedupe on email (the dump has 155 shared emails), not legacyId.
-      this.preloadCollection('users', 'email'),
+      // Users are NOT preloaded: they dedupe on a normalized (lowercased) email
+      // and the dump has 166 case-insensitive duplicates, so upsert's
+      // find-then-create path (which re-checks the DB per row) is what catches
+      // them — a stale preload cache would let same-email rows collide.
     ])
   }
 
@@ -284,11 +286,11 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       })
       const idByEmail = new Map<string, number | string>()
       for (const user of users.docs) {
-        if (user.email) idByEmail.set(user.email, user.id)
+        if (user.email) idByEmail.set(user.email.toLowerCase(), user.id)
       }
       this.idMaps.users.clear()
       for (const user of data.users) {
-        const id = idByEmail.get(user.email)
+        const id = idByEmail.get(user.email.trim().toLowerCase())
         if (id != null) this.idMaps.users.set(user.legacyId, id)
       }
     }
@@ -604,16 +606,19 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
     for (let i = 0; i < batch.length; i++) {
       const user = batch[i]
+      // Normalize the email: Payload stores it lowercased + uniquely, so
+      // case-variant duplicates must collapse to one user (and share its id).
+      const email = user.email.trim().toLowerCase()
       try {
         const result = await this.upsert<{ id: number }>(
           'users',
-          { email: { equals: user.email } },
-          { name: user.name, email: user.email, legacyId: user.legacyId, legacyData: user },
-          { identifier: user.email, current: offset + i + 1, total },
+          { email: { equals: email } },
+          { name: user.name, email, legacyId: user.legacyId, legacyData: user },
+          { identifier: email, current: offset + i + 1, total },
         )
         this.idMaps.users.set(user.legacyId, result.doc.id)
       } catch (error) {
-        this.addError(`User ${user.email} (#${user.legacyId})`, error as Error)
+        this.addError(`User ${email} (#${user.legacyId})`, error as Error)
       }
     }
   }
