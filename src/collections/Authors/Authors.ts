@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { mediaField, slugField } from '@/fields'
+import { hideUntilCreated, mediaField, slugField } from '@/fields'
 
 export const Authors: CollectionConfig = {
   slug: 'authors',
@@ -65,6 +65,7 @@ export const Authors: CollectionConfig = {
       on: 'author',
       defaultLimit: 100,
       admin: {
+        condition: hideUntilCreated,
         components: {
           Cell: '@/components/admin/RelationshipCountCell',
         },
