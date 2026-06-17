@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
-import { legacyMigrationFields } from '@/fields'
+import { hideUntilCreated, legacyMigrationFields } from '@/fields'
 import { getLanguageOptions } from '@/lib/locales'
 import { getTimezoneOptions } from '@/lib/timezones'
 
@@ -30,6 +30,24 @@ export const REGION_LEVEL_OPTIONS = [
  * reject every Mapbox-identified region).
  */
 const isManualLocation = (data: Record<string, unknown>): boolean => data?.mapboxId === 'manual'
+
+/** Region levels ordered country → center (index ascends as you go deeper). */
+const REGION_LEVELS: string[] = REGION_LEVEL_OPTIONS.map((option) => option.value)
+
+/**
+ * Condition for a per-level `children` join: show it only when `childLevel` is a
+ * *valid* child of the current node — i.e. strictly deeper (higher index) than
+ * the current `level` — and the doc already exists. Mirrors the `parent`
+ * filterOptions (which restricts parents to strictly-higher levels), so a
+ * same-or-higher level — never a valid child — stays hidden.
+ */
+const childLevelVisible =
+  (childLevel: string) =>
+  (data: Record<string, unknown>): boolean => {
+    const current = REGION_LEVELS.indexOf(data?.level as string)
+    const child = REGION_LEVELS.indexOf(childLevel)
+    return hideUntilCreated(data) && current >= 0 && current < child
+  }
 
 /**
  * Regions — the nested Sahaj Atlas geo tree. `parent` + `breadcrumbs` are
@@ -97,6 +115,19 @@ export const Regions: CollectionConfig = {
               ],
             },
             {
+              // Owning side of Managers.managedRegions (a join on this field).
+              // Populated by the Atlas `managed_records` import. Every region
+              // needs an accountable manager, so this is required.
+              name: 'managers',
+              type: 'relationship',
+              relationTo: 'managers',
+              hasMany: true,
+              required: true,
+              admin: {
+                description: 'Managers responsible for this region.',
+              },
+            },
+            {
               name: 'mapboxId',
               type: 'text',
               label: 'Location',
@@ -132,6 +163,11 @@ export const Regions: CollectionConfig = {
                   name: 'name',
                   type: 'text',
                   required: true,
+                  // Only meaningful once a location is chosen — AddressSearchField
+                  // populates the name from the picked place. Hidden (and, per the
+                  // conditional-validation rule, not required / kept nullable) until
+                  // `mapboxId` has any value, manual or a real Mapbox id.
+                  admin: { condition: (data) => !!data?.mapboxId },
                 },
                 {
                   name: 'subtitle',
@@ -167,30 +203,6 @@ export const Regions: CollectionConfig = {
                   admin: { description: 'Radius in meters.', condition: isManualLocation },
                 },
               ],
-            },
-            {
-              // Owning side of Managers.managedRegions (a join on this field).
-              // Populated by the Atlas `managed_records` import.
-              name: 'managers',
-              type: 'relationship',
-              relationTo: 'managers',
-              hasMany: true,
-              admin: {
-                description: 'Managers responsible for this region.',
-              },
-            },
-            {
-              // Reverse side of `parent`: every region nested directly beneath
-              // this one. Centers are leaf venues, so they never have children —
-              // only levels above `center` (country/region/city) show this.
-              name: 'children',
-              type: 'join',
-              collection: 'regions',
-              on: 'parent',
-              admin: {
-                description: 'Regions nested directly beneath this one.',
-                condition: (data) => data?.level !== 'center',
-              },
             },
           ],
         },
@@ -244,6 +256,55 @@ export const Regions: CollectionConfig = {
               type: 'join',
               collection: 'events',
               on: 'region',
+              admin: { condition: hideUntilCreated },
+            },
+          ],
+        },
+        // Reverse side of `parent`, one tab per child level. A node can only
+        // parent strictly-deeper levels (see the `parent` filterOptions), so each
+        // tab is shown only once the doc exists AND its level is a valid child of
+        // the current node — `childLevelVisible` (on the tab) folds both checks
+        // together, and `where` filters the join to that single level. A center
+        // (leaf) sees none of these tabs.
+        {
+          label: 'Regions',
+          admin: { condition: childLevelVisible('region') },
+          fields: [
+            {
+              name: 'childrenRegions',
+              type: 'join',
+              collection: 'regions',
+              on: 'parent',
+              where: { level: { equals: 'region' } },
+              admin: { description: 'Region-level nodes nested directly beneath this one.' },
+            },
+          ],
+        },
+        {
+          label: 'Cities',
+          admin: { condition: childLevelVisible('city') },
+          fields: [
+            {
+              name: 'childrenCities',
+              type: 'join',
+              collection: 'regions',
+              on: 'parent',
+              where: { level: { equals: 'city' } },
+              admin: { description: 'Cities nested directly beneath this one.' },
+            },
+          ],
+        },
+        {
+          label: 'Centers',
+          admin: { condition: childLevelVisible('center') },
+          fields: [
+            {
+              name: 'childrenCenters',
+              type: 'join',
+              collection: 'regions',
+              on: 'parent',
+              where: { level: { equals: 'center' } },
+              admin: { description: 'SY Centers nested directly beneath this one.' },
             },
           ],
         },
