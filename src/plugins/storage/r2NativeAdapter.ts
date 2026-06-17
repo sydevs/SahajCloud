@@ -16,6 +16,7 @@ import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sd
 import { serverEnv } from '@/lib/env'
 
 import { applyFilename, generateR2Key } from './filenameUtils'
+import { applyPreviewPrefix, isPreviewOwnedKey, isStorageIsolationActive } from './previewIsolation'
 import { R2_PREASSIGNED_FILENAME_CONTEXT_KEY } from './r2FilenameHook'
 
 /**
@@ -65,7 +66,12 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
 
     handleUpload: (async ({ data, file, req }) => {
       const filenamePreassigned = Boolean(req.context?.[R2_PREASSIGNED_FILENAME_CONTEXT_KEY])
-      const finalFilename = filenamePreassigned ? file.filename : generateR2Key(file.filename)
+      // When not preassigned by r2FilenameHook, generate the key here and (in
+      // non-prod) prefix it so the asset is namespaced to this deployment. When
+      // preassigned, the hook already applied the prefix.
+      const finalFilename = filenamePreassigned
+        ? file.filename
+        : applyPreviewPrefix(generateR2Key(file.filename))
 
       applyFilename(file, data, req, finalFilename)
 
@@ -98,6 +104,17 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
     }) as HandleUpload,
 
     handleDelete: async ({ filename }) => {
+      // Preview isolation: a non-production deployment must never delete a
+      // production object. Cloned preview DBs reference real prod filenames,
+      // which carry no preview marker — refuse them here. No-op in production.
+      if (isStorageIsolationActive() && !isPreviewOwnedKey(filename)) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[R2] Refusing to delete non-preview object "${filename}" from a non-production deployment`,
+        )
+        return
+      }
+
       const key = prefix ? `${prefix}/${filename}` : filename
       try {
         await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))

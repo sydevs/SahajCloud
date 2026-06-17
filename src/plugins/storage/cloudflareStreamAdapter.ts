@@ -13,6 +13,12 @@ import { serverEnv } from '@/lib/env'
 
 import { CloudflareStreamResponseSchema } from './cloudflareSchemas'
 import { applyFilename } from './filenameUtils'
+import {
+  isPreviewOwnedVideoMeta,
+  isStorageIsolationActive,
+  PREVIEW_STREAM_META_KEY,
+  PREVIEW_STREAM_META_VALUE,
+} from './previewIsolation'
 import { validateFileUpload } from './uploadValidation'
 
 /**
@@ -82,6 +88,29 @@ export interface CloudflareStreamConfig {
  * })
  * ```
  */
+/**
+ * Whether a Cloudflare Stream video is preview-owned, read from its `meta` via
+ * GET. Used by the non-production delete guard. Fails safe: any error, missing
+ * video, or missing marker → `false` (refuse the delete), so a transient API
+ * hiccup can never delete a production video.
+ */
+const isPreviewOwnedStreamVideo = async (
+  config: CloudflareStreamConfig,
+  videoId: string,
+): Promise<boolean> => {
+  try {
+    const response = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${videoId}`,
+      { headers: { Authorization: `Bearer ${config.apiKey}` } },
+    )
+    if (!response.ok) return false
+    const result = CloudflareStreamResponseSchema.parse(await response.json())
+    return isPreviewOwnedVideoMeta(result.result?.meta)
+  } catch {
+    return false
+  }
+}
+
 export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter => {
   return () => ({
     name: 'cloudflare-stream',
@@ -128,6 +157,35 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
 
         req.payload.logger.info({ msg: 'Video uploaded successfully', videoId })
 
+        // Preview isolation: in non-prod, tag the video as preview-owned so the
+        // delete guard + scheduled cleanup can identify it. Stream UIDs are
+        // assigned by Cloudflare (not caller-chosen), so the marker lives in
+        // `meta`. Best-effort — a tagging failure only means this video won't be
+        // auto-reaped; it must never break the (already-succeeded) upload.
+        if (isStorageIsolationActive()) {
+          try {
+            await fetch(
+              `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${videoId}`,
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${config.apiKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  meta: { [PREVIEW_STREAM_META_KEY]: PREVIEW_STREAM_META_VALUE },
+                }),
+              },
+            )
+          } catch (error) {
+            req.payload.logger.warn({
+              msg: 'Failed to tag preview video; it will not be auto-reaped',
+              videoId,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          }
+        }
+
         // Note: MP4 downloads are enabled asynchronously via a Cloudflare Stream webhook
         // once the video finishes transcoding. See src/app/(payload)/api/webhooks/cloudflare-stream/
         // and .claude/rules/storage.md.
@@ -168,6 +226,18 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
     },
 
     handleDelete: async ({ filename: videoId }) => {
+      // Preview isolation: a non-production deployment must never delete a
+      // production video. Stream UIDs aren't caller-chosen, so read the video's
+      // `meta` (GET) and refuse anything not marked preview-owned. The extra GET
+      // runs only in non-prod — production's delete path is unchanged.
+      if (isStorageIsolationActive() && !(await isPreviewOwnedStreamVideo(config, videoId))) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[Cloudflare Stream] Refusing to delete non-preview video "${videoId}" from a non-production deployment`,
+        )
+        return
+      }
+
       try {
         const response = await fetch(
           `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${videoId}`,
