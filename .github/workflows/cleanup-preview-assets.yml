@@ -50,6 +50,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # Scheduled runs always delete. Manual runs delete only when `apply` is
       # checked; otherwise they print a dry-run report.
+      #
+      # This job is inert until the Cloudflare/R2 secrets are added (the script
+      # exits early without them). Before relying on the scheduled --apply, run
+      # this workflow once via "Run workflow" with `apply` UNCHECKED and review
+      # the dry-run output against real data.
       - name: Cleanup preview assets
         run: >-
           pnpm tsx scripts/cleanup-preview-assets.ts
