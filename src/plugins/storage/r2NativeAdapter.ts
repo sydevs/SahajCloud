@@ -16,7 +16,11 @@ import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sd
 import { serverEnv } from '@/lib/env'
 
 import { applyFilename, generateR2Key } from './filenameUtils'
-import { applyPreviewPrefix, isPreviewOwnedKey, isStorageIsolationActive } from './previewIsolation'
+import {
+  applyPreviewPrefix,
+  isPreviewOwnedKey,
+  shouldRefusePreviewDelete,
+} from './previewIsolation'
 import { R2_PREASSIGNED_FILENAME_CONTEXT_KEY } from './r2FilenameHook'
 
 /**
@@ -105,13 +109,9 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
 
     handleDelete: async ({ filename }) => {
       // Preview isolation: a non-production deployment must never delete a
-      // production object. Cloned preview DBs reference real prod filenames,
-      // which carry no preview marker — refuse them here. No-op in production.
-      if (isStorageIsolationActive() && !isPreviewOwnedKey(filename)) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[R2] Refusing to delete non-preview object "${filename}" from a non-production deployment`,
-        )
+      // production object (cloned preview DBs reference real prod filenames,
+      // which carry no preview marker). No-op in production.
+      if (await shouldRefusePreviewDelete('R2', filename, () => isPreviewOwnedKey(filename))) {
         return
       }
 

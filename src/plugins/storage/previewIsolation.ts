@@ -103,6 +103,34 @@ export const isPreviewOwnedVideoMeta = (meta: Record<string, string> | null | un
   meta?.[PREVIEW_STREAM_META_KEY] === PREVIEW_STREAM_META_VALUE
 
 /**
+ * Shared non-production delete guard for the storage adapters. Returns `true`
+ * (and logs a warning) when this deployment must REFUSE to delete `key` because
+ * it isn't preview-owned — protecting cloned production assets.
+ *
+ * The isolation check short-circuits BEFORE `isPreviewOwned` runs, so:
+ *  - production pays nothing (the guard is a no-op), and
+ *  - a backend whose ownership check is an API call (Stream reads `meta` via a
+ *    GET) never makes that call in production.
+ *
+ * `isPreviewOwned` is a thunk so the (possibly async, possibly remote) check is
+ * deferred until isolation is known to be active. Usage:
+ * `if (await shouldRefusePreviewDelete('R2', key, () => isPreviewOwnedKey(key))) return`.
+ */
+export const shouldRefusePreviewDelete = async (
+  backendLabel: string,
+  key: string,
+  isPreviewOwned: () => boolean | Promise<boolean>,
+): Promise<boolean> => {
+  if (!isStorageIsolationActive()) return false
+  if (await isPreviewOwned()) return false
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[${backendLabel}] Refusing to delete non-preview asset "${key}" from a non-production deployment`,
+  )
+  return true
+}
+
+/**
  * Whether a stored asset is safe to reap in the scheduled preview cleanup
  * (`scripts/cleanup-preview-assets.ts`).
  *

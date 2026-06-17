@@ -12,7 +12,11 @@ import { serverEnv } from '@/lib/env'
 
 import { CloudflareImagesResponseSchema } from './cloudflareSchemas'
 import { applyFilename, generateCloudflareImageId } from './filenameUtils'
-import { applyPreviewPrefix, isPreviewOwnedKey, isStorageIsolationActive } from './previewIsolation'
+import {
+  applyPreviewPrefix,
+  isPreviewOwnedKey,
+  shouldRefusePreviewDelete,
+} from './previewIsolation'
 import { validateFileUpload } from './uploadValidation'
 
 /**
@@ -154,13 +158,13 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
 
     handleDelete: async ({ filename: imageId }) => {
       // Preview isolation: a non-production deployment must never delete a
-      // production image. Cloned preview DBs reference real prod image IDs,
-      // which carry no preview marker — refuse them here. No-op in production.
-      if (isStorageIsolationActive() && !isPreviewOwnedKey(imageId)) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[Cloudflare Images] Refusing to delete non-preview image "${imageId}" from a non-production deployment`,
+      // production image (cloned preview DBs reference real prod image IDs,
+      // which carry no preview marker). No-op in production.
+      if (
+        await shouldRefusePreviewDelete('Cloudflare Images', imageId, () =>
+          isPreviewOwnedKey(imageId),
         )
+      ) {
         return
       }
 

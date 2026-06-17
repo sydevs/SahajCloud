@@ -18,6 +18,7 @@ import {
   isStorageIsolationActive,
   PREVIEW_STREAM_META_KEY,
   PREVIEW_STREAM_META_VALUE,
+  shouldRefusePreviewDelete,
 } from './previewIsolation'
 import { validateFileUpload } from './uploadValidation'
 
@@ -227,14 +228,14 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
 
     handleDelete: async ({ filename: videoId }) => {
       // Preview isolation: a non-production deployment must never delete a
-      // production video. Stream UIDs aren't caller-chosen, so read the video's
-      // `meta` (GET) and refuse anything not marked preview-owned. The extra GET
-      // runs only in non-prod — production's delete path is unchanged.
-      if (isStorageIsolationActive() && !(await isPreviewOwnedStreamVideo(config, videoId))) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[Cloudflare Stream] Refusing to delete non-preview video "${videoId}" from a non-production deployment`,
+      // production video. Stream UIDs aren't caller-chosen, so the ownership
+      // check reads the video's `meta` via GET — deferred by the guard so it
+      // runs only in non-prod (production's delete path is unchanged).
+      if (
+        await shouldRefusePreviewDelete('Cloudflare Stream', videoId, () =>
+          isPreviewOwnedStreamVideo(config, videoId),
         )
+      ) {
         return
       }
 
