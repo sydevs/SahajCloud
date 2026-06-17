@@ -41,13 +41,17 @@ implemented in `previewIsolation.ts` and a **no-op in production**:
 | R2                | `preview-` prefix on the object key (filename)  | refuse keys without the prefix      |
 | Cloudflare Stream | `meta.env=preview` tag (UIDs aren't caller-set) | GET the video, refuse unless tagged |
 
-**"Is this production?" is origin-based, not `NODE_ENV`-based.** Railway previews
-run with `NODE_ENV=production`, so they can't be told apart from prod that way.
-`isProductionDeployment()` is true only when `SAHAJCLOUD_URL`'s host is the
-canonical prod origin (`cloud.sydevelopers.com`). It **fails safe**: any
-unrecognized / unset origin is treated as non-production, so the guard stays
-active and prod assets stay protected. **Production must set `SAHAJCLOUD_URL` to
-its public origin** (already required for CSRF) so its own deletes work.
+**"Is this production?" keys off the Railway environment name, not `NODE_ENV`
+and not the origin.** Railway previews run with `NODE_ENV=production`, AND they
+inherit the shared `SAHAJCLOUD_URL` service variable (so the origin is identical
+on a preview and on prod) — neither can tell them apart. Instead,
+`isProductionDeployment()` is true only when the platform-injected
+`RAILWAY_ENVIRONMENT_NAME` (fallback `RAILWAY_ENVIRONMENT`) equals `production`;
+PR previews are `pr-<number>` (see RAILWAY_RUNBOOK.md). It **fails safe**: any
+other / unknown environment name is treated as non-production, so the guard
+stays active and prod assets stay protected. The only failure mode is prod
+self-isolating if its environment were misnamed — loud (prod can't delete its
+own assets), never destructive.
 
 **The delete guard is the safety mechanism.** In non-prod, each adapter's
 `handleDelete` refuses any asset that doesn't carry the preview marker — so a
