@@ -261,6 +261,11 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
     .filter(Boolean)
     .join(' ')
 
+  // Empty-state affordances (the pill replaces these once a value is set).
+  const showManualButton = !value && manualAllowed && !readOnly
+  // Dead end: nothing can fill the field — no search box and no manual entry.
+  const showNoInputBanner = !value && !token && !manualAllowed && !readOnly
+
   return (
     <div className={fieldClasses}>
       <FieldLabel label={label} localized={localized} path={path} required={required} />
@@ -283,7 +288,7 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
             options={[]}
             value={
               [
-                { label: value == MANUAL ? 'Manual' : value, value },
+                { label: value === MANUAL ? 'Manual' : value, value },
               ] as unknown as ReactSelectOption[]
             }
             onChange={() => {
@@ -314,12 +319,12 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
             />
           </div>
         ) : null}
-        {!value && manualAllowed && !readOnly ? (
+        {showManualButton ? (
           <button type="button" className="address-search__toggle" onClick={() => setValue(MANUAL)}>
             Enter manually
           </button>
         ) : null}
-        {!value && !token && !manualAllowed && !readOnly ? (
+        {showNoInputBanner ? (
           <Banner type="error">
             Address search needs a Mapbox access token, and manual entry isn’t available here.
           </Banner>
