@@ -204,6 +204,69 @@ describe('Atlas collections', () => {
     })
   })
 
+  describe('Regions parent rules', () => {
+    it('limits parents to one level up, except City (Country or Region)', async () => {
+      const country = await payload.create({
+        collection: 'regions',
+        data: {
+          name: 'PR Country',
+          level: 'country',
+          mapboxId: 'pr.country',
+          managers: [managerId],
+        },
+      })
+      const city = await payload.create({
+        collection: 'regions',
+        data: {
+          name: 'PR City',
+          level: 'city',
+          mapboxId: 'pr.city',
+          parent: country.id, // City may nest directly under a Country (Region optional)
+          managers: [managerId],
+        },
+      })
+
+      // A Center may only nest under a City — not directly under a Country.
+      await expect(
+        payload.create({
+          collection: 'regions',
+          data: {
+            name: 'Bad Center',
+            level: 'center',
+            mapboxId: 'pr.center.bad',
+            parent: country.id,
+            managers: [managerId],
+          },
+        }),
+      ).rejects.toThrow()
+      const center = await payload.create({
+        collection: 'regions',
+        data: {
+          name: 'Good Center',
+          level: 'center',
+          mapboxId: 'pr.center.good',
+          parent: city.id,
+          managers: [managerId],
+        },
+      })
+      expect(center.id).toBeTruthy()
+
+      // A Region may only nest under a Country — not a City.
+      await expect(
+        payload.create({
+          collection: 'regions',
+          data: {
+            name: 'Bad Region',
+            level: 'region',
+            mapboxId: 'pr.region',
+            parent: city.id,
+            managers: [managerId],
+          },
+        }),
+      ).rejects.toThrow()
+    })
+  })
+
   describe('Events title auto-fill', () => {
     it('auto-fills an empty title from the first segment of the street address', async () => {
       const event = await payload.create({
