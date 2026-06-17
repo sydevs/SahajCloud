@@ -16,6 +16,7 @@ import dynamic from 'next/dynamic'
 import React, { useEffect, useState } from 'react'
 
 import { getRegionOptions } from '@/lib/geography'
+import { isManualMapboxId, makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 
 /** Subset of a Mapbox Search Box retrieve feature that we read. */
 interface MapboxRetrieveFeature {
@@ -137,9 +138,6 @@ function usePayloadSearchTheme(): MapboxTheme | undefined {
   return theme
 }
 
-/** Sentinel stored in `mapboxId` when the user opts to enter the address by hand. */
-const MANUAL = 'manual'
-
 /**
  * Mapbox Search Box field component, bound to a `mapboxId` text field — used by
  * the Event address (`addressFields`) and the Regions location. Selecting a
@@ -249,7 +247,7 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
     }
     // Set our own value last: this triggers the form's condition recompute, which
     // reveals dependent fields (the address siblings, or the manual-coordinates row).
-    setValue(feature.properties?.mapbox_id ?? MANUAL)
+    setValue(feature.properties?.mapbox_id ?? makeManualMapboxId())
   }
 
   const fieldClasses = [
@@ -288,7 +286,7 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
             options={[]}
             value={
               [
-                { label: value === MANUAL ? 'Manual' : value, value },
+                { label: isManualMapboxId(value) ? 'Manual' : value, value },
               ] as unknown as ReactSelectOption[]
             }
             onChange={() => {
@@ -320,7 +318,11 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
           </div>
         ) : null}
         {showManualButton ? (
-          <button type="button" className="address-search__toggle" onClick={() => setValue(MANUAL)}>
+          <button
+            type="button"
+            className="address-search__toggle"
+            onClick={() => setValue(makeManualMapboxId())}
+          >
             Enter manually
           </button>
         ) : null}
