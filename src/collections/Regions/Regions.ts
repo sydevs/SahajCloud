@@ -4,6 +4,7 @@ import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
 import { getLanguageOptions } from '@/lib/locales'
+import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { getTimezoneOptions } from '@/lib/timezones'
 
 import { eventDefaultsFallback } from './hooks/eventDefaultsFallback'
@@ -23,30 +24,38 @@ export const REGION_LEVEL_OPTIONS = [
 
 /**
  * Manual coordinates apply only to nodes whose location was entered by hand
- * (`mapboxId === 'manual'`); a Mapbox-identified node resolves geometry from
- * its id downstream. Used as each coordinate field's own `condition` so that —
- * being `required` only when visible — Payload keeps the columns nullable (a
- * `required` field with no own condition would force a NOT NULL column and
- * reject every Mapbox-identified region).
+ * (a `manual`-prefixed `mapboxId` — see isManualMapboxId); a Mapbox-identified
+ * node resolves geometry from its id downstream. Used as each coordinate field's
+ * own `condition` so that — being `required` only when visible — Payload keeps the
+ * columns nullable (a `required` field with no own condition would force a NOT
+ * NULL column and reject every Mapbox-identified region).
  */
-const isManualLocation = (data: Record<string, unknown>): boolean => data?.mapboxId === 'manual'
-
-/** Region levels ordered country → center (index ascends as you go deeper). */
-const REGION_LEVELS: string[] = REGION_LEVEL_OPTIONS.map((option) => option.value)
+const isManualLocation = (data: Record<string, unknown>): boolean =>
+  isManualMapboxId(data?.mapboxId)
 
 /**
- * Condition for a per-level `children` join: show it only when `childLevel` is a
- * *valid* child of the current node — i.e. strictly deeper (higher index) than
- * the current `level` — and the doc already exists. Mirrors the `parent`
- * filterOptions (which restricts parents to strictly-higher levels), so a
- * same-or-higher level — never a valid child — stays hidden.
+ * Which levels may be a node's direct parent. A node nests exactly one level up,
+ * except a City, which may sit under a Region or — skipping the optional Region —
+ * directly under a Country. A Country is the tree root (no parent). Single source
+ * of truth for both the `parent` picker (filterOptions) and the reverse per-level
+ * children tabs (childLevelVisible).
+ */
+const ALLOWED_PARENT_LEVELS: Record<string, string[]> = {
+  region: ['country'],
+  city: ['country', 'region'],
+  center: ['city'],
+}
+
+/**
+ * Condition for a per-level `children` join: show it only once the doc exists and
+ * the current node's level is an allowed parent of `childLevel` (the inverse of
+ * ALLOWED_PARENT_LEVELS) — so the Centers tab appears only under a City, never a
+ * Country/Region, and a center (a leaf) shows no child tabs at all.
  */
 const childLevelVisible = (childLevel: string) => {
-  const childIndex = REGION_LEVELS.indexOf(childLevel)
-  return (data: Record<string, unknown>): boolean => {
-    const current = REGION_LEVELS.indexOf(data?.level as string)
-    return hideUntilCreated(data) && current >= 0 && current < childIndex
-  }
+  const parentLevels: string[] = ALLOWED_PARENT_LEVELS[childLevel] ?? []
+  return (data: Record<string, unknown>): boolean =>
+    hideUntilCreated(data) && parentLevels.includes(data?.level as string)
 }
 
 /**
@@ -113,6 +122,17 @@ export const Regions: CollectionConfig = {
                   options: [...REGION_LEVEL_OPTIONS],
                   admin: {
                     components: { Field: '@/components/admin/ToggleGroupField' },
+                    // Per-value help text — rendered by ToggleGroupField's
+                    // embedded SelectDescription (reads admin.custom.descriptions).
+                    custom: {
+                      descriptions: {
+                        country: 'A country — the root of the geographic tree.',
+                        region: 'A state, province, or other sub-national region.',
+                        city: 'A city or town.',
+                        center:
+                          'A Sahaja Yoga Center that holds multiple classes — a venue shared by more than one event. (Single-use venues belong in the event’s own address instead.)',
+                      },
+                    },
                   },
                 },
                 {
@@ -125,11 +145,11 @@ export const Regions: CollectionConfig = {
                   relationTo: 'regions',
                   maxDepth: 1,
                   filterOptions: ({ data }) => {
-                    const currentIndex = REGION_LEVELS.indexOf(data?.level as string)
-                    // Parent must be a strictly higher level (closer to country);
-                    // this also prevents cycles (no same-/lower-level parent).
-                    if (currentIndex <= 0) return false
-                    return { level: { in: REGION_LEVELS.slice(0, currentIndex) } }
+                    // Exactly one level up, except City (Country or Region) — see
+                    // ALLOWED_PARENT_LEVELS. A Country (or unset level) has no
+                    // valid parent. This also prevents cycles (never same/lower).
+                    const allowed = ALLOWED_PARENT_LEVELS[data?.level as string]
+                    return allowed ? { level: { in: allowed } } : false
                   },
                   admin: {
                     // A country is the tree root, so it has no parent.
@@ -141,13 +161,13 @@ export const Regions: CollectionConfig = {
             },
             {
               // Owning side of Managers.managedRegions (a join on this field).
-              // Populated by the Atlas `managed_records` import. Every region
-              // needs an accountable manager, so this is required.
+              // Populated by the Atlas `managed_records` import. Optional: most
+              // Atlas regions have no manager on file, so requiring it would block
+              // the import — managers are assigned where they exist.
               name: 'managers',
               type: 'relationship',
               relationTo: 'managers',
               hasMany: true,
-              required: true,
               admin: {
                 description: 'Managers responsible for this region.',
               },
@@ -157,6 +177,11 @@ export const Regions: CollectionConfig = {
               type: 'text',
               label: 'Location',
               required: true,
+              // A real Mapbox feature id identifies exactly one region. Manual
+              // locations also satisfy this — each is given a unique `manual-<id>`
+              // (the admin generates a uuid; the importer a per-node key), so the
+              // bare shared `'manual'` sentinel is never written here.
+              unique: true,
               admin: {
                 components: { Field: '@/components/admin/AddressSearchField' },
                 custom: {
@@ -286,11 +311,12 @@ export const Regions: CollectionConfig = {
           ],
         },
         // Reverse side of `parent`, one tab per child level (see CHILD_LEVEL_TABS).
-        // A node can only parent strictly-deeper levels (see the `parent`
-        // filterOptions), so each tab shows only once the doc exists AND its level
-        // is a valid child of the current node — `childLevelVisible` (on the tab)
-        // folds both checks together, and `where` filters the join to that single
-        // level. A center (leaf) sees none of these tabs.
+        // Valid parents per level live in ALLOWED_PARENT_LEVELS, so each tab shows
+        // only once the doc exists AND the current node is an allowed parent of
+        // that level — `childLevelVisible` (on the tab) folds both checks together,
+        // and `where` filters the join to that single level. A Country shows
+        // Regions + Cities; a Region shows Cities; a City shows Centers; a center
+        // (leaf) shows none.
         ...CHILD_LEVEL_TABS.map(({ level, label, name, description }) => ({
           label,
           admin: { condition: childLevelVisible(level) },

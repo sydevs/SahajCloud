@@ -202,6 +202,7 @@ export const Events: CollectionConfig = {
             {
               name: 'region',
               type: 'relationship',
+              label: 'City / Center',
               relationTo: 'regions',
               required: true,
               filterOptions: () => ({ level: { in: ['city', 'center'] } }),
