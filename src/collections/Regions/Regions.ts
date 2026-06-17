@@ -41,13 +41,39 @@ const REGION_LEVELS: string[] = REGION_LEVEL_OPTIONS.map((option) => option.valu
  * filterOptions (which restricts parents to strictly-higher levels), so a
  * same-or-higher level — never a valid child — stays hidden.
  */
-const childLevelVisible =
-  (childLevel: string) =>
-  (data: Record<string, unknown>): boolean => {
+const childLevelVisible = (childLevel: string) => {
+  const childIndex = REGION_LEVELS.indexOf(childLevel)
+  return (data: Record<string, unknown>): boolean => {
     const current = REGION_LEVELS.indexOf(data?.level as string)
-    const child = REGION_LEVELS.indexOf(childLevel)
-    return hideUntilCreated(data) && current >= 0 && current < child
+    return hideUntilCreated(data) && current >= 0 && current < childIndex
   }
+}
+
+/**
+ * One tab per child level: each holds a single `join` filtered to that level,
+ * shown only when it's a valid child of the current node (`childLevelVisible`).
+ * Country sees all three; a center (leaf) sees none.
+ */
+const CHILD_LEVEL_TABS = [
+  {
+    level: 'region',
+    label: 'Regions',
+    name: 'childrenRegions',
+    description: 'Region-level nodes nested directly beneath this one.',
+  },
+  {
+    level: 'city',
+    label: 'Cities',
+    name: 'childrenCities',
+    description: 'Cities nested directly beneath this one.',
+  },
+  {
+    level: 'center',
+    label: 'Centers',
+    name: 'childrenCenters',
+    description: 'SY Centers nested directly beneath this one.',
+  },
+] as const
 
 /**
  * Regions — the nested Sahaj Atlas geo tree. `parent` + `breadcrumbs` are
@@ -99,12 +125,11 @@ export const Regions: CollectionConfig = {
                   relationTo: 'regions',
                   maxDepth: 1,
                   filterOptions: ({ data }) => {
-                    const levels: string[] = REGION_LEVEL_OPTIONS.map((option) => option.value)
-                    const currentIndex = levels.indexOf(data?.level as string)
+                    const currentIndex = REGION_LEVELS.indexOf(data?.level as string)
                     // Parent must be a strictly higher level (closer to country);
                     // this also prevents cycles (no same-/lower-level parent).
                     if (currentIndex <= 0) return false
-                    return { level: { in: levels.slice(0, currentIndex) } }
+                    return { level: { in: REGION_LEVELS.slice(0, currentIndex) } }
                   },
                   admin: {
                     // A country is the tree root, so it has no parent.
@@ -260,54 +285,26 @@ export const Regions: CollectionConfig = {
             },
           ],
         },
-        // Reverse side of `parent`, one tab per child level. A node can only
-        // parent strictly-deeper levels (see the `parent` filterOptions), so each
-        // tab is shown only once the doc exists AND its level is a valid child of
-        // the current node — `childLevelVisible` (on the tab) folds both checks
-        // together, and `where` filters the join to that single level. A center
-        // (leaf) sees none of these tabs.
-        {
-          label: 'Regions',
-          admin: { condition: childLevelVisible('region') },
+        // Reverse side of `parent`, one tab per child level (see CHILD_LEVEL_TABS).
+        // A node can only parent strictly-deeper levels (see the `parent`
+        // filterOptions), so each tab shows only once the doc exists AND its level
+        // is a valid child of the current node — `childLevelVisible` (on the tab)
+        // folds both checks together, and `where` filters the join to that single
+        // level. A center (leaf) sees none of these tabs.
+        ...CHILD_LEVEL_TABS.map(({ level, label, name, description }) => ({
+          label,
+          admin: { condition: childLevelVisible(level) },
           fields: [
             {
-              name: 'childrenRegions',
-              type: 'join',
-              collection: 'regions',
+              name,
+              type: 'join' as const,
+              collection: 'regions' as const,
               on: 'parent',
-              where: { level: { equals: 'region' } },
-              admin: { description: 'Region-level nodes nested directly beneath this one.' },
+              where: { level: { equals: level } },
+              admin: { description },
             },
           ],
-        },
-        {
-          label: 'Cities',
-          admin: { condition: childLevelVisible('city') },
-          fields: [
-            {
-              name: 'childrenCities',
-              type: 'join',
-              collection: 'regions',
-              on: 'parent',
-              where: { level: { equals: 'city' } },
-              admin: { description: 'Cities nested directly beneath this one.' },
-            },
-          ],
-        },
-        {
-          label: 'Centers',
-          admin: { condition: childLevelVisible('center') },
-          fields: [
-            {
-              name: 'childrenCenters',
-              type: 'join',
-              collection: 'regions',
-              on: 'parent',
-              where: { level: { equals: 'center' } },
-              admin: { description: 'SY Centers nested directly beneath this one.' },
-            },
-          ],
-        },
+        })),
       ],
     },
     // Breadcrumbs are populated by plugin-nested-docs. Defining the field here
