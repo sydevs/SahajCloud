@@ -593,16 +593,16 @@ describe('Filename Utilities', () => {
 })
 
 describe('R2 filename preassignment hook', () => {
-  // Pin to the prod origin so storage isolation is OFF — these assert the
-  // baseline R2 key the hook preassigns (no preview prefix). Non-prod prefixing
-  // is covered in tests/unit/previewIsolation.spec.ts.
-  const originalSahajcloudUrl = process.env.SAHAJCLOUD_URL
+  // Pin to the production Railway environment so storage isolation is OFF —
+  // these assert the baseline R2 key the hook preassigns (no preview prefix).
+  // Non-prod prefixing is covered in tests/unit/previewIsolation.spec.ts.
+  const originalEnvName = process.env.RAILWAY_ENVIRONMENT_NAME
   beforeEach(() => {
-    process.env.SAHAJCLOUD_URL = 'https://cloud.sydevelopers.com'
+    process.env.RAILWAY_ENVIRONMENT_NAME = 'production'
   })
   afterEach(() => {
-    if (originalSahajcloudUrl === undefined) delete process.env.SAHAJCLOUD_URL
-    else process.env.SAHAJCLOUD_URL = originalSahajcloudUrl
+    if (originalEnvName === undefined) delete process.env.RAILWAY_ENVIRONMENT_NAME
+    else process.env.RAILWAY_ENVIRONMENT_NAME = originalEnvName
   })
 
   const callR2Hook = async (
@@ -667,10 +667,10 @@ describe('Storage Adapter handleUpload', () => {
       CLOUDFLARE_IMAGES_DELIVERY_URL: 'https://imagedelivery.net/test-hash',
       CLOUDFLARE_STREAM_DELIVERY_URL: 'https://customer-test.cloudflarestream.com',
       CLOUDFLARE_R2_DELIVERY_URL: 'https://assets.test',
-      // Pin to the prod origin so storage isolation is OFF — these assert the
-      // baseline (production) upload behaviour. Non-prod prefixing/tagging is
-      // covered in tests/unit/{previewIsolation,storageIsolationGuard}.spec.ts.
-      SAHAJCLOUD_URL: 'https://cloud.sydevelopers.com',
+      // Pin to the production Railway environment so storage isolation is OFF —
+      // these assert the baseline (production) upload behaviour. Non-prod
+      // prefixing/tagging is covered in the unit specs.
+      RAILWAY_ENVIRONMENT_NAME: 'production',
     }
   })
 
@@ -990,9 +990,9 @@ describe('storagePlugin R2 filename hook wiring', () => {
       R2_BUCKET: 'test-bucket',
       R2_ACCESS_KEY_ID: 'test-access-key-id',
       R2_SECRET_ACCESS_KEY: 'test-secret-access-key',
-      // Pin to the prod origin so storage isolation is OFF — this verifies the
-      // baseline hook→adapter key contract (no preview prefix).
-      SAHAJCLOUD_URL: 'https://cloud.sydevelopers.com',
+      // Pin to the production Railway environment so storage isolation is OFF —
+      // this verifies the baseline hook→adapter key contract (no preview prefix).
+      RAILWAY_ENVIRONMENT_NAME: 'production',
     }
   })
 

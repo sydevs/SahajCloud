@@ -25,17 +25,18 @@
  */
 
 /**
- * Canonical production public origin host. Production is the ONLY deployment
- * served from this host; Railway PR previews use per-PR `*.railway.app` domains
- * and local/dev use localhost.
+ * Name of the production Railway environment.
  *
- * We key "is this real production?" off the origin rather than `NODE_ENV`
- * because Railway previews also run with `NODE_ENV=production` — so `NODE_ENV`
- * cannot tell a preview apart from prod. The same host is already hardcoded for
- * the Stream webhook + admin CSP, and `package.json`'s `seed:prod` pins
- * `SAHAJCLOUD_URL=https://cloud.sydevelopers.com`.
+ * Production is detected by the platform-injected Railway environment name —
+ * NOT by `NODE_ENV` (Railway previews also run `NODE_ENV=production`) and NOT by
+ * `SAHAJCLOUD_URL` (a shared service variable that Railway PR previews INHERIT
+ * from production, so the origin is identical on a preview and on prod and
+ * cannot tell them apart). Railway injects `RAILWAY_ENVIRONMENT(_NAME)` per
+ * environment: production is `production`; PR previews are `pr-<number>` (see
+ * RAILWAY_RUNBOOK.md). These vars are present at build + runtime (see
+ * `scripts/postinstall.cjs`).
  */
-export const PRODUCTION_ORIGIN_HOST = 'cloud.sydevelopers.com'
+export const PRODUCTION_ENVIRONMENT_NAME = 'production'
 
 /**
  * Marker prepended to Cloudflare Images custom IDs and R2 object keys in
@@ -56,29 +57,27 @@ export const PREVIEW_STREAM_META_KEY = 'env'
 export const PREVIEW_STREAM_META_VALUE = 'preview'
 
 /**
- * Pure origin check, split out so it can be unit-tested without touching the
- * environment. Returns true only when `url`'s host is the canonical prod host.
- * Fail-safe: missing or unparseable URLs return `false`.
+ * The current Railway environment name, or `undefined` off-Railway (local, CI,
+ * test). Reads `process.env` directly so the result reflects the live env and
+ * stays trivially testable — the pattern `payload.config.ts` uses for
+ * `process.env.NODE_ENV`. Prefers `RAILWAY_ENVIRONMENT_NAME`, falling back to
+ * the legacy `RAILWAY_ENVIRONMENT` (`scripts/postinstall.cjs` confirms the
+ * latter is set on Railway).
  */
-export const isProductionOrigin = (url: string | null | undefined): boolean => {
-  if (!url) return false
-  try {
-    return new URL(url).host === PRODUCTION_ORIGIN_HOST
-  } catch {
-    return false
-  }
-}
+export const railwayEnvironmentName = (): string | undefined =>
+  process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.RAILWAY_ENVIRONMENT
 
 /**
- * True only when this deployment is the canonical production origin.
+ * True only when this deployment is the production Railway environment.
  *
- * Reads `process.env.SAHAJCLOUD_URL` directly (not the validated `serverEnv`
- * proxy) so the result reflects the live env and stays trivially testable —
- * the same pattern `payload.config.ts` uses for `process.env.NODE_ENV`.
- * Fail-safe: any unrecognized / unset / unparseable origin → `false` → the
- * isolation guard stays ACTIVE, which protects production assets.
+ * Fail-safe: any other / unknown environment name (a `pr-*` preview, staging,
+ * local, CI, test) → `false` → the isolation guard stays ACTIVE, protecting
+ * production assets. The only failure mode is prod self-isolating if its
+ * environment were misnamed — loud (prod can't delete its own assets), never
+ * destructive.
  */
-export const isProductionDeployment = (): boolean => isProductionOrigin(process.env.SAHAJCLOUD_URL)
+export const isProductionDeployment = (): boolean =>
+  railwayEnvironmentName() === PRODUCTION_ENVIRONMENT_NAME
 
 /**
  * Whether storage isolation (upload prefixing + delete guard) is active for

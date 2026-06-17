@@ -5,66 +5,72 @@ import {
   isPreviewOwnedKey,
   isPreviewOwnedVideoMeta,
   isProductionDeployment,
-  isProductionOrigin,
   isReapablePreviewAsset,
   isStorageIsolationActive,
   PREVIEW_ASSET_PREFIX,
-  PRODUCTION_ORIGIN_HOST,
+  PRODUCTION_ENVIRONMENT_NAME,
+  railwayEnvironmentName,
 } from '@/plugins/storage/previewIsolation'
 
-const PROD_URL = `https://${PRODUCTION_ORIGIN_HOST}`
-const PREVIEW_URL = 'https://sahajcloud-pr-432.up.railway.app'
+const PREVIEW_ENV = 'pr-432'
 
-const ORIGINAL_SAHAJCLOUD_URL = process.env.SAHAJCLOUD_URL
+const ORIGINAL_ENV_NAME = process.env.RAILWAY_ENVIRONMENT_NAME
+const ORIGINAL_ENV = process.env.RAILWAY_ENVIRONMENT
 
-/** Point the deployment at a given public origin for the duration of one test. */
-const setOrigin = (url: string | undefined): void => {
-  if (url === undefined) delete process.env.SAHAJCLOUD_URL
-  else process.env.SAHAJCLOUD_URL = url
+const restore = (
+  key: 'RAILWAY_ENVIRONMENT_NAME' | 'RAILWAY_ENVIRONMENT',
+  value: string | undefined,
+): void => {
+  if (value === undefined) delete process.env[key]
+  else process.env[key] = value
+}
+
+/** Simulate running in a given Railway environment (or off-Railway) for one test. */
+const setRailwayEnv = (name: string | undefined): void => {
+  delete process.env.RAILWAY_ENVIRONMENT
+  if (name === undefined) delete process.env.RAILWAY_ENVIRONMENT_NAME
+  else process.env.RAILWAY_ENVIRONMENT_NAME = name
 }
 
 afterEach(() => {
-  setOrigin(ORIGINAL_SAHAJCLOUD_URL)
+  restore('RAILWAY_ENVIRONMENT_NAME', ORIGINAL_ENV_NAME)
+  restore('RAILWAY_ENVIRONMENT', ORIGINAL_ENV)
 })
 
-describe('isProductionOrigin', () => {
-  it('is true only for the canonical production host', () => {
-    expect(isProductionOrigin(PROD_URL)).toBe(true)
-    // Trailing path / slash do not change the host.
-    expect(isProductionOrigin(`${PROD_URL}/admin`)).toBe(true)
+describe('railwayEnvironmentName', () => {
+  it('prefers RAILWAY_ENVIRONMENT_NAME', () => {
+    process.env.RAILWAY_ENVIRONMENT_NAME = 'production'
+    process.env.RAILWAY_ENVIRONMENT = 'ignored'
+    expect(railwayEnvironmentName()).toBe('production')
   })
 
-  it('is false for previews, localhost, and other hosts', () => {
-    expect(isProductionOrigin(PREVIEW_URL)).toBe(false)
-    expect(isProductionOrigin('http://localhost:3000')).toBe(false)
-    expect(isProductionOrigin('https://staging.sydevelopers.com')).toBe(false)
-    // A look-alike subdomain must not match.
-    expect(isProductionOrigin('https://cloud.sydevelopers.com.evil.test')).toBe(false)
+  it('falls back to the legacy RAILWAY_ENVIRONMENT', () => {
+    delete process.env.RAILWAY_ENVIRONMENT_NAME
+    process.env.RAILWAY_ENVIRONMENT = 'pr-7'
+    expect(railwayEnvironmentName()).toBe('pr-7')
   })
 
-  it('is false (fail-safe) for missing or unparseable URLs', () => {
-    expect(isProductionOrigin(undefined)).toBe(false)
-    expect(isProductionOrigin(null)).toBe(false)
-    expect(isProductionOrigin('')).toBe(false)
-    expect(isProductionOrigin('not a url')).toBe(false)
+  it('is undefined off-Railway', () => {
+    setRailwayEnv(undefined)
+    expect(railwayEnvironmentName()).toBeUndefined()
   })
 })
 
 describe('isProductionDeployment / isStorageIsolationActive', () => {
-  it('treats the canonical prod origin as production (isolation off)', () => {
-    setOrigin(PROD_URL)
+  it('treats the production environment as production (isolation off)', () => {
+    setRailwayEnv(PRODUCTION_ENVIRONMENT_NAME)
     expect(isProductionDeployment()).toBe(true)
     expect(isStorageIsolationActive()).toBe(false)
   })
 
-  it('treats a Railway preview origin as non-production (isolation on)', () => {
-    setOrigin(PREVIEW_URL)
+  it('treats a pr-* preview environment as non-production (isolation on)', () => {
+    setRailwayEnv(PREVIEW_ENV)
     expect(isProductionDeployment()).toBe(false)
     expect(isStorageIsolationActive()).toBe(true)
   })
 
-  it('fails safe to non-production when the origin is unset', () => {
-    setOrigin(undefined)
+  it('fails safe to non-production off-Railway (no env name)', () => {
+    setRailwayEnv(undefined)
     expect(isProductionDeployment()).toBe(false)
     expect(isStorageIsolationActive()).toBe(true)
   })
@@ -72,18 +78,18 @@ describe('isProductionDeployment / isStorageIsolationActive', () => {
 
 describe('applyPreviewPrefix', () => {
   it('prefixes keys in non-production', () => {
-    setOrigin(PREVIEW_URL)
+    setRailwayEnv(PREVIEW_ENV)
     expect(applyPreviewPrefix('my-photo-xk2j9s')).toBe(`${PREVIEW_ASSET_PREFIX}my-photo-xk2j9s`)
   })
 
   it('is idempotent — never double-prefixes', () => {
-    setOrigin(PREVIEW_URL)
+    setRailwayEnv(PREVIEW_ENV)
     const once = applyPreviewPrefix('my-photo-xk2j9s')
     expect(applyPreviewPrefix(once)).toBe(once)
   })
 
   it('is a no-op in production', () => {
-    setOrigin(PROD_URL)
+    setRailwayEnv(PRODUCTION_ENVIRONMENT_NAME)
     expect(applyPreviewPrefix('my-photo-xk2j9s')).toBe('my-photo-xk2j9s')
   })
 })

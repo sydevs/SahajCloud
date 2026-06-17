@@ -17,11 +17,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { cloudflareImagesAdapter } from '@/plugins/storage/cloudflareImagesAdapter'
 import { cloudflareStreamAdapter } from '@/plugins/storage/cloudflareStreamAdapter'
-import { PREVIEW_ASSET_PREFIX, PRODUCTION_ORIGIN_HOST } from '@/plugins/storage/previewIsolation'
+import {
+  PREVIEW_ASSET_PREFIX,
+  PRODUCTION_ENVIRONMENT_NAME,
+} from '@/plugins/storage/previewIsolation'
 import { r2NativeAdapter } from '@/plugins/storage/r2NativeAdapter'
 
-const PROD_URL = `https://${PRODUCTION_ORIGIN_HOST}`
-const PREVIEW_URL = 'https://sahajcloud-pr-432.up.railway.app'
+const PREVIEW_ENV = 'pr-432'
 
 // A cloned-from-prod id/key carries no preview marker; a preview-created one does.
 const PROD_ASSET_ID = 'real-prod-photo-ab12cd'
@@ -32,10 +34,14 @@ type DeleteArg = Parameters<GeneratedAdapter['handleDelete']>[0]
 const adapterArg = (prefix?: string): AdapterArg => ({ prefix }) as unknown as AdapterArg
 const deleteArg = (filename: string): DeleteArg => ({ filename }) as unknown as DeleteArg
 
-const ORIGINAL_SAHAJCLOUD_URL = process.env.SAHAJCLOUD_URL
-const setOrigin = (url: string | undefined): void => {
-  if (url === undefined) delete process.env.SAHAJCLOUD_URL
-  else process.env.SAHAJCLOUD_URL = url
+const ORIGINAL_ENV_NAME = process.env.RAILWAY_ENVIRONMENT_NAME
+const ORIGINAL_ENV = process.env.RAILWAY_ENVIRONMENT
+
+/** Simulate running in a given Railway environment (`undefined` = off-Railway). */
+const setRailwayEnv = (name: string | undefined): void => {
+  delete process.env.RAILWAY_ENVIRONMENT
+  if (name === undefined) delete process.env.RAILWAY_ENVIRONMENT_NAME
+  else process.env.RAILWAY_ENVIRONMENT_NAME = name
 }
 
 /** Minimal Response stub for the adapters' `await fetch(...).json()` calls. */
@@ -54,7 +60,10 @@ const streamConfig = {
 }
 
 afterEach(() => {
-  setOrigin(ORIGINAL_SAHAJCLOUD_URL)
+  if (ORIGINAL_ENV_NAME === undefined) delete process.env.RAILWAY_ENVIRONMENT_NAME
+  else process.env.RAILWAY_ENVIRONMENT_NAME = ORIGINAL_ENV_NAME
+  if (ORIGINAL_ENV === undefined) delete process.env.RAILWAY_ENVIRONMENT
+  else process.env.RAILWAY_ENVIRONMENT = ORIGINAL_ENV
   vi.restoreAllMocks()
 })
 
@@ -71,13 +80,13 @@ describe('Cloudflare Images delete guard', () => {
     cloudflareImagesAdapter(imagesConfig)(adapterArg()).handleDelete(deleteArg(filename))
 
   it('refuses to delete a cloned prod image from a preview deployment', async () => {
-    setOrigin(PREVIEW_URL)
+    setRailwayEnv(PREVIEW_ENV)
     await handleDelete(PROD_ASSET_ID)
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   it('deletes a preview-owned image from a preview deployment', async () => {
-    setOrigin(PREVIEW_URL)
+    setRailwayEnv(PREVIEW_ENV)
     await handleDelete(PREVIEW_ASSET_ID)
     expect(fetchSpy).toHaveBeenCalledOnce()
     const [url, init] = fetchSpy.mock.calls[0]
@@ -86,7 +95,7 @@ describe('Cloudflare Images delete guard', () => {
   })
 
   it('deletes any image from production (guard disabled)', async () => {
-    setOrigin(PROD_URL)
+    setRailwayEnv(PRODUCTION_ENVIRONMENT_NAME)
     await handleDelete(PROD_ASSET_ID)
     expect(fetchSpy).toHaveBeenCalledOnce()
     expect(fetchSpy.mock.calls[0][1]?.method).toBe('DELETE')
@@ -104,21 +113,21 @@ describe('R2 delete guard', () => {
   }
 
   it('refuses to delete a cloned prod object from a preview deployment', async () => {
-    setOrigin(PREVIEW_URL)
+    setRailwayEnv(PREVIEW_ENV)
     const { send, handleDelete } = buildAdapter()
     await handleDelete(`${PROD_ASSET_ID}.mp3`)
     expect(send).not.toHaveBeenCalled()
   })
 
   it('deletes a preview-owned object from a preview deployment', async () => {
-    setOrigin(PREVIEW_URL)
+    setRailwayEnv(PREVIEW_ENV)
     const { send, handleDelete } = buildAdapter()
     await handleDelete(`${PREVIEW_ASSET_ID}.mp3`)
     expect(send).toHaveBeenCalledOnce()
   })
 
   it('deletes any object from production (guard disabled)', async () => {
-    setOrigin(PROD_URL)
+    setRailwayEnv(PRODUCTION_ENVIRONMENT_NAME)
     const { send, handleDelete } = buildAdapter()
     await handleDelete(`${PROD_ASSET_ID}.mp3`)
     expect(send).toHaveBeenCalledOnce()
@@ -147,21 +156,21 @@ describe('Cloudflare Stream delete guard', () => {
     cloudflareStreamAdapter(streamConfig)(adapterArg()).handleDelete(deleteArg(uid))
 
   it('refuses to delete a cloned prod video (no preview meta) from a preview deployment', async () => {
-    setOrigin(PREVIEW_URL)
+    setRailwayEnv(PREVIEW_ENV)
     const spy = mockFetchWithMeta({ name: 'prod video' })
     await handleDelete('prod-uid')
     expect(deleteCalls(spy)).toHaveLength(0)
   })
 
   it('deletes a preview-owned video (preview meta) from a preview deployment', async () => {
-    setOrigin(PREVIEW_URL)
+    setRailwayEnv(PREVIEW_ENV)
     const spy = mockFetchWithMeta({ env: 'preview' })
     await handleDelete('preview-uid')
     expect(deleteCalls(spy)).toHaveLength(1)
   })
 
   it('deletes any video from production without a guard GET', async () => {
-    setOrigin(PROD_URL)
+    setRailwayEnv(PRODUCTION_ENVIRONMENT_NAME)
     const spy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(jsonResponse({ success: true, errors: [] }))
