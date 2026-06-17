@@ -56,6 +56,10 @@ export interface GeocodeRegionArgs {
   level: RegionLevel
   latitude?: number | null
   longitude?: number | null
+  /** ISO 3166-1 alpha-2 country code — restricts the search to that country so
+   *  same-named places in different countries resolve distinctly (e.g. Liverpool
+   *  GB vs Liverpool, Nova Scotia CA). */
+  countryCode?: string | null
   /** Override the Mapbox `types` filter (the untyped fallback uses this). */
   types?: string
 }
@@ -105,6 +109,10 @@ async function forwardFeature(args: GeocodeRegionArgs): Promise<ForwardFeature |
   if (args.latitude != null && args.longitude != null) {
     params.set('proximity', `${args.longitude},${args.latitude}`)
   }
+  // Restrict to the region's country so same-named places elsewhere don't win.
+  if (args.countryCode) {
+    params.set('country', args.countryCode.toLowerCase())
+  }
   return fetchForwardFeature(params)
 }
 
@@ -136,6 +144,8 @@ export interface ResolveRegionLocationArgs {
   level: RegionLevel
   latitude?: number | null
   longitude?: number | null
+  /** ISO 3166-1 alpha-2 country code — narrows geocoding to that country. */
+  countryCode?: string | null
   /** Legacy radius (areas carry one; venues/regions/countries don't). */
   radius?: number | null
 }

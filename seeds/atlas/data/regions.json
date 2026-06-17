@@ -869,17 +869,6 @@
     "osmId": "R58437"
   },
   {
-    "legacyId": 35,
-    "level": "region",
-    "parent": {
-      "level": "country",
-      "legacyId": 9
-    },
-    "name": "Wien",
-    "countryCode": "AT",
-    "osmId": "R109166"
-  },
-  {
     "legacyId": 109,
     "level": "region",
     "parent": {
@@ -1647,8 +1636,8 @@
     "legacyId": 56,
     "level": "area",
     "parent": {
-      "level": "region",
-      "legacyId": 35
+      "level": "country",
+      "legacyId": 9
     },
     "name": "Vienna",
     "countryCode": "AT",
@@ -1656,21 +1645,6 @@
     "latitude": 48.208,
     "longitude": 16.374,
     "radius": 19,
-    "timeZone": "Europe/Vienna"
-  },
-  {
-    "legacyId": 57,
-    "level": "area",
-    "parent": {
-      "level": "country",
-      "legacyId": 9
-    },
-    "name": "Salzburg",
-    "countryCode": "AT",
-    "subtitle": null,
-    "latitude": 47.809,
-    "longitude": 13.055,
-    "radius": 9,
     "timeZone": "Europe/Vienna"
   },
   {
@@ -1854,21 +1828,6 @@
     "timeZone": "Europe/London"
   },
   {
-    "legacyId": 73,
-    "level": "area",
-    "parent": {
-      "level": "region",
-      "legacyId": 5
-    },
-    "name": "Leicester",
-    "countryCode": "GB",
-    "subtitle": null,
-    "latitude": 52.637,
-    "longitude": -1.14,
-    "radius": 8.9,
-    "timeZone": "Europe/London"
-  },
-  {
     "legacyId": 74,
     "level": "area",
     "parent": {
@@ -1957,21 +1916,6 @@
     "longitude": -119.496,
     "radius": 17.95,
     "timeZone": "America/Vancouver"
-  },
-  {
-    "legacyId": 84,
-    "level": "area",
-    "parent": {
-      "level": "country",
-      "legacyId": 5
-    },
-    "name": "Jihlava",
-    "countryCode": "CZ",
-    "subtitle": null,
-    "latitude": 49.398,
-    "longitude": 15.587,
-    "radius": 10.67,
-    "timeZone": "Europe/Prague"
   },
   {
     "legacyId": 88,
@@ -3759,21 +3703,6 @@
     "timeZone": "Europe/Helsinki"
   },
   {
-    "legacyId": 263,
-    "level": "area",
-    "parent": {
-      "level": "country",
-      "legacyId": 12
-    },
-    "name": "Manacor",
-    "countryCode": "ES",
-    "subtitle": null,
-    "latitude": 39.57,
-    "longitude": 3.21,
-    "radius": 15,
-    "timeZone": "Europe/Madrid"
-  },
-  {
     "legacyId": 264,
     "level": "area",
     "parent": {
@@ -5019,21 +4948,6 @@
     "timeZone": "Europe/Helsinki"
   },
   {
-    "legacyId": 392,
-    "level": "area",
-    "parent": {
-      "level": "country",
-      "legacyId": 27
-    },
-    "name": "Paris - IDF",
-    "countryCode": "FR",
-    "subtitle": null,
-    "latitude": 48.857,
-    "longitude": 2.352,
-    "radius": 40,
-    "timeZone": "Europe/Paris"
-  },
-  {
     "legacyId": 393,
     "level": "area",
     "parent": {
@@ -5544,21 +5458,6 @@
     "timeZone": "Australia/Sydney"
   },
   {
-    "legacyId": 429,
-    "level": "area",
-    "parent": {
-      "level": "region",
-      "legacyId": 48
-    },
-    "name": "Wingham",
-    "countryCode": "AU",
-    "subtitle": null,
-    "latitude": -31.869,
-    "longitude": 152.372,
-    "radius": 9.75,
-    "timeZone": "Australia/Sydney"
-  },
-  {
     "legacyId": 430,
     "level": "area",
     "parent": {
@@ -5645,21 +5544,6 @@
     "subtitle": null,
     "latitude": 47.339,
     "longitude": 7.245,
-    "radius": 0.18,
-    "timeZone": "Europe/Zurich"
-  },
-  {
-    "legacyId": 436,
-    "level": "area",
-    "parent": {
-      "level": "country",
-      "legacyId": 26
-    },
-    "name": "Stalden-Saas",
-    "countryCode": "CH",
-    "subtitle": null,
-    "latitude": 46.232,
-    "longitude": 7.871,
     "radius": 0.18,
     "timeZone": "Europe/Zurich"
   },
