@@ -39,3 +39,6 @@ export type { AddressFieldsOptions } from './addressFields'
 
 // Legacy migration fields - hidden legacyId + legacyData for the Atlas import
 export { legacyMigrationFields } from './legacyFields'
+
+// Admin condition that hides a field (e.g. join fields) until the doc has an id
+export { hideUntilCreated } from './hideUntilCreated'

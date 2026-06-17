@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { colorField, slugField } from '@/fields'
+import { colorField, hideUntilCreated, slugField } from '@/fields'
 import {
   adminOnlyCondition,
   adminOnlyFieldAccess,
@@ -266,7 +266,7 @@ export const UserChoices: CollectionConfig = {
       collection: 'user-choices',
       on: 'parent',
       admin: {
-        condition: (data) => data.isParent,
+        condition: (data) => hideUntilCreated(data) && data.isParent,
         components: {
           Cell: '@/components/admin/RelationshipCountCell',
         },
@@ -280,6 +280,7 @@ export const UserChoices: CollectionConfig = {
       on: 'userChoices',
       defaultLimit: 100,
       admin: {
+        condition: hideUntilCreated,
         components: {
           Cell: {
             path: '@/components/admin/RelationshipCountCell',

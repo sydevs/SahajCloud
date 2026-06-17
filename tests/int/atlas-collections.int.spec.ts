@@ -36,16 +36,29 @@ describe('Atlas collections', () => {
           name: 'Country',
           level: 'country',
           mapboxId: 'c1',
+          managers: [managerId],
           eventDefaults: { language: 'en', timeZone: ['Europe/London'] },
         },
       })
       const region = await payload.create({
         collection: 'regions',
-        data: { name: 'Region', level: 'region', mapboxId: 'r1', parent: country.id },
+        data: {
+          name: 'Region',
+          level: 'region',
+          mapboxId: 'r1',
+          managers: [managerId],
+          parent: country.id,
+        },
       })
       const area = await payload.create({
         collection: 'regions',
-        data: { name: 'Area', level: 'city', mapboxId: 'a1', parent: region.id },
+        data: {
+          name: 'Area',
+          level: 'city',
+          mapboxId: 'a1',
+          managers: [managerId],
+          parent: region.id,
+        },
       })
 
       // Neither region nor area set values → both inherit the country's.
@@ -71,6 +84,7 @@ describe('Atlas collections', () => {
           name: 'Country 2',
           level: 'country',
           mapboxId: 'c2',
+          managers: [managerId],
           eventDefaults: { language: 'en' },
         },
       })
@@ -80,6 +94,7 @@ describe('Atlas collections', () => {
           name: 'Area 2',
           level: 'city',
           mapboxId: 'a2',
+          managers: [managerId],
           parent: country.id,
           eventDefaults: { language: 'de' },
         },
@@ -96,6 +111,7 @@ describe('Atlas collections', () => {
           name: 'Country I',
           level: 'country',
           mapboxId: 'ci',
+          managers: [managerId],
           eventDefaults: { language: 'en', timeZone: ['Europe/London'] },
         },
       })
@@ -107,13 +123,20 @@ describe('Atlas collections', () => {
           name: 'Region I',
           level: 'region',
           mapboxId: 'ri',
+          managers: [managerId],
           parent: country.id,
           eventDefaults: { language: 'fr' },
         },
       })
       const area = await payload.create({
         collection: 'regions',
-        data: { name: 'Area I', level: 'city', mapboxId: 'ai', parent: region.id },
+        data: {
+          name: 'Area I',
+          level: 'city',
+          mapboxId: 'ai',
+          managers: [managerId],
+          parent: region.id,
+        },
       })
 
       const areaRead = await payload.findByID({ collection: 'regions', id: area.id })
@@ -128,16 +151,29 @@ describe('Atlas collections', () => {
           name: 'Country 3',
           level: 'country',
           mapboxId: 'c3',
+          managers: [managerId],
           eventDefaults: { language: 'en' },
         },
       })
       const blankA = await payload.create({
         collection: 'regions',
-        data: { name: 'Area 3a', level: 'city', mapboxId: 'a3a', parent: country.id },
+        data: {
+          name: 'Area 3a',
+          level: 'city',
+          mapboxId: 'a3a',
+          managers: [managerId],
+          parent: country.id,
+        },
       })
       const blankB = await payload.create({
         collection: 'regions',
-        data: { name: 'Area 3b', level: 'city', mapboxId: 'a3b', parent: country.id },
+        data: {
+          name: 'Area 3b',
+          level: 'city',
+          mapboxId: 'a3b',
+          managers: [managerId],
+          parent: country.id,
+        },
       })
       const explicit = await payload.create({
         collection: 'regions',
@@ -145,6 +181,7 @@ describe('Atlas collections', () => {
           name: 'Area 3c',
           level: 'city',
           mapboxId: 'a3c',
+          managers: [managerId],
           parent: country.id,
           eventDefaults: { language: 'de' },
         },
@@ -164,6 +201,69 @@ describe('Atlas collections', () => {
       expect(languageById.get(blankA.id)).toBe('en')
       expect(languageById.get(blankB.id)).toBe('en')
       expect(languageById.get(explicit.id)).toBe('de')
+    })
+  })
+
+  describe('Regions parent rules', () => {
+    it('limits parents to one level up, except City (Country or Region)', async () => {
+      const country = await payload.create({
+        collection: 'regions',
+        data: {
+          name: 'PR Country',
+          level: 'country',
+          mapboxId: 'pr.country',
+          managers: [managerId],
+        },
+      })
+      const city = await payload.create({
+        collection: 'regions',
+        data: {
+          name: 'PR City',
+          level: 'city',
+          mapboxId: 'pr.city',
+          parent: country.id, // City may nest directly under a Country (Region optional)
+          managers: [managerId],
+        },
+      })
+
+      // A Center may only nest under a City — not directly under a Country.
+      await expect(
+        payload.create({
+          collection: 'regions',
+          data: {
+            name: 'Bad Center',
+            level: 'center',
+            mapboxId: 'pr.center.bad',
+            parent: country.id,
+            managers: [managerId],
+          },
+        }),
+      ).rejects.toThrow()
+      const center = await payload.create({
+        collection: 'regions',
+        data: {
+          name: 'Good Center',
+          level: 'center',
+          mapboxId: 'pr.center.good',
+          parent: city.id,
+          managers: [managerId],
+        },
+      })
+      expect(center.id).toBeTruthy()
+
+      // A Region may only nest under a Country — not a City.
+      await expect(
+        payload.create({
+          collection: 'regions',
+          data: {
+            name: 'Bad Region',
+            level: 'region',
+            mapboxId: 'pr.region',
+            parent: city.id,
+            managers: [managerId],
+          },
+        }),
+      ).rejects.toThrow()
     })
   })
 

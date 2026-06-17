@@ -103,8 +103,9 @@ export const Pages: CollectionConfig = {
         description: 'Managers who can edit this page without broader permissions.',
       },
     },
-    // Virtual deep links: public web URL (any status) + in-app URL (registered
-    // app pages only). Web path carries the optional locale + primary tag.
+    // Virtual deep links: public web URL + in-app URL (registered app pages
+    // only). Both require the page to be published (gate built into
+    // publicUrlFields). Web path carries the optional locale + primary tag.
     ...publicUrlFields({
       web: () => (process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/` : null),
       app: 'wemeditate://',
@@ -117,8 +118,9 @@ export const Pages: CollectionConfig = {
         const locale = req.locale && req.locale !== 'en' && req.locale !== 'all' ? req.locale : null
         return [locale, tag, slug].filter(Boolean).join('/')
       },
-      // Web link is public for any status; the app link is gated to pages
-      // registered in the WeMeditate app config.
+      // Both links already require published (publicUrlFields' built-in gate).
+      // Beyond that, the web link needs no extra condition; the app link is
+      // additionally gated to pages registered in the WeMeditate app config.
       exposeWhen: async ({ platform, data, req }) => {
         if (platform === 'web') return true
         const id = data?.id

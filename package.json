@@ -23,8 +23,8 @@
     "generate:types": "payload generate:types && pnpm generate:statusConfig",
     "generate:statusConfig": "tsx scripts/generate-status-config.ts",
     "payload": "payload",
-    "db:migrate": "pnpm payload migrate",
-    "db:migrations:create": "pnpm payload migrate:create"
+    "db:migrate": "payload migrate",
+    "db:migrations:create": "payload migrate:create"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1055.0",

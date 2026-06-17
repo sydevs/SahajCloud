@@ -2,8 +2,9 @@ import type { CollectionConfig } from 'payload'
 
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
-import { legacyMigrationFields } from '@/fields'
+import { hideUntilCreated, legacyMigrationFields } from '@/fields'
 import { getLanguageOptions } from '@/lib/locales'
+import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { getTimezoneOptions } from '@/lib/timezones'
 
 import { eventDefaultsFallback } from './hooks/eventDefaultsFallback'
@@ -23,13 +24,65 @@ export const REGION_LEVEL_OPTIONS = [
 
 /**
  * Manual coordinates apply only to nodes whose location was entered by hand
- * (`mapboxId === 'manual'`); a Mapbox-identified node resolves geometry from
- * its id downstream. Used as each coordinate field's own `condition` so that —
- * being `required` only when visible — Payload keeps the columns nullable (a
- * `required` field with no own condition would force a NOT NULL column and
- * reject every Mapbox-identified region).
+ * (a `manual`-prefixed `mapboxId` — see isManualMapboxId); a Mapbox-identified
+ * node resolves geometry from its id downstream. Used as each coordinate field's
+ * own `condition` so that — being `required` only when visible — Payload keeps the
+ * columns nullable (a `required` field with no own condition would force a NOT
+ * NULL column and reject every Mapbox-identified region).
  */
-const isManualLocation = (data: Record<string, unknown>): boolean => data?.mapboxId === 'manual'
+const isManualLocation = (data: Record<string, unknown>): boolean =>
+  isManualMapboxId(data?.mapboxId)
+
+/**
+ * Which levels may be a node's direct parent. A node nests exactly one level up,
+ * except a City, which may sit under a Region or — skipping the optional Region —
+ * directly under a Country. A Country is the tree root (no parent). Single source
+ * of truth for both the `parent` picker (filterOptions) and the reverse per-level
+ * children tabs (childLevelVisible).
+ */
+const ALLOWED_PARENT_LEVELS: Record<string, string[]> = {
+  region: ['country'],
+  city: ['country', 'region'],
+  center: ['city'],
+}
+
+/**
+ * Condition for a per-level `children` join: show it only once the doc exists and
+ * the current node's level is an allowed parent of `childLevel` (the inverse of
+ * ALLOWED_PARENT_LEVELS) — so the Centers tab appears only under a City, never a
+ * Country/Region, and a center (a leaf) shows no child tabs at all.
+ */
+const childLevelVisible = (childLevel: string) => {
+  const parentLevels: string[] = ALLOWED_PARENT_LEVELS[childLevel] ?? []
+  return (data: Record<string, unknown>): boolean =>
+    hideUntilCreated(data) && parentLevels.includes(data?.level as string)
+}
+
+/**
+ * One tab per child level: each holds a single `join` filtered to that level,
+ * shown only when it's a valid child of the current node (`childLevelVisible`).
+ * Country sees all three; a center (leaf) sees none.
+ */
+const CHILD_LEVEL_TABS = [
+  {
+    level: 'region',
+    label: 'Regions',
+    name: 'childrenRegions',
+    description: 'Region-level nodes nested directly beneath this one.',
+  },
+  {
+    level: 'city',
+    label: 'Cities',
+    name: 'childrenCities',
+    description: 'Cities nested directly beneath this one.',
+  },
+  {
+    level: 'center',
+    label: 'Centers',
+    name: 'childrenCenters',
+    description: 'SY Centers nested directly beneath this one.',
+  },
+] as const
 
 /**
  * Regions — the nested Sahaj Atlas geo tree. `parent` + `breadcrumbs` are
@@ -69,6 +122,17 @@ export const Regions: CollectionConfig = {
                   options: [...REGION_LEVEL_OPTIONS],
                   admin: {
                     components: { Field: '@/components/admin/ToggleGroupField' },
+                    // Per-value help text — rendered by ToggleGroupField's
+                    // embedded SelectDescription (reads admin.custom.descriptions).
+                    custom: {
+                      descriptions: {
+                        country: 'A country — the root of the geographic tree.',
+                        region: 'A state, province, or other sub-national region.',
+                        city: 'A city or town.',
+                        center:
+                          'A Sahaja Yoga Center that holds multiple classes — a venue shared by more than one event. (Single-use venues belong in the event’s own address instead.)',
+                      },
+                    },
                   },
                 },
                 {
@@ -81,12 +145,11 @@ export const Regions: CollectionConfig = {
                   relationTo: 'regions',
                   maxDepth: 1,
                   filterOptions: ({ data }) => {
-                    const levels: string[] = REGION_LEVEL_OPTIONS.map((option) => option.value)
-                    const currentIndex = levels.indexOf(data?.level as string)
-                    // Parent must be a strictly higher level (closer to country);
-                    // this also prevents cycles (no same-/lower-level parent).
-                    if (currentIndex <= 0) return false
-                    return { level: { in: levels.slice(0, currentIndex) } }
+                    // Exactly one level up, except City (Country or Region) — see
+                    // ALLOWED_PARENT_LEVELS. A Country (or unset level) has no
+                    // valid parent. This also prevents cycles (never same/lower).
+                    const allowed = ALLOWED_PARENT_LEVELS[data?.level as string]
+                    return allowed ? { level: { in: allowed } } : false
                   },
                   admin: {
                     // A country is the tree root, so it has no parent.
@@ -97,10 +160,28 @@ export const Regions: CollectionConfig = {
               ],
             },
             {
+              // Owning side of Managers.managedRegions (a join on this field).
+              // Populated by the Atlas `managed_records` import. Optional: most
+              // Atlas regions have no manager on file, so requiring it would block
+              // the import — managers are assigned where they exist.
+              name: 'managers',
+              type: 'relationship',
+              relationTo: 'managers',
+              hasMany: true,
+              admin: {
+                description: 'Managers responsible for this region.',
+              },
+            },
+            {
               name: 'mapboxId',
               type: 'text',
               label: 'Location',
               required: true,
+              // A real Mapbox feature id identifies exactly one region. Manual
+              // locations also satisfy this — each is given a unique `manual-<id>`
+              // (the admin generates a uuid; the importer a per-node key), so the
+              // bare shared `'manual'` sentinel is never written here.
+              unique: true,
               admin: {
                 components: { Field: '@/components/admin/AddressSearchField' },
                 custom: {
@@ -132,6 +213,11 @@ export const Regions: CollectionConfig = {
                   name: 'name',
                   type: 'text',
                   required: true,
+                  // Only meaningful once a location is chosen — AddressSearchField
+                  // populates the name from the picked place. Hidden (and, per the
+                  // conditional-validation rule, not required / kept nullable) until
+                  // `mapboxId` has any value, manual or a real Mapbox id.
+                  admin: { condition: (data) => !!data?.mapboxId },
                 },
                 {
                   name: 'subtitle',
@@ -167,30 +253,6 @@ export const Regions: CollectionConfig = {
                   admin: { description: 'Radius in meters.', condition: isManualLocation },
                 },
               ],
-            },
-            {
-              // Owning side of Managers.managedRegions (a join on this field).
-              // Populated by the Atlas `managed_records` import.
-              name: 'managers',
-              type: 'relationship',
-              relationTo: 'managers',
-              hasMany: true,
-              admin: {
-                description: 'Managers responsible for this region.',
-              },
-            },
-            {
-              // Reverse side of `parent`: every region nested directly beneath
-              // this one. Centers are leaf venues, so they never have children —
-              // only levels above `center` (country/region/city) show this.
-              name: 'children',
-              type: 'join',
-              collection: 'regions',
-              on: 'parent',
-              admin: {
-                description: 'Regions nested directly beneath this one.',
-                condition: (data) => data?.level !== 'center',
-              },
             },
           ],
         },
@@ -244,9 +306,31 @@ export const Regions: CollectionConfig = {
               type: 'join',
               collection: 'events',
               on: 'region',
+              admin: { condition: hideUntilCreated },
             },
           ],
         },
+        // Reverse side of `parent`, one tab per child level (see CHILD_LEVEL_TABS).
+        // Valid parents per level live in ALLOWED_PARENT_LEVELS, so each tab shows
+        // only once the doc exists AND the current node is an allowed parent of
+        // that level — `childLevelVisible` (on the tab) folds both checks together,
+        // and `where` filters the join to that single level. A Country shows
+        // Regions + Cities; a Region shows Cities; a City shows Centers; a center
+        // (leaf) shows none.
+        ...CHILD_LEVEL_TABS.map(({ level, label, name, description }) => ({
+          label,
+          admin: { condition: childLevelVisible(level) },
+          fields: [
+            {
+              name,
+              type: 'join' as const,
+              collection: 'regions' as const,
+              on: 'parent',
+              where: { level: { equals: level } },
+              admin: { description },
+            },
+          ],
+        })),
       ],
     },
     // Breadcrumbs are populated by plugin-nested-docs. Defining the field here

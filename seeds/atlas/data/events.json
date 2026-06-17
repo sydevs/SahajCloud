@@ -18519,7 +18519,7 @@
     "verificationStreak": 0,
     "managerId": 183,
     "venueId": 270,
-    "areaId": 263,
+    "areaId": 190,
     "finishDate": null,
     "schedule": {
       "frequency": "weekly",
@@ -24807,7 +24807,7 @@
     },
     "verificationStreak": 1,
     "managerId": 46,
-    "venueId": 342,
+    "venueId": 104,
     "areaId": 2,
     "finishDate": null,
     "schedule": {
@@ -24887,7 +24887,7 @@
     },
     "verificationStreak": 2,
     "managerId": 46,
-    "venueId": 342,
+    "venueId": 104,
     "areaId": 2,
     "finishDate": null,
     "schedule": {
@@ -27853,7 +27853,7 @@
     "verificationStreak": 0,
     "managerId": 318,
     "venueId": 247,
-    "areaId": 429,
+    "areaId": 247,
     "finishDate": null,
     "schedule": {
       "frequency": "weekly",
@@ -29232,7 +29232,7 @@
     "verificationStreak": 0,
     "managerId": 281,
     "venueId": 316,
-    "areaId": 436,
+    "areaId": 367,
     "finishDate": null,
     "schedule": {
       "frequency": "weekly",

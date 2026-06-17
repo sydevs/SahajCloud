@@ -31,6 +31,7 @@ import {
   geocodeRegion,
   MANUAL_LOCATION,
 } from '@/lib/mapbox/geocoder'
+import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 
 import { BaseImporter, type BaseImportOptions, fetchAsset, MediaUploader } from '../lib'
 import { plainTextToLexical } from './helpers/lexical'
@@ -456,7 +457,8 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             legacyId: manager.legacyId,
             legacyData: manager,
           },
-          { identifier: manager.email, current: i + 1, total },
+          // Bulk import: skip the per-manager verification email (mail rate limits).
+          { identifier: manager.email, current: i + 1, total, disableVerificationEmail: true },
         )
         this.idMaps.managers.set(manager.legacyId, result.doc.id)
       } catch (error) {
@@ -517,6 +519,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         level,
         latitude: region.latitude,
         longitude: region.longitude,
+        countryCode: region.countryCode,
         radius: region.radius,
       })
       if (warning) this.addWarning(`Region "${region.name}" (#${region.legacyId}): ${warning}`)
@@ -537,7 +540,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
           name: region.name,
           subtitle: region.subtitle ?? undefined,
           parent: parentId,
-          ...this.locationData(location),
+          ...this.locationData(location, mapKey),
           managers: managersByRegion.get(mapKey),
           ...(eventDefaults ? { eventDefaults } : {}),
           legacyId: region.legacyId,
@@ -572,6 +575,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
           level: 'center',
           latitude: venue.latitude,
           longitude: venue.longitude,
+          countryCode: venue.countryCode,
         })
         if (warning)
           this.addWarning(`Center "${venueDisplayName(venue)}" (venue #${venueId}): ${warning}`)
@@ -583,7 +587,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             level: 'center',
             name: venueDisplayName(venue),
             parent: parentId,
-            ...this.locationData(location),
+            ...this.locationData(location, mapKey),
             managers: managersByRegion.get(mapKey),
             legacyId: venueId,
             legacyData: venue,
@@ -978,18 +982,25 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         level: 'center',
         latitude: venue.latitude,
         longitude: venue.longitude,
+        countryCode: venue.countryCode,
       })) ?? MANUAL_LOCATION
     this.venueMapbox.set(venue.legacyId, id)
     return id
   }
 
-  /** Spread a resolved region location into Regions columns (manual → coords). */
+  /**
+   * Spread a resolved region location into Regions columns (manual → coords).
+   * `Regions.mapboxId` is unique, so a manual node can't keep the bare shared
+   * `'manual'` sentinel — it gets a unique `manual-<seed>` id keyed on the
+   * region's natural key (`level:legacyId`) so re-imports stay idempotent.
+   */
   private locationData(
     location: { mapboxId: string; manual: boolean } & Record<string, unknown>,
+    manualSeed: string,
   ): Record<string, unknown> {
     if (!location.manual) return { mapboxId: location.mapboxId }
     return {
-      mapboxId: MANUAL_LOCATION,
+      mapboxId: makeManualMapboxId(manualSeed),
       latitude: location.latitude ?? undefined,
       longitude: location.longitude ?? undefined,
       radius: location.radius ?? undefined,

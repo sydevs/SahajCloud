@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { mediaField } from '@/fields'
+import { hideUntilCreated, mediaField } from '@/fields'
 import { deleteChildren } from '@/hooks/cascadeDeletion'
 
 export const Albums: CollectionConfig = {
@@ -54,6 +54,7 @@ export const Albums: CollectionConfig = {
       on: 'album',
       defaultLimit: 100,
       admin: {
+        condition: hideUntilCreated,
         description: 'Music tracks in this album',
         components: {
           Cell: '@/components/admin/RelationshipCountCell',

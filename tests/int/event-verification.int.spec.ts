@@ -75,6 +75,7 @@ describe('Event verification lifecycle', () => {
   let cleanup: () => Promise<void>
   let adminUser: Manager
   let eventManager: Manager
+  let defaultRegion: { id: number }
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -85,6 +86,16 @@ describe('Event verification lifecycle', () => {
       name: 'Event Manager',
       email: 'event-manager@example.com',
       notificationPreferences: { event_verification: { frequency: 'Monthly', method: 'email' } },
+    })
+    defaultRegion = await payload.create({
+      collection: 'regions',
+      overrideAccess: true,
+      data: {
+        name: 'Default City',
+        level: 'city',
+        mapboxId: 'default-city',
+        managers: [eventManager.id],
+      },
     })
   })
 
@@ -102,6 +113,7 @@ describe('Event verification lifecycle', () => {
       onlineUrl: 'https://example.com/meet',
       registrationMode: 'sahaj-atlas',
       manager: eventManager.id,
+      region: defaultRegion.id,
       // Publish on create (the manager's publish action) so the expire →
       // draft flip is observable; the hook leaves _status to the save choice.
       _status: 'published',
@@ -136,7 +148,12 @@ describe('Event verification lifecycle', () => {
     const region = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: { name: 'Country LC', level: 'country', mapboxId: 'lc-country' },
+      data: {
+        name: 'Country LC',
+        level: 'country',
+        mapboxId: 'lc-country',
+        managers: [eventManager.id],
+      },
     })
     const regionManager = await testData.createManager(payload, {
       name: 'Region Manager',
@@ -256,7 +273,12 @@ describe('Event verification lifecycle', () => {
     const country = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: { name: 'Country DD', level: 'country', mapboxId: 'dd-country' },
+      data: {
+        name: 'Country DD',
+        level: 'country',
+        mapboxId: 'dd-country',
+        managers: [eventManager.id],
+      },
     })
     const countryManager = await testData.createManager(payload, {
       name: 'Country Manager',
@@ -322,7 +344,12 @@ describe('Event verification lifecycle', () => {
     const region = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: { name: 'Country RS', level: 'country', mapboxId: 'rs-country' },
+      data: {
+        name: 'Country RS',
+        level: 'country',
+        mapboxId: 'rs-country',
+        managers: [eventManager.id],
+      },
     })
     const regionManager = await testData.createManager(payload, {
       name: 'Resume Region Manager',
