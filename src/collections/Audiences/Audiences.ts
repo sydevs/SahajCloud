@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
+import { hideUntilCreated } from '@/fields'
 import { getCountryOptions } from '@/lib/geography'
 
 import { audiencesForUser } from './endpoints/forUser'
@@ -66,6 +67,7 @@ export const Audiences: CollectionConfig = {
       on: 'audiences',
       defaultLimit: 100,
       admin: {
+        condition: hideUntilCreated,
         description: 'All lectures tagged with this audience',
         components: {
           Cell: {
@@ -82,6 +84,7 @@ export const Audiences: CollectionConfig = {
       on: 'audiences',
       defaultLimit: 100,
       admin: {
+        condition: hideUntilCreated,
         description: 'All app cards tagged with this audience',
         components: {
           Cell: {
@@ -98,6 +101,7 @@ export const Audiences: CollectionConfig = {
       on: 'conditions',
       defaultLimit: 100,
       admin: {
+        condition: hideUntilCreated,
         description: 'All app cards that require this audience as a condition',
         components: {
           Cell: {

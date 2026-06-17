@@ -78,6 +78,7 @@ async function persistSampleEvent(): Promise<SampleData> {
       name: 'India',
       level: 'country',
       mapboxId: `sample-in-${stamp}`,
+      managers: [regionManager.id],
       eventDefaults: { language: 'en', timeZone: ['Asia/Calcutta'] },
     },
   })

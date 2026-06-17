@@ -681,8 +681,10 @@ export interface Config {
       managedEvents: 'events';
     };
     regions: {
-      children: 'regions';
       events: 'events';
+      childrenRegions: 'regions';
+      childrenCities: 'regions';
+      childrenCenters: 'regions';
     };
     events: {
       registrations: 'registrations';
@@ -1338,10 +1340,14 @@ export interface Region {
    */
   parent?: (number | null) | Region;
   /**
+   * Managers responsible for this region.
+   */
+  managers?: (number | Manager)[] | null;
+  /**
    * Search for this place (country, region, city, or venue) to set its geographic identity, or "Enter manually" to provide your own coordinates.
    */
   mapboxId: string;
-  name: string;
+  name?: string | null;
   /**
    * Text that appears below the region name in listings
    */
@@ -1352,18 +1358,6 @@ export interface Region {
    * Radius in meters.
    */
   radius?: number | null;
-  /**
-   * Managers responsible for this region.
-   */
-  managers?: (number | Manager)[] | null;
-  /**
-   * Regions nested directly beneath this one.
-   */
-  children?: {
-    docs?: (number | Region)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   /**
    * These fields will be used to set defaults for Events in this region
    */
@@ -2146,6 +2140,30 @@ export interface Region {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  /**
+   * Region-level nodes nested directly beneath this one.
+   */
+  childrenRegions?: {
+    docs?: (number | Region)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * Cities nested directly beneath this one.
+   */
+  childrenCities?: {
+    docs?: (number | Region)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * SY Centers nested directly beneath this one.
+   */
+  childrenCenters?: {
+    docs?: (number | Region)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   breadcrumbs?:
     | {
         doc?: (number | null) | Region;
@@ -2447,7 +2465,7 @@ export interface Event {
   /**
    * The city or center this event belongs to.
    */
-  region?: (number | null) | Region;
+  region: number | Region;
   eventType: 'offline' | 'online';
   /**
    * Link attendees join the online event through.
@@ -5104,14 +5122,13 @@ export interface AppCardsSelect<T extends boolean = true> {
 export interface RegionsSelect<T extends boolean = true> {
   level?: T;
   parent?: T;
+  managers?: T;
   mapboxId?: T;
   name?: T;
   subtitle?: T;
   latitude?: T;
   longitude?: T;
   radius?: T;
-  managers?: T;
-  children?: T;
   eventDefaults?:
     | T
     | {
@@ -5119,6 +5136,9 @@ export interface RegionsSelect<T extends boolean = true> {
         timeZone?: T;
       };
   events?: T;
+  childrenRegions?: T;
+  childrenCities?: T;
+  childrenCenters?: T;
   breadcrumbs?:
     | T
     | {

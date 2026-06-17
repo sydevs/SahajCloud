@@ -103,7 +103,9 @@ async function findRegionRecipient(
     if (!region) continue
     for (const manager of region.managers ?? []) {
       if (typeof manager === 'object' && manager && manager.id !== eventManagerId) {
-        return { manager, regionName: region.name }
+        // `name` is only set once a location is chosen (it's conditional on
+        // mapboxId), so fall back to a stable id label for the rare unnamed node.
+        return { manager, regionName: region.name || `#${region.id}` }
       }
     }
   }

@@ -27,9 +27,11 @@ export interface PublicUrlFieldsOptions {
    */
   buildPath: (ctx: PublicUrlFieldContext) => string | null | Promise<string | null>
   /**
-   * Optional guard: when it resolves false the field reads `null`. Use for
-   * conditions like "document is published" or "is a registered app page".
-   * (Named `exposeWhen` rather than "guard" to read as a predicate.)
+   * Optional *additional* guard, AND-ed with the built-in published gate: when it
+   * resolves false the field reads `null`. Use for extra conditions beyond
+   * published — e.g. "is a registered app page". (Named `exposeWhen` rather than
+   * "guard" to read as a predicate.) A published check is no longer needed here —
+   * the factory always requires `_status === 'published'`.
    */
   exposeWhen?: (ctx: PublicUrlFieldContext) => boolean | Promise<boolean>
   /** Field name overrides (default `webUrl` / `appUrl`). */
@@ -47,6 +49,11 @@ function urlHook(
   return async ({ data, req }) => {
     const resolved = typeof base === 'function' ? base() : base
     if (!resolved) return null
+
+    // A public URL only exists once the document is published — an unpublished /
+    // draft / expired doc has no public page. This gate is built in (rather than
+    // left to each call site) so no collection can leak a URL for a draft.
+    if (data?._status !== 'published') return null
 
     const ctx: PublicUrlFieldContext = { platform, data, req }
     if (exposeWhen && !(await exposeWhen(ctx))) return null
@@ -74,13 +81,15 @@ function virtualUrlField(name: string, hook: FieldHook): TextField {
  * document to its public web and/or in-app deep link. Only the platforms whose
  * base URL is supplied are created. Each shares the `buildPath` (path segment
  * appended to the base) and `exposeWhen` guard (returns `null` when false), so
- * the per-collection wiring stays a few lines.
+ * the per-collection wiring stays a few lines. Both URLs are gated on the
+ * document being published — only draft-enabled collections (with a `_status`)
+ * will ever expose a URL.
  *
  * @example
  * publicUrlFields({
  *   web: () => process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/map#/!/` : null,
  *   buildPath: ({ data }) => (data?.id ? `events/${data.id}` : null),
- *   exposeWhen: ({ data }) => data?._status === 'published',
+ *   // published is implicit — pass exposeWhen only for *extra* conditions
  * })
  */
 export function publicUrlFields({

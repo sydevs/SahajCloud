@@ -16,6 +16,8 @@ import path from 'node:path'
 
 import { Client, types } from 'pg'
 
+import { dedupeAtlasFiles } from './dedupe'
+
 // node-postgres returns int8/bigint as strings (to avoid precision loss) but
 // int4 as numbers. Atlas mixes the two across FK columns (e.g. managers.id is
 // bigint, managed_records.manager_id is int4), so relationship keys would not
@@ -424,6 +426,11 @@ async function main() {
   await db.end()
   console.log('Wrote JSON files to', OUT_DIR)
   for (const [name, count] of Object.entries(written)) console.log(`  ${name}.json: ${count}`)
+
+  // De-duplicate same-place regions/venues so every node resolves to a distinct
+  // (unique) mapboxId on import — repeatable on every refetch. See dedupe.ts.
+  const dedupe = dedupeAtlasFiles(OUT_DIR)
+  console.log('De-duplicated:', JSON.stringify(dedupe))
 }
 
 main().catch((err) => {

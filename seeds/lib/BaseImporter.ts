@@ -690,6 +690,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       forceFileUpload?: boolean
       /** Extra `req.context` forwarded to create/update (e.g. `{ skipVerifyHook: true }`). */
       context?: Record<string, unknown>
+      /** Skip Payload's verification email on create (bulk auth imports avoid mail rate limits). */
+      disableVerificationEmail?: boolean
     },
   ): Promise<UpsertResult<T>> {
     const identifier = options?.identifier || this.summarizeKey(naturalKey)
@@ -784,6 +786,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             locale: options?.locale,
             file: options?.file,
             context: options?.context,
+            disableVerificationEmail: options?.disableVerificationEmail,
           }),
         )
         if (DEBUG)
@@ -887,6 +890,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           locale: options?.locale,
           file: options?.file,
           context: options?.context,
+          disableVerificationEmail: options?.disableVerificationEmail,
         }),
       )
       if (DEBUG)

@@ -10,6 +10,7 @@ import {
 
 import {
   addressFields,
+  hideUntilCreated,
   legacyMigrationFields,
   scheduleFields,
   urlField,
@@ -201,7 +202,9 @@ export const Events: CollectionConfig = {
             {
               name: 'region',
               type: 'relationship',
+              label: 'City / Center',
               relationTo: 'regions',
+              required: true,
               filterOptions: () => ({ level: { in: ['city', 'center'] } }),
               admin: { description: 'The city or center this event belongs to.' },
             },
@@ -279,6 +282,7 @@ export const Events: CollectionConfig = {
               type: 'join',
               collection: 'registrations',
               on: 'event',
+              admin: { condition: hideUntilCreated },
             },
           ],
         },
@@ -354,12 +358,11 @@ export const Events: CollectionConfig = {
       ],
     },
     // Virtual public link to the event on the Sahaj Atlas map — only while the
-    // event is published (an unpublished/expired event has no public page).
+    // event is published (the published gate is built into publicUrlFields).
     ...publicUrlFields({
       web: () =>
         process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/map#/!/` : null,
       buildPath: ({ data }) => (data?.id ? `events/${data.id}` : null),
-      exposeWhen: ({ data }) => data?._status === 'published',
     }),
     ...legacyMigrationFields(),
   ],

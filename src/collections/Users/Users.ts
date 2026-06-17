@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { legacyMigrationFields } from '@/fields'
+import { hideUntilCreated, legacyMigrationFields } from '@/fields'
 
 /**
  * Users — Sahaj Atlas event registrants (the people who sign up for events),
@@ -38,6 +38,9 @@ export const Users: CollectionConfig = {
       type: 'join',
       collection: 'registrations',
       on: 'user',
+      admin: {
+        condition: hideUntilCreated,
+      },
     },
     ...legacyMigrationFields(),
   ],

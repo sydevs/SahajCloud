@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { slugField } from '@/fields'
+import { hideUntilCreated, slugField } from '@/fields'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
 
@@ -49,6 +49,7 @@ export const SongTags: CollectionConfig = {
       on: 'tags',
       defaultLimit: 100,
       admin: {
+        condition: hideUntilCreated,
         components: {
           Cell: {
             path: '@/components/admin/RelationshipCountCell',

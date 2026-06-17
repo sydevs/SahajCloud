@@ -1,5 +1,11 @@
 import type { CollectionConfig } from 'payload'
 
+// Import the leaf module, not the '@/fields' barrel: this file exports
+// SUBTLE_SYSTEM_NODE_OPTIONS, which the client component FrameInserter imports.
+// The barrel re-exports the lexical editor (server-only `fs`/`module`), which
+// would then be dragged into the browser bundle and fail to resolve.
+import { hideUntilCreated } from '@/fields/hideUntilCreated'
+
 /**
  * The closed set of 12 subtle-system nodes (chakras + nadis).
  * The migration that creates `subtle_system_nodes` seeds exactly these slugs;
@@ -69,6 +75,7 @@ export const SubtleSystemNodes: CollectionConfig = {
       on: 'subtleSystemNodes',
       defaultLimit: 100,
       admin: {
+        condition: hideUntilCreated,
         components: {
           Cell: {
             path: '@/components/admin/RelationshipCountCell',
@@ -84,6 +91,7 @@ export const SubtleSystemNodes: CollectionConfig = {
       on: 'subtleSystemNode',
       defaultLimit: 100,
       admin: {
+        condition: hideUntilCreated,
         components: {
           Cell: {
             path: '@/components/admin/RelationshipCountCell',
