@@ -165,7 +165,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         // auto-reaped; it must never break the (already-succeeded) upload.
         if (isStorageIsolationActive()) {
           try {
-            await fetch(
+            const tagResponse = await fetch(
               `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${videoId}`,
               {
                 method: 'POST',
@@ -178,8 +178,18 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
                 }),
               },
             )
+            // error-level (not warn) so a systematically broken tagger is
+            // visible: untagged preview videos are never auto-reaped, silently
+            // accumulating in the shared account.
+            if (!tagResponse.ok) {
+              req.payload.logger.error({
+                msg: 'Failed to tag preview video; it will not be auto-reaped',
+                videoId,
+                status: tagResponse.status,
+              })
+            }
           } catch (error) {
-            req.payload.logger.warn({
+            req.payload.logger.error({
               msg: 'Failed to tag preview video; it will not be auto-reaped',
               videoId,
               error: error instanceof Error ? error.message : String(error),

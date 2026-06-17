@@ -55,8 +55,8 @@ function parseArgs(argv: string[]): Args {
       args.apply = true
     } else if (arg === '--days') {
       const value = Number(argv[++i])
-      if (!Number.isFinite(value) || value < 0) {
-        console.error('--days must be a non-negative number')
+      if (!Number.isInteger(value) || value < 0) {
+        console.error('--days must be a non-negative integer')
         process.exit(1)
       }
       args.days = value
@@ -200,7 +200,9 @@ async function reapStream(
   days: number,
   apply: boolean,
 ): Promise<ReapSummary> {
-  const json = await cfFetch('GET', `/accounts/${accountId}/stream`, apiKey)
+  // Oldest-first (`asc=true`) so a single page reaches the reapable (aged)
+  // videos even when the account exceeds the ~1000-video listing cap.
+  const json = await cfFetch('GET', `/accounts/${accountId}/stream?asc=true`, apiKey)
   const parsed = StreamListSchema.parse(json)
   if (!parsed.success) {
     throw new Error(

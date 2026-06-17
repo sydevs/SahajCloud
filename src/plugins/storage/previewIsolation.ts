@@ -37,7 +37,18 @@
  */
 export const PRODUCTION_ORIGIN_HOST = 'cloud.sydevelopers.com'
 
-/** Marker prepended to Cloudflare Images custom IDs and R2 object keys in non-prod. */
+/**
+ * Marker prepended to Cloudflare Images custom IDs and R2 object keys in
+ * non-prod. Ownership is detected via `startsWith(PREVIEW_ASSET_PREFIX)`.
+ *
+ * KNOWN LIMITATION (inherent to Option B's policy-based marking — see #432): a
+ * production asset whose generated ID/key legitimately begins with `preview-`
+ * (e.g. a prod upload named "preview-banner.jpg") is classified as
+ * preview-owned. The cleanup job's marker-AND-age condition bounds the blast
+ * radius, but such an asset could in principle be deleted from a preview. If
+ * this surfaces in practice, harden the marker to a token the slug generator
+ * (lowercased `[a-z0-9-]`) cannot produce.
+ */
 export const PREVIEW_ASSET_PREFIX = 'preview-'
 
 /** Cloudflare Stream `meta` key/value stamped on non-prod video uploads. */
