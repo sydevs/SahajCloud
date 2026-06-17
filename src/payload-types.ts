@@ -1342,7 +1342,7 @@ export interface Region {
   /**
    * Managers responsible for this region.
    */
-  managers: (number | Manager)[];
+  managers?: (number | Manager)[] | null;
   /**
    * Search for this place (country, region, city, or venue) to set its geographic identity, or "Enter manually" to provide your own coordinates.
    */
