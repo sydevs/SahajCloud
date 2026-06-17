@@ -76,7 +76,7 @@ export function addressFields(options: AddressFieldsOptions = {}): Field {
               label: 'Address',
               admin: {
                 components: { Field: ADDRESS_SEARCH_FIELD },
-                custom: { searchTypes: 'address,poi', populateAddress: true },
+                custom: { searchTypes: 'address,poi', populateAddress: true, allowManual: true },
               },
             },
           ]

@@ -44,6 +44,7 @@ export const Regions: CollectionConfig = {
     group: 'Classes',
     useAsTitle: 'name',
     defaultColumns: ['name', 'level'],
+    groupBy: true,
   },
   hooks: {
     // Inherit eventDefaults (language + timeZone) from the nearest ancestor when blank.
@@ -115,6 +116,10 @@ export const Regions: CollectionConfig = {
                   },
                   searchTypes: 'country,region,place,poi', // fallback if level unset
                   populateName: true,
+                  allowManual: true,
+                  // A country must be geocoded (no hand-entered coordinates).
+                  allowManualByValue: { country: false },
+                  placeholder: 'Search for location...',
                 },
                 description:
                   'Search for this place (country, region, city, or venue) to set its geographic identity, or "Enter manually" to provide your own coordinates.',

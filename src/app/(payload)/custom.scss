@@ -70,6 +70,13 @@
   color: var(--theme-text);
 }
 
+/* The selected value renders as a single clearable pill inside a ReactSelect
+   control (chevron + clear-all removed). Force it full width so the control
+   matches the search box it replaces. */
+.field-type.address-search .react-select {
+  width: 100%;
+}
+
 /* ============================================================================
    5. STRING SELECT FIELD (StringSelectField — country/region dropdowns)
    ============================================================================ */
