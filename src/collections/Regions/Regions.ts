@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
-import { hideUntilCreated, legacyMigrationFields } from '@/fields'
+import { hideUntilCreated, legacyMigrationFields, slugField } from '@/fields'
 import { getLanguageOptions } from '@/lib/locales'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { getTimezoneOptions } from '@/lib/timezones'
@@ -333,6 +333,27 @@ export const Regions: CollectionConfig = {
         })),
       ],
     },
+    // Stable, URL-friendly identity for Sahaj Atlas routing — a region otherwise
+    // exposes only an opaque `mapboxId` and a display `name`. Unique + indexed
+    // (hardcoded by the helper); `collectionSlug` adds app-layer uniqueness
+    // validation. A handful of regions share a `name` across the tree (e.g.
+    // Georgia the country vs. the US state), so the Atlas importer assigns
+    // collision-free slugs rather than relying on the bare `name`.
+    slugField({
+      useAsSlug: 'name',
+      collectionSlug: 'regions',
+      description: 'Stable identifier for Atlas routing (auto-generated from {sourceField}).',
+      // Nullable column on purpose: `regions` predates this field, so the
+      // generated migration adds it nullable (Postgres allows many NULLs under a
+      // unique index) and the Atlas importer backfills existing rows — no
+      // hand-edited NOT NULL backfill. New rows still get a slug from the
+      // `generateSlug` checkbox; the helper's built-in `required: true` would
+      // instead emit a NOT NULL column the populated table can't satisfy.
+      overrides: (field) => {
+        if (field.fields[1].type === 'text') field.fields[1].required = false
+        return field
+      },
+    }),
     // Breadcrumbs are populated by plugin-nested-docs. Defining the field here
     // (top-level, so the plugin reuses it instead of injecting its own) lets us
     // hide it — it's an internal denormalization, not something managers edit.
