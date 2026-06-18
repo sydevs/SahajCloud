@@ -45,7 +45,7 @@ async function callEndpoint(
   options: {
     skipDefaultAudiences?: boolean
     defaultAudiences?: string
-    user?: { id: number | string; collection: string; active?: boolean } | null
+    user?: { id: number | string; collection: string; _status?: 'published' | 'draft' } | null
   } = {},
 ): Promise<{ status: number; headers: Headers; body: { docs: LecturePlayerData[] } | unknown }> {
   const finalQuery = options.skipDefaultAudiences
@@ -536,7 +536,7 @@ describe('meditationLectures endpoint', () => {
         { limit: 10 },
         {
           defaultAudiences: audienceFilter,
-          user: { id: adminUserId, collection: 'managers', active: true },
+          user: { id: adminUserId, collection: 'managers' },
         },
       )
       expect(status).toBe(403)

@@ -14,11 +14,8 @@ export const Clients: CollectionConfig = {
     useAPIKey: true,
     disableLocalStrategy: true, // Only API key authentication
   },
-  indexes: [
-    {
-      fields: ['_status'],
-    },
-  ],
+  // No explicit `_status` index needed — Payload auto-indexes it for
+  // draft-enabled collections (matches Pages/Meditations/AppCards).
   labels: {
     singular: 'Service',
     plural: 'Services',

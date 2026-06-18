@@ -23,7 +23,7 @@ async function callEndpoint(
   query: Record<string, string | number | boolean>,
   options: {
     skipAudienceDefaults?: boolean
-    user?: { id: number | string; collection: string; active?: boolean } | null
+    user?: { id: number | string; collection: string; _status?: 'published' | 'draft' } | null
   } = {},
 ): Promise<{ status: number; headers: Headers; body: { audiences?: number[]; errors?: unknown } }> {
   const finalQuery = options.skipAudienceDefaults ? query : { ...AUDIENCE_DEFAULTS, ...query }
@@ -102,7 +102,7 @@ describe('audiencesForUser endpoint', () => {
       const { status } = await callEndpoint(
         payload,
         {},
-        { user: { id: adminUserId, collection: 'managers', active: true } },
+        { user: { id: adminUserId, collection: 'managers' } },
       )
       expect(status).toBe(403)
     })

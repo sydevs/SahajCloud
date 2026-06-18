@@ -34,7 +34,7 @@ async function callEndpoint(
   meditationId: number | string,
   query: { select?: Record<string, boolean> } = {},
   options: {
-    user?: { id: number | string; collection: string; active?: boolean } | null
+    user?: { id: number | string; collection: string; _status?: 'published' | 'draft' } | null
   } = {},
 ): Promise<{ status: number; headers: Headers; body: SongsBody | unknown }> {
   const req = {
@@ -281,7 +281,7 @@ describe('meditationSongs endpoint', () => {
         payload,
         meditation.id,
         {},
-        { user: { id: adminUserId, collection: 'managers', active: true } },
+        { user: { id: adminUserId, collection: 'managers' } },
       )
       expect(status).toBe(403)
     })

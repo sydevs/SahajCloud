@@ -17,7 +17,7 @@ const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', _status: 'published'
 async function callEndpoint(
   payload: Payload,
   query: Record<string, string | number | boolean>,
-  user?: { id: number | string; collection: string; active?: boolean } | null,
+  user?: { id: number | string; collection: string; _status?: 'published' | 'draft' } | null,
   options: { skipDefaultAudiences?: boolean; defaultAudiences?: string } = {},
 ): Promise<{ status: number; headers: Headers; body: unknown }> {
   const finalQuery = options.skipDefaultAudiences
@@ -316,7 +316,7 @@ describe('appCardsForAudience endpoint', () => {
       const { status } = await callEndpoint(
         payload,
         { targetSection: 'hero', limit: 5 },
-        { id: adminUserId, collection: 'managers', active: true },
+        { id: adminUserId, collection: 'managers' },
         { defaultAudiences: allEligible },
       )
       expect(status).toBe(403)

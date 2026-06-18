@@ -37,7 +37,7 @@ const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', _status: 'published'
 async function callEndpoint(
   payload: Payload,
   query: Record<string, string | number | boolean>,
-  user?: { id: number | string; collection: string; active?: boolean } | null,
+  user?: { id: number | string; collection: string; _status?: 'published' | 'draft' } | null,
   options: { skipDefaultAudiences?: boolean; defaultAudiences?: string } = {},
 ): Promise<{ status: number; headers: Headers; body: { docs: LecturePlayerData[] } | unknown }> {
   const finalQuery = options.skipDefaultAudiences
@@ -245,7 +245,7 @@ describe('lecturesForAudience endpoint', () => {
       const { status } = await callEndpoint(
         payload,
         { limit: 10 },
-        { id: adminUserId, collection: 'managers', active: true },
+        { id: adminUserId, collection: 'managers' },
         { defaultAudiences: beginnerOnly },
       )
       expect(status).toBe(403)
