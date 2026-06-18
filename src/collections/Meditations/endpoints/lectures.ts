@@ -3,6 +3,7 @@ import type { Endpoint, Where } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
+import { parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { shapeLecture, type LecturePlayerData } from '@/lib/lectures/lectureShape'
 import { recomputeWeightsForMeditation } from '@/lib/meditations/nodeWeights'
 import type { Lecture, Meditation, SubtleSystemNode, UserChoice } from '@/payload-types'
@@ -73,22 +74,16 @@ export const meditationLectures: Endpoint = {
   path: '/:id/related-lectures',
   method: 'get',
   handler: async (req) => {
-    if (req.user?.collection !== 'clients' || !req.user.active) {
-      return Response.json(
-        { errors: [{ message: 'You are not allowed to perform this action.' }] },
-        { status: 403 },
-      )
-    }
+    const denied = requireActiveClient(req)
+    if (denied) return denied
 
     const idParam = req.routeParams?.id as string | number | undefined
     if (idParam === undefined || idParam === null || idParam === '') {
       return Response.json({ errors: [{ message: 'Meditation ID required' }] }, { status: 400 })
     }
 
-    const parsed = querySchema.safeParse(req.query)
-    if (!parsed.success) {
-      return Response.json({ errors: parsed.error.issues }, { status: 400 })
-    }
+    const parsed = parseQuery(req, querySchema)
+    if (!parsed.ok) return parsed.response
 
     const { audiences: audienceIds, limit, userChoice, excludedLectureIds } = parsed.data
     let meditation: Meditation | null = null

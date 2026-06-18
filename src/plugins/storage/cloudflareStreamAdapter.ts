@@ -10,6 +10,7 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 import { z } from 'zod'
 
 import { serverEnv } from '@/lib/env'
+import { fetchWithTimeout } from '@/lib/utilities/fetchWithTimeout'
 
 import { CloudflareStreamResponseSchema } from './cloudflareSchemas'
 import { applyFilename } from './filenameUtils'
@@ -20,6 +21,7 @@ import {
   PREVIEW_STREAM_META_VALUE,
   shouldRefusePreviewDelete,
 } from './previewIsolation'
+import { storageLogger } from './storageLogger'
 import { validateFileUpload } from './uploadValidation'
 
 /**
@@ -100,7 +102,7 @@ const isPreviewOwnedStreamVideo = async (
   videoId: string,
 ): Promise<boolean> => {
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${videoId}`,
       { headers: { Authorization: `Bearer ${config.apiKey}` } },
     )
@@ -133,7 +135,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         })
 
         // Upload video to Stream
-        const uploadResponse = await fetch(
+        const uploadResponse = await fetchWithTimeout(
           `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream`,
           {
             method: 'POST',
@@ -141,6 +143,10 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
               Authorization: `Bearer ${config.apiKey}`,
             },
             body: formData,
+            // Generous bound — videos are large; this catches a hung upload
+            // without killing a slow but progressing transfer. Response failures
+            // are still validated via the Zod `uploadResult.success` check below.
+            timeoutMs: 300_000,
           },
         )
 
@@ -165,7 +171,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         // auto-reaped; it must never break the (already-succeeded) upload.
         if (isStorageIsolationActive()) {
           try {
-            const tagResponse = await fetch(
+            const tagResponse = await fetchWithTimeout(
               `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${videoId}`,
               {
                 method: 'POST',
@@ -250,7 +256,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
       }
 
       try {
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${videoId}`,
           {
             method: 'DELETE',
@@ -265,12 +271,10 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         if (!result.success && response.status !== 404) {
           // Ignore 404 errors (video already deleted)
           const errors = result.errors.map((e) => e.message).join(', ')
-          // eslint-disable-next-line no-console
-          console.error(`[Cloudflare Stream] Delete warning for ${videoId}: ${errors}`)
+          storageLogger.error({ msg: 'Cloudflare Stream delete warning', videoId, errors })
         }
       } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('[Cloudflare Stream] Delete error:', videoId, error)
+        storageLogger.error({ msg: 'Cloudflare Stream delete error', videoId, error })
         // Don't throw - deletion errors shouldn't break the app
       }
     },

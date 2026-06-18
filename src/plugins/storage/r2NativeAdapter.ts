@@ -22,6 +22,7 @@ import {
   shouldRefusePreviewDelete,
 } from './previewIsolation'
 import { R2_PREASSIGNED_FILENAME_CONTEXT_KEY } from './r2FilenameHook'
+import { storageLogger } from './storageLogger'
 
 /**
  * Get R2 storage URL for a filename
@@ -101,8 +102,7 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
         if (filenamePreassigned) return
         return { filename: finalFilename }
       } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('[R2] Upload error:', key, error)
+        storageLogger.error({ msg: 'R2 upload error', key, error })
         throw error
       }
     }) as HandleUpload,
@@ -119,10 +119,7 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
       try {
         await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))
       } catch (error) {
-        // Using console.error because storage adapters don't have access to Payload's logger.
-        // The adapter is initialized before Payload and doesn't receive req context.
-        // eslint-disable-next-line no-console
-        console.error('[R2] Delete error:', key, error)
+        storageLogger.error({ msg: 'R2 delete error', key, error })
         // Don't throw - deletion errors shouldn't break the app
       }
     },
@@ -152,8 +149,7 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
         if ((error instanceof Error && error.name === 'NoSuchKey') || httpStatus === 404) {
           return new Response('Not Found', { status: 404 })
         }
-        // eslint-disable-next-line no-console
-        console.error('[R2] Static handler error:', key, error)
+        storageLogger.error({ msg: 'R2 static handler error', key, error })
         return new Response('Internal Server Error', { status: 500 })
       }
     },

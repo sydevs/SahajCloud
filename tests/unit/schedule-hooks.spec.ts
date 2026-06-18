@@ -2,7 +2,7 @@
  * Tests for schedule field virtual field hooks.
  *
  * Tests the `computeIcalRule` and `computeUpcomingDates` afterRead hooks
- * from src/hooks/scheduleHooks.ts. These hooks are pure functions
+ * from src/lib/schedule/scheduleHooks.ts. These hooks are pure functions
  * that compute virtual fields from schedule sub-field data.
  *
  * No Payload initialization is needed — both hooks only use `siblingData`.
@@ -17,7 +17,7 @@ import {
   computeIcalRule,
   computeUpcomingDates,
   getLocalTimeHHMM,
-} from '@/hooks/scheduleHooks'
+} from '@/lib/schedule/scheduleHooks'
 
 // Helper to call a FieldHook with siblingData (avoids `as never` casts)
 const callHook = (hook: FieldHook, siblingData: Record<string, unknown>): unknown => {
