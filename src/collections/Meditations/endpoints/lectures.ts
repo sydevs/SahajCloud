@@ -250,9 +250,26 @@ export const meditationLectures: Endpoint = {
     // Exclusions still apply; if they would empty the fallback pool too, relax
     // them as a last resort so the player always has something to play (this
     // supersedes the earlier #349 redirect).
-    const audienceFeedFallback = async (relaxExclusions: boolean): Promise<LecturePlayerData[]> => {
+    const buildFeed = (pool: Lecture[]): LecturePlayerData[] =>
+      selectAudienceFeed({
+        lectures: pool,
+        limit,
+        eligibleAudienceIds: audienceIds,
+        logger: req.payload.logger,
+      })
+
+    const fetchAudiencePool = async (applyExclusions: boolean): Promise<Lecture[]> => {
+      // Without `userChoice`, the relevance query above already fetched exactly
+      // the exclusion-applied audience pool (`lectureWhere` was `audiences ∩
+      // requested`, minus `excludedLectureIds`). Reuse it instead of issuing an
+      // identical second query — this is the common production path, where
+      // relevance is almost always empty. With `userChoice` the relevance query
+      // was broadened by the `.or` clause, so we must re-fetch the full pool.
+      if (applyExclusions && typeof userChoice !== 'number') {
+        return eligibleLectures
+      }
       const fallbackWhere: Where = { audiences: { in: audienceIds } }
-      if (!relaxExclusions && excludedLectureIds.length > 0) {
+      if (applyExclusions && excludedLectureIds.length > 0) {
         fallbackWhere.id = { not_in: excludedLectureIds }
       }
       const { docs: fallbackDocs } = await req.payload.find({
@@ -264,18 +281,13 @@ export const meditationLectures: Endpoint = {
         locale: req.locale ?? 'en',
         req: asTrustedReq(req),
       })
-      return selectAudienceFeed({
-        lectures: fallbackDocs as Lecture[],
-        limit,
-        eligibleAudienceIds: audienceIds,
-        logger: req.payload.logger,
-      })
+      return fallbackDocs as Lecture[]
     }
 
-    const withExclusions = await audienceFeedFallback(false)
+    const withExclusions = buildFeed(await fetchAudiencePool(true))
     const docs =
       withExclusions.length === 0 && excludedLectureIds.length > 0
-        ? await audienceFeedFallback(true)
+        ? buildFeed(await fetchAudiencePool(false))
         : withExclusions
 
     return Response.json(
