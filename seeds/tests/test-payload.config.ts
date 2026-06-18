@@ -8,6 +8,7 @@ import { buildConfig, Config } from 'payload'
 import { collections, Managers } from '../../src/collections'
 import { globals } from '../../src/globals'
 import { LOCALES, DEFAULT_LOCALE } from '../../src/lib/locales'
+import { TEST_PG_POOL_OPTIONS } from '../../tests/utils/postgresTestPool'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -41,7 +42,7 @@ export const testPayloadConfig = (overrides?: Partial<Config>) => {
     db: postgresAdapter({
       pool: {
         connectionString: process.env.DATABASE_URL,
-        options: '-c synchronous_commit=off',
+        options: TEST_PG_POOL_OPTIONS,
       },
       push: true,
       schemaName: 'seed_test',
