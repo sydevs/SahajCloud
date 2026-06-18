@@ -13,6 +13,12 @@ export type SlugFieldOptions = {
   useAsSlug?: string
   /** Enable localization for the slug field */
   localized?: TextField['localized']
+  /**
+   * Whether the slug is required (defaults to Payload's `true`). Pass `false`
+   * to keep the column nullable — e.g. when an existing table is backfilled
+   * after the field is added, so the migration needn't enforce NOT NULL.
+   */
+  required?: TextField['required']
   /** Override for the slug field name (default: 'slug') */
   name?: string
   /** Override for the checkbox field name (default: 'generateSlug') */
