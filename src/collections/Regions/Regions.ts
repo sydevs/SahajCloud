@@ -336,29 +336,26 @@ export const Regions: CollectionConfig = {
     // Stable, URL-friendly identity for Sahaj Atlas routing — a region otherwise
     // exposes only an opaque `mapboxId` and a display `name`. Unique + indexed
     // (hardcoded by the helper); `collectionSlug` adds app-layer uniqueness
-    // validation. A handful of regions share a `name` across the tree (e.g.
-    // Georgia the country vs. the US state), so the Atlas importer assigns
-    // collision-free slugs rather than relying on the bare `name`.
+    // validation. `required: false` keeps the column nullable so the generated
+    // migration adds it to the already-populated `regions` table without a
+    // NOT NULL backfill (the Atlas importer backfills slugs; Postgres allows many
+    // NULLs under a unique index). A handful of regions share a `name` across the
+    // tree (e.g. Georgia the country vs. the US state), so the importer assigns
+    // collision-free slugs rather than the bare `name`.
     slugField({
       useAsSlug: 'name',
       collectionSlug: 'regions',
+      required: false,
       description: 'Stable identifier for Atlas routing (auto-generated from {sourceField}).',
-      // Nullable column on purpose: `regions` predates this field, so the
-      // generated migration adds it nullable (Postgres allows many NULLs under a
-      // unique index) and the Atlas importer backfills existing rows — no
-      // hand-edited NOT NULL backfill. New rows still get a slug from the
-      // `generateSlug` checkbox; the helper's built-in `required: true` would
-      // instead emit a NOT NULL column the populated table can't satisfy.
       overrides: (field) => {
         // generateSlug defaults OFF for regions. Region names are frequently
         // non-Latin (Москва, 東京, …), which the ASCII-only slugify collapses to
         // "-"; with the checkbox on, Payload rewrites slug → slugify(name) on
         // every save — including the nested-docs breadcrumb cascade that re-saves
         // descendants — clobbering the importer's explicit, collision-free slugs.
-        // Off, the seeded/entered slug sticks; the column also defaults off so the
+        // Off, the seeded/entered slug sticks, and the column defaults off so the
         // production backfill doesn't trip the same cascade.
         if (field.fields[0].type === 'checkbox') field.fields[0].defaultValue = false
-        if (field.fields[1].type === 'text') field.fields[1].required = false
         return field
       },
     }),
