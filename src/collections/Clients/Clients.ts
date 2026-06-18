@@ -93,7 +93,11 @@ export const Clients: CollectionConfig = {
                   hasMany: false,
                   required: true,
                   admin: {
-                    description: 'Primary user contact for this client',
+                    description:
+                      'Primary user contact for this client. Only needed when more than one manager is assigned.',
+                    // Hidden (and not required) with a single manager — that
+                    // lone manager is implicitly the primary contact.
+                    condition: (data) => Array.isArray(data?.managers) && data.managers.length > 1,
                   },
                 },
               ],
@@ -109,7 +113,7 @@ export const Clients: CollectionConfig = {
           fields: [
             {
               name: 'allowedDomains',
-              type: 'text',
+              type: 'textarea',
               admin: {
                 description:
                   'What domains are associated with this client. Put each domain on a new line.',

@@ -123,6 +123,45 @@ describe('Client Hooks', () => {
     })
   })
 
+  describe('primaryContact conditional requirement', () => {
+    it('allows a single-manager client with no primaryContact', async () => {
+      const solo = await testData.createManager(payload, {
+        name: 'Solo Manager',
+        type: 'admin' as const,
+      })
+
+      // The primaryContact field is hidden (condition false) for a single
+      // manager, so its `required` is skipped — creating without it succeeds.
+      const client = (await payload.create({
+        collection: 'clients',
+        data: {
+          name: 'Single-manager client',
+          managers: [solo.id],
+          roles: ['wemeditate-web-client'],
+        },
+      })) as Client
+
+      expect(client.id).toBeDefined()
+      expect(client.primaryContact ?? null).toBeNull()
+    })
+
+    it('requires primaryContact when more than one manager is assigned', async () => {
+      const m1 = await testData.createManager(payload, { name: 'Mgr One', type: 'admin' as const })
+      const m2 = await testData.createManager(payload, { name: 'Mgr Two', type: 'admin' as const })
+
+      await expect(
+        payload.create({
+          collection: 'clients',
+          data: {
+            name: 'Multi-manager client without contact',
+            managers: [m1.id, m2.id],
+            roles: ['wemeditate-web-client'],
+          },
+        }),
+      ).rejects.toThrow()
+    })
+  })
+
   // Note: checkHighUsageAlert hook was removed and moved to usagePlugin.
   // High usage alerts are now handled by the trackUsage task handler.
 })

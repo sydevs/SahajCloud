@@ -3777,9 +3777,9 @@ export interface Client {
    */
   managers: (number | Manager)[];
   /**
-   * Primary user contact for this client
+   * Primary user contact for this client. Only needed when more than one manager is assigned.
    */
-  primaryContact: number | Manager;
+  primaryContact?: (number | null) | Manager;
   /**
    * What domains are associated with this client. Put each domain on a new line.
    */
