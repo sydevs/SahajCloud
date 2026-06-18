@@ -5495,6 +5495,10 @@ export interface WmWebConfig {
    */
   featuredPages: (number | Page)[];
   /**
+   * Select 2 or more article pages to feature in the website header dropdown.
+   */
+  featuredArticles: (number | Page)[];
+  /**
    * Select up to 5 pages for seekers to start meditating. The first one will be featured in the header. (eg. Classes Near Me, Online Meditations, Recorded Meditations, WeMeditate App
    */
   classPages?: (number | Page)[] | null;
@@ -6637,6 +6641,7 @@ export interface PayloadJobsStat {
 export interface WmWebConfigSelect<T extends boolean = true> {
   homePage?: T;
   featuredPages?: T;
+  featuredArticles?: T;
   classPages?: T;
   knowledgePages?: T;
   infoPages?: T;
