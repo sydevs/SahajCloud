@@ -35,8 +35,8 @@ Rules for writing and running tests in this codebase.
 | Lane            | Files                        | Speed                   | When                                                                                  |
 | --------------- | ---------------------------- | ----------------------- | ------------------------------------------------------------------------------------- |
 | **Unit**        | `tests/unit/**/*.spec.ts`    | ~1–2 s for ~200 cases   | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.              |
-| **Integration** | `tests/int/**/*.int.spec.ts` | ~8 s bootstrap per file | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. |
-| **E2E**         | `tests/e2e/**/*.e2e.spec.ts` | Playwright              | Full UI flows, Postgres (`e2e` schema).                                               |
+| **Integration** | `tests/int/**/*.int.spec.ts` | bootstrap-heavy/file (full-schema push; see `tests/PERF.md`) | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (see below). |
+| **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts` | Playwright (REST)       | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`); see below.            |
 
 ### When to put a test in `tests/unit/`
 
@@ -159,7 +159,15 @@ Each integration test file gets its own isolated **Postgres schema** (created
 via Drizzle `push`, dropped on cleanup) against `DATABASE_URL` — same per-suite
 isolation the in-memory SQLite previously provided. Requires a reachable
 Postgres (Docker locally / a service container in CI). No data conflicts between
-suites. Tests run sequentially (`maxConcurrency: 1`) to prevent resource conflicts.
+suites.
+
+**Test files run in parallel** across forked workers (`pool: 'forks'`,
+`fileParallelism: true`), bounded by `poolOptions.forks.maxForks` — 6 locally
+(leaves the dev machine headroom) / ≤4 in CI, override with `VITEST_INT_MAX_FORKS`.
+The bound is deliberate: the lane is **DB-bound** (every suite runs a full-schema
+`push` against the same Postgres), so more forks give diminishing returns and risk
+exhausting connections — see `tests/PERF.md`. `maxConcurrency: 1` only serialises
+tests **within** a file; it does **not** serialise files.
 
 ## Test file organization
 
@@ -283,48 +291,34 @@ const result = await payload.find({
 })
 ```
 
-## E2E test database isolation
+## Smoke specs (`tests/e2e/`)
 
-E2E tests use a dedicated Postgres schema (`e2e`) against `DATABASE_URL`,
-isolated from dev and from the per-suite integration schemas. Run on port 4567
-(separate from dev server).
+The Tier-3 **smoke specs** are Playwright tests that exercise the REST API of a
+**deployed** environment — they do **not** boot a local app or own a database.
+CI points `PREVIEW_URL` at the per-PR **Railway preview** (URL discovered via the
+Railway API) and runs `pnpm test:smoke`; locally it falls back to
+`http://localhost:3000` (the dev-server skill). Config: `playwright.config.ts`
+(`testDir: ./tests/e2e`, `testMatch: **/*.e2e.spec.ts`, `retries: 2` in CI).
 
-| File                                        | Purpose                              |
-| ------------------------------------------- | ------------------------------------ |
-| `tests/setup/playwright.global-setup.ts`    | Seeds test data before E2E tests     |
-| `tests/setup/playwright.global-teardown.ts` | Optional cleanup                     |
-| `tests/config/e2e-payload.config.ts`        | E2E-specific Payload config          |
-| `tests/files/`                              | Sample audio/image files for seeding |
+| File                            | Purpose                                                                          |
+| ------------------------------- | -------------------------------------------------------------------------------- |
+| `tests/e2e/*.e2e.spec.ts`       | REST smoke flows: `auth`, `meditations`, `songs`, `lectures`                     |
+| `tests/e2e/_helpers/preview.ts` | `ensureAdmin` (login, or `first-register` on an empty preview DB) + auth headers |
+| `tests/e2e/_helpers/runId.ts`   | Per-run record prefix so concurrent PR previews don't collide                    |
+| `tests/files/`                  | Sample audio/image files used by upload specs                                    |
 
-### Seeded test data
+Specs **skip gracefully** when the preview DB has no seeded content (e.g. no
+narrator/image/frame), so they never fail a fresh preview. Records are namespaced
+by `runId()` (`SMOKE_RUN_ID` in CI) since runs share the preview's cloned-prod data.
 
-- Default Manager: `contact@sydevelopers.com` / `evk1VTH5dxz_nhg-mzk` (admin, `_verified: true`)
-- Test Narrator (male)
-- Test Image (sample thumbnail)
-- Test Meditation (with audio file)
-- Test Frames
-
-### Env vars
-
-| Var                 | Purpose                                  |
-| ------------------- | ---------------------------------------- |
-| `E2E_TEST=true`     | Enables E2E mode (Postgres `e2e` schema) |
-| `CLEAN_E2E_DB=true` | Removes the E2E database after teardown  |
-| `PAYLOAD_SECRET`    | `e2e-test-secret-key` for E2E            |
-
-The DB is reset at the start of every run to prevent `drizzle-kit push`
-from prompting on stale schemas (which would hang Playwright's
-subprocess). Manager must have `_verified: true` for login (bypasses
-email verification).
-
-### E2E commands
+### Commands
 
 ```bash
-pnpm test:e2e                              # all E2E tests
-pnpm exec playwright test tests/e2e/clients.e2e.spec.ts
-pnpm exec playwright test --ui             # debug UI
-CLEAN_E2E_DB=true pnpm test:e2e            # clean teardown
+pnpm test:smoke                                       # all smoke specs (vs PREVIEW_URL or localhost:3000)
+PREVIEW_URL=https://<preview>.up.railway.app pnpm test:smoke
+pnpm exec playwright test tests/e2e/auth.e2e.spec.ts  # one spec
+pnpm exec playwright test --ui                        # debug UI
 ```
 
-The `tests/e2e/` directory is currently empty; `pnpm test:e2e` no-ops
-until a spec is added.
+There is no `pnpm test:e2e` script or local-boot E2E config — the old
+dedicated-`e2e`-schema / port-4567 setup was removed (#499 §4).
