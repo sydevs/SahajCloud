@@ -3,6 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { resolveAudienceIds } from '@/lib/audiences/resolve'
+import { parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const querySchema = z.object({
@@ -32,18 +33,11 @@ export const audiencesForUser: Endpoint = {
   path: '/for-user',
   method: 'get',
   handler: async (req) => {
-    if (req.user?.collection !== 'clients' || !req.user.active) {
-      return Response.json(
-        { errors: [{ message: 'You are not allowed to perform this action.' }] },
-        { status: 403 },
-      )
-    }
+    const denied = requireActiveClient(req)
+    if (denied) return denied
 
-    const parsed = querySchema.safeParse(req.query)
-
-    if (!parsed.success) {
-      return Response.json({ errors: parsed.error.issues }, { status: 400 })
-    }
+    const parsed = parseQuery(req, querySchema)
+    if (!parsed.ok) return parsed.response
 
     const audienceIds = await resolveAudienceIds(req.payload, parsed.data, asTrustedReq(req))
 

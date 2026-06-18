@@ -3,8 +3,8 @@ import type { CollectionConfig, Field, FieldHook } from 'payload'
 import { Temporal } from '@js-temporal/polyfill'
 
 import { mediaField, scheduleFields, urlField } from '@/fields'
-import type { ScheduleSubFields } from '@/hooks/scheduleHooks'
-import { buildRRuleTemporal } from '@/hooks/scheduleHooks'
+import type { ScheduleSubFields } from '@/lib/schedule/scheduleHooks'
+import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
 
 import { appCardsForAudience } from './endpoints/forAudience'
 

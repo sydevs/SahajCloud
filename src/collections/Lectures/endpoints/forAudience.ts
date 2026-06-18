@@ -3,6 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
+import { parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { selectAudienceFeed } from '@/lib/lectures/audienceFeed'
 import type { Lecture } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
@@ -37,18 +38,11 @@ export const lecturesForAudience: Endpoint = {
   path: '/for-audience',
   method: 'get',
   handler: async (req) => {
-    if (req.user?.collection !== 'clients' || !req.user.active) {
-      return Response.json(
-        { errors: [{ message: 'You are not allowed to perform this action.' }] },
-        { status: 403 },
-      )
-    }
+    const denied = requireActiveClient(req)
+    if (denied) return denied
 
-    const parsed = querySchema.safeParse(req.query)
-
-    if (!parsed.success) {
-      return Response.json({ errors: parsed.error.issues }, { status: 400 })
-    }
+    const parsed = parseQuery(req, querySchema)
+    if (!parsed.ok) return parsed.response
 
     const { audiences: audienceIds, limit } = parsed.data
     const { docs: lectureDocs } = await req.payload.find({

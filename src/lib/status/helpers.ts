@@ -1,6 +1,4 @@
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
+import { isRecord } from '@/lib/utilities/isRecord'
 
 /**
  * Extract a relationship id from any of the shapes Payload returns for

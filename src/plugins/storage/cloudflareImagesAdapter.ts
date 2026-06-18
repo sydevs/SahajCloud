@@ -9,6 +9,7 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 import { z } from 'zod'
 
 import { serverEnv } from '@/lib/env'
+import { fetchWithTimeout } from '@/lib/utilities/fetchWithTimeout'
 
 import { CloudflareImagesResponseSchema } from './cloudflareSchemas'
 import { applyFilename, generateCloudflareImageId } from './filenameUtils'
@@ -17,6 +18,7 @@ import {
   isPreviewOwnedKey,
   shouldRefusePreviewDelete,
 } from './previewIsolation'
+import { storageLogger } from './storageLogger'
 import { validateFileUpload } from './uploadValidation'
 
 /**
@@ -95,7 +97,7 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           customId,
         })
 
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/images/v1`,
           {
             method: 'POST',
@@ -103,6 +105,10 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
               Authorization: `Bearer ${config.apiKey}`,
             },
             body: formData,
+            // Generous bound — catches a hung upload without killing a slow but
+            // progressing large-image transfer. Response failures are still
+            // validated via the Zod `result.success` check below.
+            timeoutMs: 120_000,
           },
         )
 
@@ -169,7 +175,7 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
       }
 
       try {
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/images/v1/${imageId}`,
           {
             method: 'DELETE',
@@ -184,12 +190,10 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
         if (!result.success && response.status !== 404) {
           // Ignore 404 errors (image already deleted)
           const errors = result.errors.map((e) => e.message).join(', ')
-          // eslint-disable-next-line no-console
-          console.error(`[Cloudflare Images] Delete warning for ${imageId}: ${errors}`)
+          storageLogger.error({ msg: 'Cloudflare Images delete warning', imageId, errors })
         }
       } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('[Cloudflare Images] Delete error:', imageId, error)
+        storageLogger.error({ msg: 'Cloudflare Images delete error', imageId, error })
         // Don't throw - deletion errors shouldn't break the app
       }
     },
