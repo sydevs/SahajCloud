@@ -9,7 +9,7 @@ import {
 } from '@/components/admin/NotificationPreferences/config'
 import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
 import { VerifyEmail } from '@/emails/VerifyEmail'
-import { legacyMigrationFields } from '@/fields'
+import { hideUntilCreated, legacyMigrationFields } from '@/fields'
 import { getLanguageOptions } from '@/lib/locales'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
@@ -140,21 +140,30 @@ export const Managers: CollectionConfig = {
               type: 'join',
               collection: 'pages',
               on: 'managers',
-              admin: { description: 'Pages this manager can edit.' },
+              admin: {
+                condition: hideUntilCreated,
+                description: 'Pages this manager can edit.',
+              },
             },
             {
               name: 'managedRegions',
               type: 'join',
               collection: 'regions',
               on: 'managers',
-              admin: { description: 'Regions this manager is responsible for.' },
+              admin: {
+                condition: hideUntilCreated,
+                description: 'Regions this manager is responsible for.',
+              },
             },
             {
               name: 'managedEvents',
               type: 'join',
               collection: 'events',
               on: 'manager',
-              admin: { description: 'Events this manager owns.' },
+              admin: {
+                condition: hideUntilCreated,
+                description: 'Events this manager owns.',
+              },
             },
           ],
         },
@@ -163,7 +172,7 @@ export const Managers: CollectionConfig = {
           label: 'Contact',
           fields: [
             {
-              name: 'languageCode',
+              name: 'language',
               type: 'select',
               options: getLanguageOptions(),
               admin: { description: "The manager's preferred language." },

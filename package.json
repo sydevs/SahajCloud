@@ -17,14 +17,15 @@
     "test:smoke": "pnpm exec playwright test",
     "test:int": "vitest run --project int --config ./vitest.config.mts",
     "test:unit": "vitest run --project unit --config ./vitest.config.mts",
+    "test:coverage": "vitest run --coverage --config ./vitest.config.mts",
     "seed": "tsx seeds/run.ts",
     "seed:prod": "SAHAJCLOUD_URL=https://cloud.sydevelopers.com tsx seeds/run.ts",
     "generate:importmap": "payload generate:importmap",
     "generate:types": "payload generate:types && pnpm generate:statusConfig",
     "generate:statusConfig": "tsx scripts/generate-status-config.ts",
     "payload": "payload",
-    "db:migrate": "pnpm payload migrate",
-    "db:migrations:create": "pnpm payload migrate:create"
+    "db:migrate": "payload migrate",
+    "db:migrations:create": "payload migrate:create"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1055.0",
@@ -45,6 +46,7 @@
     "@sentry/nextjs": "^10.29.0",
     "@sentry/react": "^10.29.0",
     "@types/styled-components": "^5.1.35",
+    "@vvo/tzdb": "^6.198.0",
     "country-region-data": "^4.1.0",
     "dotenv": "16.4.7",
     "image-size": "^2.0.2",
@@ -83,6 +85,7 @@
     "@types/react-dom": "19.1.2",
     "@types/tmp": "^0.2.6",
     "@vitejs/plugin-react": "4.5.2",
+    "@vitest/coverage-v8": "4.1.8",
     "eslint": "^9.38.0",
     "eslint-config-next": "^16.2.6",
     "eslint-plugin-import": "^2.32.0",

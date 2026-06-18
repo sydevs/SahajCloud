@@ -1,6 +1,6 @@
 import type { CollectionConfig, JSONField, Validate } from 'payload'
 
-import { mediaField } from '@/fields'
+import { hideUntilCreated, mediaField } from '@/fields'
 import { LOCALES } from '@/lib/locales'
 import {
   getFrameDiagnosticsLogContext,
@@ -13,6 +13,7 @@ import { virtualUrlField } from '@/plugins/storage/urlFields'
 import { KeyframeData } from '@/types/frames'
 
 import { meditationLectures } from './endpoints/lectures'
+import { meditationSongs } from './endpoints/songs'
 import { extractAudioDuration } from './hooks/extractAudioDuration'
 import { fallbackTitleAfterRead } from './hooks/fallbackTitle'
 import { filterMeditationsByLocale } from './hooks/filterMeditationsByLocale'
@@ -40,6 +41,8 @@ const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField
   virtual: true,
   admin: {
     readOnly: true,
+    // Like a real join, this resolves nothing until the doc exists — hide on create.
+    condition: hideUntilCreated,
     components: { Field: '@/components/admin/TagAssignmentField' },
   },
   hooks: {
@@ -72,7 +75,7 @@ const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
   trash: true,
-  endpoints: [meditationLectures],
+  endpoints: [meditationLectures, meditationSongs],
   hooks: {
     beforeOperation: [filterMeditationsByLocale],
     beforeChange: [

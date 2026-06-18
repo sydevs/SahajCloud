@@ -2,11 +2,21 @@
 
 import type { TextFieldClientComponent } from 'payload'
 
-import { FieldLabel, useField, useForm } from '@payloadcms/ui'
+import {
+  Banner,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+  ReactSelect,
+  type ReactSelectOption,
+  useField,
+  useForm,
+} from '@payloadcms/ui'
 import dynamic from 'next/dynamic'
 import React, { useEffect, useState } from 'react'
 
 import { getRegionOptions } from '@/lib/geography'
+import { isManualMapboxId, makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 
 /** Subset of a Mapbox Search Box retrieve feature that we read. */
 interface MapboxRetrieveFeature {
@@ -37,6 +47,8 @@ interface MapboxTheme {
 interface MapboxSearchBoxProps {
   accessToken: string
   onRetrieve?: (res: MapboxRetrieveResponse) => void
+  value?: string
+  onChange?: (value: string) => void
   placeholder?: string
   options?: { language?: string; types?: string; country?: string }
   theme?: MapboxTheme
@@ -126,9 +138,6 @@ function usePayloadSearchTheme(): MapboxTheme | undefined {
   return theme
 }
 
-/** Sentinel stored in `mapboxId` when the user opts to enter the address by hand. */
-const MANUAL = 'manual'
-
 /**
  * Mapbox Search Box field component, bound to a `mapboxId` text field — used by
  * the Event address (`addressFields`) and the Regions location. Selecting a
@@ -153,8 +162,9 @@ const MANUAL = 'manual'
  * `manual` sentinel — also the fallback when no `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN`
  * is configured.
  */
-export const AddressSearchField: TextFieldClientComponent = ({ field, path }) => {
-  const { label, admin } = field
+export const AddressSearchField: TextFieldClientComponent = ({ field, path, readOnly }) => {
+  const { label, localized, required, admin } = field
+  const description = admin?.description
   // `searchTypes`: Mapbox Search Box `types` filter (default address+POI).
   // `populateAddress`: fill sibling address fields on retrieve (default off —
   // Regions use this in id-only mode, where there are no address siblings).
@@ -165,12 +175,20 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path }) =>
     populateName?: boolean
     searchTypesField?: string
     searchTypesByValue?: Record<string, string>
+    placeholder?: string
+    allowManual?: boolean
+    allowManualByValue?: Record<string, boolean>
   }
 
-  const { value, setValue } = useField<string>({ path })
+  const { value, setValue, showError } = useField<string>({ path })
   const { dispatchFields, getDataByPath } = useForm()
   const theme = usePayloadSearchTheme()
   const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
+
+  // Controlled search-box text. The box stays mounted (just hidden) while a
+  // value is selected, so clearing the pill returns to it without a remount
+  // flicker; resetting this empties the input on clear.
+  const [query, setQuery] = useState('')
 
   // Scope the Mapbox `types` filter to a sibling field's value when configured
   // (Regions narrow the search by `level`); read it reactively via useField so
@@ -183,6 +201,16 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path }) =>
     (config.searchTypesField ? config.searchTypesByValue?.[scopeValue ?? ''] : undefined) ??
     config.searchTypes ??
     'address,poi'
+
+  // Whether "Enter manually" is offered, resolved the same data-driven way as
+  // `searchTypes`: a per-scope override (e.g. Regions disallow it at `country`
+  // level) wins, then the static `allowManual`, then off. (Functions can't be
+  // passed through `admin.custom` — it's serialized to the client — so this is
+  // data, not a condition function.)
+  const manualAllowed =
+    (config.searchTypesField ? config.allowManualByValue?.[scopeValue ?? ''] : undefined) ??
+    config.allowManual ??
+    false
 
   // Only fill a sibling that isn't already populated, so a chosen result never
   // clobbers a value the user (or a prior selection) already set.
@@ -219,30 +247,92 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path }) =>
     }
     // Set our own value last: this triggers the form's condition recompute, which
     // reveals dependent fields (the address siblings, or the manual-coordinates row).
-    setValue(feature.properties?.mapbox_id ?? MANUAL)
+    setValue(feature.properties?.mapbox_id ?? makeManualMapboxId())
   }
 
+  const fieldClasses = [
+    'field-type',
+    'address-search',
+    showError && 'error',
+    readOnly && 'read-only',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  // Empty-state affordances (the pill replaces these once a value is set).
+  const showManualButton = !value && manualAllowed && !readOnly
+  // Dead end: nothing can fill the field — no search box and no manual entry.
+  const showNoInputBanner = !value && !token && !manualAllowed && !readOnly
+
   return (
-    <div className="field-type address-search">
-      <FieldLabel label={label} path={path} />
-      {token && theme ? (
-        // Mount only once the theme is resolved, and remount on light/dark
-        // toggle (key), so the search box always paints with the correct,
-        // concrete colors rather than Mapbox's default dark text.
-        <SearchBox
-          key={`${theme.variables?.colorText}:${searchTypes}`}
-          accessToken={token}
-          onRetrieve={handleRetrieve}
-          placeholder="Search for your address…"
-          options={{ types: searchTypes, language: 'en' }}
-          theme={theme}
-        />
-      ) : null}
-      {!value ? (
-        <button type="button" className="address-search__toggle" onClick={() => setValue(MANUAL)}>
-          Enter manually
-        </button>
-      ) : null}
+    <div className={fieldClasses}>
+      <FieldLabel label={label} localized={localized} path={path} required={required} />
+      <div className="field-type__wrap">
+        <FieldError path={path} showError={showError} />
+        {/* Selected: the stored id (or the `manual` sentinel) shown as a single
+            pill inside an input-styled control — the same chip ReactSelect
+            renders, so it matches the rest of the admin. The dropdown chevron
+            and clear-all indicator are removed (no menu here); the pill's own ✕
+            clears it, which resets the value, re-reveals the search box, and
+            re-hides the dependent fields. */}
+        {value ? (
+          <ReactSelect
+            className="address-search__selected"
+            isMulti
+            isClearable={false}
+            isSearchable={false}
+            menuIsOpen={false}
+            disabled={readOnly}
+            options={[]}
+            value={
+              [
+                { label: isManualMapboxId(value) ? 'Manual' : value, value },
+              ] as unknown as ReactSelectOption[]
+            }
+            onChange={() => {
+              setQuery('')
+              setValue('')
+            }}
+            components={{
+              DropdownIndicator: () => null,
+              IndicatorSeparator: () => null,
+            }}
+          />
+        ) : null}
+        {/* Kept mounted (just hidden) while a value is selected so clearing the
+            pill returns to it without a remount flicker. Remounts only on
+            light/dark toggle or a search-scope change (key), so it always
+            paints with concrete colors rather than Mapbox's default dark text. */}
+        {token && theme && !readOnly ? (
+          <div style={value ? { display: 'none' } : undefined}>
+            <SearchBox
+              key={`${theme.variables?.colorText}:${searchTypes}`}
+              accessToken={token}
+              onRetrieve={handleRetrieve}
+              value={query}
+              onChange={setQuery}
+              placeholder={config.placeholder ?? 'Search for your address…'}
+              options={{ types: searchTypes, language: 'en' }}
+              theme={theme}
+            />
+          </div>
+        ) : null}
+        {showManualButton ? (
+          <button
+            type="button"
+            className="address-search__toggle"
+            onClick={() => setValue(makeManualMapboxId())}
+          >
+            Enter manually
+          </button>
+        ) : null}
+        {showNoInputBanner ? (
+          <Banner type="error">
+            Address search needs a Mapbox access token, and manual entry isn’t available here.
+          </Banner>
+        ) : null}
+        <FieldDescription description={description} path={path} />
+      </div>
     </div>
   )
 }

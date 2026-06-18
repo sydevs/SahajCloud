@@ -47,6 +47,7 @@ const VALID_SCRIPTS: ScriptName[] = [
   'storyblok',
   'wm-app-translations',
   'translations',
+  'atlas',
 ]
 
 /**
@@ -412,6 +413,10 @@ async function getImporter(
       const { TranslationsImporter } = await import('../../../../../../seeds/translations/import')
       return new TranslationsImporter(options)
     }
+    case 'atlas': {
+      const { AtlasImporter } = await import('../../../../../../seeds/atlas/import')
+      return new AtlasImporter(options)
+    }
     default:
       return null
   }
@@ -467,6 +472,23 @@ async function getDatabaseCounts(
       case 'translations': {
         // These scripts target PayloadCMS globals, not collections.
         // Verification sees an empty EXPECTED_COUNTS entry and passes by default.
+        break
+      }
+      case 'atlas': {
+        const [managers, regions, users, events, registrations, clients] = await Promise.all([
+          payload.count({ collection: 'managers' }),
+          payload.count({ collection: 'regions' }),
+          payload.count({ collection: 'users' }),
+          payload.count({ collection: 'events' }),
+          payload.count({ collection: 'registrations' }),
+          payload.count({ collection: 'clients' }),
+        ])
+        counts['managers'] = managers.totalDocs
+        counts['regions'] = regions.totalDocs
+        counts['users'] = users.totalDocs
+        counts['events'] = events.totalDocs
+        counts['registrations'] = registrations.totalDocs
+        counts['clients'] = clients.totalDocs
         break
       }
     }

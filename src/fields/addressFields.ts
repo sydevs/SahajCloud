@@ -76,7 +76,7 @@ export function addressFields(options: AddressFieldsOptions = {}): Field {
               label: 'Address',
               admin: {
                 components: { Field: ADDRESS_SEARCH_FIELD },
-                custom: { searchTypes: 'address,poi', populateAddress: true },
+                custom: { searchTypes: 'address,poi', populateAddress: true, allowManual: true },
               },
             },
           ]
@@ -99,7 +99,7 @@ export function addressFields(options: AddressFieldsOptions = {}): Field {
                   maxLength: 100,
                   required: isRequired('room'),
                   admin: {
-                    description: 'Room or floor within the venue, if any.',
+                    placeholder: 'Which room do seekers go to? (optional)',
                     ...revealOnSearch,
                   },
                 },

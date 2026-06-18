@@ -23,6 +23,63 @@ Filenames are sanitized to URL-safe slugs with random 6-char suffixes.
 Development falls back to local file storage when Cloudflare credentials
 are unset — no setup required.
 
+## Preview / non-production isolation
+
+Cloudflare **Images** and **Stream** are account-scoped, and R2 is a single
+shared bucket — so **every deployment (production, Railway PR previews, staging,
+dev) reads and writes the same namespaces**. Preview databases are sanitized
+clones of production and therefore reference real prod asset IDs. Without a
+guard, a preview deploy could upload into the prod namespace or — far worse —
+**delete a production asset** (issue #432).
+
+Isolation is "namespacing within the single account" (issue #432, Option B),
+implemented in `previewIsolation.ts` and a **no-op in production**:
+
+| Backend           | Non-prod upload marker                          | Delete guard (non-prod)             |
+| ----------------- | ----------------------------------------------- | ----------------------------------- |
+| Cloudflare Images | `preview-` prefix on the custom ID              | refuse IDs without the prefix       |
+| R2                | `preview-` prefix on the object key (filename)  | refuse keys without the prefix      |
+| Cloudflare Stream | `meta.env=preview` tag (UIDs aren't caller-set) | GET the video, refuse unless tagged |
+
+**"Is this production?" keys off the Railway environment name, not `NODE_ENV`
+and not the origin.** Railway previews run with `NODE_ENV=production`, AND they
+inherit the shared `SAHAJCLOUD_URL` service variable (so the origin is identical
+on a preview and on prod) — neither can tell them apart. Instead,
+`isProductionDeployment()` is true only when the platform-injected
+`RAILWAY_ENVIRONMENT_NAME` (fallback `RAILWAY_ENVIRONMENT`) equals `production`;
+PR previews are `pr-<number>` (see RAILWAY_RUNBOOK.md). It **fails safe**: any
+other / unknown environment name is treated as non-production, so the guard
+stays active and prod assets stay protected. The only failure mode is prod
+self-isolating if its environment were misnamed — loud (prod can't delete its
+own assets), never destructive.
+
+**The delete guard is the safety mechanism.** In non-prod, each adapter's
+`handleDelete` refuses any asset that doesn't carry the preview marker — so a
+preview can never delete a cloned prod asset. Production short-circuits the guard
+and behaves exactly as before (no prefix, no extra API calls). Proven by
+`tests/unit/storageIsolationGuard.spec.ts`; the Image upload path is smoke-tested
+in `tests/e2e/images.e2e.spec.ts`.
+
+**Cleanup.** Preview uploads accumulate in the shared account/bucket, so a daily
+GitHub Actions job (`.github/workflows/cleanup-preview-assets.yml` →
+`scripts/cleanup-preview-assets.ts`) reaps preview-marked assets older than 7
+days across all three backends. The reap predicate (`isReapablePreviewAsset`)
+only deletes assets that are **both** marked **and** past the cutoff; the script
+defaults to a dry run (`--apply` to delete). Required GitHub secrets:
+`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_KEY`, and (for R2) `R2_BUCKET`,
+`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` [, `R2_S3_ENDPOINT`].
+
+### Manual safety verification (one-time, per #432 AC)
+
+Run once against a real preview to confirm the guard end-to-end:
+
+1. In the preview admin, find an image whose `filename` has **no** `preview-`
+   prefix (a row cloned from prod).
+2. Delete it from the preview admin.
+3. Confirm the underlying Cloudflare image still resolves at
+   `https://imagedelivery.net/<hash>/<id>/public` — the local admin row is gone,
+   but the shared prod asset must survive.
+
 ## Module layout (`src/plugins/storage/`)
 
 | File                         | Purpose                                                                        |

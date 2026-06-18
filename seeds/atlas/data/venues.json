@@ -3094,19 +3094,6 @@
     "timeZone": "Europe/Amsterdam"
   },
   {
-    "legacyId": 342,
-    "placeId": "EitNYW5lbmJ1cmdzdHJhYXQgMjJoLCBBbXN0ZXJkYW0sIE5ldGhlcmxhbmRzIjASLgoUChIJ8Z4r9dULxkcRZoAlei2Jtr4QFioUChIJJTmBitULxkcRpRp7NK0kAd4",
-    "name": "Manenburgstraat 22",
-    "street": "22 Manenburgstraat",
-    "city": "Amsterdam",
-    "countryCode": "NL",
-    "postCode": "1097 NC",
-    "regionCode": "NH",
-    "latitude": 52.3441054,
-    "longitude": 4.9217805,
-    "timeZone": "Europe/Amsterdam"
-  },
-  {
     "legacyId": 343,
     "placeId": "EkpFc3RyYWRhIGRhIEJhcnJhZ2VtIElwaXRhbmdhIC0gQmFycmFnZW0gZGUgSXBpdGFuZ2EsIFNhbHZhZG9yIC0gQkEsIEJyYXNpbCIuKiwKFAoSCTnCeWcvFBYHEfjEDbyl7j_qEhQKEgkROANrFxQWBxGJMGBny0ue6Q",
     "name": null,

@@ -377,6 +377,7 @@ describe('Pages Collection', () => {
       const page = await testData.createPage(payload, {
         title: 'Shri Mataji Page',
         tags: ['wisdom'],
+        _status: 'published',
       })
       const fetched = await payload.findByID({ collection: 'pages', id: page.id, locale: 'en' })
       expect(fetched.webUrl).toBe(`https://wemeditate.com/wisdom/${page.slug}`)
@@ -384,7 +385,10 @@ describe('Pages Collection', () => {
 
     it('English page without tag returns base/slug', async () => {
       vi.stubEnv('WEMEDITATE_WEB_URL', 'https://wemeditate.com')
-      const page = await testData.createPage(payload, { title: 'Untagged Page' })
+      const page = await testData.createPage(payload, {
+        title: 'Untagged Page',
+        _status: 'published',
+      })
       const fetched = await payload.findByID({ collection: 'pages', id: page.id, locale: 'en' })
       expect(fetched.webUrl).toBe(`https://wemeditate.com/${page.slug}`)
     })
@@ -394,6 +398,7 @@ describe('Pages Collection', () => {
       const page = await testData.createPage(payload, {
         title: 'Czech Tagged Page',
         tags: ['wisdom'],
+        _status: 'published',
       })
       const fetched = await payload.findByID({ collection: 'pages', id: page.id, locale: 'cs' })
       expect(fetched.webUrl).toBe(`https://wemeditate.com/cs/wisdom/${page.slug}`)
@@ -401,7 +406,10 @@ describe('Pages Collection', () => {
 
     it('Non-English page without tag returns base/locale/slug', async () => {
       vi.stubEnv('WEMEDITATE_WEB_URL', 'https://wemeditate.com')
-      const page = await testData.createPage(payload, { title: 'Czech Untagged Page' })
+      const page = await testData.createPage(payload, {
+        title: 'Czech Untagged Page',
+        _status: 'published',
+      })
       const fetched = await payload.findByID({ collection: 'pages', id: page.id, locale: 'cs' })
       expect(fetched.webUrl).toBe(`https://wemeditate.com/cs/${page.slug}`)
     })
@@ -411,6 +419,20 @@ describe('Pages Collection', () => {
       const page = await testData.createPage(payload, { title: 'No Env Page' })
       const fetched = await payload.findByID({ collection: 'pages', id: page.id })
       expect(fetched.webUrl).toBeNull()
+    })
+
+    it('stops exposing the URL once a published page is unpublished', async () => {
+      vi.stubEnv('WEMEDITATE_WEB_URL', 'https://wemeditate.com')
+      const page = await testData.createPage(payload, {
+        title: 'Unpublish Page',
+        _status: 'published',
+      })
+      const published = await payload.findByID({ collection: 'pages', id: page.id })
+      expect(published.webUrl).toBe(`https://wemeditate.com/${page.slug}`)
+
+      await payload.update({ collection: 'pages', id: page.id, data: { _status: 'draft' } })
+      const draft = await payload.findByID({ collection: 'pages', id: page.id, draft: true })
+      expect(draft.webUrl).toBeNull()
     })
   })
 })

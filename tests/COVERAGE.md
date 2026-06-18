@@ -2,7 +2,7 @@
 
 Source-of-truth map of custom behavior to the integration test that covers it.
 
-This file complements `.claude/rules/tests.md` (which describes _how_ to test) by recording what _is_ tested today. Update it when a hook, access function, virtual field, endpoint, or scheduled task is added, renamed, or removed.
+This file complements `.claude/rules/tests.md` (which describes _how_ to test) and `tests/PERF.md` (the integration-lane runtime baseline) by recording what _is_ tested today. Update it when a hook, access function, virtual field, endpoint, or scheduled task is added, renamed, or removed.
 
 Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration lane (hooks, access control, virtual fields, custom validators, scheduled jobs, custom endpoints, locale-specific behavior, storage utilities, business-critical workflows). Built-in CRUD, slug generation, localization fallback, email/auth, file-upload mechanics, and `minRows`/`maxRows` validation are PayloadCMS concerns and are not tracked here. `collections-smoke.int.spec.ts` is the single reachability canary per content collection.
 
@@ -76,7 +76,7 @@ None known. The previous gap on `/api/frames/by-narrator/:narratorId` was closed
 
 ## Smoke specs (`tests/e2e/`) and dedup analysis
 
-Tier 3 smoke specs run against a Cloudflare PR preview environment with cloned production data. They cover REST API + auth + deployment as one cohesive flow.
+Tier 3 smoke specs run against the per-PR Railway preview environment with cloned production data. They cover REST API + auth + deployment as one cohesive flow.
 
 | Spec                      | REST paths exercised                                          |
 | ------------------------- | ------------------------------------------------------------- |

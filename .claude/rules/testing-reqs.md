@@ -30,7 +30,7 @@ Tier-specific guidance:
 
 - **Tier 1 runs unattended**. It must stay fast — no Payload bootstrap, no DB, no network. New unit specs go in `tests/unit/`.
 - **Tier 2 owns the local gate**. Add a targeted integration spec for the area you touched (one file via `pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts`). Don't run the full `pnpm test:int` locally — that's Tier 3's job.
-- **Tier 3 owns cross-cutting checks**. The CI job runs the full Vitest suite (unit + int) and the Playwright smoke specs against a Cloudflare PR preview with cloned prod data. Don't reproduce Tier 3 locally on every PR. Use `check.sh --full` only to debug a red CI run.
+- **Tier 3 owns cross-cutting checks**. The CI job runs the full Vitest suite (unit + int) and the Playwright smoke specs against the per-PR **Railway** preview with cloned prod data. (The Next.js build runs on Railway's preview deploy — GitHub Actions does not build.) Don't reproduce Tier 3 locally on every PR. Use `check.sh --full` only to debug a red CI run.
 
 ## Local vs CI
 

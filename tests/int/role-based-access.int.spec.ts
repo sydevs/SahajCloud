@@ -316,6 +316,15 @@ describe('Role-Based Access Control', () => {
     describe('Regions — recursive inheritance via breadcrumbs', () => {
       // Non-'manual' mapboxId keeps the conditionally-required coordinate fields
       // out of validation.
+      let fillerManagerId: number
+      beforeAll(async () => {
+        const filler = await testData.createManager(payload, {
+          name: 'Filler Region Manager',
+          roles: [],
+        })
+        fillerManagerId = filler.id
+      })
+
       const createRegion = (data: Record<string, unknown>) =>
         payload.create({
           collection: 'regions',
@@ -323,6 +332,7 @@ describe('Role-Based Access Control', () => {
             level: 'country',
             name: 'Region',
             mapboxId: `place.${Math.random().toString(36).slice(2)}`,
+            managers: [fillerManagerId],
             ...data,
           },
           depth: 0,
@@ -335,12 +345,18 @@ describe('Role-Based Access Control', () => {
         const city = await createRegion({ level: 'city', name: 'Capital', parent: region.id })
         const center = await createRegion({ level: 'center', name: 'Downtown', parent: city.id })
 
-        // A separate branch the manager must NOT reach.
+        // A separate branch the manager must NOT reach. (A center nests only
+        // under a city, so the branch goes country → city → center.)
         const otherCountry = await createRegion({ level: 'country', name: 'Otherland' })
+        const otherCity = await createRegion({
+          level: 'city',
+          name: 'Far City',
+          parent: otherCountry.id,
+        })
         const otherCenter = await createRegion({
           level: 'center',
           name: 'Far Center',
-          parent: otherCountry.id,
+          parent: otherCity.id,
         })
 
         // List the manager on the country root only.

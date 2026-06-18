@@ -20,11 +20,29 @@ in-process on server boot via `prodMigrations` (see "Production workflow" below)
 
 ## Creating a migration
 
-**Ask the user to run `pnpm db:migrations:create` for you — do not run it
-yourself.** The command prompts interactively for a migration name and hangs
-silently when backgrounded or piped (the shell's stdout buffering hides the
-prompt). Agents that attempt it freeze their shell and waste real time
-before being interrupted.
+`pnpm db:migrations:create` is just an alias for `pnpm payload migrate:create`
+(see `package.json`) — both run the same Payload CLI, so they behave
+identically. Pass the name as the first argument:
+`pnpm db:migrations:create my_migration_name`.
+
+**Ask the user to run it for you — do not run it yourself, and run it in an
+interactive terminal.** When Payload detects **no schema changes** it shows a
+`prompts` confirm ("No schema changes detected — create a blank migration
+file?"). If stdin is not an interactive TTY (piped, backgrounded, or driven by
+an agent), that prompt's `onCancel` fires `process.exit(0)` and the command
+**exits 0 with no file and no message** — this is the "exits without
+information" symptom, and it is the same for both command forms. Current Payload
+(3.85) does *not* prompt for the migration name; it derives the name from the
+argument or a timestamp, so the blank-migration confirm is the only interactive
+prompt.
+
+A silent exit with no new file usually just means **no schema changes were
+detected** — e.g. dev `push: true` already synced them, or an existing pending
+migration already captures the current schema. That is not necessarily an error.
+
+When passing CLI flags through pnpm, separate them with `--` so pnpm forwards
+them to Payload instead of consuming them, e.g.
+`pnpm db:migrations:create my_name -- --force-accept-warning`.
 
 Pause, describe the schema changes you made, and ask the user to run the
 command and confirm the new `.ts` + `.json` pair exists. Then augment the

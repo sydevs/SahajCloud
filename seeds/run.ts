@@ -50,6 +50,7 @@ type ScriptName =
   | 'tags'
   | 'wm-app-translations'
   | 'translations'
+  | 'atlas'
 
 const VALID_SCRIPTS: ScriptName[] = [
   'storyblok',
@@ -58,6 +59,7 @@ const VALID_SCRIPTS: ScriptName[] = [
   'tags',
   'wm-app-translations',
   'translations',
+  'atlas',
 ]
 
 // Dependency order: tags first (referenced by other content), then wemeditate (authors/categories),
@@ -69,6 +71,8 @@ const SCRIPT_RUN_ORDER: ScriptName[] = [
   'meditations',
   'storyblok',
   'wm-app-translations',
+  // Atlas is independent of the WeMeditate content above (distinct collections).
+  'atlas',
 ]
 
 const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
@@ -78,6 +82,7 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   tags: 'Seed UserChoices and MusicTags from Cloudinary',
   'wm-app-translations': 'Seed English copy for the wm-app-translations global',
   translations: 'Seed English copy for all three translation globals',
+  atlas: 'Seed Sahaj Atlas events, regions, managers, registrations + clients',
 }
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
