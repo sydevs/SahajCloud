@@ -2,6 +2,7 @@ import type { CollectionBeforeOperationHook } from 'payload'
 
 import { generateR2Key } from './filenameUtils'
 import { getMimeCategory } from './mimeUtils'
+import { applyPreviewPrefix } from './previewIsolation'
 
 export const R2_PREASSIGNED_FILENAME_CONTEXT_KEY = '_r2PreassignedFilename'
 
@@ -33,7 +34,9 @@ export const createR2FilenameBeforeOperationHook = (
       return args
     }
 
-    file.name = generateR2Key(file.name)
+    // In non-prod, prefix the key so the asset is namespaced to this deployment
+    // (the R2 adapter's delete guard + cleanup recognize it). No-op in prod.
+    file.name = applyPreviewPrefix(generateR2Key(file.name))
     args.req.context = args.req.context ?? {}
     args.req.context[R2_PREASSIGNED_FILENAME_CONTEXT_KEY] = true
 
