@@ -385,6 +385,11 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'Pass `audiences` (resolved via `GET /api/audiences/for-user`) to ' +
         'restrict the candidate pool to lectures eligible for this viewer. ' +
         'Use `excludedLectureIds` to omit already-watched lectures. ' +
+        'When no lecture matches the relevance criteria, the response falls ' +
+        'back to the generic audience feed (same selection as ' +
+        '`GET /api/lectures/for-audience`); the `source` field reports which ' +
+        'strategy was used, and `excludedLectureIds` are relaxed only if they ' +
+        'would otherwise leave the feed empty. ' +
         'This endpoint sets `Cache-Control: public, max-age=600, s-maxage=600`.',
       operationId: 'meditationLectures',
       parameters: [
@@ -421,18 +426,34 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         },
       ],
       responses: {
-        '200': jsonDocsResponse('#/components/schemas/LecturePlayerData'),
-        '307': {
+        '200': {
           description:
-            'Redirects to the same endpoint without `excludedLectureIds` and ' +
-            'with `limit=1` when all eligible lectures have been excluded. ' +
-            'Follow the `Location` header to retrieve the fallback result.',
-          headers: {
-            Location: {
-              description:
-                'Fallback URL — same path and query params without `excludedLectureIds`, ' +
-                'with `limit=1` and `audiences` normalised to the canonical sorted form.',
-              schema: { type: 'string', format: 'uri' },
+            'Related lectures. `source` is `relevance` when `docs` are ranked ' +
+            'by chakra overlap, or `audience-fallback` when nothing matched and ' +
+            '`docs` come from the generic audience feed instead. `relevanceCount` ' +
+            'is the number of leading `docs` that are genuine relevance matches ' +
+            '(equals `docs.length` for `relevance`, `0` for `audience-fallback`).',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['docs', 'source', 'relevanceCount'],
+                properties: {
+                  docs: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/LecturePlayerData' },
+                  },
+                  source: {
+                    type: 'string',
+                    enum: ['relevance', 'audience-fallback'],
+                    description: 'Which selection strategy produced `docs`.',
+                  },
+                  relevanceCount: {
+                    type: 'integer',
+                    description: 'Number of leading `docs` that are genuine relevance matches.',
+                  },
+                },
+              },
             },
           },
         },
