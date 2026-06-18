@@ -5,5 +5,6 @@
 // governs endpoint *definitions* (those stay colocated with their collection).
 
 export { emptyPaginatedResponse } from './emptyPaginatedResponse'
+export { parseBody } from './parseBody'
 export { parseQuery, type ParseQueryResult } from './parseQuery'
 export { requireActiveClient } from './requireActiveClient'
