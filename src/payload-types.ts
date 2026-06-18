@@ -3785,10 +3785,6 @@ export interface Client {
    */
   domains?: string | null;
   /**
-   * Enable or disable API access for this client
-   */
-  active?: boolean | null;
-  /**
    * Atlas public key — reference only. Payload issues its own API key for this service.
    */
   clientId?: string | null;
@@ -4068,6 +4064,7 @@ export interface Client {
     | null;
   updatedAt: string;
   createdAt: string;
+  _status?: ('draft' | 'published') | null;
   enableAPIKey?: boolean | null;
   apiKey?: string | null;
   apiKeyIndex?: string | null;
@@ -4988,7 +4985,6 @@ export interface ClientsSelect<T extends boolean = true> {
   managers?: T;
   primaryContact?: T;
   domains?: T;
-  active?: T;
   clientId?: T;
   color1?: T;
   color2?: T;
@@ -5013,6 +5009,7 @@ export interface ClientsSelect<T extends boolean = true> {
   legacyData?: T;
   updatedAt?: T;
   createdAt?: T;
+  _status?: T;
   enableAPIKey?: T;
   apiKey?: T;
   apiKeyIndex?: T;

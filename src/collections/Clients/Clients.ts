@@ -15,7 +15,7 @@ export const Clients: CollectionConfig = {
   },
   indexes: [
     {
-      fields: ['active'],
+      fields: ['_status'],
     },
   ],
   labels: {
@@ -25,7 +25,14 @@ export const Clients: CollectionConfig = {
   admin: {
     group: 'System',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'active'],
+    defaultColumns: ['name', '_status'],
+  },
+  // Publish/unpublish is the auth gate: only `_status === 'published'` clients
+  // authenticate (see bypassPermissions + requireActiveClient). One version per
+  // doc — we only need the latest published/draft state, not a version history.
+  versions: {
+    drafts: true,
+    maxPerDoc: 1,
   },
   fields: [
     {
@@ -94,14 +101,6 @@ export const Clients: CollectionConfig = {
               admin: {
                 description:
                   'What domains are associated with this client. Put each domain on a new line.',
-              },
-            },
-            {
-              name: 'active',
-              type: 'checkbox',
-              defaultValue: true,
-              admin: {
-                description: 'Enable or disable API access for this client',
               },
             },
             {
