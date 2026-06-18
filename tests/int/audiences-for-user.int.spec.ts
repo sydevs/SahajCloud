@@ -16,14 +16,14 @@ const AUDIENCE_DEFAULTS = {
   country: 'US',
 }
 
-const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', active: true }
+const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', _status: 'published' }
 
 async function callEndpoint(
   payload: Payload,
   query: Record<string, string | number | boolean>,
   options: {
     skipAudienceDefaults?: boolean
-    user?: { id: number | string; collection: string; active?: boolean } | null
+    user?: { id: number | string; collection: string; _status?: 'published' | 'draft' } | null
   } = {},
 ): Promise<{ status: number; headers: Headers; body: { audiences?: number[]; errors?: unknown } }> {
   const finalQuery = options.skipAudienceDefaults ? query : { ...AUDIENCE_DEFAULTS, ...query }
@@ -102,7 +102,7 @@ describe('audiencesForUser endpoint', () => {
       const { status } = await callEndpoint(
         payload,
         {},
-        { user: { id: adminUserId, collection: 'managers', active: true } },
+        { user: { id: adminUserId, collection: 'managers' } },
       )
       expect(status).toBe(403)
     })
@@ -111,7 +111,7 @@ describe('audiencesForUser endpoint', () => {
       const { status } = await callEndpoint(
         payload,
         {},
-        { user: { id: 999, collection: 'clients', active: false } },
+        { user: { id: 999, collection: 'clients', _status: 'draft' } },
       )
       expect(status).toBe(403)
     })
@@ -160,7 +160,7 @@ describe('audiencesForUser endpoint', () => {
         payload,
         { pathProgress: 0 },
         {
-          user: { id: client.id, collection: 'clients', active: true },
+          user: { id: client.id, collection: 'clients', _status: 'published' },
         },
       )
       expect(status).toBe(200)

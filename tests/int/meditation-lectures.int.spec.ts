@@ -32,7 +32,7 @@ vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
   }
 })
 
-const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', active: true }
+const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', _status: 'published' }
 
 // `audiences` is a required, non-empty comma-separated list of IDs. Tests
 // that don't exercise validation pass the resolved-audience ID through
@@ -45,7 +45,7 @@ async function callEndpoint(
   options: {
     skipDefaultAudiences?: boolean
     defaultAudiences?: string
-    user?: { id: number | string; collection: string; active?: boolean } | null
+    user?: { id: number | string; collection: string; _status?: 'published' | 'draft' } | null
   } = {},
 ): Promise<{ status: number; headers: Headers; body: { docs: LecturePlayerData[] } | unknown }> {
   const finalQuery = options.skipDefaultAudiences
@@ -536,7 +536,7 @@ describe('meditationLectures endpoint', () => {
         { limit: 10 },
         {
           defaultAudiences: audienceFilter,
-          user: { id: adminUserId, collection: 'managers', active: true },
+          user: { id: adminUserId, collection: 'managers' },
         },
       )
       expect(status).toBe(403)
@@ -549,7 +549,7 @@ describe('meditationLectures endpoint', () => {
         { limit: 10 },
         {
           defaultAudiences: audienceFilter,
-          user: { id: 999, collection: 'clients', active: false },
+          user: { id: 999, collection: 'clients', _status: 'draft' },
         },
       )
       expect(status).toBe(403)
@@ -580,7 +580,7 @@ describe('meditationLectures endpoint', () => {
         { limit: 5 },
         {
           defaultAudiences: audienceFilter,
-          user: { id: client.id, collection: 'clients', active: true },
+          user: { id: client.id, collection: 'clients', _status: 'published' },
         },
       )
       expect(status).toBe(200)
