@@ -11,6 +11,8 @@
  */
 import { Client } from 'pg'
 
+import { DEFAULT_TEST_DATABASE_URL } from '../utils/postgresTestPool'
+
 /**
  * Matches the schema names minted by `makeTestSchemaName()` in testHelpers
  * (`test_<base36>_<base36>`). Deliberately strict — the sweep below DROPs every
@@ -18,10 +20,11 @@ import { Client } from 'pg'
  * `seed_test`, `e2e`, …). Same string is used as a Postgres regex and a JS regex.
  */
 export const GENERATED_TEST_SCHEMA_PATTERN = '^test_[0-9a-z]+_[0-9a-z]+$'
+const GENERATED_TEST_SCHEMA_REGEX = new RegExp(GENERATED_TEST_SCHEMA_PATTERN)
 
 /** True if `name` was minted by the per-suite schema generator (safe to drop). */
 export function isGeneratedTestSchema(name: string): boolean {
-  return new RegExp(GENERATED_TEST_SCHEMA_PATTERN).test(name)
+  return GENERATED_TEST_SCHEMA_REGEX.test(name)
 }
 
 /**
@@ -57,8 +60,7 @@ async function sweepOrphanedTestSchemas(connectionString: string): Promise<void>
 export async function setup() {
   // Mirror the DATABASE_URL resolution in vitest.config.mts's sharedTestEnv so the
   // sweep targets the same Postgres the suite workers connect to.
-  const databaseUrl =
-    process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/payload_test'
+  const databaseUrl = process.env.DATABASE_URL ?? DEFAULT_TEST_DATABASE_URL
   console.log('🧪 Test environment: Postgres (isolated schema per suite)')
   console.log(`   DATABASE_URL: ${databaseUrl}`)
   await sweepOrphanedTestSchemas(databaseUrl)

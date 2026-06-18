@@ -10,3 +10,12 @@
  * dependency-free — it's imported by configs that run under both Vitest and tsx.
  */
 export const TEST_PG_POOL_OPTIONS = '-c synchronous_commit=off'
+
+/**
+ * Default Postgres connection string used when DATABASE_URL is unset (local
+ * contributors without an env; CI injects the service-container URL). Single
+ * source of truth for the Vitest config's `sharedTestEnv` and the globalSetup
+ * orphaned-schema sweep, so they always target the same database.
+ */
+export const DEFAULT_TEST_DATABASE_URL =
+  'postgresql://postgres:postgres@localhost:5432/payload_test'

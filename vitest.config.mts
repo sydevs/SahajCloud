@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react'
 import tsconfigPaths from 'vite-tsconfig-paths'
 import { defineConfig } from 'vitest/config'
 
+import { DEFAULT_TEST_DATABASE_URL } from './tests/utils/postgresTestPool'
+
 const sharedResolve = {
   alias: {
     '@': path.resolve(__dirname, './src'),
@@ -19,8 +21,7 @@ const sharedPlugins = [tsconfigPaths(), react()]
 // Postgres for contributors who don't set it; CI injects the service-container URL.
 const sharedTestEnv: Record<string, string> = {
   NODE_ENV: 'test',
-  DATABASE_URL:
-    process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/payload_test',
+  DATABASE_URL: process.env.DATABASE_URL ?? DEFAULT_TEST_DATABASE_URL,
   PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
   SAHAJCLOUD_PREVIEW_SECRET: 'test-preview-secret-32-chars',
   WEMEDITATE_WEB_URL: 'http://localhost:5173',
