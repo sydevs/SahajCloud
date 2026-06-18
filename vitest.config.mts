@@ -45,11 +45,13 @@ const sharedTestEnv: Record<string, string> = {
 const isCoverage = process.argv.includes('--coverage')
 
 const cpuCount = os.availableParallelism?.() ?? os.cpus().length
-const intMaxForks = process.env.VITEST_INT_MAX_FORKS
-  ? Math.max(1, Number(process.env.VITEST_INT_MAX_FORKS))
-  : process.env.CI
-    ? Math.min(cpuCount, 4)
-    : Math.max(2, Math.min(cpuCount - 1, 6))
+const envMaxForks = Number(process.env.VITEST_INT_MAX_FORKS)
+const intMaxForks =
+  Number.isFinite(envMaxForks) && envMaxForks >= 1
+    ? Math.floor(envMaxForks) // explicit override (ignored if non-numeric/<1)
+    : process.env.CI
+      ? Math.min(cpuCount, 4)
+      : Math.max(2, Math.min(cpuCount - 1, 6))
 
 export default defineConfig({
   test: {

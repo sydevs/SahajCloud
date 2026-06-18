@@ -53,7 +53,7 @@ async function sweepOrphanedTestSchemas(connectionString: string): Promise<void>
   } catch (error) {
     console.warn(`   ⚠️  Orphaned-schema sweep skipped: ${(error as Error).message}`)
   } finally {
-    await client.end().catch(() => {})
+    await client.end().catch(() => {}) // ignore close errors (best-effort cleanup)
   }
 }
 
