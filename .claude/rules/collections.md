@@ -461,10 +461,10 @@ for reactive access to schedule sub-fields.
 ### Key files
 
 - `src/fields/scheduleField.ts` — group field factory
-- `src/hooks/scheduleHooks.ts` — `buildRRuleTemporal`, `computeIcalRule`,
+- `src/lib/schedule/scheduleHooks.ts` — `buildRRuleTemporal`, `computeIcalRule`,
   `computeUpcomingDates`, `cleanupExpiredExclusions`, `getLocalTimeHHMM`,
   type definitions
 - `src/components/admin/ScheduleSummary.tsx` — afterInput component
 - `src/components/admin/FlatArrayField/FlatArrayField.tsx` — custom
   array field for exclusions (flat rows, no per-row Collapsible)
-- `tests/int/schedule-hooks.int.spec.ts` — DST transition tests included
+- `tests/unit/schedule-hooks.spec.ts` — DST transition tests included

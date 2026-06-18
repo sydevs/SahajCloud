@@ -1,14 +1,12 @@
 import type { FieldHook } from 'payload'
 
+import { isRecord } from '@/lib/utilities/isRecord'
+
 type LexicalNodeRecord = Record<string, unknown> & {
   children?: unknown
   relationTo?: unknown
   type?: unknown
   value?: unknown
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
 }
 
 function isDanglingReferenceNode(

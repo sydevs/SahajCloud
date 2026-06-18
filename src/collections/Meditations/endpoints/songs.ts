@@ -1,5 +1,6 @@
 import type { Endpoint } from 'payload'
 
+import { emptyPaginatedResponse, requireActiveClient } from '@/lib/endpoints'
 import type { Meditation, Song } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
@@ -35,22 +36,6 @@ function resolveSelectedFields(rawSelect: unknown): Set<AllowedField> {
   return selected.size > 0 ? selected : new Set(ALLOWED_FIELDS)
 }
 
-/** Standard Payload paginated envelope for an empty result at `SONG_LIMIT`. */
-function emptySongsResponse() {
-  return {
-    docs: [] as SongResult[],
-    totalDocs: 0,
-    limit: SONG_LIMIT,
-    totalPages: 0,
-    page: 1,
-    pagingCounter: 0,
-    hasPrevPage: false,
-    hasNextPage: false,
-    prevPage: null,
-    nextPage: null,
-  }
-}
-
 /**
  * GET /api/meditations/:id/songs
  *
@@ -72,12 +57,8 @@ export const meditationSongs: Endpoint = {
   path: '/:id/songs',
   method: 'get',
   handler: async (req) => {
-    if (req.user?.collection !== 'clients' || !req.user.active) {
-      return Response.json(
-        { errors: [{ message: 'You are not allowed to perform this action.' }] },
-        { status: 403 },
-      )
-    }
+    const denied = requireActiveClient(req)
+    if (denied) return denied
 
     const idParam = req.routeParams?.id as string | number | undefined
     if (idParam === undefined || idParam === null || idParam === '') {
@@ -109,7 +90,7 @@ export const meditationSongs: Endpoint = {
     const songTag = meditation.songTag
     const songTagId = typeof songTag === 'object' && songTag !== null ? songTag.id : songTag
     if (!songTagId) {
-      return Response.json(emptySongsResponse())
+      return Response.json(emptyPaginatedResponse<SongResult>(SONG_LIMIT))
     }
 
     const selectedFields = resolveSelectedFields(req.query.select)

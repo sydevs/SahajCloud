@@ -1,7 +1,7 @@
 import type { BasePayload, PayloadRequest, TypedLocale } from 'payload'
 
 import { isUploadAssigned, type CheckResult } from '@/lib/status'
-import { isRecord } from '@/lib/status/helpers'
+import { isRecord } from '@/lib/utilities/isRecord'
 
 // =============================================================================
 // Per-project status-global config (persisted on the wm-app-status Configuration
@@ -77,9 +77,7 @@ export async function getWmAppConfig(
 ): Promise<Record<string, unknown>> {
   const key = `${locale}:${depth}`
   const ctx = (req?.context ?? {}) as Record<string, unknown>
-  const existing = ctx[APP_CONFIG_CACHE_KEY] as
-    | Map<string, Record<string, unknown>>
-    | undefined
+  const existing = ctx[APP_CONFIG_CACHE_KEY] as Map<string, Record<string, unknown>> | undefined
 
   if (existing?.has(key)) return existing.get(key)!
 
@@ -111,9 +109,7 @@ export function lectureHasSubtitlesForLocale(
     ? (lecture.subtitles as Array<{ locale?: string; url?: string }>)
     : []
   if (
-    clipOverrides.some(
-      (s) => s?.locale === locale && typeof s.url === 'string' && s.url.length > 0,
-    )
+    clipOverrides.some((s) => s?.locale === locale && typeof s.url === 'string' && s.url.length > 0)
   ) {
     return true
   }
@@ -130,9 +126,7 @@ export function lectureHasSubtitlesForLocale(
   if (!isRecord(sourceMetadata)) return false
   const subs = (sourceMetadata as { subtitles?: unknown }).subtitles
   if (!Array.isArray(subs)) return false
-  return subs.some(
-    (s) => isRecord(s) && s.languageCode === locale && typeof s.url === 'string',
-  )
+  return subs.some((s) => isRecord(s) && s.languageCode === locale && typeof s.url === 'string')
 }
 
 // =============================================================================

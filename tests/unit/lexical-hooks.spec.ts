@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { removeDanglingLexicalReferences } from '@/hooks/lexicalHooks'
+import { removeDanglingLexicalReferences } from '@/lib/richEditor/lexicalHooks'
 
 const validCollections = ['pages', 'lectures', 'images']
 

@@ -9,6 +9,7 @@
 import { z } from 'zod'
 
 import { serverEnv } from '@/lib/env'
+import { fetchWithTimeout } from '@/lib/utilities/fetchWithTimeout'
 
 // =============================================================================
 // Types
@@ -93,7 +94,7 @@ export async function fetchNirmalaVidyaVideo(vimeoId: string): Promise<NirmalaVi
 
   const url = `https://mapi.nirmalavidya.org/api/v2/videos/vimeo/${vimeoId}/hls`
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: { 'X-API-Key': apiKey },
   })
 
@@ -132,7 +133,9 @@ export async function downloadToBuffer(
   url: string,
   filename?: string,
 ): Promise<{ data: Buffer; mimetype: string; name: string; size: number }> {
-  const response = await fetch(url)
+  // Downloads a remote asset (thumbnail / subtitle), so allow a longer bound
+  // than a JSON API call while still capping a hung transfer.
+  const response = await fetchWithTimeout(url, { timeoutMs: 60_000 })
 
   if (!response.ok) {
     throw new Error(`Failed to download file from ${url}: HTTP ${response.status}`)

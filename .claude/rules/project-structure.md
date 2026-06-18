@@ -45,11 +45,26 @@ No loose files at the root — every file lives in a named folder:
 - `env/` — environment-variable validation (broadly imported config)
 - `logger/` — `clientLogger`, `workerSafeLogger`
 - `utilities/` — purposeful cross-boundary helpers (`serverUrl`, `previewSecret`,
-  `gender`, `subtitles`, `weightedSample`)
+  `gender`, `subtitles`, `weightedSample`, `fetchWithTimeout`, `isRecord`)
 - `locales/` — locale config (`@/lib/locales` resolves to `locales/index.ts`)
-- `richEditor/` — Lexical editor presets + `blocks/` (the editor's block set)
+- `richEditor/` — Lexical editor presets + `blocks/` (the editor's block set) +
+  `lexicalHooks`
+- `endpoints/` — shared client-endpoint helpers (`requireActiveClient`,
+  `parseQuery`, `emptyPaginatedResponse`)
 - domain folders shared across 2+ owners: `audiences/`, `meditations/`,
-  `branding/`, `status/`, `lectures/`
+  `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
+  `pageTags/`, `cascadeDeletion/`
+
+**Barrels.** A folder gets an `index.ts` barrel when it presents one cohesive
+public surface imported as a unit (`@/lib/locales`, `@/lib/status`,
+`@/lib/endpoints`, `@/lib/subtleSystem`, `@/lib/pageTags`,
+`@/lib/cascadeDeletion`). Grab-bag and per-owner helper folders whose modules are
+cherry-picked individually use deep imports and have **no** barrel: `utilities/`
+(unrelated single-purpose helpers), `logger/`, `lectures/`, `meditations/`,
+`audiences/`, `mapbox/`, and `schedule/` (`@/lib/schedule/scheduleHooks`). Don't
+add a barrel that re-exports unrelated modules just for symmetry — it can pull
+server-only code into client bundles, hurts tree-shaking, and invites import
+cycles.
 
 ## Organization rules
 

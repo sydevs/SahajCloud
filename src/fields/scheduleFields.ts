@@ -5,7 +5,7 @@ import {
   computeIcalRule,
   computeUpcomingDates,
   getLocalTimeHHMM,
-} from '@/hooks/scheduleHooks'
+} from '@/lib/schedule/scheduleHooks'
 
 /**
  * Field factory options

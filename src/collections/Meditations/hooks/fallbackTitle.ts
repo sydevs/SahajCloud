@@ -1,6 +1,6 @@
 import type { FieldHook } from 'payload'
 
-import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/collections/SubtleSystemNodes/SubtleSystemNodes'
+import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/lib/subtleSystem'
 
 const NODE_LABELS: Record<string, string> = Object.fromEntries(
   SUBTLE_SYSTEM_NODE_OPTIONS.map((option) => [option.value, option.label]),

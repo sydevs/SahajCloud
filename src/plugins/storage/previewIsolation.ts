@@ -24,6 +24,8 @@
  * See `.claude/rules/storage.md` § "Preview / non-production isolation".
  */
 
+import { storageLogger } from './storageLogger'
+
 /**
  * Name of the production Railway environment.
  *
@@ -133,10 +135,11 @@ export const shouldRefusePreviewDelete = async (
 ): Promise<boolean> => {
   if (!isStorageIsolationActive()) return false
   if (await isPreviewOwned()) return false
-  // eslint-disable-next-line no-console
-  console.warn(
-    `[${backendLabel}] Refusing to delete non-preview asset "${key}" from a non-production deployment`,
-  )
+  storageLogger.warn({
+    msg: 'Refusing to delete non-preview asset from a non-production deployment',
+    backend: backendLabel,
+    key,
+  })
   return true
 }
 

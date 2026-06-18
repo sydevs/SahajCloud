@@ -1,6 +1,6 @@
 import { Temporal } from '@js-temporal/polyfill'
 
-import { buildRRuleTemporal } from '@/hooks/scheduleHooks'
+import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
 import type { ScheduleSubFields } from '@/types/schedule'
 
 /**

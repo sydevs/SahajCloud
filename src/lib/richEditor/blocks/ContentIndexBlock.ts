@@ -2,7 +2,7 @@ import type { Block, FieldHook } from 'payload'
 
 import { extractID } from 'payload/shared'
 
-import { PAGE_TAGS } from '@/collections/Pages/pageTags'
+import { PAGE_TAGS } from '@/lib/pageTags'
 
 /**
  * Configuration for each content type's API endpoint generation.
