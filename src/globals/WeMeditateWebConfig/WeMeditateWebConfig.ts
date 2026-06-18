@@ -34,6 +34,17 @@ export const WeMeditateWebConfig: GlobalConfig = {
       },
     },
     {
+      name: 'featuredArticles',
+      type: 'relationship',
+      relationTo: 'pages',
+      hasMany: true,
+      minRows: 2,
+      required: true,
+      admin: {
+        description: 'Select 2 or more article pages to feature in the website header dropdown.',
+      },
+    },
+    {
       name: 'classPages',
       type: 'relationship',
       relationTo: 'pages',
