@@ -45,8 +45,9 @@ src/globals/
 ## Config globals (per project)
 
 **WeMeditate Web** (admin group: System) — `homePage` (relationship to
-pages, required), `featuredPages` (hasMany 2–3), `classPages` /
-`knowledgePages` / `infoPages` (hasMany, max 5).
+pages, required), `featuredPages` (hasMany 2–3), `featuredArticles`
+(hasMany, required, min 2 — article pages for the header dropdown),
+`classPages` / `knowledgePages` / `infoPages` (hasMany, max 5).
 
 **WeMeditate App** (admin group: WeMeditate App, tabs: First Meditation) —
 `selfRealizationMeditation` (localized relationship to meditations),
