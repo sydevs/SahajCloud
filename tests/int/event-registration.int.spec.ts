@@ -137,6 +137,16 @@ describe('registerForEvent endpoint', () => {
     expect(body).toHaveProperty('errors')
   })
 
+  it('returns 400 when the questions payload exceeds the size bound', async () => {
+    const { status } = await callRegister({
+      event: eventId,
+      email: 'huge@example.com',
+      name: 'Huge Payload',
+      questions: { blob: 'x'.repeat(11_000) },
+    })
+    expect(status).toBe(400)
+  })
+
   it('returns 404 for an event the client cannot see', async () => {
     const { status } = await callRegister({
       event: 999999,
