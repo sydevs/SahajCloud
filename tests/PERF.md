@@ -69,11 +69,21 @@ the alternative that *was* considered and rejected.
 
 ## After — 2026-06-18 (with #499 §2 explicit parallelism)
 
-<!-- Filled in after the explicit-parallelism change lands (same command, same machine). -->
+Same command, same machine (11 cores), with `fileParallelism: true` +
+`poolOptions.forks.maxForks` bounded (6 locally) and the §7 orphaned-schema
+sweep active. All 38 files / 675 tests still pass.
 
-| Metric                       | Value     | Δ vs baseline |
-| ---------------------------- | --------- | ------------- |
-| Total wall-clock — local     | _TBD_     | _TBD_         |
+| Metric                       | Value    | Δ vs baseline      |
+| ---------------------------- | -------- | ------------------ |
+| Total wall-clock — local     | 261.5s   | **−53s (−17%)**    |
+
+**Bounding forks made it _faster_, not slower.** The baseline let Vitest spawn
+its default (~10–11 forks on this box); capping at 6 reduced the number of
+suites doing a schema `push` against the shared Postgres at once, cutting DB
+contention enough to more than offset the lower fork count — direct confirmation
+that the lane is DB-bound. The no-regression bar (§ acceptance criteria) is met
+with margin. CI uses a tighter cap (≤4, matching the runner) against its
+dedicated service-container Postgres.
 
 ## Schema-reuse / clone evaluation (#499 §2)
 

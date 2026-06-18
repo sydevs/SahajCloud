@@ -1,3 +1,4 @@
+import os from 'os'
 import path from 'path'
 
 import react from '@vitejs/plugin-react'
@@ -26,6 +27,21 @@ const sharedTestEnv: Record<string, string> = {
   SAHAJATLAS_URL: 'http://localhost:5174',
   NIRMALA_VIDYA_API_KEY: 'test-nirmala-vidya-api-key-placeholder',
 }
+
+// Upper bound on concurrent integration-suite forks (#499 §2). The int lane is
+// DB-bound: every suite runs a full-schema Drizzle `push` against the SAME
+// Postgres, and each Payload instance opens a connection pool (node-pg default
+// max 10). So forks are capped to keep total connections well under Postgres'
+// default max_connections (100) and to leave the dev machine headroom locally
+// (the CPU-guard rule in .claude/rules/testing-reqs.md). CI gets a dedicated
+// service-container Postgres, so it can use the (smaller) runner fully. Override
+// with VITEST_INT_MAX_FORKS.
+const cpuCount = os.availableParallelism?.() ?? os.cpus().length
+const intMaxForks = process.env.VITEST_INT_MAX_FORKS
+  ? Math.max(1, Number(process.env.VITEST_INT_MAX_FORKS))
+  : process.env.CI
+    ? Math.min(cpuCount, 4)
+    : Math.max(2, Math.min(cpuCount - 1, 6))
 
 export default defineConfig({
   test: {
@@ -56,11 +72,29 @@ export default defineConfig({
           globalSetup: ['./tests/setup/globalSetup.ts'],
           include: ['tests/int/**/*.int.spec.ts', 'seeds/**/*.test.ts'],
           pool: 'forks',
+          // File-level parallelism is EXPLICIT (#499 §2). `maxConcurrency: 1`
+          // only serialises tests *within* a file — it does NOT serialise files.
+          // `fileParallelism: true` (Vitest's default for the forks pool, pinned
+          // here so it's not silently flipped) runs suites concurrently across
+          // forked workers, bounded by `poolOptions.forks.maxForks` (see
+          // `intMaxForks` above for the DB-connection rationale).
           maxConcurrency: 1,
+          fileParallelism: true,
+          poolOptions: {
+            forks: {
+              minForks: 1,
+              maxForks: intMaxForks,
+            },
+          },
           // Postgres has real per-op latency (vs the old instant in-memory SQLite),
           // so write-heavy integration tests + per-suite schema push need more headroom.
           testTimeout: 60000,
           hookTimeout: 120000,
+          // One retry in CI only (#499 §5) — absorbs transient Postgres latency /
+          // connection blips under the parallel load above (Playwright already
+          // uses retries: 2 in CI). Local stays at 0 so failures are honest
+          // during development.
+          retry: process.env.CI ? 1 : 0,
           env: sharedTestEnv,
         },
       },
