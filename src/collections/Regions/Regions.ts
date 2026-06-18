@@ -350,6 +350,14 @@ export const Regions: CollectionConfig = {
       // `generateSlug` checkbox; the helper's built-in `required: true` would
       // instead emit a NOT NULL column the populated table can't satisfy.
       overrides: (field) => {
+        // generateSlug defaults OFF for regions. Region names are frequently
+        // non-Latin (Москва, 東京, …), which the ASCII-only slugify collapses to
+        // "-"; with the checkbox on, Payload rewrites slug → slugify(name) on
+        // every save — including the nested-docs breadcrumb cascade that re-saves
+        // descendants — clobbering the importer's explicit, collision-free slugs.
+        // Off, the seeded/entered slug sticks; the column also defaults off so the
+        // production backfill doesn't trip the same cascade.
+        if (field.fields[0].type === 'checkbox') field.fields[0].defaultValue = false
         if (field.fields[1].type === 'text') field.fields[1].required = false
         return field
       },
