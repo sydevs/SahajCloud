@@ -294,10 +294,9 @@ export async function createTestClient(
   const defaultData = {
     name: `Test Client ${Date.now()}`,
     notes: 'Test client for automated testing',
-    role: 'full-access' as const,
     managers,
     primaryContact,
-    active: true,
+    _status: 'published' as const,
   }
 
   return await payload.create({
@@ -349,7 +348,7 @@ export function createClientAuthenticatedRequest(
     user: {
       id: clientId,
       collection: 'clients' as const,
-      active: true,
+      _status: 'published',
     } as unknown as PayloadRequest['user'],
   }
 }

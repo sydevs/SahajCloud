@@ -8,7 +8,7 @@ import type { Client, Meditation, Song, SongTag } from '@/payload-types'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', active: true }
+const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', _status: 'published' }
 
 type SongDoc = { id: number; title?: string | null; url?: string | null; tags?: number[] }
 type SongsBody = {
@@ -247,7 +247,7 @@ describe('meditationSongs endpoint', () => {
         payload,
         meditation.id,
         {},
-        { user: { id: client.id, collection: 'clients', active: true } },
+        { user: { id: client.id, collection: 'clients', _status: 'published' } },
       )
       expect(status).toBe(200)
 
@@ -291,7 +291,7 @@ describe('meditationSongs endpoint', () => {
         payload,
         meditation.id,
         {},
-        { user: { id: 999, collection: 'clients', active: false } },
+        { user: { id: 999, collection: 'clients', _status: 'draft' } },
       )
       expect(status).toBe(403)
     })

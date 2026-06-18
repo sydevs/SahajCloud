@@ -86,6 +86,43 @@ describe('Client Hooks', () => {
     })
   })
 
+  describe('ensureClientId', () => {
+    it('auto-populates a UUID clientId on create when absent', async () => {
+      const client = await testData.createClient(payload, adminUserId, {
+        name: 'Client Without clientId',
+      })
+
+      expect(client.clientId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      )
+    })
+
+    it('preserves an explicitly-provided clientId on create (e.g. Atlas key)', async () => {
+      const client = await testData.createClient(payload, adminUserId, {
+        name: 'Client With Atlas clientId',
+        clientId: 'atlas-supplied-key',
+      })
+
+      expect(client.clientId).toBe('atlas-supplied-key')
+    })
+
+    it('never overwrites clientId on update', async () => {
+      const client = await testData.createClient(payload, adminUserId, {
+        name: 'Client clientId Stability',
+      })
+      const original = client.clientId
+      expect(original).toBeTruthy()
+
+      const updated = (await payload.update({
+        collection: 'clients',
+        id: client.id,
+        data: { name: 'Renamed Client' },
+      })) as Client
+
+      expect(updated.clientId).toBe(original)
+    })
+  })
+
   // Note: checkHighUsageAlert hook was removed and moved to usagePlugin.
   // High usage alerts are now handled by the trackUsage task handler.
 })

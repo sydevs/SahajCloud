@@ -28,7 +28,7 @@ vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
   }
 })
 
-const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', active: true }
+const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', _status: 'published' }
 
 // `audiences` is required by the endpoint's Zod schema. Tests that don't
 // exercise a specific eligibility scenario still need to pass a non-empty
@@ -255,7 +255,7 @@ describe('lecturesForAudience endpoint', () => {
       const { status } = await callEndpoint(
         payload,
         { limit: 10 },
-        { id: 999, collection: 'clients', active: false },
+        { id: 999, collection: 'clients', _status: 'draft' },
         { defaultAudiences: beginnerOnly },
       )
       expect(status).toBe(403)
@@ -926,7 +926,7 @@ describe('lecturesForAudience endpoint', () => {
         const { status } = await callEndpoint(
           payload,
           { limit: 5 },
-          { id: client.id, collection: 'clients', active: true },
+          { id: client.id, collection: 'clients', _status: 'published' },
           { defaultAudiences: beginnerOnly },
         )
         expect(status).toBe(200)
