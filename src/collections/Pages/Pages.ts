@@ -1,8 +1,8 @@
 import type { CollectionConfig } from 'payload'
 
-import { PAGE_TAGS } from '@/collections/Pages/pageTags'
 import { slugField, publicUrlFields } from '@/fields'
 import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
+import { PAGE_TAGS } from '@/lib/pageTags'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { pageBlocks } from '@/lib/richEditor/blocks'
 import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexicalHooks'
