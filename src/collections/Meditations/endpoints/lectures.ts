@@ -3,10 +3,32 @@ import type { Endpoint, Where } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
+import { selectAudienceFeed } from '@/lib/lectures/audienceFeed'
 import { shapeLecture, type LecturePlayerData } from '@/lib/lectures/lectureShape'
 import { recomputeWeightsForMeditation } from '@/lib/meditations/nodeWeights'
 import type { Lecture, Meditation, SubtleSystemNode, UserChoice } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
+
+const CACHE_HEADERS = { 'Cache-Control': 'public, max-age=600, s-maxage=600' } as const
+
+/** Which selection strategy produced the `docs` in a related-lectures response. */
+export type RelatedLecturesSource = 'relevance' | 'audience-fallback'
+
+export type RelatedLecturesResponse = {
+  docs: LecturePlayerData[]
+  /**
+   * `'relevance'` when `docs` are ranked by topical overlap with the meditation;
+   * `'audience-fallback'` when relevance matched nothing and `docs` come from the
+   * generic audience feed instead.
+   */
+  source: RelatedLecturesSource
+  /**
+   * Number of leading `docs` that are genuine relevance matches. Equals
+   * `docs.length` when `source === 'relevance'`; `0` when `source ===
+   * 'audience-fallback'`.
+   */
+  relevanceCount: number
+}
 
 const querySchema = z.object({
   audiences: audiencesQueryParamSchema,
@@ -68,6 +90,16 @@ const querySchema = z.object({
  *   5. Sort in two groups: userChoice-tagged lectures first (weight DESC,
  *      id ASC), then non-userChoice lectures (weight DESC, id ASC).
  *   6. Slice to `limit` and shape into `LecturePlayerData`.
+ *   7. If that yields zero playable lectures, fall back to the generic audience
+ *      feed (same selection as `/api/lectures/for-audience`). Exclusions still
+ *      apply; if they would empty the fallback pool too, they are relaxed as a
+ *      last resort so the player always has something to play.
+ *
+ * Response shape: `RelatedLecturesResponse` — `{ docs, source, relevanceCount }`.
+ * `source` is `'relevance'` for the ranked result or `'audience-fallback'` for
+ * the feed fallback; `relevanceCount` is the number of leading `docs` that are
+ * genuine relevance matches (`docs.length` or `0`). The two extra fields are
+ * additive — clients reading only `docs` are unaffected.
  */
 export const meditationLectures: Endpoint = {
   path: '/:id/related-lectures',
@@ -163,19 +195,6 @@ export const meditationLectures: Endpoint = {
     })
 
     const eligibleLectures = lectureDocs as Lecture[]
-    if (eligibleLectures.length === 0) {
-      if (excludedLectureIds.length > 0) {
-        const fallbackUrl = new URL(req.url!)
-        fallbackUrl.searchParams.delete('excludedLectureIds')
-        fallbackUrl.searchParams.set('limit', '1')
-        fallbackUrl.searchParams.set('audiences', audienceIds.join(','))
-        return Response.redirect(fallbackUrl.toString(), 307)
-      }
-      return Response.json(
-        { docs: [] },
-        { headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600' } },
-      )
-    }
 
     type WeightedLecture = { lecture: Lecture; weight: number; hasUserChoice: boolean }
     const weighted: WeightedLecture[] = []
@@ -215,9 +234,53 @@ export const meditationLectures: Endpoint = {
       )
       .filter((item): item is LecturePlayerData => item !== null)
 
+    if (shaped.length > 0) {
+      return Response.json(
+        {
+          docs: shaped,
+          source: 'relevance',
+          relevanceCount: shaped.length,
+        } satisfies RelatedLecturesResponse,
+        { headers: CACHE_HEADERS },
+      )
+    }
+
+    // No relevance matches → fall back to the generic audience feed (priority-
+    // pinned then shuffled, same selection as GET /api/lectures/for-audience).
+    // Exclusions still apply; if they would empty the fallback pool too, relax
+    // them as a last resort so the player always has something to play (this
+    // supersedes the earlier #349 redirect).
+    const audienceFeedFallback = async (relaxExclusions: boolean): Promise<LecturePlayerData[]> => {
+      const fallbackWhere: Where = { audiences: { in: audienceIds } }
+      if (!relaxExclusions && excludedLectureIds.length > 0) {
+        fallbackWhere.id = { not_in: excludedLectureIds }
+      }
+      const { docs: fallbackDocs } = await req.payload.find({
+        collection: 'lectures',
+        where: fallbackWhere,
+        limit: 0,
+        depth: 2,
+        pagination: false,
+        locale: req.locale ?? 'en',
+        req: asTrustedReq(req),
+      })
+      return selectAudienceFeed({
+        lectures: fallbackDocs as Lecture[],
+        limit,
+        eligibleAudienceIds: audienceIds,
+        logger: req.payload.logger,
+      })
+    }
+
+    const withExclusions = await audienceFeedFallback(false)
+    const docs =
+      withExclusions.length === 0 && excludedLectureIds.length > 0
+        ? await audienceFeedFallback(true)
+        : withExclusions
+
     return Response.json(
-      { docs: shaped },
-      { headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600' } },
+      { docs, source: 'audience-fallback', relevanceCount: 0 } satisfies RelatedLecturesResponse,
+      { headers: CACHE_HEADERS },
     )
   },
 }

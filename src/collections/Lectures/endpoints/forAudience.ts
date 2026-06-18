@@ -3,7 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
-import { shapeLecture, type LecturePlayerData } from '@/lib/lectures/lectureShape'
+import { selectAudienceFeed } from '@/lib/lectures/audienceFeed'
 import type { Lecture } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
@@ -64,44 +64,15 @@ export const lecturesForAudience: Endpoint = {
       req: asTrustedReq(req),
     })
 
-    const eligibleLectures = lectureDocs as Lecture[]
-
-    // Partition into pinned (priority > 0) and normal (priority ≤ 0 / unset) pools.
-    // Partition on raw docs so `priority` is accessible before shaping.
-    const pinnedRaw = eligibleLectures.filter((l) => (l.priority ?? 0) > 0)
-    const normalRaw = eligibleLectures.filter((l) => (l.priority ?? 0) <= 0)
-
-    function shapePool(lectures: Lecture[]): LecturePlayerData[] {
-      return lectures
-        .map((l): LecturePlayerData | null => shapeLecture(l, req.payload.logger, audienceIds))
-        .filter((item): item is LecturePlayerData => item !== null)
-    }
-
-    // Pinned pool: build (priority, shaped) pairs, shuffle for tie-breaking,
-    // then stable-sort descending by priority.
-    const pinnedPairs = pinnedRaw
-      .map((l) => ({
-        priority: l.priority ?? 0,
-        shaped: shapeLecture(l, req.payload.logger, audienceIds),
-      }))
-      .filter((p): p is { priority: number; shaped: LecturePlayerData } => p.shaped !== null)
-
-    for (let i = pinnedPairs.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[pinnedPairs[i], pinnedPairs[j]] = [pinnedPairs[j], pinnedPairs[i]]
-    }
-    pinnedPairs.sort((a, b) => b.priority - a.priority)
-    const shapedPinned = pinnedPairs.map((p) => p.shaped)
-
-    // Normal pool: existing Fisher-Yates shuffle
-    const shapedNormal = shapePool(normalRaw)
-    for (let i = shapedNormal.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[shapedNormal[i], shapedNormal[j]] = [shapedNormal[j], shapedNormal[i]]
-    }
+    const docs = selectAudienceFeed({
+      lectures: lectureDocs as Lecture[],
+      limit,
+      eligibleAudienceIds: audienceIds,
+      logger: req.payload.logger,
+    })
 
     return Response.json(
-      { docs: [...shapedPinned, ...shapedNormal].slice(0, limit) },
+      { docs },
       { headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600' } },
     )
   },
