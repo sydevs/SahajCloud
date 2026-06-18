@@ -125,7 +125,10 @@ describe('meditationSongs endpoint', () => {
       tags: [otherTag.id],
       includeForMeditations: true,
     })
-  }, 120000)
+    // No explicit hook timeout — inherit the config's hookTimeout so it picks up
+    // the larger coverage-mode value (the explicit 120s here matched the normal
+    // default but blocked the bump, timing out under `pnpm test:coverage`).
+  })
 
   afterAll(async () => {
     await cleanup()

@@ -21,6 +21,7 @@ import { accessPlugin, bypassPermissions } from '@/plugins/access'
 import { usagePlugin } from '@/plugins/usage'
 
 import { EmailTestAdapter } from './emailTestAdapter'
+import { TEST_PG_POOL_OPTIONS } from './postgresTestPool'
 import { testData } from './testData'
 import { collections, Managers } from '../../src/collections'
 import { globals } from '../../src/globals'
@@ -105,9 +106,7 @@ function createBaseTestConfig(emailConfig: any, schemaName: string) {
     db: postgresAdapter({
       pool: {
         connectionString: process.env.DATABASE_URL,
-        // Tests don't need durability — skip the per-commit fsync wait. Large
-        // speed-up for the write-heavy integration suites on Postgres.
-        options: '-c synchronous_commit=off',
+        options: TEST_PG_POOL_OPTIONS,
       },
       push: true, // Auto-create schema (no migrations in tests)
       schemaName,
