@@ -55,7 +55,7 @@ Manual fallback: `pnpm dev` (start), `pnpm devsafe` (clean dev — removes `.nex
 - `pnpm test:unit` — fast unit lane (~1–2 s, no Payload bootstrap)
 - `pnpm test` / `pnpm test:int` / `pnpm test:e2e` — full / integration / E2E
 
-**Local vs CI**: GitHub Actions runs the **full test suite + the Next.js build** on every PR (see [Continuous Integration](#continuous-integration)). Locally, default to **targeted** validation — lint, `pnpm test:unit`, and the specific integration spec(s) for the area you touched: `pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts`. Don't routinely run the full `pnpm test:int` locally or `check.sh --full` / `validate.sh --full` — let CI catch the less-common, cross-cutting failures. Run them only to reproduce a red CI check or when explicitly asked.
+**Local vs CI**: GitHub Actions runs the **full test suite** on every PR (see [Continuous Integration](#continuous-integration)); the **Next.js build runs on Railway** as part of the per-PR preview deploy, _not_ in GitHub Actions. Locally, default to **targeted** validation — lint, `pnpm test:unit`, and the specific integration spec(s) for the area you touched: `pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts`. Don't routinely run the full `pnpm test:int` locally or `check.sh --full` / `validate.sh --full` — let CI catch the less-common, cross-cutting failures. Run them only to reproduce a red CI check or when explicitly asked.
 
 If wrapping any of these in `timeout` (only when actually needed — most one-shot runs don't need it), use these canonical values; other values will trigger a permission prompt:
 
@@ -137,10 +137,10 @@ Before marking a PR ready, run the **Tier 2** lean gate plus the targeted integr
 GitHub Actions runs on every pull request (`.github/workflows/ci.yml`) as one job, **Lint, Test & Smoke**:
 
 1. `pnpm lint`
-2. `pnpm test` — unit + integration via a postgres:16 service container (Vitest injects DATABASE_URL env)
-3. `pnpm test:smoke` — Playwright specs (currently skipped — gated on `RAILWAY_PREVIEW_URL` env var; per-PR Railway previews are TODO(railway))
+2. `pnpm test` — unit + integration via a postgres:18 service container (Vitest injects DATABASE_URL env)
+3. `pnpm test:smoke` — Playwright REST smoke specs against the per-PR **Railway preview** (its URL discovered via the Railway API; the step skips gracefully when there's no preview env or `RAILWAY_API_TOKEN`)
 
-PR-only triggers; `concurrency: cancel-in-progress` cancels superseded runs on the same branch. CI **reports** status but does not block merges unless a branch-protection rule on `main` requires the `Lint, Test & Smoke` check to pass.
+GitHub Actions does **not** build the app — the Next.js build runs on Railway when it creates the PR preview deployment. PR-only triggers; `concurrency: cancel-in-progress` cancels superseded runs on the same branch. CI **reports** status but does not block merges unless a branch-protection rule on `main` requires the `Lint, Test & Smoke` check to pass.
 
 ## Deployment
 
