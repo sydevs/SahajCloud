@@ -47,7 +47,7 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 | `/api/audiences/for-user`             | Progress-rule matching, country/location gating, condition audiences, range semantics                              | `audiences-for-user`     |
 | `/api/frames/by-narrator/:narratorId` | Param validation, narrator lookup (404), gender-based filtering, mimeType sort, depth:1 subtleSystemNode hydration | `frames-by-narrator`     |
 | `/api/lectures/for-audience`          | Priority sampling, audience filter, subtitle/thumbnail fallback, clip metadata inheritance                         | `lectures-for-audience`  |
-| `/api/meditations/lectures`           | Weight-based ranking, audience validation, frame cascade, auth gate                                                | `meditation-lectures`    |
+| `/api/meditations/lectures`           | Weight-based ranking, audience validation, frame cascade, auth gate, audience-feed fallback (`source`/`relevanceCount`) | `meditation-lectures`    |
 
 ## Scheduled jobs
 

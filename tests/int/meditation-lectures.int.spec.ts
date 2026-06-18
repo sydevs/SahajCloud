@@ -274,7 +274,10 @@ describe('meditationLectures endpoint', () => {
       },
     )
     expect(status).toBe(200)
-    const docs = (body as { docs: LecturePlayerData[] }).docs
+    const res = body as { docs: LecturePlayerData[]; source: string; relevanceCount: number }
+    expect(res.source).toBe('relevance')
+    expect(res.relevanceCount).toBe(res.docs.length)
+    const docs = res.docs
 
     // Order:
     //   lectureAB → nodeA + nodeB ≈ 25s
@@ -383,9 +386,11 @@ describe('meditationLectures endpoint', () => {
     ])
   })
 
-  it('redirects (307) when excludedLectureIds causes an empty result (#349)', async () => {
-    // Exclude every lecture that would match the audience filter — result should
-    // be a 307 redirect to the same URL with limit=1 and excludedLectureIds gone.
+  it('falls back to the audience feed (relaxing exclusions) when excludedLectureIds empties the result (replaces #349 redirect)', async () => {
+    // Exclude every lecture that would match the audience filter. Relevance is
+    // empty, so the endpoint falls back to the audience feed; since the
+    // exclusions also empty that pool, they are relaxed as a last resort so the
+    // player still has something to play (supersedes the old 307 redirect).
     const excludedIds = [
       lectureA.id,
       lectureB.id,
@@ -394,37 +399,23 @@ describe('meditationLectures endpoint', () => {
       lectureUC.id,
       lectureUCNone.id,
     ].join(',')
-    const { status, headers } = await callEndpoint(
+    const { status, body } = await callEndpoint(
       payload,
       meditation.id,
       { limit: 10, excludedLectureIds: excludedIds },
       { defaultAudiences: audienceFilter },
     )
-    expect(status).toBe(307)
-    const location = headers.get('Location')
-    expect(location).not.toBeNull()
-    const redirected = new URL(location!)
-    expect(redirected.searchParams.has('excludedLectureIds')).toBe(false)
-    expect(redirected.searchParams.get('limit')).toBe('1')
-    expect(redirected.searchParams.get('audiences')).toBe(audienceFilter)
-  })
-
-  it('does not redirect when empty result is not caused by excludedLectureIds (#349)', async () => {
-    // No excludedLectureIds — empty result stays as { docs: [] } not a redirect.
-    const { status, body } = await callEndpoint(
-      payload,
-      meditation.id,
-      { limit: 10 },
-      { defaultAudiences: String(unusedAudience.id) },
-    )
     expect(status).toBe(200)
-    expect((body as { docs: LecturePlayerData[] }).docs).toEqual([])
+    const res = body as { docs: LecturePlayerData[]; source: string; relevanceCount: number }
+    expect(res.source).toBe('audience-fallback')
+    expect(res.relevanceCount).toBe(0)
+    expect(res.docs.length).toBeGreaterThan(0)
   })
 
-  it('redirect preserves userChoice param in Location URL (#349)', async () => {
-    // When userChoice is included and all eligible lectures are excluded, the
-    // redirect Location URL must retain userChoice so the fallback request
-    // still applies the same tag filter.
+  it('userChoice with all eligible lectures excluded falls back to the audience feed', async () => {
+    // userChoice set + every eligible lecture excluded → relevance empty. The
+    // fallback is the generic audience feed (it ignores userChoice); exclusions
+    // are relaxed since they would empty the pool.
     const excludedIds = [
       lectureA.id,
       lectureB.id,
@@ -433,19 +424,17 @@ describe('meditationLectures endpoint', () => {
       lectureUC.id,
       lectureUCNone.id,
     ].join(',')
-    const { status, headers } = await callEndpoint(
+    const { status, body } = await callEndpoint(
       payload,
       meditation.id,
       { limit: 10, excludedLectureIds: excludedIds, userChoice: userChoice.id },
       { defaultAudiences: audienceFilter },
     )
-    expect(status).toBe(307)
-    const location = headers.get('Location')
-    expect(location).not.toBeNull()
-    const redirected = new URL(location!)
-    expect(redirected.searchParams.get('userChoice')).toBe(String(userChoice.id))
-    expect(redirected.searchParams.has('excludedLectureIds')).toBe(false)
-    expect(redirected.searchParams.get('limit')).toBe('1')
+    expect(status).toBe(200)
+    const res = body as { docs: LecturePlayerData[]; source: string; relevanceCount: number }
+    expect(res.source).toBe('audience-fallback')
+    expect(res.relevanceCount).toBe(0)
+    expect(res.docs.length).toBeGreaterThan(0)
   })
 
   it('userChoice with no positive-weight nodes falls back to userChoices-only filter (#343)', async () => {
@@ -486,8 +475,10 @@ describe('meditationLectures endpoint', () => {
     )
   })
 
-  it('returns empty when audiences filter rejects everything', async () => {
-    // Caller's resolved audiences don't include `audience`, so no lectures qualify.
+  it('returns an empty audience-fallback when the audiences filter rejects everything', async () => {
+    // Caller's resolved audiences don't include `audience`, so neither relevance
+    // nor the audience-feed fallback can find lectures — the response is an empty
+    // audience-fallback (no exclusions to relax).
     const { status, body } = await callEndpoint(
       payload,
       meditation.id,
@@ -495,7 +486,10 @@ describe('meditationLectures endpoint', () => {
       { defaultAudiences: String(unusedAudience.id) },
     )
     expect(status).toBe(200)
-    expect((body as { docs: LecturePlayerData[] }).docs).toEqual([])
+    const res = body as { docs: LecturePlayerData[]; source: string; relevanceCount: number }
+    expect(res.docs).toEqual([])
+    expect(res.source).toBe('audience-fallback')
+    expect(res.relevanceCount).toBe(0)
   })
 
   it('returns 400 when audiences is missing', async () => {
@@ -727,6 +721,95 @@ describe('meditationLectures endpoint', () => {
     const afterWeights = after.subtleSystemNodeWeights as Record<string, number>
     expect(afterWeights.mooladhara).toBeUndefined()
     expect(afterWeights.kundalini).toBeGreaterThan(0)
+  })
+
+  describe('audience-feed fallback (empty relevance)', () => {
+    let fbAudience: Audience
+    let fbMeditation: Meditation
+    let fbLectureWithNode: Lecture
+    let fbLectureNoNode: Lecture
+
+    beforeAll(async () => {
+      // A node no fallback lecture carries, so the meditation has positive weight
+      // but zero overlap with its audience's lectures → relevance result empty.
+      const fbNodeUnused = await testData.createSubtleSystemNode(payload, {}, { slug: 'agnya' })
+      const fbFrame = await testData.createFrame(payload, { subtleSystemNode: fbNodeUnused.id })
+
+      fbMeditation = await testData.createMeditation(payload, undefined, {
+        title: 'Fallback meditation (no lecture overlap)',
+      })
+      fbMeditation = (await payload.update({
+        collection: 'meditations',
+        id: fbMeditation.id,
+        data: {
+          frames: [{ id: fbFrame.id, timestamp: 0 }] as unknown as Meditation['frames'],
+        },
+        locale: 'en',
+      })) as Meditation
+
+      fbAudience = await testData.createAudience(payload, {
+        label: 'Fallback audience',
+        rules: {},
+      })
+      // Lectures in the audience, tagged with nodes the meditation does NOT cover.
+      fbLectureWithNode = await testData.createLecture(
+        payload,
+        {},
+        { title: 'FB with node', audiences: [fbAudience.id], subtleSystemNodes: [nodeA.id] },
+      )
+      fbLectureNoNode = await testData.createLecture(
+        payload,
+        {},
+        { title: 'FB no node', audiences: [fbAudience.id], subtleSystemNodes: [] },
+      )
+    })
+
+    it('returns the audience feed when no lecture overlaps the meditation', async () => {
+      const { status, body } = await callEndpoint(
+        payload,
+        fbMeditation.id,
+        { limit: 10 },
+        { defaultAudiences: String(fbAudience.id) },
+      )
+      expect(status).toBe(200)
+      const res = body as { docs: LecturePlayerData[]; source: string; relevanceCount: number }
+      expect(res.source).toBe('audience-fallback')
+      expect(res.relevanceCount).toBe(0)
+      // The generic feed does NOT apply the relevance (overlap) filter, so both
+      // the node-tagged and untagged lectures appear.
+      const ids = res.docs.map((d) => d.id)
+      expect(ids).toContain(fbLectureWithNode.id)
+      expect(ids).toContain(fbLectureNoNode.id)
+    })
+
+    it('respects excludedLectureIds in the fallback when other lectures remain', async () => {
+      const { body } = await callEndpoint(
+        payload,
+        fbMeditation.id,
+        { limit: 10, excludedLectureIds: String(fbLectureWithNode.id) },
+        { defaultAudiences: String(fbAudience.id) },
+      )
+      const res = body as { docs: LecturePlayerData[]; source: string }
+      expect(res.source).toBe('audience-fallback')
+      const ids = res.docs.map((d) => d.id)
+      expect(ids).not.toContain(fbLectureWithNode.id)
+      expect(ids).toContain(fbLectureNoNode.id)
+    })
+
+    it('relaxes excludedLectureIds only when they would empty the fallback pool', async () => {
+      const { body } = await callEndpoint(
+        payload,
+        fbMeditation.id,
+        { limit: 10, excludedLectureIds: `${fbLectureWithNode.id},${fbLectureNoNode.id}` },
+        { defaultAudiences: String(fbAudience.id) },
+      )
+      const res = body as { docs: LecturePlayerData[]; source: string }
+      expect(res.source).toBe('audience-fallback')
+      // Both audience lectures excluded → pool empty → exclusions relaxed.
+      const ids = res.docs.map((d) => d.id)
+      expect(ids).toContain(fbLectureWithNode.id)
+      expect(ids).toContain(fbLectureNoNode.id)
+    })
   })
 
   describe('fullLectureId audience gating (#341)', () => {
