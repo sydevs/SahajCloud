@@ -10,11 +10,15 @@ import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const bodySchema = z.object({
   event: z.coerce.number().int().positive(),
-  email: z.string().email(),
-  name: z.string().trim().min(1),
+  email: z.string().email().max(254),
+  name: z.string().trim().min(1).max(200),
   startingAt: z.string().datetime().optional(),
   // Raw registrant answers (keys: questions / experience / aspirations / referral).
-  questions: z.record(z.string(), z.unknown()).optional(),
+  // Bounded so a public caller can't persist unbounded JSON via the widget.
+  questions: z
+    .record(z.string(), z.unknown())
+    .refine((q) => JSON.stringify(q).length <= 10_000, 'questions payload is too large')
+    .optional(),
 })
 
 /**
@@ -77,13 +81,28 @@ export const registerForEvent: Endpoint = {
       })
       let userId = userDocs[0]?.id
       if (userId == null) {
-        const created = await req.payload.create({
-          collection: 'users',
-          data: { name, email: normalizedEmail },
-          overrideAccess: true,
-          req,
-        })
-        userId = created.id
+        try {
+          const created = await req.payload.create({
+            collection: 'users',
+            data: { name, email: normalizedEmail },
+            overrideAccess: true,
+            req,
+          })
+          userId = created.id
+        } catch (createError) {
+          // A concurrent registration with the same email can create the user
+          // between our find and create (email is unique) — re-find rather than 500.
+          const { docs: raced } = await req.payload.find({
+            collection: 'users',
+            where: { email: { equals: normalizedEmail } },
+            limit: 1,
+            depth: 0,
+            overrideAccess: true,
+            req: asTrustedReq(req),
+          })
+          if (raced[0]?.id == null) throw createError
+          userId = raced[0].id
+        }
       }
 
       const registration = await req.payload.create({
