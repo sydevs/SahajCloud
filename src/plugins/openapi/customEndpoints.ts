@@ -19,6 +19,14 @@
 
 import { LOCALES } from '@/lib/locales'
 
+import {
+  depthParameter,
+  limitParameter,
+  pageParameter,
+  populateParameter,
+  selectParameter,
+} from './clientReadParametersDocs'
+
 /** Minimal OpenAPI 3.1 schema object — we only need the subset used below. */
 type OpenAPISchemaObject = Record<string, unknown>
 
@@ -226,6 +234,42 @@ const errorResponse = (description: string): OpenAPIResponse => ({
   },
 })
 
+/**
+ * Query parameters for `GET /api/events/geojson` — the standard client read
+ * params (forwarded straight into the events read, so the same `select`/
+ * `populate` rules apply) plus `where` / `sort` / `locale`.
+ */
+const eventGeoJsonParameters: OpenAPIParameter[] = [
+  selectParameter,
+  populateParameter,
+  depthParameter,
+  limitParameter,
+  pageParameter,
+  {
+    name: 'where',
+    in: 'query',
+    required: false,
+    description:
+      'Standard Payload `where` filter in bracket notation, e.g. ' +
+      '`where[eventType][equals]=offline`. Applied to the underlying events read.',
+    schema: { type: 'object', additionalProperties: true },
+  },
+  {
+    name: 'sort',
+    in: 'query',
+    required: false,
+    description: 'Field to sort by; prefix with `-` for descending (e.g. `-createdAt`).',
+    schema: { type: 'string' },
+  },
+  {
+    name: 'locale',
+    in: 'query',
+    required: false,
+    description: 'Locale for localized fields. Defaults to the request locale.',
+    schema: { type: 'string', enum: [...LOCALES] },
+  },
+]
+
 // ── Path definitions ──────────────────────────────────────────────────────────
 
 /**
@@ -268,6 +312,73 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         },
         '400': errorResponse('Missing or invalid narratorId.'),
         '404': errorResponse('Narrator not found.'),
+      },
+    },
+  },
+
+  '/api/events/geojson': {
+    get: {
+      tags: ['Events'],
+      summary: 'Events as a GeoJSON FeatureCollection',
+      description:
+        'A thin GeoJSON wrapper over a standard published-events read. Accepts the ' +
+        'same query params as `GET /api/events` (`where`, `select`, `populate`, ' +
+        '`depth`, `limit`, `page`, `sort`, `locale`) and enforces the same client ' +
+        'rules: `select` is required (400 if missing) and `populate` is required ' +
+        "when `depth > 1`. Each feature's `geometry` is a `Point` at " +
+        '`[address.longitude, address.latitude]` — select those fields to populate ' +
+        'it; events without coordinates (online events, or coords not selected) ' +
+        'return `geometry: null` and are still included. `properties` is the ' +
+        'selected/populated event document verbatim (internal field names). Payload ' +
+        'pagination metadata is returned as foreign members alongside `features`. ' +
+        'Sets `Cache-Control: public, max-age=300, s-maxage=300`.',
+      operationId: 'eventsGeoJson',
+      parameters: eventGeoJsonParameters,
+      responses: {
+        '200': {
+          description: 'A GeoJSON FeatureCollection of events.',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/EventFeatureCollection' },
+            },
+          },
+        },
+        '400': errorResponse('`select` missing, or `populate` missing at `depth > 1`.'),
+        '403': errorResponse('Caller is not a published API client.'),
+      },
+    },
+  },
+
+  '/api/events/register': {
+    post: {
+      tags: ['Events'],
+      summary: 'Register a user for an event',
+      description:
+        'The Sahaj Atlas widget write path. Requires a published client key. Upserts ' +
+        'the registrant `user` by normalized email (elevated access, since `users` ' +
+        'is admin-only) and creates a `registration` with a fresh uuid. The `event` ' +
+        'must be one the client can read (published).',
+      operationId: 'registerForEvent',
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/EventRegistrationRequest' },
+          },
+        },
+      },
+      responses: {
+        '201': {
+          description: 'Registration created.',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/EventRegistrationResponse' },
+            },
+          },
+        },
+        '400': errorResponse('Request body failed validation.'),
+        '403': errorResponse('Caller is not a published API client.'),
+        '404': errorResponse('Event not found or not open for registration.'),
       },
     },
   },
@@ -585,6 +696,101 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       tags: {
         type: 'array',
         items: { type: 'integer' },
+      },
+    },
+  },
+  /** GeoJSON Point; `coordinates` is `[longitude, latitude]` (lon-first axis order). */
+  GeoJsonPoint: {
+    type: 'object',
+    required: ['type', 'coordinates'],
+    properties: {
+      type: { type: 'string', enum: ['Point'] },
+      coordinates: {
+        type: 'array',
+        description: '[longitude, latitude]',
+        items: { type: 'number' },
+        minItems: 2,
+        maxItems: 2,
+      },
+    },
+  },
+  /**
+   * One feature in `GET /api/events/geojson`. `geometry` is a Point when the
+   * event's coordinates were selected and set, else `null`. `properties` is the
+   * selected/populated event document verbatim — its field set is driven by the
+   * request's `select`/`populate`/`depth`, so it's an open object.
+   */
+  EventFeature: {
+    type: 'object',
+    required: ['type', 'id', 'geometry', 'properties'],
+    properties: {
+      type: { type: 'string', enum: ['Feature'] },
+      id: { type: 'integer' },
+      geometry: { oneOf: [{ $ref: '#/components/schemas/GeoJsonPoint' }, { type: 'null' }] },
+      properties: {
+        type: 'object',
+        additionalProperties: true,
+        description:
+          'The selected/populated event document verbatim (field set varies by select/populate/depth).',
+      },
+    },
+  },
+  /**
+   * `GET /api/events/geojson` response: a GeoJSON FeatureCollection plus Payload
+   * pagination metadata as foreign members (the same fields `GET /api/events`
+   * returns alongside `docs`).
+   */
+  EventFeatureCollection: {
+    type: 'object',
+    required: ['type', 'features'],
+    properties: {
+      type: { type: 'string', enum: ['FeatureCollection'] },
+      features: { type: 'array', items: { $ref: '#/components/schemas/EventFeature' } },
+      totalDocs: { type: 'integer' },
+      limit: { type: 'integer' },
+      totalPages: { type: 'integer' },
+      page: { type: 'integer' },
+      pagingCounter: { type: 'integer' },
+      hasPrevPage: { type: 'boolean' },
+      hasNextPage: { type: 'boolean' },
+      prevPage: { type: ['integer', 'null'] },
+      nextPage: { type: ['integer', 'null'] },
+    },
+  },
+  /** `POST /api/events/register` request body. */
+  EventRegistrationRequest: {
+    type: 'object',
+    required: ['event', 'email', 'name'],
+    properties: {
+      event: { type: 'integer', description: 'ID of the event to register for.' },
+      email: { type: 'string', format: 'email' },
+      name: { type: 'string', minLength: 1 },
+      startingAt: {
+        type: 'string',
+        format: 'date-time',
+        description: 'ISO 8601 datetime the registrant will attend.',
+      },
+      questions: {
+        type: 'object',
+        additionalProperties: true,
+        description: 'Raw registrant answers (questions / experience / aspirations / referral).',
+      },
+    },
+  },
+  /** `POST /api/events/register` success body. */
+  EventRegistrationResponse: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['ok', 'registration'],
+    properties: {
+      ok: { type: 'boolean', enum: [true] },
+      registration: {
+        type: 'object',
+        required: ['id', 'uuid'],
+        properties: {
+          id: { type: 'integer' },
+          uuid: { type: 'string' },
+        },
       },
     },
   },
