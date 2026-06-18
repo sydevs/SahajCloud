@@ -19,6 +19,8 @@ import {
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 
+import { eventsGeoJson } from './endpoints/geojson'
+import { registerForEvent } from './endpoints/registerForEvent'
 import { verifyEventAction } from './endpoints/verifyEventAction'
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
@@ -69,7 +71,7 @@ export const Events: CollectionConfig = {
   hooks: {
     beforeChange: [verifyOnSave],
   },
-  endpoints: [verifyEventAction],
+  endpoints: [verifyEventAction, eventsGeoJson, registerForEvent],
   fields: [
     {
       // Contextual banner above the tabs: warns when the event is due for or
