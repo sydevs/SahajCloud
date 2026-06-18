@@ -20,22 +20,27 @@ describe('requireActiveClient', () => {
   })
 
   it('returns a 403 when the user is not from the clients collection', () => {
+    const denied = requireActiveClient(reqWith({ user: { collection: 'managers' } as never }))
+    expect(denied?.status).toBe(403)
+  })
+
+  it('returns a 403 when the client is a draft (unpublished)', () => {
     const denied = requireActiveClient(
-      reqWith({ user: { collection: 'managers', active: true } as never }),
+      reqWith({ user: { collection: 'clients', _status: 'draft' } as never }),
     )
     expect(denied?.status).toBe(403)
   })
 
-  it('returns a 403 when the client is inactive', () => {
-    const denied = requireActiveClient(
-      reqWith({ user: { collection: 'clients', active: false } as never }),
-    )
+  it('fails closed when _status is absent (403)', () => {
+    // Guards against a missing/unhydrated _status silently granting access:
+    // anything other than exactly 'published' must be denied.
+    const denied = requireActiveClient(reqWith({ user: { collection: 'clients' } as never }))
     expect(denied?.status).toBe(403)
   })
 
-  it('returns null for an active client', () => {
+  it('returns null for a published client', () => {
     const denied = requireActiveClient(
-      reqWith({ user: { collection: 'clients', active: true } as never }),
+      reqWith({ user: { collection: 'clients', _status: 'published' } as never }),
     )
     expect(denied).toBeNull()
   })

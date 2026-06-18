@@ -746,7 +746,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Test API Client',
         roles: ['wemeditate-web-client'],
-        active: true,
+        _status: 'published',
       })
 
       // Create a draft page (default status is draft)
@@ -789,7 +789,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Test API Client for ID Test',
         roles: ['wemeditate-web-client'],
-        active: true,
+        _status: 'published',
       })
 
       // Create a draft page
@@ -827,7 +827,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Test API Client for Published Test',
         roles: ['wemeditate-web-client'],
-        active: true,
+        _status: 'published',
       })
 
       // Create and publish a page
@@ -879,6 +879,50 @@ describe('Role-Based Access Control', () => {
       expect(foundPage?.id).toBe(publishedPage.id)
     })
 
+    it('denies an unpublished (draft) client entirely (publish-gated auth)', async () => {
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Draft Client Gate Test',
+        type: 'admin' as const,
+      })
+
+      // The draft client carries a role that would normally grant page reads...
+      const draftClient = await testData.createClient(payload, admin.id, {
+        name: 'Draft (unpublished) API Client',
+        roles: ['wemeditate-web-client'],
+        _status: 'draft',
+      })
+      expect(draftClient._status).toBe('draft')
+
+      // ...but publish/unpublish is the auth gate, so the bypass denies it.
+      expect(
+        hasPermission(
+          { user: draftClient, collection: 'pages', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(false)
+
+      // A published page is therefore unreadable by the draft client.
+      await payload.create({
+        collection: 'pages',
+        data: {
+          title: 'Published Page Hidden From Draft Client',
+          content: createTestLexicalContent('content'),
+          _status: 'published',
+        },
+        user: { ...admin, collection: 'managers' },
+      })
+
+      await expect(
+        payload.find({
+          collection: 'pages',
+          select: { id: true },
+          depth: 0,
+          user: draftClient,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+    })
+
     it('client can access draft page by ID for trusted preview requests', async () => {
       const admin = await testData.createManager(payload, {
         name: 'Admin for Preview Draft Page Test',
@@ -888,7 +932,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Preview Client for Draft Page Test',
         roles: ['wemeditate-web-client'],
-        active: true,
+        _status: 'published',
       })
 
       const draftPage = await payload.create({
@@ -928,7 +972,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'App Client for Cards Test',
         roles: ['wemeditate-app-client'],
-        active: true,
+        _status: 'published',
       })
 
       const publishedCard = await testData.createAppCard(payload, {
@@ -964,7 +1008,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Web Client for Cards Test',
         roles: ['wemeditate-web-client'],
-        active: true,
+        _status: 'published',
       })
 
       // Attempt to list app-cards as web client - should throw Forbidden
@@ -987,7 +1031,7 @@ describe('Role-Based Access Control', () => {
         const client = await testData.createClient(payload, admin.id, {
           name: 'App Client for Lectures Read Test',
           roles: ['wemeditate-app-client'],
-          active: true,
+          _status: 'published',
         })
 
         const lecture = await testData.createLecture(payload, undefined, {
@@ -1084,7 +1128,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Test API Client for Meditation Test',
         roles: ['wemeditate-web-client'],
-        active: true,
+        _status: 'published',
       })
 
       // Create a draft meditation using testData helper (handles file upload)
@@ -1135,7 +1179,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Preview Client for Draft Meditation Test',
         roles: ['wemeditate-web-client'],
-        active: true,
+        _status: 'published',
       })
 
       const draftMeditation = await testData.createMeditation(payload, undefined, {
@@ -1174,7 +1218,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Test API Client for Non-Draft Test',
         roles: ['wemeditate-web-client'],
-        active: true,
+        _status: 'published',
       })
 
       // Create a narrator (not a draft-enabled collection)

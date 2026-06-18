@@ -67,8 +67,8 @@ export type TypedAuthUser = TypedUser & {
   roles?: RoleSlug[] | Record<LocaleCode, RoleSlug[]>
   /** Currently selected project (for managers) */
   currentProject?: ProjectSlug | null
-  /** Whether the user is active (for clients) */
-  active?: boolean
+  /** Draft/published status (for clients — publish/unpublish is the auth gate) */
+  _status?: 'draft' | 'published'
   /** User type (for managers) */
   type?: 'admin' | 'manager' | 'inactive'
 }

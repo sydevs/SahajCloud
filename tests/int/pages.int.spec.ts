@@ -294,7 +294,7 @@ describe('Pages Collection', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Client for Page App Card Relationship Test',
         roles: ['wemeditate-app-client'],
-        active: true,
+        _status: 'published',
       })
 
       const image = await testData.createMediaImage(payload, { alt: 'Client app card cover' })

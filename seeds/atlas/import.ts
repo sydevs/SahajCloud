@@ -864,8 +864,10 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             managers: [managerId],
             primaryContact: managerId,
             roles: ['sahaj-atlas-client'],
-            active: client.enabled,
-            domains: client.config?.domain || undefined,
+            // Publish/unpublish is the auth gate — disabled Atlas services
+            // import as drafts so they can't authenticate.
+            _status: client.enabled ? 'published' : 'draft',
+            allowedDomains: client.config?.domain || undefined,
             color1: isHexColor(client.config?.primary_color)
               ? client.config?.primary_color
               : undefined,

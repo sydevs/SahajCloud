@@ -1,12 +1,13 @@
 import type { PayloadRequest } from 'payload'
 
 /**
- * Active-client auth guard shared by the public client endpoints.
+ * Published-client auth guard shared by the public client endpoints.
  *
  * Returns a `403` {@link Response} when the request is **not** authenticated as
- * an active `clients` user, or `null` when the caller is allowed through. This
- * is the single source for the guard's shape and message — handlers short-circuit
- * on a non-null return:
+ * a published `clients` user, or `null` when the caller is allowed through.
+ * Publish/unpublish is the auth gate: a draft (unpublished) client is denied.
+ * This is the single source for the guard's shape and message — handlers
+ * short-circuit on a non-null return:
  *
  * ```typescript
  * const denied = requireActiveClient(req)
@@ -14,7 +15,7 @@ import type { PayloadRequest } from 'payload'
  * ```
  */
 export function requireActiveClient(req: PayloadRequest): Response | null {
-  if (req.user?.collection !== 'clients' || !req.user.active) {
+  if (req.user?.collection !== 'clients' || req.user._status !== 'published') {
     return Response.json(
       { errors: [{ message: 'You are not allowed to perform this action.' }] },
       { status: 403 },

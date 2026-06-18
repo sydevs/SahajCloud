@@ -5,6 +5,7 @@ import { getLanguageOptions } from '@/lib/locales'
 import { getRoleOptions } from '@/plugins/access'
 import { calculateAbuseScore } from '@/plugins/usage'
 
+import { ensureClientId } from './hooks/ensureClientId'
 import { validateClientData } from './hooks/validateClientData'
 
 export const Clients: CollectionConfig = {
@@ -13,11 +14,8 @@ export const Clients: CollectionConfig = {
     useAPIKey: true,
     disableLocalStrategy: true, // Only API key authentication
   },
-  indexes: [
-    {
-      fields: ['active'],
-    },
-  ],
+  // No explicit `_status` index needed — Payload auto-indexes it for
+  // draft-enabled collections (matches Pages/Meditations/AppCards).
   labels: {
     singular: 'Service',
     plural: 'Services',
@@ -25,14 +23,21 @@ export const Clients: CollectionConfig = {
   admin: {
     group: 'System',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'active'],
+    defaultColumns: ['name', '_status'],
+  },
+  // Publish/unpublish is the auth gate: only `_status === 'published'` clients
+  // authenticate (see bypassPermissions + requireActiveClient). One version per
+  // doc — we only need the latest published/draft state, not a version history.
+  versions: {
+    drafts: true,
+    maxPerDoc: 1,
   },
   fields: [
     {
       type: 'tabs',
       tabs: [
         {
-          label: 'Service',
+          label: 'Details',
           fields: [
             {
               name: 'name',
@@ -69,55 +74,51 @@ export const Clients: CollectionConfig = {
               },
             },
             {
-              name: 'managers',
-              type: 'relationship',
-              relationTo: 'managers',
-              hasMany: true,
-              required: true,
-              admin: {
-                description: 'Users who can manage this client',
-              },
-            },
-            {
-              name: 'primaryContact',
-              type: 'relationship',
-              relationTo: 'managers',
-              hasMany: false,
-              required: true,
-              admin: {
-                description: 'Primary user contact for this client',
-              },
-            },
-            {
-              name: 'domains',
-              type: 'text',
-              admin: {
-                description:
-                  'What domains are associated with this client. Put each domain on a new line.',
-              },
-            },
-            {
-              name: 'active',
-              type: 'checkbox',
-              defaultValue: true,
-              admin: {
-                description: 'Enable or disable API access for this client',
-              },
-            },
-            {
-              name: 'clientId',
-              type: 'text',
-              admin: {
-                readOnly: true,
-                description:
-                  'Atlas public key — reference only. Payload issues its own API key for this service.',
-              },
+              type: 'row',
+              fields: [
+                {
+                  name: 'managers',
+                  type: 'relationship',
+                  relationTo: 'managers',
+                  hasMany: true,
+                  required: true,
+                  admin: {
+                    description: 'Users who can manage this client',
+                  },
+                },
+                {
+                  name: 'primaryContact',
+                  type: 'relationship',
+                  relationTo: 'managers',
+                  hasMany: false,
+                  required: true,
+                  admin: {
+                    description:
+                      'Primary user contact for this client. Only needed when more than one manager is assigned.',
+                    // Hidden (and not required) with a single manager — that
+                    // lone manager is implicitly the primary contact.
+                    condition: (data) => Array.isArray(data?.managers) && data.managers.length > 1,
+                  },
+                },
+              ],
             },
           ],
         },
         {
           label: 'Atlas Config',
+          admin: {
+            condition: (data) =>
+              Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client'),
+          },
           fields: [
+            {
+              name: 'allowedDomains',
+              type: 'textarea',
+              admin: {
+                description:
+                  'What domains are associated with this client. Put each domain on a new line.',
+              },
+            },
             {
               type: 'row',
               fields: [
@@ -149,6 +150,16 @@ export const Clients: CollectionConfig = {
           ],
         },
       ],
+    },
+    {
+      name: 'clientId',
+      type: 'text',
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        description:
+          'Public identifier for this service. Auto-generated, or the Atlas public key for imported services.',
+      },
     },
     {
       name: 'keyGeneratedAt',
@@ -253,6 +264,6 @@ export const Clients: CollectionConfig = {
     ...legacyMigrationFields(),
   ],
   hooks: {
-    beforeChange: [validateClientData],
+    beforeChange: [validateClientData, ensureClientId],
   },
 }

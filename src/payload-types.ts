@@ -3777,21 +3777,13 @@ export interface Client {
    */
   managers: (number | Manager)[];
   /**
-   * Primary user contact for this client
+   * Primary user contact for this client. Only needed when more than one manager is assigned.
    */
-  primaryContact: number | Manager;
+  primaryContact?: (number | null) | Manager;
   /**
    * What domains are associated with this client. Put each domain on a new line.
    */
-  domains?: string | null;
-  /**
-   * Enable or disable API access for this client
-   */
-  active?: boolean | null;
-  /**
-   * Atlas public key — reference only. Payload issues its own API key for this service.
-   */
-  clientId?: string | null;
+  allowedDomains?: string | null;
   /**
    * Hex color code (e.g., #FF5733)
    */
@@ -4011,6 +4003,10 @@ export interface Client {
     | boolean
     | null;
   /**
+   * Public identifier for this service. Auto-generated, or the Atlas public key for imported services.
+   */
+  clientId?: string | null;
+  /**
    * Timestamp of last API key generation
    */
   keyGeneratedAt?: string | null;
@@ -4068,6 +4064,7 @@ export interface Client {
     | null;
   updatedAt: string;
   createdAt: string;
+  _status?: ('draft' | 'published') | null;
   enableAPIKey?: boolean | null;
   apiKey?: string | null;
   apiKeyIndex?: string | null;
@@ -4987,15 +4984,14 @@ export interface ClientsSelect<T extends boolean = true> {
   roles?: T;
   managers?: T;
   primaryContact?: T;
-  domains?: T;
-  active?: T;
-  clientId?: T;
+  allowedDomains?: T;
   color1?: T;
   color2?: T;
   color3?: T;
   locale?: T;
   region?: T;
   legacyConfig?: T;
+  clientId?: T;
   keyGeneratedAt?: T;
   usage?:
     | T
@@ -5013,6 +5009,7 @@ export interface ClientsSelect<T extends boolean = true> {
   legacyData?: T;
   updatedAt?: T;
   createdAt?: T;
+  _status?: T;
   enableAPIKey?: T;
   apiKey?: T;
   apiKeyIndex?: T;
