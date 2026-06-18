@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { hideUntilCreated, mediaField } from '@/fields'
-import { deleteChildren } from '@/hooks/cascadeDeletion'
+import { deleteChildren } from '@/lib/cascadeDeletion'
 
 export const Albums: CollectionConfig = {
   slug: 'albums',
@@ -18,7 +18,7 @@ export const Albums: CollectionConfig = {
   },
   hooks: {
     // Songs.album is `required: true` → orphaned rows without cascade.
-    // See src/hooks/cascadeHelpers.ts for the rationale.
+    // See src/lib/cascadeDeletion/index.ts for the rationale.
     beforeDelete: [deleteChildren({ collection: 'songs', field: 'album' })],
   },
   fields: [

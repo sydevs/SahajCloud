@@ -1,9 +1,9 @@
 import type { CollectionConfig } from 'payload'
 
 import { mediaField } from '@/fields'
-import { removeDanglingLexicalReferencesAfterRead } from '@/hooks/lexicalHooks'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { QuoteBlock } from '@/lib/richEditor/blocks'
+import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexicalHooks'
 import { subtitlesJsonSchema, validateSubtitles } from '@/lib/utilities/subtitles'
 
 export const Lessons: CollectionConfig = {
