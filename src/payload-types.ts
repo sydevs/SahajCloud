@@ -3785,10 +3785,6 @@ export interface Client {
    */
   domains?: string | null;
   /**
-   * Atlas public key — reference only. Payload issues its own API key for this service.
-   */
-  clientId?: string | null;
-  /**
    * Hex color code (e.g., #FF5733)
    */
   color1?: string | null;
@@ -4006,6 +4002,10 @@ export interface Client {
     | number
     | boolean
     | null;
+  /**
+   * Public identifier for this service. Auto-generated, or the Atlas public key for imported services.
+   */
+  clientId?: string | null;
   /**
    * Timestamp of last API key generation
    */
@@ -4985,13 +4985,13 @@ export interface ClientsSelect<T extends boolean = true> {
   managers?: T;
   primaryContact?: T;
   domains?: T;
-  clientId?: T;
   color1?: T;
   color2?: T;
   color3?: T;
   locale?: T;
   region?: T;
   legacyConfig?: T;
+  clientId?: T;
   keyGeneratedAt?: T;
   usage?:
     | T

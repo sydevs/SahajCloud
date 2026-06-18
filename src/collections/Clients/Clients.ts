@@ -103,15 +103,6 @@ export const Clients: CollectionConfig = {
                   'What domains are associated with this client. Put each domain on a new line.',
               },
             },
-            {
-              name: 'clientId',
-              type: 'text',
-              admin: {
-                readOnly: true,
-                description:
-                  'Atlas public key — reference only. Payload issues its own API key for this service.',
-              },
-            },
           ],
         },
         {
@@ -148,6 +139,16 @@ export const Clients: CollectionConfig = {
           ],
         },
       ],
+    },
+    {
+      name: 'clientId',
+      type: 'text',
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        description:
+          'Public identifier for this service. Auto-generated, or the Atlas public key for imported services.',
+      },
     },
     {
       name: 'keyGeneratedAt',
@@ -252,6 +253,6 @@ export const Clients: CollectionConfig = {
     ...legacyMigrationFields(),
   ],
   hooks: {
-    beforeChange: [validateClientData],
+    beforeChange: [validateClientData, ensureClientId],
   },
 }
