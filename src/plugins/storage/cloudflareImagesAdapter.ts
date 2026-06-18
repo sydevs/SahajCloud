@@ -12,6 +12,11 @@ import { serverEnv } from '@/lib/env'
 
 import { CloudflareImagesResponseSchema } from './cloudflareSchemas'
 import { applyFilename, generateCloudflareImageId } from './filenameUtils'
+import {
+  applyPreviewPrefix,
+  isPreviewOwnedKey,
+  shouldRefusePreviewDelete,
+} from './previewIsolation'
 import { validateFileUpload } from './uploadValidation'
 
 /**
@@ -71,7 +76,10 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
         // Use a human-readable slug as the Cloudflare Image ID so the delivery
         // URL (.../<id>/public) is debuggable. CF rejects duplicate IDs; the
         // random suffix baked into the slug makes collisions negligible.
-        const customId = generateCloudflareImageId(file.filename)
+        // In non-prod, prefix the ID so the asset is namespaced to this
+        // deployment and the delete guard / cleanup can recognize it as
+        // preview-owned (see previewIsolation). No-op in production.
+        const customId = applyPreviewPrefix(generateCloudflareImageId(file.filename))
         const originalFilename = file.filename
 
         const formData = new FormData()
@@ -149,6 +157,17 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
     },
 
     handleDelete: async ({ filename: imageId }) => {
+      // Preview isolation: a non-production deployment must never delete a
+      // production image (cloned preview DBs reference real prod image IDs,
+      // which carry no preview marker). No-op in production.
+      if (
+        await shouldRefusePreviewDelete('Cloudflare Images', imageId, () =>
+          isPreviewOwnedKey(imageId),
+        )
+      ) {
+        return
+      }
+
       try {
         const response = await fetch(
           `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/images/v1/${imageId}`,

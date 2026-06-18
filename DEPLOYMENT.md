@@ -601,6 +601,7 @@ The migration is **complete and live**: `cloud.sydevelopers.com` is served from 
 - **Storage** — R2 reached via the S3 API (`@aws-sdk/client-s3`); Cloudflare Images + Stream kept. Uploads verified end-to-end (R2 + Images).
 - **Cutover** — `cloud.sydevelopers.com` repointed to Railway and **proxied** through Cloudflare (edge cache + WAF retained; SSL Full). The Stream webhook was re-registered to the Railway URL and its secret set.
 - **Per-PR previews** — Railway PR environments with CI smoke tests; `scripts/get-railway-preview-url.ts` discovers the preview URL from the Railway-posted GitHub commit status (via `GITHUB_TOKEN`) and the smoke specs self-seed the admin. Validated end-to-end.
+- **Preview storage isolation** — Cloudflare Images, Stream, and R2 are shared across every environment, so non-production deploys namespace uploads with a `preview-` marker (Stream uses `meta.env=preview`) and refuse to delete any unmarked (cloned-from-prod) asset. A daily `cleanup-preview-assets` workflow reaps old preview-marked assets; it needs the GitHub secrets `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_KEY`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. Detail: `.claude/rules/storage.md` § "Preview / non-production isolation" (#432).
 
 ### Remaining (gated)
 
