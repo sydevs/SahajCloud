@@ -5,6 +5,7 @@ import { getLanguageOptions } from '@/lib/locales'
 import { getRoleOptions } from '@/plugins/access'
 import { calculateAbuseScore } from '@/plugins/usage'
 
+import { ensureClientId } from './hooks/ensureClientId'
 import { validateClientData } from './hooks/validateClientData'
 
 export const Clients: CollectionConfig = {
@@ -39,7 +40,7 @@ export const Clients: CollectionConfig = {
       type: 'tabs',
       tabs: [
         {
-          label: 'Service',
+          label: 'Details',
           fields: [
             {
               name: 'name',
@@ -76,38 +77,47 @@ export const Clients: CollectionConfig = {
               },
             },
             {
-              name: 'managers',
-              type: 'relationship',
-              relationTo: 'managers',
-              hasMany: true,
-              required: true,
-              admin: {
-                description: 'Users who can manage this client',
-              },
+              type: 'row',
+              fields: [
+                {
+                  name: 'managers',
+                  type: 'relationship',
+                  relationTo: 'managers',
+                  hasMany: true,
+                  required: true,
+                  admin: {
+                    description: 'Users who can manage this client',
+                  },
+                },
+                {
+                  name: 'primaryContact',
+                  type: 'relationship',
+                  relationTo: 'managers',
+                  hasMany: false,
+                  required: true,
+                  admin: {
+                    description: 'Primary user contact for this client',
+                  },
+                },
+              ],
             },
+          ],
+        },
+        {
+          label: 'Atlas Config',
+          admin: {
+            condition: (data) =>
+              Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client'),
+          },
+          fields: [
             {
-              name: 'primaryContact',
-              type: 'relationship',
-              relationTo: 'managers',
-              hasMany: false,
-              required: true,
-              admin: {
-                description: 'Primary user contact for this client',
-              },
-            },
-            {
-              name: 'domains',
+              name: 'allowedDomains',
               type: 'text',
               admin: {
                 description:
                   'What domains are associated with this client. Put each domain on a new line.',
               },
             },
-          ],
-        },
-        {
-          label: 'Atlas Config',
-          fields: [
             {
               type: 'row',
               fields: [

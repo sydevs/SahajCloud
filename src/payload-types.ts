@@ -3783,7 +3783,7 @@ export interface Client {
   /**
    * What domains are associated with this client. Put each domain on a new line.
    */
-  domains?: string | null;
+  allowedDomains?: string | null;
   /**
    * Hex color code (e.g., #FF5733)
    */
@@ -4984,7 +4984,7 @@ export interface ClientsSelect<T extends boolean = true> {
   roles?: T;
   managers?: T;
   primaryContact?: T;
-  domains?: T;
+  allowedDomains?: T;
   color1?: T;
   color2?: T;
   color3?: T;
