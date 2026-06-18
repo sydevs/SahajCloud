@@ -31,6 +31,13 @@ describe('requireActiveClient', () => {
     expect(denied?.status).toBe(403)
   })
 
+  it('fails closed when _status is absent (403)', () => {
+    // Guards against a missing/unhydrated _status silently granting access:
+    // anything other than exactly 'published' must be denied.
+    const denied = requireActiveClient(reqWith({ user: { collection: 'clients' } as never }))
+    expect(denied?.status).toBe(403)
+  })
+
   it('returns null for a published client', () => {
     const denied = requireActiveClient(
       reqWith({ user: { collection: 'clients', _status: 'published' } as never }),
