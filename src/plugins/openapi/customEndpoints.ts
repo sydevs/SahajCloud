@@ -266,7 +266,7 @@ const eventGeoJsonParameters: OpenAPIParameter[] = [
     in: 'query',
     required: false,
     description: 'Locale for localized fields. Defaults to the request locale.',
-    schema: { type: 'string', enum: [...LOCALES] },
+    schema: { type: 'string', enum: LOCALES.map((l) => l.code) },
   },
 ]
 
