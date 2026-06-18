@@ -66,7 +66,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "clients" ADD COLUMN "_status" "enum_clients_status" DEFAULT 'draft';
   -- Backfill before dropping "active": preserve disabled clients as drafts
   -- (active=false -> draft, can't authenticate); active -> published.
-  UPDATE "clients" SET "_status" = CASE WHEN "active" THEN 'published' ELSE 'draft' END;
+  UPDATE "clients" SET "_status" = (CASE WHEN "active" THEN 'published' ELSE 'draft' END)::"enum_clients_status";
   -- Backfill a UUID clientId for any client created before auto-generation.
   UPDATE "clients" SET "client_id" = gen_random_uuid()::text WHERE "client_id" IS NULL;
 
