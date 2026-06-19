@@ -25,8 +25,6 @@ import type { Payload } from 'payload'
 import { randomUUID } from 'node:crypto'
 import * as path from 'path'
 
-import { slugify } from 'payload/shared'
-
 import {
   type RegionLevel,
   resolveRegionLocation,
@@ -34,6 +32,7 @@ import {
   MANUAL_LOCATION,
 } from '@/lib/mapbox/geocoder'
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
+import { slugifyValue } from '@/lib/utilities/slugify'
 
 import { BaseImporter, type BaseImportOptions, fetchAsset, MediaUploader } from '../lib'
 import { plainTextToLexical } from './helpers/lexical'
@@ -483,8 +482,10 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
    * trip the constraint. Nodes are walked in a fixed `(level, legacyId)` order so
    * the same node always wins the bare slug across reseeds; colliders fall back to
    * `name-parentName` (when the parent's name differs) and finally `name-legacyId`.
-   * Uses Payload's own `slugify`, so a manager re-generating a slug in the admin
-   * reproduces the same value.
+   * Uses the shared `slugifyValue` (transliterates Cyrillic etc.), which is also
+   * the slugField default — so a manager re-generating a slug in the admin
+   * reproduces the same value, and non-Latin names yield readable slugs
+   * (`Москва → "moskva"`) rather than the `region-<legacyId>` fallback.
    */
   private buildRegionSlugs(data: AtlasData): Map<string, string> {
     // Legacy `level:legacyId` → region, for parent-name lookups (a node's parent
@@ -536,10 +537,10 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const used = new Set<string>()
     const slugs = new Map<string, string>()
     for (const node of nodes) {
-      const base = slugify(node.name) || `region-${node.legacyId}`
+      const base = slugifyValue(node.name) || `region-${node.legacyId}`
       let slug = base
       if (used.has(slug)) {
-        const parentSlug = node.parentName ? slugify(node.parentName) : ''
+        const parentSlug = node.parentName ? slugifyValue(node.parentName) : ''
         slug =
           parentSlug && parentSlug !== base && !used.has(`${base}-${parentSlug}`)
             ? `${base}-${parentSlug}`

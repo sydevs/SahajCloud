@@ -2,6 +2,7 @@ import type { CollectionSlug, RowField, TextField } from 'payload'
 
 import { slugField as payloadSlugField } from 'payload'
 
+import { slugifyValue } from '@/lib/utilities/slugify'
 import { adminOnlyCondition, adminOnlyFieldAccess } from '@/plugins/access/adminOnly'
 
 /**
@@ -66,6 +67,10 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
   const resolvedDescription = description?.replace('{sourceField}', sourceField)
 
   return payloadSlugField({
+    // Default for every slugField: transliterating slugify so non-Latin titles /
+    // names (Cyrillic, …) produce readable ASCII slugs instead of collapsing to
+    // empty under Payload's ASCII-only default.
+    slugify: ({ valueToSlugify }) => slugifyValue(valueToSlugify),
     ...payloadOptions,
     overrides: (field) => {
       // Apply description if provided
