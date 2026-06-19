@@ -49,9 +49,9 @@ A thin GeoJSON wrapper over a standard published-events read
   verbatim (internal field names). Payload pagination metadata rides along as
   foreign members beside `features`.
 
-## `POST /api/events/register`
+## `POST /api/events/:id/register`
 
-The widget write path
+The widget write path (`:id` is the event id)
 ([`src/collections/Events/endpoints/registerForEvent.ts`](../../src/collections/Events/endpoints/registerForEvent.ts)).
 The `sahaj-atlas-client` role is read-only and `users` is admin-only, so a
 frontend-only write is impossible — this endpoint owns it.

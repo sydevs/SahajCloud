@@ -349,16 +349,25 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
     },
   },
 
-  '/api/events/register': {
+  '/api/events/{id}/register': {
     post: {
       tags: ['Events'],
       summary: 'Register a user for an event',
       description:
         'The Sahaj Atlas widget write path. Requires a published client key. Upserts ' +
         'the registrant `user` by normalized email (elevated access, since `users` ' +
-        'is admin-only) and creates a `registration` with a fresh uuid. The `event` ' +
-        'must be one the client can read (published).',
+        'is admin-only) and creates a `registration` with a fresh uuid. The event ' +
+        '(`:id`) must be one the client can read (published).',
       operationId: 'registerForEvent',
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          description: 'ID of the event to register for.',
+          schema: { type: 'integer' },
+        },
+      ],
       requestBody: {
         required: true,
         content: {
@@ -376,7 +385,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
             },
           },
         },
-        '400': errorResponse('Request body failed validation.'),
+        '400': errorResponse('Invalid event id, or request body failed validation.'),
         '403': errorResponse('Caller is not a published API client.'),
         '404': errorResponse('Event not found or not open for registration.'),
       },
@@ -757,12 +766,11 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       nextPage: { type: ['integer', 'null'] },
     },
   },
-  /** `POST /api/events/register` request body. */
+  /** `POST /api/events/{id}/register` request body. */
   EventRegistrationRequest: {
     type: 'object',
-    required: ['event', 'email', 'name'],
+    required: ['email', 'name'],
     properties: {
-      event: { type: 'integer', description: 'ID of the event to register for.' },
       email: { type: 'string', format: 'email' },
       name: { type: 'string', minLength: 1 },
       startingAt: {
@@ -777,7 +785,7 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       },
     },
   },
-  /** `POST /api/events/register` success body. */
+  /** `POST /api/events/{id}/register` success body. */
   EventRegistrationResponse: {
     type: 'object',
     additionalProperties: false,
