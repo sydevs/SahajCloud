@@ -344,13 +344,16 @@ export const Regions: CollectionConfig = {
       collectionSlug: 'regions',
       description: 'Stable identifier for Atlas routing (auto-generated from {sourceField}).',
       overrides: (field) => {
-        // generateSlug defaults OFF for regions. Region names are frequently
-        // non-Latin (Москва, 東京, …), which the ASCII-only slugify collapses to
-        // "-"; with the checkbox on, Payload rewrites slug → slugify(name) on
-        // every save — including the nested-docs breadcrumb cascade that re-saves
-        // descendants — clobbering the importer's explicit, collision-free slugs.
-        // Off, the seeded/entered slug sticks, and the column defaults off so the
-        // production backfill doesn't trip the same cascade.
+        // generateSlug defaults OFF for regions. The slugField default slugify now
+        // transliterates non-Latin names (Москва → "moskva"), so this isn't about
+        // empty slugs — it's that the importer assigns *disambiguated* slugs for
+        // the duplicate names (Georgia the country vs. the US state →
+        // `georgia` / `georgia-united-states`), and an on-by-default checkbox would
+        // rewrite those back to the bare, colliding `slugify(name)` on any save —
+        // including the nested-docs breadcrumb cascade that re-saves descendants.
+        // New regions still get an auto-slug: the create hook fills it from `name`
+        // (transliterated) regardless of the checkbox. Off also keeps the column
+        // default off, so the production backfill of existing rows stays cascade-safe.
         if (field.fields[0].type === 'checkbox') field.fields[0].defaultValue = false
         return field
       },

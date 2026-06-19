@@ -14,20 +14,25 @@ calling the two custom endpoints below. The `sahaj-atlas-client` role +
 [`src/collections/Regions/Regions.ts`](../../src/collections/Regions/Regions.ts))
 for stable Atlas identity/routing.
 
-- **`generateSlug` defaults OFF.** Region names are frequently non-Latin
-  (Москва, 東京, …), which the ASCII-only `slugify` collapses to `"-"`. With the
-  auto-generate checkbox on, Payload would rewrite `slug → slugify(name)` on
-  every save — including the nested-docs breadcrumb cascade that re-saves
-  descendants — clobbering explicit slugs and colliding. Off, the
-  seeded/entered slug sticks. The column is nullable, so the production backfill
-  adds it without a `NOT NULL` constraint the cascade can't satisfy.
+- **Slugs transliterate non-Latin names.** Every `slugField` (regions included)
+  uses the shared `slugifyValue` (`src/lib/utilities/slugify.ts`), which
+  transliterates Cyrillic etc. to ASCII (`Москва → "moskva"`) where Payload's
+  ASCII-only default would collapse them to empty — so new regions auto-generate
+  readable slugs.
+- **`generateSlug` defaults OFF for regions** — not for the non-Latin reason
+  anymore (transliteration handles that), but because the importer assigns
+  *disambiguated* slugs for the names that repeat across the tree (Georgia the
+  country vs. the US state → `georgia` / `georgia-united-states`); an
+  on-by-default checkbox would rewrite them back to the bare, colliding
+  `slugify(name)` on any save, including the nested-docs breadcrumb cascade. New
+  regions still auto-slug (the create hook fills from `name`); the column-default
+  off also keeps the prod backfill cascade-safe.
 - **The importer assigns collision-free slugs.** `buildRegionSlugs()` in
   `import.ts` walks every region/center in a fixed `(level, legacyId)` order and
-  assigns `slugify(name)`, falling back to `name-parentName` then `name-legacyId`
-  for the handful of names that repeat across the tree (Georgia the country vs.
-  the US state, São Paulo the state vs. the city, …) and `region-<legacyId>` for
-  names `slugify` empties. It uses Payload's own `slugify`, so a manager
-  re-generating a slug in the admin reproduces the same value.
+  assigns `slugifyValue(name)`, falling back to `name-parentName` then
+  `name-legacyId` for the handful of repeated names (and `region-<legacyId>` only
+  if a name transliterates to empty). It shares `slugifyValue` with the slugField,
+  so a manager re-generating a slug reproduces the same value.
 - **Reseed (update mode) to backfill:** `pnpm seed atlas --update`. The upserts
   pin `generateSlug: false` so the explicit slug is never rewritten.
 
