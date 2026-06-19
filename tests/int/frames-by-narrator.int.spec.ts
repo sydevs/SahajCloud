@@ -1,24 +1,42 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { framesByNarrator } from '@/collections/Frames/endpoints/byNarrator'
-import type { Frame, Narrator } from '@/payload-types'
+import type { Client, Frame, Narrator } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 type EndpointResponse = { status: number; body: any }
 
+type CallerUser = {
+  id: number | string
+  collection: string
+  type?: string
+  _status?: 'published' | 'draft'
+  roles?: unknown
+} | null
+
+// Default authorized caller for the behavioral tests: an admin manager. The
+// admin bypass grants `frames` read for both the auth gate and the
+// `overrideAccess: false` reads. The `auth gate` suite passes explicit users
+// (incl. `null`) to exercise the rejection paths.
+const ADMIN_USER: CallerUser = { id: 0, collection: 'managers', type: 'admin' }
+
 async function callEndpoint(
   payload: Payload,
   narratorId: string | undefined,
+  user: CallerUser = ADMIN_USER,
 ): Promise<EndpointResponse> {
   const req = {
     payload,
+    user,
+    locale: 'en',
     routeParams: narratorId === undefined ? {} : { narratorId },
     headers: new Headers(),
     query: {},
+    context: {},
   } as unknown as PayloadRequest
 
   const response = (await framesByNarrator.handler(req)) as Response
@@ -36,6 +54,8 @@ describe('framesByNarrator endpoint', () => {
   let maleImage: Frame
   let maleVideo: Frame
   let femaleImage: Frame
+
+  let framesClient: Client
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -64,10 +84,102 @@ describe('framesByNarrator endpoint', () => {
       imageSet: 'female',
       label: 'Female Image',
     })
+
+    // A published client whose role's project (wemeditate-app) includes frames.
+    framesClient = (await testData.createClient(payload, env.adminUser.id, {
+      name: 'Frames Reader Client',
+      roles: ['wemeditate-app-client'],
+    })) as Client
   })
 
   afterAll(async () => {
     await cleanup()
+  })
+
+  describe('auth gate', () => {
+    it('rejects unauthenticated callers with 403', async () => {
+      const { status, body } = await callEndpoint(payload, String(maleNarrator.id), null)
+      expect(status).toBe(403)
+      expect(body).toEqual({
+        errors: [{ message: 'You are not allowed to perform this action.' }],
+      })
+    })
+
+    it('rejects authenticated callers whose project excludes frames with 403', async () => {
+      // sahaj-atlas-client has no `frames` in its project → no read access.
+      const { status } = await callEndpoint(payload, String(maleNarrator.id), {
+        id: 1,
+        collection: 'clients',
+        _status: 'published',
+        roles: ['sahaj-atlas-client'],
+      })
+      expect(status).toBe(403)
+    })
+
+    it('rejects clients with no roles with 403', async () => {
+      const { status } = await callEndpoint(payload, String(maleNarrator.id), {
+        id: 1,
+        collection: 'clients',
+        _status: 'published',
+        roles: [],
+      })
+      expect(status).toBe(403)
+    })
+
+    it('allows a non-admin manager whose project includes frames (the FrameInserter caller)', async () => {
+      // meditations-editor → wemeditate-app project → implicit `frames` read.
+      const { status } = await callEndpoint(payload, String(maleNarrator.id), {
+        id: 0,
+        collection: 'managers',
+        type: 'manager',
+        roles: { en: ['meditations-editor'] },
+      })
+      expect(status).toBe(200)
+    })
+
+    it('allows a published client whose project includes frames', async () => {
+      const { status, body } = await callEndpoint(payload, String(maleNarrator.id), {
+        id: framesClient.id,
+        collection: 'clients',
+        _status: 'published',
+        roles: ['wemeditate-app-client'],
+      })
+      expect(status).toBe(200)
+      expect(Array.isArray(body.docs)).toBe(true)
+    })
+  })
+
+  describe('access-controlled reads', () => {
+    it('runs narrator + frames reads with overrideAccess: false and the trusted req', async () => {
+      const findByIdSpy = vi.spyOn(payload, 'findByID')
+      const findSpy = vi.spyOn(payload, 'find')
+      try {
+        const { status } = await callEndpoint(payload, String(maleNarrator.id))
+        expect(status).toBe(200)
+
+        const narratorCall = findByIdSpy.mock.calls.find(
+          ([args]) => (args as { collection?: string }).collection === 'narrators',
+        )
+        expect(narratorCall).toBeDefined()
+        expect((narratorCall![0] as { overrideAccess?: boolean }).overrideAccess).toBe(false)
+
+        const framesCall = findSpy.mock.calls.find(
+          ([args]) => (args as { collection?: string }).collection === 'frames',
+        )
+        expect(framesCall).toBeDefined()
+        const framesArgs = framesCall![0] as {
+          overrideAccess?: boolean
+          req?: { context?: Record<string, unknown> }
+        }
+        expect(framesArgs.overrideAccess).toBe(false)
+        // asTrustedReq marks the forwarded req so client query-param validation
+        // (which requires `select`) is skipped for this server-built query.
+        expect(framesArgs.req?.context?.['skipClientQueryValidation']).toBe(true)
+      } finally {
+        findByIdSpy.mockRestore()
+        findSpy.mockRestore()
+      }
+    })
   })
 
   it('rejects an empty narratorId with 400', async () => {
