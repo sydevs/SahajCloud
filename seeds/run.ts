@@ -95,6 +95,18 @@ const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
 const SCRIPT_DATA_FILES: Partial<Record<ScriptName, string[]>> = {
   'wm-app-translations': ['seeds/wm-app-translations/data.en.json'],
   translations: ['seeds/wm-app-translations/data.en.json'],
+  // Atlas reads all 8 dumps via loadJsonData (keyed by these exact paths); the
+  // standalone build excludes seeds/, so the CLI uploads them for remote seeding.
+  atlas: [
+    'seeds/atlas/data/users.json',
+    'seeds/atlas/data/managers.json',
+    'seeds/atlas/data/regions.json',
+    'seeds/atlas/data/venues.json',
+    'seeds/atlas/data/events.json',
+    'seeds/atlas/data/registrations.json',
+    'seeds/atlas/data/clients.json',
+    'seeds/atlas/data/pictures.json',
+  ],
 }
 
 /**

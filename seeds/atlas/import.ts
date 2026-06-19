@@ -34,7 +34,13 @@ import {
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { slugifyValue } from '@/lib/utilities/slugify'
 
-import { BaseImporter, type BaseImportOptions, fetchAsset, MediaUploader } from '../lib'
+import {
+  BaseImporter,
+  type BaseImportOptions,
+  fetchAsset,
+  loadJsonData,
+  MediaUploader,
+} from '../lib'
 import { plainTextToLexical } from './helpers/lexical'
 import {
   mapContactDetails,
@@ -331,9 +337,14 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
   private async getData(): Promise<AtlasData> {
     if (this.cachedData) return this.cachedData
-    const dir = path.resolve(process.cwd(), 'seeds/atlas/data')
-    const load = async <T>(name: string): Promise<T> =>
-      JSON.parse(await this.loadDataFile(path.join(dir, `${name}.json`))) as T
+    // The data files are excluded from the deployed standalone build (next.config
+    // `outputFileTracingExcludes` drops `seeds/**`), so when seeding a remote env
+    // the CLI uploads them as `inlineData` keyed by local path (see
+    // SCRIPT_DATA_FILES in seeds/run.ts); locally they're read from disk.
+    const load = <T>(name: string): Promise<T> => {
+      const localPath = `seeds/atlas/data/${name}.json`
+      return loadJsonData<T>({ localPath, inlineContent: this.options.inlineData?.[localPath] })
+    }
 
     const [users, managers, regions, venues, events, registrations, clients, pictures] =
       await Promise.all([
