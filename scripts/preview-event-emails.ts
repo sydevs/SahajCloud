@@ -76,6 +76,7 @@ async function persistSampleEvent(): Promise<SampleData> {
     collection: 'regions',
     data: {
       name: 'India',
+      slug: `india-${stamp}`,
       level: 'country',
       mapboxId: `sample-in-${stamp}`,
       managers: [regionManager.id],
@@ -86,6 +87,7 @@ async function persistSampleEvent(): Promise<SampleData> {
     collection: 'regions',
     data: {
       name: 'Pune',
+      slug: `pune-${stamp}`,
       level: 'city',
       mapboxId: `sample-pune-${stamp}`,
       parent: country.id,

@@ -2171,7 +2171,7 @@ export interface Region {
   /**
    * Stable identifier for Atlas routing (auto-generated from name).
    */
-  slug?: string | null;
+  slug: string;
   breadcrumbs?:
     | {
         doc?: (number | null) | Region;

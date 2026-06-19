@@ -334,18 +334,14 @@ export const Regions: CollectionConfig = {
       ],
     },
     // Stable, URL-friendly identity for Sahaj Atlas routing — a region otherwise
-    // exposes only an opaque `mapboxId` and a display `name`. Unique + indexed
-    // (hardcoded by the helper); `collectionSlug` adds app-layer uniqueness
-    // validation. `required: false` keeps the column nullable so the generated
-    // migration adds it to the already-populated `regions` table without a
-    // NOT NULL backfill (the Atlas importer backfills slugs; Postgres allows many
-    // NULLs under a unique index). A handful of regions share a `name` across the
-    // tree (e.g. Georgia the country vs. the US state), so the importer assigns
+    // exposes only an opaque `mapboxId` and a display `name`. Required, unique +
+    // indexed (hardcoded by the helper); `collectionSlug` adds app-layer
+    // uniqueness validation. A handful of regions share a `name` across the tree
+    // (e.g. Georgia the country vs. the US state), so the Atlas importer assigns
     // collision-free slugs rather than the bare `name`.
     slugField({
       useAsSlug: 'name',
       collectionSlug: 'regions',
-      required: false,
       description: 'Stable identifier for Atlas routing (auto-generated from {sourceField}).',
       overrides: (field) => {
         // generateSlug defaults OFF for regions. Region names are frequently
