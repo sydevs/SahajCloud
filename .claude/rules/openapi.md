@@ -125,6 +125,15 @@ collection slug.
 | `GET /api/lectures/for-audience`             | `src/collections/Lectures/endpoints/forAudience.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
 | `GET /api/app-cards/for-audience`            | `src/collections/AppCards/endpoints/forAudience.ts` | `#/components/schemas/AppCards`                          |
 | `GET /api/meditations/{id}/related-lectures` | `src/collections/Meditations/endpoints/lectures.ts`  | `#/components/schemas/LecturePlayerData` (hand-authored) |
+| `GET /api/events/geojson`                    | `src/collections/Events/endpoints/geojson.ts`       | `#/components/schemas/EventFeatureCollection` (hand-authored) |
+| `POST /api/events/{id}/register`             | `src/collections/Events/endpoints/registerForEvent.ts` | `#/components/schemas/EventRegistrationResponse` (hand-authored) |
+
+`filterSpec` marks POST operations `x-internal` (hidden from `/docs`) only for
+the **auto-generated base-collection create** (`POST /api/{collection}`) unless
+the collection is in `ALLOW_POST_FOR`; hand-authored custom POST subpaths like
+`/api/events/{id}/register` stay visible (`isBaseCollectionPath` guards the gate).
+`tests/unit/openapi-custom-endpoints.spec.ts` is the regression guard for the
+Atlas paths + this POST visibility rule.
 
 The audience query params on `/api/audiences/for-user` are hand-authored
 in `customEndpoints.ts` as `audienceQueryParameters` — six required

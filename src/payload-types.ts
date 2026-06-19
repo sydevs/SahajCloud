@@ -2164,6 +2164,14 @@ export interface Region {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  /**
+   * Stable identifier for Atlas routing (auto-generated from name).
+   */
+  slug: string;
   breadcrumbs?:
     | {
         doc?: (number | null) | Region;
@@ -5136,6 +5144,8 @@ export interface RegionsSelect<T extends boolean = true> {
   childrenRegions?: T;
   childrenCities?: T;
   childrenCenters?: T;
+  generateSlug?: T;
+  slug?: T;
   breadcrumbs?:
     | T
     | {

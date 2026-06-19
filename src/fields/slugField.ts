@@ -2,6 +2,7 @@ import type { CollectionSlug, RowField, TextField } from 'payload'
 
 import { slugField as payloadSlugField } from 'payload'
 
+import { slugifyValue } from '@/lib/utilities/slugify'
 import { adminOnlyCondition, adminOnlyFieldAccess } from '@/plugins/access/adminOnly'
 
 /**
@@ -13,6 +14,12 @@ export type SlugFieldOptions = {
   useAsSlug?: string
   /** Enable localization for the slug field */
   localized?: TextField['localized']
+  /**
+   * Whether the slug is required (defaults to Payload's `true`). Pass `false`
+   * to keep the column nullable — e.g. when an existing table is backfilled
+   * after the field is added, so the migration needn't enforce NOT NULL.
+   */
+  required?: TextField['required']
   /** Override for the slug field name (default: 'slug') */
   name?: string
   /** Override for the checkbox field name (default: 'generateSlug') */
@@ -60,6 +67,10 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
   const resolvedDescription = description?.replace('{sourceField}', sourceField)
 
   return payloadSlugField({
+    // Default for every slugField: transliterating slugify so non-Latin titles /
+    // names (Cyrillic, …) produce readable ASCII slugs instead of collapsing to
+    // empty under Payload's ASCII-only default.
+    slugify: ({ valueToSlugify }) => slugifyValue(valueToSlugify),
     ...payloadOptions,
     overrides: (field) => {
       // Apply description if provided

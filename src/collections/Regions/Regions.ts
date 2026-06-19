@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
-import { hideUntilCreated, legacyMigrationFields } from '@/fields'
+import { hideUntilCreated, legacyMigrationFields, slugField } from '@/fields'
 import { getLanguageOptions } from '@/lib/locales'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { getTimezoneOptions } from '@/lib/timezones'
@@ -333,6 +333,31 @@ export const Regions: CollectionConfig = {
         })),
       ],
     },
+    // Stable, URL-friendly identity for Sahaj Atlas routing — a region otherwise
+    // exposes only an opaque `mapboxId` and a display `name`. Required, unique +
+    // indexed (hardcoded by the helper); `collectionSlug` adds app-layer
+    // uniqueness validation. A handful of regions share a `name` across the tree
+    // (e.g. Georgia the country vs. the US state), so the Atlas importer assigns
+    // collision-free slugs rather than the bare `name`.
+    slugField({
+      useAsSlug: 'name',
+      collectionSlug: 'regions',
+      description: 'Stable identifier for Atlas routing (auto-generated from {sourceField}).',
+      overrides: (field) => {
+        // generateSlug defaults OFF for regions. The slugField default slugify now
+        // transliterates non-Latin names (Москва → "moskva"), so this isn't about
+        // empty slugs — it's that the importer assigns *disambiguated* slugs for
+        // the duplicate names (Georgia the country vs. the US state →
+        // `georgia` / `georgia-united-states`), and an on-by-default checkbox would
+        // rewrite those back to the bare, colliding `slugify(name)` on any save —
+        // including the nested-docs breadcrumb cascade that re-saves descendants.
+        // New regions still get an auto-slug: the create hook fills it from `name`
+        // (transliterated) regardless of the checkbox. Off also keeps the column
+        // default off, so the production backfill of existing rows stays cascade-safe.
+        if (field.fields[0].type === 'checkbox') field.fields[0].defaultValue = false
+        return field
+      },
+    }),
     // Breadcrumbs are populated by plugin-nested-docs. Defining the field here
     // (top-level, so the plugin reuses it instead of injecting its own) lets us
     // hide it — it's an internal denormalization, not something managers edit.
