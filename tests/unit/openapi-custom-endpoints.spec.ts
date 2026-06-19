@@ -9,7 +9,9 @@ import { filterSpec, type OpenAPISpec } from '../../src/plugins/openapi/specFilt
 describe('Atlas events custom endpoints (OpenAPI)', () => {
   it('registers geojson GET + register POST paths and their schemas', () => {
     expect(CUSTOM_ENDPOINT_PATHS['/api/events/geojson']?.get).toBeDefined()
-    expect((CUSTOM_ENDPOINT_PATHS['/api/events/register'] as { post?: unknown }).post).toBeDefined()
+    expect(
+      (CUSTOM_ENDPOINT_PATHS['/api/events/{id}/register'] as { post?: unknown }).post,
+    ).toBeDefined()
     for (const schema of [
       'EventFeatureCollection',
       'EventFeature',
@@ -43,7 +45,7 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
       (filtered.paths?.[path] as Record<string, Record<string, unknown> | undefined>)?.[method]
 
     it('keeps the hand-authored register POST visible', () => {
-      expect(op('/api/events/register', 'post')?.['x-internal']).toBeFalsy()
+      expect(op('/api/events/{id}/register', 'post')?.['x-internal']).toBeFalsy()
     })
 
     it('hides the auto-generated base-collection POST (create)', () => {

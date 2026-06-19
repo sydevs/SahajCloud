@@ -45,13 +45,14 @@ describe('registerForEvent endpoint', () => {
   let eventId: number
 
   async function callRegister(
+    id: number | string,
     body: unknown,
     user: TestUser = client,
   ): Promise<{ status: number; body: RegisterBody }> {
     const req = {
       payload,
       headers: new Headers(),
-      routeParams: {},
+      routeParams: { id: String(id) },
       user,
       json: async () => body,
     } as unknown as PayloadRequest
@@ -108,20 +109,23 @@ describe('registerForEvent endpoint', () => {
   })
 
   describe('auth gate', () => {
-    const body = { event: 1, email: 'a@b.com', name: 'A B' }
+    const body = { email: 'a@b.com', name: 'A B' }
 
     it('rejects unauthenticated callers with 403', async () => {
-      const { status } = await callRegister(body, null)
+      const { status } = await callRegister(eventId, body, null)
       expect(status).toBe(403)
     })
 
     it('rejects managers with 403', async () => {
-      const { status } = await callRegister(body, { id: managerId, collection: 'managers' })
+      const { status } = await callRegister(eventId, body, {
+        id: managerId,
+        collection: 'managers',
+      })
       expect(status).toBe(403)
     })
 
     it('rejects unpublished (draft) clients with 403', async () => {
-      const { status } = await callRegister(body, {
+      const { status } = await callRegister(eventId, body, {
         id: client!.id,
         collection: 'clients',
         _status: 'draft',
@@ -131,15 +135,19 @@ describe('registerForEvent endpoint', () => {
     })
   })
 
+  it('returns 400 for a non-numeric event id', async () => {
+    const { status } = await callRegister('not-a-number', { email: 'x@y.com', name: 'X Y' })
+    expect(status).toBe(400)
+  })
+
   it('returns 400 when the body fails validation', async () => {
-    const { status, body } = await callRegister({ event: eventId, name: 'No Email' })
+    const { status, body } = await callRegister(eventId, { name: 'No Email' })
     expect(status).toBe(400)
     expect(body).toHaveProperty('errors')
   })
 
   it('returns 400 when the questions payload exceeds the size bound', async () => {
-    const { status } = await callRegister({
-      event: eventId,
+    const { status } = await callRegister(eventId, {
       email: 'huge@example.com',
       name: 'Huge Payload',
       questions: { blob: 'x'.repeat(11_000) },
@@ -148,8 +156,7 @@ describe('registerForEvent endpoint', () => {
   })
 
   it('returns 404 for an event the client cannot see', async () => {
-    const { status } = await callRegister({
-      event: 999999,
+    const { status } = await callRegister(999999, {
       email: 'nobody@example.com',
       name: 'No Body',
     })
@@ -157,8 +164,7 @@ describe('registerForEvent endpoint', () => {
   })
 
   it('creates a registrant + registration and returns 201', async () => {
-    const { status, body } = await callRegister({
-      event: eventId,
+    const { status, body } = await callRegister(eventId, {
       email: 'Registrant@Example.com',
       name: 'Reg Istrant',
       startingAt: '2025-02-01T18:00:00.000Z',
@@ -183,12 +189,8 @@ describe('registerForEvent endpoint', () => {
 
   it('reuses an existing registrant on a second registration (upsert by email)', async () => {
     const email = 'repeat@example.com'
-    const first = await callRegister({ event: eventId, email, name: 'Repeat One' })
-    const second = await callRegister({
-      event: eventId,
-      email: 'REPEAT@example.com',
-      name: 'Repeat Two',
-    })
+    const first = await callRegister(eventId, { email, name: 'Repeat One' })
+    const second = await callRegister(eventId, { email: 'REPEAT@example.com', name: 'Repeat Two' })
 
     expect(first.status).toBe(201)
     expect(second.status).toBe(201)

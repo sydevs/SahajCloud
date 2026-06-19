@@ -9,7 +9,6 @@ import { parseBody, requireActiveClient } from '@/lib/endpoints'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const bodySchema = z.object({
-  event: z.coerce.number().int().positive(),
   email: z.string().email().max(254),
   name: z.string().trim().min(1).max(200),
   startingAt: z.string().datetime().optional(),
@@ -22,32 +21,37 @@ const bodySchema = z.object({
 })
 
 /**
- * POST /api/events/register
+ * POST /api/events/:id/register
  *
- * The widget's write path. The `sahaj-atlas-client` role is read-only and the
- * `users` collection is admin-only, so a registration can't be created by a
- * frontend-only flow — this endpoint owns it. Gated by a published client key
- * (`requireActiveClient`); the event-existence read below is an ordinary client
- * read, so Cloudflare edge rate limiting + the usage plugin's tracking cover
- * abuse exactly as they do for every other client request. (Per-origin
- * `allowedDomains` enforcement is deferred to #509.)
+ * The widget's write path (`:id` is the event id). The `sahaj-atlas-client` role
+ * is read-only and the `users` collection is admin-only, so a registration can't
+ * be created by a frontend-only flow — this endpoint owns it. Gated by a
+ * published client key (`requireActiveClient`); the event-existence read below is
+ * an ordinary client read, so Cloudflare edge rate limiting + the usage plugin's
+ * tracking cover abuse exactly as they do for every other client request.
+ * (Per-origin `allowedDomains` enforcement is deferred to #509.)
  *
- * Flow: validate the body → confirm the event is one the client may see
+ * Flow: parse the `:id` + body → confirm the event is one the client may see
  * (published + project-visible) → upsert the registrant `user` by normalized
  * email with elevated access (`users` is admin-only) → create the `registration`
  * (event + user + startingAt + questions + a fresh uuid). Returns
  * `EventRegistrationResponse`.
  */
 export const registerForEvent: Endpoint = {
-  path: '/register',
+  path: '/:id/register',
   method: 'post',
   handler: async (req) => {
     const denied = requireActiveClient(req)
     if (denied) return denied
 
+    const eventId = Number(req.routeParams?.id)
+    if (!Number.isInteger(eventId)) {
+      return Response.json({ errors: [{ message: 'Invalid event id.' }] }, { status: 400 })
+    }
+
     const parsed = await parseBody(req, bodySchema)
     if (!parsed.ok) return parsed.response
-    const { event: eventId, email, name, startingAt, questions } = parsed.data
+    const { email, name, startingAt, questions } = parsed.data
 
     try {
       // Only register for an event this client may actually read (published +
