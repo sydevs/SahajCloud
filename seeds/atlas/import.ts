@@ -32,6 +32,7 @@ import {
   MANUAL_LOCATION,
 } from '@/lib/mapbox/geocoder'
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
+import { slugifyValue } from '@/lib/utilities/slugify'
 
 import { BaseImporter, type BaseImportOptions, fetchAsset, MediaUploader } from '../lib'
 import { plainTextToLexical } from './helpers/lexical'
@@ -213,6 +214,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
   /** Venue legacyId → resolved address `mapboxId` (geocoded once, reused per event). */
   private venueMapbox = new Map<number, string>()
+
+  /** Region map key (`level:legacyId` / `center:venueId`) → unique slug (see buildRegionSlugs). */
+  private regionSlugs = new Map<string, string>()
 
   static async runFromMigration(payload: Payload): Promise<void> {
     const importer = new AtlasImporter({ dryRun: false, clearCache: false, payload })
@@ -469,8 +473,90 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
   // ─── Regions (country → region → city → center) ─────────────────────────
 
+  /**
+   * Deterministic, collision-free `slug` for every region node (country / region
+   * / city) and `center` venue, keyed by the same `level:legacyId` /
+   * `center:venueId` map key the upserts use. Six region names repeat across the
+   * Atlas tree (e.g. Georgia the country vs. the US state, São Paulo the state
+   * vs. the city) and `regions.slug` is unique, so a bare `slugify(name)` would
+   * trip the constraint. Nodes are walked in a fixed `(level, legacyId)` order so
+   * the same node always wins the bare slug across reseeds; colliders fall back to
+   * `name-parentName` (when the parent's name differs) and finally `name-legacyId`.
+   * Uses the shared `slugifyValue` (transliterates Cyrillic etc.), which is also
+   * the slugField default — so a manager re-generating a slug in the admin
+   * reproduces the same value, and non-Latin names yield readable slugs
+   * (`Москва → "moskva"`) rather than the `region-<legacyId>` fallback.
+   */
+  private buildRegionSlugs(data: AtlasData): Map<string, string> {
+    // Legacy `level:legacyId` → region, for parent-name lookups (a node's parent
+    // and the area beneath a center are addressed by their legacy level).
+    const byLegacyKey = new Map<string, AtlasRegion>()
+    for (const region of data.regions) byLegacyKey.set(`${region.level}:${region.legacyId}`, region)
+
+    const LEVEL_RANK: Record<RegionLevel, number> = { country: 0, region: 1, city: 2, center: 3 }
+    type Node = {
+      mapKey: string
+      name: string
+      rank: number
+      legacyId: number
+      parentName?: string
+    }
+    const nodes: Node[] = []
+
+    for (const region of data.regions) {
+      const level = ATLAS_TO_PAYLOAD_LEVEL[region.level]
+      const parent = region.parent
+        ? byLegacyKey.get(`${region.parent.level}:${region.parent.legacyId}`)
+        : undefined
+      nodes.push({
+        mapKey: `${level}:${region.legacyId}`,
+        name: region.name,
+        rank: LEVEL_RANK[level],
+        legacyId: region.legacyId,
+        parentName: parent?.name,
+      })
+    }
+
+    const venuesById = new Map(data.venues.map((venue) => [venue.legacyId, venue]))
+    for (const venueId of multiUseVenueIds(data.events)) {
+      const venue = venuesById.get(venueId)
+      if (!venue) continue
+      const areaId = venueParentAreaId(venueId, data.events)
+      nodes.push({
+        mapKey: `center:${venueId}`,
+        name: venueDisplayName(venue),
+        rank: LEVEL_RANK.center,
+        legacyId: venueId,
+        parentName: areaId != null ? byLegacyKey.get(`area:${areaId}`)?.name : undefined,
+      })
+    }
+
+    // Fixed order so the bare slug always lands on the same node across reseeds.
+    nodes.sort((a, b) => a.rank - b.rank || a.legacyId - b.legacyId)
+
+    const used = new Set<string>()
+    const slugs = new Map<string, string>()
+    for (const node of nodes) {
+      const base = slugifyValue(node.name) || `region-${node.legacyId}`
+      let slug = base
+      if (used.has(slug)) {
+        const parentSlug = node.parentName ? slugifyValue(node.parentName) : ''
+        slug =
+          parentSlug && parentSlug !== base && !used.has(`${base}-${parentSlug}`)
+            ? `${base}-${parentSlug}`
+            : `${base}-${node.legacyId}`
+      }
+      // Guaranteed-unique safety net — no current Atlas row reaches it.
+      while (used.has(slug)) slug = `${slug}-x`
+      used.add(slug)
+      slugs.set(node.mapKey, slug)
+    }
+    return slugs
+  }
+
   private async importRegions(data: AtlasData): Promise<void> {
     await this.logger.info('\n=== Importing Regions ===')
+    this.regionSlugs = this.buildRegionSlugs(data)
 
     // Invert managers' geo responsibility: region key → manager Payload ids.
     const managersByRegion = new Map<string, (number | string)[]>()
@@ -538,6 +624,12 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         {
           level,
           name: region.name,
+          slug: this.regionSlugs.get(mapKey),
+          // Pin the importer's collision-free slug. The slugField's generateSlug
+          // hook defaults on and would otherwise rewrite it to slugify(name) on
+          // every update — which is empty/colliding for non-Latin names (e.g.
+          // Москва → "-"), tripping the uniqueness validator.
+          generateSlug: false,
           subtitle: region.subtitle ?? undefined,
           parent: parentId,
           ...this.locationData(location, mapKey),
@@ -586,6 +678,8 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
           {
             level: 'center',
             name: venueDisplayName(venue),
+            slug: this.regionSlugs.get(mapKey),
+            generateSlug: false, // pin the importer's slug (see upsertRegion)
             parent: parentId,
             ...this.locationData(location, mapKey),
             managers: managersByRegion.get(mapKey),

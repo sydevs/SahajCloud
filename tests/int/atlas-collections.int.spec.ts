@@ -28,6 +28,22 @@ describe('Atlas collections', () => {
     await cleanup?.()
   })
 
+  describe('Regions slug', () => {
+    it('auto-generates a transliterated slug from a non-Latin (Cyrillic) name', async () => {
+      const region = await payload.create({
+        collection: 'regions',
+        overrideAccess: true,
+        data: {
+          name: 'Москва',
+          level: 'city',
+          mapboxId: 'slug-cyrillic-city',
+          managers: [managerId],
+        },
+      })
+      expect(region.slug).toBe('moskva')
+    })
+  })
+
   describe('Regions eventDefaults inheritance', () => {
     it('inherits language + timeZone from the nearest ancestor when blank, and tracks the nearest', async () => {
       const country = await payload.create({

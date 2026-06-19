@@ -256,6 +256,11 @@ function classifyCollectionGetPath(path: string): 'list' | 'findById' | null {
   return null
 }
 
+/** True for an auto-generated base collection path like `/api/events` (its CRUD root). */
+function isBaseCollectionPath(path: string): boolean {
+  return /^\/api\/[^/]+$/.test(path)
+}
+
 /**
  * Injects `select` / `populate` / `depth` / `limit` / `page` parameters into
  * collection list + findByID GET operations.
@@ -380,8 +385,14 @@ export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): Open
         shouldMark = true
       }
 
-      // Mark POST operations unless collection is in ALLOW_POST_FOR
-      if (method === 'post' && !ALLOW_POST_FOR.includes(collection as CollectionSlug)) {
+      // Mark the auto-generated base-collection POST (create) unless the
+      // collection is in ALLOW_POST_FOR. Hand-authored custom POST subpaths
+      // (e.g. /api/events/register) are deliberately documented and stay visible.
+      if (
+        method === 'post' &&
+        isBaseCollectionPath(path) &&
+        !ALLOW_POST_FOR.includes(collection as CollectionSlug)
+      ) {
         shouldMark = true
       }
 
