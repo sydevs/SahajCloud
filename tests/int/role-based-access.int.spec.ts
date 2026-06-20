@@ -468,30 +468,35 @@ describe('Role-Based Access Control', () => {
       })
 
       // country > region (owned) > city > center, plus a separate branch.
-      const country = await createRegion({ level: 'country', name: 'Atlasia' })
+      // Distinct names from the sibling describe block (slugs are unique).
+      const country = await createRegion({ level: 'country', name: 'AtlasMgr Country' })
       countryId = country.id
       const region = await createRegion({
         level: 'region',
-        name: 'North',
+        name: 'AtlasMgr Region',
         parent: countryId,
         managers: [atlasManager.id],
       })
       regionId = region.id
-      const city = await createRegion({ level: 'city', name: 'Capital', parent: regionId })
+      const city = await createRegion({ level: 'city', name: 'AtlasMgr City', parent: regionId })
       cityId = city.id
-      const center = await createRegion({ level: 'center', name: 'Downtown', parent: cityId })
+      const center = await createRegion({
+        level: 'center',
+        name: 'AtlasMgr Center',
+        parent: cityId,
+      })
       centerId = center.id
 
-      const otherCountry = await createRegion({ level: 'country', name: 'Otherland' })
+      const otherCountry = await createRegion({ level: 'country', name: 'AtlasMgr Otherland' })
       otherCountryId = otherCountry.id
       const otherCity = await createRegion({
         level: 'city',
-        name: 'Far City',
+        name: 'AtlasMgr Far City',
         parent: otherCountryId,
       })
       const otherCenter = await createRegion({
         level: 'center',
-        name: 'Far Center',
+        name: 'AtlasMgr Far Center',
         parent: otherCity.id,
       })
       otherCenterId = otherCenter.id
@@ -563,13 +568,16 @@ describe('Role-Based Access Control', () => {
 
     it('creates a sub-region only beneath a region it owns', async () => {
       const created = await createRegion(
-        { level: 'city', name: 'New City', parent: regionId },
+        { level: 'city', name: 'AtlasMgr New City', parent: regionId },
         atlasManager,
       )
       expect(created.id).toBeDefined()
 
       await expect(
-        createRegion({ level: 'city', name: 'Nope', parent: otherCountryId }, atlasManager),
+        createRegion(
+          { level: 'city', name: 'AtlasMgr Nope', parent: otherCountryId },
+          atlasManager,
+        ),
       ).rejects.toThrow()
     })
 
