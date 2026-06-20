@@ -90,8 +90,11 @@ export async function scopeRegionSubtreeWrite({
       const parentId = relationId((data as { parent?: unknown } | null)?.parent)
       return parentId !== null && ownedRegionIds.includes(parentId)
     }
-    // update — region delete is not granted to atlas-manager, so this is only
-    // ever reached for updates.
+    // update (region delete isn't granted to atlas-manager). A re-parent must
+    // keep the region inside the owned subtree — reject moving it under a region
+    // they don't own. Applies to single and bulk updates.
+    const newParentId = relationId((data as { parent?: unknown } | null)?.parent)
+    if (newParentId !== null && !ownedRegionIds.includes(newParentId)) return false
     if (id !== undefined) return ownedRegionIds.includes(Number(id))
     return ownedRegionIds.length ? { id: { in: ownedRegionIds } } : false
   }
@@ -102,7 +105,12 @@ export async function scopeRegionSubtreeWrite({
     return regionId !== null && ownedRegionIds.includes(regionId)
   }
 
-  // update / delete (delete with `trash: true` = soft-delete an event)
+  // update / delete (delete with `trash: true` = soft-delete an event). A
+  // re-home must keep the event inside the owned subtree — reject moving it to a
+  // region they don't own (covers single and bulk updates; delete carries no
+  // data, so this is a no-op there).
+  const newRegionId = relationId((data as { region?: unknown } | null)?.region)
+  if (newRegionId !== null && !ownedRegionIds.includes(newRegionId)) return false
   if (id !== undefined) {
     const event = (await req.payload.findByID({
       collection: 'events',

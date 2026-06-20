@@ -97,6 +97,7 @@ export async function buildAtlasSidebarData(
       select: { title: true, verificationStage: true, deletedAt: true, updatedAt: true },
     }),
     // 2. The regions the manager directly manages (the subtree roots).
+    // `select: {}` returns only `id` — all we need for the subtree roots.
     payload.find({
       collection: 'regions',
       where: { managers: { in: [managerId] } },

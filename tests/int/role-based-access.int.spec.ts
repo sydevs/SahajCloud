@@ -666,6 +666,32 @@ describe('Role-Based Access Control', () => {
       })
       expect(updated.id).toBe(owned.id)
     })
+
+    it('rejects re-homing an in-subtree event to a region outside the subtree', async () => {
+      const inside = await createEvent({ region: cityId, address: { street: 'Stay put' } })
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: inside.id,
+          draft: true,
+          data: { region: otherCenterId },
+          user: managerUser(atlasManager),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('rejects re-parenting an owned region under one it does not own', async () => {
+      await expect(
+        payload.update({
+          collection: 'regions',
+          id: cityId,
+          data: { parent: otherCountryId },
+          user: managerUser(atlasManager),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+    })
   })
 
   describe('Localized Manager Roles', () => {
