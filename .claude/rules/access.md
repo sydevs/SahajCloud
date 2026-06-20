@@ -57,11 +57,12 @@ Manager `type` field controls top-level access:
 
 ### Available manager roles
 
-| Role                 | Description                                                         |
-| -------------------- | ------------------------------------------------------------------- |
-| `meditations-editor` | Create/edit meditations + upload media                              |
-| `path-editor`        | Edit lessons, lectures, lecture clips + upload media                |
-| `web-translator`     | Edit localized fields in pages, songs, albums (read-only otherwise) |
+| Role                 | Description                                                                   |
+| -------------------- | ---------------------------------------------------------------------------- |
+| `meditations-editor` | Create/edit meditations + upload media                                       |
+| `path-editor`        | Edit lessons, lectures, lecture clips + upload media                         |
+| `web-translator`     | Edit localized fields in pages, songs, albums (read-only otherwise)          |
+| `atlas-manager`      | Sahaj Atlas: read project-wide; create/update events + regions, trash events — writes scoped to the manager's owned-region subtree (see below) |
 
 Manager roles are **per-locale** — different roles can be assigned for
 different languages. Access checks use `req.locale` only. A manager with
@@ -157,6 +158,32 @@ so it applies to any collection that adds them (currently Pages via "Page
 Editors", Regions, and Clients). Grants read + update only — never create or
 delete. Resolved asynchronously in `createAccessConfig`, only after the
 query-free permission check has already failed.
+
+### Region-subtree write scoping (Atlas managers)
+
+The `atlas-manager` role is the one role that grants **create/update/delete**
+on document-managed collections (`events`, `regions`). Those grants are
+deliberately **not** collection-wide: `src/plugins/access/regionSubtreeAccess.ts`
+narrows each role-granted write to the manager's **owned-region subtree** — the
+regions that list them in `managers`, plus every descendant via the nested-docs
+`breadcrumbs` trail (reusing `resolveManagedDocIds`).
+
+- **regions** — `create` requires the new region's `parent` to be in the
+  subtree; `update` is scoped to subtree members. No `delete` (region deletion
+  stays admin-only — child regions/events FK-reference it).
+- **events** — scoped by `event.region ∈ subtree` **OR** `event.manager == user`
+  (the latter preserves the direct-owner access the document-manager fallback
+  grants); `create` requires the incoming `region` to be in the subtree;
+  `delete` (permanent delete / the trash button's hard path) is scoped the same
+  way. Soft-delete (trash) is an `update` to `deletedAt`, covered by the update
+  scope.
+- **read** stays project-wide (implicit project read) — an Atlas manager sees
+  every Atlas event/region; only writes are subtree-scoped.
+
+Wired into `createAccessConfig` after the role check passes, gated on an
+explicit slug allowlist (`{ regions, events }`) rather than field introspection
+— create/delete are security-sensitive, so the opt-in is auditable at a glance
+and a stray `managers` field elsewhere can't silently widen access.
 
 ### Self-access
 
