@@ -621,7 +621,9 @@ describe('Role-Based Access Control', () => {
         }),
       ).rejects.toThrow()
 
-      // Trash (soft delete) is the `delete` op; allowed inside, denied outside.
+      // The `delete` op (permanent delete / the trash button's hard path) is
+      // scoped the same way: allowed inside, denied outside. Soft-delete via an
+      // `update` to `deletedAt` is covered by the update assertions above.
       const trashed = await payload.delete({
         collection: 'events',
         id: inside.id,

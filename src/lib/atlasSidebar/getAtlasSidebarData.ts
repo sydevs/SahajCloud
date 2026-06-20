@@ -83,7 +83,11 @@ function toCountInput(
   }
 }
 
-async function buildAtlasSidebarData(
+/**
+ * Uncached builder — exported for integration tests to exercise the query layer
+ * directly. Production code goes through {@link getAtlasSidebarData}.
+ */
+export async function buildAtlasSidebarData(
   managerId: number,
   locale: TypedLocale,
 ): Promise<AtlasSidebarData> {
