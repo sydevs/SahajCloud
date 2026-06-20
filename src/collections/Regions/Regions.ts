@@ -3,6 +3,7 @@ import type { CollectionConfig } from 'payload'
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
 import { hideUntilCreated, legacyMigrationFields, slugField } from '@/fields'
+import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { getLanguageOptions } from '@/lib/locales'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { getTimezoneOptions } from '@/lib/timezones'
@@ -102,6 +103,9 @@ export const Regions: CollectionConfig = {
   hooks: {
     // Inherit eventDefaults (language + timeZone) from the nearest ancestor when blank.
     afterRead: [eventDefaultsFallback],
+    // Bust the Atlas manager sidebar cache (region tree + counts) on any region write.
+    afterChange: [revalidateAtlasSidebarHook],
+    afterDelete: [revalidateAtlasSidebarHook],
   },
   fields: [
     {

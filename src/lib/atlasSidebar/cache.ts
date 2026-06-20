@@ -38,3 +38,13 @@ export function revalidateAtlasSidebar(): void {
     // Outside a Next.js request scope (background job, CLI, seed) — best-effort.
   }
 }
+
+/**
+ * Collection `afterChange` / `afterDelete` hook that busts the sidebar cache.
+ * Ignores its args (the trigger doc is irrelevant — any write to events or
+ * regions can shift another manager's counts). Returns nothing, so it never
+ * mutates the doc Payload is persisting.
+ */
+export const revalidateAtlasSidebarHook = (): void => {
+  revalidateAtlasSidebar()
+}

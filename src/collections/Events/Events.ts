@@ -16,6 +16,7 @@ import {
   urlField,
   publicUrlFields,
 } from '@/fields'
+import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 
@@ -70,6 +71,10 @@ export const Events: CollectionConfig = {
   // frontend page (it calls the shared verify op via a Server Action).
   hooks: {
     beforeChange: [verifyOnSave],
+    // Bust the Atlas manager sidebar cache (event list + region counts) whenever
+    // an event changes or is trashed/restored.
+    afterChange: [revalidateAtlasSidebarHook],
+    afterDelete: [revalidateAtlasSidebarHook],
   },
   endpoints: [verifyEventAction, eventsGeoJson, registerForEvent],
   fields: [
