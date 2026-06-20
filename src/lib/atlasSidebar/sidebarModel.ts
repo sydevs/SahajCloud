@@ -157,8 +157,6 @@ export interface SidebarCountEventInput {
   countsTowardTotal: boolean
 }
 
-const ZERO_COUNTS: RegionCounts = { published: 0, total: 0 }
-
 const UNNAMED_REGION = '(unnamed region)'
 
 /**
@@ -217,7 +215,7 @@ export function buildRegionTree(
   const build = (region: SidebarRegionInput): RegionTreeNode => ({
     id: region.id,
     name: region.name?.trim() || UNNAMED_REGION,
-    counts: counts.get(region.id) ?? ZERO_COUNTS,
+    counts: counts.get(region.id) ?? { published: 0, total: 0 },
     children: (childrenByParent.get(region.id) ?? []).map(build).sort(byName),
   })
 

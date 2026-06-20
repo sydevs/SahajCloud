@@ -19,7 +19,7 @@ import type { TypedLocale } from 'payload'
 import { unstable_cache } from 'next/cache'
 import { getPayload } from 'payload'
 
-import { relationId } from '@/plugins/access/documentManagers'
+import { breadcrumbAncestorIds, relationId } from '@/plugins/access/documentManagers'
 
 import config from '@payload-config'
 
@@ -40,15 +40,6 @@ export interface AtlasSidebarData {
   regions: RegionTreeNode[]
 }
 
-/** Ancestor region ids from a breadcrumb trail, excluding the region itself. */
-function breadcrumbAncestorIds(breadcrumbs: unknown, selfId: number): number[] {
-  if (!Array.isArray(breadcrumbs)) return []
-  const ids = breadcrumbs
-    .map((crumb) => relationId((crumb as { doc?: unknown })?.doc))
-    .filter((id): id is number => id !== null && id !== selfId)
-  return [...new Set(ids)]
-}
-
 function toEventInput(doc: Record<string, unknown>): SidebarEventInput {
   return {
     id: doc.id as number,
@@ -65,7 +56,7 @@ function toRegionInput(doc: Record<string, unknown>): SidebarRegionInput {
     id,
     name: typeof doc.name === 'string' ? doc.name : null,
     parentId: relationId(doc.parent),
-    ancestorIds: breadcrumbAncestorIds(doc.breadcrumbs, id),
+    ancestorIds: breadcrumbAncestorIds(doc, id),
   }
 }
 
@@ -93,26 +84,28 @@ export async function buildAtlasSidebarData(
 ): Promise<AtlasSidebarData> {
   const payload = await getPayload({ config })
 
-  // 1. The manager's own events (incl. trashed — "Trashed" is a bucket).
-  const ownEvents = await payload.find({
-    collection: 'events',
-    where: { manager: { equals: managerId } },
-    trash: true,
-    depth: 0,
-    pagination: false,
-    locale,
-    select: { title: true, verificationStage: true, deletedAt: true, updatedAt: true },
-  })
+  // Queries 1 and 2 are independent — run them together.
+  const [ownEvents, ownedRegions] = await Promise.all([
+    // 1. The manager's own events (incl. trashed — "Trashed" is a bucket).
+    payload.find({
+      collection: 'events',
+      where: { manager: { equals: managerId } },
+      trash: true,
+      depth: 0,
+      pagination: false,
+      locale,
+      select: { title: true, verificationStage: true, deletedAt: true, updatedAt: true },
+    }),
+    // 2. The regions the manager directly manages (the subtree roots).
+    payload.find({
+      collection: 'regions',
+      where: { managers: { in: [managerId] } },
+      depth: 0,
+      pagination: false,
+      select: {},
+    }),
+  ])
   const events = sortEventsIntoBuckets(ownEvents.docs.map(toEventInput))
-
-  // 2. The regions the manager directly manages (the subtree roots).
-  const ownedRegions = await payload.find({
-    collection: 'regions',
-    where: { managers: { in: [managerId] } },
-    depth: 0,
-    pagination: false,
-    select: {},
-  })
   const ownedRegionIds = ownedRegions.docs.map((doc) => doc.id)
 
   let regions: RegionTreeNode[] = []

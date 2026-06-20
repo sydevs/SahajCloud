@@ -125,7 +125,7 @@ function documentListsUser(
 }
 
 /** Ancestor ids from a document's `breadcrumbs` trail, excluding the doc itself. */
-function breadcrumbAncestorIds(doc: Record<string, unknown>, docId: number): number[] {
+export function breadcrumbAncestorIds(doc: Record<string, unknown>, docId: number): number[] {
   const crumbs = doc.breadcrumbs
   if (!Array.isArray(crumbs)) return []
   const ids = crumbs
