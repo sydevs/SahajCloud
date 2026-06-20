@@ -52,7 +52,7 @@ function relationTargets(relationTo: string | string[], target: string): boolean
 }
 
 /** Pull a numeric id out of a relationship value (id, populated doc, or string). */
-function relationId(value: unknown): number | null {
+export function relationId(value: unknown): number | null {
   if (typeof value === 'number') return value
   if (typeof value === 'string') {
     const n = Number(value)
