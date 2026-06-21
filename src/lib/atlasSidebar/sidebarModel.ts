@@ -227,6 +227,19 @@ export function hasUnpublished(counts: RegionCounts): boolean {
   return counts.published < counts.total
 }
 
+/**
+ * Pill text: `published/total` when some events are unpublished, otherwise a
+ * single number (all events are live, nothing to flag).
+ */
+export function regionPillLabel(counts: RegionCounts): string {
+  return hasUnpublished(counts) ? `${counts.published}/${counts.total}` : String(counts.total)
+}
+
+/** Pill colour: `warning` when events are unpublished, else `success`. */
+export function regionPillStyle(counts: RegionCounts): 'success' | 'warning' {
+  return hasUnpublished(counts) ? 'warning' : 'success'
+}
+
 /** Tooltip for a region's published/total pill. */
 export function regionPillTooltip(counts: RegionCounts): string {
   return hasUnpublished(counts)

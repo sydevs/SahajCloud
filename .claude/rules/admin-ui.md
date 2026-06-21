@@ -567,15 +567,21 @@ to `DefaultNav` (imported from `@payloadcms/next/rsc` — not `@payloadcms/ui`).
   unexported, so `AtlasNavShell` reproduces the slide-in `<aside>` + mobile close
   from the exported `useNav`/`Hamburger` primitives. The logo header and
   account/logout footer live in `AppHeader` (outside the Nav), so the override
-  leaves them intact; the sidebar reuses `ProjectSelector`, `AdminNavLinks` and
-  `Logout`, plus Payload's `nav__*` classes.
+  leaves them intact. The sections are `@payloadcms/ui` `NavGroup`s and every
+  row is a `nav__link` (with `nav__link-indicator` for the open doc), so headers,
+  padding, hover, and the active highlight match the default nav. Reuses
+  `ProjectSelector` (now a fixed label, not a dropdown, when a non-admin has a
+  single project), `AdminNavLinks`, and `Logout`.
 - **Event list.** The manager's own events (incl. trashed), bucketed
   Urgent → Needs verification → Expired → Verified → Trashed → Finished, then
   `updatedAt` desc; each row links to the event with a right-floated stage icon
   (`lucide-react` + `Tooltip`). Collapses past 8 behind Show more/less.
-- **Region tree.** The owned-region subtree as a collapsible nested list
-  (rotating chevron); collapsed/leaf nodes show a `published/total` subtree
-  pill (`Pill pillStyle="warning"` when any are unpublished).
+- **Region tree.** The owned-region subtree as flat indented `nav__link` rows
+  (not `ul`/`li`, so pills line up with the event icons) with a rotating
+  chevron; the open region is highlighted and its ancestors auto-expand on load.
+  Collapsed/leaf nodes show a subtree count pill — a single number coloured
+  `success` when every event is published, else `published/total` coloured
+  `warning`. `finished` events count toward neither total nor published.
 - **Data + cache.** `src/lib/atlasSidebar/` — a server-only fetch
   (`getAtlasSidebarData`) wrapped in `unstable_cache`, keyed by `managerId` +
   `locale`, tagged `atlas-sidebar` / `atlas-sidebar:<id>`. The pure view-model

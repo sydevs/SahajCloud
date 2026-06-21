@@ -66,11 +66,13 @@ function toCountInput(
 ): SidebarCountEventInput {
   const regionId = relationId(doc.region) ?? -1
   const deleted = Boolean(doc.deletedAt)
+  // `finished` events count toward neither bucket — they've run their course.
+  const active = !deleted && doc.verificationStage !== 'finished'
   return {
     regionId,
     ancestorRegionIds: regionById.get(regionId)?.ancestorIds ?? [],
-    published: doc._status === 'published' && !deleted,
-    countsTowardTotal: !deleted && doc.verificationStage !== 'finished',
+    published: active && doc._status === 'published',
+    countsTowardTotal: active,
   }
 }
 

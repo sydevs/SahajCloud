@@ -6,6 +6,8 @@ import {
   type EventBucket,
   EVENT_BUCKET_ORDER,
   hasUnpublished,
+  regionPillLabel,
+  regionPillStyle,
   regionPillTooltip,
   rollUpRegionCounts,
   type SidebarCountEventInput,
@@ -156,5 +158,15 @@ describe('region pill helpers', () => {
   it('describes the pill in its tooltip', () => {
     expect(regionPillTooltip({ published: 2, total: 2 })).toBe('All events are verified')
     expect(regionPillTooltip({ published: 1, total: 3 })).toBe('2 expired events')
+  })
+
+  it('shows a single number + success when all events are published', () => {
+    expect(regionPillLabel({ published: 2, total: 2 })).toBe('2')
+    expect(regionPillStyle({ published: 2, total: 2 })).toBe('success')
+  })
+
+  it('shows published/total + warning when some are unpublished', () => {
+    expect(regionPillLabel({ published: 1, total: 3 })).toBe('1/3')
+    expect(regionPillStyle({ published: 1, total: 3 })).toBe('warning')
   })
 })

@@ -98,6 +98,10 @@ const ProjectSelector = () => {
   // Find the current option
   const selectedOption = projectOptions.find((opt) => opt.value === currentProject)
 
+  // A non-admin with a single project has nothing to switch to — show the
+  // project as a fixed label instead of an interactive dropdown.
+  const isFixed = user?.type !== 'admin' && projectOptions.length <= 1
+
   return (
     <div
       style={{
@@ -118,14 +122,26 @@ const ProjectSelector = () => {
       >
         Current Project
       </label>
-      <ReactSelect
-        options={projectOptions}
-        value={selectedOption}
-        onChange={handleProjectChange}
-        disabled={isSaving}
-        isClearable={false}
-        isSearchable={false}
-      />
+      {isFixed ? (
+        <div
+          style={{
+            fontSize: 'calc(var(--base-body-size) * 1px)',
+            fontWeight: '600',
+            color: 'var(--theme-elevation-800)',
+          }}
+        >
+          {selectedOption?.label ?? projectOptions[0]?.label ?? '—'}
+        </div>
+      ) : (
+        <ReactSelect
+          options={projectOptions}
+          value={selectedOption}
+          onChange={handleProjectChange}
+          disabled={isSaving}
+          isClearable={false}
+          isSearchable={false}
+        />
+      )}
     </div>
   )
 }
