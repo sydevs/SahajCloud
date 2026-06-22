@@ -72,6 +72,7 @@ import { default as default_b4b93444e002b46abfd0c5006e1279a0 } from '@/component
 import { default as default_f5da5fa50c48fc2ef14afcb84f969fcf } from '@/components/admin/AdminNavLinks'
 import { default as default_70d6a18357c47b1a9d8a541fcd53f95f } from '@/components/AdminProvider.tsx'
 import { default as default_db43129b90862b042c8e58805b1c34d3 } from '@/components/admin/AnalyticsView'
+import { default as default_932971b9c30c48ddbfc16a3a6aa23dda } from '@/components/admin/AtlasMapView'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
 /** @type import('payload').ImportMap */
@@ -150,5 +151,6 @@ export const importMap = {
   "@/components/admin/AdminNavLinks#default": default_f5da5fa50c48fc2ef14afcb84f969fcf,
   "@/components/AdminProvider.tsx#default": default_70d6a18357c47b1a9d8a541fcd53f95f,
   "@/components/admin/AnalyticsView#default": default_db43129b90862b042c8e58805b1c34d3,
+  "@/components/admin/AtlasMapView#default": default_932971b9c30c48ddbfc16a3a6aa23dda,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }

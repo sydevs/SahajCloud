@@ -95,6 +95,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
             Component: '@/components/admin/AnalyticsView',
             path: '/analytics',
           },
+          atlasMap: {
+            Component: '@/components/admin/AtlasMapView',
+            path: '/atlas-map',
+          },
         },
       },
       // Disable admin UI in unit test environment (but enable for E2E tests)
