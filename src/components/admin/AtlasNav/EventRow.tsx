@@ -10,16 +10,16 @@ import { isActivePath } from './navActive'
 import { StageIcon } from './StageIcon'
 
 /**
- * Shared full-width row layout so stage icons right-align uniformly. The trimmed
- * right gutter matches the region rows (Payload's default `nav__link` reserves
- * 30px); keeping both equal keeps the icons and pills aligned.
+ * Shared full-width row layout so stage icons right-align uniformly. The right
+ * gutter is dropped to 0 (Payload's default `nav__link` reserves 30px) — matching
+ * the region rows so icons and pills share the same right edge.
  */
 const rowStyle: React.CSSProperties = {
   display: 'flex',
   width: '100%',
   alignItems: 'center',
   gap: 'calc(var(--base) * 0.4)',
-  paddingInlineEnd: 'calc(var(--base) * 0.3)',
+  paddingInlineEnd: 0,
 }
 
 /**
