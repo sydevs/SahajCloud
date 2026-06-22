@@ -3,6 +3,7 @@ import type { ServerProps, TypedLocale } from 'payload'
 import { Logout } from '@payloadcms/ui'
 import React from 'react'
 
+import AnalyticsNavLink from '@/components/admin/AnalyticsNavLink'
 import ProjectSelector from '@/components/admin/ProjectSelector'
 import { getAtlasSidebarData } from '@/lib/atlasSidebar/getAtlasSidebarData'
 import type { Manager } from '@/payload-types'
@@ -27,6 +28,7 @@ export async function AtlasSidebar(props: ServerProps) {
     <AtlasNavShell>
       <nav className="nav__wrap">
         <ProjectSelector />
+        <AnalyticsNavLink />
         <EventList events={events} />
         <RegionTree regions={regions} />
         <div className="nav__controls">

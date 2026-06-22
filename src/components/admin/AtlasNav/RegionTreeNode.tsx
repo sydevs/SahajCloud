@@ -9,7 +9,10 @@ import type { RegionCounts } from '@/lib/atlasSidebar/sidebarModel'
 
 import { CountPill } from './CountPill'
 import { activeDocId } from './navActive'
+import styles from './RegionTreeNode.module.css'
 
+/** Left padding for the whole tree, in `--base` units (inset from the headers). */
+const BASE_INDENT = 0.5
 /** Indent added per nesting level, in `--base` units (kept small for title room). */
 const INDENT_PER_DEPTH = 0.5
 /** How far the chevron hangs to the left of its row's label, in `--base` units. */
@@ -52,7 +55,7 @@ export function RegionTreeNode({
   const expanded = manualOpen ?? autoExpand
   const showPill = !hasChildren || !expanded
 
-  const indent = `calc(var(--base) * ${(depth * INDENT_PER_DEPTH).toFixed(2)})`
+  const indent = `calc(var(--base) * ${(BASE_INDENT + depth * INDENT_PER_DEPTH).toFixed(2)})`
 
   // The row toggles children; only the label link navigates. Leaf rows have
   // nothing to toggle, so they stay a plain (non-interactive) container.
@@ -109,18 +112,10 @@ export function RegionTreeNode({
           </span>
         ) : null}
         <Link
-          className="nav__link-label"
+          className={`nav__link-label ${styles.label}`}
           href={`/admin/collections/regions/${id}`}
           onClick={(event: React.MouseEvent) => event.stopPropagation()}
           prefetch={false}
-          style={{
-            minWidth: 0,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            color: 'inherit',
-            textDecoration: 'none',
-          }}
         >
           {name}
         </Link>
