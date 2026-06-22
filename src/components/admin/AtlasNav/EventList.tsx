@@ -18,7 +18,7 @@ export function EventList({ events }: { events: SidebarEventItem[] }) {
   const visible = events.slice(0, COLLAPSE_AFTER)
   const overflow = events.slice(COLLAPSE_AFTER)
   return (
-    <NavGroup label="Events">
+    <NavGroup label="Your Events">
       {visible.map((event) => (
         <EventRow event={event} key={event.id} />
       ))}

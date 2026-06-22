@@ -10,18 +10,23 @@ function collectSubtreeIds(node: RegionTreeNodeData): number[] {
   return [node.id, ...node.children.flatMap(collectSubtreeIds)]
 }
 
-function renderNode(node: RegionTreeNodeData, depth: number): React.ReactNode {
+function renderNode(
+  node: RegionTreeNodeData,
+  depth: number,
+  hasSiblings: boolean,
+): React.ReactNode {
   return (
     <RegionTreeNode
       counts={node.counts}
       depth={depth}
       hasChildren={node.children.length > 0}
+      hasSiblings={hasSiblings}
       id={node.id}
       key={node.id}
       name={node.name}
       subtreeIds={collectSubtreeIds(node)}
     >
-      {node.children.map((child) => renderNode(child, depth + 1))}
+      {node.children.map((child) => renderNode(child, depth + 1, node.children.length > 1))}
     </RegionTreeNode>
   )
 }
@@ -32,5 +37,9 @@ function renderNode(node: RegionTreeNodeData, depth: number): React.ReactNode {
  */
 export function RegionTree({ regions }: { regions: RegionTreeNodeData[] }) {
   if (!regions.length) return null
-  return <NavGroup label="Regions">{regions.map((node) => renderNode(node, 0))}</NavGroup>
+  return (
+    <NavGroup label="Your Regions">
+      {regions.map((node) => renderNode(node, 0, regions.length > 1))}
+    </NavGroup>
+  )
 }

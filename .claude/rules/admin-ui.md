@@ -577,11 +577,15 @@ to `DefaultNav` (imported from `@payloadcms/next/rsc` — not `@payloadcms/ui`).
   `updatedAt` desc; each row links to the event with a right-floated stage icon
   (`lucide-react` + `Tooltip`). Collapses past 8 behind Show more/less.
 - **Region tree.** The owned-region subtree as flat indented `nav__link` rows
-  (not `ul`/`li`, so pills line up with the event icons) with a rotating
-  chevron; the open region is highlighted and its ancestors auto-expand on load.
-  Collapsed/leaf nodes show a subtree count pill — a single number coloured
-  `success` when every event is published, else `published/total` coloured
-  `warning`. `finished` events count toward neither total nor published.
+  (each a real `nav__link`, like the event/collection links — so labels are flush
+  with the headers, with no underline and the same hover/active treatment). The
+  rotating chevron is absolutely positioned so it hangs in the left gutter rather
+  than indenting the label. The open region is highlighted; its ancestors — and
+  any node with no siblings (a lone child/root) — auto-expand on load.
+  Collapsed/leaf nodes show a subtree count pill (`@payloadcms/ui` `Pill`, nudged
+  smaller via its `--pill-padding-*` vars): a single number coloured `success`
+  when every event is published, else `published/total` coloured `warning`.
+  `finished` events count toward neither total nor published.
 - **Data + cache.** `src/lib/atlasSidebar/` — a server-only fetch
   (`getAtlasSidebarData`) wrapped in `unstable_cache`, keyed by `managerId` +
   `locale`, tagged `atlas-sidebar` / `atlas-sidebar:<id>`. The pure view-model

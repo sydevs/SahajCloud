@@ -1,5 +1,6 @@
 'use client'
 
+import { Pill } from '@payloadcms/ui'
 import React from 'react'
 
 import {
@@ -11,36 +12,37 @@ import {
 
 import { HoverTooltip } from './HoverTooltip'
 
-// A compact themed badge rather than @payloadcms/ui's `Pill`: even its `small`
-// size reads too large against the nav rows (per design feedback). Colours come
-// from the same admin `--theme-*` vars the Pill uses, so it stays on-theme.
-const PALETTE: Record<'success' | 'warning', { background: string; color: string }> = {
-  success: { background: 'var(--theme-success-100)', color: 'var(--theme-success-600)' },
-  warning: { background: 'var(--theme-warning-100)', color: 'var(--theme-warning-600)' },
-}
+// Payload's `Pill` keeps `font-size: 1rem` even at `size="small"`, which reads
+// large in the nav. Nudge the font, line-height and inline padding down — the
+// padding via the Pill's own `--pill-padding-*` vars — for a smaller-but-still-
+// Pill badge. Inline styles override the (layered) class defaults.
+const COMPACT = {
+  fontSize: '0.8rem',
+  lineHeight: 1.5,
+  // Never inherit the row's hover underline onto the pill text.
+  textDecoration: 'none',
+  '--pill-padding-inline-start': 'calc(var(--base) * 0.3)',
+  '--pill-padding-inline-end': 'calc(var(--base) * 0.3)',
+} as React.CSSProperties
+
+// `elementProps` requires a ref; we don't need the node, so pass a stable no-op.
+const noopRef = () => {}
 
 /**
  * Region subtree event count: a single number (all published) or
- * `published/total`, coloured success/warning. Tooltip spells out the count.
+ * `published/total`, coloured success/warning via Payload's `Pill`. Tooltip
+ * spells out the count.
  */
 export function CountPill({ counts }: { counts: RegionCounts }) {
-  const palette = PALETTE[regionPillStyle(counts)]
   return (
     <HoverTooltip text={regionPillTooltip(counts)}>
-      <span
-        style={{
-          flexShrink: 0,
-          fontSize: '0.625rem',
-          fontWeight: 600,
-          lineHeight: 1,
-          padding: '2px 5px',
-          borderRadius: '8px',
-          whiteSpace: 'nowrap',
-          ...palette,
-        }}
+      <Pill
+        elementProps={{ ref: noopRef, style: COMPACT }}
+        pillStyle={regionPillStyle(counts)}
+        size="small"
       >
         {regionPillLabel(counts)}
-      </span>
+      </Pill>
     </HoverTooltip>
   )
 }
