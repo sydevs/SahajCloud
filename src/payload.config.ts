@@ -95,9 +95,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
             Component: '@/components/admin/AnalyticsView',
             path: '/analytics',
           },
-          atlasMap: {
+          map: {
             Component: '@/components/admin/AtlasMapView',
-            path: '/atlas-map',
+            path: '/map',
           },
         },
       },
