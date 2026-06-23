@@ -29,7 +29,7 @@ export async function AtlasSidebar(props: ServerProps) {
       <nav className="nav__wrap">
         <ProjectSelector />
         <AdminNavLinks disabled={['dashboard']} />
-        <EventList events={events} />
+        <EventList canCreate={regions.length > 0} events={events} />
         <RegionTree regions={regions} />
         <div className="nav__controls">
           <Logout />

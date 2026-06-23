@@ -581,6 +581,12 @@ describe('Role-Based Access Control', () => {
       ).rejects.toThrow()
     })
 
+    it('cannot create a root region (no parent) — only children of owned regions', async () => {
+      await expect(
+        createRegion({ level: 'country', name: 'AtlasMgr Rogue Country' }, atlasManager),
+      ).rejects.toThrow()
+    })
+
     it('cannot delete regions (admin-only)', async () => {
       await expect(
         payload.delete({
@@ -690,6 +696,17 @@ describe('Role-Based Access Control', () => {
           user: managerUser(atlasManager),
           overrideAccess: false,
         }),
+      ).rejects.toThrow()
+    })
+
+    it('cannot create an event when it owns no region', async () => {
+      const regionlessManager = await testData.createManager(payload, {
+        name: 'Region-less Atlas Manager',
+        roles: ['atlas-manager'],
+      })
+      // Owns no region → its subtree is empty → no region is valid to create in.
+      await expect(
+        createEvent({ region: cityId, address: { street: 'Nope' } }, regionlessManager),
       ).rejects.toThrow()
     })
   })

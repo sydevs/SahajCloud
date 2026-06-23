@@ -3,6 +3,7 @@ import React from 'react'
 
 import type { SidebarEventItem } from '@/lib/atlasSidebar/sidebarModel'
 
+import { CreateEventButton } from './CreateEventButton'
 import { EventRow } from './EventRow'
 import { ShowMore } from './ShowMore'
 
@@ -11,10 +12,17 @@ const COLLAPSE_AFTER = 8
 
 /**
  * The manager's events, bucket-ordered, under a collapsible nav group that
- * matches the default nav's section headers. Hidden when they own none.
+ * matches the default nav's section headers, with a "Create Event" action when
+ * they can create one. Hidden only when they own no events and can't create.
  */
-export function EventList({ events }: { events: SidebarEventItem[] }) {
-  if (!events.length) return null
+export function EventList({
+  events,
+  canCreate,
+}: {
+  events: SidebarEventItem[]
+  canCreate: boolean
+}) {
+  if (!events.length && !canCreate) return null
   const visible = events.slice(0, COLLAPSE_AFTER)
   const overflow = events.slice(COLLAPSE_AFTER)
   return (
@@ -29,6 +37,7 @@ export function EventList({ events }: { events: SidebarEventItem[] }) {
           ))}
         </ShowMore>
       ) : null}
+      {canCreate ? <CreateEventButton /> : null}
     </NavGroup>
   )
 }

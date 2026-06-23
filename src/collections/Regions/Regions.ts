@@ -7,8 +7,10 @@ import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { getLanguageOptions } from '@/lib/locales'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { getTimezoneOptions } from '@/lib/timezones'
+import { ownedRegionFilterOptions } from '@/plugins/access'
 
 import { eventDefaultsFallback } from './hooks/eventDefaultsFallback'
+import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
 
 /**
  * The four geo levels of the Atlas region tree. Country → Region → Area form
@@ -101,6 +103,9 @@ export const Regions: CollectionConfig = {
     groupBy: true,
   },
   hooks: {
+    // Atlas managers can only create regions inside their owned subtree (a child
+    // of a region they own) — block rootless creates the capability check must allow.
+    beforeValidate: [requireOwnedParentOnCreate],
     // Inherit eventDefaults (language + timeZone) from the nearest ancestor when blank.
     afterRead: [eventDefaultsFallback],
     // Bust the Atlas manager sidebar cache (region tree + counts) on any region write.
@@ -148,12 +153,18 @@ export const Regions: CollectionConfig = {
                   type: 'relationship',
                   relationTo: 'regions',
                   maxDepth: 1,
-                  filterOptions: ({ data }) => {
+                  filterOptions: async (args) => {
                     // Exactly one level up, except City (Country or Region) — see
                     // ALLOWED_PARENT_LEVELS. A Country (or unset level) has no
                     // valid parent. This also prevents cycles (never same/lower).
-                    const allowed = ALLOWED_PARENT_LEVELS[data?.level as string]
-                    return allowed ? { level: { in: allowed } } : false
+                    const allowed = ALLOWED_PARENT_LEVELS[args.data?.level as string]
+                    if (!allowed) return false
+                    // For an atlas-manager, also restrict to their owned subtree.
+                    const levelFilter = { level: { in: allowed } }
+                    const owned = await ownedRegionFilterOptions(args)
+                    if (owned === true) return levelFilter
+                    if (owned === false) return false
+                    return { and: [levelFilter, owned] }
                   },
                   admin: {
                     // A country is the tree root, so it has no parent.

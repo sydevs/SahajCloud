@@ -57,6 +57,24 @@ function resolveOwnedRegionIds(req: PayloadRequest, userId: number): Promise<num
   return resolveManagedDocIds(req, 'regions', userId, regionFields)
 }
 
+/**
+ * `filterOptions` for region relationships (events.region, regions.parent): an
+ * active non-admin manager may only pick from their owned-region subtree; admins
+ * and other users see all regions. A manager who owns no region gets no options.
+ */
+export async function ownedRegionFilterOptions({
+  req,
+}: {
+  req: PayloadRequest
+}): Promise<Where | boolean> {
+  const user = req.user
+  if (user?.collection !== 'managers' || (user as { type?: string }).type !== 'manager') {
+    return true
+  }
+  const ownedRegionIds = await resolveOwnedRegionIds(req, Number(user.id))
+  return ownedRegionIds.length ? { id: { in: ownedRegionIds } } : false
+}
+
 /** `Where` selecting events inside the owned subtree, unioned with directly-owned events. */
 function eventScopeWhere(ownedRegionIds: number[], userId: number): Where {
   const or: Where[] = [{ manager: { equals: userId } }]
@@ -85,10 +103,13 @@ export async function scopeRegionSubtreeWrite({
   const ownedRegionIds = await resolveOwnedRegionIds(req, userId)
 
   if (collection === 'regions') {
-    // A new region must be created beneath a region the manager owns.
     if (operation === 'create') {
+      // No parent chosen yet (opening the create form, or default-populated
+      // doc behind the capability check) — allowed when they own a region. Once
+      // a parent is set, it must be inside the owned subtree.
       const parentId = relationId((data as { parent?: unknown } | null)?.parent)
-      return parentId !== null && ownedRegionIds.includes(parentId)
+      if (parentId !== null) return ownedRegionIds.includes(parentId)
+      return ownedRegionIds.length > 0
     }
     // update (region delete isn't granted to atlas-manager). A re-parent must
     // keep the region inside the owned subtree — reject moving it under a region
@@ -101,8 +122,12 @@ export async function scopeRegionSubtreeWrite({
 
   // events
   if (operation === 'create') {
+    // No region chosen yet (opening the create form, or default-populated doc
+    // behind the capability check) — allowed when they own a region. Once a
+    // region is set, it must be inside the owned subtree.
     const regionId = relationId((data as { region?: unknown } | null)?.region)
-    return regionId !== null && ownedRegionIds.includes(regionId)
+    if (regionId !== null) return ownedRegionIds.includes(regionId)
+    return ownedRegionIds.length > 0
   }
 
   // update / delete (delete with `trash: true` = soft-delete an event). A
