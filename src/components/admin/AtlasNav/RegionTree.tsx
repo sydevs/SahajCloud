@@ -23,6 +23,7 @@ function renderNode(
       hasSiblings={hasSiblings}
       id={node.id}
       key={node.id}
+      level={node.level}
       name={node.name}
       subtreeIds={collectSubtreeIds(node)}
     >

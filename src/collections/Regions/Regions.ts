@@ -114,6 +114,13 @@ export const Regions: CollectionConfig = {
   },
   fields: [
     {
+      // Renders nothing; seeds level + parent from the URL when the Atlas
+      // sidebar's "add child region" (+) links open the create form.
+      name: 'createPrefill',
+      type: 'ui',
+      admin: { components: { Field: '@/components/admin/RegionCreatePrefill' } },
+    },
+    {
       type: 'tabs',
       tabs: [
         {

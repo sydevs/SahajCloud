@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest'
 import {
   bucketForEvent,
   buildRegionTree,
+  childLevelOf,
   type EventBucket,
   EVENT_BUCKET_ORDER,
   hasUnpublished,
+  type RegionLevel,
   regionPillLabel,
   regionPillStyle,
   regionPillTooltip,
@@ -118,11 +120,22 @@ describe('rollUpRegionCounts', () => {
 })
 
 describe('buildRegionTree', () => {
-  const region = (id: number, name: string, parentId: number | null): SidebarRegionInput => ({
+  const region = (
+    id: number,
+    name: string,
+    parentId: number | null,
+    level: RegionLevel = 'city',
+  ): SidebarRegionInput => ({
     id,
     name,
+    level,
     parentId,
     ancestorIds: [],
+  })
+
+  it('carries each node level through to the built tree', () => {
+    const tree = buildRegionTree([region(1, 'Country', null, 'country')], new Map())
+    expect(tree[0].level).toBe('country')
   })
 
   it('nests regions under their parent and roots the topmost owned regions', () => {
@@ -146,6 +159,15 @@ describe('buildRegionTree', () => {
     const tree = buildRegionTree(regions, counts)
     expect(tree[0].counts).toEqual({ published: 1, total: 3 })
     expect(tree[0].children.map((c) => c.name)).toEqual(['Alpha', 'Bravo'])
+  })
+})
+
+describe('childLevelOf', () => {
+  it('maps each level to the level its child would be (center is a leaf)', () => {
+    expect(childLevelOf('country')).toBe('region')
+    expect(childLevelOf('region')).toBe('city')
+    expect(childLevelOf('city')).toBe('center')
+    expect(childLevelOf('center')).toBeNull()
   })
 })
 

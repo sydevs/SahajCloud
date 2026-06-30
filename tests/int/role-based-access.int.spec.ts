@@ -587,6 +587,18 @@ describe('Role-Based Access Control', () => {
       ).rejects.toThrow()
     })
 
+    it('lets admins create root regions despite the create hook', async () => {
+      const admin = await testData.createManager(payload, {
+        name: 'AtlasMgr Admin',
+        type: 'admin' as const,
+      })
+      const created = await createRegion(
+        { level: 'country', name: 'AtlasMgr Admin Country' },
+        admin,
+      )
+      expect(created.id).toBeDefined()
+    })
+
     it('cannot delete regions (admin-only)', async () => {
       await expect(
         payload.delete({

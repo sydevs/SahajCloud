@@ -55,6 +55,7 @@ function toRegionInput(doc: Record<string, unknown>): SidebarRegionInput {
   return {
     id,
     name: typeof doc.name === 'string' ? doc.name : null,
+    level: doc.level as SidebarRegionInput['level'],
     parentId: relationId(doc.parent),
     ancestorIds: breadcrumbAncestorIds(doc, id),
   }
@@ -121,7 +122,7 @@ export async function buildAtlasSidebarData(
       },
       depth: 0,
       pagination: false,
-      select: { name: true, parent: true, breadcrumbs: true },
+      select: { name: true, level: true, parent: true, breadcrumbs: true },
     })
     const regionInputs = subtree.docs.map(toRegionInput)
     const regionById = new Map(regionInputs.map((region) => [region.id, region]))

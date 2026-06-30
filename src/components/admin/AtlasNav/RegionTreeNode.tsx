@@ -1,11 +1,12 @@
 'use client'
 
 import { Link } from '@payloadcms/ui'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Plus } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import React, { useState } from 'react'
 
-import type { RegionCounts } from '@/lib/atlasSidebar/sidebarModel'
+import type { RegionCounts, RegionLevel } from '@/lib/atlasSidebar/sidebarModel'
+import { childLevelOf } from '@/lib/atlasSidebar/sidebarModel'
 
 import { CountPill } from './CountPill'
 import { activeDocId } from './navActive'
@@ -30,6 +31,7 @@ const CHEVRON_HANG = 0.85
 export function RegionTreeNode({
   id,
   name,
+  level,
   counts,
   hasChildren,
   hasSiblings,
@@ -39,6 +41,7 @@ export function RegionTreeNode({
 }: {
   id: number
   name: string
+  level: RegionLevel
   counts: RegionCounts
   hasChildren: boolean
   /** Whether this node shares its level with other nodes (under the same parent). */
@@ -54,6 +57,9 @@ export function RegionTreeNode({
   const [manualOpen, setManualOpen] = useState<boolean | null>(null)
   const expanded = manualOpen ?? autoExpand
   const showPill = !hasChildren || !expanded
+  // The level a child of this node would be; null for a center (a leaf), which
+  // gets no "add child" affordance.
+  const childLevel = childLevelOf(level)
 
   const indent = `calc(var(--base) * ${(BASE_INDENT + depth * INDENT_PER_DEPTH).toFixed(2)})`
 
@@ -80,7 +86,7 @@ export function RegionTreeNode({
   return (
     <>
       <div
-        className="nav__link"
+        className={`nav__link ${styles.row}`}
         {...rowToggleProps}
         style={{
           paddingInlineStart: indent,
@@ -121,6 +127,18 @@ export function RegionTreeNode({
         </Link>
         {/* Fills the rest of the row; clicking it toggles (the row owns the click). */}
         <span aria-hidden style={{ flexGrow: 1, alignSelf: 'stretch' }} />
+        {childLevel ? (
+          <Link
+            aria-label={`Add a ${childLevel} under ${name}`}
+            className={styles.addChild}
+            href={`/admin/collections/regions/create?parent=${id}&childLevel=${childLevel}`}
+            onClick={(event: React.MouseEvent) => event.stopPropagation()}
+            onMouseDown={(event: React.MouseEvent) => event.stopPropagation()}
+            prefetch={false}
+          >
+            <Plus size={14} />
+          </Link>
+        ) : null}
         {showPill ? <CountPill counts={counts} /> : null}
       </div>
       {hasChildren && expanded ? children : null}

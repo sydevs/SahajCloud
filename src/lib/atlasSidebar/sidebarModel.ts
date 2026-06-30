@@ -121,10 +121,33 @@ export function sortEventsIntoBuckets(events: SidebarEventInput[]): SidebarEvent
 // Regions
 // =============================================================================
 
+/** A region's level in the geographic tree (Country → Region → City → Center). */
+export type RegionLevel = 'country' | 'region' | 'city' | 'center'
+
+/**
+ * The level a node's direct child would have — the natural "add child" target
+ * (Country → Region, Region → City, City → Center). A Center is a leaf, so it
+ * has no child level. This is the inverse of the Regions collection's
+ * `ALLOWED_PARENT_LEVELS`; a Country can technically also parent a City, but a
+ * Region is the conventional next level down, so that's what "add child" offers.
+ */
+const CHILD_LEVEL: Record<RegionLevel, RegionLevel | null> = {
+  country: 'region',
+  region: 'city',
+  city: 'center',
+  center: null,
+}
+
+/** The level an "add child" action would create under a node of this level, if any. */
+export function childLevelOf(level: RegionLevel): RegionLevel | null {
+  return CHILD_LEVEL[level]
+}
+
 /** The region fields the tree builder needs (from the owned-region subtree). */
 export interface SidebarRegionInput {
   id: number
   name: string | null | undefined
+  level: RegionLevel
   /** Direct parent id, or null at the top of the geographic tree. */
   parentId: number | null
   /** Ancestor ids from the nested-docs breadcrumb trail, excluding self. */
@@ -141,6 +164,7 @@ export interface RegionCounts {
 export interface RegionTreeNode {
   id: number
   name: string
+  level: RegionLevel
   counts: RegionCounts
   children: RegionTreeNode[]
 }
@@ -215,6 +239,7 @@ export function buildRegionTree(
   const build = (region: SidebarRegionInput): RegionTreeNode => ({
     id: region.id,
     name: region.name?.trim() || UNNAMED_REGION,
+    level: region.level,
     counts: counts.get(region.id) ?? { published: 0, total: 0 },
     children: (childrenByParent.get(region.id) ?? []).map(build).sort(byName),
   })

@@ -15,3 +15,31 @@
 .label:hover {
   text-decoration: underline;
 }
+
+/*
+ * "Add child region" (+) affordance. Hidden until the row is hovered (or the
+ * link itself is keyboard-focused), and laid out just left of the count pill.
+ * opacity (not display) keeps its slot reserved so the pill doesn't jump on
+ * hover; pointer-events follow visibility so the hidden + can't be clicked.
+ */
+.addChild {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-inline-end: calc(var(--base) * 0.3);
+  padding-inline: calc(var(--base) * 0.15);
+  color: var(--theme-elevation-500);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+
+.row:hover .addChild,
+.addChild:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.addChild:hover {
+  color: var(--theme-success-600);
+}

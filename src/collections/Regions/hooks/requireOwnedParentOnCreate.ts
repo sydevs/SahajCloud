@@ -2,6 +2,8 @@ import type { CollectionBeforeValidateHook } from 'payload'
 
 import { APIError } from 'payload'
 
+import { isAdminManager } from '@/plugins/access'
+
 /**
  * Atlas managers may only create regions inside their owned subtree — i.e. as a
  * child of a region they own. The access grant (`regionSubtreeAccess`) already
@@ -11,11 +13,11 @@ import { APIError } from 'payload'
  * runs only on real writes (never during permission/capability checks), so it
  * can reject a parentless create outright.
  *
- * Only admins (who legitimately create countries) and atlas-managers ever reach
- * a regions `create`: every other role is denied `regions: create` by access,
- * and the document-manager fallback grants read/update only. So a non-admin
- * manager here is necessarily the subtree-scoped atlas-manager; admins pass
- * through untouched.
+ * Admins create regions anywhere — including root countries — so they're let
+ * through explicitly up front. Beyond admins, only the subtree-scoped
+ * atlas-manager role grants `regions: create` (the document-manager fallback
+ * grants read/update only), so a non-admin manager reaching this create is
+ * necessarily that scoped manager.
  */
 export const requireOwnedParentOnCreate: CollectionBeforeValidateHook = ({
   data,
@@ -24,6 +26,7 @@ export const requireOwnedParentOnCreate: CollectionBeforeValidateHook = ({
 }) => {
   if (operation !== 'create') return data
   const user = req.user
+  if (isAdminManager(user)) return data
   const isScopedManager =
     user?.collection === 'managers' && (user as { type?: string }).type === 'manager'
   if (isScopedManager && !data?.parent) {
