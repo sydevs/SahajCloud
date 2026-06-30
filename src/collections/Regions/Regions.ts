@@ -410,7 +410,15 @@ export const Regions: CollectionConfig = {
     // Breadcrumbs are populated by plugin-nested-docs. Defining the field here
     // (top-level, so the plugin reuses it instead of injecting its own) lets us
     // hide it — it's an internal denormalization, not something managers edit.
-    createBreadcrumbsField('regions', { admin: { hidden: true } }),
+    //
+    // `localized: false` overrides the plugin's localized-by-default. Region
+    // `name` (the breadcrumb label) isn't localized, so the trail is identical
+    // in every locale; keeping it localized partitions it per-locale and breaks
+    // any reverse-lookup on `breadcrumbs.doc` in a locale where the trail wasn't
+    // written — the recursive child joins above return nothing, and the
+    // document-manager descendant query (documentManagers.ts) resolves zero
+    // descendants. Non-localized makes this one denormalized path locale-stable.
+    createBreadcrumbsField('regions', { localized: false, admin: { hidden: true } }),
     ...legacyMigrationFields(),
   ],
 }
