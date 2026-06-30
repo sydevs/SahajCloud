@@ -160,6 +160,17 @@ export function regionLevelLabel(level: RegionLevel): string {
   return REGION_LEVEL_LABEL[level]
 }
 
+/**
+ * Admin create-page URL for a new child region, pre-seeded with its parent +
+ * level. `RegionCreatePrefill` reads the `parent` / `childLevel` params to seed
+ * the form; both the Atlas sidebar "+" links and the Regions child-tab "New …"
+ * buttons build it. `URLSearchParams` keeps the values encoded.
+ */
+export function buildRegionCreateUrl(parentId: number | string, childLevel: RegionLevel): string {
+  const params = new URLSearchParams({ parent: String(parentId), childLevel })
+  return `/admin/collections/regions/create?${params.toString()}`
+}
+
 /** The region fields the tree builder needs (from the owned-region subtree). */
 export interface SidebarRegionInput {
   id: number

@@ -2142,7 +2142,7 @@ export interface Region {
     totalDocs?: number;
   };
   /**
-   * Region-level nodes nested directly beneath this one.
+   * Region-level nodes anywhere beneath this one.
    */
   childrenRegions?: {
     docs?: (number | Region)[];
@@ -2150,7 +2150,7 @@ export interface Region {
     totalDocs?: number;
   };
   /**
-   * Cities nested directly beneath this one.
+   * Cities anywhere beneath this one.
    */
   childrenCities?: {
     docs?: (number | Region)[];
@@ -2158,7 +2158,7 @@ export interface Region {
     totalDocs?: number;
   };
   /**
-   * SY Centers nested directly beneath this one.
+   * SY Centers anywhere beneath this one.
    */
   childrenCenters?: {
     docs?: (number | Region)[];

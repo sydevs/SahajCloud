@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   bucketForEvent,
+  buildRegionCreateUrl,
   buildRegionTree,
   childLevelOf,
   type EventBucket,
@@ -178,6 +179,23 @@ describe('regionLevelLabel', () => {
     expect(regionLevelLabel('region')).toBe('Region')
     expect(regionLevelLabel('city')).toBe('City')
     expect(regionLevelLabel('center')).toBe('SY Center')
+  })
+})
+
+describe('buildRegionCreateUrl', () => {
+  // The `parent` / `childLevel` param names are a contract: RegionCreatePrefill
+  // reads them to seed the create form, and both the sidebar "+" links and the
+  // child-tab "New …" buttons build the URL through this helper.
+  it('builds the prefilled create URL with parent + childLevel params', () => {
+    expect(buildRegionCreateUrl(42, 'city')).toBe(
+      '/admin/collections/regions/create?parent=42&childLevel=city',
+    )
+  })
+
+  it('accepts a string parent id', () => {
+    expect(buildRegionCreateUrl('7', 'center')).toBe(
+      '/admin/collections/regions/create?parent=7&childLevel=center',
+    )
   })
 })
 

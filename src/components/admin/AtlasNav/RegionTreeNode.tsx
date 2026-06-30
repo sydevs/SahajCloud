@@ -6,7 +6,11 @@ import { usePathname } from 'next/navigation'
 import React, { useState } from 'react'
 
 import type { RegionCounts, RegionLevel } from '@/lib/atlasSidebar/sidebarModel'
-import { childLevelOf, regionLevelLabel } from '@/lib/atlasSidebar/sidebarModel'
+import {
+  buildRegionCreateUrl,
+  childLevelOf,
+  regionLevelLabel,
+} from '@/lib/atlasSidebar/sidebarModel'
 
 import { CountPill } from './CountPill'
 import { HoverTooltip } from './HoverTooltip'
@@ -138,7 +142,7 @@ export function RegionTreeNode({
             <Link
               aria-label={`Add a new ${regionLevelLabel(childLevel)} under ${name}`}
               className={styles.addChild}
-              href={`/admin/collections/regions/create?parent=${id}&childLevel=${childLevel}`}
+              href={buildRegionCreateUrl(id, childLevel)}
               onClick={(event: React.MouseEvent) => event.stopPropagation()}
               onMouseDown={(event: React.MouseEvent) => event.stopPropagation()}
               prefetch={false}
