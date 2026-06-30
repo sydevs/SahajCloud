@@ -134,7 +134,7 @@ export function RegionTreeNode({
         {/* Fills the rest of the row; clicking it toggles (the row owns the click). */}
         <span aria-hidden style={{ flexGrow: 1, alignSelf: 'stretch' }} />
         {childLevel ? (
-          <HoverTooltip alignCaret="center" text={`New ${regionLevelLabel(childLevel)}`}>
+          <HoverTooltip text={`New ${regionLevelLabel(childLevel)}`}>
             <Link
               aria-label={`Add a new ${regionLevelLabel(childLevel)} under ${name}`}
               className={styles.addChild}
