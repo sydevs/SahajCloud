@@ -2,6 +2,7 @@ import { Block } from 'payload'
 
 export const SplashBlock: Block = {
   slug: 'splash',
+  interfaceName: 'SplashBlock',
   // Icon: Full-width banner (20x20, gray stroked)
   imageURL:
     'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSJub25lIiBzdHJva2U9IiM2QjcyODAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3QgeD0iMiIgeT0iNCIgd2lkdGg9IjE2IiBoZWlnaHQ9IjEyIiByeD0iMSIvPjxjaXJjbGUgY3g9IjYiIGN5PSI4IiByPSIxLjUiLz48bGluZSB4MT0iNiIgeTE9IjEyIiB4Mj0iMTQiIHkyPSIxMiIvPjxsaW5lIHgxPSI4IiB5MT0iMTQiIHgyPSIxMiIgeTI9IjE0Ii8+PC9zdmc+Cg==',

@@ -2,6 +2,7 @@ import { Block } from 'payload'
 
 export const QuoteBlock: Block = {
   slug: 'quote',
+  interfaceName: 'QuoteBlock',
   labels: {
     singular: 'Quote Box',
     plural: 'Quote Boxes',
