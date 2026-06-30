@@ -8,6 +8,7 @@ import {
   EVENT_BUCKET_ORDER,
   hasUnpublished,
   type RegionLevel,
+  regionLevelLabel,
   regionPillLabel,
   regionPillStyle,
   regionPillTooltip,
@@ -168,6 +169,15 @@ describe('childLevelOf', () => {
     expect(childLevelOf('region')).toBe('city')
     expect(childLevelOf('city')).toBe('center')
     expect(childLevelOf('center')).toBeNull()
+  })
+})
+
+describe('regionLevelLabel', () => {
+  it('labels each level (center reads as "SY Center")', () => {
+    expect(regionLevelLabel('country')).toBe('Country')
+    expect(regionLevelLabel('region')).toBe('Region')
+    expect(regionLevelLabel('city')).toBe('City')
+    expect(regionLevelLabel('center')).toBe('SY Center')
   })
 })
 

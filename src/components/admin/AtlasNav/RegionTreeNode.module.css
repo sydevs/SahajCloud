@@ -21,6 +21,9 @@
  * link itself is keyboard-focused), and laid out just left of the count pill.
  * opacity (not display) keeps its slot reserved so the pill doesn't jump on
  * hover; pointer-events follow visibility so the hidden + can't be clicked.
+ *
+ * Opacity-based hover state: revealed muted on row hover, full opacity once the
+ * + itself is hovered/focused.
  */
 .addChild {
   display: inline-flex;
@@ -28,7 +31,7 @@
   flex-shrink: 0;
   margin-inline-end: calc(var(--base) * 0.3);
   padding-inline: calc(var(--base) * 0.15);
-  color: var(--theme-elevation-500);
+  color: var(--theme-elevation-600);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.1s ease;
@@ -36,10 +39,11 @@
 
 .row:hover .addChild,
 .addChild:focus-visible {
-  opacity: 1;
+  opacity: 0.55;
   pointer-events: auto;
 }
 
-.addChild:hover {
-  color: var(--theme-success-600);
+.row:hover .addChild:hover,
+.addChild:focus-visible {
+  opacity: 1;
 }

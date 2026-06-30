@@ -143,6 +143,23 @@ export function childLevelOf(level: RegionLevel): RegionLevel | null {
   return CHILD_LEVEL[level]
 }
 
+/**
+ * Display label per level, matching the Regions collection's
+ * `REGION_LEVEL_OPTIONS` (notably center → "SY Center"). Duplicated here rather
+ * than imported so the pure model + client tree stay free of the server collection.
+ */
+const REGION_LEVEL_LABEL: Record<RegionLevel, string> = {
+  country: 'Country',
+  region: 'Region',
+  city: 'City',
+  center: 'SY Center',
+}
+
+/** Human label for a region level (e.g. for an "add child" action/tooltip). */
+export function regionLevelLabel(level: RegionLevel): string {
+  return REGION_LEVEL_LABEL[level]
+}
+
 /** The region fields the tree builder needs (from the owned-region subtree). */
 export interface SidebarRegionInput {
   id: number

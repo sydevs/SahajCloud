@@ -6,9 +6,10 @@ import { usePathname } from 'next/navigation'
 import React, { useState } from 'react'
 
 import type { RegionCounts, RegionLevel } from '@/lib/atlasSidebar/sidebarModel'
-import { childLevelOf } from '@/lib/atlasSidebar/sidebarModel'
+import { childLevelOf, regionLevelLabel } from '@/lib/atlasSidebar/sidebarModel'
 
 import { CountPill } from './CountPill'
+import { HoverTooltip } from './HoverTooltip'
 import { activeDocId } from './navActive'
 import styles from './RegionTreeNode.module.css'
 
@@ -128,16 +129,18 @@ export function RegionTreeNode({
         {/* Fills the rest of the row; clicking it toggles (the row owns the click). */}
         <span aria-hidden style={{ flexGrow: 1, alignSelf: 'stretch' }} />
         {childLevel ? (
-          <Link
-            aria-label={`Add a ${childLevel} under ${name}`}
-            className={styles.addChild}
-            href={`/admin/collections/regions/create?parent=${id}&childLevel=${childLevel}`}
-            onClick={(event: React.MouseEvent) => event.stopPropagation()}
-            onMouseDown={(event: React.MouseEvent) => event.stopPropagation()}
-            prefetch={false}
-          >
-            <Plus size={14} />
-          </Link>
+          <HoverTooltip text={`New ${regionLevelLabel(childLevel)}`}>
+            <Link
+              aria-label={`Add a new ${regionLevelLabel(childLevel)} under ${name}`}
+              className={styles.addChild}
+              href={`/admin/collections/regions/create?parent=${id}&childLevel=${childLevel}`}
+              onClick={(event: React.MouseEvent) => event.stopPropagation()}
+              onMouseDown={(event: React.MouseEvent) => event.stopPropagation()}
+              prefetch={false}
+            >
+              <Plus size={14} />
+            </Link>
+          </HoverTooltip>
         ) : null}
         {showPill ? <CountPill counts={counts} /> : null}
       </div>
