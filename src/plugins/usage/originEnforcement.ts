@@ -66,7 +66,7 @@ export function parseAllowedDomains(raw: string | null | undefined): string[] {
  */
 export function extractRequestHost(req: PayloadRequest): string | null {
   const origin = req.headers?.get?.('origin')
-  if (origin && origin !== 'null') {
+  if (origin && origin.toLowerCase() !== 'null') {
     const fromOrigin = normalizeHost(origin)
     if (fromOrigin) return fromOrigin
   }

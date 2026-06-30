@@ -37,6 +37,23 @@ describe('normalizeHost', () => {
     expect(normalizeHost(undefined)).toBeNull()
     expect(normalizeHost('*')).toBeNull()
   })
+
+  it('converts IDN to punycode identically for the URL and bare-host forms', () => {
+    // The request side (browser Origin) arrives already punycoded; normalizing the
+    // config side the same way means they compare equal — and a lookalike ASCII
+    // host does NOT (no homograph bypass).
+    expect(normalizeHost('https://MÜNCHEN.de')).toBe(normalizeHost('münchen.de'))
+    expect(normalizeHost('münchen.de')).not.toBe(normalizeHost('munchen.de'))
+  })
+
+  it('normalizes IPv6 hosts in brackets, dropping the port', () => {
+    expect(normalizeHost('[::1]')).toBe('[::1]')
+    expect(normalizeHost('http://[::1]:8080/path')).toBe('[::1]')
+  })
+
+  it('returns null for a malformed URL the parser rejects', () => {
+    expect(normalizeHost('https://[incomplete')).toBeNull()
+  })
 })
 
 describe('parseAllowedDomains', () => {
@@ -87,6 +104,13 @@ describe('isHostAllowed', () => {
     expect(isHostAllowed(null, ['example.org'])).toBe(false)
     expect(isHostAllowed('example.org', [])).toBe(false)
   })
+
+  it('does not let an IDN lookalike match its ASCII allowlist entry', () => {
+    const requestHost = normalizeHost('münchen.de') // xn--… punycode
+    expect(requestHost).not.toBeNull()
+    expect(isHostAllowed(requestHost, ['munchen.de'])).toBe(false)
+    expect(isHostAllowed(requestHost, [normalizeHost('münchen.de')!])).toBe(true)
+  })
 })
 
 describe('extractRequestHost', () => {
@@ -103,10 +127,19 @@ describe('extractRequestHost', () => {
     expect(extractRequestHost(reqWith({ referer: 'https://b.org/page?q=1' }))).toBe('b.org')
   })
 
-  it('treats an opaque "null" Origin as absent and falls back to Referer', () => {
+  it('treats an opaque "null" Origin (any case) as absent and falls back to Referer', () => {
     expect(extractRequestHost(reqWith({ origin: 'null', referer: 'https://b.org/x' }))).toBe(
       'b.org',
     )
+    expect(extractRequestHost(reqWith({ origin: 'NULL', referer: 'https://b.org/x' }))).toBe(
+      'b.org',
+    )
+  })
+
+  it('falls back to Referer when the Origin is malformed', () => {
+    expect(
+      extractRequestHost(reqWith({ origin: 'https://[incomplete', referer: 'https://b.org/x' })),
+    ).toBe('b.org')
   })
 
   it('returns null when neither Origin nor Referer is present', () => {
