@@ -92,6 +92,9 @@ export function RegionTreeNode({
         style={{
           paddingInlineStart: indent,
           paddingInlineEnd: 0,
+          // Gap between the add-child + and the count pill (so neither carries a
+          // margin) — lets the + sit flush-right with the pills when alone.
+          columnGap: 'calc(var(--base) * 0.3)',
           cursor: hasChildren ? 'pointer' : 'default',
         }}
       >
@@ -129,7 +132,7 @@ export function RegionTreeNode({
         {/* Fills the rest of the row; clicking it toggles (the row owns the click). */}
         <span aria-hidden style={{ flexGrow: 1, alignSelf: 'stretch' }} />
         {childLevel ? (
-          <HoverTooltip text={`New ${regionLevelLabel(childLevel)}`}>
+          <HoverTooltip alignCaret="center" text={`New ${regionLevelLabel(childLevel)}`}>
             <Link
               aria-label={`Add a new ${regionLevelLabel(childLevel)} under ${name}`}
               className={styles.addChild}

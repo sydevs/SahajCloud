@@ -8,7 +8,20 @@ import React, { useState } from 'react'
  * Payload pattern (cf. the `Locked` element, which drives `Tooltip.show` from
  * a `hovered` state). Used for the sidebar's stage icons and region count pills.
  */
-export function HoverTooltip({ text, children }: { text: string; children: React.ReactNode }) {
+export function HoverTooltip({
+  text,
+  alignCaret = 'right',
+  children,
+}: {
+  text: string
+  /**
+   * Where the caret sits within the tooltip box. The box is always centred on
+   * the trigger, so `center` points the caret right at a narrow trigger (the +
+   * button); `right` (default) suits wider triggers near the panel edge (pills).
+   */
+  alignCaret?: 'center' | 'left' | 'right'
+  children: React.ReactNode
+}) {
   const [hovered, setHovered] = useState(false)
   return (
     <span
@@ -18,7 +31,7 @@ export function HoverTooltip({ text, children }: { text: string; children: React
       onMouseLeave={() => setHovered(false)}
       style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
     >
-      <Tooltip alignCaret="right" position="top" show={hovered}>
+      <Tooltip alignCaret={alignCaret} position="top" show={hovered}>
         {text}
       </Tooltip>
       {children}

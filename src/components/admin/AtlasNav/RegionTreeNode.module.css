@@ -29,7 +29,6 @@
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  margin-inline-end: calc(var(--base) * 0.3);
   padding-inline: calc(var(--base) * 0.15);
   color: var(--theme-elevation-600);
   opacity: 0;
