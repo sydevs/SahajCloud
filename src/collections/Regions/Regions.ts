@@ -418,6 +418,8 @@ export const Regions: CollectionConfig = {
     // written — the recursive child joins above return nothing, and the
     // document-manager descendant query (documentManagers.ts) resolves zero
     // descendants. Non-localized makes this one denormalized path locale-stable.
+    // (The joins key on `doc` id, which is locale-invariant; if `name` ever
+    // becomes localized, only the hidden breadcrumb labels would go stale.)
     createBreadcrumbsField('regions', { localized: false, admin: { hidden: true } }),
     ...legacyMigrationFields(),
   ],

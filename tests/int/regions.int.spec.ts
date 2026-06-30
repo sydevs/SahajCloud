@@ -155,8 +155,9 @@ describe('Regions child-join recursive descendants', () => {
   describe('locale independence', () => {
     it('returns the same descendant set in a non-default locale (cs)', async () => {
       // The tree is created in the default locale (en); breadcrumbs are
-      // localized, but the `doc` ids are the same tree across locales, so the
-      // descendant set a manager sees must not depend on the admin UI locale.
+      // non-localized (see Regions.ts), so the reverse-lookup on `breadcrumbs.doc`
+      // is locale-stable — the descendant set a manager sees must not depend on
+      // the admin UI locale.
       const en = await readRegion(countryA, 'en')
       const cs = await readRegion(countryA, 'cs')
 
