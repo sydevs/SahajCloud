@@ -362,11 +362,15 @@ export const Regions: CollectionConfig = {
               // single reverse-lookup, so `on: 'parent'` returns only direct
               // children. Every node's breadcrumb trail holds all of its ancestors
               // (root → self), so a `breadcrumbs.doc` matching this node selects
-              // every descendant at any depth. The per-level `where` keeps each tab
-              // to one level and excludes the node itself — its level is always
-              // shallower than the child level the tab is shown for. (Payload's
-              // sanitizer supports a relationship nested in a localized array and
-              // auto-indexes the column — see sanitizeJoinField.)
+              // every descendant at any depth. The per-level `where` scopes each tab
+              // to one level. Self-exclusion comes not from the `where` alone but
+              // from `childLevelVisible` (the tab condition): it shows a tab only
+              // when the node's level is a strict ancestor of `level`, so the node's
+              // own row (at the node's level) never matches the filter. Read outside
+              // that gating, the bare field would include a same-level node — moot,
+              // as these fields have no API consumer. (Payload's sanitizer supports a
+              // relationship nested in a localized array and auto-indexes the column
+              // — see sanitizeJoinField.)
               on: 'breadcrumbs.doc',
               where: { level: { equals: level } },
               // Result sets are larger now (all descendants), so paginate.
