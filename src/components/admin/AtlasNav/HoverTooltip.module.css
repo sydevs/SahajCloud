@@ -1,0 +1,12 @@
+/*
+ * Payload hides `.tooltip` below 1024px (its `mid-break`: `display: none`) —
+ * which is why the styled tooltip never appeared in the sidebar. Force it
+ * visible for the copies we portal out (scoped to `.portal`, so other Payload
+ * tooltips keep their default behaviour). `block` is its default at wider widths
+ * anyway, so this only changes anything below the breakpoint. `!important`
+ * because Payload's rule lives in a cascade layer that we can't reliably out-rank
+ * from a CSS module.
+ */
+.portal :global(.tooltip) {
+  display: block !important;
+}
