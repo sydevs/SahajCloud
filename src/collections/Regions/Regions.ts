@@ -359,6 +359,17 @@ export const Regions: CollectionConfig = {
             admin: { condition: childLevelVisible(level) },
             fields: [
               {
+                // "New <Level>" link above the table, pre-filled with the right level +
+                // parent via the create-page query params RegionCreatePrefill reads (the
+                // recursive join can't carry that through its native, disabled "Add New").
+                name: `${name}Add`,
+                type: 'ui' as const,
+                admin: {
+                  custom: { childLevel: level, levelLabel },
+                  components: { Field: '@/components/admin/AddChildRegionButton' },
+                },
+              },
+              {
                 name,
                 // The tab already names it (Regions/Cities/Centers); the field's own
                 // "Children …" heading is redundant, so suppress it.
@@ -384,24 +395,13 @@ export const Regions: CollectionConfig = {
                 defaultLimit: 50,
                 admin: {
                   // Native "Add New" seeds the `on` field (breadcrumbs.doc) — useless
-                  // here — so hide it; the AddChildRegionButton below replaces it with
+                  // here — so hide it; the AddChildRegionButton above replaces it with
                   // a level + parent-prefilled create link.
                   allowCreate: false,
                   // `level` is constant within a tab (filtered above), so surface
                   // `parent` instead — it shows where each descendant sits.
                   defaultColumns: ['name', 'parent'],
                   description,
-                },
-              },
-              {
-                // "New <Level>" link, pre-filled with the right level + parent via the
-                // create-page query params RegionCreatePrefill reads (the recursive
-                // join can't carry that through its native, disabled "Add New").
-                name: `${name}Add`,
-                type: 'ui' as const,
-                admin: {
-                  custom: { childLevel: level, levelLabel },
-                  components: { Field: '@/components/admin/AddChildRegionButton' },
                 },
               },
             ],
