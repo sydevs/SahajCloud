@@ -10,6 +10,10 @@ import { ShowMore } from './ShowMore'
 /** Show this many event rows before collapsing the rest behind "Show more". */
 const COLLAPSE_AFTER = 8
 
+/** Render events as nav rows — shared by the visible list and the collapsed overflow. */
+const eventRows = (events: SidebarEventItem[]) =>
+  events.map((event) => <EventRow event={event} key={event.id} />)
+
 /**
  * The manager's events, bucket-ordered, under a collapsible nav group that
  * matches the default nav's section headers, with a "Create Event" action when
@@ -27,15 +31,9 @@ export function EventList({
   const overflow = events.slice(COLLAPSE_AFTER)
   return (
     <NavGroup label="Your Events">
-      {visible.map((event) => (
-        <EventRow event={event} key={event.id} />
-      ))}
+      {eventRows(visible)}
       {overflow.length > 0 ? (
-        <ShowMore count={overflow.length}>
-          {overflow.map((event) => (
-            <EventRow event={event} key={event.id} />
-          ))}
-        </ShowMore>
+        <ShowMore count={overflow.length}>{eventRows(overflow)}</ShowMore>
       ) : null}
       {canCreate ? <CreateEventButton /> : null}
     </NavGroup>
