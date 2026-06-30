@@ -24,12 +24,14 @@ export function CreateEventButton() {
         gap: 'calc(var(--base) * 0.35)',
         paddingBlock: 'calc(var(--base) * 0.3)',
         color: 'var(--theme-success-600)',
-        fontSize: '0.9rem',
         fontWeight: 600,
       }}
     >
-      <Plus size={15} aria-hidden style={{ flexShrink: 0 }} />
-      <span className="nav__link-label" style={{ color: 'inherit', fontSize: 'inherit' }}>
+      {/* `em` sizes track the nav link font-size (13px → 17.5px on mobile). Left
+          unset, the Link inherits the responsive nav__link size; the label is
+          0.9em of it (smaller, as before) and the icon a touch larger. */}
+      <Plus size="1.15em" aria-hidden style={{ flexShrink: 0 }} />
+      <span className="nav__link-label" style={{ color: 'inherit', fontSize: '0.9em' }}>
         New Event
       </span>
     </Link>

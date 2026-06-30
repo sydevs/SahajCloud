@@ -92,9 +92,11 @@ export function RegionTreeNode({
         style={{
           paddingInlineStart: indent,
           paddingInlineEnd: 0,
-          // Gap between the add-child + and the count pill (so neither carries a
-          // margin) — lets the + sit flush-right with the pills when alone.
-          columnGap: 'calc(var(--base) * 0.3)',
+          // Small gap between the add-child + and the count pill (so neither
+          // carries a margin) — lets the + sit flush-right with the pills when
+          // alone. Kept small; most of the +↔pill separation is the +'s own
+          // padding, which is also its (otherwise tiny) hover/tooltip target.
+          columnGap: 'calc(var(--base) * 0.15)',
           cursor: hasChildren ? 'pointer' : 'default',
         }}
       >
@@ -113,7 +115,7 @@ export function RegionTreeNode({
             }}
           >
             <ChevronRight
-              size={14}
+              size="1.1em"
               style={{
                 transform: expanded ? 'rotate(90deg)' : 'none',
                 transition: 'transform 0.15s ease',
@@ -141,7 +143,7 @@ export function RegionTreeNode({
               onMouseDown={(event: React.MouseEvent) => event.stopPropagation()}
               prefetch={false}
             >
-              <Plus size={14} />
+              <Plus size="1.1em" />
             </Link>
           </HoverTooltip>
         ) : null}

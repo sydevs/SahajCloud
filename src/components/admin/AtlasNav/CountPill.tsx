@@ -17,7 +17,9 @@ import { HoverTooltip } from './HoverTooltip'
 // padding via the Pill's own `--pill-padding-*` vars — for a smaller-but-still-
 // Pill badge. Inline styles override the (layered) class defaults.
 const COMPACT = {
-  fontSize: '0.8rem',
+  // `em` (not `rem`) so the pill tracks the nav link font-size, which Payload
+  // bumps from 13px to 17.5px on mobile (≤768px).
+  fontSize: '0.8em',
   lineHeight: 1.5,
   // Never inherit the row's hover underline onto the pill text.
   textDecoration: 'none',

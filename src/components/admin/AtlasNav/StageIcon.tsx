@@ -41,7 +41,8 @@ export function StageIcon({ bucket }: { bucket: EventBucket }) {
   const meta = EVENT_BUCKET_META[bucket]
   return (
     <HoverTooltip text={meta.tooltip}>
-      <Icon aria-label={meta.label} color={BUCKET_COLOR[bucket]} size={16} />
+      {/* `em` so the glyph tracks the nav link font-size (13px → 17.5px on mobile). */}
+      <Icon aria-label={meta.label} color={BUCKET_COLOR[bucket]} size="1.2em" />
     </HoverTooltip>
   )
 }
