@@ -11,6 +11,7 @@ import React, { useState } from 'react'
 export function HoverTooltip({
   text,
   alignCaret = 'right',
+  delay = 0,
   children,
 }: {
   text: string
@@ -20,6 +21,12 @@ export function HoverTooltip({
    * button); `right` (default) suits wider triggers near the panel edge (pills).
    */
   alignCaret?: 'center' | 'left' | 'right'
+  /**
+   * Show delay in ms. Payload's `Tooltip` defaults to 350ms, which on these
+   * small nav triggers reads as "no tooltip" — a brief hover never reaches it.
+   * Default to 0 (instant) here.
+   */
+  delay?: number
   children: React.ReactNode
 }) {
   const [hovered, setHovered] = useState(false)
@@ -31,7 +38,7 @@ export function HoverTooltip({
       onMouseLeave={() => setHovered(false)}
       style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
     >
-      <Tooltip alignCaret={alignCaret} position="top" show={hovered}>
+      <Tooltip alignCaret={alignCaret} delay={delay} position="top" show={hovered}>
         {text}
       </Tooltip>
       {children}

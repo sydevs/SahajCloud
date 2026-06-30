@@ -29,11 +29,10 @@
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  /* Generous padding: the icon alone is a tiny (and thus easily-missed) hover
-     target, so the padding both enlarges the hover/tooltip area and supplies
-     most of the gap to the count pill. */
+  /* Inline padding widens the (otherwise tiny) hover/tooltip target and supplies
+     most of the gap to the count pill. No block padding — it would make the +
+     taller than the row's line-height and stretch the row past the other links. */
   padding-inline: calc(var(--base) * 0.3);
-  padding-block: calc(var(--base) * 0.3);
   color: var(--theme-elevation-600);
   opacity: 0;
   pointer-events: none;
