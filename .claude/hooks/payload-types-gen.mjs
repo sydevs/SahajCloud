@@ -3,8 +3,13 @@
 /**
  * Payload Types Generation Hook (PostToolUse / Edit|Write)
  *
- * Regenerates TypeScript types when collection / block / field / global schemas
- * or payload.config.ts change. Runs silently on success; reports errors only.
+ * Regenerates TypeScript types when a Payload schema source changes. Watched paths:
+ *   - src/collections/
+ *   - src/lib/richEditor/blocks/  (Lexical page-block configs live here, NOT src/blocks/)
+ *   - src/fields/
+ *   - src/globals/
+ *   - src/payload.config.ts
+ * Runs silently on success; reports errors only.
  */
 
 import { execSync } from 'child_process'
@@ -18,7 +23,7 @@ const rel = filePath.startsWith(projectDir + '/') ? filePath.slice(projectDir.le
 
 const shouldRegenerate =
   /^src\/collections\//.test(rel) ||
-  /^src\/blocks\//.test(rel) ||
+  /^src\/lib\/richEditor\/blocks\//.test(rel) ||
   /^src\/fields\//.test(rel) ||
   /^src\/globals\//.test(rel) ||
   rel === 'src/payload.config.ts'

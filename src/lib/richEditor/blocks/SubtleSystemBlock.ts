@@ -2,6 +2,7 @@ import { Block } from 'payload'
 
 export const SubtleSystemBlock: Block = {
   slug: 'subtle-system',
+  interfaceName: 'SubtleSystemBlock',
   // Icon: Lotus flower with three petals (20x20, gray filled)
   imageURL:
     'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSIjNkI3MjgwIj48cGF0aCBkPSJNMTAgM2MtMSAzLTIgNi0yIDhoNGMwLTItMS01LTItOHoiLz48cGF0aCBkPSJNOCAxMWMtNC0xLTYgMS02IDFzMyAyIDYgMnYtM3oiLz48cGF0aCBkPSJNMTIgMTFjNC0xIDYgMSA2IDFzLTMgMi02IDJ2LTN6Ii8+PHBhdGggZD0iTTkgMTVoMnYzSDl6Ii8+PC9zdmc+Cg==',

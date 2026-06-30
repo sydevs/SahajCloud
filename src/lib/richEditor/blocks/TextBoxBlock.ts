@@ -4,6 +4,7 @@ import { mediaField } from '@/fields'
 
 export const TextBoxBlock: Block = {
   slug: 'textbox',
+  interfaceName: 'TextBoxBlock',
   // Icon: Rectangle with text lines and image placeholder (20x20, gray stroked)
   imageURL:
     'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSJub25lIiBzdHJva2U9IiM2QjcyODAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3QgeD0iMiIgeT0iMyIgd2lkdGg9IjE2IiBoZWlnaHQ9IjE0IiByeD0iMSIvPjxsaW5lIHgxPSI1IiB5MT0iNyIgeDI9IjEwIiB5Mj0iNyIvPjxsaW5lIHgxPSI1IiB5MT0iMTAiIHgyPSI5IiB5Mj0iMTAiLz48bGluZSB4MT0iNSIgeTE9IjEzIiB4Mj0iOCIgeTI9IjEzIi8+PHJlY3QgeD0iMTIiIHk9IjYiIHdpZHRoPSI0IiBoZWlnaHQ9IjUiIHJ4PSIwLjUiLz48L3N2Zz4K',
