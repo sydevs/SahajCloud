@@ -3,6 +3,7 @@ import type { Endpoint } from 'payload'
 
 import { randomUUID } from 'node:crypto'
 
+import { APIError } from 'payload'
 import { z } from 'zod'
 
 import { parseBody, requireActiveClient } from '@/lib/endpoints'
@@ -29,7 +30,9 @@ const bodySchema = z.object({
  * published client key (`requireActiveClient`); the event-existence read below is
  * an ordinary client read, so Cloudflare edge rate limiting + the usage plugin's
  * tracking cover abuse exactly as they do for every other client request.
- * (Per-origin `allowedDomains` enforcement is deferred to #509.)
+ * Per-origin `allowedDomains` enforcement also applies: the events lookup runs the
+ * usage plugin's `validateClientOriginHook`, which 403s a disallowed Origin/Referer
+ * (surfaced verbatim by the catch below).
  *
  * Flow: parse the `:id` + body → confirm the event is one the client may see
  * (published + project-visible) → upsert the registrant `user` by normalized
@@ -122,6 +125,12 @@ export const registerForEvent: Endpoint = {
       }
       return Response.json(body, { status: 201 })
     } catch (error) {
+      // validateClientOriginHook throws APIError(403) for a disallowed origin (and
+      // query validation could throw 400) from the reads above — surface its
+      // status + message verbatim rather than masking it as a 500.
+      if (error instanceof APIError) {
+        return Response.json({ errors: [{ message: error.message }] }, { status: error.status })
+      }
       req.payload.logger.error({
         msg: 'registerForEvent: registration failed',
         clientId: req.user?.id,

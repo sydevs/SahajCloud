@@ -10,7 +10,12 @@
 import type { CollectionSlug, Config } from 'payload'
 
 import { SYSTEM_EXCLUSIONS } from './constants'
-import { rateLimitHook, usageTrackingHook, validateClientQueryParamsHook } from './hooks'
+import {
+  rateLimitHook,
+  usageTrackingHook,
+  validateClientOriginHook,
+  validateClientQueryParamsHook,
+} from './hooks'
 import { resetUsageTask } from './tasks'
 
 /**
@@ -49,6 +54,9 @@ export function usagePlugin(
           ...collection.hooks,
           beforeOperation: [
             ...(collection.hooks?.beforeOperation || []),
+            // Origin enforcement runs first — a disallowed origin is rejected
+            // before query-shape validation or any rate accounting.
+            validateClientOriginHook,
             validateClientQueryParamsHook,
             rateLimitHook,
           ],
