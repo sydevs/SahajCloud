@@ -356,6 +356,9 @@ export const Regions: CollectionConfig = {
           fields: [
             {
               name,
+              // The tab already names it (Regions/Cities/Centers); the field's own
+              // "Children …" heading is redundant, so suppress it.
+              label: false as const,
               type: 'join' as const,
               collection: 'regions' as const,
               // Join on the denormalized ancestor path, not `parent`: a join is a
