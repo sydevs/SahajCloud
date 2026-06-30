@@ -1,12 +1,33 @@
 'use client'
 
+import { useProject } from '@/contexts/ProjectContext'
+
 import NavLink from './NavLink'
 
-const AdminNavLinks = () => (
-  <div style={{ marginBottom: 'calc(var(--base) * 0.5)', width: '100%' }}>
-    <NavLink href="/admin" label="Dashboard" />
-    <NavLink href="/admin/analytics" label="Analytics" />
-  </div>
-)
+const LINKS = [
+  { key: 'dashboard', href: '/admin', label: 'Dashboard' },
+  { key: 'analytics', href: '/admin/analytics', label: 'Analytics' },
+  { key: 'map', href: '/admin/map', label: 'Public Map', project: 'sahaj-atlas' },
+] as const
+
+export type AdminNavLinkKey = (typeof LINKS)[number]['key']
+
+/** Top-of-sidebar links. Pass `disabled` to hide specific links (e.g. the Atlas sidebar hides the dashboard). */
+const AdminNavLinks = ({ disabled = [] }: { disabled?: AdminNavLinkKey[] }) => {
+  const { currentProject } = useProject()
+  const links = LINKS.filter((link) => {
+    if (disabled.includes(link.key)) return false
+    if ('project' in link && link.project !== currentProject) return false
+    return true
+  })
+
+  return (
+    <div style={{ marginBottom: 'calc(var(--base) * 0.5)', width: '100%' }}>
+      {links.map((link) => (
+        <NavLink href={link.href} key={link.key} label={link.label} />
+      ))}
+    </div>
+  )
+}
 
 export default AdminNavLinks

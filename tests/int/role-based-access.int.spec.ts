@@ -415,6 +415,314 @@ describe('Role-Based Access Control', () => {
     })
   })
 
+  describe('Atlas manager — region-subtree write scoping', () => {
+    const managerUser = (m: { id: number }) => ({ ...m, collection: 'managers' as const })
+
+    let atlasManager: Awaited<ReturnType<typeof testData.createManager>>
+    let fillerId: number
+    let countryId: number
+    let regionId: number
+    let cityId: number
+    let centerId: number
+    let otherCountryId: number
+    let otherCenterId: number
+
+    // Non-'manual' mapboxId keeps the conditionally-required coordinate fields out
+    // of validation. Pass a `user` to exercise access (overrideAccess: false);
+    // omit it to set up fixtures as admin.
+    const createRegion = (data: Record<string, unknown>, user?: { id: number }) =>
+      payload.create({
+        collection: 'regions',
+        data: {
+          level: 'country',
+          name: 'Region',
+          mapboxId: `place.${Math.random().toString(36).slice(2)}`,
+          managers: [fillerId],
+          ...data,
+        },
+        depth: 0,
+        ...(user ? { user: managerUser(user), overrideAccess: false } : { overrideAccess: true }),
+      })
+
+    const createEvent = (data: Record<string, unknown>, user?: { id: number }) =>
+      payload.create({
+        collection: 'events',
+        // draft: the now-required title/schedule are validated only on publish.
+        draft: true,
+        data: {
+          eventType: 'offline',
+          registrationMode: 'sahaj-atlas',
+          manager: fillerId,
+          ...data,
+        },
+        depth: 0,
+        ...(user ? { user: managerUser(user), overrideAccess: false } : { overrideAccess: true }),
+      })
+
+    beforeAll(async () => {
+      const filler = await testData.createManager(payload, { name: 'Atlas Filler', roles: [] })
+      fillerId = filler.id
+      atlasManager = await testData.createManager(payload, {
+        name: 'Atlas Manager',
+        roles: ['atlas-manager'],
+      })
+
+      // country > region (owned) > city > center, plus a separate branch.
+      // Distinct names from the sibling describe block (slugs are unique).
+      const country = await createRegion({ level: 'country', name: 'AtlasMgr Country' })
+      countryId = country.id
+      const region = await createRegion({
+        level: 'region',
+        name: 'AtlasMgr Region',
+        parent: countryId,
+        managers: [atlasManager.id],
+      })
+      regionId = region.id
+      const city = await createRegion({ level: 'city', name: 'AtlasMgr City', parent: regionId })
+      cityId = city.id
+      const center = await createRegion({
+        level: 'center',
+        name: 'AtlasMgr Center',
+        parent: cityId,
+      })
+      centerId = center.id
+
+      const otherCountry = await createRegion({ level: 'country', name: 'AtlasMgr Otherland' })
+      otherCountryId = otherCountry.id
+      const otherCity = await createRegion({
+        level: 'city',
+        name: 'AtlasMgr Far City',
+        parent: otherCountryId,
+      })
+      const otherCenter = await createRegion({
+        level: 'center',
+        name: 'AtlasMgr Far Center',
+        parent: otherCity.id,
+      })
+      otherCenterId = otherCenter.id
+    })
+
+    it('exposes the role as project-scoped: read everywhere, write only on events/regions', () => {
+      const user = managerUser(atlasManager)
+      // Project-wide implicit read across the Atlas collections.
+      for (const collection of ['events', 'regions', 'registrations'] as const) {
+        expect(hasPermission({ user, collection, operation: 'read' }, bypassPermissions)).toBe(true)
+      }
+      // Role grants events CUD and regions CU (scoped at the access layer); no
+      // region delete, and nothing on unrelated collections.
+      expect(
+        hasPermission({ user, collection: 'events', operation: 'delete' }, bypassPermissions),
+      ).toBe(true)
+      expect(
+        hasPermission({ user, collection: 'regions', operation: 'update' }, bypassPermissions),
+      ).toBe(true)
+      expect(
+        hasPermission({ user, collection: 'regions', operation: 'delete' }, bypassPermissions),
+      ).toBe(false)
+      expect(
+        hasPermission({ user, collection: 'meditations', operation: 'update' }, bypassPermissions),
+      ).toBe(false)
+    })
+
+    it('reads regions and events project-wide, not just within its subtree', async () => {
+      const region = await payload.findByID({
+        collection: 'regions',
+        id: otherCountryId,
+        user: managerUser(atlasManager),
+        overrideAccess: false,
+      })
+      expect(region.id).toBe(otherCountryId)
+
+      const event = await createEvent({ region: otherCenterId, address: { street: 'Far' } })
+      const seen = await payload.findByID({
+        collection: 'events',
+        id: event.id,
+        user: managerUser(atlasManager),
+        overrideAccess: false,
+      })
+      expect(seen.id).toBe(event.id)
+    })
+
+    it('updates regions within its subtree, but not a sibling branch or an ancestor', async () => {
+      const updated = await payload.update({
+        collection: 'regions',
+        id: cityId,
+        data: { subtitle: 'mine' },
+        user: managerUser(atlasManager),
+        overrideAccess: false,
+      })
+      expect(updated.id).toBe(cityId)
+
+      for (const id of [otherCenterId, countryId]) {
+        await expect(
+          payload.update({
+            collection: 'regions',
+            id,
+            data: { subtitle: 'nope' },
+            user: managerUser(atlasManager),
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
+      }
+    })
+
+    it('creates a sub-region only beneath a region it owns', async () => {
+      const created = await createRegion(
+        { level: 'city', name: 'AtlasMgr New City', parent: regionId },
+        atlasManager,
+      )
+      expect(created.id).toBeDefined()
+
+      await expect(
+        createRegion(
+          { level: 'city', name: 'AtlasMgr Nope', parent: otherCountryId },
+          atlasManager,
+        ),
+      ).rejects.toThrow()
+    })
+
+    it('cannot create a root region (no parent) — only children of owned regions', async () => {
+      await expect(
+        createRegion({ level: 'country', name: 'AtlasMgr Rogue Country' }, atlasManager),
+      ).rejects.toThrow()
+    })
+
+    it('lets admins create root regions despite the create hook', async () => {
+      const admin = await testData.createManager(payload, {
+        name: 'AtlasMgr Admin',
+        type: 'admin' as const,
+      })
+      const created = await createRegion(
+        { level: 'country', name: 'AtlasMgr Admin Country' },
+        admin,
+      )
+      expect(created.id).toBeDefined()
+    })
+
+    it('cannot delete regions (admin-only)', async () => {
+      await expect(
+        payload.delete({
+          collection: 'regions',
+          id: cityId,
+          user: managerUser(atlasManager),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('creates events only within its subtree', async () => {
+      const created = await createEvent(
+        { region: centerId, address: { street: 'Inside' } },
+        atlasManager,
+      )
+      expect(created.id).toBeDefined()
+
+      await expect(
+        createEvent({ region: otherCenterId, address: { street: 'Outside' } }, atlasManager),
+      ).rejects.toThrow()
+    })
+
+    it('updates and trashes events within its subtree, but not outside', async () => {
+      const inside = await createEvent({ region: cityId, address: { street: 'In' } })
+      const outside = await createEvent({ region: otherCenterId, address: { street: 'Out' } })
+
+      const updated = await payload.update({
+        collection: 'events',
+        id: inside.id,
+        draft: true,
+        data: { address: { street: 'In edited' } },
+        user: managerUser(atlasManager),
+        overrideAccess: false,
+      })
+      expect(updated.id).toBe(inside.id)
+
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: outside.id,
+          draft: true,
+          data: { address: { street: 'no' } },
+          user: managerUser(atlasManager),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+
+      // The `delete` op (permanent delete / the trash button's hard path) is
+      // scoped the same way: allowed inside, denied outside. Soft-delete via an
+      // `update` to `deletedAt` is covered by the update assertions above.
+      const trashed = await payload.delete({
+        collection: 'events',
+        id: inside.id,
+        user: managerUser(atlasManager),
+        overrideAccess: false,
+      })
+      expect(trashed.id).toBe(inside.id)
+
+      await expect(
+        payload.delete({
+          collection: 'events',
+          id: outside.id,
+          user: managerUser(atlasManager),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('keeps write access to an event it directly manages, even outside its subtree', async () => {
+      const owned = await createEvent({
+        region: otherCenterId,
+        manager: atlasManager.id,
+        address: { street: 'Owned' },
+      })
+      const updated = await payload.update({
+        collection: 'events',
+        id: owned.id,
+        draft: true,
+        data: { address: { street: 'Owner edit' } },
+        user: managerUser(atlasManager),
+        overrideAccess: false,
+      })
+      expect(updated.id).toBe(owned.id)
+    })
+
+    it('rejects re-homing an in-subtree event to a region outside the subtree', async () => {
+      const inside = await createEvent({ region: cityId, address: { street: 'Stay put' } })
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: inside.id,
+          draft: true,
+          data: { region: otherCenterId },
+          user: managerUser(atlasManager),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('rejects re-parenting an owned region under one it does not own', async () => {
+      await expect(
+        payload.update({
+          collection: 'regions',
+          id: cityId,
+          data: { parent: otherCountryId },
+          user: managerUser(atlasManager),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('cannot create an event when it owns no region', async () => {
+      const regionlessManager = await testData.createManager(payload, {
+        name: 'Region-less Atlas Manager',
+        roles: ['atlas-manager'],
+      })
+      // Owns no region → its subtree is empty → no region is valid to create in.
+      await expect(
+        createEvent({ region: cityId, address: { street: 'Nope' } }, regionlessManager),
+      ).rejects.toThrow()
+    })
+  })
+
   describe('Localized Manager Roles', () => {
     it('grants implicit read based on roles in current locale', () => {
       // Permissions are computed from roles, not explicitly set

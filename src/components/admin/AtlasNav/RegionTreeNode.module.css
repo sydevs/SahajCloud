@@ -1,0 +1,51 @@
+/*
+ * Region label link. It's only as wide as its text (the row click toggles the
+ * tree; the label click navigates), truncates with an ellipsis, and underlines
+ * only when the text itself is hovered — which an inline style can't express.
+ */
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+  text-decoration: none;
+}
+
+.label:hover {
+  text-decoration: underline;
+}
+
+/*
+ * "Add child region" (+) affordance. Hidden until the row is hovered (or the
+ * link itself is keyboard-focused), and laid out just left of the count pill.
+ * opacity (not display) keeps its slot reserved so the pill doesn't jump on
+ * hover; pointer-events follow visibility so the hidden + can't be clicked.
+ *
+ * Opacity-based hover state: revealed muted on row hover, full opacity once the
+ * + itself is hovered/focused.
+ */
+.addChild {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  /* Inline padding widens the (otherwise tiny) hover/tooltip target and supplies
+     most of the gap to the count pill. No block padding — it would make the +
+     taller than the row's line-height and stretch the row past the other links. */
+  padding-inline: calc(var(--base) * 0.3);
+  color: var(--theme-elevation-600);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+
+.row:hover .addChild,
+.addChild:focus-visible {
+  opacity: 0.55;
+  pointer-events: auto;
+}
+
+.row:hover .addChild:hover,
+.addChild:focus-visible {
+  opacity: 1;
+}

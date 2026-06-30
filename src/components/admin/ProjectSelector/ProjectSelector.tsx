@@ -4,6 +4,7 @@ import { ReactSelect, toast, useAuth, useRouteTransition } from '@payloadcms/ui'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
+import { InlineLogo } from '@/components/branding'
 import { useProject } from '@/contexts/ProjectContext'
 import { clientLogger } from '@/lib/logger/clientLogger'
 import type { ProjectSlug } from '@/payload-types'
@@ -14,6 +15,13 @@ interface SelectOption {
   value: ProjectSlug | null
   label: string
   [key: string]: string | null // Index signature required by ReactSelect
+}
+
+const containerStyle: React.CSSProperties = {
+  paddingBottom: 'calc(var(--base) * 0.8)',
+  borderBottom: '1px solid var(--theme-elevation-100)',
+  marginBottom: 'var(--base)',
+  width: '100%',
 }
 
 const ProjectSelector = () => {
@@ -58,6 +66,16 @@ const ProjectSelector = () => {
     return options
   }, [user?.type, user?.roles])
 
+  // A non-admin with a single project has nothing to switch to — show the
+  // project's logo + name as a header instead of a "Current Project" selector.
+  if (user?.type !== 'admin' && projectOptions.length <= 1) {
+    return (
+      <div style={containerStyle}>
+        <InlineLogo />
+      </div>
+    )
+  }
+
   const handleProjectChange = async (option: unknown) => {
     // Handle single option (not multi-select)
     if (Array.isArray(option)) return
@@ -99,14 +117,7 @@ const ProjectSelector = () => {
   const selectedOption = projectOptions.find((opt) => opt.value === currentProject)
 
   return (
-    <div
-      style={{
-        paddingBottom: 'calc(var(--base) * 0.8)',
-        borderBottom: '1px solid var(--theme-elevation-100)',
-        marginBottom: 'var(--base)',
-        width: '100%',
-      }}
-    >
+    <div style={containerStyle}>
       <label
         style={{
           display: 'block',
