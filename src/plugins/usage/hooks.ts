@@ -14,6 +14,7 @@ import { APIError } from 'payload'
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 
 import { getDbSchema, getPgPool } from './db'
+import { extractRequestHost, isHostAllowed, parseAllowedDomains } from './originEnforcement'
 
 const SKIP_VALIDATION = 'skipClientQueryValidation'
 
@@ -185,6 +186,78 @@ function describeStringPreview(value: unknown): string | null {
     return value.slice(0, 100)
   }
   return null
+}
+
+// ============================================================================
+// ORIGIN / REFERER ENFORCEMENT HOOK
+// ============================================================================
+
+/**
+ * beforeOperation hook enforcing per-client `Origin`/`Referer` allow-listing.
+ *
+ * Runs for every API-client operation on a usage-wrapped collection (the same
+ * seam as `validateClientQueryParamsHook`), so it covers standard client reads
+ * and the custom Atlas endpoints (geojson / register) whose internal
+ * `payload.find` / `payload.create` calls forward the client `req`. Rules:
+ *
+ * - Non-client requests (managers, admin UI, server tasks): untouched.
+ * - Empty / unset `allowedDomains`: ALLOW any origin (backward-compatible default).
+ * - Non-empty `allowedDomains`: the request `Origin` (or `Referer` host) must
+ *   match an entry, else 403. Exact host or `*.`-wildcard; see `originEnforcement.ts`.
+ * - No `Origin`/`Referer` (server-to-server, cron): ALLOW — the API key is the gate.
+ * - Valid live-preview secret: bypass — the same trust signal that unlocks drafts
+ *   and skips the select/populate gate.
+ * - Internal relationship-population reads (numeric `currentDepth`): skipped; the
+ *   already-validated top-level read carries the same origin.
+ *
+ * Unlike `asTrustedReq`'s `skipClientQueryValidation` flag (a query-shape opt-out),
+ * there is deliberately no trusted-req bypass here: origin is a security gate, so
+ * forwarded client reads (e.g. register's events lookup) stay enforced against the
+ * caller's real origin.
+ *
+ * On rejection, logs `clientId` + origin + referer at WARN so production denials
+ * are debuggable from the application logs.
+ */
+export const validateClientOriginHook: CollectionBeforeOperationHook = ({ args, req }) => {
+  if (req.user?.collection !== 'clients') {
+    return
+  }
+
+  // Trusted live-preview reads render the whole document from a known frontend —
+  // same bypass the select/populate gate uses.
+  if (hasValidPreviewSecret(req)) {
+    return
+  }
+
+  // Internal relationship-population reads reuse the top-level request's origin,
+  // which has already passed this check; don't re-evaluate (or double-log) them.
+  if (typeof (args as { currentDepth?: unknown }).currentDepth === 'number') {
+    return
+  }
+
+  const allowedDomains = (req.user as { allowedDomains?: string | null }).allowedDomains
+  const patterns = parseAllowedDomains(allowedDomains)
+  if (patterns.length === 0) {
+    return // No allowlist configured → allow all (backward-compatible default).
+  }
+
+  const host = extractRequestHost(req)
+  if (host === null) {
+    return // No Origin/Referer (server-to-server) → allow; API key remains the gate.
+  }
+
+  if (isHostAllowed(host, patterns)) {
+    return
+  }
+
+  req.payload.logger.warn({
+    msg: 'Client origin validation rejected: request host not in allowedDomains',
+    clientId: req.user.id,
+    host,
+    origin: req.headers?.get?.('origin') ?? null,
+    referer: req.headers?.get?.('referer') ?? null,
+  })
+  throw new APIError('This origin is not allowed for this API client.', 403)
 }
 
 // ============================================================================

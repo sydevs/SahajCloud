@@ -25,7 +25,15 @@ export {
 } from './constants'
 
 // Hook exports (for testing)
-export { rateLimitHook, usageTrackingHook } from './hooks'
+export { rateLimitHook, usageTrackingHook, validateClientOriginHook } from './hooks'
+
+// Origin/Referer enforcement helpers (for testing)
+export {
+  extractRequestHost,
+  isHostAllowed,
+  normalizeHost,
+  parseAllowedDomains,
+} from './originEnforcement'
 
 // Rate limiting utilities (for testing)
 export { buildRateLimitKey } from './hooks'
