@@ -350,43 +350,63 @@ export const Regions: CollectionConfig = {
         // and `where` filters the join to that single level. A Country shows
         // Regions + Cities; a Region shows Cities; a City shows Centers; a center
         // (leaf) shows none.
-        ...CHILD_LEVEL_TABS.map(({ level, label, name, description }) => ({
-          label,
-          admin: { condition: childLevelVisible(level) },
-          fields: [
-            {
-              name,
-              // The tab already names it (Regions/Cities/Centers); the field's own
-              // "Children …" heading is redundant, so suppress it.
-              label: false as const,
-              type: 'join' as const,
-              collection: 'regions' as const,
-              // Join on the denormalized ancestor path, not `parent`: a join is a
-              // single reverse-lookup, so `on: 'parent'` returns only direct
-              // children. Every node's breadcrumb trail holds all of its ancestors
-              // (root → self), so a `breadcrumbs.doc` matching this node selects
-              // every descendant at any depth. The per-level `where` scopes each tab
-              // to one level. Self-exclusion comes not from the `where` alone but
-              // from `childLevelVisible` (the tab condition): it shows a tab only
-              // when the node's level is a strict ancestor of `level`, so the node's
-              // own row (at the node's level) never matches the filter. Read outside
-              // that gating, the bare field would include a same-level node — moot,
-              // as these fields have no API consumer. (Payload's sanitizer supports a
-              // relationship nested in a localized array and auto-indexes the column
-              // — see sanitizeJoinField.)
-              on: 'breadcrumbs.doc',
-              where: { level: { equals: level } },
-              // Result sets are larger now (all descendants), so paginate.
-              defaultLimit: 50,
-              admin: {
-                // `level` is constant within a tab (filtered above), so surface
-                // `parent` instead — it shows where each descendant sits.
-                defaultColumns: ['name', 'parent'],
-                description,
+        ...CHILD_LEVEL_TABS.map(({ level, label, name, description }) => {
+          // Singular human label for the "New …" button (e.g. center → "SY Center").
+          const levelLabel =
+            REGION_LEVEL_OPTIONS.find((option) => option.value === level)?.label ?? label
+          return {
+            label,
+            admin: { condition: childLevelVisible(level) },
+            fields: [
+              {
+                name,
+                // The tab already names it (Regions/Cities/Centers); the field's own
+                // "Children …" heading is redundant, so suppress it.
+                label: false as const,
+                type: 'join' as const,
+                collection: 'regions' as const,
+                // Join on the denormalized ancestor path, not `parent`: a join is a
+                // single reverse-lookup, so `on: 'parent'` returns only direct
+                // children. Every node's breadcrumb trail holds all of its ancestors
+                // (root → self), so a `breadcrumbs.doc` matching this node selects
+                // every descendant at any depth. The per-level `where` scopes each tab
+                // to one level. Self-exclusion comes not from the `where` alone but
+                // from `childLevelVisible` (the tab condition): it shows a tab only
+                // when the node's level is a strict ancestor of `level`, so the node's
+                // own row (at the node's level) never matches the filter. Read outside
+                // that gating, the bare field would include a same-level node — moot,
+                // as these fields have no API consumer. (Payload's sanitizer supports a
+                // relationship nested in a localized array and auto-indexes the column
+                // — see sanitizeJoinField.)
+                on: 'breadcrumbs.doc',
+                where: { level: { equals: level } },
+                // Result sets are larger now (all descendants), so paginate.
+                defaultLimit: 50,
+                admin: {
+                  // Native "Add New" seeds the `on` field (breadcrumbs.doc) — useless
+                  // here — so hide it; the AddChildRegionButton below replaces it with
+                  // a level + parent-prefilled create link.
+                  allowCreate: false,
+                  // `level` is constant within a tab (filtered above), so surface
+                  // `parent` instead — it shows where each descendant sits.
+                  defaultColumns: ['name', 'parent'],
+                  description,
+                },
               },
-            },
-          ],
-        })),
+              {
+                // "New <Level>" link, pre-filled with the right level + parent via the
+                // create-page query params RegionCreatePrefill reads (the recursive
+                // join can't carry that through its native, disabled "Add New").
+                name: `${name}Add`,
+                type: 'ui' as const,
+                admin: {
+                  custom: { childLevel: level, levelLabel },
+                  components: { Field: '@/components/admin/AddChildRegionButton' },
+                },
+              },
+            ],
+          }
+        }),
       ],
     },
     // Stable, URL-friendly identity for Sahaj Atlas routing — a region otherwise
