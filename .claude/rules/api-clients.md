@@ -147,6 +147,68 @@ the access layer uses to unlock drafts in `createAccessConfig`). Rate limiting
 and usage tracking still apply. Without this, PR #294's gate breaks the
 meditations, pages, and wemeditate-web live previews.
 
+## Origin / Referer Enforcement
+
+`validateClientOriginHook` (`src/plugins/usage/hooks.ts`) is the second
+beforeOperation client gate. The usage plugin runs it **first** on every
+non-excluded collection — ahead of the query-param gate and rate accounting — so
+a disallowed origin is rejected before any other work. Centralizing it in the
+plugin means it covers standard client reads **and** the custom Atlas endpoints
+(`GET /api/events/geojson`, `POST /api/events/:id/register`), whose internal
+`payload.find` / `payload.create` calls forward the client `req`.
+
+### Rule
+
+- Runs only when `req.user?.collection === 'clients'` — managers, admin UI, and
+  server tasks are untouched.
+- **Empty / unset `allowedDomains` → allow any origin** (backward-compatible
+  default; the field is the Atlas-config textarea on `Clients`).
+- **Non-empty `allowedDomains`** → the request `Origin` (or the `Referer` host as
+  fallback) must match an entry, else **403**.
+- **No `Origin`/`Referer`** (server-to-server, cron) → **allow**; the API key
+  remains the gate.
+
+### Matching (`src/plugins/usage/originEnforcement.ts`)
+
+Pure, unit-tested helpers normalize both sides to a bare host — scheme, userinfo,
+port, path, and trailing dot stripped, lowercased — then match:
+
+- **Exact host**: `example.org` matches only `example.org`.
+- **`*.` wildcard**: `*.example.org` matches any subdomain (`a.example.org`,
+  `a.b.example.org`) but **not** the apex `example.org`. The leading-dot suffix
+  blocks injection (`evil-example.org` does not match).
+
+### Bypasses
+
+- **Valid live-preview secret** (`hasValidPreviewSecret`) — same trust signal that
+  unlocks drafts and skips the query-param gate.
+- **Internal relationship-population reads** (numeric `currentDepth`) — they reuse
+  the already-validated top-level request's origin.
+- `asTrustedReq()` does **not** bypass origin enforcement. Its
+  `skipClientQueryValidation` flag is a query-shape opt-out, not a security one —
+  forwarded client reads stay enforced against the caller's real origin.
+
+On rejection the hook logs `clientId` + origin + referer at WARN. The geojson and
+register handlers surface the thrown `APIError(403)` verbatim (instead of masking
+it as a 500).
+
+### CORS
+
+`payload.config.ts` sets `cors: '*'`. Per-client CORS is impossible — CORS
+preflight (`OPTIONS`) is anonymous (the browser omits `Authorization`), so the
+server cannot return a per-client allowlist at preflight time. `'*'` lets embedded
+widgets' preflight succeed on any host page; the real per-domain gate is this
+server-side hook plus the API key. Payload omits `Access-Control-Allow-Credentials`
+for `'*'`, so cookie-based admin sessions stay protected — the `csrf` allowlist is
+unchanged.
+
+### Tests
+
+- `tests/unit/origin-enforcement.spec.ts` — normalization + matching (exact,
+  wildcard, suffix-injection, empty, missing-header).
+- `tests/int/client-origin-enforcement.int.spec.ts` — wiring through
+  `payload.find` and the geojson/register endpoints (403 / allow).
+
 ## Usage monitoring
 
 - **Async tracking** via Payload job queue (no in-request DB write).
