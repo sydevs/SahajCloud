@@ -28,16 +28,22 @@ export const AddChildRegionButton: UIFieldClientComponent = ({ field }) => {
   const href = `/admin/collections/regions/create?parent=${id}&childLevel=${childLevel}`
 
   return (
-    <Button
-      buttonStyle="secondary"
-      el="link"
-      icon={['plus']}
-      iconPosition="left"
-      size="small"
-      to={href}
-    >
-      {`New ${custom?.levelLabel ?? 'child'}`}
-    </Button>
+    // Payload's Button has no `style` prop, so position via a wrapper (per the
+    // admin-ui rule). Absolute + no margin lifts the action out of flow so the
+    // descendant table can sit flush at the top of the tab.
+    <div style={{ position: 'absolute' }}>
+      <Button
+        buttonStyle="secondary"
+        el="link"
+        icon={['plus']}
+        iconPosition="left"
+        margin={false}
+        size="small"
+        to={href}
+      >
+        {`New ${custom?.levelLabel ?? 'child'}`}
+      </Button>
+    </div>
   )
 }
 
