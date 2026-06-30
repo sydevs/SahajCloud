@@ -44,6 +44,7 @@ import { default as default_ea9ef661de0dfca6f36a4b6ccae0182b } from '@/component
 import { default as default_6d9b854e6fdb8fea981b4ce63c2d6380 } from '@/components/admin/FlatArrayField'
 import { default as default_694d4100fd066d11aca6d41604a80bc0 } from '@/components/admin/ScheduleSummary'
 import { default as default_7994614945cfe693dd6db5da6470f962 } from '@/components/admin/RangeSlider'
+import { default as default_b3cee161bebb1edefc1eda122400dd67 } from '@/components/admin/RegionCreatePrefill'
 import { default as default_ef5838f2c1b8d0747618a584b33f2f1e } from '@/components/admin/AddressSearchField'
 import { default as default_ed3b039830992dc45486e37aaf03df7c } from '@/components/admin/EventVerificationNotice'
 import { default as default_1dd99abed7767ee797cacf1ad150de88 } from '@/components/admin/StringSelectField'
@@ -64,6 +65,7 @@ import { default as default_cbd7ea31609971bfa7093afb69bf75ad } from '@/component
 import { TranslationsRichTextField as TranslationsRichTextField_4e22aa57842837eff3a83b422834aab2 } from '@/components/admin/TranslationsRow'
 import { default as default_ffac54d067109368ad5684d6ea4e1327 } from '@/components/admin/ReadinessField/ReadinessBanner'
 import { default as default_8dcebb2ea41c850ff8532af16196e52b } from '@/components/admin/ReadinessField'
+import { default as default_fec9a646cfc358f70245d2d0e360935e } from '@/components/admin/AtlasNav/AtlasNav'
 import { default as default_7b4ba381140135af5cae014b3533be0b } from '@/components/branding/Icon'
 import { default as default_742835b254059f88bfb2f781ea75df90 } from '@/components/branding/Logo'
 import { default as default_1035e04fd02d13e92bb29364184fcf83 } from '@/components/admin/Dashboard/ProjectSelectionPrompt'
@@ -71,6 +73,7 @@ import { default as default_b4b93444e002b46abfd0c5006e1279a0 } from '@/component
 import { default as default_f5da5fa50c48fc2ef14afcb84f969fcf } from '@/components/admin/AdminNavLinks'
 import { default as default_70d6a18357c47b1a9d8a541fcd53f95f } from '@/components/AdminProvider.tsx'
 import { default as default_db43129b90862b042c8e58805b1c34d3 } from '@/components/admin/AnalyticsView'
+import { default as default_932971b9c30c48ddbfc16a3a6aa23dda } from '@/components/admin/AtlasMapView'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
 /** @type import('payload').ImportMap */
@@ -121,6 +124,7 @@ export const importMap = {
   "@/components/admin/FlatArrayField#default": default_6d9b854e6fdb8fea981b4ce63c2d6380,
   "@/components/admin/ScheduleSummary#default": default_694d4100fd066d11aca6d41604a80bc0,
   "@/components/admin/RangeSlider#default": default_7994614945cfe693dd6db5da6470f962,
+  "@/components/admin/RegionCreatePrefill#default": default_b3cee161bebb1edefc1eda122400dd67,
   "@/components/admin/AddressSearchField#default": default_ef5838f2c1b8d0747618a584b33f2f1e,
   "@/components/admin/EventVerificationNotice#default": default_ed3b039830992dc45486e37aaf03df7c,
   "@/components/admin/StringSelectField#default": default_1dd99abed7767ee797cacf1ad150de88,
@@ -141,6 +145,7 @@ export const importMap = {
   "@/components/admin/TranslationsRow#TranslationsRichTextField": TranslationsRichTextField_4e22aa57842837eff3a83b422834aab2,
   "@/components/admin/ReadinessField/ReadinessBanner#default": default_ffac54d067109368ad5684d6ea4e1327,
   "@/components/admin/ReadinessField#default": default_8dcebb2ea41c850ff8532af16196e52b,
+  "@/components/admin/AtlasNav/AtlasNav#default": default_fec9a646cfc358f70245d2d0e360935e,
   "@/components/branding/Icon#default": default_7b4ba381140135af5cae014b3533be0b,
   "@/components/branding/Logo#default": default_742835b254059f88bfb2f781ea75df90,
   "@/components/admin/Dashboard/ProjectSelectionPrompt#default": default_1035e04fd02d13e92bb29364184fcf83,
@@ -148,5 +153,6 @@ export const importMap = {
   "@/components/admin/AdminNavLinks#default": default_f5da5fa50c48fc2ef14afcb84f969fcf,
   "@/components/AdminProvider.tsx#default": default_70d6a18357c47b1a9d8a541fcd53f95f,
   "@/components/admin/AnalyticsView#default": default_db43129b90862b042c8e58805b1c34d3,
+  "@/components/admin/AtlasMapView#default": default_932971b9c30c48ddbfc16a3a6aa23dda,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }

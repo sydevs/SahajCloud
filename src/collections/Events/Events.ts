@@ -16,8 +16,10 @@ import {
   urlField,
   publicUrlFields,
 } from '@/fields'
+import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
+import { ownedRegionFilterOptions } from '@/plugins/access'
 
 import { eventsGeoJson } from './endpoints/geojson'
 import { registerForEvent } from './endpoints/registerForEvent'
@@ -70,6 +72,10 @@ export const Events: CollectionConfig = {
   // frontend page (it calls the shared verify op via a Server Action).
   hooks: {
     beforeChange: [verifyOnSave],
+    // Bust the Atlas manager sidebar cache (event list + region counts) whenever
+    // an event changes or is trashed/restored.
+    afterChange: [revalidateAtlasSidebarHook],
+    afterDelete: [revalidateAtlasSidebarHook],
   },
   endpoints: [verifyEventAction, eventsGeoJson, registerForEvent],
   fields: [
@@ -207,7 +213,15 @@ export const Events: CollectionConfig = {
               label: 'City / Center',
               relationTo: 'regions',
               required: true,
-              filterOptions: () => ({ level: { in: ['city', 'center'] } }),
+              filterOptions: async (args) => {
+                // City/center only, and — for an atlas-manager — within their
+                // owned-region subtree.
+                const cityOrCenter = { level: { in: ['city', 'center'] } }
+                const owned = await ownedRegionFilterOptions(args)
+                if (owned === true) return cityOrCenter
+                if (owned === false) return false
+                return { and: [cityOrCenter, owned] }
+              },
               admin: { description: 'The city or center this event belongs to.' },
             },
             {

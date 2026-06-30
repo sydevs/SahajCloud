@@ -21,6 +21,7 @@ import {
   userManagesDocument,
 } from './documentManagers'
 import { hasPermission } from './permissions'
+import { isRegionSubtreeCollection, scopeRegionSubtreeWrite } from './regionSubtreeAccess'
 
 /**
  * Check if a collection has drafts enabled
@@ -60,7 +61,7 @@ export function createAccessConfig(
   const accessConfig: CollectionConfig['access'] = {}
 
   for (const operation of operations) {
-    accessConfig[operation] = async ({ req, id }: AccessArgs): Promise<boolean | Where> => {
+    accessConfig[operation] = async ({ req, id, data }: AccessArgs): Promise<boolean | Where> => {
       const args = {
         user: req.user,
         collection,
@@ -81,6 +82,18 @@ export function createAccessConfig(
           // Restrict to published only unless all requirements are met.
           return { _status: { equals: 'published' } }
         }
+
+        // An atlas-manager's role grants create/update/delete on regions/events,
+        // but only within the region subtree they own — narrow the collection-
+        // wide grant to a scoped Where (or boolean). See regionSubtreeAccess.ts.
+        if (
+          operation !== 'read' &&
+          isActiveNonAdminManager(req.user) &&
+          isRegionSubtreeCollection(collection)
+        ) {
+          return scopeRegionSubtreeWrite({ req, collection, operation, id, data })
+        }
+
         return true
       }
 

@@ -555,6 +555,47 @@ selection, sidebar position, nullable.
 directly. They do not need React context. Page reload after switching
 re-evaluates them.
 
+### Custom Nav override — Atlas sidebar
+
+`admin.components.Nav` is overridden by `@/components/admin/AtlasNav/AtlasNav`
+(a server component). When `user.type === 'manager'` **and**
+`user.currentProject === 'sahaj-atlas'` it renders the purpose-built
+`AtlasSidebar`; everyone else (admins, managers on other projects) falls through
+to `DefaultNav` (imported from `@payloadcms/next/rsc` — not `@payloadcms/ui`).
+
+- **Chrome.** `NavWrapper`/`NavHamburger` are internal to `@payloadcms/next` and
+  unexported, so `AtlasNavShell` reproduces the slide-in `<aside>` + mobile close
+  from the exported `useNav`/`Hamburger` primitives. The logo header and
+  account/logout footer live in `AppHeader` (outside the Nav), so the override
+  leaves them intact. The sections are `@payloadcms/ui` `NavGroup`s and every
+  row is a `nav__link` (with `nav__link-indicator` for the open doc), so headers,
+  padding, hover, and the active highlight match the default nav. Reuses
+  `ProjectSelector` (now a fixed label, not a dropdown, when a non-admin has a
+  single project), `AdminNavLinks`, and `Logout`.
+- **Event list.** The manager's own events (incl. trashed), bucketed
+  Urgent → Needs verification → Expired → Verified → Trashed → Finished, then
+  `updatedAt` desc; each row links to the event with a right-floated stage icon
+  (`lucide-react` + `Tooltip`). Collapses past 8 behind Show more/less.
+- **Region tree.** The owned-region subtree as flat indented `nav__link` rows
+  (each a real `nav__link`, like the event/collection links — so labels are flush
+  with the headers, with no underline and the same hover/active treatment). The
+  rotating chevron is absolutely positioned so it hangs in the left gutter rather
+  than indenting the label. The open region is highlighted; its ancestors — and
+  any node with no siblings (a lone child/root) — auto-expand on load.
+  Collapsed/leaf nodes show a subtree count pill (`@payloadcms/ui` `Pill`, nudged
+  smaller via its `--pill-padding-*` vars): a single number coloured `success`
+  when every event is published, else `published/total` coloured `warning`.
+  `finished` events count toward neither total nor published.
+- **Data + cache.** `src/lib/atlasSidebar/` — a server-only fetch
+  (`getAtlasSidebarData`) wrapped in `unstable_cache`, keyed by `managerId` +
+  `locale`, tagged `atlas-sidebar` / `atlas-sidebar:<id>`. The pure view-model
+  transforms (`sidebarModel.ts`) are unit-tested; `cache.ts` exposes
+  `revalidateAtlasSidebar()` (Next 16 `revalidateTag(tag, 'max')`, best-effort
+  outside a request scope), called from the Events/Regions `afterChange`/
+  `afterDelete` hooks and once at the end of the `ExpireEvents` job. Per
+  `.claude/rules/admin-ui.md` the sidebar is a server component with direct
+  Payload access — no internal HTTP from the client.
+
 ## Project-aware dashboard
 
 The admin dashboard uses Payload's built-in widget system. Dashboard-related

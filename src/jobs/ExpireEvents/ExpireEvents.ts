@@ -1,5 +1,6 @@
 import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
+import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
 import {
   asNotificationLog,
   buildReminderEntry,
@@ -294,6 +295,10 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
         })
       }
     }
+
+    // The run mutates many events (advance/unpublish/trash); refresh the Atlas
+    // manager sidebars once at the end rather than per-event.
+    revalidateAtlasSidebar()
 
     req.payload.logger.info({ msg: 'ExpireEvents complete', ...result })
     return { output: result }

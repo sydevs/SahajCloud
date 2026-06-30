@@ -62,6 +62,19 @@ const ROLES = {
       albums: ['translate'] as PermissionLevel[],
     },
   },
+  'atlas-manager': {
+    label: 'Atlas Manager',
+    description: 'Can manage events and regions within their own regions for Sahaj Atlas',
+    project: 'sahaj-atlas' as const,
+    // Read comes implicitly from project membership. These create/update/delete
+    // grants are *scoped to the manager's owned-region subtree* in the access
+    // layer (regionSubtreeAccess.ts) — they are NOT collection-wide despite
+    // appearing here. Regions get create+update; events also get delete (trash).
+    permissions: {
+      regions: ['create', 'update'] as PermissionLevel[],
+      events: ['create', 'update', 'delete'] as PermissionLevel[],
+    },
+  },
 
   // Client roles (renamed with -client suffix)
   'wemeditate-web-client': {
