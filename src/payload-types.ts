@@ -7168,6 +7168,10 @@ export interface SplashBlock {
    */
   layout: 'default' | 'countdown' | 'app' | 'map-search';
   /**
+   * Text colour for the splash. Light text suits a dark hero; dark text suits a light hero. The overlaid site-header theme follows this setting.
+   */
+  textColor?: ('dark' | 'light') | null;
+  /**
    * Select one or more images for the splash section
    */
   images?: (number | Image)[] | null;

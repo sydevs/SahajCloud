@@ -30,6 +30,20 @@ export const SplashBlock: Block = {
       },
     },
     {
+      name: 'textColor',
+      type: 'select',
+      label: 'Text Colour',
+      defaultValue: 'dark',
+      options: [
+        { label: 'Dark Text', value: 'dark' },
+        { label: 'Light Text', value: 'light' },
+      ],
+      admin: {
+        description:
+          'Text colour for the splash. Light text suits a dark hero; dark text suits a light hero. The overlaid site-header theme follows this setting.',
+      },
+    },
+    {
       name: 'images',
       type: 'upload',
       relationTo: 'images',
