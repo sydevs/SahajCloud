@@ -311,6 +311,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           },
         },
         '400': errorResponse('Missing or invalid narratorId.'),
+        '403': errorResponse('Caller does not have frames read access.'),
         '404': errorResponse('Narrator not found.'),
       },
     },
