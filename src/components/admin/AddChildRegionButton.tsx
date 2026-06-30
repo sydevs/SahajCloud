@@ -5,6 +5,9 @@ import type { UIFieldClientComponent } from 'payload'
 import { Button, useDocumentInfo } from '@payloadcms/ui'
 import React from 'react'
 
+import type { RegionLevel } from '@/lib/atlasSidebar/sidebarModel'
+import { buildRegionCreateUrl } from '@/lib/atlasSidebar/sidebarModel'
+
 /**
  * "New <Level>" action for a recursive child-join tab on Regions.
  *
@@ -19,13 +22,15 @@ import React from 'react'
  */
 export const AddChildRegionButton: UIFieldClientComponent = ({ field }) => {
   const { id } = useDocumentInfo()
-  const custom = field?.admin?.custom as { childLevel?: string; levelLabel?: string } | undefined
+  const custom = field?.admin?.custom as
+    | { childLevel?: RegionLevel; levelLabel?: string }
+    | undefined
   const childLevel = custom?.childLevel
 
   // No parent id until the doc is saved; the tab only shows post-create, but guard anyway.
   if (!id || !childLevel) return null
 
-  const href = `/admin/collections/regions/create?parent=${id}&childLevel=${childLevel}`
+  const href = buildRegionCreateUrl(id, childLevel)
 
   return (
     // Payload's Button has no `style` prop, so position via a wrapper (per the
@@ -35,7 +40,7 @@ export const AddChildRegionButton: UIFieldClientComponent = ({ field }) => {
       <Button
         buttonStyle="secondary"
         el="link"
-        icon={['plus']}
+        icon="plus"
         iconPosition="left"
         margin={false}
         size="small"
