@@ -12,6 +12,8 @@ import type {
 import { APIError } from 'payload'
 
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
+import type { Client } from '@/payload-types'
+
 
 import { getDbSchema, getPgPool } from './db'
 import { extractRequestHost, isHostAllowed, parseAllowedDomains } from './originEnforcement'
@@ -235,8 +237,7 @@ export const validateClientOriginHook: CollectionBeforeOperationHook = ({ args, 
     return
   }
 
-  const allowedDomains = (req.user as { allowedDomains?: string | null }).allowedDomains
-  const patterns = parseAllowedDomains(allowedDomains)
+  const patterns = parseAllowedDomains((req.user as Client).allowedDomains)
   if (patterns.length === 0) {
     return // No allowlist configured → allow all (backward-compatible default).
   }
