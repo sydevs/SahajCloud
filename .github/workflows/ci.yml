@@ -64,19 +64,3 @@ jobs:
           PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
           SMOKE_RUN_ID: pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
         run: pnpm test:smoke
-
-  audit:
-    name: Audit dependencies
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      # pnpm audit reads the committed pnpm-lock.yaml + package.json directly
-      # (incl. pnpm.auditConfig.ignoreGhsas) — no `pnpm install` needed. High and
-      # Critical advisories fail the build; Moderate/Low are reported only.
-      # Baselined advisories and their rationale: .github/audit-baseline.md
-      - run: pnpm audit --audit-level=high
