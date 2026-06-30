@@ -62,8 +62,10 @@ const childLevelVisible = (childLevel: string) => {
 }
 
 /**
- * One tab per child level: each holds a single `join` filtered to that level,
- * shown only when it's a valid child of the current node (`childLevelVisible`).
+ * One tab per child level: each holds a single `join` on the denormalized
+ * `breadcrumbs` ancestor path (not `parent`), so it lists every descendant at
+ * that level — not just direct children. Filtered to the level and shown only
+ * when it's a valid child of the current node (`childLevelVisible`).
  * Country sees all three; a center (leaf) sees none.
  */
 const CHILD_LEVEL_TABS = [
@@ -71,19 +73,19 @@ const CHILD_LEVEL_TABS = [
     level: 'region',
     label: 'Regions',
     name: 'childrenRegions',
-    description: 'Region-level nodes nested directly beneath this one.',
+    description: 'Region-level nodes anywhere beneath this one.',
   },
   {
     level: 'city',
     label: 'Cities',
     name: 'childrenCities',
-    description: 'Cities nested directly beneath this one.',
+    description: 'Cities anywhere beneath this one.',
   },
   {
     level: 'center',
     label: 'Centers',
     name: 'childrenCenters',
-    description: 'SY Centers nested directly beneath this one.',
+    description: 'SY Centers anywhere beneath this one.',
   },
 ] as const
 
@@ -101,6 +103,15 @@ export const Regions: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'level'],
     groupBy: true,
+  },
+  // The child joins below are recursive (all descendants via breadcrumbs.doc),
+  // so skip them when a region is hydrated through a relationship (depth ≥ 1)
+  // elsewhere — they render only in the single-doc edit view and have no
+  // relationship/API consumer. Mirrors Meditations' `{ tagAssignments: false }`.
+  defaultPopulate: {
+    childrenRegions: false,
+    childrenCities: false,
+    childrenCenters: false,
   },
   hooks: {
     // Atlas managers can only create regions inside their owned subtree (a child
@@ -332,7 +343,7 @@ export const Regions: CollectionConfig = {
             },
           ],
         },
-        // Reverse side of `parent`, one tab per child level (see CHILD_LEVEL_TABS).
+        // Reverse side of the tree, one tab per child level (see CHILD_LEVEL_TABS).
         // Valid parents per level live in ALLOWED_PARENT_LEVELS, so each tab shows
         // only once the doc exists AND the current node is an allowed parent of
         // that level — `childLevelVisible` (on the tab) folds both checks together,
@@ -347,9 +358,25 @@ export const Regions: CollectionConfig = {
               name,
               type: 'join' as const,
               collection: 'regions' as const,
-              on: 'parent',
+              // Join on the denormalized ancestor path, not `parent`: a join is a
+              // single reverse-lookup, so `on: 'parent'` returns only direct
+              // children. Every node's breadcrumb trail holds all of its ancestors
+              // (root → self), so a `breadcrumbs.doc` matching this node selects
+              // every descendant at any depth. The per-level `where` keeps each tab
+              // to one level and excludes the node itself — its level is always
+              // shallower than the child level the tab is shown for. (Payload's
+              // sanitizer supports a relationship nested in a localized array and
+              // auto-indexes the column — see sanitizeJoinField.)
+              on: 'breadcrumbs.doc',
               where: { level: { equals: level } },
-              admin: { description },
+              // Result sets are larger now (all descendants), so paginate.
+              defaultLimit: 50,
+              admin: {
+                // `level` is constant within a tab (filtered above), so surface
+                // `parent` instead — it shows where each descendant sits.
+                defaultColumns: ['name', 'parent'],
+                description,
+              },
             },
           ],
         })),
