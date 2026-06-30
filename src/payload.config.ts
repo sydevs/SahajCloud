@@ -51,7 +51,15 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       defaultLocale: DEFAULT_LOCALE,
       filterAvailableLocales,
     },
-    cors: [serverUrl, serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
+    // CORS is intentionally open. Per-client origin enforcement is server-side:
+    // `validateClientOriginHook` (usagePlugin) checks each request's Origin/Referer
+    // against the client's `allowedDomains`, and the API key gates access. CORS
+    // preflight is anonymous — the browser omits Authorization, so the server
+    // cannot return a per-client allowlist at preflight time. `'*'` lets embedded
+    // Atlas widgets' preflight succeed on any host page; Payload omits
+    // Access-Control-Allow-Credentials for `'*'`, so cookie-based admin sessions
+    // stay protected (the static `csrf` list below is unchanged). See #509.
+    cors: '*',
     csrf: [serverUrl, serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
     admin: {
       user: Managers.slug,

@@ -91,7 +91,8 @@ export const eventsGeoJson: Endpoint = {
       )
     } catch (error) {
       // validateClientQueryParamsHook throws APIError(400) for a missing
-      // select / populate-at-depth>1 — surface its status + message verbatim.
+      // select / populate-at-depth>1, and validateClientOriginHook throws
+      // APIError(403) for a disallowed origin — surface status + message verbatim.
       if (error instanceof APIError) {
         return Response.json({ errors: [{ message: error.message }] }, { status: error.status })
       }
