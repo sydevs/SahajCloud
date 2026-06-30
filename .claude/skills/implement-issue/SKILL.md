@@ -9,7 +9,7 @@ allowed-tools: Bash(*), Read, Edit, Write, Grep, Glob, Task
 
 # Implement Issue
 
-End-to-end implementation of a GitHub issue: read → plan → branch → implement → test → simplify → code-review → push → PR → review → verify CI.
+End-to-end implementation of a GitHub issue: read → plan → branch → implement → test → **finalize** (simplify → review → push → PR → CI). The finalize pipeline is the shared `/finalize-pr` skill.
 
 ## Invocation
 
@@ -124,11 +124,11 @@ See `test-plan-checklist.md` for what to test per change type. Reference `.claud
 
 ### 8. Validate
 
-Run the **lean local gate**. Per `.claude/rules/testing-reqs.md`: never run tests + build in parallel.
+Run the **lean local gate** as you implement. Per `.claude/rules/testing-reqs.md`: never run tests + build in parallel.
 
 ```bash
-.claude/skills/implement-issue/scripts/validate.sh          # lint + pnpm test:unit
-.claude/skills/implement-issue/scripts/validate.sh --full   # mirror CI: lint + full pnpm test
+.claude/skills/pr-prep/check.sh          # lint + pnpm test:unit (Tier 2)
+.claude/skills/pr-prep/check.sh --full   # mirror CI locally: lint + full pnpm test + build
 ```
 
 Or manually (lean gate):
@@ -139,109 +139,17 @@ pnpm test:unit
 pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts   # targeted to your change
 ```
 
-CI (`.github/workflows/ci.yml`) runs the full `pnpm test` suite on the PR — that is the gate. Use `--full` locally only to reproduce a red CI check.
+Fix any failure and commit the fix as a separate commit before moving on. The full CI gate runs in the finalize step (step 9); use `--full` locally only to debug a red CI run.
 
-If anything fails (locally or in CI):
+### 9. Finalize — run the ship pipeline
 
-- Fix the failure
-- Commit the fix as a separate commit
-- Re-run validation
-- Do NOT mark the PR ready while CI is red
+Implementation is done and validated. Now ship it via the **finalize pipeline**: **follow every step in `.claude/skills/finalize-pr/SKILL.md`** — simplify → single `/code-review` → conditional `/security-review` → lean test gate → push → open the PR → watch CI (with fixes) → report. On this first run it **creates** the PR.
 
-### 9. Simplify the diff
+Execute that skill's steps directly here; don't re-implement them in this file — `finalize-pr` is the single source of truth, so the exact same pipeline runs whether the user types `/finalize-pr` or `/implement-issue`.
 
-Before pushing, run the `/simplify` slash command against the **entire diff of the branch** (every commit since it diverged from `main`, not just the last commit). This is a quality pass for reuse, simplification, efficiency, and altitude cleanups — it does not hunt for bugs (that's the validation gate's job).
+### 10. Hand off to the Adjust phase
 
-- Invoke `/simplify` and let it review and apply fixes to the working tree.
-- Review the applied changes. If any are undesirable, revert them.
-- If `/simplify` changed anything, **re-run the lean validation gate** (step 8) to confirm nothing broke, then commit the cleanups:
-  ```bash
-  git add <files>
-  git commit -m "refactor: simplify per /simplify pass"
-  ```
-- If `/simplify` made no changes, proceed straight to push.
-
-### 10. Code review (`/code-review`)
-
-After `/simplify`, run a deeper code review over the branch — in an **isolated
-context** so the review's file reading doesn't bloat the implementation thread.
-**Dispatch a subagent** (Task tool) whose sole job is to run `/code-review` over
-the full branch diff (every commit since `main`) and return its findings as a
-summary (severity + `file:line` + suggested fix). Do not run `/code-review`
-inline in the main thread.
-
-- Launch **one** subagent; it invokes `/code-review` and reports back.
-- **Blocking**: triage every finding. Fix the valid ones (each as its own
-  commit), then **re-run the lean validation gate** (step 8). Note any finding
-  you dismiss with a one-line reason for the report.
-- Proceed to push only once the actionable findings are resolved.
-
-### 11. Push the branch
-
-```bash
-git push -u origin <branch>
-```
-
-### 12. Open the PR
-
-Write the body to `/tmp/pr-body.md` (preserves markdown), then:
-
-```bash
-gh pr create \
-  --title "<conventional commit title>" \
-  --body-file /tmp/pr-body.md \
-  --base main
-```
-
-See `pr-template.md` for the body format.
-
-### 13. Review the PR (`/review`)
-
-Once the PR is open, run the built-in `/review` over it — again in an
-**isolated context**: **dispatch a subagent** (Task tool) to run `/review`
-against the PR and return its findings as a summary. Do not run `/review`
-inline in the main thread.
-
-- **Blocking**: address valid findings before reporting the PR ready. Commit +
-  push fixes (which re-triggers CI), and re-dispatch `/review` if the changes
-  were substantial. Note dismissed findings (with reasons) for the report.
-- Do NOT report the PR as ready until `/review`'s actionable findings are
-  resolved **and** CI is green (step 14).
-
-### 14. Wait for CI and verify the checks pass
-
-After the PR is open, **wait for the CI checks to resolve** — do not report the PR as ready while they're still pending or red. CI runs the single job in `.github/workflows/ci.yml` (**Lint, Test & Smoke**), which includes linting, the full test suite, and Playwright smoke tests (gated on a preview URL).
-
-Watch the run to completion:
-
-```bash
-gh pr checks <pr-number-or-branch> --watch
-```
-
-Then confirm the final state:
-
-```bash
-gh pr checks <pr-number-or-branch>
-```
-
-- **All checks green** → proceed to report.
-- **A check is red** → fetch the failing job's logs, diagnose, and fix:
-
-  ```bash
-  gh run view <run-id> --log-failed
-  ```
-
-  - Fix the failure locally, re-running the relevant part of the lean gate (step 8) to confirm.
-  - Commit the fix as a separate commit and push.
-  - Re-run `gh pr checks <…> --watch` and repeat until green.
-
-- If a failure is **pre-existing on `main`** (not caused by your change), follow the pre-existing-failure handling in `.claude/skills/pr-prep/SKILL.md` — fix it in this PR and note it in the report.
-
-Do NOT mark the PR ready while CI is red.
-
-### 15. Report
-
-Output the PR URL to the user and confirm CI is green. Note any unchecked acceptance criteria the user should verify manually (e.g., UI screenshots, manual repro of edge cases).
+Once the PR is open and CI is green, report the PR URL, CI status, and any manual-verification items (UI screenshots, edge cases). Then note that we're now in the **Adjust phase**: further changes are committed locally as we go but **not pushed**; the user runs `/finalize-pr` again when the PR is ready to re-review and re-run CI. See the "PR workflow" section in `AGENTS.md`.
 
 ## Hard rules
 
@@ -249,16 +157,9 @@ Output the PR URL to the user and confirm CI is green. Note any unchecked accept
 - **Never** skip hooks (`--no-verify`)
 - **Never** auto-run `pnpm db:migrations:create` — ask the user
 - **Never** commit secrets / `.env` / credentials
-- **Never** mark a PR ready while CI is red
-- **Never** report the PR as ready before CI checks have resolved green
 - **Always** create commits incrementally; never one monolithic commit at the end
-- **Always** use `--body-file` for PR creation (preserves markdown)
-- **Always** run the lean local gate before opening the PR; CI runs the full suite
-- **Always** run `/simplify` over the full branch diff before pushing
-- **Always** run `/code-review` after `/simplify` (in an isolated subagent) and resolve its findings before pushing
-- **Always** run `/review` after opening the PR (in an isolated subagent) and resolve its findings before reporting
-- **Always** run `/code-review` and `/review` via a dispatched subagent, never inline in the main thread
-- **Always** wait for CI to finish and verify it passed after pushing — resolve any failures before reporting
+- **Always** run the lean local gate (`.claude/skills/pr-prep/check.sh`) as you implement
+- **Always** ship via the finalize pipeline (`.claude/skills/finalize-pr/SKILL.md`) — never hand-roll the push/PR/CI steps here, and never report the PR ready while CI is red
 
 ## Edge cases
 
@@ -281,10 +182,11 @@ Reset the schema edits, surface the change as a follow-up issue, and proceed wit
 ## References
 
 - Branch naming: `branch-naming.md`
-- PR template: `pr-template.md`
 - Test types per change: `test-plan-checklist.md`
-- Validation script: `scripts/validate.sh`
+- Lean gate: `.claude/skills/pr-prep/check.sh`
+- Finalize pipeline (simplify → review → push → PR → CI): `.claude/skills/finalize-pr/SKILL.md`
+- PR body template: `.claude/skills/finalize-pr/pr-template.md`
 - Repo conventions: `.claude/skills/draft-ticket/conventions.md`
 - Test patterns: `.claude/rules/tests.md`
-- PR requirements: `.claude/skills/pr-prep/SKILL.md`
+- PR requirements / pre-existing failures: `.claude/skills/pr-prep/SKILL.md`
 - Migrations: `.claude/rules/migrations.md`
