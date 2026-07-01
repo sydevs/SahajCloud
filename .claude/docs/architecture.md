@@ -185,9 +185,11 @@ Source maps are uploaded to Sentry when `SENTRY_AUTH_TOKEN` is set during build.
   migrations and psql). Capping the pool keeps bursts of parallel admin work (a
   bulk publish runs its per-doc queries concurrently) from exhausting connections.
 - **Depth caps** — `defaultDepth: 2` (Payload's own default, set explicitly) and
-  `maxDepth: 5` (down from Payload's default 10). `maxDepth` clamps any explicit
+  `maxDepth: 3` (down from Payload's default 10). `maxDepth` clamps any explicit
   `depth` a caller asks for, guarding against runaway edit-view / API
-  over-fetching; the app's own queries never request beyond depth 2.
+  over-fetching; the app's own queries never request beyond depth 2. The cap is
+  surfaced to REST clients as the `depth` query param's `maximum` in the OpenAPI
+  spec (`@/plugins/openapi/clientReadParametersDocs.ts`).
 
 ## Scheduled Jobs
 

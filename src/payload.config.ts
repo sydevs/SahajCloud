@@ -49,9 +49,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // default is 2) applies when a request omits `depth`; `maxDepth` (default
     // 10) is the hard ceiling that clamps any explicit `depth` a caller asks
     // for — a guard against runaway edit-view / API over-fetching. The app's
-    // own queries never request beyond depth 2. See issue #529 (Phase 3/4).
+    // own queries never request beyond depth 2, so 3 leaves one level of
+    // client headroom. Documented to REST clients as the `depth` param's
+    // `maximum` in `@/plugins/openapi/clientReadParametersDocs`. See issue #529.
     defaultDepth: 2,
-    maxDepth: 5,
+    maxDepth: 3,
     localization: {
       defaultLocalePublishOption: 'active',
       locales: buildPayloadLocales(),
