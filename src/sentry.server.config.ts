@@ -26,6 +26,12 @@ if (dsn) {
   Sentry.init({
     dsn,
     environment: process.env.NODE_ENV,
+    // Never attach PII to events/spans. Explicit even though it's the
+    // @sentry/nextjs default — now that tracing is on, this keeps the
+    // @sentry/node HTTP integration from recording request headers (Cookie,
+    // Authorization) and keeps pg spans to parameterized SQL (no bound param
+    // values). Pins the privacy posture as tracing scales. See issue #529.
+    sendDefaultPii: false,
     // Low-rate performance tracing (default 0.1). The @sentry/node HTTP + `pg`
     // auto-instrumentation turns each admin request — bulk edits and the
     // `/api/{collection}` reads the list/edit views fire — into a transaction
