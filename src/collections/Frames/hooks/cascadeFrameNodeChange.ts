@@ -1,5 +1,6 @@
 import type { CollectionAfterChangeHook } from 'payload'
 
+import * as Sentry from '@sentry/nextjs'
 import { extractID } from 'payload/shared'
 
 import {
@@ -40,57 +41,73 @@ export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
   const changedFrameId = typeof doc.id === 'number' ? doc.id : Number(doc.id)
   if (!Number.isSafeInteger(changedFrameId)) return doc
 
-  const { docs } = await req.payload.find({
-    collection: 'meditations',
-    limit: 0,
-    depth: 0,
-    pagination: false,
-    locale: 'all',
-    req,
-  })
-
-  const affected = (docs as Meditation[])
-    .map((meditation) => ({
-      meditation,
-      normalized: normalizeMeditationFrames(meditation.frames),
-    }))
-    .filter(({ normalized }) => normalized.frames.some((f) => f.id === changedFrameId))
-
-  if (affected.length === 0) return doc
-
-  for (const { meditation, normalized } of affected) {
-    const diagnostics = {
-      frameId: doc.id,
-      operation,
-      status: meditation._status,
-      ...getFrameDiagnosticsLogContext(normalized),
-    }
-
-    let weights: Record<string, number>
-    try {
-      weights = await recomputeWeightsForMeditation(req.payload, meditation, req)
-    } catch (error) {
-      reportMeditationNodeWeightsCacheError({
-        payload: req.payload,
+  // Manual span: this full-table meditations scan + per-doc recompute is the
+  // expensive part of a Frame node change. Wrapping it as an active span nests
+  // the auto-instrumented `pg` queries underneath a single named node, so a
+  // trace shows the cascade cost at a glance. See issue #529 (Phase 1).
+  return Sentry.startSpan(
+    {
+      name: 'frames.cascadeNodeChange',
+      op: 'payload.hook.afterChange',
+      attributes: { 'frame.id': changedFrameId },
+    },
+    async (span) => {
+      const { docs } = await req.payload.find({
+        collection: 'meditations',
+        limit: 0,
+        depth: 0,
+        pagination: false,
+        locale: 'all',
         req,
-        meditationId: meditation.id,
-        reason: 'frame-cascade-recompute',
-        diagnostics,
-        error,
       })
-      continue
-    }
 
-    await persistMeditationNodeWeightsCache({
-      payload: req.payload,
-      meditationId: meditation.id,
-      weights,
-      reason: 'frame-cascade',
-      diagnostics,
-      req,
-      locale: meditation.locale ?? undefined,
-    })
-  }
+      const affected = (docs as Meditation[])
+        .map((meditation) => ({
+          meditation,
+          normalized: normalizeMeditationFrames(meditation.frames),
+        }))
+        .filter(({ normalized }) => normalized.frames.some((f) => f.id === changedFrameId))
 
-  return doc
+      span.setAttribute('meditations.scanned', docs.length)
+      span.setAttribute('meditations.affected', affected.length)
+
+      if (affected.length === 0) return doc
+
+      for (const { meditation, normalized } of affected) {
+        const diagnostics = {
+          frameId: doc.id,
+          operation,
+          status: meditation._status,
+          ...getFrameDiagnosticsLogContext(normalized),
+        }
+
+        let weights: Record<string, number>
+        try {
+          weights = await recomputeWeightsForMeditation(req.payload, meditation, req)
+        } catch (error) {
+          reportMeditationNodeWeightsCacheError({
+            payload: req.payload,
+            req,
+            meditationId: meditation.id,
+            reason: 'frame-cascade-recompute',
+            diagnostics,
+            error,
+          })
+          continue
+        }
+
+        await persistMeditationNodeWeightsCache({
+          payload: req.payload,
+          meditationId: meditation.id,
+          weights,
+          reason: 'frame-cascade',
+          diagnostics,
+          req,
+          locale: meditation.locale ?? undefined,
+        })
+      }
+
+      return doc
+    },
+  )
 }
