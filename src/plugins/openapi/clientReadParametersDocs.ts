@@ -95,6 +95,8 @@ Populate \`true\` for an entire collection: \`?populate[narrators]=true\`.
  * `depth` parameter. Controls how many levels of relationships to populate.
  * Payload's server default is currently `2`; `0` returns raw IDs only; `>1`
  * requires `populate` to be set so clients can't accidentally fan out into the graph.
+ * Capped at the server's `maxDepth` (3, set in `src/payload.config.ts`) — values
+ * above it are clamped down, not rejected. Keep this `maximum` in sync with that config.
  */
 export const depthParameter = {
   ...PARAMETER_BASE,
@@ -102,7 +104,7 @@ export const depthParameter = {
   schema: {
     type: 'integer',
     minimum: 0,
-    maximum: 10,
+    maximum: 3,
     default: 2,
   },
   description: `Number of relationship levels to populate.
@@ -110,6 +112,7 @@ export const depthParameter = {
 - \`0\` — return raw relationship IDs (no nested objects).
 - \`1\` — populate top-level relationships with their full doc.
 - \`2\` — Payload's current server default when \`depth\` is omitted.
+- \`3\` — maximum (server \`maxDepth\`); higher values are clamped down to 3, not rejected.
 - \`>1\` — also populate the relationships **on** those docs. Requires \`populate\` to be set, or the request is rejected with a 400.
 
 Pass \`depth=1\` or \`depth=0\` when you do not need nested relationship traversal. Keep \`depth\` as low as the client needs; deeper depths multiply query work.`,

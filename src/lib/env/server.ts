@@ -48,6 +48,28 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required (Postgres connection string)'),
 
   /**
+   * Max size of the Postgres connection pool (node-postgres `pool.max`).
+   * Consumed by the Payload Postgres adapter in `src/payload.config.ts`.
+   * Size to the Railway Postgres connection limit divided across running
+   * instances — see the pool-sizing notes in `.claude/docs/architecture.md`.
+   * @default 10
+   */
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1).default(10),
+
+  /**
+   * Enable Drizzle query logging (SQL + params to the console). Opt-in and
+   * force-disabled in production — used to capture the query trail behind a
+   * slow admin operation in dev/staging. Any truthy string (`true`/`1`) turns
+   * it on. Pair with Railway Postgres `log_min_duration_statement` for
+   * server-side timings. See `.claude/docs/architecture.md`.
+   * @default false
+   */
+  DB_QUERY_LOGGING: z
+    .string()
+    .optional()
+    .transform((value) => value === 'true' || value === '1'),
+
+  /**
    * Nirmala Vidya API key for fetching lecture metadata from Vimeo
    * Optional at startup — validated at point of use when creating/refreshing lectures
    */
@@ -181,6 +203,20 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    * @default 3000
    */
   PORT: z.coerce.number().int().min(1).max(65535).optional().default(3000),
+
+  // ============================================
+  // OBSERVABILITY - Sentry performance tracing
+  // ============================================
+
+  /**
+   * Sentry performance-tracing sample rate (0–1). Consumed by
+   * `src/sentry.server.config.ts`. A low non-zero rate (e.g. 0.1) keeps a
+   * representative sample of admin transactions — including bulk edits and the
+   * `/api/{collection}` reads the admin list/edit views fire — with their
+   * DB-span breakdown, at negligible overhead. Set to 0 to disable tracing.
+   * @default 0.1
+   */
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
 
   // ============================================
   // FRAMEWORK - Node.js/Next.js Environment

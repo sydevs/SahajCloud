@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { depthParameter } from '../../src/plugins/openapi/clientReadParametersDocs'
 import {
   CUSTOM_ENDPOINT_PATHS,
   CUSTOM_ENDPOINT_SCHEMAS,
@@ -86,5 +87,15 @@ describe('Lectures related-meditations custom endpoint (OpenAPI)', () => {
     // Shaped endpoint — fixed card output, so no passthrough read params.
     expect(byName.has('select')).toBe(false)
     expect(byName.has('populate')).toBe(false)
+  })
+})
+
+describe('depth parameter (OpenAPI)', () => {
+  // The documented `maximum` must track the server `maxDepth` in
+  // src/payload.config.ts (currently 3) so REST clients see the real cap.
+  it('caps depth at the server maxDepth (3)', () => {
+    expect(depthParameter.schema.maximum).toBe(3)
+    expect(depthParameter.schema.default).toBe(2)
+    expect(depthParameter.schema.minimum).toBe(0)
   })
 })
