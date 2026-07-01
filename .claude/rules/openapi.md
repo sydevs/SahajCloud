@@ -125,6 +125,7 @@ collection slug.
 | `GET /api/lectures/for-audience`             | `src/collections/Lectures/endpoints/forAudience.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
 | `GET /api/app-cards/for-audience`            | `src/collections/AppCards/endpoints/forAudience.ts` | `#/components/schemas/AppCards`                          |
 | `GET /api/meditations/{id}/related-lectures` | `src/collections/Meditations/endpoints/lectures.ts`  | `#/components/schemas/LecturePlayerData` (hand-authored) |
+| `GET /api/lectures/{id}/related-meditations` | `src/collections/Lectures/endpoints/relatedMeditations.ts` | `#/components/schemas/MeditationCardData` (hand-authored) |
 | `GET /api/events/geojson`                    | `src/collections/Events/endpoints/geojson.ts`       | `#/components/schemas/EventFeatureCollection` (hand-authored) |
 | `POST /api/events/{id}/register`             | `src/collections/Events/endpoints/registerForEvent.ts` | `#/components/schemas/EventRegistrationResponse` (hand-authored) |
 

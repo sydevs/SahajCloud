@@ -10,8 +10,8 @@
  * Consumers:
  *   - `src/app/(payload)/api/openapi.json/route.ts` merges these into the
  *     spec between `generateV31Spec` and `filterSpec`.
- *   - `tests/int/api-explorer.int.spec.ts` asserts the shape is kept in sync
- *     with the actual handler return types and query params.
+ *   - `tests/unit/openapi-custom-endpoints.spec.ts` asserts these paths + schemas
+ *     stay registered (and that shaped endpoints expose no `select`/`populate`).
  *
  * When `payload-oapi` ships native custom-endpoint support, delete this
  * module and the merge block in the route handler.
@@ -632,6 +632,88 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       },
     },
   },
+
+  '/api/lectures/{id}/related-meditations': {
+    get: {
+      tags: ['Lectures'],
+      summary: 'Meditations related to a lecture',
+      description:
+        'Returns daily meditations contextually relevant to a lecture, ranked by ' +
+        "the topical overlap between the lecture's tagged `subtleSystemNodes` and " +
+        "each candidate meditation's cached on-screen node weights " +
+        '(`subtleSystemNodeWeights`). The mirror of ' +
+        '`GET /api/meditations/{id}/related-lectures`. Zero-overlap meditations are ' +
+        'dropped; if fewer than `limit` relevance matches survive shaping, the ' +
+        'remaining slots are topped up with daily meditations by recency ' +
+        '(`createdAt` DESC). Each result is a flat `MeditationCardData` card — the ' +
+        'response shape is fixed, so there are no `select`/`populate` params (unlike ' +
+        'passthrough endpoints such as `/api/events/geojson`). Sets ' +
+        '`Cache-Control: public, max-age=600, s-maxage=600`.',
+      operationId: 'lectureRelatedMeditations',
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          description: 'ID of the lecture whose context drives the ranking.',
+          schema: { type: 'string' },
+        },
+        {
+          name: 'limit',
+          in: 'query',
+          required: true,
+          description: 'Maximum number of meditation cards to return (1–100).',
+          schema: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+        {
+          name: 'excludedMeditationIds',
+          in: 'query',
+          required: false,
+          description:
+            'Comma-separated meditation IDs to exclude (e.g. meditations the user ' +
+            'has already seen), e.g. `3,4,5`.',
+          schema: { type: 'string', pattern: '^\\d+(,\\d+)*$' },
+        },
+      ],
+      responses: {
+        '200': {
+          description:
+            'Related meditations. `source` is `relevance` when every card is a ' +
+            'genuine topical-overlap match, or `fallback` when recency top-ups were ' +
+            'mixed in (or relevance matched nothing). `relevanceCount` is the number ' +
+            'of leading `docs` that are genuine relevance matches (equals ' +
+            '`docs.length` when `source` is `relevance`; `0` when relevance matched ' +
+            'nothing).',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['docs', 'source', 'relevanceCount'],
+                properties: {
+                  docs: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/MeditationCardData' },
+                  },
+                  source: {
+                    type: 'string',
+                    enum: ['relevance', 'fallback'],
+                    description: 'Which selection strategy produced `docs`.',
+                  },
+                  relevanceCount: {
+                    type: 'integer',
+                    description: 'Number of leading `docs` that are genuine relevance matches.',
+                  },
+                },
+              },
+            },
+          },
+        },
+        '400': errorResponse('Missing lecture id, or query param validation failed.'),
+        '403': errorResponse('Caller is not an active API client.'),
+        '404': errorResponse('Lecture not found.'),
+      },
+    },
+  },
 }
 
 // ── Schema definitions ────────────────────────────────────────────────────────
@@ -687,6 +769,25 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       stopTime: { type: ['number', 'null'] },
       duration: { type: ['number', 'null'] },
       fullLectureId: { type: ['integer', 'null'] },
+    },
+  },
+  /**
+   * Flat, card-ready meditation returned by `GET /api/lectures/{id}/related-meditations`.
+   * Keep in lockstep with `MeditationCardData` in `src/lib/meditations/meditationShape.ts` —
+   * the shaper drops any meditation missing `title` / `durationMinutes` / a thumbnail URL,
+   * so those three are always present (non-null); `narratorName` is best-effort (nullable).
+   * `additionalProperties: false` keeps the shape tight so no other Meditation field leaks.
+   */
+  MeditationCardData: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id', 'title', 'durationMinutes', 'thumbnailUrl', 'narratorName'],
+    properties: {
+      id: { type: 'integer' },
+      title: { type: 'string' },
+      durationMinutes: { type: 'number' },
+      thumbnailUrl: { type: 'string' },
+      narratorName: { type: ['string', 'null'] },
     },
   },
   /**
