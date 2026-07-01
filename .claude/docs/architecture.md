@@ -144,6 +144,53 @@ The custom logger:
 
 Source maps are uploaded to Sentry when `SENTRY_AUTH_TOKEN` is set during build.
 
+### Performance tracing (issue #529)
+
+- Enabled via `SENTRY_TRACES_SAMPLE_RATE` (server env, default `0.1`; `0`
+  disables). Read directly from `process.env` in `src/sentry.server.config.ts`
+  so it survives early `instrumentation.register()` boot without the full
+  server-env parse.
+- `@sentry/node`'s HTTP + `pg` auto-instrumentation turns each admin request —
+  bulk edits and the `/api/{collection}` reads the list/edit views fire — into a
+  transaction with a **DB-span breakdown**, no manual spans required.
+- Manual spans wrap the two expensive write-path hooks so their query clusters
+  read as a single named node in a trace: `meditations.recomputeNodeWeights`
+  (`src/collections/Meditations/hooks/recomputeMeditationNodeWeights.ts`) and
+  `frames.cascadeNodeChange` (`src/collections/Frames/hooks/cascadeFrameNodeChange.ts`).
+
+### Slow-query logging (dev/staging)
+
+- `DB_QUERY_LOGGING=true` turns on Drizzle's query logger (SQL + params to the
+  console) via `postgresAdapter({ logger })`. Opt-in and **force-disabled in
+  production** (`!isProduction && serverEnv.DB_QUERY_LOGGING`). The guard is
+  `NODE_ENV !== 'production'`, and Railway builds (staging previews included) run
+  `NODE_ENV=production`, so in practice this only fires in **local dev**. Use it
+  to see the query trail (and any N+1 growth) behind a slow admin operation.
+- **Caution**: it logs bound query params — which can include emails, auth /
+  reset tokens, and API keys. Never enable it in any environment holding **real
+  or cloned production data**; keep it to local/synthetic data only.
+- For server-side **timings** in staging/prod, set Railway Postgres
+  `log_min_duration_statement` (e.g. `200ms`) on the database service — it logs
+  every statement slower than the threshold with its duration. Prefer this over
+  the Drizzle logger wherever real data is present.
+
+## Database connection pool & depth caps
+
+`src/payload.config.ts` configures the Postgres adapter pool and global query depth:
+
+- **Pool** — `pool.max` (via `DATABASE_POOL_MAX`, default `10`) plus
+  `idleTimeoutMillis` / `connectionTimeoutMillis`. Size `max` to the **Railway
+  Postgres connection limit divided across running instances** (e.g. a 20-conn
+  limit with 2 instances → `max` ≈ 8–10 each, leaving headroom for in-process
+  migrations and psql). Capping the pool keeps bursts of parallel admin work (a
+  bulk publish runs its per-doc queries concurrently) from exhausting connections.
+- **Depth caps** — `defaultDepth: 2` (Payload's own default, set explicitly) and
+  `maxDepth: 3` (down from Payload's default 10). `maxDepth` clamps any explicit
+  `depth` a caller asks for, guarding against runaway edit-view / API
+  over-fetching; the app's own queries never request beyond depth 2. The cap is
+  surfaced to REST clients as the `depth` query param's `maximum` in the OpenAPI
+  spec (`@/plugins/openapi/clientReadParametersDocs.ts`).
+
 ## Scheduled Jobs
 
 PayloadCMS's built-in autoRun job system handles background task processing on Railway's long-lived Node.js process.

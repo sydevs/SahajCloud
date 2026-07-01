@@ -1,5 +1,7 @@
 import type { CollectionAfterChangeHook } from 'payload'
 
+import * as Sentry from '@sentry/nextjs'
+
 import {
   getFrameDiagnosticsLogContext,
   meditationFramesChanged,
@@ -37,41 +39,57 @@ export const recomputeMeditationNodeWeights: CollectionAfterChangeHook = async (
   // Subsequent edits that introduce frames will fire the hook normally.
   if (normalizedFrames.frames.length === 0) return doc
 
-  const diagnostics = {
-    operation,
-    status: doc._status,
-    ...getFrameDiagnosticsLogContext(normalizedFrames),
-  }
+  // Manual span: the weight recompute + cache write is the intrinsic cost of a
+  // meditation save that touches frames/duration. Wrapping it nests the
+  // auto-instrumented `pg` queries under a named node so a trace attributes the
+  // cost to this hook. See issue #529 (Phase 1).
+  return Sentry.startSpan(
+    {
+      name: 'meditations.recomputeNodeWeights',
+      op: 'payload.hook.afterChange',
+      attributes: {
+        'meditation.id': doc.id,
+        'frames.count': normalizedFrames.frames.length,
+      },
+    },
+    async () => {
+      const diagnostics = {
+        operation,
+        status: doc._status,
+        ...getFrameDiagnosticsLogContext(normalizedFrames),
+      }
 
-  let weights: Record<string, number>
-  try {
-    weights = await recomputeWeightsForMeditation(req.payload, doc as Meditation, req)
-  } catch (error) {
-    reportMeditationNodeWeightsCacheError({
-      payload: req.payload,
-      req,
-      meditationId: doc.id,
-      reason: 'meditation-after-change-recompute',
-      diagnostics,
-      error,
-    })
-    return doc
-  }
+      let weights: Record<string, number>
+      try {
+        weights = await recomputeWeightsForMeditation(req.payload, doc as Meditation, req)
+      } catch (error) {
+        reportMeditationNodeWeightsCacheError({
+          payload: req.payload,
+          req,
+          meditationId: doc.id,
+          reason: 'meditation-after-change-recompute',
+          diagnostics,
+          error,
+        })
+        return doc
+      }
 
-  const persisted = await persistMeditationNodeWeightsCache({
-    payload: req.payload,
-    req,
-    meditationId: doc.id,
-    locale: typeof doc.locale === 'string' ? doc.locale : undefined,
-    weights,
-    reason: 'meditation-after-change',
-    diagnostics,
-  })
+      const persisted = await persistMeditationNodeWeightsCache({
+        payload: req.payload,
+        req,
+        meditationId: doc.id,
+        locale: typeof doc.locale === 'string' ? doc.locale : undefined,
+        weights,
+        reason: 'meditation-after-change',
+        diagnostics,
+      })
 
-  if (!persisted) return doc
+      if (!persisted) return doc
 
-  return {
-    ...doc,
-    subtleSystemNodeWeights: weights,
-  }
+      return {
+        ...doc,
+        subtleSystemNodeWeights: weights,
+      }
+    },
+  )
 }
