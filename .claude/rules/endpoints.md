@@ -69,6 +69,65 @@ export const MyCollection: CollectionConfig = {
 - Handle errors with appropriate HTTP status codes (400, 404, etc.)
 - Use `req.payload` (not a separate import) for database operations
 
+## Requirements: auth, OpenAPI, select/populate
+
+Three things are **mandatory** for every new public (client-facing) collection
+endpoint. A PR that adds an endpoint without them is incomplete.
+
+### 1. Authenticate the caller
+
+Public endpoints serve **published API clients**. Gate every handler with
+`requireActiveClient` (from `@/lib/endpoints`) as its first statement and
+short-circuit on a non-null return:
+
+```typescript
+import { requireActiveClient } from '@/lib/endpoints'
+
+handler: async (req) => {
+  const denied = requireActiveClient(req)
+  if (denied) return denied
+  // ...
+}
+```
+
+`requireActiveClient` returns a `403` unless the caller is a **published**
+`clients` user (publish/unpublish is the auth gate). Don't hand-roll the check —
+it's the single source for the guard's shape + message. An endpoint that must
+skip it (internal/admin-only) has to say why in a comment.
+
+### 2. Register it in the OpenAPI shim
+
+`payload-oapi` does **not** auto-generate paths for custom collection endpoints,
+so a new endpoint is invisible in `/api/docs` until it's hand-authored. For every
+endpoint you add:
+
+- Add the path to `CUSTOM_ENDPOINT_PATHS` in
+  `src/plugins/openapi/customEndpoints.ts` (keep the `/api/` prefix — project
+  visibility keys off it), plus any response schema in `CUSTOM_ENDPOINT_SCHEMAS`.
+- Document **every** path/query param and the exact response shape; keep a
+  hand-authored response schema in lockstep with the handler's return type.
+- Add the path + schema to the guard in
+  `tests/unit/openapi-custom-endpoints.spec.ts`.
+- Add a row to the custom-endpoint table in `.claude/rules/openapi.md`.
+
+See `.claude/rules/openapi.md` for the full shim contract.
+
+### 3. select / populate — match the output model
+
+- **Passthrough endpoints** forward the query into a Payload read and return the
+  docs (e.g. `GET /api/events/geojson`). These **must** accept + document
+  `select` / `populate` / `depth` — reuse `selectParameter` / `populateParameter`
+  / `depthParameter` from
+  `src/plugins/openapi/clientReadParametersDocs.ts`, and enforce the client read
+  contract (`select` required; `populate` required at `depth > 1`).
+- **Shaped endpoints** return a fixed, hand-built structure (e.g.
+  `GET /api/lectures/{id}/related-meditations`, `/related-lectures`). These do
+  **not** take `select` / `populate` — `populate` is meaningless on an
+  already-flattened card and the field set is fixed. Publish the exact response
+  schema instead. If a shaped response needs trimming, add a **bounded** `select`
+  over an explicit field allowlist, like `GET /api/meditations/{id}/songs` — not
+  a raw passthrough.
+
 ## When to use a Payload endpoint vs a Next.js route
 
 | Use case                                                                                                                                                                                                  | Where                                                               |

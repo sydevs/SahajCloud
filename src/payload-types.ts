@@ -5499,6 +5499,10 @@ export interface WmWebConfig {
   id: number;
   homePage: number | Page;
   /**
+   * Audience(s) the public We Meditate Web site targets for audience-gated content (e.g. related lectures). The site has no per-user login, so this fixed set is what it passes as the `audiences` param.
+   */
+  audiences: (number | Audience)[];
+  /**
    * Select 2-3 pages to feature in the website header and footer.
    */
   featuredPages: (number | Page)[];
@@ -6648,6 +6652,7 @@ export interface PayloadJobsStat {
  */
 export interface WmWebConfigSelect<T extends boolean = true> {
   homePage?: T;
+  audiences?: T;
   featuredPages?: T;
   featuredArticles?: T;
   classPages?: T;

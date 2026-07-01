@@ -103,3 +103,24 @@ export async function recomputeWeightsForMeditation(
     duration: meditation.duration,
   })
 }
+
+/**
+ * Score a meditation's topical overlap with a set of subtle-system-node slugs
+ * (typically the nodes tagged on a lecture): the sum of the meditation's cached
+ * on-screen seconds (`subtleSystemNodeWeights`) across those slugs.
+ *
+ * `weights` is the meditation's `subtleSystemNodeWeights` map (or the loose JSON
+ * value straight off the doc — non-object/null yields `0`). Slugs missing from
+ * the map, or mapped to a non-finite value, contribute `0`. Returns `0` when
+ * there is no overlap, so callers can drop non-matching candidates with `<= 0`.
+ */
+export function scoreMeditationByNodes(weights: unknown, slugs: Iterable<string>): number {
+  if (!weights || typeof weights !== 'object') return 0
+  const map = weights as Record<string, unknown>
+  let score = 0
+  for (const slug of slugs) {
+    const w = map[slug]
+    if (typeof w === 'number' && Number.isFinite(w)) score += w
+  }
+  return score
+}

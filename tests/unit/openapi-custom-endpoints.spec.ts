@@ -58,3 +58,23 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
     })
   })
 })
+
+describe('Lectures related-meditations custom endpoint (OpenAPI)', () => {
+  const get = CUSTOM_ENDPOINT_PATHS['/api/lectures/{id}/related-meditations']?.get as
+    | { parameters?: Array<{ name: string; required?: boolean }> }
+    | undefined
+
+  it('registers the related-meditations GET path and its card schema', () => {
+    expect(get).toBeDefined()
+    expect(CUSTOM_ENDPOINT_SCHEMAS['MeditationCardData']).toBeDefined()
+  })
+
+  it('documents limit (required) + excludedMeditationIds (optional) and no select/populate', () => {
+    const byName = new Map((get?.parameters ?? []).map((p) => [p.name, p]))
+    expect(byName.get('limit')?.required).toBe(true)
+    expect(byName.get('excludedMeditationIds')?.required).toBe(false)
+    // Shaped endpoint — fixed card output, so no passthrough read params.
+    expect(byName.has('select')).toBe(false)
+    expect(byName.has('populate')).toBe(false)
+  })
+})

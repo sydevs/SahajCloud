@@ -3,7 +3,7 @@ import type { Endpoint, Where } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
-import { parseQuery, requireActiveClient } from '@/lib/endpoints'
+import { commaSeparatedIntIds, parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { selectAudienceFeed } from '@/lib/lectures/audienceFeed'
 import { shapeLecture, type LecturePlayerData } from '@/lib/lectures/lectureShape'
 import { recomputeWeightsForMeditation } from '@/lib/meditations/nodeWeights'
@@ -35,17 +35,7 @@ const querySchema = z.object({
   audiences: audiencesQueryParamSchema,
   limit: z.coerce.number().int().min(1).max(100),
   userChoice: z.coerce.number().int().optional(),
-  excludedLectureIds: z
-    .string()
-    .optional()
-    .transform((s) => {
-      if (!s) return [] as number[]
-      return s
-        .split(',')
-        .map((part) => part.trim())
-        .filter((part) => /^\d+$/.test(part))
-        .map((part) => parseInt(part, 10))
-    }),
+  excludedLectureIds: commaSeparatedIntIds,
 })
 
 /**
