@@ -2,7 +2,7 @@ import type { Endpoint, Where } from 'payload'
 
 import { z } from 'zod'
 
-import { parseQuery, requireActiveClient } from '@/lib/endpoints'
+import { commaSeparatedIntIds, parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { shapeMeditation, type MeditationCardData } from '@/lib/meditations/meditationShape'
 import { scoreMeditationByNodes } from '@/lib/meditations/nodeWeights'
 import type { Lecture, Meditation, SubtleSystemNode } from '@/payload-types'
@@ -31,17 +31,7 @@ export type RelatedMeditationsResponse = {
 
 const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100),
-  excludedMeditationIds: z
-    .string()
-    .optional()
-    .transform((s) => {
-      if (!s) return [] as number[]
-      return s
-        .split(',')
-        .map((part) => part.trim())
-        .filter((part) => /^\d+$/.test(part))
-        .map((part) => parseInt(part, 10))
-    }),
+  excludedMeditationIds: commaSeparatedIntIds,
 })
 
 /**
@@ -136,6 +126,13 @@ export const lectureRelatedMeditations: Endpoint = {
     const locale = req.locale ?? 'en'
     const logger = req.payload.logger
 
+    // The daily/same-locale candidate pool (minus caller exclusions). Fetched
+    // once for relevance ranking and reused for the recency fallback below,
+    // instead of issuing a second identical query (mirrors how meditationLectures
+    // reuses its audience pool). Stays `null` for a no-nodes lecture, which skips
+    // the relevance pass and queries fresh for the fallback.
+    let candidatePool: Meditation[] | null = null
+
     // --- Relevance pass (skipped when the lecture has no tagged nodes) ---
     const relevanceShaped: MeditationCardData[] = []
     if (slugs.size > 0) {
@@ -153,8 +150,9 @@ export const lectureRelatedMeditations: Endpoint = {
         locale,
         req: asTrustedReq(req),
       })
+      candidatePool = candidateDocs as Meditation[]
 
-      const ranked = (candidateDocs as Meditation[])
+      const ranked = candidatePool
         .map((meditation) => ({
           meditation,
           score: scoreMeditationByNodes(meditation.subtleSystemNodeWeights, slugs),
@@ -174,24 +172,34 @@ export const lectureRelatedMeditations: Endpoint = {
     // --- Recency top-up fallback (fills any remaining slots) ---
     const fallbackShaped: MeditationCardData[] = []
     if (relevanceShaped.length < limit) {
-      const excludeIds = [...excludedMeditationIds, ...relevanceShaped.map((card) => card.id)]
-      const fallbackWhere: Where = { type: { equals: 'daily' } }
-      if (excludeIds.length > 0) {
-        fallbackWhere.id = { not_in: excludeIds }
+      const selectedIds = new Set(relevanceShaped.map((card) => card.id))
+      let recentDocs: Meditation[]
+      if (candidatePool) {
+        // Reuse the already-fetched pool: drop the relevance-selected docs and
+        // re-sort by recency in memory (equivalent to a fresh `-createdAt` query
+        // excluding the selected IDs, but without the round-trip).
+        recentDocs = candidatePool
+          .filter((meditation) => !selectedIds.has(meditation.id))
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id)
+      } else {
+        const fallbackWhere: Where = { type: { equals: 'daily' } }
+        if (excludedMeditationIds.length > 0) {
+          fallbackWhere.id = { not_in: excludedMeditationIds }
+        }
+        const { docs } = await req.payload.find({
+          collection: 'meditations',
+          where: fallbackWhere,
+          depth: 1,
+          pagination: false,
+          limit: 0,
+          sort: '-createdAt',
+          locale,
+          req: asTrustedReq(req),
+        })
+        recentDocs = docs as Meditation[]
       }
 
-      const { docs: recentDocs } = await req.payload.find({
-        collection: 'meditations',
-        where: fallbackWhere,
-        depth: 1,
-        pagination: false,
-        limit: 0,
-        sort: '-createdAt',
-        locale,
-        req: asTrustedReq(req),
-      })
-
-      for (const meditation of recentDocs as Meditation[]) {
+      for (const meditation of recentDocs) {
         if (relevanceShaped.length + fallbackShaped.length >= limit) break
         const card = shapeMeditation(meditation, logger)
         if (card) fallbackShaped.push(card)
