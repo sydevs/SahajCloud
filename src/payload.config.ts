@@ -45,6 +45,13 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     debug: true, // Enable verbose error logging for troubleshooting uploads
     // Use one logger implementation everywhere so local, CLI, and server behavior stay aligned.
     logger,
+    // Cap relationship-population depth globally. `defaultDepth` (Payload's own
+    // default is 2) applies when a request omits `depth`; `maxDepth` (default
+    // 10) is the hard ceiling that clamps any explicit `depth` a caller asks
+    // for — a guard against runaway edit-view / API over-fetching. The app's
+    // own queries never request beyond depth 2. See issue #529 (Phase 3/4).
+    defaultDepth: 2,
+    maxDepth: 5,
     localization: {
       defaultLocalePublishOption: 'active',
       locales: buildPayloadLocales(),
@@ -133,8 +140,20 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     db: postgresAdapter({
       pool: {
         connectionString: serverEnv.DATABASE_URL,
+        // Cap the pool so bursts of parallel admin work (e.g. a bulk publish,
+        // whose per-doc queries the driver runs concurrently) can't exhaust the
+        // Railway Postgres connection limit. Size to that limit divided across
+        // running instances — see the pool-sizing notes in
+        // `.claude/docs/architecture.md`. Tune via DATABASE_POOL_MAX.
+        max: serverEnv.DATABASE_POOL_MAX,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000,
       },
       push: !isProduction,
+      // Drizzle query logging (SQL + params to the console). Opt-in via
+      // DB_QUERY_LOGGING and force-disabled in production — used to capture the
+      // query trail behind a slow admin operation in dev/staging (issue #529).
+      logger: !isProduction && serverEnv.DB_QUERY_LOGGING,
       // Production runs as a long-running container, so apply any pending
       // migrations in-process on boot (Payload only runs these when
       // NODE_ENV=production). Dev/test use Drizzle `push` above instead.
