@@ -244,5 +244,24 @@ describe('registerForEvent endpoint', () => {
       expect(status).toBe(201)
       expect(await subscribedAtFor(body.registration!.id)).toBeFalsy()
     })
+
+    it('ignores a client-supplied mailingListSubscribedAt (stamped server-side)', async () => {
+      // Consent is stamped server-side; a body-supplied value must never be
+      // honored, or a caller could backdate/forge consent. The field isn't in
+      // the schema (Zod drops it) — this locks that guarantee in against a future
+      // refactor that trusts the body.
+      const before = Date.now()
+      const { status, body } = await callRegister(eventId, {
+        email: 'injector@example.com',
+        name: 'In Jector',
+        subscribe: true,
+        mailingListSubscribedAt: '2020-01-01T00:00:00.000Z',
+      })
+      expect(status).toBe(201)
+
+      const stamped = await subscribedAtFor(body.registration!.id)
+      // Server time (>= before), never the injected 2020 value.
+      expect(new Date(stamped as string).getTime()).toBeGreaterThanOrEqual(before)
+    })
   })
 })
