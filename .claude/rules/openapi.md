@@ -145,9 +145,7 @@ params: four progress params (`pathProgress`, `meditationsPerWeek`,
 `/meditations/{id}/related-lectures`) take a single pre-resolved
 `audiences` ID list (mirrors `audiencesQueryParamSchema` in
 `src/lib/audiences/audiencesQueryParam.ts`) instead of the rule-data
-params (#340). The "audience query params on /api/audiences/for-user
-expose all six required params" assertion in
-`tests/int/api-explorer.int.spec.ts` is the regression guard (#345).
+params (#340).
 
 When `payload-oapi` ships native custom-endpoint support, both the
 shim module and the merge block in the route handler can be deleted in
@@ -176,12 +174,17 @@ Review payload-oapi quarterly for native support of these.
 
 ## Testing
 
-`tests/int/api-explorer.int.spec.ts` covers:
+Current guards (both **unit** — no Payload bootstrap):
 
-- Spec generation and validation
-- Project-based filtering for each project
-- `ALWAYS_HIDDEN_COLLECTIONS` exclusion
-- Operation filtering (DELETE, PATCH hidden)
-- Scalar UI endpoint responses
-- Audience query-param coverage on `/api/audiences/for-user` (all six params required)
-- Pre-resolved `audiences` ID-list shape on the three data endpoints (#340)
+- `tests/unit/openapi-custom-endpoints.spec.ts` — the hand-authored custom paths
+  + schemas stay registered (Atlas events, `/lectures/{id}/related-meditations`),
+  shaped endpoints expose no `select`/`populate`, and `filterSpec` POST visibility
+  (the auto-generated base-collection `POST /api/{collection}` is hidden unless the
+  collection is in `ALLOW_POST_FOR`; hand-authored custom POST subpaths stay visible).
+- `tests/unit/openapi-endpoint-auth.spec.ts` — the `DOCS_PASSWORD` basic-auth gate
+  on `/openapi-raw.json` (passes through when unset, 401 on a wrong password).
+
+The earlier `tests/int/api-explorer.int.spec.ts` — which exercised spec generation,
+project filtering, `ALWAYS_HIDDEN_COLLECTIONS`/DELETE-PATCH filtering, the Scalar UI
+responses, and the audience query-param coverage — was **removed** in the #434
+test-suite audit as it only covered Payload/plugin built-ins (see `tests/COVERAGE.md`).

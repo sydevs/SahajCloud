@@ -2,7 +2,7 @@
  * Custom Endpoint OpenAPI Shims
  *
  * `payload-oapi` v0.2.5 does not generate path entries for custom Payload
- * collection endpoints (the ones defined in `src/endpoints/*` and wired via
+ * collection endpoints (the ones defined in `src/collections/<Name>/endpoints/*` and wired via
  * a collection's `endpoints` array). This module hand-writes those path
  * definitions so they appear in the Scalar docs alongside the auto-generated
  * CRUD endpoints.
@@ -725,10 +725,11 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
  *
  * Keep `LecturePlayerData` in lockstep with the matching type in
  * `src/lib/lectures/lectureShape.ts` and the shapers in
- * `src/endpoints/lecturesForAudience.ts` /
- * `src/endpoints/meditationLectures.ts` — the `api-explorer.int.spec.ts`
- * shape test is the tripwire. `additionalProperties: false` keeps the
- * shape tight so accidental fields are rejected.
+ * `src/collections/Lectures/endpoints/forAudience.ts` /
+ * `src/collections/Meditations/endpoints/lectures.ts` — kept in sync by hand
+ * (the `api-explorer.int.spec.ts` shape test that used to enforce this was
+ * removed in the #434 audit). `additionalProperties: false` keeps the shape
+ * tight so accidental fields are rejected.
  */
 export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
   /**
