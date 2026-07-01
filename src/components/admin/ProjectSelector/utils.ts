@@ -6,6 +6,9 @@ import { isCollectionVisibleInProject } from '@/plugins/access'
 // deep import into the access plugin's internals.
 type ContentSlug = Parameters<typeof isCollectionVisibleInProject>[0]
 
+/** The `collections`/`globals` segment of an admin pathname → the content slug. */
+const CONTENT_SLUG_PATTERN = /\/(?:collections|globals)\/([^/]+)/
+
 /**
  * Extract the content slug (collection or global) currently being viewed from an
  * admin pathname, or `null` for non-content routes (dashboard, account, …).
@@ -14,7 +17,7 @@ type ContentSlug = Parameters<typeof isCollectionVisibleInProject>[0]
  * `wm-web-config`; `/admin` or `/admin/analytics` → `null`.
  */
 function currentContentSlug(pathname: string): string | null {
-  const match = /\/(?:collections|globals)\/([^/]+)/.exec(pathname)
+  const match = CONTENT_SLUG_PATTERN.exec(pathname)
   return match ? match[1] : null
 }
 

@@ -2,7 +2,7 @@ import type { Endpoint } from 'payload'
 
 import { z } from 'zod'
 
-import { parseBody } from '@/lib/endpoints'
+import { parseBody, requireManager } from '@/lib/endpoints'
 import type { ProjectSlug } from '@/payload-types'
 import { isValidProject } from '@/plugins/access'
 
@@ -39,13 +39,9 @@ export const setProject: Endpoint = {
   path: '/set-project',
   method: 'post',
   handler: async (req) => {
-    const user = req.user
-    if (user?.collection !== 'managers') {
-      return Response.json(
-        { errors: [{ message: 'You are not allowed to perform this action.' }] },
-        { status: 403 },
-      )
-    }
+    const denied = requireManager(req)
+    if (denied) return denied
+    const managerId = req.user!.id
 
     const parsed = await parseBody(req, bodySchema)
     if (!parsed.ok) return parsed.response
@@ -54,7 +50,7 @@ export const setProject: Endpoint = {
     try {
       const updated = await req.payload.update({
         collection: 'managers',
-        id: user.id,
+        id: managerId,
         data: { currentProject: currentProject as ProjectSlug | null },
         // Self-scoped: `id` is the caller's own document, so elevate past the
         // per-field access pipeline — that's the whole point of this endpoint.
@@ -66,7 +62,7 @@ export const setProject: Endpoint = {
     } catch (error) {
       req.payload.logger.error({
         msg: 'setProject: failed to persist currentProject',
-        managerId: user.id,
+        managerId,
         error: error instanceof Error ? error.message : String(error),
       })
       return Response.json({ errors: [{ message: 'Failed to change project.' }] }, { status: 500 })
