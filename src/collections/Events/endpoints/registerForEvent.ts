@@ -19,6 +19,10 @@ const bodySchema = z.object({
     .record(z.string(), z.unknown())
     .refine((q) => JSON.stringify(q).length <= 10_000, 'questions payload is too large')
     .optional(),
+  // Mailing-list consent (opt-in). When true, stamp `mailingListSubscribedAt` on
+  // the registration; absent/false leaves it unset. Sent by the Atlas widget's
+  // consent checkbox (sydevs/SahajAtlasWeb#25).
+  subscribe: z.boolean().optional(),
 })
 
 /**
@@ -37,8 +41,9 @@ const bodySchema = z.object({
  * Flow: parse the `:id` + body → confirm the event is one the client may see
  * (published + project-visible) → upsert the registrant `user` by normalized
  * email with elevated access (`users` is admin-only) → create the `registration`
- * (event + user + startingAt + questions + a fresh uuid). Returns
- * `EventRegistrationResponse`.
+ * (event + user + startingAt + questions + a fresh uuid, plus
+ * `mailingListSubscribedAt` when the registrant opted in via `subscribe`).
+ * Returns `EventRegistrationResponse`.
  */
 export const registerForEvent: Endpoint = {
   path: '/:id/register',
@@ -54,7 +59,7 @@ export const registerForEvent: Endpoint = {
 
     const parsed = await parseBody(req, bodySchema)
     if (!parsed.ok) return parsed.response
-    const { email, name, startingAt, questions } = parsed.data
+    const { email, name, startingAt, questions, subscribe } = parsed.data
 
     try {
       // Only register for an event this client may actually read (published +
@@ -114,7 +119,15 @@ export const registerForEvent: Endpoint = {
 
       const registration = await req.payload.create({
         collection: 'registrations',
-        data: { event: eventId, user: userId, startingAt, questions, uuid: randomUUID() },
+        data: {
+          event: eventId,
+          user: userId,
+          startingAt,
+          questions,
+          uuid: randomUUID(),
+          // Record consent at registration time; omit when not opted in.
+          mailingListSubscribedAt: subscribe ? new Date().toISOString() : undefined,
+        },
         overrideAccess: true,
         req,
       })
