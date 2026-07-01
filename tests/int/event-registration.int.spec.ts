@@ -198,4 +198,51 @@ describe('registerForEvent endpoint', () => {
     expect(await userCountByEmail(payload, email)).toBe(1)
     expect(first.body.registration!.id).not.toBe(second.body.registration!.id)
   })
+
+  describe('mailing-list consent (subscribe)', () => {
+    async function subscribedAtFor(id: number): Promise<unknown> {
+      const registration = await payload.findByID({
+        collection: 'registrations',
+        id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      return registration.mailingListSubscribedAt
+    }
+
+    it('stamps mailingListSubscribedAt at registration time when subscribe is true', async () => {
+      const before = Date.now()
+      const { status, body } = await callRegister(eventId, {
+        email: 'consenting@example.com',
+        name: 'Con Senting',
+        subscribe: true,
+      })
+      expect(status).toBe(201)
+
+      const stamped = await subscribedAtFor(body.registration!.id)
+      expect(stamped).toBeTruthy()
+      const stampedAt = new Date(stamped as string).getTime()
+      expect(stampedAt).toBeGreaterThanOrEqual(before)
+      expect(stampedAt).toBeLessThanOrEqual(Date.now() + 1000)
+    })
+
+    it('leaves mailingListSubscribedAt unset when subscribe is false', async () => {
+      const { status, body } = await callRegister(eventId, {
+        email: 'declining@example.com',
+        name: 'De Clining',
+        subscribe: false,
+      })
+      expect(status).toBe(201)
+      expect(await subscribedAtFor(body.registration!.id)).toBeFalsy()
+    })
+
+    it('leaves mailingListSubscribedAt unset when subscribe is absent', async () => {
+      const { status, body } = await callRegister(eventId, {
+        email: 'silent@example.com',
+        name: 'Si Lent',
+      })
+      expect(status).toBe(201)
+      expect(await subscribedAtFor(body.registration!.id)).toBeFalsy()
+    })
+  })
 })
