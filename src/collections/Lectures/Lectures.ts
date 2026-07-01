@@ -4,6 +4,7 @@ import { mediaField, urlField } from '@/fields'
 import { LOCALES, getLocaleLabel } from '@/lib/locales'
 
 import { lecturesForAudience } from './endpoints/forAudience'
+import { lectureRelatedMeditations } from './endpoints/relatedMeditations'
 import { populateFromNirmalaVidya } from './hooks/populateFromNirmalaVidya'
 import { resolveClipParent } from './hooks/resolveClipParent'
 
@@ -15,7 +16,7 @@ export const Lectures: CollectionConfig = {
     singular: 'Lecture',
     plural: 'Lectures',
   },
-  endpoints: [lecturesForAudience],
+  endpoints: [lecturesForAudience, lectureRelatedMeditations],
   admin: {
     group: 'Content',
     useAsTitle: 'title',

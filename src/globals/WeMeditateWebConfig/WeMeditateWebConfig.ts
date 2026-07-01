@@ -22,6 +22,19 @@ export const WeMeditateWebConfig: GlobalConfig = {
       required: true,
     },
     {
+      name: 'audiences',
+      type: 'relationship',
+      relationTo: 'audiences',
+      hasMany: true,
+      required: true,
+      minRows: 1,
+      admin: {
+        description:
+          'Audience(s) the public We Meditate Web site targets for audience-gated content (e.g. related lectures). ' +
+          'The site has no per-user login, so this fixed set is what it passes as the `audiences` param.',
+      },
+    },
+    {
       name: 'featuredPages',
       type: 'relationship',
       relationTo: 'pages',

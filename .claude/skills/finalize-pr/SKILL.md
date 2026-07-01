@@ -72,7 +72,7 @@ Run `/security-review` **only if** the branch diff touches security-relevant pat
 
 ```bash
 git diff --name-only origin/main...HEAD | grep -E \
-  'src/plugins/access/|src/collections/(Clients|Managers)/|src/endpoints/|src/app/.*/api/|src/plugins/storage/|webhook|src/payload.config.ts'
+  'src/plugins/access/|src/collections/(Clients|Managers)/|src/collections/[^/]+/endpoints/|src/app/.*/api/|src/plugins/storage/|webhook|src/payload.config.ts'
 ```
 
 - **Match** → run `/security-review` over the diff (dispatch a subagent to keep the thread lean —

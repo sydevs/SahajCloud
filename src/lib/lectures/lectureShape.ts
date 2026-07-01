@@ -1,7 +1,8 @@
 import type { PayloadLogger } from 'payload'
 
 import type { LectureMetadata } from '@/lib/lectures/nirmalaVidya'
-import type { Image, Lecture } from '@/payload-types'
+import { resolveThumbnailUrl } from '@/lib/utilities/thumbnailUrl'
+import type { Lecture } from '@/payload-types'
 
 /**
  * Flat, playback-ready shape for a lecture returned from /api/lectures/for-audience
@@ -30,8 +31,6 @@ export type LecturePlayerData = {
   fullLectureId: number | null
 }
 
-export type ThumbnailRef = number | Image | null | undefined
-
 /**
  * Merge per-locale subtitle overrides on top of the lecture's NV-sourced
  * subtitle map. The base map is the baseline; each non-empty override row
@@ -49,24 +48,6 @@ export function mergeSubtitles(
     }
   }
   return merged
-}
-
-/** Extracts a usable CDN URL from a thumbnail relationship (populated or null). */
-function thumbnailUrl(ref: ThumbnailRef): string | null {
-  if (ref && typeof ref === 'object' && typeof ref.url === 'string') return ref.url
-  return null
-}
-
-/**
- * Resolve a viewer-item thumbnail URL: editor override first, then a generic
- * fallback URL. Both arguments are optional — returns `null` when nothing
- * resolves.
- */
-export function resolveThumbnailUrl(args: {
-  override?: ThumbnailRef
-  fallback?: string | null
-}): string | null {
-  return thumbnailUrl(args.override) ?? args.fallback ?? null
 }
 
 /**
