@@ -215,9 +215,12 @@ SENTRY_AUTH_TOKEN=<token>
   for in-process migrations and psql). Capping the pool stops bursts of parallel
   admin work (a bulk publish runs its per-doc queries concurrently) from
   exhausting connections.
-- `DB_QUERY_LOGGING` _(optional, default false; **dev/staging only**)_ - set to
-  `true` to log Drizzle SQL + params. Force-disabled in production. Pair with
-  Railway Postgres `log_min_duration_statement` for server-side query timings.
+- `DB_QUERY_LOGGING` _(optional, default false; **local dev only**)_ - set to
+  `true` to log Drizzle SQL + params. Force-disabled when `NODE_ENV=production`
+  (which Railway builds — staging previews included — always set). ⚠️ It logs
+  bound params (emails, tokens, API keys), so **never enable it in any env with
+  real or cloned prod data** — use Railway `log_min_duration_statement` for
+  server-side query timings there instead.
 
 **Storage (R2 S3-compatible API)**:
 

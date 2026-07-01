@@ -162,12 +162,17 @@ Source maps are uploaded to Sentry when `SENTRY_AUTH_TOKEN` is set during build.
 
 - `DB_QUERY_LOGGING=true` turns on Drizzle's query logger (SQL + params to the
   console) via `postgresAdapter({ logger })`. Opt-in and **force-disabled in
-  production** (`!isProduction && serverEnv.DB_QUERY_LOGGING`), so it never spams
-  prod or CI. Use it to see the query trail (and any N+1 growth) behind a slow
-  admin operation locally or in staging.
-- For server-side **timings**, set Railway Postgres `log_min_duration_statement`
-  (e.g. `200ms`) on the database service — it logs every statement slower than
-  the threshold with its duration, complementing the Drizzle SQL log.
+  production** (`!isProduction && serverEnv.DB_QUERY_LOGGING`). The guard is
+  `NODE_ENV !== 'production'`, and Railway builds (staging previews included) run
+  `NODE_ENV=production`, so in practice this only fires in **local dev**. Use it
+  to see the query trail (and any N+1 growth) behind a slow admin operation.
+- **Caution**: it logs bound query params — which can include emails, auth /
+  reset tokens, and API keys. Never enable it in any environment holding **real
+  or cloned production data**; keep it to local/synthetic data only.
+- For server-side **timings** in staging/prod, set Railway Postgres
+  `log_min_duration_statement` (e.g. `200ms`) on the database service — it logs
+  every statement slower than the threshold with its duration. Prefer this over
+  the Drizzle logger wherever real data is present.
 
 ## Database connection pool & depth caps
 
