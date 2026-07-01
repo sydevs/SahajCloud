@@ -159,9 +159,14 @@ export const lectureRelatedMeditations: Endpoint = {
         }))
         .filter((entry) => entry.score > 0)
         .sort((a, b) => b.score - a.score || a.meditation.id - b.meditation.id)
-        .slice(0, limit)
 
+      // Shape in score order, stopping at `limit` valid cards. Shaping AFTER the
+      // limit cut (rather than slicing to `limit` first) means a higher-ranked
+      // candidate that fails shaping doesn't demote a genuine lower-ranked match
+      // into the recency fallback — so `relevanceCount` stays the true count of
+      // leading relevance matches.
       for (const { meditation } of ranked) {
+        if (relevanceShaped.length >= limit) break
         const card = shapeMeditation(meditation, logger)
         if (card) relevanceShaped.push(card)
       }
@@ -180,7 +185,10 @@ export const lectureRelatedMeditations: Endpoint = {
         // excluding the selected IDs, but without the round-trip).
         recentDocs = candidatePool
           .filter((meditation) => !selectedIds.has(meditation.id))
-          .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id)
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || b.id - a.id,
+          )
       } else {
         const fallbackWhere: Where = { type: { equals: 'daily' } }
         if (excludedMeditationIds.length > 0) {
