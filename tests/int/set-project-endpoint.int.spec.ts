@@ -115,6 +115,19 @@ describe('setProject endpoint (POST /api/managers/set-project)', () => {
       expect(res.status).toBe(403)
     })
 
+    it('rejects an inactive manager with 403 (locked out, matching the access bypass)', async () => {
+      const res = await callSetProject(
+        payload,
+        { currentProject: 'wemeditate-web' },
+        {
+          id: 888888,
+          collection: 'managers',
+          type: 'inactive',
+        },
+      )
+      expect(res.status).toBe(403)
+    })
+
     it('rejects an invalid project slug with 400', async () => {
       const mgr = await testData.createManager(payload, { name: 'Bad Input' })
       const res = await callSetProject(payload, { currentProject: 'not-a-project' }, asManager(mgr))

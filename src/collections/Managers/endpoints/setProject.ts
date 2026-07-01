@@ -2,7 +2,7 @@ import type { Endpoint } from 'payload'
 
 import { z } from 'zod'
 
-import { parseBody, requireManager } from '@/lib/endpoints'
+import { parseBody, requireActiveManager } from '@/lib/endpoints'
 import type { ProjectSlug } from '@/payload-types'
 import { isValidProject } from '@/plugins/access'
 
@@ -39,7 +39,7 @@ export const setProject: Endpoint = {
   path: '/set-project',
   method: 'post',
   handler: async (req) => {
-    const denied = requireManager(req)
+    const denied = requireActiveManager(req)
     if (denied) return denied
     const managerId = req.user!.id
 
