@@ -23,6 +23,16 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
     }
   })
 
+  it('documents the optional subscribe consent flag on the register request body', () => {
+    const schema = CUSTOM_ENDPOINT_SCHEMAS.EventRegistrationRequest as {
+      required?: string[]
+      properties?: Record<string, { type?: string }>
+    }
+    expect(schema.properties?.subscribe?.type).toBe('boolean')
+    // Opt-in → optional, never in `required`.
+    expect(schema.required ?? []).not.toContain('subscribe')
+  })
+
   describe('filterSpec POST visibility', () => {
     // Minimal spec: the auto-generated events CRUD plus the hand-authored custom
     // subpaths, filtered for the project that owns `events`.

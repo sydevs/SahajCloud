@@ -886,6 +886,12 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
         additionalProperties: true,
         description: 'Raw registrant answers (questions / experience / aspirations / referral).',
       },
+      subscribe: {
+        type: 'boolean',
+        description:
+          'Mailing-list consent (opt-in). When true, the registration is stamped with ' +
+          '`mailingListSubscribedAt`; absent/false records no consent.',
+      },
     },
   },
   /** `POST /api/events/{id}/register` success body. */
