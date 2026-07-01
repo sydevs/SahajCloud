@@ -86,7 +86,12 @@ export const Meditations: CollectionConfig = {
     afterChange: [recomputeMeditationNodeWeights],
   },
   defaultPopulate: {
+    // Exclude the expensive per-row afterRead virtual fields when a meditation
+    // is hydrated through a relationship (depth ≥ 1): `tagAssignments` fires
+    // ~4 user-choices queries/row and `frames` fires a frames query/row —
+    // neither is needed by relationship consumers. See issue #529 (Phase 3).
     tagAssignments: false,
+    frames: false,
   },
   versions: {
     maxPerDoc: 3,
@@ -160,6 +165,11 @@ export const Meditations: CollectionConfig = {
               })),
               defaultValue: ({ locale }: { locale?: string }) => locale || 'en',
               required: true,
+              // `filterMeditationsByLocale` appends `{ locale: { equals } }` to
+              // every find/count, so this column is filtered on every admin list
+              // load — index it to keep list/pagination queries off a seq scan.
+              // See issue #529 (Phase 3). Needs a migration (dev/test use push).
+              index: true,
               admin: {
                 hidden: true,
               },

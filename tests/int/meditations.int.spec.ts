@@ -463,4 +463,55 @@ describe('Meditations Collection', () => {
       expect(tagAssignments?.asMorningMeditation).toHaveLength(1)
     })
   })
+
+  describe('defaultPopulate on relationship hydration (#529)', () => {
+    let relMeditationId: number
+    let userChoiceId: number
+
+    beforeAll(async () => {
+      // Frame + tag-assignment give the excluded afterRead fields real work, so
+      // their absence on a populated read is meaningful (not just empty data).
+      const frame = await testData.createFrame(payload)
+      const relMeditation = await testData.createMeditation(payload, {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      })
+      relMeditationId = relMeditation.id
+      await payload.update({
+        collection: 'meditations',
+        id: relMeditationId,
+        data: { frames: [{ id: frame.id, timestamp: 0 }] as unknown as Meditation['frames'] },
+      })
+      const userChoice = await testData.createUserChoice(payload, {
+        morningMeditation: relMeditationId,
+      } as Parameters<typeof testData.createUserChoice>[1])
+      userChoiceId = userChoice.id
+    })
+
+    it('omits frames + tagAssignments when a meditation is populated through a relationship', async () => {
+      const findSpy = vi.spyOn(payload, 'find')
+      try {
+        const userChoice = await payload.findByID({
+          collection: 'user-choices',
+          id: userChoiceId,
+          depth: 1,
+          locale: 'en',
+        })
+
+        const populated = userChoice.morningMeditation as Meditation
+        expect(typeof populated).toBe('object')
+
+        // defaultPopulate excludes these, so neither expensive per-row afterRead
+        // runs and the fields are absent from the hydrated relationship.
+        expect(populated.frames).toBeUndefined()
+        expect(populated.tagAssignments).toBeUndefined()
+        expect(findSpy.mock.calls.map((call) => call[0].collection)).not.toContain('frames')
+
+        // A non-excluded field still hydrates normally.
+        expect(populated.label).toBeTruthy()
+      } finally {
+        findSpy.mockRestore()
+      }
+    })
+  })
 })
