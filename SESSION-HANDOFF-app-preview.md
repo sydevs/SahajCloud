@@ -12,7 +12,7 @@ The **real WeMeditate app runs on Flutter Web** and is embedded in the Payload C
 
 | CMS entity | Kind | App preview | Screens / variants | Mechanism |
 |---|---|---|---|---|
-| **Translations** (`wm-app-translations`) | global | Real onboarding screens with the editor's copy overlaid | Welcome · Name · Greeting · User type | **string-override** |
+| **Translations** (`wm-app-translations`) | global | Real onboarding/auth screens with the editor's copy overlaid | Welcome · Name · Greeting · User type · Login | **string-override** |
 | **App Cards** (`app-cards`) | collection | Real home card | Hero · Highlight · Landscape | doc→model |
 | **Path Steps** (`lessons`) | collection | Real Path Step screens | Intro · Story · Article | doc→model |
 | **Pages** (`pages`) | collection | Page body via the app's content constructor | (single) | doc→model |
@@ -105,7 +105,7 @@ Restart the app to recompile (`-d web-server` doesn't hot-reload on file change)
 ## 7. Done / not done
 
 - ✅ **Translations, App Cards, Path Steps, Pages, Meditations, Lectures, App Configuration** → previews above, all verified.
-- ⏳ **Translations — more screens.** Only welcome/name/greeting/user_type are wired. Auth (login/create) and Profile (main/account/contact) are the same pattern — add `TranslationScreenSpec`s. Each needs its CMS↔app key alignment checked (mostly 1:1; watch richText-vs-split-string keys, e.g. welcome `legal_disclaimer`).
+- ⏳ **Translations — more screens.** Wired: welcome/name/greeting/user_type/**login**. The overlay **deep-merges** nested sections, so a screen reading several sub-sections works (Login overlays `auth.login`+`auth.common`). Remaining easy adds: create-account (needs `entryContext`), restore-password, profile contact. Profile main/account/history need a seeded cubit (user-state driven). Each needs CMS↔app key alignment checked (mostly 1:1; watch richText-vs-split-string keys, e.g. welcome `legal_disclaimer`, user_type `title`).
 - ⏳ **Pages — CMS trigger.** The app renderer is built + verified, but the `pages` collection still points its `livePreview` at the **web frontend** (a live deployed worker). Flipping it to the app is one line but is a product decision (§9).
 - ⛔ **`wm-app-status`** — intentionally skipped. It's a CMS-only launch-readiness dashboard; the app never fetches it. Its force-update gate is Firebase Remote Config, unrelated.
 - Embedded/media-only collections (Songs/Albums/Videos/Frames/Images/Files/Narrators/Authors/Audiences/Regions/Events) have no standalone app screen — correctly unmapped.
