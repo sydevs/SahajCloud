@@ -2,6 +2,7 @@ import type { CollectionConfig, Where } from 'payload'
 
 import { mediaField, urlField } from '@/fields'
 import { LOCALES, getLocaleLabel } from '@/lib/locales'
+import { appLivePreview } from '@/lib/preview/appLivePreview'
 
 import { lecturesForAudience } from './endpoints/forAudience'
 import { lectureRelatedMeditations } from './endpoints/relatedMeditations'
@@ -28,10 +29,18 @@ export const Lectures: CollectionConfig = {
   defaultPopulate: {
     clips: false,
   },
+  // Drafts + autosave so the live-preview toggler is available on the edit page
+  // (autosave creates a draft immediately). Enables the WeMeditate App preview.
+  versions: {
+    drafts: {
+      autosave: { interval: 800 },
+    },
+  },
   admin: {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'type', 'thumbnail'],
+    livePreview: appLivePreview('lectures'),
   },
   hooks: {
     // resolveClipParent runs first so clip records have their parent resolved

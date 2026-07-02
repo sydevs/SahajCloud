@@ -8,6 +8,7 @@ import {
   normalizeMeditationFrames,
   normalizeMeditationFramesForStorage,
 } from '@/lib/meditations/frames'
+import { appLivePreview } from '@/lib/preview/appLivePreview'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
 import { KeyframeData } from '@/types/frames'
@@ -97,6 +98,8 @@ export const Meditations: CollectionConfig = {
     maxPerDoc: 3,
     drafts: {
       schedulePublish: true,
+      // Autosave surfaces the live-preview toggler on the edit page.
+      autosave: { interval: 800 },
     },
   },
   upload: {
@@ -118,20 +121,9 @@ export const Meditations: CollectionConfig = {
     // selected so the `durationMinutes` virtual column — whose afterRead
     // derives minutes from `duration` — still computes under the list select.
     defaultColumns: ['label', 'thumbnail', '_status', 'type', 'durationMinutes', 'duration'],
-    livePreview: {
-      url: ({ data }) => {
-        const baseURL = process.env.WEMEDITATE_WEB_URL
-        return `${baseURL}/${data.locale}/preview/embed?collection=meditations&id=${data.id}&secret=${process.env.SAHAJCLOUD_PREVIEW_SECRET}`
-      },
-      breakpoints: [
-        {
-          label: 'Mobile',
-          name: 'mobile',
-          width: 375,
-          height: 667,
-        },
-      ],
-    },
+    // Repointed from the web frontend to the WeMeditate App web host so the
+    // meditation player screen previews live (was WEMEDITATE_WEB_URL/preview/embed).
+    livePreview: appLivePreview('meditations'),
     components: {
       edit: {
         PublishButton: '@/components/admin/buttons/UpdateOnlyPublishButton',

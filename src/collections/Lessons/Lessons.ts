@@ -20,11 +20,28 @@ export const Lessons: CollectionConfig = {
     defaultColumns: ['title', 'step', 'icon'],
     groupBy: true,
     listSearchableFields: ['title'],
+    // Live preview in the WeMeditate App web host (see WEMEDITATE_APP_URL). The
+    // hosted app parses ?collection/id/locale/secret and renders the real Path
+    // Step screen from the edited doc streamed over Payload's live preview.
+    livePreview: {
+      url: ({ data, locale }) => {
+        const baseURL = process.env.WEMEDITATE_APP_URL
+        if (!baseURL) return ''
+        return `${baseURL}/?collection=lessons&id=${data?.id ?? ''}&locale=${locale?.code ?? 'en'}&secret=${process.env.SAHAJCLOUD_PREVIEW_SECRET}`
+      },
+      breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
+    },
   },
-  // versions: {
-  //   maxPerDoc: 20,
-  //   drafts: true,
-  // },
+  versions: {
+    maxPerDoc: 20,
+    drafts: {
+      // Autosave creates a draft immediately on the create page, which is what
+      // makes Payload's live-preview toggler available there (see Pages).
+      autosave: {
+        interval: 800,
+      },
+    },
+  },
   fields: [
     {
       name: 'title',
