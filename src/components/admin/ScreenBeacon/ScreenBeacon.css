@@ -1,0 +1,13 @@
+/*
+ * Default the translations live-preview pane to roughly phone width.
+ *
+ * The WeMeditate App preview is a fixed 390px phone, but Payload's live-preview
+ * pane defaults to ~half the screen, leaving a wide empty margin around the
+ * phone. Scoped via :has() to the wm-app-translations iframe so it only affects
+ * this global, and using `width`/`flex-basis` (not max-width) so the resizer's
+ * inline width still wins if the editor drags the splitter.
+ */
+.live-preview-window:has(iframe[src*='preview/wm-app-translations']) {
+  width: clamp(380px, 30vw, 480px);
+  flex: 0 0 clamp(380px, 30vw, 480px);
+}

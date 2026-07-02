@@ -11,7 +11,10 @@
 
 .translations-row {
   display: grid;
-  grid-template-columns: 340px 1fr;
+  /* Label column caps at 340px but shrinks first; the input keeps a usable
+     minimum so it doesn't collapse when the form pane is narrow (e.g. beside
+     the live-preview split view, where the viewport stays wide). */
+  grid-template-columns: minmax(0, 340px) minmax(min(100%, 240px), 1fr);
   gap: calc(var(--base) * 0.75);
   align-items: start;
   padding: calc(var(--base) * 0.5) 0;

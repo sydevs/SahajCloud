@@ -98,6 +98,28 @@ function createScreenshotField(
 }
 
 /**
+ * Invisible per-tab beacon that tells the live-preview harness which screen is
+ * active (Payload streams the document but not the active tab). Emitted for
+ * EVERY leaf so each tab signals its screen id; the harness renders the real
+ * screen when that id is registered, otherwise an honest "coming soon"
+ * placeholder — so a tab never shows a stale, wrong screen. Rendered by
+ * `ScreenBeacon`. The preview itself is Payload's native live preview (see the
+ * global's `admin.livePreview`) — this is just the active-tab signal.
+ */
+function createScreenBeaconField(leafSlug: string, parentGroup?: string): UIField {
+  const screenId = parentGroup ? `${parentGroup}.${leafSlug}` : leafSlug
+
+  return {
+    name: `${leafSlug}__beacon`,
+    type: 'ui',
+    admin: {
+      components: { Field: '@/components/admin/ScreenBeacon' },
+      custom: { screenId },
+    },
+  }
+}
+
+/**
  * One localized JSON field per leaf group, holding every string-typed key in
  * that group as flat `{ key: value }` pairs. Rendered by TranslationsRow,
  * which displays each schema entry as its own row (title + description +
@@ -201,6 +223,7 @@ function createLeafFields(
   globalSlug: string,
   parentGroup?: string,
 ): Field[] {
+  const beacon = createScreenBeaconField(leafSlug, parentGroup)
   const screenshot = createScreenshotField(leafSlug, group, globalSlug)
   const props = Object.entries(group.properties || {})
   const hasStringKeys = props.some(([, p]) => isStringProp(p))
@@ -224,7 +247,7 @@ function createLeafFields(
     fields.push(createRichTextField(`${leafSlug}_${key}`, key, prop, globalSlug, parentGroup))
   }
 
-  return [...(screenshot ? [screenshot] : []), ...fields]
+  return [beacon, ...(screenshot ? [screenshot] : []), ...fields]
 }
 
 // ============================================================================
