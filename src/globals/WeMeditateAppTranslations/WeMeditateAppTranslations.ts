@@ -1,6 +1,7 @@
 import type { GlobalConfig } from 'payload'
 
 import { buildTranslationTabs, type TranslationsSchema } from '@/fields/translationsField'
+import { appLivePreview } from '@/lib/preview/appLivePreview'
 
 import translationsSchema from './translationsSchema.json' with { type: 'json' }
 
@@ -8,22 +9,12 @@ export const WeMeditateAppTranslations: GlobalConfig = {
   slug: 'wm-app-translations',
   admin: {
     group: 'WeMeditate App',
-    livePreview: {
-      // Payload's native live preview. The hosted WeMeditate App page
-      // reimplements Payload's live-preview client (subscribe/ready) and
-      // renders the screen for whichever section the translator is editing
-      // (auto-follow). `secret` lets that page read unpublished drafts via the
-      // API (see src/lib/utilities/previewSecret.ts).
-      //
-      // Needs WEMEDITATE_APP_URL — and on Railway it must be present at BUILD
-      // time too, since `headers()` (the CSP frame-src) is baked at build.
-      url: ({ locale }) => {
-        const baseURL = process.env.WEMEDITATE_APP_URL
-        if (!baseURL) return ''
-        return `${baseURL}/${locale.code}/preview/wm-app-translations?secret=${process.env.SAHAJCLOUD_PREVIEW_SECRET}`
-      },
-      breakpoints: [{ name: 'mobile', label: 'Mobile', width: 390, height: 844 }],
-    },
+    // Payload's native live preview, pointed at the WeMeditate App web host
+    // (the app-as-preview-engine). The app parses `?global=wm-app-translations`
+    // and renders a real translation-driven screen with the editor's changes
+    // overlaid on the English base (see lib/preview/translation_preview.dart in
+    // the app repo). A screen picker in the preview switches between screens.
+    livePreview: appLivePreview('wm-app-translations', 'global'),
   },
   versions: {
     max: 10,
