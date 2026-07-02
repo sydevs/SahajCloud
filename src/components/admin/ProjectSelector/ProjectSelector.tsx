@@ -1,7 +1,7 @@
 'use client'
 
 import { ReactSelect, toast, useAuth, useRouteTransition } from '@payloadcms/ui'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
 import { InlineLogo } from '@/components/branding'
@@ -9,6 +9,8 @@ import { useProject } from '@/contexts/ProjectContext'
 import { clientLogger } from '@/lib/logger/clientLogger'
 import type { ProjectSlug } from '@/payload-types'
 import { getProjectOptions, getProjectsFromRoles } from '@/plugins/access'
+
+import { shouldRedirectToAdmin } from './utils'
 
 // Define Option type for ReactSelect
 interface SelectOption {
@@ -29,6 +31,7 @@ const ProjectSelector = () => {
   const { user } = useAuth()
   const { startRouteTransition } = useRouteTransition()
   const router = useRouter()
+  const pathname = usePathname()
   const [isSaving, setIsSaving] = useState(false)
 
   // Calculate allowed projects and available options
@@ -84,11 +87,14 @@ const ProjectSelector = () => {
     const newProject = selectedOption.value
     const previousProject = currentProject
 
+    // Optimistic: update the selector + project theme immediately for instant
+    // feedback, before the persist round-trip. Reverted on failure below.
+    setCurrentProject(newProject)
     setIsSaving(true)
     try {
-      // Update manager profile
-      const response = await fetch(`/api/managers/${user?.id}`, {
-        method: 'PATCH',
+      // Lightweight self-only persist — skips the generic Managers PATCH pipeline.
+      const response = await fetch('/api/managers/set-project', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ currentProject: newProject }),
@@ -98,11 +104,13 @@ const ProjectSelector = () => {
         throw new Error(`Failed to update project: ${response.statusText}`)
       }
 
-      // Update local state
-      setCurrentProject(newProject)
-
-      // Redirect to admin root to avoid viewing hidden collections
-      startRouteTransition(() => router.push('/admin'))
+      // Re-render the current route so the nav re-evaluates admin.hidden under
+      // the new project. Only navigate to /admin when the collection currently
+      // viewed becomes hidden — otherwise the route stays valid and refreshes
+      // in place (no full navigation).
+      startRouteTransition(() =>
+        shouldRedirectToAdmin(pathname, newProject) ? router.push('/admin') : router.refresh(),
+      )
     } catch (error) {
       clientLogger.error('Failed to update project', error)
       toast.error('Failed to change project. Please try again.')

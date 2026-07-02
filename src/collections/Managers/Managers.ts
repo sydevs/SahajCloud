@@ -15,9 +15,13 @@ import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
+import { setProject } from './endpoints/setProject'
+
 export const Managers: CollectionConfig = {
   slug: 'managers',
   // Access control is applied by accessPlugin with self-access pattern
+  // `setProject` is the lightweight self-only Current Project write path (#532).
+  endpoints: [setProject],
   auth: {
     // Auth emails intentionally use the default brand (wemeditate-web) rather
     // than the recipient's currentProject — branding is an explicit per-send
