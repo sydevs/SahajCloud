@@ -1,5 +1,7 @@
 import type { GlobalConfig } from 'payload'
 
+import { appLivePreview } from '@/lib/preview/appLivePreview'
+
 export const VIBE_CHECK_IDENTIFIERS = [
   { label: 'What You Feel - Start', value: 'WHAT-YOU-FEEL-START' },
   { label: 'What You Feel - Left', value: 'WHAT-YOU-FEEL-LEFT' },
@@ -40,6 +42,10 @@ export const WeMeditateAppConfig: GlobalConfig = {
   slug: 'wm-app-config',
   admin: {
     group: 'WeMeditate App',
+    // App-as-preview-engine: renders a config overview of what this global wires
+    // up (first meditation, page slots, store links). See the app repo
+    // lib/preview/preview_registry.dart (`wm-app-config`).
+    livePreview: appLivePreview('wm-app-config', 'global'),
   },
   label: 'Configuration',
   fields: [
