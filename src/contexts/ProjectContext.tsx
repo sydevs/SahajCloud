@@ -42,9 +42,9 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
       const selected = allowedProjects[0]
       setCurrentProject(selected)
 
-      // Update database with auto-selected project
-      fetch(`/api/managers/${user.id}`, {
-        method: 'PATCH',
+      // Persist the auto-selected project via the lightweight self-only endpoint.
+      fetch('/api/managers/set-project', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ currentProject: selected }),
