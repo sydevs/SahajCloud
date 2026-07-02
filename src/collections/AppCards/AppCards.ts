@@ -3,6 +3,7 @@ import type { CollectionConfig, Field, FieldHook } from 'payload'
 import { Temporal } from '@js-temporal/polyfill'
 
 import { mediaField, scheduleFields, urlField } from '@/fields'
+import { appLivePreview } from '@/lib/preview/appLivePreview'
 import type { ScheduleSubFields } from '@/lib/schedule/scheduleHooks'
 import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
 
@@ -493,7 +494,9 @@ export const AppCards: CollectionConfig = {
     plural: 'App Cards',
   },
   versions: {
-    drafts: true,
+    drafts: {
+      autosave: { interval: 800 },
+    },
     maxPerDoc: 5,
   },
   disableDuplicate: true,
@@ -502,6 +505,7 @@ export const AppCards: CollectionConfig = {
     group: 'WeMeditate App',
     useAsTitle: 'label',
     defaultColumns: ['label', 'type', '_status'],
+    livePreview: appLivePreview('app-cards'),
   },
   fields: [
     {
