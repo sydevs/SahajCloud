@@ -464,13 +464,13 @@ describe('Meditations Collection', () => {
     })
   })
 
-  describe('defaultPopulate on relationship hydration (#529)', () => {
+  describe('defaultPopulate on relationship hydration', () => {
     let relMeditationId: number
     let userChoiceId: number
 
     beforeAll(async () => {
-      // Frame + tag-assignment give the excluded afterRead fields real work, so
-      // their absence on a populated read is meaningful (not just empty data).
+      // Frame + tag-assignment give the afterRead fields real work, so their
+      // presence/absence on a populated read is meaningful (not just empty data).
       const frame = await testData.createFrame(payload)
       const relMeditation = await testData.createMeditation(payload, {
         narrator: testNarrator.id,
@@ -488,7 +488,7 @@ describe('Meditations Collection', () => {
       userChoiceId = userChoice.id
     })
 
-    it('omits frames + tagAssignments when a meditation is populated through a relationship', async () => {
+    it('populates frames but omits tagAssignments when a meditation is populated through a relationship', async () => {
       const findSpy = vi.spyOn(payload, 'find')
       try {
         const userChoice = await payload.findByID({
@@ -501,11 +501,18 @@ describe('Meditations Collection', () => {
         const populated = userChoice.morningMeditation as Meditation
         expect(typeof populated).toBe('object')
 
-        // defaultPopulate excludes these, so neither expensive per-row afterRead
-        // runs and the fields are absent from the hydrated relationship.
-        expect(populated.frames).toBeUndefined()
+        // `frames` IS included in defaultPopulate: the app renders the player's
+        // timed frames from meditations embedded in user-choices / wm-app-config,
+        // so its enrichment afterRead must run on relationship hydration (it
+        // queries the frames collection). #529 had excluded it via `frames: false`,
+        // which blanked the live player — reverted here.
+        expect(Array.isArray(populated.frames)).toBe(true)
+        expect((populated.frames as unknown[]).length).toBeGreaterThan(0)
+        expect(findSpy.mock.calls.map((call) => call[0].collection)).toContain('frames')
+
+        // `tagAssignments` stays excluded — nothing consumes it through a
+        // relationship, so its ~4-user-choices-queries/row afterRead is skipped.
         expect(populated.tagAssignments).toBeUndefined()
-        expect(findSpy.mock.calls.map((call) => call[0].collection)).not.toContain('frames')
 
         // A non-excluded field still hydrates normally.
         expect(populated.label).toBeTruthy()
