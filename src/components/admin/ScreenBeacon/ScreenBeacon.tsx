@@ -23,9 +23,8 @@ export const ScreenBeacon: UIFieldClientComponent = ({ field }) => {
     if (!screenId) return undefined
 
     const post = () => {
-      const iframe = document.querySelector<HTMLIFrameElement>(
-        'iframe[src*="preview/wm-app-translations"]',
-      )
+      // The app-engine live-preview iframe carries `?global=wm-app-translations`.
+      const iframe = document.querySelector<HTMLIFrameElement>('iframe[src*="wm-app-translations"]')
       iframe?.contentWindow?.postMessage({ type: 'wm-active-screen', screen: screenId }, '*')
     }
 

@@ -17,7 +17,6 @@ interface SchemaEntry {
   description: string
 }
 
-
 export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly }) => {
   const { name, label, localized, required, admin: { custom } = {} } = field
 
@@ -69,7 +68,7 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
           </div>
         ) : (
           schemaEntries.map((entry) => {
-            const englishValue = isEnglish ? '' : englishMap?.[entry.key] ?? ''
+            const englishValue = isEnglish ? '' : (englishMap?.[entry.key] ?? '')
             const currentValue = value?.[entry.key] ?? ''
             return (
               <TranslationsRow
@@ -85,7 +84,9 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
                   value={currentValue}
                   onChange={(next) => handleChange(entry.key, next)}
                   readOnly={readOnly}
-                  placeholder="Enter translation..."
+                  placeholder={
+                    englishValue ? `Enter translation — "${englishValue}"` : 'Enter translation…'
+                  }
                   ariaLabel={`Translation for ${entry.key}`}
                 />
               </TranslationsRow>
