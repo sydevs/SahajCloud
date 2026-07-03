@@ -85,13 +85,24 @@ export const Meditations: CollectionConfig = {
     ],
     afterChange: [recomputeMeditationNodeWeights],
   },
+  // `defaultPopulate` is the projection used ONLY when a meditation is loaded
+  // through a relationship (depth ≥ 1) — it does not touch direct reads or the
+  // admin list view (which has its own `enableListViewSelectAPI` select).
+  //
+  // #529 (Phase 3) added `frames: false` here to skip the per-row frames
+  // enrichment `afterRead` on relationship hydration, on the assumption that
+  // "neither is needed by relationship consumers." That is wrong for `frames`:
+  // the We Meditate app consumes meditations NESTED — embedded in
+  // `wm-app-config.selfRealizationMeditation` (first meditation) and
+  // `user-choices.{morning,…}Meditation` (personalised / quick) — and renders
+  // their timed `frames`. Excluding `frames` stripped the field before its
+  // enrichment ran, so the live app received meditations with no frames and the
+  // player fell back to the thumbnail. Drop `frames: false` so nested consumers
+  // get enriched frames again (top-level `GET /api/meditations/{id}` reads were
+  // never affected). `tagAssignments` stays excluded — the app doesn't read it,
+  // so its ~4-queries/row cost is still correctly skipped.
   defaultPopulate: {
-    // Exclude the expensive per-row afterRead virtual fields when a meditation
-    // is hydrated through a relationship (depth ≥ 1): `tagAssignments` fires
-    // ~4 user-choices queries/row and `frames` fires a frames query/row —
-    // neither is needed by relationship consumers. See issue #529 (Phase 3).
     tagAssignments: false,
-    frames: false,
   },
   versions: {
     maxPerDoc: 3,
