@@ -88,7 +88,9 @@
 }
 
 .translations-row__input-cell textarea {
-  flex: 1;
+  /* Not flex:1 — the auto-grow sets an explicit height per content/placeholder,
+     and flex-grow would stretch it to the grid-row height and clip the text. */
+  flex: 0 0 auto;
   width: 100%;
   resize: none;
   overflow: hidden;
