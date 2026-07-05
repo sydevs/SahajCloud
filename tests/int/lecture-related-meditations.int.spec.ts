@@ -292,4 +292,61 @@ describe('lectureRelatedMeditations endpoint', () => {
       expect(status).toBe(403)
     })
   })
+
+  describe('bounded-select keeps the candidate-pool read flat (#541)', () => {
+    // The meditations `tagAssignments` virtual-join subfields each run a
+    // `payload.find('user-choices')` per row, and the `frames` afterRead runs a
+    // `payload.find('frames')` per row. Before #541 the endpoint fetched the
+    // candidate pool with no `select`, so those per-row hooks fired across the
+    // whole daily pool — an N+1 that grew with the number of candidates. The
+    // bounded `CANDIDATE_SELECT` omits both fields, so their afterReads are
+    // stripped before they run. Asserting the count stays at *zero* as the pool
+    // grows proves it's flat, not merely "smaller".
+    const findCollections = (spy: ReturnType<typeof vi.spyOn>): string[] =>
+      spy.mock.calls.map((c) => (c[0] as { collection: string }).collection)
+
+    it('fires no per-row user-choices / frames sub-queries, and stays flat as the pool grows', async () => {
+      const findSpy = vi.spyOn(payload, 'find')
+      try {
+        // Measurement 1 — the three daily meditations from the outer setup.
+        await callEndpoint(payload, anchorLecture.id, { limit: 25 })
+        expect(findCollections(findSpy).filter((c) => c === 'user-choices')).toHaveLength(0)
+        expect(findCollections(findSpy).filter((c) => c === 'frames')).toHaveLength(0)
+
+        // Grow the daily pool: three more daily meditations, each with frames and
+        // a category (user-choice) referencing it — so the skipped hooks would
+        // have real per-row work to do if they still fired.
+        for (let i = 0; i < 3; i++) {
+          const med = await testData.createMeditation(payload, undefined, {
+            title: `Extra Daily ${i}`,
+          })
+          await setFrames(payload, med.id, [{ id: frameA.id, timestamp: 0 }])
+          await testData.createUserChoice(payload, {
+            morningMeditation: med.id,
+          } as Parameters<typeof testData.createUserChoice>[1])
+        }
+
+        // Measurement 2 — over the now-doubled pool. Clear first so only the
+        // endpoint's own reads (not the setup writes above) are counted.
+        findSpy.mockClear()
+        const { body } = await callEndpoint(payload, anchorLecture.id, { limit: 25 })
+        expect(findCollections(findSpy).filter((c) => c === 'user-choices')).toHaveLength(0)
+        expect(findCollections(findSpy).filter((c) => c === 'frames')).toHaveLength(0)
+
+        // The pool genuinely grew, and every card still shapes correctly under
+        // the narrowed select (title / durationMinutes / thumbnail all present —
+        // a missing dependency would have dropped the card instead).
+        const res = body as ResponseBody
+        expect(res.docs.length).toBeGreaterThanOrEqual(4)
+        for (const card of res.docs) {
+          expect(typeof card.title).toBe('string')
+          expect(card.title.length).toBeGreaterThan(0)
+          expect(typeof card.durationMinutes).toBe('number')
+          expect(card.thumbnailUrl.length).toBeGreaterThan(0)
+        }
+      } finally {
+        findSpy.mockRestore()
+      }
+    })
+  })
 })
