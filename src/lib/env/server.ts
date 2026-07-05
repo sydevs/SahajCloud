@@ -52,9 +52,11 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    * Consumed by the Payload Postgres adapter in `src/payload.config.ts`.
    * Size to the Railway Postgres connection limit divided across running
    * instances — see the pool-sizing notes in `.claude/docs/architecture.md`.
-   * @default 10
+   * Prod (2026-07): Postgres `max_connections=100` (97 usable), 1 app replica →
+   * default 20 leaves ample headroom while doubling bulk-publish burst capacity.
+   * @default 20
    */
-  DATABASE_POOL_MAX: z.coerce.number().int().min(1).default(10),
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1).default(20),
 
   /**
    * Enable Drizzle query logging (SQL + params to the console). Opt-in and
