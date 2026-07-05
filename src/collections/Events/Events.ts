@@ -391,9 +391,10 @@ export const Events: CollectionConfig = {
       web: serverEnv.SAHAJATLAS_URL,
       buildPath: async ({ data, req }) => {
         const regionId = relationId(data?.region)
-        if (regionId == null) return null
+        const id = data?.id
+        if (regionId == null || typeof id !== 'number') return null
         const regionPath = (await getRegionWebPaths(req)).get(regionId)
-        return regionPath != null ? `${regionPath}/${data?.id as number}` : null
+        return regionPath != null ? `${regionPath}/${id}` : null
       },
     }),
     ...legacyMigrationFields(),

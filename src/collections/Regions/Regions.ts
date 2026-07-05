@@ -459,8 +459,10 @@ export const Regions: CollectionConfig = {
     ...publicUrlFields({
       web: serverEnv.SAHAJATLAS_URL,
       buildPath: async ({ data, req }) => {
+        const id = data?.id
+        if (typeof id !== 'number') return null
         const paths = await getRegionWebPaths(req)
-        return paths.get(data?.id as number) ?? null
+        return paths.get(id) ?? null
       },
       requirePublished: false,
     }),
