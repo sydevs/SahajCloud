@@ -9,8 +9,8 @@ export interface TimezoneOption {
 /**
  * The full IANA timezone set, sourced deterministically from the **pinned**
  * `@vvo/tzdb` package (its bundled tz database). We do NOT use
- * `Intl.supportedValuesOf('timeZone')`: every `timezone: true` companion and the
- * Regions `eventDefaults.timeZone` select bakes a Postgres enum from this list,
+ * `Intl.supportedValuesOf('timeZone')`: every `timezone: true` companion field
+ * bakes a Postgres enum from this list,
  * so it MUST be identical on the machine that generates the migration and on
  * every runtime — and `Intl` varies with the host's ICU version (e.g.
  * `Asia/Calcutta` vs `Asia/Kolkata`). A pinned package is identical everywhere.
@@ -44,12 +44,3 @@ export const SUPPORTED_TIMEZONES: TimezoneOption[] = (() => {
   }
   return [...byValue.values()]
 })()
-
-/**
- * Select options for the Atlas Regions `eventDefaults.timeZone` (multi-select).
- * The same list backs `admin.timezones.supportedTimezones` in the Payload config
- * (the `timezone: true` companion fields), so the picker and the columns agree.
- */
-export function getTimezoneOptions(): TimezoneOption[] {
-  return SUPPORTED_TIMEZONES
-}

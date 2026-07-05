@@ -6,12 +6,9 @@ import { hideUntilCreated, legacyMigrationFields, publicUrlFields, slugField } f
 import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
-import { getLanguageOptions } from '@/lib/locales'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
-import { getTimezoneOptions } from '@/lib/timezones'
 import { ownedRegionFilterOptions } from '@/plugins/access'
 
-import { eventDefaultsFallback } from './hooks/eventDefaultsFallback'
 import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
 
 /**
@@ -119,8 +116,6 @@ export const Regions: CollectionConfig = {
     // Atlas managers can only create regions inside their owned subtree (a child
     // of a region they own) — block rootless creates the capability check must allow.
     beforeValidate: [requireOwnedParentOnCreate],
-    // Inherit eventDefaults (language + timeZone) from the nearest ancestor when blank.
-    afterRead: [eventDefaultsFallback],
     // Bust the Atlas manager sidebar cache (region tree + counts) on any region write.
     afterChange: [revalidateAtlasSidebarHook],
     afterDelete: [revalidateAtlasSidebarHook],
@@ -294,48 +289,6 @@ export const Regions: CollectionConfig = {
         {
           label: 'Events',
           fields: [
-            {
-              type: 'collapsible',
-              label: 'Event Defaults',
-              admin: { initCollapsed: false },
-              fields: [
-                {
-                  name: 'eventDefaults',
-                  type: 'group',
-                  label: false,
-                  admin: {
-                    description:
-                      'These fields will be used to set defaults for Events in this region',
-                  },
-                  fields: [
-                    {
-                      type: 'row',
-                      fields: [
-                        {
-                          name: 'language',
-                          type: 'select',
-                          options: getLanguageOptions(),
-                          // Inheritance is applied by the collection-level afterRead hook
-                          // (needs the fully-assembled breadcrumbs array).
-                          admin: {
-                            width: '50%',
-                          },
-                        },
-                        {
-                          name: 'timeZone',
-                          type: 'select',
-                          hasMany: true,
-                          options: getTimezoneOptions(),
-                          admin: {
-                            width: '50%',
-                          },
-                        },
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
             {
               name: 'events',
               type: 'join',
