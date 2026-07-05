@@ -17,6 +17,17 @@ export const Lectures: CollectionConfig = {
     plural: 'Lectures',
   },
   endpoints: [lecturesForAudience, lectureRelatedMeditations],
+  // Skip the `clips` join when a lecture is hydrated through a relationship
+  // (depth ≥ 1) — e.g. a clip's `fullLecture` parent in the for-audience /
+  // related-lectures feeds. The join fires a per-row subquery, so populating it
+  // across a candidate pool is an N+1 no relationship consumer needs (the app
+  // never reads a nested lecture's `clips`). Mirrors
+  // `Meditations.defaultPopulate: { tagAssignments: false }`. Direct reads and
+  // the admin edit view (which loads a lecture head-on, not via a relationship)
+  // still get `clips`. See #541.
+  defaultPopulate: {
+    clips: false,
+  },
   admin: {
     group: 'Content',
     useAsTitle: 'title',
