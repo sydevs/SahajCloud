@@ -65,7 +65,7 @@ pnpm seed wemeditate --clear-cache # Fresh start
 
 ## Multi-Locale Support
 
-16 locales: `en`, `es`, `de`, `it`, `fr`, `ru`, `ro`, `cs`, `uk`, `el`, `hy`, `pl`, `pt-br`, `fa`, `bg`, `tr`
+17 locales: `en`, `es`, `de`, `it`, `fr`, `ru`, `ro`, `cs`, `uk`, `el`, `hy`, `pl`, `pt-BR`, `fa`, `bg`, `tr`, `en-AU`
 
 Translation tables (`*_translations`) contain locale-specific content.
 

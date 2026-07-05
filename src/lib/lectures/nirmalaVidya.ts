@@ -12,11 +12,16 @@ import { isValidLocale } from '@/lib/locales'
  */
 export function apiLanguageToLocale(apiCode: string): LocaleCode | null {
   if (isValidLocale(apiCode)) return apiCode
-  // Normalize: lowercase and replace underscores with hyphens
-  const normalized = apiCode.toLowerCase().replace('_', '-')
+  // Normalize to BCP-47 shape: lowercase language subtag, uppercase region
+  // subtag (e.g. 'pt_BR' / 'pt-br' -> 'pt-BR'), so a lowercased region no
+  // longer collides with the old invalid 'pt-br' spelling.
+  const [language, region] = apiCode.replace('_', '-').split('-')
+  const normalized = region
+    ? `${language.toLowerCase()}-${region.toUpperCase()}`
+    : language.toLowerCase()
   if (isValidLocale(normalized)) return normalized
   // Special case: API may use 'pt' for Brazilian Portuguese
-  if (normalized === 'pt') return 'pt-br'
+  if (normalized === 'pt') return 'pt-BR'
   return null
 }
 
