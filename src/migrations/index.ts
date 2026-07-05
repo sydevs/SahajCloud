@@ -20,6 +20,7 @@ import * as migration_20260630_181202 from './20260630_181202';
 import * as migration_20260630_235640 from './20260630_235640';
 import * as migration_20260701_172426 from './20260701_172426';
 import * as migration_20260705_134239_drop_region_event_defaults from './20260705_134239_drop_region_event_defaults';
+import * as migration_20260705_161112_bcp47_locales_web_translations from './20260705_161112_bcp47_locales_web_translations';
 
 export const migrations = [
   {
@@ -130,6 +131,11 @@ export const migrations = [
   {
     up: migration_20260705_134239_drop_region_event_defaults.up,
     down: migration_20260705_134239_drop_region_event_defaults.down,
-    name: '20260705_134239_drop_region_event_defaults'
+    name: '20260705_134239_drop_region_event_defaults',
+  },
+  {
+    up: migration_20260705_161112_bcp47_locales_web_translations.up,
+    down: migration_20260705_161112_bcp47_locales_web_translations.down,
+    name: '20260705_161112_bcp47_locales_web_translations'
   },
 ];
