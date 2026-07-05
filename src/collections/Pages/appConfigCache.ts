@@ -19,7 +19,8 @@ const CACHE_KEY = 'appUrlWmConfig'
  *
  * Storing the promise synchronously (no await between the check and the store)
  * means every later caller in the request awaits the same one, collapsing the
- * load to exactly one. Also dedupes parallel relationship/list reads.
+ * load to exactly one. Also dedupes parallel relationship/list reads. A failed
+ * load is evicted so a later read in the same request can still retry.
  *
  * A sibling value-cache (`getWmAppConfig`, keyed by `locale:depth`) loads the
  * same global for the app-status global reads; folding both behind one shared
@@ -36,6 +37,12 @@ export function loadAppConfigOnce(req: PayloadRequest): Promise<Record<string, u
     }) as unknown as Promise<Record<string, unknown>>
     ctx[CACHE_KEY] = configPromise
     req.context = ctx
+    // Evict on failure so a transient error doesn't poison the rest of the
+    // request (restores the un-memoized retry behaviour). Callers already
+    // awaiting this in-flight promise still reject together — the load did fail.
+    void configPromise.catch(() => {
+      if (ctx[CACHE_KEY] === configPromise) delete ctx[CACHE_KEY]
+    })
   }
   return configPromise
 }

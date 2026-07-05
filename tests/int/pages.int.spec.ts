@@ -456,7 +456,14 @@ describe('Pages Collection', () => {
       })
 
       expect(result.docs).toHaveLength(ids.length)
-      result.docs.forEach((doc) => expect(doc._status).toBe('published'))
+      result.docs.forEach((doc) => {
+        expect(doc._status).toBe('published')
+        // Proves the appUrl afterRead — and thus loadAppConfigOnce — actually ran
+        // through the real bulk path: webPath computes from the published gate +
+        // slug, and appUrl is gated off (test pages aren't in wm-app-config).
+        expect(doc.webPath).toBeTruthy()
+        expect(doc.appUrl).toBeFalsy()
+      })
 
       for (const id of ids) {
         const versions = await payload.findVersions({

@@ -50,6 +50,20 @@ describe('loadAppConfigOnce (#542 bulk-publish stampede guard)', () => {
     expect(findGlobal).toHaveBeenCalledTimes(1)
   })
 
+  it('evicts the cache on failure so a later read in the request retries', async () => {
+    let calls = 0
+    const { req, findGlobal } = makeReq(() => {
+      calls += 1
+      return calls === 1 ? Promise.reject(new Error('boom')) : Promise.resolve({ ok: true })
+    })
+
+    await expect(loadAppConfigOnce(req)).rejects.toThrow('boom')
+    // A cached rejection would poison the rest of the request; eviction lets the
+    // next read reload instead.
+    await expect(loadAppConfigOnce(req)).resolves.toEqual({ ok: true })
+    expect(findGlobal).toHaveBeenCalledTimes(2)
+  })
+
   it('does not share the cache across requests', async () => {
     const a = makeReq(async () => ({ n: 'a' }))
     const b = makeReq(async () => ({ n: 'b' }))
