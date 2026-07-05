@@ -9,7 +9,8 @@ export type { MediaFieldOptions } from './mediaField'
 export { urlField } from './urlField'
 export type { UrlFieldOptions } from './urlField'
 
-// Public URL fields - virtual webUrl/appUrl pair (base + shared path + exposeWhen guard)
+// Public URL fields - virtual path/url fields (optional webPath + web/app URLs)
+// from one buildPath, published-gated by default
 export { publicUrlFields } from './publicUrlFields'
 export type {
   PublicUrlFieldContext,

@@ -222,4 +222,21 @@ describe('eventsGeoJson endpoint', () => {
       expect(headers.get('Cache-Control')).toBe('public, max-age=300, s-maxage=300')
     })
   })
+
+  describe('canonical webPath / webUrl', () => {
+    // The feed exposes the server-computed path so the Atlas widget navigates to
+    // the final URL directly — no client-side breadcrumb walking, no redirect.
+    it('exposes webPath + webUrl even when region is not selected', async () => {
+      const { status, body } = await callGeoJson({
+        select: { webPath: true, webUrl: true },
+        depth: 1,
+      })
+      expect(status).toBe(200)
+      const feature = body.features!.find((f) => f.id === offlineEventId)
+      // Region "Geo City" (slug geo-city) has no parent → event path is
+      // `/geo-city/<id>`. `region` was injected so the path resolves.
+      expect(feature?.properties.webPath).toBe(`/geo-city/${offlineEventId}`)
+      expect(feature?.properties.webUrl).toBe(`http://localhost:5174/geo-city/${offlineEventId}`)
+    })
+  })
 })

@@ -12,14 +12,17 @@ import {
   addressFields,
   hideUntilCreated,
   legacyMigrationFields,
+  publicUrlFields,
   scheduleFields,
   urlField,
-  publicUrlFields,
 } from '@/fields'
+import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
+import { serverEnv } from '@/lib/env/server'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 import { ownedRegionFilterOptions } from '@/plugins/access'
+import { relationId } from '@/plugins/access/documentManagers'
 
 import { eventsGeoJson } from './endpoints/geojson'
 import { registerForEvent } from './endpoints/registerForEvent'
@@ -30,6 +33,7 @@ import {
   EVENT_TYPE_OPTIONS,
   VERIFICATION_STAGE_OPTIONS,
 } from './eventOptions'
+import { ensureWebPathDeps } from './hooks/ensureWebPathDeps'
 import { eventTitleBeforeChange } from './hooks/eventTitle'
 import { verifyOnSave } from './hooks/verifyOnSave'
 
@@ -71,6 +75,9 @@ export const Events: CollectionConfig = {
   // banner's Verify button. The tokenized email link is the `/events/verify`
   // frontend page (it calls the shared verify op via a Server Action).
   hooks: {
+    // Keep `webPath`/`webUrl` resolvable when a read selects them without their
+    // inputs (`region`, and `_status` for `webUrl`) — see ensureWebPathDeps.
+    beforeOperation: [ensureWebPathDeps],
     beforeChange: [verifyOnSave],
     // Bust the Atlas manager sidebar cache (event list + region counts) whenever
     // an event changes or is trashed/restored.
@@ -373,12 +380,22 @@ export const Events: CollectionConfig = {
         },
       ],
     },
-    // Virtual public link to the event on the Sahaj Atlas map — only while the
-    // event is published (the published gate is built into publicUrlFields).
+    // Canonical Atlas web path/URL: the event's region path + `/<id>`
+    // (`/belgium/flanders/antwerp/downtown-hall/12345`). `webPath` + `webUrl`
+    // are published-gated — an unpublished event has no public page, and the
+    // verify/reminder links + ExpireEvents job rely on that null-on-unpublish
+    // contract (`appUrl` is always null — there's no Atlas app deep-link).
+    // `region` (an id at depth 0) must be present for the path to resolve; the
+    // ensureWebPathDeps beforeOperation hook keeps it selectable on its own.
     ...publicUrlFields({
-      web: () =>
-        process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/map#/!/` : null,
-      buildPath: ({ data }) => (data?.id ? `events/${data.id}` : null),
+      web: serverEnv.SAHAJATLAS_URL,
+      buildPath: async ({ data, req }) => {
+        const regionId = relationId(data?.region)
+        const id = data?.id
+        if (regionId == null || typeof id !== 'number') return null
+        const regionPath = (await getRegionWebPaths(req)).get(regionId)
+        return regionPath != null ? `${regionPath}/${id}` : null
+      },
     }),
     ...legacyMigrationFields(),
   ],

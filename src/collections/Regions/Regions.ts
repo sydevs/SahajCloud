@@ -2,8 +2,10 @@ import type { CollectionConfig } from 'payload'
 
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
-import { hideUntilCreated, legacyMigrationFields, slugField } from '@/fields'
+import { hideUntilCreated, legacyMigrationFields, publicUrlFields, slugField } from '@/fields'
+import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
+import { serverEnv } from '@/lib/env/server'
 import { getLanguageOptions } from '@/lib/locales'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { getTimezoneOptions } from '@/lib/timezones'
@@ -448,6 +450,22 @@ export const Regions: CollectionConfig = {
     // (The joins key on `doc` id, which is locale-invariant; if `name` ever
     // becomes localized, only the hidden breadcrumb labels would go stale.)
     createBreadcrumbsField('regions', { localized: false, admin: { hidden: true } }),
+    // Canonical Atlas web path/URL — the ordered ancestor slug chain including
+    // this region (`/belgium/flanders/antwerp`), built from the breadcrumbs
+    // above. Region-optional and venue-optional shapes collapse naturally
+    // because they reflect actual ancestry. Regions have no `_status`, so
+    // `requirePublished: false` exposes `webPath` + `webUrl` (`appUrl` is null —
+    // no Atlas app deep-link).
+    ...publicUrlFields({
+      web: serverEnv.SAHAJATLAS_URL,
+      buildPath: async ({ data, req }) => {
+        const id = data?.id
+        if (typeof id !== 'number') return null
+        const paths = await getRegionWebPaths(req)
+        return paths.get(id) ?? null
+      },
+      requirePublished: false,
+    }),
     ...legacyMigrationFields(),
   ],
 }

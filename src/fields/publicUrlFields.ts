@@ -16,56 +16,76 @@ export interface PublicUrlFieldContext {
 }
 
 export interface PublicUrlFieldsOptions {
-  /** Web base URL (include the trailing separator, e.g. `https://x/map#/!/`). */
+  /** Web base URL, prepended to the web path to form `webUrl` (e.g. an Atlas host). */
   web?: UrlBase
-  /** App base URL (include the trailing separator, e.g. `wemeditate://`). */
+  /** App base URL, prepended to the app path to form `appUrl` (e.g. `wemeditate://`). */
   app?: UrlBase
   /**
-   * Build the path appended to the base for a read — e.g. `events/${id}`.
-   * Branch on `ctx.platform` when web/app paths differ. Return `null` to omit
-   * the URL (e.g. a missing slug).
+   * Build the path for a read — the value of `webPath`, and the segment each
+   * base is prepended to. Branch on `ctx.platform` when web/app paths differ;
+   * `ctx.req` lets it resolve computed paths (e.g. `getRegionWebPaths(req)`).
+   * Return `null` to omit every field for this doc.
    */
   buildPath: (ctx: PublicUrlFieldContext) => string | null | Promise<string | null>
   /**
-   * Optional *additional* guard, AND-ed with the built-in published gate: when it
-   * resolves false the field reads `null`. Use for extra conditions beyond
-   * published — e.g. "is a registered app page". (Named `exposeWhen` rather than
-   * "guard" to read as a predicate.) A published check is no longer needed here —
-   * the factory always requires `_status === 'published'`.
+   * Optional *additional* guard, AND-ed with the publish gate: when it resolves
+   * false the field reads `null`. Use for extra conditions beyond published —
+   * e.g. "is a registered app page". (Named `exposeWhen` rather than "guard" to
+   * read as a predicate.)
    */
   exposeWhen?: (ctx: PublicUrlFieldContext) => boolean | Promise<boolean>
-  /** Field name overrides (default `webUrl` / `appUrl`). */
-  webName?: string
-  appName?: string
+  /**
+   * Gate every field on `_status === 'published'`. Default `true`. Set `false`
+   * for collections with no drafts/`_status` (e.g. Regions) — otherwise the
+   * absent `_status` reads as "not published" and every field resolves to null.
+   * A field-hook can't tell "no `_status` column" from "`_status` deselected",
+   * so this stays an explicit per-collection choice rather than a runtime guess.
+   */
+  requirePublished?: boolean
 }
 
-/** afterRead hook for one virtual URL field: guard → path → `base + path`. */
-function urlHook(
-  platform: PublicUrlPlatform,
-  base: UrlBase,
-  buildPath: PublicUrlFieldsOptions['buildPath'],
-  exposeWhen: PublicUrlFieldsOptions['exposeWhen'],
-): FieldHook {
-  return async ({ data, req }) => {
-    const resolved = typeof base === 'function' ? base() : base
-    if (!resolved) return null
+/** Shared per-read inputs for a field's afterRead hook. */
+interface HookConfig {
+  buildPath: PublicUrlFieldsOptions['buildPath']
+  exposeWhen: PublicUrlFieldsOptions['exposeWhen']
+  requirePublished: boolean
+}
 
-    // A public URL only exists once the document is published — an unpublished /
-    // draft / expired doc has no public page. This gate is built in (rather than
-    // left to each call site) so no collection can leak a URL for a draft.
-    if (data?._status !== 'published') return null
+/**
+ * afterRead hook for one field: publish gate → `exposeWhen` → path → optional
+ * base prefix. `base === null` builds the path-only field (returns the raw
+ * path); any other `base` builds a URL (`base + path`), and an unset base
+ * (`undefined`) means that URL platform isn't configured, so it reads `null`.
+ */
+function computeHook(
+  platform: PublicUrlPlatform,
+  base: UrlBase | null | undefined,
+  config: HookConfig,
+): FieldHook {
+  const { buildPath, exposeWhen, requirePublished } = config
+  const isPath = base === null
+  return async ({ data, req }) => {
+    // A public URL/path only exists once the document is published — an
+    // unpublished / draft / expired doc has no public page. Built in (rather
+    // than left to each call site) so no draft-enabled collection can leak one;
+    // opt out with `requirePublished: false` for collections with no `_status`.
+    if (requirePublished && data?._status !== 'published') return null
+    // A URL platform with no base configured can never resolve — skip the work.
+    if (!isPath && base === undefined) return null
 
     const ctx: PublicUrlFieldContext = { platform, data, req }
     if (exposeWhen && !(await exposeWhen(ctx))) return null
 
     const path = await buildPath(ctx)
     if (path == null) return null
+    if (isPath) return path
 
-    return `${resolved}${path}`
+    const resolved = typeof base === 'function' ? base() : base
+    return resolved ? `${resolved}${path}` : null
   }
 }
 
-/** A virtual, read-only, list-hidden text field carrying a computed URL. */
+/** A virtual, read-only, list-hidden text field carrying a computed URL/path. */
 function virtualUrlField(name: string, hook: FieldHook): TextField {
   return {
     name,
@@ -77,19 +97,21 @@ function virtualUrlField(name: string, hook: FieldHook): TextField {
 }
 
 /**
- * Build a pair of virtual URL fields (`webUrl` / `appUrl`) that resolve a
- * document to its public web and/or in-app deep link. Only the platforms whose
- * base URL is supplied are created. Each shares the `buildPath` (path segment
- * appended to the base) and `exposeWhen` guard (returns `null` when false), so
- * the per-collection wiring stays a few lines. Both URLs are gated on the
- * document being published — only draft-enabled collections (with a `_status`)
- * will ever expose a URL.
+ * Build the three virtual public-link fields every collection exposes
+ * consistently, all from one `buildPath` and all published-gated:
+ *
+ * - `webPath` — the raw path (no base).
+ * - `webUrl` — the web path prefixed with the `web` base (null if `web` unset).
+ * - `appUrl` — the app path prefixed with the `app` base (null if `app` unset).
+ *
+ * Fields are published-gated by default; pass `requirePublished: false` for
+ * collections without `_status`.
  *
  * @example
  * publicUrlFields({
- *   web: () => process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/map#/!/` : null,
- *   buildPath: ({ data }) => (data?.id ? `events/${data.id}` : null),
- *   // published is implicit — pass exposeWhen only for *extra* conditions
+ *   web: () => (process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/` : null),
+ *   app: 'wemeditate://',
+ *   buildPath: ({ platform, data }) => (data?.slug ? `wisdom/${data.slug}` : null),
  * })
  */
 export function publicUrlFields({
@@ -97,15 +119,12 @@ export function publicUrlFields({
   app,
   buildPath,
   exposeWhen,
-  webName = 'webUrl',
-  appName = 'appUrl',
+  requirePublished = true,
 }: PublicUrlFieldsOptions): TextField[] {
-  const fields: TextField[] = []
-  if (web !== undefined) {
-    fields.push(virtualUrlField(webName, urlHook('web', web, buildPath, exposeWhen)))
-  }
-  if (app !== undefined) {
-    fields.push(virtualUrlField(appName, urlHook('app', app, buildPath, exposeWhen)))
-  }
-  return fields
+  const config: HookConfig = { buildPath, exposeWhen, requirePublished }
+  return [
+    virtualUrlField('webPath', computeHook('web', null, config)),
+    virtualUrlField('webUrl', computeHook('web', web, config)),
+    virtualUrlField('appUrl', computeHook('app', app, config)),
+  ]
 }

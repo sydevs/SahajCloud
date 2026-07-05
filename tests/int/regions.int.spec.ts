@@ -168,4 +168,69 @@ describe('Regions child-join recursive descendants', () => {
       expect(joinIds(cs, 'childrenCities').sort()).toEqual([cityA, cityB].sort())
     })
   })
+
+  // Canonical Atlas web path/URL — the ordered ancestor slug chain (incl. self),
+  // built read-time from the breadcrumbs + current slugs.
+  describe('canonical webPath / webUrl', () => {
+    // A separate country → city pair (no region level) for the region-optional
+    // shape and the slug-rename recompute check, kept off the shared tree so it
+    // can't disturb the child-join assertions above.
+    let countryZ: number
+    let cityZ: number
+
+    beforeAll(async () => {
+      countryZ = await createRegion({
+        name: 'Country Z',
+        level: 'country',
+        mapboxId: 'wp.countryZ',
+      })
+      cityZ = await createRegion({
+        name: 'City Z',
+        level: 'city',
+        mapboxId: 'wp.cityZ',
+        parent: countryZ,
+      })
+    })
+
+    it('builds the full ancestor slug chain including the node itself', async () => {
+      const [country, region, city, center] = await Promise.all([
+        readRegion(countryA),
+        readRegion(regionA),
+        readRegion(cityA),
+        readRegion(centerA),
+      ])
+      const c = String(country.slug)
+      const r = String(region.slug)
+      const ci = String(city.slug)
+      expect(country.webPath).toBe(`/${c}`)
+      expect(region.webPath).toBe(`/${c}/${r}`)
+      expect(city.webPath).toBe(`/${c}/${r}/${ci}`)
+      expect(center.webPath).toBe(`/${c}/${r}/${ci}/${String(center.slug)}`)
+    })
+
+    it('collapses the region-optional shape (a city directly under a country)', async () => {
+      const [country, city] = await Promise.all([readRegion(countryZ), readRegion(cityZ)])
+      expect(city.webPath).toBe(`/${String(country.slug)}/${String(city.slug)}`)
+    })
+
+    it('exposes webUrl as webPath joined to the Atlas host', async () => {
+      const country = await readRegion(countryA)
+      expect(country.webUrl).toBe(`http://localhost:5174${String(country.webPath)}`)
+      // appUrl is always emitted but null — there's no Atlas app deep-link base.
+      expect(country.appUrl).toBeNull()
+    })
+
+    it('reflects an ancestor slug rename on the next read (no stored path)', async () => {
+      const before = await readRegion(cityZ)
+      await payload.update({
+        collection: 'regions',
+        id: countryZ,
+        overrideAccess: true,
+        data: { slug: 'country-z-renamed' },
+      })
+      const after = await readRegion(cityZ)
+      expect(after.webPath).not.toBe(before.webPath)
+      expect(after.webPath).toBe(`/country-z-renamed/${String(after.slug)}`)
+    })
+  })
 })
