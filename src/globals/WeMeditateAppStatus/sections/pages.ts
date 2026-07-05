@@ -50,6 +50,7 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         limit: 0,
         pagination: false,
         depth: 1,
+        select: { page: true },
         req,
       }),
     ])

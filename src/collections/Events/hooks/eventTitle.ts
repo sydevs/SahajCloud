@@ -3,6 +3,9 @@ import type { FieldHook, PayloadRequest } from 'payload'
 /** Fallback prefix used when the translations global has no value for the locale. */
 export const DEFAULT_EVENT_TITLE_PREFIX = 'Meditation at'
 
+/** Where the in-flight `sy-atlas-translations` load is stashed on `req.context`. */
+const CACHE_KEY = 'eventTitlePrefix'
+
 /**
  * The venue/building or street name for an auto-title: the first comma-segment
  * of the street address (e.g. "Beethovenstraße 12, 2nd floor" → "Beethovenstraße 12").
@@ -24,24 +27,51 @@ export function composeEventTitle(prefix: string, street: unknown): string | nul
   return trimmedPrefix ? `${trimmedPrefix} ${venue}` : venue
 }
 
-/** Read the localized title prefix from the Sahaj Atlas translations global. */
+/**
+ * Load the localized title prefix from the Sahaj Atlas translations global
+ * at most once per request, shared across many events being saved (e.g. during
+ * bulk imports or ExpireEvents job runs).
+ *
+ * Why memoize the in-flight *promise* rather than the resolved value: bulk
+ * operations can issue many `beforeChange` hooks concurrently. A resolved-value
+ * cache stampedes under that concurrency — all N hooks clear the "not cached
+ * yet" check before the first load settles, so each issues its own `findGlobal`.
+ * Storing the promise synchronously (no await between the check and the store)
+ * means every later caller awaits the same one, collapsing the load to exactly
+ * one. A failed load is evicted so a later read in the same request can retry.
+ */
 async function resolveTitlePrefix(req: PayloadRequest): Promise<string> {
-  try {
-    const translations = await req.payload.findGlobal({
-      slug: 'sy-atlas-translations',
-      locale: req.locale,
-      depth: 0,
-      req,
+  const ctx = (req.context ?? {}) as Record<string, unknown>
+  let prefixPromise = ctx[CACHE_KEY] as Promise<string> | undefined
+  if (!prefixPromise) {
+    prefixPromise = (async () => {
+      try {
+        const translations = await req.payload.findGlobal({
+          slug: 'sy-atlas-translations',
+          locale: req.locale,
+          depth: 0,
+          req,
+        })
+        const prefix = (translations as { event?: { titlePrefix?: unknown } }).event?.titlePrefix
+        return typeof prefix === 'string' && prefix.trim() ? prefix : DEFAULT_EVENT_TITLE_PREFIX
+      } catch (error) {
+        req.payload.logger.debug({
+          msg: 'Failed to read sy-atlas-translations event.titlePrefix; using default',
+          error,
+        })
+        return DEFAULT_EVENT_TITLE_PREFIX
+      }
+    })()
+    ctx[CACHE_KEY] = prefixPromise
+    req.context = ctx
+    // Evict on failure so a transient error doesn't poison the rest of the
+    // request (restores the un-memoized retry behaviour). Callers already
+    // awaiting this in-flight promise still reject together — the load did fail.
+    void prefixPromise.catch(() => {
+      if (ctx[CACHE_KEY] === prefixPromise) delete ctx[CACHE_KEY]
     })
-    const prefix = (translations as { event?: { titlePrefix?: unknown } }).event?.titlePrefix
-    return typeof prefix === 'string' && prefix.trim() ? prefix : DEFAULT_EVENT_TITLE_PREFIX
-  } catch (error) {
-    req.payload.logger.debug({
-      msg: 'Failed to read sy-atlas-translations event.titlePrefix; using default',
-      error,
-    })
-    return DEFAULT_EVENT_TITLE_PREFIX
   }
+  return prefixPromise
 }
 
 /**
