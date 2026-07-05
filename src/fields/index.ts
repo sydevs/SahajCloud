@@ -9,17 +9,14 @@ export type { MediaFieldOptions } from './mediaField'
 export { urlField } from './urlField'
 export type { UrlFieldOptions } from './urlField'
 
-// Public URL fields - virtual webUrl/appUrl pair (base + shared path + exposeWhen guard)
+// Public URL fields - virtual path/url fields (optional webPath + web/app URLs)
+// from one buildPath, published-gated by default
 export { publicUrlFields } from './publicUrlFields'
 export type {
   PublicUrlFieldContext,
   PublicUrlFieldsOptions,
   PublicUrlPlatform,
 } from './publicUrlFields'
-
-// Atlas web fields - virtual webPath/webUrl pair from the region breadcrumb slug chain
-export { atlasWebFields } from './atlasWebFields'
-export type { AtlasWebFieldsOptions, ResolveWebPath } from './atlasWebFields'
 
 // Color field - text field with hex color validation and color picker
 export { colorField } from './colorField'

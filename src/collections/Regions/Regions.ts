@@ -2,7 +2,8 @@ import type { CollectionConfig } from 'payload'
 
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
-import { atlasWebFields, hideUntilCreated, legacyMigrationFields, slugField } from '@/fields'
+import { hideUntilCreated, legacyMigrationFields, publicUrlFields, slugField } from '@/fields'
+import { ATLAS_WEB_BASE, getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { getLanguageOptions } from '@/lib/locales'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
@@ -451,10 +452,16 @@ export const Regions: CollectionConfig = {
     // Canonical Atlas web path/URL — the ordered ancestor slug chain including
     // this region (`/belgium/flanders/antwerp`), built from the breadcrumbs
     // above. Region-optional and venue-optional shapes collapse naturally
-    // because they reflect actual ancestry. No `_status` here (regions have no
-    // drafts), so both are always exposed.
-    ...atlasWebFields({
-      resolvePath: ({ data, paths }) => paths.get(data.id as number) ?? null,
+    // because they reflect actual ancestry. Regions have no `_status`, so
+    // `requirePublished: false` exposes both.
+    ...publicUrlFields({
+      web: ATLAS_WEB_BASE,
+      buildPath: async ({ data, req }) => {
+        const paths = await getRegionWebPaths(req)
+        return paths.get(data?.id as number) ?? null
+      },
+      pathName: 'webPath',
+      requirePublished: false,
     }),
     ...legacyMigrationFields(),
   ],

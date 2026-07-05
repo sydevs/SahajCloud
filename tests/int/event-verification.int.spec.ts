@@ -268,7 +268,7 @@ describe('Event verification lifecycle', () => {
       expect(fetched.webUrl).toBe(`http://localhost:5174/${region.slug}/${event.id}`)
     })
 
-    it('keeps webPath but nulls webUrl while unpublished', async () => {
+    it('exposes neither webPath nor webUrl while unpublished', async () => {
       const event = await createEvent()
       await payload.update({
         collection: 'events',
@@ -277,13 +277,14 @@ describe('Event verification lifecycle', () => {
         context: { skipVerifyHook: true },
         overrideAccess: true,
       })
-      const [draft, region] = await Promise.all([
-        payload.findByID({ collection: 'events', id: event.id, draft: true, overrideAccess: true }),
-        payload.findByID({ collection: 'regions', id: defaultRegion.id, overrideAccess: true }),
-      ])
-      // webPath is the structural identity (always present); webUrl is the
-      // public link, gated on published.
-      expect(draft.webPath).toBe(`${region.webPath}/${event.id}`)
+      const draft = await payload.findByID({
+        collection: 'events',
+        id: event.id,
+        draft: true,
+        overrideAccess: true,
+      })
+      // Both fields are published-gated — an unpublished event has no public page.
+      expect(draft.webPath).toBeNull()
       expect(draft.webUrl).toBeNull()
     })
   })

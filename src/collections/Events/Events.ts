@@ -10,12 +10,13 @@ import {
 
 import {
   addressFields,
-  atlasWebFields,
   hideUntilCreated,
   legacyMigrationFields,
+  publicUrlFields,
   scheduleFields,
   urlField,
 } from '@/fields'
+import { ATLAS_WEB_BASE, getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
@@ -379,20 +380,20 @@ export const Events: CollectionConfig = {
       ],
     },
     // Canonical Atlas web path/URL: the event's region path + `/<id>`
-    // (`/belgium/flanders/antwerp/downtown-hall/12345`). `webPath` is always
-    // exposed; `webUrl` (base + path) only while published, since an
-    // unpublished event has no public page — the verify/reminder links and the
-    // ExpireEvents job rely on that null-on-unpublish contract. `region` (an id
-    // at depth 0) must be present for the path to resolve; the ensureWebPathDeps
-    // beforeOperation hook keeps it selectable on its own on any read.
-    ...atlasWebFields({
-      requirePublished: true,
-      resolvePath: ({ data, paths }) => {
-        const regionId = relationId(data.region)
+    // (`/belgium/flanders/antwerp/downtown-hall/12345`). Both are published-
+    // gated — an unpublished event has no public page, and the verify/reminder
+    // links + ExpireEvents job rely on that null-on-unpublish contract. `region`
+    // (an id at depth 0) must be present for the path to resolve; the
+    // ensureWebPathDeps beforeOperation hook keeps it selectable on its own.
+    ...publicUrlFields({
+      web: ATLAS_WEB_BASE,
+      buildPath: async ({ data, req }) => {
+        const regionId = relationId(data?.region)
         if (regionId == null) return null
-        const regionPath = paths.get(regionId)
-        return regionPath != null ? `${regionPath}/${data.id}` : null
+        const regionPath = (await getRegionWebPaths(req)).get(regionId)
+        return regionPath != null ? `${regionPath}/${data?.id as number}` : null
       },
+      pathName: 'webPath',
     }),
     ...legacyMigrationFields(),
   ],
