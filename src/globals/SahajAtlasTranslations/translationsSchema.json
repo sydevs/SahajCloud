@@ -3,60 +3,347 @@
   "properties": {
     "common": {
       "type": "object",
-      "description": "Common UI strings used throughout the application",
+      "description": "Common UI strings shared across the Sahaj Atlas app — labels, loading states, and map filter toggles.",
       "properties": {
+        "events": {
+          "type": "string",
+          "description": "Generic plural noun for meditation events, used in counts and labels (e.g. \"3 events\")."
+        },
+        "free_meditation_class": {
+          "type": "string",
+          "description": "Singular label for a free meditation class; used in headings and map markers."
+        },
+        "free_meditation_classes": {
+          "type": "string",
+          "description": "Plural label for free meditation classes; used in page headings and section titles."
+        },
+        "language_selector": {
+          "type": "string",
+          "description": "Accessible label (aria-label) for the language-picker dropdown in the navbar."
+        },
         "loading": {
           "type": "string",
-          "description": "Loading indicator text shown while content is being fetched"
+          "description": "Generic loading indicator shown while content is being fetched."
         },
-        "error": {
+        "show_online_classes": {
           "type": "string",
-          "description": "Generic error message shown when something goes wrong"
+          "description": "Map filter toggle label (off state) — invites the user to include online-only classes."
+        },
+        "showing_online_classes": {
+          "type": "string",
+          "description": "Map filter toggle label (on state) — indicates online classes are currently shown."
         }
       },
       "additionalProperties": false
     },
-    "map": {
+    "region": {
       "type": "object",
-      "description": "Map controls and interactions",
+      "description": "Copy for region, location, and venue landing pages.",
       "properties": {
-        "zoom_in": {
-          "type": "string",
-          "description": "Tooltip for the zoom in map control button"
+        "locations": {
+          "type": "object",
+          "description": "Headings and result-count lines on a location/region landing page.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Heading on a location/region landing page. `%{location}` = region or place name."
+            },
+            "description_one": {
+              "type": "string",
+              "description": "Singular result-count line under a location heading. `%{count}` = 1, `%{location}` = region name."
+            },
+            "description_other": {
+              "type": "string",
+              "description": "Plural result-count line under a location heading. `%{count}` = number, `%{location}` = region name."
+            }
+          },
+          "additionalProperties": false
         },
-        "zoom_out": {
-          "type": "string",
-          "description": "Tooltip for the zoom out map control button"
-        },
-        "my_location": {
-          "type": "string",
-          "description": "Button text to center the map on the user's current location"
-        }
-      },
-      "additionalProperties": false
-    },
-    "location": {
-      "type": "object",
-      "description": "Location details and directions",
-      "properties": {
-        "details": {
-          "type": "string",
-          "description": "Link text to view full details of a location"
-        },
-        "directions": {
-          "type": "string",
-          "description": "Button text to get directions to a location"
+        "venues": {
+          "type": "object",
+          "description": "Headings and result-count lines on a venue landing page.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Heading on a venue landing page. `%{venue}` = venue name."
+            },
+            "description_one": {
+              "type": "string",
+              "description": "Singular result-count line under a venue heading. `%{count}` = 1, `%{venue}` = venue name."
+            },
+            "description_other": {
+              "type": "string",
+              "description": "Plural result-count line under a venue heading. `%{count}` = number, `%{venue}` = venue name."
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
     },
     "event": {
       "type": "object",
-      "description": "Event admin strings",
+      "description": "Copy for event details, recurrence schedules, and timezone conversion.",
       "properties": {
-        "titlePrefix": {
+        "details": {
+          "type": "object",
+          "description": "Labels and actions shown on an event's detail view (directions, contact, distance, online badges).",
+          "properties": {
+            "contact_for_timing": {
+              "type": "string",
+              "description": "Shown instead of a schedule when an event has no fixed time; prompts the user to contact the host."
+            },
+            "contact_host": {
+              "type": "string",
+              "description": "Label/action to contact the event host."
+            },
+            "get_directions": {
+              "type": "string",
+              "description": "Button that opens map directions to the event venue."
+            },
+            "hosted_from": {
+              "type": "string",
+              "description": "Host-location label for an online event. `%{city}` = host city."
+            },
+            "km": {
+              "type": "string",
+              "description": "Distance-unit suffix (kilometres) shown next to an event's distance from the user."
+            },
+            "more_info": {
+              "type": "string",
+              "description": "Link/button to expand or open fuller event details."
+            },
+            "online": {
+              "type": "string",
+              "description": "Short badge indicating an online event."
+            },
+            "online_class": {
+              "type": "string",
+              "description": "Fuller label for an online class."
+            },
+            "starting_on": {
+              "type": "string",
+              "description": "Event start-date label. `%{date}` = formatted start date."
+            },
+            "starting_soon": {
+              "type": "string",
+              "description": "Label for an event whose start is imminent."
+            },
+            "tel": {
+              "type": "string",
+              "description": "Telephone-link label for the host's number. `%{phoneNumber}` = phone number."
+            },
+            "view_photo": {
+              "type": "string",
+              "description": "Button/link that opens the event's photo in the lightbox."
+            }
+          },
+          "additionalProperties": false
+        },
+        "recurrence": {
+          "type": "object",
+          "description": "Human-readable recurrence labels. Rendered via t('recurrence.<type>', { weekday }). English uses the simple weekly/monthly forms; other locales use the detailed weekly_1/2 + monthly_* forms. `%{weekday}` = localized day name.",
+          "properties": {
+            "daily": {
+              "type": "string",
+              "description": "Recurrence label for an event that repeats every day."
+            },
+            "weekly": {
+              "type": "string",
+              "description": "Weekly recurrence, simple form (English). `%{weekday}` = day name."
+            },
+            "monthly": {
+              "type": "string",
+              "description": "Monthly recurrence, simple form (English)."
+            },
+            "weekly_1": {
+              "type": "string",
+              "description": "Weekly recurrence, every week — detailed form used by non-English locales. `%{weekday}` = day name."
+            },
+            "weekly_2": {
+              "type": "string",
+              "description": "Weekly recurrence, every second week. `%{weekday}` = day name."
+            },
+            "monthly_1st": {
+              "type": "string",
+              "description": "Monthly recurrence on the 1st given weekday of the month. `%{weekday}` = day name."
+            },
+            "monthly_2nd": {
+              "type": "string",
+              "description": "Monthly recurrence on the 2nd given weekday of the month. `%{weekday}` = day name."
+            },
+            "monthly_3rd": {
+              "type": "string",
+              "description": "Monthly recurrence on the 3rd given weekday of the month. `%{weekday}` = day name."
+            },
+            "monthly_4th": {
+              "type": "string",
+              "description": "Monthly recurrence on the 4th given weekday of the month. `%{weekday}` = day name."
+            },
+            "monthly_last": {
+              "type": "string",
+              "description": "Monthly recurrence on the last given weekday of the month. `%{weekday}` = day name."
+            },
+            "no_recurrence": {
+              "type": "string",
+              "description": "Fallback when an event has no fixed schedule (formerly the `null` key)."
+            }
+          },
+          "additionalProperties": false
+        },
+        "timing": {
+          "type": "object",
+          "description": "Copy for event timing and timezone conversion.",
+          "properties": {
+            "converted_to": {
+              "type": "string",
+              "description": "Tooltip shown when an event time is converted to the viewer's timezone. `%{timezone}` = tz name, `%{offset}` = UTC offset."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "registration": {
+      "type": "object",
+      "description": "Copy for the event registration form — fields, validation errors, and optional questions.",
+      "properties": {
+        "form": {
+          "type": "object",
+          "description": "Labels, placeholders, notices, and CTAs in the registration form/modal.",
+          "properties": {
+            "cancel": {
+              "type": "string",
+              "description": "Cancel button in the registration form/modal."
+            },
+            "email": {
+              "type": "string",
+              "description": "Label/placeholder for the email input."
+            },
+            "followup": {
+              "type": "string",
+              "description": "Confirmation note shown after registering."
+            },
+            "invite_friend": {
+              "type": "string",
+              "description": "Option encouraging the user to bring a guest."
+            },
+            "mailing_list_consent": {
+              "type": "string",
+              "description": "Consent checkbox label for the events mailing list."
+            },
+            "name": {
+              "type": "string",
+              "description": "Label/placeholder for the name input."
+            },
+            "okay": {
+              "type": "string",
+              "description": "Acknowledgement button (e.g. dismisses the thank-you state)."
+            },
+            "online_notice": {
+              "type": "string",
+              "description": "Notice for online classes explaining the join link is emailed."
+            },
+            "online_notice_title": {
+              "type": "string",
+              "description": "Heading for the online-session notice."
+            },
+            "privacy_policy": {
+              "type": "string",
+              "description": "Consent/disclaimer text shown near the submit button."
+            },
+            "register_now": {
+              "type": "string",
+              "description": "Primary CTA to open the registration form."
+            },
+            "starting_date": {
+              "type": "string",
+              "description": "Label for the starting-date selector."
+            },
+            "submit": {
+              "type": "string",
+              "description": "Submit button for the registration form."
+            },
+            "thank_you": {
+              "type": "string",
+              "description": "Success message shown after a successful registration."
+            }
+          },
+          "additionalProperties": false
+        },
+        "errors": {
+          "type": "object",
+          "description": "Validation error messages for the registration form fields.",
+          "properties": {
+            "email": {
+              "type": "string",
+              "description": "Validation error for an invalid/empty email field."
+            },
+            "name": {
+              "type": "string",
+              "description": "Validation error for an empty/invalid name field."
+            },
+            "starting_at": {
+              "type": "string",
+              "description": "Validation error when no starting date is chosen."
+            }
+          },
+          "additionalProperties": false
+        },
+        "questions": {
+          "type": "object",
+          "description": "Optional registration questions, rendered via t('questions.<key>'); the set shown per event varies.",
+          "properties": {
+            "accessibility": {
+              "type": "string",
+              "description": "Optional registration question about accessibility needs."
+            },
+            "aspirations": {
+              "type": "string",
+              "description": "Optional registration question about the attendee's goals."
+            },
+            "experience": {
+              "type": "string",
+              "description": "Optional registration question about prior experience with this meditation."
+            },
+            "guests": {
+              "type": "string",
+              "description": "Optional registration question about accompanying guests."
+            },
+            "health_info": {
+              "type": "string",
+              "description": "Optional registration question about relevant health information (renamed from `healthInfo`)."
+            },
+            "prior_experience": {
+              "type": "string",
+              "description": "Optional registration question about prior Sahaja Yoga practice (renamed from `priorExperience`)."
+            },
+            "questions": {
+              "type": "string",
+              "description": "Optional registration question inviting free-form questions."
+            },
+            "referral": {
+              "type": "string",
+              "description": "Optional registration question about how the attendee found the organisation."
+            },
+            "referral_source": {
+              "type": "string",
+              "description": "Optional registration question about how the attendee found this specific event (renamed from `referralSource`)."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "share": {
+      "type": "object",
+      "description": "Copy for the event share action.",
+      "properties": {
+        "action": {
           "type": "string",
-          "description": "Prefix for an event's auto-generated title when no name is entered, prepended to the venue/street, e.g. \"Meditation at\" → \"Meditation at Beethovenstraße 12\"."
+          "description": "Label for the share action/button on an event; seeds the forthcoming Share view (renamed from `details.share`)."
         }
       },
       "additionalProperties": false
