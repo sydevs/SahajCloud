@@ -69,6 +69,18 @@ export function meditationMatchesLocale(value: unknown, locale: string): boolean
 
 const APP_CONFIG_CACHE_KEY = 'wmAppConfigCache'
 
+/**
+ * Load the `wm-app-config` global at most once per request per depth,
+ * shared across the wm-app-status section reads.
+ *
+ * Why memoize the in-flight *promise* rather than the resolved value:
+ * concurrent section callers (e.g. sections 1 + 2 both reading at depth 0)
+ * can race to load. A resolved-value cache stampedes — all callers clear
+ * the "not cached yet" check before the first load settles, so each issues
+ * its own `findGlobal`. Storing the promise synchronously (no await between
+ * check and store) means every later caller awaits the same one, collapsing
+ * the load to exactly one per (locale, depth) pair.
+ */
 export async function getWmAppConfig(
   payload: BasePayload,
   locale: TypedLocale,
@@ -77,24 +89,26 @@ export async function getWmAppConfig(
 ): Promise<Record<string, unknown>> {
   const key = `${locale}:${depth}`
   const ctx = (req?.context ?? {}) as Record<string, unknown>
-  const existing = ctx[APP_CONFIG_CACHE_KEY] as Map<string, Record<string, unknown>> | undefined
+  const existing = ctx[APP_CONFIG_CACHE_KEY] as
+    | Map<string, Promise<Record<string, unknown>>>
+    | undefined
 
   if (existing?.has(key)) return existing.get(key)!
 
-  const config = (await payload.findGlobal({
+  const configPromise = payload.findGlobal({
     slug: 'wm-app-config',
     locale,
     depth,
     req,
-  })) as unknown as Record<string, unknown>
+  }) as unknown as Promise<Record<string, unknown>>
 
   if (req) {
-    const cache = existing ?? new Map<string, Record<string, unknown>>()
-    cache.set(key, config)
+    const cache = existing ?? new Map<string, Promise<Record<string, unknown>>>()
+    cache.set(key, configPromise)
     ctx[APP_CONFIG_CACHE_KEY] = cache
     req.context = ctx
   }
-  return config
+  return configPromise
 }
 
 // =============================================================================
