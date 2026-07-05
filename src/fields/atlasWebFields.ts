@@ -44,6 +44,9 @@ export function atlasWebFields({
   resolvePath,
   requirePublished = false,
 }: AtlasWebFieldsOptions): TextField[] {
+  // Static host — resolve the trailing-slash-trimmed base once at config build.
+  const base = serverEnv.SAHAJATLAS_URL.replace(/\/+$/, '')
+
   const webPathHook: FieldHook = async ({ data, req }) => {
     const doc = data as Record<string, unknown> | undefined
     if (!doc) return null
@@ -53,10 +56,8 @@ export function atlasWebFields({
 
   const webUrlHook: FieldHook = async ({ data, req }) => {
     const doc = data as Record<string, unknown> | undefined
-    if (!doc) return null
+    if (!doc || !base) return null
     if (requirePublished && doc._status !== 'published') return null
-    const base = serverEnv.SAHAJATLAS_URL.replace(/\/+$/, '')
-    if (!base) return null
     const paths = await getRegionWebPaths(req)
     const path = resolvePath({ data: doc, paths })
     return path == null ? null : `${base}${path}`

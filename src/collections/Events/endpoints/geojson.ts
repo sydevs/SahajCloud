@@ -32,26 +32,6 @@ const toBoolean = (value: unknown): boolean | undefined => {
 }
 
 /**
- * `webPath` / `webUrl` are computed fields: both derive from the event's
- * `region` (its id), and `webUrl`'s published gate reads `_status`. A client
- * selecting a canonical path has no reason to also select those, but an
- * include-mode `select` would strip them before the field hooks run — leaving
- * the path/URL null. Add whichever a requested path field needs so the feed's
- * navigation targets always resolve (a harmless extra id / status in
- * `properties`).
- */
-function ensurePathFieldDeps(select: SelectType | undefined): SelectType | undefined {
-  if (!select || typeof select !== 'object') return select
-  const fields = select as Record<string, unknown>
-  const wantsUrl = Boolean(fields.webUrl)
-  if (!fields.webPath && !wantsUrl) return select
-  const patched = { ...fields }
-  if (!('region' in patched)) patched.region = true
-  if (wantsUrl && !('_status' in patched)) patched._status = true
-  return patched as SelectType
-}
-
-/**
  * GET /api/events/geojson
  *
  * A thin GeoJSON wrapper over a standard published-events read. It forwards the
@@ -72,7 +52,7 @@ function ensurePathFieldDeps(select: SelectType | undefined): SelectType | undef
  * selected/populated event document verbatim — AtlasReact maps the internal
  * field names client-side. Selecting `webPath` / `webUrl` (the canonical Atlas
  * path/URL) additionally pulls in `region` / `_status`, which those computed
- * fields derive from (see `ensurePathFieldDeps`).
+ * fields derive from (see the `ensureWebPathDeps` beforeOperation hook on Events).
  *
  * Response: `EventFeatureCollection` (see ./responseTypes).
  */
@@ -89,7 +69,7 @@ export const eventsGeoJson: Endpoint = {
       const { docs, ...page } = await req.payload.find({
         collection: 'events',
         where: query.where as Where | undefined,
-        select: ensurePathFieldDeps(query.select as SelectType | undefined),
+        select: query.select as SelectType | undefined,
         populate: query.populate as PopulateType | undefined,
         depth: toNumber(query.depth),
         limit: toNumber(query.limit),

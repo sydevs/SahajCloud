@@ -38,14 +38,18 @@ const requestCache = new WeakMap<PayloadRequest, Promise<Map<number, string>>>()
  */
 const RESOLVING_FLAG = '__resolvingRegionWebPaths'
 
-/** Ordered region ids from a breadcrumb trail (root → self, self included). */
+/**
+ * Ordered region ids for a region's breadcrumb trail (root → self). The
+ * nested-docs plugin stores self as the last breadcrumb, so the mapped chain is
+ * already terminal-inclusive. Empty/absent breadcrumbs (a root, or a
+ * not-yet-populated create) collapse to just `[id]`.
+ */
 function breadcrumbChainIds(region: RegionRow, id: number): number[] {
   const crumbs = region.breadcrumbs
   if (!Array.isArray(crumbs) || crumbs.length === 0) return [id]
-  const ids = crumbs
+  return crumbs
     .map((crumb) => relationId(crumb?.doc))
     .filter((crumbId): crumbId is number => crumbId !== null)
-  return ids.length > 0 ? ids : [id]
 }
 
 async function loadRegionWebPaths(req: PayloadRequest): Promise<Map<number, string>> {
@@ -64,6 +68,8 @@ async function loadRegionWebPaths(req: PayloadRequest): Promise<Map<number, stri
   })
   const rows = docs as RegionRow[]
 
+  // Two passes: collect every slug first — a region's chain references ancestor
+  // ids that may sort after it in `rows` — then resolve each chain to a path.
   const slugById = new Map<number, string>()
   for (const row of rows) {
     if (typeof row.slug === 'string' && row.slug) slugById.set(row.id, row.slug)

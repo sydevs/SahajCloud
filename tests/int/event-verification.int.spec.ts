@@ -251,6 +251,23 @@ describe('Event verification lifecycle', () => {
       expect(fetched.webUrl).toBe(`http://localhost:5174/${region.slug}/${event.id}`)
     })
 
+    it('resolves on a direct read that selects only the path fields', async () => {
+      // The ensureWebPathDeps beforeOperation hook re-adds `region` / `_status`,
+      // so a caller can select webPath/webUrl without their inputs.
+      const event = await createEvent()
+      const [fetched, region] = await Promise.all([
+        payload.findByID({
+          collection: 'events',
+          id: event.id,
+          select: { webPath: true, webUrl: true },
+          overrideAccess: true,
+        }),
+        payload.findByID({ collection: 'regions', id: defaultRegion.id, overrideAccess: true }),
+      ])
+      expect(fetched.webPath).toBe(`/${region.slug}/${event.id}`)
+      expect(fetched.webUrl).toBe(`http://localhost:5174/${region.slug}/${event.id}`)
+    })
+
     it('keeps webPath but nulls webUrl while unpublished', async () => {
       const event = await createEvent()
       await payload.update({

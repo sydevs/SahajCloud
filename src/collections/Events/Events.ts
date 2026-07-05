@@ -31,6 +31,7 @@ import {
   EVENT_TYPE_OPTIONS,
   VERIFICATION_STAGE_OPTIONS,
 } from './eventOptions'
+import { ensureWebPathDeps } from './hooks/ensureWebPathDeps'
 import { eventTitleBeforeChange } from './hooks/eventTitle'
 import { verifyOnSave } from './hooks/verifyOnSave'
 
@@ -72,6 +73,9 @@ export const Events: CollectionConfig = {
   // banner's Verify button. The tokenized email link is the `/events/verify`
   // frontend page (it calls the shared verify op via a Server Action).
   hooks: {
+    // Keep `webPath`/`webUrl` resolvable when a read selects them without their
+    // inputs (`region`, and `_status` for `webUrl`) — see ensureWebPathDeps.
+    beforeOperation: [ensureWebPathDeps],
     beforeChange: [verifyOnSave],
     // Bust the Atlas manager sidebar cache (event list + region counts) whenever
     // an event changes or is trashed/restored.
@@ -379,8 +383,8 @@ export const Events: CollectionConfig = {
     // exposed; `webUrl` (base + path) only while published, since an
     // unpublished event has no public page — the verify/reminder links and the
     // ExpireEvents job rely on that null-on-unpublish contract. `region` (an id
-    // at depth 0) must be present for the path to resolve; the geojson feed
-    // ensures it (see ensurePathFieldDeps in ./endpoints/geojson).
+    // at depth 0) must be present for the path to resolve; the ensureWebPathDeps
+    // beforeOperation hook keeps it selectable on its own on any read.
     ...atlasWebFields({
       requirePublished: true,
       resolvePath: ({ data, paths }) => {
