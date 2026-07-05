@@ -417,6 +417,10 @@ export const Meditations: CollectionConfig = {
                                 collection: 'frames',
                                 where: { id: { in: frameIds } },
                                 limit: frameIds.length,
+                                // Fetch by explicit id list — disable pagination to skip
+                                // Payload's redundant `count(*)` (the total is never used).
+                                // See #534 Sentry analysis (frames select/count pairs).
+                                pagination: false,
                               })
 
                               // Create map of relevant frame data
