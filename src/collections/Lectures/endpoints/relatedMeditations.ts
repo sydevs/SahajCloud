@@ -3,12 +3,24 @@ import type { Endpoint, Where } from 'payload'
 import { z } from 'zod'
 
 import { commaSeparatedIntIds, parseQuery, requireActiveClient } from '@/lib/endpoints'
-import { shapeMeditation, type MeditationCardData } from '@/lib/meditations/meditationShape'
+import {
+  MEDITATION_CARD_SELECT,
+  shapeMeditation,
+  type MeditationCardData,
+} from '@/lib/meditations/meditationShape'
 import { scoreMeditationByNodes } from '@/lib/meditations/nodeWeights'
-import type { Lecture, Meditation, SubtleSystemNode } from '@/payload-types'
+import type { Lecture, Meditation, MeditationsSelect, SubtleSystemNode } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const CACHE_HEADERS = { 'Cache-Control': 'public, max-age=600, s-maxage=600' } as const
+
+/**
+ * Bounded select for the candidate-pool reads: the card fields
+ * {@link MEDITATION_CARD_SELECT} plus `createdAt` for the recency fallback sort.
+ * Skips the meditations `tagAssignments`/`frames` per-row afterReads so the pool
+ * read stays flat instead of N+1 across every candidate (#541).
+ */
+const CANDIDATE_SELECT: MeditationsSelect<true> = { ...MEDITATION_CARD_SELECT, createdAt: true }
 
 /** Which selection strategy produced the `docs` in a related-meditations response. */
 export type RelatedMeditationsSource = 'relevance' | 'fallback'
@@ -148,6 +160,7 @@ export const lectureRelatedMeditations: Endpoint = {
         pagination: false,
         limit: 0,
         locale,
+        select: CANDIDATE_SELECT,
         req: asTrustedReq(req),
       })
       candidatePool = candidateDocs as Meditation[]
@@ -202,6 +215,7 @@ export const lectureRelatedMeditations: Endpoint = {
           limit: 0,
           sort: '-createdAt',
           locale,
+          select: CANDIDATE_SELECT,
           req: asTrustedReq(req),
         })
         recentDocs = docs as Meditation[]

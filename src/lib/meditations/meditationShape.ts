@@ -1,7 +1,35 @@
 import type { PayloadLogger } from 'payload'
 
 import { resolveThumbnailUrl } from '@/lib/utilities/thumbnailUrl'
-import type { Meditation, Narrator } from '@/payload-types'
+import type { Meditation, MeditationsSelect, Narrator } from '@/payload-types'
+
+/**
+ * Bounded include-mode `select` covering exactly the fields {@link shapeMeditation}
+ * reads. Pass it to any internal `depth ≥ 1` meditations read whose only purpose
+ * is to build cards (e.g. the candidate-pool reads in
+ * `/api/lectures/:id/related-meditations`). An include-mode select strips every
+ * unselected field *before* its `afterRead` runs, so the expensive per-row
+ * virtual-field hooks — `tagAssignments` (≈4 user-choices queries/row) and
+ * `frames` enrichment — never fire. Without it those hooks turn a card read into
+ * an N+1 that scales with the candidate pool (see #541).
+ *
+ * The two co-selected dependencies are load-bearing, not decorative — each
+ * virtual field's `afterRead` reads a sibling that would otherwise be stripped
+ * first (same pattern as `url`→`filename` in `Meditations/endpoints/songs.ts`):
+ *   - `duration` feeds the `durationMinutes` afterRead.
+ *   - `subtleSystemNodeWeights` feeds the `title` afterRead (and the endpoint's
+ *     own `scoreMeditationByNodes`).
+ * Drop either and the virtual reads to `null`, so `shapeMeditation` discards the
+ * card — a silent correctness regression, not just a slow one.
+ */
+export const MEDITATION_CARD_SELECT = {
+  title: true,
+  duration: true,
+  durationMinutes: true,
+  thumbnail: true,
+  narrator: true,
+  subtleSystemNodeWeights: true,
+} satisfies MeditationsSelect<true>
 
 /**
  * Flat, card-ready shape for a meditation returned from the related-content

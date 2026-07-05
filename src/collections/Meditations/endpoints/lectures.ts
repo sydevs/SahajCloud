@@ -5,12 +5,36 @@ import { z } from 'zod'
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
 import { commaSeparatedIntIds, parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { selectAudienceFeed } from '@/lib/lectures/audienceFeed'
-import { shapeLecture, type LecturePlayerData } from '@/lib/lectures/lectureShape'
+import {
+  LECTURE_FEED_SELECT,
+  shapeLecture,
+  type LecturePlayerData,
+} from '@/lib/lectures/lectureShape'
 import { recomputeWeightsForMeditation } from '@/lib/meditations/nodeWeights'
-import type { Lecture, Meditation, SubtleSystemNode, UserChoice } from '@/payload-types'
+import type {
+  Lecture,
+  LecturesSelect,
+  Meditation,
+  SubtleSystemNode,
+  UserChoice,
+} from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const CACHE_HEADERS = { 'Cache-Control': 'public, max-age=600, s-maxage=600' } as const
+
+/**
+ * Bounded select for the lecture candidate pool: the feed-shape fields
+ * ({@link LECTURE_FEED_SELECT}) plus the two relationships this endpoint's
+ * ranking loop reads — `subtleSystemNodes` (topical weight) and `userChoices`
+ * (the userChoice grouping). An include-mode select keeps the lectures `clips`
+ * join afterRead from firing across the whole candidate pool, so the read stays
+ * flat instead of N+1 (#541).
+ */
+const CANDIDATE_SELECT: LecturesSelect<true> = {
+  ...LECTURE_FEED_SELECT,
+  subtleSystemNodes: true,
+  userChoices: true,
+}
 
 /** Which selection strategy produced the `docs` in a related-lectures response. */
 export type RelatedLecturesSource = 'relevance' | 'audience-fallback'
@@ -175,6 +199,7 @@ export const meditationLectures: Endpoint = {
       // — clips have `metadata: null` and source it from their parent.
       depth: 2,
       pagination: false,
+      select: CANDIDATE_SELECT,
       locale: req.locale ?? 'en',
       req: asTrustedReq(req),
     })
@@ -263,6 +288,7 @@ export const meditationLectures: Endpoint = {
         limit: 0,
         depth: 2,
         pagination: false,
+        select: CANDIDATE_SELECT,
         locale: req.locale ?? 'en',
         req: asTrustedReq(req),
       })

@@ -2,7 +2,41 @@ import type { PayloadLogger } from 'payload'
 
 import type { LectureMetadata } from '@/lib/lectures/nirmalaVidya'
 import { resolveThumbnailUrl } from '@/lib/utilities/thumbnailUrl'
-import type { Lecture } from '@/payload-types'
+import type { Lecture, LecturesSelect } from '@/payload-types'
+
+/**
+ * Bounded include-mode `select` covering exactly the fields the feed/player
+ * shaping path reads — {@link shapeLecture} plus `selectAudienceFeed`'s
+ * `priority` partition. Pass it to any internal `depth ≥ 2` lectures read that
+ * only builds `LecturePlayerData` (`/api/lectures/for-audience`, and the base of
+ * `/api/meditations/:id/related-lectures`).
+ *
+ * The point is to keep the top-level lectures `clips` join field (a per-row
+ * subquery) from firing across the whole candidate pool — an include-mode select
+ * strips it before its afterRead runs, so the pool read stays flat instead of
+ * N+1 (#541).
+ *
+ * `fullLecture` is selected wholesale (`true`) so a clip's parent populates at
+ * depth: the clip sources its playback `metadata` and `fullLectureId`-gate
+ * `audiences` from it. `select` can't narrow a *relationship's* fields (that's a
+ * populate concern, not a select one), so the parent's own `clips` join is
+ * bounded separately by `Lectures.defaultPopulate: { clips: false }` — the
+ * nested-population analog of this top-level skip. The related-lectures ranking
+ * loop additionally reads `subtleSystemNodes` / `userChoices`; it spreads those
+ * onto this base rather than bloating the shared feed select (for-audience
+ * doesn't rank, so it doesn't need them).
+ */
+export const LECTURE_FEED_SELECT = {
+  type: true,
+  title: true,
+  metadata: true,
+  startTime: true,
+  stopTime: true,
+  thumbnail: true,
+  subtitles: true,
+  priority: true,
+  fullLecture: true,
+} satisfies LecturesSelect<true>
 
 /**
  * Flat, playback-ready shape for a lecture returned from /api/lectures/for-audience

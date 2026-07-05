@@ -128,6 +128,50 @@ See `.claude/rules/openapi.md` for the full shim contract.
   over an explicit field allowlist, like `GET /api/meditations/{id}/songs` — not
   a raw passthrough.
 
+## Bound internal candidate-pool reads (the virtual-field N+1)
+
+The response shape is only half the story. **Any internal `depth ≥ 1` read that
+fetches a pool of rows to shape must carry a bounded `select`.** A read without
+one runs *every* field's `afterRead` on *every* row — and the expensive ones
+(virtual/computed fields, native `join` fields) each fire a per-row sub-query.
+That turns one shaped endpoint into an N+1 that scales linearly with the pool
+size. This was #541: `related-meditations` / `related-lectures` / `for-audience`
+paid ~16 extra queries per candidate (meditations `tagAssignments`, lectures
+`clips`) until each internal read was given a `select`.
+
+The client REST surface is already protected — `validateClientQueryParamsHook`
+rejects any API-client read without a `select` (see `.claude/rules/api-clients.md`).
+The gap is **server-side reads that forward `asTrustedReq(req)`**, which bypass
+that gate. Those are exactly the reads you must bound by hand.
+
+Rules of thumb:
+
+- **Co-locate the select with the shape helper.** Export a `FOO_CARD_SELECT`
+  next to the function that reads those fields (`MEDITATION_CARD_SELECT` in
+  `meditationShape.ts`, `LECTURE_FEED_SELECT` in `lectureShape.ts`), so the two
+  stay in sync when the shape changes. The endpoint spreads it and adds any
+  extra fields its own ranking/sort needs (`createdAt`, `subtleSystemNodes`, …).
+- **Co-select a virtual field's dependency.** An include-mode `select` strips
+  unselected siblings *before* any `afterRead` runs, so a computed field reads
+  `null` unless you also select what its hook reads: `durationMinutes` needs
+  `duration`; `title` needs `subtleSystemNodeWeights`; `url` needs `filename`
+  (`Meditations/endpoints/songs.ts`). Miss one and the card is silently dropped,
+  not just slow.
+- **`select` can't narrow a *relationship's* fields** — for a relationship field
+  it's boolean-only (`fullLecture: true`, not `fullLecture: { … }`). To skip an
+  expensive field on a **populated** relationship (e.g. a clip's nested
+  `fullLecture` parent), exclude it on the *target* collection with
+  `defaultPopulate: { expensiveField: false }` — `Lectures.defaultPopulate:
+  { clips: false }`, mirroring `Meditations.defaultPopulate:
+  { tagAssignments: false }`. `defaultPopulate` only affects relationship
+  hydration; direct reads and the admin edit view are unaffected.
+- **Regression-test it flat, not fast.** Spy on `payload.find` and assert the
+  per-row sub-query count stays at zero as the pool doubles (see the #541 cases
+  in `tests/int/lecture-related-meditations.int.spec.ts`); for native joins,
+  assert the field is absent from the populated docs
+  (`tests/int/lectures-for-audience.int.spec.ts`). A timing assertion is flaky;
+  a count assertion pins the behaviour.
+
 ## When to use a Payload endpoint vs a Next.js route
 
 | Use case                                                                                                                                                                                                  | Where                                                               |
