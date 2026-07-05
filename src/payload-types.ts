@@ -5875,25 +5875,85 @@ export interface SyAtlasTranslation {
     | number
     | boolean
     | null;
-  map?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  location?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  event?:
+  region?: {
+    locations?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    venues?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  event?: {
+    details?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    recurrence?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    timing?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  registration?: {
+    form?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    errors?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    questions?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  share?:
     | {
         [k: string]: unknown;
       }
@@ -6119,9 +6179,27 @@ export interface SyAtlasConfigSelect<T extends boolean = true> {
  */
 export interface SyAtlasTranslationsSelect<T extends boolean = true> {
   common?: T;
-  map?: T;
-  location?: T;
-  event?: T;
+  region?:
+    | T
+    | {
+        locations?: T;
+        venues?: T;
+      };
+  event?:
+    | T
+    | {
+        details?: T;
+        recurrence?: T;
+        timing?: T;
+      };
+  registration?:
+    | T
+    | {
+        form?: T;
+        errors?: T;
+        questions?: T;
+      };
+  share?: T;
   _status?: T;
   updatedAt?: T;
   createdAt?: T;
