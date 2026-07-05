@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { getTimezoneOptions } from '@/lib/timezones'
+import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
 
-describe('getTimezoneOptions', () => {
-  const options = getTimezoneOptions()
+describe('SUPPORTED_TIMEZONES', () => {
+  const options = SUPPORTED_TIMEZONES
 
   it('returns the bundled IANA zone set', () => {
     expect(options.length).toBeGreaterThan(40)

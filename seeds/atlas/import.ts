@@ -93,7 +93,6 @@ interface AtlasRegion {
   parent: { level: 'country' | 'region'; legacyId: number } | null
   name: string
   countryCode: string | null
-  defaultLanguageCode?: string | null
   subtitle?: string | null
   latitude?: number | null
   longitude?: number | null
@@ -587,7 +586,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
     // Country → region → area in level order so parents resolve first.
     for (const country of byLevel('country')) {
-      await this.upsertRegion(country, null, managersByRegion, country.defaultLanguageCode)
+      await this.upsertRegion(country, null, managersByRegion)
     }
     for (const region of byLevel('region')) {
       const parentKey = region.parent ? `${region.parent.level}:${region.parent.legacyId}` : null
@@ -606,7 +605,6 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     region: AtlasRegion,
     parentKey: string | null,
     managersByRegion: Map<string, (number | string)[]>,
-    languageCode?: string | null,
   ): Promise<void> {
     const level = ATLAS_TO_PAYLOAD_LEVEL[region.level]
     const mapKey = `${level}:${region.legacyId}`
@@ -628,7 +626,6 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         )
       }
 
-      const eventDefaults = this.buildEventDefaults(languageCode, region.timeZone)
       const result = await this.upsert<{ id: number }>(
         'regions',
         { and: [{ legacyId: { equals: region.legacyId } }, { level: { equals: level } }] },
@@ -645,7 +642,6 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
           parent: parentId,
           ...this.locationData(location, mapKey),
           managers: managersByRegion.get(mapKey),
-          ...(eventDefaults ? { eventDefaults } : {}),
           legacyId: region.legacyId,
           legacyData: region,
         },
@@ -1112,18 +1108,6 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       longitude: location.longitude ?? undefined,
       radius: location.radius ?? undefined,
     }
-  }
-
-  /** Region eventDefaults group (only set when something populates it). */
-  private buildEventDefaults(
-    languageCode: string | null | undefined,
-    timeZone: string | null | undefined,
-  ): Record<string, unknown> | undefined {
-    const language = mapLanguageCode(languageCode)
-    const defaults: Record<string, unknown> = {}
-    if (language) defaults.language = language
-    if (timeZone) defaults.timeZone = [timeZone]
-    return Object.keys(defaults).length > 0 ? defaults : undefined
   }
 
   /** Compute a manager's notification prefs from the in-memory Atlas record. */

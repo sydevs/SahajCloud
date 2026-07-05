@@ -80,7 +80,6 @@ async function persistSampleEvent(): Promise<SampleData> {
       level: 'country',
       mapboxId: `sample-in-${stamp}`,
       managers: [regionManager.id],
-      eventDefaults: { language: 'en', timeZone: ['Asia/Calcutta'] },
     },
   })
   const city = await payload.create({
