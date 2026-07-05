@@ -733,7 +733,6 @@ export interface Config {
     | ('false' | 'none' | 'null')
     | false
     | null
-    | ('en' | 'es' | 'de' | 'it' | 'fr' | 'ru' | 'ro' | 'cs' | 'uk' | 'el' | 'hy' | 'pl' | 'pt-br' | 'fa' | 'bg' | 'tr')
     | (
         | 'en'
         | 'es'
@@ -747,10 +746,30 @@ export interface Config {
         | 'el'
         | 'hy'
         | 'pl'
-        | 'pt-br'
+        | 'pt-BR'
         | 'fa'
         | 'bg'
         | 'tr'
+        | 'en-AU'
+      )
+    | (
+        | 'en'
+        | 'es'
+        | 'de'
+        | 'it'
+        | 'fr'
+        | 'ru'
+        | 'ro'
+        | 'cs'
+        | 'uk'
+        | 'el'
+        | 'hy'
+        | 'pl'
+        | 'pt-BR'
+        | 'fa'
+        | 'bg'
+        | 'tr'
+        | 'en-AU'
       )[];
   globals: {
     'wm-web-config': WmWebConfig;
@@ -785,10 +804,11 @@ export interface Config {
     | 'el'
     | 'hy'
     | 'pl'
-    | 'pt-br'
+    | 'pt-BR'
     | 'fa'
     | 'bg'
-    | 'tr';
+    | 'tr'
+    | 'en-AU';
   widgets: {
     collections: CollectionsWidget;
   };
@@ -1864,10 +1884,11 @@ export interface Meditation {
     | 'el'
     | 'hy'
     | 'pl'
-    | 'pt-br'
+    | 'pt-BR'
     | 'fa'
     | 'bg'
-    | 'tr';
+    | 'tr'
+    | 'en-AU';
   /**
    * This should be the name of the yogi who did the recording. We need this for dynamic followup audio clips. Cannot be changed after creation.
    */
@@ -2215,10 +2236,11 @@ export interface Lecture {
           | 'el'
           | 'hy'
           | 'pl'
-          | 'pt-br'
+          | 'pt-BR'
           | 'fa'
           | 'bg'
-          | 'tr';
+          | 'tr'
+          | 'en-AU';
         url: string;
         id?: string | null;
       }[]

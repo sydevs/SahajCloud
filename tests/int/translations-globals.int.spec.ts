@@ -77,10 +77,10 @@ describe('Translations Globals Configuration', () => {
   })
 
   describe('Tab structure', () => {
-    it('wm-web-translations has Common and Navigation tabs', () => {
+    it('wm-web-translations has Common, Navigation, Footer, Page Tags, Errors tabs', () => {
       const tabsField = findGlobal('wm-web-translations').fields[0] as TabsField
       const labels = tabsField.tabs.map((t) => t.label)
-      expect(labels).toEqual(['Common', 'Navigation'])
+      expect(labels).toEqual(['Common', 'Navigation', 'Footer', 'Page Tags', 'Errors'])
     })
 
     it('sy-atlas-translations has Common, Map, Location, Event tabs', () => {
@@ -99,6 +99,9 @@ describe('Translations Globals Configuration', () => {
       const names = jsonFields.map((f) => f.name)
       expect(names).toContain('common')
       expect(names).toContain('navigation')
+      expect(names).toContain('footer')
+      expect(names).toContain('page_tags')
+      expect(names).toContain('errors')
     })
 
     it('sy-atlas-translations emits a JSON field named after each leaf slug', () => {

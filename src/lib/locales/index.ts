@@ -23,10 +23,11 @@ export const LOCALES = [
   { code: 'el', label: 'Greek' },
   { code: 'hy', label: 'Armenian' },
   { code: 'pl', label: 'Polish' },
-  { code: 'pt-br', label: 'Brazilian Portuguese' },
+  { code: 'pt-BR', label: 'Brazilian Portuguese' },
   { code: 'fa', label: 'Farsi/Persian' },
   { code: 'bg', label: 'Bulgarian' },
   { code: 'tr', label: 'Turkish' },
+  { code: 'en-AU', label: 'Australian English' },
 ] as const
 
 /**
@@ -58,7 +59,8 @@ export function isValidLocale(code: string): code is LocaleCode {
  * Special case labels for locales not in ISO 639-1 or needing override
  */
 const LOCALE_LABEL_OVERRIDES: Record<string, string> = {
-  'pt-br': 'Brazilian Portuguese',
+  'pt-BR': 'Brazilian Portuguese',
+  'en-AU': 'Australian English',
   fa: 'Farsi/Persian',
 }
 
@@ -73,7 +75,7 @@ const LOCALE_LABEL_OVERRIDES: Record<string, string> = {
 export function buildPayloadLocales(): Locale[] {
   return LOCALES.map(({ code }) => {
     // Get label from override or ISO 639-1
-    // For compound codes like 'pt-br', try the full code first, then the base
+    // For compound codes like 'pt-BR', try the full code first, then the base
     const baseCode = code.split('-')[0]
     const isoLabel = ISO6391.getName(baseCode)
     const label = LOCALE_LABEL_OVERRIDES[code] || isoLabel || code
