@@ -166,26 +166,23 @@ describe('Translations Globals Configuration', () => {
 
     it('sy-atlas-translations wraps nested tabs (Region, Event, Registration) in a single group with an inner tabs field', () => {
       const tabsField = findGlobal('sy-atlas-translations').fields[0] as TabsField
-      const groupCountByLabel = new Map<string, number>()
+      const nestedTabs = new Set(['Region', 'Event', 'Registration'])
       for (const tab of tabsField.tabs) {
+        const label = String(tab.label)
         const groups = tab.fields.filter((f) => f.type === 'group') as Array<{
           type: 'group'
-          name: string
           fields: Field[]
         }>
-        groupCountByLabel.set(String(tab.label), groups.length)
-        // Nested tabs wrap their subgroups in exactly one group whose first field
-        // is the inner tabs field; leaf tabs have none.
-        if (groups.length === 1) {
+        if (nestedTabs.has(label)) {
+          // Nested tabs wrap their subgroups in exactly one group whose first
+          // field is the inner tabs field.
+          expect(groups, label).toHaveLength(1)
           expect(groups[0]!.fields[0]?.type).toBe('tabs')
+        } else {
+          // Leaf tabs (Common, Share) have no group wrapper.
+          expect(groups, label).toHaveLength(0)
         }
       }
-      // Leaf tabs have no group wrapper; the three nested tabs each have exactly one.
-      expect(groupCountByLabel.get('Common')).toBe(0)
-      expect(groupCountByLabel.get('Share')).toBe(0)
-      expect(groupCountByLabel.get('Region')).toBe(1)
-      expect(groupCountByLabel.get('Event')).toBe(1)
-      expect(groupCountByLabel.get('Registration')).toBe(1)
     })
   })
 })
