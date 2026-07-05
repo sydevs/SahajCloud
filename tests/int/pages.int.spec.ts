@@ -435,4 +435,39 @@ describe('Pages Collection', () => {
       expect(draft.webUrl).toBeNull()
     })
   })
+
+  // #542: a bulk publish fans the appUrl afterRead across every doc; guard that
+  // it publishes each and leaves version history intact. The once-per-request
+  // wm-app-config load is guarded deterministically in
+  // tests/unit/pages-app-config-cache.spec.ts — the stampede reproduces only
+  // under production's connection-pool wait, not against a fast local DB, so a
+  // black-box count here would pass on the buggy code too.
+  describe('bulk publish (#542)', () => {
+    it('publishes each doc and leaves one published latest version per doc', async () => {
+      const drafts = await Promise.all(
+        Array.from({ length: 3 }, () => testData.createPage(payload)),
+      )
+      const ids = drafts.map((p) => p.id)
+
+      const result = await payload.update({
+        collection: 'pages',
+        where: { id: { in: ids } },
+        data: { _status: 'published' },
+      })
+
+      expect(result.docs).toHaveLength(ids.length)
+      result.docs.forEach((doc) => expect(doc._status).toBe('published'))
+
+      for (const id of ids) {
+        const versions = await payload.findVersions({
+          collection: 'pages',
+          where: { parent: { equals: id } },
+          limit: 100,
+        })
+        const latest = versions.docs.filter((v) => v.latest)
+        expect(latest).toHaveLength(1)
+        expect(latest[0]?.version._status).toBe('published')
+      }
+    })
+  })
 })
