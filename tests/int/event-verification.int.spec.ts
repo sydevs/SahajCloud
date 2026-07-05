@@ -237,18 +237,40 @@ describe('Event verification lifecycle', () => {
     expect(trashed.deletedAt).toBeTruthy()
   })
 
-  describe('webUrl virtual field', () => {
-    it('links a published event to the Sahaj Atlas map', async () => {
+  describe('webPath / webUrl virtual fields', () => {
+    it('exposes the canonical Atlas path + URL for a published event', async () => {
       const event = await createEvent()
-      const fetched = await payload.findByID({
-        collection: 'events',
-        id: event.id,
-        overrideAccess: true,
-      })
-      expect(fetched.webUrl).toBe(`http://localhost:5173/map#/!/events/${event.id}`)
+      const [fetched, region] = await Promise.all([
+        payload.findByID({ collection: 'events', id: event.id, overrideAccess: true }),
+        payload.findByID({ collection: 'regions', id: defaultRegion.id, overrideAccess: true }),
+      ])
+      // "Default City" has no parent → its path is `/<slug>`; the event's path
+      // appends its id, and webUrl joins that to the Atlas host.
+      expect(region.webPath).toBe(`/${region.slug}`)
+      expect(fetched.webPath).toBe(`/${region.slug}/${event.id}`)
+      expect(fetched.webUrl).toBe(`http://localhost:5174/${region.slug}/${event.id}`)
+      // appUrl is always emitted but null — there's no Atlas app deep-link base.
+      expect(fetched.appUrl).toBeNull()
     })
 
-    it('is null while the event is unpublished', async () => {
+    it('resolves on a direct read that selects only the path fields', async () => {
+      // The ensureWebPathDeps beforeOperation hook re-adds `region` / `_status`,
+      // so a caller can select webPath/webUrl without their inputs.
+      const event = await createEvent()
+      const [fetched, region] = await Promise.all([
+        payload.findByID({
+          collection: 'events',
+          id: event.id,
+          select: { webPath: true, webUrl: true },
+          overrideAccess: true,
+        }),
+        payload.findByID({ collection: 'regions', id: defaultRegion.id, overrideAccess: true }),
+      ])
+      expect(fetched.webPath).toBe(`/${region.slug}/${event.id}`)
+      expect(fetched.webUrl).toBe(`http://localhost:5174/${region.slug}/${event.id}`)
+    })
+
+    it('exposes neither webPath nor webUrl while unpublished', async () => {
       const event = await createEvent()
       await payload.update({
         collection: 'events',
@@ -263,6 +285,8 @@ describe('Event verification lifecycle', () => {
         draft: true,
         overrideAccess: true,
       })
+      // Both fields are published-gated — an unpublished event has no public page.
+      expect(draft.webPath).toBeNull()
       expect(draft.webUrl).toBeNull()
     })
   })

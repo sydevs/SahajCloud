@@ -97,6 +97,10 @@ export const eventDefaultsFallback: CollectionAfterReadHook = async ({ doc, req 
   const memo = defaultsMemo(req)
   const missing = ancestorIds.filter((id) => !memo.has(id))
   if (missing.length > 0) {
+    // NB: spreading `req.context` here also propagates the region web-path
+    // resolver's re-entrancy flag (see RESOLVING_FLAG in
+    // `src/lib/atlas/regionWebPaths.ts`) into this nested read — that's what
+    // stops it re-scanning the whole tree per ancestor. Keep the spread.
     const { docs } = await req.payload.find({
       collection: 'regions',
       where: { id: { in: missing } },
