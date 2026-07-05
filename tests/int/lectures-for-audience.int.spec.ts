@@ -3,7 +3,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { lecturesForAudience } from '@/collections/Lectures/endpoints/forAudience'
-import type { LecturePlayerData } from '@/lib/lectures/lectureShape'
+import { LECTURE_FEED_SELECT, type LecturePlayerData } from '@/lib/lectures/lectureShape'
 import type { Audience, Client, Image, Lecture } from '@/payload-types'
 
 import { testData } from '../utils/testData'
@@ -954,6 +954,46 @@ describe('lecturesForAudience endpoint', () => {
       } finally {
         findSpy.mockRestore()
       }
+    })
+  })
+
+  describe('bounded-select skips the clips join (#541)', () => {
+    // for-audience (and related-lectures) fetch the candidate pool at depth 2
+    // with LECTURE_FEED_SELECT. The lectures `clips` field is a native join — a
+    // per-row subquery. The bounded select omits it on the top-level rows, and
+    // `Lectures.defaultPopulate: { clips: false }` omits it on a clip's nested
+    // `fullLecture` parent. Together they keep the pool read flat rather than an
+    // N+1 that grows with the number of (clip) candidates.
+    it('omits the clips join on candidate lectures and their nested parents', async () => {
+      const parent = await testData.createLecture(payload)
+      const clip = await testData.createLectureExcerpt(payload, { fullLecture: parent.id })
+      const where = { id: { in: [parent.id, clip.id] } }
+
+      // Baseline: a direct read resolves the parent's `clips` join (it has one
+      // clip), proving the field genuinely populates when nothing skips it.
+      const baseline = await payload.find({ collection: 'lectures', where, depth: 2, locale: 'en' })
+      const baseParent = baseline.docs.find((d) => d.id === parent.id) as Lecture
+      const baseClips = (baseParent.clips as { docs?: unknown[] } | undefined)?.docs ?? []
+      expect(baseClips.length).toBeGreaterThanOrEqual(1)
+
+      // With the feed select: the join is skipped on the top-level rows...
+      const bounded = await payload.find({
+        collection: 'lectures',
+        where,
+        depth: 2,
+        locale: 'en',
+        select: LECTURE_FEED_SELECT,
+      })
+      const boundedParent = bounded.docs.find((d) => d.id === parent.id) as Lecture
+      expect(boundedParent.clips).toBeUndefined()
+
+      // ...and on the clip's nested `fullLecture` parent (via defaultPopulate),
+      // while the fields shapeLecture reads off that parent still survive.
+      const boundedClip = bounded.docs.find((d) => d.id === clip.id) as Lecture
+      const nestedParent = boundedClip.fullLecture as Lecture
+      expect(nestedParent && typeof nestedParent === 'object').toBe(true)
+      expect(nestedParent.clips).toBeUndefined()
+      expect(nestedParent.metadata).toBeTruthy()
     })
   })
 })

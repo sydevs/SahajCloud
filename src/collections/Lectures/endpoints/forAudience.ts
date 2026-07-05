@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
 import { parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { selectAudienceFeed } from '@/lib/lectures/audienceFeed'
+import { LECTURE_FEED_SELECT } from '@/lib/lectures/lectureShape'
 import type { Lecture } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
@@ -55,6 +56,9 @@ export const lecturesForAudience: Endpoint = {
       // — clips have `metadata: null` and source it from their parent.
       depth: 2,
       pagination: false,
+      // Bounded to the feed-shape fields so the `clips` join afterRead never
+      // fires across the pool (#541).
+      select: LECTURE_FEED_SELECT,
       req: asTrustedReq(req),
     })
 
