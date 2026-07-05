@@ -249,6 +249,8 @@ describe('Event verification lifecycle', () => {
       expect(region.webPath).toBe(`/${region.slug}`)
       expect(fetched.webPath).toBe(`/${region.slug}/${event.id}`)
       expect(fetched.webUrl).toBe(`http://localhost:5174/${region.slug}/${event.id}`)
+      // appUrl is always emitted but null — there's no Atlas app deep-link base.
+      expect(fetched.appUrl).toBeNull()
     })
 
     it('resolves on a direct read that selects only the path fields', async () => {

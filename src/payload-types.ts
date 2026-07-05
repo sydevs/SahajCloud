@@ -892,6 +892,7 @@ export interface Page {
    * Managers who can edit this page without broader permissions.
    */
   managers?: (number | Manager)[] | null;
+  webPath?: string | null;
   webUrl?: string | null;
   appUrl?: string | null;
   updatedAt: string;
@@ -2183,6 +2184,7 @@ export interface Region {
     | null;
   webPath?: string | null;
   webUrl?: string | null;
+  appUrl?: string | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -2534,6 +2536,7 @@ export interface Event {
     | null;
   webPath?: string | null;
   webUrl?: string | null;
+  appUrl?: string | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -4578,6 +4581,7 @@ export interface PagesSelect<T extends boolean = true> {
   featuredVideo?: T;
   tags?: T;
   managers?: T;
+  webPath?: T;
   webUrl?: T;
   appUrl?: T;
   updatedAt?: T;
@@ -5160,6 +5164,7 @@ export interface RegionsSelect<T extends boolean = true> {
       };
   webPath?: T;
   webUrl?: T;
+  appUrl?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;
@@ -5239,6 +5244,7 @@ export interface EventsSelect<T extends boolean = true> {
   notificationLog?: T;
   webPath?: T;
   webUrl?: T;
+  appUrl?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;

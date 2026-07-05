@@ -216,6 +216,8 @@ describe('Regions child-join recursive descendants', () => {
     it('exposes webUrl as webPath joined to the Atlas host', async () => {
       const country = await readRegion(countryA)
       expect(country.webUrl).toBe(`http://localhost:5174${String(country.webPath)}`)
+      // appUrl is always emitted but null — there's no Atlas app deep-link base.
+      expect(country.appUrl).toBeNull()
     })
 
     it('reflects an ancestor slug rename on the next read (no stored path)', async () => {

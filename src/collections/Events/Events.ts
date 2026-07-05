@@ -380,10 +380,11 @@ export const Events: CollectionConfig = {
       ],
     },
     // Canonical Atlas web path/URL: the event's region path + `/<id>`
-    // (`/belgium/flanders/antwerp/downtown-hall/12345`). Both are published-
-    // gated — an unpublished event has no public page, and the verify/reminder
-    // links + ExpireEvents job rely on that null-on-unpublish contract. `region`
-    // (an id at depth 0) must be present for the path to resolve; the
+    // (`/belgium/flanders/antwerp/downtown-hall/12345`). `webPath` + `webUrl`
+    // are published-gated — an unpublished event has no public page, and the
+    // verify/reminder links + ExpireEvents job rely on that null-on-unpublish
+    // contract (`appUrl` is always null — there's no Atlas app deep-link).
+    // `region` (an id at depth 0) must be present for the path to resolve; the
     // ensureWebPathDeps beforeOperation hook keeps it selectable on its own.
     ...publicUrlFields({
       web: ATLAS_WEB_BASE,
@@ -393,7 +394,6 @@ export const Events: CollectionConfig = {
         const regionPath = (await getRegionWebPaths(req)).get(regionId)
         return regionPath != null ? `${regionPath}/${data?.id as number}` : null
       },
-      pathName: 'webPath',
     }),
     ...legacyMigrationFields(),
   ],

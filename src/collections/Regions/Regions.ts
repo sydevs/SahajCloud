@@ -453,14 +453,14 @@ export const Regions: CollectionConfig = {
     // this region (`/belgium/flanders/antwerp`), built from the breadcrumbs
     // above. Region-optional and venue-optional shapes collapse naturally
     // because they reflect actual ancestry. Regions have no `_status`, so
-    // `requirePublished: false` exposes both.
+    // `requirePublished: false` exposes `webPath` + `webUrl` (`appUrl` is null —
+    // no Atlas app deep-link).
     ...publicUrlFields({
       web: ATLAS_WEB_BASE,
       buildPath: async ({ data, req }) => {
         const paths = await getRegionWebPaths(req)
         return paths.get(data?.id as number) ?? null
       },
-      pathName: 'webPath',
       requirePublished: false,
     }),
     ...legacyMigrationFields(),
