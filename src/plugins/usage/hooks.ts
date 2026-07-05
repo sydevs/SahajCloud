@@ -33,9 +33,10 @@ interface UsageTracker {
  * See #546.
  */
 export function asTrustedReq(req: PayloadRequest): PayloadRequest {
-  // Ensure a single shared usage tracker exists on the original context, so the
-  // several asTrustedReq copies an endpoint makes all share one reference and the
-  // request is counted once (not once per internal find).
+  // Ensure a real context object exists on the original req, then seed the shared
+  // tracker. The tracker reference is copied by the shallow context spread, so all
+  // asTrustedReq copies + the original point at the same object.
+  req.context ??= {}
   req.context.usageTracker ??= { counted: false }
   return { ...req, context: { ...req.context, [SKIP_VALIDATION]: true } }
 }
@@ -314,7 +315,9 @@ export const usageTrackingHook: CollectionAfterReadHook = async ({ doc, req }) =
   }
 
   // Guard: increment once per request, not once per document.
-  // asTrustedReq seeds a shared tracker; all copies reference the same object.
+  // Ensure context exists, then initialize the shared tracker for deduplication.
+  // asTrustedReq seeds this on the original req, so all copies reference the same object.
+  req.context ??= {}
   const tracker = (req.context.usageTracker ??= { counted: false }) as UsageTracker
   if (tracker.counted) {
     return doc
