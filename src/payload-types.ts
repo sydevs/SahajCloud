@@ -4778,6 +4778,33 @@ export interface WmWebTranslation {
     | number
     | boolean
     | null;
+  footer?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  page_tags?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  errors?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
@@ -5898,6 +5925,9 @@ export interface WmWebConfigSelect<T extends boolean = true> {
 export interface WmWebTranslationsSelect<T extends boolean = true> {
   common?: T;
   navigation?: T;
+  footer?: T;
+  page_tags?: T;
+  errors?: T;
   _status?: T;
   updatedAt?: T;
   createdAt?: T;
