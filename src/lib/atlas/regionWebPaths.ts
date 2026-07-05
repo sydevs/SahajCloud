@@ -29,16 +29,6 @@ interface RegionRow {
 const requestCache = new WeakMap<PayloadRequest, Promise<Map<number, string>>>()
 
 /**
- * Set on the cloned request context while our own `regions` query is in flight.
- * The Regions `eventDefaultsFallback` afterRead hydrates ancestors during that
- * query; those reads would otherwise re-enter this resolver and kick off a fresh
- * full-collection scan per ancestor. Their web paths are discarded, so we
- * short-circuit to an empty map. `eventDefaultsFallback` spreads `req.context`
- * into its own clone, so the flag propagates down to the nested read.
- */
-const RESOLVING_FLAG = '__resolvingRegionWebPaths'
-
-/**
  * Ordered region ids for a region's breadcrumb trail (root → self). The
  * nested-docs plugin stores self as the last breadcrumb, so the mapped chain is
  * already terminal-inclusive. When the trail is missing or holds no resolvable
@@ -62,11 +52,11 @@ async function loadRegionWebPaths(req: PayloadRequest): Promise<Map<number, stri
     overrideAccess: true,
     // Only the slug (each segment) and the breadcrumb chain (the ordering) are
     // read. Excluding every other field also skips their afterRead hooks — this
-    // resolver's own webPath/webUrl among them — so the query can't recurse
-    // through them (see stripUnselectedFields: an unselected field returns
-    // before its hook runs).
+    // resolver's own webPath/webUrl among them — so this query can't recurse
+    // back into the resolver (see stripUnselectedFields: an unselected field
+    // returns before its hook runs).
     select: { slug: true, breadcrumbs: true },
-    req: { ...req, context: { ...req.context, [RESOLVING_FLAG]: true } },
+    req,
   })
   const rows = docs as RegionRow[]
 
@@ -95,11 +85,6 @@ async function loadRegionWebPaths(req: PayloadRequest): Promise<Map<number, stri
  * (the geojson feed) pays for exactly one query.
  */
 export function getRegionWebPaths(req: PayloadRequest): Promise<Map<number, string>> {
-  // Nested region read triggered by our own query — don't recurse (see
-  // RESOLVING_FLAG); the caller discards these docs' web paths.
-  if ((req.context as Record<string, unknown> | undefined)?.[RESOLVING_FLAG]) {
-    return Promise.resolve(new Map())
-  }
   let cached = requestCache.get(req)
   if (!cached) {
     cached = loadRegionWebPaths(req)
