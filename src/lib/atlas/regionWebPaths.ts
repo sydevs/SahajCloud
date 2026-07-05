@@ -41,15 +41,17 @@ const RESOLVING_FLAG = '__resolvingRegionWebPaths'
 /**
  * Ordered region ids for a region's breadcrumb trail (root → self). The
  * nested-docs plugin stores self as the last breadcrumb, so the mapped chain is
- * already terminal-inclusive. Empty/absent breadcrumbs (a root, or a
- * not-yet-populated create) collapse to just `[id]`.
+ * already terminal-inclusive. When the trail is missing or holds no resolvable
+ * ids (a root, a not-yet-populated create, or corrupt breadcrumbs) it collapses
+ * to `[id]` — the region's own globally-unique slug still resolves.
  */
 function breadcrumbChainIds(region: RegionRow, id: number): number[] {
   const crumbs = region.breadcrumbs
-  if (!Array.isArray(crumbs) || crumbs.length === 0) return [id]
-  return crumbs
+  if (!Array.isArray(crumbs)) return [id]
+  const ids = crumbs
     .map((crumb) => relationId(crumb?.doc))
     .filter((crumbId): crumbId is number => crumbId !== null)
+  return ids.length > 0 ? ids : [id]
 }
 
 async function loadRegionWebPaths(req: PayloadRequest): Promise<Map<number, string>> {
