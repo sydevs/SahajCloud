@@ -10,16 +10,17 @@ import {
 
 import {
   addressFields,
+  atlasWebFields,
   hideUntilCreated,
   legacyMigrationFields,
   scheduleFields,
   urlField,
-  publicUrlFields,
 } from '@/fields'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 import { ownedRegionFilterOptions } from '@/plugins/access'
+import { relationId } from '@/plugins/access/documentManagers'
 
 import { eventsGeoJson } from './endpoints/geojson'
 import { registerForEvent } from './endpoints/registerForEvent'
@@ -373,12 +374,21 @@ export const Events: CollectionConfig = {
         },
       ],
     },
-    // Virtual public link to the event on the Sahaj Atlas map — only while the
-    // event is published (the published gate is built into publicUrlFields).
-    ...publicUrlFields({
-      web: () =>
-        process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/map#/!/` : null,
-      buildPath: ({ data }) => (data?.id ? `events/${data.id}` : null),
+    // Canonical Atlas web path/URL: the event's region path + `/<id>`
+    // (`/belgium/flanders/antwerp/downtown-hall/12345`). `webPath` is always
+    // exposed; `webUrl` (base + path) only while published, since an
+    // unpublished event has no public page — the verify/reminder links and the
+    // ExpireEvents job rely on that null-on-unpublish contract. `region` (an id
+    // at depth 0) must be present for the path to resolve; the geojson feed
+    // ensures it (see ensurePathFieldDeps in ./endpoints/geojson).
+    ...atlasWebFields({
+      requirePublished: true,
+      resolvePath: ({ data, paths }) => {
+        const regionId = relationId(data.region)
+        if (regionId == null) return null
+        const regionPath = paths.get(regionId)
+        return regionPath != null ? `${regionPath}/${data.id}` : null
+      },
     }),
     ...legacyMigrationFields(),
   ],

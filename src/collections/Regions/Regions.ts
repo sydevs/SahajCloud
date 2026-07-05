@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
-import { hideUntilCreated, legacyMigrationFields, slugField } from '@/fields'
+import { atlasWebFields, hideUntilCreated, legacyMigrationFields, slugField } from '@/fields'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { getLanguageOptions } from '@/lib/locales'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
@@ -448,6 +448,14 @@ export const Regions: CollectionConfig = {
     // (The joins key on `doc` id, which is locale-invariant; if `name` ever
     // becomes localized, only the hidden breadcrumb labels would go stale.)
     createBreadcrumbsField('regions', { localized: false, admin: { hidden: true } }),
+    // Canonical Atlas web path/URL — the ordered ancestor slug chain including
+    // this region (`/belgium/flanders/antwerp`), built from the breadcrumbs
+    // above. Region-optional and venue-optional shapes collapse naturally
+    // because they reflect actual ancestry. No `_status` here (regions have no
+    // drafts), so both are always exposed.
+    ...atlasWebFields({
+      resolvePath: ({ data, paths }) => paths.get(data.id as number) ?? null,
+    }),
     ...legacyMigrationFields(),
   ],
 }

@@ -2181,6 +2181,8 @@ export interface Region {
         id?: string | null;
       }[]
     | null;
+  webPath?: string | null;
+  webUrl?: string | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -2530,6 +2532,7 @@ export interface Event {
     | number
     | boolean
     | null;
+  webPath?: string | null;
   webUrl?: string | null;
   legacyId?: number | null;
   legacyData?:
@@ -5155,6 +5158,8 @@ export interface RegionsSelect<T extends boolean = true> {
         label?: T;
         id?: T;
       };
+  webPath?: T;
+  webUrl?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;
@@ -5232,6 +5237,7 @@ export interface EventsSelect<T extends boolean = true> {
   verificationStage?: T;
   nextCheckAt?: T;
   notificationLog?: T;
+  webPath?: T;
   webUrl?: T;
   legacyId?: T;
   legacyData?: T;

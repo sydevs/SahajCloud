@@ -17,6 +17,10 @@ export type {
   PublicUrlPlatform,
 } from './publicUrlFields'
 
+// Atlas web fields - virtual webPath/webUrl pair from the region breadcrumb slug chain
+export { atlasWebFields } from './atlasWebFields'
+export type { AtlasWebFieldsOptions, ResolveWebPath } from './atlasWebFields'
+
 // Color field - text field with hex color validation and color picker
 export { colorField } from './colorField'
 export type { ColorFieldOptions } from './colorField'
