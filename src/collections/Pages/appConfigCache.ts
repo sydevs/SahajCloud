@@ -20,6 +20,10 @@ const CACHE_KEY = 'appUrlWmConfig'
  * Storing the promise synchronously (no await between the check and the store)
  * means every later caller in the request awaits the same one, collapsing the
  * load to exactly one. Also dedupes parallel relationship/list reads.
+ *
+ * A sibling value-cache (`getWmAppConfig`, keyed by `locale:depth`) loads the
+ * same global for the app-status global reads; folding both behind one shared
+ * single-flight loader in `src/lib/` is a reasonable follow-up, out of scope here.
  */
 export function loadAppConfigOnce(req: PayloadRequest): Promise<Record<string, unknown>> {
   const ctx = (req.context ?? {}) as Record<string, unknown>
