@@ -16,8 +16,9 @@ import {
   scheduleFields,
   urlField,
 } from '@/fields'
-import { ATLAS_WEB_BASE, getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
+import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
+import { serverEnv } from '@/lib/env/server'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 import { ownedRegionFilterOptions } from '@/plugins/access'
@@ -387,7 +388,7 @@ export const Events: CollectionConfig = {
     // `region` (an id at depth 0) must be present for the path to resolve; the
     // ensureWebPathDeps beforeOperation hook keeps it selectable on its own.
     ...publicUrlFields({
-      web: ATLAS_WEB_BASE,
+      web: serverEnv.SAHAJATLAS_URL,
       buildPath: async ({ data, req }) => {
         const regionId = relationId(data?.region)
         if (regionId == null) return null

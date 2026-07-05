@@ -3,8 +3,9 @@ import type { CollectionConfig } from 'payload'
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
 import { hideUntilCreated, legacyMigrationFields, publicUrlFields, slugField } from '@/fields'
-import { ATLAS_WEB_BASE, getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
+import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
+import { serverEnv } from '@/lib/env/server'
 import { getLanguageOptions } from '@/lib/locales'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { getTimezoneOptions } from '@/lib/timezones'
@@ -456,7 +457,7 @@ export const Regions: CollectionConfig = {
     // `requirePublished: false` exposes `webPath` + `webUrl` (`appUrl` is null —
     // no Atlas app deep-link).
     ...publicUrlFields({
-      web: ATLAS_WEB_BASE,
+      web: serverEnv.SAHAJATLAS_URL,
       buildPath: async ({ data, req }) => {
         const paths = await getRegionWebPaths(req)
         return paths.get(data?.id as number) ?? null

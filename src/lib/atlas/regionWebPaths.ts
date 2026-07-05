@@ -1,13 +1,6 @@
 import type { PayloadRequest } from 'payload'
 
-import { serverEnv } from '@/lib/env/server'
 import { relationId } from '@/plugins/access/documentManagers'
-
-/**
- * The Atlas web host with any trailing slash trimmed, for composing absolute
- * `webUrl`s from a `webPath` (which carries its own leading slash).
- */
-export const ATLAS_WEB_BASE = serverEnv.SAHAJATLAS_URL.replace(/\/+$/, '')
 
 /**
  * Canonical Atlas web paths for the Regions tree, resolved once per request.
