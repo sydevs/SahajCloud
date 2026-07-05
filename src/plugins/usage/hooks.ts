@@ -14,7 +14,6 @@ import { APIError } from 'payload'
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 import type { Client } from '@/payload-types'
 
-
 import { getDbSchema, getPgPool } from './db'
 import { extractRequestHost, isHostAllowed, parseAllowedDomains } from './originEnforcement'
 
@@ -283,10 +282,22 @@ const usageIncrementSql = (schema: string) => `
  *
  * Uses a single atomic Postgres UPDATE for race-free increments in every
  * environment (replaces the former D1-vs-better-sqlite3 fork).
+ *
+ * Guard: increments at most once per request. Payload fires afterRead once
+ * per document, but internal reads forward the client req via asTrustedReq(),
+ * so N documents read triggers N hook invocations. The once-per-request flag
+ * (usageCounted on req.context) ensures only the first invocation writes to
+ * the database, turning N writes into 1 per request.
  */
 export const usageTrackingHook: CollectionAfterReadHook = async ({ doc, req }) => {
   // Only track for client requests
   if (req.user?.collection !== 'clients' || !req.user?.id) {
+    return doc
+  }
+
+  // Guard: increment once per request, not once per document.
+  // Internal reads fire afterRead multiple times for the same client.
+  if (req.context?.usageCounted === true) {
     return doc
   }
 
@@ -301,6 +312,11 @@ export const usageTrackingHook: CollectionAfterReadHook = async ({ doc, req }) =
     }
 
     await pool.query(usageIncrementSql(getDbSchema(req)), [now, now, clientId])
+
+    // Mark this request as counted to prevent duplicate increments
+    if (req.context) {
+      req.context.usageCounted = true
+    }
   } catch (error) {
     // Fail open - don't block API requests if tracking fails
     req.payload.logger.error({
