@@ -14,14 +14,30 @@ import { APIError } from 'payload'
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 import type { Client } from '@/payload-types'
 
-
 import { getDbSchema, getPgPool } from './db'
 import { extractRequestHost, isHostAllowed, parseAllowedDomains } from './originEnforcement'
 
 const SKIP_VALIDATION = 'skipClientQueryValidation'
 
-/** Wraps a client request to bypass query-param validation in trusted internal endpoints. */
+/** Shared tracker object for deduplicating usage increments across multiple asTrustedReq calls. */
+interface UsageTracker {
+  counted: boolean
+}
+
+/** Wraps a client request to bypass query-param validation in trusted internal endpoints.
+ *
+ * Also seeds a shared usage tracker on the original context so multiple asTrustedReq
+ * calls within the same request (e.g., in related-* endpoints) all see the same
+ * `counted` flag. The tracker reference is copied by the shallow context spread,
+ * so all asTrustedReq copies + the original point at the same object.
+ * See #546.
+ */
 export function asTrustedReq(req: PayloadRequest): PayloadRequest {
+  // Ensure a real context object exists on the original req, then seed the shared
+  // tracker. The tracker reference is copied by the shallow context spread, so all
+  // asTrustedReq copies + the original point at the same object.
+  req.context ??= {}
+  req.context.usageTracker ??= { counted: false }
   return { ...req, context: { ...req.context, [SKIP_VALIDATION]: true } }
 }
 
@@ -283,10 +299,27 @@ const usageIncrementSql = (schema: string) => `
  *
  * Uses a single atomic Postgres UPDATE for race-free increments in every
  * environment (replaces the former D1-vs-better-sqlite3 fork).
+ *
+ * Guard: increments at most once per request. Payload fires afterRead once
+ * per document, and internal reads forward the client req via asTrustedReq(),
+ * creating multiple finds per request. The shared tracker (usageTracker on
+ * req.context) is a mutable object that all asTrustedReq copies reference,
+ * so the first invocation increments and marks counted=true; subsequent
+ * invocations in the same request see the flag and short-circuit. This turns
+ * N writes into 1 per request. See #546.
  */
 export const usageTrackingHook: CollectionAfterReadHook = async ({ doc, req }) => {
   // Only track for client requests
   if (req.user?.collection !== 'clients' || !req.user?.id) {
+    return doc
+  }
+
+  // Guard: increment once per request, not once per document.
+  // Ensure context exists, then initialize the shared tracker for deduplication.
+  // asTrustedReq seeds this on the original req, so all copies reference the same object.
+  req.context ??= {}
+  const tracker = (req.context.usageTracker ??= { counted: false }) as UsageTracker
+  if (tracker.counted) {
     return doc
   }
 
@@ -301,6 +334,9 @@ export const usageTrackingHook: CollectionAfterReadHook = async ({ doc, req }) =
     }
 
     await pool.query(usageIncrementSql(getDbSchema(req)), [now, now, clientId])
+
+    // Mark this request as counted to prevent duplicate increments
+    tracker.counted = true
   } catch (error) {
     // Fail open - don't block API requests if tracking fails
     req.payload.logger.error({
