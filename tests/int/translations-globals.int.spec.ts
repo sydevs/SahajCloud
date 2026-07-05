@@ -109,9 +109,21 @@ describe('Translations Globals Configuration', () => {
       ) as Array<{ name: string }>
       const names = jsonFields.map((f) => f.name)
       // Leaf tabs emit a field named after the tab (`common`, `share`); nested
-      // tabs emit one field per sub-group (`locations`, `venues`, `details`, …).
+      // tabs emit one field per sub-group. Assert the full set so a dropped
+      // sub-group (e.g. event.recurrence, registration.errors) is caught.
       expect(names).toEqual(
-        expect.arrayContaining(['common', 'locations', 'venues', 'details', 'form', 'share']),
+        expect.arrayContaining([
+          'common',
+          'locations',
+          'venues',
+          'details',
+          'recurrence',
+          'timing',
+          'form',
+          'errors',
+          'questions',
+          'share',
+        ]),
       )
     })
 
