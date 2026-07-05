@@ -178,12 +178,32 @@ Source maps are uploaded to Sentry when `SENTRY_AUTH_TOKEN` is set during build.
 
 `src/payload.config.ts` configures the Postgres adapter pool and global query depth:
 
-- **Pool** — `pool.max` (via `DATABASE_POOL_MAX`, default `10`) plus
+- **Pool** — `pool.max` (via `DATABASE_POOL_MAX`, default `20`) plus
   `idleTimeoutMillis` / `connectionTimeoutMillis`. Size `max` to the **Railway
-  Postgres connection limit divided across running instances** (e.g. a 20-conn
-  limit with 2 instances → `max` ≈ 8–10 each, leaving headroom for in-process
-  migrations and psql). Capping the pool keeps bursts of parallel admin work (a
-  bulk publish runs its per-doc queries concurrently) from exhausting connections.
+  Postgres connection limit divided across running instances**, and cap it so
+  bursts of parallel admin work (a bulk publish runs its per-doc queries
+  concurrently — see #542) can't exhaust connections.
+
+  **Measured production infrastructure (2026-07, verified via Railway CLI + prod
+  `pg_settings`):**
+
+  | Fact | Value |
+  |---|---|
+  | Postgres `max_connections` | **100** (`superuser_reserved_connections=3` → **97 usable**) |
+  | Production app replicas | **1** (`numReplicas` unset, hobby plan, no multi-region / no `railway.toml` scaling) |
+  | DB isolation | Prod Postgres serves **only** the prod app — each PR preview env has its own Postgres |
+  | `DATABASE_POOL_MAX` in prod | **unset** → the code default in `src/lib/env/server.ts` is authoritative |
+
+  **Sizing formula.** Peak connections ≈ `pool.max × replicas` **+ deploy overlap**
+  (Railway boots the new container — which runs in-process migrations on boot —
+  while the old one drains, ≈ up to a second pool for a few seconds) **+ ~5–10**
+  Postgres internals/admin (`psql`, autovacuum, walwriter…). Keep that peak under
+  the 97 usable. At `max=20`, 1 replica → steady 20, deploy-overlap ~40, +internal
+  ~10 ≈ **~50 peak** — comfortable. **Before adding a 2nd replica** revisit: `2 ×
+  20` steady = 40 and deploy-overlap can approach 80, so drop `max` (≈ 30–35 for 2
+  replicas) or raise the server's `max_connections`. Future bulk-write
+  optimizations (batched endpoint, serialized writes) should re-measure with the
+  Drizzle logger / Sentry `pg`-span capture rather than simply raising `max`.
 - **Depth caps** — `defaultDepth: 2` (Payload's own default, set explicitly) and
   `maxDepth: 3` (down from Payload's default 10). `maxDepth` clamps any explicit
   `depth` a caller asks for, guarding against runaway edit-view / API

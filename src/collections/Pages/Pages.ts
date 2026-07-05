@@ -8,6 +8,8 @@ import { pageBlocks } from '@/lib/richEditor/blocks'
 import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexicalHooks'
 import { adminOnlyFieldAccess } from '@/plugins/access'
 
+import { loadAppConfigOnce } from './appConfigCache'
+
 export const Pages: CollectionConfig = {
   slug: 'pages',
   defaultPopulate: { appUrl: false },
@@ -126,21 +128,13 @@ export const Pages: CollectionConfig = {
         const id = data?.id
         if (!id) return false
 
-        const ctx = (req?.context ?? {}) as Record<string, unknown>
-        const CACHE_KEY = 'appUrlWmConfig'
-        let config = ctx[CACHE_KEY] as Record<string, unknown> | undefined
-        if (!config) {
-          config = (await req.payload.findGlobal({
-            slug: 'wm-app-config',
-            depth: 0,
-            req,
-          })) as unknown as Record<string, unknown>
-          ctx[CACHE_KEY] = config
-          req.context = ctx
-        }
+        // Load wm-app-config once per request (memoized), not once per doc — a
+        // bulk publish fans this afterRead across every page concurrently. See
+        // loadAppConfigOnce for why the cache holds the promise, not the value.
+        const config = await loadAppConfigOnce(req)
 
         return APP_REQUIRED_PAGE_FIELDS.some((field) => {
-          const val = config![field]
+          const val = config[field]
           if (val === id) return true
           return typeof val === 'object' && val !== null && (val as { id: unknown }).id === id
         })
