@@ -5,10 +5,11 @@
  * - The tabs field is the first (and only) top-level field in each global.
  * - The tabs structure preserves Title-Case labels per global.
  * - Each leaf group emits one JSON field; richText keys live as siblings.
- * - Nested tabs (wm-app-translations) are wrapped in a Payload group named
- *   after the tab slug so the API response is namespaced:
+ * - Nested tabs (wm-app-translations, sy-atlas-translations) are wrapped in a
+ *   Payload group named after the tab slug so the API response is namespaced:
  *   `{ onboarding: { welcome: {…} } }` instead of `{ onboarding_welcome: {…} }`.
- * - Simple tabs (wm-web, sy-atlas) have no group wrappers.
+ * - wm-web has no group wrappers; sy-atlas mixes leaf tabs (Common, Share) with
+ *   nested tabs (Region, Event, Registration) that do.
  * - richText fields inside nested tabs keep the sub-slug prefix (the group
  *   wrapper supplies the tab namespace), so the field name is
  *   `welcome_legal_disclaimer` and the API path is
@@ -83,10 +84,10 @@ describe('Translations Globals Configuration', () => {
       expect(labels).toEqual(['Common', 'Navigation'])
     })
 
-    it('sy-atlas-translations has Common, Map, Location, Event tabs', () => {
+    it('sy-atlas-translations has Common, Region, Event, Registration, Share tabs', () => {
       const tabsField = findGlobal('sy-atlas-translations').fields[0] as TabsField
       const labels = tabsField.tabs.map((t) => t.label)
-      expect(labels).toEqual(['Common', 'Map', 'Location', 'Event'])
+      expect(labels).toEqual(['Common', 'Region', 'Event', 'Registration', 'Share'])
     })
   })
 
@@ -107,7 +108,11 @@ describe('Translations Globals Configuration', () => {
         collectFieldsByPredicate(t.fields, (f) => f.type === 'json'),
       ) as Array<{ name: string }>
       const names = jsonFields.map((f) => f.name)
-      expect(names).toEqual(expect.arrayContaining(['common', 'map', 'location']))
+      // Leaf tabs emit a field named after the tab (`common`, `share`); nested
+      // tabs emit one field per sub-group (`locations`, `venues`, `details`, …).
+      expect(names).toEqual(
+        expect.arrayContaining(['common', 'locations', 'venues', 'details', 'form', 'share']),
+      )
     })
 
     it('wm-app-translations uses namespaced sub-group field names (no tab prefix, no `strings` sub-field)', () => {
@@ -135,14 +140,12 @@ describe('Translations Globals Configuration', () => {
       expect(names).not.toContain('onboarding_welcome_legal_disclaimer')
     })
 
-    it('wm-web and sy-atlas have no group wrappers', () => {
-      for (const slug of ['wm-web-translations', 'sy-atlas-translations'] as Slug[]) {
-        const tabsField = findGlobal(slug).fields[0] as TabsField
-        const groups = tabsField.tabs.flatMap((t) =>
-          collectFieldsByPredicate(t.fields, (f) => f.type === 'group'),
-        )
-        expect(groups).toHaveLength(0)
-      }
+    it('wm-web has no group wrappers', () => {
+      const tabsField = findGlobal('wm-web-translations').fields[0] as TabsField
+      const groups = tabsField.tabs.flatMap((t) =>
+        collectFieldsByPredicate(t.fields, (f) => f.type === 'group'),
+      )
+      expect(groups).toHaveLength(0)
     })
 
     it('wm-app-translations wraps each nested-tab in a single group containing an inner tabs field', () => {
@@ -159,6 +162,30 @@ describe('Translations Globals Configuration', () => {
           expect(groups[0]!.fields[0]?.type).toBe('tabs')
         }
       }
+    })
+
+    it('sy-atlas-translations wraps nested tabs (Region, Event, Registration) in a single group with an inner tabs field', () => {
+      const tabsField = findGlobal('sy-atlas-translations').fields[0] as TabsField
+      const groupCountByLabel = new Map<string, number>()
+      for (const tab of tabsField.tabs) {
+        const groups = tab.fields.filter((f) => f.type === 'group') as Array<{
+          type: 'group'
+          name: string
+          fields: Field[]
+        }>
+        groupCountByLabel.set(String(tab.label), groups.length)
+        // Nested tabs wrap their subgroups in exactly one group whose first field
+        // is the inner tabs field; leaf tabs have none.
+        if (groups.length === 1) {
+          expect(groups[0]!.fields[0]?.type).toBe('tabs')
+        }
+      }
+      // Leaf tabs have no group wrapper; the three nested tabs each have exactly one.
+      expect(groupCountByLabel.get('Common')).toBe(0)
+      expect(groupCountByLabel.get('Share')).toBe(0)
+      expect(groupCountByLabel.get('Region')).toBe(1)
+      expect(groupCountByLabel.get('Event')).toBe(1)
+      expect(groupCountByLabel.get('Registration')).toBe(1)
     })
   })
 })
