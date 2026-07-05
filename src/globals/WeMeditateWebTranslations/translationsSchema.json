@@ -7,15 +7,15 @@
       "properties": {
         "loading": {
           "type": "string",
-          "description": "Loading indicator text shown while content is being fetched"
+          "description": "Loading indicator text shown while content is being fetched."
         },
         "error": {
           "type": "string",
-          "description": "Generic error message shown when something goes wrong"
+          "description": "Generic error message shown when something goes wrong."
         },
         "retry": {
           "type": "string",
-          "description": "Button text to retry a failed action"
+          "description": "Button text to retry a failed action."
         }
       },
       "additionalProperties": false
@@ -26,19 +26,76 @@
       "properties": {
         "about_meditation": {
           "type": "string",
-          "description": "Navigation link to the About Meditation section"
+          "description": "Primary navigation link opening the \"About Meditation\" knowledge section."
         },
         "learn_more": {
           "type": "string",
-          "description": "Navigation link to educational content and resources"
+          "description": "Navigation link to educational content and resources."
         },
         "come_meditate": {
           "type": "string",
-          "description": "Call-to-action navigation link inviting users to meditate"
+          "description": "Call-to-action navigation link inviting users to start meditating."
         },
         "languages": {
           "type": "string",
-          "description": "Language selector label in the navigation"
+          "description": "Label for the language selector in the header/navigation."
+        },
+        "classes_near_me": {
+          "type": "string",
+          "description": "Action link inviting users to find in-person meditation classes near their location (frontend: \"Classes near me\")."
+        }
+      },
+      "additionalProperties": false
+    },
+    "footer": {
+      "type": "object",
+      "description": "Footer section headings and labels",
+      "properties": {
+        "info": {
+          "type": "string",
+          "description": "Heading for the footer's \"Info\" column, which lists informational pages (about, contact, privacy, etc.) (frontend: \"Info\")."
+        }
+      },
+      "additionalProperties": false
+    },
+    "page_tags": {
+      "type": "object",
+      "description": "Category labels for page tags, shown as pills/facets on article and content-index listings; mirrors the frontend `PAGE_TAG_LABELS`",
+      "properties": {
+        "wisdom": {
+          "type": "string",
+          "description": "Category label for pages tagged \"Wisdom\" (frontend: \"Wisdom\")."
+        },
+        "lifestyle": {
+          "type": "string",
+          "description": "Category label for pages tagged \"Lifestyle\" (frontend: \"Lifestyle\")."
+        },
+        "creativity": {
+          "type": "string",
+          "description": "Category label for pages tagged \"Creativity\" (frontend: \"Creativity\")."
+        },
+        "event": {
+          "type": "string",
+          "description": "Category label for pages tagged \"Event\" (frontend: \"Event\")."
+        },
+        "technique": {
+          "type": "string",
+          "description": "Category label for pages tagged \"Technique\" (frontend: \"Technique\")."
+        }
+      },
+      "additionalProperties": false
+    },
+    "errors": {
+      "type": "object",
+      "description": "User-facing error messages shown when content cannot be played",
+      "properties": {
+        "meditation_missing_audio": {
+          "type": "string",
+          "description": "Error shown on a meditation page when the meditation has no playable audio source (frontend: \"This meditation is missing a required audio URL.\")."
+        },
+        "lecture_missing_video": {
+          "type": "string",
+          "description": "Error shown on a lecture page when the lecture has no playable video source (frontend: \"This lecture is missing a playable video source.\")."
         }
       },
       "additionalProperties": false

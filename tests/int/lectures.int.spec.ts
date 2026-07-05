@@ -142,7 +142,7 @@ describe('Lectures Collection', () => {
       })
     })
 
-    it('normalizes "pt" to "pt-br"', async () => {
+    it('normalizes "pt" to "pt-BR"', async () => {
       const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'Brazilian Portuguese Lecture',
@@ -156,7 +156,7 @@ describe('Lectures Collection', () => {
         data: { nirmalVidyaVimeoUrl: 'https://vimeo.com/333333333' },
       } as any)
 
-      expect((lecture.metadata as LectureMetadata).subtitles['pt-br']).toBe(
+      expect((lecture.metadata as LectureMetadata).subtitles['pt-BR']).toBe(
         'https://example.com/subs/pt.vtt',
       )
     })
