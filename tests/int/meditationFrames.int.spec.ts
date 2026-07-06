@@ -316,14 +316,39 @@ describe('Meditation Frames Field', () => {
         id: testMeditation.id,
       })) as Meditation
 
-      const enrichedFrames = fetched.frames as Array<
-        KeyframeDefinition & { imageSet?: string }
-      >
+      const enrichedFrames = fetched.frames as Array<KeyframeDefinition & { imageSet?: string }>
 
       expect(enrichedFrames).toHaveLength(2)
       // Enrichment populates fields from the underlying Frame doc
       expect(enrichedFrames[0].imageSet).toBe('male')
       expect(enrichedFrames[1].imageSet).toBe('male')
+    })
+
+    it('fetches frames with pagination:false to skip the redundant count(*) (#534)', async () => {
+      const frames: KeyframeDefinition[] = [
+        { id: frameId(testFrame1), timestamp: 0 },
+        { id: frameId(testFrame2), timestamp: 30 },
+      ]
+      await payload.update({
+        collection: 'meditations',
+        id: testMeditation.id,
+        data: { frames },
+      })
+
+      const findSpy = vi.spyOn(payload, 'find')
+      try {
+        await payload.findByID({ collection: 'meditations', id: testMeditation.id })
+        const framesCalls = findSpy.mock.calls.filter((c) => c[0]?.collection === 'frames')
+        expect(framesCalls.length).toBeGreaterThan(0)
+        // Every frames-enrichment read must disable pagination so Payload skips the
+        // `select count(*)` it would otherwise run alongside the id-list fetch — the
+        // total is never used. See #534 Sentry analysis (frames select/count pairs).
+        for (const call of framesCalls) {
+          expect(call[0].pagination).toBe(false)
+        }
+      } finally {
+        findSpy.mockRestore()
+      }
     })
   })
 
