@@ -3,7 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { resolveAudienceIds } from '@/lib/audiences/resolve'
-import { parseQuery, requireActiveClient } from '@/lib/endpoints'
+import { parseQuery, publicReadCacheHeaders, requireActiveClient } from '@/lib/endpoints'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const querySchema = z.object({
@@ -43,7 +43,12 @@ export const audiencesForUser: Endpoint = {
 
     return Response.json(
       { audiences: audienceIds },
-      { headers: { 'Cache-Control': 'public, max-age=300, s-maxage=300' } },
+      {
+        headers: publicReadCacheHeaders(req, {
+          sMaxAge: 300,
+          tags: ['audiences'],
+        }),
+      },
     )
   },
 }

@@ -103,6 +103,20 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   CLOUDFLARE_API_KEY: z.string().min(20).optional(),
 
   /**
+   * Cloudflare Zone ID for the site's zone. Required (with
+   * `CLOUDFLARE_CACHE_PURGE_TOKEN`) to enable edge-cache purge-on-write; unset
+   * disables purging and the app relies on the Cache Rule's TTL. See
+   * `src/plugins/cachePurge`.
+   */
+  CLOUDFLARE_ZONE_ID: z.string().optional(),
+
+  /**
+   * Cloudflare API token scoped to `Cache Purge` for the zone above. Optional —
+   * when unset, edge-cache purge-on-write is a no-op (TTL is the invalidation).
+   */
+  CLOUDFLARE_CACHE_PURGE_TOKEN: z.string().min(20).optional(),
+
+  /**
    * Cloudflare Images delivery URL
    * Format: https://imagedelivery.net/<hash>
    */

@@ -3,7 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
-import { parseQuery, requireActiveClient } from '@/lib/endpoints'
+import { parseQuery, publicReadCacheHeaders, requireActiveClient } from '@/lib/endpoints'
 import { selectAudienceFeed } from '@/lib/lectures/audienceFeed'
 import { LECTURE_FEED_SELECT } from '@/lib/lectures/lectureShape'
 import type { Lecture } from '@/payload-types'
@@ -71,7 +71,12 @@ export const lecturesForAudience: Endpoint = {
 
     return Response.json(
       { docs },
-      { headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600' } },
+      {
+        headers: publicReadCacheHeaders(req, {
+          sMaxAge: 600,
+          tags: ['lectures', 'audiences'],
+        }),
+      },
     )
   },
 }
