@@ -155,6 +155,14 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   CLOUDFLARE_STREAM_WEBHOOK_SECRET: z.string().min(32).optional(),
 
+  /**
+   * TEMPORARY: gates the `GET /api/cache-vary-probe` diagnostic used to test
+   * whether Cloudflare honours `Vary: Authorization` for per-client edge caching
+   * on non-Enterprise plans. Set to `'on'` for a bounded test window, then unset.
+   * Remove this var and the route once the test concludes.
+   */
+  CACHE_VARY_PROBE: z.string().optional(),
+
   // ============================================
   // OPTIONAL - Email Services
   // ============================================
