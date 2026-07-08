@@ -3,7 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
-import { parseQuery, requireActiveClient } from '@/lib/endpoints'
+import { parseQuery, publicReadCacheHeaders, requireActiveClient } from '@/lib/endpoints'
 import { weightedSample } from '@/lib/utilities/weightedSample'
 import type { AppCard } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
@@ -74,7 +74,12 @@ export const appCardsForAudience: Endpoint = {
 
     return Response.json(
       { docs: selected },
-      { headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600' } },
+      {
+        headers: publicReadCacheHeaders(req, {
+          sMaxAge: 600,
+          tags: ['app-cards', 'audiences'],
+        }),
+      },
     )
   },
 }

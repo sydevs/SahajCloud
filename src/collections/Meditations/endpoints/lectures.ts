@@ -3,7 +3,12 @@ import type { Endpoint, Where } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
-import { commaSeparatedIntIds, parseQuery, requireActiveClient } from '@/lib/endpoints'
+import {
+  commaSeparatedIntIds,
+  parseQuery,
+  publicReadCacheHeaders,
+  requireActiveClient,
+} from '@/lib/endpoints'
 import { selectAudienceFeed } from '@/lib/lectures/audienceFeed'
 import {
   LECTURE_FEED_SELECT,
@@ -19,8 +24,6 @@ import type {
   UserChoice,
 } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
-
-const CACHE_HEADERS = { 'Cache-Control': 'public, max-age=600, s-maxage=600' } as const
 
 /**
  * Bounded select for the lecture candidate pool: the feed-shape fields
@@ -251,7 +254,12 @@ export const meditationLectures: Endpoint = {
           source: 'relevance',
           relevanceCount: shaped.length,
         } satisfies RelatedLecturesResponse,
-        { headers: CACHE_HEADERS },
+        {
+          headers: publicReadCacheHeaders(req, {
+            sMaxAge: 600,
+            tags: ['lectures', 'meditations'],
+          }),
+        },
       )
     }
 
@@ -303,7 +311,12 @@ export const meditationLectures: Endpoint = {
 
     return Response.json(
       { docs, source: 'audience-fallback', relevanceCount: 0 } satisfies RelatedLecturesResponse,
-      { headers: CACHE_HEADERS },
+      {
+        headers: publicReadCacheHeaders(req, {
+          sMaxAge: 600,
+          tags: ['lectures', 'meditations'],
+        }),
+      },
     )
   },
 }

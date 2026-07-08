@@ -2,7 +2,12 @@ import type { Endpoint, Where } from 'payload'
 
 import { z } from 'zod'
 
-import { commaSeparatedIntIds, parseQuery, requireActiveClient } from '@/lib/endpoints'
+import {
+  commaSeparatedIntIds,
+  parseQuery,
+  publicReadCacheHeaders,
+  requireActiveClient,
+} from '@/lib/endpoints'
 import {
   MEDITATION_CARD_SELECT,
   shapeMeditation,
@@ -11,8 +16,6 @@ import {
 import { scoreMeditationByNodes } from '@/lib/meditations/nodeWeights'
 import type { Lecture, Meditation, MeditationsSelect, SubtleSystemNode } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
-
-const CACHE_HEADERS = { 'Cache-Control': 'public, max-age=600, s-maxage=600' } as const
 
 /**
  * Bounded select for the candidate-pool reads: the card fields
@@ -235,7 +238,10 @@ export const lectureRelatedMeditations: Endpoint = {
       relevanceCount === 0 || fallbackShaped.length > 0 ? 'fallback' : 'relevance'
 
     return Response.json({ docs, source, relevanceCount } satisfies RelatedMeditationsResponse, {
-      headers: CACHE_HEADERS,
+      headers: publicReadCacheHeaders(req, {
+        sMaxAge: 600,
+        tags: ['meditations', 'lectures'],
+      }),
     })
   },
 }
