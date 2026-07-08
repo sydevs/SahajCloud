@@ -1,6 +1,10 @@
 import type { Endpoint } from 'payload'
 
-import { emptyPaginatedResponse, requireActiveClient } from '@/lib/endpoints'
+import {
+  emptyPaginatedResponse,
+  publicReadCacheHeaders,
+  requireActiveClient,
+} from '@/lib/endpoints'
 import type { Meditation, Song } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
@@ -90,7 +94,12 @@ export const meditationSongs: Endpoint = {
     const songTag = meditation.songTag
     const songTagId = typeof songTag === 'object' && songTag !== null ? songTag.id : songTag
     if (!songTagId) {
-      return Response.json(emptyPaginatedResponse<SongResult>(SONG_LIMIT))
+      return Response.json(emptyPaginatedResponse<SongResult>(SONG_LIMIT), {
+        headers: publicReadCacheHeaders(req, {
+          sMaxAge: 600,
+          tags: ['songs', 'meditations'],
+        }),
+      })
     }
 
     const selectedFields = resolveSelectedFields(req.query.select)
@@ -133,6 +142,14 @@ export const meditationSongs: Endpoint = {
       ;[trimmed[i], trimmed[j]] = [trimmed[j], trimmed[i]]
     }
 
-    return Response.json({ ...result, docs: trimmed })
+    return Response.json(
+      { ...result, docs: trimmed },
+      {
+        headers: publicReadCacheHeaders(req, {
+          sMaxAge: 600,
+          tags: ['songs', 'meditations'],
+        }),
+      },
+    )
   },
 }

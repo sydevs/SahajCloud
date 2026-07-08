@@ -3,7 +3,7 @@ import type { Endpoint, PopulateType, SelectType, Sort, Where } from 'payload'
 
 import { APIError } from 'payload'
 
-import { requireActiveClient } from '@/lib/endpoints'
+import { publicReadCacheHeaders, requireActiveClient } from '@/lib/endpoints'
 import type { Event } from '@/payload-types'
 
 /** Build a `[lon, lat]` Point from an event's address, or `null` when coordinates are absent. */
@@ -89,7 +89,12 @@ export const eventsGeoJson: Endpoint = {
 
       return Response.json(
         { type: 'FeatureCollection', features, ...page },
-        { headers: { 'Cache-Control': 'public, max-age=300, s-maxage=300' } },
+        {
+          headers: publicReadCacheHeaders(req, {
+            sMaxAge: 300,
+            tags: ['events', 'regions'],
+          }),
+        },
       )
     } catch (error) {
       // validateClientQueryParamsHook throws APIError(400) for a missing
