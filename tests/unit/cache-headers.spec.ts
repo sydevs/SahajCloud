@@ -34,6 +34,7 @@ describe('publicReadCacheHeaders', () => {
       'public, max-age=600, s-maxage=600, stale-while-revalidate=300',
     )
     expect(headers['Cache-Tag']).toBe('meditations,lectures')
+    expect(headers['Vary']).toBe('Authorization')
   })
 
   it('omits stale-while-revalidate and Cache-Tag when not provided', () => {
@@ -41,5 +42,6 @@ describe('publicReadCacheHeaders', () => {
     const headers = publicReadCacheHeaders(req, { sMaxAge: 300 })
     expect(headers['Cache-Control']).toBe('public, max-age=300, s-maxage=300')
     expect(headers['Cache-Tag']).toBeUndefined()
+    expect(headers['Vary']).toBe('Authorization')
   })
 })
