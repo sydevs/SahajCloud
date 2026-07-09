@@ -7,7 +7,7 @@ import { parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { selectAudienceFeed } from '@/lib/lectures/audienceFeed'
 import { LECTURE_FEED_SELECT } from '@/lib/lectures/lectureShape'
 import type { Lecture } from '@/payload-types'
-import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cache'
+import { publicReadCacheHeaders } from '@/plugins/cache'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const querySchema = z.object({
@@ -73,7 +73,7 @@ export const lecturesForAudience: Endpoint = {
     return Response.json(
       { docs },
       {
-        headers: publicReadCacheHeaders(req, CUSTOM_READS.lecturesForAudience),
+        headers: publicReadCacheHeaders(req, ['lectures', 'audiences']),
       },
     )
   },

@@ -2,7 +2,7 @@ import type { Endpoint } from 'payload'
 
 import { emptyPaginatedResponse, requireActiveClient } from '@/lib/endpoints'
 import type { Meditation, Song } from '@/payload-types'
-import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cache'
+import { publicReadCacheHeaders } from '@/plugins/cache'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
@@ -92,7 +92,7 @@ export const meditationSongs: Endpoint = {
     const songTagId = typeof songTag === 'object' && songTag !== null ? songTag.id : songTag
     if (!songTagId) {
       return Response.json(emptyPaginatedResponse<SongResult>(SONG_LIMIT), {
-        headers: publicReadCacheHeaders(req, CUSTOM_READS.meditationSongs),
+        headers: publicReadCacheHeaders(req, ['songs', 'meditations']),
       })
     }
 
@@ -139,7 +139,7 @@ export const meditationSongs: Endpoint = {
     return Response.json(
       { ...result, docs: trimmed },
       {
-        headers: publicReadCacheHeaders(req, CUSTOM_READS.meditationSongs),
+        headers: publicReadCacheHeaders(req, ['songs', 'meditations']),
       },
     )
   },

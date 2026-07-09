@@ -18,7 +18,7 @@ import type {
   SubtleSystemNode,
   UserChoice,
 } from '@/payload-types'
-import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cache'
+import { publicReadCacheHeaders } from '@/plugins/cache'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
@@ -251,7 +251,7 @@ export const meditationLectures: Endpoint = {
           relevanceCount: shaped.length,
         } satisfies RelatedLecturesResponse,
         {
-          headers: publicReadCacheHeaders(req, CUSTOM_READS.meditationRelatedLectures),
+          headers: publicReadCacheHeaders(req, ['lectures', 'meditations']),
         },
       )
     }
@@ -305,7 +305,7 @@ export const meditationLectures: Endpoint = {
     return Response.json(
       { docs, source: 'audience-fallback', relevanceCount: 0 } satisfies RelatedLecturesResponse,
       {
-        headers: publicReadCacheHeaders(req, CUSTOM_READS.meditationRelatedLectures),
+        headers: publicReadCacheHeaders(req, ['lectures', 'meditations']),
       },
     )
   },

@@ -10,7 +10,7 @@ import {
 } from '@/lib/meditations/meditationShape'
 import { scoreMeditationByNodes } from '@/lib/meditations/nodeWeights'
 import type { Lecture, Meditation, MeditationsSelect, SubtleSystemNode } from '@/payload-types'
-import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cache'
+import { publicReadCacheHeaders } from '@/plugins/cache'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
@@ -234,7 +234,7 @@ export const lectureRelatedMeditations: Endpoint = {
       relevanceCount === 0 || fallbackShaped.length > 0 ? 'fallback' : 'relevance'
 
     return Response.json({ docs, source, relevanceCount } satisfies RelatedMeditationsResponse, {
-      headers: publicReadCacheHeaders(req, CUSTOM_READS.lectureRelatedMeditations),
+      headers: publicReadCacheHeaders(req, ['meditations', 'lectures']),
     })
   },
 }

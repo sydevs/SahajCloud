@@ -1,6 +1,6 @@
 import type { CollectionAfterChangeHook, CollectionAfterDeleteHook, Config } from 'payload'
 
-import { PURGE_COLLECTION_SLUGS } from './policy'
+import { CACHEABLE_SLUGS } from './policy'
 import { purgeCloudflareCache } from './purge'
 
 /**
@@ -29,7 +29,7 @@ export function cachePlugin(config: Config): Config {
   return {
     ...config,
     collections: config.collections?.map((collection) => {
-      if (!PURGE_COLLECTION_SLUGS.has(collection.slug)) return collection
+      if (!CACHEABLE_SLUGS.has(collection.slug)) return collection
 
       const tag = collection.slug
       const afterChange: CollectionAfterChangeHook = ({ doc, req }) => {
@@ -54,11 +54,3 @@ export function cachePlugin(config: Config): Config {
 }
 
 export { publicReadCacheHeaders } from './cacheHeaders'
-export {
-  buildCacheHeaders,
-  CACHEABLE_READ_SLUGS,
-  CUSTOM_READS,
-  matchCacheableRead,
-  PURGE_COLLECTION_SLUGS,
-  type PublicReadCacheOptions,
-} from './policy'

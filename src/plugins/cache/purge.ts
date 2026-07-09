@@ -11,7 +11,7 @@ import { serverEnv } from '@/lib/env'
  * backstop invalidation).
  *
  * See `cachePlugin`'s write hooks (`index.ts`) for the callers and `./policy`
- * (`PURGE_COLLECTION_SLUGS`) for the `Cache-Tag`s these correspond to.
+ * (`CACHEABLE_SLUGS`) for the `Cache-Tag`s these correspond to.
  */
 
 const CF_API_BASE = 'https://api.cloudflare.com/client/v4'

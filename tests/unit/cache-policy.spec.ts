@@ -1,14 +1,15 @@
 import { NextRequest } from 'next/server'
 import { describe, expect, it } from 'vitest'
 
-
 import { handleCacheMiddleware } from '@/plugins/cache/middleware'
 import {
   buildCacheHeaders,
-  CACHEABLE_READ_SLUGS,
+  CACHE_TTLS,
+  CACHEABLE_SLUGS,
+  DEFAULT_SMAXAGE,
   matchCacheableRead,
   PREVIEW_SECRET_HEADER,
-  PURGE_COLLECTION_SLUGS,
+  resolveTtl,
 } from '@/plugins/cache/policy'
 
 const API_KEY = 'clients API-Key abc123'
@@ -55,6 +56,19 @@ describe('matchCacheableRead', () => {
   })
 })
 
+describe('resolveTtl', () => {
+  it('returns the lowest TTL among the collections', () => {
+    expect(resolveTtl(['app-cards', 'audiences'])).toBe(300) // 600 vs 300
+    expect(resolveTtl(['events', 'regions'])).toBe(300) // 300 vs 600
+    expect(resolveTtl(['songs', 'meditations'])).toBe(DEFAULT_SMAXAGE) // 600 vs 600
+  })
+
+  it('falls back to the default for an unknown collection or empty list', () => {
+    expect(resolveTtl(['not-a-collection'])).toBe(DEFAULT_SMAXAGE)
+    expect(resolveTtl([])).toBe(DEFAULT_SMAXAGE)
+  })
+})
+
 describe('buildCacheHeaders', () => {
   it('returns private, no-store for a preview read (never cache drafts)', () => {
     expect(buildCacheHeaders({ sMaxAge: 600, tags: ['meditations'], preview: true })).toEqual({
@@ -70,9 +84,9 @@ describe('buildCacheHeaders', () => {
     })
   })
 
-  it('includes stale-while-revalidate and omits Cache-Tag when unset', () => {
-    expect(buildCacheHeaders({ sMaxAge: 300, staleWhileRevalidate: 60 })).toEqual({
-      'Cache-Control': 'public, max-age=300, s-maxage=300, stale-while-revalidate=60',
+  it('omits Cache-Tag when no tags are given', () => {
+    expect(buildCacheHeaders({ sMaxAge: 300 })).toEqual({
+      'Cache-Control': 'public, max-age=300, s-maxage=300',
       Vary: 'Authorization',
     })
   })
@@ -129,15 +143,16 @@ describe('handleCacheMiddleware', () => {
   })
 })
 
-describe('PURGE_COLLECTION_SLUGS (derived from cache tags)', () => {
-  it('covers every built-in cacheable slug, including images + albums', () => {
-    for (const slug of Object.keys(CACHEABLE_READ_SLUGS)) {
-      expect(PURGE_COLLECTION_SLUGS.has(slug)).toBe(true)
+describe('CACHEABLE_SLUGS (cacheable set = purge set)', () => {
+  it('is exactly the CACHE_TTLS keys, including images + albums', () => {
+    for (const slug of Object.keys(CACHE_TTLS)) {
+      expect(CACHEABLE_SLUGS.has(slug)).toBe(true)
     }
+    expect(CACHEABLE_SLUGS.size).toBe(Object.keys(CACHE_TTLS).length)
   })
 
   it('excludes collections that are never cached', () => {
-    expect(PURGE_COLLECTION_SLUGS.has('users')).toBe(false)
-    expect(PURGE_COLLECTION_SLUGS.has('clients')).toBe(false)
+    expect(CACHEABLE_SLUGS.has('users')).toBe(false)
+    expect(CACHEABLE_SLUGS.has('clients')).toBe(false)
   })
 })

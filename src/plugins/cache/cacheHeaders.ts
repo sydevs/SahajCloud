@@ -2,25 +2,28 @@ import type { PayloadRequest } from 'payload'
 
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 
-import { buildCacheHeaders, type PublicReadCacheOptions } from './policy'
+import { buildCacheHeaders, resolveTtl } from './policy'
 
 /**
  * In-handler response decorator for a **custom** public client endpoint (the
  * `for-audience` / `for-user` / `related-*` / `songs` / `geojson` reads).
  *
- * Thin `PayloadRequest` adapter over {@link buildCacheHeaders}: it resolves the
- * preview branch from the request (a valid live-preview request serves drafts,
- * so it gets `private, no-store`) and otherwise emits the shared `public` +
- * `Vary: Authorization` (+ `Cache-Tag`) headers. Built-in REST collection reads
- * are handled by the middleware instead (`./middleware`); both go through
- * `buildCacheHeaders`, so the two surfaces stay byte-identical.
+ * Pass the collection slugs the response is built from: they become the
+ * `Cache-Tag`, and their lowest per-collection TTL becomes the `s-maxage` (via
+ * {@link resolveTtl}), so the response never outlives its freshest input. A valid
+ * live-preview request serves drafts, so it gets `private, no-store`. Built-in
+ * REST collection reads are handled by the middleware instead (`./middleware`);
+ * both go through {@link buildCacheHeaders}, so the two surfaces stay byte-identical.
  *
- * Call it with the endpoint's policy from `CUSTOM_READS` (see `./policy`):
- * `headers: publicReadCacheHeaders(req, CUSTOM_READS.audiencesForUser)`.
+ *   headers: publicReadCacheHeaders(req, ['songs', 'meditations'])
  */
 export function publicReadCacheHeaders(
   req: PayloadRequest,
-  opts: PublicReadCacheOptions,
+  tags: readonly string[],
 ): Record<string, string> {
-  return buildCacheHeaders({ ...opts, preview: hasValidPreviewSecret(req) })
+  return buildCacheHeaders({
+    sMaxAge: resolveTtl(tags),
+    tags,
+    preview: hasValidPreviewSecret(req),
+  })
 }
