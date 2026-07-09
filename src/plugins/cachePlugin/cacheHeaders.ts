@@ -1,10 +1,8 @@
-import type { PublicReadCacheOptions } from './policy'
 import type { PayloadRequest } from 'payload'
 
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 
-
-import { buildCacheHeaders } from './policy'
+import { buildCacheHeaders, type PublicReadCacheOptions } from './policy'
 
 /**
  * In-handler response decorator for a **custom** public client endpoint (the
