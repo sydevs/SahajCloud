@@ -4,7 +4,6 @@
 // the "no shared endpoints barrel" rule in `.claude/rules/endpoints.md`, which
 // governs endpoint *definitions* (those stay colocated with their collection).
 
-export { publicReadCacheHeaders, type PublicReadCacheOptions } from './cacheHeaders'
 export { commaSeparatedIntIds } from './commaSeparatedIntIds'
 export { emptyPaginatedResponse } from './emptyPaginatedResponse'
 export { parseBody } from './parseBody'

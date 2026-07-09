@@ -3,8 +3,9 @@ import type { Endpoint, PopulateType, SelectType, Sort, Where } from 'payload'
 
 import { APIError } from 'payload'
 
-import { publicReadCacheHeaders, requireActiveClient } from '@/lib/endpoints'
+import { requireActiveClient } from '@/lib/endpoints'
 import type { Event } from '@/payload-types'
+import { publicReadCacheHeaders } from '@/plugins/cache'
 
 /** Build a `[lon, lat]` Point from an event's address, or `null` when coordinates are absent. */
 function pointGeometry(doc: Event): GeoJsonPoint | null {
@@ -90,10 +91,7 @@ export const eventsGeoJson: Endpoint = {
       return Response.json(
         { type: 'FeatureCollection', features, ...page },
         {
-          headers: publicReadCacheHeaders(req, {
-            sMaxAge: 300,
-            tags: ['events', 'regions'],
-          }),
+          headers: publicReadCacheHeaders(req, ['events', 'regions']),
         },
       )
     } catch (error) {

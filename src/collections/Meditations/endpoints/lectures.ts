@@ -3,12 +3,7 @@ import type { Endpoint, Where } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
-import {
-  commaSeparatedIntIds,
-  parseQuery,
-  publicReadCacheHeaders,
-  requireActiveClient,
-} from '@/lib/endpoints'
+import { commaSeparatedIntIds, parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { selectAudienceFeed } from '@/lib/lectures/audienceFeed'
 import {
   LECTURE_FEED_SELECT,
@@ -23,6 +18,7 @@ import type {
   SubtleSystemNode,
   UserChoice,
 } from '@/payload-types'
+import { publicReadCacheHeaders } from '@/plugins/cache'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
@@ -255,10 +251,7 @@ export const meditationLectures: Endpoint = {
           relevanceCount: shaped.length,
         } satisfies RelatedLecturesResponse,
         {
-          headers: publicReadCacheHeaders(req, {
-            sMaxAge: 600,
-            tags: ['lectures', 'meditations'],
-          }),
+          headers: publicReadCacheHeaders(req, ['lectures', 'meditations']),
         },
       )
     }
@@ -312,10 +305,7 @@ export const meditationLectures: Endpoint = {
     return Response.json(
       { docs, source: 'audience-fallback', relevanceCount: 0 } satisfies RelatedLecturesResponse,
       {
-        headers: publicReadCacheHeaders(req, {
-          sMaxAge: 600,
-          tags: ['lectures', 'meditations'],
-        }),
+        headers: publicReadCacheHeaders(req, ['lectures', 'meditations']),
       },
     )
   },

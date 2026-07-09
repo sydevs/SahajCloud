@@ -10,8 +10,8 @@ import { serverEnv } from '@/lib/env'
  * must not fail the content write that triggered it (the edge TTL is the
  * backstop invalidation).
  *
- * See `src/plugins/cachePurge` for the write hooks and `src/lib/endpoints/cacheHeaders.ts`
- * for the `Cache-Tag`s these tags correspond to.
+ * See `cachePlugin`'s write hooks (`index.ts`) for the callers and `./policy`
+ * (`CACHEABLE_SLUGS`) for the `Cache-Tag`s these correspond to.
  */
 
 const CF_API_BASE = 'https://api.cloudflare.com/client/v4'

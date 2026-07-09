@@ -334,7 +334,8 @@ describe('appCardsForAudience endpoint', () => {
   })
 
   describe('Cache headers', () => {
-    it('sets Cache-Control: public, max-age=600, s-maxage=600', async () => {
+    // TTL is the lowest of the collections read: app-cards=600, audiences=300 → 300.
+    it('sets Cache-Control: public, max-age=300, s-maxage=300', async () => {
       const { headers, status } = await callEndpoint(
         payload,
         { targetSection: 'hero', limit: 5 },
@@ -342,7 +343,7 @@ describe('appCardsForAudience endpoint', () => {
         { defaultAudiences: allEligible },
       )
       expect(status).toBe(200)
-      expect(headers.get('Cache-Control')).toBe('public, max-age=600, s-maxage=600')
+      expect(headers.get('Cache-Control')).toBe('public, max-age=300, s-maxage=300')
     })
   })
 
