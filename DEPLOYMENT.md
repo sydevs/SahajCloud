@@ -49,6 +49,41 @@ The application is deployed to **Railway**, a modern platform for building and d
 - Railway pings `/api/health` during deploy to verify readiness
 - Startup takes ~5–10 seconds after container init
 
+### Edge Cache (Cloudflare Cache Rule)
+
+Client-facing API reads are made edge-cacheable **at the app layer**: the app emits
+`Cache-Control: public, s-maxage=…` + `Vary: Authorization` (+ `Cache-Tag`) for cacheable reads
+(policy in `src/plugins/cachePlugin/` — the `cachePlugin` module registered in
+`src/payload.config.ts` + the `/api/**` middleware in `src/middleware.ts`). These headers are
+**inert on their own**: Cloudflare treats any request carrying an `Authorization` header as
+private and serves it `cf-cache-status: DYNAMIC` unless a **Cache Rule** marks the path "Eligible
+for cache". Caching therefore only activates once the rule below exists — **absent or disabled,
+nothing is cached (fail-safe: no cross-client leak, just no edge HITs).**
+
+**Required Cache Rule** (Cloudflare dashboard → Caching → Cache Rules) — the same rule #552
+introduced for the custom client endpoints, broadened by #555 to the built-in REST collection
+reads:
+
+- **Match**: the cacheable API paths — custom client endpoints (`/api/audiences/for-user`,
+  `/api/*/for-audience`, `/api/*/related-*`, `/api/*/songs`, `/api/events/geojson`) and built-in
+  collection reads (`/api/{meditations,lectures,albums,images,songs,audiences,app-cards,events,regions,pages}`
+  and their `/…/:id` form). A single `/api/*` match is also safe — the app only emits `public` on
+  the cacheable subset, so writes and non-cacheable paths stay `DYNAMIC` regardless.
+- **Eligible for cache**: ON (respect the origin `Cache-Control`).
+- **`vary.authorization = passthrough`** — **critical**: this is what makes Cloudflare key a
+  separate cached variant per API key. Without it (or with a shared/normalized cache key) one
+  client could be served another client's cached response. Set `vary.default = passthrough` too,
+  **not `bypass`**: Next.js also stamps `rsc` / `next-router-*` / `Sec-CH-Prefers-Color-Scheme`
+  onto `Vary`, and a `bypass` default would bypass on those before `Authorization` is considered.
+- **Preview bypass**: a condition that bypasses cache when the `x-sahajcloud-preview-secret`
+  request header is present, so draft-bearing live-preview reads are never cached (the app also
+  emits `private, no-store` for those as defense-in-depth).
+
+**Purge-on-write** (optional): set `CLOUDFLARE_ZONE_ID` + `CLOUDFLARE_CACHE_PURGE_TOKEN` to enable
+best-effort `Cache-Tag` purge when a cached collection is written (Cloudflare Enterprise tag-purge;
+on the Free plan the per-collection `s-maxage` TTL is the invalidation path). Unset → purge is a
+no-op, so this is safe to leave unconfigured.
+
 ### Configuration Files
 
 **next.config.mjs**:
