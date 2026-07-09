@@ -106,7 +106,7 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    * Cloudflare Zone ID for the site's zone. Required (with
    * `CLOUDFLARE_CACHE_PURGE_TOKEN`) to enable edge-cache purge-on-write; unset
    * disables purging and the app relies on the Cache Rule's TTL. See
-   * `src/plugins/cachePurge`.
+   * `src/plugins/cachePlugin`.
    */
   CLOUDFLARE_ZONE_ID: z.string().optional(),
 

@@ -17,7 +17,7 @@ import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/plugins/access'
-import { cachePurgePlugin } from '@/plugins/cachePurge'
+import { cachePlugin } from '@/plugins/cachePlugin'
 import { resendAdapter } from '@/plugins/email'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
 import { sentryPlugin } from '@/plugins/sentry'
@@ -259,10 +259,13 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         parentFieldSlug: 'parent',
         generateLabel: (_docs, currentDoc) => String(currentDoc?.name ?? ''),
       }),
-      // Cache purge: best-effort Cloudflare edge-cache purge-on-write for the
-      // public-content collections. No-op unless CLOUDFLARE_ZONE_ID +
-      // CLOUDFLARE_CACHE_PURGE_TOKEN are set — safe to ship ahead of the Cache Rule.
-      cachePurgePlugin,
+      // Edge cache (#555): the unified cachePlugin. This registration attaches
+      // the best-effort Cloudflare purge-on-write hooks for the collections that
+      // back cached reads (no-op unless CLOUDFLARE_ZONE_ID +
+      // CLOUDFLARE_CACHE_PURGE_TOKEN are set — safe to ship ahead of the Cache
+      // Rule). Read-header emission lives in `src/middleware.ts` (built-in REST
+      // reads) + the `publicReadCacheHeaders` decorator (custom endpoints).
+      cachePlugin,
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,
