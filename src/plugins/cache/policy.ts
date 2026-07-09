@@ -52,6 +52,14 @@ export const CACHE_TTLS = {
 } satisfies Record<string, number>
 
 /**
+ * A collection slug known to {@link CACHE_TTLS} — the only slugs a cacheable read
+ * may tag. Typing the {@link publicReadCacheHeaders} `tags` param to this catches
+ * typo'd slugs at compile time and enforces that a custom endpoint only tags
+ * collections that are themselves cacheable (so the purge graph stays complete).
+ */
+export type CacheableSlug = keyof typeof CACHE_TTLS
+
+/**
  * Cacheable collection slugs — hence also the set whose writes purge the edge
  * cache. Every custom endpoint reads only collections that are themselves
  * cacheable built-in reads, so this set covers the purge graph too. Derived from

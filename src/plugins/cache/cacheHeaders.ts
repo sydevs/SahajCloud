@@ -2,7 +2,7 @@ import type { PayloadRequest } from 'payload'
 
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 
-import { buildCacheHeaders, resolveTtl } from './policy'
+import { buildCacheHeaders, resolveTtl, type CacheableSlug } from './policy'
 
 /**
  * In-handler response decorator for a **custom** public client endpoint (the
@@ -19,7 +19,7 @@ import { buildCacheHeaders, resolveTtl } from './policy'
  */
 export function publicReadCacheHeaders(
   req: PayloadRequest,
-  tags: readonly string[],
+  tags: readonly CacheableSlug[],
 ): Record<string, string> {
   return buildCacheHeaders({
     sMaxAge: resolveTtl(tags),
