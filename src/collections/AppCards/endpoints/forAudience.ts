@@ -3,9 +3,10 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
-import { parseQuery, publicReadCacheHeaders, requireActiveClient } from '@/lib/endpoints'
+import { parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { weightedSample } from '@/lib/utilities/weightedSample'
 import type { AppCard } from '@/payload-types'
+import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cachePlugin'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const querySchema = z.object({
@@ -75,10 +76,7 @@ export const appCardsForAudience: Endpoint = {
     return Response.json(
       { docs: selected },
       {
-        headers: publicReadCacheHeaders(req, {
-          sMaxAge: 600,
-          tags: ['app-cards', 'audiences'],
-        }),
+        headers: publicReadCacheHeaders(req, CUSTOM_READS.appCardsForAudience),
       },
     )
   },

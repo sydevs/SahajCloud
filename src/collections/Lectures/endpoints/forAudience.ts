@@ -3,10 +3,11 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
-import { parseQuery, publicReadCacheHeaders, requireActiveClient } from '@/lib/endpoints'
+import { parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { selectAudienceFeed } from '@/lib/lectures/audienceFeed'
 import { LECTURE_FEED_SELECT } from '@/lib/lectures/lectureShape'
 import type { Lecture } from '@/payload-types'
+import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cachePlugin'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const querySchema = z.object({
@@ -72,10 +73,7 @@ export const lecturesForAudience: Endpoint = {
     return Response.json(
       { docs },
       {
-        headers: publicReadCacheHeaders(req, {
-          sMaxAge: 600,
-          tags: ['lectures', 'audiences'],
-        }),
+        headers: publicReadCacheHeaders(req, CUSTOM_READS.lecturesForAudience),
       },
     )
   },

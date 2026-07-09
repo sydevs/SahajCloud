@@ -1,11 +1,8 @@
 import type { Endpoint } from 'payload'
 
-import {
-  emptyPaginatedResponse,
-  publicReadCacheHeaders,
-  requireActiveClient,
-} from '@/lib/endpoints'
+import { emptyPaginatedResponse, requireActiveClient } from '@/lib/endpoints'
 import type { Meditation, Song } from '@/payload-types'
+import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cachePlugin'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
@@ -95,10 +92,7 @@ export const meditationSongs: Endpoint = {
     const songTagId = typeof songTag === 'object' && songTag !== null ? songTag.id : songTag
     if (!songTagId) {
       return Response.json(emptyPaginatedResponse<SongResult>(SONG_LIMIT), {
-        headers: publicReadCacheHeaders(req, {
-          sMaxAge: 600,
-          tags: ['songs', 'meditations'],
-        }),
+        headers: publicReadCacheHeaders(req, CUSTOM_READS.meditationSongs),
       })
     }
 
@@ -145,10 +139,7 @@ export const meditationSongs: Endpoint = {
     return Response.json(
       { ...result, docs: trimmed },
       {
-        headers: publicReadCacheHeaders(req, {
-          sMaxAge: 600,
-          tags: ['songs', 'meditations'],
-        }),
+        headers: publicReadCacheHeaders(req, CUSTOM_READS.meditationSongs),
       },
     )
   },
