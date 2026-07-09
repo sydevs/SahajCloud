@@ -6,7 +6,7 @@
  *
  * This module is **Edge-safe**: it imports nothing (no `serverEnv`, no Payload,
  * no Node APIs), so `src/middleware.ts` can pull it into the Edge runtime bundle
- * via `@/plugins/cachePlugin/middleware` without dragging server-only code along.
+ * via `@/plugins/cache/middleware` without dragging server-only code along.
  * Keep it dependency-free.
  *
  * ## Per-collection TTLs (built-in REST reads)

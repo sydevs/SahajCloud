@@ -5,7 +5,7 @@ import { APIError } from 'payload'
 
 import { requireActiveClient } from '@/lib/endpoints'
 import type { Event } from '@/payload-types'
-import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cachePlugin'
+import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cache'
 
 /** Build a `[lon, lat]` Point from an event's address, or `null` when coordinates are absent. */
 function pointGeometry(doc: Event): GeoJsonPoint | null {

@@ -2,14 +2,14 @@ import { NextRequest } from 'next/server'
 import { describe, expect, it } from 'vitest'
 
 
-import { handleCacheMiddleware } from '@/plugins/cachePlugin/middleware'
+import { handleCacheMiddleware } from '@/plugins/cache/middleware'
 import {
   buildCacheHeaders,
   CACHEABLE_READ_SLUGS,
   matchCacheableRead,
   PREVIEW_SECRET_HEADER,
   PURGE_COLLECTION_SLUGS,
-} from '@/plugins/cachePlugin/policy'
+} from '@/plugins/cache/policy'
 
 const API_KEY = 'clients API-Key abc123'
 

@@ -10,7 +10,7 @@ import {
 } from '@/lib/meditations/meditationShape'
 import { scoreMeditationByNodes } from '@/lib/meditations/nodeWeights'
 import type { Lecture, Meditation, MeditationsSelect, SubtleSystemNode } from '@/payload-types'
-import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cachePlugin'
+import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cache'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 /**

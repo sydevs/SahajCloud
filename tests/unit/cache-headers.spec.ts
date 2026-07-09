@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/lib/utilities/previewSecret', () => ({ hasValidPreviewSecret: vi.fn() }))
 
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
-import { publicReadCacheHeaders } from '@/plugins/cachePlugin/cacheHeaders'
+import { publicReadCacheHeaders } from '@/plugins/cache/cacheHeaders'
 
 // The helper only forwards `req` to hasValidPreviewSecret (mocked here), so a
 // bare stub is enough.

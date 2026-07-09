@@ -5,7 +5,7 @@ vi.mock('@/lib/env', () => ({
 }))
 
 import { serverEnv } from '@/lib/env'
-import { purgeCloudflareCache } from '@/plugins/cachePlugin/purge'
+import { purgeCloudflareCache } from '@/plugins/cache/purge'
 
 const env = serverEnv as { CLOUDFLARE_ZONE_ID?: string; CLOUDFLARE_CACHE_PURGE_TOKEN?: string }
 const logger = { warn: vi.fn(), debug: vi.fn() }

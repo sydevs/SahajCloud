@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import { resolveAudienceIds } from '@/lib/audiences/resolve'
 import { parseQuery, requireActiveClient } from '@/lib/endpoints'
-import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cachePlugin'
+import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cache'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const querySchema = z.object({

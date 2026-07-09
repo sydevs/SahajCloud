@@ -53,7 +53,7 @@ The application is deployed to **Railway**, a modern platform for building and d
 
 Client-facing API reads are made edge-cacheable **at the app layer**: the app emits
 `Cache-Control: public, s-maxage=…` + `Vary: Authorization` (+ `Cache-Tag`) for cacheable reads
-(policy in `src/plugins/cachePlugin/` — the `cachePlugin` module registered in
+(policy in `src/plugins/cache/` — the `cachePlugin` module registered in
 `src/payload.config.ts` + the `/api/**` middleware in `src/middleware.ts`). These headers are
 **inert on their own**: Cloudflare treats any request carrying an `Authorization` header as
 private and serves it `cf-cache-status: DYNAMIC` unless a **Cache Rule** marks the path "Eligible

@@ -6,7 +6,7 @@ import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
 import { parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { weightedSample } from '@/lib/utilities/weightedSample'
 import type { AppCard } from '@/payload-types'
-import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cachePlugin'
+import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cache'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const querySchema = z.object({

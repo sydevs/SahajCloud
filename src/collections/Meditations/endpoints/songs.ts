@@ -2,7 +2,7 @@ import type { Endpoint } from 'payload'
 
 import { emptyPaginatedResponse, requireActiveClient } from '@/lib/endpoints'
 import type { Meditation, Song } from '@/payload-types'
-import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cachePlugin'
+import { CUSTOM_READS, publicReadCacheHeaders } from '@/plugins/cache'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
