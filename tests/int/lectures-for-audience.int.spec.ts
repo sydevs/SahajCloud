@@ -263,12 +263,13 @@ describe('lecturesForAudience endpoint', () => {
   })
 
   describe('Cache headers', () => {
-    it('sets Cache-Control: public, max-age=600, s-maxage=600', async () => {
+    // TTL is the lowest of the collections read: lectures=600, audiences=300 → 300.
+    it('sets Cache-Control: public, max-age=300, s-maxage=300', async () => {
       const { headers, status } = await callEndpoint(payload, { limit: 10 }, undefined, {
         defaultAudiences: beginnerOnly,
       })
       expect(status).toBe(200)
-      expect(headers.get('Cache-Control')).toBe('public, max-age=600, s-maxage=600')
+      expect(headers.get('Cache-Control')).toBe('public, max-age=300, s-maxage=300')
     })
   })
 
