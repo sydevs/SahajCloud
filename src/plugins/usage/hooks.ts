@@ -295,32 +295,35 @@ const usageIncrementSql = (schema: string) => `
 `
 
 /**
- * afterRead hook for usage tracking.
+ * beforeOperation hook for usage tracking.
  *
- * Uses a single atomic Postgres UPDATE for race-free increments in every
- * environment (replaces the former D1-vs-better-sqlite3 fork).
+ * Counts usage exactly once per top-level client operation, not per document
+ * or internal relationship-population read. This prevents N+1 UPDATEs on
+ * depth >= 1 reads that populate relationships.
  *
- * Guard: increments at most once per request. Payload fires afterRead once
- * per document, and internal reads forward the client req via asTrustedReq(),
- * creating multiple finds per request. The shared tracker (usageTracker on
- * req.context) is a mutable object that all asTrustedReq copies reference,
- * so the first invocation increments and marks counted=true; subsequent
- * invocations in the same request see the flag and short-circuit. This turns
- * N writes into 1 per request. See #546.
+ * Strategy: increment at the beforeOperation seam (before any reads fan out
+ * into internal population sub-reads). Skip internal population reads via the
+ * numeric `currentDepth` signal that Payload attaches to internal Local API
+ * reads — these are implementation details of an already-validated top-level
+ * request and should not trigger separate usage tracking.
+ *
+ * Uses a single atomic Postgres UPDATE for race-free increments. See #559.
  */
-export const usageTrackingHook: CollectionAfterReadHook = async ({ doc, req }) => {
-  // Only track for client requests
-  if (req.user?.collection !== 'clients' || !req.user?.id) {
-    return doc
+export const usageTrackingBeforeOperationHook: CollectionBeforeOperationHook = async ({
+  args,
+  req,
+}) => {
+  // Only track for client read operations
+  if (req.user?.collection !== 'clients' || !req.user?.id || req.operation !== 'read') {
+    return
   }
 
-  // Guard: increment once per request, not once per document.
-  // Ensure context exists, then initialize the shared tracker for deduplication.
-  // asTrustedReq seeds this on the original req, so all copies reference the same object.
-  req.context ??= {}
-  const tracker = (req.context.usageTracker ??= { counted: false }) as UsageTracker
-  if (tracker.counted) {
-    return doc
+  // Skip internal relationship-population reads (identified by numeric currentDepth).
+  // These are implementation details of the top-level request and should not
+  // generate separate usage tracking. Only top-level reads (no currentDepth)
+  // should increment usage.
+  if (typeof (args as { currentDepth?: unknown }).currentDepth === 'number') {
+    return
   }
 
   try {
@@ -330,13 +333,10 @@ export const usageTrackingHook: CollectionAfterReadHook = async ({ doc, req }) =
 
     if (!pool) {
       req.payload.logger.error({ msg: 'Postgres pool not available for usage tracking' })
-      return doc
+      return
     }
 
     await pool.query(usageIncrementSql(getDbSchema(req)), [now, now, clientId])
-
-    // Mark this request as counted to prevent duplicate increments
-    tracker.counted = true
   } catch (error) {
     // Fail open - don't block API requests if tracking fails
     req.payload.logger.error({
@@ -344,6 +344,17 @@ export const usageTrackingHook: CollectionAfterReadHook = async ({ doc, req }) =
       error: error instanceof Error ? error.message : String(error),
     })
   }
+}
 
+/**
+ * Deprecated: afterRead hook for usage tracking (replaced by beforeOperation).
+ *
+ * Kept as a stub for backward compatibility. All usage tracking now happens
+ * in beforeOperation to avoid N+1 increments on depth >= 1 reads. See #559.
+ *
+ * @deprecated Use usageTrackingBeforeOperationHook instead
+ */
+export const usageTrackingHook: CollectionAfterReadHook = async ({ doc }) => {
+  // No-op: usage tracking has moved to beforeOperation
   return doc
 }

@@ -4,7 +4,7 @@
  * Automatically applies rate limiting and usage tracking to all collections.
  *
  * - beforeOperation: Rate limiting (enforced at the Cloudflare edge; the app hook is a no-op)
- * - afterRead: Usage tracking via an atomic Postgres UPDATE
+ * - beforeOperation: Usage tracking via an atomic Postgres UPDATE (counts once per top-level read)
  */
 
 import type { CollectionSlug, Config } from 'payload'
@@ -12,7 +12,7 @@ import type { CollectionSlug, Config } from 'payload'
 import { SYSTEM_EXCLUSIONS } from './constants'
 import {
   rateLimitHook,
-  usageTrackingHook,
+  usageTrackingBeforeOperationHook,
   validateClientOriginHook,
   validateClientQueryParamsHook,
 } from './hooks'
@@ -59,8 +59,10 @@ export function usagePlugin(
             validateClientOriginHook,
             validateClientQueryParamsHook,
             rateLimitHook,
+            // Usage tracking runs last in beforeOperation to count exactly once per
+            // top-level read, skipping internal relationship-population sub-reads.
+            usageTrackingBeforeOperationHook,
           ],
-          afterRead: [...(collection.hooks?.afterRead || []), usageTrackingHook],
         },
       }
     }),

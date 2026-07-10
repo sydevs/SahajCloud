@@ -2,11 +2,11 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { Client } from '@/payload-types'
+import type { Client, UserChoice } from '@/payload-types'
 
 import { testData } from 'tests/utils/testData'
 
-import { createTestEnvironment } from '../utils/testHelpers'
+import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
 
 describe('API', () => {
   let payload: Payload
@@ -326,15 +326,87 @@ describe('API', () => {
       expect(client.usage?.dailyRequests).toBe(0) // Still 0
       expect(client.usage?.peakDailyRequests).toBe(10) // Unchanged
     })
+
+    it('increments usage exactly once on depth=2 populate reads (no N+1)', async () => {
+      // Regression test for #559: depth >= 1 reads that populate relationships
+      // should increment usage exactly once, not per populated relationship.
+      // Before the fix, internal relationship-population sub-reads had fresh contexts,
+      // causing the deduplication tracker to fail and multiple UPDATEs to fire.
+
+      // Create test data with relationships: user-choice with multiple populated fields
+      const meditation = await testData.createMeditation(payload, {
+        title: 'Test Meditation for Usage Tracking',
+      })
+
+      const userChoice = (await payload.create({
+        collection: 'user-choices',
+        data: {
+          // user-choices has multiple relationship fields (meditations, lectures, etc)
+          // When we populate at depth=2, internal reads will fan out to each
+          meditations: [meditation.id],
+        },
+      })) as unknown as UserChoice
+
+      // Get initial usage stats
+      const initialClient = (await payload.findByID({
+        collection: 'clients',
+        id: testClient.id,
+      })) as Client
+      const initialDailyRequests = initialClient.usage?.dailyRequests || 0
+
+      // Create a client-authenticated request
+      const clientReq = createClientAuthenticatedRequest(
+        String(testClient.id),
+        testClient.apiKey || 'test-key',
+      ) as PayloadRequest
+
+      // Make a depth=2 read that populates relationships (no internal reads skipped)
+      // This should trigger usage tracking exactly once at beforeOperation, not per
+      // populated document in afterRead
+      const result = await payload.find({
+        collection: 'user-choices',
+        select: {
+          id: true,
+          meditations: true,
+        },
+        populate: {
+          meditations: {
+            title: true,
+          },
+        },
+        depth: 2,
+        req: clientReq,
+        overrideAccess: true,
+      })
+
+      // Verify we got the populated data
+      expect(result.docs.length).toBeGreaterThan(0)
+      const foundChoice = result.docs.find(
+        (choice) => (choice as any).id === userChoice.id,
+      ) as unknown as UserChoice & { meditations: any[] }
+      expect(foundChoice?.meditations).toBeDefined()
+      expect(Array.isArray(foundChoice?.meditations)).toBe(true)
+
+      // Verify usage was incremented exactly once (the key assertion)
+      const updatedClient = (await payload.findByID({
+        collection: 'clients',
+        id: testClient.id,
+      })) as Client
+      const finalDailyRequests = updatedClient.usage?.dailyRequests || 0
+
+      // With the fix: exactly +1 increment for the single top-level read
+      // Before the fix: multiple increments (one per populated relationship)
+      expect(finalDailyRequests).toBe(initialDailyRequests + 1)
+    })
   })
 
   describe('Abuse Score', () => {
     it('has abuseScore virtual json field in clients collection', async () => {
       // Test the virtual field exists with correct configuration
       const clientsCollection = payload.config.collections.find((c) => c.slug === 'clients')
-       
+
       const usageField = clientsCollection?.fields.find((f: any) => f.name === 'usage') as any
-       
+
       const abuseScoreField = usageField?.fields?.find((f: any) => f.name === 'abuseScore')
 
       expect(abuseScoreField).toBeDefined()
