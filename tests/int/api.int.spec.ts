@@ -333,19 +333,21 @@ describe('API', () => {
       // Before the fix, internal relationship-population sub-reads had fresh contexts,
       // causing the deduplication tracker to fail and multiple UPDATEs to fire.
 
-      // Create test data with relationships: user-choice with multiple populated fields
+      // Create a meditation and a user-choice that references it, so a depth>=1
+      // read fans out into an internal population sub-read (meditations also carry
+      // the usage hook). Pre-fix, that sub-read ran under a fresh context that
+      // defeated the afterRead dedup tracker and double-counted; post-fix,
+      // beforeOperation counts the top-level read once and skips the
+      // currentDepth-bearing populate sub-read.
       const meditation = await testData.createMeditation(payload, {
         title: 'Test Meditation for Usage Tracking',
       })
 
-      const userChoice = (await payload.create({
-        collection: 'user-choices',
-        data: {
-          // user-choices has multiple relationship fields (meditations, lectures, etc)
-          // When we populate at depth=2, internal reads will fan out to each
-          meditations: [meditation.id],
-        },
-      })) as unknown as UserChoice
+      // user-choices is an upload (tag) collection — createUserChoice supplies the
+      // required file. morningMeditation is a real relationship to meditations.
+      const userChoice = await testData.createUserChoice(payload, {
+        morningMeditation: meditation.id,
+      })
 
       // Get initial usage stats
       const initialClient = (await payload.findByID({
@@ -360,17 +362,17 @@ describe('API', () => {
         testClient.apiKey || 'test-key',
       ) as PayloadRequest
 
-      // Make a depth=2 read that populates relationships (no internal reads skipped)
-      // This should trigger usage tracking exactly once at beforeOperation, not per
-      // populated document in afterRead
+      // depth=2 read that populates morningMeditation. The populate triggers an
+      // internal meditations read (numeric currentDepth), which must NOT increment
+      // usage separately — only the top-level read counts.
       const result = await payload.find({
         collection: 'user-choices',
         select: {
           id: true,
-          meditations: true,
+          morningMeditation: true,
         },
         populate: {
-          meditations: {
+          morningMeditation: {
             title: true,
           },
         },
@@ -381,11 +383,11 @@ describe('API', () => {
 
       // Verify we got the populated data
       expect(result.docs.length).toBeGreaterThan(0)
-      const foundChoice = result.docs.find(
-        (choice) => (choice as any).id === userChoice.id,
-      ) as unknown as UserChoice & { meditations: any[] }
-      expect(foundChoice?.meditations).toBeDefined()
-      expect(Array.isArray(foundChoice?.meditations)).toBe(true)
+      const foundChoice = result.docs.find((choice) => choice.id === userChoice.id) as
+        | (UserChoice & { morningMeditation: unknown })
+        | undefined
+      expect(foundChoice).toBeDefined()
+      expect(foundChoice?.morningMeditation).toBeDefined()
 
       // Verify usage was incremented exactly once (the key assertion)
       const updatedClient = (await payload.findByID({

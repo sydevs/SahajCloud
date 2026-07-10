@@ -19,25 +19,15 @@ import { extractRequestHost, isHostAllowed, parseAllowedDomains } from './origin
 
 const SKIP_VALIDATION = 'skipClientQueryValidation'
 
-/** Shared tracker object for deduplicating usage increments across multiple asTrustedReq calls. */
-interface UsageTracker {
-  counted: boolean
-}
-
 /** Wraps a client request to bypass query-param validation in trusted internal endpoints.
  *
- * Also seeds a shared usage tracker on the original context so multiple asTrustedReq
- * calls within the same request (e.g., in related-* endpoints) all see the same
- * `counted` flag. The tracker reference is copied by the shallow context spread,
- * so all asTrustedReq copies + the original point at the same object.
- * See #546.
+ * Sets the `skipClientQueryValidation` flag so forwarded client reads (e.g. in the
+ * related-* endpoints) don't have to enumerate every field via `select`. Usage is
+ * counted once per top-level operation in `usageTrackingBeforeOperationHook` (keyed
+ * off the absence of a numeric `currentDepth`), so no per-request dedup state needs
+ * threading through here. See #559.
  */
 export function asTrustedReq(req: PayloadRequest): PayloadRequest {
-  // Ensure a real context object exists on the original req, then seed the shared
-  // tracker. The tracker reference is copied by the shallow context spread, so all
-  // asTrustedReq copies + the original point at the same object.
-  req.context ??= {}
-  req.context.usageTracker ??= { counted: false }
   return { ...req, context: { ...req.context, [SKIP_VALIDATION]: true } }
 }
 
@@ -311,10 +301,11 @@ const usageIncrementSql = (schema: string) => `
  */
 export const usageTrackingBeforeOperationHook: CollectionBeforeOperationHook = async ({
   args,
+  operation,
   req,
 }) => {
   // Only track for client read operations
-  if (req.user?.collection !== 'clients' || !req.user?.id || req.operation !== 'read') {
+  if (req.user?.collection !== 'clients' || !req.user?.id || operation !== 'read') {
     return
   }
 
