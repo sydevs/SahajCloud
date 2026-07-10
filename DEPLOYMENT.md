@@ -60,24 +60,39 @@ private and serves it `cf-cache-status: DYNAMIC` unless a **Cache Rule** marks t
 for cache". Caching therefore only activates once the rule below exists — **absent or disabled,
 nothing is cached (fail-safe: no cross-client leak, just no edge HITs).**
 
-**Required Cache Rule** (Cloudflare dashboard → Caching → Cache Rules) — the same rule #552
-introduced for the custom client endpoints, broadened by #555 to the built-in REST collection
-reads:
+**Required Cache Rule** (Cloudflare dashboard → Caching → Cache Rules) — **live** on the
+`sydevelopers.com` zone as the enabled rule _"Client read edge cache (Vary: Authorization)"_. It
+covers both the custom client endpoints (originally #552) and the built-in REST collection reads:
 
-- **Match**: the cacheable API paths — custom client endpoints (`/api/audiences/for-user`,
-  `/api/*/for-audience`, `/api/*/related-*`, `/api/*/songs`, `/api/events/geojson`) and built-in
-  collection reads (`/api/{meditations,lectures,albums,images,songs,audiences,app-cards,events,regions,pages}`
-  and their `/…/:id` form). A single `/api/*` match is also safe — the app only emits `public` on
-  the cacheable subset, so writes and non-cacheable paths stay `DYNAMIC` regardless.
-- **Eligible for cache**: ON (respect the origin `Cache-Control`).
+- **Match** — a `GET` that **(a)** carries a **non-empty `Authorization` header**, **(b)** does
+  **not** carry `x-sahajcloud-preview-secret`, and **(c)** whose path is a cacheable read:
+  `/api/<slug>` (list) or `/api/<slug>/…` (findByID + the custom sub-endpoints) for
+  `slug ∈ {meditations, lectures, songs, app-cards, regions, audiences, events, pages, images, albums}`.
+  The `/api/<slug>/…` prefix also covers the custom `for-audience` / `related-*` / `songs` /
+  `geojson` endpoints, since they live under those slugs. Enumerated with `eq` / `starts_with`
+  because the Free plan has no regex `matches` operator.
+- **⚠️ The `Authorization`-present predicate is mandatory — do NOT use a bare `/api/*` match.**
+  `Vary: Authorization` partitions the cache per API-key _value_, but it does **not** isolate the
+  _absent_-header case. Without requiring `Authorization` to be present, Cloudflare serves the
+  cached **authed** response to an **unauthenticated** request (`cf-cache-status: HIT`, `200`) even
+  though the origin returns **403** for it — an access-control bypass that also skips edge rate
+  limiting and usage tracking. Requiring the header present makes unauth reads fall through to the
+  origin (→ `403`), mirroring the app middleware, which only stamps `public` when `Authorization`
+  is set. (Verified in production 2026-07: with the predicate, unauth/invalid-key reads are
+  `403 / DYNAMIC`; authed reads `MISS → HIT`, isolated per key.)
+- **Eligible for cache**: ON, **Edge TTL: Respect origin** — honour the origin `s-maxage`.
 - **`vary.authorization = passthrough`** — **critical**: this is what makes Cloudflare key a
-  separate cached variant per API key. Without it (or with a shared/normalized cache key) one
-  client could be served another client's cached response. Set `vary.default = passthrough` too,
-  **not `bypass`**: Next.js also stamps `rsc` / `next-router-*` / `Sec-CH-Prefers-Color-Scheme`
-  onto `Vary`, and a `bypass` default would bypass on those before `Authorization` is considered.
-- **Preview bypass**: a condition that bypasses cache when the `x-sahajcloud-preview-secret`
-  request header is present, so draft-bearing live-preview reads are never cached (the app also
-  emits `private, no-store` for those as defense-in-depth).
+  separate cached variant per API key, so one client is never served another's cached response.
+  Set `vary.default = passthrough` too, **not `bypass`**: Next.js also stamps `rsc` /
+  `next-router-*` / `Sec-CH-Prefers-Color-Scheme` onto `Vary`, and a `bypass` default would bypass
+  on those before `Authorization` is considered.
+- **Preview bypass**: the `x-sahajcloud-preview-secret`-present exclusion in the match keeps
+  draft-bearing live-preview reads out of cache (the app also emits `private, no-store` for those
+  as defense-in-depth).
+
+Because only `Authorization`-bearing, cacheable-slug GETs match, everything else stays
+`cf-cache-status: DYNAMIC` at the origin: writes, unauthenticated / invalid-key reads (→ `403`),
+preview reads, and non-cacheable collections (`clients`, `managers`, `users`, …).
 
 **Purge-on-write** (optional): set `CLOUDFLARE_ZONE_ID` + `CLOUDFLARE_CACHE_PURGE_TOKEN` to enable
 best-effort `Cache-Tag` purge when a cached collection is written (Cloudflare Enterprise tag-purge;
