@@ -42,6 +42,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      - run: pnpm typecheck # tsc --noEmit — lint and Vitest don't typecheck; only this + the Railway build do
       - run: pnpm test # test:unit + test:int (integration runs against Postgres)
 
       # ── Smoke specs against the Railway PR preview ──────────────────────────
