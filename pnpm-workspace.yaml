@@ -18,3 +18,30 @@ allowBuilds:
 # on any freshly-published transitive until it ages out). Set to a positive
 # minute value to re-enable a cooldown.
 minimumReleaseAge: 0
+
+# Transitive-security overrides (Dependabot alerts, #563). Only leaves still
+# flagged after an in-range parent refresh (`pnpm update`) are pinned here; every
+# bump stays within the package's existing major (patch/minor, API-stable).
+# picomatch/minimatch are scoped to the vulnerable major so the other major line
+# (already patched) is left untouched.
+overrides:
+  # Build tooling: hold vite at 7.x (satisfies @vitejs/plugin-react@4.5.2's peer,
+  # which caps at ^7; vite 7.3.6 also widens esbuild to ^0.27 || ^0.28) and
+  # flatten every esbuild copy onto one patched build.
+  vite: '7.3.6'
+  esbuild: '0.28.1'
+  dompurify: '^3.4.11'
+  ws: '^8.21.0'
+  flatted: '^3.4.2'
+  js-yaml: '^4.3.0'
+  postcss: '^8.5.10'
+  '@opentelemetry/core': '^2.8.0'
+  '@babel/core': '^7.29.6'
+  'picomatch@^4.0.0': '^4.0.5'
+  'minimatch@^3.0.0': '^3.1.3'
+  # Recent moderate advisories surfaced by `pnpm audit` (not in the original #563
+  # snapshot). Scoped to the vulnerable major so the already-patched line (yaml 1.x)
+  # is left alone. ajv's only remaining audit flag has no fix within its 6.x line
+  # (6.12.6 is the newest 6.x and already carries the $data fix), so it is left as-is.
+  'yaml@^2.0.0': '^2.8.3'
+  'brace-expansion@^1.0.0': '^1.1.13'
