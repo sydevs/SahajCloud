@@ -2,11 +2,11 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { Client } from '@/payload-types'
+import type { Client, UserChoice } from '@/payload-types'
 
 import { testData } from 'tests/utils/testData'
 
-import { createTestEnvironment } from '../utils/testHelpers'
+import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
 
 describe('API', () => {
   let payload: Payload
@@ -326,15 +326,89 @@ describe('API', () => {
       expect(client.usage?.dailyRequests).toBe(0) // Still 0
       expect(client.usage?.peakDailyRequests).toBe(10) // Unchanged
     })
+
+    it('increments usage exactly once on depth=2 populate reads (no N+1)', async () => {
+      // Regression test for #559: depth >= 1 reads that populate relationships
+      // should increment usage exactly once, not per populated relationship.
+      // Before the fix, internal relationship-population sub-reads had fresh contexts,
+      // causing the deduplication tracker to fail and multiple UPDATEs to fire.
+
+      // Create a meditation and a user-choice that references it, so a depth>=1
+      // read fans out into an internal population sub-read (meditations also carry
+      // the usage hook). Pre-fix, that sub-read ran under a fresh context that
+      // defeated the afterRead dedup tracker and double-counted; post-fix,
+      // beforeOperation counts the top-level read once and skips the
+      // currentDepth-bearing populate sub-read.
+      const meditation = await testData.createMeditation(payload, {
+        title: 'Test Meditation for Usage Tracking',
+      })
+
+      // user-choices is an upload (tag) collection — createUserChoice supplies the
+      // required file. morningMeditation is a real relationship to meditations.
+      const userChoice = await testData.createUserChoice(payload, {
+        morningMeditation: meditation.id,
+      })
+
+      // Get initial usage stats
+      const initialClient = (await payload.findByID({
+        collection: 'clients',
+        id: testClient.id,
+      })) as Client
+      const initialDailyRequests = initialClient.usage?.dailyRequests || 0
+
+      // Create a client-authenticated request
+      const clientReq = createClientAuthenticatedRequest(
+        String(testClient.id),
+        testClient.apiKey || 'test-key',
+      ) as PayloadRequest
+
+      // depth=2 read that populates morningMeditation. The populate triggers an
+      // internal meditations read (numeric currentDepth), which must NOT increment
+      // usage separately — only the top-level read counts.
+      const result = await payload.find({
+        collection: 'user-choices',
+        select: {
+          id: true,
+          morningMeditation: true,
+        },
+        populate: {
+          morningMeditation: {
+            title: true,
+          },
+        },
+        depth: 2,
+        req: clientReq,
+        overrideAccess: true,
+      })
+
+      // Verify we got the populated data
+      expect(result.docs.length).toBeGreaterThan(0)
+      const foundChoice = result.docs.find((choice) => choice.id === userChoice.id) as
+        | (UserChoice & { morningMeditation: unknown })
+        | undefined
+      expect(foundChoice).toBeDefined()
+      expect(foundChoice?.morningMeditation).toBeDefined()
+
+      // Verify usage was incremented exactly once (the key assertion)
+      const updatedClient = (await payload.findByID({
+        collection: 'clients',
+        id: testClient.id,
+      })) as Client
+      const finalDailyRequests = updatedClient.usage?.dailyRequests || 0
+
+      // With the fix: exactly +1 increment for the single top-level read
+      // Before the fix: multiple increments (one per populated relationship)
+      expect(finalDailyRequests).toBe(initialDailyRequests + 1)
+    })
   })
 
   describe('Abuse Score', () => {
     it('has abuseScore virtual json field in clients collection', async () => {
       // Test the virtual field exists with correct configuration
       const clientsCollection = payload.config.collections.find((c) => c.slug === 'clients')
-       
+
       const usageField = clientsCollection?.fields.find((f: any) => f.name === 'usage') as any
-       
+
       const abuseScoreField = usageField?.fields?.find((f: any) => f.name === 'abuseScore')
 
       expect(abuseScoreField).toBeDefined()
