@@ -25,7 +25,7 @@ access is REST-only.
 | File             | Purpose                                                             |
 | ---------------- | ------------------------------------------------------------------- |
 | `usagePlugin.ts` | Plugin orchestration                                                |
-| `hooks.ts`       | `usageTrackingHook` (afterRead); `rateLimitHook` (no-op on Railway) |
+| `hooks.ts`       | `usageTrackingBeforeOperationHook` (beforeOperation); `rateLimitHook` (no-op on Railway) |
 | `tasks.ts`       | `trackUsageTask`, `resetUsageTask` factories (Postgres atomic ops)  |
 | `types.ts`       | Type definitions and constants                                      |
 
@@ -35,8 +35,10 @@ access is REST-only.
 2. Payload authenticates via the encrypted API key.
 3. Cloudflare edge (rate limiting rules) checks rate limits (no app-level limiter needed).
 4. Access middleware enforces read-only RBAC permissions.
-5. `usageTrackingHook` queues a `trackUsageTask` (afterRead).
-6. Task increments stats asynchronously via atomic Postgres UPDATE.
+5. `usageTrackingBeforeOperationHook` increments usage once per top-level client
+   read (beforeOperation), skipping internal relationship-population sub-reads
+   (numeric `currentDepth`) so `depth >= 1` reads don't over-count. See #559.
+6. Increment is a single atomic Postgres UPDATE.
 
 ## Security
 
@@ -259,7 +261,7 @@ X-User-ID: user_12345678
 ### Monitoring
 
 - Cloudflare Analytics: view rate limit hits per rule.
-- Sentry: `usageTrackingHook` logs client requests (no rate limiter events).
+- Sentry: `usageTrackingBeforeOperationHook` logs client requests (no rate limiter events).
 - Pino: `clientId`, IP, timestamp logged at usage tracking time.
 
 ## Testing
