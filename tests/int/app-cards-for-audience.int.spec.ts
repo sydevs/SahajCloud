@@ -605,4 +605,55 @@ describe('appCardsForAudience endpoint', () => {
     expect(typeof album).toBe('object')
     expect((album as { id: number }).id).toBeDefined()
   })
+
+  describe('Query optimization', () => {
+    it('does not fire per-row page queries (#560)', async () => {
+      // Create multiple cards with different page destinations to ensure
+      // the pool is large enough to catch an N+1 if the fix is missing.
+      const pageIds: number[] = []
+      for (let i = 0; i < 3; i++) {
+        const page = await testData.createPage(payload, {
+          title: `Query Test Page ${i}`,
+          content: { root: { children: [] } },
+          _status: 'published',
+        })
+        pageIds.push(page.id)
+      }
+
+      const cardIds: number[] = []
+      for (const pageId of pageIds) {
+        const card = await testData.createAppCard(payload, {
+          default: {
+            title: `Card for Page ${pageId}`,
+            image: (await testData.createMediaImage(payload, { alt: 'test' })).id,
+            destination: 'page',
+            page: pageId,
+          },
+          targetSections: ['hero'],
+          audiences: [openAudience.id],
+          _status: 'published',
+        })
+        cardIds.push(card.id)
+      }
+
+      const findSpy = vi.spyOn(payload, 'find')
+      try {
+        const { status } = await callEndpoint(
+          payload,
+          { targetSection: 'hero', limit: 20 },
+          undefined,
+          { defaultAudiences: [openAudience.id].join(',') },
+        )
+        expect(status).toBe(200)
+
+        // Count pages collection queries: should be exactly 1, not N per card
+        const pageFindCalls = findSpy.mock.calls.filter(
+          ([args]) => (args as { collection?: string }).collection === 'pages',
+        )
+        expect(pageFindCalls).toHaveLength(1, 'pages should be fetched in a single batched query')
+      } finally {
+        findSpy.mockRestore()
+      }
+    })
+  })
 })
