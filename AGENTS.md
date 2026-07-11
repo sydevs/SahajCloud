@@ -137,8 +137,8 @@ The test suite runs in three tiers (see `.claude/rules/testing-reqs.md` for the 
 | Tier           | Command                                     | Fires when                                               |
 | -------------- | ------------------------------------------- | -------------------------------------------------------- |
 | **1 — Hook**   | `pnpm test:unit`                            | Claude PostToolUse on `src/**` / `tests/unit/**` (< 5 s) |
-| **2 — Pre-PR** | `pnpm lint && pnpm test:unit`               | Local pr-prep lean gate (< 15 s)                         |
-| **3 — CI**     | `pnpm lint && pnpm test && pnpm test:smoke` | GitHub Actions on every PR (≤ 20 min)                    |
+| **2 — Pre-PR** | `pnpm lint && pnpm typecheck && pnpm test:unit`               | Local pr-prep lean gate (< 45 s)                         |
+| **3 — CI**     | `pnpm lint && pnpm typecheck && pnpm test && pnpm test:smoke` | GitHub Actions on every PR (≤ 20 min)                    |
 
 Before marking a PR ready, run the **Tier 2** lean gate plus the targeted integration spec(s) for what you changed. Use the `/pr-prep` skill (`.claude/skills/pr-prep/`) — its `--full` flag reproduces the Tier 3 checks locally when you need to debug a red run, and it documents handling pre-existing failures. Don't block on a local full-suite/build run — that's CI's job.
 

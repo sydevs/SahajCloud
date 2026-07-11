@@ -23,8 +23,10 @@ Every test command belongs to one of three tiers. Each tier has a job — Claude
 | Tier           | Command                                     | Target runtime | Fires when                                                                                        |
 | -------------- | ------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------- |
 | **1 — Hook**   | `pnpm test:unit`                            | < 5 s          | Claude PostToolUse Edit/Write on `src/**` and `tests/unit/**` (see `.claude/hooks/unit-test.mjs`) |
-| **2 — Pre-PR** | `pnpm lint && pnpm test:unit`               | < 15 s         | The pr-prep lean gate — `.claude/skills/pr-prep/check.sh`                                         |
-| **3 — CI**     | `pnpm lint && pnpm test && pnpm test:smoke` | ≤ 20 min       | GitHub Actions on every PR (`.github/workflows/ci.yml`)                                           |
+| **2 — Pre-PR** | `pnpm lint && pnpm typecheck && pnpm test:unit`               | < 45 s         | The pr-prep lean gate — `.claude/skills/pr-prep/check.sh`                                         |
+| **3 — CI**     | `pnpm lint && pnpm typecheck && pnpm test && pnpm test:smoke` | ≤ 20 min       | GitHub Actions on every PR (`.github/workflows/ci.yml`)                                           |
+
+> **Why `pnpm typecheck` is its own gate step:** `eslint` and Vitest do **not** type-check (`tsc`), so a type error passes lint + the whole test suite and surfaces only at the Railway build — i.e. after merge. Tier 2 and CI both run `tsc --noEmit` (~15-20 s) to catch it before merge.
 
 Tier-specific guidance:
 
