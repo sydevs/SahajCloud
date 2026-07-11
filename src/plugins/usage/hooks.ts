@@ -3,11 +3,7 @@
  *
  * Hooks for rate limiting and usage tracking.
  */
-import type {
-  CollectionAfterReadHook,
-  CollectionBeforeOperationHook,
-  PayloadRequest,
-} from 'payload'
+import type { CollectionBeforeOperationHook, PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
@@ -335,17 +331,4 @@ export const usageTrackingBeforeOperationHook: CollectionBeforeOperationHook = a
       error: error instanceof Error ? error.message : String(error),
     })
   }
-}
-
-/**
- * Deprecated: afterRead hook for usage tracking (replaced by beforeOperation).
- *
- * Kept as a stub for backward compatibility. All usage tracking now happens
- * in beforeOperation to avoid N+1 increments on depth >= 1 reads. See #559.
- *
- * @deprecated Use usageTrackingBeforeOperationHook instead
- */
-export const usageTrackingHook: CollectionAfterReadHook = async ({ doc }) => {
-  // No-op: usage tracking has moved to beforeOperation
-  return doc
 }
