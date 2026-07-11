@@ -49,6 +49,7 @@ describe('Regions child-join recursive descendants', () => {
     level: 'country' | 'region' | 'city' | 'center'
     mapboxId: string
     parent?: number
+    slug?: string
   }): Promise<number> => {
     const region = await payload.create({ collection: 'regions', overrideAccess: true, data })
     return region.id
@@ -231,6 +232,31 @@ describe('Regions child-join recursive descendants', () => {
       const after = await readRegion(cityZ)
       expect(after.webPath).not.toBe(before.webPath)
       expect(after.webPath).toBe(`/country-z-renamed/${String(after.slug)}`)
+    })
+
+    // Country slugs are ISO alpha-2 codes (#556): the atlas seed assigns them on
+    // import and the country_slug_iso_code migration rewrites existing rows. The
+    // Atlas widget derives each country's code (flags, localized names) from the
+    // slug, so the two-letter segment must survive create and flow through every
+    // descendant's webPath.
+    it('routes an ISO-slugged country through the whole descendant chain', async () => {
+      const countryIso = await createRegion({
+        name: 'Belgium',
+        level: 'country',
+        mapboxId: 'wp.countryIso',
+        slug: 'be',
+      })
+      const cityIso = await createRegion({
+        name: 'Antwerp',
+        level: 'city',
+        mapboxId: 'wp.cityIso',
+        parent: countryIso,
+      })
+
+      const [country, city] = await Promise.all([readRegion(countryIso), readRegion(cityIso)])
+      expect(country.slug).toBe('be')
+      expect(country.webPath).toBe('/be')
+      expect(city.webPath).toBe(`/be/${String(city.slug)}`)
     })
   })
 })

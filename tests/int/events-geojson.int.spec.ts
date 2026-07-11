@@ -238,5 +238,51 @@ describe('eventsGeoJson endpoint', () => {
       expect(feature?.properties.webPath).toBe(`/geo-city/${offlineEventId}`)
       expect(feature?.properties.webUrl).toBe(`http://localhost:5174/geo-city/${offlineEventId}`)
     })
+
+    // Country slugs are ISO alpha-2 codes (#556) — a feature under a
+    // country-rooted region chain carries the code as its path's first segment.
+    it('reflects the ISO country slug in a country-rooted feature path', async () => {
+      const country = await payload.create({
+        collection: 'regions',
+        overrideAccess: true,
+        data: { name: 'United Kingdom', level: 'country', mapboxId: 'geo-country', slug: 'gb' },
+      })
+      const city = await payload.create({
+        collection: 'regions',
+        overrideAccess: true,
+        data: {
+          name: 'Geo Town',
+          level: 'city',
+          mapboxId: 'geo-town',
+          slug: 'geo-town',
+          parent: country.id,
+        },
+      })
+      const event = await payload.create({
+        collection: 'events',
+        overrideAccess: true,
+        data: {
+          title: 'Country-rooted Meetup',
+          eventType: 'offline',
+          languages: ['en'],
+          registrationMode: 'sahaj-atlas',
+          manager: managerId,
+          region: city.id,
+          schedule: SCHEDULE,
+          address: {
+            street: '3 Test St',
+            city: 'London',
+            country: 'GB',
+            latitude: 51.5,
+            longitude: -0.1,
+          },
+          _status: 'published',
+        },
+      })
+
+      const { body } = await callGeoJson({ select: { webPath: true }, depth: 1 })
+      const feature = body.features!.find((f) => f.id === event.id)
+      expect(feature?.properties.webPath).toBe(`/gb/geo-town/${event.id}`)
+    })
   })
 })
