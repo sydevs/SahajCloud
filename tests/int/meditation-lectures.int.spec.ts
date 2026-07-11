@@ -922,4 +922,35 @@ describe('meditationLectures endpoint', () => {
       expect(clip!.fullLectureId).toBe(parentIneligible.id)
     })
   })
+
+  describe('Query optimization', () => {
+    it('does not fire per-row frames queries (#560)', async () => {
+      // Verify that frames are not queried during the endpoint call,
+      // even though the meditation object has frames and the lectures
+      // might reference frames via complex relationships. The meditation
+      // is fetched at depth:0 and lectures at depth:2 with a select,
+      // so frames should not be queried at all.
+      const findSpy = vi.spyOn(payload, 'find')
+      try {
+        const { body } = await callEndpoint(
+          payload,
+          meditation.id,
+          { audiences: audienceFilter, limit: 100, userChoice: userChoice.id },
+          { skipDefaultAudiences: true },
+        )
+        const calls = findSpy.mock.calls.map((c) => c[0].collection)
+        const framesCalls = calls.filter((c) => c === 'frames')
+        // recomputeWeightsForMeditation queries frames once per meditation.
+        // There should be at most 1-2 queries (bounded + non-N+1). If this
+        // grows with pool size, frames fetches are happening per-lecture (#560).
+        expect(framesCalls.length).toBeLessThanOrEqual(2)
+        // Verify results are still correct despite bounded selects
+        expect(body).toBeDefined()
+        const res = body as ResponseBody
+        expect(res.docs.length).toBeGreaterThan(0)
+      } finally {
+        findSpy.mockRestore()
+      }
+    })
+  })
 })

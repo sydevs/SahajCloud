@@ -5,9 +5,82 @@ import { z } from 'zod'
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
 import { parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { weightedSample } from '@/lib/utilities/weightedSample'
-import type { AppCard } from '@/payload-types'
+import type { AppCard, AppCardsSelect } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 import { asTrustedReq } from '@/plugins/usage/hooks'
+
+/**
+ * Bounded select for app-card candidates: all fields except expensive
+ * virtual fields like `viewSchedule` that would fire per-row (#560).
+ * Destination relationships (page/lecture/album/meditation) are populated
+ * at depth: 1 but their expensive virtual fields are gated by their
+ * respective `defaultPopulate` (see Pages.defaultPopulate, etc.).
+ */
+const APP_CARD_SELECT: AppCardsSelect<true> = {
+  label: true,
+  type: true,
+  targetSections: true,
+  weight: true,
+  timings: true,
+  audiences: true,
+  conditions: true,
+  // View configuration tabs: all non-virtual fields
+  default: {
+    header: true,
+    title: true,
+    subtitle: true,
+    buttonText: true,
+    buttonIcon: true,
+    destination: true,
+    page: true,
+    lecture: true,
+    album: true,
+    meditation: true,
+    url: true,
+    image: true,
+    aspectRatio: true,
+    textColor: true,
+    alignment: true,
+  },
+  startingSoon: {
+    enabled: true,
+    threshold: true,
+    header: true,
+    title: true,
+    subtitle: true,
+    buttonText: true,
+    buttonIcon: true,
+    destination: true,
+    page: true,
+    lecture: true,
+    album: true,
+    meditation: true,
+    url: true,
+    image: true,
+    aspectRatio: true,
+    textColor: true,
+    alignment: true,
+  },
+  liveNow: {
+    enabled: true,
+    threshold: true,
+    header: true,
+    title: true,
+    subtitle: true,
+    buttonText: true,
+    buttonIcon: true,
+    destination: true,
+    page: true,
+    lecture: true,
+    album: true,
+    meditation: true,
+    url: true,
+    image: true,
+    aspectRatio: true,
+    textColor: true,
+    alignment: true,
+  },
+} satisfies AppCardsSelect<true>
 
 const querySchema = z.object({
   audiences: audiencesQueryParamSchema,
@@ -56,6 +129,10 @@ export const appCardsForAudience: Endpoint = {
       limit: 200,
       depth: 1,
       pagination: false,
+      // Bounded to non-virtual fields so expensive per-row afterReads never
+      // fire across the pool. Destination relationships populate but their
+      // expensive fields are gated by defaultPopulate on target collections (#560).
+      select: APP_CARD_SELECT,
       req: asTrustedReq(req),
     })
 

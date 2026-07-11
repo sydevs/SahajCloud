@@ -79,6 +79,10 @@ export async function recomputeWeightsForMeditation(
     limit: frameIds.length,
     depth: 1,
     pagination: false,
+    // Only need the subtleSystemNode relationship for weight computation
+    select: {
+      subtleSystemNode: true,
+    },
     req,
   })
 
