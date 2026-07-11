@@ -496,6 +496,12 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
    * the slugField default — so a manager re-generating a slug in the admin
    * reproduces the same value, and non-Latin names yield readable slugs
    * (`Москва → "moskva"`) rather than the `region-<legacyId>` fallback.
+   *
+   * **Countries slug as their ISO alpha-2 code** (`belgium → be`) — the Sahaj
+   * Atlas derives each country's code (flags, localized names) from the slug
+   * instead of the deprecated `legacyData.countryCode` (#556). Countries sort
+   * first, so they always claim the two-letter slugs; a country with a missing
+   * or malformed code falls back to the name-based slug above.
    */
   private buildRegionSlugs(data: AtlasData): Map<string, string> {
     // Legacy `level:legacyId` → region, for parent-name lookups (a node's parent
@@ -510,8 +516,14 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       rank: number
       legacyId: number
       parentName?: string
+      /** Fixed slug override (a country's ISO alpha-2 code) — skips slugify(name). */
+      slugOverride?: string
     }
     const nodes: Node[] = []
+
+    /** Lowercased ISO alpha-2 code, or undefined when absent/malformed. */
+    const isoCountrySlug = (code: string | null): string | undefined =>
+      code && /^[A-Za-z]{2}$/.test(code) ? code.toLowerCase() : undefined
 
     for (const region of data.regions) {
       const level = ATLAS_TO_PAYLOAD_LEVEL[region.level]
@@ -524,6 +536,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         rank: LEVEL_RANK[level],
         legacyId: region.legacyId,
         parentName: parent?.name,
+        slugOverride: level === 'country' ? isoCountrySlug(region.countryCode) : undefined,
       })
     }
 
@@ -547,7 +560,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const used = new Set<string>()
     const slugs = new Map<string, string>()
     for (const node of nodes) {
-      const base = slugifyValue(node.name) || `region-${node.legacyId}`
+      const base = node.slugOverride ?? (slugifyValue(node.name) || `region-${node.legacyId}`)
       let slug = base
       if (used.has(slug)) {
         const parentSlug = node.parentName ? slugifyValue(node.parentName) : ''
