@@ -85,10 +85,34 @@ chain intact.
 ## Reviewing generated migrations
 
 Before deploy, scan each new generated `.ts` against the earlier migrations
-in the same pending batch. If it repeats `CREATE TABLE`, `CREATE INDEX`, or
-`ALTER TABLE ADD COLUMN` for schema already introduced earlier in the chain,
-stop and trim or regenerate it; adding `IF NOT EXISTS` to a new migration is
-only a replay-recovery tool, not a substitute for a clean migration delta.
+in the chain — the **whole applied chain**, not just the same pending batch
+(see the snapshot trap below). If it repeats `CREATE TABLE`, `CREATE INDEX`,
+or `ALTER TABLE ADD COLUMN` for schema already introduced earlier in the
+chain, stop and trim or regenerate it; adding `IF NOT EXISTS` to a new
+migration is only a replay-recovery tool, not a substitute for a clean
+migration delta.
+
+### The out-of-order snapshot trap (duplicate re-emission)
+
+`migrate:create` picks its diff base as the **newest-by-filename-timestamp**
+`.json` snapshot — not the last entry in `index.ts`. Migrations authored on
+parallel branches can merge out of timestamp order (e.g.
+`20260705_161112_bcp47` sorts after `20260705_160029_sy_atlas_translations_views`
+but was generated on a branch that predates 160029's schema change). The
+newest-by-timestamp snapshot is then **stale**, and the next `migrate:create`
+re-emits DDL that is already applied — replaying it fails (`ADD COLUMN` on an
+existing column) and aborts the in-process boot migration on deploy. This
+produced a duplicate of 160029's views DDL, caught and removed in #566.
+
+- When a generated migration contains DDL you didn't just cause with a schema
+  edit, suspect this trap: grep the repeated table/column names across
+  `src/migrations/*.ts` to find the earlier migration that already ships them.
+- A freshly generated migration's snapshot reflects the **full current
+  schema**, so once one lands with the highest timestamp the chain is healed
+  for future runs.
+- After merging parallel branches that both added migrations, verify the
+  highest-timestamp snapshot post-merge actually contains both branches'
+  schema before generating the next migration.
 
 When adding required relationship fields to an existing table, keep the SQL
 column nullable unless the migration also backfills every existing row before
