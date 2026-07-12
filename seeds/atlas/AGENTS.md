@@ -27,12 +27,19 @@ for stable Atlas identity/routing.
   `slugify(name)` on any save, including the nested-docs breadcrumb cascade. New
   regions still auto-slug (the create hook fills from `name`); the column-default
   off also keeps the prod backfill cascade-safe.
+- **Country slugs are ISO alpha-2 codes** (`belgium → be`). The Atlas widget
+  derives each country's code (flags, localized country names) from the slug,
+  replacing the deprecated `legacyData.countryCode` (#556). The importer assigns
+  them (countries walk first, so they always claim the two-letter slugs), and the
+  `country_slug_iso_code` migration rewrites pre-existing rows. `webPath`/`webUrl`
+  are computed from current slugs on every read, so paths follow automatically.
 - **The importer assigns collision-free slugs.** `buildRegionSlugs()` in
   `import.ts` walks every region/center in a fixed `(level, legacyId)` order and
-  assigns `slugifyValue(name)`, falling back to `name-parentName` then
-  `name-legacyId` for the handful of repeated names (and `region-<legacyId>` only
-  if a name transliterates to empty). It shares `slugifyValue` with the slugField,
-  so a manager re-generating a slug reproduces the same value.
+  assigns the country's ISO code or `slugifyValue(name)`, falling back to
+  `name-parentName` then `name-legacyId` for the handful of repeated names (and
+  `region-<legacyId>` only if a name transliterates to empty). It shares
+  `slugifyValue` with the slugField, so a manager re-generating a slug reproduces
+  the same value.
 - **Reseed (update mode) to backfill:** `pnpm seed atlas --update`. The upserts
   pin `generateSlug: false` so the explicit slug is never rewritten.
 

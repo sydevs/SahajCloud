@@ -4,12 +4,12 @@ import type { CollectionBeforeOperationHook, SelectType } from 'payload'
  * beforeOperation hook: keep the computed `webPath` / `webUrl` fields resolvable
  * on any event read, not just the geojson feed.
  *
- * Both derive from the event's `region` (its id); `webUrl`'s published gate also
- * reads `_status`. A caller selecting only a canonical path has no reason to
- * also select those inputs — but an include-mode `select` would strip them
- * before the afterRead field hooks run, leaving the path/URL null. So whenever a
- * path field is requested, add whichever input it needs back into the `select`
- * (a harmless extra id / status in the response).
+ * Both derive from the event's `region` (its id), and both are publish-gated,
+ * so their hooks also read `_status`. A caller selecting only a canonical path
+ * has no reason to also select those inputs — but an include-mode `select`
+ * would strip them before the afterRead field hooks run, leaving the path/URL
+ * null. So whenever a path field is requested, add both inputs back into the
+ * `select` (a harmless extra id / status in the response).
  *
  * Runs at the collection level rather than in a single endpoint so `webPath`
  * stays selectable on its own across every read path (list, findByID, geojson).
@@ -26,7 +26,7 @@ export const ensureWebPathDeps: CollectionBeforeOperationHook = ({ operation, ar
 
   const patched = { ...fields }
   if (!('region' in patched)) patched.region = true
-  if (fields.webUrl && !('_status' in patched)) patched._status = true
+  if (!('_status' in patched)) patched._status = true
   args.select = patched as SelectType
   return args
 }
