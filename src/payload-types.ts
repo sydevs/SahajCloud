@@ -6236,6 +6236,7 @@ export interface TaskCleanupOrphanedMedia {
       | number
       | boolean
       | null;
+    maxOperations?: number | null;
   };
   output: {
     permanentlyDeletedFiles: number;

@@ -26,6 +26,8 @@ import type {
   Lecture,
   ManagerRole,
   ClientRole,
+  Event,
+  Region,
 } from '@/payload-types'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -906,5 +908,83 @@ export const testData = {
       _status: 'published', // Default to a published (active) client
       ...overrides, // Allow overriding _status
     } as TypedUser
+  },
+
+  /**
+   * Create a region (city-level) for testing
+   * Regions require name, level, and mapboxId (unique)
+   * For manual locations, also provide latitude, longitude, and radius
+   */
+  async createRegion(payload: Payload, overrides: Partial<Region> = {}): Promise<Region> {
+    const uniqueId = Math.random().toString(36).substring(7)
+    const name = overrides.name || `Test City ${uniqueId}`
+    const mapboxId = overrides.mapboxId || `manual-test-${Date.now()}-${uniqueId}`
+
+    return (await payload.create({
+      collection: 'regions',
+      data: {
+        name,
+        level: 'city',
+        mapboxId,
+        // Required for manual locations (mapboxId starts with 'manual-')
+        latitude: 0,
+        longitude: 0,
+        radius: 1000,
+        ...overrides,
+      },
+    })) as Region
+  },
+
+  /**
+   * Create an image using sample file
+   * Alias for createMediaImage for convenience in cleanup tests
+   */
+  async createImage(payload: Payload, overrides = {}): Promise<Image> {
+    return this.createMediaImage(payload, overrides)
+  },
+
+  /**
+   * Create an event with all required fields populated
+   * Events require: title, languages, region, manager, schedule (with firstDate when not inactive)
+   */
+  async createEvent(payload: Payload, overrides: Partial<Event> = {}): Promise<Event> {
+    const uniqueId = Math.random().toString(36).substring(7)
+
+    // Create required relationships if not provided
+    let managerId = overrides.manager
+    if (!managerId) {
+      const manager = await testData.createManager(payload)
+      managerId = manager.id
+    }
+    if (typeof managerId === 'object') {
+      managerId = managerId.id
+    }
+
+    let regionId = overrides.region
+    if (!regionId) {
+      const region = await testData.createRegion(payload)
+      regionId = region.id
+    }
+    if (typeof regionId === 'object') {
+      regionId = regionId.id
+    }
+
+    // Default to inactive (simplest case): no schedule required, but needs contact info
+    const eventData: any = {
+      title: overrides.title || `Test Event ${uniqueId}`,
+      languages: overrides.languages || ['en'],
+      manager: managerId,
+      region: regionId,
+      verificationStage: overrides.verificationStage || 'verified',
+      inactive: true, // Default to inactive to avoid schedule complexity
+      contactPhone: overrides.contactPhone || '+1-555-0100',
+      contactName: overrides.contactName || 'Test Contact',
+      ...overrides,
+    }
+
+    return (await payload.create({
+      collection: 'events',
+      data: eventData,
+    })) as Event
   },
 }
