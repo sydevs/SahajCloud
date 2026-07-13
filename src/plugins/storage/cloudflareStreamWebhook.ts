@@ -218,8 +218,7 @@ export async function handleStreamWebhook(params: {
     // the catch below returns a non-2xx, and Cloudflare retries. `fetchFn` is
     // injected in tests; it defaults to the global `fetch` in production.
     const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${uid}/downloads`
-    const doFetch = fetchFn ?? fetch
-    const response = await doFetch(url, {
+    const response = await (fetchFn ?? fetch)(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
