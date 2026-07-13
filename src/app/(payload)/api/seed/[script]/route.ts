@@ -27,7 +27,6 @@
  */
 
 import type { BaseImporter } from '../../../../../../seeds/lib/BaseImporter'
-import type { PaginationOptions, PaginationResult } from '../../../../../../seeds/lib/pagination'
 import type { NextRequest } from 'next/server'
 
 import { getPayload } from 'payload'
@@ -39,6 +38,11 @@ import {
   verifyCountsForScript,
   type ScriptName,
 } from '../../../../../../seeds/lib/expectedCounts'
+import {
+  validatePaginationParam,
+  type PaginationOptions,
+  type PaginationResult,
+} from '../../../../../../seeds/lib/pagination'
 
 const VALID_SCRIPTS: ScriptName[] = [
   'tags',
@@ -191,31 +195,15 @@ export async function POST(
     )
   }
 
-  // Validate offset and limit are non-negative integers
-  if (offsetParam !== null && (!/^\d+$/.test(offsetParam) || parseInt(offsetParam, 10) < 0)) {
-    return new Response(
-      JSON.stringify({
-        error: 'Invalid offset parameter',
-        hint: 'offset must be a non-negative integer',
-      }),
-      {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
-  }
-
-  if (limitParam !== null && (!/^\d+$/.test(limitParam) || parseInt(limitParam, 10) < 0)) {
-    return new Response(
-      JSON.stringify({
-        error: 'Invalid limit parameter',
-        hint: 'limit must be a non-negative integer',
-      }),
-      {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
+  // Validate offset and limit are non-negative integers (helper is unit-tested
+  // in seeds/lib/pagination.ts, so this path is covered without a running server).
+  const paginationError =
+    validatePaginationParam('offset', offsetParam) ?? validatePaginationParam('limit', limitParam)
+  if (paginationError) {
+    return new Response(JSON.stringify(paginationError), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
   // Build pagination options if collection is specified

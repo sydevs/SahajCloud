@@ -412,24 +412,27 @@ describe('Cloudflare Stream webhook handler', () => {
       expect(result.status).toBe(400)
     })
 
-    it('returns non-2xx on fetch timeout', async () => {
+    it('returns non-2xx when the downloads call times out (stalled Cloudflare API)', async () => {
       const rawBody = buildReadyPayload()
       const header = await signedHeader(rawBody)
       const logger = makeLogger()
 
-      // Mock fetch that hangs indefinitely (simulates slow Cloudflare API)
+      // A fetch that never settles on its own but honours the AbortSignal the
+      // timeout raises — exactly how the real `fetch` behaves on a stalled request.
       const stallingFetchFn = vi.fn(
-        () =>
-          new Promise(() => {
-            // Never resolves — simulate a stalled request
+        (_url: string | URL | Request, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              const err = new Error('The operation was aborted.')
+              err.name = 'AbortError'
+              reject(err)
+            })
           }),
       )
 
       vi.spyOn(Date, 'now').mockReturnValue(FAKE_NOW_SECONDS * 1000)
 
-      // The timeout should fire and cause fetchWithTimeout to reject.
-      // With a 45s timeout in the real code, this test verifies the timeout
-      // path by ensuring the handler doesn't wait forever and returns an error.
+      // A tiny timeout keeps the test fast while exercising the real timeout path.
       const result = await handleStreamWebhook({
         rawBody,
         signatureHeader: header,
@@ -438,11 +441,12 @@ describe('Cloudflare Stream webhook handler', () => {
         apiKey: 'test-api-key',
         logger,
         fetchFn: stallingFetchFn as unknown as typeof fetch,
+        downloadsTimeoutMs: 20,
       })
 
-      // On timeout, fetchWithTimeout throws, which is caught as a generic error
-      // and returns 500 to signal Cloudflare to retry
+      // Timeout → fetchWithTimeout rejects → caught → 500 so Cloudflare retries.
       expect(result.status).toBe(500)
+      expect(stallingFetchFn).toHaveBeenCalledTimes(1)
       expect(logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ msg: 'Error enabling MP4 downloads via webhook' }),
       )

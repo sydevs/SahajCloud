@@ -7,7 +7,11 @@ import {
   getCollectionMetadata,
   type ScriptName,
 } from '../../seeds/lib/expectedCounts'
-import { getDefaultBatchSize, type PaginationOptions } from '../../seeds/lib/pagination'
+import {
+  getDefaultBatchSize,
+  validatePaginationParam,
+  type PaginationOptions,
+} from '../../seeds/lib/pagination'
 
 describe('Pagination Utilities', () => {
   describe('getDefaultBatchSize', () => {
@@ -310,5 +314,28 @@ describe('Collection Metadata', () => {
       expect(frames?.hasFileUploads).toBe(true)
       expect(meditations?.hasFileUploads).toBe(true)
     })
+  })
+})
+
+describe('validatePaginationParam', () => {
+  it('returns null when the param is omitted', () => {
+    expect(validatePaginationParam('offset', null)).toBeNull()
+    expect(validatePaginationParam('limit', null)).toBeNull()
+  })
+
+  it('accepts non-negative integer strings, including 0', () => {
+    expect(validatePaginationParam('offset', '0')).toBeNull()
+    expect(validatePaginationParam('offset', '42')).toBeNull()
+    expect(validatePaginationParam('limit', '100')).toBeNull()
+  })
+
+  it('rejects non-integer, negative, decimal, and empty values with a 400-shaped error', () => {
+    expect(validatePaginationParam('offset', 'abc')).toEqual({
+      error: 'Invalid offset parameter',
+      hint: 'offset must be a non-negative integer',
+    })
+    expect(validatePaginationParam('limit', '-1')?.error).toBe('Invalid limit parameter')
+    expect(validatePaginationParam('offset', '1.5')?.error).toBe('Invalid offset parameter')
+    expect(validatePaginationParam('limit', '')?.error).toBe('Invalid limit parameter')
   })
 })

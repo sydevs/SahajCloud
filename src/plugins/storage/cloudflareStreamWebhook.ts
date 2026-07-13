@@ -134,8 +134,19 @@ export async function handleStreamWebhook(params: {
   apiKey: string | undefined
   logger: WebhookLogger
   fetchFn?: typeof fetch
+  /** Timeout for the MP4-downloads-enable call (default 45s). Overridable in tests. */
+  downloadsTimeoutMs?: number
 }): Promise<{ status: number; body: unknown }> {
-  const { rawBody, signatureHeader, secret, accountId, apiKey, logger, fetchFn } = params
+  const {
+    rawBody,
+    signatureHeader,
+    secret,
+    accountId,
+    apiKey,
+    logger,
+    fetchFn,
+    downloadsTimeoutMs = 45_000,
+  } = params
 
   if (!secret) {
     logger.warn({ msg: 'Cloudflare Stream webhook secret not configured' })
@@ -204,37 +215,20 @@ export async function handleStreamWebhook(params: {
   }
 
   try {
-    // Apply fetch timeout while preserving the injectable test interface.
-    // Use the injected fetchFn if provided (tests), otherwise use fetchWithTimeout
-    // with the real fetch. The timeout ensures bounded operations — if the API stalls,
-    // the error is caught and a non-2xx response signals Cloudflare to retry.
+    // Enable MP4 downloads with a bounded timeout so a stalled Cloudflare API
+    // can't hang the webhook: on timeout `fetchWithTimeout` rejects, the catch
+    // below returns a non-2xx, and Cloudflare retries. `fetchFn` is injected in
+    // tests; it defaults to the global `fetch` in production.
     const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${uid}/downloads`
-    const init: RequestInit = {
+    const response = await fetchWithTimeout(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-    }
-
-    let response: Response
-    if (fetchFn) {
-      // For tests: use injectable fetch, but apply timeout logic inline
-      const controller = new AbortController()
-      const timeoutMs = 45_000
-      const timer = setTimeout(() => {
-        controller.abort()
-      }, timeoutMs)
-
-      try {
-        response = await fetchFn(url, { ...init, signal: controller.signal })
-      } finally {
-        clearTimeout(timer)
-      }
-    } else {
-      // For production: use fetchWithTimeout with the real fetch
-      response = await fetchWithTimeout(url, { ...init, timeoutMs: 45_000 })
-    }
+      timeoutMs: downloadsTimeoutMs,
+      fetchImpl: fetchFn,
+    })
 
     const result = CloudflareStreamDownloadsResponseSchema.parse(await response.json())
 
