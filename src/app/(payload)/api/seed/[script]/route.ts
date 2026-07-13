@@ -191,6 +191,33 @@ export async function POST(
     )
   }
 
+  // Validate offset and limit are non-negative integers
+  if (offsetParam !== null && (!/^\d+$/.test(offsetParam) || parseInt(offsetParam, 10) < 0)) {
+    return new Response(
+      JSON.stringify({
+        error: 'Invalid offset parameter',
+        hint: 'offset must be a non-negative integer',
+      }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
+  }
+
+  if (limitParam !== null && (!/^\d+$/.test(limitParam) || parseInt(limitParam, 10) < 0)) {
+    return new Response(
+      JSON.stringify({
+        error: 'Invalid limit parameter',
+        hint: 'limit must be a non-negative integer',
+      }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
+  }
+
   // Build pagination options if collection is specified
   let pagination: PaginationOptions | undefined
   if (collection) {
