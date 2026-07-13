@@ -10,7 +10,6 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 import { z } from 'zod'
 
 import { serverEnv } from '@/lib/env'
-import { fetchWithTimeout } from '@/lib/utilities/fetchWithTimeout'
 
 import { CloudflareStreamResponseSchema } from './cloudflareSchemas'
 import { applyFilename } from './filenameUtils'
@@ -102,9 +101,13 @@ const isPreviewOwnedStreamVideo = async (
   videoId: string,
 ): Promise<boolean> => {
   try {
-    const response = await fetchWithTimeout(
+    const response = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${videoId}`,
-      { headers: { Authorization: `Bearer ${config.apiKey}` } },
+      {
+        headers: { Authorization: `Bearer ${config.apiKey}` },
+        // Bound this small JSON API call so a stalled Cloudflare API can't hang it.
+        signal: AbortSignal.timeout(15_000),
+      },
     )
     if (!response.ok) return false
     const result = CloudflareStreamResponseSchema.parse(await response.json())
@@ -135,7 +138,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         })
 
         // Upload video to Stream
-        const uploadResponse = await fetchWithTimeout(
+        const uploadResponse = await fetch(
           `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream`,
           {
             method: 'POST',
@@ -146,7 +149,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
             // Generous bound — videos are large; this catches a hung upload
             // without killing a slow but progressing transfer. Response failures
             // are still validated via the Zod `uploadResult.success` check below.
-            timeoutMs: 300_000,
+            signal: AbortSignal.timeout(300_000),
           },
         )
 
@@ -171,7 +174,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         // auto-reaped; it must never break the (already-succeeded) upload.
         if (isStorageIsolationActive()) {
           try {
-            const tagResponse = await fetchWithTimeout(
+            const tagResponse = await fetch(
               `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${videoId}`,
               {
                 method: 'POST',
@@ -182,6 +185,8 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
                 body: JSON.stringify({
                   meta: { [PREVIEW_STREAM_META_KEY]: PREVIEW_STREAM_META_VALUE },
                 }),
+                // Bound this small JSON API call so a stalled Cloudflare API can't hang it.
+                signal: AbortSignal.timeout(15_000),
               },
             )
             // error-level (not warn) so a systematically broken tagger is
@@ -256,13 +261,15 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
       }
 
       try {
-        const response = await fetchWithTimeout(
+        const response = await fetch(
           `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${videoId}`,
           {
             method: 'DELETE',
             headers: {
               Authorization: `Bearer ${config.apiKey}`,
             },
+            // Bound this small JSON API call so a stalled Cloudflare API can't hang it.
+            signal: AbortSignal.timeout(15_000),
           },
         )
 
