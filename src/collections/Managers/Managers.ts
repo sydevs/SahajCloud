@@ -47,9 +47,10 @@ export const Managers: CollectionConfig = {
       generateEmailSubject: () => `Reset Your Password — ${getEmailBrand().productName}`,
     },
     cookies: {
-      // This enables live preview
-      secure: true, // Required for cross-origin
-      sameSite: 'None', // Allow cross-origin cookie sharing
+      // Live preview is authenticated via the x-sahajcloud-preview-secret header,
+      // not this cookie. Use Lax to avoid unnecessary cross-site exposure.
+      secure: true, // HTTPS only
+      sameSite: 'Lax', // Same-site cookies (Payload default)
     },
     maxLoginAttempts: 5,
     lockTime: 600 * 1000, // 10 minutes

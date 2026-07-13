@@ -4,6 +4,8 @@
 import type { PayloadRequest } from 'payload'
 import type { Pool } from 'pg'
 
+import pg from 'pg'
+
 /**
  * Get the underlying pg Pool from Payload's Postgres adapter.
  *
@@ -23,4 +25,16 @@ export function getPgPool(req: PayloadRequest): Pool | null {
  */
 export function getDbSchema(req: PayloadRequest): string {
   return (req.payload.db as unknown as { schemaName?: string }).schemaName || 'public'
+}
+
+/**
+ * The adapter's schema as a safely-quoted SQL identifier (e.g. `"public"`),
+ * ready to interpolate into a raw `pool.query`. Uses pg's own `escapeIdentifier`
+ * so the schema can never break out of the identifier position — the idiomatic,
+ * future-proof guard, so no hand-rolled allowlist is needed. (The schema comes
+ * from Payload's adapter config, not user input, but escaping it is correct
+ * regardless of source.)
+ */
+export function quotedDbSchema(req: PayloadRequest): string {
+  return pg.escapeIdentifier(getDbSchema(req))
 }

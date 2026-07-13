@@ -133,3 +133,32 @@ export function createInitialPaginationState(): PaginationState {
     nextOffset: 0,
   }
 }
+
+/** Error descriptor for an invalid pagination query param. */
+export interface PaginationParamError {
+  error: string
+  hint: string
+}
+
+/**
+ * Validate a raw `offset`/`limit` query-string value. Returns an error
+ * descriptor when the value is present but not a non-negative integer (the
+ * `/^\d+$/` guard already rejects negatives, decimals, and non-numeric input),
+ * otherwise `null`. Callers map a non-null result to a 400 response.
+ *
+ * Extracted from the seed route so the validation is covered by the unit lane
+ * (no running server required).
+ */
+export function validatePaginationParam(
+  name: 'offset' | 'limit',
+  value: string | null,
+): PaginationParamError | null {
+  if (value === null) return null
+  if (!/^\d+$/.test(value)) {
+    return {
+      error: `Invalid ${name} parameter`,
+      hint: `${name} must be a non-negative integer`,
+    }
+  }
+  return null
+}
