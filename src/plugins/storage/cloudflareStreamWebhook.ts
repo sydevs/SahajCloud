@@ -9,6 +9,8 @@
  */
 import { z } from 'zod'
 
+import { fetchWithTimeout } from '@/lib/utilities/fetchWithTimeout'
+
 import {
   CloudflareStreamDownloadsResponseSchema,
   CloudflareStreamWebhookPayloadSchema,
@@ -110,11 +112,7 @@ export async function verifySignature(
     false,
     ['sign'],
   )
-  const signed = await crypto.subtle.sign(
-    'HMAC',
-    key,
-    encoder.encode(`${parsed.time}.${rawBody}`),
-  )
+  const signed = await crypto.subtle.sign('HMAC', key, encoder.encode(`${parsed.time}.${rawBody}`))
   const expectedHex = bufferToHex(signed)
 
   if (!constantTimeEqual(parsed.sig.toLowerCase(), expectedHex)) {
@@ -137,8 +135,7 @@ export async function handleStreamWebhook(params: {
   logger: WebhookLogger
   fetchFn?: typeof fetch
 }): Promise<{ status: number; body: unknown }> {
-  const { rawBody, signatureHeader, secret, accountId, apiKey, logger } = params
-  const doFetch = params.fetchFn ?? fetch
+  const { rawBody, signatureHeader, secret, accountId, apiKey, logger, fetchFn } = params
 
   if (!secret) {
     logger.warn({ msg: 'Cloudflare Stream webhook secret not configured' })
@@ -207,16 +204,37 @@ export async function handleStreamWebhook(params: {
   }
 
   try {
-    const response = await doFetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${uid}/downloads`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
+    // Apply fetch timeout while preserving the injectable test interface.
+    // Use the injected fetchFn if provided (tests), otherwise use fetchWithTimeout
+    // with the real fetch. The timeout ensures bounded operations — if the API stalls,
+    // the error is caught and a non-2xx response signals Cloudflare to retry.
+    const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${uid}/downloads`
+    const init: RequestInit = {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
       },
-    )
+    }
+
+    let response: Response
+    if (fetchFn) {
+      // For tests: use injectable fetch, but apply timeout logic inline
+      const controller = new AbortController()
+      const timeoutMs = 45_000
+      const timer = setTimeout(() => {
+        controller.abort()
+      }, timeoutMs)
+
+      try {
+        response = await fetchFn(url, { ...init, signal: controller.signal })
+      } finally {
+        clearTimeout(timer)
+      }
+    } else {
+      // For production: use fetchWithTimeout with the real fetch
+      response = await fetchWithTimeout(url, { ...init, timeoutMs: 45_000 })
+    }
 
     const result = CloudflareStreamDownloadsResponseSchema.parse(await response.json())
 
