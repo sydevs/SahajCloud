@@ -1,5 +1,8 @@
 import type { TaskConfig, Where } from 'payload'
 
+import pMap from 'p-map'
+import pRetry from 'p-retry'
+
 import { buildLectureMetadata } from '@/lib/lectures/nirmalaVidya'
 import { extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/lectures/nirmalaVidyaApi'
 
@@ -16,60 +19,8 @@ type SyncLectureMetadataInput = {
 
 const PAGINATION_LIMIT = 1000
 const MAX_CONCURRENT_FETCHES = 10
-
-/**
- * Simple semaphore for bounding concurrent operations. Tracks in-flight
- * promises and queues new work until a slot is available.
- */
-class SimpleSemaphore {
-  private currentCount = 0
-
-  constructor(private maxConcurrent: number) {}
-
-  async acquire(): Promise<void> {
-    while (this.currentCount >= this.maxConcurrent) {
-      // Spin briefly, allowing other microtasks to complete
-      await new Promise((resolve) => setTimeout(resolve, 1))
-    }
-    this.currentCount++
-  }
-
-  release(): void {
-    this.currentCount--
-  }
-}
-
-/**
- * Retry with exponential backoff + jitter. Retries up to `maxAttempts` times
- * with delay = baseDelayMs * (2 ^ attemptNum) + random jitter.
- */
-async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  maxAttempts = 3,
-  baseDelayMs = 1000,
-): Promise<T> {
-  let lastError: Error | null = null
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      return await fn()
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error))
-
-      // On last attempt, don't delay
-      if (attempt < maxAttempts - 1) {
-        // Exponential backoff: delay = baseDelayMs * 2^attempt
-        const exponentialDelay = baseDelayMs * Math.pow(2, attempt)
-        // Add jitter: ±25% random factor
-        const jitter = exponentialDelay * (0.75 + Math.random() * 0.5)
-        await new Promise((resolve) => setTimeout(resolve, jitter))
-      }
-    }
-  }
-
-  // All retries exhausted; throw the last error
-  throw lastError
-}
+// 1 initial attempt + 2 retries; exponential backoff (1s, 2s) with jitter.
+const FETCH_RETRIES = 2
 
 /**
  * Monthly sync job — refreshes `lectures.metadata` from the Nirmala Vidya API.
@@ -127,8 +78,6 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
       maxConcurrentFetches: MAX_CONCURRENT_FETCHES,
     })
 
-    const semaphore = new SimpleSemaphore(MAX_CONCURRENT_FETCHES)
-
     let page = 1
     let hasNextPage = true
 
@@ -141,52 +90,54 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
         depth: 0,
       })
 
-      // Process batch with bounded concurrency via semaphore
-      const promises = batch.docs.map(async (lecture) => {
-        result.totalProcessed++
+      // Bounded-concurrency map over the batch (at most MAX_CONCURRENT_FETCHES
+      // external calls in flight). `stopOnError: false` so one lecture's
+      // permanent failure never aborts the monthly sweep.
+      await pMap(
+        batch.docs,
+        async (lecture) => {
+          result.totalProcessed++
 
-        const vimeoUrl = lecture.nirmalVidyaVimeoUrl
-        const vimeoId = typeof vimeoUrl === 'string' ? extractVimeoId(vimeoUrl) : null
-        if (!vimeoId) {
-          result.skippedNoVimeoId++
-          req.payload.logger.warn({
-            msg: 'SyncLectureMetadata: skipping lecture with missing/invalid Vimeo URL',
-            lectureId: lecture.id,
-            vimeoUrl,
-          })
-          return
-        }
+          const vimeoUrl = lecture.nirmalVidyaVimeoUrl
+          const vimeoId = typeof vimeoUrl === 'string' ? extractVimeoId(vimeoUrl) : null
+          if (!vimeoId) {
+            result.skippedNoVimeoId++
+            req.payload.logger.warn({
+              msg: 'SyncLectureMetadata: skipping lecture with missing/invalid Vimeo URL',
+              lectureId: lecture.id,
+              vimeoUrl,
+            })
+            return
+          }
 
-        await semaphore.acquire()
-        try {
-          const videoData = await retryWithBackoff(
-            () => fetchNirmalaVidyaVideo(vimeoId),
-            3, // maxAttempts
-            1000, // baseDelayMs
-          )
-          const metadata = buildLectureMetadata(videoData)
+          try {
+            const videoData = await pRetry(() => fetchNirmalaVidyaVideo(vimeoId), {
+              retries: FETCH_RETRIES,
+              factor: 2,
+              minTimeout: 1000,
+              randomize: true,
+            })
+            const metadata = buildLectureMetadata(videoData)
 
-          await req.payload.update({
-            collection: 'lectures',
-            id: lecture.id,
-            data: { metadata },
-          })
+            await req.payload.update({
+              collection: 'lectures',
+              id: lecture.id,
+              data: { metadata },
+            })
 
-          result.synced++
-        } catch (error) {
-          result.failed++
-          req.payload.logger.warn({
-            msg: 'SyncLectureMetadata: per-lecture failure after retries — continuing batch',
-            lectureId: lecture.id,
-            vimeoId,
-            error: error instanceof Error ? error.message : String(error),
-          })
-        } finally {
-          semaphore.release()
-        }
-      })
-
-      await Promise.all(promises)
+            result.synced++
+          } catch (error) {
+            result.failed++
+            req.payload.logger.warn({
+              msg: 'SyncLectureMetadata: per-lecture failure after retries — continuing batch',
+              lectureId: lecture.id,
+              vimeoId,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          }
+        },
+        { concurrency: MAX_CONCURRENT_FETCHES, stopOnError: false },
+      )
 
       hasNextPage = batch.hasNextPage
       page++
