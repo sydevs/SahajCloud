@@ -656,4 +656,99 @@ describe('appCardsForAudience endpoint', () => {
       }
     })
   })
+
+  describe('Audience ID input validation (#568)', () => {
+    it('rejects audience-id lists exceeding 1000 with a 400 validation error', async () => {
+      // Build a list of 1001 unique IDs (all beyond any realistic audience set)
+      const overLimit = Array.from({ length: 1001 }, (_, i) => String(1000 + i)).join(',')
+
+      const { status, body } = await callEndpoint(
+        payload,
+        { audiences: overLimit, targetSection: 'hero', limit: 20 },
+        undefined,
+        { skipDefaultAudiences: true },
+      )
+
+      expect(status).toBe(400)
+      expect(body).toMatchObject({
+        errors: expect.arrayContaining([
+          expect.objectContaining({
+            message: expect.stringContaining('1000'),
+          }),
+        ]),
+      })
+    })
+
+    it('accepts valid audience-id lists up to exactly 1000 IDs', async () => {
+      // Create an audience to ensure the endpoint can find something
+      const testAudience = await testData.createAudience(payload, {
+        label: 'Test Audience for Max',
+      })
+
+      await testData.createAppCard(payload, {
+        default: {
+          title: 'Test Card for Max',
+          image: (await testData.createMediaImage(payload, { alt: 'test' })).id,
+        },
+        targetSections: ['hero'],
+        audiences: [testAudience.id],
+        _status: 'published',
+      })
+
+      // Build a list of exactly 1000 unique IDs (only testAudience.id is real)
+      const atLimit = [
+        testAudience.id,
+        ...Array.from({ length: 999 }, (_, i) => String(2000 + i)),
+      ].join(',')
+
+      const { status } = await callEndpoint(
+        payload,
+        { audiences: atLimit, targetSection: 'hero', limit: 20 },
+        undefined,
+        { skipDefaultAudiences: true },
+      )
+
+      expect(status).toBe(200)
+    })
+
+    it('condition filtering works correctly with realistic audience ID counts', async () => {
+      const aud1 = await testData.createAudience(payload, {
+        label: 'Audience 1',
+      })
+      const condAud = await testData.createAudience(payload, {
+        label: 'Condition Audience',
+      })
+
+      const cardWithCondition = await testData.createAppCard(payload, {
+        default: {
+          title: 'Card with Condition',
+          image: (await testData.createMediaImage(payload, { alt: 'test' })).id,
+        },
+        targetSections: ['hero'],
+        audiences: [aud1.id],
+        conditions: [condAud.id], // AND-gate: caller must have this ID too
+        _status: 'published',
+      })
+
+      // Caller has aud1 but NOT condAud → card should NOT appear
+      const { body: resultWithoutCond } = await callEndpoint(
+        payload,
+        { targetSection: 'hero', limit: 20 },
+        undefined,
+        { defaultAudiences: [aud1.id].join(',') },
+      )
+      const cardsWithoutCond = (resultWithoutCond as { docs: AppCard[] }).docs
+      expect(cardsWithoutCond.map((c) => c.id)).not.toContain(cardWithCondition.id)
+
+      // Caller has both aud1 AND condAud → card SHOULD appear
+      const { body: resultWithCond } = await callEndpoint(
+        payload,
+        { targetSection: 'hero', limit: 20 },
+        undefined,
+        { defaultAudiences: [aud1.id, condAud.id].join(',') },
+      )
+      const cardsWithCond = (resultWithCond as { docs: AppCard[] }).docs
+      expect(cardsWithCond.map((c) => c.id)).toContain(cardWithCondition.id)
+    })
+  })
 })

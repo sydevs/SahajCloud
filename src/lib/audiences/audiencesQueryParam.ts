@@ -57,5 +57,15 @@ export const audiencesQueryParamSchema = z
       return z.NEVER
     }
 
-    return [...new Set(ids)].sort((a, b) => a - b)
+    const dedupedIds = [...new Set(ids)].sort((a, b) => a - b)
+
+    if (dedupedIds.length > 1000) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'audiences list must not exceed 1000 unique IDs',
+      })
+      return z.NEVER
+    }
+
+    return dedupedIds
   })
