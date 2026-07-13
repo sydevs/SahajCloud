@@ -58,6 +58,25 @@ Table, Card, Tooltip, Drawer, Button, field primitives, icons, …); the catalog
 + rule live in `.claude/rules/admin-ui.md`. Only hand-roll a custom-styled
 component when no built-in fits, and note what was missing.
 
+## Prefer established dependencies over hand-rolled code
+
+Reach for a well-established dependency before writing our own version of
+something it already does. The goal is a **slim, maintainable** project that
+leans on battle-tested libraries — less code we own, fewer edge cases we have to
+get right ourselves, and behaviour the wider ecosystem already validates.
+
+- **Order of preference:** built-in platform API → a mature, widely-used
+  dependency → hand-rolled code as a last resort. Examples:
+  `AbortSignal.timeout()` / `AbortSignal.any()` over a custom fetch-timeout
+  wrapper; `p-map` / `p-retry` over a hand-written semaphore or retry loop;
+  `pg.escapeIdentifier()` over a bespoke identifier allowlist.
+- **New dependencies must be confirmed with the user** before adding — but they
+  should *always be considered*. Weigh maintenance, popularity/upkeep, bundle
+  size, and license; a small, widely-used, actively-maintained library usually
+  beats code we'd have to own and debug forever.
+- When you do hand-roll (no suitable dependency, or the dep isn't worth it), say
+  so and why — the same way we note a missing built-in component above.
+
 ## Icons (no emojis in UI)
 
 Don't use emojis as UI icons. Use a real icon component so size, colour, and
