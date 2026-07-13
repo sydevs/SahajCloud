@@ -327,7 +327,6 @@ describe('SyncLectureMetadata task', () => {
     // Track concurrent calls
     let maxConcurrent = 0
     let currentConcurrent = 0
-    const delays: number[] = []
 
     vi.mocked(fetchNirmalaVidyaVideo).mockImplementation(async () => {
       currentConcurrent++

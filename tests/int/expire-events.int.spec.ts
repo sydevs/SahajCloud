@@ -1,12 +1,10 @@
 import type { Payload } from 'payload'
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as Sentry from '@sentry/nextjs'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
-import type { Event } from '@/payload-types'
 
-import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 vi.mock('@sentry/nextjs', () => ({
@@ -60,10 +58,9 @@ describe('ExpireEvents job', () => {
 
   it('honors concurrency lock to prevent duplicate processing', async () => {
     // Create two due events that would be picked up by a concurrent run
-    const now = new Date()
-    const pastTime = new Date(now.getTime() - 24 * 60 * 60 * 1000) // 24h ago
+    const pastTime = new Date(new Date().getTime() - 24 * 60 * 60 * 1000) // 24h ago
 
-    const event1 = await payload.create({
+    await payload.create({
       collection: 'events',
       data: {
         title: 'Event 1',
@@ -73,7 +70,7 @@ describe('ExpireEvents job', () => {
       },
     })
 
-    const event2 = await payload.create({
+    await payload.create({
       collection: 'events',
       data: {
         title: 'Event 2',
@@ -98,12 +95,11 @@ describe('ExpireEvents job', () => {
   })
 
   it('captures per-event failures to Sentry with context', async () => {
-    const now = new Date()
-    const pastTime = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+    const pastTime = new Date(new Date().getTime() - 24 * 60 * 60 * 1000)
 
     // Create an event with a broken manager relationship that will cause
     // processEvent to throw
-    const event = await payload.create({
+    await payload.create({
       collection: 'events',
       data: {
         title: 'Bad Event',
@@ -133,11 +129,10 @@ describe('ExpireEvents job', () => {
   })
 
   it('continues processing after a per-event failure', async () => {
-    const now = new Date()
-    const pastTime = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+    const pastTime = new Date(new Date().getTime() - 24 * 60 * 60 * 1000)
 
     // Create a mix of valid and invalid events
-    const goodEvent = await payload.create({
+    await payload.create({
       collection: 'events',
       data: {
         title: 'Good Event',
@@ -148,7 +143,7 @@ describe('ExpireEvents job', () => {
     })
 
     // Event without manager — will fail but job should continue
-    const badEvent = await payload.create({
+    await payload.create({
       collection: 'events',
       data: {
         title: 'Bad Event',
