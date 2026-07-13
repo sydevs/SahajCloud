@@ -17,13 +17,20 @@ export const DEFAULT_FETCH_TIMEOUT_MS = 15_000
 export interface FetchWithTimeoutInit extends RequestInit {
   /** Abort the request after this many ms (default {@link DEFAULT_FETCH_TIMEOUT_MS}). */
   timeoutMs?: number
+  /** `fetch` implementation to use (default: the global `fetch`). Injectable for tests. */
+  fetchImpl?: typeof fetch
 }
 
 export async function fetchWithTimeout(
   input: string | URL | Request,
   init: FetchWithTimeoutInit = {},
 ): Promise<Response> {
-  const { timeoutMs = DEFAULT_FETCH_TIMEOUT_MS, signal: callerSignal, ...rest } = init
+  const {
+    timeoutMs = DEFAULT_FETCH_TIMEOUT_MS,
+    signal: callerSignal,
+    fetchImpl = fetch,
+    ...rest
+  } = init
 
   const controller = new AbortController()
   let timedOut = false
@@ -40,7 +47,7 @@ export async function fetchWithTimeout(
   }
 
   try {
-    return await fetch(input, { ...rest, signal: controller.signal })
+    return await fetchImpl(input, { ...rest, signal: controller.signal })
   } catch (error) {
     if (timedOut) {
       throw new Error(`Request timed out after ${timeoutMs}ms`, { cause: error })

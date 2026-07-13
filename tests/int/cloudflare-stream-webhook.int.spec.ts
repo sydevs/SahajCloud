@@ -40,11 +40,7 @@ async function computeSignature(rawBody: string, secret: string, time: number): 
     false,
     ['sign'],
   )
-  const signed = await crypto.subtle.sign(
-    'HMAC',
-    key,
-    encoder.encode(`${time}.${rawBody}`),
-  )
+  const signed = await crypto.subtle.sign('HMAC', key, encoder.encode(`${time}.${rawBody}`))
   const bytes = new Uint8Array(signed)
   let hex = ''
   for (let i = 0; i < bytes.length; i++) {
@@ -131,7 +127,11 @@ describe('Cloudflare Stream webhook handler', () => {
 
     it('rejects a signature signed with the wrong secret', async () => {
       const body = buildReadyPayload()
-      const sig = await computeSignature(body, 'some-other-secret-32-chars-minimum!', FAKE_NOW_SECONDS)
+      const sig = await computeSignature(
+        body,
+        'some-other-secret-32-chars-minimum!',
+        FAKE_NOW_SECONDS,
+      )
       const header = `time=${FAKE_NOW_SECONDS},sig1=${sig}`
       const result = await verifySignature(body, header, SECRET, FAKE_NOW_SECONDS)
       expect(result).toEqual({ ok: false, reason: 'mismatch' })
@@ -410,6 +410,46 @@ describe('Cloudflare Stream webhook handler', () => {
       })
 
       expect(result.status).toBe(400)
+    })
+
+    it('returns non-2xx when the downloads call times out (stalled Cloudflare API)', async () => {
+      const rawBody = buildReadyPayload()
+      const header = await signedHeader(rawBody)
+      const logger = makeLogger()
+
+      // A fetch that never settles on its own but honours the AbortSignal the
+      // timeout raises — exactly how the real `fetch` behaves on a stalled request.
+      const stallingFetchFn = vi.fn(
+        (_url: string | URL | Request, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              const err = new Error('The operation was aborted.')
+              err.name = 'AbortError'
+              reject(err)
+            })
+          }),
+      )
+
+      vi.spyOn(Date, 'now').mockReturnValue(FAKE_NOW_SECONDS * 1000)
+
+      // A tiny timeout keeps the test fast while exercising the real timeout path.
+      const result = await handleStreamWebhook({
+        rawBody,
+        signatureHeader: header,
+        secret: SECRET,
+        accountId: 'test-account-id',
+        apiKey: 'test-api-key',
+        logger,
+        fetchFn: stallingFetchFn as unknown as typeof fetch,
+        downloadsTimeoutMs: 20,
+      })
+
+      // Timeout → fetchWithTimeout rejects → caught → 500 so Cloudflare retries.
+      expect(result.status).toBe(500)
+      expect(stallingFetchFn).toHaveBeenCalledTimes(1)
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ msg: 'Error enabling MP4 downloads via webhook' }),
+      )
     })
   })
 })

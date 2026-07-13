@@ -9,6 +9,8 @@
  */
 import { z } from 'zod'
 
+import { fetchWithTimeout } from '@/lib/utilities/fetchWithTimeout'
+
 import {
   CloudflareStreamDownloadsResponseSchema,
   CloudflareStreamWebhookPayloadSchema,
@@ -110,11 +112,7 @@ export async function verifySignature(
     false,
     ['sign'],
   )
-  const signed = await crypto.subtle.sign(
-    'HMAC',
-    key,
-    encoder.encode(`${parsed.time}.${rawBody}`),
-  )
+  const signed = await crypto.subtle.sign('HMAC', key, encoder.encode(`${parsed.time}.${rawBody}`))
   const expectedHex = bufferToHex(signed)
 
   if (!constantTimeEqual(parsed.sig.toLowerCase(), expectedHex)) {
@@ -136,9 +134,19 @@ export async function handleStreamWebhook(params: {
   apiKey: string | undefined
   logger: WebhookLogger
   fetchFn?: typeof fetch
+  /** Timeout for the MP4-downloads-enable call (default 45s). Overridable in tests. */
+  downloadsTimeoutMs?: number
 }): Promise<{ status: number; body: unknown }> {
-  const { rawBody, signatureHeader, secret, accountId, apiKey, logger } = params
-  const doFetch = params.fetchFn ?? fetch
+  const {
+    rawBody,
+    signatureHeader,
+    secret,
+    accountId,
+    apiKey,
+    logger,
+    fetchFn,
+    downloadsTimeoutMs = 45_000,
+  } = params
 
   if (!secret) {
     logger.warn({ msg: 'Cloudflare Stream webhook secret not configured' })
@@ -207,16 +215,20 @@ export async function handleStreamWebhook(params: {
   }
 
   try {
-    const response = await doFetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${uid}/downloads`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
+    // Enable MP4 downloads with a bounded timeout so a stalled Cloudflare API
+    // can't hang the webhook: on timeout `fetchWithTimeout` rejects, the catch
+    // below returns a non-2xx, and Cloudflare retries. `fetchFn` is injected in
+    // tests; it defaults to the global `fetch` in production.
+    const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${uid}/downloads`
+    const response = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
       },
-    )
+      timeoutMs: downloadsTimeoutMs,
+      fetchImpl: fetchFn,
+    })
 
     const result = CloudflareStreamDownloadsResponseSchema.parse(await response.json())
 

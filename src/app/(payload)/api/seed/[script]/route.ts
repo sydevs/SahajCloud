@@ -27,7 +27,6 @@
  */
 
 import type { BaseImporter } from '../../../../../../seeds/lib/BaseImporter'
-import type { PaginationOptions, PaginationResult } from '../../../../../../seeds/lib/pagination'
 import type { NextRequest } from 'next/server'
 
 import { getPayload } from 'payload'
@@ -39,6 +38,11 @@ import {
   verifyCountsForScript,
   type ScriptName,
 } from '../../../../../../seeds/lib/expectedCounts'
+import {
+  validatePaginationParam,
+  type PaginationOptions,
+  type PaginationResult,
+} from '../../../../../../seeds/lib/pagination'
 
 const VALID_SCRIPTS: ScriptName[] = [
   'tags',
@@ -189,6 +193,17 @@ export async function POST(
         headers: { 'Content-Type': 'application/json' },
       },
     )
+  }
+
+  // Validate offset and limit are non-negative integers (helper is unit-tested
+  // in seeds/lib/pagination.ts, so this path is covered without a running server).
+  const paginationError =
+    validatePaginationParam('offset', offsetParam) ?? validatePaginationParam('limit', limitParam)
+  if (paginationError) {
+    return new Response(JSON.stringify(paginationError), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
   // Build pagination options if collection is specified

@@ -10,7 +10,7 @@ import { APIError } from 'payload'
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 import type { Client } from '@/payload-types'
 
-import { getDbSchema, getPgPool } from './db'
+import { getPgPool, quotedDbSchema } from './db'
 import { extractRequestHost, isHostAllowed, parseAllowedDomains } from './originEnforcement'
 
 const SKIP_VALIDATION = 'skipClientQueryValidation'
@@ -271,8 +271,8 @@ export const validateClientOriginHook: CollectionBeforeOperationHook = ({ args, 
  * Atomic Postgres UPDATE for incrementing usage counters. The `clients` table is
  * schema-qualified because a raw pool query doesn't honor the adapter's schema.
  */
-const usageIncrementSql = (schema: string) => `
-  UPDATE "${schema}".clients
+const usageIncrementSql = (quotedSchema: string) => `
+  UPDATE ${quotedSchema}.clients
   SET usage_daily_requests = COALESCE(usage_daily_requests, 0) + 1,
       usage_total_requests = COALESCE(usage_total_requests, 0) + 1,
       usage_last_request_at = $1,
@@ -323,7 +323,7 @@ export const usageTrackingBeforeOperationHook: CollectionBeforeOperationHook = a
       return
     }
 
-    await pool.query(usageIncrementSql(getDbSchema(req)), [now, now, clientId])
+    await pool.query(usageIncrementSql(quotedDbSchema(req)), [now, now, clientId])
   } catch (error) {
     // Fail open - don't block API requests if tracking fails
     req.payload.logger.error({
