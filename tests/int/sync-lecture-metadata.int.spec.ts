@@ -235,4 +235,124 @@ describe('SyncLectureMetadata task', () => {
     expect(output.synced).toBe(0)
     expect(output.failed).toBe(0)
   })
+
+  it('retries transient failures with exponential backoff', async () => {
+    const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
+
+    const lecture = await testData.createLecture(payload, undefined, {
+      nirmalVidyaVimeoUrl: 'https://vimeo.com/50000001',
+    })
+
+    // Mock transient failure on first attempt, success on retry
+    let callCount = 0
+    vi.mocked(fetchNirmalaVidyaVideo).mockImplementation(async () => {
+      callCount++
+      if (callCount === 1) {
+        // First call: timeout (transient failure)
+        throw new Error('Request timed out after 15000ms')
+      }
+      // Second call (retry): success
+      return {
+        title: 'Recovered Video',
+        thumbnailUrl: 'https://example.com/thumb.jpg',
+        hlsUrl: 'https://example.com/video.m3u8',
+        subtitles: [],
+        duration: null,
+      }
+    })
+
+    const output = await runTask(payload, { lectureIds: [lecture.id] })
+
+    // Verify the retry succeeded (synced count > 0)
+    expect(output.synced).toBeGreaterThanOrEqual(1)
+    expect(output.failed).toBe(0)
+
+    // Verify it was retried (callCount > 1)
+    expect(callCount).toBeGreaterThan(1)
+  })
+
+  it('exhausts retries and logs permanent failure without aborting batch', async () => {
+    const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
+
+    const lectureOk = await testData.createLecture(payload, undefined, {
+      nirmalVidyaVimeoUrl: 'https://vimeo.com/60000001',
+    })
+    const lectureFail = await testData.createLecture(payload, undefined, {
+      nirmalVidyaVimeoUrl: 'https://vimeo.com/60000002',
+    })
+
+    let failCount = 0
+    vi.mocked(fetchNirmalaVidyaVideo).mockImplementation(async (vimeoId: string) => {
+      // Always fail for lectureFail
+      if (vimeoId === '60000002') {
+        failCount++
+        throw new Error('Permanent API failure (e.g., 401 Unauthorized)')
+      }
+      // Succeed for lectureOk
+      return {
+        title: 'OK Video',
+        thumbnailUrl: 'https://example.com/thumb.jpg',
+        hlsUrl: 'https://example.com/video.m3u8',
+        subtitles: [],
+        duration: null,
+      }
+    })
+
+    const output = await runTask(payload, {
+      lectureIds: [lectureOk.id, lectureFail.id],
+    })
+
+    // Expect the batch to complete: OK synced, Fail counted as failed
+    expect(output.totalProcessed).toBe(2)
+    expect(output.synced).toBe(1)
+    expect(output.failed).toBe(1)
+
+    // Verify retry was attempted (3 attempts max)
+    expect(failCount).toBe(3)
+  })
+
+  it('processes lectures with bounded concurrency', async () => {
+    const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
+
+    // Create multiple lectures to exercise concurrency
+    const lectureCount = 20
+    const lectureIds: number[] = []
+    for (let i = 0; i < lectureCount; i++) {
+      const lecture = await testData.createLecture(payload, undefined, {
+        nirmalVidyaVimeoUrl: `https://vimeo.com/${70000000 + i}`,
+      })
+      lectureIds.push(lecture.id)
+    }
+
+    // Track concurrent calls
+    let maxConcurrent = 0
+    let currentConcurrent = 0
+
+    vi.mocked(fetchNirmalaVidyaVideo).mockImplementation(async () => {
+      currentConcurrent++
+      maxConcurrent = Math.max(maxConcurrent, currentConcurrent)
+
+      // Simulate API call with minimal delay
+      await new Promise((resolve) => setTimeout(resolve, 5))
+
+      currentConcurrent--
+      return {
+        title: 'Test',
+        thumbnailUrl: 'https://example.com/thumb.jpg',
+        hlsUrl: 'https://example.com/video.m3u8',
+        subtitles: [],
+        duration: null,
+      }
+    })
+
+    const output = await runTask(payload, { lectureIds })
+
+    // Verify all were synced
+    expect(output.synced).toBe(lectureCount)
+    expect(output.failed).toBe(0)
+
+    // Verify bounded concurrency was enforced: max should be <= 10
+    expect(maxConcurrent).toBeLessThanOrEqual(10)
+    expect(maxConcurrent).toBeGreaterThan(1) // At least some parallelism
+  })
 })

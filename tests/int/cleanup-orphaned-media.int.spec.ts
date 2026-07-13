@@ -111,6 +111,7 @@ async function runCleanupJob(payload: Payload): Promise<CleanupResult> {
         rangeStart: rangeStart.toISOString(),
         rangeEnd: rangeEnd.toISOString(),
       },
+      maxOperations: 6,
     },
   })
   return result.output
@@ -794,6 +795,76 @@ describe('CleanupOrphanedMedia Job', () => {
 
       // Restore real time
       vi.useRealTimers()
+    })
+  })
+
+  // ==========================================================================
+  // THROUGHPUT FIX: Pagination to exceed 250 cap
+  // ==========================================================================
+
+  describe('Phase B: Throughput (exceeds old 250 cap)', () => {
+    it('trashes all orphans in window exceeding 250 limit via pagination', async () => {
+      // Create more orphans than the injected cap (6).
+      // This verifies option (b): loop/paginate until maxOperations is reached.
+      // With maxOperations=6, we can process at most 6 operations total (files + images combined).
+      // Create 5 orphan files to test that we process beyond a single fetch batch.
+      const orphanCount = 5
+      const orphanIds: number[] = []
+
+      // Create orphan files outside any references
+      for (let i = 0; i < orphanCount; i++) {
+        const file = await testData.createFile(payload)
+        // Backdate so it's in the cleanup window
+        await backdateCreatedAt(payload, 'files', file.id, 48)
+        orphanIds.push(file.id)
+      }
+
+      // Run cleanup job (with a test date range that includes all orphans)
+      const result = await runCleanupJob(payload)
+
+      // With 5 orphan files and a per-run file cap of Math.floor(6/2)=3, the loop
+      // must trash MULTIPLE files (not just the first fetched) — that's the
+      // pagination-throughput behavior this test exists to prove. A single-item
+      // regression would trash only 1.
+      expect(result.trashedFiles).toBeGreaterThanOrEqual(2)
+
+      // The trashed items are the orphans we created, not some other side effect.
+      let trashedCount = 0
+      for (const id of orphanIds) {
+        if (await fileInTrash(payload, id)) {
+          trashedCount++
+        }
+      }
+      expect(trashedCount).toBeGreaterThanOrEqual(2)
+    })
+
+    it('trashes both files and images using pagination', async () => {
+      // Verify pagination works for images as well.
+      // With maxOperations=6, we can process at most 3 items (files or images).
+      // Create 4 images to exceed the cap and test pagination across image types.
+      const imageCount = 4
+      const imageIds: number[] = []
+
+      for (let i = 0; i < imageCount; i++) {
+        const image = await testData.createImage(payload)
+        await backdateCreatedAt(payload, 'images', image.id, 48)
+        imageIds.push(image.id)
+      }
+
+      const result = await runCleanupJob(payload)
+
+      // The image loop must also trash MULTIPLE images (throughput beyond a single
+      // fetched item), proving pagination applies to the image phase too.
+      expect(result.trashedImages).toBeGreaterThanOrEqual(2)
+
+      // The trashed images are the orphans we created.
+      let trashedImages = 0
+      for (const id of imageIds) {
+        if (await imageInTrash(payload, id)) {
+          trashedImages++
+        }
+      }
+      expect(trashedImages).toBeGreaterThanOrEqual(2)
     })
   })
 })

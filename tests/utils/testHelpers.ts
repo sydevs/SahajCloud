@@ -113,6 +113,9 @@ function createBaseTestConfig(emailConfig: any, schemaName: string) {
     jobs: {
       tasks,
       deleteJobOnComplete: true,
+      // Mirror payload.config.ts: tasks that declare `concurrency` (e.g.
+      // expireEvents) require this, or Payload 3.86 refuses to build the config.
+      enableConcurrencyControl: true,
     },
     plugins: [
       usagePlugin({ enabled: true }),

@@ -60,6 +60,11 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
       type: 'json',
       required: false,
     },
+    {
+      name: 'maxOperations',
+      type: 'number',
+      required: false,
+    },
   ],
   outputSchema: [
     {
@@ -100,7 +105,7 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
     },
   ],
   handler: async ({ req, input }) => {
-    const maxOperations = 500
+    const maxOperations = typeof input?.maxOperations === 'number' ? input.maxOperations : 500
     const gracePeriodHours = 24
 
     let rangeStart: Date
@@ -203,7 +208,9 @@ function getTotalOperations(result: CleanupResult): number {
  * @param config.resultKey - Which counter to increment on success
  * @param config.maxItemsToProcess - Maximum number of items to process (for early exit optimization)
  */
-interface ProcessItemsConfig<T extends { id: number; filename?: string | null; createdAt?: string }> {
+interface ProcessItemsConfig<
+  T extends { id: number; filename?: string | null; createdAt?: string },
+> {
   req: PayloadRequest
   collection: 'files' | 'images'
   docs: T[]
@@ -336,6 +343,13 @@ async function permanentlyDeleteTrashedItems(
 
 /**
  * Phase B: Move newly detected orphans to trash (soft delete)
+ *
+ * Option (b): Pagination strategy — loops through the date window fetching
+ * candidates until we collect enough orphans to reach maxItemsToProcess for each
+ * collection. This ensures all orphans in the window are eventually cleaned up,
+ * not just the first batch. The reference filter (which excludes referenced
+ * files/images) means naively lowering the fetch limit would starve throughput
+ * when referenced items are dense in the window; pagination solves this.
  */
 async function trashOrphanedMedia(
   req: PayloadRequest,
@@ -356,22 +370,34 @@ async function trashOrphanedMedia(
     referencedImageCount: referencedImages.size,
   })
 
-  // Find orphaned files (in date range, not already in trash, not referenced)
-  const potentialOrphanFiles = await req.payload.find({
-    collection: 'files',
-    where: {
-      and: [
-        { createdAt: { greater_than_equal: rangeStart.toISOString() } },
-        { createdAt: { less_than: rangeEnd.toISOString() } },
-        { deletedAt: { exists: false } }, // Not already in trash
-      ],
-    },
-    limit: maxOperations,
-    depth: 0,
-  })
+  // Paginate through files until we collect maxItemsToProcess orphans
+  const maxFilesToProcess = Math.floor(maxOperations / 2)
+  const orphanFiles: Array<{ id: number; filename?: string | null; createdAt?: string }> = []
+  let filePageNum = 1
+  let hasMoreFiles = true
 
-  // Filter unreferenced files and process with early exit
-  const orphanFiles = potentialOrphanFiles.docs.filter((file) => !referencedFiles.has(file.id))
+  while (hasMoreFiles && orphanFiles.length < maxFilesToProcess) {
+    const potentialOrphanFiles = await req.payload.find({
+      collection: 'files',
+      where: {
+        and: [
+          { createdAt: { greater_than_equal: rangeStart.toISOString() } },
+          { createdAt: { less_than: rangeEnd.toISOString() } },
+          { deletedAt: { exists: false } }, // Not already in trash
+        ],
+      },
+      limit: PAGINATION_LIMIT,
+      page: filePageNum,
+      depth: 0,
+    })
+
+    // Filter out referenced files and add to orphan collection
+    const batchOrphans = potentialOrphanFiles.docs.filter((file) => !referencedFiles.has(file.id))
+    orphanFiles.push(...batchOrphans)
+
+    hasMoreFiles = potentialOrphanFiles.hasNextPage
+    filePageNum++
+  }
 
   await processItems({
     req,
@@ -380,47 +406,62 @@ async function trashOrphanedMedia(
     operation: 'trash',
     result,
     resultKey: 'trashedFiles',
-    maxItemsToProcess: Math.floor(maxOperations / 2),
+    maxItemsToProcess: maxFilesToProcess,
   })
 
-  // Find orphaned images (in date range, not already in trash, not referenced, no content tags)
-  const remainingOps = maxOperations - result.trashedFiles
-  const potentialOrphanImages = await req.payload.find({
-    collection: 'images',
-    where: {
-      and: [
-        { createdAt: { greater_than_equal: rangeStart.toISOString() } },
-        { createdAt: { less_than: rangeEnd.toISOString() } },
-        { deletedAt: { exists: false } }, // Not already in trash
-      ],
-    },
-    limit: remainingOps * 2, // Get more to account for filtering
-    depth: 1, // Include tag objects to check titles
-  })
+  // Paginate through images until we collect remaining orphans
+  const maxImagesToProcess = maxOperations - result.trashedFiles
+  const orphanImages: Array<{
+    id: number
+    filename?: string | null
+    createdAt?: string
+    tags?: unknown
+  }> = []
+  let imagePageNum = 1
+  let hasMoreImages = true
 
-  // Filter unreferenced images without content tags, tracking skipped count
-  // Orientation tags (landscape, portrait, square) are auto-generated and don't count as "intentional" tags
-  // Note: We filter inline and track skipped images, but processItems() handles the early exit
-  const orphanImages = potentialOrphanImages.docs.filter((image) => {
-    // Skip if image is referenced
-    if (referencedImages.has(image.id)) {
-      return false
-    }
+  while (hasMoreImages && orphanImages.length < maxImagesToProcess) {
+    const potentialOrphanImages = await req.payload.find({
+      collection: 'images',
+      where: {
+        and: [
+          { createdAt: { greater_than_equal: rangeStart.toISOString() } },
+          { createdAt: { less_than: rangeEnd.toISOString() } },
+          { deletedAt: { exists: false } }, // Not already in trash
+        ],
+      },
+      limit: PAGINATION_LIMIT,
+      page: imagePageNum,
+      depth: 1, // Include tag objects to check titles
+    })
 
-    // Skip if image has content tags (ignore auto-generated orientation tags)
-    // Image tags are now inline enum strings, not relationships
-    const hasContentTags =
-      Array.isArray(image.tags) &&
-      (image.tags as ImageTag[]).some(
-        (tag) => typeof tag === 'string' && !ORIENTATION_TAG_TITLES.includes(tag),
-      )
-    if (hasContentTags) {
-      result.skippedImages++
-      return false
-    }
+    // Filter unreferenced images without content tags
+    const batchOrphans = potentialOrphanImages.docs.filter((image) => {
+      // Skip if image is referenced
+      if (referencedImages.has(image.id)) {
+        return false
+      }
 
-    return true
-  })
+      // Skip if image has content tags (ignore auto-generated orientation tags)
+      // Image tags are now inline enum strings, not relationships
+      const hasContentTags =
+        Array.isArray(image.tags) &&
+        (image.tags as ImageTag[]).some(
+          (tag) => typeof tag === 'string' && !ORIENTATION_TAG_TITLES.includes(tag),
+        )
+      if (hasContentTags) {
+        result.skippedImages++
+        return false
+      }
+
+      return true
+    })
+
+    orphanImages.push(...batchOrphans)
+
+    hasMoreImages = potentialOrphanImages.hasNextPage
+    imagePageNum++
+  }
 
   await processItems({
     req,
@@ -429,7 +470,7 @@ async function trashOrphanedMedia(
     operation: 'trash',
     result,
     resultKey: 'trashedImages',
-    maxItemsToProcess: remainingOps,
+    maxItemsToProcess: maxImagesToProcess,
   })
 
   req.payload.logger.info({
@@ -472,12 +513,7 @@ async function getAllReferencedIds(
 
   // Scan regular field references
   for (const [collectionSlug, collectionRefs] of byCollection) {
-    await scanCollectionForReferences(
-      payload,
-      collectionSlug,
-      collectionRefs,
-      referencedIds,
-    )
+    await scanCollectionForReferences(payload, collectionSlug, collectionRefs, referencedIds)
   }
 
   // Scan Lexical content for block references
