@@ -15,6 +15,61 @@ type SyncLectureMetadataInput = {
 }
 
 const PAGINATION_LIMIT = 1000
+const MAX_CONCURRENT_FETCHES = 10
+
+/**
+ * Simple semaphore for bounding concurrent operations. Tracks in-flight
+ * promises and queues new work until a slot is available.
+ */
+class SimpleSemaphore {
+  private currentCount = 0
+
+  constructor(private maxConcurrent: number) {}
+
+  async acquire(): Promise<void> {
+    while (this.currentCount >= this.maxConcurrent) {
+      // Spin briefly, allowing other microtasks to complete
+      await new Promise((resolve) => setTimeout(resolve, 1))
+    }
+    this.currentCount++
+  }
+
+  release(): void {
+    this.currentCount--
+  }
+}
+
+/**
+ * Retry with exponential backoff + jitter. Retries up to `maxAttempts` times
+ * with delay = baseDelayMs * (2 ^ attemptNum) + random jitter.
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 3,
+  baseDelayMs = 1000,
+): Promise<T> {
+  let lastError: Error | null = null
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+
+      // On last attempt, don't delay
+      if (attempt < maxAttempts - 1) {
+        // Exponential backoff: delay = baseDelayMs * 2^attempt
+        const exponentialDelay = baseDelayMs * Math.pow(2, attempt)
+        // Add jitter: ±25% random factor
+        const jitter = exponentialDelay * (0.75 + Math.random() * 0.5)
+        await new Promise((resolve) => setTimeout(resolve, jitter))
+      }
+    }
+  }
+
+  // All retries exhausted; throw the last error
+  throw lastError
+}
 
 /**
  * Monthly sync job — refreshes `lectures.metadata` from the Nirmala Vidya API.
@@ -69,7 +124,10 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
     req.payload.logger.info({
       msg: 'Starting SyncLectureMetadata',
       scope: where ? `lectureIds[${lectureIds!.length}]` : 'all lectures',
+      maxConcurrentFetches: MAX_CONCURRENT_FETCHES,
     })
+
+    const semaphore = new SimpleSemaphore(MAX_CONCURRENT_FETCHES)
 
     let page = 1
     let hasNextPage = true
@@ -83,7 +141,8 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
         depth: 0,
       })
 
-      for (const lecture of batch.docs) {
+      // Process batch with bounded concurrency via semaphore
+      const promises = batch.docs.map(async (lecture) => {
         result.totalProcessed++
 
         const vimeoUrl = lecture.nirmalVidyaVimeoUrl
@@ -95,11 +154,16 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
             lectureId: lecture.id,
             vimeoUrl,
           })
-          continue
+          return
         }
 
+        await semaphore.acquire()
         try {
-          const videoData = await fetchNirmalaVidyaVideo(vimeoId)
+          const videoData = await retryWithBackoff(
+            () => fetchNirmalaVidyaVideo(vimeoId),
+            3, // maxAttempts
+            1000, // baseDelayMs
+          )
           const metadata = buildLectureMetadata(videoData)
 
           await req.payload.update({
@@ -112,13 +176,17 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
         } catch (error) {
           result.failed++
           req.payload.logger.warn({
-            msg: 'SyncLectureMetadata: per-lecture failure — continuing batch',
+            msg: 'SyncLectureMetadata: per-lecture failure after retries — continuing batch',
             lectureId: lecture.id,
             vimeoId,
             error: error instanceof Error ? error.message : String(error),
           })
+        } finally {
+          semaphore.release()
         }
-      }
+      })
+
+      await Promise.all(promises)
 
       hasNextPage = batch.hasNextPage
       page++

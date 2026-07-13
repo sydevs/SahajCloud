@@ -1,5 +1,7 @@
 import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
+import * as Sentry from '@sentry/nextjs'
+
 import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
 import {
   asNotificationLog,
@@ -226,6 +228,10 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
   slug: 'expireEvents',
   label: 'Expire Events',
   retries: 1,
+  concurrency: {
+    key: () => 'expireEvents',
+    exclusive: true,
+  },
   outputSchema: [
     { name: 'processed', type: 'number', required: true },
     { name: 'finished', type: 'number', required: true },
@@ -288,6 +294,10 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
         await processEvent({ payload, req, event, now, result })
       } catch (error) {
         result.failed++
+        Sentry.withScope((scope) => {
+          scope.setContext('expireEvents', { eventId: id })
+          Sentry.captureException(error)
+        })
         req.payload.logger.warn({
           msg: 'ExpireEvents: per-event failure — continuing',
           eventId: id,
