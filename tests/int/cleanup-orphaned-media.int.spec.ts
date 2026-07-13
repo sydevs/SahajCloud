@@ -822,19 +822,20 @@ describe('CleanupOrphanedMedia Job', () => {
       // Run cleanup job (with a test date range that includes all orphans)
       const result = await runCleanupJob(payload)
 
-      // Verify we processed at least some orphans, proving pagination works
-      // We should process files up to the maxOperations cap.
-      const totalTrashOperations = result.trashedFiles + result.trashedImages
-      expect(totalTrashOperations).toBeGreaterThan(0)
+      // With 5 orphan files and a per-run file cap of Math.floor(6/2)=3, the loop
+      // must trash MULTIPLE files (not just the first fetched) — that's the
+      // pagination-throughput behavior this test exists to prove. A single-item
+      // regression would trash only 1.
+      expect(result.trashedFiles).toBeGreaterThanOrEqual(2)
 
-      // Spot-check: verify at least some of our created orphans are trashed
+      // The trashed items are the orphans we created, not some other side effect.
       let trashedCount = 0
       for (const id of orphanIds) {
         if (await fileInTrash(payload, id)) {
           trashedCount++
         }
       }
-      expect(trashedCount).toBeGreaterThan(0)
+      expect(trashedCount).toBeGreaterThanOrEqual(2)
     })
 
     it('trashes both files and images using pagination', async () => {
@@ -852,22 +853,18 @@ describe('CleanupOrphanedMedia Job', () => {
 
       const result = await runCleanupJob(payload)
 
-      // With pagination, we should process some orphan images.
-      // Exact count depends on file processing consuming part of the budget,
-      // but pagination ensures we process beyond the initial fetch limit.
-      expect(result.trashedImages).toBeGreaterThanOrEqual(0)
+      // The image loop must also trash MULTIPLE images (throughput beyond a single
+      // fetched item), proving pagination applies to the image phase too.
+      expect(result.trashedImages).toBeGreaterThanOrEqual(2)
 
-      // At least one image should be trashed
+      // The trashed images are the orphans we created.
       let trashedImages = 0
       for (const id of imageIds) {
         if (await imageInTrash(payload, id)) {
           trashedImages++
         }
       }
-      // Spot-check that some images were processed
-      if (imageCount > 0 && result.trashedImages > 0) {
-        expect(trashedImages).toBeGreaterThan(0)
-      }
+      expect(trashedImages).toBeGreaterThanOrEqual(2)
     })
   })
 })

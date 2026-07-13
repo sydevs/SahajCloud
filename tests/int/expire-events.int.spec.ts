@@ -8,8 +8,14 @@ import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
+// Hoisted so the vi.mock factory (hoisted above imports) can close over it, while
+// the tests can still assert what context the handler attached to the Sentry scope.
+const { setContextMock } = vi.hoisted(() => ({ setContextMock: vi.fn() }))
+
 vi.mock('@sentry/nextjs', () => ({
-  withScope: vi.fn((callback) => callback({ setContext: vi.fn() })),
+  withScope: vi.fn((callback: (scope: { setContext: typeof setContextMock }) => void) =>
+    callback({ setContext: setContextMock }),
+  ),
   captureException: vi.fn(),
 }))
 
@@ -39,6 +45,35 @@ async function runTask(payload: Payload): Promise<ExpireResult> {
   return result.output as ExpireResult
 }
 
+/** Make `payload.findByID` throw for one event id (mimics a broken record), pass through otherwise. */
+function failEventLoad(payload: Payload, failingId: number) {
+  const original = payload.findByID.bind(payload)
+  return vi.spyOn(payload, 'findByID').mockImplementation(((
+    args: Parameters<typeof payload.findByID>[0],
+  ) => {
+    if (args.collection === 'events' && args.id === failingId) {
+      throw new Error('simulated per-event processing failure')
+    }
+    return original(args)
+  }) as typeof payload.findByID)
+}
+
+const DUE = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() // 24h ago
+
+async function createDueEvent(payload: Payload, title: string) {
+  const event = await testData.createEvent(payload, { title, verificationStage: 'verified' })
+  // The handler only picks up events whose nextCheckAt has passed. `skipVerifyHook`
+  // is the same context flag the real job uses so the verifyOnSave beforeChange
+  // hook doesn't clobber our backdated value with `now + cadence`.
+  await payload.update({
+    collection: 'events',
+    id: event.id,
+    data: { nextCheckAt: DUE },
+    context: { skipVerifyHook: true },
+  })
+  return event
+}
+
 describe('ExpireEvents job', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
@@ -57,105 +92,59 @@ describe('ExpireEvents job', () => {
     vi.clearAllMocks()
   })
 
-  it('honors concurrency lock to prevent duplicate processing', async () => {
-    // Create two due events that would be picked up by a concurrent run
-    const pastTime = new Date(new Date().getTime() - 24 * 60 * 60 * 1000) // 24h ago
+  it('declares the single-run concurrency lock and processes each due event once', async () => {
+    // The lock itself is enforced by Payload's queue at runtime; what's under our
+    // control (and what this asserts) is that the task declares it correctly.
+    const concurrency = ExpireEvents.concurrency as
+      | { key: (args: { input: unknown; queue: string }) => string; exclusive?: boolean }
+      | undefined
+    expect(concurrency).toBeDefined()
+    expect(concurrency!.exclusive).toBe(true)
+    expect(concurrency!.key({ input: {}, queue: 'nightly' })).toBe('expireEvents')
 
-    const event1 = await testData.createEvent(payload, {
-      title: 'Event 1',
-      verificationStage: 'verified',
-    })
-    // Manually set nextCheckAt to trigger processing
-    await payload.update({
-      collection: 'events',
-      id: event1.id,
-      data: {
-        nextCheckAt: pastTime.toISOString(),
-      },
-    })
-
-    const event2 = await testData.createEvent(payload, {
-      title: 'Event 2',
-      verificationStage: 'verified',
-    })
-    await payload.update({
-      collection: 'events',
-      id: event2.id,
-      data: {
-        nextCheckAt: pastTime.toISOString(),
-      },
-    })
-
-    // Run the task twice in rapid succession; the concurrency lock should
-    // serialize them so each event is processed exactly once.
-    // (Note: testing true concurrency requires forking — this verifies the
-    // config is present and typecheck passes; actual duplicate prevention
-    // is tested by CI's parallel runner.)
-    const result1 = await runTask(payload)
-    const result2 = await runTask(payload)
-
-    // Both runs should complete; together they should process both events
-    expect(result1.processed + result2.processed).toBeGreaterThanOrEqual(0)
-  })
-
-  it('captures per-event failures to Sentry with context', async () => {
-    const pastTime = new Date(new Date().getTime() - 24 * 60 * 60 * 1000)
-
-    // Create a valid event for testing
-    const event = await testData.createEvent(payload, {
-      title: 'Test Event',
-      verificationStage: 'verified',
-    })
-
-    // Set nextCheckAt to trigger processing
-    await payload.update({
-      collection: 'events',
-      id: event.id,
-      data: {
-        nextCheckAt: pastTime.toISOString(),
-      },
-    })
+    await createDueEvent(payload, 'Event 1')
+    await createDueEvent(payload, 'Event 2')
 
     const result = await runTask(payload)
 
-    // The job should run without throwing, demonstrating the concurrency
-    // lock config is present and the handler executes successfully.
-    // Sentry integration is tested at the implementation level, not by
-    // forcing contrived failures in tests.
-    expect(result.processed).toBeGreaterThanOrEqual(0)
-
-    // Verify Sentry mocks exist and can be called (demonstrates integration setup)
-    const withScopeSpy = vi.mocked(Sentry.withScope)
-    expect(withScopeSpy).toBeDefined()
+    // Both due events attempted exactly once, none failed.
+    expect(result.processed).toBe(2)
+    expect(result.failed).toBe(0)
   })
 
-  it('continues processing after a per-event failure', async () => {
-    const pastTime = new Date(new Date().getTime() - 24 * 60 * 60 * 1000)
+  it('captures a per-event processing failure to Sentry with the event id', async () => {
+    const failing = await createDueEvent(payload, 'Failing')
+    await createDueEvent(payload, 'Healthy')
 
-    // Create multiple valid events due for processing
-    const event1 = await testData.createEvent(payload, {
-      title: 'Event 1',
-      verificationStage: 'verified',
-    })
-    await payload.update({
-      collection: 'events',
-      id: event1.id,
-      data: { nextCheckAt: pastTime.toISOString() },
-    })
+    const spy = failEventLoad(payload, failing.id)
+    try {
+      const result = await runTask(payload)
 
-    const event2 = await testData.createEvent(payload, {
-      title: 'Event 2',
-      verificationStage: 'verified',
-    })
-    await payload.update({
-      collection: 'events',
-      id: event2.id,
-      data: { nextCheckAt: pastTime.toISOString() },
-    })
+      // The failure is caught, counted, and reported to Sentry tagged with the event id.
+      expect(result.failed).toBe(1)
+      expect(Sentry.captureException).toHaveBeenCalledTimes(1)
+      expect(setContextMock).toHaveBeenCalledWith('expireEvents', { eventId: failing.id })
+    } finally {
+      spy.mockRestore()
+    }
+  })
 
-    const result = await runTask(payload)
+  it('continues the sweep after a per-event failure', async () => {
+    const failing = await createDueEvent(payload, 'Failing')
+    await createDueEvent(payload, 'Healthy')
 
-    // Job should complete processing multiple events
-    expect(result.processed).toBeGreaterThanOrEqual(0)
+    const spy = failEventLoad(payload, failing.id)
+    try {
+      const result = await runTask(payload)
+
+      // At least our two events were attempted and exactly one failed (the one we
+      // forced) — so the sweep did not abort on the first failure; it kept going
+      // and processed the healthy event. (>= 2 because a failed event from an
+      // earlier test stays due — the failure means it never advanced.)
+      expect(result.processed).toBeGreaterThanOrEqual(2)
+      expect(result.failed).toBe(1)
+    } finally {
+      spy.mockRestore()
+    }
   })
 })
