@@ -4949,7 +4949,7 @@ export interface WmAppTranslation {
       | boolean
       | null;
     /**
-     * Inline legal disclaimer below the primary CTAs. Renders two inline links to the in-app Terms and Privacy Policy webviews (URLs use the wemeditate://legal/* scheme — see ticket for full reference). Translators control word order, link placement, and the connector between the two link labels.
+     * Small legal notice with links to Terms and Privacy Policy.
      */
     welcome_legal_disclaimer?: {
       root: {
@@ -4994,7 +4994,7 @@ export interface WmAppTranslation {
       | boolean
       | null;
     /**
-     * Screen title prompt (e.g. 'Have you tried Sahaja Yoga before?'). The brand fragment 'Sahaja Yoga' is rendered as a bold inline span; translators may choose a different word to bold or apply no bold per locale convention.
+     * Question asking if they've tried Sahaja Yoga before.
      */
     user_type_title?: {
       root: {
@@ -5021,7 +5021,7 @@ export interface WmAppTranslation {
       | boolean
       | null;
     /**
-     * Slide 2 title (e.g. 'Get to know your true self'). The 'true self' fragment is rendered as a bold inline span; the Flutter renderer may also apply an accent colour to bolded segments on this slide.
+     * Title on the second intro slide.
      */
     carousel_page_true_self_title?: {
       root: {
@@ -5048,7 +5048,7 @@ export interface WmAppTranslation {
       | boolean
       | null;
     /**
-     * Third paragraph listing categories that are never sent for advertising (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Lead phrase 'We'll never share' is rendered as a bold inline span. Must remain consistent with the privacy filter in analytics-simplified/03-marketing-event-taxonomy.md §2.
+     * Paragraph listing personal things that are never shared.
      */
     consent_modal_body_never_share?: {
       root: {
@@ -5066,7 +5066,7 @@ export interface WmAppTranslation {
       [k: string]: unknown;
     } | null;
     /**
-     * Fourth paragraph: short statement that the app never sells user data. Phrase 'we never sell' is rendered as a bold inline span.
+     * Short line promising the app never sells your data.
      */
     consent_modal_body_never_sell?: {
       root: {
@@ -5084,7 +5084,7 @@ export interface WmAppTranslation {
       [k: string]: unknown;
     } | null;
     /**
-     * First paragraph of the consent modal. Contains an inline link (e.g. 'what we share') opening the privacy-detail sheet that lists the exact fields sent to Meta, Apple Search Ads and Google Ads. Link URL uses the wemeditate://legal/what-we-share scheme.
+     * Opening paragraph with a link showing what is shared.
      */
     consent_modal_body_intro?: {
       root: {
@@ -5290,7 +5290,7 @@ export interface WmAppTranslation {
       | boolean
       | null;
     /**
-     * Third paragraph of the advertising section. Covers both the never-shared categories AND the never-sell statement in a single paragraph with two bold spans ('We'll never share' / 'we never sell'). Must remain consistent with analytics-simplified/03-marketing-event-taxonomy.md §2.
+     * Paragraph on what is never shared or sold.
      */
     privacy_advertising_body_never_share?: {
       root: {
@@ -5308,7 +5308,7 @@ export interface WmAppTranslation {
       [k: string]: unknown;
     } | null;
     /**
-     * First paragraph of the advertising section. Contains an inline link (e.g. 'what we share') that opens the Privacy Policy page (CMS page id 73, scrolled to the 'what we share' heading) — same link target as onboarding_consent_modal.body_intro.
+     * Opening paragraph with a link showing what is shared.
      */
     privacy_advertising_body_intro?: {
       root: {
@@ -5364,7 +5364,7 @@ export interface WmAppTranslation {
       | boolean
       | null;
     /**
-     * Body copy of the foot-soak screen. Contains a short emphasised span (typically italic, e.g. 'really') that translators position freely within the sentence.
+     * Body text on the foot-soak screen.
      */
     footsoak_description?: {
       root: {
@@ -5456,7 +5456,7 @@ export interface WmAppTranslation {
       | boolean
       | null;
     /**
-     * Consent checkbox label on the account creation screen. Contains two inline links (Terms & Conditions, Privacy Policy) opening the corresponding in-app webviews (wemeditate://legal/terms, wemeditate://legal/privacy). Independent of the ad-measurement consent.
+     * Consent checkbox text with links to Terms and Privacy Policy.
      */
     create_account_consent_label?: {
       root: {
