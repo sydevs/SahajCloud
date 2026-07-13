@@ -47,6 +47,7 @@ export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         limit: 0,
         pagination: false,
         depth: 0,
+        select: { _status: true, default: true, label: true },
         req,
       })
       launchCriticalCards = docs as unknown as Record<string, unknown>[]
@@ -73,6 +74,7 @@ export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       limit: 0,
       pagination: false,
       depth: 0,
+      select: { _status: true, default: true, label: true },
       req,
     })
     const enPublishedIds = new Set<number | string>(enPublishedOther.map((card) => card.id))
@@ -95,6 +97,7 @@ export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         limit: 0,
         pagination: false,
         depth: 0,
+        select: { _status: true, default: true, label: true },
         req,
       })
       otherDocs = (otherCardDocs as unknown as Record<string, unknown>[])
