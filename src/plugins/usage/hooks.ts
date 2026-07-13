@@ -10,7 +10,7 @@ import { APIError } from 'payload'
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 import type { Client } from '@/payload-types'
 
-import { getDbSchema, getPgPool } from './db'
+import { getDbSchema, getPgPool, validateSchemaIdentifier } from './db'
 import { extractRequestHost, isHostAllowed, parseAllowedDomains } from './originEnforcement'
 
 const SKIP_VALIDATION = 'skipClientQueryValidation'
@@ -323,7 +323,9 @@ export const usageTrackingBeforeOperationHook: CollectionBeforeOperationHook = a
       return
     }
 
-    await pool.query(usageIncrementSql(getDbSchema(req)), [now, now, clientId])
+    const schema = getDbSchema(req)
+    validateSchemaIdentifier(schema)
+    await pool.query(usageIncrementSql(schema), [now, now, clientId])
   } catch (error) {
     // Fail open - don't block API requests if tracking fails
     req.payload.logger.error({

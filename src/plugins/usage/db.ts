@@ -24,3 +24,34 @@ export function getPgPool(req: PayloadRequest): Pool | null {
 export function getDbSchema(req: PayloadRequest): string {
   return (req.payload.db as unknown as { schemaName?: string }).schemaName || 'public'
 }
+
+/**
+ * Validate a Postgres schema identifier before interpolating into raw SQL.
+ *
+ * INVARIANT: The schema is derived from Payload's database adapter config,
+ * not user input. It is either 'public' (production/development) or a test
+ * schema name (isolation). This function validates against a static allowlist
+ * to prevent SQL injection if the schema value ever becomes dynamic.
+ *
+ * If a new schema name is needed, add it to ALLOWED_SCHEMAS below.
+ */
+const ALLOWED_SCHEMAS = new Set(['public'])
+
+export function validateSchemaIdentifier(schema: string): void {
+  // Check against allowlist
+  if (ALLOWED_SCHEMAS.has(schema)) {
+    return
+  }
+
+  // Permit test schemas that match the pattern test_<identifier>
+  // This allows test isolation schemas created by the Drizzle adapter
+  if (/^test_[a-z0-9_]+$/i.test(schema)) {
+    return
+  }
+
+  throw new Error(
+    `Invalid schema identifier: ${schema}. ` +
+      `Only 'public' and test_* schemas are allowed. ` +
+      `If a new schema is needed, add it to ALLOWED_SCHEMAS in db.ts`,
+  )
+}
