@@ -60,6 +60,11 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
       type: 'json',
       required: false,
     },
+    {
+      name: 'maxOperations',
+      type: 'number',
+      required: false,
+    },
   ],
   outputSchema: [
     {
@@ -100,7 +105,7 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
     },
   ],
   handler: async ({ req, input }) => {
-    const maxOperations = 500
+    const maxOperations = typeof input?.maxOperations === 'number' ? input.maxOperations : 500
     const gracePeriodHours = 24
 
     let rangeStart: Date
