@@ -11,7 +11,7 @@ import { serverEnv } from '@/lib/env'
 import type { Client } from '@/payload-types'
 
 import { HIGH_USAGE_THRESHOLD } from './constants'
-import { getDbSchema, getPgPool, validateSchemaIdentifier } from './db'
+import { getPgPool, quotedDbSchema } from './db'
 
 // ============================================================================
 // ABUSE MILESTONES
@@ -155,12 +155,11 @@ export const resetUsageTask: TaskConfig<'resetUsage'> = {
 
     if (pool) {
       const now = new Date().toISOString()
-      const schema = getDbSchema(req)
-      validateSchemaIdentifier(schema)
+      const schema = quotedDbSchema(req)
 
       await pool.query(
         `
-        UPDATE "${schema}".clients
+        UPDATE ${schema}.clients
         SET
           usage_peak_daily_requests = GREATEST(
             COALESCE(usage_peak_daily_requests, 0),
