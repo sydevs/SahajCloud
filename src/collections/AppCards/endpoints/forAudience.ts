@@ -136,6 +136,7 @@ export const appCardsForAudience: Endpoint = {
       req: asTrustedReq(req),
     })
 
+    const audienceIdSet = new Set(audienceIds)
     const eligible = (docs as AppCard[]).filter((card) => {
       if (!card.targetSections?.includes(targetSection)) return false
       // Conditions gate: ALL conditions on the card must be in the supplied audienceIds
@@ -143,7 +144,7 @@ export const appCardsForAudience: Endpoint = {
       const conditions = card.conditions as Array<number | { id: number }> | null | undefined
       if (conditions && conditions.length > 0) {
         const conditionIds = conditions.map((c) => (typeof c === 'number' ? c : c.id))
-        if (!conditionIds.every((id) => audienceIds.includes(id))) return false
+        if (!conditionIds.every((id) => audienceIdSet.has(id))) return false
       }
       return true
     })
