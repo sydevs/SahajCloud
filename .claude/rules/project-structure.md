@@ -45,7 +45,7 @@ No loose files at the root — every file lives in a named folder:
 - `env/` — environment-variable validation (broadly imported config)
 - `logger/` — `clientLogger`, `workerSafeLogger`
 - `utilities/` — purposeful cross-boundary helpers (`serverUrl`, `previewSecret`,
-  `gender`, `subtitles`, `weightedSample`, `fetchWithTimeout`, `isRecord`)
+  `gender`, `subtitles`, `weightedSample`, `isRecord`)
 - `locales/` — locale config (`@/lib/locales` resolves to `locales/index.ts`)
 - `richEditor/` — Lexical editor presets + `blocks/` (the editor's block set) +
   `lexicalHooks`

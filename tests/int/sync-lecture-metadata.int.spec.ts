@@ -248,8 +248,9 @@ describe('SyncLectureMetadata task', () => {
     vi.mocked(fetchNirmalaVidyaVideo).mockImplementation(async () => {
       callCount++
       if (callCount === 1) {
-        // First call: timeout (transient failure)
-        throw new Error('Request timed out after 15000ms')
+        // First call: timeout (transient failure). Mirrors what AbortSignal.timeout
+        // raises when a Nirmala Vidya fetch exceeds its bound.
+        throw new DOMException('The operation timed out.', 'TimeoutError')
       }
       // Second call (retry): success
       return {

@@ -9,8 +9,6 @@
  */
 import { z } from 'zod'
 
-import { fetchWithTimeout } from '@/lib/utilities/fetchWithTimeout'
-
 import {
   CloudflareStreamDownloadsResponseSchema,
   CloudflareStreamWebhookPayloadSchema,
@@ -216,18 +214,17 @@ export async function handleStreamWebhook(params: {
 
   try {
     // Enable MP4 downloads with a bounded timeout so a stalled Cloudflare API
-    // can't hang the webhook: on timeout `fetchWithTimeout` rejects, the catch
-    // below returns a non-2xx, and Cloudflare retries. `fetchFn` is injected in
-    // tests; it defaults to the global `fetch` in production.
+    // can't hang the webhook: on timeout `AbortSignal.timeout` aborts the fetch,
+    // the catch below returns a non-2xx, and Cloudflare retries. `fetchFn` is
+    // injected in tests; it defaults to the global `fetch` in production.
     const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${uid}/downloads`
-    const response = await fetchWithTimeout(url, {
+    const response = await (fetchFn ?? fetch)(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      timeoutMs: downloadsTimeoutMs,
-      fetchImpl: fetchFn,
+      signal: AbortSignal.timeout(downloadsTimeoutMs),
     })
 
     const result = CloudflareStreamDownloadsResponseSchema.parse(await response.json())

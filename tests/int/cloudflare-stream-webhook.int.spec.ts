@@ -444,7 +444,7 @@ describe('Cloudflare Stream webhook handler', () => {
         downloadsTimeoutMs: 20,
       })
 
-      // Timeout → fetchWithTimeout rejects → caught → 500 so Cloudflare retries.
+      // Timeout → AbortSignal.timeout aborts the fetch → rejects → caught → 500 so Cloudflare retries.
       expect(result.status).toBe(500)
       expect(stallingFetchFn).toHaveBeenCalledTimes(1)
       expect(logger.error).toHaveBeenCalledWith(

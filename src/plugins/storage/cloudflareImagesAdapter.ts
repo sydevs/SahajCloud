@@ -9,7 +9,6 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 import { z } from 'zod'
 
 import { serverEnv } from '@/lib/env'
-import { fetchWithTimeout } from '@/lib/utilities/fetchWithTimeout'
 
 import { CloudflareImagesResponseSchema } from './cloudflareSchemas'
 import { applyFilename, generateCloudflareImageId } from './filenameUtils'
@@ -97,7 +96,7 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           customId,
         })
 
-        const response = await fetchWithTimeout(
+        const response = await fetch(
           `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/images/v1`,
           {
             method: 'POST',
@@ -108,7 +107,7 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
             // Generous bound — catches a hung upload without killing a slow but
             // progressing large-image transfer. Response failures are still
             // validated via the Zod `result.success` check below.
-            timeoutMs: 120_000,
+            signal: AbortSignal.timeout(120_000),
           },
         )
 
@@ -175,13 +174,15 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
       }
 
       try {
-        const response = await fetchWithTimeout(
+        const response = await fetch(
           `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/images/v1/${imageId}`,
           {
             method: 'DELETE',
             headers: {
               Authorization: `Bearer ${config.apiKey}`,
             },
+            // Bound this small JSON API call so a stalled Cloudflare API can't hang it.
+            signal: AbortSignal.timeout(15_000),
           },
         )
 

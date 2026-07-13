@@ -22,8 +22,6 @@
  * Every non-clean resolution carries a `warning` for the caller to log.
  */
 
-import { fetchWithTimeout } from '@/lib/utilities/fetchWithTimeout'
-
 const FORWARD_URL = 'https://api.mapbox.com/search/searchbox/v1/forward'
 
 /** Sentinel `mapboxId` for a hand-entered location — matches `AddressSearchField`. */
@@ -78,7 +76,10 @@ async function fetchForwardFeature(params: URLSearchParams): Promise<ForwardFeat
   for (let attempt = 0; ; attempt++) {
     let res: Response
     try {
-      res = await fetchWithTimeout(`${FORWARD_URL}?${params.toString()}`)
+      // Fresh timeout per attempt so each retry gets its own 15s budget.
+      res = await fetch(`${FORWARD_URL}?${params.toString()}`, {
+        signal: AbortSignal.timeout(15_000),
+      })
     } catch {
       if (attempt < MAX_RETRIES) {
         await delay(BASE_BACKOFF_MS * 2 ** attempt)
