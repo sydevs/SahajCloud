@@ -1,5 +1,8 @@
 import type { TaskConfig, Where } from 'payload'
 
+import pMap from 'p-map'
+import pRetry from 'p-retry'
+
 import { buildLectureMetadata } from '@/lib/lectures/nirmalaVidya'
 import { extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/lectures/nirmalaVidyaApi'
 
@@ -15,6 +18,9 @@ type SyncLectureMetadataInput = {
 }
 
 const PAGINATION_LIMIT = 1000
+const MAX_CONCURRENT_FETCHES = 10
+// 1 initial attempt + 2 retries; exponential backoff (1s, 2s) with jitter.
+const FETCH_RETRIES = 2
 
 /**
  * Monthly sync job — refreshes `lectures.metadata` from the Nirmala Vidya API.
@@ -69,6 +75,7 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
     req.payload.logger.info({
       msg: 'Starting SyncLectureMetadata',
       scope: where ? `lectureIds[${lectureIds!.length}]` : 'all lectures',
+      maxConcurrentFetches: MAX_CONCURRENT_FETCHES,
     })
 
     let page = 1
@@ -83,42 +90,54 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
         depth: 0,
       })
 
-      for (const lecture of batch.docs) {
-        result.totalProcessed++
+      // Bounded-concurrency map over the batch (at most MAX_CONCURRENT_FETCHES
+      // external calls in flight). `stopOnError: false` so one lecture's
+      // permanent failure never aborts the monthly sweep.
+      await pMap(
+        batch.docs,
+        async (lecture) => {
+          result.totalProcessed++
 
-        const vimeoUrl = lecture.nirmalVidyaVimeoUrl
-        const vimeoId = typeof vimeoUrl === 'string' ? extractVimeoId(vimeoUrl) : null
-        if (!vimeoId) {
-          result.skippedNoVimeoId++
-          req.payload.logger.warn({
-            msg: 'SyncLectureMetadata: skipping lecture with missing/invalid Vimeo URL',
-            lectureId: lecture.id,
-            vimeoUrl,
-          })
-          continue
-        }
+          const vimeoUrl = lecture.nirmalVidyaVimeoUrl
+          const vimeoId = typeof vimeoUrl === 'string' ? extractVimeoId(vimeoUrl) : null
+          if (!vimeoId) {
+            result.skippedNoVimeoId++
+            req.payload.logger.warn({
+              msg: 'SyncLectureMetadata: skipping lecture with missing/invalid Vimeo URL',
+              lectureId: lecture.id,
+              vimeoUrl,
+            })
+            return
+          }
 
-        try {
-          const videoData = await fetchNirmalaVidyaVideo(vimeoId)
-          const metadata = buildLectureMetadata(videoData)
+          try {
+            const videoData = await pRetry(() => fetchNirmalaVidyaVideo(vimeoId), {
+              retries: FETCH_RETRIES,
+              factor: 2,
+              minTimeout: 1000,
+              randomize: true,
+            })
+            const metadata = buildLectureMetadata(videoData)
 
-          await req.payload.update({
-            collection: 'lectures',
-            id: lecture.id,
-            data: { metadata },
-          })
+            await req.payload.update({
+              collection: 'lectures',
+              id: lecture.id,
+              data: { metadata },
+            })
 
-          result.synced++
-        } catch (error) {
-          result.failed++
-          req.payload.logger.warn({
-            msg: 'SyncLectureMetadata: per-lecture failure — continuing batch',
-            lectureId: lecture.id,
-            vimeoId,
-            error: error instanceof Error ? error.message : String(error),
-          })
-        }
-      }
+            result.synced++
+          } catch (error) {
+            result.failed++
+            req.payload.logger.warn({
+              msg: 'SyncLectureMetadata: per-lecture failure after retries — continuing batch',
+              lectureId: lecture.id,
+              vimeoId,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          }
+        },
+        { concurrency: MAX_CONCURRENT_FETCHES, stopOnError: false },
+      )
 
       hasNextPage = batch.hasNextPage
       page++

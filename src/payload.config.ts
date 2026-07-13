@@ -165,6 +165,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     jobs: {
       tasks,
       deleteJobOnComplete: true,
+      enableConcurrencyControl: true,
       autoRun: [
         {
           cron: '0 * * * *', // Runs every hour
