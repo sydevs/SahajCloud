@@ -16,6 +16,7 @@ import {
   scheduleFields,
   urlField,
 } from '@/fields'
+import { atlasLivePreview } from '@/lib/atlas/livePreview'
 import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
@@ -70,6 +71,7 @@ export const Events: CollectionConfig = {
     group: 'Classes',
     useAsTitle: 'title',
     defaultColumns: ['title', 'verificationStage', '_status'],
+    livePreview: atlasLivePreview('events'),
   },
   // Re-verify on any manager save; the explicit POST endpoint backs the notice
   // banner's Verify button. The tokenized email link is the `/events/verify`
