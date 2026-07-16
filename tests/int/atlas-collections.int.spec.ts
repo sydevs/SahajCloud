@@ -154,4 +154,15 @@ describe('Atlas collections', () => {
       expect(event.title ?? null).toBeNull()
     })
   })
+
+  // Wiring proof for #575 — the Live Preview tab appears iff the sanitized
+  // collection config carries `admin.livePreview`. URL shape is covered by
+  // tests/unit/atlas-live-preview.spec.ts.
+  describe('Live preview wiring', () => {
+    it.each(['events', 'regions'] as const)('%s enables the Atlas live preview', (slug) => {
+      const { livePreview } = payload.collections[slug].config.admin
+      expect(typeof livePreview?.url).toBe('function')
+      expect(livePreview?.breakpoints?.[0]).toMatchObject({ name: 'mobile' })
+    })
+  })
 })
