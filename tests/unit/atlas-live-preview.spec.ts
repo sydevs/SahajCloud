@@ -9,7 +9,8 @@ import { atlasLivePreview } from '@/lib/atlas/livePreview'
  * locale being edited).
  */
 describe('atlasLivePreview', () => {
-  const buildUrl = async (collection: 'events' | 'regions', id: number, localeCode: string) => {
+  // Not async itself — but `url`'s declared type may return a Promise, so call sites await.
+  const buildUrl = (collection: 'events' | 'regions', id: number, localeCode: string) => {
     const { url } = atlasLivePreview(collection)
     if (typeof url !== 'function') throw new Error('expected livePreview.url to be a function')
     return url({ data: { id }, locale: { code: localeCode } } as Parameters<typeof url>[0])

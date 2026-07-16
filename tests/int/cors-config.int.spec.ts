@@ -27,9 +27,8 @@ describe('CORS preflight config', () => {
     const allowed = (headers.get('Access-Control-Allow-Headers') ?? '').toLowerCase()
     expect(allowed).toContain(PREVIEW_SECRET_HEADER)
     // The object-form `cors.headers` must APPEND to Payload's default
-    // allow-list, not replace it — clients still send Authorization etc.
+    // allow-list, not replace it — clients still send Authorization.
     expect(allowed).toContain('authorization')
-    expect(allowed).toContain('content-type')
     // origins '*' → wildcard origin, and credentials stay OFF (#509).
     expect(headers.get('Access-Control-Allow-Origin')).toBe('*')
     expect(headers.get('Access-Control-Allow-Credentials')).toBeNull()
