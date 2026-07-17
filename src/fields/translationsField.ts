@@ -31,9 +31,14 @@ type LeafPropertySchema = StringPropertySchema | RichTextPropertySchema
  * Non-JSON-Schema extension consumed by the Payload admin builder:
  * - `screenshot`: relative path or URL (image or Figma) shown above the
  *   translation rows for translator orientation.
+ * - `title`: editor-facing tab label, overriding the slug. Use it where the
+ *   slug mirrors an internal name that misleads (see `path` in
+ *   translationsSchema.json); the slug itself must stay put because stored
+ *   translations and the seed are keyed on it.
  */
 interface GroupSchema {
   type: 'object'
+  title?: string
   description?: string
   properties?: Record<string, LeafPropertySchema | GroupSchema>
   additionalProperties?: boolean
@@ -294,7 +299,12 @@ export function buildTranslationTabs(
             {
               type: 'tabs',
               tabs: subgroups.map(([subSlug, subSchema]) => ({
-                label: toWords(subSlug.replace(/_/g, '-')),
+                // A schema `title` wins over the slug: some slugs mirror
+                // internal route names that read as the wrong thing to an
+                // editor (path.step_1 is a section of one Path step, not a
+                // Path step). Renaming the slug would orphan stored
+                // translations and break the seed, so label it instead.
+                label: subSchema.title ?? toWords(subSlug.replace(/_/g, '-')),
                 description: subSchema.description,
                 fields: createLeafFields(subSlug, subSchema, globalSlug, groupSlug),
               })),

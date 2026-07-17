@@ -507,7 +507,7 @@
     },
     "path": {
       "type": "object",
-      "description": "The Path tab, a step-by-step guided course.",
+      "description": "The Path tab, a step-by-step guided course. A Path step is one lesson in that list; the sections below are the stages inside a single step.",
       "properties": {
         "overview": {
           "type": "object",
@@ -566,27 +566,24 @@
         },
         "step_1": {
           "type": "object",
-          "description": "Path step 1 intro screen with a quote and a start button.",
+          "description": "First section of a Path step: the opening quote and Begin button.",
+          "title": "Intro",
           "properties": {
-            "default_intro_quote": {
-              "type": "string",
-              "description": "Default opening quote for step 1."
-            },
             "author": {
               "type": "string",
               "description": "Name credited under the quote."
             },
             "begin": {
               "type": "string",
-              "description": "Button to begin step 1."
+              "description": "Button that starts the Path step, on the Intro section."
             },
             "skip_title": {
               "type": "string",
-              "description": "Title of the prompt when leaving step 1 early."
+              "description": "Title of the prompt when leaving a Path step early from the Intro."
             },
             "skip_continue": {
               "type": "string",
-              "description": "Button on that prompt to stay in step 1."
+              "description": "Button on that prompt to stay in the Path step."
             },
             "back_to_path": {
               "type": "string",
@@ -597,26 +594,24 @@
         },
         "step_2": {
           "type": "object",
-          "description": "Path step 2 (just a continue button for now).",
+          "description": "Story panels section of a Path step.",
+          "title": "Story",
           "properties": {
             "continue_button": {
               "type": "string",
-              "description": "Continue button in step 2."
+              "description": "Continue button on the Story section."
             }
           },
           "additionalProperties": false
         },
         "step_3": {
           "type": "object",
-          "description": "Path step 3, the meditation intro before starting.",
+          "description": "Meditation section of a Path step: the audio intro and the meditation itself.",
+          "title": "Meditation",
           "properties": {
             "meditation_intro": {
               "type": "string",
               "description": "Small label above the meditation intro."
-            },
-            "pre_meditation_lines": {
-              "type": "string",
-              "description": "Calm text shown just before a meditation starts. Keep the line breaks."
             },
             "skip_intro": {
               "type": "string",
@@ -624,7 +619,7 @@
             },
             "start_meditation": {
               "type": "string",
-              "description": "Button to start the step 3 meditation."
+              "description": "Button to start the meditation."
             },
             "skip_title": {
               "type": "string",
@@ -640,11 +635,11 @@
             },
             "exit": {
               "type": "string",
-              "description": "Exit button on the step 3 screen."
+              "description": "Exit button on the Meditation section."
             },
             "back_to_step": {
               "type": "string",
-              "description": "Button returning to the step overview."
+              "description": "Button returning to the Path step's Intro."
             }
           },
           "additionalProperties": false,
@@ -652,11 +647,12 @@
         },
         "step_4": {
           "type": "object",
-          "description": "Path step 4, a talk shown after the meditation.",
+          "description": "Article section of a Path step, shown after the meditation.",
+          "title": "Article",
           "properties": {
             "delving_deeper": {
               "type": "string",
-              "description": "Small label on the step 4 screen."
+              "description": "Small label on the Article section."
             },
             "lecture_prompt": {
               "type": "string",
@@ -680,7 +676,7 @@
             },
             "complete_step": {
               "type": "string",
-              "description": "Button to finish step 4."
+              "description": "Button to finish the Path step, on the Article section."
             }
           },
           "additionalProperties": false
@@ -688,14 +684,15 @@
         "step_complete": {
           "type": "object",
           "description": "Screen shown after finishing a Path step.",
+          "title": "Completed",
           "properties": {
             "title": {
               "type": "string",
-              "description": "Title of the step-finished screen."
+              "description": "Title of the screen shown after finishing a Path step."
             },
             "subtitle": {
               "type": "string",
-              "description": "Smaller text on the step-finished screen."
+              "description": "Smaller text on that screen."
             },
             "back_to_path": {
               "type": "string",
