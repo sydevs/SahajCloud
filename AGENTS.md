@@ -126,7 +126,7 @@ PRs move through three phases. The point is to **batch CI runs** — don't push 
 
 1. **Implement** — `/implement-issue <n>` takes a ticket end-to-end: implement + test, then run the finalize pipeline, which opens the PR and gets CI green.
 2. **Adjust** — while iterating on an **open PR** (follow-up tweaks after `/implement-issue`, or any further work on a PR branch), **commit each change locally as you go, but do NOT push** — batching avoids re-running CI on every tweak. This is the one place that overrides the usual "commit/push only when asked" default: during the Adjust phase, commit follow-up changes locally without being asked; just never push (the user can still say "hold off" to pause committing).
-3. **Finalize** — `/finalize-pr` ships the batch: simplify → `/code-review` → conditional `/security-review` (only when risky paths changed) → lean test gate → push → open/refresh the PR description → watch CI (with capped fixes). Run it when the PR is ready for review/merge.
+3. **Finalize** — `/finalize-pr` ships the batch: simplify → `/code-review` → conditional `/security-review` (only when risky paths changed) → lean test gate → docs sync → push → open/refresh the PR description → watch CI (with capped fixes). Run it when the PR is ready for review/merge.
 
 Skills: `.claude/skills/implement-issue/` (phase 1) and `.claude/skills/finalize-pr/` (phase 3, also reused by phase 1).
 

@@ -196,13 +196,22 @@ it as a 500).
 
 ### CORS
 
-`payload.config.ts` sets `cors: '*'`. Per-client CORS is impossible — CORS
-preflight (`OPTIONS`) is anonymous (the browser omits `Authorization`), so the
-server cannot return a per-client allowlist at preflight time. `'*'` lets embedded
-widgets' preflight succeed on any host page; the real per-domain gate is this
-server-side hook plus the API key. Payload omits `Access-Control-Allow-Credentials`
-for `'*'`, so cookie-based admin sessions stay protected — the `csrf` allowlist is
+`payload.config.ts` sets `cors: { origins: '*', headers: ['x-sahajcloud-preview-secret'] }`.
+Per-client CORS is impossible — CORS preflight (`OPTIONS`) is anonymous (the
+browser omits `Authorization`), so the server cannot return a per-client
+allowlist at preflight time. Wildcard origins let embedded widgets' preflight
+succeed on any host page; the real per-domain gate is this server-side hook plus
+the API key. Payload omits `Access-Control-Allow-Credentials` for wildcard
+origins, so cookie-based admin sessions stay protected — the `csrf` allowlist is
 unchanged.
+
+The `headers` list **appends** to Payload's default allow-list (#575): the Sahaj
+Atlas live-preview widget fetches drafts client-side, so the draft-unlock
+`x-sahajcloud-preview-secret` header (`src/lib/utilities/previewSecret.ts`) rides
+cross-origin browser requests and must clear preflight. Guarded by
+`tests/int/cors-config.int.spec.ts` (real config through Payload's
+`headersWithCors`) and `tests/e2e/cors-preflight.e2e.spec.ts` (live preflight
+against the deployed preview).
 
 ### Tests
 

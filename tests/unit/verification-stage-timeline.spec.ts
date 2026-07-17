@@ -126,10 +126,10 @@ describe('buildStageTracker', () => {
 
 describe('formatStageDate', () => {
   it('formats an ISO date in compact words', () => {
-    const out = formatStageDate('2026-06-13T00:00:00.000Z')
-    expect(out).toContain('Jun')
-    expect(out).toContain('2026')
-    expect(out).toMatch(/\b13\b/)
+    // Zone-less input parses as local time, so the rendered day is the same in
+    // every timezone (a midnight-UTC input renders as the previous day west of
+    // UTC — rendering is intentionally viewer-local, see DATE_FORMAT).
+    expect(formatStageDate('2026-06-13T12:00:00')).toBe('13 Jun 2026')
   })
 
   it('returns null for null/invalid', () => {

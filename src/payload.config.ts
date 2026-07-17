@@ -15,6 +15,7 @@ import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
+import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/plugins/access'
 import { cachePlugin } from '@/plugins/cache'
@@ -65,11 +66,14 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // `validateClientOriginHook` (usagePlugin) checks each request's Origin/Referer
     // against the client's `allowedDomains`, and the API key gates access. CORS
     // preflight is anonymous — the browser omits Authorization, so the server
-    // cannot return a per-client allowlist at preflight time. `'*'` lets embedded
-    // Atlas widgets' preflight succeed on any host page; Payload omits
+    // cannot return a per-client allowlist at preflight time. `origins: '*'` lets
+    // embedded Atlas widgets' preflight succeed on any host page; Payload omits
     // Access-Control-Allow-Credentials for `'*'`, so cookie-based admin sessions
     // stay protected (the static `csrf` list below is unchanged). See #509.
-    cors: '*',
+    // `headers` APPENDS the live-preview secret to Payload's default allow-list
+    // (Authorization etc. stay): the Atlas widget fetches drafts client-side, so
+    // the header rides a cross-origin request and must clear preflight. See #575.
+    cors: { origins: '*', headers: [PREVIEW_SECRET_HEADER] },
     csrf: [serverUrl, serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
     admin: {
       user: Managers.slug,
