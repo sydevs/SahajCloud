@@ -10,11 +10,18 @@ import { basicRichTextEditor } from '@/lib/richEditor'
 
 interface StringPropertySchema {
   type: 'string'
+  /**
+   * Editor-facing group heading. Consecutive keys sharing a section render
+   * under one header, so a leaf reads as the screen does instead of as a flat
+   * list. Purely presentational — the stored JSON stays flat.
+   */
+  section?: string
   description?: string
 }
 
 interface RichTextPropertySchema {
   type: 'richText'
+  section?: string
   description?: string
 }
 
@@ -58,6 +65,8 @@ export interface TranslationsSchema {
 export interface SchemaEntry {
   key: string
   description: string
+  /** Heading to render above this row; repeated values render once. */
+  section?: string
 }
 
 // ============================================================================
@@ -152,9 +161,12 @@ function createStringsJsonField(
   const stringProps = Object.entries(group.properties || {}).filter(
     (entry): entry is [string, StringPropertySchema] => isStringProp(entry[1]),
   )
+  // Row order follows schema property order, so the JSON is authored in the
+  // order the strings appear on screen.
   const schemaEntries: SchemaEntry[] = stringProps.map(([key, prop]) => ({
     key,
     description: prop.description || '',
+    ...(prop.section ? { section: prop.section } : {}),
   }))
   const allowedKeys = new Set(stringProps.map(([key]) => key))
   const allowAdditional = group.additionalProperties === true

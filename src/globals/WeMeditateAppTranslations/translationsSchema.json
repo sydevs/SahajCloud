@@ -194,239 +194,232 @@
       "properties": {
         "main": {
           "type": "object",
-          "description": "Main content of the Daily home tab.",
+          "description": "The Daily (home) tab — three full-height screens the user scrolls through.",
           "properties": {
-            "start_meditation": {
-              "type": "string",
-              "description": "Main button to begin the suggested meditation."
-            },
-            "start_now": {
-              "type": "string",
-              "description": "Short button to start a meditation right away."
-            },
-            "start_course": {
-              "type": "string",
-              "description": "Button to begin the guided course."
-            },
-            "continue_course": {
-              "type": "string",
-              "description": "Button to continue the guided course."
-            },
-            "start_the_course": {
-              "type": "string",
-              "description": "Longer wording for the start-course button."
-            },
-            "continue_the_course": {
-              "type": "string",
-              "description": "Longer wording for the continue-course button."
-            },
-            "scroll_to_the_path": {
-              "type": "string",
-              "description": "Link inviting the user to scroll down to the Path section."
-            },
-            "the_path_going_deeper": {
-              "type": "string",
-              "description": "Small label above the Path promo block."
-            },
             "your_morning_meditation": {
               "type": "string",
-              "description": "Main heading shown in the morning."
+              "description": "Hero title in the morning.",
+              "section": "Daily hero"
             },
             "your_afternoon_meditation": {
               "type": "string",
-              "description": "Main heading shown in the afternoon."
+              "description": "Hero title in the afternoon.",
+              "section": "Daily hero"
             },
             "your_evening_meditation": {
               "type": "string",
-              "description": "Main heading shown in the evening."
+              "description": "Hero title in the evening.",
+              "section": "Daily hero"
             },
             "morning_meditation_subtitle": {
               "type": "string",
-              "description": "Smaller morning heading text. Keep the line break."
+              "description": "Hero subtitle in the morning.",
+              "section": "Daily hero"
             },
             "afternoon_meditation_subtitle": {
               "type": "string",
-              "description": "Smaller afternoon heading text. Keep the line break."
+              "description": "Hero subtitle in the afternoon.",
+              "section": "Daily hero"
             },
             "evening_meditation_subtitle": {
               "type": "string",
-              "description": "Smaller evening heading text."
+              "description": "Hero subtitle in the evening.",
+              "section": "Daily hero"
+            },
+            "start_meditation": {
+              "type": "string",
+              "description": "Main button to begin the suggested meditation.",
+              "section": "Daily hero"
+            },
+            "scroll_to_the_path": {
+              "type": "string",
+              "description": "Scroll cue at the bottom of the first screen.",
+              "section": "Daily hero"
             },
             "path_going_deeper_title": {
               "type": "string",
-              "description": "Title of the Path promo card. Keep the line break."
+              "description": "Title of the Path promo screen.",
+              "section": "Path promo"
             },
             "path_going_deeper_subtitle": {
               "type": "string",
-              "description": "Smaller text on the Path promo card."
+              "description": "Subtitle under that title.",
+              "section": "Path promo"
             },
-            "learn_from_source": {
+            "start_the_course": {
               "type": "string",
-              "description": "Small label above the Shri Mataji talks section."
+              "description": "Button for someone who has not started the Path.",
+              "section": "Path promo"
             },
-            "hero_label_get_started": {
+            "continue_the_course": {
               "type": "string",
-              "description": "Small tag on the main card for new users."
-            },
-            "hero_label_try_something_new": {
-              "type": "string",
-              "description": "Small tag on the main card encouraging variety."
-            },
-            "hero_label_learn_from_source": {
-              "type": "string",
-              "description": "Small tag on the main card promoting Shri Mataji content."
-            },
-            "hero_label_meditate_with_others": {
-              "type": "string",
-              "description": "Small tag on the main card promoting group sessions."
-            },
-            "hero_label_discover": {
-              "type": "string",
-              "description": "Small tag on the main card promoting exploring."
+              "description": "Button for someone already past the first Path step.",
+              "section": "Path promo"
             },
             "shri_mataji_talks_title": {
               "type": "string",
-              "description": "Title of the Shri Mataji talks section."
+              "description": "FALLBACK — only when no card is set in App Cards. Normally the card’s own title is shown.",
+              "section": "Learn from the source"
             },
             "shri_mataji_talks_subtitle": {
               "type": "string",
-              "description": "Smaller text under the Shri Mataji talks title."
+              "description": "FALLBACK — only when no card is set in App Cards. Normally the card’s own subtitle is shown.",
+              "section": "Learn from the source"
             },
             "see_more": {
               "type": "string",
-              "description": "Link to show more items."
+              "description": "FALLBACK button label. Normally the card’s own button text is shown.",
+              "section": "Learn from the source"
+            },
+            "start_now": {
+              "type": "string",
+              "description": "FALLBACK button label on the first-meditation card. Normally the card’s own button text is shown.",
+              "section": "Learn from the source"
+            },
+            "hero_label_learn_from_source": {
+              "type": "string",
+              "description": "FALLBACK small label above the card. Normally the card’s own section label is shown.",
+              "section": "Learn from the source"
+            },
+            "hero_label_get_started": {
+              "type": "string",
+              "description": "FALLBACK small label, before the first meditation.",
+              "section": "Learn from the source"
+            },
+            "hero_label_try_something_new": {
+              "type": "string",
+              "description": "FALLBACK small label when the card is a meditation.",
+              "section": "Learn from the source"
+            },
+            "hero_label_meditate_with_others": {
+              "type": "string",
+              "description": "FALLBACK small label when the card points at classes.",
+              "section": "Learn from the source"
+            },
+            "hero_label_discover": {
+              "type": "string",
+              "description": "FALLBACK small label for any other card.",
+              "section": "Learn from the source"
             },
             "whats_your_priority_today": {
               "type": "string",
-              "description": "Small label above the priority chooser, daytime."
+              "description": "Heading during the day.",
+              "section": "What’s your priority today?"
             },
             "whats_your_priority_tonight": {
               "type": "string",
-              "description": "Small label above the priority chooser, evening."
-            },
-            "whats_your_priority_tag": {
-              "type": "string",
-              "description": "Tag labeling priority cards."
-            },
-            "meditate_with_others_tag": {
-              "type": "string",
-              "description": "Tag labeling group-session cards."
-            },
-            "improve_meditation_tag": {
-              "type": "string",
-              "description": "Tag labeling improvement cards."
+              "description": "Heading in the evening.",
+              "section": "What’s your priority today?"
             },
             "quick_morning": {
               "type": "string",
-              "description": "Quick meditation card title, morning. Keep the line break."
+              "description": "First tile in the morning.",
+              "section": "What’s your priority today?"
             },
             "quick_afternoon": {
               "type": "string",
-              "description": "Quick meditation card title, afternoon. Keep the line break."
+              "description": "First tile in the afternoon.",
+              "section": "What’s your priority today?"
             },
             "quick_evening": {
               "type": "string",
-              "description": "Quick meditation card title, evening. Keep the line break."
+              "description": "First tile in the evening.",
+              "section": "What’s your priority today?"
             },
             "longer_session": {
               "type": "string",
-              "description": "Card title for a longer session. Keep the line break."
+              "description": "Second tile.",
+              "section": "What’s your priority today?"
             },
             "help_me_deal": {
               "type": "string",
-              "description": "Card title for finding a meditation to match a feeling. Keep the line break."
-            },
-            "help_me_deal_custom_title": {
-              "type": "string",
-              "description": "Title of the screen after tapping the Help me deal card. Keep the line break."
+              "description": "Third tile.",
+              "section": "What’s your priority today?"
             },
             "explore_deeper": {
               "type": "string",
-              "description": "Card title inviting deeper exploration. Keep the line break."
+              "description": "Fourth tile.",
+              "section": "What’s your priority today?"
             },
-            "unlock_guided_meditations": {
+            "help_me_deal_custom_title": {
               "type": "string",
-              "description": "Label on locked cards before the first meditation."
+              "description": "Title of the screen opened by the third tile.",
+              "section": "What’s your priority today?"
             },
             "meditate_with_others": {
               "type": "string",
-              "description": "Small label above the group-sessions block."
+              "description": "Heading above the two class tiles.",
+              "section": "Meditate with others"
             },
             "find_class_near_you": {
               "type": "string",
-              "description": "Card inviting the user to find a local class. Keep the line break."
+              "description": "Left tile.",
+              "section": "Meditate with others"
             },
             "join_live_online_class": {
               "type": "string",
-              "description": "Card inviting the user to join an online class. Keep the line break."
+              "description": "Right tile.",
+              "section": "Meditate with others"
             },
             "improve_your_meditation": {
               "type": "string",
-              "description": "Small label above the techniques block."
+              "description": "Heading above the highlights carousel.",
+              "section": "Meditate with others"
             },
             "improve_card_techniques_title": {
               "type": "string",
-              "description": "Title of the Techniques card."
+              "description": "FALLBACK — only when no highlight cards are set in App Cards.",
+              "section": "Meditate with others"
             },
             "improve_card_techniques_subtitle": {
               "type": "string",
-              "description": "Smaller text on the Techniques card."
+              "description": "FALLBACK — only when no highlight cards are set in App Cards.",
+              "section": "Meditate with others"
             },
             "improve_card_subtle_system_title": {
               "type": "string",
-              "description": "Title of the Subtle System card."
+              "description": "FALLBACK — only when no highlight cards are set in App Cards.",
+              "section": "Meditate with others"
             },
             "improve_card_subtle_system_subtitle": {
               "type": "string",
-              "description": "Smaller text on the Subtle System card."
-            },
-            "highlights_title": {
-              "type": "string",
-              "description": "Small label above the Highlights row."
-            },
-            "get_back_in_the_flow": {
-              "type": "string",
-              "description": "Card title inviting the user back into their practice. Keep the line break."
-            },
-            "live_now": {
-              "type": "string",
-              "description": "Badge shown when a live session is happening now."
+              "description": "FALLBACK — only when no highlight cards are set in App Cards.",
+              "section": "Meditate with others"
             },
             "minutes_short": {
               "type": "string",
-              "description": "Short form of minutes on cards."
+              "description": "Short duration suffix on cards, e.g. the “min” in “12 min”.",
+              "section": "Card chrome"
+            },
+            "live_now": {
+              "type": "string",
+              "description": "Badge on a card while a live class is running.",
+              "section": "Card chrome"
             },
             "live_countdown_days": {
               "type": "string",
-              "description": "Days label in the live session countdown."
+              "description": "Countdown on a card, days before a live class.",
+              "section": "Card chrome"
             },
             "live_countdown_hours": {
               "type": "string",
-              "description": "Hours label in the live session countdown."
+              "description": "Countdown on a card, hours before a live class.",
+              "section": "Card chrome"
             },
             "live_countdown_minutes": {
               "type": "string",
-              "description": "Minutes label in the live session countdown."
+              "description": "Countdown on a card, minutes before a live class.",
+              "section": "Card chrome"
             },
-            "live_reminder_button_active": {
+            "start_course": {
               "type": "string",
-              "description": "Button text when a live session reminder is already set."
+              "description": "NOT DISPLAYED. Matched against a card’s button text to detect the “start course” action — changing it can stop that matching working.",
+              "section": "Button matching (not shown on screen)"
             },
-            "live_reminder_notification_title": {
+            "continue_course": {
               "type": "string",
-              "description": "Title of the reminder alert for an upcoming live meditation."
-            },
-            "live_reminder_notification_body": {
-              "type": "string",
-              "description": "Message of the reminder alert for an upcoming live meditation."
-            },
-            "live_reminder_permission_denied": {
-              "type": "string",
-              "description": "Message shown after the user blocks reminder alerts."
-            },
-            "live_reminder_permission_settings": {
-              "type": "string",
-              "description": "Message asking the user to turn on alerts in phone settings."
+              "description": "NOT DISPLAYED. Matched against a card’s button text to detect the “continue course” action.",
+              "section": "Button matching (not shown on screen)"
             }
           },
           "additionalProperties": false,
