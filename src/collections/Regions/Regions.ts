@@ -102,6 +102,18 @@ export const Regions: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'level'],
     groupBy: true,
+    // Live Preview loads the Atlas widget's /preview route (same contract as
+    // Events — see Events.ts for the CORS + draft-unlock notes). Regions have
+    // no drafts: the preview shows published data plus unsaved form edits
+    // streamed via Payload's postMessage sender.
+    livePreview: {
+      // No URL for an unsaved doc (nothing to fetch yet) — null disables the panel.
+      url: ({ data, locale }) =>
+        data.id
+          ? `${serverEnv.SAHAJATLAS_URL}/preview?collection=regions&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`
+          : null,
+      breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
+    },
   },
   // The child joins below are recursive (all descendants via breadcrumbs.doc),
   // so skip them when a region is hydrated through a relationship (depth ≥ 1)

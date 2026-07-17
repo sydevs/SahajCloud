@@ -67,8 +67,15 @@ Copy from `.env.example` and configure:
 
 ### Live Preview URLs
 
-- `WEMEDITATE_WEB_URL` - Preview URL for We Meditate Web frontend (required)
-- `SAHAJATLAS_URL` - Preview URL for Sahaj Atlas frontend (required)
+- `WEMEDITATE_WEB_URL` - Preview URL for We Meditate Web frontend (required) — Pages/Meditations live preview + CSP `frame-src`
+- `SAHAJATLAS_URL` - Preview URL for Sahaj Atlas frontend (required) — Regions/Events live preview (#575), CSP `frame-src`, and the `csrf` allowlist
+
+**No trailing slash** on either URL: they're used as URL prefixes (`${URL}/preview?...`)
+and compared against `Origin` headers, which never carry one.
+
+**Restart `next dev` after changing these**: the CSP `frame-src` allowlist is baked
+by `next.config.mjs` `headers()` when the server boots (env reloads don't re-evaluate
+it), so a stale server CSP-blocks the preview iframe (`ERR_BLOCKED_BY_CSP`).
 
 ## Environment Variable Validation
 

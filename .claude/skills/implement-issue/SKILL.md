@@ -143,7 +143,7 @@ Fix any failure and commit the fix as a separate commit before moving on. The fu
 
 ### 9. Finalize — run the ship pipeline
 
-Implementation is done and validated. Now ship it via the **finalize pipeline**: **follow every step in `.claude/skills/finalize-pr/SKILL.md`** — simplify → single `/code-review` → conditional `/security-review` → lean test gate → push → open the PR → watch CI (with fixes) → report. On this first run it **creates** the PR.
+Implementation is done and validated. Now ship it via the **finalize pipeline**: **follow every step in `.claude/skills/finalize-pr/SKILL.md`** — simplify → single `/code-review` → conditional `/security-review` → lean test gate → docs sync → push → open the PR → watch CI (with fixes) → report. On this first run it **creates** the PR.
 
 Execute that skill's steps directly here; don't re-implement them in this file — `finalize-pr` is the single source of truth, so the exact same pipeline runs whether the user types `/finalize-pr` or `/implement-issue`.
 
