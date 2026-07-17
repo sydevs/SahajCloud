@@ -7,43 +7,52 @@
       "properties": {
         "welcome": {
           "type": "object",
-          "description": "First screen new users see, with sign-up buttons and a legal notice.",
+          "description": "First screen new users see — a greeting, sign-up buttons and a short legal notice.",
           "properties": {
             "title": {
               "type": "string",
-              "description": "Big greeting at the top of the welcome screen."
+              "description": "Big greeting at the top of the welcome screen.",
+              "section": "Welcome"
             },
             "subtitle": {
               "type": "string",
-              "description": "Smaller text below the welcome greeting."
-            },
-            "get_started": {
-              "type": "string",
-              "description": "Main button that starts sign-up."
-            },
-            "use_existing_account": {
-              "type": "string",
-              "description": "Button for people who already have an account."
-            },
-            "privacy_policy_title": {
-              "type": "string",
-              "description": "Title shown on the Privacy Policy screen."
-            },
-            "terms_and_conditions_title": {
-              "type": "string",
-              "description": "Title shown on the Terms and Conditions screen."
-            },
-            "email_app_unavailable": {
-              "type": "string",
-              "description": "Error shown when no email app is installed to open a link."
-            },
-            "link_open_failed": {
-              "type": "string",
-              "description": "Error shown when a link on the welcome screen won't open."
+              "description": "Smaller line below the greeting.",
+              "section": "Welcome"
             },
             "legal_disclaimer": {
               "type": "richText",
-              "description": "Small legal notice with links to Terms and Privacy Policy."
+              "description": "Small print with Terms and Privacy Policy links. In the app it sits just above the two buttons.",
+              "section": "Legal notice"
+            },
+            "get_started": {
+              "type": "string",
+              "description": "Main button that starts sign-up.",
+              "section": "Buttons"
+            },
+            "use_existing_account": {
+              "type": "string",
+              "description": "Second button for people who already have an account.",
+              "section": "Buttons"
+            },
+            "privacy_policy_title": {
+              "type": "string",
+              "description": "Title of the Privacy Policy page opened from the legal links.",
+              "section": "Legal document screens"
+            },
+            "terms_and_conditions_title": {
+              "type": "string",
+              "description": "Title of the Terms & Conditions page opened from the legal links.",
+              "section": "Legal document screens"
+            },
+            "email_app_unavailable": {
+              "type": "string",
+              "description": "Error shown only if the device has no email app to open.",
+              "section": "Errors"
+            },
+            "link_open_failed": {
+              "type": "string",
+              "description": "Error shown only if a link can’t be opened.",
+              "section": "Errors"
             }
           },
           "additionalProperties": false,
@@ -51,19 +60,19 @@
         },
         "name": {
           "type": "object",
-          "description": "Screen where the new user types their first name.",
+          "description": "Asks the new user for their first name.",
           "properties": {
             "title": {
               "type": "string",
-              "description": "Question asking the user for their name."
+              "description": "The question at the top of the screen."
             },
             "placeholder": {
               "type": "string",
-              "description": "Faint hint text inside the name box."
+              "description": "Grey hint text inside the name box."
             },
             "continue": {
               "type": "string",
-              "description": "Button to confirm the name and continue."
+              "description": "Button to move to the next step."
             }
           },
           "additionalProperties": false,
@@ -71,11 +80,11 @@
         },
         "greeting": {
           "type": "object",
-          "description": "Short hello screen shown right after the user enters their name.",
+          "description": "Short personal greeting shown after the name step.",
           "properties": {
             "message_prefix": {
               "type": "string",
-              "description": "Greeting shown above the user's name. Keep the line breaks."
+              "description": "Greeting text. The app adds the user’s name and a “!” straight after it — no name placeholder here."
             }
           },
           "additionalProperties": false,
@@ -83,31 +92,37 @@
         },
         "user_type": {
           "type": "object",
-          "description": "Screen where the user says how much meditation experience they have.",
+          "description": "Asks how much experience the user already has.",
           "properties": {
-            "get_started": {
-              "type": "string",
-              "description": "Button to continue after choosing an option."
+            "title": {
+              "type": "richText",
+              "description": "The question at the top (e.g. “Have you tried Sahaja Yoga before?”). Rich text so part of it can be bold.",
+              "section": "Question"
             },
             "option_complete_beginner": {
               "type": "string",
-              "description": "Choice for people completely new to meditation."
+              "description": "First option — completely new.",
+              "section": "Options"
             },
             "option_tried_before": {
               "type": "string",
-              "description": "Choice for people who have tried meditation before."
+              "description": "Second option — tried it once before.",
+              "section": "Options"
             },
             "option_attending_classes": {
               "type": "string",
-              "description": "Choice for people currently taking a newcomer class."
+              "description": "Third option — attending classes now.",
+              "section": "Options"
             },
             "option_yogi": {
               "type": "string",
-              "description": "Choice for long-time Sahaja Yoga practitioners."
+              "description": "Fourth option — practising for years.",
+              "section": "Options"
             },
-            "title": {
-              "type": "richText",
-              "description": "Question asking if they've tried Sahaja Yoga before."
+            "get_started": {
+              "type": "string",
+              "description": "Button at the bottom, shown after an option is chosen. (Appears last on screen.)",
+              "section": "Button"
             }
           },
           "additionalProperties": false,
@@ -115,31 +130,37 @@
         },
         "carousel": {
           "type": "object",
-          "description": "Three intro slides shown early in sign-up.",
+          "description": "Three intro slides the user swipes through before signing up.",
           "properties": {
             "page_moment_title": {
               "type": "string",
-              "description": "Title on the first intro slide."
+              "description": "Slide 1 title.",
+              "section": "Page 1 — A moment of peace"
             },
             "page_moment_subtitle": {
               "type": "string",
-              "description": "Supporting text on the first intro slide."
-            },
-            "page_true_self_subtitle": {
-              "type": "string",
-              "description": "Supporting text on the second intro slide."
-            },
-            "page_unlock_potential_title": {
-              "type": "string",
-              "description": "Title on the third intro slide."
-            },
-            "page_unlock_potential_subtitle": {
-              "type": "string",
-              "description": "Supporting text on the third intro slide."
+              "description": "Slide 1 text under the title.",
+              "section": "Page 1 — A moment of peace"
             },
             "page_true_self_title": {
               "type": "richText",
-              "description": "Title on the second intro slide."
+              "description": "Slide 2 title. Rich text so “true self” can be emphasised.",
+              "section": "Page 2 — Get to know your true self"
+            },
+            "page_true_self_subtitle": {
+              "type": "string",
+              "description": "Slide 2 text under the title.",
+              "section": "Page 2 — Get to know your true self"
+            },
+            "page_unlock_potential_title": {
+              "type": "string",
+              "description": "Slide 3 title.",
+              "section": "Page 3 — Unlock your potential"
+            },
+            "page_unlock_potential_subtitle": {
+              "type": "string",
+              "description": "Slide 3 text under the title.",
+              "section": "Page 3 — Unlock your potential"
             }
           },
           "additionalProperties": false,
@@ -147,43 +168,52 @@
         },
         "consent_modal": {
           "type": "object",
-          "description": "Pop-up after the first meditation asking to help spread the word.",
+          "description": "The marketing-consent screen. ⚠ This wording is saved into each user’s consent record for legal audit — editing it changes what’s recorded, not only what’s shown.",
           "properties": {
             "title": {
               "type": "string",
-              "description": "Title of the help-spread-the-word pop-up."
-            },
-            "body_benefits": {
-              "type": "string",
-              "description": "Paragraph explaining how agreeing helps."
-            },
-            "body_never_share": {
-              "type": "richText",
-              "description": "Paragraph listing personal things that are never shared."
-            },
-            "body_never_sell": {
-              "type": "richText",
-              "description": "Short line promising the app never sells your data."
-            },
-            "body_settings_hint": {
-              "type": "string",
-              "description": "Line saying you can change this later in Settings."
-            },
-            "allow": {
-              "type": "string",
-              "description": "Button to agree."
-            },
-            "reject": {
-              "type": "string",
-              "description": "Button to decline."
+              "description": "Heading of the consent screen.",
+              "section": "Help spread the word"
             },
             "body_intro": {
               "type": "richText",
-              "description": "Opening paragraph with a link showing what is shared."
+              "description": "Opening paragraph, with a link that shows exactly what is shared.",
+              "section": "Help spread the word"
+            },
+            "body_benefits": {
+              "type": "string",
+              "description": "Paragraph on how sharing helps others find the app.",
+              "section": "Help spread the word"
+            },
+            "body_never_share": {
+              "type": "richText",
+              "description": "Paragraph listing the personal things that are never shared.",
+              "section": "Help spread the word"
+            },
+            "body_never_sell": {
+              "type": "richText",
+              "description": "Short line promising the app never sells user data.",
+              "section": "Help spread the word"
+            },
+            "body_settings_hint": {
+              "type": "string",
+              "description": "Note that this choice can be changed later in settings.",
+              "section": "Help spread the word"
+            },
+            "allow": {
+              "type": "string",
+              "description": "Button to allow sharing.",
+              "section": "Buttons"
+            },
+            "reject": {
+              "type": "string",
+              "description": "Button to decline.",
+              "section": "Buttons"
             }
           },
           "additionalProperties": false,
-          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=11564-91404"
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=11564-91404",
+          "title": "Marketing consent"
         }
       },
       "additionalProperties": false

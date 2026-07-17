@@ -54,11 +54,11 @@
   },
   "onboarding_user_type": {
     "strings": {
-      "get_started": "Get started",
       "option_complete_beginner": "Never tried it, I'm completely new!",
       "option_tried_before": "Tried it before, but didn't go deep into it",
       "option_attending_classes": "Currently attending a newcomer class (in-person or online)",
-      "option_yogi": "Have been practicing for years"
+      "option_yogi": "Have been practicing for years",
+      "get_started": "Get started"
     },
     "title": {
       "_richText": true,
@@ -104,7 +104,6 @@
     }
   },
   "onboarding_consent_modal": {
-    "_source": "No yaml source — full content sourced from Figma node-id 11564-91404 (per PR #386). Cross-checked against the screenshots shared in the original design discussion.",
     "strings": {
       "title": "Help spread the word",
       "body_benefits": "We are a non-profit with a modest budget, and this helps us spend it wisely: we see which outreach is useful, avoid bothering people who already use WeMeditate, and help ad platforms build lookalike audiences to find people with similar interests who may benefit from meditation.",
@@ -163,7 +162,8 @@
           }
         ]
       ]
-    }
+    },
+    "_source": "No yaml source — full content sourced from Figma node-id 11564-91404 (per PR #386). Cross-checked against the screenshots shared in the original design discussion."
   },
   "daily_main": {
     "your_morning_meditation": "Your morning meditation",
