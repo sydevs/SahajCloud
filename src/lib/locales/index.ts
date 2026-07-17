@@ -28,6 +28,8 @@ export const LOCALES = [
   { code: 'bg', label: 'Bulgarian' },
   { code: 'tr', label: 'Turkish' },
   { code: 'en-AU', label: 'Australian English' },
+  { code: 'hu', label: 'Hungarian' },
+  { code: 'nl', label: 'Dutch' },
 ] as const
 
 /**
