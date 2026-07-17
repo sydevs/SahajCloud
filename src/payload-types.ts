@@ -751,6 +751,8 @@ export interface Config {
         | 'bg'
         | 'tr'
         | 'en-AU'
+        | 'hu'
+        | 'nl'
       )
     | (
         | 'en'
@@ -770,6 +772,8 @@ export interface Config {
         | 'bg'
         | 'tr'
         | 'en-AU'
+        | 'hu'
+        | 'nl'
       )[];
   globals: {
     'wm-web-config': WmWebConfig;
@@ -808,7 +812,9 @@ export interface Config {
     | 'fa'
     | 'bg'
     | 'tr'
-    | 'en-AU';
+    | 'en-AU'
+    | 'hu'
+    | 'nl';
   widgets: {
     collections: CollectionsWidget;
   };
@@ -1888,7 +1894,9 @@ export interface Meditation {
     | 'fa'
     | 'bg'
     | 'tr'
-    | 'en-AU';
+    | 'en-AU'
+    | 'hu'
+    | 'nl';
   /**
    * This should be the name of the yogi who did the recording. We need this for dynamic followup audio clips. Cannot be changed after creation.
    */
@@ -2240,7 +2248,9 @@ export interface Lecture {
           | 'fa'
           | 'bg'
           | 'tr'
-          | 'en-AU';
+          | 'en-AU'
+          | 'hu'
+          | 'nl';
         url: string;
         id?: string | null;
       }[]

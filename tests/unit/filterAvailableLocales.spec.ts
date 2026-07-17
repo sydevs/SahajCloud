@@ -53,7 +53,7 @@ describe('filterAvailableLocales', () => {
       const req = createMockRequest(adminUser)
       const result = filterAvailableLocales({ locales: allLocales, req })
 
-      expect(result).toHaveLength(17)
+      expect(result).toHaveLength(19)
       expect(result).toEqual(allLocales)
     })
   })
@@ -67,7 +67,7 @@ describe('filterAvailableLocales', () => {
       const req = createMockRequest(clientUser)
       const result = filterAvailableLocales({ locales: allLocales, req })
 
-      expect(result).toHaveLength(17)
+      expect(result).toHaveLength(19)
       expect(result).toEqual(allLocales)
     })
   })

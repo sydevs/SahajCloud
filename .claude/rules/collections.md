@@ -175,7 +175,7 @@ slugField({
 })
 ```
 
-## Localization (17 locales)
+## Localization (19 locales)
 
 Configured in `src/payload.config.ts` via `buildPayloadLocales()` from
 `src/lib/locales/index.ts`. Default locale: `en`. Fallback enabled — non-English
@@ -185,7 +185,7 @@ BCP-47 form (lowercase language, uppercase region). Locale labels come from the
 (Australian English), and `fa` (Farsi/Persian).
 
 Supported: `en`, `es`, `de`, `it`, `fr`, `ru`, `ro`, `cs`, `uk`, `el`,
-`hy`, `pl`, `pt-BR`, `fa`, `bg`, `tr`, `en-AU`.
+`hy`, `pl`, `pt-BR`, `fa`, `bg`, `tr`, `en-AU`, `hu`, `nl`.
 
 ### Admin locale filtering (`filterAvailableLocales`)
 
@@ -195,7 +195,7 @@ in the admin locale selector:
 | User | Locales shown |
 |---|---|
 | Unauthenticated | English only (login page) |
-| Admin managers | All 17 |
+| Admin managers | All 19 |
 | API clients | All (filter only applies to admin UI) |
 | Regular managers | English (always) + locales where they have ≥ 1 role |
 | Inactive managers | English only |
@@ -216,7 +216,7 @@ Mark fields `localized: true`. Currently localized fields include:
 Meditations don't use field-level localization — each meditation **is**
 a single-locale document:
 
-- `locale` select field with all 17 options, default `en`.
+- `locale` select field with all 19 options, default `en`.
 - `filterMeditationsByLocale` (beforeOperation hook in
   `src/collections/Meditations/hooks/`) adds `{ locale: { equals: req.locale } }`
   to `find`/`count` operations.
