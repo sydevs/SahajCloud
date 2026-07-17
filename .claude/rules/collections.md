@@ -175,7 +175,7 @@ slugField({
 })
 ```
 
-## Localization (17 locales)
+## Localization (19 locales)
 
 Configured in `src/payload.config.ts` via `buildPayloadLocales()` from
 `src/lib/locales/index.ts`. Default locale: `en`. Fallback enabled — non-English
@@ -185,7 +185,7 @@ BCP-47 form (lowercase language, uppercase region). Locale labels come from the
 (Australian English), and `fa` (Farsi/Persian).
 
 Supported: `en`, `es`, `de`, `it`, `fr`, `ru`, `ro`, `cs`, `uk`, `el`,
-`hy`, `pl`, `pt-BR`, `fa`, `bg`, `tr`, `en-AU`.
+`hy`, `pl`, `pt-BR`, `fa`, `bg`, `tr`, `en-AU`, `hu`, `nl`.
 
 ### Admin locale filtering (`filterAvailableLocales`)
 
