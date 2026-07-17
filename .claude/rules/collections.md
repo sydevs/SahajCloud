@@ -195,7 +195,7 @@ in the admin locale selector:
 | User | Locales shown |
 |---|---|
 | Unauthenticated | English only (login page) |
-| Admin managers | All 17 |
+| Admin managers | All 19 |
 | API clients | All (filter only applies to admin UI) |
 | Regular managers | English (always) + locales where they have ≥ 1 role |
 | Inactive managers | English only |
