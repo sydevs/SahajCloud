@@ -12,7 +12,7 @@ export interface LanguageOption {
  *
  * Shared by the Atlas Events `languages` field and the Clients / Managers
  * language selects. This is the broad language set — distinct
- * from the 17 app `LOCALES` in this folder, which are the locales the CMS
+ * from the 19 app `LOCALES` in this folder, which are the locales the CMS
  * itself is translated into.
  */
 export function getLanguageOptions(): LanguageOption[] {

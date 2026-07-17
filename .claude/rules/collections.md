@@ -216,7 +216,7 @@ Mark fields `localized: true`. Currently localized fields include:
 Meditations don't use field-level localization — each meditation **is**
 a single-locale document:
 
-- `locale` select field with all 17 options, default `en`.
+- `locale` select field with all 19 options, default `en`.
 - `filterMeditationsByLocale` (beforeOperation hook in
   `src/collections/Meditations/hooks/`) adds `{ locale: { equals: req.locale } }`
   to `find`/`count` operations.
