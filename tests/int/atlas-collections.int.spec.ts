@@ -177,6 +177,13 @@ describe('Atlas collections', () => {
         expect(livePreview.breakpoints).toEqual([
           { label: 'Mobile', name: 'mobile', width: 390, height: 844 },
         ])
+
+        // Unsaved docs (no id) get no URL — the preview panel stays disabled.
+        const unsaved = await livePreview.url({
+          data: {},
+          locale: { code: 'cs' },
+        } as Parameters<typeof livePreview.url>[0])
+        expect(unsaved).toBeNull()
       },
     )
   })

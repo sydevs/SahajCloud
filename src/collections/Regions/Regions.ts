@@ -107,8 +107,11 @@ export const Regions: CollectionConfig = {
     // no drafts: the preview shows published data plus unsaved form edits
     // streamed via Payload's postMessage sender.
     livePreview: {
+      // No URL for an unsaved doc (nothing to fetch yet) — null disables the panel.
       url: ({ data, locale }) =>
-        `${serverEnv.SAHAJATLAS_URL}/preview?collection=regions&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`,
+        data.id
+          ? `${serverEnv.SAHAJATLAS_URL}/preview?collection=regions&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`
+          : null,
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
     },
   },

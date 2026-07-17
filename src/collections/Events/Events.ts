@@ -77,8 +77,11 @@ export const Events: CollectionConfig = {
     // preflight (see `cors` in payload.config.ts). `locale` rides along so the
     // localized title previews in the edited locale.
     livePreview: {
+      // No URL for an unsaved doc (nothing to fetch yet) — null disables the panel.
       url: ({ data, locale }) =>
-        `${serverEnv.SAHAJATLAS_URL}/preview?collection=events&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`,
+        data.id
+          ? `${serverEnv.SAHAJATLAS_URL}/preview?collection=events&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`
+          : null,
       // Phone-sized frame for the widget's bottom-sheet drawer layout.
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
     },
