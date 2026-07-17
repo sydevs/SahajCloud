@@ -1,6 +1,6 @@
 ---
 name: finalize-pr
-description: Finalize the current branch's PR — simplify, code-review, conditional security-review, run tests, push, create or update the PR, watch CI and fix failures, and refresh the PR description. User-invoked; also run by /implement-issue. Does not run unless explicitly triggered.
+description: Finalize the current branch's PR — simplify, code-review, conditional security-review, run tests, sync docs, push, create or update the PR, watch CI and fix failures, and refresh the PR description. User-invoked; also run by /implement-issue. Does not run unless explicitly triggered.
 disable-model-invocation: true
 effort: max
 allowed-tools: Bash(*), Read, Edit, Write, Grep, Glob, Task
@@ -9,8 +9,8 @@ allowed-tools: Bash(*), Read, Edit, Write, Grep, Glob, Task
 # Finalize PR
 
 The reusable **ship pipeline**: take the current branch's accumulated local commits and ship them —
-simplify → code-review → conditional security-review → test → push → open/refresh the PR → get CI
-green → report.
+simplify → code-review → conditional security-review → test → docs sync → push → open/refresh the
+PR → get CI green → report.
 
 This is **phase 3** of the PR workflow (Implement → Adjust → **Finalize**) documented in `AGENTS.md`.
 `/implement-issue` runs this pipeline at the end of its implementation; you also run it directly
@@ -95,7 +95,28 @@ pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts
 Fix + re-run on failure. CI runs the full Tier-3 suite on the PR — that's the real gate; don't
 reproduce it locally unless debugging a red run (`pr-prep/check.sh --full`).
 
-### 5. Push
+### 5. Docs sync
+
+Documentation ships in the same push as the code it describes. Sweep the branch diff for doc
+impact **before** pushing:
+
+```bash
+git diff --name-only origin/main...HEAD    # what changed…
+grep -rn "<changed setting / env var / command / behavior>" \
+  .claude/docs/ .claude/rules/ AGENTS.md DEPLOYMENT.md .env.example  # …then what documents it
+```
+
+- Check every doc surface that could describe what the diff changed: `.claude/rules/`
+  (path-scoped subsystem rules), `.claude/docs/` (environment, architecture), `AGENTS.md` /
+  `CLAUDE.md`, `DEPLOYMENT.md`, `.env.example`, and any `.claude/skills/*` whose workflow the
+  change alters.
+- Update every statement the diff makes stale (config values, env vars, commands, collection
+  behavior, URLs) and document anything **new** the branch introduces (env vars, workflows,
+  gotchas discovered while implementing).
+- Commit doc updates as their own commit (`docs(<scope>): …`). If nothing is stale, say
+  "docs checked — nothing stale" in the report.
+
+### 6. Push
 
 ```bash
 git push        # creates the remote branch on first push (git push -u origin <branch> if unset)
@@ -103,7 +124,7 @@ git push        # creates the remote branch on first push (git push -u origin <b
 
 Never force-push a shared branch; never `--no-verify`.
 
-### 6. Open or refresh the PR
+### 7. Open or refresh the PR
 
 ```bash
 gh pr view --json number,url 2>/dev/null   # does a PR already exist for this branch?
@@ -121,7 +142,7 @@ gh pr view --json number,url 2>/dev/null   # does a PR already exist for this br
   ```
   Never leave a stale description from an earlier state.
 
-### 7. Watch CI and fix (capped)
+### 8. Watch CI and fix (capped)
 
 ```bash
 gh pr checks <pr-or-branch> --watch
@@ -136,7 +157,7 @@ gh pr checks <pr-or-branch>            # confirm final state
 - A failure **pre-existing on `main`** (not caused by this branch) → fix it in this PR and note it,
   per `.claude/skills/pr-prep/SKILL.md`.
 
-### 8. Report
+### 9. Report
 
 - PR URL + final CI status (green, or the capped-out summary).
 - Dismissed review findings (with the one-line reasons).
@@ -157,6 +178,7 @@ gh pr checks <pr-or-branch>            # confirm final state
 - **Always** run `/code-review` (and the conditional `/security-review`) via a **dispatched Task
   subagent**, never inline in the main thread.
 - **Always** use `--body-file` for `gh pr create` / `gh pr edit`; always refresh a stale PR body.
+- **Always** run the docs sync (step 5) before pushing — stale docs must not ship with the push.
 - **Cap** the CI fix-loop at 3 iterations, then hand back to the user.
 
 ## References
