@@ -13,8 +13,8 @@ import { buildPayloadLocales } from '../../src/lib/locales'
 const allLocales = buildPayloadLocales()
 
 describe('Locale Configuration (buildPayloadLocales)', () => {
-  it('builds all 17 locales with proper configuration', () => {
-    expect(allLocales).toHaveLength(17)
+  it('builds all 19 locales with proper configuration', () => {
+    expect(allLocales).toHaveLength(19)
     expect(allLocales.map((l) => l.code)).toEqual([
       'en',
       'es',
@@ -33,6 +33,8 @@ describe('Locale Configuration (buildPayloadLocales)', () => {
       'bg',
       'tr',
       'en-AU',
+      'hu',
+      'nl',
     ])
   })
 
@@ -71,5 +73,12 @@ describe('Locale Configuration (buildPayloadLocales)', () => {
     // Check override for Farsi
     const farsiLocale = allLocales.find((l) => l.code === 'fa')
     expect(farsiLocale?.label).toBe('Farsi/Persian')
+
+    // ISO 639-1 labels for the newly added locales (no override needed)
+    const hungarianLocale = allLocales.find((l) => l.code === 'hu')
+    expect(hungarianLocale?.label).toBe('Hungarian')
+
+    const dutchLocale = allLocales.find((l) => l.code === 'nl')
+    expect(dutchLocale?.label).toBe('Dutch')
   })
 })
