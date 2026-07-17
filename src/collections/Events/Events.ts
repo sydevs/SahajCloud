@@ -16,7 +16,6 @@ import {
   scheduleFields,
   urlField,
 } from '@/fields'
-import { atlasLivePreview } from '@/lib/atlas/livePreview'
 import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
@@ -71,7 +70,18 @@ export const Events: CollectionConfig = {
     group: 'Classes',
     useAsTitle: 'title',
     defaultColumns: ['title', 'verificationStage', '_status'],
-    livePreview: atlasLivePreview('events'),
+    // Live Preview loads the Atlas widget's /preview route. Unlike WeMeditate's
+    // server-side preview, the widget fetches the doc back **client-side**,
+    // forwarding the secret in the x-sahajcloud-preview-secret header — which
+    // unlocks drafts (see @/lib/utilities/previewSecret) and must clear CORS
+    // preflight (see `cors` in payload.config.ts). `locale` rides along so the
+    // localized title previews in the edited locale.
+    livePreview: {
+      url: ({ data, locale }) =>
+        `${serverEnv.SAHAJATLAS_URL}/preview?collection=events&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`,
+      // Phone-sized frame for the widget's bottom-sheet drawer layout.
+      breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
+    },
   },
   // Re-verify on any manager save; the explicit POST endpoint backs the notice
   // banner's Verify button. The tokenized email link is the `/events/verify`

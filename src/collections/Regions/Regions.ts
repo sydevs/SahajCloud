@@ -3,7 +3,6 @@ import type { CollectionConfig } from 'payload'
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
 import { hideUntilCreated, legacyMigrationFields, publicUrlFields, slugField } from '@/fields'
-import { atlasLivePreview } from '@/lib/atlas/livePreview'
 import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
@@ -103,9 +102,15 @@ export const Regions: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'level'],
     groupBy: true,
-    // Regions have no drafts — the preview shows published data plus unsaved
-    // form edits streamed via Payload's postMessage sender.
-    livePreview: atlasLivePreview('regions'),
+    // Live Preview loads the Atlas widget's /preview route (same contract as
+    // Events — see Events.ts for the CORS + draft-unlock notes). Regions have
+    // no drafts: the preview shows published data plus unsaved form edits
+    // streamed via Payload's postMessage sender.
+    livePreview: {
+      url: ({ data, locale }) =>
+        `${serverEnv.SAHAJATLAS_URL}/preview?collection=regions&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`,
+      breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
+    },
   },
   // The child joins below are recursive (all descendants via breadcrumbs.doc),
   // so skip them when a region is hydrated through a relationship (depth ≥ 1)

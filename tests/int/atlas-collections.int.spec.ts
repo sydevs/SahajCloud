@@ -155,14 +155,29 @@ describe('Atlas collections', () => {
     })
   })
 
-  // Wiring proof for #575 — the Live Preview tab appears iff the sanitized
-  // collection config carries `admin.livePreview`. URL shape is covered by
-  // tests/unit/atlas-live-preview.spec.ts.
-  describe('Live preview wiring', () => {
-    it.each(['events', 'regions'] as const)('%s enables the Atlas live preview', (slug) => {
-      const { livePreview } = payload.collections[slug].config.admin
-      expect(typeof livePreview?.url).toBe('function')
-      expect(livePreview?.breakpoints?.[0]).toMatchObject({ name: 'mobile' })
-    })
+  // #575 — the Live Preview tab appears iff the sanitized collection config
+  // carries `admin.livePreview`; the URL must carry the collection, doc id,
+  // shared secret, and the edited locale so the Atlas widget can fetch the doc
+  // (drafts included) client-side.
+  describe('Live preview', () => {
+    it.each(['events', 'regions'] as const)(
+      '%s points the preview iframe at the Atlas widget',
+      async (slug) => {
+        const { livePreview } = payload.collections[slug].config.admin
+        if (typeof livePreview?.url !== 'function') {
+          throw new Error('expected livePreview.url to be a function')
+        }
+        const url = await livePreview.url({
+          data: { id: 42 },
+          locale: { code: 'cs' },
+        } as Parameters<typeof livePreview.url>[0])
+        expect(url).toBe(
+          `${process.env.SAHAJATLAS_URL}/preview?collection=${slug}&id=42&secret=${process.env.SAHAJCLOUD_PREVIEW_SECRET}&locale=cs`,
+        )
+        expect(livePreview.breakpoints).toEqual([
+          { label: 'Mobile', name: 'mobile', width: 390, height: 844 },
+        ])
+      },
+    )
   })
 })
