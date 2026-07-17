@@ -103,7 +103,7 @@ impact **before** pushing:
 ```bash
 git diff --name-only origin/main...HEAD    # what changed…
 grep -rn "<changed setting / env var / command / behavior>" \
-  .claude/docs/ .claude/rules/ AGENTS.md DEPLOYMENT.md .env.example  # …then what documents it
+  .claude/docs/ .claude/rules/ .claude/skills/ AGENTS.md DEPLOYMENT.md .env.example  # …then what documents it
 ```
 
 - Check every doc surface that could describe what the diff changed: `.claude/rules/`
