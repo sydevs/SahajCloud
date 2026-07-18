@@ -1818,6 +1818,36 @@ export interface Registration {
   startingAt?: string | null;
   startingAt_tz?: SupportedTimezones;
   /**
+   * The client service this registration came through. Brands and localizes the emails sent about it.
+   */
+  client?: (number | null) | Client;
+  /**
+   * The registrant's language. Emails about this registration are rendered in it.
+   */
+  locale?:
+    | (
+        | 'en'
+        | 'es'
+        | 'de'
+        | 'it'
+        | 'fr'
+        | 'ru'
+        | 'ro'
+        | 'cs'
+        | 'uk'
+        | 'el'
+        | 'hy'
+        | 'pl'
+        | 'pt-BR'
+        | 'fa'
+        | 'bg'
+        | 'tr'
+        | 'en-AU'
+        | 'hu'
+        | 'nl'
+      )
+    | null;
+  /**
    * Raw registration answers (keys: questions / experience / aspirations / referral).
    */
   questions?:
@@ -1869,6 +1899,334 @@ export interface User {
     | null;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "clients".
+ */
+export interface Client {
+  id: number;
+  /**
+   * Client organization or application name
+   */
+  name: string;
+  /**
+   * Purpose and usage notes for this client
+   */
+  notes?: string | null;
+  /**
+   * Assign API client roles. Roles apply to all locales.
+   */
+  roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null;
+  /**
+   * Users who can manage this client
+   */
+  managers: (number | Manager)[];
+  /**
+   * Primary user contact for this client. Only needed when more than one manager is assigned.
+   */
+  primaryContact?: (number | null) | Manager;
+  /**
+   * What domains are associated with this client. Put each domain on a new line.
+   */
+  allowedDomains?: string | null;
+  /**
+   * Hex color code (e.g., #FF5733)
+   */
+  color1?: string | null;
+  /**
+   * Hex color code (e.g., #FF5733)
+   */
+  color2?: string | null;
+  /**
+   * Hex color code (e.g., #FF5733)
+   */
+  color3?: string | null;
+  /**
+   * Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.
+   */
+  logo?: (number | null) | Image;
+  /**
+   * Linked from the footer of registrant emails.
+   */
+  websiteUrl?: string | null;
+  /**
+   * Reply-To on registrant emails, so replies reach this service rather than us.
+   */
+  supportEmail?: string | null;
+  /**
+   * Primary language for this service (any language).
+   */
+  locale?:
+    | (
+        | 'ab'
+        | 'aa'
+        | 'af'
+        | 'ak'
+        | 'sq'
+        | 'am'
+        | 'ar'
+        | 'an'
+        | 'hy'
+        | 'as'
+        | 'av'
+        | 'ae'
+        | 'ay'
+        | 'az'
+        | 'bm'
+        | 'ba'
+        | 'eu'
+        | 'be'
+        | 'bn'
+        | 'bi'
+        | 'bs'
+        | 'br'
+        | 'bg'
+        | 'my'
+        | 'ca'
+        | 'ch'
+        | 'ce'
+        | 'ny'
+        | 'zh'
+        | 'cv'
+        | 'kw'
+        | 'co'
+        | 'cr'
+        | 'hr'
+        | 'cs'
+        | 'da'
+        | 'dv'
+        | 'nl'
+        | 'dz'
+        | 'en'
+        | 'eo'
+        | 'et'
+        | 'ee'
+        | 'fo'
+        | 'fj'
+        | 'fi'
+        | 'fr'
+        | 'ff'
+        | 'gl'
+        | 'lg'
+        | 'ka'
+        | 'de'
+        | 'el'
+        | 'gn'
+        | 'gu'
+        | 'ht'
+        | 'ha'
+        | 'he'
+        | 'hz'
+        | 'hi'
+        | 'ho'
+        | 'hu'
+        | 'is'
+        | 'io'
+        | 'ig'
+        | 'id'
+        | 'ia'
+        | 'ie'
+        | 'iu'
+        | 'ik'
+        | 'ga'
+        | 'it'
+        | 'ja'
+        | 'jv'
+        | 'kl'
+        | 'kn'
+        | 'kr'
+        | 'ks'
+        | 'kk'
+        | 'km'
+        | 'ki'
+        | 'rw'
+        | 'rn'
+        | 'kv'
+        | 'kg'
+        | 'ko'
+        | 'ku'
+        | 'kj'
+        | 'ky'
+        | 'lo'
+        | 'la'
+        | 'lv'
+        | 'li'
+        | 'ln'
+        | 'lt'
+        | 'lu'
+        | 'lb'
+        | 'mk'
+        | 'mg'
+        | 'ms'
+        | 'ml'
+        | 'mt'
+        | 'gv'
+        | 'mi'
+        | 'mr'
+        | 'mh'
+        | 'mn'
+        | 'na'
+        | 'nv'
+        | 'ng'
+        | 'ne'
+        | 'nd'
+        | 'se'
+        | 'no'
+        | 'nb'
+        | 'nn'
+        | 'ii'
+        | 'oc'
+        | 'oj'
+        | 'cu'
+        | 'or'
+        | 'om'
+        | 'os'
+        | 'pi'
+        | 'pa'
+        | 'ps'
+        | 'fa'
+        | 'pl'
+        | 'pt'
+        | 'qu'
+        | 'ro'
+        | 'rm'
+        | 'ru'
+        | 'sm'
+        | 'sg'
+        | 'sa'
+        | 'sc'
+        | 'gd'
+        | 'sr'
+        | 'sn'
+        | 'sd'
+        | 'si'
+        | 'sk'
+        | 'sl'
+        | 'so'
+        | 'nr'
+        | 'st'
+        | 'es'
+        | 'su'
+        | 'sw'
+        | 'ss'
+        | 'sv'
+        | 'tl'
+        | 'ty'
+        | 'tg'
+        | 'ta'
+        | 'tt'
+        | 'te'
+        | 'th'
+        | 'bo'
+        | 'ti'
+        | 'to'
+        | 'ts'
+        | 'tn'
+        | 'tr'
+        | 'tk'
+        | 'tw'
+        | 'uk'
+        | 'ur'
+        | 'ug'
+        | 'uz'
+        | 've'
+        | 'vi'
+        | 'vo'
+        | 'wa'
+        | 'cy'
+        | 'fy'
+        | 'wo'
+        | 'xh'
+        | 'yi'
+        | 'yo'
+        | 'za'
+        | 'zu'
+      )
+    | null;
+  /**
+   * Atlas geographic scope for this service.
+   */
+  region?: (number | null) | Region;
+  /**
+   * Deprecated Atlas config (routing_type, embed_type, default_view).
+   */
+  legacyConfig?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Public identifier for this service. Auto-generated, or the Atlas public key for imported services.
+   */
+  clientId?: string | null;
+  /**
+   * Timestamp of last API key generation
+   */
+  keyGeneratedAt?: string | null;
+  /**
+   * API usage statistics
+   */
+  usage?: {
+    abuseScore?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    /**
+     * Today's request count
+     */
+    dailyRequests?: number | null;
+    /**
+     * Maximum historical request count
+     */
+    peakDailyRequests?: number | null;
+    /**
+     * Last API call timestamp
+     */
+    lastRequestAt?: string | null;
+    /**
+     * Lifetime total requests (never resets)
+     */
+    totalRequests?: number | null;
+    /**
+     * Count of days exceeding threshold
+     */
+    highUsageDays?: number | null;
+    /**
+     * Last date threshold was exceeded
+     */
+    lastHighUsageAt?: string | null;
+    /**
+     * First API request (tracking start)
+     */
+    firstRequestAt?: string | null;
+  };
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+  enableAPIKey?: boolean | null;
+  apiKey?: string | null;
+  apiKeyIndex?: string | null;
+  collection: 'clients';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3026,322 +3384,6 @@ export interface Frame {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "clients".
- */
-export interface Client {
-  id: number;
-  /**
-   * Client organization or application name
-   */
-  name: string;
-  /**
-   * Purpose and usage notes for this client
-   */
-  notes?: string | null;
-  /**
-   * Assign API client roles. Roles apply to all locales.
-   */
-  roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null;
-  /**
-   * Users who can manage this client
-   */
-  managers: (number | Manager)[];
-  /**
-   * Primary user contact for this client. Only needed when more than one manager is assigned.
-   */
-  primaryContact?: (number | null) | Manager;
-  /**
-   * What domains are associated with this client. Put each domain on a new line.
-   */
-  allowedDomains?: string | null;
-  /**
-   * Hex color code (e.g., #FF5733)
-   */
-  color1?: string | null;
-  /**
-   * Hex color code (e.g., #FF5733)
-   */
-  color2?: string | null;
-  /**
-   * Hex color code (e.g., #FF5733)
-   */
-  color3?: string | null;
-  /**
-   * Primary language for this service (any language).
-   */
-  locale?:
-    | (
-        | 'ab'
-        | 'aa'
-        | 'af'
-        | 'ak'
-        | 'sq'
-        | 'am'
-        | 'ar'
-        | 'an'
-        | 'hy'
-        | 'as'
-        | 'av'
-        | 'ae'
-        | 'ay'
-        | 'az'
-        | 'bm'
-        | 'ba'
-        | 'eu'
-        | 'be'
-        | 'bn'
-        | 'bi'
-        | 'bs'
-        | 'br'
-        | 'bg'
-        | 'my'
-        | 'ca'
-        | 'ch'
-        | 'ce'
-        | 'ny'
-        | 'zh'
-        | 'cv'
-        | 'kw'
-        | 'co'
-        | 'cr'
-        | 'hr'
-        | 'cs'
-        | 'da'
-        | 'dv'
-        | 'nl'
-        | 'dz'
-        | 'en'
-        | 'eo'
-        | 'et'
-        | 'ee'
-        | 'fo'
-        | 'fj'
-        | 'fi'
-        | 'fr'
-        | 'ff'
-        | 'gl'
-        | 'lg'
-        | 'ka'
-        | 'de'
-        | 'el'
-        | 'gn'
-        | 'gu'
-        | 'ht'
-        | 'ha'
-        | 'he'
-        | 'hz'
-        | 'hi'
-        | 'ho'
-        | 'hu'
-        | 'is'
-        | 'io'
-        | 'ig'
-        | 'id'
-        | 'ia'
-        | 'ie'
-        | 'iu'
-        | 'ik'
-        | 'ga'
-        | 'it'
-        | 'ja'
-        | 'jv'
-        | 'kl'
-        | 'kn'
-        | 'kr'
-        | 'ks'
-        | 'kk'
-        | 'km'
-        | 'ki'
-        | 'rw'
-        | 'rn'
-        | 'kv'
-        | 'kg'
-        | 'ko'
-        | 'ku'
-        | 'kj'
-        | 'ky'
-        | 'lo'
-        | 'la'
-        | 'lv'
-        | 'li'
-        | 'ln'
-        | 'lt'
-        | 'lu'
-        | 'lb'
-        | 'mk'
-        | 'mg'
-        | 'ms'
-        | 'ml'
-        | 'mt'
-        | 'gv'
-        | 'mi'
-        | 'mr'
-        | 'mh'
-        | 'mn'
-        | 'na'
-        | 'nv'
-        | 'ng'
-        | 'ne'
-        | 'nd'
-        | 'se'
-        | 'no'
-        | 'nb'
-        | 'nn'
-        | 'ii'
-        | 'oc'
-        | 'oj'
-        | 'cu'
-        | 'or'
-        | 'om'
-        | 'os'
-        | 'pi'
-        | 'pa'
-        | 'ps'
-        | 'fa'
-        | 'pl'
-        | 'pt'
-        | 'qu'
-        | 'ro'
-        | 'rm'
-        | 'ru'
-        | 'sm'
-        | 'sg'
-        | 'sa'
-        | 'sc'
-        | 'gd'
-        | 'sr'
-        | 'sn'
-        | 'sd'
-        | 'si'
-        | 'sk'
-        | 'sl'
-        | 'so'
-        | 'nr'
-        | 'st'
-        | 'es'
-        | 'su'
-        | 'sw'
-        | 'ss'
-        | 'sv'
-        | 'tl'
-        | 'ty'
-        | 'tg'
-        | 'ta'
-        | 'tt'
-        | 'te'
-        | 'th'
-        | 'bo'
-        | 'ti'
-        | 'to'
-        | 'ts'
-        | 'tn'
-        | 'tr'
-        | 'tk'
-        | 'tw'
-        | 'uk'
-        | 'ur'
-        | 'ug'
-        | 'uz'
-        | 've'
-        | 'vi'
-        | 'vo'
-        | 'wa'
-        | 'cy'
-        | 'fy'
-        | 'wo'
-        | 'xh'
-        | 'yi'
-        | 'yo'
-        | 'za'
-        | 'zu'
-      )
-    | null;
-  /**
-   * Atlas geographic scope for this service.
-   */
-  region?: (number | null) | Region;
-  /**
-   * Deprecated Atlas config (routing_type, embed_type, default_view).
-   */
-  legacyConfig?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Public identifier for this service. Auto-generated, or the Atlas public key for imported services.
-   */
-  clientId?: string | null;
-  /**
-   * Timestamp of last API key generation
-   */
-  keyGeneratedAt?: string | null;
-  /**
-   * API usage statistics
-   */
-  usage?: {
-    abuseScore?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    /**
-     * Today's request count
-     */
-    dailyRequests?: number | null;
-    /**
-     * Maximum historical request count
-     */
-    peakDailyRequests?: number | null;
-    /**
-     * Last API call timestamp
-     */
-    lastRequestAt?: string | null;
-    /**
-     * Lifetime total requests (never resets)
-     */
-    totalRequests?: number | null;
-    /**
-     * Count of days exceeding threshold
-     */
-    highUsageDays?: number | null;
-    /**
-     * Last date threshold was exceeded
-     */
-    lastHighUsageAt?: string | null;
-    /**
-     * First API request (tracking start)
-     */
-    firstRequestAt?: string | null;
-  };
-  legacyId?: number | null;
-  legacyData?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  updatedAt: string;
-  createdAt: string;
-  _status?: ('draft' | 'published') | null;
-  enableAPIKey?: boolean | null;
-  apiKey?: string | null;
-  apiKeyIndex?: string | null;
-  collection: 'clients';
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "forms".
  */
 export interface Form {
@@ -4254,6 +4296,9 @@ export interface ClientsSelect<T extends boolean = true> {
   color1?: T;
   color2?: T;
   color3?: T;
+  logo?: T;
+  websiteUrl?: T;
+  supportEmail?: T;
   locale?: T;
   region?: T;
   legacyConfig?: T;
@@ -4505,6 +4550,8 @@ export interface RegistrationsSelect<T extends boolean = true> {
   user?: T;
   startingAt?: T;
   startingAt_tz?: T;
+  client?: T;
+  locale?: T;
   questions?: T;
   uuid?: T;
   mailingListSubscribedAt?: T;
