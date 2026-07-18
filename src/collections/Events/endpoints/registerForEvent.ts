@@ -1,5 +1,5 @@
 import type { EventRegistrationResponse } from './responseTypes'
-import type { Endpoint } from 'payload'
+import type { Endpoint, PayloadRequest } from 'payload'
 
 import { randomUUID } from 'node:crypto'
 
@@ -7,12 +7,20 @@ import { APIError } from 'payload'
 import { z } from 'zod'
 
 import { parseBody, requireActiveClient } from '@/lib/endpoints'
+import { DEFAULT_LOCALE, isValidLocale } from '@/lib/locales'
+import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
+import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const bodySchema = z.object({
   email: z.string().email().max(254),
   name: z.string().trim().min(1).max(200),
   startingAt: z.string().datetime().optional(),
+  // Language for the confirmation email (and #589's reminders). Validated
+  // against the configured app locales — an unknown code is rejected rather
+  // than silently defaulting, so a widget bug is visible instead of shipping
+  // every registrant English.
+  locale: z.string().refine(isValidLocale, 'unsupported locale').optional(),
   // Raw registrant answers (keys: questions / experience / aspirations / referral).
   // Bounded so a public caller can't persist unbounded JSON via the widget.
   questions: z
@@ -24,6 +32,48 @@ const bodySchema = z.object({
   // consent checkbox (sydevs/SahajAtlasWeb#25).
   subscribe: z.boolean().optional(),
 })
+
+/**
+ * Load the branding fields for the client service the registration came through.
+ *
+ * `req.user` is the authenticated client, but its `logo` is an unpopulated id —
+ * the email needs the Image's `filename` to build a delivery URL, so this
+ * re-reads at `depth: 1`. Bounded by a `select` per `.claude/rules/endpoints.md`,
+ * and wrapped in `asTrustedReq` so the client-query gate doesn't reject an
+ * internal read the caller never asked for.
+ *
+ * Returns `null` on any failure — an unbranded email beats no email.
+ */
+async function loadEmailClient(
+  req: PayloadRequest,
+  clientId: number | undefined,
+): Promise<EmailClient | null> {
+  if (clientId == null) return null
+  try {
+    return await req.payload.findByID({
+      collection: 'clients',
+      id: clientId,
+      depth: 1,
+      select: {
+        name: true,
+        color1: true,
+        color2: true,
+        logo: true,
+        websiteUrl: true,
+        supportEmail: true,
+      },
+      overrideAccess: true,
+      req: asTrustedReq(req),
+    })
+  } catch (error) {
+    req.payload.logger.warn({
+      msg: 'registerForEvent: could not load client branding; using default brand',
+      clientId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return null
+  }
+}
 
 /**
  * POST /api/events/:id/register
@@ -41,9 +91,13 @@ const bodySchema = z.object({
  * Flow: parse the `:id` + body → confirm the event is one the client may see
  * (published + project-visible) → upsert the registrant `user` by normalized
  * email with elevated access (`users` is admin-only) → create the `registration`
- * (event + user + startingAt + questions + a fresh uuid, plus
- * `mailingListSubscribedAt` when the registrant opted in via `subscribe`).
+ * (event + user + startingAt + questions + a fresh uuid, plus the originating
+ * `client` and `locale`, and `mailingListSubscribedAt` when the registrant opted
+ * in via `subscribe`) → send the branded confirmation email.
  * Returns `EventRegistrationResponse`.
+ *
+ * The send is best-effort by design (#582): the registrant is already
+ * registered when it runs, so a failure is logged and the response stays 201.
  */
 export const registerForEvent: Endpoint = {
   path: '/:id/register',
@@ -59,7 +113,8 @@ export const registerForEvent: Endpoint = {
 
     const parsed = await parseBody(req, bodySchema)
     if (!parsed.ok) return parsed.response
-    const { email, name, startingAt, questions, subscribe } = parsed.data
+    const { email, name, startingAt, questions, subscribe, locale } = parsed.data
+    const registrantLocale = locale ?? DEFAULT_LOCALE
 
     try {
       // Only register for an event this client may actually read (published +
@@ -117,6 +172,8 @@ export const registerForEvent: Endpoint = {
         }
       }
 
+      const clientId = typeof req.user?.id === 'number' ? req.user.id : undefined
+
       const registration = await req.payload.create({
         collection: 'registrations',
         data: {
@@ -125,12 +182,40 @@ export const registerForEvent: Endpoint = {
           startingAt,
           questions,
           uuid: randomUUID(),
+          // Provenance for this and every later email about the registration.
+          client: clientId,
+          locale: registrantLocale,
           // Record consent at registration time; omit when not opted in.
           mailingListSubscribedAt: subscribe ? new Date().toISOString() : undefined,
         },
         overrideAccess: true,
         req,
       })
+
+      // The registrant is already registered — a failed send must not undo that
+      // or surface as an error, so this is logged and swallowed. Awaited rather
+      // than fire-and-forget: a floating promise can be killed by the serverless
+      // runtime when the response returns, dropping the email silently.
+      try {
+        await sendRegistrationConfirmation({
+          payload: req.payload,
+          event: eventDocs[0],
+          client: await loadEmailClient(req, clientId),
+          registrantName: name,
+          registrantEmail: normalizedEmail,
+          locale: registrantLocale,
+          registrationUuid: registration.uuid,
+          req,
+        })
+      } catch (sendError) {
+        req.payload.logger.error({
+          msg: 'registerForEvent: confirmation email failed; registration kept',
+          registrationId: registration.id,
+          clientId,
+          eventId,
+          error: sendError instanceof Error ? sendError.message : String(sendError),
+        })
+      }
 
       const body: EventRegistrationResponse = {
         ok: true,

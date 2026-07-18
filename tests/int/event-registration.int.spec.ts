@@ -1,6 +1,6 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { registerForEvent } from '@/collections/Events/endpoints/registerForEvent'
 
@@ -262,6 +262,156 @@ describe('registerForEvent endpoint', () => {
       const stamped = await subscribedAtFor(body.registration!.id)
       // Server time (>= before), never the injected 2020 value.
       expect(new Date(stamped as string).getTime()).toBeGreaterThanOrEqual(before)
+    })
+  })
+
+  describe('confirmation email (#582)', () => {
+    /** Capture what the endpoint hands the email adapter. */
+    function captureSend() {
+      return vi.spyOn(payload, 'sendEmail').mockResolvedValue(undefined as never)
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('sends a confirmation to the registrant', async () => {
+      const send = captureSend()
+
+      const { status } = await callRegister(eventId, {
+        email: 'Confirmed@Example.com',
+        name: 'Con Firmed',
+      })
+
+      expect(status).toBe(201)
+      expect(send).toHaveBeenCalledTimes(1)
+
+      const message = send.mock.calls[0][0] as Record<string, unknown>
+      // Normalized address, matching the user upsert.
+      expect(message.to).toBe('confirmed@example.com')
+      expect(message.subject).toContain('Registrable Event')
+      expect(String(message.html)).toContain('Con Firmed')
+      // A text alternative alongside the HTML — no template sent one before.
+      expect(String(message.text)).toContain('Registrable Event')
+      expect(String(message.text)).not.toMatch(/<[a-z]/i)
+    })
+
+    it('attaches an importable calendar invite', async () => {
+      const send = captureSend()
+      await callRegister(eventId, { email: 'cal@example.com', name: 'Cal Endar' })
+
+      const message = send.mock.calls[0][0] as {
+        attachments?: { content?: string; contentType?: string; filename?: string }[]
+      }
+      const invite = message.attachments?.[0]
+
+      expect(invite?.filename).toBe('invite.ics')
+      expect(invite?.contentType).toContain('text/calendar')
+      expect(invite?.content).toContain('BEGIN:VCALENDAR')
+      expect(invite?.content).toContain('BEGIN:VTIMEZONE')
+      expect(invite?.content).toContain('DTSTART;TZID=Europe/London')
+    })
+
+    it('includes the online join URL as a link and as plain text', async () => {
+      const send = captureSend()
+      await callRegister(eventId, { email: 'online@example.com', name: 'On Line' })
+
+      const message = send.mock.calls[0][0] as { html?: string; text?: string }
+      expect(
+        String(message.html).split('https://example.com/meet').length - 1,
+      ).toBeGreaterThanOrEqual(2)
+      expect(String(message.text)).toContain('https://example.com/meet')
+    })
+
+    it('records the originating client and locale on the registration', async () => {
+      captureSend()
+      const { body } = await callRegister(eventId, {
+        email: 'provenance@example.com',
+        name: 'Prov Enance',
+        locale: 'de',
+      })
+
+      const registration = await payload.findByID({
+        collection: 'registrations',
+        id: body.registration!.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+
+      expect(registration.locale).toBe('de')
+      expect(registration.client).toBe(client!.id)
+    })
+
+    it('defaults the locale to en when the body omits it', async () => {
+      captureSend()
+      const { body } = await callRegister(eventId, {
+        email: 'nolocale@example.com',
+        name: 'No Locale',
+      })
+
+      const registration = await payload.findByID({
+        collection: 'registrations',
+        id: body.registration!.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(registration.locale).toBe('en')
+    })
+
+    it('rejects an unsupported locale with 400 rather than silently defaulting', async () => {
+      const send = captureSend()
+      const { status } = await callRegister(eventId, {
+        email: 'badlocale@example.com',
+        name: 'Bad Locale',
+        locale: 'xx',
+      })
+
+      expect(status).toBe(400)
+      expect(send).not.toHaveBeenCalled()
+    })
+
+    it('uses the client supportEmail as Reply-To when configured', async () => {
+      await payload.update({
+        collection: 'clients',
+        id: client!.id as number,
+        data: { supportEmail: 'support@client.example' },
+        overrideAccess: true,
+      })
+      const send = captureSend()
+
+      await callRegister(eventId, { email: 'replyto@example.com', name: 'Reply To' })
+
+      const message = send.mock.calls[0][0] as { replyTo?: string }
+      expect(message.replyTo).toBe('support@client.example')
+
+      await payload.update({
+        collection: 'clients',
+        id: client!.id as number,
+        data: { supportEmail: null },
+        overrideAccess: true,
+      })
+    })
+
+    it('still returns 201 with the registration persisted when the send fails', async () => {
+      // The registrant is already registered — a failed send must not undo that
+      // or surface as an error.
+      vi.spyOn(payload, 'sendEmail').mockRejectedValue(new Error('smtp exploded'))
+
+      const { status, body } = await callRegister(eventId, {
+        email: 'sendfail@example.com',
+        name: 'Send Fail',
+      })
+
+      expect(status).toBe(201)
+      expect(body.ok).toBe(true)
+
+      const registration = await payload.findByID({
+        collection: 'registrations',
+        id: body.registration!.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(registration.id).toBe(body.registration!.id)
     })
   })
 })

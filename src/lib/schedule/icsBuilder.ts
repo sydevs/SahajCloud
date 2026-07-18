@@ -32,9 +32,23 @@ import { Temporal } from '@js-temporal/polyfill'
 import { getVtimezoneComponent } from '@touch4it/ical-timezones'
 import ical, { ICalEventRepeatingFreq, ICalWeekday } from 'ical-generator'
 
+import type { Event } from '@/payload-types'
 import type { ScheduleSubFields } from '@/types/schedule'
 
 import { buildRRuleTemporal } from './scheduleHooks'
+
+/**
+ * A schedule as either the hand-written `ScheduleSubFields` or the
+ * Payload-generated shape, whose optional fields are `| null` rather than
+ * `| undefined`.
+ *
+ * The two are structurally interchangeable for `buildRRuleTemporal`: every
+ * field it reads is guarded by a truthy check or `??`, both of which treat
+ * `null` and `undefined` identically. Accepting both here beats widening the
+ * shared `ScheduleSubFields` (which would ripple into `scheduleHooks` and
+ * `audiences/scheduleMatch`) or forcing callers to normalize.
+ */
+export type EventScheduleInput = NonNullable<Event['schedule']> | Partial<ScheduleSubFields>
 
 /** Fallback duration when an event declares no `endTime`. */
 const DEFAULT_DURATION_MINUTES = 60
@@ -46,7 +60,7 @@ export interface EventCalendarInput {
   /** Event title — becomes `SUMMARY`. */
   title: string
   /** Structured schedule sub-fields; the recurrence is derived from these. */
-  schedule: Partial<ScheduleSubFields>
+  schedule: EventScheduleInput
   /** Physical address or joining URL — becomes `LOCATION`. */
   location?: string | null
   /** Plain-text description — becomes `DESCRIPTION`. */
@@ -108,13 +122,17 @@ function resolveEnd(start: Temporal.ZonedDateTime, endTime: string | null | unde
  * no usable `firstDate` (the one case `buildRRuleTemporal` cannot resolve).
  */
 export function buildEventCalendar(input: EventCalendarInput): string | null {
-  const rule = buildRRuleTemporal(input.schedule)
+  // Safe per `EventScheduleInput` — the two shapes differ only in null vs
+  // undefined, which every read in buildRRuleTemporal treats identically.
+  const schedule = input.schedule as Partial<ScheduleSubFields>
+
+  const rule = buildRRuleTemporal(schedule)
   if (!rule) return null
 
   const options = rule.options()
   const start = options.dtstart
   const timezone = options.tzid || 'UTC'
-  const isRecurring = Boolean(input.schedule.recurrenceType)
+  const isRecurring = Boolean(schedule.recurrenceType)
 
   const calendar = ical({
     name: input.title,
@@ -125,7 +143,7 @@ export function buildEventCalendar(input: EventCalendarInput): string | null {
 
   const event = calendar.createEvent({
     start,
-    end: resolveEnd(start, input.schedule.endTime),
+    end: resolveEnd(start, schedule.endTime),
     timezone,
     summary: input.title,
     ...(input.location && { location: input.location }),
