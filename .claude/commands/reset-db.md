@@ -43,10 +43,10 @@ See `seeds/AGENTS.md` for available scripts.
 
 If you modified `src/collections/`, `src/fields/`, `src/globals/`, or `src/payload.config.ts`:
 
-1. **Create migration** (ask the user to run this interactively):
+1. **Create migration** (attempt non-interactively first; hand to the user only on timeout — see `.claude/rules/migrations.md` for the outcome table):
 
    ```bash
-   pnpm db:migrations:create <name>
+   timeout 30 pnpm db:migrations:create <name> -- --skip-empty < /dev/null
    ```
 
 2. **Commit migration files** in a separate commit:
