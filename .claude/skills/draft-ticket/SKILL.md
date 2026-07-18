@@ -2,7 +2,7 @@
 name: draft-ticket
 description: Draft a GitHub issue from a feature request, bug report, or enhancement. Creates a formatted issue body with acceptance criteria, test plan, and implementation notes. User-invoked only — does not create the issue without explicit approval.
 disable-model-invocation: true
-allowed-tools: Bash(gh issue create:*), Bash(gh issue view:*), Bash(gh issue list:*), Bash(gh pr list:*), Bash(gh pr view:*), Bash(git log:*), Bash(git diff:*), Bash(cat:*), Bash(tee:*), Read, Grep, Glob
+allowed-tools: Bash(gh issue create:*), Bash(gh issue view:*), Bash(gh issue list:*), Bash(gh pr list:*), Bash(gh pr view:*), Bash(git log:*), Bash(git diff:*), Bash(cat:*), Bash(tee:*), Bash(mktemp:*), Read, Grep, Glob
 ---
 
 # Draft Ticket
