@@ -6015,6 +6015,15 @@ export interface SyAtlasTranslation {
     | number
     | boolean
     | null;
+  emails?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
@@ -6253,6 +6262,7 @@ export interface SyAtlasTranslationsSelect<T extends boolean = true> {
         questions?: T;
       };
   share?: T;
+  emails?: T;
   _status?: T;
   updatedAt?: T;
   createdAt?: T;
