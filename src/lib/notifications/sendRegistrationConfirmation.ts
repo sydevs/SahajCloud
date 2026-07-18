@@ -33,6 +33,25 @@ export type EmailClient = Pick<
   'color1' | 'color2' | 'logo' | 'name' | 'supportEmail' | 'websiteUrl'
 >
 
+/**
+ * Make a client-supplied string safe to place in an email header.
+ *
+ * `productName` becomes the `From` display name, and `Clients.name` is a free
+ * text field — a CR/LF in it would terminate the header and let whatever
+ * follows be injected as another one (`Bcc:` being the obvious abuse). Quotes
+ * go too, since the display name is emitted unquoted inside `Name <addr>`.
+ *
+ * Requires admin access to exploit, so this is defence in depth rather than a
+ * live hole — but sanitizing at the point a value becomes a header is cheap and
+ * covers rows that already exist.
+ */
+function headerSafe(value: string): string {
+  return value
+    .replace(/[\r\n"<>]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export async function sendRegistrationConfirmation(args: {
   payload: Payload
   event: Event
@@ -82,7 +101,7 @@ export async function sendRegistrationConfirmation(args: {
     // `From` stays CONTACT_EMAIL — Resend verifies senders per domain, so we
     // can't send as the client. The client's name carries the branding, and
     // `Reply-To` routes replies to them.
-    from: `${brand.productName} <${CONTACT_EMAIL}>`,
+    from: `${headerSafe(brand.productName)} <${CONTACT_EMAIL}>`,
     ...(client?.supportEmail && { replyTo: client.supportEmail }),
     subject: interpolate(strings.confirmation_subject, { event: details.eventTitle }),
     html: await renderEmail(createElement(RegistrationConfirmationEmail, templateProps)),

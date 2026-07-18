@@ -392,6 +392,36 @@ describe('registerForEvent endpoint', () => {
       })
     })
 
+    it('strips CRLF from the client name before it becomes a From header', async () => {
+      // `Clients.name` is free text and lands in the From display name; a CR/LF
+      // there would terminate the header and let the rest be injected as
+      // another one (Bcc: being the obvious abuse).
+      await payload.update({
+        collection: 'clients',
+        id: client!.id as number,
+        data: { name: 'Evil Co\r\nBcc: attacker@evil.example' },
+        overrideAccess: true,
+      })
+      const send = captureSend()
+
+      await callRegister(eventId, { email: 'header@example.com', name: 'Head Er' })
+
+      const from = String((send.mock.calls[0][0] as { from?: string }).from)
+      // The line break is what makes this an injection; the leftover text is
+      // inert once it can't start a new header line. Assert the structure holds:
+      // one line, the injected text trapped in the display-name position, and
+      // the address still ours.
+      expect(from).not.toMatch(/[\r\n]/)
+      expect(from).toMatch(/^[^<>]*<contact@sydevelopers\.com>$/)
+
+      await payload.update({
+        collection: 'clients',
+        id: client!.id as number,
+        data: { name: 'Atlas Register Client' },
+        overrideAccess: true,
+      })
+    })
+
     it('still returns 201 with the registration persisted when the send fails', async () => {
       // The registrant is already registered — a failed send must not undo that
       // or surface as an error.
