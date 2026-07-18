@@ -15,7 +15,6 @@ import {
 } from '@/lib/notifications/registrationDetails'
 import type { Event } from '@/payload-types'
 
-
 // 19:00 in Europe/London on Tue 21 Jul 2026 (BST) == 18:00 UTC.
 const FIRST_DATE = '2026-07-21T18:00:00.000Z'
 
@@ -92,6 +91,32 @@ describe('registrationScheduleLine', () => {
   it('returns an empty string when there is no firstDate', () => {
     expect(registrationScheduleLine(null)).toBe('')
     expect(registrationScheduleLine({} as Schedule)).toBe('')
+  })
+
+  it('renders endTime as written across a DST transition', () => {
+    // London leaves BST at 02:00 on 2026-10-25, so a 01:00–03:00 event that day
+    // spans two wall-clock hours but three real ones. Deriving the end from a
+    // real-time offset off the start renders it as 2:00 AM — endTime is a
+    // wall-clock string and must be formatted as written.
+    const line = registrationScheduleLine(
+      schedule({
+        firstDate: '2026-10-25T00:00:00.000Z', // 01:00 BST
+        firstDate_tz: 'Europe/London',
+        endTime: '03:00',
+      }),
+    )
+
+    expect(line).toContain('1:00 AM')
+    expect(line).toContain('3:00 AM')
+    expect(line).not.toContain('2:00 AM')
+  })
+
+  it('ignores a malformed endTime', () => {
+    const line = registrationScheduleLine(
+      schedule({ recurrenceType: 'WEEKLY', weekdays: ['TU'], endTime: '99:99' }),
+    )
+    expect(line).not.toContain('–')
+    expect(line).toContain('7:00 PM')
   })
 
   it('uses no narrow no-break space (renders as a stray glyph in some clients)', () => {

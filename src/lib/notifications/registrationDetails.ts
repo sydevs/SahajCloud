@@ -12,6 +12,7 @@
 
 import { convertLexicalToPlaintext } from '@payloadcms/richtext-lexical/plaintext'
 
+import { getLocalTimeHHMM } from '@/lib/schedule/scheduleHooks'
 import type { Event } from '@/payload-types'
 
 import { addressOneLine, recurrencePhrase } from './eventDetails'
@@ -42,37 +43,58 @@ function formatTime(date: Date, timezone: string, withZone = false): string {
   )
 }
 
+/** Minutes since local midnight for an `HH:MM` string, or `null` if malformed. */
+function minutesOfDay(hhmm: string | null | undefined): number | null {
+  const match = hhmm?.match(/^(\d{1,2}):(\d{2})$/)
+  if (!match) return null
+  const [, hour, minute] = match.map(Number)
+  if (hour > 23 || minute > 59) return null
+  return hour * 60 + minute
+}
+
+/** Render minutes-since-midnight in 12-hour form, e.g. `8:30 PM`. */
+function formatMinutesOfDay(minutes: number): string {
+  const hour24 = Math.floor(minutes / 60)
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12
+  const minute = String(minutes % 60).padStart(2, '0')
+  return `${hour12}:${minute} ${hour24 < 12 ? 'AM' : 'PM'}`
+}
+
 /**
- * Start–end time span with the timezone, e.g. `7:00 – 8:30 PM GMT+1`.
+ * Start–end time span with the timezone, e.g. `7:00 PM – 8:30 PM GMT+1`.
  *
- * `endTime` is a same-day `HH:MM` local wall-clock string. With no end time the
- * span collapses to the start alone.
+ * `endTime` is a same-day local wall-clock string, so it is formatted **as
+ * written** rather than by reconstructing an instant. Deriving the end from a
+ * real-time offset off the start is wrong across a DST transition: on the day
+ * London leaves BST, a 01:00–03:00 event spans two wall-clock hours but three
+ * real ones, and an offset-derived end renders as 2:00 AM.
+ *
+ * With no (or a malformed, or a non-increasing) end time, the span collapses to
+ * the start alone.
  */
 function timeSpan(schedule: Schedule): string {
   const timezone: string = schedule.firstDate_tz || 'UTC'
   const start = new Date(schedule.firstDate)
   if (Number.isNaN(start.getTime())) return ''
 
-  const match = schedule.endTime?.match(/^(\d{1,2}):(\d{2})$/)
-  if (!match) return formatTime(start, timezone, true)
+  const startWithZone = formatTime(start, timezone, true)
 
-  // Rebuild the end instant by shifting the start by the wall-clock delta,
-  // so the result stays anchored in the event's timezone.
-  const startLocal = formatTime(start, timezone)
-  const [, endHour, endMinute] = match
-  const startParts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: timezone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(start)
-  const [startHour, startMinute] = startParts.split(':').map(Number)
-  const deltaMinutes = Number(endHour) * 60 + Number(endMinute) - (startHour * 60 + startMinute)
-  if (deltaMinutes <= 0) return formatTime(start, timezone, true)
+  const endMinutes = minutesOfDay(schedule.endTime)
+  const startMinutes = minutesOfDay(getLocalTimeHHMM(schedule.firstDate, timezone))
+  if (endMinutes === null || startMinutes === null || endMinutes <= startMinutes) {
+    return startWithZone
+  }
 
-  const end = new Date(start.getTime() + deltaMinutes * 60_000)
-  // The zone is printed once, on the end, so the span reads as one unit.
-  return `${startLocal} – ${formatTime(end, timezone, true)}`
+  // Zone printed once, on the end, so the span reads as one unit.
+  return `${formatTime(start, timezone)} – ${formatMinutesOfDay(endMinutes)} ${zoneName(start, timezone)}`
+}
+
+/** The short timezone label alone, e.g. `GMT+1`. */
+function zoneName(date: Date, timezone: string): string {
+  const part = new Intl.DateTimeFormat(TIME_LOCALE, { timeZone: timezone, timeZoneName: 'short' })
+    .formatToParts(date)
+    .find((p) => p.type === 'timeZoneName')
+  return part?.value ?? ''
 }
 
 /** Full date for a one-off, e.g. `Tuesday, 21 July 2026`. */
