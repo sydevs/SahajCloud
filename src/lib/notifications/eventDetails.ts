@@ -34,7 +34,7 @@ function ordinal(n: number): string {
 }
 
 /** One-line address: street, room, city, region, "country postCode". */
-function addressOneLine(address: Address): string {
+export function addressOneLine(address: Address): string {
   const countryLine = [address.country, address.postCode].filter(Boolean).join(' ')
   return [address.street, address.room, address.city, address.region, countryLine]
     .map((part) => part?.trim())
@@ -67,7 +67,7 @@ function startTime(firstDate: string, tz: string): string {
 }
 
 /** Concise recurrence phrase, e.g. "Every week on Saturday". */
-function recurrencePhrase(schedule: Schedule): string {
+export function recurrencePhrase(schedule: Schedule): string {
   const interval = schedule.interval && schedule.interval > 1 ? schedule.interval : 1
   switch (schedule.recurrenceType) {
     case 'DAILY':

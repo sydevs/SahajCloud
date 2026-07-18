@@ -1,0 +1,192 @@
+/**
+ * Shape an Event into the facts a registrant's confirmation email shows.
+ *
+ * Sibling of `eventDetails.ts`, which shapes the same Event for the *manager*
+ * verification email. They differ in audience, not in domain, so the recurrence
+ * and address formatting is shared from there rather than reimplemented — the
+ * two emails describing the same class differently would be a bug of its own.
+ *
+ * Everything here is data, not chrome: nothing in this module is translated.
+ * Localized labels come from `@/lib/translations/emailStrings`.
+ */
+
+import { convertLexicalToPlaintext } from '@payloadcms/richtext-lexical/plaintext'
+
+import type { Event } from '@/payload-types'
+
+import { addressOneLine, recurrencePhrase } from './eventDetails'
+
+type Schedule = NonNullable<Event['schedule']>
+
+/** Times render in `en-US` — this is the event's data, not the registrant's locale. */
+const TIME_LOCALE = 'en-US'
+
+/**
+ * ICU emits a narrow no-break space (U+202F) before AM/PM, which survives into
+ * the email as a stray glyph in some clients. Normalize to a plain space.
+ */
+function normalizeSpaces(value: string): string {
+  return value.replace(/ /g, ' ')
+}
+
+/** Wall-clock time in the event's timezone, e.g. `7:00 PM`. */
+function formatTime(date: Date, timezone: string, withZone = false): string {
+  return normalizeSpaces(
+    new Intl.DateTimeFormat(TIME_LOCALE, {
+      timeZone: timezone,
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      ...(withZone && { timeZoneName: 'short' }),
+    }).format(date),
+  )
+}
+
+/**
+ * Start–end time span with the timezone, e.g. `7:00 – 8:30 PM GMT+1`.
+ *
+ * `endTime` is a same-day `HH:MM` local wall-clock string. With no end time the
+ * span collapses to the start alone.
+ */
+function timeSpan(schedule: Schedule): string {
+  const timezone: string = schedule.firstDate_tz || 'UTC'
+  const start = new Date(schedule.firstDate)
+  if (Number.isNaN(start.getTime())) return ''
+
+  const match = schedule.endTime?.match(/^(\d{1,2}):(\d{2})$/)
+  if (!match) return formatTime(start, timezone, true)
+
+  // Rebuild the end instant by shifting the start by the wall-clock delta,
+  // so the result stays anchored in the event's timezone.
+  const startLocal = formatTime(start, timezone)
+  const [, endHour, endMinute] = match
+  const startParts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(start)
+  const [startHour, startMinute] = startParts.split(':').map(Number)
+  const deltaMinutes = Number(endHour) * 60 + Number(endMinute) - (startHour * 60 + startMinute)
+  if (deltaMinutes <= 0) return formatTime(start, timezone, true)
+
+  const end = new Date(start.getTime() + deltaMinutes * 60_000)
+  // The zone is printed once, on the end, so the span reads as one unit.
+  return `${startLocal} – ${formatTime(end, timezone, true)}`
+}
+
+/** Full date for a one-off, e.g. `Tuesday, 21 July 2026`. */
+function formatFullDate(schedule: Schedule): string {
+  const timezone: string = schedule.firstDate_tz || 'UTC'
+  const date = new Date(schedule.firstDate)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date)
+}
+
+/**
+ * The number of sessions in a limited-run course, or `null` for an open-ended
+ * class. Only a `count`-bounded run has a knowable total — an `until`-bounded
+ * one would need the recurrence expanded, which the ICS attachment covers.
+ */
+export function sessionCount(schedule: Schedule | null | undefined): number | null {
+  if (!schedule?.recurrenceType) return null
+  if (schedule.endingType !== 'count') return null
+  return schedule.count && schedule.count > 0 ? schedule.count : null
+}
+
+/**
+ * Human schedule line for a registrant, e.g.
+ * `Every week on Tuesday, 7:00 – 8:30 PM GMT+1`.
+ *
+ * A one-off renders its full date instead of a recurrence phrase. The session
+ * count is *not* appended here — it is a translated string, so the caller
+ * appends it from `emailStrings.sessions_count`.
+ */
+export function registrationScheduleLine(schedule: Schedule | null | undefined): string {
+  if (!schedule?.firstDate) return ''
+  const when = schedule.recurrenceType ? recurrencePhrase(schedule) : formatFullDate(schedule)
+  return [when, timeSpan(schedule)].filter(Boolean).join(', ')
+}
+
+/**
+ * A maps link for the venue.
+ *
+ * Prefers the geocoded coordinates (exact, and immune to address typos) and
+ * falls back to a text query when the event was never geocoded.
+ */
+export function mapsUrl(event: Pick<Event, 'address'>): string | null {
+  const { latitude, longitude } = event.address ?? {}
+  if (typeof latitude === 'number' && typeof longitude === 'number') {
+    return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`
+  }
+  const address = addressOneLine(event.address ?? {})
+  return address
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+    : null
+}
+
+/** Plain-text event description, or `null` when the richText field is empty. */
+export function descriptionText(description: Event['description']): string | null {
+  if (!description || typeof description !== 'object') return null
+  try {
+    const text = convertLexicalToPlaintext({ data: description as never }).trim()
+    return text || null
+  } catch {
+    // Malformed editor state must not block a confirmation email.
+    return null
+  }
+}
+
+/** The "Where" block, discriminated so the template can't render both variants. */
+export type RegistrationLocation =
+  | { type: 'online'; joinUrl: string }
+  | { type: 'offline'; address: string; mapsUrl: string | null }
+  | { type: 'unspecified' }
+
+/** Facts the confirmation email renders. Chrome/labels are resolved separately. */
+export interface RegistrationEmailDetails {
+  eventTitle: string
+  scheduleLine: string
+  sessions: number | null
+  location: RegistrationLocation
+  description: string | null
+  contact: string | null
+}
+
+/**
+ * Build the confirmation email's content from an Event.
+ *
+ * Pure and synchronous — every value comes off the already-loaded document, so
+ * this issues no queries and stays unit-testable.
+ */
+export function buildRegistrationEmailDetails(event: Event): RegistrationEmailDetails {
+  const address = addressOneLine(event.address ?? {})
+
+  // An online event without a URL falls through to `unspecified` rather than
+  // rendering an empty join button.
+  let location: RegistrationLocation = { type: 'unspecified' }
+  if (event.eventType === 'online') {
+    if (event.onlineUrl) location = { type: 'online', joinUrl: event.onlineUrl }
+  } else if (address) {
+    location = { type: 'offline', address, mapsUrl: mapsUrl(event) }
+  }
+
+  const contact = [event.contactName?.trim(), event.contactPhone?.trim()]
+    .filter(Boolean)
+    .join(' · ')
+
+  return {
+    eventTitle: typeof event.title === 'string' ? event.title : `Event #${event.id}`,
+    scheduleLine: registrationScheduleLine(event.schedule),
+    sessions: sessionCount(event.schedule),
+    location,
+    description: descriptionText(event.description),
+    contact: contact || null,
+  }
+}
