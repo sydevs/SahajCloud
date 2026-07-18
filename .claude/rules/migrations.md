@@ -25,28 +25,38 @@ in-process on server boot via `prodMigrations` (see "Production workflow" below)
 identically. Pass the name as the first argument:
 `pnpm db:migrations:create my_migration_name`.
 
-**Ask the user to run it for you — do not run it yourself, and run it in an
-interactive terminal.** When Payload detects **no schema changes** it shows a
-`prompts` confirm ("No schema changes detected — create a blank migration
-file?"). If stdin is not an interactive TTY (piped, backgrounded, or driven by
-an agent), that prompt's `onCancel` fires `process.exit(0)` and the command
-**exits 0 with no file and no message** — this is the "exits without
-information" symptom, and it is the same for both command forms. Current Payload
-(3.85) does *not* prompt for the migration name; it derives the name from the
-argument or a timestamp, so the blank-migration confirm is the only interactive
-prompt.
+**Attempt it non-interactively first; hand off to the user only if it would
+become interactive.** The command has exactly two interactive prompts (verified
+against Payload 3.86.0 / drizzle-kit 0.31.7 source):
 
-A silent exit with no new file usually just means **no schema changes were
-detected** — e.g. dev `push: true` already synced them, or an existing pending
-migration already captures the current schema. That is not necessarily an error.
+1. **Blank-migration confirm** — fires only when **no schema changes** are
+   detected. The `--skip-empty` flag suppresses it entirely: with no changes the
+   command exits 0 immediately with no files; with changes the flag is a no-op.
+2. **Rename-vs-create prompt** — fires from drizzle-kit internals on ambiguous
+   column changes (drop+add that looks like a rename). No flag bypasses it
+   (`--force-accept-warning` does not); on non-TTY stdin it **hangs
+   indefinitely** before writing any files. Only a timeout catches it.
 
-When passing CLI flags through pnpm, separate them with `--` so pnpm forwards
-them to Payload instead of consuming them, e.g.
-`pnpm db:migrations:create my_name -- --force-accept-warning`.
+So run:
 
-Pause, describe the schema changes you made, and ask the user to run the
-command and confirm the new `.ts` + `.json` pair exists. Then augment the
-`.ts` if needed (see "Augmenting" below) and commit both files.
+```bash
+timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null
+```
+
+(No `--` separator: pnpm 11 forwards run-script args as-is, and a literal `--`
+reaches Payload and breaks its flag parsing — verified: with `--` the blank
+prompt still rendered.) Then classify the outcome:
+
+| Outcome | Signal | Action |
+| --- | --- | --- |
+| Migration created | exit 0, new `.ts` + `.json` pair in `src/migrations/` | Validate (migration-validator skill), review the `.ts` for duplicate DDL (snapshot trap below), commit both files |
+| No schema changes | exit 0, no new files | Report it — dev `push: true` may have already synced, or a pending migration already captures the schema. Not an error |
+| Interactive hang | exit 124 (timeout), no new files | Drizzle hit the rename-vs-create prompt. Hand the user the plain `pnpm db:migrations:create <name>` to run interactively, then validate + commit their result |
+| Partial write | exit 124, lone `.json` (no `.ts`) | The `.json` snapshot is written before the `.ts`; delete the orphaned `.json`, then hand off to the user as above |
+| Other error | exit ≥ 1 with output | Surface the error; don't retry blindly |
+
+On success, augment the `.ts` only if needed (see "Augmenting" below) and
+commit both files.
 
 ## Running locally
 

@@ -113,7 +113,7 @@ Schema migrations live in `src/migrations/` — see `.claude/rules/migrations.md
 2. **Database**: PostgreSQL on Railway, managed by migrations in `src/migrations/`. Dev uses `push: true` (auto-schema-sync); prod applies migrations in-process on server boot via `prodMigrations`. See `.claude/rules/migrations.md` for details.
 3. **Admin Access**: `/admin`.
 4. **API Access**: REST API at `/api/*` (GraphQL disabled).
-5. **Migrations**: Create locally with `pnpm db:migrations:create`, commit, and they auto-apply on the next deploy. **Ask the user to create migrations** — `pnpm db:migrations:create` prompts interactively and hangs when piped/backgrounded. See `.claude/rules/migrations.md`.
+5. **Migrations**: Create locally, commit, and they auto-apply on the next deploy. **Attempt creation automatically first**: `timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null` — `--skip-empty` suppresses the blank-migration prompt, and the timeout catches drizzle's rename-vs-create prompt (which hangs on non-TTY stdin). Hand the command to the user to run interactively **only** when it times out (exit 124). See `.claude/rules/migrations.md` for the full outcome table.
 
 ### Git Commands
 
@@ -128,7 +128,7 @@ PRs move through three phases. The point is to **batch CI runs** — don't push 
 2. **Adjust** — while iterating on an **open PR** (follow-up tweaks after `/implement-issue`, or any further work on a PR branch), **commit each change locally as you go, but do NOT push** — batching avoids re-running CI on every tweak. This is the one place that overrides the usual "commit/push only when asked" default: during the Adjust phase, commit follow-up changes locally without being asked; just never push (the user can still say "hold off" to pause committing).
 3. **Finalize** — `/finalize-pr` ships the batch: simplify → `/code-review` → conditional `/security-review` (only when risky paths changed) → lean test gate → docs sync → push → open/refresh the PR description → watch CI (with capped fixes). Run it when the PR is ready for review/merge.
 
-Skills: `.claude/skills/implement-issue/` (phase 1) and `.claude/skills/finalize-pr/` (phase 3, also reused by phase 1).
+Skills: `.claude/skills/implement-issue/` (phase 1) and `.claude/skills/finalize-pr/` (phase 3, also reused by phase 1). The pipeline is kept consistent with SahajAtlasWeb and WeMeditateWeb via `.claude/docs/workflow-parity.md` (canonical spec, identical in all three repos) — audit/fix drift with `/sync-workflow`.
 
 ## PR Requirements
 
