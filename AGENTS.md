@@ -117,7 +117,7 @@ Schema migrations live in `src/migrations/` — see `.claude/rules/migrations.md
 
 ### Git Commands
 
-- Prefer working-directory commands (`git status`, `git add`, ...) from the project root. Avoid `git -C <path>` unless absolutely necessary.
+- Prefer working-directory commands (`git status`, `git add`, ...) from the project root. Avoid `git -C <path>` for paths **inside** this project — the project root is already cwd. Sibling repos (`~/Documents/Projects/SahajAtlasWeb`, `WeMeditateWeb`) are exempt: `git -C <sibling>` and `cd <sibling> && git …` are allowed for cross-repo work such as `/sync-workflow`.
 - Commit messages use [Conventional Commits](https://www.conventionalcommits.org/): `<type>(<scope>): <subject>`. Examples: `feat(lectures): split into Lectures + LectureClips`, `fix(e2e): reset SQLite DB at setup`. Common types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`. Match the style of recent `git log` when in doubt.
 
 ## PR workflow (3 phases)
@@ -129,6 +129,10 @@ PRs move through three phases. The point is to **batch CI runs** — don't push 
 3. **Finalize** — `/finalize-pr` ships the batch: simplify → `/code-review` → conditional `/security-review` (only when risky paths changed) → lean test gate → docs sync → push → open/refresh the PR description → watch CI (with capped fixes). Run it when the PR is ready for review/merge.
 
 Skills: `.claude/skills/implement-issue/` (phase 1) and `.claude/skills/finalize-pr/` (phase 3, also reused by phase 1). The pipeline is kept consistent with SahajAtlasWeb and WeMeditateWeb via `.claude/docs/workflow-parity.md` (canonical spec, identical in all three repos) — audit/fix drift with `/sync-workflow`.
+
+### Merging without CI — docs-only changes only
+
+`/reflect-session` and `/sync-workflow` may open a PR and merge it immediately (`gh pr merge --squash --delete-branch`) **without waiting for CI**. This is allowed **only** when the diff is docs-only: `**/*.md`, `.claude/**` (rules, skills, docs, hooks, settings), and memory files — nothing under `src/`, `tests/`, `scripts/`, `seeds/`, or any config that affects the build or runtime. Verify with `git diff --name-only origin/main...HEAD` before merging; if a single file falls outside that set, hand it to `/finalize-pr` and wait for green CI instead.
 
 ## PR Requirements
 

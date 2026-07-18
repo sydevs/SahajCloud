@@ -55,8 +55,11 @@ Apply the approved edits with the standard ship mechanics, per affected repo:
 1. Isolated worktree on that repo (`EnterWorktree` for the session repo; `git worktree add
    .claude/worktrees/workflow-sync -b chore/workflow-sync-<yyyymmdd> origin/main` for siblings).
 2. Incremental conventional commits (`docs(skills): …` / `chore(skills): …`).
-3. Push; open the PR with `gh pr create` (mktemp body file); **merge immediately**
-   (`gh pr merge --squash --delete-branch`) without waiting for CI.
+3. Push; open the PR with `gh pr create` (mktemp body file); confirm the diff is **docs-only**
+   (`git diff --name-only origin/main...HEAD` — every path `*.md` or under `.claude/`; see
+   "Merging without CI" in `AGENTS.md`), then **merge immediately**
+   (`gh pr merge --squash --delete-branch`) without waiting for CI. If any path falls outside that
+   set, hand it to `/finalize-pr` and wait for green CI instead.
 4. Remove the worktree after the merge (confirm the branch is fully pushed first).
 
 If drift spans multiple repos: one worktree/branch/PR per repo. When the fix changes the shared
@@ -67,4 +70,5 @@ pipeline itself, update **all three** `workflow-parity.md` copies in the same ef
 - **Never** modify anything before step 3 approval — steps 1–2 are strictly read-only.
 - **Never** treat an intentional delta (spec table) as drift.
 - **Always** ship fixes via worktree → branch → PR → immediate merge; never commit to `main` directly.
+- **Never** auto-merge a diff that isn't docs-only — runtime changes go through `/finalize-pr` and green CI.
 - **Always** keep the three `workflow-parity.md` copies byte-identical after any spec change.
