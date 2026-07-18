@@ -130,17 +130,25 @@ Never force-push a shared branch; never `--no-verify`.
 gh pr view --json number,url 2>/dev/null   # does a PR already exist for this branch?
 ```
 
-- **No PR** → create it. Write the body to `/tmp/pr-body.md` (preserves markdown) from
-  `pr-template.md`, then:
+Write the body to a **session-unique temp file** (never a fixed `/tmp/` path — it collides
+between parallel Claude instances) from `pr-template.md`:
+
+```bash
+BODY_FILE=$(mktemp -t pr-body.XXXXXX).md
+# write the body to "$BODY_FILE", then:
+```
+
+- **No PR** → create it:
   ```bash
-  gh pr create --title "<conventional commit title>" --body-file /tmp/pr-body.md --base main
+  gh pr create --title "<conventional commit title>" --body-file "$BODY_FILE" --base main
   ```
-- **PR exists** → **refresh** its description so it reflects the final diff + test results
-  (Adjust-phase commits may have changed the story since it was opened):
+- **PR exists** → **refresh** its **title and description** so they reflect the final diff + test
+  results, re-derived from the **current** `origin/main...HEAD` (Adjust-phase commits may have
+  changed the story since it was opened — scope shift, dropped or added sub-feature):
   ```bash
-  gh pr edit <pr> --body-file /tmp/pr-body.md
+  gh pr edit <pr> --title "<conventional commit title, re-derived>" --body-file "$BODY_FILE"
   ```
-  Never leave a stale description from an earlier state.
+  Never leave a stale title or description from an earlier state.
 
 ### 8. Watch CI and fix (capped)
 
@@ -177,7 +185,8 @@ gh pr checks <pr-or-branch>            # confirm final state
 - **Always** run `/simplify` and `/code-review` over the **full branch diff**, not just the last commit.
 - **Always** run `/code-review` (and the conditional `/security-review`) via a **dispatched Task
   subagent**, never inline in the main thread.
-- **Always** use `--body-file` for `gh pr create` / `gh pr edit`; always refresh a stale PR body.
+- **Always** use `--body-file` (a `mktemp` path) for `gh pr create` / `gh pr edit`; always refresh
+  a stale PR **title and** body to match the current `origin/main...HEAD`.
 - **Always** run the docs sync (step 5) before pushing — stale docs must not ship with the push.
 - **Cap** the CI fix-loop at 3 iterations, then hand back to the user.
 
