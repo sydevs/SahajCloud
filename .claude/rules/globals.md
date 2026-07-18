@@ -66,7 +66,16 @@ the global. Versions: max 3.
 
 - WeMeditate Web tabs: Common, Navigation
 - WeMeditate App tabs: Daily, Path, Explore, Profile, Meditation
-- Sahaj Atlas tabs: Common, Map, Location
+- Sahaj Atlas tabs: Common, Region, Event, Registration, Share, Emails
+
+The Atlas `Emails` group is read **server-side** (not just exported to the
+widget) by `resolveEmailStrings()` in `src/lib/translations/emailStrings.ts`,
+which supplies the localized chrome for registrant mail. Note Payload's locale
+fallback is **per field, not per key**: a JSON blob that exists but omits a key
+yields `undefined`, not the English value — so the resolver merges over English
+key defaults. Add a key to `translationsSchema.json` *and* to
+`EMAIL_STRING_DEFAULTS`, or it renders blank in every locale that has any
+translation at all.
 
 ```typescript
 import { buildTranslationTabs, type TranslationsSchema } from '@/fields'
