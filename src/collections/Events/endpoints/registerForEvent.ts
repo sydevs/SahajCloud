@@ -10,6 +10,7 @@ import { parseBody, requireActiveClient } from '@/lib/endpoints'
 import { DEFAULT_LOCALE, isValidLocale } from '@/lib/locales'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
+import { resolveEmailStrings } from '@/lib/translations/emailStrings'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const bodySchema = z.object({
@@ -197,10 +198,19 @@ export const registerForEvent: Endpoint = {
       // than fire-and-forget: a floating promise can be killed by the serverless
       // runtime when the response returns, dropping the email silently.
       try {
+        // The client read and the translations read are independent, so they
+        // overlap rather than run back to back. The second result is discarded
+        // here on purpose: `resolveEmailStrings` memoizes its in-flight promise
+        // on `req.context`, so the call inside the send below reuses this one.
+        const [emailClient] = await Promise.all([
+          loadEmailClient(req, clientId),
+          resolveEmailStrings({ payload: req.payload, locale: registrantLocale, req }),
+        ])
+
         await sendRegistrationConfirmation({
           payload: req.payload,
           event: eventDocs[0],
-          client: await loadEmailClient(req, clientId),
+          client: emailClient,
           registrantName: name,
           registrantEmail: normalizedEmail,
           locale: registrantLocale,
