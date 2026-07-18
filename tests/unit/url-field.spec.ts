@@ -1,5 +1,3 @@
-import type { TextFieldSingleValidation } from 'payload'
-
 import { describe, expect, it } from 'vitest'
 
 import { urlField } from '@/fields/urlField'
@@ -7,11 +5,7 @@ import { urlField } from '@/fields/urlField'
 // The factory's validator only reads `value`; the second arg is unused.
 const validatorFor = (options?: { protocols?: string[] }) => {
   const { validate } = urlField({ name: 'link', ...options })
-  return (value: unknown) =>
-    (validate as TextFieldSingleValidation)(
-      value as string,
-      {} as Parameters<TextFieldSingleValidation>[1],
-    )
+  return (value: unknown) => validate!(value as string, undefined!)
 }
 
 describe('urlField validation', () => {
