@@ -46,7 +46,7 @@ If you modified `src/collections/`, `src/fields/`, `src/globals/`, or `src/paylo
 1. **Create migration** (attempt non-interactively first; hand to the user only on timeout — see `.claude/rules/migrations.md` for the outcome table):
 
    ```bash
-   timeout 30 pnpm db:migrations:create <name> -- --skip-empty < /dev/null
+   timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null
    ```
 
 2. **Commit migration files** in a separate commit:

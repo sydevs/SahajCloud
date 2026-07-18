@@ -113,7 +113,7 @@ Schema migrations live in `src/migrations/` — see `.claude/rules/migrations.md
 2. **Database**: PostgreSQL on Railway, managed by migrations in `src/migrations/`. Dev uses `push: true` (auto-schema-sync); prod applies migrations in-process on server boot via `prodMigrations`. See `.claude/rules/migrations.md` for details.
 3. **Admin Access**: `/admin`.
 4. **API Access**: REST API at `/api/*` (GraphQL disabled).
-5. **Migrations**: Create locally, commit, and they auto-apply on the next deploy. **Attempt creation automatically first**: `timeout 30 pnpm db:migrations:create <name> -- --skip-empty < /dev/null` — `--skip-empty` suppresses the blank-migration prompt, and the timeout catches drizzle's rename-vs-create prompt (which hangs on non-TTY stdin). Hand the command to the user to run interactively **only** when it times out (exit 124). See `.claude/rules/migrations.md` for the full outcome table.
+5. **Migrations**: Create locally, commit, and they auto-apply on the next deploy. **Attempt creation automatically first**: `timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null` — `--skip-empty` suppresses the blank-migration prompt, and the timeout catches drizzle's rename-vs-create prompt (which hangs on non-TTY stdin). Hand the command to the user to run interactively **only** when it times out (exit 124). See `.claude/rules/migrations.md` for the full outcome table.
 
 ### Git Commands
 

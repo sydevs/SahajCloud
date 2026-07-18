@@ -40,11 +40,12 @@ against Payload 3.86.0 / drizzle-kit 0.31.7 source):
 So run:
 
 ```bash
-timeout 30 pnpm db:migrations:create <name> -- --skip-empty < /dev/null
+timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null
 ```
 
-(The `--` makes pnpm forward the flag to Payload instead of consuming it.)
-Then classify the outcome:
+(No `--` separator: pnpm 11 forwards run-script args as-is, and a literal `--`
+reaches Payload and breaks its flag parsing — verified: with `--` the blank
+prompt still rendered.) Then classify the outcome:
 
 | Outcome | Signal | Action |
 | --- | --- | --- |

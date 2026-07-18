@@ -107,7 +107,7 @@ If you edited `src/collections/`, `src/fields/`, `src/lib/richEditor/blocks/`, `
 - The `payload-types-gen` PostToolUse hook should regenerate `src/payload-types.ts` automatically.
 - **Migration required**: attempt it non-interactively first —
   ```bash
-  timeout 30 pnpm db:migrations:create <name> -- --skip-empty < /dev/null
+  timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null
   ```
   - **Success** (exit 0, new `.ts` + `.json` pair): validate with the migration-validator skill, review for duplicate DDL, commit.
   - **No files** (exit 0): no schema changes detected — report it; dev `push: true` may have already synced.
@@ -188,7 +188,7 @@ Report the PR URL, CI status, and any manual-verification items, and note the **
 
 - **Never** force-push to main or any shared branch
 - **Never** skip hooks (`--no-verify`)
-- **Never** run `pnpm db:migrations:create` without the `timeout 30 … -- --skip-empty < /dev/null` wrapper — a bare run hangs on interactive prompts; on timeout, hand off to the user per `.claude/rules/migrations.md`
+- **Never** run `pnpm db:migrations:create` without the `timeout 30 … --skip-empty < /dev/null` wrapper — a bare run hangs on interactive prompts; on timeout, hand off to the user per `.claude/rules/migrations.md`
 - **Never** commit secrets / credentials (`.env` is git-tracked here, but never add new secrets to it)
 - **Always** create commits incrementally; never one monolithic commit at the end
 - **Always** run the lean local gate (`.claude/skills/pr-prep/check.sh`) as you implement
