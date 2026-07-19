@@ -23,11 +23,19 @@ pnpm seed <script>
 SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed <script>
 ```
 
-**Required environment variables**:
+**Environment variables**:
 
-- `ADMIN_EMAIL` - Admin email for authentication (loaded from `.env.local` by `seeds/env.ts`)
-- `ADMIN_PASSWORD` - Admin password for authentication (loaded from `.env.local` by `seeds/env.ts`)
 - `SAHAJCLOUD_URL` - Target URL (default: `http://localhost:PORT`)
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` - **only needed for a remote target** (loaded
+  from `.env.local` by `seeds/env.ts`)
+
+**Seeding localhost needs no credentials.** Local dev enables Payload's
+`admin.autoLogin` (`src/payload.config.ts`), which Payload applies in its JWT
+auth strategy — a request carrying no token is authenticated as that admin. The
+CLI probes `/api/managers/me`, and when the target auto-logs-in it skips the
+login step and sends its requests without an `Authorization` header. Leave
+`ADMIN_PASSWORD` blank or unset locally; production and E2E disable auto-login,
+so they fall through to the credential path on their own.
 
 ### API Route
 
@@ -190,9 +198,10 @@ pnpm seed meditations --update --dry-run
 For local development, add to `.env.local` (gitignored):
 
 ```bash
-# CLI Authentication (required for pnpm seed)
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=your-password
+# CLI Authentication — only for seeding a REMOTE target; auto-login covers
+# localhost, so these can be left blank for local development.
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
 PAYLOAD_SECRET=your-secret-key
 
 # Storyblok
