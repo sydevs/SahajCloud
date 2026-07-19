@@ -188,6 +188,13 @@ export const Events: CollectionConfig = {
               type: 'richText',
               editor: eventDescriptionEditor,
             },
+            urlField({
+              name: 'website',
+              label: 'Website',
+              admin: {
+                description: 'Link to a page with more information about this class.',
+              },
+            }),
             {
               name: 'images',
               type: 'upload',

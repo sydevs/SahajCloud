@@ -113,6 +113,8 @@ interface AtlasEvent {
   onlineUrl: string | null
   registrationMode: string | null
   registrationUrl: string | null
+  /** Curated in events.json, not extracted from Atlas — see seeds/atlas/AGENTS.md. */
+  website?: string
   registrationLimit: number | null
   registrationQuestions: string[]
   contactInfo: { phone_name?: string; phone_number?: string } | null
@@ -863,6 +865,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       region: regionId,
       eventType: event.eventType,
       onlineUrl: event.eventType === 'online' ? event.onlineUrl?.trim() || undefined : undefined,
+      website: event.website?.trim() || undefined,
       ...(address ? { address } : {}),
       registrationMode: event.registrationMode === 'native' ? 'sahaj-atlas' : 'external',
       externalRegistrationUrl:

@@ -303,6 +303,10 @@ async function main() {
       finishDate: e.finish_date ? normalizeDate(String(e.finish_date)) : null,
       schedule: parseSchedule(e.recurrence_data),
       createdAt: e.created_at,
+      // NOTE: `website` is *not* extracted here — Atlas has no such column. The
+      // values in events.json were curated by hand from the free-text
+      // descriptions (see seeds/atlas/AGENTS.md). Re-running this extract will
+      // drop them; re-apply them before committing the regenerated file.
       // Full raw Atlas row (all columns, jsonb parsed) for the deferred #484
       // lifecycle work — keeps `verified_at`, `expiration_period`, etc.
       legacyData: e,
