@@ -1,0 +1,8 @@
+# Generated files — leave them exactly as their generator writes them.
+#
+# `payload migrate:create` rewrites src/migrations/index.ts in its own style
+# (semicolons). Reformatting it makes the file diverge from the generator, so
+# the *next* migration re-emits all ~30 import lines and buries the one real
+# change in a wall of noise. ESLint already ignores src/migrations/ for the
+# same reason (see eslint.config.mjs).
+src/migrations/
