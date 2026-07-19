@@ -113,12 +113,8 @@ interface AtlasEvent {
   onlineUrl: string | null
   registrationMode: string | null
   registrationUrl: string | null
-  /**
-   * "Learn more" link for the class. Atlas has no such column — these were
-   * lifted out of the free-text descriptions into events.json, skipping URLs
-   * already carried by onlineUrl / registrationUrl. Absent for most events.
-   */
-  website?: string | null
+  /** Curated in events.json, not extracted from Atlas — see seeds/atlas/AGENTS.md. */
+  website?: string
   registrationLimit: number | null
   registrationQuestions: string[]
   contactInfo: { phone_name?: string; phone_number?: string } | null
