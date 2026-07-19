@@ -520,7 +520,7 @@ async function fetchScriptMetadata(
 
   const response = await fetch(url, {
     method: 'GET',
-    headers: { Authorization: `JWT ${token}` },
+    headers: authHeaders(token),
   })
 
   if (!response.ok) {

@@ -3,6 +3,12 @@
 # `payload migrate:create` rewrites src/migrations/index.ts in its own style
 # (semicolons). Reformatting it makes the file diverge from the generator, so
 # the *next* migration re-emits all ~30 import lines and buries the one real
-# change in a wall of noise. ESLint already ignores src/migrations/ for the
-# same reason (see eslint.config.mjs).
+# change in a wall of noise.
+#
+# The others below are committed in their generator's format too (verified:
+# `prettier --check` reports all of these as "would rewrite"), so formatting one
+# would produce the same whole-file churn on its next regeneration. This list
+# mirrors the generated files already ignored in eslint.config.mjs.
 src/migrations/
+src/payload-types.ts
+src/app/(payload)/admin/importMap.js
