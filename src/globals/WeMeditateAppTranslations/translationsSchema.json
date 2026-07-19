@@ -457,73 +457,74 @@
         },
         "common": {
           "type": "object",
-          "description": "Shared messages and errors on the Daily tab.",
+          "description": "Shared error and \"coming soon\" messages that pop up across the Home and Profile area — not a screen of its own.",
           "properties": {
-            "unlock_after_first_meditation": {
-              "type": "string",
-              "description": "Message on cards locked until the first meditation is done."
-            },
-            "path_coming_soon": {
-              "type": "string",
-              "description": "Placeholder when the Path is not available yet."
-            },
             "something_went_wrong": {
               "type": "string",
-              "description": "Generic error when part of the home screen won't load."
+              "description": "Generic error message. Shown as the heading of the error screen (with a Retry button below it) and as the text of several error pop-ups when content fails to load or an action can't be completed.",
+              "section": "Errors"
             },
             "retry": {
               "type": "string",
-              "description": "Try again button on error screens."
-            },
-            "external_link_coming_soon": {
-              "type": "string",
-              "description": "Message when a link card isn't ready yet."
+              "description": "Label on the Retry button below the error message; tapping it reloads the content after a failure.",
+              "section": "Errors"
             },
             "card_action_not_available": {
               "type": "string",
-              "description": "Message when a card's action isn't ready yet."
+              "description": "Pop-up message shown only when a tapped card can't be opened because its destination is missing, unknown, or invalid.",
+              "section": "Unavailable & coming-soon pop-ups"
             },
-            "map_coming_soon": {
+            "external_link_coming_soon": {
               "type": "string",
-              "description": "Placeholder for the class finder before it's ready."
+              "description": "Pop-up message shown only when a tapped card's external link is missing or can't be opened.",
+              "section": "Unavailable & coming-soon pop-ups"
             },
             "music_coming_soon": {
               "type": "string",
-              "description": "Placeholder for the music section before it's ready."
+              "description": "Pop-up message shown only when someone taps a Music or album card (or a music item in profile activity), which isn't available yet.",
+              "section": "Unavailable & coming-soon pop-ups"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "title": "Errors & coming-soon messages"
         },
         "load_info": {
           "type": "object",
-          "description": "Small notices explaining why a section is showing backup content.",
+          "description": "Messages for when the Daily screen has trouble loading its meditations. Two show as a brief pop-up at the bottom of the screen when a random meditation is substituted; the other four are prepared in code but are not shown anywhere in the current app.",
           "properties": {
             "top_daily_unavailable": {
               "type": "string",
-              "description": "Notice when today's meditation could not be found."
+              "description": "Prepared for when the daily meditation has no content and no replacement can be found. Not currently shown anywhere in the app.",
+              "section": "Daily meditation"
             },
             "top_daily_failed": {
               "type": "string",
-              "description": "Notice when today's meditation failed to load."
+              "description": "Prepared for when loading the daily meditation errors out and no replacement can be found. Not currently shown anywhere in the app.",
+              "section": "Daily meditation"
             },
             "top_daily_random": {
               "type": "string",
-              "description": "Notice when a random meditation is shown instead of today's."
+              "description": "Brief pop-up at the bottom of the Daily screen, shown when the daily meditation could not be loaded and a random meditation is shown in its place.",
+              "section": "Daily meditation"
             },
             "quick_daily_unavailable": {
               "type": "string",
-              "description": "Notice when the quick meditations could not be found."
+              "description": "Prepared for when the quick meditations have no content and no replacements can be found. Not currently shown anywhere in the app.",
+              "section": "Quick meditations"
             },
             "quick_daily_failed": {
               "type": "string",
-              "description": "Notice when the quick meditations failed to load."
+              "description": "Prepared for when loading the quick meditations errors out and no replacements can be found. Not currently shown anywhere in the app.",
+              "section": "Quick meditations"
             },
             "quick_daily_random": {
               "type": "string",
-              "description": "Notice when random quick meditations are shown instead."
+              "description": "Brief pop-up at the bottom of the Daily screen, shown when the quick meditations could not be loaded and random meditations are shown in their place.",
+              "section": "Quick meditations"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "title": "Daily — Load Messages"
         }
       },
       "additionalProperties": false
@@ -734,91 +735,111 @@
       "properties": {
         "overview": {
           "type": "object",
-          "description": "The Explore tab's section headers and card labels.",
+          "description": "The Explore tab: three stacked sections (Meditate, Learn, Join free classes). Each section shows a small shared label above a big heading, then a grid of tappable cards. Some Meditate cards are locked and show a \"Coming soon\" label.",
           "properties": {
             "section_label": {
               "type": "string",
-              "description": "Small label above the Explore section."
+              "description": "Small label shown above every section heading on the Explore tab. The same word appears above all three sections (Meditate, Learn and Join free classes)."
             },
             "section_meditate_title": {
               "type": "string",
-              "description": "Header for the Meditate section."
-            },
-            "section_learn_title": {
-              "type": "string",
-              "description": "Header for the Learn section."
-            },
-            "section_join_title": {
-              "type": "string",
-              "description": "Header for the Join Free Classes section."
+              "description": "Heading of the first Explore section, which holds the meditation cards.",
+              "section": "Meditate section"
             },
             "card_daily_title": {
               "type": "string",
-              "description": "Title of the Daily card."
+              "description": "Title of the Daily card, the first card in the Meditate section.",
+              "section": "Meditate section"
             },
             "card_daily_subtitle": {
               "type": "string",
-              "description": "Smaller text on the Daily card."
+              "description": "One-line description shown under the Daily card title.",
+              "section": "Meditate section"
             },
             "card_path_title": {
               "type": "string",
-              "description": "Title of the Path card."
+              "description": "Title of the Path card in the Meditate section.",
+              "section": "Meditate section"
             },
             "card_path_subtitle": {
               "type": "string",
-              "description": "Smaller text on the Path card."
+              "description": "One-line description shown under the Path card title.",
+              "section": "Meditate section"
             },
             "card_techniques_title": {
               "type": "string",
-              "description": "Title of the Techniques card."
+              "description": "Title of the Techniques card in the Meditate section.",
+              "section": "Meditate section"
             },
             "card_techniques_subtitle": {
               "type": "string",
-              "description": "Smaller text on the Techniques card."
+              "description": "One-line description shown under the Techniques card title.",
+              "section": "Meditate section"
             },
             "card_vibes_check_title": {
               "type": "string",
-              "description": "Title of the Vibes Check card."
+              "description": "Title of the Vibes check card. This card is coming-soon (locked) and shows the \"Coming soon\" label instead of a subtitle.",
+              "section": "Meditate section"
             },
             "card_vibes_check_subtitle": {
               "type": "string",
-              "description": "Smaller text on the Vibes Check card."
+              "description": "NOT DISPLAYED — the Vibes check card is coming-soon, so its subtitle slot always shows the \"Coming soon\" label instead of this text. The value is passed to the card but never appears on screen.",
+              "section": "Meditate section"
             },
             "card_music_title": {
               "type": "string",
-              "description": "Title of the Music for Meditation card."
+              "description": "Title of the Music for meditation card. This card is coming-soon (locked); it shows the \"Coming soon\" label where a subtitle would go.",
+              "section": "Meditate section"
             },
             "card_challenges_title": {
               "type": "string",
-              "description": "Title of the Challenges card."
+              "description": "Title of the Challenges card. This card is coming-soon (locked); it shows the \"Coming soon\" label where a subtitle would go.",
+              "section": "Meditate section"
             },
-            "card_talks_title": {
+            "section_learn_title": {
               "type": "string",
-              "description": "Title of the Shri Mataji Talks card. Keep the line break."
-            },
-            "card_subtle_system_title": {
-              "type": "string",
-              "description": "Title of the Subtle System card."
+              "description": "Heading of the second Explore section, which holds the learning cards.",
+              "section": "Learn section"
             },
             "card_who_is_title": {
               "type": "string",
-              "description": "Title of the Who is Shri Mataji card. Keep the line break."
+              "description": "Title of the \"Who is Shri Mataji\" card, the first card in the Learn section. Keep the line break between the two lines.",
+              "section": "Learn section"
+            },
+            "card_talks_title": {
+              "type": "string",
+              "description": "Title of the \"Lectures of Shri Mataji\" card in the Learn section. Keep the line break between the two lines.",
+              "section": "Learn section"
+            },
+            "card_subtle_system_title": {
+              "type": "string",
+              "description": "Title of the Subtle System card in the Learn section.",
+              "section": "Learn section"
             },
             "card_what_is_title": {
               "type": "string",
-              "description": "Title of the What is Sahaja Yoga card."
+              "description": "Title of the \"What is Sahaja Yoga?\" card, the last card in the Learn section.",
+              "section": "Learn section"
+            },
+            "section_join_title": {
+              "type": "string",
+              "description": "Heading of the third Explore section, for joining free classes.",
+              "section": "Join free classes section"
             },
             "card_live_online_title": {
               "type": "string",
-              "description": "Title of the Live Online Classes card. Keep the line break."
+              "description": "Title of the Live Online Classes card in the Join free classes section. Keep the line break between the two lines.",
+              "section": "Join free classes section"
             },
             "card_find_classes_title": {
               "type": "string",
-              "description": "Title of the Find Classes card. Keep the line break."
+              "description": "Title of the \"Find classes near you\" card in the Join free classes section. Keep the line break between the two lines.",
+              "section": "Join free classes section"
             },
             "card_coming_soon": {
               "type": "string",
-              "description": "Coming soon badge on locked cards."
+              "description": "The \"Coming soon\" label shown in place of the subtitle on locked cards (Vibes check, Music and Challenges).",
+              "section": "Card states"
             }
           },
           "additionalProperties": false,
@@ -1957,142 +1978,169 @@
       "properties": {
         "common": {
           "type": "object",
-          "description": "Shared text across login and sign-up screens.",
+          "description": "Shared sign-in buttons (email + social providers), the account-exists sheet's Cancel, and form-validation error messages used across the login and create-account screens.",
           "properties": {
+            "continue_with_email": {
+              "type": "string",
+              "description": "\"Continue with Email\" button; the first sign-in option on the create-account screen.",
+              "section": "Sign-in buttons"
+            },
             "or": {
               "type": "string",
-              "description": "The word between email and social sign-in options."
-            },
-            "continue_with_apple": {
-              "type": "string",
-              "description": "Sign in with Apple button."
+              "description": "Small divider word shown above the social sign-in buttons on the login screen.",
+              "section": "Sign-in buttons"
             },
             "continue_with_google": {
               "type": "string",
-              "description": "Sign in with Google button."
+              "description": "Button to sign in with a Google account.",
+              "section": "Sign-in buttons"
             },
             "continue_with_facebook": {
               "type": "string",
-              "description": "Sign in with Facebook button."
+              "description": "Button to sign in with a Facebook account.",
+              "section": "Sign-in buttons"
             },
-            "continue_with_email": {
+            "continue_with_apple": {
               "type": "string",
-              "description": "Continue with email button."
+              "description": "Button to sign in with an Apple account; hidden on Android devices, shown elsewhere.",
+              "section": "Sign-in buttons"
             },
             "cancel": {
               "type": "string",
-              "description": "Cancel button on sign-in prompts."
+              "description": "Cancel button on the pop-up shown when an account already exists with a different sign-in method; dismisses it without signing in.",
+              "section": "Account-exists prompt"
             },
             "error_enter_email": {
               "type": "string",
-              "description": "Error when the email box is empty."
+              "description": "Only shown when the email field is left empty and the user tries to continue.",
+              "section": "Errors"
             },
             "error_invalid_email": {
               "type": "string",
-              "description": "Error when the email isn't valid."
+              "description": "Only shown when the entered email is not a valid email address.",
+              "section": "Errors"
             },
             "error_enter_password": {
               "type": "string",
-              "description": "Error when the password box is empty."
+              "description": "Only shown when the password field is left empty on the create-account screen.",
+              "section": "Errors"
             },
             "error_password_min_length": {
               "type": "string",
-              "description": "Error when the password is too short."
+              "description": "Only shown when the chosen password is shorter than 6 characters.",
+              "section": "Errors"
             }
           },
           "additionalProperties": false
         },
         "login": {
           "type": "object",
-          "description": "The email and password login screen.",
+          "description": "The email/password log-in flow: the sign-in form (email step + password step), plus two bottom sheets (account not found, existing sign-in method found) and the sign-in error messages.",
           "properties": {
             "title": {
               "type": "string",
-              "description": "Login screen title."
+              "description": "Heading at the top of the log-in screen. English: \"Log In\".",
+              "section": "Log-in form"
             },
             "email_label": {
               "type": "string",
-              "description": "Label for the email box."
+              "description": "Label above the email field. English: \"Email\".",
+              "section": "Log-in form"
             },
             "email_placeholder": {
               "type": "string",
-              "description": "Faint hint text inside the email box."
+              "description": "Greyed-out hint inside the empty email field. English: \"Your email\".",
+              "section": "Log-in form"
             },
             "password_label": {
               "type": "string",
-              "description": "Label for the password box."
+              "description": "Label above the password field, shown on the next step after the email is entered. English: \"Password\".",
+              "section": "Log-in form"
             },
             "password_placeholder": {
               "type": "string",
-              "description": "Faint hint text inside the password box."
+              "description": "Greyed-out hint inside the empty password field. English: \"Your password\".",
+              "section": "Log-in form"
             },
             "next": {
               "type": "string",
-              "description": "Main button on the login form."
+              "description": "Main button that advances the form (from email to password, then submits the sign-in). English: \"Next\".",
+              "section": "Log-in form"
             },
             "signing_in": {
               "type": "string",
-              "description": "Button text shown while signing in."
+              "description": "Only shown while the sign-in request is in progress — replaces the Next button label. English: \"Signing in...\".",
+              "section": "Log-in form"
             },
             "forgot_password": {
               "type": "string",
-              "description": "Link to recover a forgotten password."
+              "description": "Link on the password step that opens the password-reset flow. English: \"Forgot password\".",
+              "section": "Log-in form"
             },
             "continue_as_new_user": {
               "type": "string",
-              "description": "Link to create a new account instead."
+              "description": "Secondary button below Next on the email step, for people who don't have an account yet. English: \"Continue as new user\".",
+              "section": "Log-in form"
             },
             "account_not_found_title": {
               "type": "string",
-              "description": "Title when no account matches that email."
+              "description": "Only shown when no account matches the entered email — heading of the pop-up sheet. English: \"We couldn't find your account\".",
+              "section": "Account-not-found sheet"
             },
             "account_not_found_subtitle": {
               "type": "string",
-              "description": "Smaller text on the no-account message."
-            },
-            "account_exists_title": {
-              "type": "string",
-              "description": "Title when the email uses a different sign-in method."
-            },
-            "account_exists_subtitle": {
-              "type": "string",
-              "description": "Smaller text on that message. Keep the {providers} placeholder."
+              "description": "Only shown on the account-not-found sheet — explanatory text under the heading. English: \"Please try a different account, create a new one or continue as a new user\".",
+              "section": "Account-not-found sheet"
             },
             "create_new_account": {
               "type": "string",
-              "description": "Button to create an account when none was found."
+              "description": "Primary button on the account-not-found sheet. English: \"Create new account\".",
+              "section": "Account-not-found sheet"
             },
             "try_different_account": {
               "type": "string",
-              "description": "Button to try a different email."
+              "description": "Secondary button on the account-not-found sheet. English: \"Try different account\".",
+              "section": "Account-not-found sheet"
             },
-            "account_exists_existing_provider_fallback": {
+            "account_exists_title": {
               "type": "string",
-              "description": "Backup wording for the sign-in method list."
+              "description": "Only shown when the email already has a different sign-in method (e.g. Google/Apple) — heading of the pop-up sheet. English: \"Sign in with your existing account\".",
+              "section": "Existing sign-in method sheet"
+            },
+            "account_exists_subtitle": {
+              "type": "string",
+              "description": "Explanatory text on the existing-sign-in-method sheet. KEEP the {providers} token exactly as-is — the app replaces it with the provider name(s). English: \"We found another sign-in method for this email. Use {providers} to continue, then we'll connect everything to the same account.\".",
+              "section": "Existing sign-in method sheet"
             },
             "open_login": {
               "type": "string",
-              "description": "Button to reopen the login form."
+              "description": "FALLBACK — primary button on the existing-sign-in-method sheet, shown only when the existing method isn't a recognised provider; normally the button reads \"Continue with Google/Apple/Email\". Opens the log-in screen. English: \"Open login\".",
+              "section": "Existing sign-in method sheet"
             },
-            "error_cannot_continue_with_email": {
+            "account_exists_existing_provider_fallback": {
               "type": "string",
-              "description": "Error when email sign-in can't continue."
+              "description": "FALLBACK — the word that fills the {providers} slot in the subtitle above, used only when the provider name(s) can't be determined; normally the real provider name(s) are shown. English: \"your existing provider\".",
+              "section": "Existing sign-in method sheet"
             },
             "error_invalid_credentials": {
               "type": "string",
-              "description": "Error when the email or password is wrong."
+              "description": "Error shown when the email or password is wrong. English: \"Incorrect email or password\".",
+              "section": "Errors"
             },
             "error_too_many_requests": {
               "type": "string",
-              "description": "Error when there have been too many sign-in tries."
+              "description": "Error shown only after too many failed sign-in attempts. English: \"Too many attempts. Please try again later\".",
+              "section": "Errors"
             },
             "error_session_persistence": {
               "type": "string",
-              "description": "Error when sign-in worked but couldn't be saved."
+              "description": "Error shown only when sign-in succeeds but the session couldn't be saved. English: \"Signed in, but failed to restore your session\".",
+              "section": "Errors"
             },
             "error_generic": {
               "type": "string",
-              "description": "Generic sign-in error."
+              "description": "Fallback error shown when sign-in fails for any other reason. English: \"Failed to sign in\".",
+              "section": "Errors"
             }
           },
           "additionalProperties": false,
@@ -2100,31 +2148,35 @@
         },
         "restore_password": {
           "type": "object",
-          "description": "The password recovery screen.",
+          "description": "Forgot/restore-password screen: the user enters their email to receive a password-reset link.",
           "properties": {
             "title": {
               "type": "string",
-              "description": "Password recovery screen title."
+              "description": "Header at the top of the restore-password screen."
             },
             "description": {
               "type": "string",
-              "description": "Text explaining how recovery works."
+              "description": "Short intro line under the header telling the user to enter their email so a reset link can be sent."
             },
             "email_label": {
               "type": "string",
-              "description": "Label for the email box."
+              "description": "Label above the email input box.",
+              "section": "Email field"
             },
             "email_placeholder": {
               "type": "string",
-              "description": "Faint hint text inside the email box."
+              "description": "Greyed-out hint text inside the empty email input box.",
+              "section": "Email field"
             },
             "submit": {
               "type": "string",
-              "description": "Button to send the recovery email."
+              "description": "Main button that sends the password-reset request.",
+              "section": "Buttons"
             },
             "error_invalid_email": {
               "type": "string",
-              "description": "Error when the email isn't valid."
+              "description": "Error shown under the email field only when the entered email is empty or not a valid address.",
+              "section": "Errors"
             }
           },
           "additionalProperties": false,
@@ -2132,15 +2184,16 @@
         },
         "restore_password_email_sent": {
           "type": "object",
-          "description": "Screen shown after the recovery email is sent.",
+          "description": "Confirmation screen shown after the password-reset email has been sent: a centered message with an email icon, and an OK button.",
           "properties": {
             "message": {
               "type": "string",
-              "description": "Confirmation message. Keep the line break."
+              "description": "Centered confirmation text shown after the reset email is sent, telling the user an email has been sent and to check their inbox. Contains a line break that should be kept."
             },
             "ok": {
               "type": "string",
-              "description": "OK button on the confirmation."
+              "description": "Label of the button at the bottom that dismisses the confirmation and returns the user to the sign-in flow.",
+              "section": "Buttons"
             }
           },
           "additionalProperties": false,
@@ -2148,99 +2201,122 @@
         },
         "create_account": {
           "type": "object",
-          "description": "The account creation screen with a consent checkbox.",
+          "description": "Create-account flow: the sign-up landing/method-chooser screen (heading, consent, skip) and the email sign-up form (fields, buttons, errors) reached by tapping \"Continue with Email\".",
           "properties": {
-            "title": {
-              "type": "string",
-              "description": "Account creation title in the top bar."
-            },
             "screen_title": {
               "type": "string",
-              "description": "Big title on the account creation screen."
+              "description": "Main heading on the sign-up landing screen — the default wording, \"Let's now create your account!\" (gate and onboarding-start entry points use other keys not in this leaf).",
+              "section": "Landing screen"
             },
             "screen_subtitle": {
               "type": "string",
-              "description": "Smaller title on the account creation screen."
-            },
-            "skip_and_explore": {
-              "type": "string",
-              "description": "Link letting a guest skip creating an account."
+              "description": "Sub-heading under the main heading, explaining that creating an account saves progress and unlocks features.",
+              "section": "Landing screen"
             },
             "error_check_consent": {
               "type": "string",
-              "description": "Error when the consent box isn't checked."
+              "description": "Error shown only when the user taps a sign-up option without first ticking the consent checkbox.",
+              "section": "Landing screen"
+            },
+            "skip_and_explore": {
+              "type": "string",
+              "description": "Bottom button on the sign-up landing screen that skips account creation and continues into the app (default wording).",
+              "section": "Landing screen"
+            },
+            "title": {
+              "type": "string",
+              "description": "Top-bar title on the email sign-up form (the screen reached by tapping \"Continue with Email\").",
+              "section": "Email sign-up form"
             },
             "email_label": {
               "type": "string",
-              "description": "Label for the email box."
+              "description": "Label above the email field on the email sign-up form.",
+              "section": "Email sign-up form"
             },
             "email_placeholder": {
               "type": "string",
-              "description": "Faint hint text inside the email box."
+              "description": "Grey hint text inside the empty email field.",
+              "section": "Email sign-up form"
             },
             "password_label": {
               "type": "string",
-              "description": "Label for the password box."
+              "description": "Label above the password field on the email sign-up form.",
+              "section": "Email sign-up form"
             },
             "password_placeholder": {
               "type": "string",
-              "description": "Faint hint text inside the password box."
+              "description": "Grey hint text inside the empty password field.",
+              "section": "Email sign-up form"
             },
             "submit": {
               "type": "string",
-              "description": "Main button to create the account."
+              "description": "Main button on the email sign-up form that creates the account.",
+              "section": "Email sign-up form"
             },
             "creating": {
               "type": "string",
-              "description": "Button text shown while creating the account."
-            },
-            "error_email_in_use": {
-              "type": "string",
-              "description": "Error when the email already has an account."
-            },
-            "login_with_existing_account": {
-              "type": "string",
-              "description": "Button to go to login when the email is taken."
+              "description": "Replaces the submit button label while the account is being created.",
+              "section": "Email sign-up form"
             },
             "error_invalid_email": {
               "type": "string",
-              "description": "Error when the email isn't valid."
+              "description": "Error under the email field, only if the server rejects the address as invalid; the form's own live check normally catches a bad email first.",
+              "section": "Email sign-up form errors"
             },
             "error_weak_password": {
               "type": "string",
-              "description": "Error when the password is too short."
+              "description": "Error under the password field, only if the server rejects the password as too weak; the form already requires 6+ characters (with a number) before you can submit.",
+              "section": "Email sign-up form errors"
             },
             "error_too_many_requests": {
               "type": "string",
-              "description": "Error when there have been too many tries."
+              "description": "Error shown only after too many failed sign-up attempts in a short time.",
+              "section": "Email sign-up form errors"
             },
             "error_session_persistence": {
               "type": "string",
-              "description": "Error when the account was made but couldn't be saved."
+              "description": "Error shown only when the account was created but the app couldn't restore the login session.",
+              "section": "Email sign-up form errors"
             },
             "error_generic": {
               "type": "string",
-              "description": "Generic account creation error."
+              "description": "FALLBACK — shown when sign-up fails for a reason not covered by the more specific messages above; normally one of those is shown.",
+              "section": "Email sign-up form errors"
+            },
+            "error_email_in_use": {
+              "type": "string",
+              "description": "Appears unused — email collisions show the “You already have an account” sheet instead. Kept pending a product decision.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "login_with_existing_account": {
+              "type": "string",
+              "description": "Appears unused — its button is gated by a flag that is never turned on, so it can’t currently show. Kept pending a product decision.",
+              "section": "Currently unused — needs a product decision"
             },
             "error_google_failed": {
               "type": "string",
-              "description": "Error when Google sign-in fails."
+              "description": "Appears unused — a failed Google sign-in shows a shared error dialog instead. Kept pending a product decision.",
+              "section": "Currently unused — needs a product decision"
             },
             "error_apple_failed": {
               "type": "string",
-              "description": "Error when Apple sign-in fails."
+              "description": "Appears unused — a failed Apple sign-in shows a shared error dialog instead. Kept pending a product decision.",
+              "section": "Currently unused — needs a product decision"
             },
             "error_facebook_failed": {
               "type": "string",
-              "description": "Error when Facebook sign-in fails."
+              "description": "Appears unused — a failed Facebook sign-in shows a shared error dialog instead. Kept pending a product decision.",
+              "section": "Currently unused — needs a product decision"
             },
             "error_provider_cancelled": {
               "type": "string",
-              "description": "Message when the user cancels social sign-in."
+              "description": "Appears unused — a cancelled social sign-in is dismissed silently with no message. Kept pending a product decision.",
+              "section": "Currently unused — needs a product decision"
             },
             "consent_label": {
               "type": "richText",
-              "description": "Consent checkbox text with links to Terms and Privacy Policy."
+              "description": "The \"I agree to WeMeditate's Terms & Conditions … Privacy Policy\" line, with tappable links, next to the consent checkbox on the sign-up landing screen. Keep both link phrases intact.",
+              "section": "Consent"
             }
           },
           "additionalProperties": false,
@@ -2251,42 +2327,46 @@
     },
     "navigation": {
       "type": "object",
-      "description": "Labels for the bottom navigation bar.",
+      "description": "The four labels on the bottom navigation bar, shown on every main screen (left to right: Daily, Path, Explore, Profile). If any label is missing a translation, the app silently falls back to the English word.",
       "properties": {
         "daily": {
           "type": "string",
-          "description": "Bottom bar label for the Daily tab."
+          "description": "First tab label on the bottom bar. English: \"Daily\".",
+          "section": "Bottom bar (left to right)"
         },
         "path": {
           "type": "string",
-          "description": "Bottom bar label for the Path tab."
+          "description": "Second tab label on the bottom bar. English: \"Path\".",
+          "section": "Bottom bar (left to right)"
         },
         "explore": {
           "type": "string",
-          "description": "Bottom bar label for the Explore tab."
+          "description": "Third tab label on the bottom bar. English: \"Explore\".",
+          "section": "Bottom bar (left to right)"
         },
         "profile": {
           "type": "string",
-          "description": "Bottom bar label for the Profile tab."
+          "description": "Fourth tab label on the bottom bar. English: \"Profile\".",
+          "section": "Bottom bar (left to right)"
         }
       },
       "additionalProperties": false
     },
     "general": {
       "type": "object",
-      "description": "Common text shared across the whole app.",
+      "description": "Generic button/action labels reused across the app, mostly on error and confirmation screens.",
       "properties": {
         "back": {
           "type": "string",
-          "description": "Back button label."
+          "description": "\"Back\" button shown on the meditation player's error screen (when a meditation fails to load), next to Retry, to return to the previous screen."
         },
         "retry": {
           "type": "string",
-          "description": "Try again button label."
+          "description": "\"Retry\" button shown on failed/unavailable screens (meditation player and talk player load failures, and the profile screen's load error) to try loading again."
         },
         "undo": {
           "type": "string",
-          "description": "Undo button label."
+          "description": "\"Undo\" action shown briefly in a message after removing a favourite, letting the user restore it."
         }
       },
       "additionalProperties": false
