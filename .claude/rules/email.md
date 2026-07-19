@@ -116,6 +116,19 @@ in `src/emails/`.
   (`tests/unit/email-templates.spec.ts`), or run the `react-email` CLI's local
   preview server against `src/emails/` (`pnpm exec email dev`).
 
+  To see a real message in a real client — including the parts a render test
+  can't show (subject, `From`, `Reply-To`, the plain-text part, attachments) —
+  use the Ethereal preview scripts, which drive the actual send path rather than
+  reimplementing it, so they can't drift from production:
+
+  ```bash
+  pnpm tsx scripts/preview-registration-emails.ts   # registrant confirmation, all states
+  pnpm tsx scripts/preview-event-emails.ts          # manager verification reminders
+  ```
+
+  Neither touches the database. `SAHAJCLOUD_URL` defaults to production in the
+  registration script so the header icon resolves in the preview.
+
 - **Icons — emails are the exception to the no-emoji rule.** The repo uses
   `lucide-react` for HTML UI (see `.claude/rules/code-style.md`), but email
   clients (Gmail strips inline `<svg>`, Outlook can't render it) won't show SVG

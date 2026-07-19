@@ -181,7 +181,9 @@ describe('RegistrationConfirmationEmail — client branding', () => {
 
   it('falls back to the Atlas project brand for an unconfigured client', async () => {
     const fallback = getEmailBrand('sahaj-atlas')
-    const brand = getClientEmailBrand({ name: null, color1: null, color2: null, logo: null })
+    // `Clients.name` is required by the schema, so the reachable "unconfigured"
+    // state is an empty string, not null.
+    const brand = getClientEmailBrand({ name: '', color1: null, color2: null, logo: null })
 
     expect(brand.productName).toBe(fallback.productName)
     expect(brand.colors.primary).toBe(fallback.colors.primary)
