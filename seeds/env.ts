@@ -14,6 +14,18 @@ dotenv.config({ path: '.env' })
 dotenv.config({ path: '.env.local', override: true })
 
 /**
+ * Make a var optional *and* tolerate an empty value.
+ *
+ * A bare `.optional()` only accepts `undefined`, so `FOO=` in a .env file (an
+ * empty string) still fails the inner rules. Deliberately blanking a credential
+ * you don't need — as local dev does, where auto-login means `pnpm seed` needs
+ * none — should read as "unset", not as a validation error.
+ */
+function emptyAsUndefined<T extends z.ZodTypeAny>(schema: T) {
+  return z.preprocess((value) => (value === '' ? undefined : value), schema.optional())
+}
+
+/**
  * Seed scripts environment variables schema
  */
 const SeedEnvSchema = z.object({
@@ -21,13 +33,13 @@ const SeedEnvSchema = z.object({
    * Admin email for seed scripts authentication
    * Required when running seed scripts that create admin users
    */
-  ADMIN_EMAIL: z.email().optional(),
+  ADMIN_EMAIL: emptyAsUndefined(z.email()),
 
   /**
    * Admin password for seed scripts authentication
    * Minimum 8 characters
    */
-  ADMIN_PASSWORD: z.string().min(8).optional(),
+  ADMIN_PASSWORD: emptyAsUndefined(z.string().min(8)),
 
   /**
    * Storyblok CMS access token
@@ -96,11 +108,10 @@ export const seedEnv = (() => {
     return SeedEnvSchema.parse(process.env)
   } catch (error) {
     if (error instanceof z.ZodError) {
-       
       console.error('❌ Seed environment validation error:')
-       
+
       console.error(error.issues)
-       
+
       console.error('\nCheck your .env file for seed script variables.')
       throw new Error(
         'Invalid seed environment variables. Check the error details above and verify your .env file.',

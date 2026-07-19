@@ -24,9 +24,12 @@
  *
  * Environment Variables:
  *   SAHAJCLOUD_URL  - Target URL (default: http://localhost:PORT)
- *   ADMIN_EMAIL     - Admin email for authentication
- *   ADMIN_PASSWORD  - Admin password for authentication
+ *   ADMIN_EMAIL     - Admin email for authentication (not needed locally)
+ *   ADMIN_PASSWORD  - Admin password for authentication (not needed locally)
  *   PORT            - Local dev server port (default: 3000)
+ *
+ * Local dev enables Payload's `admin.autoLogin`, so no credentials are needed
+ * against a local server; they're only required for a remote target.
  *
  * Examples:
  *   pnpm seed                           # Run all scripts in order
@@ -125,14 +128,23 @@ async function loadInlineData(scriptName: ScriptName): Promise<Record<string, st
 }
 
 /**
- * Build the fetch init for a seed POST: JWT auth header plus, when present, the
+ * Auth header for a seed request. `null` means we're relying on the target's
+ * auto-login (see `authenticate`), so the request must go out *without* an
+ * `Authorization` header for Payload's tokenless path to kick in.
+ */
+function authHeaders(token: string | null): Record<string, string> {
+  return token ? { Authorization: `JWT ${token}` } : {}
+}
+
+/**
+ * Build the fetch init for a seed POST: auth header plus, when present, the
  * uploaded seed-data files in the JSON body.
  */
-function seedPostInit(token: string, inlineData?: Record<string, string>): RequestInit {
+function seedPostInit(token: string | null, inlineData?: Record<string, string>): RequestInit {
   return {
     method: 'POST',
     headers: {
-      Authorization: `JWT ${token}`,
+      ...authHeaders(token),
       ...(inlineData ? { 'Content-Type': 'application/json' } : {}),
     },
     body: inlineData ? JSON.stringify({ inlineData }) : undefined,
@@ -177,8 +189,10 @@ Options:
 
 Environment Variables:
   SAHAJCLOUD_URL  Target URL (default: http://localhost:PORT)
-  ADMIN_EMAIL     Admin email for authentication
-  ADMIN_PASSWORD  Admin password for authentication
+  ADMIN_EMAIL     Admin email for authentication (only for a remote target)
+  ADMIN_PASSWORD  Admin password for authentication (only for a remote target)
+
+Local dev enables auto-login, so seeding localhost needs no credentials.
 
 Examples:
   pnpm seed                           # Run all scripts in order (skip existing)
@@ -201,7 +215,44 @@ function printScripts(): void {
 }
 
 /**
- * Authenticate with the API and return a JWT for the `Authorization` header.
+ * Does the target authenticate requests that carry no token at all?
+ *
+ * Local dev sets `admin.autoLogin` (see `src/payload.config.ts`), and Payload
+ * applies that in its **JWT strategy**, not just the admin UI: a request with no
+ * token is authenticated as the configured admin. `/api/managers/me` reports it
+ * directly — a user for auto-login, `{ user: null }` otherwise.
+ *
+ * We probe the capability instead of matching on `localhost` because that's what
+ * actually decides the outcome: production (and E2E) disable auto-login, so they
+ * fall through to the credential path on their own, and a dev server on some
+ * other host/port still gets the no-credentials treatment.
+ */
+async function hasAutoLogin(baseUrl: string): Promise<boolean> {
+  const probe = async (headers?: Record<string, string>): Promise<boolean> => {
+    const response = await fetch(`${baseUrl}/api/managers/me`, { cache: 'no-store', headers })
+    if (!response.ok) return false
+    const { user } = (await response.json()) as { user?: unknown }
+    return Boolean(user)
+  }
+
+  try {
+    if (!(await probe())) return false
+
+    // A truthy `user` on its own isn't proof: an edge cache in front of a remote
+    // target can replay a *previously authenticated* response to our tokenless
+    // request, which would look identical. `DisableAutologin` is the tell — a
+    // live Payload always answers it with `{ user: null }`, so a user here means
+    // we're reading a cached body, not talking to an auto-login server.
+    return !(await probe({ DisableAutologin: 'true' }))
+  } catch {
+    // Unreachable target — let the real seed request report the failure.
+    return false
+  }
+}
+
+/**
+ * Authenticate with the API and return a JWT for the `Authorization` header, or
+ * `null` when the target auto-logs-in and no credentials are needed.
  *
  * Uses the token from the login response *body*, not the `Set-Cookie` header.
  * Payload's CSRF protection ignores cookie-based JWTs unless the request
@@ -210,14 +261,21 @@ function printScripts(): void {
  * header is not subject to CSRF, so it's the correct mechanism here.
  * Do not switch this back to cookie forwarding.
  */
-async function authenticate(baseUrl: string): Promise<string> {
+async function authenticate(baseUrl: string): Promise<string | null> {
+  if (await hasAutoLogin(baseUrl)) {
+    console.log('🔓 Auto-login is active — no credentials needed\n')
+    return null
+  }
+
   const email = seedEnv.ADMIN_EMAIL
   const password = seedEnv.ADMIN_PASSWORD
 
   if (!email || !password) {
     throw new Error(
       'Missing authentication credentials.\n' +
-        'Set ADMIN_EMAIL and ADMIN_PASSWORD environment variables.',
+        'Set ADMIN_EMAIL and ADMIN_PASSWORD environment variables.\n' +
+        '(Local dev normally needs neither — auto-login covers it. Seeing this ' +
+        'against localhost means the server is running in production or E2E mode.)',
     )
   }
 
@@ -467,13 +525,13 @@ function delay(ms: number): Promise<void> {
 async function fetchScriptMetadata(
   scriptName: ScriptName,
   baseUrl: string,
-  token: string,
+  token: string | null,
 ): Promise<ScriptMetadata> {
   const url = `${baseUrl}/api/seed/${scriptName}`
 
   const response = await fetch(url, {
     method: 'GET',
-    headers: { Authorization: `JWT ${token}` },
+    headers: authHeaders(token),
   })
 
   if (!response.ok) {
@@ -493,7 +551,7 @@ async function runPaginatedRequest(
   offset: number,
   limit: number,
   baseUrl: string,
-  token: string,
+  token: string | null,
   options: { dryRun: boolean; updateMode: boolean; inlineData?: Record<string, string> },
 ): Promise<{ success: boolean; errors: string[]; pagination: PaginationResult | null }> {
   const errors: string[] = []
@@ -555,7 +613,7 @@ async function runPaginatedImport(
   scriptName: ScriptName,
   metadata: ScriptMetadata,
   baseUrl: string,
-  token: string,
+  token: string | null,
   options: {
     dryRun: boolean
     clearCache: boolean
@@ -662,7 +720,7 @@ async function runPaginatedImport(
 async function runScript(
   scriptName: ScriptName,
   baseUrl: string,
-  token: string,
+  token: string | null,
   options: {
     dryRun: boolean
     clearCache: boolean

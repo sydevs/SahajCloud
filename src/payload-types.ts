@@ -1669,6 +1669,10 @@ export interface Event {
     [k: string]: unknown;
   } | null;
   /**
+   * Link to a page with more information about this class.
+   */
+  website?: string | null;
+  /**
    * Photos for this event.
    */
   images?: (number | Image)[] | null;
@@ -4469,6 +4473,7 @@ export interface EventsSelect<T extends boolean = true> {
   contactPhone?: T;
   contactName?: T;
   description?: T;
+  website?: T;
   images?: T;
   inactive?: T;
   schedule?:
