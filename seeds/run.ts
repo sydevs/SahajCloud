@@ -228,11 +228,22 @@ function printScripts(): void {
  * other host/port still gets the no-credentials treatment.
  */
 async function hasAutoLogin(baseUrl: string): Promise<boolean> {
-  try {
-    const response = await fetch(`${baseUrl}/api/managers/me`)
+  const probe = async (headers?: Record<string, string>): Promise<boolean> => {
+    const response = await fetch(`${baseUrl}/api/managers/me`, { cache: 'no-store', headers })
     if (!response.ok) return false
     const { user } = (await response.json()) as { user?: unknown }
     return Boolean(user)
+  }
+
+  try {
+    if (!(await probe())) return false
+
+    // A truthy `user` on its own isn't proof: an edge cache in front of a remote
+    // target can replay a *previously authenticated* response to our tokenless
+    // request, which would look identical. `DisableAutologin` is the tell — a
+    // live Payload always answers it with `{ user: null }`, so a user here means
+    // we're reading a cached body, not talking to an auto-login server.
+    return !(await probe({ DisableAutologin: 'true' }))
   } catch {
     // Unreachable target — let the real seed request report the failure.
     return false
