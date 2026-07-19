@@ -43,6 +43,24 @@ for stable Atlas identity/routing.
 - **Reseed (update mode) to backfill:** `pnpm seed atlas --update`. The upserts
   pin `generateSlug: false` so the explicit slug is never rewritten.
 
+## Event `website` is curated, not extracted
+
+Atlas has no `website` column. The `website` values in
+[data/events.json](data/events.json) were lifted by hand out of the free-text
+`description` of 14 events — the "learn more" links managers had nowhere else to
+put (#584).
+
+- **URLs already carried by another field were skipped.** Most descriptions that
+  contain a link just repeat `onlineUrl` (Zoom/Meet/Mixlr join links) or
+  `registrationUrl` (Google Forms) — 21 of the 34 matches. Those are *not*
+  websites: `website` is the "more information" link, distinct from where
+  attendees join or sign up. Map links were skipped too.
+- **Own domains beat aggregators**, then the event's `languageCode` breaks ties
+  (event 376 is `DE`, so `de.inthemoment.today` won over the `en.` variant).
+- **[extract.ts](extract.ts) does not reproduce these.** It regenerates
+  `events.json` from `select * from events`, so a re-extraction silently drops
+  every `website`. Re-apply them before committing a regenerated file.
+
 ## `GET /api/events/geojson`
 
 A thin GeoJSON wrapper over a standard published-events read
