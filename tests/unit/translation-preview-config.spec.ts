@@ -30,11 +30,15 @@ describe('wm-app-translations — live preview config', () => {
     expect(livePreview.breakpoints?.some((b) => b.name === 'mobile')).toBe(true)
   })
 
-  it('builds the WeMeditate App preview URL with the locale path + secret', () => {
+  // The hosted app reads the target from the QUERY STRING (see
+  // readPreviewTarget in lib/preview/live_preview_client.dart, which reads
+  // `global`/`collection`, `id`, `locale` and `secret`), so globals are keyed
+  // `?global=<slug>` with no id segment — not a /locale/preview/<slug> path.
+  it('builds the WeMeditate App preview URL with the global slug, locale + secret', () => {
     process.env.WEMEDITATE_APP_URL = 'https://app.example.com'
     process.env.SAHAJCLOUD_PREVIEW_SECRET = 'test-secret-0123456789'
     expect(urlFn({ locale: { code: 'fr' }, data: {} })).toBe(
-      'https://app.example.com/fr/preview/wm-app-translations?secret=test-secret-0123456789',
+      'https://app.example.com/?global=wm-app-translations&locale=fr&secret=test-secret-0123456789',
     )
   })
 
