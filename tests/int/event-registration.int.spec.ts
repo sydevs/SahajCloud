@@ -422,6 +422,31 @@ describe('registerForEvent endpoint', () => {
       })
     })
 
+    it('strips CRLF from the event title before it becomes the Subject', async () => {
+      // The event title is manager-authored free text interpolated into the
+      // Subject header — a CR/LF would let the rest be injected as a header.
+      await payload.update({
+        collection: 'events',
+        id: eventId,
+        data: { title: 'Registrable Event\r\nBcc: attacker@evil.example' },
+        overrideAccess: true,
+      })
+      const send = captureSend()
+
+      await callRegister(eventId, { email: 'subject@example.com', name: 'Sub Ject' })
+
+      const subject = String((send.mock.calls[0][0] as { subject?: string }).subject)
+      expect(subject).not.toMatch(/[\r\n]/)
+      expect(subject).toContain('Registrable Event')
+
+      await payload.update({
+        collection: 'events',
+        id: eventId,
+        data: { title: 'Registrable Event' },
+        overrideAccess: true,
+      })
+    })
+
     it('still returns 201 with the registration persisted when the send fails', async () => {
       // The registrant is already registered — a failed send must not undo that
       // or surface as an error.

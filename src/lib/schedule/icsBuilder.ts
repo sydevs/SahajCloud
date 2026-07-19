@@ -32,6 +32,7 @@ import { Temporal } from '@js-temporal/polyfill'
 import { getVtimezoneComponent } from '@touch4it/ical-timezones'
 import ical, { ICalEventRepeatingFreq, ICalWeekday } from 'ical-generator'
 
+import { stripNewlines } from '@/lib/utilities/emailSafeText'
 import type { Event } from '@/payload-types'
 import type { ScheduleSubFields } from '@/types/schedule'
 
@@ -109,10 +110,19 @@ function splitByDay(byDay: string[]): Pick<ICalRepeatingOptions, 'byDay' | 'bySe
 function resolveEnd(start: Temporal.ZonedDateTime, endTime: string | null | undefined) {
   const match = endTime?.match(/^(\d{1,2}):(\d{2})$/)
   if (match) {
-    const candidate = start.with({ hour: Number(match[1]), minute: Number(match[2]), second: 0 })
-    // A wall-clock end at or before the start is data we can't interpret as
-    // same-day; fall back rather than emit a negative-length event.
-    if (Temporal.ZonedDateTime.compare(candidate, start) > 0) return candidate
+    const hour = Number(match[1])
+    const minute = Number(match[2])
+    // The Events schema validates endTime to 00:00–23:59, but this builder also
+    // serves imported/legacy rows that skipped it. Guard the range: an
+    // out-of-range value would make `start.with(...)` throw, and because the
+    // throw propagates past the send's best-effort boundary it would suppress
+    // the *whole* confirmation email, not just the attachment.
+    if (hour <= 23 && minute <= 59) {
+      const candidate = start.with({ hour, minute, second: 0 })
+      // A wall-clock end at or before the start is data we can't interpret as
+      // same-day; fall back rather than emit a negative-length event.
+      if (Temporal.ZonedDateTime.compare(candidate, start) > 0) return candidate
+    }
   }
   return start.add({ minutes: DEFAULT_DURATION_MINUTES })
 }
@@ -135,7 +145,12 @@ export function buildEventCalendar(input: EventCalendarInput): string | null {
   const isRecurring = Boolean(schedule.recurrenceType)
 
   const calendar = ical({
-    name: input.title,
+    // ical-generator escapes the VEVENT TEXT fields (SUMMARY / LOCATION /
+    // DESCRIPTION) per RFC 5545, but NOT the calendar-level `name`
+    // (`NAME` / `X-WR-CALNAME`). A title with a raw CR/LF would therefore inject
+    // real calendar lines — e.g. a `BEGIN:VALARM` component — so strip line
+    // breaks here, at the one unescaped sink.
+    name: stripNewlines(input.title),
     prodId: '//Sahaj Cloud//Events//EN',
     // Supplies the VTIMEZONE component for whichever TZID the events reference.
     timezone: { name: timezone, generator: getVtimezoneComponent },

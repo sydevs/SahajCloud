@@ -44,6 +44,12 @@ const bodySchema = z.object({
  * internal read the caller never asked for.
  *
  * Returns `null` on any failure — an unbranded email beats no email.
+ *
+ * **Invariant: `clientId` must be the authenticated client's own id**
+ * (`req.user.id`, the sole caller below). `overrideAccess` is required because
+ * the `clients` collection is unreadable by API clients — the same reason the
+ * `users` upsert in the handler elevates — so it reads a service's *own*
+ * branding, never another's. Do not pass an id sourced from the request body.
  */
 async function loadEmailClient(
   req: PayloadRequest,
