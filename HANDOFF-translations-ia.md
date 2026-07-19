@@ -1,6 +1,6 @@
 # Handoff — `wm-app-translations` information architecture
 
-**Updated:** 2026-07-17 · **Branch:** `claude/nice-shtern-4fa2c0` (SahajCloud), rebased on `origin/main` (`a1a7e33`).
+**Updated:** 2026-07-17 · **Branch:** `claude/nice-shtern-4fa2c0` (SahajCloud), rebased on `origin/main`.
 **Companion docs:** app-side preview engine → `WeMeditateApp/docs/_working/HANDOFF-cms-preview-2026-07-17.md`. Preview deploy → [DEPLOY-PREVIEW.md](DEPLOY-PREVIEW.md). The older [SESSION-HANDOFF-app-preview.md](SESSION-HANDOFF-app-preview.md) (2026-07-03) predates all of this and is partly stale.
 
 ## Why
@@ -26,56 +26,43 @@ Translators open a leaf and get **one flat, arbitrarily-ordered column of keys**
   - `FALLBACK — only when …` + name the real source (e.g. "the card's own title in App Cards").
   - `NOT DISPLAYED.` for keys matched against rather than rendered.
 
-## Done
+### ⚠ Known limitation — richText keys render detached
+
+`TranslationsRowField` renders **only string keys** (`schemaEntries` excludes richText). Each richText key is its own Payload field, emitted **after** the whole string block, so **`section` on a richText prop is stored but never rendered**. A section mixing string + richText keys therefore splits: the strings group under the Collapsible, the richText fields land at the bottom. Affected: `onboarding.consent_modal` (3 legal paragraphs), `onboarding.carousel` (Page 2 title), `onboarding.user_type` (the question), `onboarding.welcome` (legal notice), `auth.create_account` (consent line). **Accepted for now** — each richText field carries a description stating where it really sits on screen. Fixing it means rendering the richText editors inline inside the sectioned list (bind to the sibling fields via `useField`, hide the standalone ones) — a real component change, not yet done.
+
+## Tooling
+
+- `temp_scripts/reorder-lib.mjs` — the engine. `applyLeaf({schema,seed}, cfg)` reorders one leaf, applies `section`/`description`, removes `dead`/`misfiled`, and syncs the seed. Handles **both seed shapes**: leaves with a richText key nest strings under `.strings` with richText siblings; leaves without are flat. Nothing is dropped silently — unaccounted keys stay at the end and are reported.
+- `temp_scripts/apply-specs.mjs` + `ia-specs.json` — applies a batch of authored leaf specs through the engine.
+- `temp_scripts/inspect-schema.mjs` — prints the whole schema tree (keys, sections, titles) + seed keys. Run this first when orienting.
+- `temp_scripts/reorder-daily-main.mjs`, `reorder-onboarding.mjs` — the per-tab authoring scripts.
+
+## Done — all leaves are now authored
 
 | Commit | |
 |---|---|
 | `764f1cc` | Path: dropped dynamic content, relabelled sections off "Step N" |
 | `09ddcd8` | Section mechanism (Collapsible) + `daily.main` fully reordered/sectioned |
+| `8208ed7` | `onboarding` — all six leaves sectioned/reordered |
+| `be85ace` | `daily.common`, `daily.load_info`, `explore.overview`, all five `auth` leaves, `navigation`, `general` |
 
-- **`path`** — tabs now **Overview · Info · Intro · Story · Meditation · Article · Completed** (was "Step 1..4 / Step Complete", which read as the Path's own steps rather than sections *within* one step). Leaf descriptions reworded. App side matches: `preview_host.dart` maps beacon ids to the same labels.
-  - Removed `path.step_1.default_intro_quote` (the real quote is the step's first story panel; the app calls the hardcoded stand-in "the reported 'wrong quote then it changes' bug", `path_step_1_page.dart:280-283`) and `path.step_3.pre_meditation_lines` (a **phantom** — existed only in the CMS; the app reads `PathStep.preMeditationLines` from Lessons).
-- **`daily.main`** — 58 keys → 45, in 7 sections in reel order: **Daily hero → Path promo → Learn from the source → What's your priority today? → Meditate with others → Card chrome → Button matching**. Verified against `daily_tab.dart` (reel slivers `:936-977`, long panel `:1624-1661`).
-  - 9 fallbacks now labelled. 12 dead keys + 1 misfiled (`learn_from_source` renders on the Check Vibes talk screen) removed. Seed kept in step.
+- **`path`** — tabs now **Overview · Info · Intro · Story · Meditation · Article · Completed**. Removed `path.step_1.default_intro_quote` and `path.step_3.pre_meditation_lines` (a phantom that existed only in the CMS).
+- **`daily.main`** — 58 → 45 keys in 7 sections in reel order. 9 fallbacks labelled; 12 dead + 1 misfiled removed.
+- **`onboarding`** — welcome (Welcome / Buttons / Legal document screens / Errors), name, greeting, user_type (Question / Options / Button), carousel (three page sections), and `consent_modal` **relabelled "Marketing consent"** with the legal-audit warning in its description. Render-verified in the admin.
+- **`daily.common`** — relabelled **"Errors & coming-soon messages"**; it is *not* a Daily screen but the shared error/snackbar pool for Home **and Profile**. 3 dead keys removed.
+- **`daily.load_info`** — relabelled **"Daily — Load Messages"**. Only the two `*_random` keys actually render; the other four are prepared in code but shown nowhere — said so in their descriptions.
+- **`explore.overview`** — three sections; **Learn cards reordered** to the real on-screen order (`card_who_is_title → card_talks_title → card_subtle_system_title → card_what_is_title`); `section_label` kept ungrouped since it renders once per section.
+- **`auth`** — `common` (Sign-in buttons / Account-exists prompt / Errors), `login` (form + the two bottom sheets + errors, 1 dead removed), `restore_password`, `restore_password_email_sent`, `create_account` (landing screen / email form / errors / consent).
+- **`navigation`**, **`general`** — described; order was already right.
 
-## Remaining work — the audit is done, the authoring is not
+**Method note:** order, sections and every dead claim were re-verified against the app source (not taken from the audit alone) by a per-leaf draft→adversarial-verify pass. That caught several audit errors — e.g. `something_went_wrong` is a generic error used in four places, not a Daily-load failure; `card_action_not_available` fires on a missing/invalid card destination, not an unbuilt feature.
 
-Order/sections/flags below are **verified against the app**; applying them is mechanical (copy the shape of `temp_scripts/reorder-daily-main.mjs` — it prints anything unaccounted for rather than dropping it silently, and syncs the seed).
+## Open decisions — for a human, deliberately not acted on
 
-### `welcome`
-`title`, `subtitle` → **Welcome** · `legal_disclaimer_prefix`, `legal_terms`, `legal_disclaimer_and`, `legal_privacy_policy` → **Legal disclaimer** (note: renders **above** the buttons, `welcome_screen.dart:178` before `:182`) · `get_started`, `use_existing_account` → **Buttons** · `privacy_policy_title`, `terms_and_conditions_title` → **Legal document screen** (the pushed screen) · `email_app_unavailable`, `link_open_failed` → **Errors** (EDGE).
-
-### `onboarding`
-- **`name`**: `title` → `placeholder` → `continue`.
-- **`greeting`**: `message_prefix` only. The trailing `!` and the name are concatenated in code — no placeholder token.
-- **`user_type`**: **Question** (`title_prefix`, `title_brand`, `title_suffix`) → **Options** (`option_complete_beginner`, `option_tried_before`, `option_attending_classes`, `option_yogi`) → **Button** (`get_started` — sits 5th in YAML but renders **last**).
-- **`carousel`**: three pages, YAML order is correct — **Page 1 — A moment of peace** / **Page 2 — Get to know your true self** / **Page 3 — Unlock your potential**.
-- **`marketing_consent`** (the leaf mistakenly called `consent_modal`): **Help spread the word** (`title` → `body_intro_before_link` → `what_we_share` → `body_intro_after_link` → `body_purpose` → `body_never_share_lead` → `body_never_share_middle` → `body_never_sell_lead` → `body_never_sell_tail`) → **Buttons** (`allow`, `reject`, `saving` EDGE) → **Errors** (`error` EDGE). `body_change_settings` is **DEAD**.
-  - ⚠️ **Compliance:** keys 1-11 are snapshotted verbatim into the consent audit record (`ConsentScreenCopySnapshot`, `onboarding_marketing_consent_screen.dart:298-305`). Editing this copy has a legal-audit side effect, not just a display one. **Say so in the descriptions.**
-
-### `home.common` — not a screen; a shared error/snackbar pool
-All EDGE: `something_went_wrong`, `retry`, `card_action_not_available`, `external_link_coming_soon`, `music_coming_soon`. **DEAD:** `unlock_after_first_meditation`, `path_coming_soon`, `map_coming_soon`.
-
-### `home.load_info` — not a screen; degraded-load banners on Daily
-All six EDGE (`top_daily_unavailable/failed/random`, `quick_daily_unavailable/failed/random`), selected by `HomeLoadInfoType` (`home_cubit.dart:319-324`), rendered `daily_tab.dart:2494-2501`.
-
-### `home.explore`
-`section_label` renders **three times**, once per section (`explore_tab.dart:89`, `:186`, `:277`).
-- **Meditate**: `section_meditate_title` → `card_daily_*` → `card_path_*` → `card_techniques_*` → `card_vibes_check_*` → `card_music_title` → `card_challenges_title`.
-- **Learn** — **YAML order is wrong**. Real order: `card_who_is_title` → `card_talks_title` → `card_subtle_system_title` → `card_what_is_title`.
-- **Join free classes**: `section_join_title` → `card_live_online_title` → `card_find_classes_title`.
-- **Card states**: `card_coming_soon`.
-
-### `auth` (7 sub-leaves)
-- **`common`**: `or`, `continue_with_{google,apple,facebook,email}`, `cancel`; then **Errors** (EDGE): `error_enter_email`, `error_invalid_email`, `error_enter_password`, `error_password_min_length`, `error_password_needs_number`.
-- **`login`**: **Log in** (`title` → `email_label` → `email_placeholder` → `password_label` → `password_placeholder` → `next` → `signing_in` EDGE → `forgot_password` → `continue_as_new_user`) → **Account-not-found sheet** (EDGE) → **Existing-provider sheet** (EDGE; `account_exists_subtitle` contains **`{providers}` — the token must survive translation**; `account_exists_existing_provider_fallback` is its FALLBACK) → **Errors** (EDGE). `error_cannot_continue_with_email` is **DEAD**.
-- **`login_chooser`**: `title` → `subtitle` → `use_password`.
-- **`restore_password`**, **`restore_password_email_sent`**: small; order = YAML (not line-verified).
-- **`create_account`**: **Create account** (three mutually-exclusive `screen_title*` variants, three `skip_*` variants — only one of each ever renders) → **Email form** → **Account-exists sheet** (EDGE) → **Errors**. **DEAD cluster:** `error_email_in_use`, `error_google_failed`, `error_apple_failed`, `error_facebook_failed`, `error_provider_cancelled` — five provider errors with zero usages. Suspicious as a group: the provider-failure path likely falls through to `error_generic`. **Product question, not a delete.**
-- **`interstitial`**: **Working** → **Outcome** (`welcome_back` contains `{name}`; `welcome_back_no_name` is its FALLBACK) → **Errors** (EDGE).
-
-### `navigation`
-`daily` → `path` → `explore` → `profile`. YAML order already correct. Note `app_bottom_navbar.dart:194` has a **hardcoded English fallback** — a broken translation silently reverts to English.
+1. **`auth.create_account` — six keys kept but apparently unused.** `error_email_in_use`, `login_with_existing_account`, `error_google_failed`, `error_apple_failed`, `error_facebook_failed`, `error_provider_cancelled`. Source shows zero usages: email collisions use the account-exists sheet, social failures surface through a shared interstitial dialog, cancellations are silent, and `login_with_existing_account`'s button is gated on `_showLoginWithExistingAccount` — a flag never set true. **Kept in place and flagged in their descriptions** (the handoff called this a product question, not a delete). Decide: drop the keys, or restore the paths that should show them.
+2. **Variant copy not exposed.** `screen_title` / `screen_subtitle` / `skip_and_explore` have alternate wordings for the meditation-gate and onboarding-start entry points (`screen_title_gate`, `screen_title_onboarding_start`, `skip_explore_app`, …) that are **not in the CMS leaf**. Editing the CMS copy only affects the default entry point.
+3. **`consent_label` has no app key.** en.yaml has no `consent_label`; in-app the line is assembled from four strings (`consent_prefix` + `consent_terms` + `consent_and_acknowledge` + `consent_privacy`). The CMS exposes one richText field instead.
+4. **The richText render limitation** above — accept, or invest in inline rendering.
 
 ## CMS↔app contract breaks — no preview or IA can fix these
 
@@ -85,6 +72,7 @@ All six EDGE (`top_daily_unavailable/failed/random`, `quick_daily_unavailable/fa
 4. **`daily.main.start_course` / `continue_course` are matched, not displayed** — compared against a card's button text to detect the action. Editing them changes behaviour. Currently flagged in their descriptions; the real fix is to stop matching on translatable copy.
 5. **`path.step_1.author`** is hardcoded ("Shri Mataji Nirmala Devi") **under a per-lesson quote** — a different panel's quote still shows that author. `PathStep` has no author field.
 6. **`step_4.media_card_*` are in the wrong namespace** — `ShriMatajiTalkCard` is driven by any CMS lecture-card block (`cms_constructor_content.dart:228`), not step 4. `LectureClip.speakerName` exists and is ignored.
+7. **`navigation` has a hardcoded English fallback** (`app_bottom_navbar.dart:194`) — a missing translation silently reverts to English rather than showing the key.
 
 ## Run it
 
@@ -105,9 +93,12 @@ python3 -m http.server 5301 -d build/web
 
 **Schema edits need a CMS restart** (the Payload config reads the JSON at boot). If the admin renders a stale component after an edit, the browser is caching a dead chunk — `rm -rf .next`, restart, and open a **fresh tab**; a reload alone will keep serving it.
 
+**Stale local DB.** The shared `sahajcloud` DB drifts behind this branch, and Drizzle's `push` then blocks on interactive "created or renamed?" prompts that a non-interactive shell can't answer (`CI=true` and piped stdin don't help — it reads the TTY). Point `.env.local` at a **fresh** database instead (`DATABASE_URL=…/sahajcloud_ia`); an empty DB pushes cleanly with no prompts. First user: the Admin radio is disabled on the create-first-user form, so create as Manager then `UPDATE managers SET type='admin'`.
+
 ## Gotchas
 
 - The formatter strips imports that are momentarily unused mid-edit. After editing `TranslationsRowField.tsx`, re-check its import block before trusting a typecheck.
 - `.collapsible__toggle` reads "Toggle block" — the section name is in `.collapsible__header-wrap`. Don't assert on the wrong one.
 - Verify against a **debug/dartdevc** app build when chasing a Flutter error: release minifies type names to gibberish (`minified:V9`).
-- After changing the schema, run the reorder script rather than hand-editing JSON — it reports unhandled keys and syncs the seed.
+- After changing the schema, run the reorder/apply scripts rather than hand-editing JSON — they report unhandled keys and sync the seed.
+- The two seed shapes (flat vs `.strings` + richText siblings) are easy to corrupt by hand; go through `reorder-lib.mjs`.
