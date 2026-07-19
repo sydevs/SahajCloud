@@ -42,6 +42,28 @@ Currently mapped: `from`, `to`, `subject`, `html`, `text`, `replyTo`,
 The dev **nodemailer/Ethereal** adapter needs no equivalent work — it spreads
 `...message` straight into `transport.sendMail()`, so every field passes through.
 
+### Sanitize manager/client-authored text before it becomes a header or ICS line
+
+Free-text fields (event title, client name) reach single-line sinks where an
+embedded CR/LF lets the remainder be reparsed as structure. Route them through
+`src/lib/utilities/emailSafeText.ts` — `stripNewlines` for a `Subject` or an ICS
+property value, `headerDisplayName` for an unquoted `From` display name (also
+strips `"<>`).
+
+Two sinks are easy to miss:
+
+- **ICS calendar `name`.** `ical-generator` escapes the VEVENT TEXT fields
+  (`SUMMARY`/`LOCATION`/`DESCRIPTION`) per RFC 5545 but **not** the
+  calendar-level `NAME`/`X-WR-CALNAME` — a raw CR/LF there injects real calendar
+  lines (a `BEGIN:VALARM` component, a second `VEVENT`). `buildEventCalendar`
+  strips the title before setting the name.
+- **`Subject`.** The event title is interpolated into `confirmation_subject`;
+  `stripNewlines` collapses it so it can't start a second header.
+
+Both are manager-trust-boundary (managers author titles), so this is defence in
+depth — but the sink is the right place to enforce it, and it covers rows that
+skipped field validation.
+
 ## Env vars
 
 ```env
