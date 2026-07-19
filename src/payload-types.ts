@@ -5290,9 +5290,9 @@ export interface WmAppTranslation {
       | boolean
       | null;
     /**
-     * Paragraph on what is never shared or sold.
+     * Not currently used by the app — the app reads differently named keys. It was the opening paragraph of the advertising section, which on screen sits just under the advertising switch and contains a tappable link.
      */
-    privacy_advertising_body_never_share?: {
+    privacy_advertising_body_intro?: {
       root: {
         type: string;
         children: {
@@ -5308,9 +5308,9 @@ export interface WmAppTranslation {
       [k: string]: unknown;
     } | null;
     /**
-     * Opening paragraph with a link showing what is shared.
+     * Not currently used by the app — the app reads differently named keys. It was the promise never to share personal practice details and never to sell data, which on screen sits in the middle of the advertising section.
      */
-    privacy_advertising_body_intro?: {
+    privacy_advertising_body_never_share?: {
       root: {
         type: string;
         children: {
@@ -5364,7 +5364,7 @@ export interface WmAppTranslation {
       | boolean
       | null;
     /**
-     * Body text on the foot-soak screen.
+     * The short sentence encouraging the user to soak their feet. On screen it sits directly under the title and above the photo — near the top of the screen, not at the bottom where this field appears here. It is formatted text because one word in it is emphasised; keep that emphasis.
      */
     footsoak_description?: {
       root: {
@@ -6107,8 +6107,8 @@ export interface WmAppTranslationsSelect<T extends boolean = true> {
         history?: T;
         account?: T;
         privacy?: T;
-        privacy_advertising_body_never_share?: T;
         privacy_advertising_body_intro?: T;
+        privacy_advertising_body_never_share?: T;
         contact?: T;
       };
   meditation?:

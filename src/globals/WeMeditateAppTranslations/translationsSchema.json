@@ -535,23 +535,23 @@
       "properties": {
         "overview": {
           "type": "object",
-          "description": "The Path tab's main list and headers.",
+          "description": "The Path tab's main list: the label above each group of steps, the message at the bottom of the list, and the error state.",
           "properties": {
-            "error_message": {
-              "type": "string",
-              "description": "Error shown when the Path tab won't load."
-            },
             "unit": {
               "type": "string",
-              "description": "Small label above each unit on the Path."
-            },
-            "retry": {
-              "type": "string",
-              "description": "Try again button on the Path error screen."
+              "description": "Label above each group of steps on the Path list. The unit number is added after it automatically, so it reads like \"UNIT 1\"."
             },
             "more_steps_coming_soon": {
               "type": "string",
-              "description": "Note at the bottom of the Path when no more steps are ready."
+              "description": "Message at the very bottom of the Path list, below the last step."
+            },
+            "error_message": {
+              "type": "string",
+              "description": "Only shown when the Path fails to load — the message in the middle of the screen. The same message is also used when a step's article fails to load."
+            },
+            "retry": {
+              "type": "string",
+              "description": "Only shown with that error message — the button that tries loading again."
             }
           },
           "additionalProperties": false,
@@ -559,111 +559,126 @@
         },
         "info": {
           "type": "object",
-          "description": "Three intro slides shown the first time the Path opens.",
+          "description": "Three full-screen intro slides about the Path, shown the first time the Path opens and from the info button on the Path screen. The user taps or swipes from one slide to the next.",
           "properties": {
             "first_title": {
               "type": "string",
-              "description": "Title on the first Path intro slide."
+              "description": "Heading on the first slide.",
+              "section": "Slide 1"
             },
             "first_text": {
               "type": "string",
-              "description": "Body text on the first Path intro slide."
+              "description": "Paragraph under that heading on the first slide.",
+              "section": "Slide 1"
             },
             "second_title": {
               "type": "string",
-              "description": "Title on the second Path intro slide."
+              "description": "Heading on the second slide.",
+              "section": "Slide 2"
             },
             "second_text": {
               "type": "string",
-              "description": "Body text on the second Path intro slide."
+              "description": "Paragraph on the second slide. It contains a bulleted list — keep the line-break markers and the bullet characters exactly as they appear in the English text.",
+              "section": "Slide 2"
             },
             "third_title": {
               "type": "string",
-              "description": "Title on the third Path intro slide."
+              "description": "Heading on the third and last slide.",
+              "section": "Slide 3"
             },
             "third_text": {
               "type": "string",
-              "description": "Body text on the third Path intro slide."
+              "description": "Paragraph on the last slide. Keep the line-break markers exactly as they appear in the English text.",
+              "section": "Slide 3"
             }
           },
           "additionalProperties": false
         },
         "step_1": {
           "type": "object",
-          "description": "First section of a Path step: the opening quote and Begin button.",
+          "description": "The opening section of a Path step: the step title, a photo, a quote with a credit under it, and the Begin button.",
           "title": "Intro",
           "properties": {
             "author": {
               "type": "string",
-              "description": "Name credited under the quote."
+              "description": "The credit line printed under the quote. It is the same for every step — it always reads \"Shri Mataji Nirmala Devi\", even when the quote shown above it was written for that step by someone else. There is no per-step way to change this credit."
             },
             "begin": {
               "type": "string",
-              "description": "Button that starts the Path step, on the Intro section."
+              "description": "Button at the bottom that starts the step."
             },
             "skip_title": {
               "type": "string",
-              "description": "Title of the prompt when leaving a Path step early from the Intro."
+              "description": "Question shown when the user taps the back arrow on this section and is asked whether to leave the step.",
+              "section": "Leaving the step"
             },
             "skip_continue": {
               "type": "string",
-              "description": "Button on that prompt to stay in the Path step."
+              "description": "Not shown anywhere. The prompt for leaving the step uses the Meditation section's buttons instead (Exit / Back to step).",
+              "section": "Currently unused — needs a product decision"
             },
             "back_to_path": {
               "type": "string",
-              "description": "Button on that prompt to return to the Path list."
+              "description": "Not shown anywhere. The prompt for leaving the step uses the Meditation section's \"Back to step\" button instead.",
+              "section": "Currently unused — needs a product decision"
             }
           },
           "additionalProperties": false
         },
         "step_2": {
           "type": "object",
-          "description": "Story panels section of a Path step.",
+          "description": "The swipeable full-screen story panels of a Path step.",
           "title": "Story",
           "properties": {
             "continue_button": {
               "type": "string",
-              "description": "Continue button on the Story section."
+              "description": "Button that appears only on the last story panel and moves on to the meditation. The same wording is also used on the last of the three Path intro slides."
             }
           },
           "additionalProperties": false
         },
         "step_3": {
           "type": "object",
-          "description": "Meditation section of a Path step: the audio intro and the meditation itself.",
+          "description": "The spoken introduction that plays before the meditation, plus the prompts for skipping the introduction or leaving the step.",
           "title": "Meditation",
           "properties": {
             "meditation_intro": {
               "type": "string",
-              "description": "Small label above the meditation intro."
+              "description": "Heading at the top of the screen while the spoken introduction is playing."
             },
             "skip_intro": {
               "type": "string",
-              "description": "Link to skip the intro."
-            },
-            "start_meditation": {
-              "type": "string",
-              "description": "Button to start the meditation."
+              "description": "Text button at the bottom of that screen, offering to go straight to the meditation."
             },
             "skip_title": {
               "type": "string",
-              "description": "Title of the skip-intro prompt."
+              "description": "Question shown after tapping that button, asking whether to skip the introduction.",
+              "section": "Skipping the introduction"
             },
             "skip_continue": {
               "type": "string",
-              "description": "Button that skips straight to the meditation."
+              "description": "Button on that question that goes straight to the meditation.",
+              "section": "Skipping the introduction"
             },
             "back_to_intro": {
               "type": "string",
-              "description": "Button that returns to the intro."
+              "description": "Button on that question that keeps listening to the introduction.",
+              "section": "Skipping the introduction"
             },
             "exit": {
               "type": "string",
-              "description": "Exit button on the Meditation section."
+              "description": "Button that leaves the step. It appears on the prompt shown when the user taps the back arrow on the Intro section.",
+              "section": "Leaving the step"
             },
             "back_to_step": {
               "type": "string",
-              "description": "Button returning to the Path step's Intro."
+              "description": "Button on that same prompt that stays in the step.",
+              "section": "Leaving the step"
+            },
+            "start_meditation": {
+              "type": "string",
+              "description": "Not shown anywhere. The spoken introduction runs into the meditation on its own, so there is no Start Meditation button on this screen.",
+              "section": "Currently unused — needs a product decision"
             }
           },
           "additionalProperties": false,
@@ -671,56 +686,64 @@
         },
         "step_4": {
           "type": "object",
-          "description": "Article section of a Path step, shown after the meditation.",
+          "description": "The in-depth article at the end of a Path step. The article's own headings and text come from the article content, not from here — this leaf covers the talk card inside it and the button that finishes the step.",
           "title": "Article",
           "properties": {
-            "delving_deeper": {
-              "type": "string",
-              "description": "Small label on the Article section."
-            },
-            "lecture_prompt": {
-              "type": "string",
-              "description": "Text inviting the user to keep meditating while listening."
-            },
             "media_card_fallback_title": {
               "type": "string",
-              "description": "Backup title on the talk card when none is set."
+              "description": "FALLBACK — the title on the talk card, shown only when the talk itself has no title; normally the talk's own title is shown. This card appears wherever a talk is placed in content, not only in this Path article.",
+              "section": "Talk card"
             },
             "media_card_author": {
               "type": "string",
-              "description": "Speaker credit on the talk card."
+              "description": "The name shown under the talk card. It is the same for every talk card in the app — the speaker recorded with the talk is not used. Appears wherever a talk card is shown, not only in this Path article.",
+              "section": "Talk card"
             },
             "media_card_author_subtitle": {
               "type": "string",
-              "description": "Speaker's role under the talk card credit."
+              "description": "The smaller line under that name on the talk card. Also the same for every talk card in the app.",
+              "section": "Talk card"
             },
             "media_card_watch_later": {
               "type": "string",
-              "description": "Button to save the talk for later."
+              "description": "Button on the talk card that saves the talk to watch later. Appears wherever a talk card is shown.",
+              "section": "Talk card"
             },
             "complete_step": {
               "type": "string",
-              "description": "Button to finish the Path step, on the Article section."
+              "description": "Button at the end of the article that marks the step as completed.",
+              "section": "Finishing the step"
+            },
+            "delving_deeper": {
+              "type": "string",
+              "description": "NOT DISPLAYED — an old heading for the article section. The article now supplies its own headings, so nothing shows this text.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "lecture_prompt": {
+              "type": "string",
+              "description": "NOT DISPLAYED — an old line introducing the talk before playing it. Nothing shows this text today.",
+              "section": "Currently unused — needs a product decision"
             }
           },
           "additionalProperties": false
         },
         "step_complete": {
           "type": "object",
-          "description": "Screen shown after finishing a Path step.",
+          "description": "The screen shown after finishing a Path step.",
           "title": "Completed",
           "properties": {
             "title": {
               "type": "string",
-              "description": "Title of the screen shown after finishing a Path step."
+              "description": "The large text in the middle of the completion screen."
             },
             "subtitle": {
               "type": "string",
-              "description": "Smaller text on that screen."
+              "description": "The smaller line under that text."
             },
             "back_to_path": {
               "type": "string",
-              "description": "Button returning to the Path list."
+              "description": "Not shown anywhere. The button on this screen reads \"Continue\", and that wording is not editable in the CMS.",
+              "section": "Currently unused — needs a product decision"
             }
           },
           "additionalProperties": false,
@@ -847,55 +870,67 @@
         },
         "subtle_system": {
           "type": "object",
-          "description": "The Subtle System screen with an interactive body diagram.",
+          "description": "The Subtle System screen — a tall body diagram you tap to explore the chakras and energy channels, plus the pop-up that opens when a point on the diagram is tapped.",
           "properties": {
             "screen_label": {
               "type": "string",
-              "description": "Small label for the Subtle System screen."
+              "description": "Small heading in the bar at the very top of the screen. Shown in capital letters.",
+              "section": "Top of the screen"
             },
             "diagram_title": {
               "type": "string",
-              "description": "Title of the diagram."
+              "description": "Big heading above the body diagram. When the same diagram appears in the summary after a meditation, a heading set on that meditation in the CMS replaces this one.",
+              "section": "Top of the screen"
             },
             "diagram_subtitle": {
               "type": "string",
-              "description": "Smaller text inviting the user to tap to learn more."
+              "description": "Short line under the big heading, telling people they can tap the points on the diagram. Leave it empty to hide the line.",
+              "section": "Top of the screen"
             },
             "mode_chakras": {
               "type": "string",
-              "description": "Tab to show the chakras view."
+              "description": "Label of the left button under the diagram, which switches the diagram to show the chakras.",
+              "section": "Chakras / Channels switch"
             },
             "mode_channels": {
               "type": "string",
-              "description": "Tab to show the channels view."
+              "description": "Label of the right button under the diagram, which switches the diagram to show the energy channels.",
+              "section": "Chakras / Channels switch"
             },
             "front_view_mirrored": {
               "type": "string",
-              "description": "Caption noting the diagram is a mirrored front view."
+              "description": "Small grey note in the top-left corner of the pop-up, explaining that the body is seen from the front so left and right look swapped.",
+              "section": "Pop-up when a point is tapped"
             },
             "chip_right": {
               "type": "string",
-              "description": "Filter label for the Right channel."
+              "description": "First of the three side buttons at the bottom of the pop-up, for showing the right side.",
+              "section": "Pop-up when a point is tapped"
             },
             "chip_center": {
               "type": "string",
-              "description": "Filter label for the Center channel."
+              "description": "Second of the three side buttons at the bottom of the pop-up, for showing the centre.",
+              "section": "Pop-up when a point is tapped"
             },
             "chip_left": {
               "type": "string",
-              "description": "Filter label for the Left channel."
+              "description": "Third of the three side buttons at the bottom of the pop-up, for showing the left side.",
+              "section": "Pop-up when a point is tapped"
             },
             "aspect_right": {
               "type": "string",
-              "description": "Label for a chakra's right aspect."
+              "description": "Not shown anywhere in the app right now. The pop-up uses the shorter \"Right\" button label instead.",
+              "section": "Currently unused — needs a product decision"
             },
             "aspect_center": {
               "type": "string",
-              "description": "Label for a chakra's center aspect."
+              "description": "Not shown anywhere in the app right now. The pop-up uses the shorter \"Center\" button label instead.",
+              "section": "Currently unused — needs a product decision"
             },
             "aspect_left": {
               "type": "string",
-              "description": "Label for a chakra's left aspect."
+              "description": "Not shown anywhere in the app right now. The pop-up uses the shorter \"Left\" button label instead.",
+              "section": "Currently unused — needs a product decision"
             }
           },
           "additionalProperties": false,
@@ -903,82 +938,99 @@
         },
         "talks_intro": {
           "type": "object",
-          "description": "Intro text for Shri Mataji talks.",
+          "description": "The screen that introduces Shri Mataji's talks before a video plays. It comes in two looks: the ordinary intro (used from Explore, from the daily meditation, and when opening one specific clip), and a separate portrait version shown once, right after someone finishes their first meditation.",
           "properties": {
-            "unavailable": {
-              "type": "string",
-              "description": "Message when a talk can't be played right now."
-            },
             "title": {
               "type": "string",
-              "description": "Title of the talks intro screen."
-            },
-            "generic_description": {
-              "type": "string",
-              "description": "Backup description of Shri Mataji and Sahaja Yoga."
+              "description": "Heading at the top of the intro, naming the talks. Shown on every version except the one after the first meditation.",
+              "section": "Ordinary intro"
             },
             "clip_description": {
               "type": "string",
-              "description": "Short description shown before a talk starts."
+              "description": "Short line under the heading. Only shown when the intro is for one particular video clip, including when it is opened from the daily meditation.",
+              "section": "Ordinary intro"
             },
-            "post_first_meditation_name": {
+            "generic_description": {
               "type": "string",
-              "description": "Speaker name on the talk card after the first meditation."
-            },
-            "post_first_meditation_subtitle": {
-              "type": "string",
-              "description": "Speaker's role on that talk card."
-            },
-            "post_first_meditation_description": {
-              "type": "string",
-              "description": "Body text on that talk card."
-            },
-            "start": {
-              "type": "string",
-              "description": "Button to start the talk."
-            },
-            "maybe_later": {
-              "type": "string",
-              "description": "Button to decline the talk for now."
+              "description": "The long paragraph about Shri Mataji, below her photo. Not shown on the short single-clip version of the intro.",
+              "section": "Ordinary intro"
             },
             "watch_now": {
               "type": "string",
-              "description": "Button to watch the talk now."
+              "description": "Label of the button at the bottom that opens the video. The running time is added in brackets after it automatically. Shown on every version except the one after the first meditation.",
+              "section": "Ordinary intro"
+            },
+            "post_first_meditation_name": {
+              "type": "string",
+              "description": "Name shown just under the portrait, on the special version of this screen that appears once someone has finished their first meditation.",
+              "section": "Shown right after the first meditation"
+            },
+            "post_first_meditation_subtitle": {
+              "type": "string",
+              "description": "Small italic line under the name on that same after-the-first-meditation screen.",
+              "section": "Shown right after the first meditation"
+            },
+            "post_first_meditation_description": {
+              "type": "string",
+              "description": "The sentence in the middle of that screen, inviting the person to watch the talk.",
+              "section": "Shown right after the first meditation"
+            },
+            "start": {
+              "type": "string",
+              "description": "Label of the main button on that screen. The running time is added in brackets after it automatically. Only used there — every other version of the intro uses the \"Watch now\" label instead.",
+              "section": "Shown right after the first meditation"
+            },
+            "maybe_later": {
+              "type": "string",
+              "description": "Label of the quieter second button under the main one, for skipping the video. Only on the after-the-first-meditation screen.",
+              "section": "Shown right after the first meditation"
+            },
+            "unavailable": {
+              "type": "string",
+              "description": "Brief message that slides up from the bottom of the screen only when a talk cannot be opened.",
+              "section": "Errors"
             }
           },
           "additionalProperties": false
         },
         "talks_list": {
           "type": "object",
-          "description": "The list of Shri Mataji talks.",
+          "description": "The list of Shri Mataji's talks — a large featured talk at the top, then a short intro block, then the rows of remaining talks.",
           "properties": {
             "screen_title": {
               "type": "string",
-              "description": "Small title for the talks list screen."
+              "description": "Small heading in the bar at the very top of the screen. Shown in capital letters.",
+              "section": "Top of the screen"
             },
             "section_title": {
               "type": "string",
-              "description": "Title above the talks list."
+              "description": "FALLBACK — heading of the intro block below the featured talk; normally the heading entered on the talks page in the CMS is shown.",
+              "section": "Intro block under the featured talk"
             },
             "description": {
               "type": "string",
-              "description": "Description above the talks list."
-            },
-            "all_tags": {
-              "type": "string",
-              "description": "Default filter label meaning all talks."
+              "description": "FALLBACK — paragraph under that heading; normally the text entered on the talks page in the CMS is shown.",
+              "section": "Intro block under the featured talk"
             },
             "learn_more": {
               "type": "string",
-              "description": "Link to more information about a talk."
-            },
-            "start": {
-              "type": "string",
-              "description": "Button to start a talk."
+              "description": "FALLBACK — label of the link under that paragraph, which opens the Shri Mataji page on the website; normally the link label entered in the CMS is shown.",
+              "section": "Intro block under the featured talk"
             },
             "watched": {
               "type": "string",
-              "description": "Label on talks the user has already watched."
+              "description": "Small grey word under a talk's name in the list. Only shown for talks the person has already watched.",
+              "section": "Talk rows"
+            },
+            "all_tags": {
+              "type": "string",
+              "description": "Not shown anywhere in the app right now. It was meant for a filter above the list, which was never built.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "start": {
+              "type": "string",
+              "description": "Not shown anywhere in the app right now. Talks are opened by tapping the row, so no Start button is drawn.",
+              "section": "Currently unused — needs a product decision"
             }
           },
           "additionalProperties": false,
@@ -986,55 +1038,67 @@
         },
         "talks_player": {
           "type": "object",
-          "description": "Talk player controls and subtitle options.",
+          "description": "The video player for a talk — the playback controls and the subtitles menu that slides up from the bottom.",
           "properties": {
-            "unavailable": {
-              "type": "string",
-              "description": "Error when the talk can't load."
-            },
-            "play": {
-              "type": "string",
-              "description": "Play button."
-            },
-            "pause": {
-              "type": "string",
-              "description": "Pause button."
-            },
             "replay": {
               "type": "string",
-              "description": "Replay button."
+              "description": "Label of the button that plays the talk again. It appears after the short talk on the vibes-check screen has finished.",
+              "section": "Playback controls"
             },
             "subtitles_title": {
               "type": "string",
-              "description": "Title of the subtitles menu."
+              "description": "Heading at the top of the subtitles menu that slides up from the bottom of the player.",
+              "section": "Subtitles menu"
             },
             "subtitles_off": {
               "type": "string",
-              "description": "Option to turn subtitles off."
+              "description": "First option in the subtitles menu, for turning subtitles off. Always listed.",
+              "section": "Subtitles menu"
             },
             "subtitles_english": {
               "type": "string",
-              "description": "Subtitle language: English."
+              "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language.",
+              "section": "Subtitles menu"
             },
             "subtitles_turkish": {
               "type": "string",
-              "description": "Subtitle language: Turkish."
+              "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language.",
+              "section": "Subtitles menu"
             },
             "subtitles_bulgarian": {
               "type": "string",
-              "description": "Subtitle language: Bulgarian."
+              "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language.",
+              "section": "Subtitles menu"
             },
             "subtitles_portuguese_brazil": {
               "type": "string",
-              "description": "Subtitle language: Brazilian Portuguese."
+              "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language.",
+              "section": "Subtitles menu"
             },
             "subtitles_french": {
               "type": "string",
-              "description": "Subtitle language: French."
+              "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language.",
+              "section": "Subtitles menu"
             },
             "subtitles_spanish": {
               "type": "string",
-              "description": "Subtitle language: Spanish."
+              "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language.",
+              "section": "Subtitles menu"
+            },
+            "unavailable": {
+              "type": "string",
+              "description": "Message shown in place of the video only when the talk cannot be loaded.",
+              "section": "Errors"
+            },
+            "play": {
+              "type": "string",
+              "description": "Not shown anywhere in the app right now. The player uses a picture-only play button with no text.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "pause": {
+              "type": "string",
+              "description": "Not shown anywhere in the app right now. The player uses a picture-only pause button with no text.",
+              "section": "Currently unused — needs a product decision"
             }
           },
           "additionalProperties": false
@@ -1048,103 +1112,127 @@
       "properties": {
         "main": {
           "type": "object",
-          "description": "The main Profile screen with menu entries.",
+          "description": "The landing screen of the Profile tab: the member's name and how long they have been a member, a strip of their favourite meditations, then the menu rows for History, Account settings, Contact us and the legal pages.",
           "properties": {
-            "favourites_header": {
-              "type": "string",
-              "description": "Small label above the favourites preview."
-            },
-            "see_all": {
-              "type": "string",
-              "description": "Link to open the full list."
-            },
-            "no_favourites_title": {
-              "type": "string",
-              "description": "Title when there are no favourites yet."
-            },
-            "no_favourites_subtitle": {
-              "type": "string",
-              "description": "Smaller text when there are no favourites yet."
-            },
-            "history_title": {
-              "type": "string",
-              "description": "Title of the History menu item."
-            },
-            "history_subtitle": {
-              "type": "string",
-              "description": "Smaller text on the History menu item."
-            },
-            "account_title": {
-              "type": "string",
-              "description": "Title of the Account menu item."
-            },
-            "account_subtitle": {
-              "type": "string",
-              "description": "Smaller text on the Account menu item."
-            },
-            "privacy_and_advertising_title": {
-              "type": "string",
-              "description": "Title of the Privacy and Advertising menu item."
-            },
-            "privacy_and_advertising_subtitle": {
-              "type": "string",
-              "description": "Smaller text on the Privacy and Advertising menu item."
-            },
-            "feedback_header": {
-              "type": "string",
-              "description": "Small label above the feedback menu item."
-            },
-            "contact_title": {
-              "type": "string",
-              "description": "Title of the Contact Us menu item."
-            },
-            "contact_subtitle": {
-              "type": "string",
-              "description": "Smaller text on the Contact Us menu item."
-            },
             "joined_fallback": {
               "type": "string",
-              "description": "Backup text when the join date is unknown."
+              "description": "Shown when we do not know when the person joined, or when they joined less than a month ago.",
+              "section": "Under the member's name"
             },
             "joined_one_month": {
               "type": "string",
-              "description": "Join date text for one month ago."
+              "description": "Shown when the person joined exactly one month ago.",
+              "section": "Under the member's name"
             },
             "joined_months": {
               "type": "string",
-              "description": "Join date text for several months ago. Keep the {months} placeholder."
-            },
-            "joined_less_than_year": {
-              "type": "string",
-              "description": "Join date text for less than a year ago."
+              "description": "Shown when the person joined between two and eleven months ago. Keep the {months} placeholder — the number is filled in.",
+              "section": "Under the member's name"
             },
             "joined_one_year": {
               "type": "string",
-              "description": "Join date text for one year ago."
+              "description": "Shown for the whole first year of membership, from one year up to just under two years.",
+              "section": "Under the member's name"
             },
             "joined_years": {
               "type": "string",
-              "description": "Join date text for several years ago. Keep the {years} placeholder."
+              "description": "Shown from two years of membership onwards. Keep the {years} placeholder — the number of full years is filled in.",
+              "section": "Under the member's name"
+            },
+            "favourites_header": {
+              "type": "string",
+              "description": "Small heading above the row of favourite meditations.",
+              "section": "My favourites"
+            },
+            "see_all": {
+              "type": "string",
+              "description": "Link on the right of that heading that opens the full Favourites list. Always visible, even when there are no favourites.",
+              "section": "My favourites"
+            },
+            "no_favourites_title": {
+              "type": "string",
+              "description": "Title of the placeholder card shown in place of the favourites row when the person has not saved anything yet. The same text is also used on the full Favourites screen when it is empty.",
+              "section": "My favourites"
+            },
+            "no_favourites_subtitle": {
+              "type": "string",
+              "description": "Explaining line under that placeholder title. Also reused on the empty Favourites screen.",
+              "section": "My favourites"
+            },
+            "history_title": {
+              "type": "string",
+              "description": "Title of the first menu row, which opens the History screen.",
+              "section": "Activity and account"
+            },
+            "history_subtitle": {
+              "type": "string",
+              "description": "Smaller line under the History row title.",
+              "section": "Activity and account"
+            },
+            "account_title": {
+              "type": "string",
+              "description": "Title of the second menu row, which opens Account settings.",
+              "section": "Activity and account"
+            },
+            "account_subtitle": {
+              "type": "string",
+              "description": "Smaller line under the Account settings row title.",
+              "section": "Activity and account"
+            },
+            "feedback_header": {
+              "type": "string",
+              "description": "Small heading that introduces the Contact us row.",
+              "section": "Feedback"
+            },
+            "contact_title": {
+              "type": "string",
+              "description": "Title of the Contact us row, which opens the feedback form.",
+              "section": "Feedback"
+            },
+            "contact_subtitle": {
+              "type": "string",
+              "description": "Smaller line under the Contact us row title.",
+              "section": "Feedback"
             },
             "legal_header": {
               "type": "string",
-              "description": "Header above the legal links in the Profile menu."
+              "description": "Small heading above the last group of rows at the bottom of the screen.",
+              "section": "Legal"
             },
             "privacy_policy_title": {
               "type": "string",
-              "description": "Title of the Privacy Policy menu item."
+              "description": "Title of the row that opens the Privacy Policy.",
+              "section": "Legal"
             },
             "privacy_policy_subtitle": {
               "type": "string",
-              "description": "Smaller text on the Privacy Policy menu item."
+              "description": "Smaller line under the Privacy Policy row title.",
+              "section": "Legal"
             },
             "terms_and_conditions_title": {
               "type": "string",
-              "description": "Title of the Terms and Conditions menu item."
+              "description": "Title of the row that opens the Terms & Conditions.",
+              "section": "Legal"
             },
             "terms_and_conditions_subtitle": {
               "type": "string",
-              "description": "Smaller text on the Terms and Conditions menu item."
+              "description": "Smaller line under the Terms & Conditions row title.",
+              "section": "Legal"
+            },
+            "privacy_and_advertising_title": {
+              "type": "string",
+              "description": "Title of the last row on the screen, which opens the privacy and advertising choices.",
+              "section": "Legal"
+            },
+            "privacy_and_advertising_subtitle": {
+              "type": "string",
+              "description": "Smaller line under that last row title.",
+              "section": "Legal"
+            },
+            "joined_less_than_year": {
+              "type": "string",
+              "description": "Appears unused — the app’s five “member since” options never pick this one. Kept pending a product decision.",
+              "section": "Currently unused — needs a product decision"
             }
           },
           "additionalProperties": false,
@@ -1152,15 +1240,15 @@
         },
         "favourites": {
           "type": "object",
-          "description": "The Favourites screen.",
+          "description": "The full list of meditations and talks the member has saved, opened from 'See All' on the Profile screen.",
           "properties": {
             "title": {
               "type": "string",
-              "description": "Favourites screen title."
+              "description": "Heading at the top of the Favourites screen."
             },
             "removed_from_favourites": {
               "type": "string",
-              "description": "Message after removing a favourite."
+              "description": "Brief message that pops up at the bottom after the member unlikes an item; it comes with an Undo button."
             }
           },
           "additionalProperties": false,
@@ -1168,19 +1256,19 @@
         },
         "history": {
           "type": "object",
-          "description": "The History screen.",
+          "description": "The list of the member's past meditations and other activity, opened from the History row on the Profile screen.",
           "properties": {
             "title": {
               "type": "string",
-              "description": "History screen title."
+              "description": "Heading at the top of the History screen."
             },
             "empty_title": {
               "type": "string",
-              "description": "Title when there is no history yet."
+              "description": "Title of the placeholder card shown when the member has no activity yet."
             },
             "empty_subtitle": {
               "type": "string",
-              "description": "Smaller text when there is no history yet."
+              "description": "Explaining line under that placeholder title."
             }
           },
           "additionalProperties": false,
@@ -1188,295 +1276,363 @@
         },
         "account": {
           "type": "object",
-          "description": "The Account settings screen.",
+          "description": "The \"My Account\" screen reached from Profile, plus all its pop-ups: editing the name and email, sending a password reset link, and deleting the account.",
           "properties": {
             "title": {
               "type": "string",
-              "description": "Account screen title."
-            },
-            "details_header": {
-              "type": "string",
-              "description": "Small label above the details section."
-            },
-            "name_label": {
-              "type": "string",
-              "description": "Label for the name box."
-            },
-            "name_hint": {
-              "type": "string",
-              "description": "Faint hint text inside the name box."
-            },
-            "save": {
-              "type": "string",
-              "description": "Save button."
-            },
-            "saving": {
-              "type": "string",
-              "description": "Button text shown while saving."
-            },
-            "saved": {
-              "type": "string",
-              "description": "Message shown after saving."
+              "description": "Big heading at the top of the screen."
             },
             "first_name_label": {
               "type": "string",
-              "description": "Label for the first-name row."
+              "description": "Small grey label above the person's first name, in the first row of the list.",
+              "section": "Account details rows"
             },
             "email_label": {
               "type": "string",
-              "description": "Label for the email row."
+              "description": "Small grey label above the email address row. Only shown once someone is signed in.",
+              "section": "Account details rows"
             },
             "password_label": {
               "type": "string",
-              "description": "Label for the password row."
+              "description": "Small grey label above the password row. Only shown for people who signed in with an email and password, not with Google, Apple or Facebook.",
+              "section": "Account details rows"
             },
             "edit_action": {
               "type": "string",
-              "description": "Edit button on a row."
-            },
-            "edit_first_name_title": {
-              "type": "string",
-              "description": "Title of the edit-name pop-up."
-            },
-            "edit_email_title": {
-              "type": "string",
-              "description": "Title of the edit-email pop-up."
-            },
-            "cancel": {
-              "type": "string",
-              "description": "Cancel button in edit pop-ups."
-            },
-            "save_changes": {
-              "type": "string",
-              "description": "Save button in edit pop-ups."
-            },
-            "save_failed": {
-              "type": "string",
-              "description": "Error when saving account details fails."
-            },
-            "reset_password_title": {
-              "type": "string",
-              "description": "Title of the reset-password pop-up."
-            },
-            "reset_password_description": {
-              "type": "string",
-              "description": "Text in the reset-password pop-up."
-            },
-            "reset_password_action": {
-              "type": "string",
-              "description": "Button in the reset-password pop-up."
-            },
-            "reset_password_sent": {
-              "type": "string",
-              "description": "Message after the reset email is sent."
-            },
-            "reset_password_error": {
-              "type": "string",
-              "description": "Error when sending the reset email fails."
-            },
-            "email_edit_unavailable": {
-              "type": "string",
-              "description": "Message when email editing isn't available yet."
+              "description": "Small link on the right-hand side of every row that can be changed. The same word is used on all of them.",
+              "section": "Account details rows"
             },
             "email_unavailable": {
               "type": "string",
-              "description": "Placeholder when no email is on file."
-            },
-            "create_account": {
-              "type": "string",
-              "description": "Button prompting guests to create an account."
-            },
-            "delete_account_title": {
-              "type": "string",
-              "description": "Title of the delete-account pop-up."
-            },
-            "delete_account_description": {
-              "type": "string",
-              "description": "Text in the delete-account pop-up."
-            },
-            "delete_account_error": {
-              "type": "string",
-              "description": "Error when deleting the account fails."
-            },
-            "delete_account_requires_recent_login": {
-              "type": "string",
-              "description": "Message asking the user to log in again before deleting."
-            },
-            "reauthenticate_title": {
-              "type": "string",
-              "description": "Title of the re-enter-password pop-up."
-            },
-            "reauthenticate_description": {
-              "type": "string",
-              "description": "Text in the re-enter-password pop-up."
-            },
-            "reauthenticate_required": {
-              "type": "string",
-              "description": "Error when the password field is empty."
-            },
-            "reauthenticate_invalid": {
-              "type": "string",
-              "description": "Error when the password is wrong."
-            },
-            "continue_action": {
-              "type": "string",
-              "description": "Continue button in the re-enter-password pop-up."
-            },
-            "guest_email_prompt": {
-              "type": "string",
-              "description": "Prompt on the email row for guests."
-            },
-            "guest_password_prompt": {
-              "type": "string",
-              "description": "Prompt on the password row for guests."
-            },
-            "login": {
-              "type": "string",
-              "description": "Log in button in the guest prompts."
+              "description": "FALLBACK — shown in the email row only when the account has no email address on record; normally the person's real email address is shown.",
+              "section": "Account details rows"
             },
             "logout": {
               "type": "string",
-              "description": "Log out button."
-            },
-            "privacy_policy": {
-              "type": "string",
-              "description": "Link to open the Privacy Policy."
+              "description": "Main button at the bottom of the screen, shown when someone is signed in.",
+              "section": "Buttons at the bottom"
             },
             "delete_account": {
               "type": "string",
-              "description": "Button that starts deleting the account."
+              "description": "Second button at the bottom, shown when someone is signed in. The same words are reused as the heading and as the red confirm button on the delete-account screen.",
+              "section": "Buttons at the bottom"
+            },
+            "create_account": {
+              "type": "string",
+              "description": "Main button at the bottom, shown instead of the log-out button when nobody is signed in.",
+              "section": "Buttons at the bottom"
+            },
+            "login": {
+              "type": "string",
+              "description": "Second button at the bottom, shown instead of the delete button when nobody is signed in.",
+              "section": "Buttons at the bottom"
+            },
+            "edit_first_name_title": {
+              "type": "string",
+              "description": "Heading of the pop-up that slides up from the bottom when the edit link next to the first name is tapped.",
+              "section": "Edit name and email pop-ups"
+            },
+            "edit_email_title": {
+              "type": "string",
+              "description": "Heading of the pop-up that slides up when the edit link next to the email address is tapped.",
+              "section": "Edit name and email pop-ups"
+            },
+            "save_changes": {
+              "type": "string",
+              "description": "Main button inside both of those pop-ups.",
+              "section": "Edit name and email pop-ups"
+            },
+            "cancel": {
+              "type": "string",
+              "description": "Second button that closes a pop-up without changing anything. Shared by the edit pop-ups, the reset-password pop-up and the confirm-password pop-up.",
+              "section": "Edit name and email pop-ups"
+            },
+            "reset_password_title": {
+              "type": "string",
+              "description": "Heading of the pop-up that slides up when the edit link next to the password is tapped.",
+              "section": "Reset password pop-up"
+            },
+            "reset_password_description": {
+              "type": "string",
+              "description": "Line under that heading explaining that a reset link will be emailed. The person's email address is shown in a box just below it.",
+              "section": "Reset password pop-up"
+            },
+            "reset_password_action": {
+              "type": "string",
+              "description": "Main button in that pop-up that sends the reset link.",
+              "section": "Reset password pop-up"
+            },
+            "reauthenticate_title": {
+              "type": "string",
+              "description": "Heading of the pop-up that asks for the password one more time. Only shown part-way through deleting an account, and only when the person has not signed in recently.",
+              "section": "Confirm password before deleting"
+            },
+            "reauthenticate_description": {
+              "type": "string",
+              "description": "Line under that heading explaining why the password is being asked for again.",
+              "section": "Confirm password before deleting"
+            },
+            "continue_action": {
+              "type": "string",
+              "description": "Main button in that pop-up, tapped after typing the password.",
+              "section": "Confirm password before deleting"
+            },
+            "save_failed": {
+              "type": "string",
+              "description": "Error shown as a small bar at the bottom, only when a new first name could not be saved.",
+              "section": "Error messages"
+            },
+            "email_edit_unavailable": {
+              "type": "string",
+              "description": "Message shown as a small bar at the bottom every time someone tries to save a new email address. Changing the email is not built yet, so this always appears.",
+              "section": "Error messages"
+            },
+            "delete_account_error": {
+              "type": "string",
+              "description": "Error shown only when deleting the account fails for an unexpected reason.",
+              "section": "Error messages"
+            },
+            "delete_account_requires_recent_login": {
+              "type": "string",
+              "description": "Error shown only when deleting fails because the person has not signed in recently enough.",
+              "section": "Error messages"
+            },
+            "reauthenticate_required": {
+              "type": "string",
+              "description": "Error shown only when the confirm-password step is submitted with nothing typed in.",
+              "section": "Error messages"
+            },
+            "reauthenticate_invalid": {
+              "type": "string",
+              "description": "Error shown only when the password typed to confirm the deletion is wrong.",
+              "section": "Error messages"
+            },
+            "guest_email_prompt": {
+              "type": "string",
+              "description": "Not currently shown by the app — the whole email row is hidden when nobody is signed in, so this prompt never reaches the screen.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "guest_password_prompt": {
+              "type": "string",
+              "description": "Not currently shown by the app — the whole password row is hidden when nobody is signed in, so this prompt never reaches the screen.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "details_header": {
+              "type": "string",
+              "description": "Not currently used by the app — a heading above the details rows from an older version of this screen. The rows now start straight after the main heading.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "name_label": {
+              "type": "string",
+              "description": "Not currently used by the app — the row is labelled with the first-name label instead.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "name_hint": {
+              "type": "string",
+              "description": "Not currently used by the app — grey placeholder text from an older name field that no longer exists.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "save": {
+              "type": "string",
+              "description": "Not currently used by the app — button from an older version that saved the whole screen at once. Editing now happens in pop-ups.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "saving": {
+              "type": "string",
+              "description": "Not currently used by the app — the \"in progress\" wording for that old save button.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "saved": {
+              "type": "string",
+              "description": "Not currently used by the app — the confirmation message for that old save button.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "reset_password_sent": {
+              "type": "string",
+              "description": "Not currently used by the app — the reset-password pop-up now shows its own full success screen instead of this short message.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "reset_password_error": {
+              "type": "string",
+              "description": "Not currently used by the app — the reset-password pop-up now shows its own full failure screen with a retry button instead of this short message.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "delete_account_title": {
+              "type": "string",
+              "description": "Not currently used by the app — the delete-account screen now uses different confirmation wording, which is not on this tab.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "delete_account_description": {
+              "type": "string",
+              "description": "Not currently used by the app — replaced by the newer delete confirmation wording, which is not on this tab.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "privacy_policy": {
+              "type": "string",
+              "description": "Not currently used by the app — the Privacy Policy link sits on the main Profile screen, not on this one.",
+              "section": "Currently unused — needs a product decision"
             }
           },
           "additionalProperties": false,
-          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=9159-89387"
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=9159-89387",
+          "title": "Account settings"
         },
         "privacy": {
           "type": "object",
-          "description": "The Privacy and Advertising settings screen.",
+          "description": "WARNING — almost nothing on this tab currently reaches the app. The Privacy & Advertising screen was rebuilt and its text was renamed, so only one key below still matches what the app looks for. Editing the rest changes nothing on screen. Please do not spend time translating this tab until it has been rewired.",
           "properties": {
             "screen_title": {
               "type": "string",
-              "description": "Privacy and Advertising screen title."
-            },
-            "status_allowed": {
-              "type": "string",
-              "description": "Status label when a setting is on. Keep the {date} placeholder."
-            },
-            "status_not_allowed": {
-              "type": "string",
-              "description": "Status label when a setting is off."
-            },
-            "product_analytics_title": {
-              "type": "string",
-              "description": "Title of the anonymous usage-data setting."
-            },
-            "product_analytics_description": {
-              "type": "string",
-              "description": "Explanation of the anonymous usage-data setting."
+              "description": "Not currently used by the app — the app reads a differently named key for the big heading at the top of the Privacy & Advertising screen."
             },
             "advertising_title": {
               "type": "string",
-              "description": "Title of the advertising setting."
+              "description": "Not currently used by the app — the app reads a differently named key. It was the name of the advertising setting, shown next to its on/off switch.",
+              "section": "Advertising section"
+            },
+            "status_allowed": {
+              "type": "string",
+              "description": "The one line on this tab that still reaches the app. Small grey status line under a setting's name when that setting is switched on. Used under both the advertising switch and the anonymous-analytics switch.",
+              "section": "Advertising section"
+            },
+            "status_not_allowed": {
+              "type": "string",
+              "description": "Not currently used by the app — the app reads a differently named key for the status line shown when a setting is switched off.",
+              "section": "Advertising section"
             },
             "advertising_body_benefits": {
               "type": "string",
-              "description": "Paragraph explaining how the advertising setting helps."
-            },
-            "advertising_body_never_share": {
-              "type": "richText",
-              "description": "Paragraph on what is never shared or sold."
+              "description": "Not currently used by the app — the app reads a differently named key. It was the paragraph explaining why sharing this information helps a small non-profit spend its budget well.",
+              "section": "Advertising section"
             },
             "advertising_body_change_hint": {
               "type": "string",
-              "description": "Line saying the setting can be changed anytime."
+              "description": "Not currently used by the app — the app reads a differently named key. It was the short closing line reminding people they can change the setting at any time.",
+              "section": "Advertising section"
             },
             "advertising_platforms_header": {
               "type": "string",
-              "description": "Header above the list of advertising platforms."
+              "description": "Not currently used by the app — the app has no list of advertising platforms on this screen at all. It names the three companies inside a sentence instead.",
+              "section": "Advertising platforms list"
             },
             "advertising_platform_meta": {
               "type": "string",
-              "description": "List item for Meta."
+              "description": "Not currently used by the app — part of the platform list the app no longer has. A company name, so it usually stays untranslated anyway.",
+              "section": "Advertising platforms list"
             },
             "advertising_platform_google_ads": {
               "type": "string",
-              "description": "List item for Google Ads."
+              "description": "Not currently used by the app — part of the platform list the app no longer has. A product name, so it usually stays untranslated anyway.",
+              "section": "Advertising platforms list"
             },
             "advertising_platform_apple_search_ads": {
               "type": "string",
-              "description": "List item for Apple Search Ads."
+              "description": "Not currently used by the app — part of the platform list the app no longer has. A product name, so it usually stays untranslated anyway.",
+              "section": "Advertising platforms list"
             },
-            "advertising_body_intro": {
-              "type": "richText",
-              "description": "Opening paragraph with a link showing what is shared."
+            "product_analytics_title": {
+              "type": "string",
+              "description": "Not currently used by the app — the app reads a differently named key. It was the name of the anonymous-analytics setting, shown next to its on/off switch.",
+              "section": "Anonymous analytics section"
+            },
+            "product_analytics_description": {
+              "type": "string",
+              "description": "Not currently used by the app — the app reads a differently named key. It was the paragraph explaining that usage information is anonymous and never sold.",
+              "section": "Anonymous analytics section"
             },
             "learn_more_header": {
               "type": "string",
-              "description": "Header above the legal links at the bottom of the screen."
+              "description": "Not currently used by the app — the app reads a differently named key for the small heading above the two legal links near the bottom.",
+              "section": "Learn more links"
             },
             "privacy_policy_title": {
               "type": "string",
-              "description": "Title of the Privacy Policy link."
+              "description": "Not currently used by the app — the Privacy Policy link on this screen takes its wording from the main Profile screen instead, so editing it here has no effect.",
+              "section": "Learn more links"
             },
             "privacy_policy_subtitle": {
               "type": "string",
-              "description": "Smaller text on the Privacy Policy link."
+              "description": "Not currently used by the app — the small grey line under the Privacy Policy link comes from the main Profile screen instead.",
+              "section": "Learn more links"
             },
             "terms_and_conditions_title": {
               "type": "string",
-              "description": "Title of the Terms and Conditions link."
+              "description": "Not currently used by the app — the Terms & Conditions link on this screen takes its wording from the main Profile screen instead.",
+              "section": "Learn more links"
             },
             "terms_and_conditions_subtitle": {
               "type": "string",
-              "description": "Smaller text on the Terms and Conditions link."
+              "description": "Not currently used by the app — the small grey line under the Terms & Conditions link comes from the main Profile screen instead.",
+              "section": "Learn more links"
+            },
+            "advertising_body_intro": {
+              "type": "richText",
+              "description": "Not currently used by the app — the app reads differently named keys. It was the opening paragraph of the advertising section, which on screen sits just under the advertising switch and contains a tappable link.",
+              "section": "Advertising — longer paragraphs"
+            },
+            "advertising_body_never_share": {
+              "type": "richText",
+              "description": "Not currently used by the app — the app reads differently named keys. It was the promise never to share personal practice details and never to sell data, which on screen sits in the middle of the advertising section.",
+              "section": "Advertising — longer paragraphs"
             }
           },
           "additionalProperties": false,
-          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=11571-40337"
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=11571-40337",
+          "title": "Privacy & Advertising (does not reach the app)"
         },
         "contact": {
           "type": "object",
-          "description": "The Contact Us feedback screen.",
+          "description": "The Contact us form, opened from the Profile screen: a short invitation to write in, a large message box and a Send button.",
           "properties": {
             "title": {
               "type": "string",
-              "description": "Contact Us screen title."
+              "description": "Heading at the top of the Contact us screen.",
+              "section": "Top of the screen"
             },
             "header": {
               "type": "string",
-              "description": "Large text above the form."
-            },
-            "subtitle": {
-              "type": "string",
-              "description": "Smaller text below the header."
-            },
-            "placeholder": {
-              "type": "string",
-              "description": "Faint hint text inside the message box."
-            },
-            "send": {
-              "type": "string",
-              "description": "Send button."
-            },
-            "sending": {
-              "type": "string",
-              "description": "Button text shown while sending."
-            },
-            "sent": {
-              "type": "string",
-              "description": "Message shown after sending."
-            },
-            "empty_error": {
-              "type": "string",
-              "description": "Error when the message box is empty."
+              "description": "Centred paragraph below the heading inviting the member to send feedback. This is the only intro text on the screen.",
+              "section": "Top of the screen"
             },
             "min_length_error": {
               "type": "string",
-              "description": "Error when the message is too short."
+              "description": "Warning that appears just above the message box, and turns its border red, when Send is tapped and the message is shorter than 50 characters. It also covers the case of an empty message.",
+              "section": "Message box"
+            },
+            "placeholder": {
+              "type": "string",
+              "description": "Faint hint text inside the empty message box.",
+              "section": "Message box"
+            },
+            "send": {
+              "type": "string",
+              "description": "Label on the button at the bottom of the screen.",
+              "section": "Send button"
+            },
+            "sending": {
+              "type": "string",
+              "description": "Replaces the button label for the moment the message is being sent.",
+              "section": "Send button"
+            },
+            "sent": {
+              "type": "string",
+              "description": "Thank-you message that pops up at the bottom once the feedback has been sent; the message box is cleared.",
+              "section": "After sending"
             },
             "send_error": {
               "type": "string",
-              "description": "Error when sending the message fails."
+              "description": "Message shown only when sending fails, for example with no internet connection. The typed message is kept so it can be sent again.",
+              "section": "After sending"
+            },
+            "subtitle": {
+              "type": "string",
+              "description": "Appears unused — it duplicates the header line above and is never read. Kept pending a product decision.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "empty_error": {
+              "type": "string",
+              "description": "Appears unused — sending an empty message shows the minimum-length message instead. Kept pending a product decision.",
+              "section": "Currently unused — needs a product decision"
             }
           },
           "additionalProperties": false,
@@ -1491,340 +1647,411 @@
       "properties": {
         "intent": {
           "type": "object",
-          "description": "The setup screens shown before a meditation starts.",
+          "description": "Everything a user reads before a meditation actually starts: the \"Step 1 of 3\" screen where they pick which meditation to do, the pop-up explaining meditations that are still locked, and the welcome slides plus explainer video that lead into the very first meditation.",
           "properties": {
-            "carousel_continue": {
-              "type": "string",
-              "description": "Continue button on the setup slides."
-            },
-            "skip_video_and_continue": {
-              "type": "string",
-              "description": "Link to skip the intro video and continue."
-            },
-            "repeat_video": {
-              "type": "string",
-              "description": "Link to replay the intro video."
-            },
-            "start_meditation": {
-              "type": "string",
-              "description": "Main button to start the meditation."
-            },
-            "skip_and_explore_the_app": {
-              "type": "string",
-              "description": "Link letting a new user skip and browse instead."
-            },
             "step_label": {
               "type": "string",
-              "description": "Step indicator at the top, like Step 1 of 3."
+              "description": "Step indicator in the header of the choose-your-meditation screen, e.g. \"Step 1 of 3\".",
+              "section": "Choose your meditation — top of screen"
             },
             "title_today": {
               "type": "string",
-              "description": "Setup screen title during the day. Keep the line break."
+              "description": "VARIANT — the big question at the top of the screen, shown in the morning and the afternoon. In the evening \"title_tonight\" is shown instead. Keep the line break.",
+              "section": "Choose your meditation — top of screen"
             },
             "title_tonight": {
               "type": "string",
-              "description": "Setup screen title in the evening. Keep the line break."
+              "description": "VARIANT — the same big question, shown only in the evening. Keep the line break.",
+              "section": "Choose your meditation — top of screen"
             },
             "first_meditation_title": {
               "type": "string",
-              "description": "Title of the locked first-meditation card."
+              "description": "Title of the first card. This card is the only one a user can tap until they have finished their first meditation. Shown to everyone.",
+              "section": "\"Your first meditation\" card"
             },
             "first_meditation_subtitle": {
               "type": "string",
-              "description": "Smaller text on the locked first-meditation card."
-            },
-            "repeat_first_meditation_title": {
-              "type": "string",
-              "description": "Title inviting a returning user to repeat the first meditation."
+              "description": "VARIANT — the small line under that title, shown to people who said they are completely new to Sahaja Yoga.",
+              "section": "\"Your first meditation\" card"
             },
             "repeat_first_meditation_subtitle": {
               "type": "string",
-              "description": "Smaller text inviting a repeat of the first meditation."
-            },
-            "ready_to_try_title": {
-              "type": "string",
-              "description": "Title of the ready-to-try step before the first meditation."
-            },
-            "ready_to_try_subtitle_beginner": {
-              "type": "string",
-              "description": "Smaller ready-to-try text for beginners."
-            },
-            "ready_to_try_subtitle_repeat": {
-              "type": "string",
-              "description": "Smaller ready-to-try text for repeat users."
+              "description": "VARIANT — the same small line, shown instead to people who said they have already tried Sahaja Yoga before.",
+              "section": "\"Your first meditation\" card"
             },
             "quick_morning_title": {
               "type": "string",
-              "description": "Title of the morning quick-meditation card."
-            },
-            "quick_afternoon_title": {
-              "type": "string",
-              "description": "Title of the afternoon quick-meditation card."
-            },
-            "quick_evening_title": {
-              "type": "string",
-              "description": "Title of the evening quick-meditation card."
+              "description": "VARIANT — title of the quick-meditation card, shown in the morning.",
+              "section": "Quick meditation card"
             },
             "quick_morning_subtitle": {
               "type": "string",
-              "description": "Smaller text on the morning quick-meditation card."
+              "description": "VARIANT — the small line under the morning title. Only shown once the first meditation is done; before that the card is locked and shows \"locked_subtitle\" instead.",
+              "section": "Quick meditation card"
+            },
+            "quick_afternoon_title": {
+              "type": "string",
+              "description": "VARIANT — title of the quick-meditation card, shown in the afternoon.",
+              "section": "Quick meditation card"
             },
             "quick_afternoon_subtitle": {
               "type": "string",
-              "description": "Smaller text on the afternoon quick-meditation card. Keep the line break."
+              "description": "VARIANT — the small line under the afternoon title. Only shown once the first meditation is done. Keep the line break.",
+              "section": "Quick meditation card"
+            },
+            "quick_evening_title": {
+              "type": "string",
+              "description": "VARIANT — title of the quick-meditation card, shown in the evening.",
+              "section": "Quick meditation card"
             },
             "quick_evening_subtitle": {
               "type": "string",
-              "description": "Smaller text on the evening quick-meditation card."
+              "description": "VARIANT — the small line under the evening title. Only shown once the first meditation is done.",
+              "section": "Quick meditation card"
             },
             "personalized_title": {
               "type": "string",
-              "description": "Title of the personalised longer-session card."
+              "description": "Title of the last card, the longer session tailored to how the user feels. Same wording at every time of day. It is also the heading of the pop-up that opens when this card is still locked.",
+              "section": "Personalised meditation card"
             },
             "personalized_subtitle": {
               "type": "string",
-              "description": "Smaller text on the personalised longer-session card."
+              "description": "The small line under that title. Only shown once the first meditation is done; before that the card is locked and shows \"locked_subtitle\" instead.",
+              "section": "Personalised meditation card"
             },
             "locked_subtitle": {
               "type": "string",
-              "description": "Text on cards locked until the first meditation is done."
+              "description": "Only shown before the first meditation is finished: it replaces the normal small line on the quick and personalised cards. It also appears next to the padlock near the bottom of the pop-up that opens when a locked card is tapped.",
+              "section": "When cards are still locked"
             },
             "learn_more": {
               "type": "string",
-              "description": "Link to see more detail on a card."
-            },
-            "go_to_first_meditation": {
-              "type": "string",
-              "description": "Button on a locked card taking the user to the first meditation."
-            },
-            "set_reminder_for_later": {
-              "type": "string",
-              "description": "Button to schedule the meditation for later."
+              "description": "Only shown on a locked card: a small pill button at the bottom of the card that opens the pop-up explaining what the card unlocks.",
+              "section": "When cards are still locked"
             },
             "locked_quick_start_title": {
               "type": "string",
-              "description": "Title on the locked quick-meditation preview."
+              "description": "Only shown in the pop-up for the locked quick meditation: the heading of its first row.",
+              "section": "Locked quick meditation — pop-up"
             },
             "locked_quick_start_description_morning": {
               "type": "string",
-              "description": "Locked preview text for morning quick meditations."
+              "description": "VARIANT — the text under that first row, shown in the morning.",
+              "section": "Locked quick meditation — pop-up"
             },
             "locked_quick_start_description_afternoon": {
               "type": "string",
-              "description": "Locked preview text for afternoon quick meditations."
+              "description": "VARIANT — the same text, shown in the afternoon.",
+              "section": "Locked quick meditation — pop-up"
             },
             "locked_quick_start_description_evening": {
               "type": "string",
-              "description": "Locked preview text for evening quick meditations."
+              "description": "VARIANT — the same text, shown in the evening.",
+              "section": "Locked quick meditation — pop-up"
             },
             "locked_quick_custom_time_title": {
               "type": "string",
-              "description": "Title of the custom-time row in the quick preview."
+              "description": "Only shown in that pop-up: the heading of the second row, about picking how long to meditate.",
+              "section": "Locked quick meditation — pop-up"
             },
             "locked_quick_custom_time_description": {
               "type": "string",
-              "description": "Text of the custom-time row in the quick preview."
+              "description": "The text under that second row, explaining the lengths on offer.",
+              "section": "Locked quick meditation — pop-up"
             },
             "locked_personalized_feeling_title": {
               "type": "string",
-              "description": "Title of the feeling-picker row in the personalised preview."
+              "description": "Only shown in the pop-up for the locked personalised meditation: the heading of its first row.",
+              "section": "Locked personalised meditation — pop-up"
             },
             "locked_personalized_feeling_description": {
               "type": "string",
-              "description": "Text of the feeling-picker row in the personalised preview."
+              "description": "The text under that first row, explaining that the session adapts to how the user feels.",
+              "section": "Locked personalised meditation — pop-up"
             },
             "locked_personalized_custom_time_title": {
               "type": "string",
-              "description": "Title of the custom-time row in the personalised preview."
+              "description": "The heading of the second row in that pop-up, about choosing how long to continue.",
+              "section": "Locked personalised meditation — pop-up"
             },
             "locked_personalized_custom_time_description": {
               "type": "string",
-              "description": "Text of the custom-time row in the personalised preview."
-            }
-          },
-          "additionalProperties": false
-        },
-        "reminder": {
-          "type": "object",
-          "description": "The reminder screens for scheduling a meditation later.",
-          "properties": {
-            "prompt_title": {
-              "type": "string",
-              "description": "Title suggesting the user schedule the meditation for later. Keep the line break."
+              "description": "The text under that second row.",
+              "section": "Locked personalised meditation — pop-up"
             },
-            "prompt_subtitle": {
+            "go_to_first_meditation": {
               "type": "string",
-              "description": "Smaller text on that suggestion. Keep the line break."
+              "description": "Main button at the bottom of either locked pop-up; it takes the user straight to their first meditation.",
+              "section": "Locked pop-up — buttons"
             },
-            "prompt_set_reminder": {
+            "set_reminder_for_later": {
               "type": "string",
-              "description": "Main button to set a reminder."
+              "description": "Second button at the bottom of either locked pop-up; it opens the reminder picker so the user can come back later.",
+              "section": "Locked pop-up — buttons"
             },
-            "prompt_no_thanks": {
+            "carousel_continue": {
               "type": "string",
-              "description": "Button to decline the reminder."
+              "description": "Button at the bottom of each of the first three welcome slides, moving on to the next slide.",
+              "section": "Welcome slides before the first meditation"
             },
-            "prompt_allow_notifications_title": {
+            "ready_to_try_title": {
               "type": "string",
-              "description": "Title explaining why alert permission is needed."
+              "description": "Title of the final welcome slide, which invites the user into their first meditation.",
+              "section": "Welcome slides before the first meditation"
             },
-            "prompt_allow_notifications_subtitle": {
+            "ready_to_try_subtitle_beginner": {
               "type": "string",
-              "description": "Smaller text on that explanation."
+              "description": "VARIANT — the line under that title, shown to people who said they are completely new to Sahaja Yoga.",
+              "section": "Welcome slides before the first meditation"
             },
-            "prompt_allow_notifications_primary": {
+            "ready_to_try_subtitle_repeat": {
               "type": "string",
-              "description": "Button that asks the phone for alert permission."
-            },
-            "prompt_not_now": {
-              "type": "string",
-              "description": "Button to decline alert permission."
-            },
-            "prompt_turn_on_notifications_title": {
-              "type": "string",
-              "description": "Title when alerts were blocked and must be turned on in settings."
-            },
-            "prompt_turn_on_notifications_subtitle": {
-              "type": "string",
-              "description": "Smaller text on that open-settings prompt."
-            },
-            "prompt_open_settings": {
-              "type": "string",
-              "description": "Button that opens the app's alert settings."
-            },
-            "sheet_title": {
-              "type": "string",
-              "description": "Title of the pop-up where the user picks a reminder time. Keep the line break."
-            },
-            "sheet_dont_set": {
-              "type": "string",
-              "description": "Button to dismiss the reminder pop-up."
-            },
-            "sheet_done": {
-              "type": "string",
-              "description": "Button to confirm the reminder pop-up."
-            },
-            "sheet_return_to_meditation": {
-              "type": "string",
-              "description": "Button to go back to the meditation."
-            },
-            "sheet_leave_meditation": {
-              "type": "string",
-              "description": "Button to leave the meditation."
-            },
-            "sheet_success_title": {
-              "type": "string",
-              "description": "Title shown after a reminder is set."
-            },
-            "sheet_success_subtitle": {
-              "type": "string",
-              "description": "Smaller text shown after a reminder is set."
-            },
-            "sheet_explore_app": {
-              "type": "string",
-              "description": "Button suggesting the user browse while waiting."
-            },
-            "sheet_start_first_meditation": {
-              "type": "string",
-              "description": "Button to start the first meditation now instead."
-            },
-            "sheet_error": {
-              "type": "string",
-              "description": "Error when setting the reminder fails."
-            },
-            "preset_unwind_later_today": {
-              "type": "string",
-              "description": "Quick option for a reminder later today."
-            },
-            "preset_start_your_week_calm": {
-              "type": "string",
-              "description": "Quick option for a reminder at the start of the week."
-            },
-            "preset_find_your_midweek_balance": {
-              "type": "string",
-              "description": "Quick option for a reminder midweek."
-            },
-            "preset_pause_and_recharge": {
-              "type": "string",
-              "description": "Quick option for a recharge-break reminder."
-            },
-            "preset_mindful_break_before_weekend": {
-              "type": "string",
-              "description": "Quick option for a reminder before the weekend."
-            },
-            "preset_end_your_week_with_peace": {
-              "type": "string",
-              "description": "Quick option for a reminder at the end of the week."
-            },
-            "preset_slow_down_weekend": {
-              "type": "string",
-              "description": "Quick option for a weekend slow-down reminder."
-            },
-            "preset_reset_for_week_ahead": {
-              "type": "string",
-              "description": "Quick option for a Sunday reset reminder."
-            },
-            "notification_title": {
-              "type": "string",
-              "description": "Title of the meditation reminder alert."
-            },
-            "notification_body_locked": {
-              "type": "string",
-              "description": "Reminder alert text when the meditation is still locked."
-            },
-            "notification_body_exit": {
-              "type": "string",
-              "description": "Reminder alert text for a meditation the user left earlier."
-            },
-            "allow_notifications_screen_title": {
-              "type": "string",
-              "description": "Title of the full-screen alert-permission explanation."
-            },
-            "allow_notifications_screen_subtitle": {
-              "type": "string",
-              "description": "Smaller text on that screen. Keep the line break and emoji."
-            }
-          },
-          "additionalProperties": false
-        },
-        "footsoak": {
-          "type": "object",
-          "description": "The optional foot-soak step before meditating.",
-          "properties": {
-            "step_label": {
-              "type": "string",
-              "description": "Step indicator at the top of the foot-soak screen."
-            },
-            "title": {
-              "type": "string",
-              "description": "Question asking if the user wants to foot-soak."
-            },
-            "tutorial_cta": {
-              "type": "string",
-              "description": "Link to the foot-soak how-to."
-            },
-            "start_with_footsoak": {
-              "type": "string",
-              "description": "Button to start with a foot-soak."
+              "description": "VARIANT — the same line, shown instead to people who said they have already tried Sahaja Yoga before.",
+              "section": "Welcome slides before the first meditation"
             },
             "start_meditation": {
               "type": "string",
-              "description": "Button to start without a foot-soak."
+              "description": "Main button on that final slide; it begins the first meditation.",
+              "section": "Welcome slides before the first meditation"
+            },
+            "skip_and_explore_the_app": {
+              "type": "string",
+              "description": "Second button on that final slide, for someone who would rather look around the app first.",
+              "section": "Welcome slides before the first meditation"
+            },
+            "skip_video_and_continue": {
+              "type": "string",
+              "description": "Only shown while the short explainer video is playing before the first meditation: a link that jumps past the rest of it.",
+              "section": "Short explainer video"
+            },
+            "repeat_first_meditation_title": {
+              "type": "string",
+              "description": "NOT CURRENTLY SHOWN — an alternative card title for someone coming back to repeat their first meditation. The app currently shows \"first_meditation_title\" to everyone and only swaps the subtitle.",
+              "section": "Currently unused — needs a product decision"
+            }
+          },
+          "additionalProperties": false,
+          "title": "Meditation setup & intro slides"
+        },
+        "reminder": {
+          "type": "object",
+          "description": "WARNING — NOTHING ON THIS TAB REACHES THE APP. Every text below is currently stored by the app under a different key name, so translating anything here has no effect on what people see. The copy is kept and described so it is ready the moment the connection is fixed; please do not delete it, but do not spend translation time here until a developer confirms it is live. What the texts are for: the flow that offers to remind you to come back and meditate later — the first offer, the requests to allow notifications, the sheet where you pick a day and time, the confirmation, and the reminder notification itself.",
+          "properties": {
+            "prompt_title": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Heading of the panel that offers to schedule the meditation for later; appears when someone leaves or skips their first meditation.",
+              "section": "Step 1 — The offer to set a reminder"
+            },
+            "prompt_subtitle": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Sentence under that heading, explaining that a reminder will be sent.",
+              "section": "Step 1 — The offer to set a reminder"
+            },
+            "prompt_set_reminder": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Main button that accepts the offer. The same text is reused later as the confirm button after picking a time.",
+              "section": "Step 1 — The offer to set a reminder"
+            },
+            "prompt_no_thanks": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Button below it that declines the offer and closes the panel.",
+              "section": "Step 1 — The offer to set a reminder"
+            },
+            "prompt_allow_notifications_title": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Heading shown after accepting the offer, explaining that notifications are needed to send the reminder.",
+              "section": "Step 2 — Asking to allow notifications"
+            },
+            "prompt_allow_notifications_subtitle": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Line under that heading telling people to tap Allow on the phone's own pop-up that comes next.",
+              "section": "Step 2 — Asking to allow notifications"
+            },
+            "prompt_allow_notifications_primary": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Main button that triggers the phone's notification permission pop-up.",
+              "section": "Step 2 — Asking to allow notifications"
+            },
+            "prompt_not_now": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Button that postpones the permission request. Shown both here and on the 'notifications are switched off' panel below.",
+              "section": "Step 2 — Asking to allow notifications"
+            },
+            "prompt_turn_on_notifications_title": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Only shown when notifications have already been refused or switched off: heading asking to turn them on.",
+              "section": "Step 3 — Only if notifications are switched off"
+            },
+            "prompt_turn_on_notifications_subtitle": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Only shown in that case: line explaining the switch has to be turned on in the phone's own settings.",
+              "section": "Step 3 — Only if notifications are switched off"
+            },
+            "prompt_open_settings": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Only shown in that case: button that opens the phone's settings.",
+              "section": "Step 3 — Only if notifications are switched off"
+            },
+            "allow_notifications_screen_title": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Heading of the full-screen version of the notifications request, shown during a meditation rather than in a small panel.",
+              "section": "Full-screen version of the notifications request"
+            },
+            "allow_notifications_screen_subtitle": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Sentence under that heading on the full-screen version.",
+              "section": "Full-screen version of the notifications request"
+            },
+            "sheet_title": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Heading at the top of the sheet that slides up for choosing when to be reminded.",
+              "section": "Step 4 — Picking a day and time"
+            },
+            "preset_unwind_later_today": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder for later the same day — the first option in the list.",
+              "section": "Step 4 — Picking a day and time"
+            },
+            "preset_start_your_week_calm": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Monday.",
+              "section": "Step 4 — Picking a day and time"
+            },
+            "preset_find_your_midweek_balance": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Tuesday.",
+              "section": "Step 4 — Picking a day and time"
+            },
+            "preset_pause_and_recharge": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Wednesday.",
+              "section": "Step 4 — Picking a day and time"
+            },
+            "preset_mindful_break_before_weekend": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Thursday.",
+              "section": "Step 4 — Picking a day and time"
+            },
+            "preset_end_your_week_with_peace": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Friday.",
+              "section": "Step 4 — Picking a day and time"
+            },
+            "preset_slow_down_weekend": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Saturday.",
+              "section": "Step 4 — Picking a day and time"
+            },
+            "preset_reset_for_week_ahead": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Sunday.",
+              "section": "Step 4 — Picking a day and time"
+            },
+            "sheet_dont_set": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Button at the bottom of the sheet that closes it without setting anything. Appears both on the list of days and on the clock where the time is picked.",
+              "section": "Step 4 — Picking a day and time"
+            },
+            "sheet_success_title": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Short heading with a tick shown once the reminder has been saved.",
+              "section": "Step 5 — Reminder confirmed"
+            },
+            "sheet_success_subtitle": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Sentence under that tick, promising a notification later.",
+              "section": "Step 5 — Reminder confirmed"
+            },
+            "sheet_explore_app": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Main button on the confirmation, which closes the sheet and lets people browse the app.",
+              "section": "Step 5 — Reminder confirmed"
+            },
+            "sheet_start_first_meditation": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Second button on the confirmation, which begins the meditation straight away instead of waiting.",
+              "section": "Step 5 — Reminder confirmed"
+            },
+            "sheet_done": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Replaces the main confirmation button when the reminder was set for a meditation that is still locked.",
+              "section": "Step 5 — Reminder confirmed"
+            },
+            "sheet_return_to_meditation": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Replaces the second confirmation button when the reminder was set from inside or just before a meditation; it takes people back to it.",
+              "section": "Step 5 — Reminder confirmed"
+            },
+            "sheet_leave_meditation": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Replaces the main confirmation button when the reminder was set by pressing back during a meditation; it confirms leaving the session.",
+              "section": "Step 5 — Reminder confirmed"
+            },
+            "sheet_error": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Error shown only when the reminder could not be saved, as a short message at the bottom of the screen.",
+              "section": "Errors"
+            },
+            "notification_title": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Title of the notification that arrives on the phone at the chosen time.",
+              "section": "The reminder notification itself"
+            },
+            "notification_body_locked": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Text of that notification when the reminder was set for a meditation that had not been unlocked yet.",
+              "section": "The reminder notification itself"
+            },
+            "notification_body_exit": {
+              "type": "string",
+              "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Text of that notification when the reminder was set on leaving or skipping a meditation.",
+              "section": "The reminder notification itself"
+            }
+          },
+          "additionalProperties": false,
+          "title": "Reminders (not connected to the app)"
+        },
+        "footsoak": {
+          "type": "object",
+          "description": "The optional foot-soak step, offered as the last setup screen just before the meditation starts.",
+          "properties": {
+            "step_label": {
+              "type": "string",
+              "description": "Step indicator in the header at the very top, e.g. \"Step 3 of 3\"."
+            },
+            "title": {
+              "type": "string",
+              "description": "The question in large text at the top of the screen, asking whether the user wants to soak their feet."
+            },
+            "tutorial_cta": {
+              "type": "string",
+              "description": "Link with a play icon just below the photo, opening a short how-to video."
+            },
+            "start_with_footsoak": {
+              "type": "string",
+              "description": "Main button at the bottom — starts the meditation with a foot soak.",
+              "section": "Buttons"
+            },
+            "start_meditation": {
+              "type": "string",
+              "description": "Second button at the bottom — starts the meditation without a foot soak.",
+              "section": "Buttons"
             },
             "description": {
               "type": "richText",
-              "description": "Body text on the foot-soak screen."
+              "description": "The short sentence encouraging the user to soak their feet. On screen it sits directly under the title and above the photo — near the top of the screen, not at the bottom where this field appears here. It is formatted text because one word in it is emphasised; keep that emphasis.",
+              "section": "Body text"
             }
           },
           "additionalProperties": false
         },
         "player": {
           "type": "object",
-          "description": "The meditation audio player.",
+          "description": "The screen that plays a meditation.",
           "properties": {
             "load_error_title": {
               "type": "string",
-              "description": "Error when the meditation audio won't load."
+              "description": "Error heading shown only when the meditation cannot be loaded — for example with no internet. A more specific reason appears underneath it, with Back and Retry buttons."
             }
           },
           "additionalProperties": false,
@@ -1832,99 +2059,122 @@
         },
         "vibes_check": {
           "type": "object",
-          "description": "The after-meditation check asking what each hand felt.",
+          "description": "The \"check your vibrations\" flow shown straight after the first meditation: the opening hands question, the left-hand and right-hand sensation questions, and the two confirmation screens for skipping or going back to the meditation.",
           "properties": {
             "intro_question": {
               "type": "string",
-              "description": "Opening question of the check. Keep the line break."
-            },
-            "question_prefix": {
-              "type": "string",
-              "description": "Start of the per-hand question. Keep the line break."
-            },
-            "question_suffix": {
-              "type": "string",
-              "description": "End of the per-hand question. Keep the leading space."
-            },
-            "left_hand": {
-              "type": "string",
-              "description": "The words 'left hand' used in the question."
-            },
-            "right_hand": {
-              "type": "string",
-              "description": "The words 'right hand' used in the question."
-            },
-            "cool": {
-              "type": "string",
-              "description": "Sensation choice: cool."
-            },
-            "warm": {
-              "type": "string",
-              "description": "Sensation choice: warm."
-            },
-            "fingers_tingling": {
-              "type": "string",
-              "description": "Sensation choice: fingers tingling."
-            },
-            "nothing": {
-              "type": "string",
-              "description": "Sensation choice: nothing."
-            },
-            "continue_action": {
-              "type": "string",
-              "description": "Button to confirm the answer and continue."
-            },
-            "not_sure": {
-              "type": "string",
-              "description": "Button for when the user isn't sure what they felt."
-            },
-            "got_it": {
-              "type": "string",
-              "description": "Button to close the explanation."
-            },
-            "interpretation_nothing": {
-              "type": "string",
-              "description": "Reassuring text when nothing was felt on both hands."
-            },
-            "interpretation_intro": {
-              "type": "string",
-              "description": "Opening line of the results screen."
-            },
-            "interpretation_detail": {
-              "type": "string",
-              "description": "Per-hand detail text on the results screen."
+              "description": "Question shown under the animated hands on the very first vibes-check screen. Keep the line break so it stays on two lines.",
+              "section": "Opening screen"
             },
             "skip_vibes_check": {
               "type": "string",
-              "description": "Link to skip the check."
+              "description": "Button at the bottom of that first screen for people who want to skip the whole vibes check.",
+              "section": "Opening screen"
+            },
+            "question_prefix": {
+              "type": "string",
+              "description": "First part of the question shown above the sensation cards. The word \"left\" or \"right\" is added immediately after it, so keep the line break at the end.",
+              "section": "The hand question"
+            },
+            "left_hand": {
+              "type": "string",
+              "description": "The word dropped into the middle of that question on the left-hand step. It appears in italics.",
+              "section": "The hand question"
+            },
+            "right_hand": {
+              "type": "string",
+              "description": "The same word for the right-hand step, which comes straight after the left-hand one.",
+              "section": "The hand question"
+            },
+            "question_suffix": {
+              "type": "string",
+              "description": "The end of that question, joined on after the word left/right. Keep the space at the start.",
+              "section": "The hand question"
+            },
+            "cool": {
+              "type": "string",
+              "description": "Label on the top-left card.",
+              "section": "The four sensation cards"
+            },
+            "warm": {
+              "type": "string",
+              "description": "Label on the top-right card.",
+              "section": "The four sensation cards"
+            },
+            "fingers_tingling": {
+              "type": "string",
+              "description": "Label on the bottom-left card. It is the longest label and may wrap onto two lines, so keep it short.",
+              "section": "The four sensation cards"
+            },
+            "nothing": {
+              "type": "string",
+              "description": "Label on the bottom-right card, for feeling no sensation. Picking it clears any other cards that were chosen.",
+              "section": "The four sensation cards"
+            },
+            "continue_action": {
+              "type": "string",
+              "description": "Main button on each hand question. It stays greyed out until at least one card is chosen.",
+              "section": "Buttons under the cards"
+            },
+            "not_sure": {
+              "type": "string",
+              "description": "Smaller button below it, for people who cannot tell. It records \"Nothing\" for that hand and moves on.",
+              "section": "Buttons under the cards"
+            },
+            "got_it": {
+              "type": "string",
+              "description": "Button that ends the spoken explanation shown after both hands and continues the flow.",
+              "section": "Explanation screen"
             },
             "skip_prompt_title": {
               "type": "string",
-              "description": "Title of the skip-check prompt."
+              "description": "Title of the confirmation screen shown after someone taps the skip button.",
+              "section": "\"Skip vibes check?\" screen"
             },
             "skip_prompt_description": {
               "type": "string",
-              "description": "Text in the skip-check prompt."
+              "description": "Line under that title explaining what they would miss by skipping.",
+              "section": "\"Skip vibes check?\" screen"
             },
             "back_to_explanation": {
               "type": "string",
-              "description": "Button returning from the skip prompt to the check."
-            },
-            "return_to_meditation_prompt_title": {
-              "type": "string",
-              "description": "Title offering to restart the first meditation."
-            },
-            "return_to_meditation_prompt_description": {
-              "type": "string",
-              "description": "Text in that restart prompt."
-            },
-            "return_to_meditation_action": {
-              "type": "string",
-              "description": "Button to restart the meditation."
+              "description": "Main button that takes them back into the vibes check. The same label is also used as the main button on the \"Return to meditation?\" screen below.",
+              "section": "\"Skip vibes check?\" screen"
             },
             "skip_it": {
               "type": "string",
-              "description": "Button to decline restarting."
+              "description": "Second button that confirms skipping the vibes check.",
+              "section": "\"Skip vibes check?\" screen"
+            },
+            "return_to_meditation_prompt_title": {
+              "type": "string",
+              "description": "Only shown when someone presses back from the very first vibes-check screen. Title of that confirmation screen.",
+              "section": "\"Return to meditation?\" screen"
+            },
+            "return_to_meditation_prompt_description": {
+              "type": "string",
+              "description": "Line under that title, warning that the meditation starts again from the beginning.",
+              "section": "\"Return to meditation?\" screen"
+            },
+            "return_to_meditation_action": {
+              "type": "string",
+              "description": "Second button on that screen, which confirms going back to the meditation.",
+              "section": "\"Return to meditation?\" screen"
+            },
+            "interpretation_nothing": {
+              "type": "string",
+              "description": "The app currently ignores this text, so translating it changes nothing on screen. It was meant as the explanation for someone who felt nothing in either hand; the explanation screen now uses its own built-in wording and recorded narration instead.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "interpretation_intro": {
+              "type": "string",
+              "description": "The app currently ignores this text, so translating it changes nothing on screen. It was meant as the opening line of the explanation about vibrations, which the app now speaks and captions from its own built-in wording.",
+              "section": "Currently unused — needs a product decision"
+            },
+            "interpretation_detail": {
+              "type": "string",
+              "description": "The app currently ignores this text, so translating it changes nothing on screen. It was meant as the follow-up explanation about the energy channels, which the app now speaks and captions from its own built-in wording.",
+              "section": "Currently unused — needs a product decision"
             }
           },
           "additionalProperties": false,
@@ -1932,42 +2182,51 @@
         },
         "feedback": {
           "type": "object",
-          "description": "The after-meditation feedback form.",
+          "description": "WARNING — the app currently ignores every line on this tab. The after-meditation feedback form and its thank-you screen display their own built-in English wording, so nothing you translate here reaches a user until the app is changed. Please do not spend time on this tab; it is kept only so the text is not lost.",
           "properties": {
             "title": {
               "type": "string",
-              "description": "Feedback form title."
+              "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the big heading at the top of the feedback form.",
+              "section": "Currently unused — needs a product decision"
             },
             "description": {
               "type": "string",
-              "description": "Prompt asking for feedback."
+              "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the line under the heading asking what was good and what could be improved.",
+              "section": "Currently unused — needs a product decision"
             },
             "error_length": {
               "type": "string",
-              "description": "Error when the feedback is too short."
+              "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the message shown above the box when the feedback written was too short.",
+              "section": "Currently unused — needs a product decision"
             },
             "hint": {
               "type": "string",
-              "description": "Faint hint text inside the feedback box."
+              "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the faint placeholder inside the empty writing box.",
+              "section": "Currently unused — needs a product decision"
             },
             "send": {
               "type": "string",
-              "description": "Send button."
+              "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the button that submits the feedback.",
+              "section": "Currently unused — needs a product decision"
             },
             "thank_you": {
               "type": "string",
-              "description": "Thank-you title after sending feedback."
+              "description": "The app currently ignores this text — the thank-you screen shows its own built-in wording instead. It was the title after the feedback was sent.",
+              "section": "Currently unused — needs a product decision"
             },
             "thank_you_description": {
               "type": "string",
-              "description": "Thank-you message after sending. Keep the line breaks."
+              "description": "The app currently ignores this text — the thank-you screen shows its own built-in wording instead. It was the message under that title, and it carried deliberate line breaks.",
+              "section": "Currently unused — needs a product decision"
             },
             "close": {
               "type": "string",
-              "description": "Close button on the thank-you screen."
+              "description": "The app currently ignores this text — the thank-you screen shows its own built-in wording instead. It was the button that closed the thank-you screen.",
+              "section": "Currently unused — needs a product decision"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "title": "Feedback (not shown in the app)"
         }
       },
       "additionalProperties": false
