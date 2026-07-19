@@ -72,14 +72,6 @@ export function RegistrationConfirmationEmail({
         {location.type === 'offline' ? (
           <DetailRow label={strings.where_label} accent={brand.colors.primary}>
             {location.address}
-            {location.mapsUrl ? (
-              <>
-                <br />
-                <Link href={location.mapsUrl} style={{ color: brand.colors.primary }}>
-                  {strings.map_link}
-                </Link>
-              </>
-            ) : null}
           </DetailRow>
         ) : null}
 
@@ -90,9 +82,10 @@ export function RegistrationConfirmationEmail({
         ) : null}
       </Section>
 
-      {/* Online joining details get their own block: the URL is the single most
-          important thing in the email, and it must survive a client that strips
-          the button — hence the CTA *and* the selectable plain-text link. */}
+      {/* Both event types get a primary CTA in the same slot, so the layout
+          reads the same either way. Only the online one repeats its URL as
+          plain text: if a client strips the button, the join link is otherwise
+          unrecoverable, whereas the venue address is still right above. */}
       {location.type === 'online' ? (
         <>
           <BrandButton href={location.joinUrl} brand={brand}>
@@ -106,6 +99,12 @@ export function RegistrationConfirmationEmail({
             </Link>
           </Text>
         </>
+      ) : null}
+
+      {location.type === 'offline' && location.mapsUrl ? (
+        <BrandButton href={location.mapsUrl} brand={brand}>
+          {strings.directions_cta}
+        </BrandButton>
       ) : null}
 
       {details.description ? (
@@ -164,7 +163,7 @@ export function registrationConfirmationText(props: RegistrationConfirmationEmai
     lines.push(`${strings.where_label}: ${location.joinUrl}`)
   } else if (location.type === 'offline') {
     lines.push(`${strings.where_label}: ${location.address}`)
-    if (location.mapsUrl) lines.push(`${strings.map_link}: ${location.mapsUrl}`)
+    if (location.mapsUrl) lines.push(`${strings.directions_cta}: ${location.mapsUrl}`)
   }
 
   if (details.contact) lines.push(`${strings.contact_label}: ${details.contact}`)

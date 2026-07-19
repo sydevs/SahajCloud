@@ -102,22 +102,36 @@ describe('RegistrationConfirmationEmail — online', () => {
     expect(html).toContain(EMAIL_STRING_DEFAULTS.contact_label)
   })
 
-  it('shows no address or maps link for an online event', async () => {
+  it('shows no address or directions button for an online event', async () => {
     const html = await render()
 
     expect(html).not.toContain('Example Street')
-    expect(html).not.toContain(EMAIL_STRING_DEFAULTS.map_link)
+    expect(html).not.toContain(EMAIL_STRING_DEFAULTS.directions_cta)
   })
 })
 
 describe('RegistrationConfirmationEmail — offline', () => {
-  it('renders the full address and a maps link', async () => {
+  it('renders the full address and a directions button', async () => {
     const html = await render({ details: offlineDetails })
 
     expect(html).toContain('12 Example Street')
     expect(html).toContain('SW1A 1AA')
-    expect(html).toContain(EMAIL_STRING_DEFAULTS.map_link)
+    expect(html).toContain(EMAIL_STRING_DEFAULTS.directions_cta)
     expect(html).toContain('maps/search')
+  })
+
+  it('styles the directions button identically to the online CTA', async () => {
+    const [offline, online] = await Promise.all([render({ details: offlineDetails }), render()])
+
+    // Both are BrandButtons, so the brand gradient + padding must match; a
+    // plain <a> (the old "View on map" link) carries neither.
+    const buttonStyle = (html: string, label: string) =>
+      html.slice(0, html.indexOf(label)).lastIndexOf('background-image:linear-gradient')
+
+    expect(buttonStyle(offline, EMAIL_STRING_DEFAULTS.directions_cta)).toBeGreaterThan(-1)
+    expect(buttonStyle(online, EMAIL_STRING_DEFAULTS.online_cta)).toBeGreaterThan(-1)
+    expect(offline).toContain('padding:14px 30px')
+    expect(online).toContain('padding:14px 30px')
   })
 
   it('renders no join-link section', async () => {
@@ -127,7 +141,7 @@ describe('RegistrationConfirmationEmail — offline', () => {
     expect(html).not.toContain(EMAIL_STRING_DEFAULTS.online_cta)
   })
 
-  it('omits the maps link when the venue could not be located', async () => {
+  it('omits the directions button when the venue could not be located', async () => {
     const html = await render({
       details: {
         ...offlineDetails,
@@ -136,7 +150,7 @@ describe('RegistrationConfirmationEmail — offline', () => {
     })
 
     expect(html).toContain('Somewhere')
-    expect(html).not.toContain(EMAIL_STRING_DEFAULTS.map_link)
+    expect(html).not.toContain(EMAIL_STRING_DEFAULTS.directions_cta)
   })
 })
 

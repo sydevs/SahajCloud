@@ -251,7 +251,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     label: 'offline · branded',
-    note: 'full address + maps link, no join-link section',
+    note: 'full address + a Get Directions button, no join-link section',
     event: offlineEvent,
     client: brandedClient,
   },

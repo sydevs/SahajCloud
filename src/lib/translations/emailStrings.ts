@@ -34,7 +34,7 @@ export const EMAIL_STRING_DEFAULTS = {
   where_label: 'Where',
   online_cta: 'Join the class online',
   online_link_hint: "If the button doesn't work, copy this link into your browser:",
-  map_link: 'View on map',
+  directions_cta: 'Get Directions',
   about_label: 'What to expect',
   contact_label: 'Your host',
   calendar_hint: 'A calendar invite is attached to this email.',

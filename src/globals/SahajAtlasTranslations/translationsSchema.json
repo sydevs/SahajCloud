@@ -380,9 +380,9 @@
           "type": "string",
           "description": "Line introducing the plain-text join URL, shown for email clients that strip buttons."
         },
-        "map_link": {
+        "directions_cta": {
           "type": "string",
-          "description": "Label for the link that opens the venue address in a maps app."
+          "description": "Call-to-action button label that opens the venue address in a maps app, for an in-person class."
         },
         "about_label": {
           "type": "string",
