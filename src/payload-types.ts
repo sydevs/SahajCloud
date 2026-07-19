@@ -4949,7 +4949,7 @@ export interface WmAppTranslation {
       | boolean
       | null;
     /**
-     * Small legal notice with links to Terms and Privacy Policy.
+     * Small print with Terms and Privacy Policy links. In the app it sits just above the two buttons.
      */
     welcome_legal_disclaimer?: {
       root: {
@@ -4994,7 +4994,7 @@ export interface WmAppTranslation {
       | boolean
       | null;
     /**
-     * Question asking if they've tried Sahaja Yoga before.
+     * The question at the top (e.g. “Have you tried Sahaja Yoga before?”). Rich text so part of it can be bold.
      */
     user_type_title?: {
       root: {
@@ -5021,7 +5021,7 @@ export interface WmAppTranslation {
       | boolean
       | null;
     /**
-     * Title on the second intro slide.
+     * Slide 2 title. Rich text so “true self” can be emphasised.
      */
     carousel_page_true_self_title?: {
       root: {
@@ -5048,7 +5048,25 @@ export interface WmAppTranslation {
       | boolean
       | null;
     /**
-     * Paragraph listing personal things that are never shared.
+     * Opening paragraph, with a link that shows exactly what is shared.
+     */
+    consent_modal_body_intro?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
+    /**
+     * Paragraph listing the personal things that are never shared.
      */
     consent_modal_body_never_share?: {
       root: {
@@ -5066,27 +5084,9 @@ export interface WmAppTranslation {
       [k: string]: unknown;
     } | null;
     /**
-     * Short line promising the app never sells your data.
+     * Short line promising the app never sells user data.
      */
     consent_modal_body_never_sell?: {
-      root: {
-        type: string;
-        children: {
-          type: any;
-          version: number;
-          [k: string]: unknown;
-        }[];
-        direction: ('ltr' | 'rtl') | null;
-        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-        indent: number;
-        version: number;
-      };
-      [k: string]: unknown;
-    } | null;
-    /**
-     * Opening paragraph with a link showing what is shared.
-     */
-    consent_modal_body_intro?: {
       root: {
         type: string;
         children: {
@@ -5456,7 +5456,7 @@ export interface WmAppTranslation {
       | boolean
       | null;
     /**
-     * Consent checkbox text with links to Terms and Privacy Policy.
+     * The "I agree to WeMeditate's Terms & Conditions … Privacy Policy" line, with tappable links, next to the consent checkbox on the sign-up landing screen. Keep both link phrases intact.
      */
     create_account_consent_label?: {
       root: {
@@ -6068,9 +6068,9 @@ export interface WmAppTranslationsSelect<T extends boolean = true> {
         carousel?: T;
         carousel_page_true_self_title?: T;
         consent_modal?: T;
+        consent_modal_body_intro?: T;
         consent_modal_body_never_share?: T;
         consent_modal_body_never_sell?: T;
-        consent_modal_body_intro?: T;
       };
   daily?:
     | T
