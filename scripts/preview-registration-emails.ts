@@ -4,9 +4,16 @@
  * direct preview link per scenario.
  *
  * Usage:
- *   pnpm tsx scripts/preview-registration-emails.ts
+ *   pnpm tsx scripts/preview-registration-emails.ts             # in-memory fixtures
+ *   FROM_DB=1 pnpm tsx scripts/preview-registration-emails.ts   # real services + events
  *
- * No database is touched — the scenarios are in-memory fixtures. The script
+ * `FROM_DB=1` picks a representative spread of real published services and
+ * events out of the local database and renders the email for each — useful for
+ * seeing the template against production-shaped content (long titles, other
+ * languages, missing optional fields). It is **read-only**: the selection is
+ * query-driven, and nothing is created or modified.
+ *
+ * Without the flag, no database is touched. The script
  * drives the **real** `sendRegistrationConfirmation()` composition path through
  * a stub `payload` (its only Payload touchpoints are `findGlobal`, `sendEmail`,
  * and `logger`), so what you see is what the endpoint sends: same subject,
@@ -27,6 +34,8 @@ import type { Event } from '@/payload-types'
 
 import { Temporal } from '@js-temporal/polyfill'
 import dotenv from 'dotenv'
+
+import { isValidLocale } from '@/lib/locales'
 
 dotenv.config({ path: '.env' })
 dotenv.config({ path: '.env.local', override: true })
@@ -242,6 +251,109 @@ interface Scenario {
   registrantName?: string
 }
 
+/**
+ * Pick a representative spread of real services + events from the local
+ * database (`FROM_DB=1`).
+ *
+ * Selection is query-driven rather than hardcoded ids, so it works against any
+ * database. Read-only: nothing is created or modified.
+ *
+ * The client↔event pairing is deliberately arbitrary — a registration's client
+ * is whoever holds the API key that called the endpoint, not a property of the
+ * event — so events are simply round-robined across services.
+ */
+async function selectFromDatabase(): Promise<Scenario[]> {
+  const { getPayload } = await import('payload')
+  const { default: config } = await import('../src/payload.config')
+  const payload = await getPayload({ config })
+
+  const published = { _status: { equals: 'published' } }
+
+  const { docs: clients } = await payload.find({
+    collection: 'clients',
+    where: { and: [published, { roles: { contains: 'sahaj-atlas-client' } }] },
+    depth: 1, // populate `logo` so a configured one resolves to an image URL
+    limit: 30,
+    overrideAccess: true,
+  })
+  if (clients.length === 0) throw new Error('No published sahaj-atlas-client services found.')
+
+  // Best-branded service first, so the sample shows the most configured state
+  // the database actually contains.
+  const score = (c: (typeof clients)[number]) =>
+    [c.logo, c.websiteUrl, c.supportEmail, c.color1 && c.color1 !== '#000000'].filter(Boolean)
+      .length
+  const ranked = [...clients].sort((a, b) => score(b) - score(a))
+
+  // Fetch one pool and select from it in memory. Filtering in JS rather than
+  // per-criterion `where` clauses keeps this portable: `schedule.firstDate_tz`
+  // is a Postgres enum column, so a `like` on it has no matching operator and
+  // errors out at the driver.
+  const { docs: pool } = await payload.find({
+    collection: 'events',
+    where: published,
+    depth: 0,
+    limit: 400,
+    overrideAccess: true,
+  })
+  const events = pool as Event[]
+
+  const tzOf = (e: Event) => (e.schedule as { firstDate_tz?: string } | undefined)?.firstDate_tz
+  const recOf = (e: Event) =>
+    (e.schedule as { recurrenceType?: string } | undefined)?.recurrenceType
+
+  /** First event matching `match`, skipping ones already chosen. */
+  const chosen = new Set<number>()
+  const pick = (match: (e: Event) => boolean): Event | null => {
+    const found = events.find((e) => !chosen.has(e.id) && match(e))
+    if (found) chosen.add(found.id)
+    return found ?? null
+  }
+
+  const candidates: { note: string; event: Event | null }[] = [
+    {
+      note: 'online event — join URL as CTA and as plain text',
+      event: pick((e) => e.eventType === 'online' && !!e.onlineUrl && !!e.contactName),
+    },
+    {
+      note: 'in-person with description + host — Get Directions button',
+      event: pick((e) => e.eventType === 'offline' && !!e.description && !!e.contactName),
+    },
+    {
+      note: 'in-person with no description and no host — those sections collapse',
+      event: pick((e) => e.eventType === 'offline' && !e.description && !e.contactName),
+    },
+    {
+      note: 'non-European timezone — checks the tz label and local times',
+      event: pick((e) => !!tzOf(e) && !tzOf(e)!.startsWith('Europe/')),
+    },
+    {
+      note: 'monthly recurrence — recurrence spelled out in words',
+      event: pick((e) => recOf(e) === 'MONTHLY'),
+    },
+    {
+      note: 'daily recurrence',
+      event: pick((e) => recOf(e) === 'DAILY'),
+    },
+  ]
+
+  return candidates
+    .filter((c): c is { note: string; event: Event } => c.event !== null)
+    .map(({ note, event }, i) => {
+      const client = ranked[i % ranked.length]
+      const tz = (event.schedule as { firstDate_tz?: string } | undefined)?.firstDate_tz
+      return {
+        label: `#${event.id} ${String(event.title).slice(0, 28)} · ${client.name}`,
+        note: `${note} (${tz ?? 'no tz'})`,
+        event,
+        client,
+        // A service's configured language is the realistic locale for someone
+        // registering through it.
+        locale: (isValidLocale(String(client.locale)) ? client.locale : 'en') as LocaleCode,
+      }
+    })
+}
+
 const SCENARIOS: Scenario[] = [
   {
     label: 'online · branded',
@@ -295,6 +407,20 @@ async function main() {
   const { sendRegistrationConfirmation } =
     await import('@/lib/notifications/sendRegistrationConfirmation')
 
+  const fromDb = Boolean(process.env.FROM_DB)
+  const scenarios = fromDb ? await selectFromDatabase() : SCENARIOS
+
+  // In database mode, read the *real* translations global so the copy is
+  // whatever this environment actually has configured. Everything else about
+  // the send is identical between the two modes.
+  let realFindGlobal: ((args: unknown) => Promise<unknown>) | null = null
+  if (fromDb) {
+    const { getPayload } = await import('payload')
+    const { default: config } = await import('../src/payload.config')
+    const real = await getPayload({ config })
+    realFindGlobal = (args) => real.findGlobal(args as never)
+  }
+
   const account = await nodemailer.createTestAccount()
   const transport = nodemailer.createTransport({
     host: account.smtp.host,
@@ -305,13 +431,13 @@ async function main() {
 
   const previews: { label: string; note: string; url: string | false; ics: boolean }[] = []
 
-  for (const scenario of SCENARIOS) {
+  for (const scenario of scenarios) {
     let hadAttachment = false
 
     // Stub only what sendRegistrationConfirmation actually touches, so the real
     // composition (subject, From, Reply-To, HTML, text, .ics) runs unchanged.
     const payload = {
-      findGlobal: async () => ({ emails: scenario.translations ?? {} }),
+      findGlobal: realFindGlobal ?? (async () => ({ emails: scenario.translations ?? {} })),
       logger: { debug() {}, error() {}, info() {}, warn() {} },
       sendEmail: async (message: Record<string, unknown>) => {
         const attachments = message.attachments as { filename?: string }[] | undefined
@@ -344,14 +470,20 @@ async function main() {
   }
 
   console.log('\n━━━ Registration confirmation email previews ━━━\n')
-  console.log(`Ethereal inbox (all messages): https://ethereal.email/login`)
+  console.log(
+    fromDb
+      ? 'Source: real services + events from the local database (read-only)'
+      : 'Source: in-memory fixtures (set FROM_DB=1 for real data)',
+  )
+  console.log(`\nEthereal inbox (all messages): https://ethereal.email/login`)
   console.log(`  user: ${account.user}`)
   console.log(`  pass: ${account.pass}`)
   console.log(`\nIcons resolve against: ${process.env.SAHAJCLOUD_URL}`)
   console.log(`\nDirect preview links:\n`)
   for (const { label, note, url, ics } of previews) {
-    console.log(`  ${label.padEnd(24)} ${url}`)
-    console.log(`  ${' '.repeat(24)} ${ics ? '📎 invite.ics' : '(no calendar)'} — ${note}\n`)
+    console.log(`  ${label}`)
+    console.log(`    ${url}`)
+    console.log(`    ${ics ? '📎 invite.ics' : '(no calendar)'} — ${note}\n`)
   }
   console.log(
     'Download invite.ics from any message and import it into Google Calendar and\n' +
