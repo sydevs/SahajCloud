@@ -42,6 +42,40 @@ get_port_pid() {
     lsof -t -i :"$PORT" 2>/dev/null | head -1
 }
 
+# Is the process holding $PORT one of ours (cwd inside this project)?
+# `next dev` runs the actual listener in a `next-server` grandchild, so the PID
+# holding the port is never the one in our PID file — without this check the
+# start path blames "another session" for our own orphan.
+port_pid_is_ours() {
+    local pid=$1
+    [[ -n "$pid" ]] || return 1
+    local cwd
+    cwd=$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | grep '^n' | cut -c2-)
+    [[ "$cwd" == "$PROJECT_DIR" ]]
+}
+
+# Wait for $PORT to be released, killing our own lingering listener if needed.
+# Returns 1 if the port is still held at the end (by something that isn't ours).
+release_port() {
+    local attempts=0
+    while is_port_in_use && [[ $attempts -lt 10 ]]; do
+        local holder
+        holder=$(get_port_pid)
+        if port_pid_is_ours "$holder"; then
+            echo "  Port $PORT still held by our process $holder — stopping it..."
+            kill "$holder" 2>/dev/null || true
+            sleep 1
+            is_process_running "$holder" && kill -9 "$holder" 2>/dev/null || true
+        else
+            # Not ours — leave it alone and let the caller report it.
+            return 1
+        fi
+        sleep 1
+        ((attempts++))
+    done
+    ! is_port_in_use
+}
+
 check_stale_pid() {
     if [[ -f "$PID_FILE" ]]; then
         local pid
@@ -102,17 +136,24 @@ cmd_start() {
         return 0
     fi
 
-    # Check if port is in use by another process
+    # Check if port is in use by another process. An orphaned listener of ours
+    # (see release_port) is reclaimed silently; only a genuinely foreign process
+    # is an error worth reporting.
     if is_port_in_use; then
         local other_pid
         other_pid=$(get_port_pid)
-        echo "ERROR: Port $PORT is already in use by process $other_pid"
-        echo "This may be a dev server from another session."
-        echo ""
-        echo "Options:"
-        echo "  1. Kill the other process: kill $other_pid"
-        echo "  2. Use 'restart' to adopt and restart"
-        return 1
+        if port_pid_is_ours "$other_pid" && release_port; then
+            echo "Reclaimed port $PORT from our own orphaned process $other_pid"
+        else
+            other_pid=$(get_port_pid)
+            echo "ERROR: Port $PORT is already in use by process $other_pid"
+            echo "It belongs to a different project or user — not this checkout."
+            echo ""
+            echo "Options:"
+            echo "  1. Kill the other process: kill $other_pid"
+            echo "  2. Start on a different port: PORT=3010 $0 start"
+            return 1
+        fi
     fi
 
     # Clean previous state
@@ -212,6 +253,14 @@ cmd_stop() {
         echo "Server stopped"
     else
         echo "Server process $pid is not running"
+    fi
+
+    # Killing the `next dev` parent doesn't always take its `next-server`
+    # grandchild with it, and that grandchild is what actually holds the port —
+    # so a plain stop could leave the port bound and make the next start fail
+    # with a misleading "another session" error.
+    if is_port_in_use; then
+        release_port || echo "  Port $PORT is held by another project — leaving it alone"
     fi
 
     # Clean up state files
