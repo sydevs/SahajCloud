@@ -14,7 +14,6 @@ import { describe, expect, it } from 'vitest'
 import { buildEventCalendar } from '@/lib/schedule/icsBuilder'
 import type { ScheduleSubFields } from '@/types/schedule'
 
-
 // 19:00 in Europe/London on Tue 21 Jul 2026 (BST, UTC+1) == 18:00 UTC.
 const FIRST_DATE = '2026-07-21T18:00:00.000Z'
 const TZ = 'Europe/London'
@@ -108,6 +107,45 @@ describe('buildEventCalendar — end time', () => {
   it('falls back when endTime is at or before the start rather than emitting a negative span', () => {
     const ics = build({ endTime: '18:00' })!
     expect(line(ics, 'DTEND')).toBe('DTEND;TZID=Europe/London:20260721T200000')
+  })
+
+  it('falls back instead of throwing on an out-of-range endTime', () => {
+    // The schema validates endTime, but imported/legacy rows may not. An
+    // unguarded hour/minute would throw in Temporal.with(), and that throw
+    // propagates past the send's best-effort boundary — suppressing the whole
+    // email, not just the attachment.
+    for (const endTime of ['25:00', '10:75', '99:99']) {
+      const ics = build({ endTime })
+      expect(ics).not.toBeNull()
+      expect(line(ics!, 'DTEND')).toBe('DTEND;TZID=Europe/London:20260721T200000')
+    }
+  })
+})
+
+describe('buildEventCalendar — injection safety', () => {
+  it('strips line breaks from the title so it cannot inject calendar structure', () => {
+    // ical-generator escapes the VEVENT TEXT fields but NOT the calendar-level
+    // NAME / X-WR-CALNAME, so a raw CR/LF in the title injects real lines.
+    const ics = build(
+      { recurrenceType: 'WEEKLY', weekdays: ['TU'] },
+      { title: 'Meditation\r\nBEGIN:VALARM\r\nTRIGGER:-PT10M\r\nEND:VALARM' },
+    )!
+
+    // No injected component anywhere in the calendar.
+    expect(ics.split('\r\n').some((l) => l.trim() === 'BEGIN:VALARM')).toBe(false)
+    // The title survives as inert single-line text on the NAME property.
+    expect(ics).toContain('NAME:Meditation BEGIN:VALARM')
+  })
+
+  it('escapes CRLF in location/description into the VEVENT rather than new lines', () => {
+    const inject = 'X\r\nBEGIN:VALARM\r\nEND:VALARM'
+    const ics = build(
+      { recurrenceType: 'WEEKLY', weekdays: ['TU'] },
+      { location: inject, description: inject },
+    )!
+
+    // ical-generator's own escaping keeps these inline (belt-and-braces check).
+    expect(ics.split('\r\n').filter((l) => l.trim() === 'BEGIN:VALARM')).toHaveLength(0)
   })
 })
 
