@@ -37,7 +37,6 @@ export const EMAIL_STRING_DEFAULTS = {
   directions_cta: 'Get Directions',
   about_label: 'What to expect',
   contact_label: 'Your host',
-  calendar_hint: 'A calendar invite is attached to this email.',
   sessions_count: '%{count} sessions',
   footer_reason: 'You received this email because you registered for this class.',
   footer_website: 'Visit %{name}',

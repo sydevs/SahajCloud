@@ -237,7 +237,6 @@ const GERMAN_EMAILS = {
   online_cta: 'Online teilnehmen',
   online_link_hint: 'Falls der Button nicht funktioniert, kopiere diesen Link:',
   about_label: 'Was dich erwartet',
-  calendar_hint: 'Eine Kalendereinladung ist dieser E-Mail beigefügt.',
   sessions_count: '%{count} Termine',
 }
 

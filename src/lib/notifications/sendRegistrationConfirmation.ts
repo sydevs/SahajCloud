@@ -72,8 +72,7 @@ export async function sendRegistrationConfirmation(args: {
   const details = buildRegistrationEmailDetails(event)
 
   // The calendar is best-effort: an event whose schedule can't be resolved
-  // still gets a confirmation, just without the invite (and without the hint
-  // that promises one).
+  // still gets a confirmation, just without the invite attached.
   const calendar = buildEventCalendar({
     title: details.eventTitle,
     schedule: event.schedule ?? {},
@@ -93,7 +92,6 @@ export async function sendRegistrationConfirmation(args: {
     strings,
     details,
     websiteUrl: client?.websiteUrl,
-    hasCalendarAttachment: Boolean(calendar),
   }
 
   await payload.sendEmail({

@@ -212,14 +212,28 @@ describe('RegistrationConfirmationEmail — client branding', () => {
   })
 })
 
-describe('RegistrationConfirmationEmail — calendar hint', () => {
-  it('mentions the attachment by default', async () => {
-    expect(await render()).toContain(EMAIL_STRING_DEFAULTS.calendar_hint)
+describe('RegistrationConfirmationEmail — event title', () => {
+  it('renders the title inside the detail block, above the When row', async () => {
+    const html = await render({ details: offlineDetails })
+
+    // The detail block is the white card the rows live in.
+    const cardAt = html.indexOf('background-color:#ffffff;border-radius:6px')
+    // Search from the card onward: the title also appears in <title> and the
+    // hidden preview text, both of which precede the body.
+    const titleAt = html.indexOf(baseDetails.eventTitle, cardAt)
+    const whenAt = html.indexOf(EMAIL_STRING_DEFAULTS.when_label, cardAt)
+
+    expect(cardAt).toBeGreaterThan(-1)
+    // Inside the card and ahead of the first label — asserting order rather
+    // than exact markup, so styling stays free to change.
+    expect(titleAt).toBeGreaterThan(cardAt)
+    expect(titleAt).toBeLessThan(whenAt)
   })
 
-  it('omits the hint when no calendar could be built', async () => {
-    const html = await render({ hasCalendarAttachment: false })
-    expect(html).not.toContain(EMAIL_STRING_DEFAULTS.calendar_hint)
+  it('no longer announces the calendar attachment', async () => {
+    // The attachment is visible in the client on its own; saying so was noise.
+    const html = await render()
+    expect(html).not.toContain('calendar invite is attached')
   })
 })
 

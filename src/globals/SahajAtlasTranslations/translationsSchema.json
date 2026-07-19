@@ -392,10 +392,6 @@
           "type": "string",
           "description": "Section label above the host's name and phone number."
         },
-        "calendar_hint": {
-          "type": "string",
-          "description": "Line telling the registrant a calendar invite is attached to the email."
-        },
         "sessions_count": {
           "type": "string",
           "description": "Session count appended to a limited-run course's schedule. `%{count}` = number of sessions."

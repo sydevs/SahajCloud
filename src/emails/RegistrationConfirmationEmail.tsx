@@ -19,8 +19,6 @@ export interface RegistrationConfirmationEmailProps {
   details: RegistrationEmailDetails
   /** Client service's website, linked from the footer. */
   websiteUrl?: string | null
-  /** Whether a calendar invite is attached, so the hint only shows when true. */
-  hasCalendarAttachment?: boolean
 }
 
 /**
@@ -42,7 +40,6 @@ export function RegistrationConfirmationEmail({
   strings,
   details,
   websiteUrl,
-  hasCalendarAttachment = true,
 }: RegistrationConfirmationEmailProps) {
   const { location } = details
 
@@ -54,11 +51,13 @@ export function RegistrationConfirmationEmail({
     >
       <Text style={styles.paragraph}>{interpolate(strings.confirmation_intro, { name })}</Text>
 
-      <Heading as="h3" style={{ ...eventTitle, color: brand.colors.primary }}>
-        {details.eventTitle}
-      </Heading>
-
+      {/* The title heads the detail block rather than floating above it, so the
+          box reads as one card: what the class is, then when and where. */}
       <Section style={detailBlock}>
+        <Heading as="h3" style={{ ...eventTitle, color: brand.colors.primary }}>
+          {details.eventTitle}
+        </Heading>
+
         <DetailRow label={strings.when_label} accent={brand.colors.primary}>
           {details.scheduleLine}
           {details.sessions ? (
@@ -116,8 +115,6 @@ export function RegistrationConfirmationEmail({
         </>
       ) : null}
 
-      {hasCalendarAttachment ? <Text style={styles.hint}>{strings.calendar_hint}</Text> : null}
-
       <Hr style={styles.hr} />
 
       <Text style={styles.footer}>
@@ -142,7 +139,7 @@ export function RegistrationConfirmationEmail({
  * — a text part improves deliverability and is what a text-only client shows.
  */
 export function registrationConfirmationText(props: RegistrationConfirmationEmailProps): string {
-  const { name, brand, strings, details, websiteUrl, hasCalendarAttachment = true } = props
+  const { name, brand, strings, details, websiteUrl } = props
   const { location } = details
 
   const sessions = details.sessions
@@ -172,8 +169,6 @@ export function registrationConfirmationText(props: RegistrationConfirmationEmai
     lines.push('', `${strings.about_label}:`, details.description)
   }
 
-  if (hasCalendarAttachment) lines.push('', strings.calendar_hint)
-
   lines.push('', '—', strings.footer_reason)
   if (websiteUrl) {
     lines.push(`${interpolate(strings.footer_website, { name: brand.productName })}: ${websiteUrl}`)
@@ -202,7 +197,9 @@ function DetailRow({
 
 const eventTitle: CSSProperties = {
   fontSize: '18px',
-  margin: '0 0 20px',
+  // Now the first element inside the detail block: 16px above matches the rows'
+  // rhythm, and the following row supplies its own top margin below.
+  margin: '16px 0 0',
 }
 
 const detailBlock: CSSProperties = {
