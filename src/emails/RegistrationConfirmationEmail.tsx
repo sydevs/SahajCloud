@@ -54,7 +54,7 @@ export function RegistrationConfirmationEmail({
       {/* The title heads the detail block rather than floating above it, so the
           box reads as one card: what the class is, then when and where. */}
       <Section style={detailBlock}>
-        <Heading as="h3" style={{ ...eventTitle, color: brand.colors.primary }}>
+        <Heading as="h3" style={eventTitle}>
           {details.eventTitle}
         </Heading>
 
@@ -197,8 +197,13 @@ function DetailRow({
 
 const eventTitle: CSSProperties = {
   fontSize: '18px',
-  // Now the first element inside the detail block: 16px above matches the rows'
-  // rhythm, and the following row supplies its own top margin below.
+  // Neutral rather than the brand accent: the accent is already carried by the
+  // header, the row labels, and the CTA, and the title reads as content — not
+  // as another piece of chrome. `#333333` is the layout's existing body colour,
+  // so this introduces no new shade.
+  color: '#333333',
+  // First element inside the detail block: 16px above matches the rows' rhythm,
+  // and the following row supplies its own top margin below.
   margin: '16px 0 0',
 }
 
