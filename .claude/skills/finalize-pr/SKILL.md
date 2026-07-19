@@ -61,8 +61,19 @@ reading doesn't bloat the main thread. **Dispatch one Task subagent** whose sole
 `/code-review` at **high** effort over `origin/main...HEAD` and return its findings as a summary
 (severity + `file:line` + suggested fix). Do **not** run `/code-review` inline.
 
+**Make the deliverable explicit in the dispatch prompt.** Tell the subagent that its final message
+**is** the deliverable and must contain the findings themselves — never a status update, a promise
+to keep working ("I'll wait for the finder agents…"), or a pointer to a file it wrote. If its own
+sub-agents haven't finished, it reports what it has and names what's missing. Without this, a
+fan-out reviewer can return a progress note instead of findings, costing a `SendMessage` round trip
+to retrieve the actual review.
+
 - **Blocking**: triage every finding. Fix the valid ones (each as its own commit), then re-run the
   lean gate. Note any finding you dismiss with a one-line reason for the report.
+- **Triage means judging, not deferring.** A reviewer's finding can be wrong: verify the claim
+  against the source before acting on it, and reject it with a stated reason when it doesn't hold.
+  Apply the same scepticism to a suggested *simplification* — confirm it doesn't quietly cost
+  something (e.g. dropping a "redundant" generic that was carrying type inference).
 - For a deeper pass you may note that the user can run the billed `/code-review ultra` (cloud,
   multi-agent) themselves — Claude cannot launch it.
 
