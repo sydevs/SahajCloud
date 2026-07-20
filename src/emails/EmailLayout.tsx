@@ -63,12 +63,29 @@ export function DetailRow({ label, children }: { label: string; children: ReactN
   )
 }
 
+type BrandButtonVariant = 'primary' | 'secondary'
+
+/** Fill + border for a button variant: filled brand gradient, or an outlined secondary. */
+function brandButtonVariantStyle(brand: EmailBrand, variant: BrandButtonVariant): CSSProperties {
+  return variant === 'secondary'
+    ? {
+        color: brand.colors.primary,
+        backgroundColor: '#ffffff',
+        border: `1px solid ${brand.colors.primary}`,
+      }
+    : {
+        color: '#ffffff',
+        backgroundColor: brand.colors.primary,
+        backgroundImage: brandGradient(brand.colors),
+      }
+}
+
 interface BrandButtonProps {
   href: string
   brand: EmailBrand
   children: ReactNode
   /** `primary` (filled brand gradient) or `secondary` (outlined). */
-  variant?: 'primary' | 'secondary'
+  variant?: BrandButtonVariant
   /** Trim the top margin so a secondary button sits close under the primary. */
   tight?: boolean
 }
@@ -81,24 +98,39 @@ export function BrandButton({
   variant = 'primary',
   tight,
 }: BrandButtonProps) {
-  const variantStyle: CSSProperties =
-    variant === 'secondary'
-      ? {
-          color: brand.colors.primary,
-          backgroundColor: '#ffffff',
-          border: `1px solid ${brand.colors.primary}`,
-        }
-      : {
-          color: '#ffffff',
-          backgroundColor: brand.colors.primary,
-          backgroundImage: brandGradient(brand.colors),
-        }
+  const variantStyle = brandButtonVariantStyle(brand, variant)
 
   return (
     <Section style={tight ? buttonContainerTight : buttonContainer}>
       <Button href={href} style={{ ...button, ...variantStyle }}>
         {children}
       </Button>
+    </Section>
+  )
+}
+
+interface BrandButtonRowProps {
+  brand: EmailBrand
+  /** Buttons laid out left-to-right in equal columns. */
+  buttons: { href: string; label: ReactNode; variant?: BrandButtonVariant }[]
+}
+
+/** A single row of call-to-action buttons, side by side (table columns for email clients). */
+export function BrandButtonRow({ brand, buttons }: BrandButtonRowProps) {
+  return (
+    <Section style={buttonContainer}>
+      <Row>
+        {buttons.map((cta, index) => (
+          <Column key={index} align="center" style={buttonCell}>
+            <Button
+              href={cta.href}
+              style={{ ...button, ...brandButtonVariantStyle(brand, cta.variant ?? 'primary') }}
+            >
+              {cta.label}
+            </Button>
+          </Column>
+        ))}
+      </Row>
     </Section>
   )
 }
@@ -210,6 +242,12 @@ const buttonContainer: CSSProperties = {
 const buttonContainerTight: CSSProperties = {
   textAlign: 'center',
   margin: '0 0 30px',
+}
+
+// A small horizontal gap between buttons laid out side by side in a row.
+const buttonCell: CSSProperties = {
+  padding: '0 4px',
+  verticalAlign: 'top',
 }
 
 const button: CSSProperties = {

@@ -27,7 +27,9 @@ const bodySchema = z.object({
   // than silently defaulting, so a widget bug is visible instead of shipping
   // every registrant English.
   locale: z.string().refine(isValidLocale, 'unsupported locale').optional(),
-  // Raw registrant answers (keys: questions / experience / aspirations / referral).
+  // Raw registrant answers, keyed by the event's enabled registration questions
+  // (EVENT_REGISTRATION_QUESTIONS names, e.g. priorExperience / referralSource) —
+  // resolved to their labels by buildRegistrationAnswers for the manager notice.
   // Bounded so a public caller can't persist unbounded JSON via the widget.
   questions: z
     .record(z.string(), z.unknown())

@@ -72,7 +72,7 @@ export const Registrations: CollectionConfig = {
       type: 'json',
       admin: {
         description:
-          'Raw registration answers (keys: questions / experience / aspirations / referral).',
+          "Raw registrant answers, keyed by the event's enabled registration questions (EVENT_REGISTRATION_QUESTIONS — priorExperience, referralSource, healthInfo, accessibility, guests).",
       },
     },
     {

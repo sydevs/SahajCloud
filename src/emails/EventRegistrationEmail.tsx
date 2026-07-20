@@ -6,12 +6,40 @@ import { Heading, Hr, Link, Section, Text } from 'react-email'
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
-import { BrandButton, DetailRow, EmailLayout, styles } from './EmailLayout'
+import { BrandButtonRow, DetailRow, EmailLayout, styles } from './EmailLayout'
 
 /** A registrant's answer to one registration question, labelled for display. */
 export interface RegistrationAnswer {
   label: string
   value: string
+}
+
+/**
+ * The pre-filled reply body: a greeting, blank room for the manager to write,
+ * then a quoted recap of the registration (event, start date, answers) so the
+ * seeker sees the context. A `mailto:` can't set `In-Reply-To`/`References`
+ * headers — the manager's own client sends the reply — so it can't thread into
+ * the confirmation email; this quote stands in for the chain instead.
+ */
+export function buildReplyBody(args: {
+  registrantName: string
+  eventTitle: string
+  startDate?: string | null
+  answers: RegistrationAnswer[]
+}): string {
+  const { registrantName, eventTitle, startDate, answers } = args
+  const quoted = [
+    `Your registration for ${eventTitle}`,
+    startDate ? `Start date: ${startDate}` : null,
+    ...(answers.length > 0
+      ? ['', ...answers.flatMap((answer) => [answer.label, `  ${answer.value}`])]
+      : []),
+  ]
+    .filter((line): line is string => line !== null)
+    .map((line) => `> ${line}`)
+    .join('\n')
+
+  return `Hello ${registrantName},\n\n\n${quoted}\n`
 }
 
 interface EventRegistrationEmailProps {
@@ -37,10 +65,11 @@ interface EventRegistrationEmailProps {
  * Manager-facing notification that a seeker registered for an event.
  *
  * Informational, not an alert — no callout or deadline. Reuses the shared
- * EmailLayout shell, DetailRow fact table, and BrandButton, branded for the
- * Sahaj Atlas project (this is an internal manager notice, not registrant mail,
- * so it is not client-branded). The primary action replies to the registrant;
- * their answers to the event's registration questions are forwarded below.
+ * EmailLayout shell, DetailRow fact table, and a Reply / View-event button row,
+ * branded for the Sahaj Atlas project (this is an internal manager notice, not
+ * registrant mail, so it is not client-branded). The primary action replies to
+ * the registrant (pre-filled with a quoted recap); their answers to the event's
+ * registration questions are forwarded below.
  */
 export function EventRegistrationEmail({
   recipientName,
@@ -54,10 +83,11 @@ export function EventRegistrationEmail({
 }: EventRegistrationEmailProps) {
   const brand = getEmailBrand(project)
 
-  // Pre-fill a reply to the registrant so the manager can welcome them in one click.
+  // Pre-fill a reply to the registrant (with a quoted recap) so the manager can
+  // welcome them in one click.
   const replyHref = `mailto:${registrantEmail}?subject=${encodeURIComponent(
-    `Your registration for ${eventTitle}`,
-  )}&body=${encodeURIComponent(`Hello ${registrantName},\n\n`)}`
+    `Re: Your registration for ${eventTitle}`,
+  )}&body=${encodeURIComponent(buildReplyBody({ registrantName, eventTitle, startDate, answers }))}`
 
   return (
     <EmailLayout
@@ -100,12 +130,13 @@ export function EventRegistrationEmail({
         </Section>
       ) : null}
 
-      <BrandButton href={replyHref} brand={brand}>
-        Reply to {registrantName}
-      </BrandButton>
-      <BrandButton href={eventAdminUrl} brand={brand} variant="secondary" tight>
-        View event
-      </BrandButton>
+      <BrandButtonRow
+        brand={brand}
+        buttons={[
+          { href: replyHref, label: 'Reply' },
+          { href: eventAdminUrl, label: 'View event', variant: 'secondary' },
+        ]}
+      />
 
       <Hr style={styles.hr} />
       <Text style={styles.footer}>
