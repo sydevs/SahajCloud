@@ -27,6 +27,7 @@ one-time backfills, deployment helpers, etc.
 | `setup-stream-webhook.ts` | Register / inspect / delete the account-level Cloudflare Stream webhook |
 | `preview-event-emails.ts` | Send the manager event-verification reminders (all levels/audiences) to an Ethereal inbox |
 | `preview-registration-emails.ts` | Send the registrant confirmation in each state (online/offline, locale, branded/fallback, one-off, minimal) to an Ethereal inbox, with the `.ics` attached |
+| `preview-registration-notification-emails.ts` | Send the manager registration notice (#588) in each state (named manager / override address / no session / long title) to an Ethereal inbox |
 | `repair-r2-meditation-filenames.ts` | Backfill / fix R2 filenames on existing meditations |
 | `create-sample-page.ts` | Generate a sample Pages document |
 | `postinstall.cjs` | Run after `pnpm install` |

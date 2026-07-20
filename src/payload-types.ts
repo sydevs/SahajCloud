@@ -1755,6 +1755,11 @@ export interface Event {
    */
   registrationLimit?: number | null;
   /**
+   * Enter an email to redirect updates about new seeker registrations to. Leave blank to send registration updates to the event manager.
+   */
+  registrationNotificationEmail?: string | null;
+  registrationNotificationFrequency?: ('Immediate' | 'Never') | null;
+  /**
    * Optional questions to ask registrants — each enabled question appears on the registration form.
    */
   registrationQuestions?: {
@@ -1852,7 +1857,7 @@ export interface Registration {
       )
     | null;
   /**
-   * Raw registration answers (keys: questions / experience / aspirations / referral).
+   * Raw registrant answers, keyed by the event's enabled registration questions (EVENT_REGISTRATION_QUESTIONS — priorExperience, referralSource, healthInfo, accessibility, guests).
    */
   questions?:
     | {
@@ -4522,6 +4527,8 @@ export interface EventsSelect<T extends boolean = true> {
   registrationMode?: T;
   externalRegistrationUrl?: T;
   registrationLimit?: T;
+  registrationNotificationEmail?: T;
+  registrationNotificationFrequency?: T;
   registrationQuestions?:
     | T
     | {
