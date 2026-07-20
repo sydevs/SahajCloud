@@ -25,6 +25,7 @@ import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
+import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { ownedRegionFilterOptions } from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
 
@@ -33,7 +34,6 @@ import { registerForEvent } from './endpoints/registerForEvent'
 import { verifyEventAction } from './endpoints/verifyEventAction'
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
-  EVENT_REGISTRATION_QUESTIONS,
   EVENT_TYPE_OPTIONS,
   VERIFICATION_STAGE_OPTIONS,
 } from './eventOptions'

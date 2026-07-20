@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildRegistrationAnswers,
   validateRegistrationQuestions,
-} from '@/collections/Events/eventOptions'
+} from '@/lib/registrations/questions'
 
 describe('validateRegistrationQuestions', () => {
   it('accepts an object of known keys with string answers', () => {

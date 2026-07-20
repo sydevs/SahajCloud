@@ -2,10 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { legacyMigrationFields } from '@/fields'
 import { DEFAULT_LOCALE, getLocaleOptions } from '@/lib/locales'
-
-// Registration answers are answers to the event's questions, so the shape is
-// defined and validated by the Events question set (the single source of truth).
-import { validateRegistrationQuestions } from '../Events/eventOptions'
+import { validateRegistrationQuestions } from '@/lib/registrations/questions'
 
 /**
  * Registrations — a registrant (User) signing up for an Event. Migrated from

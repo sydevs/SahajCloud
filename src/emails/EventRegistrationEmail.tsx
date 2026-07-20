@@ -3,16 +3,11 @@ import type { CSSProperties } from 'react'
 import { Fragment } from 'react'
 import { Hr, Link, Section, Text } from 'react-email'
 
+import type { RegistrationAnswer } from '@/lib/registrations/questions'
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
 import { BrandButtonRow, DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
-
-/** A registrant's answer to one registration question, labelled for display. */
-export interface RegistrationAnswer {
-  label: string
-  value: string
-}
 
 /**
  * The pre-filled reply body: a greeting, blank room for the manager to write,

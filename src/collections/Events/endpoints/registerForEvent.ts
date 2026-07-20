@@ -12,11 +12,10 @@ import { resolveRegistrationRecipient } from '@/lib/notifications/registrationRe
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
+import { buildRegistrationAnswers } from '@/lib/registrations/questions'
 import { resolveEmailStrings } from '@/lib/translations/emailStrings'
 import { relationId } from '@/lib/utilities/relationId'
 import { asTrustedReq } from '@/plugins/usage/hooks'
-
-import { buildRegistrationAnswers } from '../eventOptions'
 
 const bodySchema = z.object({
   email: z.string().email().max(254),

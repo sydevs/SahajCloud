@@ -123,7 +123,7 @@ async function main() {
   const { sendRegistrationNotification } =
     await import('@/lib/notifications/sendRegistrationNotification')
   // Shape raw answers exactly as the endpoint does, so the preview can't drift.
-  const { buildRegistrationAnswers } = await import('@/collections/Events/eventOptions')
+  const { buildRegistrationAnswers } = await import('@/lib/registrations/questions')
 
   const account = await nodemailer.createTestAccount()
   const transport = nodemailer.createTransport({
