@@ -323,7 +323,9 @@ export const Events: CollectionConfig = {
                   type: 'email',
                   admin: {
                     condition: (data) => data?.registrationMode === 'sahaj-atlas',
-                    description: 'Leave blank to send registration updates to the event manager.',
+                    placeholder: 'Event Manager',
+                    description:
+                      'Enter an email to redirect updates about new seeker registrations to. Leave blank to send registration updates to the event manager.',
                   },
                 },
                 {
