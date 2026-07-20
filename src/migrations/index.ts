@@ -26,6 +26,7 @@ import * as migration_20260711_230013 from './20260711_230013';
 import * as migration_20260713_102925 from './20260713_102925';
 import * as migration_20260717_143000_add_hu_nl_locales from './20260717_143000_add_hu_nl_locales';
 import * as migration_20260718_230825_add_event_website from './20260718_230825_add_event_website';
+import * as migration_20260719_213905_registration_client_locale_and_client_email_branding from './20260719_213905_registration_client_locale_and_client_email_branding';
 
 export const migrations = [
   {
@@ -166,6 +167,11 @@ export const migrations = [
   {
     up: migration_20260718_230825_add_event_website.up,
     down: migration_20260718_230825_add_event_website.down,
-    name: '20260718_230825_add_event_website'
+    name: '20260718_230825_add_event_website',
+  },
+  {
+    up: migration_20260719_213905_registration_client_locale_and_client_email_branding.up,
+    down: migration_20260719_213905_registration_client_locale_and_client_email_branding.down,
+    name: '20260719_213905_registration_client_locale_and_client_email_branding'
   },
 ];

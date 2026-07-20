@@ -892,6 +892,14 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
           'Mailing-list consent (opt-in). When true, the registration is stamped with ' +
           '`mailingListSubscribedAt`; absent/false records no consent.',
       },
+      locale: {
+        type: 'string',
+        enum: [...LOCALES.map((locale) => locale.code)],
+        description:
+          "The registrant's language, used to localize the confirmation email (and later " +
+          'reminders). Must be one of the configured app locales; an unknown code is ' +
+          'rejected with a 400. Defaults to `en`.',
+      },
     },
   },
   /** `POST /api/events/{id}/register` success body. */

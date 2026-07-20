@@ -1,9 +1,64 @@
-import type { EmailAdapter } from 'payload'
+import type { Attachment as NodemailerAttachment } from 'nodemailer/lib/mailer'
+import type { EmailAdapter, SendEmailOptions } from 'payload'
+import type { CreateEmailOptions } from 'resend'
 
 import { Resend } from 'resend'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
+
+/**
+ * Map Payload's (nodemailer-shaped) attachments onto Resend's.
+ *
+ * The two overlap on `filename` / `content` / `contentType`, but nodemailer
+ * additionally allows a `Readable` stream, which the Resend REST API cannot
+ * accept. Streams are dropped rather than passed through as a bad payload —
+ * a missing attachment with a log line beats an opaque Resend 422.
+ */
+function toResendAttachments(
+  attachments: SendEmailOptions['attachments'],
+  onUnsupported: (filename: string) => void,
+): CreateEmailOptions['attachments'] {
+  if (!Array.isArray(attachments)) return undefined
+
+  const mapped: NonNullable<CreateEmailOptions['attachments']> = []
+
+  for (const attachment of attachments as NodemailerAttachment[]) {
+    const { cid, content, contentType, filename, path } = attachment
+    const isSendable = typeof content === 'string' || Buffer.isBuffer(content)
+
+    // `path` is a hosted URL Resend fetches itself, so it needs no content.
+    if (!isSendable && !path) {
+      onUnsupported(typeof filename === 'string' ? filename : 'unnamed')
+      continue
+    }
+
+    mapped.push({
+      ...(isSendable && { content: content as Buffer | string }),
+      ...(typeof filename === 'string' && { filename }),
+      ...(contentType && { contentType }),
+      ...(typeof path === 'string' && { path }),
+      ...(cid && { contentId: cid }),
+    })
+  }
+
+  return mapped.length > 0 ? mapped : undefined
+}
+
+/**
+ * Flatten nodemailer's `Address | string` forms to the plain strings Resend takes.
+ */
+function toAddressList(value: SendEmailOptions['replyTo']): string[] | undefined {
+  const entries = (Array.isArray(value) ? value : [value]).flatMap((entry) => {
+    if (typeof entry === 'string') return [entry]
+    if (entry && typeof entry === 'object' && 'address' in entry) {
+      return [entry.name ? `${entry.name} <${entry.address}>` : entry.address]
+    }
+    return []
+  })
+
+  return entries.length > 0 ? entries : undefined
+}
 
 export const resendAdapter = (): EmailAdapter => {
   return ({ payload }) => {
@@ -27,6 +82,14 @@ export const resendAdapter = (): EmailAdapter => {
         }
 
         try {
+          const attachments = toResendAttachments(message.attachments, (filename) =>
+            payload.logger.warn({
+              msg: 'Resend adapter: dropping stream attachment (unsupported)',
+              filename,
+            }),
+          )
+          const replyTo = toAddressList(message.replyTo)
+
           // Convert Payload's SendEmailOptions to Resend's format
           const { data, error } = await resend.emails.send({
             from: (message.from as string) || CONTACT_EMAIL,
@@ -34,6 +97,8 @@ export const resendAdapter = (): EmailAdapter => {
             subject: message.subject as string,
             html: message.html as string,
             text: message.text as string,
+            ...(replyTo && { replyTo }),
+            ...(attachments && { attachments }),
           })
 
           if (error) {

@@ -128,6 +128,33 @@ export const Clients: CollectionConfig = {
               ],
             },
             {
+              name: 'logo',
+              type: 'upload',
+              relationTo: 'images',
+              admin: {
+                description:
+                  'Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.',
+              },
+            },
+            {
+              type: 'row',
+              fields: [
+                {
+                  name: 'websiteUrl',
+                  type: 'text',
+                  admin: { description: 'Linked from the footer of registrant emails.' },
+                },
+                {
+                  name: 'supportEmail',
+                  type: 'email',
+                  admin: {
+                    description:
+                      'Reply-To on registrant emails, so replies reach this service rather than us.',
+                  },
+                },
+              ],
+            },
+            {
               name: 'locale',
               type: 'select',
               options: getLanguageOptions(),

@@ -34,6 +34,22 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
     expect(schema.required ?? []).not.toContain('subscribe')
   })
 
+  it('documents the optional locale, enumerating the configured app locales', () => {
+    const schema = CUSTOM_ENDPOINT_SCHEMAS.EventRegistrationRequest as {
+      required?: string[]
+      properties?: Record<string, { enum?: string[]; type?: string }>
+    }
+    const locale = schema.properties?.locale
+
+    expect(locale?.type).toBe('string')
+    // Enumerated so a widget can't send a language the CMS has no translation
+    // for; sourced from LOCALES, so adding a locale updates the spec for free.
+    expect(locale?.enum).toContain('en')
+    expect(locale?.enum).toContain('pt-BR')
+    expect(locale?.enum).not.toContain('xx')
+    expect(schema.required ?? []).not.toContain('locale')
+  })
+
   describe('filterSpec POST visibility', () => {
     // Minimal spec: the auto-generated events CRUD plus the hand-authored custom
     // subpaths, filtered for the project that owns `events`.

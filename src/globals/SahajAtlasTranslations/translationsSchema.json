@@ -347,6 +347,65 @@
         }
       },
       "additionalProperties": false
+    },
+    "emails": {
+      "type": "object",
+      "description": "Chrome for emails the CMS sends to registrants. Event data (title, address, times) is never translated — only the surrounding copy is.",
+      "properties": {
+        "confirmation_subject": {
+          "type": "string",
+          "description": "Subject line of the registration confirmation email. `%{event}` = event title."
+        },
+        "confirmation_heading": {
+          "type": "string",
+          "description": "Main heading inside the confirmation email, e.g. \"You're registered\"."
+        },
+        "confirmation_intro": {
+          "type": "string",
+          "description": "Opening line addressing the registrant. `%{name}` = registrant's name."
+        },
+        "when_label": {
+          "type": "string",
+          "description": "Section label above the date/time of the class."
+        },
+        "where_label": {
+          "type": "string",
+          "description": "Section label above the address or joining link."
+        },
+        "online_cta": {
+          "type": "string",
+          "description": "Call-to-action button label for joining an online class."
+        },
+        "online_link_hint": {
+          "type": "string",
+          "description": "Line introducing the plain-text join URL, shown for email clients that strip buttons."
+        },
+        "directions_cta": {
+          "type": "string",
+          "description": "Call-to-action button label that opens the venue address in a maps app, for an in-person class."
+        },
+        "about_label": {
+          "type": "string",
+          "description": "Section label above the event description (\"What to expect\")."
+        },
+        "contact_label": {
+          "type": "string",
+          "description": "Section label above the host's name and phone number."
+        },
+        "sessions_count": {
+          "type": "string",
+          "description": "Session count appended to a limited-run course's schedule. `%{count}` = number of sessions."
+        },
+        "footer_reason": {
+          "type": "string",
+          "description": "Footer line explaining why the registrant received this email."
+        },
+        "footer_website": {
+          "type": "string",
+          "description": "Footer link label pointing at the client service's website. `%{name}` = service name."
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
