@@ -1,7 +1,7 @@
 /**
  * The registration-questions contract, shared across owners: the Events
- * collection enables questions, the Registrations collection validates the
- * stored answers, the register endpoint shapes them, and the manager
+ * collection enables questions, the Registrations collection validates + types
+ * the stored answers, the register endpoint shapes them, and the manager
  * notification email forwards them.
  *
  * It lives in `src/lib/` rather than a collection folder precisely because it is
@@ -9,6 +9,8 @@
  * cross-collection import from `Registrations/` (see
  * `.claude/rules/project-structure.md`).
  */
+
+import type { JSONSchema4 } from 'json-schema'
 
 /**
  * Optional questions an event can ask registrants. Rendered as a group of
@@ -24,48 +26,38 @@ export const EVENT_REGISTRATION_QUESTIONS = [
   { name: 'guests', label: 'Will you be bringing any guests?' },
 ] as const
 
-/** A configured registration-question key (`priorExperience`, `referralSource`, …). */
-export type EventRegistrationQuestionName = (typeof EVENT_REGISTRATION_QUESTIONS)[number]['name']
-
-/**
- * The stored shape of a registration's `questions` field: each configured
- * question key maps to the registrant's (string) answer. Every key is optional —
- * an event enables only some questions, and a registrant may skip any.
- */
-export type RegistrationQuestions = Partial<Record<EventRegistrationQuestionName, string>>
-
 /** A registrant's answer to one registration question, labelled for display. */
 export interface RegistrationAnswer {
   label: string
   value: string
 }
 
+/**
+ * JSON Schema for the stored `questions` answers: an object keyed by the
+ * configured question names, each answer a string, no other keys allowed.
+ * Derived from `EVENT_REGISTRATION_QUESTIONS` so it can't drift.
+ *
+ * Wired onto `Registrations.questions` via the field's `jsonSchema`, which
+ * Payload uses to BOTH validate on write (an unknown key or non-string answer
+ * throws a `ValidationError` → the register endpoint returns 400) AND generate
+ * the field's TypeScript type in `payload-types.ts`. (This compiles an Ajv
+ * `new Function()` validator — fine on Railway/Node; the old comments warning it
+ * breaks under Cloudflare Workers predate the migration off Workers.)
+ */
+export const registrationQuestionsJsonSchema: JSONSchema4 = {
+  type: 'object',
+  additionalProperties: false,
+  properties: Object.fromEntries(
+    EVENT_REGISTRATION_QUESTIONS.map((question) => [
+      question.name,
+      { type: 'string', description: question.label },
+    ]),
+  ),
+}
+
 const CONFIGURED_QUESTION_NAMES = new Set<string>(
   EVENT_REGISTRATION_QUESTIONS.map((question) => question.name),
 )
-
-/**
- * Enforce the `questions` structure on write: an object whose keys are all
- * configured question names and whose values are strings. Returns `true` or an
- * error message. Pure JS (no `jsonSchema` — Payload would compile that to an Ajv
- * `new Function()` validator, which throws under Cloudflare's codegen ban; see
- * `src/fields/translationsField.ts`).
- */
-export function validateRegistrationQuestions(value: unknown): true | string {
-  if (value == null) return true
-  if (typeof value !== 'object' || Array.isArray(value)) {
-    return 'Registration answers must be an object of question answers.'
-  }
-  for (const [key, answer] of Object.entries(value)) {
-    if (!CONFIGURED_QUESTION_NAMES.has(key)) {
-      return `Unknown registration question: "${key}".`
-    }
-    if (typeof answer !== 'string') {
-      return `The answer for "${key}" must be text.`
-    }
-  }
-  return true
-}
 
 /** Render one raw answer value as a display string, or `''` to skip it. */
 function formatAnswer(raw: unknown): string {

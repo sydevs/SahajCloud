@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { legacyMigrationFields } from '@/fields'
 import { DEFAULT_LOCALE, getLocaleOptions } from '@/lib/locales'
-import { validateRegistrationQuestions } from '@/lib/registrations/questions'
+import { registrationQuestionsJsonSchema } from '@/lib/registrations/questions'
 
 /**
  * Registrations — a registrant (User) signing up for an Event. Migrated from
@@ -71,10 +71,15 @@ export const Registrations: CollectionConfig = {
     {
       name: 'questions',
       type: 'json',
-      // Enforce the shape: keys ⊆ EVENT_REGISTRATION_QUESTIONS, string answers.
-      // A bad payload throws a ValidationError (400) — the register endpoint's
-      // catch surfaces it verbatim rather than a 500.
-      validate: (value: unknown) => validateRegistrationQuestions(value),
+      // Typed + validated by a JSON Schema derived from EVENT_REGISTRATION_QUESTIONS:
+      // Payload generates the `questions` TS type AND validates on write (an unknown
+      // key or non-string answer throws a ValidationError → 400 at the register
+      // endpoint, surfaced verbatim rather than a 500).
+      jsonSchema: {
+        uri: 'https://sahajcloud.dev/schemas/registration-questions.json',
+        fileMatch: ['https://sahajcloud.dev/schemas/registration-questions.json'],
+        schema: registrationQuestionsJsonSchema,
+      },
       admin: {
         description:
           "Raw registrant answers, keyed by the event's enabled registration questions (EVENT_REGISTRATION_QUESTIONS — priorExperience, referralSource, healthInfo, accessibility, guests).",
