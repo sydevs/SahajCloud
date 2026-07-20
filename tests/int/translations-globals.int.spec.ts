@@ -84,10 +84,10 @@ describe('Translations Globals Configuration', () => {
       expect(labels).toEqual(['Common', 'Navigation', 'Footer', 'Page Tags', 'Errors'])
     })
 
-    it('sy-atlas-translations has Common, Region, Event, Registration, Share tabs', () => {
+    it('sy-atlas-translations has Common, Region, Event, Registration, Share, Emails tabs', () => {
       const tabsField = findGlobal('sy-atlas-translations').fields[0] as TabsField
       const labels = tabsField.tabs.map((t) => t.label)
-      expect(labels).toEqual(['Common', 'Region', 'Event', 'Registration', 'Share'])
+      expect(labels).toEqual(['Common', 'Region', 'Event', 'Registration', 'Share', 'Emails'])
     })
   })
 

@@ -58,6 +58,17 @@ export function isValidLocale(code: string): code is LocaleCode {
 }
 
 /**
+ * Select options for the app's configured locales.
+ *
+ * Distinct from `getLanguageOptions()`, which offers every ISO 639-1 language.
+ * Use this wherever a value must be a locale the CMS is actually translated
+ * into — e.g. the locale a registrant's email is rendered in.
+ */
+export function getLocaleOptions(): { label: string; value: LocaleCode }[] {
+  return LOCALES.map(({ code, label }) => ({ label, value: code }))
+}
+
+/**
  * Special case labels for locales not in ISO 639-1 or needing override
  */
 const LOCALE_LABEL_OVERRIDES: Record<string, string> = {

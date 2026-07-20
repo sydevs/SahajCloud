@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { legacyMigrationFields } from '@/fields'
+import { DEFAULT_LOCALE, getLocaleOptions } from '@/lib/locales'
 
 /**
  * Registrations — a registrant (User) signing up for an Event. Migrated from
@@ -41,6 +42,30 @@ export const Registrations: CollectionConfig = {
         date: { pickerAppearance: 'dayAndTime' },
         description: 'When the registrant is attending.',
       },
+    },
+    {
+      type: 'row',
+      fields: [
+        {
+          name: 'client',
+          type: 'relationship',
+          relationTo: 'clients',
+          admin: {
+            description:
+              'The client service this registration came through. Brands and localizes the emails sent about it.',
+          },
+        },
+        {
+          name: 'locale',
+          type: 'select',
+          options: getLocaleOptions(),
+          defaultValue: DEFAULT_LOCALE,
+          admin: {
+            description:
+              "The registrant's language. Emails about this registration are rendered in it.",
+          },
+        },
+      ],
     },
     {
       name: 'questions',
