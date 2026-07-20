@@ -182,6 +182,44 @@ export interface RegistrationEmailDetails {
 }
 
 /**
+ * Date + time span for one specific occurrence, e.g.
+ * `Tuesday, 21 July 2026, 7:00 – 8:30 PM GMT+1`.
+ *
+ * The session reminder shows the single upcoming occurrence rather than the
+ * series, so it formats *that* occurrence's own date (which differs from
+ * `firstDate` for a recurring class) and reads its own DST offset from that
+ * instant. The end of the span still comes from `endTime` — a fixed same-day
+ * wall-clock string every occurrence shares — formatted as written, the same
+ * DST-safe reasoning as {@link registrationScheduleLine}'s `timeSpan`.
+ */
+export function occurrenceLine(
+  schedule: Schedule | null | undefined,
+  occurrenceIso: string,
+): string {
+  if (!schedule?.firstDate) return ''
+  const timezone: string = schedule.firstDate_tz || 'UTC'
+  const occurrence = new Date(occurrenceIso)
+  if (Number.isNaN(occurrence.getTime())) return ''
+
+  const date = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(occurrence)
+
+  const endMinutes = minutesOfDay(schedule.endTime)
+  const startMinutes = minutesOfDay(getLocalTimeHHMM(occurrenceIso, timezone))
+  const time =
+    endMinutes !== null && startMinutes !== null && endMinutes > startMinutes
+      ? `${formatTime(occurrence, timezone)} – ${formatMinutesOfDay(endMinutes)} ${zoneName(occurrence, timezone)}`
+      : formatTime(occurrence, timezone, true)
+
+  return [date, time].filter(Boolean).join(', ')
+}
+
+/**
  * Build the confirmation email's content from an Event.
  *
  * Pure and synchronous — every value comes off the already-loaded document, so
@@ -210,5 +248,21 @@ export function buildRegistrationEmailDetails(event: Event): RegistrationEmailDe
     location,
     description: descriptionText(event.description),
     contact: contact || null,
+  }
+}
+
+/**
+ * Build a session reminder's content: the same event facts as the confirmation,
+ * but with the schedule line collapsed to the single upcoming `occurrenceIso`
+ * and the session count dropped — a reminder is about one session, not the run.
+ */
+export function buildReminderEmailDetails(
+  event: Event,
+  occurrenceIso: string,
+): RegistrationEmailDetails {
+  return {
+    ...buildRegistrationEmailDetails(event),
+    scheduleLine: occurrenceLine(event.schedule, occurrenceIso),
+    sessions: null,
   }
 }

@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties } from 'react'
 
 import { Heading, Hr, Link, Section, Text } from 'react-email'
 
@@ -6,7 +6,7 @@ import type { RegistrationEmailDetails } from '@/lib/notifications/registrationD
 import { type EmailStrings, interpolate } from '@/lib/translations/emailStrings'
 import type { EmailBrand } from '@/plugins/email'
 
-import { BrandButton, EmailLayout, styles } from './EmailLayout'
+import { BrandButton, EmailLayout, StackedDetailRow, styles } from './EmailLayout'
 
 export interface RegistrationConfirmationEmailProps {
   /** Registrant's display name. */
@@ -58,7 +58,7 @@ export function RegistrationConfirmationEmail({
           {details.eventTitle}
         </Heading>
 
-        <DetailRow label={strings.when_label} accent={brand.colors.primary}>
+        <StackedDetailRow label={strings.when_label} accent={brand.colors.primary}>
           {details.scheduleLine}
           {details.sessions ? (
             <>
@@ -66,18 +66,18 @@ export function RegistrationConfirmationEmail({
               {interpolate(strings.sessions_count, { count: details.sessions })}
             </>
           ) : null}
-        </DetailRow>
+        </StackedDetailRow>
 
         {location.type === 'offline' ? (
-          <DetailRow label={strings.where_label} accent={brand.colors.primary}>
+          <StackedDetailRow label={strings.where_label} accent={brand.colors.primary}>
             {location.address}
-          </DetailRow>
+          </StackedDetailRow>
         ) : null}
 
         {details.contact ? (
-          <DetailRow label={strings.contact_label} accent={brand.colors.primary}>
+          <StackedDetailRow label={strings.contact_label} accent={brand.colors.primary}>
             {details.contact}
-          </DetailRow>
+          </StackedDetailRow>
         ) : null}
       </Section>
 
@@ -177,24 +177,6 @@ export function registrationConfirmationText(props: RegistrationConfirmationEmai
   return lines.join('\n')
 }
 
-/** Label-above-value row — the guest-email counterpart to an admin callout. */
-function DetailRow({
-  label,
-  accent,
-  children,
-}: {
-  label: string
-  accent: string
-  children: ReactNode
-}) {
-  return (
-    <Section style={detailRow}>
-      <Text style={{ ...detailLabel, color: accent }}>{label}</Text>
-      <Text style={detailValue}>{children}</Text>
-    </Section>
-  )
-}
-
 const eventTitle: CSSProperties = {
   fontSize: '18px',
   // Neutral rather than the brand accent: the accent is already carried by the
@@ -212,23 +194,6 @@ const detailBlock: CSSProperties = {
   borderRadius: '6px',
   padding: '4px 20px',
   margin: '0 0 24px',
-}
-
-const detailRow: CSSProperties = {
-  margin: '16px 0',
-}
-
-const detailLabel: CSSProperties = {
-  fontSize: '12px',
-  fontWeight: 'bold',
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase',
-  margin: '0 0 4px',
-}
-
-const detailValue: CSSProperties = {
-  fontSize: '16px',
-  margin: 0,
 }
 
 const sectionHeading: CSSProperties = {

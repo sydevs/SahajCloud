@@ -12,6 +12,7 @@ import {
   Preview,
   Row,
   Section,
+  Text,
 } from 'react-email'
 
 import type { BrandColors } from '@/lib/branding'
@@ -60,6 +61,30 @@ export function DetailRow({ label, children }: { label: string; children: ReactN
       <Column style={labelColumn}>{label}</Column>
       <Column style={valueColumn}>{children}</Column>
     </Row>
+  )
+}
+
+/**
+ * A label-*above*-value row for the guest itinerary emails (registrant
+ * confirmation, session reminder), where the accent is the client service's own
+ * brand. The stacked layout and brand-coloured label read as an itinerary line
+ * rather than the manager emails' `DetailRow` fact table. Shared once the
+ * reminder wanted the same look as the confirmation.
+ */
+export function StackedDetailRow({
+  label,
+  accent,
+  children,
+}: {
+  label: string
+  accent: string
+  children: ReactNode
+}) {
+  return (
+    <Section style={stackedRow}>
+      <Text style={{ ...stackedLabel, color: accent }}>{label}</Text>
+      <Text style={stackedValue}>{children}</Text>
+    </Section>
   )
 }
 
@@ -282,3 +307,14 @@ const sectionHeading: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
 }
+
+// Guest-itinerary stacked row: brand-coloured uppercase label above its value.
+const stackedRow: CSSProperties = { margin: '16px 0' }
+const stackedLabel: CSSProperties = {
+  fontSize: '12px',
+  fontWeight: 'bold',
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  margin: '0 0 4px',
+}
+const stackedValue: CSSProperties = { fontSize: '16px', margin: 0 }
