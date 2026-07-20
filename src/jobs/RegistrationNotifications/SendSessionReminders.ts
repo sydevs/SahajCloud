@@ -7,11 +7,13 @@ import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmati
 import { sendSessionReminder } from '@/lib/notifications/sendSessionReminder'
 import type { ScheduleSubFields } from '@/lib/schedule/scheduleHooks'
 import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
-import type { Client, Event, Registration, User } from '@/payload-types'
+import { relationId } from '@/lib/utilities/relationId'
+import type { Event } from '@/payload-types'
 
-import { asReminderLog, hasReminderFor } from './reminderLedger'
+import { asReminderLog, hasReminderFor, type ReminderLogEntry } from './reminderLedger'
 
 const PAGINATION_LIMIT = 200
+const USER_CHUNK = 200
 /** 24 hours — how far ahead a run reminds. */
 const REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000
 
@@ -33,12 +35,6 @@ interface ReminderResult {
   skipped: number
   /** Events whose processing threw. */
   failed: number
-}
-
-/** Numeric id of a relationship value whether populated (a doc) or a bare id. */
-function relationId(value: number | { id: number } | null | undefined): number | null {
-  if (value == null) return null
-  return typeof value === 'object' ? value.id : value
 }
 
 /**
@@ -110,6 +106,40 @@ async function loadClient(
   return client
 }
 
+/** Batch-load the registrant users' name + email, chunked to bound the `in` list. */
+async function loadUsers(
+  payload: Payload,
+  req: PayloadRequest,
+  userIds: number[],
+): Promise<Map<number, { name?: string | null; email: string }>> {
+  const map = new Map<number, { name?: string | null; email: string }>()
+  for (let i = 0; i < userIds.length; i += USER_CHUNK) {
+    const chunk = userIds.slice(i, i + USER_CHUNK)
+    const batch = await payload.find({
+      collection: 'users',
+      where: { id: { in: chunk } },
+      depth: 0,
+      limit: chunk.length,
+      select: { name: true, email: true },
+      overrideAccess: true,
+      req,
+    })
+    for (const user of batch.docs) map.set(user.id, { name: user.name, email: user.email })
+  }
+  return map
+}
+
+/** One registration with reminders due this run, resolved to bare ids. */
+interface DueRegistration {
+  registrationId: number
+  userId: number | null
+  clientId: number | null
+  locale: LocaleCode | null
+  log: ReminderLogEntry[]
+  /** Occurrences due (in window, matching startingAt, not already reminded). */
+  due: string[]
+}
+
 /** Remind every subscribed registration for each upcoming occurrence of one event. */
 async function remindForEvent(args: {
   payload: Payload
@@ -125,6 +155,10 @@ async function remindForEvent(args: {
   const occurrences = upcomingOccurrences(event.schedule, now, windowEnd)
   if (occurrences.length === 0) return
 
+  // Collect the registrations with a reminder due, as bare ids — reading at
+  // depth 0 so users/clients aren't populated for registrations that send
+  // nothing this run; the registrant users are batch-loaded once below.
+  const pending: DueRegistration[] = []
   let page = 1
   let hasNextPage = true
   while (hasNextPage) {
@@ -133,7 +167,7 @@ async function remindForEvent(args: {
       where: {
         and: [{ event: { equals: event.id } }, { remindersUnsubscribedAt: { exists: false } }],
       },
-      depth: 1,
+      depth: 0,
       limit: PAGINATION_LIMIT,
       page,
       select: { user: true, client: true, startingAt: true, locale: true, reminderLog: true },
@@ -141,61 +175,73 @@ async function remindForEvent(args: {
       req,
     })
 
-    for (const registration of batch.docs as Registration[]) {
-      const due = occurrencesForRegistration(occurrences, registration.startingAt)
+    for (const registration of batch.docs) {
+      const log = asReminderLog(registration.reminderLog)
+      const due = occurrencesForRegistration(occurrences, registration.startingAt).filter(
+        (occurrence) => !hasReminderFor(log, occurrence),
+      )
       if (due.length === 0) continue
-
-      const user = typeof registration.user === 'object' ? (registration.user as User) : null
-      const registrantEmail = user?.email
-      if (!registrantEmail) {
-        // A registration always has a user; a missing email is bad data, not a
-        // normal skip — log it so it's visible rather than silently dropped.
-        result.skipped++
-        payload.logger.warn({
-          msg: 'SendSessionReminders: registration has no email; skipping',
-          registrationId: registration.id,
-          eventId: event.id,
-        })
-        continue
-      }
-      const registrantName = user?.name?.trim() || registrantEmail
-
-      const clientId = relationId(registration.client as Client | number | null)
-      const client = clientId ? await loadClient(payload, req, clientId, clientCache) : null
-      const locale = (registration.locale as LocaleCode | null) ?? null
-
-      let log = asReminderLog(registration.reminderLog)
-      for (const occurrence of due) {
-        if (hasReminderFor(log, occurrence)) continue
-
-        await sendSessionReminder({
-          payload,
-          event,
-          client,
-          registrantName,
-          registrantEmail,
-          locale,
-          registrationId: registration.id,
-          occurrenceIso: occurrence,
-          req,
-        })
-
-        // Persist the ledger entry immediately — it's the exactly-once marker,
-        // so a crash mid-run resumes without re-sending what already went out.
-        log = [...log, { occurrence, sentAt: now.toISOString() }]
-        await payload.update({
-          collection: 'registrations',
-          id: registration.id,
-          data: { reminderLog: log },
-          overrideAccess: true,
-          req,
-        })
-        result.remindersSent++
-      }
+      pending.push({
+        registrationId: registration.id,
+        userId: relationId(registration.user),
+        clientId: relationId(registration.client),
+        locale: (registration.locale as LocaleCode | null) ?? null,
+        log,
+        due,
+      })
     }
 
     hasNextPage = batch.hasNextPage
     page++
+  }
+  if (pending.length === 0) return
+
+  const userIds = pending.map((item) => item.userId).filter((id): id is number => id != null)
+  const users = await loadUsers(payload, req, [...new Set(userIds)])
+
+  for (const item of pending) {
+    const user = item.userId != null ? users.get(item.userId) : undefined
+    const registrantEmail = user?.email
+    if (!registrantEmail) {
+      // A registration always has a user; a missing email is bad data, not a
+      // normal skip — log it so it's visible rather than silently dropped.
+      result.skipped++
+      payload.logger.warn({
+        msg: 'SendSessionReminders: registration has no email; skipping',
+        registrationId: item.registrationId,
+        eventId: event.id,
+      })
+      continue
+    }
+    const registrantName = user.name?.trim() || registrantEmail
+    const client = item.clientId ? await loadClient(payload, req, item.clientId, clientCache) : null
+
+    let log = item.log
+    for (const occurrence of item.due) {
+      await sendSessionReminder({
+        payload,
+        event,
+        client,
+        registrantName,
+        registrantEmail,
+        locale: item.locale,
+        registrationId: item.registrationId,
+        occurrenceIso: occurrence,
+        req,
+      })
+
+      // Persist the ledger entry immediately — it's the exactly-once marker, so
+      // a crash mid-run resumes without re-sending what already went out.
+      log = [...log, { occurrence, sentAt: now.toISOString() }]
+      await payload.update({
+        collection: 'registrations',
+        id: item.registrationId,
+        data: { reminderLog: log },
+        overrideAccess: true,
+        req,
+      })
+      result.remindersSent++
+    }
   }
 }
 

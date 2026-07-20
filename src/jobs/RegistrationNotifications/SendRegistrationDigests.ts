@@ -7,6 +7,7 @@ import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigest
 import type { RegistrationRecipient } from '@/lib/notifications'
 import { formatLongDate, resolveRegistrationRecipient } from '@/lib/notifications'
 import { sendRegistrationDigest } from '@/lib/notifications/sendRegistrationDigest'
+import { relationId } from '@/lib/utilities/relationId'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Event, Manager } from '@/payload-types'
 
@@ -38,12 +39,6 @@ interface DigestRow {
   eventId: number
   userId: number
   startingAt?: string | null
-}
-
-/** Numeric id of a relationship value whether populated (a doc) or a bare id. */
-function relationId(value: number | { id: number } | null | undefined): number | null {
-  if (value == null) return null
-  return typeof value === 'object' ? value.id : value
 }
 
 function eventRegistrationFrequency(manager: Manager): string | undefined {

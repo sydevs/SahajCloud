@@ -76,17 +76,31 @@ function timeSpan(schedule: Schedule): string {
   const timezone: string = schedule.firstDate_tz || 'UTC'
   const start = new Date(schedule.firstDate)
   if (Number.isNaN(start.getTime())) return ''
+  return formatTimeSpan(start, schedule.firstDate, schedule.endTime, timezone)
+}
 
-  const startWithZone = formatTime(start, timezone, true)
-
-  const endMinutes = minutesOfDay(schedule.endTime)
-  const startMinutes = minutesOfDay(getLocalTimeHHMM(schedule.firstDate, timezone))
+/**
+ * The start–end time span for one occurrence: `7:00 – 8:30 PM GMT+1`, collapsing
+ * to the start alone when there's no usable end. Shared by {@link timeSpan} (the
+ * series' first occurrence) and {@link occurrenceLine} (a specific one).
+ *
+ * @param date - The occurrence instant, formatted for its own DST offset.
+ * @param startIso - The same instant as an ISO string, for the local-time lookup.
+ * @param endTime - The schedule's same-day wall-clock end, formatted as written
+ *   (the zone is printed once, on the end, so the span reads as one unit).
+ */
+function formatTimeSpan(
+  date: Date,
+  startIso: string,
+  endTime: string | null | undefined,
+  timezone: string,
+): string {
+  const endMinutes = minutesOfDay(endTime)
+  const startMinutes = minutesOfDay(getLocalTimeHHMM(startIso, timezone))
   if (endMinutes === null || startMinutes === null || endMinutes <= startMinutes) {
-    return startWithZone
+    return formatTime(date, timezone, true)
   }
-
-  // Zone printed once, on the end, so the span reads as one unit.
-  return `${formatTime(start, timezone)} – ${formatMinutesOfDay(endMinutes)} ${zoneName(start, timezone)}`
+  return `${formatTime(date, timezone)} – ${formatMinutesOfDay(endMinutes)} ${zoneName(date, timezone)}`
 }
 
 /** The short timezone label alone, e.g. `GMT+1`. */
@@ -209,13 +223,7 @@ export function occurrenceLine(
     year: 'numeric',
   }).format(occurrence)
 
-  const endMinutes = minutesOfDay(schedule.endTime)
-  const startMinutes = minutesOfDay(getLocalTimeHHMM(occurrenceIso, timezone))
-  const time =
-    endMinutes !== null && startMinutes !== null && endMinutes > startMinutes
-      ? `${formatTime(occurrence, timezone)} – ${formatMinutesOfDay(endMinutes)} ${zoneName(occurrence, timezone)}`
-      : formatTime(occurrence, timezone, true)
-
+  const time = formatTimeSpan(occurrence, occurrenceIso, schedule.endTime, timezone)
   return [date, time].filter(Boolean).join(', ')
 }
 
