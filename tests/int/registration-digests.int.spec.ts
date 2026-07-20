@@ -193,6 +193,35 @@ describe('SendRegistrationDigests job', () => {
     expect(emailsTo('weekly-tue@example.com')).toHaveLength(0)
   })
 
+  it('still includes a registration whose registrant unsubscribed from reminders', async () => {
+    // The unsubscribe link covers registrant *reminders* only; manager digests are
+    // controlled by notificationPreferences, not that flag (#589). So a registrant's
+    // reminder opt-out must NOT hide their registration from the manager's digest.
+    const managerId = await createManager('unsub-digest@example.com', 'Daily Summary')
+    const eventId = await createEvent(managerId, 'Unsub Digest Event')
+    const user = await payload.create({
+      collection: 'users',
+      overrideAccess: true,
+      data: { name: 'Grace', email: `grace-${(seq += 1)}@example.com` },
+    })
+    await payload.create({
+      collection: 'registrations',
+      overrideAccess: true,
+      data: {
+        event: eventId,
+        user: user.id,
+        uuid: `uuid-unsub-${user.id}`,
+        remindersUnsubscribedAt: new Date().toISOString(),
+      },
+    })
+
+    emailAdapter.clearCapturedEmails()
+    await runDigests(payload)
+    const sent = emailsTo('unsub-digest@example.com')
+    expect(sent).toHaveLength(1)
+    expect(String(sent[0].html)).toContain('Grace')
+  })
+
   it('declares the single-run concurrency lock', () => {
     const concurrency = SendRegistrationDigests.concurrency as
       | { key: (args: { input: unknown; queue: string }) => string; exclusive?: boolean }

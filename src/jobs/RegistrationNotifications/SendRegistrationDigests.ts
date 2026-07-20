@@ -11,8 +11,9 @@ import { relationId } from '@/lib/utilities/relationId'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Event, Manager } from '@/payload-types'
 
+import { loadUsers } from './loadUsers'
+
 const PAGINATION_LIMIT = 200
-const USER_CHUNK = 200
 const DAY_MS = 24 * 60 * 60 * 1000
 const WEEK_MS = 7 * DAY_MS
 /** Weekly digests fire on this UTC weekday (Sunday = 0 … Monday = 1). */
@@ -99,30 +100,6 @@ async function loadManagerDigestEvents(
 }
 
 /** Batch-load the registrant users' name + email, chunked to bound the `in` list. */
-async function loadUsers(
-  payload: Payload,
-  req: PayloadRequest,
-  userIds: number[],
-): Promise<Map<number, { name?: string | null; email: string }>> {
-  const map = new Map<number, { name?: string | null; email: string }>()
-  for (let i = 0; i < userIds.length; i += USER_CHUNK) {
-    const chunk = userIds.slice(i, i + USER_CHUNK)
-    const batch = await payload.find({
-      collection: 'users',
-      where: { id: { in: chunk } },
-      depth: 0,
-      limit: chunk.length,
-      select: { name: true, email: true },
-      overrideAccess: true,
-      req,
-    })
-    for (const user of batch.docs) {
-      map.set(user.id, { name: user.name, email: user.email })
-    }
-  }
-  return map
-}
-
 /**
  * Build and send one manager's digest for the period, then advance their
  * watermark. Registrations are read at `depth: 0` (ids only) so populating each

@@ -10,10 +10,10 @@ import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 
+import { loadUsers } from './loadUsers'
 import { asReminderLog, hasReminderFor, type ReminderLogEntry } from './reminderLedger'
 
 const PAGINATION_LIMIT = 200
-const USER_CHUNK = 200
 /** 24 hours — how far ahead a run reminds. */
 const REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000
 
@@ -104,29 +104,6 @@ async function loadClient(
   }
   cache.set(clientId, client)
   return client
-}
-
-/** Batch-load the registrant users' name + email, chunked to bound the `in` list. */
-async function loadUsers(
-  payload: Payload,
-  req: PayloadRequest,
-  userIds: number[],
-): Promise<Map<number, { name?: string | null; email: string }>> {
-  const map = new Map<number, { name?: string | null; email: string }>()
-  for (let i = 0; i < userIds.length; i += USER_CHUNK) {
-    const chunk = userIds.slice(i, i + USER_CHUNK)
-    const batch = await payload.find({
-      collection: 'users',
-      where: { id: { in: chunk } },
-      depth: 0,
-      limit: chunk.length,
-      select: { name: true, email: true },
-      overrideAccess: true,
-      req,
-    })
-    for (const user of batch.docs) map.set(user.id, { name: user.name, email: user.email })
-  }
-  return map
 }
 
 /** One registration with reminders due this run, resolved to bare ids. */
