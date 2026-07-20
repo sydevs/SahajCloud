@@ -1755,7 +1755,7 @@ export interface Event {
    */
   registrationLimit?: number | null;
   /**
-   * Leave blank to send registration updates to the event manager.
+   * Enter an email to redirect updates about new seeker registrations to. Leave blank to send registration updates to the event manager.
    */
   registrationNotificationEmail?: string | null;
   registrationNotificationFrequency?: ('Immediate' | 'Never') | null;
@@ -1857,7 +1857,7 @@ export interface Registration {
       )
     | null;
   /**
-   * Raw registration answers (keys: questions / experience / aspirations / referral).
+   * Raw registrant answers, keyed by the event's enabled registration questions (EVENT_REGISTRATION_QUESTIONS — priorExperience, referralSource, healthInfo, accessibility, guests).
    */
   questions?:
     | {
