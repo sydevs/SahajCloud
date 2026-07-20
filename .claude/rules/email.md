@@ -80,19 +80,27 @@ package (v6 unified them — the older `@react-email/components` and
 
 | File | Purpose |
 |---|---|
-| `EmailLayout.tsx` | Shared shell — gradient brand header, card body, footer. Exports `BrandButton` + shared `styles`. |
+| `EmailLayout.tsx` | Shared shell — gradient brand header, card body, footer. Exports `BrandButton`, `BrandButtonRow` (2–3 actions centered together on one row), `DetailRow` (label/value fact-table row), `SectionHeading` (uppercase section label), and shared `styles`. Reuse these so templates stay visually consistent. |
 | `VerifyEmail.tsx` | Managers email-verification message. |
 | `ResetPasswordEmail.tsx` | Managers password-reset message (replaces Payload's bare default). |
 | `EventVerificationEmail.tsx` | Manager/region event-verification reminder — coloured alert callout keyed on `ReminderLevel`. |
 | `RegistrationConfirmationEmail.tsx` | Registrant confirmation for an event registration — client-branded, localized, ICS attached. Also exports `registrationConfirmationText` (the plain-text alternative). |
+| `EventRegistrationEmail.tsx` | Manager-facing notice that a seeker registered — Sahaj Atlas project brand; event/registrant/start-date `DetailRow`s, the registrant's forwarded question answers (resolved via `buildRegistrationAnswers`), and a `BrandButtonRow` of Reply (a `mailto:` pre-filled with a quoted recap) + View event. Also exports `buildReplyBody`. Informational (no alert callout). |
 
 ### Manager mail vs registrant mail
 
 The two audiences look deliberately different, and a new template should pick a
 side rather than splitting the difference:
 
-- **Manager / admin** (`EventVerificationEmail`) — an alert. Coloured callout
-  banner, a deadline, urgency colour keyed on severity.
+- **Manager / admin, action needed** (`EventVerificationEmail`) — an alert.
+  Coloured callout banner, a deadline, urgency colour keyed on severity.
+- **Manager / admin, informational** (`EventRegistrationEmail`) — a notice, not
+  an alert. No callout or deadline; a `DetailRow` fact table (event, registrant,
+  start date), the registrant's forwarded answers, a Reply / View-event button
+  row, and the **project** brand. Use this shape when you're telling a manager
+  that something happened rather than that they must act. (A `mailto:` Reply
+  can't set threading headers, so it pre-fills a quoted recap instead of
+  threading into the registrant's confirmation email.)
 - **Registrant / guest** (`RegistrationConfirmationEmail`) — an itinerary. No
   callout, no deadline; label-above-value detail rows, and the only accent is
   the **client service's** own brand.
@@ -144,8 +152,9 @@ in `src/emails/`.
   reimplementing it, so they can't drift from production:
 
   ```bash
-  pnpm tsx scripts/preview-registration-emails.ts   # registrant confirmation, all states
-  pnpm tsx scripts/preview-event-emails.ts          # manager verification reminders
+  pnpm tsx scripts/preview-registration-emails.ts               # registrant confirmation, all states
+  pnpm tsx scripts/preview-registration-notification-emails.ts  # manager registration notice, all states
+  pnpm tsx scripts/preview-event-emails.ts                      # manager verification reminders
   ```
 
   Neither touches the database. `SAHAJCLOUD_URL` defaults to production in the

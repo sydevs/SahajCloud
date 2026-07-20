@@ -9,6 +9,10 @@ import {
 } from '@payloadcms/richtext-lexical'
 
 import {
+  DEFAULT_REGISTRATION_FREQUENCY,
+  REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS,
+} from '@/components/admin/NotificationPreferences/config'
+import {
   addressFields,
   hideUntilCreated,
   legacyMigrationFields,
@@ -21,6 +25,7 @@ import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
+import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { ownedRegionFilterOptions } from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
 
@@ -29,7 +34,6 @@ import { registerForEvent } from './endpoints/registerForEvent'
 import { verifyEventAction } from './endpoints/verifyEventAction'
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
-  EVENT_REGISTRATION_QUESTIONS,
   EVENT_TYPE_OPTIONS,
   VERIFICATION_STAGE_OPTIONS,
 } from './eventOptions'
@@ -305,6 +309,40 @@ export const Events: CollectionConfig = {
                   admin: {
                     description: 'Maximum registrations (blank = unlimited).',
                     condition: (data) => data?.registrationMode === 'sahaj-atlas',
+                  },
+                },
+              ],
+            },
+            {
+              type: 'row',
+              fields: [
+                {
+                  name: 'registrationNotificationEmail',
+                  label: 'Send Registration Updates To',
+                  // Built-in email format validation — no hand-rolled validator.
+                  type: 'email',
+                  admin: {
+                    condition: (data) => data?.registrationMode === 'sahaj-atlas',
+                    placeholder: 'Event Manager',
+                    description:
+                      'Enter an email to redirect updates about new seeker registrations to. Leave blank to send registration updates to the event manager.',
+                  },
+                },
+                {
+                  name: 'registrationNotificationFrequency',
+                  label: 'How Often',
+                  type: 'select',
+                  // Options derived from NOTIFICATION_TYPES' `event_registration` entry so
+                  // the two surfaces can't drift; summary cadences are omitted until the
+                  // digest run exists (see #588 §4). Immediate is the default, matching
+                  // buildDefaultNotificationPreferences.
+                  defaultValue: DEFAULT_REGISTRATION_FREQUENCY,
+                  options: [...REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS],
+                  // Pin the enum name so it stays stable across migrations (mirrors
+                  // verificationStage) and never collides with drafts' `_status` enum.
+                  enumName: 'enum_events_registration_notification_frequency',
+                  admin: {
+                    condition: (data) => Boolean(data?.registrationNotificationEmail),
                   },
                 },
               ],

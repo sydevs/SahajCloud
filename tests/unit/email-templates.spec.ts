@@ -8,6 +8,7 @@
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
+import { buildReplyBody, EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
 import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
 import { VerifyEmail } from '@/emails/VerifyEmail'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
@@ -73,5 +74,97 @@ describe('brand configurability', () => {
   it('defaults to wemeditate-web when no project is passed', async () => {
     const html = await renderEmail(createElement(VerifyEmail, props))
     expect(html).toContain(getEmailBrand('wemeditate-web').productName)
+  })
+})
+
+describe('EventRegistrationEmail', () => {
+  const props = {
+    recipientName: 'Anna',
+    eventTitle: 'Morning Meditation',
+    registrantName: 'Sam Seeker',
+    registrantEmail: 'sam@example.com',
+    startDate: 'Saturday, 19 July 2026',
+    answers: [
+      { label: 'How did you hear about this event?', value: 'A friend recommended it' },
+      { label: 'Will you be bringing any guests?', value: 'Yes, two guests' },
+    ],
+    eventAdminUrl: 'https://cloud.test/admin/collections/events/42',
+  }
+
+  it('renders the recipient, registrant, start date, answers, and both CTAs', async () => {
+    const html = await renderEmail(createElement(EventRegistrationEmail, props))
+
+    expect(html).toContain('Anna')
+    expect(html).toContain('Morning Meditation')
+    expect(html).toContain('Sam Seeker')
+    // Section headings (shared SectionHeading).
+    expect(html).toContain('Event details')
+    expect(html).toContain('Start date')
+    expect(html).toContain('Saturday, 19 July 2026')
+    // Forwarded registrant answers.
+    expect(html).toContain('Registration answers')
+    expect(html).toContain('How did you hear about this event?')
+    expect(html).toContain('A friend recommended it')
+    expect(html).toContain('Will you be bringing any guests?')
+    expect(html).toContain('Yes, two guests')
+    // Both CTAs render on the button row; Reply is a pre-filled mailto.
+    expect(html).toContain('Reply')
+    expect(html).toContain('mailto:sam@example.com?subject=')
+    expect(html).toContain('View event')
+    expect(html).toContain('https://cloud.test/admin/collections/events/42')
+    // Branded for the Sahaj Atlas project (a manager notice, not client mail).
+    expect(html).toContain(getEmailBrand('sahaj-atlas').productName)
+  })
+
+  it('greets neutrally for a bare override address (no recipient name)', async () => {
+    const html = await renderEmail(
+      createElement(EventRegistrationEmail, { ...props, recipientName: null }),
+    )
+    // React Email inserts `<!-- -->` markers between adjacent text nodes; strip
+    // them so the greeting reads as one string.
+    expect(html.replace(/<!-- -->/g, '')).toContain('Hello there')
+    expect(html).not.toContain('Anna')
+  })
+
+  it('omits the start-date row and answers section when neither is supplied', async () => {
+    const html = await renderEmail(
+      createElement(EventRegistrationEmail, { ...props, startDate: null, answers: [] }),
+    )
+    expect(html).not.toContain('Start date')
+    expect(html).not.toContain('Registration answers')
+  })
+})
+
+describe('buildReplyBody', () => {
+  it('greets the registrant and quotes the event, start date, and answers', () => {
+    const body = buildReplyBody({
+      registrantName: 'Sam',
+      eventTitle: 'Morning Meditation',
+      startDate: 'Saturday, 19 July 2026',
+      answers: [{ label: 'How did you hear about this event?', value: 'A friend' }],
+    })
+
+    expect(body).toContain('Hello Sam,')
+    // A quoted recap the seeker sees in the reply chain: facts block, a blank
+    // quoted separator, then the question on its own line above its answer.
+    expect(body).toContain('> Your registration for Morning Meditation')
+    expect(body).toContain('> Start date: Saturday, 19 July 2026')
+    expect(body).toContain('\n>\n')
+    expect(body).toContain('> How did you hear about this event?')
+    expect(body).toContain('> A friend')
+  })
+
+  it('omits the start-date and answer lines when they are absent', () => {
+    const body = buildReplyBody({
+      registrantName: 'Sam',
+      eventTitle: 'Morning Meditation',
+      startDate: null,
+      answers: [],
+    })
+
+    expect(body).toContain('> Your registration for Morning Meditation')
+    expect(body).not.toContain('Start date')
+    // Only the facts block — no answer separators.
+    expect(body).not.toContain('\n>\n')
   })
 })

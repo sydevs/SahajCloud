@@ -29,11 +29,15 @@ export function buildManagerContacts(manager: Manager): EventManagerContact {
 
 /**
  * Pick the delivery channel + destination for a manager from their
- * `event_verification.method`. A platform method (whatsapp/telegram/wechat)
- * resolves to the matching `contactDetails` handle; anything else — including
- * an unset method or a platform with no handle on file — falls back to email.
+ * `notificationPreferences[notificationKey].method` (defaults to
+ * `event_verification`). A platform method (whatsapp/telegram/wechat) resolves
+ * to the matching `contactDetails` handle; anything else — including an unset
+ * method or a platform with no handle on file — falls back to email.
  */
-export function pickChannel(manager: Manager): {
+export function pickChannel(
+  manager: Manager,
+  notificationKey = 'event_verification',
+): {
   channel: NotificationChannel
   destination: string
 } {
@@ -41,7 +45,7 @@ export function pickChannel(manager: Manager): {
     | Record<string, { method?: string } | undefined>
     | null
     | undefined
-  const method = prefs?.event_verification?.method
+  const method = prefs?.[notificationKey]?.method
 
   if (method === 'whatsapp' || method === 'telegram' || method === 'wechat') {
     const contact = (manager.contactDetails ?? []).find(

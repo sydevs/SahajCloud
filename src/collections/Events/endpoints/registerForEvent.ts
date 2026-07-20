@@ -8,9 +8,13 @@ import { z } from 'zod'
 
 import { parseBody, requireActiveClient } from '@/lib/endpoints'
 import { DEFAULT_LOCALE, isValidLocale } from '@/lib/locales'
+import { resolveRegistrationRecipient } from '@/lib/notifications/registrationRecipient'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
+import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
+import { buildRegistrationAnswers } from '@/lib/registrations/questions'
 import { resolveEmailStrings } from '@/lib/translations/emailStrings'
+import { relationId } from '@/lib/utilities/relationId'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const bodySchema = z.object({
@@ -22,7 +26,9 @@ const bodySchema = z.object({
   // than silently defaulting, so a widget bug is visible instead of shipping
   // every registrant English.
   locale: z.string().refine(isValidLocale, 'unsupported locale').optional(),
-  // Raw registrant answers (keys: questions / experience / aspirations / referral).
+  // Raw registrant answers, keyed by the event's enabled registration questions
+  // (EVENT_REGISTRATION_QUESTIONS names, e.g. priorExperience / referralSource) —
+  // resolved to their labels by buildRegistrationAnswers for the manager notice.
   // Bounded so a public caller can't persist unbounded JSON via the widget.
   questions: z
     .record(z.string(), z.unknown())
@@ -230,6 +236,51 @@ export const registerForEvent: Endpoint = {
           clientId,
           eventId,
           error: sendError instanceof Error ? sendError.message : String(sendError),
+        })
+      }
+
+      // Notify the event manager — or a per-event override address — that a
+      // registration came in. Independent of the confirmation above and equally
+      // best-effort: a failure here must not undo the registration or change the
+      // 201. The event was read at depth 0, so `manager` is a bare id; resolve it
+      // separately (as the verification path does) rather than re-reading the
+      // event at a higher depth, which the confirmation send also relies on.
+      try {
+        const event = eventDocs[0]
+        const managerId = relationId(event.manager)
+        const manager = managerId
+          ? await req.payload
+              .findByID({
+                collection: 'managers',
+                id: managerId,
+                depth: 0,
+                overrideAccess: true,
+                req: asTrustedReq(req),
+              })
+              .catch(() => null)
+          : null
+
+        const recipient = resolveRegistrationRecipient(event, manager)
+        // Only `Immediate` delivers here; summary cadences are the digest run's
+        // job (follow-up ticket), and `Never` / no recipient send nothing.
+        if (recipient && recipient.frequency === 'Immediate') {
+          await sendRegistrationNotification({
+            payload: req.payload,
+            recipient,
+            event,
+            registrantName: name,
+            registrantEmail: normalizedEmail,
+            startingAt,
+            // Forward the registrant's answers to the event's questions, labelled.
+            answers: buildRegistrationAnswers(questions),
+          })
+        }
+      } catch (notifyError) {
+        req.payload.logger.error({
+          msg: 'registerForEvent: manager registration notification failed; registration kept',
+          registrationId: registration.id,
+          eventId,
+          error: notifyError instanceof Error ? notifyError.message : String(notifyError),
         })
       }
 
