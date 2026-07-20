@@ -1325,6 +1325,7 @@ export interface Manager {
     | number
     | boolean
     | null;
+  lastRegistrationDigestSentAt?: string | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -1870,6 +1871,16 @@ export interface Registration {
     | null;
   uuid: string;
   mailingListSubscribedAt?: string | null;
+  remindersUnsubscribedAt?: string | null;
+  reminderLog?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -4270,6 +4281,7 @@ export interface ManagersSelect<T extends boolean = true> {
         id?: T;
       };
   notificationPreferences?: T;
+  lastRegistrationDigestSentAt?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;
@@ -4567,6 +4579,8 @@ export interface RegistrationsSelect<T extends boolean = true> {
   questions?: T;
   uuid?: T;
   mailingListSubscribedAt?: T;
+  remindersUnsubscribedAt?: T;
+  reminderLog?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;

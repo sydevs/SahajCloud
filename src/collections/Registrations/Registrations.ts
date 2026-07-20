@@ -95,6 +95,27 @@ export const Registrations: CollectionConfig = {
       name: 'mailingListSubscribedAt',
       type: 'date',
     },
+    {
+      // Set when the registrant clicks the unsubscribe link in a session
+      // reminder. The reminder job skips a registration whose value is set, so
+      // no further reminders go out — but the registration itself is left
+      // intact. Distinct from `mailingListSubscribedAt`, which records
+      // mailing-list consent (a separate concern this deliberately doesn't
+      // touch).
+      name: 'remindersUnsubscribedAt',
+      type: 'date',
+      admin: { readOnly: true },
+    },
+    {
+      // Exactly-once ledger for session reminders: one entry per occurrence
+      // this registration has already been reminded for. The reminder job
+      // checks membership before sending and appends immediately after, so a
+      // task retry or an overlapping run never double-sends. Mirrors the Events
+      // `notificationLog` pattern.
+      name: 'reminderLog',
+      type: 'json',
+      admin: { readOnly: true },
+    },
     ...legacyMigrationFields(),
   ],
 }

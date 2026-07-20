@@ -236,6 +236,17 @@ export const Managers: CollectionConfig = {
                 components: { Field: '@/components/admin/NotificationPreferences' },
               },
             },
+            {
+              // Watermark for the registration digest run: the start of the last
+              // digest sent to this manager. The digest job covers registrations
+              // created after it and advances it to the run's start, so no
+              // registration lands in two digests and a retry re-sends nothing.
+              // Only consulted when this manager's `event_registration` frequency
+              // is a summary cadence; machine-managed, so hidden from the UI.
+              name: 'lastRegistrationDigestSentAt',
+              type: 'date',
+              admin: { readOnly: true, hidden: true },
+            },
           ],
         },
       ],
