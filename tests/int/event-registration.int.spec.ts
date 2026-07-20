@@ -284,11 +284,15 @@ describe('registerForEvent endpoint', () => {
       })
 
       expect(status).toBe(201)
-      expect(send).toHaveBeenCalledTimes(1)
+      // The endpoint also notifies the event manager (#588), so more than one
+      // email may send; select the registrant's confirmation (normalized
+      // address, matching the user upsert) rather than assuming it's the only one.
+      const confirmations = send.mock.calls
+        .map((call) => call[0] as Record<string, unknown>)
+        .filter((sent) => sent.to === 'confirmed@example.com')
+      expect(confirmations).toHaveLength(1)
 
-      const message = send.mock.calls[0][0] as Record<string, unknown>
-      // Normalized address, matching the user upsert.
-      expect(message.to).toBe('confirmed@example.com')
+      const message = confirmations[0]
       expect(message.subject).toContain('Registrable Event')
       expect(String(message.html)).toContain('Con Firmed')
       // A text alternative alongside the HTML — no template sent one before.
@@ -457,6 +461,180 @@ describe('registerForEvent endpoint', () => {
         name: 'Send Fail',
       })
 
+      expect(status).toBe(201)
+      expect(body.ok).toBe(true)
+
+      const registration = await payload.findByID({
+        collection: 'registrations',
+        id: body.registration!.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(registration.id).toBe(body.registration!.id)
+    })
+  })
+
+  describe('manager registration notification (#588)', () => {
+    let notifyRegionId: number
+
+    beforeAll(async () => {
+      const region = await payload.create({
+        collection: 'regions',
+        overrideAccess: true,
+        data: { name: 'Notify City', level: 'city', mapboxId: 'notify-city', slug: 'notify-city' },
+      })
+      notifyRegionId = region.id
+    })
+
+    function captureSend() {
+      return vi.spyOn(payload, 'sendEmail').mockResolvedValue(undefined as never)
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    /**
+     * The manager-facing notice(s) among the sends — the registrant confirmation
+     * also goes through `payload.sendEmail`, so filter by the notice's subject.
+     */
+    function managerNotices(send: ReturnType<typeof captureSend>) {
+      return send.mock.calls
+        .map((call) => call[0] as Record<string, unknown>)
+        .filter(
+          (message) =>
+            typeof message.subject === 'string' && message.subject.startsWith('New registration'),
+        )
+    }
+
+    async function createManagerWithFrequency(frequency: string, method = 'email') {
+      return testData.createManager(payload, {
+        name: `Notify Mgr ${frequency}`,
+        notificationPreferences: { event_registration: { frequency, method } },
+      })
+    }
+
+    async function createNotifyEvent(overrides: Record<string, unknown> = {}) {
+      const event = await payload.create({
+        collection: 'events',
+        overrideAccess: true,
+        data: {
+          title: 'Notify Event',
+          languages: ['en'],
+          eventType: 'online',
+          onlineUrl: 'https://example.com/meet',
+          registrationMode: 'sahaj-atlas',
+          manager: managerId,
+          region: notifyRegionId,
+          schedule: SCHEDULE,
+          _status: 'published',
+          ...overrides,
+        },
+      })
+      return event.id
+    }
+
+    it('sends one immediate notification to the event manager (override blank)', async () => {
+      const send = captureSend()
+      const notifyEventId = await createNotifyEvent()
+
+      const { status } = await callRegister(notifyEventId, {
+        email: 'seeker1@example.com',
+        name: 'Seeker One',
+      })
+      expect(status).toBe(201)
+
+      const notices = managerNotices(send)
+      expect(notices).toHaveLength(1)
+      // The shared manager's default preference is Immediate / email.
+      expect(notices[0].to).toBe('reg-manager@example.com')
+      expect(String(notices[0].subject)).toContain('Notify Event')
+      expect(String(notices[0].html)).toContain('Seeker One')
+    })
+
+    it('routes to the override address and sends the manager no copy', async () => {
+      const send = captureSend()
+      const notifyEventId = await createNotifyEvent({
+        registrationNotificationEmail: 'ops@example.org',
+        registrationNotificationFrequency: 'Immediate',
+      })
+
+      const { status } = await callRegister(notifyEventId, {
+        email: 'seeker2@example.com',
+        name: 'Seeker Two',
+      })
+      expect(status).toBe(201)
+
+      const notices = managerNotices(send)
+      expect(notices).toHaveLength(1)
+      expect(notices[0].to).toBe('ops@example.org')
+      // The override replaces the manager — no copy goes to the manager.
+      expect(notices.some((message) => message.to === 'reg-manager@example.com')).toBe(false)
+    })
+
+    it('sends nothing for a summary frequency (deferred to the digest run)', async () => {
+      const send = captureSend()
+      const summaryManager = await createManagerWithFrequency('Daily Summary')
+      const notifyEventId = await createNotifyEvent({ manager: summaryManager.id })
+
+      const { status } = await callRegister(notifyEventId, {
+        email: 'seeker3@example.com',
+        name: 'Seeker Three',
+      })
+      expect(status).toBe(201)
+      expect(managerNotices(send)).toHaveLength(0)
+    })
+
+    it('sends nothing when the manager frequency is Never', async () => {
+      const send = captureSend()
+      const neverManager = await createManagerWithFrequency('Never', '')
+      const notifyEventId = await createNotifyEvent({ manager: neverManager.id })
+
+      const { status } = await callRegister(notifyEventId, {
+        email: 'seeker4@example.com',
+        name: 'Seeker Four',
+      })
+      expect(status).toBe(201)
+      expect(managerNotices(send)).toHaveLength(0)
+    })
+
+    it('sends nothing when the manager cannot be resolved (no recipient)', async () => {
+      // Managers always have an email in practice (auth requires it), so the
+      // "no usable destination" branch is reached here by failing the manager
+      // lookup; resolveRegistrationRecipient then returns null and nothing sends.
+      // The emailless-manager case itself is unit-tested on the resolver.
+      const notifyEventId = await createNotifyEvent()
+      const originalFindByID = payload.findByID.bind(payload)
+      const send = captureSend()
+      vi.spyOn(payload, 'findByID').mockImplementation(((args: { collection: string }) =>
+        args.collection === 'managers'
+          ? Promise.reject(new Error('manager lookup failed'))
+          : originalFindByID(
+              args as Parameters<typeof originalFindByID>[0],
+            )) as typeof payload.findByID)
+
+      const { status } = await callRegister(notifyEventId, {
+        email: 'seeker5@example.com',
+        name: 'Seeker Five',
+      })
+      expect(status).toBe(201)
+      expect(managerNotices(send)).toHaveLength(0)
+    })
+
+    it('still returns 201 when the manager notification send throws', async () => {
+      const notifyEventId = await createNotifyEvent()
+      // Let the registrant confirmation succeed; only the manager notice throws.
+      vi.spyOn(payload, 'sendEmail').mockImplementation(
+        (message) =>
+          (typeof message.subject === 'string' && message.subject.startsWith('New registration')
+            ? Promise.reject(new Error('smtp exploded'))
+            : Promise.resolve(undefined)) as ReturnType<typeof payload.sendEmail>,
+      )
+
+      const { status, body } = await callRegister(notifyEventId, {
+        email: 'seeker6@example.com',
+        name: 'Seeker Six',
+      })
       expect(status).toBe(201)
       expect(body.ok).toBe(true)
 

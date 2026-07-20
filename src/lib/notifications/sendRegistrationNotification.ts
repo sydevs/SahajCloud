@@ -9,6 +9,7 @@
  * policy (retry) from the same recipient seam.
  */
 
+import type { RegistrationRecipient } from './registrationRecipient'
 import type { Payload } from 'payload'
 
 import { createElement } from 'react'
@@ -21,7 +22,6 @@ import type { Event } from '@/payload-types'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
 import { formatLongDate } from './eventDetails'
-import type { RegistrationRecipient } from './registrationRecipient'
 
 export async function sendRegistrationNotification(args: {
   payload: Payload

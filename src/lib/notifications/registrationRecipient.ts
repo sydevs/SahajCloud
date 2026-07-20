@@ -1,10 +1,10 @@
 import type { NotificationChannel } from './types'
-import type { Event, Manager } from '@/payload-types'
 
 import {
   DEFAULT_REGISTRATION_FREQUENCY,
   type NotificationPreferencesValue,
 } from '@/components/admin/NotificationPreferences/config'
+import type { Event, Manager } from '@/payload-types'
 
 import { pickChannel } from './recipients'
 
