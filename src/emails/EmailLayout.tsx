@@ -1,6 +1,18 @@
 import type { CSSProperties, ReactNode } from 'react'
 
-import { Body, Button, Container, Head, Heading, Html, Img, Preview, Section } from 'react-email'
+import {
+  Body,
+  Button,
+  Column,
+  Container,
+  Head,
+  Heading,
+  Html,
+  Img,
+  Preview,
+  Row,
+  Section,
+} from 'react-email'
 
 import type { BrandColors } from '@/lib/branding'
 import type { EmailBrand } from '@/plugins/email'
@@ -20,6 +32,36 @@ export const styles = {
   footer: { fontSize: '12px', color: '#999999', margin: 0 },
   hr: { borderColor: '#dddddd', margin: '30px 0' },
 } satisfies Record<string, CSSProperties>
+
+const labelColumn: CSSProperties = {
+  width: '38%',
+  padding: '8px 12px',
+  verticalAlign: 'top',
+  color: '#6b7280',
+  fontWeight: 600,
+  fontSize: '14px',
+  borderBottom: '1px solid #eef0f2',
+}
+const valueColumn: CSSProperties = {
+  padding: '8px 12px',
+  verticalAlign: 'top',
+  color: '#1f2937',
+  fontSize: '14px',
+  borderBottom: '1px solid #eef0f2',
+}
+
+/**
+ * A label/value line for the fact tables both the verification and registration
+ * emails render. Built from ReactEmail's Row + Column primitives.
+ */
+export function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Row>
+      <Column style={labelColumn}>{label}</Column>
+      <Column style={valueColumn}>{children}</Column>
+    </Row>
+  )
+}
 
 interface BrandButtonProps {
   href: string

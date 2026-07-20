@@ -1,11 +1,11 @@
 import type { CSSProperties, ReactNode } from 'react'
 
-import { Column, Heading, Hr, Link, Row, Section, Text } from 'react-email'
+import { Heading, Hr, Link, Section, Text } from 'react-email'
 
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
-import { BrandButton, EmailLayout, styles } from './EmailLayout'
+import { BrandButton, DetailRow, EmailLayout, styles } from './EmailLayout'
 
 /** Escalation level → email copy. Mirrors the job's reminder stages. */
 export type ReminderLevel = 'due' | 'escalated' | 'urgent' | 'expired'
@@ -283,33 +283,6 @@ const sectionHeading: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
 }
-const labelColumn: CSSProperties = {
-  width: '38%',
-  padding: '8px 12px',
-  verticalAlign: 'top',
-  color: '#6b7280',
-  fontWeight: 600,
-  fontSize: '14px',
-  borderBottom: '1px solid #eef0f2',
-}
-const valueColumn: CSSProperties = {
-  padding: '8px 12px',
-  verticalAlign: 'top',
-  color: '#1f2937',
-  fontSize: '14px',
-  borderBottom: '1px solid #eef0f2',
-}
-
-/** A label/value line, built from ReactEmail's Row + Column primitives. */
-function DetailRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <Row>
-      <Column style={labelColumn}>{label}</Column>
-      <Column style={valueColumn}>{children}</Column>
-    </Row>
-  )
-}
-
 /**
  * Event verification email — the escalating nudge the ExpireEvents job sends as
  * an event ages `verified → reminded → escalated → urgent → expired`. All
