@@ -1755,6 +1755,11 @@ export interface Event {
    */
   registrationLimit?: number | null;
   /**
+   * Leave blank to send registration updates to the event manager.
+   */
+  registrationNotificationEmail?: string | null;
+  registrationNotificationFrequency?: ('Immediate' | 'Never') | null;
+  /**
    * Optional questions to ask registrants — each enabled question appears on the registration form.
    */
   registrationQuestions?: {
@@ -4522,6 +4527,8 @@ export interface EventsSelect<T extends boolean = true> {
   registrationMode?: T;
   externalRegistrationUrl?: T;
   registrationLimit?: T;
+  registrationNotificationEmail?: T;
+  registrationNotificationFrequency?: T;
   registrationQuestions?:
     | T
     | {
