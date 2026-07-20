@@ -54,6 +54,42 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
 ]
 
 /**
+ * The frequency options for one notification type, from the single source of
+ * truth above. Lets other surfaces (the per-event registration-notification
+ * fields in `Events.ts`) derive their choices instead of re-listing literals
+ * that could drift from `NOTIFICATION_TYPES`.
+ */
+export function getFrequencyOptions(key: string): string[] {
+  return NOTIFICATION_TYPES.find((type) => type.key === key)?.frequencyOptions ?? []
+}
+
+/**
+ * Frequencies whose delivery is a scheduled digest run rather than an immediate
+ * send. Not yet built — the digest ticket follows #588 — so the per-event
+ * override select omits them (a manager can't pick a cadence that silently does
+ * nothing). Delete the omission once digests ship.
+ */
+export const SUMMARY_FREQUENCIES = ['Daily Summary', 'Weekly Summary']
+
+/**
+ * Cadence options for the per-event `registrationNotificationEmail` override.
+ * Derived from `event_registration` minus the not-yet-delivered summaries, so
+ * every selectable option acts immediately and deterministically today:
+ * `Immediate` sends now, `Never` never sends.
+ */
+export const REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS = getFrequencyOptions(
+  'event_registration',
+).filter((frequency) => !SUMMARY_FREQUENCIES.includes(frequency))
+
+/**
+ * Fallback cadence when an override address is set but no frequency is chosen.
+ * The first `event_registration` option (`Immediate`), matching
+ * `buildDefaultNotificationPreferences`.
+ */
+export const DEFAULT_REGISTRATION_FREQUENCY =
+  getFrequencyOptions('event_registration')[0] ?? 'Immediate'
+
+/**
  * Seed value for a fresh manager: every type defaults to its first frequency
  * option with the `email` method (which needs no contactDetails). A type
  * whose first option is "Never" ships with no method.
