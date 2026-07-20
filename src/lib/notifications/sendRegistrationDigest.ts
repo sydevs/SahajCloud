@@ -9,12 +9,12 @@
  * watermark, not here.
  */
 
-import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
 import type { RegistrationRecipient } from './registrationRecipient'
 import type { Payload } from 'payload'
 
 import { createElement } from 'react'
 
+import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
 import { RegistrationDigestEmail, registrationDigestText } from '@/emails/RegistrationDigestEmail'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'

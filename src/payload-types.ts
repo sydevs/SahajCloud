@@ -823,6 +823,8 @@ export interface Config {
     tasks: {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       expireEvents: TaskExpireEvents;
+      sendRegistrationDigests: TaskSendRegistrationDigests;
+      sendSessionReminders: TaskSendSessionReminders;
       syncLectureMetadata: TaskSyncLectureMetadata;
       resetUsage: TaskResetUsage;
       schedulePublish: TaskSchedulePublish;
@@ -3657,6 +3659,8 @@ export interface PayloadJob {
           | 'inline'
           | 'cleanupOrphanedMedia'
           | 'expireEvents'
+          | 'sendRegistrationDigests'
+          | 'sendSessionReminders'
           | 'syncLectureMetadata'
           | 'resetUsage'
           | 'schedulePublish';
@@ -3693,7 +3697,16 @@ export interface PayloadJob {
       }[]
     | null;
   taskSlug?:
-    | ('inline' | 'cleanupOrphanedMedia' | 'expireEvents' | 'syncLectureMetadata' | 'resetUsage' | 'schedulePublish')
+    | (
+        | 'inline'
+        | 'cleanupOrphanedMedia'
+        | 'expireEvents'
+        | 'sendRegistrationDigests'
+        | 'sendSessionReminders'
+        | 'syncLectureMetadata'
+        | 'resetUsage'
+        | 'schedulePublish'
+      )
     | null;
   queue?: string | null;
   waitUntil?: string | null;
@@ -6352,6 +6365,32 @@ export interface TaskExpireEvents {
     advanced: number;
     trashed: number;
     remindersSent: number;
+    failed: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSendRegistrationDigests".
+ */
+export interface TaskSendRegistrationDigests {
+  input?: unknown;
+  output: {
+    eligibleManagers: number;
+    digestsSent: number;
+    registrationsIncluded: number;
+    failed: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSendSessionReminders".
+ */
+export interface TaskSendSessionReminders {
+  input?: unknown;
+  output: {
+    processedEvents: number;
+    remindersSent: number;
+    skipped: number;
     failed: number;
   };
 }
