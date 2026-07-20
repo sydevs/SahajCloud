@@ -149,8 +149,9 @@ in `src/emails/`.
   reimplementing it, so they can't drift from production:
 
   ```bash
-  pnpm tsx scripts/preview-registration-emails.ts   # registrant confirmation, all states
-  pnpm tsx scripts/preview-event-emails.ts          # manager verification reminders
+  pnpm tsx scripts/preview-registration-emails.ts               # registrant confirmation, all states
+  pnpm tsx scripts/preview-registration-notification-emails.ts  # manager registration notice, all states
+  pnpm tsx scripts/preview-event-emails.ts                      # manager verification reminders
   ```
 
   Neither touches the database. `SAHAJCLOUD_URL` defaults to production in the
