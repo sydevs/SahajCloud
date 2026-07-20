@@ -1,12 +1,12 @@
 import type { CSSProperties } from 'react'
 
 import { Fragment } from 'react'
-import { Heading, Hr, Link, Section, Text } from 'react-email'
+import { Hr, Link, Section, Text } from 'react-email'
 
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
-import { BrandButtonRow, DetailRow, EmailLayout, styles } from './EmailLayout'
+import { BrandButtonRow, DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
 
 /** A registrant's answer to one registration question, labelled for display. */
 export interface RegistrationAnswer {
@@ -28,15 +28,21 @@ export function buildReplyBody(args: {
   answers: RegistrationAnswer[]
 }): string {
   const { registrantName, eventTitle, startDate, answers } = args
-  const quoted = [
+
+  // One block per topic: the event facts, then one per Q&A. Blocks are joined by
+  // a blank line and every line is `> `-quoted, so the recap reads as a clean,
+  // spaced quote in the reply.
+  const facts = [
     `Your registration for ${eventTitle}`,
     startDate ? `Start date: ${startDate}` : null,
-    ...(answers.length > 0
-      ? ['', ...answers.flatMap((answer) => [answer.label, `  ${answer.value}`])]
-      : []),
-  ]
-    .filter((line): line is string => line !== null)
-    .map((line) => `> ${line}`)
+  ].filter((line): line is string => line !== null)
+
+  const blocks = [facts.join('\n'), ...answers.map((answer) => `${answer.label}\n${answer.value}`)]
+
+  const quoted = blocks
+    .join('\n\n')
+    .split('\n')
+    .map((line) => (line ? `> ${line}` : '>'))
     .join('\n')
 
   return `Hello ${registrantName},\n\n\n${quoted}\n`
@@ -103,6 +109,7 @@ export function EventRegistrationEmail({
       </Text>
 
       <Section>
+        <SectionHeading>Event details</SectionHeading>
         <DetailRow label="Event">{eventTitle}</DetailRow>
         <DetailRow label="Registrant">{registrantName}</DetailRow>
         <DetailRow label="Email">
@@ -118,9 +125,7 @@ export function EventRegistrationEmail({
 
       {answers.length > 0 ? (
         <Section>
-          <Heading as="h3" style={sectionHeading}>
-            Registration answers
-          </Heading>
+          <SectionHeading>Registration answers</SectionHeading>
           {answers.map((answer) => (
             <Fragment key={answer.label}>
               <Text style={answerQuestion}>{answer.label}</Text>
@@ -146,14 +151,6 @@ export function EventRegistrationEmail({
   )
 }
 
-const sectionHeading: CSSProperties = {
-  margin: '18px 0 10px',
-  fontSize: '12px',
-  fontWeight: 700,
-  color: '#6b7280',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-}
 const answerQuestion: CSSProperties = {
   fontSize: '14px',
   fontWeight: 600,

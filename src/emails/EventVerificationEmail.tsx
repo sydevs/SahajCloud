@@ -1,11 +1,11 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
-import { Heading, Hr, Link, Section, Text } from 'react-email'
+import { Hr, Link, Section, Text } from 'react-email'
 
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
-import { BrandButton, DetailRow, EmailLayout, styles } from './EmailLayout'
+import { BrandButton, DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
 
 /** Escalation level → email copy. Mirrors the job's reminder stages. */
 export type ReminderLevel = 'due' | 'escalated' | 'urgent' | 'expired'
@@ -275,14 +275,6 @@ function contactManagerHref(email: string, eventTitle: string, managerName: stri
   return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 }
 
-const sectionHeading: CSSProperties = {
-  margin: '18px 0 10px',
-  fontSize: '12px',
-  fontWeight: 700,
-  color: '#6b7280',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-}
 /**
  * Event verification email — the escalating nudge the ExpireEvents job sends as
  * an event ages `verified → reminded → escalated → urgent → expired`. All
@@ -348,9 +340,7 @@ export function EventVerificationEmail({
 
       {audience === 'region' && eventManager ? (
         <Section>
-          <Heading as="h3" style={sectionHeading}>
-            Event manager
-          </Heading>
+          <SectionHeading>Event manager</SectionHeading>
           <DetailRow label="Name">{eventManager.name}</DetailRow>
           {eventManager.contacts.map((entry) => (
             <DetailRow key={entry.label} label={entry.label}>
@@ -362,9 +352,7 @@ export function EventVerificationEmail({
 
       {details ? (
         <Section>
-          <Heading as="h3" style={sectionHeading}>
-            Event details
-          </Heading>
+          <SectionHeading>Event details</SectionHeading>
           <DetailRow label="Event">{details.title}</DetailRow>
           {details.location ? (
             <DetailRow label={details.locationLabel}>

@@ -97,6 +97,8 @@ describe('EventRegistrationEmail', () => {
     expect(html).toContain('Anna')
     expect(html).toContain('Morning Meditation')
     expect(html).toContain('Sam Seeker')
+    // Section headings (shared SectionHeading).
+    expect(html).toContain('Event details')
     expect(html).toContain('Start date')
     expect(html).toContain('Saturday, 19 July 2026')
     // Forwarded registrant answers.
@@ -143,11 +145,13 @@ describe('buildReplyBody', () => {
     })
 
     expect(body).toContain('Hello Sam,')
-    // A quoted recap the seeker sees in the reply chain.
+    // A quoted recap the seeker sees in the reply chain: facts block, a blank
+    // quoted separator, then the question on its own line above its answer.
     expect(body).toContain('> Your registration for Morning Meditation')
     expect(body).toContain('> Start date: Saturday, 19 July 2026')
+    expect(body).toContain('\n>\n')
     expect(body).toContain('> How did you hear about this event?')
-    expect(body).toContain('>   A friend')
+    expect(body).toContain('> A friend')
   })
 
   it('omits the start-date and answer lines when they are absent', () => {
@@ -160,6 +164,7 @@ describe('buildReplyBody', () => {
 
     expect(body).toContain('> Your registration for Morning Meditation')
     expect(body).not.toContain('Start date')
-    expect(body).not.toContain('>   ')
+    // Only the facts block — no answer separators.
+    expect(body).not.toContain('\n>\n')
   })
 })

@@ -111,27 +111,40 @@ export function BrandButton({
 
 interface BrandButtonRowProps {
   brand: EmailBrand
-  /** Buttons laid out left-to-right in equal columns. */
+  /** Buttons rendered inline and centered together as a group. */
   buttons: { href: string; label: ReactNode; variant?: BrandButtonVariant }[]
 }
 
-/** A single row of call-to-action buttons, side by side (table columns for email clients). */
+/**
+ * A row of call-to-action buttons centered together (inline-block in a centered
+ * cell), rather than spread across the width. Use for 2–3 short actions.
+ */
 export function BrandButtonRow({ brand, buttons }: BrandButtonRowProps) {
   return (
     <Section style={buttonContainer}>
-      <Row>
-        {buttons.map((cta, index) => (
-          <Column key={index} align="center" style={buttonCell}>
-            <Button
-              href={cta.href}
-              style={{ ...button, ...brandButtonVariantStyle(brand, cta.variant ?? 'primary') }}
-            >
-              {cta.label}
-            </Button>
-          </Column>
-        ))}
-      </Row>
+      {buttons.map((cta, index) => (
+        <Button
+          key={index}
+          href={cta.href}
+          style={{
+            ...button,
+            ...brandButtonVariantStyle(brand, cta.variant ?? 'primary'),
+            ...buttonInRow,
+          }}
+        >
+          {cta.label}
+        </Button>
+      ))}
     </Section>
+  )
+}
+
+/** Small uppercase label above a detail table (Event details, Registration answers, …). */
+export function SectionHeading({ children }: { children: ReactNode }) {
+  return (
+    <Heading as="h3" style={sectionHeading}>
+      {children}
+    </Heading>
   )
 }
 
@@ -244,10 +257,9 @@ const buttonContainerTight: CSSProperties = {
   margin: '0 0 30px',
 }
 
-// A small horizontal gap between buttons laid out side by side in a row.
-const buttonCell: CSSProperties = {
-  padding: '0 4px',
-  verticalAlign: 'top',
+// A small horizontal gap between buttons sitting inline in a centered row.
+const buttonInRow: CSSProperties = {
+  margin: '0 6px',
 }
 
 const button: CSSProperties = {
@@ -257,4 +269,16 @@ const button: CSSProperties = {
   fontWeight: 'bold',
   textDecoration: 'none',
   display: 'inline-block',
+}
+
+// Small uppercase section label. Shared so every template's section headers
+// (Event details, Registration answers, Event manager, …) match. The generous
+// top margin separates a section from the content above it.
+const sectionHeading: CSSProperties = {
+  margin: '28px 0 10px',
+  fontSize: '12px',
+  fontWeight: 700,
+  color: '#6b7280',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
 }

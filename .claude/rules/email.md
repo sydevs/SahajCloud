@@ -80,7 +80,7 @@ package (v6 unified them — the older `@react-email/components` and
 
 | File | Purpose |
 |---|---|
-| `EmailLayout.tsx` | Shared shell — gradient brand header, card body, footer. Exports `BrandButton`, `BrandButtonRow` (buttons side by side), `DetailRow` (label/value fact-table row), and shared `styles`. |
+| `EmailLayout.tsx` | Shared shell — gradient brand header, card body, footer. Exports `BrandButton`, `BrandButtonRow` (2–3 actions centered together on one row), `DetailRow` (label/value fact-table row), `SectionHeading` (uppercase section label), and shared `styles`. Reuse these so templates stay visually consistent. |
 | `VerifyEmail.tsx` | Managers email-verification message. |
 | `ResetPasswordEmail.tsx` | Managers password-reset message (replaces Payload's bare default). |
 | `EventVerificationEmail.tsx` | Manager/region event-verification reminder — coloured alert callout keyed on `ReminderLevel`. |
