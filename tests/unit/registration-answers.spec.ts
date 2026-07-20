@@ -1,6 +1,33 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildRegistrationAnswers } from '@/collections/Events/eventOptions'
+import {
+  buildRegistrationAnswers,
+  validateRegistrationQuestions,
+} from '@/collections/Events/eventOptions'
+
+describe('validateRegistrationQuestions', () => {
+  it('accepts an object of known keys with string answers', () => {
+    expect(validateRegistrationQuestions({ referralSource: 'A friend', guests: 'Yes' })).toBe(true)
+  })
+
+  it('accepts null / undefined (the field is optional)', () => {
+    expect(validateRegistrationQuestions(null)).toBe(true)
+    expect(validateRegistrationQuestions(undefined)).toBe(true)
+  })
+
+  it('rejects a non-object', () => {
+    expect(validateRegistrationQuestions('nope')).toMatch(/must be an object/)
+    expect(validateRegistrationQuestions(['a'])).toMatch(/must be an object/)
+  })
+
+  it('rejects an unknown question key', () => {
+    expect(validateRegistrationQuestions({ mystery: 'x' })).toMatch(/Unknown registration question/)
+  })
+
+  it('rejects a non-string answer', () => {
+    expect(validateRegistrationQuestions({ guests: 3 })).toMatch(/must be text/)
+  })
+})
 
 describe('buildRegistrationAnswers', () => {
   it('maps a known question key to its configured label', () => {

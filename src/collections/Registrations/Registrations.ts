@@ -3,6 +3,10 @@ import type { CollectionConfig } from 'payload'
 import { legacyMigrationFields } from '@/fields'
 import { DEFAULT_LOCALE, getLocaleOptions } from '@/lib/locales'
 
+// Registration answers are answers to the event's questions, so the shape is
+// defined and validated by the Events question set (the single source of truth).
+import { validateRegistrationQuestions } from '../Events/eventOptions'
+
 /**
  * Registrations — a registrant (User) signing up for an Event. Migrated from
  * the Atlas `registrations` table.
@@ -70,6 +74,10 @@ export const Registrations: CollectionConfig = {
     {
       name: 'questions',
       type: 'json',
+      // Enforce the shape: keys ⊆ EVENT_REGISTRATION_QUESTIONS, string answers.
+      // A bad payload throws a ValidationError (400) — the register endpoint's
+      // catch surfaces it verbatim rather than a 500.
+      validate: (value: unknown) => validateRegistrationQuestions(value),
       admin: {
         description:
           "Raw registrant answers, keyed by the event's enabled registration questions (EVENT_REGISTRATION_QUESTIONS — priorExperience, referralSource, healthInfo, accessibility, guests).",

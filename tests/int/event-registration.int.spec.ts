@@ -155,6 +155,18 @@ describe('registerForEvent endpoint', () => {
     expect(status).toBe(400)
   })
 
+  it('returns 400 for an unrecognized registration-question key', async () => {
+    // The Registrations.questions field validate rejects keys outside
+    // EVENT_REGISTRATION_QUESTIONS; the ValidationError surfaces as a 400.
+    const { status, body } = await callRegister(eventId, {
+      email: 'badq@example.com',
+      name: 'Bad Q',
+      questions: { notARealQuestion: 'x' },
+    })
+    expect(status).toBe(400)
+    expect(body).toHaveProperty('errors')
+  })
+
   it('returns 404 for an event the client cannot see', async () => {
     const { status } = await callRegister(999999, {
       email: 'nobody@example.com',
@@ -168,7 +180,7 @@ describe('registerForEvent endpoint', () => {
       email: 'Registrant@Example.com',
       name: 'Reg Istrant',
       startingAt: '2025-02-01T18:00:00.000Z',
-      questions: { experience: 'none' },
+      questions: { priorExperience: 'none' },
     })
     expect(status).toBe(201)
     expect(body.ok).toBe(true)

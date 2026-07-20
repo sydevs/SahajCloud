@@ -59,6 +59,43 @@ export const EVENT_REGISTRATION_QUESTIONS = [
   { name: 'guests', label: 'Will you be bringing any guests?' },
 ] as const
 
+/** A configured registration-question key (`priorExperience`, `referralSource`, …). */
+export type EventRegistrationQuestionName = (typeof EVENT_REGISTRATION_QUESTIONS)[number]['name']
+
+/**
+ * The stored shape of a registration's `questions` field: each configured
+ * question key maps to the registrant's (string) answer. Every key is optional —
+ * an event enables only some questions, and a registrant may skip any.
+ */
+export type RegistrationQuestions = Partial<Record<EventRegistrationQuestionName, string>>
+
+const EVENT_REGISTRATION_QUESTION_NAMES = new Set<string>(
+  EVENT_REGISTRATION_QUESTIONS.map((question) => question.name),
+)
+
+/**
+ * Enforce the `questions` structure on write: an object whose keys are all
+ * configured question names and whose values are strings. Returns `true` or an
+ * error message. Pure JS (no `jsonSchema` — Payload would compile that to an Ajv
+ * `new Function()` validator, which throws under Cloudflare's codegen ban; see
+ * `src/fields/translationsField.ts`).
+ */
+export function validateRegistrationQuestions(value: unknown): true | string {
+  if (value == null) return true
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    return 'Registration answers must be an object of question answers.'
+  }
+  for (const [key, answer] of Object.entries(value)) {
+    if (!EVENT_REGISTRATION_QUESTION_NAMES.has(key)) {
+      return `Unknown registration question: "${key}".`
+    }
+    if (typeof answer !== 'string') {
+      return `The answer for "${key}" must be text.`
+    }
+  }
+  return true
+}
+
 /** A registrant's answer to one registration question, labelled for display. */
 export interface RegistrationAnswer {
   label: string
