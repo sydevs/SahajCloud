@@ -1856,18 +1856,28 @@ export interface Registration {
         | 'nl'
       )
     | null;
-  /**
-   * Raw registrant answers, keyed by the event's enabled registration questions (EVENT_REGISTRATION_QUESTIONS — priorExperience, referralSource, healthInfo, accessibility, guests).
-   */
-  questions?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  questions?: {
+    /**
+     * Have you practised Sahaja Yoga meditation before?
+     */
+    priorExperience?: string;
+    /**
+     * How did you hear about this event?
+     */
+    referralSource?: string;
+    /**
+     * Is there anything about your health we should know?
+     */
+    healthInfo?: string;
+    /**
+     * Do you have any accessibility requirements?
+     */
+    accessibility?: string;
+    /**
+     * Will you be bringing any guests?
+     */
+    guests?: string;
+  };
   uuid: string;
   mailingListSubscribedAt?: string | null;
   legacyId?: number | null;
