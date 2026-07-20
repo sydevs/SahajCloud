@@ -62,30 +62,38 @@ interface Scenario {
   registrantName: string
   registrantEmail: string
   startingAt?: string | null
+  /** Raw registrant answers, keyed by question name — shaped exactly as the endpoint does. */
+  questions?: Record<string, unknown>
 }
 
 const SCENARIOS: Scenario[] = [
   {
     label: 'manager · full',
-    note: 'named manager, event + registrant + session — every row present, greeting by name',
+    note: 'named manager — every row, forwarded answers, and the Reply CTA; greeting by name',
     recipient: managerRecipient,
     event: { id: 1042, title: 'Tuesday Evening Meditation' },
     registrantName: 'Jo Smith',
     registrantEmail: 'jo.smith@example.com',
     startingAt: daysFromNow(5),
+    questions: {
+      priorExperience: 'No, this is my first time',
+      referralSource: 'A friend recommended it',
+      guests: 'Bringing my partner',
+    },
   },
   {
     label: 'override · neutral greeting',
-    note: 'per-event override address (no display name) → "Hello there,"',
+    note: 'per-event override address (no display name) → "Hello there,"; one forwarded answer',
     recipient: overrideRecipient,
     event: { id: 1043, title: 'Saturday Morning Meditation' },
     registrantName: 'Priya Deshmukh',
     registrantEmail: 'priya.d@example.com',
     startingAt: daysFromNow(3),
+    questions: { referralSource: 'Instagram' },
   },
   {
-    label: 'manager · no session',
-    note: 'no startingAt supplied → the Session row collapses',
+    label: 'manager · minimal',
+    note: 'no start date and no answers → the Start date row and answers section both collapse',
     recipient: managerRecipient,
     event: { id: 1044, title: 'Introduction to Meditation — Open Day' },
     registrantName: 'Lukas Bauer',
@@ -94,7 +102,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     label: 'manager · long title',
-    note: 'long, manager-authored title — checks the Subject + heading wrapping',
+    note: 'long title + sensitive answers forwarded — checks Subject/heading wrap and the answers block',
     recipient: managerRecipient,
     event: {
       id: 1045,
@@ -103,6 +111,10 @@ const SCENARIOS: Scenario[] = [
     registrantName: 'María González',
     registrantEmail: 'maria.g@example.com',
     startingAt: daysFromNow(9),
+    questions: {
+      healthInfo: 'A knee injury — I may need to sit on a chair',
+      accessibility: 'Step-free access, please',
+    },
   },
 ]
 
@@ -110,6 +122,8 @@ async function main() {
   const nodemailer = (await import('nodemailer')).default
   const { sendRegistrationNotification } =
     await import('@/lib/notifications/sendRegistrationNotification')
+  // Shape raw answers exactly as the endpoint does, so the preview can't drift.
+  const { buildRegistrationAnswers } = await import('@/collections/Events/eventOptions')
 
   const account = await nodemailer.createTestAccount()
   const transport = nodemailer.createTransport({
@@ -149,6 +163,7 @@ async function main() {
       registrantName: scenario.registrantName,
       registrantEmail: scenario.registrantEmail,
       startingAt: scenario.startingAt,
+      answers: buildRegistrationAnswers(scenario.questions),
     })
   }
 

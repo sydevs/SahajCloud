@@ -16,6 +16,8 @@ import { resolveEmailStrings } from '@/lib/translations/emailStrings'
 import { relationId } from '@/lib/utilities/relationId'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
+import { buildRegistrationAnswers } from '../eventOptions'
+
 const bodySchema = z.object({
   email: z.string().email().max(254),
   name: z.string().trim().min(1).max(200),
@@ -268,6 +270,8 @@ export const registerForEvent: Endpoint = {
             registrantName: name,
             registrantEmail: normalizedEmail,
             startingAt,
+            // Forward the registrant's answers to the event's questions, labelled.
+            answers: buildRegistrationAnswers(questions),
           })
         }
       } catch (notifyError) {

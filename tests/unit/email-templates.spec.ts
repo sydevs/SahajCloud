@@ -83,20 +83,34 @@ describe('EventRegistrationEmail', () => {
     eventTitle: 'Morning Meditation',
     registrantName: 'Sam Seeker',
     registrantEmail: 'sam@example.com',
-    sessionDate: 'Saturday, 19 July 2026',
+    startDate: 'Saturday, 19 July 2026',
+    answers: [
+      { label: 'How did you hear about this event?', value: 'A friend recommended it' },
+      { label: 'Will you be bringing any guests?', value: 'Yes, two guests' },
+    ],
     eventAdminUrl: 'https://cloud.test/admin/collections/events/42',
   }
 
-  it('renders the recipient, registrant, session, admin link, and CTA', async () => {
+  it('renders the recipient, registrant, start date, answers, and both CTAs', async () => {
     const html = await renderEmail(createElement(EventRegistrationEmail, props))
 
     expect(html).toContain('Anna')
     expect(html).toContain('Morning Meditation')
     expect(html).toContain('Sam Seeker')
-    expect(html).toContain('mailto:sam@example.com')
+    expect(html).toContain('Start date')
     expect(html).toContain('Saturday, 19 July 2026')
-    expect(html).toContain('https://cloud.test/admin/collections/events/42')
+    // Forwarded registrant answers.
+    expect(html).toContain('Registration answers')
+    expect(html).toContain('How did you hear about this event?')
+    expect(html).toContain('A friend recommended it')
+    expect(html).toContain('Will you be bringing any guests?')
+    expect(html).toContain('Yes, two guests')
+    // Reply CTA (primary), with a pre-filled mailto to the registrant.
+    expect(html.replace(/<!-- -->/g, '')).toContain('Reply to Sam Seeker')
+    expect(html).toContain('mailto:sam@example.com?subject=')
+    // View event (secondary) still present.
     expect(html).toContain('View event')
+    expect(html).toContain('https://cloud.test/admin/collections/events/42')
     // Branded for the Sahaj Atlas project (a manager notice, not client mail).
     expect(html).toContain(getEmailBrand('sahaj-atlas').productName)
   })
@@ -111,10 +125,11 @@ describe('EventRegistrationEmail', () => {
     expect(html).not.toContain('Anna')
   })
 
-  it('omits the session row when no session date is supplied', async () => {
+  it('omits the start-date row and answers section when neither is supplied', async () => {
     const html = await renderEmail(
-      createElement(EventRegistrationEmail, { ...props, sessionDate: null }),
+      createElement(EventRegistrationEmail, { ...props, startDate: null, answers: [] }),
     )
-    expect(html).not.toContain('Session')
+    expect(html).not.toContain('Start date')
+    expect(html).not.toContain('Registration answers')
   })
 })

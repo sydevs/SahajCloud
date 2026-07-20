@@ -552,6 +552,24 @@ describe('registerForEvent endpoint', () => {
       expect(String(notices[0].html)).toContain('Seeker One')
     })
 
+    it("forwards the registrant's question answers to the manager", async () => {
+      const send = captureSend()
+      const notifyEventId = await createNotifyEvent()
+
+      const { status } = await callRegister(notifyEventId, {
+        email: 'seeker-q@example.com',
+        name: 'Seeker Q',
+        questions: { referralSource: 'A friend recommended it', guests: 'Yes, two' },
+      })
+      expect(status).toBe(201)
+
+      const html = String(managerNotices(send)[0]?.html)
+      expect(html).toContain('Registration answers')
+      expect(html).toContain('How did you hear about this event?')
+      expect(html).toContain('A friend recommended it')
+      expect(html).toContain('Yes, two')
+    })
+
     it('routes to the override address and sends the manager no copy', async () => {
       const send = captureSend()
       const notifyEventId = await createNotifyEvent({

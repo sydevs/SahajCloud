@@ -58,3 +58,54 @@ export const EVENT_REGISTRATION_QUESTIONS = [
   { name: 'accessibility', label: 'Do you have any accessibility requirements?' },
   { name: 'guests', label: 'Will you be bringing any guests?' },
 ] as const
+
+/** A registrant's answer to one registration question, labelled for display. */
+export interface RegistrationAnswer {
+  label: string
+  value: string
+}
+
+const QUESTION_LABELS = new Map<string, string>(
+  EVENT_REGISTRATION_QUESTIONS.map((question) => [question.name, question.label]),
+)
+
+/** Render one raw answer value as a display string, or `''` to skip it. */
+function formatAnswer(raw: unknown): string {
+  if (typeof raw === 'string') return raw.trim()
+  if (typeof raw === 'boolean') return raw ? 'Yes' : 'No'
+  if (typeof raw === 'number') return String(raw)
+  if (Array.isArray(raw))
+    return raw
+      .map((entry) => String(entry).trim())
+      .filter(Boolean)
+      .join(', ')
+  return ''
+}
+
+/**
+ * Shape a registrant's raw `questions` answers (the record stored on the
+ * registration) into labelled rows for the manager notification. Keys map to
+ * their configured question label, falling back to the key for anything not in
+ * `EVENT_REGISTRATION_QUESTIONS`; blank answers are dropped. Ordered to follow
+ * the configured question order, then any extra keys.
+ */
+export function buildRegistrationAnswers(
+  questions: Record<string, unknown> | null | undefined,
+): RegistrationAnswer[] {
+  if (!questions || typeof questions !== 'object') return []
+
+  const answers: RegistrationAnswer[] = []
+  const seen = new Set<string>()
+
+  const push = (key: string) => {
+    if (seen.has(key) || !(key in questions)) return
+    seen.add(key)
+    const value = formatAnswer(questions[key])
+    if (value) answers.push({ label: QUESTION_LABELS.get(key) ?? key, value })
+  }
+
+  for (const question of EVENT_REGISTRATION_QUESTIONS) push(question.name)
+  for (const key of Object.keys(questions)) push(key)
+
+  return answers
+}

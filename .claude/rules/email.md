@@ -85,7 +85,7 @@ package (v6 unified them — the older `@react-email/components` and
 | `ResetPasswordEmail.tsx` | Managers password-reset message (replaces Payload's bare default). |
 | `EventVerificationEmail.tsx` | Manager/region event-verification reminder — coloured alert callout keyed on `ReminderLevel`. |
 | `RegistrationConfirmationEmail.tsx` | Registrant confirmation for an event registration — client-branded, localized, ICS attached. Also exports `registrationConfirmationText` (the plain-text alternative). |
-| `EventRegistrationEmail.tsx` | Manager-facing notice that a seeker registered — Sahaj Atlas project brand, event/registrant/session `DetailRow`s, and a link to the event in the admin. Informational (no alert callout). |
+| `EventRegistrationEmail.tsx` | Manager-facing notice that a seeker registered — Sahaj Atlas project brand; event/registrant/start-date `DetailRow`s, the registrant's forwarded question answers, and a primary Reply-to-registrant CTA (View event secondary). Informational (no alert callout). |
 
 ### Manager mail vs registrant mail
 
@@ -96,8 +96,9 @@ side rather than splitting the difference:
   Coloured callout banner, a deadline, urgency colour keyed on severity.
 - **Manager / admin, informational** (`EventRegistrationEmail`) — a notice, not
   an alert. No callout or deadline; a `DetailRow` fact table (event, registrant,
-  session) and the **project** brand. Use this shape when you're telling a
-  manager that something happened rather than that they must act.
+  start date), the registrant's forwarded answers, a Reply-to-registrant CTA, and
+  the **project** brand. Use this shape when you're telling a manager that
+  something happened rather than that they must act.
 - **Registrant / guest** (`RegistrationConfirmationEmail`) — an itinerary. No
   callout, no deadline; label-above-value detail rows, and the only accent is
   the **client service's** own brand.
