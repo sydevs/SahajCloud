@@ -241,7 +241,9 @@ export const SendSessionReminders: TaskConfig<'sendSessionReminders'> = {
   ],
   handler: async ({ req }) => {
     const payload = req.payload
-    const now = new Date()
+    // `req.context.now` overrides the clock for deterministic tests.
+    const contextNow = (req.context as { now?: unknown } | undefined)?.now
+    const now = contextNow instanceof Date ? contextNow : new Date()
     const windowEnd = new Date(now.getTime() + REMINDER_WINDOW_MS)
     const result: ReminderResult = {
       processedEvents: 0,

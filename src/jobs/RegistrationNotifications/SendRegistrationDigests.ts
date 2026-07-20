@@ -282,7 +282,9 @@ export const SendRegistrationDigests: TaskConfig<'sendRegistrationDigests'> = {
   ],
   handler: async ({ req }) => {
     const payload = req.payload
-    const runStart = new Date()
+    // `req.context.now` overrides the clock for deterministic tests.
+    const contextNow = (req.context as { now?: unknown } | undefined)?.now
+    const runStart = contextNow instanceof Date ? contextNow : new Date()
     const isWeeklyAnchor = runStart.getUTCDay() === WEEKLY_ANCHOR_WEEKDAY
     const result: DigestResult = {
       eligibleManagers: 0,
