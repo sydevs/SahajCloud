@@ -1,0 +1,301 @@
+/**
+ * Operator script: send the #589 scheduled emails — the registrant **session
+ * reminder** and the manager **registration digest** — in each meaningful state
+ * to a throwaway Ethereal inbox for visual review. Prints a direct preview link
+ * per scenario.
+ *
+ * Usage:
+ *   pnpm tsx scripts/preview-reminder-digest-emails.ts
+ *
+ * No database is touched. The script drives the **real** send paths
+ * (`sendSessionReminder` / `sendRegistrationDigest`) through a stub `payload`
+ * (its only Payload touchpoints are `findGlobal`, `sendEmail`, `logger`, and
+ * `secret`), so what you see is what the jobs send: same subject, `From`,
+ * `Reply-To`, HTML, and plain-text part. Nothing is reimplemented here, so this
+ * preview can't drift from production behaviour.
+ *
+ * Header logos are absolute URLs. `SAHAJCLOUD_URL` defaults to production so the
+ * icon (and the unsubscribe link's origin) resolve in the preview.
+ */
+
+import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
+import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
+import type { RegistrationRecipient } from '@/lib/notifications'
+import type { LocaleCode } from '@/lib/locales'
+import type { Event } from '@/payload-types'
+
+import { Temporal } from '@js-temporal/polyfill'
+import dotenv from 'dotenv'
+
+dotenv.config({ path: '.env' })
+dotenv.config({ path: '.env.local', override: true })
+
+process.env.SAHAJCLOUD_URL ||= 'https://cloud.sydevelopers.com'
+
+const LONDON = 'Europe/London'
+const TUESDAY = 2
+const SATURDAY = 6
+
+/** The next occurrence of `weekday` at `hour`:00 local time in `tz`, ≥ 3 days out, as a UTC ISO string. */
+function nextLocalOccurrence(weekday: number, hour: number, tz: string): string {
+  let zdt = Temporal.Now.zonedDateTimeISO(tz)
+    .add({ days: 3 })
+    .with({ hour, minute: 0, second: 0, millisecond: 0, microsecond: 0, nanosecond: 0 })
+  while (zdt.dayOfWeek !== weekday) zdt = zdt.add({ days: 1 })
+  return new Date(Number(zdt.epochMilliseconds)).toISOString()
+}
+
+const COURSE_START = nextLocalOccurrence(TUESDAY, 19, LONDON)
+const SATURDAY_START = nextLocalOccurrence(SATURDAY, 10, LONDON)
+
+const ADDRESS = {
+  street: '12 Example Street',
+  room: '2nd Floor, Community Hall',
+  postCode: 'SW1A 1AA',
+  country: 'GB',
+  region: 'Greater London',
+  city: 'London',
+  latitude: 51.5074,
+  longitude: -0.1278,
+}
+
+/** A weekly 19:00 London online class. */
+const onlineEvent = {
+  id: 1042,
+  title: 'Tuesday Evening Meditation',
+  eventType: 'online',
+  onlineUrl: 'https://meet.example.com/tuesday-meditation-abc-def',
+  contactName: 'Priya Deshmukh',
+  contactPhone: '+44 20 7946 0000',
+  schedule: {
+    firstDate: COURSE_START,
+    firstDate_tz: LONDON,
+    recurrenceType: 'WEEKLY',
+    interval: 1,
+    weekdays: ['TU'],
+    endTime: '20:30',
+  },
+} as unknown as Event
+
+/** A weekly 10:00 London in-person class. */
+const offlineEvent = {
+  id: 1043,
+  title: 'Saturday Morning Meditation',
+  eventType: 'offline',
+  address: ADDRESS,
+  contactName: 'Priya Deshmukh',
+  contactPhone: '+44 20 7946 0000',
+  schedule: {
+    firstDate: SATURDAY_START,
+    firstDate_tz: LONDON,
+    recurrenceType: 'WEEKLY',
+    weekdays: ['SA'],
+    endTime: '11:30',
+  },
+} as unknown as Event
+
+/** A branded client service. */
+const brandedClient: EmailClient = {
+  name: 'Sahaja Yoga London',
+  color1: '#7B4EA8',
+  color2: '#B08BD4',
+  logo: null, // no Cloudflare image locally — falls back to the Atlas icon
+  websiteUrl: 'https://www.sahajayogalondon.example',
+  supportEmail: 'hello@sahajayogalondon.example',
+}
+
+/**
+ * A partly-translated German `emails` group for the reminder — `reminder_subject`,
+ * `unsubscribe_cta`, and others are deliberately omitted so the per-key English
+ * fallback is visible in the rendered mail.
+ */
+const GERMAN_EMAILS = {
+  reminder_heading: 'Deine Klasse ist morgen',
+  reminder_intro: 'Hallo %{name}, eine kurze Erinnerung an deine bevorstehende Klasse.',
+  reminder_footer_reason:
+    'Du erhältst diese Erinnerung, weil du dich für diese Klasse angemeldet hast.',
+  when_label: 'Wann',
+  where_label: 'Wo',
+  online_cta: 'Online teilnehmen',
+  online_link_hint: 'Falls der Button nicht funktioniert, kopiere diesen Link:',
+}
+
+interface ReminderScenario {
+  label: string
+  note: string
+  event: Event
+  client: EmailClient | null
+  locale?: LocaleCode
+  translations?: Record<string, unknown>
+  registrantName?: string
+}
+
+const REMINDER_SCENARIOS: ReminderScenario[] = [
+  {
+    label: 'reminder · online · branded',
+    note: 'join URL as CTA *and* plain text; single next occurrence; unsubscribe in the footer',
+    event: onlineEvent,
+    client: brandedClient,
+  },
+  {
+    label: 'reminder · offline · branded',
+    note: 'address + a Get Directions button, no join-link section',
+    event: offlineEvent,
+    client: brandedClient,
+  },
+  {
+    label: 'reminder · online · german',
+    note: 'partly-translated locale — untranslated keys (subject, unsubscribe) fall back to English',
+    event: onlineEvent,
+    client: brandedClient,
+    locale: 'de',
+    translations: GERMAN_EMAILS,
+    registrantName: 'Lukas Bauer',
+  },
+  {
+    label: 'reminder · online · unbranded',
+    note: 'no client — falls back to the Atlas project brand',
+    event: onlineEvent,
+    client: null,
+  },
+]
+
+const managerRecipient = (name: string): RegistrationRecipient => ({
+  destination: 'manager@example.com',
+  name,
+  channel: 'email',
+  frequency: 'Daily Summary',
+})
+
+const ADMIN = 'https://cloud.sydevelopers.com/admin/collections/events'
+
+interface DigestScenario {
+  label: string
+  note: string
+  recipient: RegistrationRecipient
+  period: DigestPeriod
+  groups: DigestEventGroup[]
+}
+
+const DIGEST_SCENARIOS: DigestScenario[] = [
+  {
+    label: 'digest · daily · two events',
+    note: 'three registrations grouped across two events; per-event counts + a total',
+    recipient: managerRecipient('Priya Deshmukh'),
+    period: 'day',
+    groups: [
+      {
+        eventTitle: 'Tuesday Evening Meditation',
+        eventAdminUrl: `${ADMIN}/1042`,
+        registrations: [
+          { registrantName: 'Alice Nguyen', registrantEmail: 'alice@example.com', startDate: null },
+          {
+            registrantName: 'Bob Fernández',
+            registrantEmail: 'bob@example.com',
+            startDate: 'Tuesday, 5 August 2025',
+          },
+        ],
+      },
+      {
+        eventTitle: 'Saturday Morning Meditation',
+        eventAdminUrl: `${ADMIN}/1043`,
+        registrations: [
+          { registrantName: 'Cara Silva', registrantEmail: 'cara@example.com', startDate: null },
+        ],
+      },
+    ],
+  },
+  {
+    label: 'digest · weekly · one event',
+    note: 'single registration — count reads "1 registration", weekly period phrasing',
+    recipient: { ...managerRecipient('Sam Okafor'), frequency: 'Weekly Summary' },
+    period: 'week',
+    groups: [
+      {
+        eventTitle: 'Introduction to Meditation — Open Day',
+        eventAdminUrl: `${ADMIN}/1044`,
+        registrations: [
+          { registrantName: 'Dana Petrova', registrantEmail: 'dana@example.com', startDate: null },
+        ],
+      },
+    ],
+  },
+]
+
+type Preview = { label: string; note: string; url: string | false }
+
+async function main() {
+  const nodemailer = (await import('nodemailer')).default
+  const { sendSessionReminder } = await import('@/lib/notifications/sendSessionReminder')
+  const { sendRegistrationDigest } = await import('@/lib/notifications/sendRegistrationDigest')
+
+  const account = await nodemailer.createTestAccount()
+  const transport = nodemailer.createTransport({
+    host: account.smtp.host,
+    port: account.smtp.port,
+    secure: account.smtp.secure,
+    auth: { user: account.user, pass: account.pass },
+  })
+
+  const previews: Preview[] = []
+
+  /** Stub only what the send paths touch, so the real composition runs unchanged. */
+  const stubPayload = (label: string, translations?: Record<string, unknown>) =>
+    ({
+      secret: 'preview-secret-for-unsubscribe-token',
+      findGlobal: async () => ({ emails: translations ?? {} }),
+      logger: { debug() {}, error() {}, info() {}, warn() {} },
+      sendEmail: async (message: Record<string, unknown>) => {
+        const info = await transport.sendMail({
+          ...message,
+          subject: `[${label}] ${String(message.subject)}`,
+        } as never)
+        previews.push({ label, note: '', url: nodemailer.getTestMessageUrl(info) })
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }) as any
+
+  for (const s of REMINDER_SCENARIOS) {
+    await sendSessionReminder({
+      payload: stubPayload(s.label, s.translations),
+      event: s.event,
+      client: s.client,
+      registrantName: s.registrantName ?? 'Jo Smith',
+      registrantEmail: 'registrant@example.com',
+      locale: s.locale ?? 'en',
+      registrationId: s.event.id,
+      // The single occurrence to remind about — the class's next session.
+      occurrenceIso: (s.event.schedule as { firstDate: string }).firstDate,
+    })
+    previews[previews.length - 1].note = s.note
+  }
+
+  for (const s of DIGEST_SCENARIOS) {
+    await sendRegistrationDigest({
+      payload: stubPayload(s.label),
+      recipient: s.recipient,
+      period: s.period,
+      groups: s.groups,
+    })
+    previews[previews.length - 1].note = s.note
+  }
+
+  console.log('\n━━━ Session reminder + registration digest email previews (#589) ━━━\n')
+  console.log(`Ethereal inbox (all messages): https://ethereal.email/login`)
+  console.log(`  user: ${account.user}`)
+  console.log(`  pass: ${account.pass}`)
+  console.log(`\nIcons + unsubscribe origin resolve against: ${process.env.SAHAJCLOUD_URL}`)
+  console.log(`\nDirect preview links:\n`)
+  for (const { label, note, url } of previews) {
+    console.log(`  ${label}`)
+    console.log(`    ${url}`)
+    console.log(`    ${note}\n`)
+  }
+
+  process.exit(0)
+}
+
+main().catch((error) => {
+  console.error(error)
+  process.exit(1)
+})

@@ -28,6 +28,7 @@ one-time backfills, deployment helpers, etc.
 | `preview-event-emails.ts` | Send the manager event-verification reminders (all levels/audiences) to an Ethereal inbox |
 | `preview-registration-emails.ts` | Send the registrant confirmation in each state (online/offline, locale, branded/fallback, one-off, minimal) to an Ethereal inbox, with the `.ics` attached |
 | `preview-registration-notification-emails.ts` | Send the manager registration notice (#588) in each state (named manager / override address / no session / long title) to an Ethereal inbox |
+| `preview-reminder-digest-emails.ts` | Send the registrant session reminder + manager registration digest (#589) in each state (online/offline, locale, branded/fallback, daily/weekly) to an Ethereal inbox |
 | `repair-r2-meditation-filenames.ts` | Backfill / fix R2 filenames on existing meditations |
 | `create-sample-page.ts` | Generate a sample Pages document |
 | `postinstall.cjs` | Run after `pnpm install` |
