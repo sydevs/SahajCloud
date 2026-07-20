@@ -8,6 +8,7 @@
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
+import { EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
 import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
 import { VerifyEmail } from '@/emails/VerifyEmail'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
@@ -73,5 +74,47 @@ describe('brand configurability', () => {
   it('defaults to wemeditate-web when no project is passed', async () => {
     const html = await renderEmail(createElement(VerifyEmail, props))
     expect(html).toContain(getEmailBrand('wemeditate-web').productName)
+  })
+})
+
+describe('EventRegistrationEmail', () => {
+  const props = {
+    recipientName: 'Anna',
+    eventTitle: 'Morning Meditation',
+    registrantName: 'Sam Seeker',
+    registrantEmail: 'sam@example.com',
+    sessionDate: 'Saturday, 19 July 2026',
+    eventAdminUrl: 'https://cloud.test/admin/collections/events/42',
+  }
+
+  it('renders the recipient, registrant, session, admin link, and CTA', async () => {
+    const html = await renderEmail(createElement(EventRegistrationEmail, props))
+
+    expect(html).toContain('Anna')
+    expect(html).toContain('Morning Meditation')
+    expect(html).toContain('Sam Seeker')
+    expect(html).toContain('mailto:sam@example.com')
+    expect(html).toContain('Saturday, 19 July 2026')
+    expect(html).toContain('https://cloud.test/admin/collections/events/42')
+    expect(html).toContain('View event')
+    // Branded for the Sahaj Atlas project (a manager notice, not client mail).
+    expect(html).toContain(getEmailBrand('sahaj-atlas').productName)
+  })
+
+  it('greets neutrally for a bare override address (no recipient name)', async () => {
+    const html = await renderEmail(
+      createElement(EventRegistrationEmail, { ...props, recipientName: null }),
+    )
+    // React Email inserts `<!-- -->` markers between adjacent text nodes; strip
+    // them so the greeting reads as one string.
+    expect(html.replace(/<!-- -->/g, '')).toContain('Hello there')
+    expect(html).not.toContain('Anna')
+  })
+
+  it('omits the session row when no session date is supplied', async () => {
+    const html = await renderEmail(
+      createElement(EventRegistrationEmail, { ...props, sessionDate: null }),
+    )
+    expect(html).not.toContain('Session')
   })
 })
