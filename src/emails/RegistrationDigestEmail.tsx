@@ -104,7 +104,7 @@ export function RegistrationDigestEmail({
                 >
                   {registration.registrantEmail}
                 </Link>
-                {registration.startDate ? ` · ${registration.startDate}` : ''}
+                {registration.startDate ? ` · Attending ${registration.startDate}` : ''}
               </Text>
               {registration.answers?.map((answer, answerIndex) => (
                 <Fragment key={answerIndex}>
@@ -148,7 +148,7 @@ export function registrationDigestText(props: RegistrationDigestEmailProps): str
     lines.push('', group.eventTitle)
     for (const registration of group.registrations) {
       const meta = registration.startDate
-        ? `${registration.registrantEmail} · ${registration.startDate}`
+        ? `${registration.registrantEmail} · Attending ${registration.startDate}`
         : registration.registrantEmail
       lines.push(`- ${registration.registrantName} — ${meta}`)
       for (const answer of registration.answers ?? []) {
