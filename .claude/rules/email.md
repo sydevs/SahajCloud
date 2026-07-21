@@ -87,7 +87,7 @@ package (v6 unified them — the older `@react-email/components` and
 | `RegistrationConfirmationEmail.tsx` | Registrant confirmation for an event registration — client-branded, localized, ICS attached. Also exports `registrationConfirmationText` (the plain-text alternative). |
 | `SessionReminderEmail.tsx` | Registrant reminder ~24h before a session (#589) — client-branded, localized sibling of the confirmation sharing `StackedDetailRow`; states the single next occurrence, **no** ICS, footer unsubscribe link. Also exports `sessionReminderText`. Sent by the `SendSessionReminders` job. |
 | `EventRegistrationEmail.tsx` | Manager-facing notice that a seeker registered — Sahaj Atlas project brand; event/registrant/start-date `DetailRow`s, the registrant's forwarded question answers (resolved via `buildRegistrationAnswers`), and a `BrandButtonRow` of Reply (a `mailto:` pre-filled with a quoted recap) + View event. Also exports `buildReplyBody`. Informational (no alert callout). |
-| `RegistrationDigestEmail.tsx` | Manager-facing digest (#589) — Sahaj Atlas project brand; new registrations grouped by event, one email per recipient per period. Also exports `registrationDigestText`. Sent by the `SendRegistrationDigests` job. |
+| `RegistrationDigestEmail.tsx` | Manager-facing digest (#589) — Sahaj Atlas project brand; new registrations grouped by event, one email per recipient per period. Each registration is a card: an inline identity line (name · email · "Attending" session) plus the registrant's question answers; a compact `formatShortDate` is used for the session. Also exports `registrationDigestText`. Sent by the `SendRegistrationDigests` job. |
 
 ### Manager mail vs registrant mail
 
