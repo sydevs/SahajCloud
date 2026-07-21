@@ -5,7 +5,7 @@ import * as Sentry from '@sentry/nextjs'
 import type { NotificationPreferencesValue } from '@/components/admin/NotificationPreferences/config'
 import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
 import type { RegistrationRecipient } from '@/lib/notifications'
-import { formatLongDate, resolveRegistrationRecipient } from '@/lib/notifications'
+import { formatShortDate, resolveRegistrationRecipient } from '@/lib/notifications'
 import { sendRegistrationDigest } from '@/lib/notifications/sendRegistrationDigest'
 import type { RegistrationAnswer } from '@/lib/registrations/questions'
 import { buildRegistrationAnswers } from '@/lib/registrations/questions'
@@ -209,7 +209,7 @@ async function digestForManager(args: {
         return {
           registrantName: user?.name?.trim() || email || 'A registrant',
           registrantEmail: email,
-          startDate: row.startingAt ? formatLongDate(row.startingAt) || null : null,
+          startDate: row.startingAt ? formatShortDate(row.startingAt) || null : null,
           answers: row.answers,
         }
       }),

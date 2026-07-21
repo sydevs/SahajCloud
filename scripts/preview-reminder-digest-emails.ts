@@ -248,7 +248,7 @@ function buildStressGroups(): DigestEventGroup[] {
       return {
         registrantName: name,
         registrantEmail: `${name.split(' ')[0].toLowerCase()}${person}@example.com`,
-        startDate: r % 3 === 0 ? 'Tuesday, 5 August 2025' : null,
+        startDate: r % 3 === 0 ? '5 Aug 2025' : null,
         answers,
       }
     }),
@@ -275,7 +275,7 @@ const DIGEST_SCENARIOS: DigestScenario[] = [
           {
             registrantName: 'Bob Fernández',
             registrantEmail: 'bob@example.com',
-            startDate: 'Tuesday, 5 August 2025',
+            startDate: '5 Aug 2025',
             answers: QA[2],
           },
         ],

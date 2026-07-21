@@ -97,7 +97,7 @@ describe('RegistrationDigestEmail', () => {
             { label: 'How did you hear about this event?', value: 'A friend recommended it' },
           ],
         },
-        { registrantName: 'Bob', registrantEmail: 'bob@example.com', startDate: '5 August 2025' },
+        { registrantName: 'Bob', registrantEmail: 'bob@example.com', startDate: '5 Aug 2025' },
       ],
     },
     {
@@ -122,7 +122,7 @@ describe('RegistrationDigestEmail', () => {
     expect(html).toContain('How did you hear about this event?')
     expect(html).toContain('A friend recommended it')
     // The session date is labelled so a bare date can't be misread as a signup date.
-    expect(html).toContain('Attending 5 August 2025')
+    expect(html).toContain('Attending 5 Aug 2025')
     // Grand total in the intro + daily phrasing; the redundant per-event count is gone.
     expect(html).toContain('3 registrations')
     expect(html).toContain('in the last day')
