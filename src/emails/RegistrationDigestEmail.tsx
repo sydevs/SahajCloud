@@ -1,12 +1,13 @@
 import type { CSSProperties } from 'react'
 
 import { Fragment } from 'react'
-import { Hr, Link, Section, Text } from 'react-email'
+import { Heading, Hr, Link, Section, Text } from 'react-email'
 
+import type { RegistrationAnswer } from '@/lib/registrations/questions'
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
-import { EmailLayout, SectionHeading, styles } from './EmailLayout'
+import { EmailLayout, styles } from './EmailLayout'
 
 /** Which digest cadence produced this email — drives the period phrasing. */
 export type DigestPeriod = 'day' | 'week'
@@ -22,6 +23,8 @@ export interface DigestRegistration {
   registrantEmail: string
   /** Formatted start date of the session the registrant chose, when supplied. */
   startDate?: string | null
+  /** The registrant's answers to the event's registration questions, if any. */
+  answers?: RegistrationAnswer[]
 }
 
 /** One event and the new registrations it accrued this period. */
@@ -57,8 +60,11 @@ function totalRegistrations(groups: DigestEventGroup[]): number {
  * events gets one email, not three).
  *
  * Informational, not an alert — the manager-notice counterpart to
- * `EventRegistrationEmail`, reusing the same EmailLayout shell + SectionHeading
- * and the Sahaj Atlas project brand (an internal notice, never client-branded).
+ * `EventRegistrationEmail`, reusing the same EmailLayout shell + the Sahaj Atlas
+ * project brand (an internal notice, never client-branded). Each registration is
+ * its own card — name, contact, chosen session, and their answers to the event's
+ * registration questions — so a manager running several busy events can scan them
+ * one at a time. There's no per-event count line: the cards are the count.
  */
 export function RegistrationDigestEmail({
   recipientName,
@@ -84,10 +90,11 @@ export function RegistrationDigestEmail({
 
       {groups.map((group, groupIndex) => (
         <Section key={groupIndex}>
-          <SectionHeading>{group.eventTitle}</SectionHeading>
-          <Text style={countLine}>{countLabel(group.registrations.length)}</Text>
+          <Heading as="h3" style={{ ...eventHeading, color: brand.colors.primary }}>
+            {group.eventTitle}
+          </Heading>
           {group.registrations.map((registration, registrationIndex) => (
-            <Fragment key={registrationIndex}>
+            <Section key={registrationIndex} style={registrationCard}>
               <Text style={registrantName}>{registration.registrantName}</Text>
               <Text style={registrantMeta}>
                 <Link
@@ -98,7 +105,13 @@ export function RegistrationDigestEmail({
                 </Link>
                 {registration.startDate ? ` · ${registration.startDate}` : ''}
               </Text>
-            </Fragment>
+              {registration.answers?.map((answer, answerIndex) => (
+                <Fragment key={answerIndex}>
+                  <Text style={answerQuestion}>{answer.label}</Text>
+                  <Text style={answerValue}>{answer.value}</Text>
+                </Fragment>
+              ))}
+            </Section>
           ))}
           <Text style={styles.hint}>
             <Link href={group.eventAdminUrl} style={{ color: brand.colors.primary }}>
@@ -131,12 +144,15 @@ export function registrationDigestText(props: RegistrationDigestEmailProps): str
   ]
 
   for (const group of groups) {
-    lines.push('', group.eventTitle, `(${countLabel(group.registrations.length)})`)
+    lines.push('', group.eventTitle)
     for (const registration of group.registrations) {
       const meta = registration.startDate
         ? `${registration.registrantEmail} · ${registration.startDate}`
         : registration.registrantEmail
       lines.push(`- ${registration.registrantName} — ${meta}`)
+      for (const answer of registration.answers ?? []) {
+        lines.push(`    ${answer.label}: ${answer.value}`)
+      }
     }
     lines.push(`View event: ${group.eventAdminUrl}`)
   }
@@ -144,19 +160,41 @@ export function registrationDigestText(props: RegistrationDigestEmailProps): str
   return lines.join('\n')
 }
 
-const countLine: CSSProperties = {
-  fontSize: '13px',
-  color: '#6b7280',
-  margin: '0 0 12px',
+// A branded, ruled section header per event — the scan anchor in a busy digest.
+const eventHeading: CSSProperties = {
+  fontSize: '17px',
+  margin: '28px 0 12px',
+  paddingBottom: '6px',
+  borderBottom: '1px solid #e5e7eb',
+}
+// Each registration is a white card on the grey body, so they read as distinct rows.
+const registrationCard: CSSProperties = {
+  backgroundColor: '#ffffff',
+  border: '1px solid #e5e7eb',
+  borderRadius: '6px',
+  padding: '12px 16px',
+  margin: '0 0 10px',
 }
 const registrantName: CSSProperties = {
-  fontSize: '14px',
-  fontWeight: 600,
-  color: '#1f2937',
+  fontSize: '15px',
+  fontWeight: 700,
+  color: '#111827',
   margin: '0 0 2px',
 }
 const registrantMeta: CSSProperties = {
+  fontSize: '13px',
+  color: '#6b7280',
+  margin: 0,
+}
+const answerQuestion: CSSProperties = {
+  fontSize: '12px',
+  fontWeight: 600,
+  color: '#6b7280',
+  margin: '10px 0 1px',
+}
+const answerValue: CSSProperties = {
   fontSize: '14px',
-  color: '#4b5563',
-  margin: '0 0 12px',
+  color: '#1f2937',
+  margin: 0,
+  whiteSpace: 'pre-wrap',
 }

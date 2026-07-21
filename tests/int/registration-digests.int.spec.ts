@@ -100,7 +100,11 @@ describe('SendRegistrationDigests job', () => {
     return event.id
   }
 
-  async function register(eventId: number, name: string): Promise<void> {
+  async function register(
+    eventId: number,
+    name: string,
+    questions?: Record<string, unknown>,
+  ): Promise<void> {
     const email = `${name.toLowerCase()}-${(seq += 1)}@example.com`
     const user = await payload.create({
       collection: 'users',
@@ -110,7 +114,12 @@ describe('SendRegistrationDigests job', () => {
     await payload.create({
       collection: 'registrations',
       overrideAccess: true,
-      data: { event: eventId, user: user.id, uuid: `uuid-${email}` },
+      data: {
+        event: eventId,
+        user: user.id,
+        uuid: `uuid-${email}`,
+        ...(questions ? { questions } : {}),
+      },
     })
   }
 
@@ -122,7 +131,7 @@ describe('SendRegistrationDigests job', () => {
     const managerId = await createManager('daily@example.com', 'Daily Summary')
     const eventA = await createEvent(managerId, 'Digest Event A')
     const eventB = await createEvent(managerId, 'Digest Event B')
-    await register(eventA, 'Alice')
+    await register(eventA, 'Alice', { referralSource: 'A friend recommended it' })
     await register(eventA, 'Bob')
     await register(eventB, 'Cara')
 
@@ -138,6 +147,8 @@ describe('SendRegistrationDigests job', () => {
     expect(html).toContain('Alice')
     expect(html).toContain('Bob')
     expect(html).toContain('Cara')
+    // Alice's registration-question answer is resolved and rendered.
+    expect(html).toContain('A friend recommended it')
 
     const manager = await payload.findByID({
       collection: 'managers',

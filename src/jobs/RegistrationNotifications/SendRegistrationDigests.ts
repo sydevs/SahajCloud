@@ -7,6 +7,8 @@ import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigest
 import type { RegistrationRecipient } from '@/lib/notifications'
 import { formatLongDate, resolveRegistrationRecipient } from '@/lib/notifications'
 import { sendRegistrationDigest } from '@/lib/notifications/sendRegistrationDigest'
+import type { RegistrationAnswer } from '@/lib/registrations/questions'
+import { buildRegistrationAnswers } from '@/lib/registrations/questions'
 import { relationId } from '@/lib/utilities/relationId'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Event, Manager } from '@/payload-types'
@@ -40,6 +42,7 @@ interface DigestRow {
   eventId: number
   userId: number
   startingAt?: string | null
+  answers: RegistrationAnswer[]
 }
 
 function eventRegistrationFrequency(manager: Manager): string | undefined {
@@ -154,7 +157,7 @@ async function digestForManager(args: {
       depth: 0,
       limit: PAGINATION_LIMIT,
       page,
-      select: { event: true, user: true, startingAt: true },
+      select: { event: true, user: true, startingAt: true, questions: true },
       sort: 'createdAt',
       overrideAccess: true,
       req,
@@ -163,7 +166,14 @@ async function digestForManager(args: {
       const eventId = relationId(registration.event)
       const userId = relationId(registration.user)
       if (eventId == null || userId == null || !eventById.has(eventId)) continue
-      rows.push({ eventId, userId, startingAt: registration.startingAt ?? null })
+      rows.push({
+        eventId,
+        userId,
+        startingAt: registration.startingAt ?? null,
+        answers: buildRegistrationAnswers(
+          registration.questions as Record<string, unknown> | null | undefined,
+        ),
+      })
     }
     hasNextPage = batch.hasNextPage
     page++
@@ -200,6 +210,7 @@ async function digestForManager(args: {
           registrantName: user?.name?.trim() || email || 'A registrant',
           registrantEmail: email,
           startDate: row.startingAt ? formatLongDate(row.startingAt) || null : null,
+          answers: row.answers,
         }
       }),
     })

@@ -177,10 +177,88 @@ interface DigestScenario {
   groups: DigestEventGroup[]
 }
 
+// Realistic Q&A drawn from EVENT_REGISTRATION_QUESTIONS, cycled through so the
+// high-volume scenario shows a mix of fully / partly / un-answered registrations.
+const QA: { label: string; value: string }[][] = [
+  [
+    {
+      label: 'Have you practised Sahaja Yoga meditation before?',
+      value: 'No, this is my first time',
+    },
+    { label: 'How did you hear about this event?', value: 'A friend recommended it' },
+  ],
+  [
+    { label: 'How did you hear about this event?', value: 'Instagram' },
+    { label: 'Will you be bringing any guests?', value: '2 guests' },
+  ],
+  [
+    { label: 'Have you practised Sahaja Yoga meditation before?', value: 'Yes, occasionally' },
+    {
+      label: 'Is there anything about your health we should know?',
+      value: 'Recovering from a knee injury — I may need to sit on a chair.',
+    },
+    { label: 'Do you have any accessibility requirements?', value: 'Step-free access, please' },
+  ],
+  [], // some registrants answer nothing optional
+  [{ label: 'How did you hear about this event?', value: 'Google search' }],
+]
+
+const NAMES = [
+  'Alice Nguyen',
+  'Bob Fernández',
+  'Cara Silva',
+  'Dana Petrova',
+  'Ewan MacLeod',
+  'Fatima Al-Sayed',
+  'Gio Rossi',
+  'Hana Kim',
+  'Ivan Petrov',
+  'Julia Weber',
+  'Kwame Mensah',
+  'Lena Novak',
+  'Mateo Díaz',
+  'Nadia Haddad',
+  'Omar Farouk',
+]
+
+/**
+ * A busy manager's week: many events, each with a different number of
+ * registrations, most carrying answers. Deterministic (index-driven, no RNG) so
+ * re-runs match — the point is to judge how manageable a dense digest reads.
+ */
+function buildStressGroups(): DigestEventGroup[] {
+  const events = [
+    'Monday Morning Meditation — Camden',
+    'Tuesday Evening Class — Islington',
+    'Wednesday Lunchtime Sit — City of London',
+    'Thursday Beginners Course — Hackney',
+    'Friday Family Meditation — Greenwich',
+    'Saturday Morning Class — Richmond',
+    'Sunday Introduction — Croydon',
+  ]
+  const counts = [8, 3, 6, 2, 7, 4, 5] // ~35 registrations across 7 events
+  let person = 0
+  return events.map((eventTitle, e) => ({
+    eventTitle,
+    eventAdminUrl: `${ADMIN}/${2000 + e}`,
+    registrations: Array.from({ length: counts[e] }, (_, r) => {
+      const name = NAMES[person % NAMES.length]
+      const answers = QA[person % QA.length]
+      person += 1
+      return {
+        registrantName: name,
+        registrantEmail: `${name.split(' ')[0].toLowerCase()}${person}@example.com`,
+        startDate: r % 3 === 0 ? 'Tuesday, 5 August 2025' : null,
+        answers,
+      }
+    }),
+  }))
+}
+
 const DIGEST_SCENARIOS: DigestScenario[] = [
   {
     label: 'digest · daily · two events',
-    note: 'three registrations grouped across two events; per-event counts + a total',
+    note: 'registrations grouped across two events, each an itemised card with answers',
     recipient: managerRecipient('Priya Deshmukh'),
     period: 'day',
     groups: [
@@ -188,11 +266,17 @@ const DIGEST_SCENARIOS: DigestScenario[] = [
         eventTitle: 'Tuesday Evening Meditation',
         eventAdminUrl: `${ADMIN}/1042`,
         registrations: [
-          { registrantName: 'Alice Nguyen', registrantEmail: 'alice@example.com', startDate: null },
+          {
+            registrantName: 'Alice Nguyen',
+            registrantEmail: 'alice@example.com',
+            startDate: null,
+            answers: QA[0],
+          },
           {
             registrantName: 'Bob Fernández',
             registrantEmail: 'bob@example.com',
             startDate: 'Tuesday, 5 August 2025',
+            answers: QA[2],
           },
         ],
       },
@@ -200,14 +284,19 @@ const DIGEST_SCENARIOS: DigestScenario[] = [
         eventTitle: 'Saturday Morning Meditation',
         eventAdminUrl: `${ADMIN}/1043`,
         registrations: [
-          { registrantName: 'Cara Silva', registrantEmail: 'cara@example.com', startDate: null },
+          {
+            registrantName: 'Cara Silva',
+            registrantEmail: 'cara@example.com',
+            startDate: null,
+            answers: QA[1],
+          },
         ],
       },
     ],
   },
   {
     label: 'digest · weekly · one event',
-    note: 'single registration — count reads "1 registration", weekly period phrasing',
+    note: 'single registration — total reads "1 registration", weekly period phrasing',
     recipient: { ...managerRecipient('Sam Okafor'), frequency: 'Weekly Summary' },
     period: 'week',
     groups: [
@@ -215,10 +304,22 @@ const DIGEST_SCENARIOS: DigestScenario[] = [
         eventTitle: 'Introduction to Meditation — Open Day',
         eventAdminUrl: `${ADMIN}/1044`,
         registrations: [
-          { registrantName: 'Dana Petrova', registrantEmail: 'dana@example.com', startDate: null },
+          {
+            registrantName: 'Dana Petrova',
+            registrantEmail: 'dana@example.com',
+            startDate: null,
+            answers: QA[4],
+          },
         ],
       },
     ],
+  },
+  {
+    label: 'digest · weekly · high volume',
+    note: '~35 registrations across 7 events with answers — how manageable is a busy week?',
+    recipient: { ...managerRecipient('Rosa Delgado'), frequency: 'Weekly Summary' },
+    period: 'week',
+    groups: buildStressGroups(),
   },
 ]
 

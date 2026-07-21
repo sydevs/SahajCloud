@@ -89,7 +89,14 @@ describe('RegistrationDigestEmail', () => {
       eventTitle: 'Morning Meditation',
       eventAdminUrl: 'https://cloud.test/admin/collections/events/1',
       registrations: [
-        { registrantName: 'Alice', registrantEmail: 'alice@example.com', startDate: null },
+        {
+          registrantName: 'Alice',
+          registrantEmail: 'alice@example.com',
+          startDate: null,
+          answers: [
+            { label: 'How did you hear about this event?', value: 'A friend recommended it' },
+          ],
+        },
         { registrantName: 'Bob', registrantEmail: 'bob@example.com', startDate: null },
       ],
     },
@@ -102,7 +109,7 @@ describe('RegistrationDigestEmail', () => {
     },
   ]
 
-  it('groups registrations by event with per-event counts and a total', async () => {
+  it('groups registrations by event, renders their answers, and shows a total (no per-event count)', async () => {
     const html = await renderEmail(
       createElement(RegistrationDigestEmail, { recipientName: 'Mgr', period: 'day', groups }),
     )
@@ -111,9 +118,13 @@ describe('RegistrationDigestEmail', () => {
     expect(html).toContain('Alice')
     expect(html).toContain('Bob')
     expect(html).toContain('Cara')
-    // 3 total across the two events, and the daily period phrasing.
+    // The registrant's registration-question answer is included.
+    expect(html).toContain('How did you hear about this event?')
+    expect(html).toContain('A friend recommended it')
+    // Grand total in the intro + daily phrasing; the redundant per-event count is gone.
     expect(html).toContain('3 registrations')
     expect(html).toContain('in the last day')
+    expect(html).not.toContain('2 registrations')
     expect(html).toContain('https://cloud.test/admin/collections/events/1')
   })
 
