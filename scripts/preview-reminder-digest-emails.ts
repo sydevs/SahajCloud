@@ -228,20 +228,19 @@ const NAMES = [
  */
 function buildStressGroups(): DigestEventGroup[] {
   const events = [
-    'Monday Morning Meditation — Camden',
-    'Tuesday Evening Class — Islington',
-    'Wednesday Lunchtime Sit — City of London',
-    'Thursday Beginners Course — Hackney',
-    'Friday Family Meditation — Greenwich',
-    'Saturday Morning Class — Richmond',
-    'Sunday Introduction — Croydon',
-  ]
-  const counts = [8, 3, 6, 2, 7, 4, 5] // ~35 registrations across 7 events
+    { title: 'Monday Morning Meditation — Camden', count: 8 },
+    { title: 'Tuesday Evening Class — Islington', count: 3 },
+    { title: 'Wednesday Lunchtime Sit — City of London', count: 6 },
+    { title: 'Thursday Beginners Course — Hackney', count: 2 },
+    { title: 'Friday Family Meditation — Greenwich', count: 7 },
+    { title: 'Saturday Morning Class — Richmond', count: 4 },
+    { title: 'Sunday Introduction — Croydon', count: 5 },
+  ] // ~35 registrations across 7 events
   let person = 0
-  return events.map((eventTitle, e) => ({
-    eventTitle,
+  return events.map(({ title, count }, e) => ({
+    eventTitle: title,
     eventAdminUrl: `${ADMIN}/${2000 + e}`,
-    registrations: Array.from({ length: counts[e] }, (_, r) => {
+    registrations: Array.from({ length: count }, (_, r) => {
       const name = NAMES[person % NAMES.length]
       const answers = QA[person % QA.length]
       person += 1
