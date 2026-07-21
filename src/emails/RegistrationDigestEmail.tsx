@@ -95,8 +95,9 @@ export function RegistrationDigestEmail({
           </Heading>
           {group.registrations.map((registration, registrationIndex) => (
             <Section key={registrationIndex} style={registrationCard}>
-              <Text style={registrantName}>{registration.registrantName}</Text>
-              <Text style={registrantMeta}>
+              <Text style={identityLine}>
+                <strong style={identityName}>{registration.registrantName}</strong>
+                {' · '}
                 <Link
                   href={`mailto:${registration.registrantEmail}`}
                   style={{ ...styles.link, color: brand.colors.primary }}
@@ -175,16 +176,15 @@ const registrationCard: CSSProperties = {
   padding: '12px 16px',
   margin: '0 0 10px',
 }
-const registrantName: CSSProperties = {
-  fontSize: '15px',
-  fontWeight: 700,
-  color: '#111827',
-  margin: '0 0 2px',
-}
-const registrantMeta: CSSProperties = {
-  fontSize: '13px',
+// Identity on one line — bold name · email · chosen session — to save a row per
+// registration. The name is dark-bold; the email link + session inherit the grey.
+const identityLine: CSSProperties = {
+  fontSize: '14px',
   color: '#6b7280',
   margin: 0,
+}
+const identityName: CSSProperties = {
+  color: '#111827',
 }
 const answerQuestion: CSSProperties = {
   fontSize: '12px',
