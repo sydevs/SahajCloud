@@ -32,9 +32,12 @@ interface StringPropertySchema {
 /**
  * CLDR plural categories a translation key expands into when `plural: true`.
  * The union across the app's locales (English needs only one/other; Russian,
- * Ukrainian, and Czech add few/many). Kept in sync with `EMAIL_STRING_DEFAULTS`.
+ * Ukrainian, and Czech add few/many). `EMAIL_STRING_DEFAULTS` must define the
+ * whole family for every plural key in the `emails` group, else `withDefaults`
+ * drops a translated form — a guard test in `translations-field.int.spec.ts`
+ * enforces that sync against this exported constant.
  */
-const PLURAL_CATEGORIES = ['one', 'few', 'many', 'other'] as const
+export const PLURAL_CATEGORIES = ['one', 'few', 'many', 'other'] as const
 
 interface RichTextPropertySchema {
   type: 'richText'
