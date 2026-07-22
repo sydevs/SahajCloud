@@ -358,7 +358,10 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'The Sahaj Atlas widget write path. Requires a published client key. Upserts ' +
         'the registrant `user` by normalized email (elevated access, since `users` ' +
         'is admin-only) and creates a `registration` with a fresh uuid. The event ' +
-        '(`:id`) must be one the client can read (published).',
+        '(`:id`) must be one the client can read (published); an event the client ' +
+        'can read but whose state is closed to registration is refused with a `409` ' +
+        'and a machine-readable `errors[0].code` — `external_registration`, ' +
+        '`event_ended`, `registration_closed`, or `event_full`.',
       operationId: 'registerForEvent',
       parameters: [
         {
@@ -389,6 +392,10 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         '400': errorResponse('Invalid event id, or request body failed validation.'),
         '403': errorResponse('Caller is not a published API client.'),
         '404': errorResponse('Event not found or not open for registration.'),
+        '409': errorResponse(
+          'Registration refused by the event state. `errors[0].code` is one of ' +
+            '`external_registration`, `event_ended`, `registration_closed`, or `event_full`.',
+        ),
       },
     },
   },
