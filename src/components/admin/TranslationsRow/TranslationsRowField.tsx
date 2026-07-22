@@ -7,6 +7,7 @@ import { toWords } from 'payload/shared'
 import React, { useCallback, useMemo } from 'react'
 
 import { AutoGrowTextarea } from './AutoGrowTextarea'
+import { budgetStatus } from './charBudget'
 import { TranslationsRow } from './TranslationsRow'
 import { useEnglishTranslation } from './useEnglishTranslation'
 
@@ -15,8 +16,8 @@ import './styles.css'
 interface SchemaEntry {
   key: string
   description: string
+  charBudget?: number
 }
-
 
 export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly }) => {
   const { name, label, localized, required, admin: { custom } = {} } = field
@@ -69,7 +70,7 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
           </div>
         ) : (
           schemaEntries.map((entry) => {
-            const englishValue = isEnglish ? '' : englishMap?.[entry.key] ?? ''
+            const englishValue = isEnglish ? '' : (englishMap?.[entry.key] ?? '')
             const currentValue = value?.[entry.key] ?? ''
             return (
               <TranslationsRow
@@ -80,6 +81,7 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
                 isEnglish={isEnglish}
                 isLoadingEnglish={isLoading}
                 isErrorEnglish={isError}
+                budget={budgetStatus(currentValue, entry.charBudget)}
               >
                 <AutoGrowTextarea
                   value={currentValue}

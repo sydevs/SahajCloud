@@ -1,5 +1,8 @@
 'use client'
 
+import type { BudgetStatus } from './charBudget'
+
+import { WarningIcon } from '@payloadcms/ui'
 import React from 'react'
 
 export interface TranslationsRowProps {
@@ -9,6 +12,8 @@ export interface TranslationsRowProps {
   isEnglish: boolean
   isLoadingEnglish?: boolean
   isErrorEnglish?: boolean
+  /** Live character-budget status for the current value; `null` = no budget. */
+  budget?: BudgetStatus | null
   children: React.ReactNode
 }
 
@@ -19,6 +24,7 @@ export const TranslationsRow: React.FC<TranslationsRowProps> = ({
   isEnglish,
   isLoadingEnglish,
   isErrorEnglish,
+  budget,
   children,
 }) => {
   let englishCell: React.ReactNode = null
@@ -52,6 +58,21 @@ export const TranslationsRow: React.FC<TranslationsRowProps> = ({
       </div>
       <div className="translations-row__input-cell">
         {children}
+        {/* Advisory only — the value still saves when over budget. Shows the
+            budget as a reference until exceeded, then the live count + a
+            warning so the translator can see how far over they are. */}
+        {budget && (
+          <div
+            className={['translations-row__budget', budget.over && 'translations-row__budget--over']
+              .filter(Boolean)
+              .join(' ')}
+          >
+            {budget.over && <WarningIcon />}
+            {budget.over
+              ? `${budget.length} / ${budget.budget} characters`
+              : `max ${budget.budget} characters`}
+          </div>
+        )}
         {englishCell}
       </div>
     </div>

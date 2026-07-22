@@ -74,6 +74,29 @@
 }
 
 /* ----------------------------------------------------------------------- */
+/* Character-budget indicator (below the input)                            */
+/* ----------------------------------------------------------------------- */
+
+.translations-row__budget {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--base) * 0.25);
+  margin-top: calc(var(--base) * 0.3);
+  font-size: calc(var(--base-body-size) * 0.85px);
+  color: var(--theme-elevation-500);
+}
+
+.translations-row__budget--over {
+  color: var(--theme-warning-600);
+  font-weight: 500;
+}
+
+.translations-row__budget svg {
+  width: calc(var(--base-body-size) * 1.1px);
+  height: calc(var(--base-body-size) * 1.1px);
+}
+
+/* ----------------------------------------------------------------------- */
 /* String input cell (textarea)                                            */
 /* ----------------------------------------------------------------------- */
 
