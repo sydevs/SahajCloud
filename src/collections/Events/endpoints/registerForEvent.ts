@@ -1,4 +1,4 @@
-import type { EventRegistrationResponse } from './responseTypes'
+import type { EventRegistrationError, EventRegistrationResponse } from './responseTypes'
 import type { Endpoint, PayloadRequest } from 'payload'
 
 import { randomUUID } from 'node:crypto'
@@ -12,6 +12,7 @@ import { resolveRegistrationRecipient } from '@/lib/notifications/registrationRe
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
+import { evaluateRegistrationGate } from '@/lib/registrations/gating'
 import { buildRegistrationAnswers } from '@/lib/registrations/questions'
 import { resolveEmailStrings } from '@/lib/translations/emailStrings'
 import { relationId } from '@/lib/utilities/relationId'
@@ -147,6 +148,27 @@ export const registerForEvent: Endpoint = {
           { status: 404 },
         )
       }
+      const event = eventDocs[0]
+
+      // State-based gating: an event the client *can* read may still be closed
+      // to new registrations (external mode / ended / a started course / full).
+      // Refuse with a machine-readable `code` the widget maps to its UI. The
+      // capacity check is enforced against a live count (authoritative — the
+      // denormalized `registrationsFull` flag is only the read-time hint);
+      // registrations are admin-only, hence the elevated count.
+      const { totalDocs: registrationCount } = await req.payload.count({
+        collection: 'registrations',
+        where: { event: { equals: eventId } },
+        overrideAccess: true,
+        req,
+      })
+      const rejection = evaluateRegistrationGate({ event, registrationCount, now: new Date() })
+      if (rejection) {
+        const body: EventRegistrationError = {
+          errors: [{ message: rejection.message, code: rejection.code }],
+        }
+        return Response.json(body, { status: rejection.status })
+      }
 
       // Upsert the registrant by normalized email. `users` is admin-only, so the
       // client can't touch it directly — elevate via overrideAccess.
@@ -221,7 +243,7 @@ export const registerForEvent: Endpoint = {
 
         await sendRegistrationConfirmation({
           payload: req.payload,
-          event: eventDocs[0],
+          event,
           client: emailClient,
           registrantName: name,
           registrantEmail: normalizedEmail,
@@ -246,7 +268,6 @@ export const registerForEvent: Endpoint = {
       // separately (as the verification path does) rather than re-reading the
       // event at a higher depth, which the confirmation send also relies on.
       try {
-        const event = eventDocs[0]
         const managerId = relationId(event.manager)
         const manager = managerId
           ? await req.payload

@@ -50,3 +50,31 @@ export type EventRegistrationResponse = {
   ok: true
   registration: { id: number; uuid: string }
 }
+
+/**
+ * Machine-readable reason a registration was refused, so the Atlas widget maps
+ * each rejection to its registration-state UI rather than parsing prose:
+ *
+ * - `external_registration` — the event registers off-Atlas; the native
+ *   endpoint doesn't accept it (the widget links out instead).
+ * - `event_ended` — the schedule has fully run out (a one-off past its date, or
+ *   a course whose last session is behind us).
+ * - `registration_closed` — a limited-run course has already started, so its run
+ *   is closed to new registrations.
+ * - `event_full` — the registration count has reached the event's limit.
+ *
+ * Sent on the refusal responses only; the plain not-found 404 carries no `code`.
+ */
+export type EventRegistrationErrorCode =
+  | 'external_registration'
+  | 'event_ended'
+  | 'registration_closed'
+  | 'event_full'
+
+/**
+ * Error body for a refused registration — the existing `{ errors: [{ message }] }`
+ * shape, extended with an optional stable `code` on the state-based refusals.
+ */
+export type EventRegistrationError = {
+  errors: { message: string; code?: EventRegistrationErrorCode }[]
+}
