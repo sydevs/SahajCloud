@@ -40,6 +40,25 @@ export const EMAIL_STRING_DEFAULTS = {
   sessions_count: '%{count} sessions',
   footer_reason: 'You received this email because you registered for this class.',
   footer_website: 'Visit %{name}',
+  // Session reminder (sent 24h before an occurrence). Reuses the labels above
+  // (when/where/contact/CTAs) and adds only its own chrome.
+  reminder_subject: 'Reminder: %{event} is tomorrow',
+  reminder_heading: 'Your class is tomorrow',
+  reminder_intro: 'Hi %{name}, a quick reminder about your upcoming class.',
+  reminder_footer_reason: 'You received this reminder because you registered for this class.',
+  unsubscribe_cta: 'Unsubscribe from these reminders',
+  // Unsubscribe landing page, rendered in the registration's stored locale.
+  unsubscribe_heading: 'Unsubscribe from reminders',
+  unsubscribe_intro:
+    'Stop receiving reminder emails for %{event}? You will stay registered — only the reminders stop.',
+  unsubscribe_confirm_cta: 'Unsubscribe',
+  unsubscribe_working: 'Unsubscribing…',
+  unsubscribe_done_title: 'You have been unsubscribed',
+  unsubscribe_done_message:
+    'You will not receive any more reminders for this class. You are still registered.',
+  unsubscribe_error_title: 'Something went wrong',
+  unsubscribe_error_message:
+    'We could not process your request. Please try again in a little while.',
 } as const
 
 export type EmailStringKey = keyof typeof EMAIL_STRING_DEFAULTS

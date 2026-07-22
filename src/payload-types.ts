@@ -823,6 +823,8 @@ export interface Config {
     tasks: {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       expireEvents: TaskExpireEvents;
+      sendRegistrationDigests: TaskSendRegistrationDigests;
+      sendSessionReminders: TaskSendSessionReminders;
       syncLectureMetadata: TaskSyncLectureMetadata;
       resetUsage: TaskResetUsage;
       schedulePublish: TaskSchedulePublish;
@@ -1325,6 +1327,7 @@ export interface Manager {
     | number
     | boolean
     | null;
+  lastRegistrationDigestSentAt?: string | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -1880,6 +1883,16 @@ export interface Registration {
   };
   uuid: string;
   mailingListSubscribedAt?: string | null;
+  remindersUnsubscribedAt?: string | null;
+  reminderLog?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -3656,6 +3669,8 @@ export interface PayloadJob {
           | 'inline'
           | 'cleanupOrphanedMedia'
           | 'expireEvents'
+          | 'sendRegistrationDigests'
+          | 'sendSessionReminders'
           | 'syncLectureMetadata'
           | 'resetUsage'
           | 'schedulePublish';
@@ -3692,7 +3707,16 @@ export interface PayloadJob {
       }[]
     | null;
   taskSlug?:
-    | ('inline' | 'cleanupOrphanedMedia' | 'expireEvents' | 'syncLectureMetadata' | 'resetUsage' | 'schedulePublish')
+    | (
+        | 'inline'
+        | 'cleanupOrphanedMedia'
+        | 'expireEvents'
+        | 'sendRegistrationDigests'
+        | 'sendSessionReminders'
+        | 'syncLectureMetadata'
+        | 'resetUsage'
+        | 'schedulePublish'
+      )
     | null;
   queue?: string | null;
   waitUntil?: string | null;
@@ -4280,6 +4304,7 @@ export interface ManagersSelect<T extends boolean = true> {
         id?: T;
       };
   notificationPreferences?: T;
+  lastRegistrationDigestSentAt?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;
@@ -4577,6 +4602,8 @@ export interface RegistrationsSelect<T extends boolean = true> {
   questions?: T;
   uuid?: T;
   mailingListSubscribedAt?: T;
+  remindersUnsubscribedAt?: T;
+  reminderLog?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;
@@ -6348,6 +6375,32 @@ export interface TaskExpireEvents {
     advanced: number;
     trashed: number;
     remindersSent: number;
+    failed: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSendRegistrationDigests".
+ */
+export interface TaskSendRegistrationDigests {
+  input?: unknown;
+  output: {
+    eligibleManagers: number;
+    digestsSent: number;
+    registrationsIncluded: number;
+    failed: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSendSessionReminders".
+ */
+export interface TaskSendSessionReminders {
+  input?: unknown;
+  output: {
+    processedEvents: number;
+    remindersSent: number;
+    skipped: number;
     failed: number;
   };
 }

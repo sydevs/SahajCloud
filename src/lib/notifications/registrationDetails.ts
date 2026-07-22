@@ -76,17 +76,31 @@ function timeSpan(schedule: Schedule): string {
   const timezone: string = schedule.firstDate_tz || 'UTC'
   const start = new Date(schedule.firstDate)
   if (Number.isNaN(start.getTime())) return ''
+  return formatTimeSpan(start, schedule.firstDate, schedule.endTime, timezone)
+}
 
-  const startWithZone = formatTime(start, timezone, true)
-
-  const endMinutes = minutesOfDay(schedule.endTime)
-  const startMinutes = minutesOfDay(getLocalTimeHHMM(schedule.firstDate, timezone))
+/**
+ * The start–end time span for one occurrence: `7:00 – 8:30 PM GMT+1`, collapsing
+ * to the start alone when there's no usable end. Shared by {@link timeSpan} (the
+ * series' first occurrence) and {@link occurrenceLine} (a specific one).
+ *
+ * @param date - The occurrence instant, formatted for its own DST offset.
+ * @param startIso - The same instant as an ISO string, for the local-time lookup.
+ * @param endTime - The schedule's same-day wall-clock end, formatted as written
+ *   (the zone is printed once, on the end, so the span reads as one unit).
+ */
+function formatTimeSpan(
+  date: Date,
+  startIso: string,
+  endTime: string | null | undefined,
+  timezone: string,
+): string {
+  const endMinutes = minutesOfDay(endTime)
+  const startMinutes = minutesOfDay(getLocalTimeHHMM(startIso, timezone))
   if (endMinutes === null || startMinutes === null || endMinutes <= startMinutes) {
-    return startWithZone
+    return formatTime(date, timezone, true)
   }
-
-  // Zone printed once, on the end, so the span reads as one unit.
-  return `${formatTime(start, timezone)} – ${formatMinutesOfDay(endMinutes)} ${zoneName(start, timezone)}`
+  return `${formatTime(date, timezone)} – ${formatMinutesOfDay(endMinutes)} ${zoneName(date, timezone)}`
 }
 
 /** The short timezone label alone, e.g. `GMT+1`. */
@@ -182,6 +196,38 @@ export interface RegistrationEmailDetails {
 }
 
 /**
+ * Date + time span for one specific occurrence, e.g.
+ * `Tuesday, 21 July 2026, 7:00 – 8:30 PM GMT+1`.
+ *
+ * The session reminder shows the single upcoming occurrence rather than the
+ * series, so it formats *that* occurrence's own date (which differs from
+ * `firstDate` for a recurring class) and reads its own DST offset from that
+ * instant. The end of the span still comes from `endTime` — a fixed same-day
+ * wall-clock string every occurrence shares — formatted as written, the same
+ * DST-safe reasoning as {@link registrationScheduleLine}'s `timeSpan`.
+ */
+export function occurrenceLine(
+  schedule: Schedule | null | undefined,
+  occurrenceIso: string,
+): string {
+  if (!schedule?.firstDate) return ''
+  const timezone: string = schedule.firstDate_tz || 'UTC'
+  const occurrence = new Date(occurrenceIso)
+  if (Number.isNaN(occurrence.getTime())) return ''
+
+  const date = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(occurrence)
+
+  const time = formatTimeSpan(occurrence, occurrenceIso, schedule.endTime, timezone)
+  return [date, time].filter(Boolean).join(', ')
+}
+
+/**
  * Build the confirmation email's content from an Event.
  *
  * Pure and synchronous — every value comes off the already-loaded document, so
@@ -210,5 +256,21 @@ export function buildRegistrationEmailDetails(event: Event): RegistrationEmailDe
     location,
     description: descriptionText(event.description),
     contact: contact || null,
+  }
+}
+
+/**
+ * Build a session reminder's content: the same event facts as the confirmation,
+ * but with the schedule line collapsed to the single upcoming `occurrenceIso`
+ * and the session count dropped — a reminder is about one session, not the run.
+ */
+export function buildReminderEmailDetails(
+  event: Event,
+  occurrenceIso: string,
+): RegistrationEmailDetails {
+  return {
+    ...buildRegistrationEmailDetails(event),
+    scheduleLine: occurrenceLine(event.schedule, occurrenceIso),
+    sessions: null,
   }
 }
