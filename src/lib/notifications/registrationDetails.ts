@@ -141,8 +141,8 @@ export function sessionCount(schedule: Schedule | null | undefined): number | nu
  * `Every week on Tuesday, 7:00 – 8:30 PM GMT+1`.
  *
  * A one-off renders its full date instead of a recurrence phrase. The session
- * count is *not* appended here — it is a translated string, so the caller
- * appends it from `emailStrings.sessions_count`.
+ * count is *not* appended here — it is a translated, pluralized string, so the
+ * caller appends it via `pluralize(strings, 'sessions_count', …)`.
  */
 export function registrationScheduleLine(schedule: Schedule | null | undefined): string {
   if (!schedule?.firstDate) return ''
