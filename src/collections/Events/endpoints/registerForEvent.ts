@@ -152,10 +152,13 @@ export const registerForEvent: Endpoint = {
 
       // State-based gating: an event the client *can* read may still be closed
       // to new registrations (external mode / ended / a started course / full).
-      // Refuse with a machine-readable `code` the widget maps to its UI. The
-      // capacity check is enforced against a live count (authoritative — the
-      // denormalized `registrationsFull` flag is only the read-time hint);
-      // registrations are admin-only, hence the elevated count.
+      // Refuse with a machine-readable `code` the widget maps to its UI. Capacity
+      // is checked against a live count (the denormalized `registrationsFull` flag
+      // is only the read-time hint); registrations are admin-only, hence the
+      // elevated count. The count→create window isn't transactional, so a burst of
+      // concurrent registrations can overshoot the limit by a few — an acceptable
+      // soft cap here (a meditation class, not ticketed inventory); a hard cap
+      // would need a row lock or DB constraint.
       const { totalDocs: registrationCount } = await req.payload.count({
         collection: 'registrations',
         where: { event: { equals: eventId } },
