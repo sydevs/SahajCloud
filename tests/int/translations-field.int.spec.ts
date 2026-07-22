@@ -133,6 +133,30 @@ describe('buildTranslationTabs', () => {
       ])
     })
 
+    it('threads a per-key charBudget into schemaEntries (undefined when unset)', () => {
+      const schema: TranslationsSchema = {
+        type: 'object',
+        properties: {
+          emails: {
+            type: 'object',
+            properties: {
+              online_cta: { type: 'string', description: 'Join button', charBudget: 28 },
+              footer_reason: { type: 'string', description: 'Why you got this' },
+            },
+          },
+        },
+      }
+
+      const tabs = buildTranslationTabs(schema, 'sy-atlas-translations')
+      const field = tabs[0].fields[0] as {
+        admin?: { custom?: { schemaEntries?: SchemaEntry[] } }
+      }
+      const entries = field.admin?.custom?.schemaEntries ?? []
+      expect(entries.find((e) => e.key === 'online_cta')?.charBudget).toBe(28)
+      // A key with no budget carries none — not a default.
+      expect(entries.find((e) => e.key === 'footer_reason')?.charBudget).toBeUndefined()
+    })
+
     it('sets localized: true and no jsonSchema (Ajv breaks on Cloudflare Workers)', () => {
       const schema: TranslationsSchema = {
         type: 'object',
