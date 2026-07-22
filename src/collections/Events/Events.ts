@@ -39,6 +39,7 @@ import {
 } from './eventOptions'
 import { ensureWebPathDeps } from './hooks/ensureWebPathDeps'
 import { eventTitleBeforeChange } from './hooks/eventTitle'
+import { syncEventFullness } from './hooks/syncFullness'
 import { verifyOnSave } from './hooks/verifyOnSave'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
@@ -97,7 +98,9 @@ export const Events: CollectionConfig = {
     // Keep `webPath`/`webUrl` resolvable when a read selects them without their
     // inputs (`region`, and `_status` for `webUrl`) — see ensureWebPathDeps.
     beforeOperation: [ensureWebPathDeps],
-    beforeChange: [verifyOnSave],
+    // verifyOnSave first (re-opens the verification cycle), then the fullness
+    // recompute stamps `registrationsFull` onto the outgoing data.
+    beforeChange: [verifyOnSave, syncEventFullness],
     // Bust the Atlas manager sidebar cache (event list + region counts) whenever
     // an event changes or is trashed/restored.
     afterChange: [revalidateAtlasSidebarHook],
@@ -366,6 +369,23 @@ export const Events: CollectionConfig = {
               collection: 'registrations',
               on: 'event',
               admin: { condition: hideUntilCreated },
+            },
+            {
+              // Denormalized "at capacity" flag the Atlas widget reads to render
+              // its "Full" registration state. A boolean — never a raw count —
+              // so a public `sahaj-atlas-client` can select fullness without
+              // learning exact registration numbers. Stored (not computed per
+              // read) so the geojson feed and list reads stay O(1): maintained
+              // by the Registrations create/delete hooks
+              // (`syncEventRegistrationsFull`) and recomputed here on a
+              // registrationMode / registrationLimit change (`syncEventFullness`
+              // beforeChange). True only for `sahaj-atlas` mode with a set limit
+              // the registration count has reached; false for `external` mode or
+              // a blank (unlimited) limit. System-managed — hidden + read-only.
+              name: 'registrationsFull',
+              type: 'checkbox',
+              defaultValue: false,
+              admin: { hidden: true, readOnly: true },
             },
           ],
         },
