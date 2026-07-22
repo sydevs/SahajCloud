@@ -99,23 +99,3 @@ export function daysUntilUnpublish(stage: VerificationStage): number {
 export function unpublishDate(stage: VerificationStage, now: Date): Date {
   return addDays(now, daysUntilUnpublish(stage))
 }
-
-/** Minimal shape the finished-check reads off an event. */
-export interface FinishCheckInput {
-  inactive?: boolean | null
-  schedule?: { firstDate?: string | null; upcomingDates?: unknown } | null
-}
-
-/**
- * Whether a due event should be marked `finished` (Atlas `should_finish?`):
- * it has a schedule, is NOT inactive, and the schedule has no upcoming dates.
- * The `!inactive` + has-schedule guards are essential — without them every
- * inactive or scheduleless event would falsely "finish".
- */
-export function shouldFinish(event: FinishCheckInput): boolean {
-  if (event.inactive) return false
-  const schedule = event.schedule
-  if (!schedule?.firstDate) return false
-  const upcoming = schedule.upcomingDates
-  return Array.isArray(upcoming) && upcoming.length === 0
-}

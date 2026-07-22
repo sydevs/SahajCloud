@@ -19,14 +19,10 @@ import {
   sendNotification,
   type ReminderPayload,
 } from '@/lib/notifications'
+import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import type { Event } from '@/payload-types'
 
-import {
-  computeNextCheckAt,
-  nextStageTransition,
-  shouldFinish,
-  unpublishDate,
-} from './stageMachine'
+import { computeNextCheckAt, nextStageTransition, unpublishDate } from './stageMachine'
 
 const PAGINATION_LIMIT = 200
 
