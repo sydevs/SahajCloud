@@ -1,6 +1,6 @@
 'use client'
 
-import type { BudgetStatus } from './charBudget'
+import type { LengthStatus } from './lengthStatus'
 
 import { WarningIcon } from '@payloadcms/ui'
 import React from 'react'
@@ -12,8 +12,8 @@ export interface TranslationsRowProps {
   isEnglish: boolean
   isLoadingEnglish?: boolean
   isErrorEnglish?: boolean
-  /** Live character-budget status for the current value; `null` = no budget. */
-  budget?: BudgetStatus | null
+  /** Live character-length status for the current value(s); `null` = no limit. */
+  length?: LengthStatus | null
   children: React.ReactNode
 }
 
@@ -24,7 +24,7 @@ export const TranslationsRow: React.FC<TranslationsRowProps> = ({
   isEnglish,
   isLoadingEnglish,
   isErrorEnglish,
-  budget,
+  length,
   children,
 }) => {
   let englishCell: React.ReactNode = null
@@ -58,19 +58,19 @@ export const TranslationsRow: React.FC<TranslationsRowProps> = ({
       </div>
       <div className="translations-row__input-cell">
         {children}
-        {/* Advisory only — the value still saves when over budget. Shows the
-            budget as a reference until exceeded, then the live count + a
-            warning so the translator can see how far over they are. */}
-        {budget && (
+        {/* Advisory only — the value still saves when over the limit. Shows the
+            limit as a reference until exceeded, then the live count + a warning
+            so the translator can see how far over they are. */}
+        {length && (
           <div
-            className={['translations-row__budget', budget.over && 'translations-row__budget--over']
+            className={['translations-row__length', length.over && 'translations-row__length--over']
               .filter(Boolean)
               .join(' ')}
           >
-            {budget.over && <WarningIcon />}
-            {budget.over
-              ? `${budget.length} / ${budget.budget} characters`
-              : `max ${budget.budget} characters`}
+            {length.over && <WarningIcon />}
+            {length.over
+              ? `${length.length} / ${length.maxLength} characters`
+              : `max ${length.maxLength} characters`}
           </div>
         )}
         {englishCell}

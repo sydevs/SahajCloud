@@ -367,17 +367,17 @@
         "when_label": {
           "type": "string",
           "description": "Section label above the date/time of the class.",
-          "charBudget": 16
+          "maxLength": 16
         },
         "where_label": {
           "type": "string",
           "description": "Section label above the address or joining link.",
-          "charBudget": 16
+          "maxLength": 16
         },
         "online_cta": {
           "type": "string",
           "description": "Call-to-action button label for joining an online class.",
-          "charBudget": 28
+          "maxLength": 28
         },
         "online_link_hint": {
           "type": "string",
@@ -386,17 +386,17 @@
         "directions_cta": {
           "type": "string",
           "description": "Call-to-action button label that opens the venue address in a maps app, for an in-person class.",
-          "charBudget": 24
+          "maxLength": 24
         },
         "about_label": {
           "type": "string",
           "description": "Section label above the event description (\"What to expect\").",
-          "charBudget": 22
+          "maxLength": 22
         },
         "contact_label": {
           "type": "string",
           "description": "Section label above the host's name and phone number.",
-          "charBudget": 18
+          "maxLength": 18
         },
         "sessions_count_one": {
           "type": "string",
@@ -441,7 +441,7 @@
         "unsubscribe_cta": {
           "type": "string",
           "description": "Footer link label in the reminder email that opens the unsubscribe page.",
-          "charBudget": 40
+          "maxLength": 40
         },
         "unsubscribe_heading": {
           "type": "string",
@@ -454,12 +454,12 @@
         "unsubscribe_confirm_cta": {
           "type": "string",
           "description": "Button label that confirms unsubscribing from reminders.",
-          "charBudget": 18
+          "maxLength": 18
         },
         "unsubscribe_working": {
           "type": "string",
           "description": "Button label shown while the unsubscribe request is in flight.",
-          "charBudget": 18
+          "maxLength": 18
         },
         "unsubscribe_done_title": {
           "type": "string",

@@ -142,30 +142,31 @@ within SQL constraints.
 - No dots — group structure is handled by the nested schema.
 - Descriptive — keys should be self-explanatory.
 
-### Per-key character budget (`charBudget`)
+### Per-key character limit (`maxLength`)
 
-A `string` leaf property may carry an optional `charBudget` (a number) — a soft
-budget for the key's on-screen UI slot (status chip, action label). It's a
-non-JSON-Schema extension of the leaf, sitting at the key level the same way
-`screenshot` sits at the group level:
+A `string` leaf property may carry an optional `maxLength` (a number) — a soft
+character limit for the key's on-screen UI slot (status chip, action label).
+It's a non-JSON-Schema extension of the leaf, sitting at the key level the same
+way `screenshot` sits at the group level:
 
 ```json
 "online_cta": {
   "type": "string",
   "description": "Call-to-action button label for joining an online class.",
-  "charBudget": 28
+  "maxLength": 28
 }
 ```
 
 It threads schema → `SchemaEntry` → `admin.custom` → `TranslationsRow`, which
-shows the budget inline ("max 28 characters") and, once exceeded, a live count +
+shows the limit inline ("max 28 characters") and, once exceeded, a live count +
 `WarningIcon`. **Advisory only** — the field `validate` is unchanged, so an
-over-budget string still saves. `charBudget` rides in `admin.custom` (not the DB
-schema), so adding/tuning one needs no migration. The comparison lives in the
-pure `budgetStatus` helper (`src/components/admin/TranslationsRow/charBudget.ts`,
-unit-tested). Length is counted in Unicode code points. Budget generously for
-keys with `%{...}` placeholders — the raw stored string is measured, and the
-placeholder expands or contracts at render.
+over-limit string still saves (this is a soft budget, *not* an enforced
+`maxLength`). It rides in `admin.custom` (not the DB schema), so adding/tuning
+one needs no migration. The comparison lives in the pure `lengthStatus` helper
+(`src/components/admin/TranslationsRow/lengthStatus.ts`, unit-tested), which
+counts Unicode code points and, for a plural row, takes the longest across its
+category inputs. Budget generously for keys with `%{...}` placeholders — the raw
+stored string is measured, and the placeholder expands or contracts at render.
 
 ### Plural keys (`_one`/`_few`/`_many`/`_other`)
 

@@ -12,13 +12,13 @@ interface StringPropertySchema {
   type: 'string'
   description?: string
   /**
-   * Soft character budget for this key's on-screen UI slot (e.g. a status chip
-   * or action label). Advisory only: the admin shows a per-row hint and a
-   * non-blocking over-budget warning, but an over-budget string still saves.
-   * Measures the raw stored string, so budget keys with `%{...}` placeholders
+   * Soft character limit for this key's on-screen UI slot (e.g. a status chip
+   * or action label). Advisory only: the admin shows a per-row reference and a
+   * non-blocking over-length warning, but an over-length string still saves.
+   * Measures the raw stored string, so limit keys with `%{...}` placeholders
    * generously — the placeholder expands or contracts at render time.
    */
-  charBudget?: number
+  maxLength?: number
 }
 
 interface RichTextPropertySchema {
@@ -39,8 +39,8 @@ type LeafPropertySchema = StringPropertySchema | RichTextPropertySchema
  * Non-JSON-Schema extensions consumed by the Payload admin builder:
  * - `screenshot` (group level): relative path or URL (image or Figma) shown
  *   above the translation rows for translator orientation.
- * - `charBudget` (string-key level, see `StringPropertySchema`): soft per-key
- *   character budget surfaced as a hint + non-blocking over-budget warning.
+ * - `maxLength` (string-key level, see `StringPropertySchema`): soft per-key
+ *   character limit surfaced as a reference + non-blocking over-length warning.
  */
 interface GroupSchema {
   type: 'object'
@@ -63,8 +63,8 @@ export interface TranslationsSchema {
 export interface SchemaEntry {
   key: string
   description: string
-  /** Soft character budget for the key's UI slot; see `StringPropertySchema`. */
-  charBudget?: number
+  /** Soft character limit for the key's UI slot; see `StringPropertySchema`. */
+  maxLength?: number
 }
 
 // ============================================================================
@@ -140,7 +140,7 @@ function createStringsJsonField(
   const schemaEntries: SchemaEntry[] = stringProps.map(([key, prop]) => ({
     key,
     description: prop.description || '',
-    charBudget: prop.charBudget,
+    maxLength: prop.maxLength,
   }))
   const allowedKeys = new Set(stringProps.map(([key]) => key))
   const allowAdditional = group.additionalProperties === true

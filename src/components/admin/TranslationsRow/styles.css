@@ -74,10 +74,10 @@
 }
 
 /* ----------------------------------------------------------------------- */
-/* Character-budget indicator (below the input)                            */
+/* Character-length indicator (below the input)                            */
 /* ----------------------------------------------------------------------- */
 
-.translations-row__budget {
+.translations-row__length {
   display: inline-flex;
   align-items: center;
   gap: calc(var(--base) * 0.25);
@@ -86,12 +86,12 @@
   color: var(--theme-elevation-500);
 }
 
-.translations-row__budget--over {
+.translations-row__length--over {
   color: var(--theme-warning-600);
   font-weight: 500;
 }
 
-.translations-row__budget svg {
+.translations-row__length svg {
   width: calc(var(--base-body-size) * 1.1px);
   height: calc(var(--base-body-size) * 1.1px);
 }
