@@ -87,5 +87,5 @@ function isStartedLimitedCourse(schedule: GateSchedule | null | undefined, now: 
     (schedule.endingType === 'until' && schedule.untilDate != null)
   if (!hasEnding) return false
   if (!schedule.firstDate) return false
-  return now.getTime() >= new Date(schedule.firstDate).getTime()
+  return now >= new Date(schedule.firstDate)
 }

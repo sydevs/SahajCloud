@@ -51,24 +51,27 @@ export async function syncEventRegistrationsFull(args: {
   // overrideAccess still covers permissions.
   const req = args.req ? asTrustedReq(args.req) : undefined
 
-  const event = await payload
-    .findByID({
-      collection: 'events',
-      id: eventId,
-      depth: 0,
-      select: { registrationMode: true, registrationLimit: true, registrationsFull: true },
+  // The event read and the registration count are independent (both keyed only
+  // on eventId), so overlap them rather than await back to back.
+  const [event, { totalDocs }] = await Promise.all([
+    payload
+      .findByID({
+        collection: 'events',
+        id: eventId,
+        depth: 0,
+        select: { registrationMode: true, registrationLimit: true, registrationsFull: true },
+        overrideAccess: true,
+        req,
+      })
+      .catch(() => null),
+    payload.count({
+      collection: 'registrations',
+      where: { event: { equals: eventId } },
       overrideAccess: true,
       req,
-    })
-    .catch(() => null)
+    }),
+  ])
   if (!event) return
-
-  const { totalDocs } = await payload.count({
-    collection: 'registrations',
-    where: { event: { equals: eventId } },
-    overrideAccess: true,
-    req,
-  })
 
   const full = isEventFull(event, totalDocs)
   if (Boolean(event.registrationsFull) === full) return
