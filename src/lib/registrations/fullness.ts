@@ -1,5 +1,7 @@
 import type { Payload, PayloadRequest } from 'payload'
 
+import { asTrustedReq } from '@/plugins/usage/hooks'
+
 /** The event fields that decide capacity. */
 export interface EventFullnessInput {
   registrationMode?: string | null
@@ -41,7 +43,13 @@ export async function syncEventRegistrationsFull(args: {
   eventId: number
   req?: PayloadRequest
 }): Promise<void> {
-  const { payload, eventId, req } = args
+  const { payload, eventId } = args
+  // A registration arrives through the widget, so the caller's req carries a
+  // client user. Elevate it to a trusted req: the client query gate would
+  // otherwise reject the nested `regions` find the event update runs to
+  // re-validate `region` via filterOptions (a client find with no `select`).
+  // overrideAccess still covers permissions.
+  const req = args.req ? asTrustedReq(args.req) : undefined
 
   const event = await payload
     .findByID({
@@ -69,7 +77,10 @@ export async function syncEventRegistrationsFull(args: {
     collection: 'events',
     id: eventId,
     data: { registrationsFull: full },
-    context: { skipVerifyHook: true },
+    // skipVerifyHook (don't re-open verification) alongside the trusted-req skip
+    // flag — spread req.context so the trusted flag survives if the context arg
+    // replaces rather than merges.
+    context: { ...(req?.context ?? {}), skipVerifyHook: true },
     overrideAccess: true,
     req,
   })

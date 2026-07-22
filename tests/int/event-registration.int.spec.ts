@@ -677,4 +677,124 @@ describe('registerForEvent endpoint', () => {
       expect(registration.id).toBe(body.registration!.id)
     })
   })
+
+  describe('state-based gating (#599)', () => {
+    let gatingRegionId: number
+    const daysFromNow = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString()
+
+    beforeAll(async () => {
+      const region = await payload.create({
+        collection: 'regions',
+        overrideAccess: true,
+        data: { name: 'Gate City', level: 'city', mapboxId: 'gate-city', slug: 'gate-city' },
+      })
+      gatingRegionId = region.id
+    })
+
+    async function createGatingEvent(overrides: Record<string, unknown>): Promise<number> {
+      const event = await payload.create({
+        collection: 'events',
+        overrideAccess: true,
+        data: {
+          title: 'Gating Event',
+          languages: ['en'],
+          eventType: 'online',
+          onlineUrl: 'https://example.com/meet',
+          registrationMode: 'sahaj-atlas',
+          manager: managerId,
+          region: gatingRegionId,
+          _status: 'published',
+          ...overrides,
+        },
+      })
+      return event.id
+    }
+
+    it('rejects external-mode registration with external_registration (409)', async () => {
+      const id = await createGatingEvent({
+        registrationMode: 'external',
+        schedule: { firstDate: daysFromNow(30), firstDate_tz: 'Europe/London' },
+      })
+      const { status, body } = await callRegister(id, {
+        email: 'ext@example.com',
+        name: 'Ext Ernal',
+      })
+      expect(status).toBe(409)
+      expect((body.errors as { code?: string }[])[0]?.code).toBe('external_registration')
+    })
+
+    it('rejects an ended one-off with event_ended (409)', async () => {
+      // A one-off whose date is long past → no upcoming occurrences → ended.
+      const id = await createGatingEvent({
+        schedule: { firstDate: '2020-01-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
+      })
+      const { status, body } = await callRegister(id, { email: 'end@example.com', name: 'End Ed' })
+      expect(status).toBe(409)
+      expect((body.errors as { code?: string }[])[0]?.code).toBe('event_ended')
+    })
+
+    it('rejects a started limited-run course with registration_closed (409)', async () => {
+      // Daily run of 8, started 3 days ago → sessions remain (not ended) but the
+      // run has begun (firstDate in the past).
+      const id = await createGatingEvent({
+        schedule: {
+          firstDate: daysFromNow(-3),
+          firstDate_tz: 'Europe/London',
+          recurrenceType: 'DAILY',
+          interval: 1,
+          endingType: 'count',
+          count: 8,
+        },
+      })
+      const { status, body } = await callRegister(id, {
+        email: 'closed@example.com',
+        name: 'Cl Osed',
+      })
+      expect(status).toBe(409)
+      expect((body.errors as { code?: string }[])[0]?.code).toBe('registration_closed')
+    })
+
+    it('never closes a started recurring class with no ending (boundary → 201)', async () => {
+      // Same "started" firstDate, but open-ended (no count/until) → never closes.
+      const id = await createGatingEvent({
+        schedule: {
+          firstDate: daysFromNow(-3),
+          firstDate_tz: 'Europe/London',
+          recurrenceType: 'DAILY',
+          interval: 1,
+        },
+      })
+      const { status } = await callRegister(id, {
+        email: 'openclass@example.com',
+        name: 'Op Enclass',
+      })
+      expect(status).toBe(201)
+    })
+
+    it('rejects registration once a limited event is full with event_full (409)', async () => {
+      // Future one-off with room for two → the third is refused.
+      const id = await createGatingEvent({
+        registrationLimit: 2,
+        schedule: { firstDate: daysFromNow(30), firstDate_tz: 'Europe/London' },
+      })
+      const first = await callRegister(id, { email: 'full1@example.com', name: 'Full One' })
+      const second = await callRegister(id, { email: 'full2@example.com', name: 'Full Two' })
+      const third = await callRegister(id, { email: 'full3@example.com', name: 'Full Three' })
+
+      expect(first.status).toBe(201)
+      expect(second.status).toBe(201)
+      expect(third.status).toBe(409)
+      expect((third.body.errors as { code?: string }[])[0]?.code).toBe('event_full')
+    })
+
+    it('leaves the published/visible 404 unchanged for an unreadable event', async () => {
+      const { status, body } = await callRegister(999_999, {
+        email: 'missing@example.com',
+        name: 'Mi Ssing',
+      })
+      expect(status).toBe(404)
+      // The plain not-found carries no machine-readable code (contract preserved).
+      expect((body.errors as { code?: string }[])[0]?.code).toBeUndefined()
+    })
+  })
 })
