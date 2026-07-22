@@ -144,6 +144,11 @@ export function formatLongDate(iso: string): string {
   }).format(date)
 }
 
+/** Compact date for dense lists (the digest), e.g. "5 Aug 2025". */
+export function formatShortDate(iso: string): string {
+  return formatDate(iso)
+}
+
 /** Coarse human duration since `fromIso`, e.g. "3 months" / "5 weeks". */
 export function humanDurationSince(fromIso: string, now: Date): string {
   const ms = now.getTime() - new Date(fromIso).getTime()

@@ -55,7 +55,8 @@ No loose files at the root — every file lives in a named folder:
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
   `pageTags/`, `cascadeDeletion/`, `registrations/` (the
   `EVENT_REGISTRATION_QUESTIONS` contract + `questions` validation/shaping,
-  shared by Events, Registrations, and the notification email)
+  shared by Events, Registrations, and the notification email; plus the
+  `unsubscribeToken` / `unsubscribeUrl` helpers for the reminder unsubscribe link)
 
 **Barrels.** A folder gets an `index.ts` barrel when it presents one cohesive
 public surface imported as a unit (`@/lib/locales`, `@/lib/status`,

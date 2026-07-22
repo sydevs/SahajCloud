@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   formatLongDate,
+  formatShortDate,
   humanDurationSince,
   scheduleOneLine,
 } from '@/lib/notifications/eventDetails'
@@ -73,6 +74,16 @@ describe('formatLongDate', () => {
 
   it('returns empty string for an invalid date', () => {
     expect(formatLongDate('not-a-date')).toBe('')
+  })
+})
+
+describe('formatShortDate', () => {
+  it('formats a compact date (short month, no weekday)', () => {
+    expect(formatShortDate('2026-07-19T12:00:00.000Z')).toBe('19 Jul 2026')
+  })
+
+  it('returns empty string for an invalid date', () => {
+    expect(formatShortDate('not-a-date')).toBe('')
   })
 })
 

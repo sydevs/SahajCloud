@@ -1,4 +1,9 @@
-export { buildEventEmailDetails, formatLongDate, humanDurationSince } from './eventDetails'
+export {
+  buildEventEmailDetails,
+  formatLongDate,
+  formatShortDate,
+  humanDurationSince,
+} from './eventDetails'
 export { buildManagerContacts, pickChannel, resolveRecipients } from './recipients'
 export { resolveRegistrationRecipient } from './registrationRecipient'
 export type { RegistrationRecipient } from './registrationRecipient'
