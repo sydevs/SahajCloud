@@ -44,6 +44,10 @@ interface ExpireResult {
 /**
  * Mark a due event `finished` (terminal, unpublished, no email). Atlas's
  * `should_finish?` — its schedule ran out and it isn't inactive.
+ *
+ * Setting `_status: 'draft'` is what makes a finished event 404 for
+ * `sahaj-atlas-client` (published-only filter) — the finished-event read
+ * contract; see the Events collection JSDoc.
  */
 async function finishEvent(payload: Payload, req: PayloadRequest, event: Event): Promise<void> {
   await payload.update({

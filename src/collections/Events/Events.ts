@@ -63,6 +63,21 @@ const eventDescriptionEditor = lexicalEditor({
  * (Payload owns the publish control). The schedule lives in the project
  * `scheduleFields` (which also stores the timezone on its First Date & Time);
  * Atlas `finishDate` maps into its ending (not a standalone field).
+ *
+ * **Finished-event read contract (for `sahaj-atlas-client`).** When an event's
+ * schedule runs out, the ExpireEvents job marks it `finished` and sets
+ * `_status: 'draft'` (see `finishEvent`). A draft is invisible to the
+ * published-only client filter, so **`GET /api/events/:id` then 404s** — a
+ * direct link to a finished event resolves to the widget's not-found fallback
+ * ("see nearby events"), not an "Ended" panel. This is the pinned contract:
+ * finished ⇒ 404.
+ *
+ * There is a window between an event's last occurrence and the next
+ * ExpireEvents run where it is past but still `published` — it stays readable,
+ * and the widget derives "Ended" client-side from `schedule.upcomingDates`.
+ * Registration during that window is closed server-side by the register
+ * endpoint's gate (`event_ended`), so the read staying open can't leak a
+ * registration into an event that is really over.
  */
 export const Events: CollectionConfig = {
   slug: 'events',
