@@ -169,6 +169,39 @@ in `src/emails/`.
   **hosted PNG** via react-email's `<Img>` — never `lucide-react` or
   `@payloadcms/ui` icons.
 
+## Localized copy & plural forms
+
+Registrant-facing chrome (the confirmation / reminder / unsubscribe copy) is
+resolved **server-side** by `resolveEmailStrings()` (`src/lib/translations/emailStrings.ts`)
+from the Atlas translations `emails` group, merged over the English
+`EMAIL_STRING_DEFAULTS`. Templates receive already-resolved strings as props and
+never query — see the group note in `.claude/rules/globals.md`.
+
+**Plurals go through `pluralize()`, not `interpolate()`.** A quantity-dependent
+string is stored as a family of keys suffixed with the CLDR categories —
+`sessions_count_one` / `_few` / `_many` / `_other` — and selected at render time:
+
+```tsx
+// ❌ flat key — reads "1 sessions", and can't spell Russian/Czech plurals
+interpolate(strings.sessions_count, { count })
+// ✅ locale-aware — Intl.PluralRules picks the form (ru 2 → few, 5 → many; cs 5 → other)
+pluralize(strings, 'sessions_count', count, locale)
+```
+
+- **The selecting layer is the resolver**, via `Intl.PluralRules(locale)` — the
+  platform's own CLDR data, so no per-language plural logic is hardcoded. The
+  chosen `<baseKey>_<category>` is used, falling back to `<baseKey>_other`.
+- **English defaults define all four forms** (`few`/`many` duplicate `other`) so
+  a locale that uses `few`/`many` still falls back to sensible English when a
+  translator leaves a form blank — `resolveEmailStrings` fills blanks per key.
+- **Thread the registrant `locale` into the template** (it's a prop) — without
+  it `pluralize` defaults to English and every locale silently gets the English
+  form. The send path (`sendRegistrationConfirmation`) and the preview script
+  both pass it.
+- To add a new pluralized key: add the `_one`/`_few`/`_many`/`_other` family to
+  both `translationsSchema.json` **and** `EMAIL_STRING_DEFAULTS`, then call
+  `pluralize` at the use site.
+
 ## Authentication features
 
 - **Email verification** (`VerifyEmail`) and **password reset**

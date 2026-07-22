@@ -142,6 +142,43 @@ within SQL constraints.
 - No dots — group structure is handled by the nested schema.
 - Descriptive — keys should be self-explanatory.
 
+### Per-key character budget (`charBudget`)
+
+A `string` leaf property may carry an optional `charBudget` (a number) — a soft
+budget for the key's on-screen UI slot (status chip, action label). It's a
+non-JSON-Schema extension of the leaf, sitting at the key level the same way
+`screenshot` sits at the group level:
+
+```json
+"online_cta": {
+  "type": "string",
+  "description": "Call-to-action button label for joining an online class.",
+  "charBudget": 28
+}
+```
+
+It threads schema → `SchemaEntry` → `admin.custom` → `TranslationsRow`, which
+shows the budget inline ("max 28 characters") and, once exceeded, a live count +
+`WarningIcon`. **Advisory only** — the field `validate` is unchanged, so an
+over-budget string still saves. `charBudget` rides in `admin.custom` (not the DB
+schema), so adding/tuning one needs no migration. The comparison lives in the
+pure `budgetStatus` helper (`src/components/admin/TranslationsRow/charBudget.ts`,
+unit-tested). Length is counted in Unicode code points. Budget generously for
+keys with `%{...}` placeholders — the raw stored string is measured, and the
+placeholder expands or contracts at render.
+
+### Plural keys (`_one`/`_few`/`_many`/`_other`)
+
+For a string that varies by quantity, use a **family of sibling keys** suffixed
+with the CLDR plural categories rather than one flat key — e.g.
+`sessions_count_one` / `_few` / `_many` / `_other` (this generalizes the older
+convention-only `region.locations.description_one`/`_other`). English needs only
+`one`/`other`, but locales already in the app (Russian, Ukrainian, Czech) need
+`few`/`many`. Selection happens **server-side** in the resolver layer via
+`pluralize()` (`Intl.PluralRules` — see `.claude/rules/email.md`), not in the
+CMS. Define at least `_one` and `_other`; the resolver falls back to `_other`
+for any category a locale produces that the strings don't define.
+
 ## Project visibility
 
 Globals are assigned to projects in `src/plugins/access/config/projects.ts` and
