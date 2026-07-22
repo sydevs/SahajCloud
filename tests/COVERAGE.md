@@ -36,7 +36,7 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 | Global                        | Custom logic                                                | Covered by                                   |
 | ----------------------------- | ----------------------------------------------------------- | -------------------------------------------- |
 | `wemeditate-app/config`       | Localized `vibeCheckTracks` array, virtual readiness fields | `wm-app-config`, `wemeditateAppStatus`       |
-| `wemeditate-app/translations` | `buildTranslationTabs` factory (incl. per-key `maxLength` threading), JSON validator | `translations-field`, `translations-globals` |
+| `wemeditate-app/translations` | `buildTranslationTabs` factory (incl. per-key `maxLength` threading + `plural` expansion), JSON validator | `translations-field`, `translations-globals` |
 | `wemeditate-web/*`            | Translation pattern (covered transitively)                  | `translations-globals`                       |
 | `sahaj-atlas/*`               | Translation pattern (covered transitively)                  | `translations-globals`                       |
 

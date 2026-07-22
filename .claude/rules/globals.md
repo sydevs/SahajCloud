@@ -168,17 +168,34 @@ counts Unicode code points and, for a plural row, takes the longest across its
 category inputs. Budget generously for keys with `%{...}` placeholders — the raw
 stored string is measured, and the placeholder expands or contracts at render.
 
-### Plural keys (`_one`/`_few`/`_many`/`_other`)
+### Plural keys (`plural: true`)
 
-For a string that varies by quantity, use a **family of sibling keys** suffixed
-with the CLDR plural categories rather than one flat key — e.g.
-`sessions_count_one` / `_few` / `_many` / `_other` (this generalizes the older
-convention-only `region.locations.description_one`/`_other`). English needs only
-`one`/`other`, but locales already in the app (Russian, Ukrainian, Czech) need
-`few`/`many`. Selection happens **server-side** in the resolver layer via
-`pluralize()` (`Intl.PluralRules` — see `.claude/rules/email.md`), not in the
-CMS. Define at least `_one` and `_other`; the resolver falls back to `_other`
-for any category a locale produces that the strings don't define.
+For a string that varies by quantity, mark the single key `plural: true` rather
+than hand-declaring the CLDR forms:
+
+```json
+"sessions_count": {
+  "type": "string",
+  "plural": true,
+  "maxLength": 18,
+  "description": "Session count appended to a course's schedule. `%{count}` = number of sessions."
+}
+```
+
+The field builder **expands** it into the CLDR family for storage —
+`sessions_count_one` / `_few` / `_many` / `_other` (the union across the app's
+locales: English uses one/other; Russian, Ukrainian, and Czech add few/many).
+The admin renders **one grouped row** of per-category inputs, showing only the
+categories the edited locale uses (`Intl.PluralRules`) and sharing a single
+`maxLength` counter (the longest form wins). The keys stored/read are the
+expanded ones, so the resolver side is unchanged.
+
+Selection at render time is **server-side** in the resolver via `pluralize()`
+(`Intl.PluralRules` — see `.claude/rules/email.md`), not in the CMS.
+`EMAIL_STRING_DEFAULTS` must define the same expanded family (English suffices —
+`few`/`many` fall back to `other`). The older convention-only
+`region.locations.description_one`/`_other` predates this and can adopt
+`plural: true`.
 
 ## Project visibility
 

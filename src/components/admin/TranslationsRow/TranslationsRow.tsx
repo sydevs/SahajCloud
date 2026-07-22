@@ -5,6 +5,8 @@ import type { LengthStatus } from './lengthStatus'
 import { FieldDescription, WarningIcon } from '@payloadcms/ui'
 import React from 'react'
 
+import { EnglishReference } from './EnglishReference'
+
 export interface TranslationsRowProps {
   title: string
   description?: string
@@ -14,6 +16,8 @@ export interface TranslationsRowProps {
   isEnglish: boolean
   isLoadingEnglish?: boolean
   isErrorEnglish?: boolean
+  /** Suppress the row-level English reference (plural rows show one per input). */
+  hideEnglish?: boolean
   /** Live character-length status for the current value(s); `null` = no limit. */
   length?: LengthStatus | null
   children: React.ReactNode
@@ -27,28 +31,10 @@ export const TranslationsRow: React.FC<TranslationsRowProps> = ({
   isEnglish,
   isLoadingEnglish,
   isErrorEnglish,
+  hideEnglish,
   length,
   children,
 }) => {
-  let englishCell: React.ReactNode = null
-  if (!isEnglish) {
-    if (isLoadingEnglish) {
-      englishCell = (
-        <div className="translations-row__english translations-row__english--placeholder">
-          Loading...
-        </div>
-      )
-    } else if (isErrorEnglish) {
-      englishCell = (
-        <div className="translations-row__english translations-row__english--placeholder">
-          Reference unavailable
-        </div>
-      )
-    } else if (englishValue) {
-      englishCell = <div className="translations-row__english">{`English: "${englishValue}"`}</div>
-    }
-  }
-
   return (
     <div className="translations-row">
       <div className="translations-row__header">
@@ -83,7 +69,14 @@ export const TranslationsRow: React.FC<TranslationsRowProps> = ({
             </span>
           </div>
         )}
-        {englishCell}
+        {!hideEnglish && (
+          <EnglishReference
+            value={englishValue}
+            isEnglish={isEnglish}
+            isLoading={isLoadingEnglish}
+            isError={isErrorEnglish}
+          />
+        )}
       </div>
     </div>
   )

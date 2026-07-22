@@ -19,7 +19,22 @@ interface StringPropertySchema {
    * generously — the placeholder expands or contracts at render time.
    */
   maxLength?: number
+  /**
+   * Marks a quantity-dependent string. The one declared key expands into the
+   * CLDR plural family for storage (`<key>_one`/`_few`/`_many`/`_other`), and
+   * the admin renders one grouped row of per-category inputs sharing a single
+   * length counter. The resolver (`pluralize`) reads the same expanded keys —
+   * see `.claude/rules/email.md`.
+   */
+  plural?: boolean
 }
+
+/**
+ * CLDR plural categories a translation key expands into when `plural: true`.
+ * The union across the app's locales (English needs only one/other; Russian,
+ * Ukrainian, and Czech add few/many). Kept in sync with `EMAIL_STRING_DEFAULTS`.
+ */
+const PLURAL_CATEGORIES = ['one', 'few', 'many', 'other'] as const
 
 interface RichTextPropertySchema {
   type: 'richText'
@@ -41,6 +56,8 @@ type LeafPropertySchema = StringPropertySchema | RichTextPropertySchema
  *   above the translation rows for translator orientation.
  * - `maxLength` (string-key level, see `StringPropertySchema`): soft per-key
  *   character limit surfaced as a reference + non-blocking over-length warning.
+ * - `plural` (string-key level, see `StringPropertySchema`): expands one key
+ *   into the CLDR plural family and renders a grouped per-category row.
  */
 interface GroupSchema {
   type: 'object'
@@ -65,6 +82,8 @@ export interface SchemaEntry {
   description: string
   /** Soft character limit for the key's UI slot; see `StringPropertySchema`. */
   maxLength?: number
+  /** When true, this key holds a CLDR plural family; see `StringPropertySchema`. */
+  plural?: boolean
 }
 
 // ============================================================================
@@ -141,8 +160,15 @@ function createStringsJsonField(
     key,
     description: prop.description || '',
     maxLength: prop.maxLength,
+    plural: prop.plural === true ? true : undefined,
   }))
-  const allowedKeys = new Set(stringProps.map(([key]) => key))
+  // A plural key is declared once but stored as its CLDR family, so the JSON
+  // blob holds `<key>_one`/`_few`/… — validate against the expanded keys.
+  const allowedKeys = new Set(
+    stringProps.flatMap(([key, prop]) =>
+      prop.plural === true ? PLURAL_CATEGORIES.map((cat) => `${key}_${cat}`) : [key],
+    ),
+  )
   const allowAdditional = group.additionalProperties === true
 
   return {

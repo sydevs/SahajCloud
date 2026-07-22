@@ -198,9 +198,10 @@ pluralize(strings, 'sessions_count', count, locale)
   it `pluralize` defaults to English and every locale silently gets the English
   form. The send path (`sendRegistrationConfirmation`) and the preview script
   both pass it.
-- To add a new pluralized key: add the `_one`/`_few`/`_many`/`_other` family to
-  both `translationsSchema.json` **and** `EMAIL_STRING_DEFAULTS`, then call
-  `pluralize` at the use site.
+- To add a new pluralized key: declare it once with `plural: true` in
+  `translationsSchema.json` (the field builder expands it into the CLDR family —
+  see `.claude/rules/globals.md`), add the `_one`/`_few`/`_many`/`_other` family
+  to `EMAIL_STRING_DEFAULTS`, then call `pluralize` at the use site.
 
 ## Authentication features
 

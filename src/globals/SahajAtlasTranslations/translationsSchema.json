@@ -398,21 +398,11 @@
           "description": "Section label above the host's name and phone number.",
           "maxLength": 18
         },
-        "sessions_count_one": {
+        "sessions_count": {
           "type": "string",
-          "description": "Singular session count for a limited-run course (CLDR `one`), e.g. \"1 session\". `%{count}` = number of sessions."
-        },
-        "sessions_count_few": {
-          "type": "string",
-          "description": "Session count for the CLDR `few` category (e.g. Russian/Ukrainian/Czech 2–4). `%{count}` = number of sessions."
-        },
-        "sessions_count_many": {
-          "type": "string",
-          "description": "Session count for the CLDR `many` category (e.g. Russian/Ukrainian 5–20). `%{count}` = number of sessions."
-        },
-        "sessions_count_other": {
-          "type": "string",
-          "description": "Default session count (CLDR `other`; English plural, e.g. \"8 sessions\"). Used when a locale has no more specific form. `%{count}` = number of sessions."
+          "plural": true,
+          "maxLength": 18,
+          "description": "Session count appended to a limited-run course's schedule, entered per plural form. `%{count}` = number of sessions."
         },
         "footer_reason": {
           "type": "string",

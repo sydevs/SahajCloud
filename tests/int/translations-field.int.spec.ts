@@ -153,8 +153,45 @@ describe('buildTranslationTabs', () => {
       }
       const entries = field.admin?.custom?.schemaEntries ?? []
       expect(entries.find((e) => e.key === 'online_cta')?.maxLength).toBe(28)
-      // A key with no budget carries none — not a default.
+      // A key with no limit carries none — not a default.
       expect(entries.find((e) => e.key === 'footer_reason')?.maxLength).toBeUndefined()
+    })
+
+    it('expands a plural key into its CLDR family for storage + validation', () => {
+      const schema: TranslationsSchema = {
+        type: 'object',
+        properties: {
+          emails: {
+            type: 'object',
+            properties: {
+              sessions_count: {
+                type: 'string',
+                plural: true,
+                maxLength: 18,
+                description: 'Session count',
+              },
+            },
+          },
+        },
+      }
+
+      const tabs = buildTranslationTabs(schema, 'sy-atlas-translations')
+      const field = tabs[0].fields[0] as {
+        admin?: { custom?: { schemaEntries?: SchemaEntry[] } }
+        validate?: (value: unknown) => true | string
+      }
+
+      // One grouped entry, flagged plural — the admin expands it per locale.
+      expect(field.admin?.custom?.schemaEntries).toEqual([
+        { key: 'sessions_count', description: 'Session count', maxLength: 18, plural: true },
+      ])
+
+      // Validation accepts the expanded category keys and rejects the bare base.
+      const validate = field.validate!
+      expect(validate({ sessions_count_one: '1 session', sessions_count_other: '%{count}' })).toBe(
+        true,
+      )
+      expect(validate({ sessions_count: 'nope' })).toContain('Unknown key')
     })
 
     it('sets localized: true and no jsonSchema (Ajv breaks on Cloudflare Workers)', () => {
