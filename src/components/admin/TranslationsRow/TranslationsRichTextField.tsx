@@ -12,7 +12,6 @@ import { useEnglishTranslation } from './useEnglishTranslation'
 
 import './styles.css'
 
-
 function extractPlainText(node: unknown): string {
   if (!node) return ''
   if (typeof node === 'string') return node
@@ -68,6 +67,7 @@ export const TranslationsRichTextField: RichTextFieldClientComponent = ({ field,
       <TranslationsRow
         title={toWords(translationKey.replace(/_/g, '-'))}
         description={typeof description === 'string' ? description : undefined}
+        path={name}
         englishValue={englishValue}
         isEnglish={isEnglish}
         isLoadingEnglish={isLoading}

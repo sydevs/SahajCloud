@@ -77,6 +77,7 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
                 key={entry.key}
                 title={toWords(entry.key.replace(/_/g, '-'))}
                 description={entry.description || undefined}
+                path={`${name}.${entry.key}`}
                 englishValue={englishValue}
                 isEnglish={isEnglish}
                 isLoadingEnglish={isLoading}

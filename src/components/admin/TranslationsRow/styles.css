@@ -49,10 +49,10 @@
   color: var(--theme-elevation-800);
 }
 
+/* The description is a Payload FieldDescription; only neutralize its default
+   top margin — the header column already spaces its rows via `gap`. */
 .translations-row__description {
-  font-size: calc(var(--base-body-size) * 0.75px);
-  color: var(--theme-elevation-500);
-  line-height: 1.4;
+  margin-top: 0;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -77,21 +77,24 @@
 /* Character-length indicator (below the input)                            */
 /* ----------------------------------------------------------------------- */
 
+/* The indicator carries the `field-description` class (display:flex, muted
+   colour) for a look consistent with the row description. These rules add the
+   icon layout and pin a one-line min-height so the under → over transition
+   (which adds the warning icon) never grows the row and shifts the layout. */
 .translations-row__length {
-  display: inline-flex;
   align-items: center;
   gap: calc(var(--base) * 0.25);
-  margin-top: calc(var(--base) * 0.3);
-  font-size: calc(var(--base-body-size) * 0.85px);
-  color: var(--theme-elevation-500);
+  min-height: calc(var(--base-body-size) * 1.5px);
 }
 
-.translations-row__length--over {
+.translations-row__length--over,
+.translations-row__length--over svg {
   color: var(--theme-warning-600);
   font-weight: 500;
 }
 
 .translations-row__length svg {
+  flex-shrink: 0;
   width: calc(var(--base-body-size) * 1.1px);
   height: calc(var(--base-body-size) * 1.1px);
 }

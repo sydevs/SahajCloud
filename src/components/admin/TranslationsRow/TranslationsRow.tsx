@@ -2,12 +2,14 @@
 
 import type { LengthStatus } from './lengthStatus'
 
-import { WarningIcon } from '@payloadcms/ui'
+import { FieldDescription, WarningIcon } from '@payloadcms/ui'
 import React from 'react'
 
 export interface TranslationsRowProps {
   title: string
   description?: string
+  /** Field path — namespaces the rendered FieldDescription (required by it). */
+  path: string
   englishValue: string
   isEnglish: boolean
   isLoadingEnglish?: boolean
@@ -20,6 +22,7 @@ export interface TranslationsRowProps {
 export const TranslationsRow: React.FC<TranslationsRowProps> = ({
   title,
   description,
+  path,
   englishValue,
   isEnglish,
   isLoadingEnglish,
@@ -41,12 +44,8 @@ export const TranslationsRow: React.FC<TranslationsRowProps> = ({
           Reference unavailable
         </div>
       )
-    } else {
-      englishCell = (
-        <div className="translations-row__english">
-          {englishValue ? `English: "${englishValue}"` : ''}
-        </div>
-      )
+    } else if (englishValue) {
+      englishCell = <div className="translations-row__english">{`English: "${englishValue}"`}</div>
     }
   }
 
@@ -54,23 +53,34 @@ export const TranslationsRow: React.FC<TranslationsRowProps> = ({
     <div className="translations-row">
       <div className="translations-row__header">
         <div className="translations-row__title">{title}</div>
-        {description && <div className="translations-row__description">{description}</div>}
+        {/* Payload's own field-description component, for a consistent look. */}
+        <FieldDescription
+          className="translations-row__description"
+          description={description}
+          path={path}
+        />
       </div>
       <div className="translations-row__input-cell">
         {children}
-        {/* Advisory only — the value still saves when over the limit. Shows the
-            limit as a reference until exceeded, then the live count + a warning
-            so the translator can see how far over they are. */}
+        {/* Advisory only — the value still saves when over the limit. Reuses the
+            field-description style, and stays one line high in both states (the
+            icon is sized to the text line) so going over never shifts the row. */}
         {length && (
           <div
-            className={['translations-row__length', length.over && 'translations-row__length--over']
+            className={[
+              'field-description',
+              'translations-row__length',
+              length.over && 'translations-row__length--over',
+            ]
               .filter(Boolean)
               .join(' ')}
           >
             {length.over && <WarningIcon />}
-            {length.over
-              ? `${length.length} / ${length.maxLength} characters`
-              : `max ${length.maxLength} characters`}
+            <span>
+              {length.over
+                ? `${length.length} / ${length.maxLength} characters`
+                : `max ${length.maxLength} characters`}
+            </span>
           </div>
         )}
         {englishCell}
