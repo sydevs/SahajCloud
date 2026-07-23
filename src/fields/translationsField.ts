@@ -11,7 +11,33 @@ import { basicRichTextEditor } from '@/lib/richEditor'
 interface StringPropertySchema {
   type: 'string'
   description?: string
+  /**
+   * Soft character limit for this key's on-screen UI slot (e.g. a status chip
+   * or action label). Advisory only: the admin shows a per-row reference and a
+   * non-blocking over-length warning, but an over-length string still saves.
+   * Measures the raw stored string, so limit keys with `%{...}` placeholders
+   * generously — the placeholder expands or contracts at render time.
+   */
+  maxLength?: number
+  /**
+   * Marks a quantity-dependent string. The one declared key expands into the
+   * CLDR plural family for storage (`<key>_one`/`_few`/`_many`/`_other`), and
+   * the admin renders one grouped row of per-category inputs sharing a single
+   * length counter. The resolver (`pluralize`) reads the same expanded keys —
+   * see `.claude/rules/email.md`.
+   */
+  plural?: boolean
 }
+
+/**
+ * CLDR plural categories a translation key expands into when `plural: true`.
+ * The union across the app's locales (English needs only one/other; Russian,
+ * Ukrainian, and Czech add few/many). `EMAIL_STRING_DEFAULTS` must define the
+ * whole family for every plural key in the `emails` group, else `withDefaults`
+ * drops a translated form — a guard test in `translations-field.int.spec.ts`
+ * enforces that sync against this exported constant.
+ */
+export const PLURAL_CATEGORIES = ['one', 'few', 'many', 'other'] as const
 
 interface RichTextPropertySchema {
   type: 'richText'
@@ -28,9 +54,13 @@ type LeafPropertySchema = StringPropertySchema | RichTextPropertySchema
  * nested `GroupSchema` values. Mixing leaf properties and nested groups at
  * the same level is not supported.
  *
- * Non-JSON-Schema extension consumed by the Payload admin builder:
- * - `screenshot`: relative path or URL (image or Figma) shown above the
- *   translation rows for translator orientation.
+ * Non-JSON-Schema extensions consumed by the Payload admin builder:
+ * - `screenshot` (group level): relative path or URL (image or Figma) shown
+ *   above the translation rows for translator orientation.
+ * - `maxLength` (string-key level, see `StringPropertySchema`): soft per-key
+ *   character limit surfaced as a reference + non-blocking over-length warning.
+ * - `plural` (string-key level, see `StringPropertySchema`): expands one key
+ *   into the CLDR plural family and renders a grouped per-category row.
  */
 interface GroupSchema {
   type: 'object'
@@ -53,6 +83,10 @@ export interface TranslationsSchema {
 export interface SchemaEntry {
   key: string
   description: string
+  /** Soft character limit for the key's UI slot; see `StringPropertySchema`. */
+  maxLength?: number
+  /** When true, this key holds a CLDR plural family; see `StringPropertySchema`. */
+  plural?: boolean
 }
 
 // ============================================================================
@@ -128,8 +162,16 @@ function createStringsJsonField(
   const schemaEntries: SchemaEntry[] = stringProps.map(([key, prop]) => ({
     key,
     description: prop.description || '',
+    maxLength: prop.maxLength,
+    plural: prop.plural === true ? true : undefined,
   }))
-  const allowedKeys = new Set(stringProps.map(([key]) => key))
+  // A plural key is declared once but stored as its CLDR family, so the JSON
+  // blob holds `<key>_one`/`_few`/… — validate against the expanded keys.
+  const allowedKeys = new Set(
+    stringProps.flatMap(([key, prop]) =>
+      prop.plural === true ? PLURAL_CATEGORIES.map((cat) => `${key}_${cat}`) : [key],
+    ),
+  )
   const allowAdditional = group.additionalProperties === true
 
   return {

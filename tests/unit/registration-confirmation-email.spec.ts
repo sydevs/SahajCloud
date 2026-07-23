@@ -174,6 +174,27 @@ describe('RegistrationConfirmationEmail — localization', () => {
     const html = await render({ strings: germanStrings })
     expect(html).toContain(EMAIL_STRING_DEFAULTS.contact_label)
   })
+
+  it('selects the locale-correct plural form for the session count', async () => {
+    // Russian needs one/few/many. With 5 sessions the correct form is `many`;
+    // an unthreaded locale would fall back to English rules (→ `other`), so
+    // this pins that the registrant `locale` actually reaches `pluralize`.
+    const ruStrings: EmailStrings = {
+      ...EMAIL_STRING_DEFAULTS,
+      sessions_count_one: '%{count} занятие',
+      sessions_count_few: '%{count} занятия',
+      sessions_count_many: '%{count} занятий',
+      sessions_count_other: '%{count} занятия',
+    }
+    const html = await render({
+      strings: ruStrings,
+      details: { ...baseDetails, sessions: 5 },
+      locale: 'ru',
+    })
+
+    expect(html).toContain('5 занятий') // ru 5 → many
+    expect(html).not.toContain('5 занятия') // the `other` / English-fallback form
+  })
 })
 
 describe('RegistrationConfirmationEmail — client branding', () => {

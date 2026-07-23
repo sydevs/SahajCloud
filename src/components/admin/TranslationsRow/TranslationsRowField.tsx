@@ -7,6 +7,9 @@ import { toWords } from 'payload/shared'
 import React, { useCallback, useMemo } from 'react'
 
 import { AutoGrowTextarea } from './AutoGrowTextarea'
+import { lengthStatus } from './lengthStatus'
+import { pluralCategoriesForLocale } from './plural'
+import { PluralInputs } from './PluralInputs'
 import { TranslationsRow } from './TranslationsRow'
 import { useEnglishTranslation } from './useEnglishTranslation'
 
@@ -15,8 +18,9 @@ import './styles.css'
 interface SchemaEntry {
   key: string
   description: string
+  maxLength?: number
+  plural?: boolean
 }
-
 
 export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly }) => {
   const { name, label, localized, required, admin: { custom } = {} } = field
@@ -31,6 +35,7 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
   const { value, setValue, showError } = useField<Record<string, string>>()
   const locale = useLocale()
   const isEnglish = locale?.code === 'en'
+  const localeCode = locale?.code ?? 'en'
 
   const { data, isLoading, isError } = useEnglishTranslation(isEnglish ? null : globalSlug)
   const englishMap = useMemo(() => {
@@ -48,6 +53,66 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
     },
     [setValue, value],
   )
+
+  const renderEntry = (entry: SchemaEntry) => {
+    const title = toWords(entry.key.replace(/_/g, '-'))
+    const path = `${name}.${entry.key}`
+
+    // A plural key is one grouped row of per-category inputs (only the
+    // categories this locale uses) sharing a single length counter.
+    if (entry.plural) {
+      const categories = pluralCategoriesForLocale(localeCode)
+      const pluralValues = categories.map((cat) => value?.[`${entry.key}_${cat}`] ?? '')
+      return (
+        <TranslationsRow
+          key={entry.key}
+          title={title}
+          description={entry.description || undefined}
+          path={path}
+          englishValue=""
+          isEnglish={isEnglish}
+          hideEnglish
+          length={lengthStatus(pluralValues, entry.maxLength)}
+        >
+          <PluralInputs
+            baseKey={entry.key}
+            localeCode={localeCode}
+            categories={categories}
+            isEnglish={isEnglish}
+            values={value ?? {}}
+            englishMap={englishMap}
+            isLoadingEnglish={isLoading}
+            isErrorEnglish={isError}
+            readOnly={readOnly}
+            onChange={handleChange}
+          />
+        </TranslationsRow>
+      )
+    }
+
+    const currentValue = value?.[entry.key] ?? ''
+    return (
+      <TranslationsRow
+        key={entry.key}
+        title={title}
+        description={entry.description || undefined}
+        path={path}
+        englishValue={isEnglish ? '' : (englishMap?.[entry.key] ?? '')}
+        isEnglish={isEnglish}
+        isLoadingEnglish={isLoading}
+        isErrorEnglish={isError}
+        length={lengthStatus(currentValue, entry.maxLength)}
+      >
+        <AutoGrowTextarea
+          value={currentValue}
+          onChange={(next) => handleChange(entry.key, next)}
+          readOnly={readOnly}
+          placeholder="Enter translation..."
+          ariaLabel={`Translation for ${entry.key}`}
+        />
+      </TranslationsRow>
+    )
+  }
 
   return (
     <div
@@ -68,29 +133,7 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
             No translation keys defined in schema.
           </div>
         ) : (
-          schemaEntries.map((entry) => {
-            const englishValue = isEnglish ? '' : englishMap?.[entry.key] ?? ''
-            const currentValue = value?.[entry.key] ?? ''
-            return (
-              <TranslationsRow
-                key={entry.key}
-                title={toWords(entry.key.replace(/_/g, '-'))}
-                description={entry.description || undefined}
-                englishValue={englishValue}
-                isEnglish={isEnglish}
-                isLoadingEnglish={isLoading}
-                isErrorEnglish={isError}
-              >
-                <AutoGrowTextarea
-                  value={currentValue}
-                  onChange={(next) => handleChange(entry.key, next)}
-                  readOnly={readOnly}
-                  placeholder="Enter translation..."
-                  ariaLabel={`Translation for ${entry.key}`}
-                />
-              </TranslationsRow>
-            )
-          })
+          schemaEntries.map(renderEntry)
         )}
       </div>
     </div>
