@@ -12,7 +12,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   EMAIL_STRING_DEFAULTS,
+  type EmailStrings,
   interpolate,
+  pluralize,
   resolveEmailStrings,
 } from '@/lib/translations/emailStrings'
 
@@ -38,6 +40,61 @@ describe('interpolate', () => {
 
   it('leaves an unknown placeholder intact so the copy error is visible', () => {
     expect(interpolate('Hi %{nope}', { name: 'Jo' })).toBe('Hi %{nope}')
+  })
+})
+
+describe('pluralize', () => {
+  // Forms that name their own CLDR category, so the selected one is visible in
+  // the output. (In production these are localized copy, not category labels.)
+  const strings: EmailStrings = {
+    ...EMAIL_STRING_DEFAULTS,
+    sessions_count_one: 'ONE:%{count}',
+    sessions_count_few: 'FEW:%{count}',
+    sessions_count_many: 'MANY:%{count}',
+    sessions_count_other: 'OTHER:%{count}',
+  }
+
+  it('selects English one/other and interpolates the count', () => {
+    expect(pluralize(strings, 'sessions_count', 1, 'en')).toBe('ONE:1')
+    expect(pluralize(strings, 'sessions_count', 8, 'en')).toBe('OTHER:8')
+  })
+
+  it('defaults to English when no locale is given', () => {
+    expect(pluralize(strings, 'sessions_count', 2)).toBe('OTHER:2')
+  })
+
+  it('selects Russian one/few/many by CLDR', () => {
+    // ru: 1,21 → one; 2–4 → few; 5–20 → many
+    expect(pluralize(strings, 'sessions_count', 1, 'ru')).toBe('ONE:1')
+    expect(pluralize(strings, 'sessions_count', 2, 'ru')).toBe('FEW:2')
+    expect(pluralize(strings, 'sessions_count', 5, 'ru')).toBe('MANY:5')
+    expect(pluralize(strings, 'sessions_count', 21, 'ru')).toBe('ONE:21')
+  })
+
+  it('selects Ukrainian one/few/many by CLDR', () => {
+    expect(pluralize(strings, 'sessions_count', 1, 'uk')).toBe('ONE:1')
+    expect(pluralize(strings, 'sessions_count', 3, 'uk')).toBe('FEW:3')
+    expect(pluralize(strings, 'sessions_count', 8, 'uk')).toBe('MANY:8')
+  })
+
+  it('selects Czech one/few/other — integer 5 is `other`, not `many`', () => {
+    // cs integers: 1 → one; 2–4 → few; 5+ → other (many is fractions only)
+    expect(pluralize(strings, 'sessions_count', 1, 'cs')).toBe('ONE:1')
+    expect(pluralize(strings, 'sessions_count', 3, 'cs')).toBe('FEW:3')
+    expect(pluralize(strings, 'sessions_count', 5, 'cs')).toBe('OTHER:5')
+  })
+
+  it('falls back to _other when the selected form is missing', () => {
+    // Russian 2 → few, but with `few` absent it must fall back, not blank out.
+    const partial = { ...strings } as Record<string, string>
+    delete partial.sessions_count_few
+    expect(pluralize(partial as unknown as EmailStrings, 'sessions_count', 2, 'ru')).toBe('OTHER:2')
+  })
+
+  it('renders the real English defaults with correct singular/plural', () => {
+    // Also fixes the pre-plural bug where a single session read "1 sessions".
+    expect(pluralize(EMAIL_STRING_DEFAULTS, 'sessions_count', 1, 'en')).toBe('1 session')
+    expect(pluralize(EMAIL_STRING_DEFAULTS, 'sessions_count', 8, 'en')).toBe('8 sessions')
   })
 })
 

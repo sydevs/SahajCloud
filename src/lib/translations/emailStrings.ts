@@ -37,7 +37,15 @@ export const EMAIL_STRING_DEFAULTS = {
   directions_cta: 'Get Directions',
   about_label: 'What to expect',
   contact_label: 'Your host',
-  sessions_count: '%{count} sessions',
+  // Plural family for a limited-run course's session count, selected by
+  // `pluralize()` via `Intl.PluralRules`. English needs only `one`/`other`;
+  // `few`/`many` are defined so a locale that uses them (ru/uk/cs) still falls
+  // back to sensible English when a translator leaves the extra form blank —
+  // `withDefaults` fills blanks from these defaults. `%{count}` = the number.
+  sessions_count_one: '%{count} session',
+  sessions_count_few: '%{count} sessions',
+  sessions_count_many: '%{count} sessions',
+  sessions_count_other: '%{count} sessions',
   footer_reason: 'You received this email because you registered for this class.',
   footer_website: 'Visit %{name}',
   // Session reminder (sent 24h before an occurrence). Reuses the labels above
@@ -75,6 +83,36 @@ export function interpolate(template: string, values: Record<string, string | nu
   return template.replace(/%\{(\w+)\}/g, (match, key: string) =>
     key in values ? String(values[key]) : match,
   )
+}
+
+/**
+ * Select and interpolate the correct plural form of a string for `count`.
+ *
+ * Plural keys follow the `_one` / `_few` / `_many` / `_other` convention (the
+ * CLDR categories). `Intl.PluralRules` — the platform's own CLDR data — picks
+ * the category for the locale + count (Russian 2 → `few`, 5 → `many`; Czech
+ * 5 → `other`), so no per-language plural logic is hardcoded here. The resolved
+ * `<baseKey>_<category>` is used, falling back to `<baseKey>_other` for any
+ * category the strings don't define. `resolveEmailStrings` has already filled
+ * blank keys from the English defaults, so `_other` always resolves.
+ *
+ * @param strings - Resolved email strings for the locale.
+ * @param baseKey - Plural key stem, e.g. `sessions_count`.
+ * @param count - Quantity selecting the form; also supplied as `%{count}`.
+ * @param locale - BCP-47 locale driving CLDR selection; defaults to `en`.
+ * @param values - Extra `%{...}` substitutions, merged over `{ count }`.
+ */
+export function pluralize(
+  strings: EmailStrings,
+  baseKey: string,
+  count: number,
+  locale?: LocaleCode | null,
+  values?: Record<string, string | number>,
+): string {
+  const category = new Intl.PluralRules(locale ?? DEFAULT_LOCALE).select(count)
+  const lookup = strings as Record<string, string | undefined>
+  const template = lookup[`${baseKey}_${category}`] ?? lookup[`${baseKey}_other`] ?? ''
+  return interpolate(template, { count, ...values })
 }
 
 /** Merge a raw JSON blob from the global over the English defaults. */

@@ -366,15 +366,18 @@
         },
         "when_label": {
           "type": "string",
-          "description": "Section label above the date/time of the class."
+          "description": "Section label above the date/time of the class.",
+          "maxLength": 16
         },
         "where_label": {
           "type": "string",
-          "description": "Section label above the address or joining link."
+          "description": "Section label above the address or joining link.",
+          "maxLength": 16
         },
         "online_cta": {
           "type": "string",
-          "description": "Call-to-action button label for joining an online class."
+          "description": "Call-to-action button label for joining an online class.",
+          "maxLength": 28
         },
         "online_link_hint": {
           "type": "string",
@@ -382,19 +385,24 @@
         },
         "directions_cta": {
           "type": "string",
-          "description": "Call-to-action button label that opens the venue address in a maps app, for an in-person class."
+          "description": "Call-to-action button label that opens the venue address in a maps app, for an in-person class.",
+          "maxLength": 24
         },
         "about_label": {
           "type": "string",
-          "description": "Section label above the event description (\"What to expect\")."
+          "description": "Section label above the event description (\"What to expect\").",
+          "maxLength": 22
         },
         "contact_label": {
           "type": "string",
-          "description": "Section label above the host's name and phone number."
+          "description": "Section label above the host's name and phone number.",
+          "maxLength": 18
         },
         "sessions_count": {
           "type": "string",
-          "description": "Session count appended to a limited-run course's schedule. `%{count}` = number of sessions."
+          "plural": true,
+          "maxLength": 18,
+          "description": "Session count appended to a limited-run course's schedule, entered per plural form. `%{count}` = number of sessions."
         },
         "footer_reason": {
           "type": "string",
@@ -422,7 +430,8 @@
         },
         "unsubscribe_cta": {
           "type": "string",
-          "description": "Footer link label in the reminder email that opens the unsubscribe page."
+          "description": "Footer link label in the reminder email that opens the unsubscribe page.",
+          "maxLength": 40
         },
         "unsubscribe_heading": {
           "type": "string",
@@ -434,11 +443,13 @@
         },
         "unsubscribe_confirm_cta": {
           "type": "string",
-          "description": "Button label that confirms unsubscribing from reminders."
+          "description": "Button label that confirms unsubscribing from reminders.",
+          "maxLength": 18
         },
         "unsubscribe_working": {
           "type": "string",
-          "description": "Button label shown while the unsubscribe request is in flight."
+          "description": "Button label shown while the unsubscribe request is in flight.",
+          "maxLength": 18
         },
         "unsubscribe_done_title": {
           "type": "string",

@@ -2,8 +2,9 @@ import type { CSSProperties } from 'react'
 
 import { Heading, Hr, Link, Section, Text } from 'react-email'
 
+import type { LocaleCode } from '@/lib/locales'
 import type { RegistrationEmailDetails } from '@/lib/notifications/registrationDetails'
-import { type EmailStrings, interpolate } from '@/lib/translations/emailStrings'
+import { type EmailStrings, interpolate, pluralize } from '@/lib/translations/emailStrings'
 import type { EmailBrand } from '@/plugins/email'
 
 import { BrandButton, EmailLayout, StackedDetailRow, styles } from './EmailLayout'
@@ -17,6 +18,8 @@ export interface RegistrationConfirmationEmailProps {
   strings: EmailStrings
   /** The event facts to state. */
   details: RegistrationEmailDetails
+  /** Registrant's locale — drives plural-form selection (e.g. session count). */
+  locale?: LocaleCode | null
   /** Client service's website, linked from the footer. */
   websiteUrl?: string | null
 }
@@ -39,6 +42,7 @@ export function RegistrationConfirmationEmail({
   brand,
   strings,
   details,
+  locale,
   websiteUrl,
 }: RegistrationConfirmationEmailProps) {
   const { location } = details
@@ -63,7 +67,7 @@ export function RegistrationConfirmationEmail({
           {details.sessions ? (
             <>
               {' · '}
-              {interpolate(strings.sessions_count, { count: details.sessions })}
+              {pluralize(strings, 'sessions_count', details.sessions, locale)}
             </>
           ) : null}
         </StackedDetailRow>
@@ -139,11 +143,11 @@ export function RegistrationConfirmationEmail({
  * — a text part improves deliverability and is what a text-only client shows.
  */
 export function registrationConfirmationText(props: RegistrationConfirmationEmailProps): string {
-  const { name, brand, strings, details, websiteUrl } = props
+  const { name, brand, strings, details, locale, websiteUrl } = props
   const { location } = details
 
   const sessions = details.sessions
-    ? ` · ${interpolate(strings.sessions_count, { count: details.sessions })}`
+    ? ` · ${pluralize(strings, 'sessions_count', details.sessions, locale)}`
     : ''
 
   const lines: string[] = [

@@ -49,10 +49,10 @@
   color: var(--theme-elevation-800);
 }
 
+/* The description is a Payload FieldDescription; only neutralize its default
+   top margin — the header column already spaces its rows via `gap`. */
 .translations-row__description {
-  font-size: calc(var(--base-body-size) * 0.75px);
-  color: var(--theme-elevation-500);
-  line-height: 1.4;
+  margin-top: 0;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -71,6 +71,65 @@
 .translations-row__english--placeholder {
   color: var(--theme-elevation-400);
   font-style: italic;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Character-length indicator (below the input)                            */
+/* ----------------------------------------------------------------------- */
+
+/* The indicator carries the `field-description` class (display:flex, muted
+   colour) for a look consistent with the row description. These rules add the
+   icon layout and pin a one-line min-height so the under → over transition
+   (which adds the warning icon) never grows the row and shifts the layout. */
+.translations-row__length {
+  align-items: center;
+  gap: calc(var(--base) * 0.25);
+  min-height: calc(var(--base-body-size) * 1.5px);
+}
+
+.translations-row__length--over,
+.translations-row__length--over svg {
+  color: var(--theme-warning-600);
+  font-weight: 500;
+}
+
+.translations-row__length svg {
+  flex-shrink: 0;
+  width: calc(var(--base-body-size) * 1.1px);
+  height: calc(var(--base-body-size) * 1.1px);
+}
+
+/* ----------------------------------------------------------------------- */
+/* Plural key (grouped per-category inputs, one shared length counter)     */
+/* ----------------------------------------------------------------------- */
+
+.translations-row__plural {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) * 0.5);
+}
+
+.translations-row__plural-item {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) * 0.15);
+}
+
+.translations-row__plural-label {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--base) * 0.3);
+  font-size: calc(var(--base-body-size) * 0.85px);
+}
+
+.translations-row__plural-cat {
+  font-weight: 600;
+  color: var(--theme-elevation-700);
+  text-transform: capitalize;
+}
+
+.translations-row__plural-eg {
+  color: var(--theme-elevation-400);
 }
 
 /* ----------------------------------------------------------------------- */
