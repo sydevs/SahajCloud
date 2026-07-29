@@ -17,6 +17,7 @@ import path from 'node:path'
 import { Client, types } from 'pg'
 
 import { dedupeAtlasFiles } from './dedupe'
+import { normalizeDate, parseSchedule } from './helpers/recurrence'
 
 // node-postgres returns int8/bigint as strings (to avoid precision loss) but
 // int4 as numbers. Atlas mixes the two across FK columns (e.g. managers.id is
@@ -88,72 +89,6 @@ function parseMailingService(raw: unknown): string | null {
   if (!text || text === '{}') return null
   const m = text.match(/(?:^|\n)service:\s*([^\n]+)/)
   return m ? m[1].trim().replace(/^['"]|['"]$/g, '') || null : null
-}
-
-/** Normalize a recurrence date ("2023-07-26" or "August 19, 2023") to ISO YYYY-MM-DD. */
-function normalizeDate(raw: string | null): string | null {
-  if (!raw) return null
-  const trimmed = raw.trim().replace(/^['"]|['"]$/g, '')
-  if (!trimmed) return null
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
-  const d = new Date(trimmed)
-  if (Number.isNaN(d.getTime())) return null
-  // Use local components — `trimmed` is a date-only value, avoid TZ day-shift.
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-const normalizeTime = (raw: string | null): string | null => {
-  if (!raw) return null
-  const v = raw.trim().replace(/^['"]|['"]$/g, '')
-  return /^\d{1,2}:\d{2}$/.test(v) ? v.padStart(5, '0') : null
-}
-
-/**
- * Parse the event `recurrence_data` Ruby-YAML into a structured schedule.
- * Handles both dialects: old `:symbol:` keys with ISO dates, and newer string
- * keys (`type:`, `'on':`) with human dates. Returns null for inactive events
- * with no real recurrence.
- */
-function parseSchedule(raw: unknown): Row | null {
-  const text = typeof raw === 'string' ? raw : null
-  if (!text) return null
-  const get = (key: string): string | null => {
-    // Match `:key: value` or `key: value` or `'key': value`.
-    const m = text.match(new RegExp(`(?:^|\\n)\\s*:?'?${key}'?:\\s*([^\\n]*)`))
-    return m
-      ? m[1]
-          .trim()
-          .replace(/^:/, '')
-          .replace(/^['"]|['"]$/g, '')
-      : null
-  }
-  const type = get('type')
-  if (!type) return null
-
-  let frequency: 'daily' | 'weekly' | 'monthly'
-  let interval = 1
-  let weekNumber: number | null = null
-  if (type.startsWith('daily')) frequency = 'daily'
-  else if (type.startsWith('weekly')) {
-    frequency = 'weekly'
-    const m = type.match(/weekly_(\d+)/)
-    if (m) interval = parseInt(m[1], 10)
-  } else if (type.startsWith('monthly')) {
-    frequency = 'monthly'
-    weekNumber = 1 // only `monthly_1st` is present in the data
-  } else return null
-
-  const weekday = get('on') || null
-  return {
-    frequency,
-    interval,
-    weekNumber,
-    weekday: weekday || null,
-    startDate: normalizeDate(get('start_date')),
-    startTime: normalizeTime(get('start_time')),
-    endDate: normalizeDate(get('end_date')),
-    endTime: normalizeTime(get('end_time')),
-  }
 }
 
 /** Map an Atlas polymorphic record_type to a regions-tree level. */

@@ -185,6 +185,19 @@ export const Events: CollectionConfig = {
                     description: 'The name of the person they are calling',
                   },
                 },
+                {
+                  name: 'contactEmail',
+                  // Built-in email format validation — no hand-rolled validator
+                  // (mirrors registrationNotificationEmail below).
+                  type: 'email',
+                  // Deliberately independent of the phone → name gate above: some
+                  // events publish an email and no phone at all, so this must not
+                  // inherit contactName's `required`.
+                  admin: {
+                    description:
+                      'An email address seekers can write to for more information about the program.',
+                  },
+                },
               ],
             },
             {

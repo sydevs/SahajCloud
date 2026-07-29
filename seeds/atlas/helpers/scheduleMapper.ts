@@ -126,13 +126,17 @@ export function mapSchedule(
   }
 
   if (recurrenceType === 'WEEKLY') {
-    // Atlas leaves `weekday` null for ~42 weekly events; fall back to the start
-    // date's weekday (the `weekdays` field is required for weekly recurrence).
+    // `parseSchedule` now derives a missing weekday from the start date, so
+    // events.json always carries one. Kept as a safety net: `weekdays` is
+    // required for weekly recurrence, and a hand-edited row could omit it.
     const code = weekdayCode(schedule.weekday) ?? weekdayFromDate(schedule.startDate)
     if (code) result.weekdays = [code]
   }
 
   if (recurrenceType === 'MONTHLY') {
+    // No fallback here on purpose: "first <weekday>" and "day N of the month"
+    // are different recurrences, so guessing would silently reschedule the
+    // event. `parseSchedule` supplies the weekday for Atlas's `monthly_1st`.
     const code = weekdayCode(schedule.weekday)
     if (code) {
       // "1st Saturday" style — by weekday.

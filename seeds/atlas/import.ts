@@ -115,6 +115,8 @@ interface AtlasEvent {
   registrationUrl: string | null
   /** Curated in events.json, not extracted from Atlas — see seeds/atlas/AGENTS.md. */
   website?: string
+  /** Curated in events.json, not extracted from Atlas — see seeds/atlas/AGENTS.md. */
+  contactEmail?: string
   registrationLimit: number | null
   registrationQuestions: string[]
   contactInfo: { phone_name?: string; phone_number?: string } | null
@@ -199,6 +201,15 @@ const REGISTRATION_QUESTION_MAP: Record<string, string> = {
 }
 
 const DEFAULT_LOCALE = 'en'
+
+/**
+ * Atlas rows that are test records, not real events — #494 ("Test") and #575
+ * ("Test Event"). Skipped here rather than deleted from events.json so the
+ * exclusion survives a re-extraction. They stay in the events list handed to
+ * `multiUseVenueIds`, so the venue → center topology (and the regions count) is
+ * unaffected by the skip.
+ */
+const SKIP_EVENT_LEGACY_IDS = new Set([494, 575])
 
 // ============================================================================
 // ATLAS IMPORTER
@@ -764,6 +775,20 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     for (let i = 0; i < batch.length; i++) {
       const event = batch[i]
       const identifier = event.customName || `event-${event.legacyId}`
+      if (SKIP_EVENT_LEGACY_IDS.has(event.legacyId)) {
+        this.skip(`Event "${identifier}" (#${event.legacyId}) — leftover Atlas test record`)
+        // Skipping stops it being (re-)created, but can't undo an earlier import
+        // that predates this guard — and #575 came through as *published*. Flag
+        // it so an operator trashes the row by hand.
+        const existing = this.getPreloaded('events', String(event.legacyId))
+        if (existing) {
+          this.addWarning(
+            `Event #${event.legacyId} ("${identifier}") is a test record but already exists ` +
+              `as events/${existing.id} — trash it in the admin panel.`,
+          )
+        }
+        continue
+      }
       try {
         await this.importEvent(event, {
           now,
@@ -827,7 +852,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     let address: Record<string, unknown> | undefined
     if (event.eventType === 'offline' && venue) {
       const mapboxId = await this.resolveVenueMapbox(venue)
-      address = { ...venueToEventAddress(venue, mapboxId), room: event.room?.trim() || undefined }
+      address = { ...venueToEventAddress(venue, mapboxId), room: event.room?.trim() || null }
     }
 
     const language = mapLanguageCode(event.languageCode)
@@ -851,28 +876,33 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
     const status = wantsPublish && !draftReason ? 'published' : 'draft'
 
+    // Optional fields are emitted as `null`, not `undefined`: Payload omits
+    // `undefined` keys from an update, so a value that disappears from
+    // events.json (a description the grooming pass cleared, say) would survive a
+    // `--update` reseed forever. `null` clears the column.
     const eventData: Record<string, unknown> = {
       title:
         event.customName?.trim() ||
         (event.eventType === 'online' ? 'Online Sahaj Yoga Meditation' : undefined),
       languages: [language ?? DEFAULT_LOCALE],
-      contactPhone,
-      contactName,
+      contactPhone: contactPhone ?? null,
+      contactName: contactName ?? null,
       // Atlas stores descriptions as plain text; the richText field needs Lexical.
-      description: plainTextToLexical(event.description),
+      description: plainTextToLexical(event.description) ?? null,
       inactive,
       ...(inactive ? {} : { schedule: mapSchedule(event.schedule, timeZone) ?? undefined }),
       region: regionId,
       eventType: event.eventType,
-      onlineUrl: event.eventType === 'online' ? event.onlineUrl?.trim() || undefined : undefined,
-      website: event.website?.trim() || undefined,
+      onlineUrl: event.eventType === 'online' ? event.onlineUrl?.trim() || null : null,
+      website: event.website?.trim() || null,
+      // Deliberately outside the `hasContact` pair above — contactEmail stands on
+      // its own, and several events publish an email with no phone at all.
+      contactEmail: event.contactEmail?.trim() || null,
       ...(address ? { address } : {}),
       registrationMode: event.registrationMode === 'native' ? 'sahaj-atlas' : 'external',
       externalRegistrationUrl:
-        event.registrationMode !== 'native'
-          ? event.registrationUrl?.trim() || undefined
-          : undefined,
-      registrationLimit: event.registrationLimit ?? undefined,
+        event.registrationMode !== 'native' ? event.registrationUrl?.trim() || null : null,
+      registrationLimit: event.registrationLimit ?? null,
       registrationQuestions: this.mapRegistrationQuestions(event),
       manager: managerId,
       ...verification,

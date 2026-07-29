@@ -159,9 +159,11 @@ the importer handles; `SCRIPT_RUN_ORDER` in [run.ts](run.ts) places it last.
 
 Atlas reads its eight pre-extracted dumps from `seeds/atlas/data/` (regenerated
 by [atlas/extract.ts](atlas/extract.ts) from a PostgreSQL dump — note that
-`events.json` carries hand-curated `website` values that a re-extraction drops;
-see [atlas/AGENTS.md](atlas/AGENTS.md)). For the Atlas-specific backend surface
-and importer decisions, see [atlas/AGENTS.md](atlas/AGENTS.md) and
+`events.json` carries curated `website` / `contactEmail` values and a groomed
+`customName` / `description` / `room` for 219 events, all of which a
+re-extraction drops; see [atlas/AGENTS.md](atlas/AGENTS.md)). For the
+Atlas-specific backend surface and importer decisions, see
+[atlas/AGENTS.md](atlas/AGENTS.md) and
 [atlas/MIGRATION_PLAN.md](atlas/MIGRATION_PLAN.md).
 
 ## Common Flags

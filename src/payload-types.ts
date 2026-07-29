@@ -1656,6 +1656,10 @@ export interface Event {
    * The name of the person they are calling
    */
   contactName?: string | null;
+  /**
+   * An email address seekers can write to for more information about the program.
+   */
+  contactEmail?: string | null;
   description?: {
     root: {
       type: string;
@@ -4512,6 +4516,7 @@ export interface EventsSelect<T extends boolean = true> {
   languages?: T;
   contactPhone?: T;
   contactName?: T;
+  contactEmail?: T;
   description?: T;
   website?: T;
   images?: T;
