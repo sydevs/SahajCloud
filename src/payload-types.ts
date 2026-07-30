@@ -1720,6 +1720,7 @@ export interface Event {
           id?: string | null;
         }[]
       | null;
+    lastDate?: string | null;
     icalRule?: string | null;
     upcomingDates?:
       | {
@@ -3185,6 +3186,7 @@ export interface AppCard {
           id?: string | null;
         }[]
       | null;
+    lastDate?: string | null;
     icalRule?: string | null;
     upcomingDates?:
       | {
@@ -4455,6 +4457,7 @@ export interface AppCardsSelect<T extends boolean = true> {
               reason?: T;
               id?: T;
             };
+        lastDate?: T;
         icalRule?: T;
         upcomingDates?: T;
       };
@@ -4540,6 +4543,7 @@ export interface EventsSelect<T extends boolean = true> {
               reason?: T;
               id?: T;
             };
+        lastDate?: T;
         icalRule?: T;
         upcomingDates?: T;
       };
