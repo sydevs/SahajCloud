@@ -30,4 +30,10 @@ export interface ScheduleSubFields {
   count?: number
   untilDate?: string
   exclusions?: ExclusionRange[]
+  /**
+   * Derived, not an input: the stored `lastDate` column, recomputed from the
+   * fields above on every write by `computeLastDate`. Present here so hooks
+   * merging a previous schedule doc over an incoming patch stay type-honest.
+   */
+  lastDate?: string | null
 }

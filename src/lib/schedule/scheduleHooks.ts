@@ -5,6 +5,12 @@
  * - `icalRule`: iCalendar string (DTSTART;TZID=... + RRULE:FREQ=... + optional EXDATE:...)
  * - `upcomingDates`: Next 10 occurrences from now as ISO 8601 UTC strings
  *
+ * …plus one **stored** derived column, recomputed on every write:
+ * - `lastDate`: end of the final occurrence's local day, or `null` when the
+ *   recurrence never ends. Unlike `upcomingDates` this is a real column, so
+ *   "has this schedule run out?" is answerable in a `where` (see
+ *   `@/lib/schedule/scheduleStatus`).
+ *
  * Uses `rrule-temporal` for timezone-correct recurrence expansion via the
  * Temporal API. Unlike the legacy `rrule` library, rrule-temporal handles
  * DST transitions natively through `Temporal.ZonedDateTime`, eliminating
@@ -25,7 +31,6 @@ import { type RRuleOptions, RRuleTemporal } from 'rrule-temporal'
 import type { ExclusionRange, ScheduleSubFields } from '@/types/schedule'
 
 export type { ExclusionRange, ScheduleSubFields }
-
 
 /** Number of upcoming occurrences to compute */
 const UPCOMING_COUNT = 10
@@ -283,6 +288,76 @@ export const computeUpcomingDates: FieldHook = ({ siblingData }) => {
 
   return []
 }
+
+/**
+ * End of the final occurrence's **local day**, as a UTC instant — or `null` when
+ * the schedule has no last occurrence to speak of.
+ *
+ * Pure, and deterministic (no `now`): this is exactly what the stored
+ * `schedule.lastDate` column holds, so the column is just this function's
+ * DB-queryable projection.
+ *
+ * `null` means "never runs out" and is returned for an open-ended recurrence
+ * (`endingType` `never`) or a schedule with no usable `firstDate`. Otherwise the
+ * rule terminates — a one-off, or `endingType` `count`/`until` — and the final
+ * occurrence is taken from `rule.all()`. Exclusions are applied inside
+ * `buildRRuleTemporal`, so a trailing excluded occurrence pulls the answer
+ * earlier for free.
+ *
+ * Local end-of-day (23:59:59.999 in `firstDate_tz`) rather than the occurrence's
+ * own start time, so an event running *today* is still live until midnight in
+ * its own timezone.
+ */
+export function lastOccurrenceEnd(fields: Partial<ScheduleSubFields>): string | null {
+  const rule = buildRRuleTemporal(fields)
+  if (!rule) return null
+
+  // Read termination off the built rule rather than re-deriving it from the
+  // sub-fields: buildRRuleTemporal only honours `count`/`until` under its own
+  // conditions (a positive count, a parseable untilDate), and this can't drift
+  // from them. Neither set → the recurrence is open-ended, and `all()` would
+  // run to its iteration cap.
+  const { count, until } = rule.options()
+  if (count == null && until == null) return null
+
+  const occurrences = rule.all()
+  // An `until` that precedes `firstDate` yields no occurrences at all. The
+  // schedule is still over — fall back to the start day so it reads as finished
+  // rather than as never-ending, which would pin it to the map forever.
+  const last = occurrences[occurrences.length - 1] ?? rule.options().dtstart
+  return endOfLocalDay(last)
+}
+
+/** The 23:59:59.999 instant of a zoned datetime's own local day, as ISO UTC. */
+function endOfLocalDay(zdt: Temporal.ZonedDateTime): string {
+  const endOfDay = zdt.with({
+    hour: 23,
+    minute: 59,
+    second: 59,
+    millisecond: 999,
+    microsecond: 0,
+    nanosecond: 0,
+  })
+  // Number() cast: rrule-temporal returns epochMilliseconds as BigInt
+  return new Date(Number(endOfDay.epochMilliseconds)).toISOString()
+}
+
+/**
+ * beforeChange field hook for the stored `lastDate` column: recompute it from
+ * the schedule's sub-fields on every write.
+ *
+ * Computed from `{ ...previousSiblingDoc, ...siblingData }` rather than
+ * `siblingData` alone. Field `beforeChange` hooks only receive the incoming
+ * patch, and Payload materialises an empty `{}` for a group the patch omits — so
+ * reading `siblingData` alone would NULL `lastDate` on every unrelated write
+ * (e.g. the ExpireEvents job's `notificationLog` patch). Merging over the
+ * previous doc makes a partial schedule patch recompute correctly and an
+ * unrelated patch a no-op — which also means any event write back-fills a NULL
+ * `lastDate` for free. Spread, not deep merge: an explicit `null` in the patch
+ * (a cleared `recurrenceType`) must win over the previous value.
+ */
+export const computeLastDate: FieldHook = ({ previousSiblingDoc, siblingData }) =>
+  lastOccurrenceEnd({ ...previousSiblingDoc, ...siblingData } as Partial<ScheduleSubFields>)
 
 /**
  * beforeChange field hook for the exclusions array.
