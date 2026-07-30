@@ -122,9 +122,8 @@ touched:
 5. **Invisible junk** — 480 U+2800 braille blanks used as VK copy-paste padding
    (#70/#329/#669), 31 U+200B zero-width spaces, tabs, `\r\n`, `</br>`, and
    leading/trailing/doubled whitespace.
-6. **Titles that weren't titles** — bare place names, venue names, addresses,
-   directions and day/time. Replaced with the `Free Meditation Classes in
-   <Place>` form the same managers already used elsewhere.
+6. **Titles that weren't titles** — bare place names, addresses, directions and
+   day/time. See the title policy below.
 
 Two deliberate exceptions to rule 1: a weekday stays in the **title** where it is
 the only thing distinguishing sibling events at one venue (the Brazilian
@@ -157,6 +156,91 @@ guard still holds both rows, and #575's Atlas `published` was `true`, so it
 landed as a *published* listing. The importer now emits a warning naming the
 existing document id (`events/<id>`) on every run; trash those two rows by hand
 in the admin panel. Check prod.
+
+## Event titles: a blank title beats a generic one
+
+`customName` maps to the Events `title`, and an empty title is auto-filled by
+`eventTitleBeforeChange` with a **localized** template —
+`"<time of day> Meditation at <place>"`. So a blank title is *preferred* over a
+hand-written generic one: the auto-fill translates per locale and can be improved
+for every event at once by editing one string, where 60 copies of
+"Free Meditation Classes in <Place>" cannot.
+
+The rule the grooming pass settled on:
+
+- **Blank it** when the title only restated the place, the venue's own street,
+  the day/time, or a generic "Free Meditation Classes" — all of which the
+  listing already renders from `address` / `schedule`.
+- **Keep it** when it names the **venue**: a library, institute, university or
+  community centre. The auto-fill only has the *street*, so
+  `Regina Public Library, Glen Elm branch` carries what `1601 Dewdney Ave E`
+  cannot. Ten titles are kept on that basis (#122, #131, #136, #142, #204, #223,
+  #499, #528, #611, #626) — an earlier pass standardised them away and they were
+  restored.
+- **Keep it** when the street is a poor stand-in for the place — #293
+  (`Zentrum`), #294 (`Innenstadt`) would auto-fill to "Meditation at city
+  centre", and #371's street is the unusable `B26`.
+
+Because the auto-fill takes the **first comma-segment** of `street`, a stray
+comma or a lowercase town name surfaces straight into the listing's name. Three
+venue records in [data/venues.json](data/venues.json) were fixed for that reason
+(they improve the rendered address too): venue 65 `"9, St Peter's Park Rd"` →
+`"9 St Peter's Park Rd"` (the comma split "9" off as the whole place), 198
+`solihull` → `Solihull`, 382 `old bar` → `Old Bar`. Worth re-checking after any
+venue edit: no blank-titled offline event should end up with a place string
+under ~6 characters or in lowercase.
+
+The importer sends `title: ''` (not null/undefined) for a blank `customName`,
+because the hook keeps `originalDoc.title` for a nullish value — only an empty
+string falls through to the auto-fill. Without that, clearing a title here would
+never reach an already-imported row.
+
+## `event.title` translations
+
+The four auto-title templates live in the `sy-atlas-translations` global under
+`event.title` (`morning` / `afternoon` / `evening` / `default`), with English
+source copy in `EVENT_TITLE_DEFAULTS`
+([`eventTitle.ts`](../../src/collections/Events/hooks/eventTitle.ts)).
+
+- Each slot is a **complete sentence** with a `%{place}` placeholder, not a
+  shared prefix plus a separate time-of-day word. A locale that puts the time of
+  day after the place, or inflects it with the preposition, cannot be served by
+  concatenation.
+- The slot comes from the event's **local** start hour, resolved through
+  `schedule.firstDate_tz` — 19:00 in Auckland is 07:00 UTC, so reading the UTC
+  hour would label it a morning class. Boundaries: morning 05:00–11:59,
+  afternoon 12:00–16:59, evening 17:00–21:59; `default` covers a 22:00–04:59
+  start and an event with no schedule (every `inactive` listing).
+- Slots fall back to the English default **individually**, because Payload's
+  locale fallback works per field, not per key — a partly translated locale would
+  otherwise yield `undefined` for the slots a translator skipped.
+
+Historical note: the hook previously read `event.titlePrefix`, which was never
+declared in `translationsSchema.json` — so the read always missed and every
+title used the hardcoded English. `event` holds nested groups, and the builder
+does not support mixing leaf keys with groups at one level, which is why the new
+keys are a `title` group rather than a bare `event.titlePrefix`.
+
+## Known gap: the test config's timezone enum is narrower than production's
+
+`payload.config.ts` sets `admin.timezones.supportedTimezones = SUPPORTED_TIMEZONES`
+(581 zones, the full IANA set from the pinned `@vvo/tzdb`) *because* the Atlas
+data uses zones beyond Payload's curated default — 276 of the 509 events sit on
+one (`Europe/Prague`, `Europe/Vienna`, `Asia/Novosibirsk`, …).
+
+`tests/utils/testHelpers.ts` does **not** mirror that setting, so every
+integration suite's `push` bakes Payload's narrow 47-zone default into each
+`timezone: true` companion enum. A test that uses a real Atlas timezone fails
+with `invalid input value for enum … _schedule_firstdate_tz`. Integration tests
+touching `schedule.firstDate_tz` therefore have to pick from the narrow list
+(`Europe/Berlin`, `Pacific/Auckland`, …).
+
+Mirroring the setting is the obvious fix but is **not** free: widening 47 → 581
+across the schedule + registrations enums (and their versions tables) slows the
+per-suite schema push enough to time out ~9 suites at the 60 s limit. Closing
+this properly means either accepting that cost, curating a smaller list that
+still covers the Atlas zones, or seeding the test schema from migrations instead
+of `push` — a decision worth its own ticket rather than a drive-by.
 
 ## Optional event fields import as `null`, not `undefined`
 

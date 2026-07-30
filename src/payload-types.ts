@@ -6030,6 +6030,15 @@ export interface SyAtlasTranslation {
       | number
       | boolean
       | null;
+    title?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
   };
   registration?: {
     form?:
@@ -6307,6 +6316,7 @@ export interface SyAtlasTranslationsSelect<T extends boolean = true> {
         details?: T;
         recurrence?: T;
         timing?: T;
+        title?: T;
       };
   registration?:
     | T

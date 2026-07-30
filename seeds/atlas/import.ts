@@ -881,9 +881,15 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     // events.json (a description the grooming pass cleared, say) would survive a
     // `--update` reseed forever. `null` clears the column.
     const eventData: Record<string, unknown> = {
+      // An empty string (not null/undefined) is what re-triggers the title
+      // auto-fill: `eventTitleBeforeChange` keeps `originalDoc.title` for a
+      // nullish value, so clearing `customName` in events.json would otherwise
+      // leave a previously-imported title in place. '' falls through to the
+      // localized "<time of day> Meditation at <place>" auto-fill, which is
+      // preferred over a hand-written generic name.
       title:
         event.customName?.trim() ||
-        (event.eventType === 'online' ? 'Online Sahaj Yoga Meditation' : undefined),
+        (event.eventType === 'online' ? 'Online Sahaj Yoga Meditation' : ''),
       languages: [language ?? DEFAULT_LOCALE],
       contactPhone: contactPhone ?? null,
       contactName: contactName ?? null,
