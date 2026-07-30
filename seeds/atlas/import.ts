@@ -757,6 +757,42 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         this.addError(`Center for venue #${venueId}`, error as Error)
       }
     }
+
+    await this.warnOrphanedCenters(centerVenueIds)
+  }
+
+  /**
+   * Report center regions that no longer correspond to a shared venue.
+   *
+   * A venue drops below the >1-event bar when its events are merged away or
+   * re-pointed, and two venue rows for one place collapse into a single center —
+   * but the import only ever upserts, so the stale region lingers in the tree
+   * with its own public URL. Warn rather than delete: a manager may have hung
+   * content or child nodes off it, and a seed script shouldn't destroy that.
+   */
+  private async warnOrphanedCenters(centerVenueIds: Set<number>): Promise<void> {
+    if (!this.payload) return
+    try {
+      const existing = await this.payload.find({
+        collection: 'regions',
+        where: { level: { equals: 'center' } },
+        limit: 0,
+        depth: 0,
+        overrideAccess: true,
+      })
+      for (const region of existing.docs) {
+        const legacyId = (region as { legacyId?: number }).legacyId
+        if (legacyId != null && !centerVenueIds.has(legacyId)) {
+          this.addWarning(
+            `Region regions/${region.id} ("${(region as { name?: string }).name}") is a center for ` +
+              `venue #${legacyId}, which no longer has more than one event — trash it in the admin ` +
+              `panel, or re-point its events first.`,
+          )
+        }
+      }
+    } catch (error) {
+      this.addWarning(`Could not check for orphaned centers: ${(error as Error).message}`)
+    }
   }
 
   // ─── Users (dedupe on email) ────────────────────────────────────────────

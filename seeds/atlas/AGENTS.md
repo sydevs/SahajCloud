@@ -144,6 +144,49 @@ per-day timetable, the three Brasília parks whose monthly meet-ups are stored a
   `Bichinno do Mato` (#586/#587), a postcode in the `street` field (#455), a
   zero-width space in #100's postcode.
 
+## Shared venues — grouping events that meet at one address
+
+A venue referenced by **more than one event** becomes a Regions node that those
+events point their `region` at; a single-use venue has its address lifted inline
+onto the event and the venue record is discarded (`multiUseVenueIds` /
+`venueToEventAddress` in [helpers/venueRouter.ts](helpers/venueRouter.ts)).
+
+Grouping keys on `venueId`, and Atlas holds the same place under several venue
+rows — so two events at one address each looked single-use and neither grouped.
+`VENUE_MERGES` in [dedupe.ts](dedupe.ts) collapses them; `dedupeAtlasData`
+re-points the events and drops the losing row. **44 shared venues, 346 inlined.**
+
+Ten pairs were added, each verified by hand. Coordinates alone are not evidence
+**in either direction**: two Civitavecchia venues sit 177 m apart but are
+different places, while Athens 386/432 are 230 m apart yet share a name, street,
+city *and* postcode. Two candidates were rejected outright after checking —
+Móstoles 155/158 (404 km apart, different venue names; one row's `street` is
+simply wrong) and Воронеж/Тольятти 483/511 (700 km apart).
+
+- **The kept side is whichever carries better data**, not the lower id: 191 → 215
+  because 215 is named `Wensum Sports Centre` — which event #315's own
+  description names; 50 → 514 because 50's postcode `1017ZP` is *Amsterdam's* on
+  a Den Haag venue.
+- **`VENUE_FIELD_OVERRIDES`** repairs a field where the *deleted* row held the
+  better value (venue 514 keeps its correct postcode but takes 50's real name,
+  `Atelier`). Kept in code so a re-extraction reproduces it.
+- **Targets must be terminal.** `dedupeAtlasData` applies the map in one pass, so
+  a chain would strand events on a deleted row. This bit the Amsterdam building,
+  which had three rows: the pre-existing `342 → 104` had to become `342 → 11`
+  when 104 itself was merged into 11. `tests/unit/atlas-dedupe.spec.ts` asserts
+  no chains, no self-references, and no override on a deleted venue.
+- Venues 11 and 104 were **both** shared venues 1 m apart, so the import used to
+  create *two* nodes for one Amsterdam building.
+
+Three postcode conflicts could not be resolved from the data and are left as they
+stand — Eindhoven `5641EC` vs `5641PC`, Tampere `33541` vs `33540`, Derby
+`DE73 5SA` vs `DE73 5UA`. Worth a manager's eye.
+
+**Orphaned nodes.** The import only upserts, so a venue that drops below the
+>1-event bar leaves a stale region behind, complete with its public URL. The
+importer warns with the document id rather than deleting — a manager may have
+hung content or child nodes off it.
+
 ## Merged duplicates — 15 rows removed from events.json
 
 Atlas let one real class be entered twice. 12 pairs were confirmed by sharing a

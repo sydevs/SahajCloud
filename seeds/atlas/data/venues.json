@@ -121,9 +121,9 @@
     "placeId": "ChIJvd3-U5bYxkcRH3eWpHOVHWs",
     "name": "Aktiviteitencentrum Orka ",
     "street": "Broekakkerseweg 1",
-    "city": "Eindhoven ",
+    "city": "Eindhoven",
     "countryCode": "NL",
-    "postCode": "5641EC ",
+    "postCode": "5641EC",
     "regionCode": null,
     "latitude": 51.44607209999999,
     "longitude": 5.5206463,
@@ -219,19 +219,6 @@
     "latitude": 46.9592514,
     "longitude": 142.742352,
     "timeZone": "Asia/Magadan"
-  },
-  {
-    "legacyId": 50,
-    "placeId": "ChIJF009zy63xUcRr75I39Vcljw",
-    "name": "Atelier",
-    "street": " Westeinde 79A",
-    "city": "Den Haag",
-    "countryCode": "NL",
-    "postCode": "1017ZP",
-    "regionCode": null,
-    "latitude": 52.0762515,
-    "longitude": 4.3028891,
-    "timeZone": "Europe/Amsterdam"
   },
   {
     "legacyId": 51,
@@ -648,19 +635,6 @@
     "latitude": 51.5342325,
     "longitude": -0.6310285999999999,
     "timeZone": "Europe/London"
-  },
-  {
-    "legacyId": 104,
-    "placeId": "ChIJqfFHitULxkcRl3SQeI4D2Kc",
-    "name": "Manenburgstraat 22",
-    "street": "22 Manenburgstraat",
-    "city": "Amsterdam",
-    "countryCode": "NL",
-    "postCode": "1097 NC",
-    "regionCode": "NH",
-    "latitude": 52.34410399999999,
-    "longitude": 4.9217754,
-    "timeZone": "Europe/Amsterdam"
   },
   {
     "legacyId": 105,
@@ -1102,19 +1076,6 @@
     "regionCode": "NIE",
     "latitude": 48.2039574,
     "longitude": 15.6248138,
-    "timeZone": "Europe/Vienna"
-  },
-  {
-    "legacyId": 148,
-    "placeId": "ChIJx18AIJLLbUcR9K6FO29hcNQ",
-    "name": "Herzog-Leopold-Straße 32",
-    "street": "32 Herzog-Leopold-Straße",
-    "city": "Wiener Neustadt",
-    "countryCode": "AT",
-    "postCode": "2700",
-    "regionCode": "NIE",
-    "latitude": 47.8138018,
-    "longitude": 16.2393893,
     "timeZone": "Europe/Vienna"
   },
   {
@@ -1573,19 +1534,6 @@
     "timeZone": "Europe/London"
   },
   {
-    "legacyId": 191,
-    "placeId": "ChIJH5-z9e7j2UcRQWlwy0hFv8U",
-    "name": null,
-    "street": "169 King St",
-    "city": "NORWICH",
-    "countryCode": "GB",
-    "postCode": "NR1 1QW",
-    "regionCode": "ENG",
-    "latitude": 52.62348110000001,
-    "longitude": 1.3031564,
-    "timeZone": "Europe/London"
-  },
-  {
     "legacyId": 194,
     "placeId": "Ei1IaWxsIFN0cmVldCwgQ292ZW50cnkgQ1YxIDRBTiwgVW5pdGVkIEtpbmdkb20iLiosChQKEgmZ7etkpEt3SBHc0DwtOMtzchIUChIJlZpGiKRLd0gR9lpBFHwxlX8",
     "name": "Friends Meeting House",
@@ -1596,19 +1544,6 @@
     "regionCode": "ENG",
     "latitude": 52.4097312,
     "longitude": -1.5166472,
-    "timeZone": "Europe/London"
-  },
-  {
-    "legacyId": 195,
-    "placeId": "ChIJ5RcTx3nweUgRQUI8TEpzEX4",
-    "name": "Chellaston Bowls Club",
-    "street": "12 Derby Rd",
-    "city": "derby",
-    "countryCode": "GB",
-    "postCode": "DE73 5SA",
-    "regionCode": "ENG",
-    "latitude": 52.8690425,
-    "longitude": -1.4381025,
     "timeZone": "Europe/London"
   },
   {
@@ -3042,19 +2977,6 @@
     "timeZone": "America/Sao_Paulo"
   },
   {
-    "legacyId": 338,
-    "placeId": "EjNWYXBhdWRlbmthdHUgNDgtNTAsIEp5dsOkc2t5bMOkIHN1Yi1yZWdpb24sIEZpbmxhbmQiMBIuChQKEglxuZG3FnSFRhHAd1gf_MIYkhAwKhQKEgmbZ3DZGXSFRhGLlDxcR-di3Q",
-    "name": "Vapaudenkatu 48",
-    "street": "Vapaudenkatu 48-50",
-    "city": "Jyväskylä",
-    "countryCode": "FI",
-    "postCode": "40100",
-    "regionCode": "KES",
-    "latitude": 62.2420358,
-    "longitude": 25.7513495,
-    "timeZone": "Europe/Helsinki"
-  },
-  {
     "legacyId": 339,
     "placeId": "EipMaW5kZW5sYWFuIDc1LCBBbXN0ZWx2ZWVuLCBOSCwgTmV0aGVybGFuZHMiMBIuChQKEgk_D-UmJuDFRxFioEvQ7ta0ABBLKhQKEgn9C3AgKODFRxGLptn_Nc3Hbg",
     "name": "Lindenlaan 75",
@@ -3286,19 +3208,6 @@
     "regionCode": "ENG",
     "latitude": 51.2787261,
     "longitude": 1.0784783,
-    "timeZone": "Europe/London"
-  },
-  {
-    "legacyId": 365,
-    "placeId": "ChIJE180-MUFdkgRXRkoBwSMvEI",
-    "name": "Balham Library",
-    "street": "16 Ramsden Rd",
-    "city": "London",
-    "countryCode": "GB",
-    "postCode": "SW12 8QY",
-    "regionCode": "ENG",
-    "latitude": 51.4454409,
-    "longitude": -0.1521435,
     "timeZone": "Europe/London"
   },
   {
@@ -4056,19 +3965,6 @@
     "timeZone": "America/Bahia"
   },
   {
-    "legacyId": 432,
-    "placeId": "ChIJ36UbptWYoRQR7wh3tvoUfRg",
-    "name": "Vasilissis Sofias 26",
-    "street": "26 Vasilissis Sofias",
-    "city": "Athens",
-    "countryCode": "GR",
-    "postCode": "151 24",
-    "regionCode": null,
-    "latitude": 38.0528938,
-    "longitude": 23.8087579,
-    "timeZone": "Europe/Athens"
-  },
-  {
     "legacyId": 433,
     "placeId": "ChIJifQ63eVXzpQRlcQe4aRdQws",
     "name": "R. Tavares Bastos, 132",
@@ -4797,19 +4693,6 @@
     "timeZone": "Europe/Paris"
   },
   {
-    "legacyId": 495,
-    "placeId": "ChIJq6iaFVbfjkYR0Oxt5r9ik1o",
-    "name": "Sampolan kirjasto",
-    "street": "Sammonkatu 2",
-    "city": "Tampere",
-    "countryCode": "FI",
-    "postCode": "33540",
-    "regionCode": "PIR",
-    "latitude": 61.4986309,
-    "longitude": 23.78784079999999,
-    "timeZone": "Europe/Helsinki"
-  },
-  {
     "legacyId": 496,
     "placeId": "Eh9MZW9wb2xkc3RyYcOfZSwgTXVuaWNoLCBHZXJtYW55Ii4qLAoUChIJcQ2sdcl1nkcR2xK_7beNr2gSFAoSCdlfjKP5dZ5HEX2YsX1KuAwB",
     "name": "Leopoldstraße",
@@ -5018,22 +4901,9 @@
     "timeZone": "Europe/London"
   },
   {
-    "legacyId": 513,
-    "placeId": "ChIJsR2wVpbYxkcRkb6yS981ybE",
-    "name": "Orka ",
-    "street": "1 Broekakkerseweg",
-    "city": "Eindhoven",
-    "countryCode": "NL",
-    "postCode": "5641 PC",
-    "regionCode": "NB",
-    "latitude": 51.4460173,
-    "longitude": 5.5205246,
-    "timeZone": "Europe/Amsterdam"
-  },
-  {
     "legacyId": 514,
     "placeId": "ChIJjY0Szy63xUcRZ0--7eAtPm0",
-    "name": "Westeinde 79A",
+    "name": "Atelier",
     "street": "79A Westeinde",
     "city": "The Hague",
     "countryCode": "NL",

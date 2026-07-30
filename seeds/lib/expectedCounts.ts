@@ -67,7 +67,7 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   translations: {},
   atlas: {
     managers: 327,
-    // 482 source geo nodes (29 + 100 + 353); multi-use venues add ~41 centers.
+    // 482 source geo nodes (29 + 100 + 353); shared venues add 44 more.
     regions: 482,
     // 910 source registrants dedupe to 755 unique emails.
     users: 755,
