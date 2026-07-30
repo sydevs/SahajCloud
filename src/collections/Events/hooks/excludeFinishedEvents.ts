@@ -51,9 +51,6 @@ export const excludeFinishedEvents: CollectionBeforeOperationHook = ({ operation
   return args
 }
 
-/** The `schedule.lastDate` path a caller can name to opt out of the filter. */
-const LAST_DATE_PATH = 'schedule.lastDate'
-
 /**
  * Whether a `where` tree mentions `schedule.lastDate` anywhere, recursing through
  * `and` / `or` so a reference inside a compound filter still counts.
@@ -67,7 +64,7 @@ function referencesLastDate(where: Where | undefined): boolean {
   if (!where || typeof where !== 'object') return false
 
   for (const [key, value] of Object.entries(where)) {
-    if (key === LAST_DATE_PATH) return true
+    if (key === 'schedule.lastDate') return true
     if ((key === 'and' || key === 'or') && Array.isArray(value)) {
       if (value.some((clause) => referencesLastDate(clause as Where))) return true
     }

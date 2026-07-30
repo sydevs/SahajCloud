@@ -37,8 +37,6 @@ import type { EventScheduleInput, ScheduleSubFields } from '@/types/schedule'
 
 import { buildRRuleTemporal } from './scheduleHooks'
 
-export type { EventScheduleInput }
-
 /** Fallback duration when an event declares no `endTime`. */
 const DEFAULT_DURATION_MINUTES = 60
 

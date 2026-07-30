@@ -30,7 +30,7 @@ import { type RRuleOptions, RRuleTemporal } from 'rrule-temporal'
 
 import type { EventScheduleInput, ExclusionRange, ScheduleSubFields } from '@/types/schedule'
 
-export type { EventScheduleInput, ExclusionRange, ScheduleSubFields }
+export type { ExclusionRange, ScheduleSubFields }
 
 /** Number of upcoming occurrences to compute */
 const UPCOMING_COUNT = 10
@@ -317,14 +317,14 @@ export function lastOccurrenceEnd(fields: EventScheduleInput): string | null {
   // conditions (a positive count, a parseable untilDate), and this can't drift
   // from them. Neither set → the recurrence is open-ended, and `all()` would
   // run to its iteration cap.
-  const { count, until } = rule.options()
-  if (count == null && until == null) return null
+  const options = rule.options()
+  if (options.count == null && options.until == null) return null
 
   const occurrences = rule.all()
   // An `until` that precedes `firstDate` yields no occurrences at all. The
   // schedule is still over — fall back to the start day so it reads as finished
   // rather than as never-ending, which would pin it to the map forever.
-  const last = occurrences[occurrences.length - 1] ?? rule.options().dtstart
+  const last = occurrences[occurrences.length - 1] ?? options.dtstart
   return endOfLocalDay(last)
 }
 
