@@ -40,6 +40,17 @@ export function firstAddressSegment(street: unknown): string {
 }
 
 /**
+ * The place an auto-title names. The building's own name wins over its street —
+ * "Evening Meditation at Broadstairs Friends Meeting House" tells a seeker far
+ * more than "at 9 St Peter's Park Rd", and it's the name they'll see on the door.
+ */
+export function addressPlaceName(address: unknown): string {
+  const { venueName, street } = (address ?? {}) as { venueName?: unknown; street?: unknown }
+  if (typeof venueName === 'string' && venueName.trim()) return venueName.trim()
+  return firstAddressSegment(street)
+}
+
+/**
  * Pick the time-of-day slot for a local `HH:MM` start time. A missing or
  * unparseable time falls to `default`.
  */
@@ -71,11 +82,11 @@ export function titleSlotForSchedule(schedule: unknown): EventTitleSlot {
 
 /**
  * Compose an event's auto-title by interpolating `%{place}` in `template`.
- * Returns null when there is no usable street/venue, so the title stays empty
- * and `useAsTitle` falls back to the document id.
+ * Returns null when there is no usable venue name or street, so the title stays
+ * empty and `useAsTitle` falls back to the document id.
  */
-export function composeEventTitle(template: string, street: unknown): string | null {
-  const place = firstAddressSegment(street)
+export function composeEventTitle(template: string, address: unknown): string | null {
+  const place = addressPlaceName(address)
   if (!place) return null
   const trimmed = template.trim()
   // A blank or placeholder-less template would otherwise silently drop the
@@ -143,9 +154,10 @@ async function resolveTitleTemplates(req: PayloadRequest): Promise<Record<EventT
 /**
  * beforeChange hook for the Events `title` field. An explicit title (newly
  * entered, or carried over on a partial update) is kept as-is; an empty title
- * is auto-filled from the event's street address and the time of day it starts
- * — "Evening Meditation at Beethovenstraße 12". `title` is localized, so this
- * computes per save-locale; clearing the field re-triggers the auto-fill.
+ * is auto-filled from the event's venue (or street) and the time of day it
+ * starts — "Evening Meditation at Broadstairs Friends Meeting House". `title` is
+ * localized, so this computes per save-locale; clearing the field re-triggers
+ * the auto-fill.
  */
 export const eventTitleBeforeChange: FieldHook = async ({ value, data, originalDoc, req }) => {
   const incoming = typeof value === 'string' ? value : undefined
@@ -155,13 +167,14 @@ export const eventTitleBeforeChange: FieldHook = async ({ value, data, originalD
   const current = incoming ?? existing
   if (current && current.trim()) return current
 
-  const address = (data?.address ?? originalDoc?.address) as { street?: unknown } | undefined
-  // No usable street → leave the title empty (useAsTitle falls back to the id).
-  if (!firstAddressSegment(address?.street)) return value
+  const address = data?.address ?? originalDoc?.address
+  // Nothing to name the place with → leave the title empty (useAsTitle falls
+  // back to the document id).
+  if (!addressPlaceName(address)) return value
 
   const templates = await resolveTitleTemplates(req)
   const slot = titleSlotForSchedule(data?.schedule ?? originalDoc?.schedule)
   // The guard above guarantees a usable place, so composeEventTitle returns a
   // non-null string here.
-  return composeEventTitle(templates[slot], address?.street)
+  return composeEventTitle(templates[slot], address)
 }

@@ -290,6 +290,9 @@ export const Events: CollectionConfig = {
             addressFields({
               label: false,
               required: ['street', 'city', 'country', 'latitude', 'longitude'],
+              // The building's name is what a seeker recognises, and it's what
+              // the title auto-fill prefers over the street — see eventTitle.ts.
+              hasVenueName: true,
               admin: { condition: (data) => data?.eventType === 'offline' },
             }),
           ],

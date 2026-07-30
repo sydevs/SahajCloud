@@ -33,15 +33,17 @@ describe('Event title memoization (#542 bulk-import stampede guard)', () => {
     })
 
     it('interpolates %{place} into the template', () => {
-      expect(composeEventTitle('Meditation at %{place}', 'Berlin')).toBe('Meditation at Berlin')
-      expect(composeEventTitle('Meditation at %{place}', '')).toBeNull()
+      expect(composeEventTitle('Meditation at %{place}', { street: 'Berlin' })).toBe(
+        'Meditation at Berlin',
+      )
+      expect(composeEventTitle('Meditation at %{place}', { street: '' })).toBeNull()
     })
 
     it('falls back to the place alone for a blank or placeholder-less template', () => {
       // Otherwise every event would share one fixed, place-free title.
-      expect(composeEventTitle('', 'Berlin')).toBe('Berlin')
-      expect(composeEventTitle('  ', 'Berlin')).toBe('Berlin')
-      expect(composeEventTitle('Meditation at', 'Berlin')).toBe('Berlin')
+      expect(composeEventTitle('', { street: 'Berlin' })).toBe('Berlin')
+      expect(composeEventTitle('  ', { street: 'Berlin' })).toBe('Berlin')
+      expect(composeEventTitle('Meditation at', { street: 'Berlin' })).toBe('Berlin')
     })
   })
 

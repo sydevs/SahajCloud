@@ -1746,6 +1746,10 @@ export interface Event {
   onlineUrl?: string | null;
   address?: {
     mapboxId?: string | null;
+    /**
+     * The building's own name, where it has one. Shown in place of the street when a listing has no title of its own.
+     */
+    venueName?: string | null;
     street?: string | null;
     room?: string | null;
     postCode?: string | null;
@@ -4555,6 +4559,7 @@ export interface EventsSelect<T extends boolean = true> {
     | T
     | {
         mapboxId?: T;
+        venueName?: T;
         street?: T;
         room?: T;
         postCode?: T;

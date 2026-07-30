@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  addressPlaceName,
   composeEventTitle,
   EVENT_TITLE_DEFAULTS,
   firstAddressSegment,
@@ -28,27 +29,51 @@ describe('firstAddressSegment', () => {
 
 describe('composeEventTitle', () => {
   it('interpolates %{place} with the first address segment', () => {
-    expect(composeEventTitle('Evening Meditation at %{place}', 'Beethovenstraße 12, Berlin')).toBe(
-      'Evening Meditation at Beethovenstraße 12',
-    )
+    expect(
+      composeEventTitle('Evening Meditation at %{place}', { street: 'Beethovenstraße 12, Berlin' }),
+    ).toBe('Evening Meditation at Beethovenstraße 12')
   })
 
   it('places the interpolation wherever the locale puts it', () => {
     // The point of a whole-sentence template rather than a prefix: a locale can
     // lead with the place, or wrap it.
-    expect(composeEventTitle('%{place} — Abendmeditation', 'Hackengasse 10')).toBe(
+    expect(composeEventTitle('%{place} — Abendmeditation', { street: 'Hackengasse 10' })).toBe(
       'Hackengasse 10 — Abendmeditation',
     )
   })
 
   it('returns null when there is no usable venue', () => {
-    expect(composeEventTitle('Meditation at %{place}', '')).toBeNull()
+    expect(composeEventTitle('Meditation at %{place}', { street: '' })).toBeNull()
     expect(composeEventTitle('Meditation at %{place}', undefined)).toBeNull()
   })
 
   it('falls back to the venue alone for a blank or placeholder-less template', () => {
-    expect(composeEventTitle('   ', 'Hall A, Wing 2')).toBe('Hall A')
-    expect(composeEventTitle('Meditation at', 'Hall A, Wing 2')).toBe('Hall A')
+    expect(composeEventTitle('   ', { street: 'Hall A, Wing 2' })).toBe('Hall A')
+    expect(composeEventTitle('Meditation at', { street: 'Hall A, Wing 2' })).toBe('Hall A')
+  })
+})
+
+describe('addressPlaceName', () => {
+  it('prefers the venue name over the street', () => {
+    // "Broadstairs Friends Meeting House" is what a seeker sees on the door;
+    // "9 St Peter's Park Rd" tells them almost nothing.
+    expect(
+      addressPlaceName({
+        venueName: 'Broadstairs Friends Meeting House',
+        street: "9 St Peter's Park Rd",
+      }),
+    ).toBe('Broadstairs Friends Meeting House')
+  })
+
+  it('falls back to the street when there is no venue name', () => {
+    expect(addressPlaceName({ street: 'Beethovenstraße 12, Berlin' })).toBe('Beethovenstraße 12')
+    expect(addressPlaceName({ venueName: '   ', street: 'Hall A' })).toBe('Hall A')
+  })
+
+  it('returns empty when there is neither', () => {
+    expect(addressPlaceName(undefined)).toBe('')
+    expect(addressPlaceName({})).toBe('')
+    expect(addressPlaceName({ venueName: '', street: '' })).toBe('')
   })
 })
 
