@@ -24,6 +24,32 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
     }
   })
 
+  // The feed's contract has to be discoverable — an existing client that starts
+  // seeing fewer events needs to find out why from /api/docs, not from the source.
+  it('documents the finished-event exclusion + its opt-out on the geojson feed', () => {
+    const description = (
+      CUSTOM_ENDPOINT_PATHS['/api/events/geojson']?.get as { description?: string }
+    ).description
+    expect(description).toContain('Finished events are excluded')
+    // The definition, the timezone rule, and that `where` can't override it here.
+    expect(description).toContain('schedule.lastDate')
+    expect(description).toContain('own timezone')
+    expect(description).toContain('cannot re-include')
+    // …and where the opt-out does work, plus the single-doc read staying open.
+    expect(description).toContain('GET /api/events')
+    expect(description).toContain('GET /api/events/{id}')
+  })
+
+  it('documents the 409 refusal for registering on an event that has ended', () => {
+    const post = (
+      CUSTOM_ENDPOINT_PATHS['/api/events/{id}/register'] as {
+        post?: { responses?: Record<string, { description?: string }> }
+      }
+    ).post
+    expect(post?.responses?.['409']).toBeDefined()
+    expect(post?.responses?.['409']?.description).toContain('run out')
+  })
+
   it('documents the optional subscribe consent flag on the register request body', () => {
     const schema = CUSTOM_ENDPOINT_SCHEMAS.EventRegistrationRequest as {
       required?: string[]
