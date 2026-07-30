@@ -225,11 +225,16 @@ Two knock-on effects:
 
 - **Venue topology.** `multiUseVenueIds` counts events per venue, so removing a
   row can drop a venue from multi-use to single-use — its address is then inlined
-  on the event instead of becoming a Regions `center`. Three venues moved this
-  way (132 Amstelveen, 317 Winterthur, 562 Ixelles), so the import creates 3
-  fewer centers. Regions still clear their expected minimum, but re-check this
-  after any further removal.
+  on the event instead of becoming a Regions `venue` node. Three venues moved
+  this way (132 Amstelveen, 317 Winterthur, 562 Ixelles), so the import creates
+  3 fewer shared-venue nodes. `atlas-events-data.spec.ts` recomputes the count
+  from the data and asserts `expectedCounts` matches, so a further removal that
+  changes the topology fails the unit lane instead of drifting silently.
 - **`expectedCounts.events` is now 494** (496 rows less the 2 test records).
+- **`expectedCounts.regions` is now 518** — 474 source geo nodes (29 country +
+  99 region + 346 area) plus 44 shared-venue nodes. It read 482 before, which
+  was the pre-dedupe source count; because verification is `actual >= expected`,
+  an understated value there is not conservative, it just stops checking.
 
 ### `languageCodes` — a curated multi-language override
 

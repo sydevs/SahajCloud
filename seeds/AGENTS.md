@@ -87,7 +87,7 @@ Each script has collection-level metadata in `seeds/lib/expectedCounts.ts`:
 | storyblok   | lessons      | 17    | Yes        | None                    |
 | storyblok   | lectures     | 0     | No         | None                    |
 | atlas       | managers      | 327   | No         | None                    |
-| atlas       | regions       | 482   | No         | managers                |
+| atlas       | regions       | 518   | No         | managers                |
 | atlas       | users         | 755   | Yes        | None                    |
 | atlas       | events        | 494   | Yes        | managers, regions       |
 | atlas       | registrations | 886   | Yes        | events, users           |
