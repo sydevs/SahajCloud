@@ -50,7 +50,7 @@ const NOTICES: Partial<Record<VerificationStage, NoticeConfig>> = {
   finished: {
     severity: 'info',
     message: () =>
-      'This event’s schedule has ended, so it’s no longer listed. Update the schedule, then republish to verify and relist it.',
+      'This event’s schedule has ended, so it’s no longer listed publicly — its page still opens for anyone following an old link. Update the schedule and save to relist it.',
   },
 }
 
