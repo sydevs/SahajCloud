@@ -28,9 +28,9 @@ import type { FieldHook } from 'payload'
 import { Temporal } from '@js-temporal/polyfill'
 import { type RRuleOptions, RRuleTemporal } from 'rrule-temporal'
 
-import type { ExclusionRange, ScheduleSubFields } from '@/types/schedule'
+import type { EventScheduleInput, ExclusionRange, ScheduleSubFields } from '@/types/schedule'
 
-export type { ExclusionRange, ScheduleSubFields }
+export type { EventScheduleInput, ExclusionRange, ScheduleSubFields }
 
 /** Number of upcoming occurrences to compute */
 const UPCOMING_COUNT = 10
@@ -72,7 +72,7 @@ function parseDateOnly(dateStr: string): Temporal.PlainDate | null {
 /**
  * Check whether the schedule sub-fields describe a recurring event.
  */
-function isRecurring(fields: Partial<ScheduleSubFields>): boolean {
+function isRecurring(fields: EventScheduleInput): boolean {
   return !!fields.recurrenceType && SUPPORTED_FREQ.has(fields.recurrenceType)
 }
 
@@ -88,7 +88,7 @@ function isRecurring(fields: Partial<ScheduleSubFields>): boolean {
  */
 function expandExclusionRanges(
   baseRule: RRuleTemporal,
-  exclusions: ExclusionRange[],
+  exclusions: readonly ExclusionRange[],
   timezone: string,
 ): Temporal.ZonedDateTime[] {
   const exDates: Temporal.ZonedDateTime[] = []
@@ -141,7 +141,7 @@ function expandExclusionRanges(
  *
  * Returns null only when firstDate is missing or invalid.
  */
-export function buildRRuleTemporal(fields: Partial<ScheduleSubFields>): RRuleTemporal | null {
+export function buildRRuleTemporal(fields: EventScheduleInput): RRuleTemporal | null {
   if (!fields.firstDate) return null
 
   const timezone = fields.firstDate_tz || 'UTC'
@@ -239,7 +239,7 @@ export function buildRRuleTemporal(fields: Partial<ScheduleSubFields>): RRuleTem
  * Returns null only when firstDate is missing.
  */
 export const computeIcalRule: FieldHook = ({ siblingData }) => {
-  const fields = siblingData as Partial<ScheduleSubFields>
+  const fields = siblingData as EventScheduleInput
   const rule = buildRRuleTemporal(fields)
   return rule ? rule.toString() : null
 }
@@ -259,7 +259,7 @@ export const computeIcalRule: FieldHook = ({ siblingData }) => {
  * and all() methods — no additional filtering is needed.
  */
 export const computeUpcomingDates: FieldHook = ({ siblingData }) => {
-  const fields = siblingData as Partial<ScheduleSubFields>
+  const fields = siblingData as EventScheduleInput
   const rule = buildRRuleTemporal(fields)
   if (!rule) return []
 
@@ -308,7 +308,7 @@ export const computeUpcomingDates: FieldHook = ({ siblingData }) => {
  * own start time, so an event running *today* is still live until midnight in
  * its own timezone.
  */
-export function lastOccurrenceEnd(fields: Partial<ScheduleSubFields>): string | null {
+export function lastOccurrenceEnd(fields: EventScheduleInput): string | null {
   const rule = buildRRuleTemporal(fields)
   if (!rule) return null
 
@@ -357,7 +357,7 @@ function endOfLocalDay(zdt: Temporal.ZonedDateTime): string {
  * (a cleared `recurrenceType`) must win over the previous value.
  */
 export const computeLastDate: FieldHook = ({ previousSiblingDoc, siblingData }) =>
-  lastOccurrenceEnd({ ...previousSiblingDoc, ...siblingData } as Partial<ScheduleSubFields>)
+  lastOccurrenceEnd({ ...previousSiblingDoc, ...siblingData } as EventScheduleInput)
 
 /**
  * beforeChange field hook for the exclusions array.
