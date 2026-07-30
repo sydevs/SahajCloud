@@ -65,30 +65,30 @@ describe('Atlas collections', () => {
         },
       })
 
-      // A Center may only nest under a City — not directly under a Country.
+      // A Venue may only nest under a City — not directly under a Country.
       await expect(
         payload.create({
           collection: 'regions',
           data: {
-            name: 'Bad Center',
-            level: 'center',
-            mapboxId: 'pr.center.bad',
+            name: 'Bad Venue',
+            level: 'venue',
+            mapboxId: 'pr.venue.bad',
             parent: country.id,
             managers: [managerId],
           },
         }),
       ).rejects.toThrow()
-      const center = await payload.create({
+      const venueNode = await payload.create({
         collection: 'regions',
         data: {
-          name: 'Good Center',
-          level: 'center',
-          mapboxId: 'pr.center.good',
+          name: 'Good Venue',
+          level: 'venue',
+          mapboxId: 'pr.venue.good',
           parent: city.id,
           managers: [managerId],
         },
       })
-      expect(center.id).toBeTruthy()
+      expect(venueNode.id).toBeTruthy()
 
       // A Region may only nest under a Country — not a City.
       await expect(

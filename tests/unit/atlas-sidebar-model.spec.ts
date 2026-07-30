@@ -165,20 +165,20 @@ describe('buildRegionTree', () => {
 })
 
 describe('childLevelOf', () => {
-  it('maps each level to the level its child would be (center is a leaf)', () => {
+  it('maps each level to the level its child would be (venue is a leaf)', () => {
     expect(childLevelOf('country')).toBe('region')
     expect(childLevelOf('region')).toBe('city')
-    expect(childLevelOf('city')).toBe('center')
-    expect(childLevelOf('center')).toBeNull()
+    expect(childLevelOf('city')).toBe('venue')
+    expect(childLevelOf('venue')).toBeNull()
   })
 })
 
 describe('regionLevelLabel', () => {
-  it('labels each level (center reads as "SY Center")', () => {
+  it('labels each level (venue reads as "Venue")', () => {
     expect(regionLevelLabel('country')).toBe('Country')
     expect(regionLevelLabel('region')).toBe('Region')
     expect(regionLevelLabel('city')).toBe('City')
-    expect(regionLevelLabel('center')).toBe('SY Center')
+    expect(regionLevelLabel('venue')).toBe('Venue')
   })
 })
 
@@ -193,8 +193,8 @@ describe('buildRegionCreateUrl', () => {
   })
 
   it('accepts a string parent id', () => {
-    expect(buildRegionCreateUrl('7', 'center')).toBe(
-      '/admin/collections/regions/create?parent=7&childLevel=center',
+    expect(buildRegionCreateUrl('7', 'venue')).toBe(
+      '/admin/collections/regions/create?parent=7&childLevel=venue',
     )
   })
 })

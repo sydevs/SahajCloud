@@ -122,7 +122,7 @@ export function sortEventsIntoBuckets(events: SidebarEventInput[]): SidebarEvent
 // =============================================================================
 
 /** A region's level in the geographic tree (Country → Region → City → Center). */
-export type RegionLevel = 'country' | 'region' | 'city' | 'center'
+export type RegionLevel = 'country' | 'region' | 'city' | 'venue'
 
 /**
  * The level a node's direct child would have — the natural "add child" target
@@ -134,8 +134,8 @@ export type RegionLevel = 'country' | 'region' | 'city' | 'center'
 const CHILD_LEVEL: Record<RegionLevel, RegionLevel | null> = {
   country: 'region',
   region: 'city',
-  city: 'center',
-  center: null,
+  city: 'venue',
+  venue: null,
 }
 
 /** The level an "add child" action would create under a node of this level, if any. */
@@ -145,14 +145,14 @@ export function childLevelOf(level: RegionLevel): RegionLevel | null {
 
 /**
  * Display label per level, matching the Regions collection's
- * `REGION_LEVEL_OPTIONS` (notably center → "SY Center"). Duplicated here rather
+ * `REGION_LEVEL_OPTIONS`. Duplicated here rather
  * than imported so the pure model + client tree stay free of the server collection.
  */
 const REGION_LEVEL_LABEL: Record<RegionLevel, string> = {
   country: 'Country',
   region: 'Region',
   city: 'City',
-  center: 'SY Center',
+  venue: 'Venue',
 }
 
 /** Human label for a region level (e.g. for an "add child" action/tooltip). */

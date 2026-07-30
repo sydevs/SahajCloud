@@ -146,6 +146,11 @@ per-day timetable, the three Brasília parks whose monthly meet-ups are stored a
 
 ## Shared venues — grouping events that meet at one address
 
+> The Regions level is `venue` (label **Venue**), renamed from `center` /
+> "SY Center" — most of these are libraries and community halls, not Sahaja
+> Yoga centres. **AtlasReact reads `level` off the region API and must be
+> updated in step.**
+
 A venue referenced by **more than one event** becomes a Regions node that those
 events point their `region` at; a single-use venue has its address lifted inline
 onto the event and the venue record is discarded (`multiUseVenueIds` /

@@ -31,6 +31,7 @@ import * as migration_20260720_141351_event_registration_notification_fields fro
 import * as migration_20260720_195203_registration_notifications from './20260720_195203_registration_notifications';
 import * as migration_20260729_222924_add_event_contact_email from './20260729_222924_add_event_contact_email';
 import * as migration_20260730_171520_add_event_venue_name from './20260730_171520_add_event_venue_name';
+import * as migration_20260730_172342_rename_region_level_center_to_venue from './20260730_172342_rename_region_level_center_to_venue';
 
 export const migrations = [
   {
@@ -196,6 +197,11 @@ export const migrations = [
   {
     up: migration_20260730_171520_add_event_venue_name.up,
     down: migration_20260730_171520_add_event_venue_name.down,
-    name: '20260730_171520_add_event_venue_name'
+    name: '20260730_171520_add_event_venue_name',
+  },
+  {
+    up: migration_20260730_172342_rename_region_level_center_to_venue.up,
+    down: migration_20260730_172342_rename_region_level_center_to_venue.down,
+    name: '20260730_172342_rename_region_level_center_to_venue'
   },
 ];

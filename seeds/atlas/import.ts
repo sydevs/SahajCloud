@@ -10,8 +10,8 @@
  * Highlights:
  * - Relationships rewired via `legacyId` maps (regions keyed by `level:legacyId`
  *   since countries/regions/areas share an id space).
- * - Venues have no collection: a venue used by >1 event becomes a Regions
- *   `center`; a single-use venue's address is lifted onto the event.
+ * - Venues have no collection: a place used by >1 event becomes a Regions
+ *   `venue`; a single-use venue's address is lifted onto the event.
  * - `mapboxId` resolved via the server-side Search Box geocoder (src/lib/mapbox).
  * - Event status → #484 `verificationStage` (0→verified / 6→finished) with the
  *   verification backfill seeded under `context.skipVerifyHook`.
@@ -188,7 +188,7 @@ const ATLAS_TO_PAYLOAD_LEVEL: Record<GeoRef['level'], RegionLevel> = {
 /**
  * The `idMaps.regions` key for an Atlas geo-ref, applying the area→city rename.
  * Centralised so the transform can't be forgotten at one call site. (Node keys
- * built from an already-Payload level — `city:areaId`, `center:venueId` — are
+ * built from an already-Payload level — `city:areaId`, `venue:venueId` — are
  * written inline since there's no ref to translate.)
  */
 const geoRefKey = (ref: { level: GeoRef['level']; legacyId: number }): string =>
@@ -212,7 +212,7 @@ const DEFAULT_LOCALE = 'en'
  *
  * #494/#575 are test records still present in events.json — skipping rather than
  * deleting keeps them out of the import while leaving the events list handed to
- * `multiUseVenueIds` unchanged, so the venue → center topology (and the regions
+ * `multiUseVenueIds` unchanged, so the venue → region topology (and the regions
  * count) is unaffected.
  *
  * The rest were **removed from events.json** as confirmed duplicates: same
@@ -264,7 +264,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
   /** Venue legacyId → resolved address `mapboxId` (geocoded once, reused per event). */
   private venueMapbox = new Map<number, string>()
 
-  /** Region map key (`level:legacyId` / `center:venueId`) → unique slug (see buildRegionSlugs). */
+  /** Region map key (`level:legacyId` / `venue:venueId`) → unique slug (see buildRegionSlugs). */
   private regionSlugs = new Map<string, string>()
 
   static async runFromMigration(payload: Payload): Promise<void> {
@@ -442,7 +442,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
           (r) => r.parent && !geoKeys.has(`${r.parent.level}:${r.parent.legacyId}`),
         ).length,
       )
-      count('venues (→ centers / inline)', data.venues.length)
+      count('venues (→ shared / inline)', data.venues.length)
     }
     if (t('users')) count('users', data.users.length)
     if (t('events')) {
@@ -525,12 +525,12 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ─── Regions (country → region → city → center) ─────────────────────────
+  // ─── Regions (country → region → city → venue) ──────────────────────────
 
   /**
    * Deterministic, collision-free `slug` for every region node (country / region
-   * / city) and `center` venue, keyed by the same `level:legacyId` /
-   * `center:venueId` map key the upserts use. Six region names repeat across the
+   * / city) and shared `venue`, keyed by the same `level:legacyId` /
+   * `venue:venueId` map key the upserts use. Six region names repeat across the
    * Atlas tree (e.g. Georgia the country vs. the US state, São Paulo the state
    * vs. the city) and `regions.slug` is unique, so a bare `slugify(name)` would
    * trip the constraint. Nodes are walked in a fixed `(level, legacyId)` order so
@@ -549,11 +549,11 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
    */
   private buildRegionSlugs(data: AtlasData): Map<string, string> {
     // Legacy `level:legacyId` → region, for parent-name lookups (a node's parent
-    // and the area beneath a center are addressed by their legacy level).
+    // and the area beneath a shared venue are addressed by their legacy level).
     const byLegacyKey = new Map<string, AtlasRegion>()
     for (const region of data.regions) byLegacyKey.set(`${region.level}:${region.legacyId}`, region)
 
-    const LEVEL_RANK: Record<RegionLevel, number> = { country: 0, region: 1, city: 2, center: 3 }
+    const LEVEL_RANK: Record<RegionLevel, number> = { country: 0, region: 1, city: 2, venue: 3 }
     type Node = {
       mapKey: string
       name: string
@@ -590,9 +590,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       if (!venue) continue
       const areaId = venueParentAreaId(venueId, data.events)
       nodes.push({
-        mapKey: `center:${venueId}`,
+        mapKey: `venue:${venueId}`,
         name: venueDisplayName(venue),
-        rank: LEVEL_RANK.center,
+        rank: LEVEL_RANK.venue,
         legacyId: venueId,
         parentName: areaId != null ? byLegacyKey.get(`area:${areaId}`)?.name : undefined,
       })
@@ -654,7 +654,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       await this.upsertRegion(area, parentKey, managersByRegion)
     }
 
-    await this.importCenters(data, managersByRegion)
+    await this.importSharedVenues(data, managersByRegion)
   }
 
   /** Upsert one country/region/city node, resolving its mapboxId + parent + managers. */
@@ -710,37 +710,39 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  /** Multi-use venues (>1 event) become `center` nodes under their area/city. */
-  private async importCenters(
+  /** Venues used by >1 event become `venue` nodes under their area/city. */
+  private async importSharedVenues(
     data: AtlasData,
     managersByRegion: Map<string, (number | string)[]>,
   ): Promise<void> {
     const venuesById = new Map(data.venues.map((v) => [v.legacyId, v]))
-    const centerVenueIds = multiUseVenueIds(data.events)
-    await this.logger.info(`\n=== Importing ${centerVenueIds.size} centers (multi-use venues) ===`)
+    const sharedVenueIds = multiUseVenueIds(data.events)
+    await this.logger.info(`\n=== Importing ${sharedVenueIds.size} shared venues ===`)
 
-    for (const venueId of centerVenueIds) {
+    for (const venueId of sharedVenueIds) {
       const venue = venuesById.get(venueId)
       if (!venue) continue
       const areaId = venueParentAreaId(venueId, data.events)
       const parentId = areaId != null ? this.idMaps.regions.get(`city:${areaId}`) : undefined
-      const mapKey = `center:${venueId}`
+      const mapKey = `venue:${venueId}`
       try {
         const { location, warning } = await resolveRegionLocation({
           name: venueDisplayName(venue),
-          level: 'center',
+          level: 'venue',
           latitude: venue.latitude,
           longitude: venue.longitude,
           countryCode: venue.countryCode,
         })
         if (warning)
-          this.addWarning(`Center "${venueDisplayName(venue)}" (venue #${venueId}): ${warning}`)
+          this.addWarning(
+            `Shared venue "${venueDisplayName(venue)}" (venue #${venueId}): ${warning}`,
+          )
 
         const result = await this.upsert<{ id: number }>(
           'regions',
-          { and: [{ legacyId: { equals: venueId } }, { level: { equals: 'center' } }] },
+          { and: [{ legacyId: { equals: venueId } }, { level: { equals: 'venue' } }] },
           {
-            level: 'center',
+            level: 'venue',
             name: venueDisplayName(venue),
             slug: this.regionSlugs.get(mapKey),
             generateSlug: false, // pin the importer's slug (see upsertRegion)
@@ -750,48 +752,48 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             legacyId: venueId,
             legacyData: venue,
           },
-          { identifier: `center:${venueDisplayName(venue)}` },
+          { identifier: `venue:${venueDisplayName(venue)}` },
         )
         this.idMaps.regions.set(mapKey, result.doc.id)
       } catch (error) {
-        this.addError(`Center for venue #${venueId}`, error as Error)
+        this.addError(`Shared venue region for venue #${venueId}`, error as Error)
       }
     }
 
-    await this.warnOrphanedCenters(centerVenueIds)
+    await this.warnOrphanedVenueNodes(sharedVenueIds)
   }
 
   /**
-   * Report center regions that no longer correspond to a shared venue.
+   * Report `venue` regions that no longer correspond to a shared venue.
    *
    * A venue drops below the >1-event bar when its events are merged away or
-   * re-pointed, and two venue rows for one place collapse into a single center —
+   * re-pointed, and two venue rows for one place collapse into a single node —
    * but the import only ever upserts, so the stale region lingers in the tree
    * with its own public URL. Warn rather than delete: a manager may have hung
    * content or child nodes off it, and a seed script shouldn't destroy that.
    */
-  private async warnOrphanedCenters(centerVenueIds: Set<number>): Promise<void> {
+  private async warnOrphanedVenueNodes(sharedVenueIds: Set<number>): Promise<void> {
     if (!this.payload) return
     try {
       const existing = await this.payload.find({
         collection: 'regions',
-        where: { level: { equals: 'center' } },
+        where: { level: { equals: 'venue' } },
         limit: 0,
         depth: 0,
         overrideAccess: true,
       })
       for (const region of existing.docs) {
         const legacyId = (region as { legacyId?: number }).legacyId
-        if (legacyId != null && !centerVenueIds.has(legacyId)) {
+        if (legacyId != null && !sharedVenueIds.has(legacyId)) {
           this.addWarning(
-            `Region regions/${region.id} ("${(region as { name?: string }).name}") is a center for ` +
+            `Region regions/${region.id} ("${(region as { name?: string }).name}") is a shared-venue node for ` +
               `venue #${legacyId}, which no longer has more than one event — trash it in the admin ` +
               `panel, or re-point its events first.`,
           )
         }
       }
     } catch (error) {
-      this.addWarning(`Could not check for orphaned centers: ${(error as Error).message}`)
+      this.addWarning(`Could not check for orphaned venue nodes: ${(error as Error).message}`)
     }
   }
 
@@ -832,7 +834,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const now = new Date()
 
     const venuesById = new Map(data.venues.map((v) => [v.legacyId, v]))
-    const centerVenueIds = multiUseVenueIds(data.events)
+    const sharedVenueIds = multiUseVenueIds(data.events)
     const managersByLegacyId = new Map(data.managers.map((m) => [m.legacyId, m]))
     // Area (→ city) timezone, the schedule timezone for venue-less (online) events.
     const areaTimeZoneById = new Map(
@@ -862,7 +864,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         await this.importEvent(event, {
           now,
           venuesById,
-          centerVenueIds,
+          sharedVenueIds,
           managersByLegacyId,
           areaTimeZoneById,
           current: offset + i + 1,
@@ -879,7 +881,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     ctx: {
       now: Date
       venuesById: Map<number, AtlasVenue>
-      centerVenueIds: Set<number>
+      sharedVenueIds: Set<number>
       managersByLegacyId: Map<number, AtlasManager>
       areaTimeZoneById: Map<number, string | null | undefined>
       current: number
@@ -897,9 +899,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
 
     const venue = event.venueId != null ? ctx.venuesById.get(event.venueId) : undefined
-    const isCenter = event.venueId != null && ctx.centerVenueIds.has(event.venueId)
-    const regionId = isCenter
-      ? this.idMaps.regions.get(`center:${event.venueId}`)
+    const isSharedVenue = event.venueId != null && ctx.sharedVenueIds.has(event.venueId)
+    const regionId = isSharedVenue
+      ? this.idMaps.regions.get(`venue:${event.venueId}`)
       : event.areaId != null
         ? this.idMaps.regions.get(`city:${event.areaId}`)
         : undefined
@@ -1206,7 +1208,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const id =
       (await geocodeRegion({
         name: venue.name?.trim() || venue.street?.trim() || '',
-        level: 'center',
+        level: 'venue',
         latitude: venue.latitude,
         longitude: venue.longitude,
         countryCode: venue.countryCode,

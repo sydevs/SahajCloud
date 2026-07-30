@@ -1,8 +1,8 @@
 /**
- * Venue routing for the Atlas import. There is no Venues collection: a venue
- * referenced by more than one event becomes a Regions `center` node (events
+ * Venue routing for the Atlas import. There is no Venues collection: a place
+ * referenced by more than one event becomes a Regions `venue` node (events
  * point their `region` at it); a single-use venue's address is lifted inline
- * onto the event's `address` group. Pure helpers — the actual center creation +
+ * onto the event's `address` group. Pure helpers — the actual node creation +
  * Mapbox geocoding live in the importer.
  */
 
@@ -36,7 +36,7 @@ export function countVenueUsage(events: VenueEventRef[]): Map<number, number> {
   return counts
 }
 
-/** Venues referenced by more than one event → become Regions `center` nodes. */
+/** Venues referenced by more than one event → become Regions `venue` nodes. */
 export function multiUseVenueIds(events: VenueEventRef[]): Set<number> {
   const ids = new Set<number>()
   for (const [venueId, count] of countVenueUsage(events)) {
@@ -46,7 +46,7 @@ export function multiUseVenueIds(events: VenueEventRef[]): Set<number> {
 }
 
 /**
- * The area (→ city) a venue's center should hang under: the most common
+ * The area (→ city) a venue's region node should hang under: the most common
  * `areaId` among the events that reference it (ties broken by first seen).
  * Null when none of its events carry an area.
  */

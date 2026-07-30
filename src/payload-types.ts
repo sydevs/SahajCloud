@@ -685,7 +685,7 @@ export interface Config {
       events: 'events';
       childrenRegions: 'regions';
       childrenCities: 'regions';
-      childrenCenters: 'regions';
+      childrenVenues: 'regions';
     };
     events: {
       registrations: 'registrations';
@@ -1365,7 +1365,7 @@ export interface Manager {
  */
 export interface Region {
   id: number;
-  level: 'country' | 'region' | 'city' | 'center';
+  level: 'country' | 'region' | 'city' | 'venue';
   /**
    * The geographic parent of this node (a higher level).
    */
@@ -1411,9 +1411,9 @@ export interface Region {
     totalDocs?: number;
   };
   /**
-   * SY Centers anywhere beneath this one.
+   * Venues anywhere beneath this one.
    */
-  childrenCenters?: {
+  childrenVenues?: {
     docs?: (number | Region)[];
     hasNextPage?: boolean;
     totalDocs?: number;
@@ -1736,7 +1736,7 @@ export interface Event {
       | null;
   };
   /**
-   * The city or center this event belongs to.
+   * The city or venue this event belongs to.
    */
   region: number | Region;
   eventType: 'offline' | 'online';
@@ -4492,7 +4492,7 @@ export interface RegionsSelect<T extends boolean = true> {
   events?: T;
   childrenRegions?: T;
   childrenCities?: T;
-  childrenCenters?: T;
+  childrenVenues?: T;
   generateSlug?: T;
   slug?: T;
   breadcrumbs?:

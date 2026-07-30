@@ -256,19 +256,19 @@ export const Events: CollectionConfig = {
             {
               name: 'region',
               type: 'relationship',
-              label: 'City / Center',
+              label: 'City / Venue',
               relationTo: 'regions',
               required: true,
               filterOptions: async (args) => {
-                // City/center only, and — for an atlas-manager — within their
+                // City/venue only, and — for an atlas-manager — within their
                 // owned-region subtree.
-                const cityOrCenter = { level: { in: ['city', 'center'] } }
+                const cityOrVenue = { level: { in: ['city', 'venue'] } }
                 const owned = await ownedRegionFilterOptions(args)
-                if (owned === true) return cityOrCenter
+                if (owned === true) return cityOrVenue
                 if (owned === false) return false
-                return { and: [cityOrCenter, owned] }
+                return { and: [cityOrVenue, owned] }
               },
-              admin: { description: 'The city or center this event belongs to.' },
+              admin: { description: 'The city or venue this event belongs to.' },
             },
             {
               name: 'eventType',
