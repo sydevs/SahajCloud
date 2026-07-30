@@ -1,5 +1,7 @@
 import type { CollectionBeforeOperationHook, Where } from 'payload'
 
+import { isTrustedReq } from '@/plugins/usage/hooks'
+
 import { andWhere, notFinishedWhere } from '../lifecycle/finished'
 
 /**
@@ -20,9 +22,10 @@ import { andWhere, notFinishedWhere } from '../lifecycle/finished'
  *   `GET /api/events/{id}` still resolves a finished event, which is the whole
  *   point of keeping it published;
  * - the caller is an API client (`req.user.collection === 'clients'`, cf.
- *   `requireActiveClient`) — admin, the Atlas manager sidebar, and internal or
- *   job reads are unaffected, since those legitimately need to see finished
- *   events (the sidebar buckets key off `verificationStage`);
+ *   `requireActiveClient`) serving its own query — admin, the Atlas manager
+ *   sidebar, job reads, and an endpoint's internal `asTrustedReq` lookups are all
+ *   unaffected, since those legitimately need to see finished events (the sidebar
+ *   buckets key off `verificationStage`);
  * - the incoming `where` doesn't already mention `schedule.lastDate` — that's
  *   the explicit opt-out. A client querying past events gets what it asked for.
  *
@@ -36,6 +39,10 @@ export const excludeFinishedEvents: CollectionBeforeOperationHook = ({ operation
   // `findByID` arrives as `read` too, but carries an `id` — leave it alone.
   if ('id' in args) return args
   if (args.req?.user?.collection !== 'clients') return args
+  // An endpoint's own forwarded lookup (asTrustedReq) must see the true state so
+  // it can answer precisely — `POST /api/events/{id}/register` needs to tell "no
+  // such event" (404) from "this event has ended" (409).
+  if (isTrustedReq(args.req)) return args
 
   const where = args.where as Where | undefined
   if (referencesLastDate(where)) return args
