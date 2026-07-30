@@ -126,6 +126,50 @@ describe('schedule.lastDate backfill', () => {
     expect(stats.skipped).toBeGreaterThanOrEqual(1)
   })
 
+  // Pins the one surprising interaction, found by measuring rather than reading:
+  // `cleanupExpiredExclusions` strips a >1-day-past exclusion on every write
+  // (including the create), while `computeLastDate` runs against the incoming
+  // patch — so the create stores a `lastDate` that already reflects an exclusion
+  // it did not keep. The backfill rewrites it to the reproducible value and then
+  // converges. Inert in effect: both dates are in the past, so the event is
+  // finished either way.
+  it('rewrites a lastDate left unreproducible by exclusion cleanup, then converges', async () => {
+    // Weekly Mondays from 2021-01-04, 3 occurrences: Jan 4, 11, 18 — with the
+    // tail (Jan 18) excluded.
+    const course = await testData.createEvent(payload, {
+      title: 'Course With Past Break',
+      inactive: false,
+      eventType: 'online',
+      onlineUrl: 'https://example.com/break',
+      schedule: {
+        firstDate: '2021-01-04T10:00:00.000Z',
+        firstDate_tz: 'Europe/London',
+        recurrenceType: 'WEEKLY',
+        interval: 1,
+        weekdays: ['MO'],
+        endingType: 'count',
+        count: 3,
+        exclusions: [{ startDate: '2021-01-18', reason: 'Historical break' }],
+      },
+    } as never)
+
+    // The exclusion never persisted, yet lastDate reflects it (Jan 11, not Jan 18).
+    expect(course.schedule?.exclusions ?? []).toHaveLength(0)
+    expect(course.schedule?.lastDate).toBe('2021-01-11T23:59:59.999Z')
+
+    await backfillScheduleLastDate({ payload, collection: 'events', apply: true })
+    const first = await readSchedule(course.id)
+    expect(first.schedule?.lastDate).toBe('2021-01-18T23:59:59.999Z')
+
+    // …and it's stable from here.
+    const second = await backfillScheduleLastDate({
+      payload,
+      collection: 'events',
+      apply: true,
+    })
+    expect(second.changed).toBe(0)
+  })
+
   it('runs over app-cards too', async () => {
     // scheduleFields() is shared with AppCards, so the column exists there as well.
     const stats = await backfillScheduleLastDate({ payload, collection: 'app-cards', apply: true })

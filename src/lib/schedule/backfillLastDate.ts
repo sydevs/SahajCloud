@@ -15,6 +15,17 @@
  * depended on this, and `lastOccurrenceEnd` is a pure function of the schedule
  * (no clock), so a second pass finds nothing to do.
  *
+ * **A first pass can move a `lastDate` that looked fine, which is expected.**
+ * `cleanupExpiredExclusions` strips exclusions more than a day past on *every*
+ * write, including the original create — but `computeLastDate` runs against the
+ * incoming patch, so it can apply an exclusion that the same write is removing.
+ * The stored `lastDate` is then not reproducible from the stored sub-fields
+ * (e.g. a trailing occurrence excluded at create yields the earlier date, while a
+ * recompute afterwards yields the later one), and this pass rewrites it to the
+ * reproducible value. Behaviourally inert: a stripped exclusion is by definition
+ * past, so the occurrence it removed is past too — both candidates are behind
+ * `now` and the event is finished either way.
+ *
  * Driven by `scripts/backfill-schedule-last-date.ts`.
  */
 
