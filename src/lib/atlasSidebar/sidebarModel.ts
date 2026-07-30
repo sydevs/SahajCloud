@@ -9,6 +9,7 @@
  */
 
 import type { VerificationStage } from '@/lib/eventVerification/stages'
+import type { RegionLevel } from '@/lib/mapbox/geocoder'
 
 // =============================================================================
 // Events
@@ -121,12 +122,21 @@ export function sortEventsIntoBuckets(events: SidebarEventInput[]): SidebarEvent
 // Regions
 // =============================================================================
 
-/** A region's level in the geographic tree (Country → Region → City → Center). */
-export type RegionLevel = 'country' | 'region' | 'city' | 'venue'
+/**
+ * A region's level in the geographic tree (Country → Region → City → Venue).
+ *
+ * Re-exported from the canonical union rather than redeclared. The import is
+ * **type-only**, so it's erased at compile time and none of `geocoder.ts`'s
+ * server-side Mapbox code reaches the client bundle this module feeds. Declaring
+ * a second union here is what let the `center` → `venue` rename typecheck
+ * cleanly while leaving stale values below — the failure only surfaced when the
+ * unit lane ran.
+ */
+export type { RegionLevel }
 
 /**
  * The level a node's direct child would have — the natural "add child" target
- * (Country → Region, Region → City, City → Center). A Center is a leaf, so it
+ * (Country → Region, Region → City, City → Venue). A Venue is a leaf, so it
  * has no child level. This is the inverse of the Regions collection's
  * `ALLOWED_PARENT_LEVELS`; a Country can technically also parent a City, but a
  * Region is the conventional next level down, so that's what "add child" offers.
@@ -145,8 +155,10 @@ export function childLevelOf(level: RegionLevel): RegionLevel | null {
 
 /**
  * Display label per level, matching the Regions collection's
- * `REGION_LEVEL_OPTIONS`. Duplicated here rather
- * than imported so the pure model + client tree stay free of the server collection.
+ * `REGION_LEVEL_OPTIONS`. This one genuinely must be duplicated: the options
+ * array is a runtime value inside a server collection config, so importing it
+ * would drag that config (and its hooks, `serverEnv` and component paths) into
+ * the client bundle. Keep the two in sync by hand.
  */
 const REGION_LEVEL_LABEL: Record<RegionLevel, string> = {
   country: 'Country',
