@@ -67,8 +67,12 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   translations: {},
   atlas: {
     managers: 327,
-    // 482 source geo nodes (29 + 100 + 353); shared venues add 44 more.
-    regions: 482,
+    // 474 source geo nodes (29 country + 99 region + 346 area, post-dedupe),
+    // plus the 44 shared-venue nodes the importer creates for venues used by
+    // more than one surviving event. Counted, not estimated — verification is
+    // `actual >= expected`, so an understated value here passes even when the
+    // import silently loses rows.
+    regions: 518,
     // 910 source registrants dedupe to 755 unique emails.
     users: 755,
     // 496 rows in events.json (511 extracted, less 15 confirmed duplicates

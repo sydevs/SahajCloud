@@ -168,8 +168,12 @@ export const eventTitleBeforeChange: FieldHook = async ({ value, data, originalD
   if (current && current.trim()) return current
 
   const address = data?.address ?? originalDoc?.address
-  // Nothing to name the place with → leave the title empty (useAsTitle falls
-  // back to the document id).
+  // Nothing to name the place with → hand the value back untouched and let the
+  // field's own `required` validation reject it. Field `beforeChange` hooks run
+  // *before* validation (payload/dist/fields/hooks/beforeChange/promise.js), so
+  // an event with neither a title nor an address is refused rather than saved
+  // blank. Online events have no address at all, which is why the Atlas importer
+  // supplies its own fallback title for them rather than relying on this hook.
   if (!addressPlaceName(address)) return value
 
   const templates = await resolveTitleTemplates(req)

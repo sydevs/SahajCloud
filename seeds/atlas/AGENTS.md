@@ -57,8 +57,8 @@ naive re-extraction fails the unit lane rather than quietly shipping.
 | What | Scope |
 | --- | --- |
 | `website` | 29 events — the "learn more" link (#584, extended by the grooming pass) |
-| `contactEmail` | 28 events — no Atlas column at all |
-| Groomed `customName` / `description` / `room` | 219 events (below) |
+| `contactEmail` | 27 events — no Atlas column at all |
+| Groomed `customName` / `description` / `room` | 446 events (below) |
 | Derived `schedule.weekday` | 44 events — reproducible, `parseSchedule` now emits it |
 | Contact name/phone repairs | 4 events whose two `contactInfo` values were swapped |
 | URL-field repairs | #159, #286 (missing scheme/colon), #352 (an email in a URL field) |
@@ -101,7 +101,8 @@ otherwise-uncontactable event publishable.
 ### The grooming pass
 
 Atlas had no validation on `customName` / `description` / `room`, so ~200
-volunteer managers used the description as a notice-board. 219 of 511 events were
+volunteer managers used the description as a notice-board. 446 of the 511 extracted
+events were
 groomed. The managers' own wording is kept **verbatim**; only these classes were
 touched:
 

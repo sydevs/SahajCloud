@@ -3,6 +3,8 @@ import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
+import { EXPECTED_COUNTS } from '../../seeds/lib/expectedCounts'
+
 /**
  * Guards the grooming pass applied to events.json (#590 follow-up): the free-text
  * `customName` / `room` / `description` fields were cleaned of whitespace and
@@ -189,6 +191,29 @@ describe('events.json structured fields', () => {
         !(e.venueId != null && venueStreets.get(e.venueId)),
     )
     expect(stranded.map((e) => e.legacyId)).toEqual([])
+  })
+
+  it('derives the expected region count from the data', () => {
+    // `EXPECTED_COUNTS.atlas.regions` has to equal what the importer actually
+    // creates: every source geo node, plus one shared-venue node per venue used
+    // by more than one *surviving* event. Verification is `actual >= expected`,
+    // so a stale constant here quietly degrades into no check at all — which is
+    // how it sat at 482 while the real figure moved to 518.
+    const sourceNodes = JSON.parse(
+      readFileSync(path.resolve(process.cwd(), 'seeds/atlas/data/regions.json'), 'utf-8'),
+    ) as unknown[]
+    // The two leftover Atlas test records are the only excluded ids still in the
+    // file, and they carry a venue reference — so a venue whose second user is a
+    // test record is single-use as far as the importer is concerned.
+    const usage = new Map<number, number>()
+    for (const e of events) {
+      if (e.venueId == null || [494, 575].includes(e.legacyId)) continue
+      usage.set(e.venueId, (usage.get(e.venueId) ?? 0) + 1)
+    }
+    const sharedVenues = [...usage.values()].filter((count) => count > 1).length
+    expect(sourceNodes).toHaveLength(474)
+    expect(sharedVenues).toBe(44)
+    expect(EXPECTED_COUNTS.atlas.regions).toBe(sourceNodes.length + sharedVenues)
   })
 
   it('uses languageCodes only where two language listings were merged', () => {
