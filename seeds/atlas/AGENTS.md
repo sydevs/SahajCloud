@@ -229,6 +229,17 @@ The rule the grooming pass settled on:
 - **Blank it** when the title only restated the place, the venue's own street,
   the day/time, or a generic "Free Meditation Classes" — all of which the
   listing already renders from `address` / `schedule`.
+- **Blank it** when the title says nothing but "meditation" in some language —
+  `Méditation`, `Taller de meditación`, `Corso di Meditazione`, `Meditatie
+  Cursus`, `Viikoittainen meditaatio`, `Медитация`. 78 titles went this way; the
+  same string was often repeated verbatim across a dozen cities, so it never
+  distinguished anything. A title earns its place by naming something the
+  auto-fill *can't*: a venue, an audience (`Kids' Meditations`, `Aula de
+  Aprofundamento`), a language (`Viikoittainen meditaatio suomeksi`,
+  `Meditationskurs auf Deutsch`), a format (`Music and Meditation`, `Live Online
+  WhatsApp Video Meditation`) or a named event (`Corso Leopold`, `Puja a Shri
+  Ganesha`). `tests/unit/atlas-events-data.spec.ts` enforces this with a regex
+  over the bare "meditation/class/course" shapes.
 - **Keep it** when it names the **venue**: a library, institute, university or
   community centre. The auto-fill only has the *street*, so
   `Regina Public Library, Glen Elm branch` carries what `1601 Dewdney Ave E`
@@ -238,6 +249,15 @@ The rule the grooming pass settled on:
 - **Keep it** when the street is a poor stand-in for the place — #293
   (`Zentrum`), #294 (`Innenstadt`) would auto-fill to "Meditation at city
   centre", and #371's street is the unusable `B26`.
+
+**Blanking can collide.** Two events at one venue in the same time-of-day slot
+auto-fill to the same title, so check before blanking. Two titles were kept for
+exactly this reason — #463 (sharing 56 Tramstrasse with #567) and #569 (sharing
+14 Hauptstrasse with the already-blank #467). Seven collisions remain, all
+pre-existing pairs the grooming didn't create: #263–#266 (four Madrid classes at
+one address, previously four identical `Taller de meditación` titles), plus
+#138/#244, #156/#524, #362/#543, #377/#625, #612/#696 and #641/#682 — every one
+of them already on the unmerged-duplicates list.
 
 Because the auto-fill takes the **first comma-segment** of `street`, a stray
 comma or a lowercase town name surfaces straight into the listing's name. Three

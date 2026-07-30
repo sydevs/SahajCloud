@@ -16,6 +16,8 @@ import { describe, expect, it } from 'vitest'
 
 interface AtlasEventRow {
   legacyId: number
+  eventType: 'offline' | 'online'
+  venueId: number | null
   customName: string | null
   room: string | null
   description: string | null
@@ -31,6 +33,15 @@ interface AtlasEventRow {
 const DATA_PATH = path.resolve(process.cwd(), 'seeds/atlas/data/events.json')
 const raw = readFileSync(DATA_PATH, 'utf-8')
 const events: AtlasEventRow[] = JSON.parse(raw)
+
+/** Venue streets, for the title auto-fill checks below. */
+const venueStreets = new Map<number, string>(
+  (
+    JSON.parse(
+      readFileSync(path.resolve(process.cwd(), 'seeds/atlas/data/venues.json'), 'utf-8'),
+    ) as { legacyId: number; street: string | null }[]
+  ).map((v) => [v.legacyId, (v.street ?? '').split(',')[0].trim()]),
+)
 
 const TEXT_FIELDS = ['customName', 'room', 'description'] as const
 const textValues = (e: AtlasEventRow) =>
@@ -155,6 +166,29 @@ describe('events.json structured fields', () => {
     // `contactInfo.email_address` the importer never read, less one on a
     // removed duplicate.
     expect(events.filter((e) => e.contactEmail).length).toBe(27)
+  })
+
+  it('keeps no title that only says "meditation"', () => {
+    // A generic custom name is strictly worse than the auto-title, which
+    // localizes and can be improved for every event at once. A title earns its
+    // place by naming something the auto-title can't: a venue, an audience, a
+    // language, a format, or a named event.
+    const GENERIC =
+      /^(free\s+|weekly\s+|daily\s+|online\s+|open\s+)*(guided\s+)?(meditation|meditación|meditazione|meditatie|méditation|meditação|meditaatio|медитация)(\s+(class|classes|course|courses|session|sessions|workshop|meeting|cursus|corso|curso|taller|kurssi))?$/i
+    const bad = events.filter((e) => e.customName && GENERIC.test(e.customName.trim()))
+    expect(bad.map((e) => `#${e.legacyId} ${e.customName}`)).toEqual([])
+  })
+
+  it('leaves no event unable to produce a title at all', () => {
+    // A blank title only works when the auto-fill has something to work with:
+    // an online event (the importer supplies its own fallback) or a street.
+    const stranded = events.filter(
+      (e) =>
+        !e.customName &&
+        e.eventType !== 'online' &&
+        !(e.venueId != null && venueStreets.get(e.venueId)),
+    )
+    expect(stranded.map((e) => e.legacyId)).toEqual([])
   })
 
   it('uses languageCodes only where two language listings were merged', () => {
