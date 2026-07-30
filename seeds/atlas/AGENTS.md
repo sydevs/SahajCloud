@@ -144,18 +144,76 @@ per-day timetable, the three Brasília parks whose monthly meet-ups are stored a
   `Bichinno do Mato` (#586/#587), a postcode in the `street` field (#455), a
   zero-width space in #100's postcode.
 
+## Merged duplicates — 15 rows removed from events.json
+
+Atlas let one real class be entered twice. 12 pairs were confirmed by sharing a
+venue **and** an identical `frequency` / `interval` / `weekday` / `weekNumber` /
+`startTime`, then differing only in title, description, lifecycle status or
+language. Their superseded rows are deleted from
+[data/events.json](data/events.json) (511 → 496) and listed in
+`EXCLUDED_EVENT_LEGACY_IDS` ([import.ts](import.ts)) so a re-extraction can't
+bring them back.
+
+Atlas's own `status` decided which row survives: `0` = verified/live, `6` =
+finished. A `6/0` pair means Atlas had already retired one side.
+
+| Removed | Survivor | Why |
+| --- | --- | --- |
+| #195 | #603 | same Zoom room (`zoom.us/j/827783773`) + slot, same manager, same region |
+| #752 | #753 | one bilingual Ixelles session listed twice, EN and FR |
+| #360 | #684 | Helsinki EN — #360 was `finished` |
+| #392 | #698 | Helsinki FI — #392 was `finished` |
+| #458 #461 #464 #468 #469 | #560 #565 #562 #570 #571 | the Swiss set: one manager's `course` rows retired and re-entered as `dropin`, same venue/weekday/time/language each time |
+| #82 + #496 | — | duplicates of each other, **both** already retired |
+| #497 + #534 | — | duplicates of each other, **both** already retired |
+| #355 + #535 | — | Amstelveen NL/EN pair, **both** already retired |
+
+**A merge is not a delete.** Anything the removed row held that the survivor
+lacked was carried over first: #684 gained #360's `website` (the Helsinki meetup
+link) and its contact, and #698 gained #392's contact.
+
+Two knock-on effects:
+
+- **Venue topology.** `multiUseVenueIds` counts events per venue, so removing a
+  row can drop a venue from multi-use to single-use — its address is then inlined
+  on the event instead of becoming a Regions `center`. Three venues moved this
+  way (132 Amstelveen, 317 Winterthur, 562 Ixelles), so the import creates 3
+  fewer centers. Regions still clear their expected minimum, but re-check this
+  after any further removal.
+- **`expectedCounts.events` is now 494** (496 rows less the 2 test records).
+
+### `languageCodes` — a curated multi-language override
+
+Atlas stored exactly one `languageCode` per row, but Payload's `languages` is
+`hasMany`. #753 merged an English and a French listing of one session, so it
+carries `languageCodes: ['EN', 'FR']`; `mapEventLanguages` prefers that over
+`languageCode` when present. Every other row leaves it unset.
+
+### Not merged, and why
+
+- **#115 / #116** — same Zoom link and slot, same manager, but different
+  `areaId` (Kamloops / Kelowna). One online room deliberately advertised to two
+  regions; merging would delete a region's listing.
+- **#35/#36, #84/#704, #156/#524, #315/#340, #362/#543** — same slot and venue,
+  but **two different managers own the rows** (and #35/#36 differ in `endTime`,
+  #156/#524 in `room`). Needs both people to agree first.
+- **#400/#404 (Brasília), #435/#437 (Rio)** — these look co-located only because
+  a venue record's coordinates disagree with its own stated address. A *venue*
+  data bug, not duplicate events.
+
 ### Test records
 
-#494 (`Test`) and #575 (`Test Event`) are leftover Atlas test rows. The importer
-skips them via `SKIP_EVENT_LEGACY_IDS` ([import.ts](import.ts)) rather than
-deleting the rows, so the exclusion survives a re-extraction — which is also why
-`expectedCounts.ts` expects **509** events, not 511.
+#494 (`Test`) and #575 (`Test Event`) are leftover Atlas test rows. Unlike the
+merged duplicates above they are still *in* events.json — the importer skips them
+via `EXCLUDED_EVENT_LEGACY_IDS` ([import.ts](import.ts)), which keeps them in the
+list handed to `multiUseVenueIds` so the venue → center topology is unchanged.
 
-**Skipping can't undo an earlier import.** Any environment seeded before this
-guard still holds both rows, and #575's Atlas `published` was `true`, so it
-landed as a *published* listing. The importer now emits a warning naming the
-existing document id (`events/<id>`) on every run; trash those two rows by hand
-in the admin panel. Check prod.
+**Skipping can't undo an earlier import.** Any environment seeded before these
+guards still holds the rows — both test records (#575's Atlas `published` was
+`true`, so it landed as a *published* listing) and all 15 merged duplicates. The
+importer emits a warning naming the existing document id (`events/<id>`) for
+every excluded row on every run; trash them by hand in the admin panel. Check
+prod.
 
 ## Event titles: a blank title beats a generic one
 

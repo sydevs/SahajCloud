@@ -23,6 +23,7 @@ interface AtlasEventRow {
   registrationUrl: string | null
   website?: string
   contactEmail?: string
+  languageCodes?: string[]
   contactInfo: { phone_name?: string; phone_number?: string } | null
   schedule: { frequency: string; weekday: string | null } | null
 }
@@ -43,9 +44,20 @@ const URL_RE = /(?:https?:\/\/|www\.)[^\s<>"')]+/i
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.]{2,}/
 
 describe('events.json integrity', () => {
-  it('still holds every source row', () => {
-    expect(events).toHaveLength(511)
-    expect(new Set(events.map((e) => e.legacyId)).size).toBe(511)
+  it('holds every source row bar the removed duplicates', () => {
+    // 511 extracted, less the 15 confirmed duplicates merged away (same venue,
+    // weekday and start time as a surviving row) — see EXCLUDED_EVENT_LEGACY_IDS.
+    expect(events).toHaveLength(496)
+    expect(new Set(events.map((e) => e.legacyId)).size).toBe(496)
+  })
+
+  it('has no survivor left pointing at a removed duplicate', () => {
+    const present = new Set(events.map((e) => e.legacyId))
+    const removed = [82, 195, 355, 360, 392, 458, 461, 464, 468, 469, 496, 497, 534, 535, 752]
+    expect(removed.filter((id) => present.has(id))).toEqual([])
+    // The survivors must all still be there.
+    const survivors = [560, 562, 565, 570, 571, 603, 684, 698, 753]
+    expect(survivors.filter((id) => !present.has(id))).toEqual([])
   })
 
   it('is written exactly as extract.ts would write it', () => {
@@ -140,8 +152,17 @@ describe('events.json structured fields', () => {
     )
     expect(bad).toEqual([])
     // 16 lifted out of free-text descriptions + 12 promoted from the legacy
-    // `contactInfo.email_address` the importer never read.
-    expect(events.filter((e) => e.contactEmail).length).toBe(28)
+    // `contactInfo.email_address` the importer never read, less one on a
+    // removed duplicate.
+    expect(events.filter((e) => e.contactEmail).length).toBe(27)
+  })
+
+  it('uses languageCodes only where two language listings were merged', () => {
+    // Atlas stored one `languageCode` per row; the curated override exists for
+    // a session that was listed twice, once per language.
+    const merged = events.filter((e) => e.languageCodes?.length)
+    expect(merged.map((e) => e.legacyId)).toEqual([753])
+    expect(merged[0].languageCodes).toEqual(['EN', 'FR'])
   })
 
   it('preserves the legacy contactInfo keys the importer does not read', () => {

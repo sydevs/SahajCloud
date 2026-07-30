@@ -117,6 +117,11 @@ interface AtlasEvent {
   website?: string
   /** Curated in events.json, not extracted from Atlas — see seeds/atlas/AGENTS.md. */
   contactEmail?: string
+  /**
+   * Curated override for `languageCode` on events merged from two same-slot
+   * listings that differed only in language — see seeds/atlas/AGENTS.md.
+   */
+  languageCodes?: string[]
   registrationLimit: number | null
   registrationQuestions: string[]
   contactInfo: { phone_name?: string; phone_number?: string } | null
@@ -203,13 +208,39 @@ const REGISTRATION_QUESTION_MAP: Record<string, string> = {
 const DEFAULT_LOCALE = 'en'
 
 /**
- * Atlas rows that are test records, not real events — #494 ("Test") and #575
- * ("Test Event"). Skipped here rather than deleted from events.json so the
- * exclusion survives a re-extraction. They stay in the events list handed to
- * `multiUseVenueIds`, so the venue → center topology (and the regions count) is
- * unaffected by the skip.
+ * Atlas rows that must never become events, and why.
+ *
+ * #494/#575 are test records still present in events.json — skipping rather than
+ * deleting keeps them out of the import while leaving the events list handed to
+ * `multiUseVenueIds` unchanged, so the venue → center topology (and the regions
+ * count) is unaffected.
+ *
+ * The rest were **removed from events.json** as confirmed duplicates: same
+ * venue, weekday and start time as a surviving row, differing only in title,
+ * description, lifecycle status or language. They are listed here so a
+ * re-extraction — which rebuilds the file from `select * from events` and would
+ * bring every one of them back — cannot silently undo the merge. See
+ * seeds/atlas/AGENTS.md for the evidence behind each.
  */
-const SKIP_EVENT_LEGACY_IDS = new Set([494, 575])
+const EXCLUDED_EVENT_LEGACY_IDS = new Map<number, string>([
+  [494, 'Atlas test record'],
+  [575, 'Atlas test record'],
+  [195, 'duplicate — same Zoom room + slot as #603'],
+  [752, 'duplicate — merged into the bilingual #753'],
+  [360, 'duplicate — retired half of the pair kept as #684'],
+  [392, 'duplicate — retired half of the pair kept as #698'],
+  [458, 'duplicate — retired half of the pair kept as #560'],
+  [461, 'duplicate — retired half of the pair kept as #565'],
+  [464, 'duplicate — retired half of the pair kept as #562'],
+  [468, 'duplicate — retired half of the pair kept as #570'],
+  [469, 'duplicate — retired half of the pair kept as #571'],
+  [82, 'duplicate of #496; both sides already retired'],
+  [496, 'duplicate of #82; both sides already retired'],
+  [497, 'duplicate of #534; both sides already retired'],
+  [534, 'duplicate of #497; both sides already retired'],
+  [355, 'duplicate of #535; both sides already retired'],
+  [535, 'duplicate of #355; both sides already retired'],
+])
 
 // ============================================================================
 // ATLAS IMPORTER
@@ -775,16 +806,18 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     for (let i = 0; i < batch.length; i++) {
       const event = batch[i]
       const identifier = event.customName || `event-${event.legacyId}`
-      if (SKIP_EVENT_LEGACY_IDS.has(event.legacyId)) {
-        this.skip(`Event "${identifier}" (#${event.legacyId}) — leftover Atlas test record`)
+      const excluded = EXCLUDED_EVENT_LEGACY_IDS.get(event.legacyId)
+      if (excluded) {
+        this.skip(`Event "${identifier}" (#${event.legacyId}) — ${excluded}`)
         // Skipping stops it being (re-)created, but can't undo an earlier import
-        // that predates this guard — and #575 came through as *published*. Flag
-        // it so an operator trashes the row by hand.
+        // that predates this guard — #575 came through as *published*, and every
+        // merged duplicate was imported before the merge. Flag it so an operator
+        // trashes the row by hand.
         const existing = this.getPreloaded('events', String(event.legacyId))
         if (existing) {
           this.addWarning(
-            `Event #${event.legacyId} ("${identifier}") is a test record but already exists ` +
-              `as events/${existing.id} — trash it in the admin panel.`,
+            `Event #${event.legacyId} ("${identifier}") is excluded (${excluded}) but already ` +
+              `exists as events/${existing.id} — trash it in the admin panel.`,
           )
         }
         continue
@@ -890,7 +923,10 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       title:
         event.customName?.trim() ||
         (event.eventType === 'online' ? 'Online Sahaj Yoga Meditation' : ''),
-      languages: [language ?? DEFAULT_LOCALE],
+      // `languages` is hasMany, but Atlas only ever stored one code. A merged
+      // bilingual event (two listings of one session) carries the curated
+      // `languageCodes` instead — see seeds/atlas/AGENTS.md.
+      languages: this.mapEventLanguages(event, language),
       contactPhone: contactPhone ?? null,
       contactName: contactName ?? null,
       // Atlas stores descriptions as plain text; the richText field needs Lexical.
@@ -1160,6 +1196,28 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       longitude: location.longitude ?? undefined,
       radius: location.radius ?? undefined,
     }
+  }
+
+  /**
+   * The Events `languages` value. Atlas stored a single `languageCode`, so this
+   * is normally a one-element array. Events merged from two same-slot listings
+   * that differed only in language carry a curated `languageCodes` instead —
+   * one bilingual session rather than two rows. Unmappable codes are warned
+   * about and dropped; an empty result falls back to the default locale.
+   */
+  private mapEventLanguages(event: AtlasEvent, fallback: string | undefined): string[] {
+    const curated = event.languageCodes
+    if (!curated?.length) return [fallback ?? DEFAULT_LOCALE]
+    const mapped: string[] = []
+    for (const code of curated) {
+      const locale = mapLanguageCode(code)
+      if (locale) {
+        if (!mapped.includes(locale)) mapped.push(locale)
+      } else {
+        this.addWarning(`Event #${event.legacyId}: unmapped languageCodes entry "${code}"`)
+      }
+    }
+    return mapped.length ? mapped : [fallback ?? DEFAULT_LOCALE]
   }
 
   /** Compute a manager's notification prefs from the in-memory Atlas record. */

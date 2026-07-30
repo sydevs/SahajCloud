@@ -71,9 +71,10 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     regions: 482,
     // 910 source registrants dedupe to 755 unique emails.
     users: 755,
-    // 511 source rows, less the 2 leftover test records the importer skips
-    // (SKIP_EVENT_LEGACY_IDS in seeds/atlas/import.ts).
-    events: 509,
+    // 496 rows in events.json (511 extracted, less 15 confirmed duplicates
+    // removed), less the 2 leftover test records the importer skips —
+    // EXCLUDED_EVENT_LEGACY_IDS in seeds/atlas/import.ts.
+    events: 494,
     registrations: 886,
     clients: 25,
   },
