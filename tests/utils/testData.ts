@@ -1,4 +1,4 @@
-import type { Payload, TypedUser } from 'payload'
+import type { CollectionSlug, Payload, RequiredDataFromCollectionSlug, TypedUser } from 'payload'
 
 import fs from 'fs'
 import path from 'path'
@@ -24,11 +24,44 @@ import type {
   Video,
   Author,
   Lecture,
-  ManagerRole,
-  ClientRole,
   Event,
   Region,
 } from '@/payload-types'
+
+/**
+ * Manager- and client-specific role subsets.
+ *
+ * `@/payload-types` exports only the combined `RoleSlug` — all seven roles, which
+ * the access plugin injects into the generated JSON schema — so these are derived
+ * from each collection's own `roles` field and track it automatically.
+ */
+type ManagerRole = NonNullable<Manager['roles']>[number]
+type ClientRole = NonNullable<Client['roles']>[number]
+
+/**
+ * Checks a test factory's `create` payload, then hands it to `payload.create` at
+ * the type that operation wants.
+ *
+ * Payload derives `create`'s `data` type from the generated *output* doc type, so
+ * every field carrying a `defaultValue` or a value-filling hook is typed as
+ * **required** even though Payload supplies it when omitted — `slug` (via
+ * `slugField`), `appCards.default.aspectRatio`, `userChoices.type`, and more.
+ * Factories additionally spread `Partial<Doc>` overrides into `data`, which
+ * re-widens genuinely-required keys to `T | undefined`.
+ *
+ * So the payload is modelled as partial: Payload fills the remainder, and its own
+ * validation — exercised by the int lane — is what enforces truly-required fields.
+ * What `tsc` still checks here, and the reason this seam exists, is that every
+ * field a test *does* pass is a real field of that collection with a valid type.
+ * That's the rot #606 is about: a renamed field or a stale enum literal (say
+ * `level: 'center'` after #605) now fails instantly instead of after a 7-minute
+ * CI round.
+ */
+function createData<TSlug extends CollectionSlug>(
+  data: Partial<RequiredDataFromCollectionSlug<TSlug>>,
+): RequiredDataFromCollectionSlug<TSlug> {
+  return data as RequiredDataFromCollectionSlug<TSlug>
+}
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -83,7 +116,7 @@ export const testData = {
 
     return (await payload.create({
       collection: 'app-cards',
-      data: {
+      data: createData<'app-cards'>({
         label: `Test Card ${uniqueId}`,
         type: 'standard',
         ...restOverrides,
@@ -92,9 +125,15 @@ export const testData = {
           header: 'Test Header',
           textColor: 'black',
           image: imageId,
+          // `default` is a nested group, so `createData`'s top-level `Partial`
+          // doesn't reach inside it — and both of these are `required: true` with
+          // a `defaultValue` in AppCards. Pass the collection's own declared
+          // defaults, which is what Payload would have filled in anyway.
+          aspectRatio: 'square',
+          alignment: 'center',
           ...defaultOverrides,
         },
-      },
+      }),
     })) as AppCard
   },
 
@@ -239,11 +278,11 @@ export const testData = {
 
     return (await payload.create({
       collection: 'user-choices',
-      data: {
+      data: createData<'user-choices'>({
         title: defaultTitle,
         color: '#FF5733',
         ...overrides,
-      },
+      }),
       file: {
         // Use Buffer directly - SVG detection requires Buffer.toString(encoding, start, end)
         data: fileBuffer,
@@ -334,10 +373,10 @@ export const testData = {
 
     return (await payload.create({
       collection: 'song-tags',
-      data: {
+      data: createData<'song-tags'>({
         title: defaultTitle,
         ...overrides,
-      },
+      }),
       file: {
         // Use Buffer directly - SVG detection requires Buffer.toString(encoding, start, end)
         data: fileBuffer,
@@ -632,10 +671,9 @@ export const testData = {
       },
     })
 
-    return {
-      collection: 'managers',
-      ...manager,
-    } as Manager & { collection: 'managers' }
+    // `collection` last: the access-control mocks in `.claude/rules/tests.md`
+    // require the discriminator, so it must not be spreadable-away.
+    return { ...manager, collection: 'managers' as const }
   },
 
   /**
@@ -657,10 +695,7 @@ export const testData = {
       },
     })
 
-    return {
-      collection: 'clients',
-      ...client,
-    } as Client & { collection: 'clients' }
+    return { ...client, collection: 'clients' as const }
   },
 
   /**
@@ -673,7 +708,7 @@ export const testData = {
 
     return (await payload.create({
       collection: 'pages',
-      data: {
+      data: createData<'pages'>({
         title: overrides.title || defaultTitle,
         tags: [],
         content: {
@@ -703,7 +738,7 @@ export const testData = {
           },
         },
         ...overrides,
-      },
+      }),
     })) as Page
   },
 
@@ -777,10 +812,10 @@ export const testData = {
   async createAuthor(payload: Payload, overrides: Partial<Author> = {}): Promise<Author> {
     return (await payload.create({
       collection: 'authors',
-      data: {
+      data: createData<'authors'>({
         name: 'Test Author',
         ...overrides,
-      },
+      }),
     })) as Author
   },
 
@@ -922,7 +957,7 @@ export const testData = {
 
     return (await payload.create({
       collection: 'regions',
-      data: {
+      data: createData<'regions'>({
         name,
         level: 'city',
         mapboxId,
@@ -931,7 +966,7 @@ export const testData = {
         longitude: 0,
         radius: 1000,
         ...overrides,
-      },
+      }),
     })) as Region
   },
 
