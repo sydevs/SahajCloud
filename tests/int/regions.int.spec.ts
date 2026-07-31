@@ -147,7 +147,7 @@ describe('Regions child-join recursive descendants', () => {
   })
 
   describe('from a City', () => {
-    it('lists its direct centers', async () => {
+    it('lists its direct venues', async () => {
       const city = await readRegion(cityA)
       expect(joinIds(city, 'childrenVenues')).toEqual([venueA])
     })
@@ -194,7 +194,7 @@ describe('Regions child-join recursive descendants', () => {
     })
 
     it('builds the full ancestor slug chain including the node itself', async () => {
-      const [country, region, city, center] = await Promise.all([
+      const [country, region, city, venue] = await Promise.all([
         readRegion(countryA),
         readRegion(regionA),
         readRegion(cityA),
@@ -206,7 +206,7 @@ describe('Regions child-join recursive descendants', () => {
       expect(country.webPath).toBe(`/${c}`)
       expect(region.webPath).toBe(`/${c}/${r}`)
       expect(city.webPath).toBe(`/${c}/${r}/${ci}`)
-      expect(center.webPath).toBe(`/${c}/${r}/${ci}/${String(center.slug)}`)
+      expect(venue.webPath).toBe(`/${c}/${r}/${ci}/${String(venue.slug)}`)
     })
 
     it('collapses the region-optional shape (a city directly under a country)', async () => {
