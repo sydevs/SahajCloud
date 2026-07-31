@@ -56,23 +56,18 @@ type DummyUserOverrides = Partial<Omit<Manager, 'roles'> | Omit<Client, 'roles'>
 }
 
 /**
- * Checks a test factory's `create` payload, then hands it to `payload.create` at
- * the type that operation wants.
+ * Checks a factory's `create` payload, then hands it over at the type
+ * `payload.create` wants.
  *
- * Payload derives `create`'s `data` type from the generated *output* doc type, so
- * every field carrying a `defaultValue` or a value-filling hook is typed as
- * **required** even though Payload supplies it when omitted — `slug` (via
- * `slugField`), `appCards.default.aspectRatio`, `userChoices.type`, and more.
- * Factories additionally spread `Partial<Doc>` overrides into `data`, which
- * re-widens genuinely-required keys to `T | undefined`.
+ * Payload derives that `data` type from the generated *output* doc, so fields it
+ * fills in itself are still demanded on input (`slug`, `userChoices.type`, …), and
+ * the `Partial<Doc>` overrides these factories spread in re-widen required keys to
+ * `T | undefined`. Hence the partial: Payload supplies the rest, and its own
+ * validation — which the int lane exercises — enforces what's truly required.
  *
- * So the payload is modelled as partial: Payload fills the remainder, and its own
- * validation — exercised by the int lane — is what enforces truly-required fields.
- * What `tsc` still checks here, and the reason this seam exists, is that every
- * field a test *does* pass is a real field of that collection with a valid type.
- * That's the rot #606 is about: a renamed field or a stale enum literal (say
- * `level: 'center'` after #605) now fails instantly instead of after a 7-minute
- * CI round.
+ * What `tsc` still catches is the point: every field a test *does* pass must be a
+ * real field of that collection, with a valid type. That's the #606 rot — a stale
+ * enum literal like `level: 'center'` now fails here, not 7 minutes into CI.
  */
 function createData<TSlug extends CollectionSlug>(
   data: Partial<RequiredDataFromCollectionSlug<TSlug>>,
