@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
+import type { LocaleCode } from '@/lib/locales'
 import type {
   AppCard,
   Narrator,
@@ -26,17 +27,33 @@ import type {
   Lecture,
   Event,
   Region,
+  RoleSlug,
 } from '@/payload-types'
 
 /**
- * Manager- and client-specific role subsets.
+ * The manager-specific role subset.
  *
  * `@/payload-types` exports only the combined `RoleSlug` — all seven roles, which
- * the access plugin injects into the generated JSON schema — so these are derived
- * from each collection's own `roles` field and track it automatically.
+ * the access plugin injects into the generated JSON schema — so this is derived
+ * from the collection's own `roles` field and tracks it automatically.
  */
 type ManagerRole = NonNullable<Manager['roles']>[number]
-type ClientRole = NonNullable<Client['roles']>[number]
+
+/**
+ * Overrides for `dummyUser` — a hand-built mock auth user, not a real document.
+ *
+ * `roles` is declared apart from the generated doc types because manager roles
+ * are **localized**: at runtime they arrive as a per-locale record, which is the
+ * shape `filterAvailableLocales` reads, while Payload generates the field as a
+ * flat array. Intersecting `{ roles?: … }` onto the doc type wouldn't override
+ * that array, it would intersect with it — so `roles` is `Omit`ted from the doc
+ * fields first. Locale keys are optional: a manager only has entries for locales
+ * they hold a role in, and both readers already treat an absent key as "no roles"
+ * (`extractRoles` does `roles[locale] || []`).
+ */
+type DummyUserOverrides = Partial<Omit<Manager, 'roles'> | Omit<Client, 'roles'>> & {
+  roles?: RoleSlug[] | Partial<Record<LocaleCode, RoleSlug[]>>
+}
 
 /**
  * Checks a test factory's `create` payload, then hands it to `payload.create` at
@@ -910,9 +927,9 @@ export const testData = {
    *   permissions: { pages: ['read', 'translate'], projects: ['wemeditate-web'] }
    * })
    */
-  dummyUser(collection: 'managers' | 'clients', overrides: Partial<Manager | Client> = {}) {
+  dummyUser(collection: 'managers' | 'clients', overrides: DummyUserOverrides = {}) {
     // Handle roles field based on collection type
-    let defaultRoles: ManagerRole[] | ClientRole[] | { en: string[] }
+    let defaultRoles: NonNullable<DummyUserOverrides['roles']>
     if (collection === 'managers') {
       // Managers have localized roles
       defaultRoles = overrides.roles || { en: [] }
