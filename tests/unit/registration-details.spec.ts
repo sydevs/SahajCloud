@@ -28,7 +28,10 @@ function schedule(overrides: Partial<Schedule> = {}): Schedule {
   } as Schedule
 }
 
-function event(overrides: Partial<Event> = {}): Event {
+// `title` is widened to allow `null`: the collection requires it, so that state
+// is unreachable in practice, but the shaper defends against it with an
+// id-based fallback and the case below asserts that defence.
+function event(overrides: Partial<Omit<Event, 'title'>> & { title?: string | null } = {}): Event {
   return {
     id: 1,
     title: 'Meditation Class',
