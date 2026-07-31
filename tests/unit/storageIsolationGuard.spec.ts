@@ -149,7 +149,8 @@ describe('Cloudflare Stream delete guard', () => {
       return jsonResponse({ success: true, errors: [] })
     })
 
-  const deleteCalls = (spy: ReturnType<typeof vi.spyOn>) =>
+  // Typed off the helper above, so `calls` keeps `fetch`'s argument tuple.
+  const deleteCalls = (spy: ReturnType<typeof mockFetchWithMeta>) =>
     spy.mock.calls.filter(([, init]) => (init?.method ?? 'GET').toUpperCase() === 'DELETE')
 
   const handleDelete = (uid: string) =>

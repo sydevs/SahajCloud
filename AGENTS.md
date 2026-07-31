@@ -49,7 +49,8 @@ Manual fallback: `pnpm dev` (start), `pnpm devsafe` (clean dev — removes `.nex
 ### Code Quality, Types, Testing
 
 - `pnpm lint` — ESLint
-- `pnpm typecheck` — TypeScript type checking
+- `pnpm typecheck` — TypeScript type checking over `src/` (the root `tsconfig.json` excludes `tests`)
+- `pnpm typecheck:tests` — the same over the test suite, via `tsconfig.test.json` (unit lane for now; `tests/int/**` is #606 Phase 2)
 - `pnpm generate:types` — TypeScript types from Payload schema (after schema changes)
 - `pnpm generate:importmap` — admin-panel import map
 - `pnpm test:unit` — fast unit lane (~1–2 s, no Payload bootstrap)
@@ -141,8 +142,8 @@ The test suite runs in three tiers (see `.claude/rules/testing-reqs.md` for the 
 | Tier           | Command                                     | Fires when                                               |
 | -------------- | ------------------------------------------- | -------------------------------------------------------- |
 | **1 — Hook**   | `pnpm test:unit`                            | Claude PostToolUse on `src/**` / `tests/unit/**` (< 5 s) |
-| **2 — Pre-PR** | `pnpm lint && pnpm typecheck && pnpm test:unit`               | Local pr-prep lean gate (< 45 s)                         |
-| **3 — CI**     | `pnpm lint && pnpm typecheck && pnpm test && pnpm test:smoke` | GitHub Actions on every PR (≤ 20 min)                    |
+| **2 — Pre-PR** | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test:unit`               | Local pr-prep lean gate (< 45 s)                         |
+| **3 — CI**     | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test && pnpm test:smoke` | GitHub Actions on every PR (≤ 20 min)                    |
 
 Before marking a PR ready, run the **Tier 2** lean gate plus the targeted integration spec(s) for what you changed. Use the `/pr-prep` skill (`.claude/skills/pr-prep/`) — its `--full` flag reproduces the Tier 3 checks locally when you need to debug a red run, and it documents handling pre-existing failures. Don't block on a local full-suite/build run — that's CI's job.
 

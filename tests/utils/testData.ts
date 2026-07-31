@@ -1,9 +1,10 @@
-import type { Payload, TypedUser } from 'payload'
+import type { CollectionSlug, Payload, RequiredDataFromCollectionSlug, TypedUser } from 'payload'
 
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
+import type { LocaleCode } from '@/lib/locales'
 import type {
   AppCard,
   Narrator,
@@ -24,11 +25,55 @@ import type {
   Video,
   Author,
   Lecture,
-  ManagerRole,
-  ClientRole,
   Event,
   Region,
+  RoleSlug,
 } from '@/payload-types'
+
+/**
+ * The manager-specific role subset.
+ *
+ * `@/payload-types` exports only the combined `RoleSlug` — all seven roles, which
+ * the access plugin injects into the generated JSON schema — so this is derived
+ * from the collection's own `roles` field and tracks it automatically.
+ */
+type ManagerRole = NonNullable<Manager['roles']>[number]
+
+/**
+ * Overrides for `dummyUser` — a hand-built mock auth user, not a real document.
+ *
+ * `roles` is declared apart from the generated doc types because manager roles
+ * are **localized**: at runtime they arrive as a per-locale record, which is the
+ * shape `filterAvailableLocales` reads, while Payload generates the field as a
+ * flat array. Intersecting `{ roles?: … }` onto the doc type wouldn't override
+ * that array, it would intersect with it — so `roles` is `Omit`ted from the doc
+ * fields first. Locale keys are optional: a manager only has entries for locales
+ * they hold a role in, and both readers already treat an absent key as "no roles"
+ * (`extractRoles` does `roles[locale] || []`).
+ */
+type DummyUserOverrides = Partial<Omit<Manager, 'roles'> | Omit<Client, 'roles'>> & {
+  roles?: RoleSlug[] | Partial<Record<LocaleCode, RoleSlug[]>>
+}
+
+/**
+ * Checks a factory's `create` payload, then hands it over at the type
+ * `payload.create` wants.
+ *
+ * Payload derives that `data` type from the generated *output* doc, so fields it
+ * fills in itself are still demanded on input (`slug`, `userChoices.type`, …), and
+ * the `Partial<Doc>` overrides these factories spread in re-widen required keys to
+ * `T | undefined`. Hence the partial: Payload supplies the rest, and its own
+ * validation — which the int lane exercises — enforces what's truly required.
+ *
+ * What `tsc` still catches is the point: every field a test *does* pass must be a
+ * real field of that collection, with a valid type. That's the #606 rot — a stale
+ * enum literal like `level: 'center'` now fails here, not 7 minutes into CI.
+ */
+function createData<TSlug extends CollectionSlug>(
+  data: Partial<RequiredDataFromCollectionSlug<TSlug>>,
+): RequiredDataFromCollectionSlug<TSlug> {
+  return data as RequiredDataFromCollectionSlug<TSlug>
+}
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -83,7 +128,7 @@ export const testData = {
 
     return (await payload.create({
       collection: 'app-cards',
-      data: {
+      data: createData<'app-cards'>({
         label: `Test Card ${uniqueId}`,
         type: 'standard',
         ...restOverrides,
@@ -92,9 +137,15 @@ export const testData = {
           header: 'Test Header',
           textColor: 'black',
           image: imageId,
+          // `default` is a nested group, so `createData`'s top-level `Partial`
+          // doesn't reach inside it — and both of these are `required: true` with
+          // a `defaultValue` in AppCards. Pass the collection's own declared
+          // defaults, which is what Payload would have filled in anyway.
+          aspectRatio: 'square',
+          alignment: 'center',
           ...defaultOverrides,
         },
-      },
+      }),
     })) as AppCard
   },
 
@@ -239,11 +290,11 @@ export const testData = {
 
     return (await payload.create({
       collection: 'user-choices',
-      data: {
+      data: createData<'user-choices'>({
         title: defaultTitle,
         color: '#FF5733',
         ...overrides,
-      },
+      }),
       file: {
         // Use Buffer directly - SVG detection requires Buffer.toString(encoding, start, end)
         data: fileBuffer,
@@ -334,10 +385,10 @@ export const testData = {
 
     return (await payload.create({
       collection: 'song-tags',
-      data: {
+      data: createData<'song-tags'>({
         title: defaultTitle,
         ...overrides,
-      },
+      }),
       file: {
         // Use Buffer directly - SVG detection requires Buffer.toString(encoding, start, end)
         data: fileBuffer,
@@ -632,10 +683,9 @@ export const testData = {
       },
     })
 
-    return {
-      collection: 'managers',
-      ...manager,
-    } as Manager & { collection: 'managers' }
+    // `collection` last: the access-control mocks in `.claude/rules/tests.md`
+    // require the discriminator, so it must not be spreadable-away.
+    return { ...manager, collection: 'managers' as const }
   },
 
   /**
@@ -657,10 +707,7 @@ export const testData = {
       },
     })
 
-    return {
-      collection: 'clients',
-      ...client,
-    } as Client & { collection: 'clients' }
+    return { ...client, collection: 'clients' as const }
   },
 
   /**
@@ -673,7 +720,7 @@ export const testData = {
 
     return (await payload.create({
       collection: 'pages',
-      data: {
+      data: createData<'pages'>({
         title: overrides.title || defaultTitle,
         tags: [],
         content: {
@@ -703,7 +750,7 @@ export const testData = {
           },
         },
         ...overrides,
-      },
+      }),
     })) as Page
   },
 
@@ -777,10 +824,10 @@ export const testData = {
   async createAuthor(payload: Payload, overrides: Partial<Author> = {}): Promise<Author> {
     return (await payload.create({
       collection: 'authors',
-      data: {
+      data: createData<'authors'>({
         name: 'Test Author',
         ...overrides,
-      },
+      }),
     })) as Author
   },
 
@@ -875,9 +922,9 @@ export const testData = {
    *   permissions: { pages: ['read', 'translate'], projects: ['wemeditate-web'] }
    * })
    */
-  dummyUser(collection: 'managers' | 'clients', overrides: Partial<Manager | Client> = {}) {
+  dummyUser(collection: 'managers' | 'clients', overrides: DummyUserOverrides = {}) {
     // Handle roles field based on collection type
-    let defaultRoles: ManagerRole[] | ClientRole[] | { en: string[] }
+    let defaultRoles: NonNullable<DummyUserOverrides['roles']>
     if (collection === 'managers') {
       // Managers have localized roles
       defaultRoles = overrides.roles || { en: [] }
@@ -922,7 +969,7 @@ export const testData = {
 
     return (await payload.create({
       collection: 'regions',
-      data: {
+      data: createData<'regions'>({
         name,
         level: 'city',
         mapboxId,
@@ -931,7 +978,7 @@ export const testData = {
         longitude: 0,
         radius: 1000,
         ...overrides,
-      },
+      }),
     })) as Region
   },
 

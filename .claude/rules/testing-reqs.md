@@ -23,10 +23,12 @@ Every test command belongs to one of three tiers. Each tier has a job — Claude
 | Tier           | Command                                     | Target runtime | Fires when                                                                                        |
 | -------------- | ------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------- |
 | **1 — Hook**   | `pnpm test:unit`                            | < 5 s          | Claude PostToolUse Edit/Write on `src/**` and `tests/unit/**` (see `.claude/hooks/unit-test.mjs`) |
-| **2 — Pre-PR** | `pnpm lint && pnpm typecheck && pnpm test:unit`               | < 45 s         | The pr-prep lean gate — `.claude/skills/pr-prep/check.sh`                                         |
-| **3 — CI**     | `pnpm lint && pnpm typecheck && pnpm test && pnpm test:smoke` | ≤ 20 min       | GitHub Actions on every PR (`.github/workflows/ci.yml`)                                           |
+| **2 — Pre-PR** | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test:unit`               | < 45 s         | The pr-prep lean gate — `.claude/skills/pr-prep/check.sh`                                         |
+| **3 — CI**     | `pnpm lint && pnpm typecheck && pnpm typecheck:tests && pnpm test && pnpm test:smoke` | ≤ 20 min       | GitHub Actions on every PR (`.github/workflows/ci.yml`)                                           |
 
 > **Why `pnpm typecheck` is its own gate step:** `eslint` and Vitest do **not** type-check (`tsc`), so a type error passes lint + the whole test suite and surfaces only at the Railway build — i.e. after merge. Tier 2 and CI both run `tsc --noEmit` (~15-20 s) to catch it before merge.
+>
+> **Why `pnpm typecheck:tests` is separate:** the root `tsconfig.json` lists `tests` in `exclude`, and it's the config the Next.js build consumes — so `pnpm typecheck` covers `src/` only. Without a second pass nothing checks the specs at all (esbuild erases their types without checking them), and a stale fixture surfaces as a *runtime* integration failure, or never. `tsconfig.test.json` closes that gap; it currently scopes to the **unit lane** (`tests/unit/**` + `tests/utils/**`), and widening it to `tests/int/**` is tracked in #606 Phase 2. Keeping the two commands apart means a failure names the lane it came from.
 
 Tier-specific guidance:
 
@@ -47,10 +49,12 @@ Run the full `pnpm test:int` locally, or `check.sh --full` for CI parity, **only
 ## Test Commands
 
 ```bash
-pnpm test:unit   # Tier 1 — unit lane only (fast, no Payload bootstrap)
-pnpm test        # Tier 3 first half — unit + integration (what CI runs locally)
-pnpm test:int    # Integration tests (Vitest) — targeted spec preferred
-pnpm test:smoke  # Tier 3 second half — Playwright against CF PR preview (CI-only)
+pnpm test:unit        # Tier 1 — unit lane only (fast, no Payload bootstrap)
+pnpm test             # Tier 3 first half — unit + integration (what CI runs locally)
+pnpm test:int         # Integration tests (Vitest) — targeted spec preferred
+pnpm test:smoke       # Tier 3 second half — Playwright against CF PR preview (CI-only)
+pnpm typecheck        # tsc over src/ (root tsconfig — excludes tests)
+pnpm typecheck:tests  # tsc over the test suite (tsconfig.test.json — unit lane)
 ```
 
 ## Correct Usage

@@ -62,7 +62,7 @@ describe('filterAvailableLocales', () => {
     it('returns all locales for API clients (not filtered)', () => {
       const clientUser = testData.dummyUser('clients', {
         id: 1,
-        roles: ['wemeditate-web'],
+        roles: ['wemeditate-web-client'],
       })
       const req = createMockRequest(clientUser)
       const result = filterAvailableLocales({ locales: allLocales, req })
@@ -77,7 +77,7 @@ describe('filterAvailableLocales', () => {
       const inactiveUser = testData.dummyUser('managers', {
         id: 1,
         type: 'inactive',
-        roles: { en: ['translator'], cs: ['meditations-editor'] },
+        roles: { en: ['web-translator'], cs: ['meditations-editor'] },
       })
       const req = createMockRequest(inactiveUser)
       const result = filterAvailableLocales({ locales: allLocales, req })
@@ -92,7 +92,7 @@ describe('filterAvailableLocales', () => {
       const managerUser = testData.dummyUser('managers', {
         id: 1,
         type: 'manager',
-        roles: { cs: ['meditations-editor'], de: ['translator'] },
+        roles: { cs: ['meditations-editor'], de: ['web-translator'] },
       })
       const req = createMockRequest(managerUser)
       const result = filterAvailableLocales({ locales: allLocales, req })
@@ -133,10 +133,10 @@ describe('filterAvailableLocales', () => {
         id: 1,
         type: 'manager',
         roles: {
-          en: ['translator'],
+          en: ['web-translator'],
           cs: ['meditations-editor'],
           de: ['path-editor'],
-          fa: ['translator'],
+          fa: ['web-translator'],
         },
       })
       const req = createMockRequest(managerUser)
@@ -153,7 +153,7 @@ describe('filterAvailableLocales', () => {
         type: 'manager',
       })
       // Explicitly set roles to undefined to simulate missing field
-      ;(managerUser as Record<string, unknown>).roles = undefined
+      ;(managerUser as unknown as Record<string, unknown>).roles = undefined
 
       const req = createMockRequest(managerUser)
       const result = filterAvailableLocales({ locales: allLocales, req })
@@ -168,7 +168,10 @@ describe('filterAvailableLocales', () => {
         type: 'manager',
       })
       // Set roles to flat array to simulate legacy format
-      ;(managerUser as Record<string, unknown>).roles = ['translator', 'meditations-editor']
+      ;(managerUser as unknown as Record<string, unknown>).roles = [
+        'web-translator',
+        'meditations-editor',
+      ]
 
       const req = createMockRequest(managerUser)
       const result = filterAvailableLocales({ locales: allLocales, req })
@@ -184,7 +187,7 @@ describe('filterAvailableLocales', () => {
       const managerUser = testData.dummyUser('managers', {
         id: 1,
         type: 'manager',
-        roles: { fa: ['translator'], de: ['meditations-editor'], en: ['path-editor'] },
+        roles: { fa: ['web-translator'], de: ['meditations-editor'], en: ['path-editor'] },
       })
       const req = createMockRequest(managerUser)
       const result = filterAvailableLocales({ locales: allLocales, req })

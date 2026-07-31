@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { resolveThumbnailUrl } from '@/lib/utilities/thumbnailUrl'
+import type { Image } from '@/payload-types'
+
 
 describe('resolveThumbnailUrl', () => {
-  const img = (url: string) => ({ id: 1, url }) as { id: number; url: string }
+  // A populated thumbnail relationship; the resolver only reads `url`.
+  const img = (url: string) => ({ id: 1, url }) as Image
 
   it('picks the override first', () => {
     expect(

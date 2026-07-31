@@ -11,6 +11,7 @@
     "start": "HOSTNAME=0.0.0.0 NODE_OPTIONS=--max-http-header-size=65536 node .next/standalone/server.js",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
+    "typecheck:tests": "tsc --noEmit -p tsconfig.test.json",
     "audit": "pnpm audit --audit-level=high",
     "postinstall": "node scripts/postinstall.cjs",
     "test": "pnpm run test:unit && pnpm run test:int",
