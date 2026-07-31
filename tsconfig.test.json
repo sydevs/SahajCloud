@@ -1,0 +1,16 @@
+{
+  // Typecheck gate for the test suite. The root `tsconfig.json` excludes
+  // `tests`, and it's the config the Next.js build consumes — so the test lane
+  // gets its own config here instead, keeping this work off the shipping build.
+  //
+  // Scoped to the unit lane for now (#606 Phase 1). `tests/int/**` still has
+  // ~154 errors; widening `include` to `tests/**` is Phase 2. `src/**` needs no
+  // entry — it's pulled in transitively via the `@/` imports these files make,
+  // and the root config already typechecks it directly.
+  //
+  // Note: `tests/tsconfig.json` is a separate editor-only config covering all of
+  // `tests/**`. No script runs it; Phase 2 should collapse the two.
+  "extends": "./tsconfig.json",
+  "include": ["tests/unit/**/*.ts", "tests/utils/**/*.ts"],
+  "exclude": ["node_modules"]
+}
