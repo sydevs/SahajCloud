@@ -1,11 +1,15 @@
+import type { TextFieldSingleValidation } from 'payload'
+
 import { describe, expect, it } from 'vitest'
 
 import { urlField } from '@/fields/urlField'
 
-// The factory's validator only reads `value`; the second arg is unused.
+// The factory's validator only reads `value`; the second arg is unused. It
+// returns `TextField`, whose `validate` widens to the hasMany union — but the
+// factory pins `hasMany: false`, so narrow to the single-value form it casts to.
 const validatorFor = (options?: { protocols?: string[] }) => {
-  const { validate } = urlField({ name: 'link', ...options })
-  return (value: unknown) => validate!(value as string, undefined!)
+  const validate = urlField({ name: 'link', ...options }).validate as TextFieldSingleValidation
+  return (value: unknown) => validate(value as string, undefined!)
 }
 
 describe('urlField validation', () => {

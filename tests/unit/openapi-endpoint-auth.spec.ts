@@ -15,6 +15,7 @@ function buildProtectedHandler(handler = vi.fn(() => new Response('ok'))): Endpo
   const config = openapiEndpointAuth({
     path: '/openapi-raw.json',
   })({
+    // A minimal config — the plugin only reads `endpoints`.
     endpoints: [
       {
         method: 'get',
@@ -22,7 +23,7 @@ function buildProtectedHandler(handler = vi.fn(() => new Response('ok'))): Endpo
         handler,
       },
     ],
-  } as Config)
+  } as unknown as Config)
 
   return config.endpoints![0].handler
 }
