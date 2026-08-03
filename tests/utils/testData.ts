@@ -69,6 +69,9 @@ type DummyUserOverrides = Partial<Omit<Manager, 'roles'> | Omit<Client, 'roles'>
  * property at the wrong type, at any depth. Unions distribute, so a
  * relationship (`number | Image | null`) keeps accepting a bare id.
  *
+ * No special case for `Date`: Payload generates every date field as an ISO
+ * `string`, so one can't reach the object branch here.
+ *
  * Exported because specs build their own inline fixture helpers around
  * `payload.create` — those want the same "loose but checked" contract rather
  * than the `Record<string, unknown>` they used to reach for, which checks
@@ -76,11 +79,9 @@ type DummyUserOverrides = Partial<Omit<Manager, 'roles'> | Omit<Client, 'roles'>
  */
 export type FixtureOverrides<T> = T extends (infer U)[]
   ? FixtureOverrides<U>[]
-  : T extends Date
-    ? T
-    : T extends object
-      ? { [K in keyof T]?: FixtureOverrides<T[K]> }
-      : T
+  : T extends object
+    ? { [K in keyof T]?: FixtureOverrides<T[K]> }
+    : T
 
 /**
  * Checks a factory's `create` payload, then hands it over at the type
