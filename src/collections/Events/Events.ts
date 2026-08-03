@@ -39,6 +39,7 @@ import {
 } from './eventOptions'
 import { ensureWebPathDeps } from './hooks/ensureWebPathDeps'
 import { eventTitleBeforeChange } from './hooks/eventTitle'
+import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { verifyOnSave } from './hooks/verifyOnSave'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
@@ -96,7 +97,10 @@ export const Events: CollectionConfig = {
   hooks: {
     // Keep `webPath`/`webUrl` resolvable when a read selects them without their
     // inputs (`region`, and `_status` for `webUrl`) — see ensureWebPathDeps.
-    beforeOperation: [ensureWebPathDeps],
+    // Then drop finished events from API-client list reads (they stay published
+    // so their pages resolve, but shouldn't be listed) — see
+    // excludeFinishedEvents.
+    beforeOperation: [ensureWebPathDeps, excludeFinishedEvents],
     beforeChange: [verifyOnSave],
     // Bust the Atlas manager sidebar cache (event list + region counts) whenever
     // an event changes or is trashed/restored.

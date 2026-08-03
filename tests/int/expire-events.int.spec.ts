@@ -17,6 +17,10 @@ vi.mock('@sentry/nextjs', () => ({
     callback({ setContext: setContextMock }),
   ),
   captureException: vi.fn(),
+  // `resolveRecipients` reports a missing region manager this way, so any stage
+  // that escalates to the region (`escalated` onward) reaches it. Without the
+  // export the whole per-event step throws and the stage never advances.
+  captureMessage: vi.fn(),
 }))
 
 type ExpireResult = {
@@ -146,5 +150,104 @@ describe('ExpireEvents job', () => {
     } finally {
       spy.mockRestore()
     }
+  })
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Publish side effects (#603): finishing must NOT unpublish, because a
+  // finished event's Atlas page has to keep resolving for late arrivals. The
+  // unverified ladder is unchanged and still unpublishes at `expired`.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('publish side effects', () => {
+    /**
+     * Put a due event into a given stage. Stage / nextCheckAt / _status are set
+     * in one `skipVerifyHook` update so the verifyOnSave hook doesn't reset the
+     * stage to `verified` and stamp a future nextCheckAt.
+     */
+    async function createDueEventAtStage(
+      payload: Payload,
+      title: string,
+      stage: 'verified' | 'urgent' | 'expired',
+      overrides: Record<string, unknown> = {},
+    ) {
+      const event = await testData.createEvent(payload, { title, ...overrides } as never)
+      return payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { verificationStage: stage, nextCheckAt: DUE, _status: 'published' },
+        context: { skipVerifyHook: true },
+      })
+    }
+
+    const reload = (payload: Payload, id: number) =>
+      payload.findByID({ collection: 'events', id, overrideAccess: true, depth: 0 })
+
+    it('marks a run-out event finished and clears nextCheckAt without unpublishing it', async () => {
+      const event = await createDueEventAtStage(payload, 'Ran Out', 'verified', {
+        inactive: false,
+        eventType: 'online',
+        onlineUrl: 'https://example.com/ran-out',
+        // A one-off long past — finished.
+        schedule: { firstDate: '2021-02-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
+      })
+      expect(event._status).toBe('published')
+
+      const result = await runTask(payload)
+      expect(result.finished).toBeGreaterThanOrEqual(1)
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe('finished')
+      expect(after.nextCheckAt).toBeNull()
+      // The whole point: still published, so webPath/webUrl stay resolvable.
+      expect(after._status).toBe('published')
+      expect(after.webPath).toBeTruthy()
+      expect(after.webUrl).toBeTruthy()
+    })
+
+    it('does not finish an event whose recurrence never ends', async () => {
+      const event = await createDueEventAtStage(payload, 'Still Running', 'verified', {
+        inactive: false,
+        eventType: 'online',
+        onlineUrl: 'https://example.com/running',
+        schedule: {
+          firstDate: '2021-02-01T10:00:00.000Z',
+          firstDate_tz: 'Europe/London',
+          recurrenceType: 'DAILY',
+          interval: 1,
+        },
+      })
+
+      await runTask(payload)
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).not.toBe('finished')
+      expect(after._status).toBe('published')
+    })
+
+    it('still unpublishes an unverified event at the urgent → expired step', async () => {
+      // inactive, so the finished-check can never claim it — it must take the ladder.
+      const event = await createDueEventAtStage(payload, 'Gone Unverified', 'urgent')
+
+      await runTask(payload)
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe('expired')
+      expect(after._status).toBe('draft')
+    })
+
+    it('still trashes an expired event after the grace period', async () => {
+      const event = await createDueEventAtStage(payload, 'Long Expired', 'expired')
+
+      const result = await runTask(payload)
+      expect(result.trashed).toBeGreaterThanOrEqual(1)
+
+      const after = await payload.findByID({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        depth: 0,
+        trash: true,
+      })
+      expect(after.deletedAt).toBeTruthy()
+    })
   })
 })

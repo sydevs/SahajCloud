@@ -14,7 +14,7 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 | `managers`            | `bypassPermissions`, locale-role inheritance, project-scoped visibility                                                                   | `role-based-access`, `project-visibility`, `client-hooks`      |
 | `albums`              | Cascade delete (album → songs); soft-delete does NOT cascade                                                                              | `albums`                                                       |
 | `app-cards`           | Audience targeting / OR-match / AND-gate / cache headers (in the endpoint)                                                                | `app-cards-for-audience`, `collections-smoke` (reachability)   |
-| `events`              | `website` non-localization + URL validator wiring; verification lifecycle, registration flow, GeoJSON endpoint, expiry state machine      | `events`, `event-verification`, `event-registration`, `events-geojson`, `expire-events` |
+| `events`              | `website` non-localization + URL validator wiring; verification lifecycle, registration flow, GeoJSON endpoint, expiry state machine; `excludeFinishedEvents` beforeOperation (client list default + `schedule.lastDate` opt-out, `findByID` unaffected), finished events off the geojson feed, `schedule.lastDate` backfill | `events`, `event-verification`, `event-registration`, `events-geojson`, `expire-events`, `schedule-last-date-backfill` |
 | `lessons`             | Lexical relationship cleanup (strip stale collection refs), locale-specific meditation assignments, subtitle JSON                         | `lessons`                                                      |
 | `meditations`         | `filterMeditationsByLocale` beforeOperation, `extractAudioDuration` beforeChange, `durationMinutes` virtual, weight invalidation          | `meditations`, `meditation-duration`, `meditation-lectures`    |
 | `pages`               | `webUrl` virtual, Lexical block relationship depth, stale-content stripping                                                               | `pages`                                                        |
@@ -55,6 +55,7 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 | Task                             | Subject                                                                   | Covered by                                                              |
 | -------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | `CleanupOrphanedMedia`           | Reference tracing across collections, grace period, 3-month date rotation | `cleanup-orphaned-media`                                                |
+| `ExpireEvents`                   | Finished-check + reminder ladder; publish side effects (finishing leaves `_status: 'published'`, only `urgent → expired` unpublishes, `expired` trashes); per-event failure isolation | `expire-events` + unit: `expire-events-stage-machine.spec.ts`, `schedule-status.spec.ts` |
 | `SyncLectureMetadata`            | Batch sync, NV API error isolation, filtering                             | `sync-lecture-metadata`                                                 |
 | `resetUsage` (cron)              | Usage-counter reset, `peakDailyRequests` preservation                     | `api`                                                                   |
 | `recomputeMeditationNodeWeights` | Weight recomputation on meditation change                                 | `meditation-lectures` + unit: `compute-meditation-node-weights.spec.ts` |
@@ -67,6 +68,7 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 | R2 filename sanitization (`generateR2Key`, `generateCloudflareImageId`); R2 preassign hook                     | `storage-utils`             |
 | Cloudflare Stream webhook signature verification + MP4-download handler                                        | `cloudflare-stream-webhook` |
 | Schema introspection (`discoverReferencesForCollection`, `extractIdsFromLexicalContent`)                       | `schema-utils`              |
+| Finished-event definition — `shouldFinish` (in-memory) pinned to agree with `notFinishedWhere` (SQL)           | unit: `schedule-status.spec.ts` |
 | Content-Index block API endpoint generation (`computeApiEndpoint` virtual)                                     | `content-index-block`       |
 | Project-based admin visibility (`createHidden` from accessPlugin)                                              | `project-visibility`        |
 | RBAC (`hasPermission`, `hasAnyPermission`, document-level manager access, locale roles, translator scopes)     | `role-based-access`         |

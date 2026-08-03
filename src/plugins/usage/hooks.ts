@@ -27,6 +27,22 @@ export function asTrustedReq(req: PayloadRequest): PayloadRequest {
   return { ...req, context: { ...req.context, [SKIP_VALIDATION]: true } }
 }
 
+/**
+ * Whether a request was wrapped by {@link asTrustedReq} — i.e. it's an endpoint's
+ * own internal read, forwarding the client's `req` rather than serving the
+ * client's query directly.
+ *
+ * Honour this in hooks that shape the **client-facing** result of a read
+ * (e.g. `excludeFinishedEvents`, which drops finished events from list feeds):
+ * an endpoint doing its own lookup needs the true state so it can decide for
+ * itself — silently narrowing it turns a precise error into a confusing one.
+ * Do **not** honour it in security gates; see `validateClientOriginHook`, which
+ * deliberately stays enforced for forwarded reads.
+ */
+export function isTrustedReq(req: PayloadRequest | undefined): boolean {
+  return req?.context?.[SKIP_VALIDATION] === true
+}
+
 // ============================================================================
 // RATE LIMITING UTILITIES
 // ============================================================================

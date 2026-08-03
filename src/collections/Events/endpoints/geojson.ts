@@ -7,6 +7,8 @@ import { requireActiveClient } from '@/lib/endpoints'
 import type { Event } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 
+import { andWhere, notFinishedWhere } from '../lifecycle/finished'
+
 /** Build a `[lon, lat]` Point from an event's address, or `null` when coordinates are absent. */
 function pointGeometry(doc: Event): GeoJsonPoint | null {
   const lat = doc.address?.latitude
@@ -45,6 +47,25 @@ const toBoolean = (value: unknown): boolean | undefined => {
  * `depth > 1`. `overrideAccess: false` applies the published-only +
  * project-visibility filter, and usage tracking fires identically.
  *
+ * **Finished events are always excluded.** `notFinishedWhere(now)` is ANDed onto
+ * the caller's `where` on every request: an event is finished once
+ * `schedule.lastDate` (end of its final occurrence's *local* day) is behind us,
+ * so an event running today stays in the feed until midnight in its own
+ * timezone. `inactive` events are dormant by design and never count as finished,
+ * and a NULL `lastDate` (an open-ended recurrence, or a row predating the
+ * backfill) stays visible.
+ *
+ * There is deliberately **no opt-out** here: because the filter is part of the
+ * read rather than a post-read drop, `totalDocs` and pagination reflect the
+ * filtered set — and a caller's own `where` cannot bring finished events back
+ * into the map feed. A client that wants past events should query
+ * `GET /api/events` with an explicit `where` on `schedule.lastDate`, which
+ * *does* opt out (see the excludeFinishedEvents hook).
+ *
+ * Finished events stay **published**, so `GET /api/events/{id}` still resolves
+ * one with a non-null `webPath` / `webUrl` — old Atlas links keep working, they
+ * just stop appearing on the map (#603).
+ *
  * Each feature's `geometry` is a Point at `[address.longitude, address.latitude]`;
  * callers that want geometry must `select` those fields (e.g.
  * `select[address][longitude]=true&select[address][latitude]=true`). Events
@@ -69,7 +90,7 @@ export const eventsGeoJson: Endpoint = {
     try {
       const { docs, ...page } = await req.payload.find({
         collection: 'events',
-        where: query.where as Where | undefined,
+        where: andWhere(query.where as Where | undefined, notFinishedWhere(new Date())),
         select: query.select as SelectType | undefined,
         populate: query.populate as PopulateType | undefined,
         depth: toNumber(query.depth),

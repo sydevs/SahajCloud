@@ -3,6 +3,7 @@ import type { Field, GroupField, JSONField } from 'payload'
 import {
   cleanupExpiredExclusions,
   computeIcalRule,
+  computeLastDate,
   computeUpcomingDates,
   getLocalTimeHHMM,
 } from '@/lib/schedule/scheduleHooks'
@@ -478,6 +479,27 @@ function buildExclusionsField({ hasExclusions }: SubFieldConfig): Field[] {
 }
 
 /**
+ * Stored derived column: the end of the schedule's final occurrence (local
+ * end-of-day, as a UTC instant), or `null` for an open-ended recurrence.
+ *
+ * Recomputed by `computeLastDate` on every write and never editable — a real
+ * column rather than a virtual field precisely so "has this schedule run out?"
+ * can appear in a `where` (see `@/lib/schedule/scheduleStatus`). Indexed: the
+ * public event feeds filter on it on every read.
+ */
+function buildLastDateField(): Field {
+  return {
+    name: 'lastDate',
+    type: 'date',
+    index: true,
+    admin: { hidden: true },
+    hooks: {
+      beforeChange: [computeLastDate],
+    },
+  }
+}
+
+/**
  * Virtual fields computed on read (not stored in database).
  */
 function buildVirtualFields(): Field[] {
@@ -514,6 +536,7 @@ function buildScheduleSubFields(config: SubFieldConfig): Field[] {
     buildRecurrenceRow(config),
     ...buildEndingRow(config),
     ...buildExclusionsField(config),
+    buildLastDateField(),
     ...buildVirtualFields(),
   ]
 }

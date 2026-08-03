@@ -504,8 +504,9 @@ describe('Event verification lifecycle', () => {
     expect(after.updatedAt).toBe(before.updatedAt)
   })
 
-  it('marks a scheduleless-ended (non-inactive) event finished, no email', async () => {
-    // One-off event whose only occurrence is in the past → empty upcomingDates.
+  it('marks a run-out (non-inactive) event finished, no email, still published', async () => {
+    // One-off event whose only occurrence is past, so `schedule.lastDate` (end of
+    // that day, local) is behind us.
     const event = await createEvent({
       schedule: { firstDate: daysAgo(5), firstDate_tz: 'Europe/London' },
     } as Partial<Event>)
@@ -516,8 +517,14 @@ describe('Event verification lifecycle', () => {
     expect(result.remindersSent).toBe(0)
     const fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('finished')
-    expect(fresh._status).toBe('draft')
     expect(fresh.nextCheckAt ?? null).toBeNull()
+    // #603 inverted this: finishing no longer unpublishes. The event's Atlas page
+    // must keep resolving for a seeker following an old link — it leaves the
+    // public feeds instead (see notFinishedWhere). Only the unverified ladder
+    // unpublishes, at `urgent → expired`.
+    expect(fresh._status).toBe('published')
+    expect(fresh.webPath).toBeTruthy()
+    expect(fresh.webUrl).toBeTruthy()
   })
 
   it('an inactive event expires through the ladder and never finishes', async () => {

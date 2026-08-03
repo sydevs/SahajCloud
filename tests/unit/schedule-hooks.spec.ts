@@ -15,8 +15,10 @@ import { scheduleFields } from '@/fields/scheduleFields'
 import {
   cleanupExpiredExclusions,
   computeIcalRule,
+  computeLastDate,
   computeUpcomingDates,
   getLocalTimeHHMM,
+  lastOccurrenceEnd,
 } from '@/lib/schedule/scheduleHooks'
 
 // Helper to call a FieldHook with siblingData (avoids `as never` casts)
@@ -1203,6 +1205,219 @@ describe('Schedule Field Hooks', () => {
   })
 
   // ──────────────────────────────────────────────────────────────────────
+  // lastOccurrenceEnd / computeLastDate — the stored `lastDate` column
+  // ──────────────────────────────────────────────────────────────────────
+  describe('lastOccurrenceEnd', () => {
+    describe('returns null when there is no last occurrence to compute', () => {
+      it('missing firstDate', () => {
+        expect(lastOccurrenceEnd({})).toBeNull()
+      })
+
+      it('invalid firstDate', () => {
+        expect(lastOccurrenceEnd({ firstDate: 'not-a-date' })).toBeNull()
+      })
+
+      it('open-ended recurrence (endingType never)', () => {
+        expect(
+          lastOccurrenceEnd({ ...baseFields, recurrenceType: 'DAILY', interval: 1 }),
+        ).toBeNull()
+      })
+
+      it('endingType count with a zero count (buildRRuleTemporal ignores it)', () => {
+        expect(
+          lastOccurrenceEnd({
+            ...baseFields,
+            recurrenceType: 'WEEKLY',
+            endingType: 'count',
+            count: 0,
+          }),
+        ).toBeNull()
+      })
+
+      it('endingType until with no untilDate', () => {
+        expect(
+          lastOccurrenceEnd({ ...baseFields, recurrenceType: 'DAILY', endingType: 'until' }),
+        ).toBeNull()
+      })
+
+      // The MAX_MONTHS_AHEAD false positive `upcomingDates` suffers from: it
+      // only looks 6 months out, so a yearly-cadence event reads as having no
+      // upcoming dates. A stored lastDate of null says "never ends" instead.
+      it('monthly every 12 months, open-ended', () => {
+        expect(
+          lastOccurrenceEnd({
+            ...baseFields,
+            recurrenceType: 'MONTHLY',
+            interval: 12,
+            monthlyMode: 'date',
+            monthDay: 15,
+          }),
+        ).toBeNull()
+      })
+    })
+
+    describe('one-off events', () => {
+      it('uses the end of the event day in UTC', () => {
+        expect(lastOccurrenceEnd(baseFields)).toBe('2025-03-15T23:59:59.999Z')
+      })
+
+      it('uses the end of the *local* day for a non-UTC timezone', () => {
+        // 14:00Z on Mar 15 is 10:00 EDT; local end-of-day is 23:59:59.999 -04:00
+        expect(lastOccurrenceEnd({ ...baseFields, firstDate_tz: 'America/New_York' })).toBe(
+          '2025-03-16T03:59:59.999Z',
+        )
+      })
+
+      it('is computed the same way for a past event as a future one', () => {
+        expect(
+          lastOccurrenceEnd({ firstDate: '2020-01-06T09:00:00.000Z', firstDate_tz: 'UTC' }),
+        ).toBe('2020-01-06T23:59:59.999Z')
+      })
+    })
+
+    describe('terminating recurrences', () => {
+      it('endingType count — end of the final occurrence day', () => {
+        // Mar 15, 16, 17 → last is Mar 17
+        expect(
+          lastOccurrenceEnd({
+            ...baseFields,
+            recurrenceType: 'DAILY',
+            interval: 1,
+            endingType: 'count',
+            count: 3,
+          }),
+        ).toBe('2025-03-17T23:59:59.999Z')
+      })
+
+      it('endingType until — end of the final occurrence day, not the until date', () => {
+        // Weekly on Saturdays from Mar 15, until Apr 10 → last occurrence Apr 5
+        expect(
+          lastOccurrenceEnd({
+            ...baseFields,
+            recurrenceType: 'WEEKLY',
+            interval: 1,
+            weekdays: ['SA'],
+            endingType: 'until',
+            untilDate: '2025-04-10',
+          }),
+        ).toBe('2025-04-05T23:59:59.999Z')
+      })
+
+      it('an excluded trailing occurrence pulls lastDate earlier', () => {
+        // Mar 15, 16, 17 with Mar 17 excluded → last is Mar 16
+        expect(
+          lastOccurrenceEnd({
+            ...baseFields,
+            recurrenceType: 'DAILY',
+            interval: 1,
+            endingType: 'count',
+            count: 3,
+            exclusions: [{ startDate: '2025-03-17' }],
+          }),
+        ).toBe('2025-03-16T23:59:59.999Z')
+      })
+
+      // An `until` before `firstDate` produces no occurrences at all. The
+      // schedule is still over, so it must not read as never-ending (null) —
+      // that would pin a broken config to the public feeds forever.
+      it('falls back to the start day when the rule yields no occurrences', () => {
+        expect(
+          lastOccurrenceEnd({
+            ...baseFields,
+            recurrenceType: 'DAILY',
+            interval: 1,
+            endingType: 'until',
+            untilDate: '2024-01-01',
+          }),
+        ).toBe('2025-03-15T23:59:59.999Z')
+      })
+    })
+
+    describe('DST boundaries', () => {
+      // Europe/Berlin springs forward (CET → CEST) at 02:00 on 2025-03-30, so
+      // end-of-day is UTC+2 that day and UTC+1 the day before.
+      it('end of the local day after the spring-forward transition', () => {
+        expect(
+          lastOccurrenceEnd({
+            firstDate: '2025-03-30T10:00:00.000Z',
+            firstDate_tz: 'Europe/Berlin',
+          }),
+        ).toBe('2025-03-30T21:59:59.999Z')
+      })
+
+      it('end of the local day before the spring-forward transition', () => {
+        expect(
+          lastOccurrenceEnd({
+            firstDate: '2025-03-29T10:00:00.000Z',
+            firstDate_tz: 'Europe/Berlin',
+          }),
+        ).toBe('2025-03-29T22:59:59.999Z')
+      })
+
+      it('a recurrence spanning the transition ends on its final local day', () => {
+        // Daily from Mar 28, 5 occurrences → last is Apr 1 (CEST, UTC+2)
+        expect(
+          lastOccurrenceEnd({
+            firstDate: '2025-03-28T10:00:00.000Z',
+            firstDate_tz: 'Europe/Berlin',
+            recurrenceType: 'DAILY',
+            interval: 1,
+            endingType: 'count',
+            count: 5,
+          }),
+        ).toBe('2025-04-01T21:59:59.999Z')
+      })
+    })
+  })
+
+  describe('computeLastDate', () => {
+    // The hook reads both the incoming patch and the previous doc — a field
+    // beforeChange hook only receives the patch, and Payload materialises `{}`
+    // for a group the patch omits.
+    const callLastDateHook = (
+      previousSiblingDoc: Record<string, unknown>,
+      siblingData: Record<string, unknown>,
+    ): unknown =>
+      computeLastDate({ previousSiblingDoc, siblingData } as unknown as Parameters<FieldHook>[0])
+
+    const COURSE = {
+      ...baseFields,
+      recurrenceType: 'DAILY' as const,
+      interval: 1,
+      endingType: 'count' as const,
+      count: 3,
+    }
+
+    it('computes from the patch alone on create (no previous doc)', () => {
+      expect(callLastDateHook({}, COURSE)).toBe('2025-03-17T23:59:59.999Z')
+    })
+
+    it('is a no-op for an unrelated partial update (empty group patch)', () => {
+      // e.g. the ExpireEvents job patching only `notificationLog`
+      expect(callLastDateHook({ ...COURSE, lastDate: '2025-03-17T23:59:59.999Z' }, {})).toBe(
+        '2025-03-17T23:59:59.999Z',
+      )
+    })
+
+    it('back-fills a null lastDate on any unrelated write', () => {
+      expect(callLastDateHook({ ...COURSE, lastDate: null }, {})).toBe('2025-03-17T23:59:59.999Z')
+    })
+
+    it('recomputes from a partial schedule patch merged over the previous doc', () => {
+      expect(callLastDateHook(COURSE, { count: 5 })).toBe('2025-03-19T23:59:59.999Z')
+    })
+
+    it('lets an explicit null in the patch win over the previous value', () => {
+      // Clearing recurrenceType turns the course back into a one-off
+      expect(callLastDateHook(COURSE, { recurrenceType: null })).toBe('2025-03-15T23:59:59.999Z')
+    })
+
+    it('returns null when the patch makes the recurrence open-ended', () => {
+      expect(callLastDateHook(COURSE, { endingType: null })).toBeNull()
+    })
+  })
+
+  // ──────────────────────────────────────────────────────────────────────
   // scheduleFields factory — structural assertions
   // ──────────────────────────────────────────────────────────────────────
   describe('scheduleFields factory', () => {
@@ -1216,6 +1431,21 @@ describe('Schedule Field Hooks', () => {
       const field = scheduleFields({ name: 'eventSchedule' }) as NamedGroupField
       expect(field.name).toBe('eventSchedule')
       expect(field.admin?.components?.beforeInput).toEqual(['@/components/admin/ScheduleSummary'])
+    })
+
+    it('exposes lastDate as a stored, indexed, hidden column driven by computeLastDate', () => {
+      const group = scheduleFields() as NamedGroupField
+      const lastDate = group.fields.find(
+        (field) => 'name' in field && field.name === 'lastDate',
+      ) as (NamedGroupField['fields'][number] & { virtual?: boolean }) | undefined
+
+      expect(lastDate).toBeDefined()
+      expect(lastDate).toMatchObject({ type: 'date', index: true, admin: { hidden: true } })
+      // Stored, not virtual — the whole point is that it can appear in a `where`
+      expect(lastDate?.virtual).toBeUndefined()
+      expect(lastDate && 'hooks' in lastDate && lastDate.hooks?.beforeChange).toEqual([
+        computeLastDate,
+      ])
     })
   })
 })

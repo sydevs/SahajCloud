@@ -175,6 +175,43 @@ describe('registerForEvent endpoint', () => {
     expect(status).toBe(404)
   })
 
+  // A finished event stays published (#603), so the published-only access filter
+  // above no longer refuses one whose schedule has run out — hence the explicit
+  // guard. Without it, registration would succeed for an event that is over.
+  it('returns 409 for an event whose schedule has run out', async () => {
+    const finished = await payload.create({
+      collection: 'events',
+      overrideAccess: true,
+      data: {
+        title: 'Finished Session',
+        eventType: 'online',
+        onlineUrl: 'https://example.com/over',
+        languages: ['en'],
+        registrationMode: 'sahaj-atlas',
+        manager: managerId,
+        region: (
+          await payload.findByID({ collection: 'events', id: eventId, overrideAccess: true })
+        ).region as number,
+        // One-off, years past.
+        schedule: { firstDate: '2021-03-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
+        _status: 'published',
+      },
+    })
+
+    const { status, body } = await callRegister(finished.id, {
+      email: 'late@example.com',
+      name: 'Late Seeker',
+    })
+
+    expect(status).toBe(409)
+    expect(body).toHaveProperty('errors')
+    // Distinct from "not found" — the event is readable, its state just conflicts.
+    expect(JSON.stringify(body.errors)).toContain('ended')
+
+    // And nothing was written.
+    expect(await userCountByEmail(payload, 'late@example.com')).toBe(0)
+  })
+
   it('creates a registrant + registration and returns 201', async () => {
     const { status, body } = await callRegister(eventId, {
       email: 'Registrant@Example.com',

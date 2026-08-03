@@ -91,8 +91,9 @@ export async function applyVerification(args: {
   return payload.update({
     collection: 'events',
     id: eventId,
-    // The explicit verify action re-publishes (revives an expired/finished
-    // event); the save hook leaves `_status` to the manager's save choice.
+    // The explicit verify action re-publishes (revives an *expired* event — a
+    // finished one was never unpublished, see #603); the save hook leaves
+    // `_status` to the manager's save choice.
     data: { ...fields, _status: 'published' },
     context: { skipVerifyHook: true },
     overrideAccess,

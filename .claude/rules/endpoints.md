@@ -120,6 +120,45 @@ See `.claude/rules/openapi.md` for the full shim contract.
   / `depthParameter` from
   `src/plugins/openapi/clientReadParametersDocs.ts`, and enforce the client read
   contract (`select` required; `populate` required at `depth > 1`).
+
+### A passthrough may narrow the caller's `where` — decide the opt-out explicitly
+
+"Passthrough" doesn't mean the caller's `where` goes in untouched. An endpoint
+that owns a *feed* may AND its own predicate on top (geojson excludes finished
+events — `notFinishedWhere` in
+`src/collections/Events/lifecycle/finished.ts`). Two rules when you do:
+
+- **Filter inside the read, never after it.** ANDing onto `where` keeps
+  `totalDocs` and pagination consistent with the returned docs. Dropping rows
+  from `docs` after the read silently corrupts both, and breaks a paginating
+  client (short pages, a "next" page that isn't there).
+- **Say whether an explicit `where` wins, and be consistent about it.** The
+  convention in this codebase:
+  - A **feed** endpoint filters unconditionally — a caller's `where` is ANDed, so
+    it can only narrow, never re-include what the feed excludes. Document the
+    absence of an opt-out (`GET /api/events/geojson`).
+  - A **collection list read** (a `beforeOperation` hook on `find`/`count`)
+    filters by default but yields to a caller who names the filtered field:
+    `excludeFinishedEvents` skips itself when the incoming `where` references
+    `schedule.lastDate`. A client asking for past events gets them.
+
+  Pick one per surface and put it in the OpenAPI `description` — a client whose
+  result set silently shrinks has no other way to find out.
+
+Two Payload behaviours to know before writing such a hook (both verified, both
+easy to get silently wrong):
+
+- **`find` and `findByID` both arrive as `operation: 'read'`.** Payload maps them
+  through `operationToHookOperation`, so guarding on `'find'` matches *nothing*.
+  Distinguish the single-doc read by `findByID`'s `id` arg — `if ('id' in args)
+  return args` — the same trick `filterMeditationsByLocale` uses.
+- **Exempt an endpoint's own forwarded reads.** A handler that forwards the client
+  `req` via `asTrustedReq` is doing its own lookup and needs the true state to
+  answer precisely — `POST /api/events/{id}/register` has to tell "no such event"
+  (404) from "this event has ended" (409). Check `isTrustedReq(req)` (from
+  `@/plugins/usage/hooks`) and return early. Note the split: **result-shaping**
+  hooks honour that flag; **security** gates deliberately don't (see
+  `validateClientOriginHook`).
 - **Shaped endpoints** return a fixed, hand-built structure (e.g.
   `GET /api/lectures/{id}/related-meditations`, `/related-lectures`). These do
   **not** take `select` / `populate` — `populate` is meaningless on an
