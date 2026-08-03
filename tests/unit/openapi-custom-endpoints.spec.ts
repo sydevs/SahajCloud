@@ -98,20 +98,32 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
       }) as unknown as OpenAPISpec
 
     const filtered = filterSpec(build(), { project: 'sahaj-atlas' })
-    const op = (path: string, method: 'get' | 'post'): Record<string, unknown> | undefined =>
-      (filtered.paths?.[path] as Record<string, Record<string, unknown> | undefined>)?.[method]
+    // Assert the operation exists before reading `x-internal` off it. Without
+    // this, a path that vanished from the spec entirely would read as
+    // `undefined` → falsy → "visible", and every visibility check below would
+    // pass vacuously.
+    const op = (path: string, method: 'get' | 'post'): Record<string, unknown> => {
+      const operation = (
+        filtered.paths?.[path] as Record<string, Record<string, unknown> | undefined> | undefined
+      )?.[method]
+      expect(
+        operation,
+        `${method.toUpperCase()} ${path} is missing from the filtered spec`,
+      ).toBeDefined()
+      return operation!
+    }
 
     it('keeps the hand-authored register POST visible', () => {
-      expect(op('/api/events/{id}/register', 'post')?.['x-internal']).toBeFalsy()
+      expect(op('/api/events/{id}/register', 'post')['x-internal']).toBeFalsy()
     })
 
     it('hides the auto-generated base-collection POST (create)', () => {
-      expect(op('/api/events', 'post')?.['x-internal']).toBe(true)
+      expect(op('/api/events', 'post')['x-internal']).toBe(true)
     })
 
     it('keeps the geojson GET and the standard events list GET visible', () => {
-      expect(op('/api/events/geojson', 'get')?.['x-internal']).toBeFalsy()
-      expect(op('/api/events', 'get')?.['x-internal']).toBeFalsy()
+      expect(op('/api/events/geojson', 'get')['x-internal']).toBeFalsy()
+      expect(op('/api/events', 'get')['x-internal']).toBeFalsy()
     })
   })
 })
@@ -189,8 +201,15 @@ describe('contact-admin root endpoint (OpenAPI)', () => {
       }),
     ) as unknown as OpenAPISpec
 
-  const contactAdminOp = (spec: OpenAPISpec) =>
-    (spec.paths?.['/api/contact-admin'] as Record<string, Record<string, unknown>>)?.post
+  // Asserts presence first — a vanished path would otherwise read as falsy and
+  // pass the "stays visible" check without the endpoint being in the spec at all.
+  const contactAdminOp = (spec: OpenAPISpec): Record<string, unknown> => {
+    const operation = (
+      spec.paths?.['/api/contact-admin'] as Record<string, Record<string, unknown>> | undefined
+    )?.post
+    expect(operation, 'POST /api/contact-admin is missing from the filtered spec').toBeDefined()
+    return operation!
+  }
 
   // What the route handler passes in production: derived from the live
   // `config.endpoints`, so registering an endpoint is the only edit needed.
@@ -199,7 +218,7 @@ describe('contact-admin root endpoint (OpenAPI)', () => {
   it('stays visible in every project spec despite owning no collection', () => {
     for (const project of ['sahaj-atlas', 'wemeditate-web', 'wemeditate-app'] as const) {
       const filtered = filterSpec(build(), { project, rootEndpointPaths })
-      expect(contactAdminOp(filtered)?.['x-internal'], `hidden for ${project}`).toBeFalsy()
+      expect(contactAdminOp(filtered)['x-internal'], `hidden for ${project}`).toBeFalsy()
     }
   })
 
@@ -208,7 +227,7 @@ describe('contact-admin root endpoint (OpenAPI)', () => {
     // first segment names no collection, so the project tier reads it as "not in
     // this project" and hides a live endpoint from every /docs page.
     const filtered = filterSpec(build(), { project: 'sahaj-atlas' })
-    expect(contactAdminOp(filtered)?.['x-internal']).toBe(true)
+    expect(contactAdminOp(filtered)['x-internal']).toBe(true)
   })
 })
 
