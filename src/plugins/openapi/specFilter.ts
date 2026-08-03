@@ -123,12 +123,32 @@ export interface OpenAPISpec {
 }
 
 /**
+ * Hand-authored paths registered at the **config root** rather than on a
+ * collection (`config.endpoints` in `payload.config.ts`). Their first path
+ * segment looks like a collection slug but names no collection, so the
+ * project-visibility tiers below can't judge them — and would hide every one as
+ * "not in this project's collections". They're project-agnostic by nature
+ * (`/api/contact-admin` is shared by every client app), so they're exempted and
+ * stay visible in every project's spec.
+ *
+ * Keep in step with `config.endpoints` in `src/payload.config.ts`.
+ */
+export const ROOT_CUSTOM_ENDPOINT_PATHS: readonly string[] = ['/api/contact-admin']
+
+/**
  * Extracts the collection or global slug from an API path
  * @example '/api/pages' -> 'pages'
  * @example '/api/pages/{id}' -> 'pages'
  * @example '/api/globals/payload-job-stats' -> 'payload-job-stats'
+ * @example '/api/contact-admin' -> null (root endpoint, owned by no collection)
  */
 function getCollectionFromPath(path: string): string | null {
+  // Root-level custom endpoints belong to no collection — returning null keeps
+  // them out of the visibility tiers entirely (the filter loop skips them).
+  if (ROOT_CUSTOM_ENDPOINT_PATHS.includes(path)) {
+    return null
+  }
+
   // Handle global paths: /api/globals/{global-slug}
   const globalMatch = path.match(/^\/api\/globals\/([^/]+)/)
   if (globalMatch) {

@@ -8,12 +8,12 @@
  * notification uses.
  */
 
-import type { ContactAdminContext } from '@/endpoints/responseTypes'
 import type { Payload } from 'payload'
 
 import { createElement } from 'react'
 
 import { buildContactDetails, ContactAdminEmail } from '@/emails/ContactAdminEmail'
+import type { ContactAdminContext } from '@/endpoints/responseTypes'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
