@@ -33,23 +33,9 @@ import { getVtimezoneComponent } from '@touch4it/ical-timezones'
 import ical, { ICalEventRepeatingFreq, ICalWeekday } from 'ical-generator'
 
 import { stripNewlines } from '@/lib/utilities/emailSafeText'
-import type { Event } from '@/payload-types'
-import type { ScheduleSubFields } from '@/types/schedule'
+import type { EventScheduleInput, ScheduleSubFields } from '@/types/schedule'
 
 import { buildRRuleTemporal } from './scheduleHooks'
-
-/**
- * A schedule as either the hand-written `ScheduleSubFields` or the
- * Payload-generated shape, whose optional fields are `| null` rather than
- * `| undefined`.
- *
- * The two are structurally interchangeable for `buildRRuleTemporal`: every
- * field it reads is guarded by a truthy check or `??`, both of which treat
- * `null` and `undefined` identically. Accepting both here beats widening the
- * shared `ScheduleSubFields` (which would ripple into `scheduleHooks` and
- * `audiences/scheduleMatch`) or forcing callers to normalize.
- */
-export type EventScheduleInput = NonNullable<Event['schedule']> | Partial<ScheduleSubFields>
 
 /** Fallback duration when an event declares no `endTime`. */
 const DEFAULT_DURATION_MINUTES = 60

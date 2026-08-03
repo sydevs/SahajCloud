@@ -285,4 +285,179 @@ describe('eventsGeoJson endpoint', () => {
       expect(feature?.properties.webPath).toBe(`/gb/geo-town/${event.id}`)
     })
   })
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Finished events (#603): published (so their pages resolve) but off the feed.
+  // ────────────────────────────────────────────────────────────────────────────
+  describe('finished events', () => {
+    /** A published event with the given schedule; `lastDate` is computed on write. */
+    const createEvent = async (
+      title: string,
+      schedule: Record<string, unknown>,
+      extra: Record<string, unknown> = {},
+    ) => {
+      return payload.create({
+        collection: 'events',
+        overrideAccess: true,
+        data: {
+          title,
+          eventType: 'online',
+          onlineUrl: 'https://example.com/meet',
+          languages: ['en'],
+          registrationMode: 'sahaj-atlas',
+          manager: managerId,
+          region: regionId,
+          schedule,
+          _status: 'published',
+          ...extra,
+        },
+      })
+    }
+
+    const featureIds = async (query: Record<string, unknown> = SELECT) => {
+      const { body } = await callGeoJson(query)
+      return body.features!.map((f) => f.id)
+    }
+
+    it('stores lastDate for a terminating schedule and null for an open-ended one', async () => {
+      const course = await createEvent('Finite Course', {
+        firstDate: '2025-01-06T10:00:00.000Z',
+        firstDate_tz: 'Europe/London',
+        recurrenceType: 'DAILY',
+        interval: 1,
+        endingType: 'count',
+        count: 3,
+      })
+      const openEnded = await payload.findByID({
+        collection: 'events',
+        id: onlineEventId,
+        overrideAccess: true,
+      })
+
+      // Jan 6, 7, 8 → end of Jan 8 local day (London is UTC+0 in January)
+      expect(course.schedule?.lastDate).toBe('2025-01-08T23:59:59.999Z')
+      expect(openEnded.schedule?.lastDate).toBeNull()
+    })
+
+    it('omits an event whose schedule has run out', async () => {
+      const finished = await createEvent('Finished One-off', {
+        firstDate: '2020-05-01T10:00:00.000Z',
+        firstDate_tz: 'Europe/London',
+      })
+
+      expect(await featureIds()).not.toContain(finished.id)
+      // …but it is still published, so its page keeps resolving
+      const doc = await payload.findByID({
+        collection: 'events',
+        id: finished.id,
+        overrideAccess: true,
+      })
+      expect(doc._status).toBe('published')
+    })
+
+    it('keeps an open-ended recurrence in the feed however old its firstDate', async () => {
+      // The MAX_MONTHS_AHEAD false positive: yearly cadence, still running
+      const yearly = await createEvent('Yearly Gathering', {
+        firstDate: '2020-05-01T10:00:00.000Z',
+        firstDate_tz: 'Europe/London',
+        recurrenceType: 'MONTHLY',
+        interval: 12,
+        monthlyMode: 'date',
+        monthDay: 1,
+      })
+
+      expect(await featureIds()).toContain(yearly.id)
+    })
+
+    it('keeps an event whose final occurrence is today until midnight in its own timezone', async () => {
+      // A one-off whose only occurrence is *now* — so it has already happened,
+      // yet the event stays listed because its local day hasn't ended. Anchored
+      // to the current instant rather than a fixed clock: end-of-local-day is at
+      // or after `now` in every timezone, so this can't straddle a midnight.
+      // The timezone contrast itself is pinned in tests/unit/schedule-status.spec.ts.
+      const firstDate = new Date().toISOString()
+      const endsToday = await createEvent('Ends Today', {
+        firstDate,
+        firstDate_tz: 'Europe/Berlin',
+      })
+
+      expect(endsToday.schedule?.lastDate).not.toBeNull()
+      expect(new Date(endsToday.schedule!.lastDate!).getTime()).toBeGreaterThanOrEqual(
+        new Date(firstDate).getTime(),
+      )
+      expect(await featureIds()).toContain(endsToday.id)
+    })
+
+    it('never treats an inactive event as finished, however stale its firstDate', async () => {
+      const dormant = await createEvent(
+        'Dormant Group',
+        { firstDate: '2019-01-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
+        { inactive: true, contactPhone: '+44 20 7000 0000', contactName: 'Dormant Contact' },
+      )
+
+      expect(await featureIds()).toContain(dormant.id)
+    })
+
+    it('drops an event whose trailing occurrence is excluded', async () => {
+      // Two occurrences 60 days apart, straddling now: one 30 days back, one 30
+      // days ahead. Excluding the future one pulls lastDate into the past, so the
+      // event leaves the feed — while the identical un-excluded rule stays.
+      // Dates are calendar-anchored at midday so no local date can drift.
+      const day = (offsetDays: number) =>
+        new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10)
+      const schedule = {
+        firstDate: `${day(-30)}T12:00:00.000Z`,
+        firstDate_tz: 'Europe/London',
+        recurrenceType: 'DAILY' as const,
+        interval: 60,
+        endingType: 'count' as const,
+        count: 2,
+      }
+
+      const running = await createEvent('Tail Intact', schedule)
+      const trimmed = await createEvent('Tail Excluded', {
+        ...schedule,
+        // A generous range around the future occurrence — no exact-date guessing
+        exclusions: [{ startDate: day(20), endDate: day(40) }],
+      })
+
+      const ids = await featureIds()
+      expect(new Date(running.schedule!.lastDate!).getTime()).toBeGreaterThan(Date.now())
+      expect(new Date(trimmed.schedule!.lastDate!).getTime()).toBeLessThan(Date.now())
+      expect(ids).toContain(running.id)
+      expect(ids).not.toContain(trimmed.id)
+    })
+
+    it('reflects the filter in totalDocs, not as a post-read drop', async () => {
+      const { body } = await callGeoJson(SELECT)
+      expect(body.totalDocs).toBe(body.features!.length)
+    })
+
+    it('composes with the caller’s own where', async () => {
+      const finished = await createEvent('Finished Offline', {
+        firstDate: '2020-06-01T10:00:00.000Z',
+        firstDate_tz: 'Europe/London',
+      })
+
+      const ids = await featureIds({ ...SELECT, where: { eventType: { equals: 'online' } } })
+      expect(ids).toContain(onlineEventId)
+      expect(ids).not.toContain(offlineEventId) // the caller's filter still applies
+      expect(ids).not.toContain(finished.id) // …and ours is ANDed on top
+    })
+
+    it('cannot be opted out of by a caller’s where on schedule.lastDate', async () => {
+      const finished = await createEvent('Finished Unretrievable', {
+        firstDate: '2020-07-01T10:00:00.000Z',
+        firstDate_tz: 'Europe/London',
+      })
+
+      // The opt-out that works on `GET /api/events` must not work here.
+      for (const where of [
+        { 'schedule.lastDate': { exists: true } },
+        { 'schedule.lastDate': { less_than: new Date().toISOString() } },
+      ]) {
+        expect(await featureIds({ ...SELECT, where })).not.toContain(finished.id)
+      }
+    })
+  })
 })
