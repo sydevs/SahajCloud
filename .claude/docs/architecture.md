@@ -56,15 +56,16 @@ Two places to add HTTP endpoints, chosen by scope:
 ### Atlas event read + registration contract
 
 `GET /api/events/geojson` + `POST /api/events/:id/register` back the Sahaj Atlas
-widget. Two behaviours it depends on (#599):
+widget. Two behaviours it depends on:
 
-- **Finished events 404.** When an event's schedule runs out, the ExpireEvents
-  job marks it `finished` + `_status: 'draft'`, so `sahaj-atlas-client` reads
-  **404** — a direct link to a finished event lands on the widget's not-found
-  fallback, not an "Ended" panel. In the window before that nightly job runs, a
-  past-but-still-published event stays readable and the widget derives "Ended"
-  client-side from `schedule.upcomingDates`.
-- **Registration is gated server-side.** The register endpoint refuses
+- **Finished events stay published but drop off the feeds (#603/#604).** When an
+  event's schedule runs out, the ExpireEvents job marks it `finished` but leaves
+  it **published** — so `GET /api/events/:id` stays readable and the widget
+  renders an "Ended" panel, while the public feeds (`GET /api/events` for clients
+  and `GET /api/events/geojson`) exclude it via `excludeFinishedEvents` /
+  `notFinishedWhere`. Finished-ness keys off the stored `schedule.lastDate`
+  (`shouldFinish` and its SQL counterpart), not the virtual `upcomingDates`.
+- **Registration is gated server-side (#599).** The register endpoint refuses
   external-mode / ended / started-course / full events with a `409` and a stable
   machine-readable `code` (`src/collections/Events/endpoints/responseTypes.ts`),
   and a denormalized `registrationsFull` boolean on the event lets the widget
@@ -258,6 +259,36 @@ references. Tag-based preservation: images with non-orientation tags
 | `src/jobs/CleanupOrphanedMedia/schemaUtils.ts`          | Schema introspection utilities |
 | `tests/int/cleanup-orphaned-media.int.spec.ts`          | Integration tests              |
 | `tests/int/schema-utils.int.spec.ts`                    | Schema-utils tests             |
+
+### `ExpireEvents` (`src/jobs/ExpireEvents/ExpireEvents.ts`)
+
+Daily 02:00 UTC sweep on the `nightly` queue (single-threaded via an exclusive
+concurrency key, so the read-then-advance is race-free). Picks up every event
+whose `nextCheckAt` has passed and does one of two things:
+
+1. **Finished** — its schedule has run out (`shouldFinish`, from
+   `src/lib/schedule/scheduleStatus.ts`). Sets `verificationStage: 'finished'`
+   and clears `nextCheckAt`. **Does not unpublish** (#603): a finished event's
+   Atlas page must keep resolving for a seeker following an old link, and
+   `webPath` / `webUrl` are publish-gated. It leaves the public *feeds* instead —
+   they filter on `schedule.lastDate` on every read, so unlike the stage, that
+   never lags behind this job. Dormant `inactive` events never finish.
+2. **The unverified ladder** — `verified → reminded → escalated → urgent →
+   expired`, then trash. Escalating reminders go to the event manager, then
+   ancestor-region managers from `escalated` on. **`urgent → expired` is the only
+   transition that unpublishes**; `expired → trash` soft-deletes after the grace
+   period. A stage advances only once every recipient's email is logged, so an
+   undelivered reminder retries next run rather than ageing the event.
+
+| File                                    | Purpose                                             |
+| --------------------------------------- | --------------------------------------------------- |
+| `src/jobs/ExpireEvents/ExpireEvents.ts` | Sweep + per-event processing                        |
+| `src/jobs/ExpireEvents/stageMachine.ts` | Stage transitions, offsets, unpublish/trash decisions |
+| `src/lib/schedule/scheduleStatus.ts`    | `shouldFinish` — shared with the feeds + registration |
+| `tests/int/expire-events.int.spec.ts`   | Integration tests (incl. publish side effects)       |
+| `tests/unit/expire-events-stage-machine.spec.ts` | Stage-machine unit tests                    |
+
+Manual trigger: `pnpm payload jobs:run --queue nightly`.
 
 ### `RegistrationNotifications` (`src/jobs/RegistrationNotifications/`)
 

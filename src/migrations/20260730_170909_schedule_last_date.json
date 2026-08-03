@@ -8647,6 +8647,12 @@
           "notNull": false,
           "default": 1
         },
+        "schedule_last_date": {
+          "name": "schedule_last_date",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "weight": {
           "name": "weight",
           "type": "numeric",
@@ -8938,6 +8944,21 @@
           "columns": [
             {
               "expression": "live_now_image_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "app_cards_schedule_schedule_last_date_idx": {
+          "name": "app_cards_schedule_schedule_last_date_idx",
+          "columns": [
+            {
+              "expression": "schedule_last_date",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -10166,6 +10187,12 @@
           "notNull": false,
           "default": 1
         },
+        "version_schedule_last_date": {
+          "name": "version_schedule_last_date",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "version_weight": {
           "name": "version_weight",
           "type": "numeric",
@@ -10503,6 +10530,21 @@
           "columns": [
             {
               "expression": "version_live_now_image_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_app_cards_v_version_schedule_version_schedule_last_date_idx": {
+          "name": "_app_cards_v_version_schedule_version_schedule_last_date_idx",
+          "columns": [
+            {
+              "expression": "version_schedule_last_date",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -12029,6 +12071,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "schedule_last_date": {
+          "name": "schedule_last_date",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "region_id": {
           "name": "region_id",
           "type": "integer",
@@ -12167,13 +12215,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "registrations_full": {
-          "name": "registrations_full",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
         "manager_id": {
           "name": "manager_id",
           "type": "integer",
@@ -12242,6 +12283,21 @@
         }
       },
       "indexes": {
+        "events_schedule_schedule_last_date_idx": {
+          "name": "events_schedule_schedule_last_date_idx",
+          "columns": [
+            {
+              "expression": "schedule_last_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "events_region_idx": {
           "name": "events_region_idx",
           "columns": [
@@ -12999,6 +13055,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "version_schedule_last_date": {
+          "name": "version_schedule_last_date",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "version_region_id": {
           "name": "version_region_id",
           "type": "integer",
@@ -13137,13 +13199,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_registrations_full": {
-          "name": "version_registrations_full",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
         "version_manager_id": {
           "name": "version_manager_id",
           "type": "integer",
@@ -13248,6 +13303,21 @@
           "columns": [
             {
               "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_events_v_version_schedule_version_schedule_last_date_idx": {
+          "name": "_events_v_version_schedule_version_schedule_last_date_idx",
+          "columns": [
+            {
+              "expression": "version_schedule_last_date",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -27269,6 +27339,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "e32872bf-d93e-4804-843d-17ab73c5d3c4",
+  "id": "e3dcbef9-f01c-4ed1-b64e-05dfd8c30a40",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

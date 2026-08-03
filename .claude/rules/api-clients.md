@@ -136,6 +136,13 @@ response and should not require every endpoint caller to enumerate internal
 fields with `select`, while rate limiting and usage tracking still see the
 authenticated client.
 
+The companion predicate `isTrustedReq(req)` reads that flag back. Honour it in
+hooks that shape the **client-facing result** of a read — an endpoint doing its
+own lookup needs the true state, so silently narrowing it turns a precise error
+into a confusing one (`excludeFinishedEvents` exempts trusted reqs so
+`POST /api/events/{id}/register` can answer 409 instead of 404). Do **not**
+honour it in security gates — see `validateClientOriginHook` below.
+
 ### Live preview bypass
 
 Admin live preview loads the external We Meditate Web frontend, which fetches
@@ -148,6 +155,42 @@ preview. `validateClientQueryParamsHook` skips validation for such requests via
 the access layer uses to unlock drafts in `createAccessConfig`). Rate limiting
 and usage tracking still apply. Without this, PR #294's gate breaks the
 meditations, pages, and wemeditate-web live previews.
+
+## Client read contract: finished events (#603)
+
+A **finished** event — one whose schedule has fully run out — stays `published`,
+because its Atlas page must keep resolving for a seeker following an old link
+(`webPath` / `webUrl` are publish-gated, so unpublishing is precisely what would
+break those links). It drops out of the public *feeds* instead. So for API
+clients:
+
+| Read                       | Finished events                                                       |
+| -------------------------- | --------------------------------------------------------------------- |
+| `GET /api/events`          | **excluded by default**; an explicit `where` on `schedule.lastDate` opts out |
+| `GET /api/events/geojson`  | **always excluded** — no opt-out; a caller's `where` can only narrow   |
+| `GET /api/events/{id}`     | returned normally, with non-null `webPath` / `webUrl`                  |
+| Admin / manager / job reads | unaffected (the Atlas sidebar buckets on `verificationStage`)          |
+
+"Finished" = `schedule.lastDate` (end of the final occurrence's **local** day) is
+in the past. An event running today stays listed until midnight in its own
+timezone. A NULL `lastDate` means no fixed end (open-ended recurrence), and
+`inactive` events are dormant by design — neither is ever finished. One
+definition, two expressions: `shouldFinish` (`@/lib/schedule/scheduleStatus`) in
+memory, `notFinishedWhere` (`@/collections/Events/lifecycle/finished`) as SQL,
+pinned to agree by `tests/unit/schedule-status.spec.ts`.
+
+The list-read default is applied by the `excludeFinishedEvents` beforeOperation
+hook on Events; the opt-out is any `where` naming `schedule.lastDate` (**dotted
+path only** — Payload rejects the nested-group form `where[schedule][lastDate]`
+with "path cannot be queried"). `POST /api/events/{id}/register` refuses a
+finished event with **409** ("This event has ended"), since the published-only
+access filter no longer catches it.
+
+> **Existing clients see fewer docs from `GET /api/events`.** Deliberate. The
+> contract is published on the geojson operation's OpenAPI `description`; the
+> generated `/api/events` path has no description seam (custom paths merge into
+> the spec by shallow spread, so annotating it would replace the generated
+> operation).
 
 ## Origin / Referer Enforcement
 

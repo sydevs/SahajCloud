@@ -1,32 +1,46 @@
 /**
- * Schedule-derived event status — shared by the ExpireEvents job (which marks a
- * finished event `finished` + unpublished) and the registration endpoint's
- * gating (which rejects a registration for an event that has already ended).
- * Keeping one definition means "the schedule has run out" is decided the same
- * way in both places; see `src/collections/Events/endpoints/registerForEvent.ts`
- * and `src/jobs/ExpireEvents/ExpireEvents.ts`.
+ * Schedule-derived event status — the single definition of "this event has
+ * finished", shared by the ExpireEvents job (which marks it `finished`), the
+ * registration endpoint (which refuses to register for it), and the public
+ * event feeds (which drop it — see `notFinishedWhere` in
+ * `@/collections/Events/lifecycle/finished`).
+ *
+ * "Finished" means the schedule has fully run out: the stored
+ * `schedule.lastDate` — end of the final occurrence's local day, see
+ * `lastOccurrenceEnd` — is in the past. A `null` `lastDate` means the
+ * recurrence never ends, so it never finishes.
+ *
+ * `inactive` events are exempt: they're dormant by design and carry no
+ * schedule, so without the guard every one of them would falsely "finish".
  */
+
+import type { EventScheduleInput } from '@/types/schedule'
+
+import { lastOccurrenceEnd } from './scheduleHooks'
 
 /** Minimal shape the finished-check reads off an event. */
 export interface FinishCheckInput {
   inactive?: boolean | null
-  schedule?: { firstDate?: string | null; upcomingDates?: unknown } | null
+  schedule?: EventScheduleInput | null
 }
 
 /**
- * Whether an event's schedule has run out (Atlas `should_finish?`): it has a
- * schedule, is NOT inactive, and the schedule has no upcoming dates. The
- * `!inactive` + has-schedule guards are essential — without them every inactive
- * or scheduleless event would falsely "finish".
+ * Whether an event's schedule has run out (Atlas `should_finish?`).
  *
- * `upcomingDates` is the schedule's virtual field (next occurrences from now),
- * so this reflects both a one-off whose date has passed and a course whose last
- * occurrence is behind us.
+ * Computed from the schedule sub-fields via `lastOccurrenceEnd` rather than read
+ * off the stored `schedule.lastDate` column. The column is that function's
+ * projection, so the two agree — but computing means the nightly sweep is
+ * correct from the moment this ships, with no dependency on the backfill having
+ * run (an un-backfilled NULL column would otherwise read as "never ends" and the
+ * event would never finish).
+ *
+ * The SQL counterpart is `notFinishedWhere`, which *must* use the column;
+ * `tests/unit/schedule-status.spec.ts` pins the two to the same answers.
  */
-export function shouldFinish(event: FinishCheckInput): boolean {
+export function shouldFinish(event: FinishCheckInput, now: Date = new Date()): boolean {
   if (event.inactive) return false
   const schedule = event.schedule
   if (!schedule?.firstDate) return false
-  const upcoming = schedule.upcomingDates
-  return Array.isArray(upcoming) && upcoming.length === 0
+  const lastDate = lastOccurrenceEnd(schedule)
+  return lastDate != null && new Date(lastDate) < now
 }

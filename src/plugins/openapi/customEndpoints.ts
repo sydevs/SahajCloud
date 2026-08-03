@@ -332,7 +332,21 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'return `geometry: null` and are still included. `properties` is the ' +
         'selected/populated event document verbatim (internal field names). Payload ' +
         'pagination metadata is returned as foreign members alongside `features`. ' +
-        'Sets `Cache-Control: public, max-age=300, s-maxage=300`.',
+        'Sets `Cache-Control: public, max-age=300, s-maxage=300`.\n\n' +
+        '**Finished events are excluded.** An event is finished once its schedule ' +
+        'has fully run out — `schedule.lastDate`, the end of the final ' +
+        "occurrence's *local* day, is in the past — so an event running today stays " +
+        'in the feed until midnight in its own timezone. Events with no fixed end ' +
+        '(an open-ended recurrence) and dormant `inactive` events are never ' +
+        'finished. The filter is part of the underlying read, so `totalDocs` and ' +
+        'pagination reflect the filtered set, and **your `where` cannot re-include ' +
+        'finished events here**.\n\n' +
+        '`GET /api/events` applies the same default, but there it *can* be ' +
+        'overridden: a `where` that references `schedule.lastDate` (e.g. ' +
+        '`where[schedule.lastDate][less_than]=2026-01-01T00:00:00Z`) opts out and ' +
+        'returns past events. `GET /api/events/{id}` is never filtered — a finished ' +
+        'event still resolves, with a working `webPath` / `webUrl`, so old links ' +
+        'keep opening.',
       operationId: 'eventsGeoJson',
       parameters: eventGeoJsonParameters,
       responses: {
@@ -393,8 +407,10 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         '403': errorResponse('Caller is not a published API client.'),
         '404': errorResponse('Event not found or not open for registration.'),
         '409': errorResponse(
-          'Registration refused by the event state. `errors[0].code` is one of ' +
-            '`external_registration`, `event_ended`, `registration_closed`, or `event_full`.',
+          'Registration refused because the event state conflicts with registering. ' +
+            '`errors[0].code` is one of `external_registration`, `event_ended`, ' +
+            '`registration_closed`, or `event_full`. Distinct from 404: the event exists ' +
+            'and is readable (a finished event stays published), its state just conflicts.',
         ),
       },
     },

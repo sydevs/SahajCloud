@@ -76,7 +76,7 @@ with a **mktemp body file** → return the URL.
 | Concern | SahajCloud | SahajAtlasWeb | WeMeditateWeb |
 | --- | --- | --- | --- |
 | Schema/contract step | Payload migrations: attempt-then-fallback (`timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null`; hand off on exit 124) per `.claude/rules/migrations.md` | `pnpm types:cms` + `pnpm types:openapi` contract refresh | `pnpm types:cms` (consumes SahajCloud types; no migrations) |
-| Lean gate contents | lint + `test:unit` (+ targeted int specs) | lint + typecheck + `test:run` | lint + `tsc --noEmit` + `test:run` |
+| Lean gate contents | lint + typecheck + `typecheck:tests` + `test:unit` (+ targeted int specs) | lint + typecheck + `test:run` | lint + `tsc --noEmit` + `test:run` |
 | Security-review trigger paths | access plugins, Clients/Managers, endpoints, storage, webhooks, payload.config | api config, Widget entry, lexical/HTML sinks, deps, env, vite config | `server/`, `pages/preview/`, wrangler/vite/sentry configs, `scripts/`, env files |
 | Worktree env setup | `CI=true pnpm install`; `.env` is git-tracked (already present); dev server needs a distinct `PORT` (shared instance + shared local Postgres via `push: true`) | `pnpm install`; copy `.env.local` from main checkout if needed | `pnpm install`; copy `.env` / `.dev.vars` from main checkout if needed |
 | Deploy target | Railway (+ per-PR preview) | Cloudflare Pages | Cloudflare Workers + Pages (Ladle) |

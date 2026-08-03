@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { mergeSubtitles } from '@/lib/lectures/lectureShape'
+import type { Lecture } from '@/payload-types'
+
+
+/** The `overrides` argument's own type, so locale codes are checked. */
+type SubtitleOverrides = NonNullable<Lecture['subtitles']>
 
 describe('mergeSubtitles', () => {
   it('returns the base map unchanged when there are no overrides', () => {
@@ -12,7 +17,7 @@ describe('mergeSubtitles', () => {
 
   it('layers each non-empty override on top of the base map', () => {
     const base = { en: 'base-en', es: 'base-es', de: 'base-de' }
-    const overrides = [
+    const overrides: SubtitleOverrides = [
       { locale: 'es', url: 'override-es' },
       { locale: 'fr', url: 'override-fr' },
     ]
@@ -26,10 +31,10 @@ describe('mergeSubtitles', () => {
 
   it('ignores override rows with empty or missing url', () => {
     const base = { en: 'base-en' }
-    const overrides = [
+    const overrides: SubtitleOverrides = [
       { locale: 'en', url: '' },
       { locale: 'es', url: 'override-es' },
-    ] as Array<{ locale: string; url: string }>
+    ]
     expect(mergeSubtitles(base, overrides)).toEqual({
       en: 'base-en', // empty url did NOT override
       es: 'override-es',

@@ -402,10 +402,11 @@ like `'1748234234_abcdef'` were being parsed as valid IDs.
 
 ## Schedule field
 
-`scheduleField()` (`src/fields/scheduleField.ts`) is a Group field with
+`scheduleFields()` (`src/fields/scheduleFields.ts`) is a Group field with
 native sub-fields stored in individual DB columns. The `firstDate` field
 uses `timezone: true`, which stores the datetime in UTC and auto-creates
-a companion `firstDate_tz` for the IANA timezone.
+a companion `firstDate_tz` for the IANA timezone. Used by **Events** and
+**AppCards**, so a change here lands on both (and on their version tables).
 
 Two virtual fields are computed on read using
 [`rrule-temporal`](https://www.npmjs.com/package/rrule-temporal):
@@ -421,6 +422,35 @@ Two virtual fields are computed on read using
   past.
 
 Both hooks delegate to a shared `buildRRuleTemporal()` helper.
+
+And one **stored** derived column, recomputed on every write (#603):
+
+- **`lastDate`** (date, indexed, `admin.hidden`) — end of the final occurrence's
+  **local** day (23:59:59.999 in `firstDate_tz`) as a UTC instant, or `null` when
+  the recurrence never ends. Computed by the `computeLastDate` `beforeChange`
+  field hook from the pure `lastOccurrenceEnd()`; the column is just that
+  function's DB-queryable projection. A real column rather than a virtual field
+  precisely so "has this schedule run out?" can appear in a `where` — the public
+  event feeds filter on it (see `.claude/rules/api-clients.md`).
+
+  Two things to know if you touch it:
+
+  - **Termination is read off the built rule's own `options()`**, not re-derived
+    from the sub-fields, so it can't drift from `buildRRuleTemporal`'s conditions
+    (a positive `count`, a parseable `untilDate`). An open-ended rule returns
+    `null` *before* `all()` is called — `all()` on an infinite rule would run to
+    its iteration cap.
+  - **The partial-update trap.** A field `beforeChange` hook receives only the
+    incoming patch, and Payload materialises an empty `{}` for a group the patch
+    omits — so computing from `siblingData` alone would NULL the column on every
+    unrelated write. `computeLastDate` computes from
+    `{ ...previousSiblingDoc, ...siblingData }`: a partial schedule patch
+    recomputes correctly, an unrelated patch is a no-op, and any write back-fills
+    a NULL for free. Spread, not deep merge — an explicit `null` in the patch (a
+    cleared `recurrenceType`) must win.
+
+  Existing rows are brought up to date by
+  `scripts/backfill-schedule-last-date.ts`.
 
 ### Why rrule-temporal (not rrule)
 
@@ -461,11 +491,21 @@ for reactive access to schedule sub-fields.
 
 ### Key files
 
-- `src/fields/scheduleField.ts` — group field factory
+- `src/fields/scheduleFields.ts` — group field factory
 - `src/lib/schedule/scheduleHooks.ts` — `buildRRuleTemporal`, `computeIcalRule`,
-  `computeUpcomingDates`, `cleanupExpiredExclusions`, `getLocalTimeHHMM`,
-  type definitions
+  `computeUpcomingDates`, `lastOccurrenceEnd`, `computeLastDate`,
+  `cleanupExpiredExclusions`, `getLocalTimeHHMM`
+- `src/lib/schedule/scheduleStatus.ts` — `shouldFinish` ("has this schedule run
+  out?", shared by the ExpireEvents sweep, the public feeds, and registration)
+- `src/lib/schedule/backfillLastDate.ts` — recompute `lastDate` on existing rows
+- `src/types/schedule.ts` — `ScheduleSubFields` (authoring shape),
+  `EventScheduleInput` (that **or** Payload's generated `| null` shape — the
+  parameter type for anything reading a schedule off a document),
+  `ExclusionRange`
 - `src/components/admin/ScheduleSummary.tsx` — afterInput component
 - `src/components/admin/FlatArrayField/FlatArrayField.tsx` — custom
   array field for exclusions (flat rows, no per-row Collapsible)
 - `tests/unit/schedule-hooks.spec.ts` — DST transition tests included
+- `tests/unit/schedule-status.spec.ts` — `shouldFinish`, and the matrix pinning it
+  to agree with `notFinishedWhere`
+- `tests/int/schedule-last-date-backfill.int.spec.ts` — backfill side effects

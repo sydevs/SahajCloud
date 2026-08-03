@@ -1,22 +1,13 @@
 import type { EventRegistrationErrorCode } from '@/collections/Events/endpoints/responseTypes'
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
+import type { EventScheduleInput } from '@/types/schedule'
 
 import { type EventFullnessInput, isEventFull } from './fullness'
-
-/** Registration-relevant schedule sub-fields (started-course detection). */
-interface GateSchedule {
-  firstDate?: string | null
-  upcomingDates?: unknown
-  recurrenceType?: string | null
-  endingType?: string | null
-  count?: number | null
-  untilDate?: string | null
-}
 
 /** The event fields the gate reads — structurally a subset of an Event doc. */
 export interface RegistrationGateInput extends EventFullnessInput {
   inactive?: boolean | null
-  schedule?: GateSchedule | null
+  schedule?: EventScheduleInput | null
 }
 
 /** A refusal: the machine-readable `code`, human `message`, and HTTP `status`. */
@@ -55,7 +46,7 @@ export function evaluateRegistrationGate(args: {
       message: 'This event is registered through an external service.',
     }
   }
-  if (shouldFinish(event)) {
+  if (shouldFinish(event, now)) {
     return { code: 'event_ended', status: CONFLICT, message: 'This event has ended.' }
   }
   if (isStartedLimitedCourse(event.schedule, now)) {
@@ -80,7 +71,10 @@ export function evaluateRegistrationGate(args: {
  * a one-off has no ongoing run to be mid-way through (an elapsed one-off is
  * caught by `shouldFinish` as `event_ended` instead).
  */
-function isStartedLimitedCourse(schedule: GateSchedule | null | undefined, now: Date): boolean {
+function isStartedLimitedCourse(
+  schedule: EventScheduleInput | null | undefined,
+  now: Date,
+): boolean {
   if (!schedule?.recurrenceType) return false
   const hasEnding =
     (schedule.endingType === 'count' && schedule.count != null) ||

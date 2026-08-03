@@ -93,3 +93,9 @@ describe('daysUntilUnpublish', () => {
     expect(fromReminded).toBe(fromVerified)
   })
 })
+
+// `shouldFinish` moved to @/lib/schedule/scheduleStatus in #603 (it's now shared
+// with the public feeds and the registration gate, and keys off the stored
+// `schedule.lastDate` instead of the virtual `upcomingDates`). Its cases — and
+// the agreement test against `notFinishedWhere` — live in
+// tests/unit/schedule-status.spec.ts.

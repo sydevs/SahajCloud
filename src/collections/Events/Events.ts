@@ -39,6 +39,7 @@ import {
 } from './eventOptions'
 import { ensureWebPathDeps } from './hooks/ensureWebPathDeps'
 import { eventTitleBeforeChange } from './hooks/eventTitle'
+import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { syncEventFullness } from './hooks/syncFullness'
 import { verifyOnSave } from './hooks/verifyOnSave'
 
@@ -65,19 +66,18 @@ const eventDescriptionEditor = lexicalEditor({
  * Atlas `finishDate` maps into its ending (not a standalone field).
  *
  * **Finished-event read contract (for `sahaj-atlas-client`).** When an event's
- * schedule runs out, the ExpireEvents job marks it `finished` and sets
- * `_status: 'draft'` (see `finishEvent`). A draft is invisible to the
- * published-only client filter, so **`GET /api/events/:id` then 404s** — a
- * direct link to a finished event resolves to the widget's not-found fallback
- * ("see nearby events"), not an "Ended" panel. This is the pinned contract:
- * finished ⇒ 404.
+ * schedule runs out, the ExpireEvents job marks it `finished` but leaves it
+ * **published** (#603, see `finishEvent`): its Atlas page must keep resolving
+ * for a late seeker following an old link, and `webPath`/`webUrl` are
+ * publish-gated. So `GET /api/events/:id` stays readable and the widget renders
+ * an "Ended" panel — while the public *feeds* drop it (`GET /api/events` for
+ * clients and `GET /api/events/geojson`) via `excludeFinishedEvents` /
+ * `notFinishedWhere`. The pinned contract: finished ⇒ readable by id, absent
+ * from the feeds.
  *
- * There is a window between an event's last occurrence and the next
- * ExpireEvents run where it is past but still `published` — it stays readable,
- * and the widget derives "Ended" client-side from `schedule.upcomingDates`.
- * Registration during that window is closed server-side by the register
- * endpoint's gate (`event_ended`), so the read staying open can't leak a
- * registration into an event that is really over.
+ * Registration is refused for a finished (or otherwise elapsed) event by the
+ * register endpoint's gate (`event_ended`), so the read staying open can't leak
+ * a registration into an event that is really over.
  */
 export const Events: CollectionConfig = {
   slug: 'events',
@@ -112,7 +112,9 @@ export const Events: CollectionConfig = {
   hooks: {
     // Keep `webPath`/`webUrl` resolvable when a read selects them without their
     // inputs (`region`, and `_status` for `webUrl`) — see ensureWebPathDeps.
-    beforeOperation: [ensureWebPathDeps],
+    // Then drop finished events from API-client list reads (they stay published
+    // so their pages resolve, but shouldn't be listed) — see excludeFinishedEvents.
+    beforeOperation: [ensureWebPathDeps, excludeFinishedEvents],
     // verifyOnSave first (re-opens the verification cycle), then the fullness
     // recompute stamps `registrationsFull` onto the outgoing data.
     beforeChange: [verifyOnSave, syncEventFullness],

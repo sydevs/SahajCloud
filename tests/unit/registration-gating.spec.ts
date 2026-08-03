@@ -2,16 +2,21 @@ import { describe, expect, it } from 'vitest'
 
 import { evaluateRegistrationGate, type RegistrationGateInput } from '@/lib/registrations/gating'
 
+// The gate evaluates "ended" via `shouldFinish` (the stored-`lastDate` model),
+// so fixtures carry real schedule sub-fields + a tz, and `now` is injected so
+// the whole gate is deterministic rather than wall-clock-dependent.
 const NOW = new Date('2026-07-22T12:00:00.000Z')
-const PAST = '2026-01-01T10:00:00.000Z'
-const FUTURE = '2026-12-01T10:00:00.000Z'
+const TZ = 'Europe/London'
+const PAST = '2026-01-01T10:00:00.000Z' // long before NOW → a one-off that has ended
+const FUTURE = '2026-12-01T10:00:00.000Z' // after NOW → a one-off not yet started/ended
+const STARTED = '2026-07-01T10:00:00.000Z' // ~3 weeks before NOW → a run already under way
 
 /** An open sahaj-atlas one-off in the future (no recurrence, no limit). */
 const openEvent: RegistrationGateInput = {
   registrationMode: 'sahaj-atlas',
   registrationLimit: null,
   inactive: false,
-  schedule: { firstDate: FUTURE, upcomingDates: [FUTURE] },
+  schedule: { firstDate: FUTURE, firstDate_tz: TZ },
 }
 
 const gate = (event: RegistrationGateInput, registrationCount = 0) =>
@@ -29,7 +34,7 @@ describe('evaluateRegistrationGate', () => {
   it('rejects an ended event (schedule run out) with event_ended', () => {
     const ended: RegistrationGateInput = {
       ...openEvent,
-      schedule: { firstDate: PAST, upcomingDates: [] },
+      schedule: { firstDate: PAST, firstDate_tz: TZ }, // one-off, day long past
     }
     expect(gate(ended)?.code).toBe('event_ended')
   })
@@ -40,9 +45,12 @@ describe('evaluateRegistrationGate', () => {
       registrationLimit: null,
       inactive: false,
       schedule: {
-        firstDate: PAST,
-        upcomingDates: [FUTURE], // sessions remain → not ended, but the run has begun
+        // 8 weekly sessions from 3 weeks ago → the final one is still ahead of
+        // NOW (not ended), but the run has already begun.
+        firstDate: STARTED,
+        firstDate_tz: TZ,
         recurrenceType: 'WEEKLY',
+        interval: 1,
         endingType: 'count',
         count: 8,
       },
@@ -56,9 +64,11 @@ describe('evaluateRegistrationGate', () => {
       registrationLimit: null,
       inactive: false,
       schedule: {
-        firstDate: PAST, // started long ago, but it recurs forever
-        upcomingDates: [FUTURE],
+        // started long ago, but it recurs forever → no lastDate, never closes
+        firstDate: PAST,
+        firstDate_tz: TZ,
         recurrenceType: 'WEEKLY',
+        interval: 1,
         // no endingType/count/untilDate → open-ended
       },
     }
@@ -72,8 +82,9 @@ describe('evaluateRegistrationGate', () => {
       inactive: false,
       schedule: {
         firstDate: FUTURE,
-        upcomingDates: [FUTURE],
+        firstDate_tz: TZ,
         recurrenceType: 'WEEKLY',
+        interval: 1,
         endingType: 'until',
         untilDate: '2027-01-01',
       },
@@ -93,9 +104,11 @@ describe('evaluateRegistrationGate', () => {
       registrationLimit: null,
       inactive: false,
       schedule: {
+        // 8 weekly sessions from PAST → the whole run is behind us: ended.
         firstDate: PAST,
-        upcomingDates: [], // fully finished
+        firstDate_tz: TZ,
         recurrenceType: 'WEEKLY',
+        interval: 1,
         endingType: 'count',
         count: 8,
       },

@@ -103,7 +103,9 @@ async function loadEmailClient(
  * (surfaced verbatim by the catch below).
  *
  * Flow: parse the `:id` + body → confirm the event is one the client may see
- * (published + project-visible) → upsert the registrant `user` by normalized
+ * (published + project-visible) → refuse it when the event's state is closed to
+ * registration (external mode / ended / a started course / full — a
+ * machine-readable 409) → upsert the registrant `user` by normalized
  * email with elevated access (`users` is admin-only) → create the `registration`
  * (event + user + startingAt + questions + a fresh uuid, plus the originating
  * `client` and `locale`, and `mailingListSubscribedAt` when the registrant opted

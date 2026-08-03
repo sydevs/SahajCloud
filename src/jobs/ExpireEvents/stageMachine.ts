@@ -12,7 +12,11 @@ export interface StageTransition {
   nextStage: VerificationStage | 'trash'
   /** Days until the next check (`null` = terminal, clears `nextCheckAt`). */
   offsetDays: number | null
-  /** Unpublish (`_status: 'draft'`) on this transition. */
+  /**
+   * Unpublish (`_status: 'draft'`) on this transition. Only the **unverified**
+   * ladder unpublishes (`urgent → expired`); finishing deliberately leaves
+   * `_status` alone so old Atlas links keep resolving (#603).
+   */
   unpublish: boolean
 }
 
