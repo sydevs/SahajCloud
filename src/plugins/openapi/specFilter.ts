@@ -69,6 +69,14 @@ export const ALLOW_POST_FOR: CollectionSlug[] = ['form-submissions']
 export interface FilterOptions {
   /** Project/client role to filter collections by (null = all client role collections) */
   project?: ProjectSlug | null
+  /**
+   * Spec paths served by **root** endpoints (`config.endpoints`), which belong to
+   * no collection and so can't be judged by the project-visibility tiers. They're
+   * exempted from filtering and stay visible in every project's spec.
+   * Build with {@link rootEndpointPathsFrom}; omitting it means "no root
+   * endpoints", which would hide any that exist.
+   */
+  rootEndpointPaths?: string[]
 }
 
 type HttpMethod = 'get' | 'post' | 'patch' | 'delete' | 'put' | 'options' | 'head'
@@ -123,29 +131,40 @@ export interface OpenAPISpec {
 }
 
 /**
- * Hand-authored paths registered at the **config root** rather than on a
- * collection (`config.endpoints` in `payload.config.ts`). Their first path
- * segment looks like a collection slug but names no collection, so the
- * project-visibility tiers below can't judge them — and would hide every one as
- * "not in this project's collections". They're project-agnostic by nature
- * (`/api/contact-admin` is shared by every client app), so they're exempted and
- * stay visible in every project's spec.
+ * Turn a Payload config's root `endpoints` into the `/api/…` path keys they
+ * occupy in the spec.
  *
- * Keep in step with `config.endpoints` in `src/payload.config.ts`.
+ * A **root** endpoint (registered on `config.endpoints` rather than on a
+ * collection) has a first path segment that looks like a collection slug but
+ * names no collection, so the project-visibility tiers below can't judge it —
+ * and would hide every one as "not in this project's collections". Passing the
+ * result to {@link filterSpec} as `rootEndpointPaths` exempts them, which is
+ * right: a root endpoint is project-agnostic by nature (`/api/contact-admin` is
+ * shared by every client app).
+ *
+ * Derived from the live config rather than a hand-kept list, so adding an
+ * endpoint to `config.endpoints` is the only edit needed to keep `/api/docs`
+ * honest.
  */
-export const ROOT_CUSTOM_ENDPOINT_PATHS: readonly string[] = ['/api/contact-admin']
+export function rootEndpointPathsFrom(
+  endpoints: { path: string }[] | false | undefined,
+  apiRoute = '/api',
+): string[] {
+  if (!endpoints) return []
+  return endpoints.map((endpoint) => `${apiRoute}${endpoint.path}`)
+}
 
 /**
  * Extracts the collection or global slug from an API path
  * @example '/api/pages' -> 'pages'
  * @example '/api/pages/{id}' -> 'pages'
  * @example '/api/globals/payload-job-stats' -> 'payload-job-stats'
- * @example '/api/contact-admin' -> null (root endpoint, owned by no collection)
+ * @example '/api/contact-admin' -> null (when listed in `rootPaths`)
  */
-function getCollectionFromPath(path: string): string | null {
-  // Root-level custom endpoints belong to no collection — returning null keeps
-  // them out of the visibility tiers entirely (the filter loop skips them).
-  if (ROOT_CUSTOM_ENDPOINT_PATHS.includes(path)) {
+function getCollectionFromPath(path: string, rootPaths: Set<string>): string | null {
+  // Root-level endpoints belong to no collection — returning null keeps them
+  // out of the visibility tiers entirely (the filter loop skips them).
+  if (rootPaths.has(path)) {
     return null
   }
 
@@ -346,11 +365,13 @@ function injectClientReadParameters(spec: OpenAPISpec): OpenAPISpec {
  * @returns Modified spec with x-internal markers and security scheme added
  */
 export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): OpenAPISpec {
-  const { project } = options
+  const { project, rootEndpointPaths = [] } = options
 
   if (!spec.paths) {
     return spec
   }
+
+  const rootPaths = new Set(rootEndpointPaths)
 
   // Get allowed collections based on project (or all project collections if none specified)
   const allowedCollections = project ? getProjectCollections(project) : getAllProjectCollections()
@@ -359,7 +380,7 @@ export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): Open
   const markedSpec = JSON.parse(JSON.stringify(spec)) as OpenAPISpec
 
   for (const [path, pathItem] of Object.entries(markedSpec.paths!)) {
-    const collection = getCollectionFromPath(path)
+    const collection = getCollectionFromPath(path, rootPaths)
 
     if (!collection) {
       continue

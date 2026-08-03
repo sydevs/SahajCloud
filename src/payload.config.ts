@@ -133,7 +133,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     globals,
     // Root-level custom endpoints — for resources that belong to no collection.
     // Everything else is colocated on its owning collection; see
-    // `.claude/rules/endpoints.md`.
+    // `.claude/rules/endpoints.md`. The OpenAPI spec derives its root-path
+    // exemption from this array (`rootEndpointPathsFrom`), so registering here
+    // is all it takes to keep `/api/docs` honest.
     endpoints: [contactAdmin],
     editor: lexicalEditor(),
     // GraphQL is disabled — this project exposes a REST-only API (see

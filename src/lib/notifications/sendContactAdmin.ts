@@ -57,6 +57,7 @@ export async function sendContactAdmin(args: SendContactAdminArgs): Promise<void
         message,
         senderEmail,
         subject,
+        brand,
         details: buildContactDetails({ clientName, receivedAt, context }),
       }),
     ),
