@@ -5,7 +5,11 @@ import {
   CUSTOM_ENDPOINT_PATHS,
   CUSTOM_ENDPOINT_SCHEMAS,
 } from '../../src/plugins/openapi/customEndpoints'
-import { filterSpec, type OpenAPISpec } from '../../src/plugins/openapi/specFilter'
+import {
+  filterSpec,
+  rootEndpointPathsFrom,
+  type OpenAPISpec,
+} from '../../src/plugins/openapi/specFilter'
 
 describe('Atlas events custom endpoints (OpenAPI)', () => {
   it('registers geojson GET + register POST paths and their schemas', () => {
@@ -175,25 +179,49 @@ describe('contact-admin root endpoint (OpenAPI)', () => {
     expect(post?.description).toContain('502')
   })
 
-  it('stays visible in every project spec despite owning no collection', () => {
-    // `/api/contact-admin`'s first path segment names no collection, so without
-    // the ROOT_CUSTOM_ENDPOINT_PATHS exemption the project tier would mark it
-    // x-internal and hide the endpoint from every /docs page.
-    const build = () =>
-      JSON.parse(
-        JSON.stringify({
-          openapi: '3.1.0',
-          info: { title: 't', version: '1' },
-          paths: { ...CUSTOM_ENDPOINT_PATHS },
-          components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
-        }),
-      ) as unknown as OpenAPISpec
+  const build = () =>
+    JSON.parse(
+      JSON.stringify({
+        openapi: '3.1.0',
+        info: { title: 't', version: '1' },
+        paths: { ...CUSTOM_ENDPOINT_PATHS },
+        components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
+      }),
+    ) as unknown as OpenAPISpec
 
+  const contactAdminOp = (spec: OpenAPISpec) =>
+    (spec.paths?.['/api/contact-admin'] as Record<string, Record<string, unknown>>)?.post
+
+  // What the route handler passes in production: derived from the live
+  // `config.endpoints`, so registering an endpoint is the only edit needed.
+  const rootEndpointPaths = rootEndpointPathsFrom([{ path: '/contact-admin' }])
+
+  it('stays visible in every project spec despite owning no collection', () => {
     for (const project of ['sahaj-atlas', 'wemeditate-web', 'wemeditate-app'] as const) {
-      const filtered = filterSpec(build(), { project })
-      const op = (filtered.paths?.['/api/contact-admin'] as Record<string, Record<string, unknown>>)
-        ?.post
-      expect(op?.['x-internal'], `hidden for ${project}`).toBeFalsy()
+      const filtered = filterSpec(build(), { project, rootEndpointPaths })
+      expect(contactAdminOp(filtered)?.['x-internal'], `hidden for ${project}`).toBeFalsy()
     }
+  })
+
+  it('is hidden when the caller does not declare it as a root path', () => {
+    // The failure mode the exemption exists to prevent: `/api/contact-admin`'s
+    // first segment names no collection, so the project tier reads it as "not in
+    // this project" and hides a live endpoint from every /docs page.
+    const filtered = filterSpec(build(), { project: 'sahaj-atlas' })
+    expect(contactAdminOp(filtered)?.['x-internal']).toBe(true)
+  })
+})
+
+describe('rootEndpointPathsFrom', () => {
+  it('prefixes each root endpoint path with the API route', () => {
+    expect(rootEndpointPathsFrom([{ path: '/contact-admin' }, { path: '/og' }])).toEqual([
+      '/api/contact-admin',
+      '/api/og',
+    ])
+  })
+
+  it('treats absent or disabled endpoints as none', () => {
+    expect(rootEndpointPathsFrom(undefined)).toEqual([])
+    expect(rootEndpointPathsFrom(false)).toEqual([])
   })
 })

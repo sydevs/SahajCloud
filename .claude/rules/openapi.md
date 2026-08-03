@@ -136,14 +136,19 @@ collection slug.
 (`getCollectionFromPath`). A **root** endpoint — registered on `config.endpoints`
 rather than a collection's — has a segment that looks like a slug but names no
 collection, so every project tier reads it as "not in this project" and marks it
-`x-internal`, hiding it from `/api/docs` everywhere. `ROOT_CUSTOM_ENDPOINT_PATHS`
-in `specFilter.ts` exempts those paths explicitly: `getCollectionFromPath` returns
-`null` for them, the filter loop skips them, and they stay visible in every
-project's spec — which is right, since a root endpoint is project-agnostic by
-nature (`/api/contact-admin` is shared by Atlas and WeMeditateWeb).
+`x-internal`, hiding it from `/api/docs` everywhere.
 
-Add a path there whenever you add one to `config.endpoints` in `payload.config.ts`.
-`tests/unit/openapi-custom-endpoints.spec.ts` guards it across all three projects.
+The route handler closes that gap by passing `filterSpec` a `rootEndpointPaths`
+option, built by `rootEndpointPathsFrom(payload.config.endpoints)` — those paths
+are exempted from the tiers and stay visible in every project's spec, which is
+right since a root endpoint is project-agnostic by nature (`/api/contact-admin`
+is shared by Atlas and WeMeditateWeb).
+
+**Derived from the live config, so there's no second list to keep in sync** —
+registering the endpoint in `payload.config.ts` is the only edit needed. The
+option defaults to `[]`, so a caller that omits it gets the old hiding behaviour;
+`tests/unit/openapi-custom-endpoints.spec.ts` pins both directions (visible in
+all three projects when declared, `x-internal` when not).
 
 `filterSpec` marks POST operations `x-internal` (hidden from `/docs`) only for
 the **auto-generated base-collection create** (`POST /api/{collection}`) unless

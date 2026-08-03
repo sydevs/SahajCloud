@@ -225,6 +225,9 @@ describe('ContactAdminEmail', () => {
     { label: 'Service', value: 'Atlas Widget' },
     { label: 'Path', value: '/events/berlin' },
   ]
+  // Resolved by the send helper and passed in, so the `From` display name and
+  // the rendered body can't drift apart.
+  const brand = getEmailBrand()
 
   it('renders the message, the sender address, and every detail row', async () => {
     const html = await renderEmail(
@@ -233,6 +236,7 @@ describe('ContactAdminEmail', () => {
         senderEmail: 'seeker@example.com',
         subject: 'Issue report',
         details,
+        brand,
       }),
     )
 
@@ -250,6 +254,7 @@ describe('ContactAdminEmail', () => {
         message: 'Something went wrong on the map page.',
         subject: 'Issue report',
         details,
+        brand,
       }),
     )
 
@@ -266,6 +271,7 @@ describe('ContactAdminEmail', () => {
         message: 'A message with no context at all.',
         subject: 'Message',
         details: [],
+        brand,
       }),
     )
 
@@ -273,13 +279,13 @@ describe('ContactAdminEmail', () => {
     expect(html).not.toContain('Details')
   })
 
-  it('brands per project via the project prop', async () => {
+  it('renders whatever brand it is handed', async () => {
     const html = await renderEmail(
       createElement(ContactAdminEmail, {
         message: 'Branding check message body.',
         subject: 'Message',
         details: [],
-        project: 'sahaj-atlas',
+        brand: getEmailBrand('sahaj-atlas'),
       }),
     )
 

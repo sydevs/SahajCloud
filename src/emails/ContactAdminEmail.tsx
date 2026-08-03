@@ -3,8 +3,7 @@ import type { CSSProperties } from 'react'
 import { Hr, Link, Section, Text } from 'react-email'
 
 import type { ContactAdminContext } from '@/endpoints/responseTypes'
-import type { ProjectSlug } from '@/payload-types'
-import { getEmailBrand } from '@/plugins/email'
+import type { EmailBrand } from '@/plugins/email'
 
 import { DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
 
@@ -56,10 +55,13 @@ interface ContactAdminEmailProps {
   subject: string
   /** Pre-filtered label/value rows — see {@link buildContactDetails}. */
   details: ContactAdminDetail[]
-  /** Project to brand for. Defaults to the app-wide default (`wemeditate-web`) —
-   *  this endpoint is shared across client apps, so the *service* name in the
-   *  details block, not the brand, says where a message came from. */
-  project?: ProjectSlug
+  /**
+   * Resolved brand, passed in rather than looked up here (the
+   * `SessionReminderEmail` / `RegistrationDigestEmail` shape). The sender also
+   * needs it for the `From` display name, so resolving it once at the send site
+   * keeps the header and the body from ever disagreeing.
+   */
+  brand: EmailBrand
 }
 
 /**
@@ -79,10 +81,8 @@ export function ContactAdminEmail({
   senderEmail,
   subject,
   details,
-  project,
+  brand,
 }: ContactAdminEmailProps) {
-  const brand = getEmailBrand(project)
-
   return (
     <EmailLayout brand={brand} heading={subject} previewText={message.slice(0, 120)}>
       <Text style={styles.paragraph}>
