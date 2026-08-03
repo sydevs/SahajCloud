@@ -143,13 +143,11 @@ describe('meditationLectures endpoint', () => {
 
     audience = await testData.createAudience(payload, {
       label: 'Everyone',
-      rules: { logic: 'AND', pathProgress: { min: 0, max: 100 } },
     })
     audienceFilter = String(audience.id)
 
     unusedAudience = await testData.createAudience(payload, {
       label: 'Unused',
-      rules: {},
     })
 
     userChoice = await testData.createUserChoice(payload, { title: 'Stress relief' })
@@ -749,7 +747,6 @@ describe('meditationLectures endpoint', () => {
 
       fbAudience = await testData.createAudience(payload, {
         label: 'Fallback audience',
-        rules: {},
       })
       // Lectures in the audience, tagged with nodes the meditation does NOT cover.
       fbLectureWithNode = await testData.createLecture(
@@ -825,7 +822,6 @@ describe('meditationLectures endpoint', () => {
     beforeAll(async () => {
       const separateAudience = await testData.createAudience(payload, {
         label: 'Separate (gating test)',
-        rules: {},
       })
       separateAudienceId = separateAudience.id
 

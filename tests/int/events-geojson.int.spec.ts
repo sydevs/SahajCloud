@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
 import type { EventFeature } from '@/collections/Events/endpoints/responseTypes'
 
-import { testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 type TestUser = {
@@ -25,9 +25,9 @@ type GeoJsonBody = {
 const SCHEDULE = {
   firstDate: '2025-01-06T10:00:00.000Z',
   firstDate_tz: 'Europe/London',
-  recurrenceType: 'DAILY' as const,
+  recurrenceType: 'DAILY',
   interval: 1,
-}
+} as const
 
 describe('eventsGeoJson endpoint', () => {
   let payload: Payload
@@ -99,7 +99,7 @@ describe('eventsGeoJson endpoint', () => {
     const offline = await payload.create({
       collection: 'events',
       overrideAccess: true,
-      data: {
+      data: createData<'events'>({
         ...common,
         title: 'Offline Meetup',
         eventType: 'offline',
@@ -111,33 +111,33 @@ describe('eventsGeoJson endpoint', () => {
           longitude: -0.12,
         },
         _status: 'published',
-      },
+      }),
     })
     offlineEventId = offline.id
 
     const online = await payload.create({
       collection: 'events',
       overrideAccess: true,
-      data: {
+      data: createData<'events'>({
         ...common,
         title: 'Online Session',
         eventType: 'online',
         onlineUrl: 'https://example.com/meet',
         _status: 'published',
-      },
+      }),
     })
     onlineEventId = online.id
 
     const draft = await payload.create({
       collection: 'events',
       overrideAccess: true,
-      data: {
+      data: createData<'events'>({
         ...common,
         title: 'Draft Meetup',
         eventType: 'offline',
         address: { street: '2 Test St', city: 'London', country: 'GB', latitude: 52, longitude: 0 },
         _status: 'draft',
-      },
+      }),
     })
     draftEventId = draft.id
   })
@@ -261,7 +261,7 @@ describe('eventsGeoJson endpoint', () => {
       const event = await payload.create({
         collection: 'events',
         overrideAccess: true,
-        data: {
+        data: createData<'events'>({
           title: 'Country-rooted Meetup',
           eventType: 'offline',
           languages: ['en'],
@@ -277,7 +277,7 @@ describe('eventsGeoJson endpoint', () => {
             longitude: -0.1,
           },
           _status: 'published',
-        },
+        }),
       })
 
       const { body } = await callGeoJson({ select: { webPath: true }, depth: 1 })
@@ -299,7 +299,7 @@ describe('eventsGeoJson endpoint', () => {
       return payload.create({
         collection: 'events',
         overrideAccess: true,
-        data: {
+        data: createData<'events'>({
           title,
           eventType: 'online',
           onlineUrl: 'https://example.com/meet',
@@ -310,7 +310,7 @@ describe('eventsGeoJson endpoint', () => {
           schedule,
           _status: 'published',
           ...extra,
-        },
+        }),
       })
     }
 

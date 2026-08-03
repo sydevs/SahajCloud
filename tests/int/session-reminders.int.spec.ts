@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { SendSessionReminders } from '@/jobs/RegistrationNotifications/SendSessionReminders'
 
 import { runTaskHandler } from '../utils/taskRunner'
-import { testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 
 // A daily class at 10:00 Europe/London (09:00 UTC in BST). With the run clock
@@ -15,9 +15,9 @@ import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 const SCHEDULE = {
   firstDate: '2026-07-01T09:00:00.000Z',
   firstDate_tz: 'Europe/London',
-  recurrenceType: 'DAILY' as const,
+  recurrenceType: 'DAILY',
   interval: 1,
-}
+} as const
 const NOW = new Date('2026-07-20T00:00:00.000Z')
 const OCCURRENCE = '2026-07-20T09:00:00.000Z'
 const OUT_OF_WINDOW = '2026-07-25T09:00:00.000Z'
@@ -57,7 +57,7 @@ describe('SendSessionReminders job', () => {
     const event = await payload.create({
       collection: 'events',
       overrideAccess: true,
-      data: {
+      data: createData<'events'>({
         title: `Reminder Event ${(seq += 1)}`,
         languages: ['en'],
         eventType: 'online',
@@ -68,7 +68,7 @@ describe('SendSessionReminders job', () => {
         schedule: SCHEDULE,
         _status: 'published',
         ...overrides,
-      },
+      }),
     })
     return event.id
   }

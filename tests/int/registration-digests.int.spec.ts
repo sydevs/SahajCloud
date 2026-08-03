@@ -6,15 +6,15 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { SendRegistrationDigests } from '@/jobs/RegistrationNotifications/SendRegistrationDigests'
 
 import { runTaskHandler } from '../utils/taskRunner'
-import { testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 
 const SCHEDULE = {
   firstDate: '2026-07-01T09:00:00.000Z',
   firstDate_tz: 'Europe/London',
-  recurrenceType: 'DAILY' as const,
+  recurrenceType: 'DAILY',
   interval: 1,
-}
+} as const
 
 const runDigests = (payload: Payload, now?: Date) =>
   runTaskHandler(SendRegistrationDigests, { payload, context: now ? { now } : {} })
@@ -65,7 +65,7 @@ describe('SendRegistrationDigests job', () => {
     const event = await payload.create({
       collection: 'events',
       overrideAccess: true,
-      data: {
+      data: createData<'events'>({
         title,
         languages: ['en'],
         eventType: 'online',
@@ -75,7 +75,7 @@ describe('SendRegistrationDigests job', () => {
         region: regionId,
         schedule: SCHEDULE,
         _status: 'published',
-      },
+      }),
     })
     return event.id
   }

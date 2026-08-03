@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { createData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -32,12 +33,12 @@ describe('Atlas collections', () => {
       const region = await payload.create({
         collection: 'regions',
         overrideAccess: true,
-        data: {
+        data: createData<'regions'>({
           name: 'Москва',
           level: 'city',
           mapboxId: 'slug-cyrillic-city',
           managers: [managerId],
-        },
+        }),
       })
       expect(region.slug).toBe('moskva')
     })
@@ -47,46 +48,46 @@ describe('Atlas collections', () => {
     it('limits parents to one level up, except City (Country or Region)', async () => {
       const country = await payload.create({
         collection: 'regions',
-        data: {
+        data: createData<'regions'>({
           name: 'PR Country',
           level: 'country',
           mapboxId: 'pr.country',
           managers: [managerId],
-        },
+        }),
       })
       const city = await payload.create({
         collection: 'regions',
-        data: {
+        data: createData<'regions'>({
           name: 'PR City',
           level: 'city',
           mapboxId: 'pr.city',
           parent: country.id, // City may nest directly under a Country (Region optional)
           managers: [managerId],
-        },
+        }),
       })
 
       // A Venue may only nest under a City — not directly under a Country.
       await expect(
         payload.create({
           collection: 'regions',
-          data: {
+          data: createData<'regions'>({
             name: 'Bad Venue',
             level: 'venue',
             mapboxId: 'pr.venue.bad',
             parent: country.id,
             managers: [managerId],
-          },
+          }),
         }),
       ).rejects.toThrow()
       const venueNode = await payload.create({
         collection: 'regions',
-        data: {
+        data: createData<'regions'>({
           name: 'Good Venue',
           level: 'venue',
           mapboxId: 'pr.venue.good',
           parent: city.id,
           managers: [managerId],
-        },
+        }),
       })
       expect(venueNode.id).toBeTruthy()
 
@@ -94,13 +95,13 @@ describe('Atlas collections', () => {
       await expect(
         payload.create({
           collection: 'regions',
-          data: {
+          data: createData<'regions'>({
             name: 'Bad Region',
             level: 'region',
             mapboxId: 'pr.region',
             parent: city.id,
             managers: [managerId],
-          },
+          }),
         }),
       ).rejects.toThrow()
     })
@@ -113,12 +114,12 @@ describe('Atlas collections', () => {
         // draft: the now-required title/schedule are validated only on publish;
         // the title beforeChange hook still runs and auto-fills from the street.
         draft: true,
-        data: {
+        data: createData<'events'>({
           eventType: 'offline',
           registrationMode: 'sahaj-atlas',
           manager: managerId,
           address: { street: 'Hall A, Wing 2' },
-        },
+        }),
       })
 
       expect(event.title).toBe('Meditation at Hall A')
@@ -128,13 +129,13 @@ describe('Atlas collections', () => {
       const event = await payload.create({
         collection: 'events',
         draft: true,
-        data: {
+        data: createData<'events'>({
           title: 'Diwali Special',
           eventType: 'offline',
           registrationMode: 'sahaj-atlas',
           manager: managerId,
           address: { street: 'Hall A' },
-        },
+        }),
       })
 
       expect(event.title).toBe('Diwali Special')
@@ -144,11 +145,11 @@ describe('Atlas collections', () => {
       const event = await payload.create({
         collection: 'events',
         draft: true,
-        data: {
+        data: createData<'events'>({
           eventType: 'online',
           registrationMode: 'sahaj-atlas',
           manager: managerId,
-        },
+        }),
       })
 
       expect(event.title ?? null).toBeNull()
@@ -166,13 +167,13 @@ describe('Atlas collections', () => {
         .create({
           collection: 'events',
           draft: true,
-          data: {
+          data: createData<'events'>({
             eventType: 'offline',
             registrationMode: 'sahaj-atlas',
             manager: managerId,
             address: { street },
             ...(schedule ? { schedule } : {}),
-          },
+          }),
         })
         .then((e) => e.title)
 
@@ -213,14 +214,14 @@ describe('Atlas collections', () => {
       const created = await payload.create({
         collection: 'events',
         draft: true,
-        data: {
+        data: createData<'events'>({
           title: 'Hand-written generic name',
           eventType: 'offline',
           registrationMode: 'sahaj-atlas',
           manager: managerId,
           address: { street: 'Hall A' },
           schedule: { firstDate: '2024-09-06T17:30:00.000Z', firstDate_tz: 'Europe/Berlin' },
-        },
+        }),
       })
       expect(created.title).toBe('Hand-written generic name')
 
@@ -228,7 +229,7 @@ describe('Atlas collections', () => {
         collection: 'events',
         id: created.id,
         draft: true,
-        data: { title: '' },
+        data: createData<'events'>({ title: '' }),
       })
       expect(cleared.title).toBe('Evening Meditation at Hall A')
     })

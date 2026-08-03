@@ -10,7 +10,7 @@ import { signVerifyToken } from '@/lib/eventVerification/token'
 import type { Event, Manager } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
-import { testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -71,12 +71,12 @@ describe('Event verification lifecycle', () => {
     defaultRegion = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: {
+      data: createData<'regions'>({
         name: 'Default City',
         level: 'city',
         mapboxId: 'default-city',
         managers: [eventManager.id],
-      },
+      }),
     })
   })
 
@@ -129,12 +129,12 @@ describe('Event verification lifecycle', () => {
     const region = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: {
+      data: createData<'regions'>({
         name: 'Country LC',
         level: 'country',
         mapboxId: 'lc-country',
         managers: [eventManager.id],
-      },
+      }),
     })
     const regionManager = await testData.createManager(payload, {
       name: 'Region Manager',
@@ -143,13 +143,13 @@ describe('Event verification lifecycle', () => {
     const city = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: {
+      data: createData<'regions'>({
         name: 'City LC',
         level: 'city',
         mapboxId: 'lc-city',
         parent: region.id,
         managers: [regionManager.id],
-      },
+      }),
     })
     const event = await createEvent({ region: city.id })
 
@@ -278,12 +278,12 @@ describe('Event verification lifecycle', () => {
     const country = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: {
+      data: createData<'regions'>({
         name: 'Country DD',
         level: 'country',
         mapboxId: 'dd-country',
         managers: [eventManager.id],
-      },
+      }),
     })
     const countryManager = await testData.createManager(payload, {
       name: 'Country Manager',
@@ -293,19 +293,19 @@ describe('Event verification lifecycle', () => {
       collection: 'regions',
       id: country.id,
       overrideAccess: true,
-      data: { managers: [countryManager.id] },
+      data: createData<'regions'>({ managers: [countryManager.id] }),
     })
     const city = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: {
+      data: createData<'regions'>({
         name: 'City DD',
         level: 'city',
         mapboxId: 'dd-city',
         parent: country.id,
         // The event manager is *also* this region's manager.
         managers: [eventManager.id],
-      },
+      }),
     })
     const event = await createEvent({ region: city.id })
 
@@ -349,12 +349,12 @@ describe('Event verification lifecycle', () => {
     const region = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: {
+      data: createData<'regions'>({
         name: 'Country RS',
         level: 'country',
         mapboxId: 'rs-country',
         managers: [eventManager.id],
-      },
+      }),
     })
     const regionManager = await testData.createManager(payload, {
       name: 'Resume Region Manager',
@@ -363,13 +363,13 @@ describe('Event verification lifecycle', () => {
     const city = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: {
+      data: createData<'regions'>({
         name: 'City RS',
         level: 'city',
         mapboxId: 'rs-city',
         parent: region.id,
         managers: [regionManager.id],
-      },
+      }),
     })
     const event = await createEvent({ region: city.id })
 

@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { createData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -227,7 +228,7 @@ describe('Regions child-join recursive descendants', () => {
         collection: 'regions',
         id: countryZ,
         overrideAccess: true,
-        data: { slug: 'country-z-renamed' },
+        data: createData<'regions'>({ slug: 'country-z-renamed' }),
       })
       const after = await readRegion(cityZ)
       expect(after.webPath).not.toBe(before.webPath)
