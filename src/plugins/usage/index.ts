@@ -25,7 +25,12 @@ export {
 } from './constants'
 
 // Hook exports (for testing)
-export { rateLimitHook, usageTrackingBeforeOperationHook, validateClientOriginHook } from './hooks'
+export {
+  assertClientOriginAllowed,
+  rateLimitHook,
+  usageTrackingBeforeOperationHook,
+  validateClientOriginHook,
+} from './hooks'
 
 // Origin/Referer enforcement helpers (for testing)
 export {
