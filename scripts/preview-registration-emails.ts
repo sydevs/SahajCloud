@@ -237,7 +237,8 @@ const GERMAN_EMAILS = {
   online_cta: 'Online teilnehmen',
   online_link_hint: 'Falls der Button nicht funktioniert, kopiere diesen Link:',
   about_label: 'Was dich erwartet',
-  sessions_count: '%{count} Termine',
+  sessions_count_one: '%{count} Termin',
+  sessions_count_other: '%{count} Termine',
 }
 
 interface Scenario {

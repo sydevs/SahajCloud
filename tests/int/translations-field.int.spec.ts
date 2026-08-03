@@ -13,6 +13,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildTranslationTabs, type SchemaEntry, type TranslationsSchema } from '@/fields'
+import { PLURAL_CATEGORIES } from '@/fields/translationsField'
+import { EMAIL_STRING_DEFAULTS } from '@/lib/translations/emailStrings'
 
 describe('buildTranslationTabs', () => {
   describe('tab generation', () => {
@@ -131,6 +133,80 @@ describe('buildTranslationTabs', () => {
         { key: 'loading', description: 'Loading text' },
         { key: 'error', description: 'Error message' },
       ])
+    })
+
+    it('threads a per-key maxLength into schemaEntries (undefined when unset)', () => {
+      const schema: TranslationsSchema = {
+        type: 'object',
+        properties: {
+          emails: {
+            type: 'object',
+            properties: {
+              online_cta: { type: 'string', description: 'Join button', maxLength: 28 },
+              footer_reason: { type: 'string', description: 'Why you got this' },
+            },
+          },
+        },
+      }
+
+      const tabs = buildTranslationTabs(schema, 'sy-atlas-translations')
+      const field = tabs[0].fields[0] as {
+        admin?: { custom?: { schemaEntries?: SchemaEntry[] } }
+      }
+      const entries = field.admin?.custom?.schemaEntries ?? []
+      expect(entries.find((e) => e.key === 'online_cta')?.maxLength).toBe(28)
+      // A key with no limit carries none — not a default.
+      expect(entries.find((e) => e.key === 'footer_reason')?.maxLength).toBeUndefined()
+    })
+
+    it('expands a plural key into its CLDR family for storage + validation', () => {
+      const schema: TranslationsSchema = {
+        type: 'object',
+        properties: {
+          emails: {
+            type: 'object',
+            properties: {
+              sessions_count: {
+                type: 'string',
+                plural: true,
+                maxLength: 18,
+                description: 'Session count',
+              },
+            },
+          },
+        },
+      }
+
+      const tabs = buildTranslationTabs(schema, 'sy-atlas-translations')
+      const field = tabs[0].fields[0] as {
+        admin?: { custom?: { schemaEntries?: SchemaEntry[] } }
+        validate?: (value: unknown) => true | string
+      }
+
+      // One grouped entry, flagged plural — the admin expands it per locale.
+      expect(field.admin?.custom?.schemaEntries).toEqual([
+        { key: 'sessions_count', description: 'Session count', maxLength: 18, plural: true },
+      ])
+
+      // Validation accepts the expanded category keys and rejects the bare base.
+      const validate = field.validate!
+      expect(validate({ sessions_count_one: '1 session', sessions_count_other: '%{count}' })).toBe(
+        true,
+      )
+      expect(validate({ sessions_count: 'nope' })).toContain('Unknown key')
+    })
+
+    it('EMAIL_STRING_DEFAULTS covers every plural form the field builder can store', () => {
+      // The field builder expands a plural key to every `PLURAL_CATEGORIES` form,
+      // but `resolveEmailStrings`/`withDefaults` only preserves keys present in the
+      // defaults — so an uncovered category would silently drop a translated
+      // `_few`/`_many`. Guards that the two layers stay in sync.
+      const pluralEmailKeys = ['sessions_count'] // keys declared `plural: true` in the emails group
+      for (const base of pluralEmailKeys) {
+        for (const category of PLURAL_CATEGORIES) {
+          expect(EMAIL_STRING_DEFAULTS).toHaveProperty(`${base}_${category}`)
+        }
+      }
     })
 
     it('sets localized: true and no jsonSchema (Ajv breaks on Cloudflare Workers)', () => {

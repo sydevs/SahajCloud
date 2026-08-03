@@ -73,6 +73,7 @@ export async function sendRegistrationConfirmation(args: {
     brand,
     strings,
     details,
+    locale,
     websiteUrl: client?.websiteUrl,
   }
 
