@@ -8,6 +8,7 @@
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
+import { buildContactDetails, ContactAdminEmail } from '@/emails/ContactAdminEmail'
 import { buildReplyBody, EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
 import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
 import { VerifyEmail } from '@/emails/VerifyEmail'
@@ -166,5 +167,122 @@ describe('buildReplyBody', () => {
     expect(body).not.toContain('Start date')
     // Only the facts block — no answer separators.
     expect(body).not.toContain('\n>\n')
+  })
+})
+
+describe('buildContactDetails', () => {
+  it('renders every supplied context key, in a stable order', () => {
+    const details = buildContactDetails({
+      clientName: 'Atlas Widget',
+      receivedAt: '2026-08-03T09:30:00.000Z',
+      context: {
+        locale: 'de',
+        path: '/events/berlin',
+        hostUrl: 'https://atlas.example.org/embed',
+        error: 'TypeError: x is not a function',
+        userAgent: 'Mozilla/5.0 (X11)',
+      },
+    })
+
+    expect(details.map((detail) => detail.label)).toEqual([
+      'Service',
+      'Locale',
+      'Path',
+      'Host page',
+      'Error',
+      'User agent',
+      'Received',
+    ])
+    expect(details[0]).toEqual({ label: 'Service', value: 'Atlas Widget' })
+    expect(details[3]).toEqual({ label: 'Host page', value: 'https://atlas.example.org/embed' })
+  })
+
+  it('omits a row for every key the caller did not send', () => {
+    // The minimal `{ message, turnstileToken }` body — only what the server
+    // itself knows survives. A caller sending fewer keys must not produce a
+    // table of empty rows, which is the whole reason this is a filter.
+    const details = buildContactDetails({
+      clientName: 'Atlas Widget',
+      receivedAt: '2026-08-03T09:30:00.000Z',
+    })
+
+    expect(details.map((detail) => detail.label)).toEqual(['Service', 'Received'])
+  })
+
+  it('treats a blank or whitespace-only value as absent', () => {
+    const details = buildContactDetails({
+      clientName: 'Atlas Widget',
+      receivedAt: '2026-08-03T09:30:00.000Z',
+      context: { locale: '', path: '   ', hostUrl: 'https://atlas.example.org' },
+    })
+
+    expect(details.map((detail) => detail.label)).toEqual(['Service', 'Host page', 'Received'])
+  })
+})
+
+describe('ContactAdminEmail', () => {
+  const details = [
+    { label: 'Service', value: 'Atlas Widget' },
+    { label: 'Path', value: '/events/berlin' },
+  ]
+
+  it('renders the message, the sender address, and every detail row', async () => {
+    const html = await renderEmail(
+      createElement(ContactAdminEmail, {
+        message: 'The venue for this class closed last month.',
+        senderEmail: 'seeker@example.com',
+        subject: 'Issue report',
+        details,
+      }),
+    )
+
+    expect(html).toContain('Issue report')
+    expect(html).toContain('The venue for this class closed last month.')
+    expect(html).toContain('seeker@example.com')
+    expect(html).toContain('mailto:seeker@example.com')
+    expect(html).toContain('Atlas Widget')
+    expect(html).toContain('/events/berlin')
+  })
+
+  it('says the message is unanswerable when no address was supplied', async () => {
+    const html = await renderEmail(
+      createElement(ContactAdminEmail, {
+        message: 'Something went wrong on the map page.',
+        subject: 'Issue report',
+        details,
+      }),
+    )
+
+    expect(html).toContain('Something went wrong on the map page.')
+    // No sender → no mailto anywhere, and the copy says so rather than
+    // inviting a reply that would go nowhere.
+    expect(html).not.toContain('mailto:')
+    expect(html).toContain('no way to reply')
+  })
+
+  it('drops the details block entirely when there is nothing to show', async () => {
+    const html = await renderEmail(
+      createElement(ContactAdminEmail, {
+        message: 'A message with no context at all.',
+        subject: 'Message',
+        details: [],
+      }),
+    )
+
+    expect(html).toContain('A message with no context at all.')
+    expect(html).not.toContain('Details')
+  })
+
+  it('brands per project via the project prop', async () => {
+    const html = await renderEmail(
+      createElement(ContactAdminEmail, {
+        message: 'Branding check message body.',
+        subject: 'Message',
+        details: [],
+        project: 'sahaj-atlas',
+      }),
+    )
+
+    expect(html).toContain(getEmailBrand('sahaj-atlas').productName)
   })
 })

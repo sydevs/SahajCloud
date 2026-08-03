@@ -18,7 +18,7 @@ import { CONTACT_EMAIL } from '@/lib/contact'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
-export async function sendContactAdmin(args: {
+export interface SendContactAdminArgs {
   payload: Payload
   /** Name of the API client service the message came through — the subject prefix. */
   clientName: string
@@ -32,7 +32,9 @@ export async function sendContactAdmin(args: {
   context?: ContactAdminContext
   /** When the message was received (ISO 8601). */
   receivedAt: string
-}): Promise<void> {
+}
+
+export async function sendContactAdmin(args: SendContactAdminArgs): Promise<void> {
   const { payload, clientName, message, subject, senderEmail, context, receivedAt } = args
 
   const brand = getEmailBrand()
