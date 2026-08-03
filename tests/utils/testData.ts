@@ -68,8 +68,13 @@ type DummyUserOverrides = Partial<Omit<Manager, 'roles'> | Omit<Client, 'roles'>
  * What still errors is the part worth keeping: an unknown property, or a real
  * property at the wrong type, at any depth. Unions distribute, so a
  * relationship (`number | Image | null`) keeps accepting a bare id.
+ *
+ * Exported because specs build their own inline fixture helpers around
+ * `payload.create` — those want the same "loose but checked" contract rather
+ * than the `Record<string, unknown>` they used to reach for, which checks
+ * nothing (see #606: that's how `level: 'center'` outlived the rename).
  */
-type FixtureOverrides<T> = T extends (infer U)[]
+export type FixtureOverrides<T> = T extends (infer U)[]
   ? FixtureOverrides<U>[]
   : T extends Date
     ? T
@@ -90,8 +95,14 @@ type FixtureOverrides<T> = T extends (infer U)[]
  * What `tsc` still catches is the point: every field a test *does* pass must be a
  * real field of that collection, with a valid type. That's the #606 rot — a stale
  * enum literal like `level: 'center'` now fails here, not 7 minutes into CI.
+ *
+ * Exported for the same reason as `FixtureOverrides`: specs with their own
+ * inline `payload.create` helpers need this seam too. Without it TS can't match
+ * the non-draft `create` overload (the data type is derived from the *output*
+ * doc, so an omitted `slug` pushes it onto the draft one) and reports the
+ * baffling "Property 'draft' is missing".
  */
-function createData<TSlug extends CollectionSlug>(
+export function createData<TSlug extends CollectionSlug>(
   data: FixtureOverrides<RequiredDataFromCollectionSlug<TSlug>>,
 ): RequiredDataFromCollectionSlug<TSlug> {
   return data as RequiredDataFromCollectionSlug<TSlug>
@@ -102,11 +113,23 @@ const __dirname = path.dirname(__filename)
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
 /**
+ * The shape Payload generates for a lexical `richText` field. Structurally
+ * identical across collections, so one collection's field anchors it.
+ */
+export type LexicalContent = NonNullable<Page['content']>
+
+/**
  * Creates minimal Lexical rich text content for testing
+ *
+ * The return type is annotated rather than inferred: without it `direction` and
+ * `format` widen to `string` and the result is rejected by every `richText`
+ * field it's assigned to (`'ltr'` vs `('ltr' | 'rtl') | null`) — 7 of #606
+ * Phase 2's errors. The annotation contextually types the literal instead.
+ *
  * @param text - The text content to include
  * @returns Lexical root structure compatible with PayloadCMS richText fields
  */
-export function createTestLexicalContent(text: string = 'Test content') {
+export function createTestLexicalContent(text: string = 'Test content'): LexicalContent {
   return {
     root: {
       type: 'root',

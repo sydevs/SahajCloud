@@ -5,25 +5,30 @@ import path from 'path'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import type { RegionLevel } from '@/lib/mapbox/geocoder'
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
+import type { Event, Region } from '@/payload-types'
 
-import { createTestLexicalContent, testData } from '../utils/testData'
-import { createTestEnvironment } from '../utils/testHelpers'
+import type { FixtureOverrides } from '../utils/testData'
+
+import { createData, createTestLexicalContent, testData } from '../utils/testData'
+import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
 /**
- * Region fixture data. `level` is narrowed to the canonical union instead of the
- * plain `Record<string, unknown>` these helpers used to take — an untyped fixture
- * is how `level: 'center'` survived the rename to `venue` and surfaced only as a
+ * Region fixture data — the whole doc, loosely: every field optional at every
+ * depth, but each one that *is* passed checked against the real collection.
+ * Replaces the `Record<string, unknown>` these helpers used to take, which is
+ * how `level: 'center'` survived the rename to `venue` and surfaced only as a
  * CI runtime failure.
  *
- * Note this does *not* make `pnpm typecheck` catch it: `tsconfig.json` excludes
- * `tests`, so tsc never reads this file (including `tests` today surfaces 189
- * pre-existing errors — its own ticket). The narrowing earns its place through
- * editor feedback while typing, and goes live if that exclusion is ever lifted.
- * The binding guard remains the int lane itself.
+ * As of #606 Phase 2 this is a live guard, not just editor feedback:
+ * `tsconfig.test.json` covers `tests/**`, so `pnpm typecheck:tests` reads this
+ * file and a stale enum literal fails in seconds rather than 7 minutes into the
+ * int lane.
  */
-type RegionFixture = Record<string, unknown> & { level?: RegionLevel }
+type RegionFixture = FixtureOverrides<Region>
+
+/** A manager fixture; `testData.createManager` already attaches `collection`. */
+type ManagerFixture = Awaited<ReturnType<typeof testData.createManager>>
 
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
@@ -233,7 +238,7 @@ describe('Role-Based Access Control', () => {
   describe('Document-Level Manager Access', () => {
     // A manager (type: 'manager') with no roles — relies purely on being listed
     // on a document (or an ancestor) for access.
-    const managerUser = (m: { id: number }) => ({ ...m, collection: 'managers' as const })
+    const managerUser = (m: ManagerFixture) => ({ ...m, collection: 'managers' as const })
 
     describe('Pages — direct managers ("Page Editors")', () => {
       it('lets a listed manager with no roles read + update the page', async () => {
@@ -312,7 +317,10 @@ describe('Role-Based Access Control', () => {
         await expect(
           payload.create({
             collection: 'pages',
-            data: { title: 'Editor Created', content: createTestLexicalContent() },
+            data: createData<'pages'>({
+              title: 'Editor Created',
+              content: createTestLexicalContent(),
+            }),
             user: managerUser(editor),
             overrideAccess: false,
           }),
@@ -343,13 +351,13 @@ describe('Role-Based Access Control', () => {
       const createRegion = (data: RegionFixture) =>
         payload.create({
           collection: 'regions',
-          data: {
+          data: createData<'regions'>({
             level: 'country',
             name: 'Region',
             mapboxId: `place.${Math.random().toString(36).slice(2)}`,
             managers: [fillerManagerId],
             ...data,
-          },
+          }),
           depth: 0,
         })
 
@@ -431,7 +439,7 @@ describe('Role-Based Access Control', () => {
   })
 
   describe('Atlas manager — region-subtree write scoping', () => {
-    const managerUser = (m: { id: number }) => ({ ...m, collection: 'managers' as const })
+    const managerUser = (m: ManagerFixture) => ({ ...m, collection: 'managers' as const })
 
     let atlasManager: Awaited<ReturnType<typeof testData.createManager>>
     let fillerId: number
@@ -445,31 +453,31 @@ describe('Role-Based Access Control', () => {
     // Non-'manual' mapboxId keeps the conditionally-required coordinate fields out
     // of validation. Pass a `user` to exercise access (overrideAccess: false);
     // omit it to set up fixtures as admin.
-    const createRegion = (data: RegionFixture, user?: { id: number }) =>
+    const createRegion = (data: RegionFixture, user?: ManagerFixture) =>
       payload.create({
         collection: 'regions',
-        data: {
+        data: createData<'regions'>({
           level: 'country',
           name: 'Region',
           mapboxId: `place.${Math.random().toString(36).slice(2)}`,
           managers: [fillerId],
           ...data,
-        },
+        }),
         depth: 0,
         ...(user ? { user: managerUser(user), overrideAccess: false } : { overrideAccess: true }),
       })
 
-    const createEvent = (data: Record<string, unknown>, user?: { id: number }) =>
+    const createEvent = (data: FixtureOverrides<Event>, user?: ManagerFixture) =>
       payload.create({
         collection: 'events',
         // draft: the now-required title/schedule are validated only on publish.
         draft: true,
-        data: {
+        data: createData<'events'>({
           eventType: 'offline',
           registrationMode: 'sahaj-atlas',
           manager: fillerId,
           ...data,
-        },
+        }),
         depth: 0,
         ...(user ? { user: managerUser(user), overrideAccess: false } : { overrideAccess: true }),
       })
@@ -794,7 +802,7 @@ describe('Role-Based Access Control', () => {
         'videos',
         'forms',
         'form-submissions',
-      ]
+      ] as const
 
       webProjectCollections.forEach((collection) => {
         expect(
@@ -1075,10 +1083,10 @@ describe('Role-Based Access Control', () => {
       // Create a draft page (default status is draft)
       const draftPage = await payload.create({
         collection: 'pages',
-        data: {
+        data: createData<'pages'>({
           title: 'Draft Page for Client Test',
           content: createTestLexicalContent('Draft content'),
-        },
+        }),
         user: { ...admin, collection: 'managers' },
       })
 
@@ -1091,7 +1099,7 @@ describe('Role-Based Access Control', () => {
       // Note: overrideAccess: false is required to test access control with Local API
       const clientPages = await payload.find({
         collection: 'pages',
-        select: { id: true },
+        select: idOnlySelect(),
         depth: 0,
         user: client,
         overrideAccess: false,
@@ -1118,10 +1126,10 @@ describe('Role-Based Access Control', () => {
       // Create a draft page
       const draftPage = await payload.create({
         collection: 'pages',
-        data: {
+        data: createData<'pages'>({
           title: 'Draft Page for ID Test',
           content: createTestLexicalContent('Draft content'),
-        },
+        }),
         user: { ...admin, collection: 'managers' },
       })
 
@@ -1131,7 +1139,7 @@ describe('Role-Based Access Control', () => {
         payload.findByID({
           collection: 'pages',
           id: draftPage.id,
-          select: { id: true },
+          select: idOnlySelect(),
           depth: 0,
           user: client,
           overrideAccess: false,
@@ -1156,10 +1164,10 @@ describe('Role-Based Access Control', () => {
       // Create and publish a page
       const draftPage = await payload.create({
         collection: 'pages',
-        data: {
+        data: createData<'pages'>({
           title: 'Page to Publish',
           content: createTestLexicalContent('Published content'),
-        },
+        }),
         user: { ...admin, collection: 'managers' },
       })
 
@@ -1179,7 +1187,7 @@ describe('Role-Based Access Control', () => {
       // Note: overrideAccess: false is required to test access control with Local API
       const clientPages = await payload.find({
         collection: 'pages',
-        select: { id: true },
+        select: idOnlySelect(),
         depth: 0,
         user: client,
         overrideAccess: false,
@@ -1192,7 +1200,7 @@ describe('Role-Based Access Control', () => {
       const foundPage = await payload.findByID({
         collection: 'pages',
         id: publishedPage.id,
-        select: { id: true },
+        select: idOnlySelect(),
         depth: 0,
         user: client,
         overrideAccess: false,
@@ -1227,18 +1235,18 @@ describe('Role-Based Access Control', () => {
       // A published page is therefore unreadable by the draft client.
       await payload.create({
         collection: 'pages',
-        data: {
+        data: createData<'pages'>({
           title: 'Published Page Hidden From Draft Client',
           content: createTestLexicalContent('content'),
           _status: 'published',
-        },
+        }),
         user: { ...admin, collection: 'managers' },
       })
 
       await expect(
         payload.find({
           collection: 'pages',
-          select: { id: true },
+          select: idOnlySelect(),
           depth: 0,
           user: draftClient,
           overrideAccess: false,
@@ -1260,10 +1268,10 @@ describe('Role-Based Access Control', () => {
 
       const draftPage = await payload.create({
         collection: 'pages',
-        data: {
+        data: createData<'pages'>({
           title: 'Draft Page for Trusted Preview',
           content: createTestLexicalContent('Draft preview content'),
-        },
+        }),
         user: { ...admin, collection: 'managers' },
       })
 
@@ -1309,7 +1317,7 @@ describe('Role-Based Access Control', () => {
 
       const clientCards = await payload.find({
         collection: 'app-cards',
-        select: { id: true },
+        select: idOnlySelect(),
         depth: 0,
         user: client,
         overrideAccess: false,
@@ -1338,7 +1346,7 @@ describe('Role-Based Access Control', () => {
       await expect(
         payload.find({
           collection: 'app-cards',
-          select: { id: true },
+          select: idOnlySelect(),
           user: client,
           overrideAccess: false,
         }),
@@ -1363,7 +1371,7 @@ describe('Role-Based Access Control', () => {
 
         const result = await payload.find({
           collection: 'lectures',
-          select: { id: true },
+          select: idOnlySelect(),
           depth: 0,
           user: client,
           overrideAccess: false,
@@ -1392,10 +1400,10 @@ describe('Role-Based Access Control', () => {
       // Create a draft page
       const draftPage = await payload.create({
         collection: 'pages',
-        data: {
+        data: createData<'pages'>({
           title: 'Draft Page for Manager Test',
           content: createTestLexicalContent('Draft content'),
-        },
+        }),
         user: { ...admin, collection: 'managers' },
       })
 
@@ -1421,10 +1429,10 @@ describe('Role-Based Access Control', () => {
       // Create a draft page
       const draftPage = await payload.create({
         collection: 'pages',
-        data: {
+        data: createData<'pages'>({
           title: 'Draft Page for Admin Test',
           content: createTestLexicalContent('Draft content'),
-        },
+        }),
         user: { ...admin, collection: 'managers' },
       })
 
@@ -1466,7 +1474,7 @@ describe('Role-Based Access Control', () => {
       // Note: overrideAccess: false is required to test access control with Local API
       const clientMeditations = await payload.find({
         collection: 'meditations',
-        select: { id: true },
+        select: idOnlySelect(),
         depth: 0,
         user: client,
         overrideAccess: false,
@@ -1553,7 +1561,7 @@ describe('Role-Based Access Control', () => {
       // Note: overrideAccess: false is required to test access control with Local API
       const clientNarrators = await payload.find({
         collection: 'narrators',
-        select: { id: true },
+        select: idOnlySelect(),
         depth: 0,
         user: client,
         overrideAccess: false,

@@ -8,7 +8,7 @@ import {
   createLexicalWithUploadNode,
 } from '../utils/lexicalTestHelpers'
 import { testData } from '../utils/testData'
-import { createTestEnvironment } from '../utils/testHelpers'
+import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
 describe('Pages Collection', () => {
   let payload: Payload
@@ -358,7 +358,7 @@ describe('Pages Collection', () => {
 
       const directRead = await payload.find({
         collection: 'app-cards',
-        select: { id: true },
+        select: idOnlySelect(),
         depth: 0,
         user: client,
         overrideAccess: false,
