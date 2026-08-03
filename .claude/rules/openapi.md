@@ -128,6 +128,22 @@ collection slug.
 | `GET /api/lectures/{id}/related-meditations` | `src/collections/Lectures/endpoints/relatedMeditations.ts` | `#/components/schemas/MeditationCardData` (hand-authored) |
 | `GET /api/events/geojson`                    | `src/collections/Events/endpoints/geojson.ts`       | `#/components/schemas/EventFeatureCollection` (hand-authored) |
 | `POST /api/events/{id}/register`             | `src/collections/Events/endpoints/registerForEvent.ts` | `#/components/schemas/EventRegistrationResponse` (hand-authored) |
+| `POST /api/contact-admin`                    | `src/endpoints/contactAdmin.ts` (root endpoint)     | `#/components/schemas/ContactAdminResponse` (hand-authored) |
+
+### Root-level endpoints have no collection to key visibility off
+
+`filterSpec` derives project visibility from the first path segment
+(`getCollectionFromPath`). A **root** endpoint — registered on `config.endpoints`
+rather than a collection's — has a segment that looks like a slug but names no
+collection, so every project tier reads it as "not in this project" and marks it
+`x-internal`, hiding it from `/api/docs` everywhere. `ROOT_CUSTOM_ENDPOINT_PATHS`
+in `specFilter.ts` exempts those paths explicitly: `getCollectionFromPath` returns
+`null` for them, the filter loop skips them, and they stay visible in every
+project's spec — which is right, since a root endpoint is project-agnostic by
+nature (`/api/contact-admin` is shared by Atlas and WeMeditateWeb).
+
+Add a path there whenever you add one to `config.endpoints` in `payload.config.ts`.
+`tests/unit/openapi-custom-endpoints.spec.ts` guards it across all three projects.
 
 `filterSpec` marks POST operations `x-internal` (hidden from `/docs`) only for
 the **auto-generated base-collection create** (`POST /api/{collection}`) unless
