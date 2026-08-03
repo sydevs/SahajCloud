@@ -16,6 +16,7 @@ into `plugins/`, `jobs/`, and shared utilities).
 | ------------------ | -------------------------------------------------------------------------- |
 | `src/plugins/`     | Modules registered in `payload.config.ts` (`plugins`, `email`, `db`)       |
 | `src/collections/` | One folder per collection — schema + colocated hooks, endpoints, helpers   |
+| `src/endpoints/`   | Root-level endpoints only — resources no collection owns (see below)      |
 | `src/globals/`     | One folder per global — same colocation shape as collections               |
 | `src/jobs/`        | One folder per scheduled job; `index.ts` exports only the task definitions |
 | `src/lib/`         | Cross-cutting shared code (not a plugin, not owned by one collection/job)  |
@@ -38,6 +39,20 @@ Job-specific supporting code lives inside the job folder (e.g.
 (tests may reach a folder's internals). `src/jobs/index.ts` re-exports **only**
 the task definitions for `payload.config.ts`'s `jobs.tasks`.
 
+### `src/endpoints/`
+
+Custom endpoints registered on the **config root** (`config.endpoints`) rather
+than on a collection — for a resource no collection owns. One handler per file,
+plus a self-contained `responseTypes.ts` that client repos sync by raw GitHub URL
+(same shape as `Events/endpoints/responseTypes.ts`). Currently just
+`contactAdmin.ts` (`POST /api/contact-admin`, #602).
+
+This folder is the **exception, not a second home for endpoints** — anything a
+collection plausibly owns stays colocated under `src/collections/<Name>/endpoints/`.
+Leaving the collection seam costs you the usage plugin's beforeOperation hooks
+(origin enforcement, usage tracking), which a root handler has to compensate for
+by hand; see `.claude/rules/endpoints.md`.
+
 ### `src/lib/`
 
 No loose files at the root — every file lives in a named folder:
@@ -51,6 +66,9 @@ No loose files at the root — every file lives in a named folder:
   `lexicalHooks`
 - `endpoints/` — shared client-endpoint helpers (`requireActiveClient`,
   `parseQuery`, `emptyPaginatedResponse`)
+- external-service clients, alongside `mapbox/`: `turnstile/` (Cloudflare
+  captcha siteverify). Single-consumer today, but an integration seam rather
+  than one endpoint's private helper — and unit-testable without booting it.
 - domain folders shared across 2+ owners: `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
   `pageTags/`, `cascadeDeletion/`, `registrations/` (the
@@ -64,7 +82,8 @@ public surface imported as a unit (`@/lib/locales`, `@/lib/status`,
 `@/lib/cascadeDeletion`). Grab-bag and per-owner helper folders whose modules are
 cherry-picked individually use deep imports and have **no** barrel: `utilities/`
 (unrelated single-purpose helpers), `logger/`, `lectures/`, `meditations/`,
-`audiences/`, `mapbox/`, and `schedule/` (`@/lib/schedule/scheduleHooks`). Don't
+`audiences/`, `mapbox/`, `turnstile/`, and `schedule/`
+(`@/lib/schedule/scheduleHooks`). Don't
 add a barrel that re-exports unrelated modules just for symmetry — it can pull
 server-only code into client bundles, hurts tree-shaking, and invites import
 cycles.
