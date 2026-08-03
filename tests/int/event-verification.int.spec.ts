@@ -31,6 +31,7 @@ type ExpireOutput = {
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const daysAgo = (n: number) => new Date(Date.now() - n * DAY_MS).toISOString()
+const inDays = (n: number) => new Date(Date.now() + n * DAY_MS).toISOString()
 
 async function runJob(payload: Payload): Promise<ExpireOutput> {
   const req = { payload, context: {}, headers: new Headers() } as Parameters<
@@ -542,5 +543,99 @@ describe('Event verification lifecycle', () => {
     expect(result.advanced).toBe(1)
     const fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('reminded')
+  })
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Reviving a finished event. Since #603 the public feeds key off
+  // `schedule.lastDate`, not `verificationStage`, so extending the schedule
+  // already puts the event back on the map — the stage has to follow, or the
+  // event sits publicly listed at `finished` with no `nextCheckAt`, never
+  // re-verified and counted inactive by the manager sidebar.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('reviving a finished event', () => {
+    /** A published one-off whose only occurrence is past, marked finished by the sweep. */
+    async function createFinishedEvent(): Promise<Event> {
+      const event = await createEvent({
+        schedule: { firstDate: daysAgo(30), firstDate_tz: 'Europe/London' },
+      } as Partial<Event>)
+      await makeDue(payload, event.id)
+      const result = await runJob(payload)
+      expect(result.finished).toBe(1)
+      const fresh = await getEvent(payload, event.id)
+      expect(fresh.verificationStage).toBe('finished')
+      expect(fresh.nextCheckAt ?? null).toBeNull()
+      return fresh
+    }
+
+    it('re-verifies when a save extends the schedule past today', async () => {
+      const event = await createFinishedEvent()
+
+      const revived = await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: {
+          schedule: { firstDate: inDays(14), firstDate_tz: 'Europe/London' },
+        } as Partial<Event>,
+      })
+
+      expect(revived.verificationStage).toBe('verified')
+      expect(revived.nextCheckAt).toBeTruthy()
+      expect(new Date(revived.nextCheckAt!).getTime()).toBeGreaterThan(Date.now())
+      // Back on the feeds too — lastDate is ahead of us again.
+      expect(new Date(revived.schedule!.lastDate!).getTime()).toBeGreaterThan(Date.now())
+    })
+
+    it('re-verifies when a save makes the recurrence open-ended', async () => {
+      const event = await createFinishedEvent()
+
+      const revived = await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: {
+          schedule: {
+            firstDate: daysAgo(30),
+            firstDate_tz: 'Europe/London',
+            recurrenceType: 'DAILY',
+            interval: 1,
+          },
+        } as Partial<Event>,
+      })
+
+      expect(revived.verificationStage).toBe('verified')
+      // An open-ended recurrence has no lastDate, so it never finishes.
+      expect(revived.schedule?.lastDate ?? null).toBeNull()
+    })
+
+    it('stays finished when a save leaves the schedule still run out', async () => {
+      const event = await createFinishedEvent()
+
+      const saved = await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: { title: 'Renamed But Still Over' } as Partial<Event>,
+      })
+
+      expect(saved.title).toBe('Renamed But Still Over')
+      expect(saved.verificationStage).toBe('finished')
+      expect(saved.nextCheckAt ?? null).toBeNull()
+    })
+
+    it('stays finished when the schedule moves but is still in the past', async () => {
+      const event = await createFinishedEvent()
+
+      const saved = await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: {
+          schedule: { firstDate: daysAgo(3), firstDate_tz: 'Europe/London' },
+        } as Partial<Event>,
+      })
+
+      expect(saved.verificationStage).toBe('finished')
+    })
   })
 })

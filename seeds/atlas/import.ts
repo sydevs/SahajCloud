@@ -20,6 +20,7 @@
  * Usage: `pnpm seed atlas [--dry-run] [--update]`
  */
 
+import type { AtlasLifecycleTimestamps } from './helpers/verification'
 import type { Payload } from 'payload'
 
 import { randomUUID } from 'node:crypto'
@@ -57,7 +58,7 @@ import {
   venueParentAreaId,
   venueToEventAddress,
 } from './helpers/venueRouter'
-import { buildImportVerification } from './helpers/verification'
+import { buildImportVerification, importDeletedAt } from './helpers/verification'
 
 // ============================================================================
 // SOURCE DATA TYPES (shape of seeds/atlas/data/*.json)
@@ -936,7 +937,17 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const cadence = managerVerificationCadence(
       this.managerPrefs(event.managerId, ctx.managersByLegacyId),
     )
-    const verification = buildImportVerification({ status: event.status, cadence, now: ctx.now })
+    // `legacyId` seeds the deterministic stagger on `nextCheckAt` — without it the
+    // whole dump falls due in the same week. See importCheckOffsetDays.
+    const verification = buildImportVerification({
+      status: event.status,
+      cadence,
+      legacyId: event.legacyId,
+      now: ctx.now,
+    })
+    // Atlas's `archived` terminal → a Payload soft delete. Only set when the
+    // `archived_at` stamp isn't superseded by a later re-verification (2 of 511).
+    const deletedAt = importDeletedAt(event.legacyData as AtlasLifecycleTimestamps)
 
     // Publish state. Inactive events with no contact info can't satisfy the
     // contact requirement, so import them as a draft (drafts skip validation).
@@ -987,6 +998,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       manager: managerId,
       ...verification,
       _status: status,
+      // Payload manages `deletedAt` for trash-enabled collections, but writing it
+      // directly is how the ExpireEvents job trashes an event too.
+      ...(deletedAt ? { deletedAt } : {}),
       legacyId: event.legacyId,
       legacyData: event.legacyData,
     }

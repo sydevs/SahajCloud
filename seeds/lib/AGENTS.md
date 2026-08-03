@@ -185,6 +185,18 @@ protected async import(): Promise<void> {
 - `getPreloaded(collection, keyValue)` - Get cached doc by natural key
 - `hasPreloaded(collection, keyValue)` - Check if doc exists in cache
 
+**The cache includes soft-deleted docs** (`trash: true` on its find). A trashed row
+still occupies its natural key, so it must count as "exists" — otherwise `upsert`
+takes its `isPreloaded && !preloadedDoc` branch straight to `payload.create` (there
+is no fallback find) and duplicates the row on every re-seed. This was a live bug:
+`CleanupOrphanedMedia` trashes orphaned Files/Images, so a later `storyblok` /
+`meditations` run re-uploaded them. Guarded by
+`tests/int/seed-importer-preload.int.spec.ts`.
+
+Consequence worth knowing: **a deliberately-trashed doc is not re-created by a
+re-seed** — it's skipped (or updated in `--update` mode). Permanently delete it to
+force recreation.
+
 ### Pagination Pattern
 
 For large imports, to keep each request bounded and avoid long-running seed requests timing out:

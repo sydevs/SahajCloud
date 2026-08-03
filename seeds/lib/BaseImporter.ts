@@ -383,6 +383,17 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           page,
           depth: 0,
           select,
+          // Include soft-deleted docs: this cache answers "does this natural key
+          // already exist?", and a trashed doc still occupies its key. Without
+          // this, Payload's default `deletedAt exists: false` filter hides it, the
+          // cache misses, and `upsert` creates a duplicate (it goes straight to
+          // `payload.create` on a preloaded-but-absent key, with no fallback find).
+          // That bit Files/Images — CleanupOrphanedMedia trashes orphans, so a
+          // re-seed re-uploaded them — and would bite any collection whose rows get
+          // trashed. Safe for every collection: Payload's appendNonTrashedFilter
+          // ignores `trash` unless the collection enables it, and when it does this
+          // includes trashed docs *alongside* live ones rather than only-trashed.
+          trash: true,
         }),
       )
 
