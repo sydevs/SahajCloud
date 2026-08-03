@@ -2,6 +2,8 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import type { Event } from '@/payload-types'
+
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -140,7 +142,9 @@ describe('Events collection', () => {
         overrideAccess: false,
       })
       expect(doc.id).toBe(finishedId)
-      expect(doc._status).toBe('published')
+      // Absent from the declared select on purpose: getting it back is what
+      // proves ensureWebPathDeps injected it, so the type needs widening here.
+      expect((doc as typeof doc & Pick<Event, '_status'>)._status).toBe('published')
       // Publish-gated, so a non-null path proves nothing unpublished it.
       expect(doc.webPath).toBeTruthy()
       expect(doc.webUrl).toBeTruthy()

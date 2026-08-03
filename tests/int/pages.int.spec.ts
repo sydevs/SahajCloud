@@ -7,7 +7,7 @@ import {
   createLexicalWithRelationshipNode,
   createLexicalWithUploadNode,
 } from '../utils/lexicalTestHelpers'
-import { testData } from '../utils/testData'
+import { testData, type LexicalContent } from '../utils/testData'
 import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
 describe('Pages Collection', () => {
@@ -252,7 +252,7 @@ describe('Pages Collection', () => {
           indent: 0,
           version: 1,
         },
-      } as unknown as Parameters<typeof testData.createPage>[1]['content']
+      } as unknown as LexicalContent
 
       const page = await testData.createPage(payload, {
         title: 'Page with App Card Relationship',
@@ -320,7 +320,7 @@ describe('Pages Collection', () => {
           indent: 0,
           version: 1,
         },
-      } as unknown as Parameters<typeof testData.createPage>[1]['content']
+      } as unknown as LexicalContent
 
       const page = await testData.createPage(payload, {
         title: 'Published Page with Client App Card Relationship',

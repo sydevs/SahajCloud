@@ -63,7 +63,7 @@ describe('Audiences Collection', () => {
       await expect(
         payload.create({
           collection: 'audiences',
-          data: {} as Record<string, unknown>,
+          data: createData<'audiences'>({}),
         }),
       ).rejects.toThrow()
     })
@@ -214,7 +214,7 @@ describe('Audiences Collection', () => {
     it('includes app cards in the appCards join', async () => {
       const audience = await testData.createAudience(payload, { label: 'AppCard Join Test' })
       const card = await testData.createAppCard(payload, {
-        title: 'Card With Audience',
+        default: { title: 'Card With Audience' },
         audiences: [audience.id],
       })
 

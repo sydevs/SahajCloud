@@ -2,7 +2,9 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createData } from '../utils/testData'
+import type { Region } from '@/payload-types'
+
+import { createData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -40,26 +42,22 @@ describe('Regions child-join recursive descendants', () => {
   type ChildJoinField = 'childrenRegions' | 'childrenCities' | 'childrenVenues'
 
   /** Descendant ids from a child join, shape-agnostic (depth 0 ids or populated docs). */
-  const joinIds = (doc: Record<string, unknown>, field: ChildJoinField): number[] => {
+  const joinIds = (doc: Region, field: ChildJoinField): number[] => {
     const join = doc[field] as { docs?: (number | { id: number })[] } | undefined
     return (join?.docs ?? []).map((entry) => (typeof entry === 'number' ? entry : entry.id))
   }
 
-  const createRegion = async (data: {
-    name: string
-    level: 'country' | 'region' | 'city' | 'venue'
-    mapboxId: string
-    parent?: number
-    slug?: string
-  }): Promise<number> => {
-    const region = await payload.create({ collection: 'regions', overrideAccess: true, data })
+  const createRegion = async (data: FixtureOverrides<Region>): Promise<number> => {
+    const region = await payload.create({
+      collection: 'regions',
+      overrideAccess: true,
+      data: createData<'regions'>(data),
+    })
     return region.id
   }
 
-  const readRegion = (id: number, locale?: 'en' | 'cs'): Promise<Record<string, unknown>> =>
-    payload.findByID({ collection: 'regions', id, depth: 0, locale }) as Promise<
-      Record<string, unknown>
-    >
+  const readRegion = (id: number, locale?: 'en' | 'cs'): Promise<Region> =>
+    payload.findByID({ collection: 'regions', id, depth: 0, locale })
 
   beforeAll(async () => {
     const env = await createTestEnvironment()

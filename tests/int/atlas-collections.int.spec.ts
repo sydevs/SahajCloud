@@ -250,7 +250,7 @@ describe('Atlas collections', () => {
         const url = await livePreview.url({
           data: { id: 42 },
           locale: { code: 'cs' },
-        } as Parameters<typeof livePreview.url>[0])
+        } as unknown as Parameters<typeof livePreview.url>[0])
         expect(url).toBe(
           `${process.env.SAHAJATLAS_URL}/preview?collection=${slug}&id=42&secret=${process.env.SAHAJCLOUD_PREVIEW_SECRET}&locale=cs`,
         )

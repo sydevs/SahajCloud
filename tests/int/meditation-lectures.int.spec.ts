@@ -942,7 +942,7 @@ describe('meditationLectures endpoint', () => {
         expect(framesCalls.length).toBeLessThanOrEqual(2)
         // Verify results are still correct despite bounded selects
         expect(body).toBeDefined()
-        const res = body as ResponseBody
+        const res = body as { docs: LecturePlayerData[] }
         expect(res.docs.length).toBeGreaterThan(0)
       } finally {
         findSpy.mockRestore()

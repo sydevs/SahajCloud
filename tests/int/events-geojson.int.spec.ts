@@ -4,8 +4,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
 import type { EventFeature } from '@/collections/Events/endpoints/responseTypes'
+import type { Event } from '@/payload-types'
 
-import { createData, testData } from '../utils/testData'
+import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 type TestUser = {
@@ -88,13 +89,15 @@ describe('eventsGeoJson endpoint', () => {
     })
     regionId = region.id
 
-    const common = {
+    // Annotated rather than `as const`: the latter froze `languages` to a
+    // readonly tuple, which no `string[]` field accepts.
+    const common: FixtureOverrides<Event> = {
       languages: ['en'],
       registrationMode: 'sahaj-atlas',
       manager: managerId,
       region: regionId,
       schedule: SCHEDULE,
-    } as const
+    }
 
     const offline = await payload.create({
       collection: 'events',
