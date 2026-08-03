@@ -52,12 +52,13 @@ echo
 
 # Separate from the src pass: the root tsconfig excludes `tests`, so specs are
 # otherwise never typechecked — Vitest transpiles via esbuild, which erases types
-# without checking them (#606). Scoped to the unit lane; `tests/int/**` is Phase 2.
+# without checking them (#606). Covers all of `tests/**`.
 echo "=== Typecheck (tests) ==="
 if ! pnpm typecheck:tests; then
   echo
   echo "❌ Test-suite typecheck failed. Fix type errors before continuing."
-  echo "  Scope is tsconfig.test.json (tests/unit + tests/utils)."
+  echo "  Scope is tsconfig.test.json (all of tests/**)."
+  echo "  Type fixtures with createData / FixtureOverrides — see .claude/rules/tests.md."
   exit 1
 fi
 echo "✓ Test-suite typecheck passed"
