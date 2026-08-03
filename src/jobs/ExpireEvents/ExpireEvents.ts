@@ -19,14 +19,10 @@ import {
   sendNotification,
   type ReminderPayload,
 } from '@/lib/notifications'
+import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import type { Event } from '@/payload-types'
 
-import {
-  computeNextCheckAt,
-  nextStageTransition,
-  shouldFinish,
-  unpublishDate,
-} from './stageMachine'
+import { computeNextCheckAt, nextStageTransition, unpublishDate } from './stageMachine'
 
 const PAGINATION_LIMIT = 200
 
@@ -46,14 +42,20 @@ interface ExpireResult {
 }
 
 /**
- * Mark a due event `finished` (terminal, unpublished, no email). Atlas's
- * `should_finish?` — its schedule ran out and it isn't inactive.
+ * Mark a due event `finished` (terminal, no email). Atlas's `should_finish?` —
+ * its schedule ran out and it isn't inactive.
+ *
+ * Deliberately leaves `_status` alone (#603): a finished event stays
+ * **published** so its Atlas page keeps resolving for a late seeker following an
+ * old link (and `webPath` / `webUrl` are publish-gated, so unpublishing is
+ * exactly what would break those links). It drops out of the public *feeds*
+ * instead, via `notFinishedWhere`. Only the unverified ladder unpublishes.
  */
 async function finishEvent(payload: Payload, req: PayloadRequest, event: Event): Promise<void> {
   await payload.update({
     collection: 'events',
     id: event.id,
-    data: { verificationStage: 'finished', _status: 'draft', nextCheckAt: null },
+    data: { verificationStage: 'finished', nextCheckAt: null },
     context: { skipVerifyHook: true },
     overrideAccess: true,
     req,
@@ -78,7 +80,7 @@ async function processEvent(args: {
   const { payload, req, event, now, result } = args
 
   // Finished-check first — supersedes the reminder ladder.
-  if (shouldFinish(event)) {
+  if (shouldFinish(event, now)) {
     await finishEvent(payload, req, event)
     result.finished++
     return
@@ -221,6 +223,12 @@ async function processEvent(args: {
  * marks it `finished` when its schedule has run out — sending escalating
  * reminders and auto-unpublishing on expiry. Single-threaded on the `nightly`
  * queue so the read-advance is race-free.
+ *
+ * Only the **unverified** ladder unpublishes. Finishing leaves the event
+ * published and simply drops it from the public feeds (#603), so this sweep no
+ * longer decides whether a finished event is publicly visible — it only records
+ * the stage. The feeds filter on `schedule.lastDate` on every read, which is why
+ * they don't lag behind this job the way the stage does.
  *
  * Manual trigger: `pnpm payload jobs:run --queue nightly`
  */

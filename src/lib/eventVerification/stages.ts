@@ -40,10 +40,16 @@ export const STAGE_DURATION_DAYS: Record<
 }
 
 /**
- * Stages where the event stays published (publicly visible). `expired` and
- * `finished` unpublish (`_status: 'draft'`); verifying restores `verified`.
+ * Stages where the event stays published. Only `expired` unpublishes
+ * (`_status: 'draft'`); verifying restores `verified`.
+ *
+ * `finished` is a **published** stage (#603): its Atlas page must keep resolving
+ * for a late seeker following an old link, so nothing unpublishes on the
+ * finished path. Published ≠ publicly listed — a finished event is filtered out
+ * of the map and list feeds by `notFinishedWhere`
+ * (`@/collections/Events/lifecycle/finished`), not by being unpublished.
  */
-export const PUBLISHED_STAGES = ['verified', 'reminded', 'escalated', 'urgent'] as const
+export const PUBLISHED_STAGES = ['verified', 'reminded', 'escalated', 'urgent', 'finished'] as const
 
 /** Whether an event at this stage should be published. */
 export function isPublishedStage(stage: string | null | undefined): boolean {

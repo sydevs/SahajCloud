@@ -13,6 +13,7 @@ import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmati
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
 import { buildRegistrationAnswers } from '@/lib/registrations/questions'
+import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import { resolveEmailStrings } from '@/lib/translations/emailStrings'
 import { relationId } from '@/lib/utilities/relationId'
 import { asTrustedReq } from '@/plugins/usage/hooks'
@@ -102,7 +103,9 @@ async function loadEmailClient(
  * (surfaced verbatim by the catch below).
  *
  * Flow: parse the `:id` + body → confirm the event is one the client may see
- * (published + project-visible) → upsert the registrant `user` by normalized
+ * (published + project-visible) → refuse it if its schedule has run out (a
+ * finished event stays published, so the access filter no longer catches it —
+ * 409) → upsert the registrant `user` by normalized
  * email with elevated access (`users` is admin-only) → create the `registration`
  * (event + user + startingAt + questions + a fresh uuid, plus the originating
  * `client` and `locale`, and `mailingListSubscribedAt` when the registrant opted
@@ -146,6 +149,16 @@ export const registerForEvent: Endpoint = {
           { errors: [{ message: 'Event not found or not open for registration.' }] },
           { status: 404 },
         )
+      }
+
+      // A finished event is still published (#603) so its page keeps resolving,
+      // which means the published-only filter above no longer refuses one whose
+      // schedule has run out. Reject it explicitly instead. 409, not 404: the
+      // event exists and is readable, its state just conflicts with registering.
+      // (#599 owns the broader gating rules — capacity, external mode, a course
+      // already under way; this closes only the hole reopened here.)
+      if (shouldFinish(eventDocs[0])) {
+        return Response.json({ errors: [{ message: 'This event has ended.' }] }, { status: 409 })
       }
 
       // Upsert the registrant by normalized email. `users` is admin-only, so the
