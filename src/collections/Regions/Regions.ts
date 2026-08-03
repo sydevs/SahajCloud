@@ -13,15 +13,15 @@ import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
 
 /**
  * The four geo levels of the Atlas region tree. Country → Region → Area form
- * the administrative hierarchy; `center` is a meditation center (a venue
- * referenced by more than one event — single-use venues are folded into the
- * event's own address instead).
+ * the administrative hierarchy; `venue` is a shared venue (a place referenced
+ * by more than one event — single-use venues are folded into the event's own
+ * address instead).
  */
 export const REGION_LEVEL_OPTIONS = [
   { label: 'Country', value: 'country' },
   { label: 'Region', value: 'region' },
   { label: 'City', value: 'city' },
-  { label: 'SY Center', value: 'center' },
+  { label: 'Venue', value: 'venue' },
 ] as const
 
 /**
@@ -45,14 +45,14 @@ const isManualLocation = (data: Record<string, unknown>): boolean =>
 const ALLOWED_PARENT_LEVELS: Record<string, string[]> = {
   region: ['country'],
   city: ['country', 'region'],
-  center: ['city'],
+  venue: ['city'],
 }
 
 /**
  * Condition for a per-level `children` join: show it only once the doc exists and
  * the current node's level is an allowed parent of `childLevel` (the inverse of
- * ALLOWED_PARENT_LEVELS) — so the Centers tab appears only under a City, never a
- * Country/Region, and a center (a leaf) shows no child tabs at all.
+ * ALLOWED_PARENT_LEVELS) — so the Venues tab appears only under a City, never a
+ * Country/Region, and a venue (a leaf) shows no child tabs at all.
  */
 const childLevelVisible = (childLevel: string) => {
   const parentLevels: string[] = ALLOWED_PARENT_LEVELS[childLevel] ?? []
@@ -65,7 +65,7 @@ const childLevelVisible = (childLevel: string) => {
  * `breadcrumbs` ancestor path (not `parent`), so it lists every descendant at
  * that level — not just direct children. Filtered to the level and shown only
  * when it's a valid child of the current node (`childLevelVisible`).
- * Country sees all three; a center (leaf) sees none.
+ * Country sees all three; a venue (leaf) sees none.
  */
 const CHILD_LEVEL_TABS = [
   {
@@ -81,17 +81,17 @@ const CHILD_LEVEL_TABS = [
     description: 'Cities anywhere beneath this one.',
   },
   {
-    level: 'center',
-    label: 'Centers',
-    name: 'childrenCenters',
-    description: 'SY Centers anywhere beneath this one.',
+    level: 'venue',
+    label: 'Venues',
+    name: 'childrenVenues',
+    description: 'Venues anywhere beneath this one.',
   },
 ] as const
 
 /**
  * Regions — the nested Sahaj Atlas geo tree. `parent` + `breadcrumbs` are
  * injected by `@payloadcms/plugin-nested-docs` (configured in
- * payload.config.ts). All fields apply uniformly to every level, centers
+ * payload.config.ts). All fields apply uniformly to every level, venues
  * included.
  */
 export const Regions: CollectionConfig = {
@@ -122,7 +122,7 @@ export const Regions: CollectionConfig = {
   defaultPopulate: {
     childrenRegions: false,
     childrenCities: false,
-    childrenCenters: false,
+    childrenVenues: false,
   },
   hooks: {
     // Atlas managers can only create regions inside their owned subtree (a child
@@ -165,8 +165,8 @@ export const Regions: CollectionConfig = {
                         country: 'A country — the root of the geographic tree.',
                         region: 'A state, province, or other sub-national region.',
                         city: 'A city or town.',
-                        center:
-                          'A Sahaja Yoga Center that holds multiple classes — a venue shared by more than one event. (Single-use venues belong in the event’s own address instead.)',
+                        venue:
+                          'A place that hosts more than one class — a shared venue, whether a Sahaja Yoga centre or a library that lends its hall. (A venue used by a single event belongs in that event’s own address instead.)',
                       },
                     },
                   },
@@ -235,7 +235,7 @@ export const Regions: CollectionConfig = {
                     country: 'country',
                     region: 'region',
                     city: 'place,locality',
-                    center: 'poi,address',
+                    venue: 'poi,address',
                   },
                   searchTypes: 'country,region,place,poi', // fallback if level unset
                   populateName: true,
@@ -267,7 +267,7 @@ export const Regions: CollectionConfig = {
                   admin: {
                     description: 'Text that appears below the region name in listings',
                     condition: (data) =>
-                      ['city', 'center'].includes(data?.level as string) && !!data.name,
+                      ['city', 'venue'].includes(data?.level as string) && !!data.name,
                   },
                 },
               ],
@@ -315,10 +315,10 @@ export const Regions: CollectionConfig = {
         // only once the doc exists AND the current node is an allowed parent of
         // that level — `childLevelVisible` (on the tab) folds both checks together,
         // and `where` filters the join to that single level. A Country shows
-        // Regions + Cities; a Region shows Cities; a City shows Centers; a center
+        // Regions + Cities; a Region shows Cities; a City shows Venues; a venue
         // (leaf) shows none.
         ...CHILD_LEVEL_TABS.map(({ level, label, name, description }) => {
-          // Singular human label for the "New …" button (e.g. center → "SY Center").
+          // Singular human label for the "New …" button (e.g. venue → "Venue").
           const levelLabel =
             REGION_LEVEL_OPTIONS.find((option) => option.value === level)?.label ?? label
           return {
@@ -338,7 +338,7 @@ export const Regions: CollectionConfig = {
               },
               {
                 name,
-                // The tab already names it (Regions/Cities/Centers); the field's own
+                // The tab already names it (Regions/Cities/Venues); the field's own
                 // "Children …" heading is redundant, so suppress it.
                 label: false as const,
                 type: 'join' as const,

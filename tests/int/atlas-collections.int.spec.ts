@@ -65,30 +65,30 @@ describe('Atlas collections', () => {
         },
       })
 
-      // A Center may only nest under a City — not directly under a Country.
+      // A Venue may only nest under a City — not directly under a Country.
       await expect(
         payload.create({
           collection: 'regions',
           data: {
-            name: 'Bad Center',
-            level: 'center',
-            mapboxId: 'pr.center.bad',
+            name: 'Bad Venue',
+            level: 'venue',
+            mapboxId: 'pr.venue.bad',
             parent: country.id,
             managers: [managerId],
           },
         }),
       ).rejects.toThrow()
-      const center = await payload.create({
+      const venueNode = await payload.create({
         collection: 'regions',
         data: {
-          name: 'Good Center',
-          level: 'center',
-          mapboxId: 'pr.center.good',
+          name: 'Good Venue',
+          level: 'venue',
+          mapboxId: 'pr.venue.good',
           parent: city.id,
           managers: [managerId],
         },
       })
-      expect(center.id).toBeTruthy()
+      expect(venueNode.id).toBeTruthy()
 
       // A Region may only nest under a Country — not a City.
       await expect(
@@ -152,6 +152,85 @@ describe('Atlas collections', () => {
       })
 
       expect(event.title ?? null).toBeNull()
+    })
+
+    // The auto-fill names the time of day, so a blank title is preferable to a
+    // hand-written generic one — it localizes, and a venue running several
+    // classes a week stops producing identical titles. The slot comes from the
+    // *local* start hour, via `schedule.firstDate_tz`.
+    const autoTitle = (
+      schedule: Record<string, unknown> | undefined,
+      street = 'Beethovenstraße 12',
+    ) =>
+      payload
+        .create({
+          collection: 'events',
+          draft: true,
+          data: {
+            eventType: 'offline',
+            registrationMode: 'sahaj-atlas',
+            manager: managerId,
+            address: { street },
+            ...(schedule ? { schedule } : {}),
+          },
+        })
+        .then((e) => e.title)
+
+    // `firstDate_tz` is a Postgres enum baked from the *test* config's timezone
+    // list, which is Payload's narrow curated default — so these cases use zones
+    // from that list (2024-09-06 is CEST, UTC+2). See the note in AGENTS.md
+    // about the wider list the real config uses.
+    it('names the time of day from the local start hour', async () => {
+      await expect(
+        autoTitle({ firstDate: '2024-09-06T07:00:00.000Z', firstDate_tz: 'Europe/Berlin' }),
+      ).resolves.toBe('Morning Meditation at Beethovenstraße 12')
+      await expect(
+        autoTitle({ firstDate: '2024-09-06T12:00:00.000Z', firstDate_tz: 'Europe/Berlin' }),
+      ).resolves.toBe('Afternoon Meditation at Beethovenstraße 12')
+      await expect(
+        autoTitle({ firstDate: '2024-09-06T17:30:00.000Z', firstDate_tz: 'Europe/Berlin' }),
+      ).resolves.toBe('Evening Meditation at Beethovenstraße 12')
+    })
+
+    it('resolves the slot through the timezone, not the UTC hour', async () => {
+      // 19:00 in Auckland is 07:00 UTC — a UTC read would call this a morning class.
+      await expect(
+        autoTitle({ firstDate: '2021-07-27T07:00:00.000Z', firstDate_tz: 'Pacific/Auckland' }),
+      ).resolves.toBe('Evening Meditation at Beethovenstraße 12')
+    })
+
+    it('drops the time of day for a late start or no schedule at all', async () => {
+      // An `inactive` listing has no schedule, and naming a time would be wrong.
+      await expect(autoTitle(undefined)).resolves.toBe('Meditation at Beethovenstraße 12')
+      await expect(
+        autoTitle({ firstDate: '2024-09-06T21:30:00.000Z', firstDate_tz: 'Europe/Berlin' }),
+      ).resolves.toBe('Meditation at Beethovenstraße 12')
+    })
+
+    it('re-runs the auto-fill when a title is explicitly cleared', async () => {
+      // This is what lets the importer retire a title: it sends `title: ''`,
+      // which falls through, where null/undefined would keep the old value.
+      const created = await payload.create({
+        collection: 'events',
+        draft: true,
+        data: {
+          title: 'Hand-written generic name',
+          eventType: 'offline',
+          registrationMode: 'sahaj-atlas',
+          manager: managerId,
+          address: { street: 'Hall A' },
+          schedule: { firstDate: '2024-09-06T17:30:00.000Z', firstDate_tz: 'Europe/Berlin' },
+        },
+      })
+      expect(created.title).toBe('Hand-written generic name')
+
+      const cleared = await payload.update({
+        collection: 'events',
+        id: created.id,
+        draft: true,
+        data: { title: '' },
+      })
+      expect(cleared.title).toBe('Evening Meditation at Hall A')
     })
   })
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   type AtlasVenue,
   countVenueUsage,
+  isRedundantVenueName,
   multiUseVenueIds,
   venueDisplayName,
   venueParentAreaId,
@@ -78,6 +79,7 @@ describe('venueToEventAddress', () => {
     const address = venueToEventAddress(venue, 'mbx-id')
     expect(address).toEqual({
       mapboxId: 'mbx-id',
+      venueName: 'Main Sahaja Centre',
       street: '27 Lake Road, Northcote',
       city: 'Auckland',
       country: 'NZ',
@@ -90,5 +92,53 @@ describe('venueToEventAddress', () => {
 
   it('includes the region shortCode when present', () => {
     expect(venueToEventAddress({ ...venue, regionCode: 'AUK' }, 'manual').region).toBe('AUK')
+  })
+})
+
+describe('venueName on the inline address', () => {
+  it("carries the building's own name", () => {
+    // Previously discarded, which left a blank-titled listing auto-filling to
+    // "Meditation at 27 Lake Road" instead of naming the centre.
+    expect(venueToEventAddress(venue, 'mbx-id').venueName).toBe('Main Sahaja Centre')
+  })
+
+  it('strips a trailing separator', () => {
+    const messy = { ...venue, name: 'Browns Bay Community Centre,' }
+    expect(venueToEventAddress(messy, 'mbx-id').venueName).toBe('Browns Bay Community Centre')
+  })
+
+  it('drops a name that only repeats the street', () => {
+    // Atlas names many venues after their own address, with the house number
+    // on the other end — "22 Manenburgstraat" for "Manenburgstraat 22".
+    const streetNamed = { ...venue, name: 'Manenburgstraat 22', street: '22 Manenburgstraat' }
+    expect(venueToEventAddress(streetNamed, 'mbx-id').venueName).toBeUndefined()
+  })
+
+  it('drops a name that only repeats the city', () => {
+    // Venue 483 is literally named "Воронеж", in Воронеж — worse than the street.
+    const cityNamed = { ...venue, name: 'Воронеж', city: 'Воронеж ', street: 'Хользунова' }
+    expect(venueToEventAddress(cityNamed, 'mbx-id').venueName).toBeUndefined()
+  })
+
+  it('omits it entirely when the venue is unnamed', () => {
+    expect(venueToEventAddress({ ...venue, name: null }, 'mbx-id')).not.toHaveProperty('venueName')
+  })
+})
+
+describe('isRedundantVenueName', () => {
+  it('ignores word order, punctuation and case', () => {
+    expect(isRedundantVenueName('R. Direita, 165', { ...venue, street: '165 R. Direita' })).toBe(
+      true,
+    )
+  })
+
+  it('keeps a genuinely different name', () => {
+    expect(
+      isRedundantVenueName('Broadstairs Friends Meeting House', {
+        ...venue,
+        street: "9 St Peter's Park Rd",
+        city: 'Broadstairs',
+      }),
+    ).toBe(false)
   })
 })
