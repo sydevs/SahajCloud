@@ -1,4 +1,4 @@
-import type { FlattenedField, Payload, PayloadRequest } from 'payload'
+import type { CollectionSlug, FlattenedField, Payload, PayloadRequest } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
@@ -10,7 +10,7 @@ import {
 } from '@/plugins/access/documentManagers'
 
 /** Build a mock payload exposing only the `flattenedFields` the introspection reads. */
-function payloadWithFields(collection: string, fields: Partial<FlattenedField>[]): Payload {
+function payloadWithFields(collection: CollectionSlug, fields: Partial<FlattenedField>[]): Payload {
   return {
     collections: { [collection]: { config: { flattenedFields: fields } } },
   } as unknown as Payload
@@ -28,7 +28,7 @@ const managerSingle: Partial<FlattenedField> = {
   relationTo: 'managers',
   hasMany: false,
 }
-const selfParent = (collection: string): Partial<FlattenedField> => ({
+const selfParent = (collection: CollectionSlug): Partial<FlattenedField> => ({
   type: 'relationship',
   name: 'parent',
   relationTo: collection,
@@ -90,10 +90,10 @@ describe('getDocManagerFields', () => {
 
   it('matches a polymorphic relationTo array that includes managers', () => {
     const fields = getDocManagerFields(
-      payloadWithFields('things', [
+      payloadWithFields('events', [
         { type: 'relationship', name: 'manager', relationTo: ['managers', 'clients'] },
       ]),
-      'things',
+      'events',
     )
     expect(fields.managerField).toBe('manager')
   })
@@ -126,7 +126,7 @@ describe('parent-walk fallback (no breadcrumbs) terminates on cycles', () => {
       },
     } as unknown as PayloadRequest
 
-    const ids = await resolveManagedDocIds(req, 'things', 99, parentFields)
+    const ids = await resolveManagedDocIds(req, 'regions', 99, parentFields)
     expect(ids.sort()).toEqual([1, 2])
   })
 
@@ -142,7 +142,7 @@ describe('parent-walk fallback (no breadcrumbs) terminates on cycles', () => {
       },
     } as unknown as PayloadRequest
 
-    await expect(userManagesDocument(req, 'things', 99, 3, parentFields)).resolves.toBe(false)
+    await expect(userManagesDocument(req, 'regions', 99, 3, parentFields)).resolves.toBe(false)
   })
 
   it('userManagesDocument finds the user on an ancestor via the parent walk', async () => {
@@ -157,6 +157,6 @@ describe('parent-walk fallback (no breadcrumbs) terminates on cycles', () => {
       },
     } as unknown as PayloadRequest
 
-    await expect(userManagesDocument(req, 'things', 99, 5, parentFields)).resolves.toBe(true)
+    await expect(userManagesDocument(req, 'regions', 99, 5, parentFields)).resolves.toBe(true)
   })
 })

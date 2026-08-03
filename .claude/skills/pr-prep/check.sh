@@ -39,7 +39,7 @@ fi
 echo "✓ Lint passed"
 echo
 
-echo "=== Typecheck ==="
+echo "=== Typecheck (src) ==="
 if ! pnpm typecheck; then
   echo
   echo "❌ Typecheck failed. Fix type errors before continuing."
@@ -48,6 +48,19 @@ if ! pnpm typecheck; then
   exit 1
 fi
 echo "✓ Typecheck passed"
+echo
+
+# Separate from the src pass: the root tsconfig excludes `tests`, so specs are
+# otherwise never typechecked — Vitest transpiles via esbuild, which erases types
+# without checking them (#606). Scoped to the unit lane; `tests/int/**` is Phase 2.
+echo "=== Typecheck (tests) ==="
+if ! pnpm typecheck:tests; then
+  echo
+  echo "❌ Test-suite typecheck failed. Fix type errors before continuing."
+  echo "  Scope is tsconfig.test.json (tests/unit + tests/utils)."
+  exit 1
+fi
+echo "✓ Test-suite typecheck passed"
 echo
 
 if [[ "$MODE" == "--full" ]]; then
