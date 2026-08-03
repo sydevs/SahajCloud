@@ -6,10 +6,16 @@
  * booting a Payload instance — the handler is designed to accept an injected
  * logger and fetch so tests stay fast.
  */
+import type { Mock } from 'vitest'
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { WebhookLogger } from '@/plugins/storage/cloudflareStreamWebhook'
+
 // Dynamic-import these after env is prepared so any module-level validation
-// (none today, but cheap insurance) sees the expected env values.
+// (none today, but cheap insurance) sees the expected env values. The
+// `WebhookLogger` import above is type-only, so it's erased and doesn't
+// evaluate the module early.
 let parseSignatureHeader: typeof import('@/plugins/storage/cloudflareStreamWebhook').parseSignatureHeader
 let verifySignature: typeof import('@/plugins/storage/cloudflareStreamWebhook').verifySignature
 let handleStreamWebhook: typeof import('@/plugins/storage/cloudflareStreamWebhook').handleStreamWebhook
@@ -17,11 +23,17 @@ let handleStreamWebhook: typeof import('@/plugins/storage/cloudflareStreamWebhoo
 const FAKE_NOW_SECONDS = 1_750_000_000
 const SECRET = 'test-webhook-signing-secret-with-32-plus-chars'
 
-interface CapturedLogger {
-  info: ReturnType<typeof vi.fn>
-  warn: ReturnType<typeof vi.fn>
-  error: ReturnType<typeof vi.fn>
-}
+/**
+ * The injected logger, mocked method-for-method off the real interface.
+ *
+ * Each method was `ReturnType<typeof vi.fn>`, which resolves the generic to its
+ * *constraint* (`Mock<Procedure | Constructable>`) rather than its default — so
+ * the mock wasn't callable as `(obj: object) => void` and every
+ * `handleStreamWebhook({ logger })` call failed to typecheck (11 of #606
+ * Phase 2's errors). Mapping over `WebhookLogger` also means a new method on
+ * the interface breaks `makeLogger` here instead of going unmocked.
+ */
+type CapturedLogger = { [K in keyof WebhookLogger]: Mock<WebhookLogger[K]> }
 
 function makeLogger(): CapturedLogger {
   return {
