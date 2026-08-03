@@ -5,12 +5,15 @@ import path from 'path'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
 import type { Event, Region } from '@/payload-types'
+import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
 
-import type { FixtureOverrides } from '../utils/testData'
-
-import { createData, createTestLexicalContent, testData } from '../utils/testData'
+import {
+  createData,
+  createTestLexicalContent,
+  testData,
+  type FixtureOverrides,
+} from '../utils/testData'
 import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
 /**
