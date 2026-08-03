@@ -11,8 +11,8 @@
  *
  * Resolution order (`resolveRegionLocation`):
  *  1. Typed forward search (proximity-biased when legacy coords exist) → real id.
- *  2. Miss + legacy coords (cities from areas, centers from venues) → the
- *     `manual` sentinel + those coords (centers default a radius — venues carry
+ *  2. Miss + legacy coords (cities from areas, venues from venues) → the
+ *     `manual` sentinel + those coords (venues default a radius — they carry
  *     none), matching what "Enter manually" stores in the admin.
  *  3. Miss + no coords (countries/regions have none) → a looser, untyped search
  *     for a centroid → `manual` + that centroid + a wide radius.
@@ -27,15 +27,15 @@ const FORWARD_URL = 'https://api.mapbox.com/search/searchbox/v1/forward'
 /** Sentinel `mapboxId` for a hand-entered location — matches `AddressSearchField`. */
 export const MANUAL_LOCATION = 'manual'
 
-/** Default radius (m) for a center/region with no legacy radius. */
-const DEFAULT_CENTER_RADIUS_METERS = 500
+/** Default radius (m) for a venue/region with no legacy radius. */
+const DEFAULT_VENUE_RADIUS_METERS = 500
 const DEFAULT_REGION_RADIUS_METERS = 50_000
 
 const MAX_RETRIES = 3
 const BASE_BACKOFF_MS = 500
 
 /** The Atlas geo levels, in Payload terms (`area` → `city`). */
-export type RegionLevel = 'country' | 'region' | 'city' | 'center'
+export type RegionLevel = 'country' | 'region' | 'city' | 'venue'
 
 /**
  * Mapbox Search Box `types` per level — mirrors `Regions.mapboxId`'s
@@ -45,7 +45,7 @@ const TYPES_BY_LEVEL: Record<RegionLevel, string> = {
   country: 'country',
   region: 'region',
   city: 'place,locality',
-  center: 'poi,address',
+  venue: 'poi,address',
 }
 
 /** Looser `types` for the coordless fallback (step 3) — just enough for a centroid. */
@@ -165,11 +165,11 @@ export async function resolveRegionLocation(
   const id = await geocodeRegion(args)
   if (id) return { location: { mapboxId: id, manual: false }, warning: null }
 
-  // 2. Miss but we have legacy coords (cities, centers) → manual + those coords.
+  // 2. Miss but we have legacy coords (cities, venues) → manual + those coords.
   if (args.latitude != null && args.longitude != null) {
     const radius =
       args.radius ??
-      (args.level === 'center' ? DEFAULT_CENTER_RADIUS_METERS : DEFAULT_REGION_RADIUS_METERS)
+      (args.level === 'venue' ? DEFAULT_VENUE_RADIUS_METERS : DEFAULT_REGION_RADIUS_METERS)
     return {
       location: {
         mapboxId: MANUAL_LOCATION,

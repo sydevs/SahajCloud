@@ -87,9 +87,9 @@ Each script has collection-level metadata in `seeds/lib/expectedCounts.ts`:
 | storyblok   | lessons      | 17    | Yes        | None                    |
 | storyblok   | lectures     | 0     | No         | None                    |
 | atlas       | managers      | 327   | No         | None                    |
-| atlas       | regions       | 482   | No         | managers                |
+| atlas       | regions       | 518   | No         | managers                |
 | atlas       | users         | 755   | Yes        | None                    |
-| atlas       | events        | 511   | Yes        | managers, regions       |
+| atlas       | events        | 494   | Yes        | managers, regions       |
 | atlas       | registrations | 886   | Yes        | events, users           |
 | atlas       | clients       | 25    | No         | managers                |
 
@@ -159,9 +159,11 @@ the importer handles; `SCRIPT_RUN_ORDER` in [run.ts](run.ts) places it last.
 
 Atlas reads its eight pre-extracted dumps from `seeds/atlas/data/` (regenerated
 by [atlas/extract.ts](atlas/extract.ts) from a PostgreSQL dump — note that
-`events.json` carries hand-curated `website` values that a re-extraction drops;
-see [atlas/AGENTS.md](atlas/AGENTS.md)). For the Atlas-specific backend surface
-and importer decisions, see [atlas/AGENTS.md](atlas/AGENTS.md) and
+`events.json` carries curated `website` / `contactEmail` values and a groomed
+`customName` / `description` / `room` for 446 events, all of which a
+re-extraction drops; see [atlas/AGENTS.md](atlas/AGENTS.md)). For the
+Atlas-specific backend surface and importer decisions, see
+[atlas/AGENTS.md](atlas/AGENTS.md) and
 [atlas/MIGRATION_PLAN.md](atlas/MIGRATION_PLAN.md).
 
 ## Common Flags

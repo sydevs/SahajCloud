@@ -14,6 +14,12 @@ export interface AddressFieldsOptions {
   required?: string[]
   /** Include the `room` field (default: true) */
   hasRoom?: boolean
+  /**
+   * Include a `venueName` field (default: false) — the building's own name
+   * ("Broadstairs Friends Meeting House"), which a street address doesn't
+   * convey. Distinct from `room`: that says where *inside* the building to go.
+   */
+  hasVenueName?: boolean
   /** Include `latitude` / `longitude` (default: true) */
   hasCoordinates?: boolean
   /**
@@ -49,6 +55,7 @@ export function addressFields(options: AddressFieldsOptions = {}): Field {
     label,
     required = [],
     hasRoom = true,
+    hasVenueName = false,
     hasCoordinates = true,
     hasGeocoding = true,
     admin = {},
@@ -77,6 +84,23 @@ export function addressFields(options: AddressFieldsOptions = {}): Field {
               admin: {
                 components: { Field: ADDRESS_SEARCH_FIELD },
                 custom: { searchTypes: 'address,poi', populateAddress: true, allowManual: true },
+              },
+            },
+          ]
+        : []),
+      ...(hasVenueName
+        ? [
+            {
+              name: 'venueName',
+              type: 'text' as const,
+              label: 'Venue Name',
+              maxLength: 100,
+              required: isRequired('venueName'),
+              admin: {
+                placeholder: 'e.g. Broadstairs Friends Meeting House (optional)',
+                description:
+                  "The building's own name, where it has one. Shown in place of the street when a listing has no title of its own.",
+                ...revealOnSearch,
               },
             },
           ]

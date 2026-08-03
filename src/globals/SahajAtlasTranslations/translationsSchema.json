@@ -201,6 +201,33 @@
             }
           },
           "additionalProperties": false
+        },
+        "title": {
+          "type": "object",
+          "description": "Auto-generated event titles. Used when a manager leaves an event's title blank — preferred over a hand-written generic name, because these localize and can be improved centrally. One complete sentence per time of day (not a shared prefix plus a separate word), so each locale can put the time of day wherever its grammar needs it. `%{place}` = the first comma-segment of the street address.",
+          "properties": {
+            "morning": {
+              "type": "string",
+              "maxLength": 60,
+              "description": "Auto-title for an event starting between 05:00 and 11:59 local time. `%{place}` = venue or street."
+            },
+            "afternoon": {
+              "type": "string",
+              "maxLength": 60,
+              "description": "Auto-title for an event starting between 12:00 and 16:59 local time. `%{place}` = venue or street."
+            },
+            "evening": {
+              "type": "string",
+              "maxLength": 60,
+              "description": "Auto-title for an event starting between 17:00 and 21:59 local time. `%{place}` = venue or street."
+            },
+            "default": {
+              "type": "string",
+              "maxLength": 60,
+              "description": "Auto-title used when the start time is late (22:00–04:59) or the event has no schedule at all. `%{place}` = venue or street."
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

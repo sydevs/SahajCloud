@@ -685,7 +685,7 @@ export interface Config {
       events: 'events';
       childrenRegions: 'regions';
       childrenCities: 'regions';
-      childrenCenters: 'regions';
+      childrenVenues: 'regions';
     };
     events: {
       registrations: 'registrations';
@@ -1365,7 +1365,7 @@ export interface Manager {
  */
 export interface Region {
   id: number;
-  level: 'country' | 'region' | 'city' | 'center';
+  level: 'country' | 'region' | 'city' | 'venue';
   /**
    * The geographic parent of this node (a higher level).
    */
@@ -1411,9 +1411,9 @@ export interface Region {
     totalDocs?: number;
   };
   /**
-   * SY Centers anywhere beneath this one.
+   * Venues anywhere beneath this one.
    */
-  childrenCenters?: {
+  childrenVenues?: {
     docs?: (number | Region)[];
     hasNextPage?: boolean;
     totalDocs?: number;
@@ -1656,6 +1656,10 @@ export interface Event {
    * The name of the person they are calling
    */
   contactName?: string | null;
+  /**
+   * An email address seekers can write to for more information about the program.
+   */
+  contactEmail?: string | null;
   description?: {
     root: {
       type: string;
@@ -1733,7 +1737,7 @@ export interface Event {
       | null;
   };
   /**
-   * The city or center this event belongs to.
+   * The city or venue this event belongs to.
    */
   region: number | Region;
   eventType: 'offline' | 'online';
@@ -1743,6 +1747,10 @@ export interface Event {
   onlineUrl?: string | null;
   address?: {
     mapboxId?: string | null;
+    /**
+     * The building's own name, where it has one. Shown in place of the street when a listing has no title of its own.
+     */
+    venueName?: string | null;
     street?: string | null;
     room?: string | null;
     postCode?: string | null;
@@ -4487,7 +4495,7 @@ export interface RegionsSelect<T extends boolean = true> {
   events?: T;
   childrenRegions?: T;
   childrenCities?: T;
-  childrenCenters?: T;
+  childrenVenues?: T;
   generateSlug?: T;
   slug?: T;
   breadcrumbs?:
@@ -4515,6 +4523,7 @@ export interface EventsSelect<T extends boolean = true> {
   languages?: T;
   contactPhone?: T;
   contactName?: T;
+  contactEmail?: T;
   description?: T;
   website?: T;
   images?: T;
@@ -4554,6 +4563,7 @@ export interface EventsSelect<T extends boolean = true> {
     | T
     | {
         mapboxId?: T;
+        venueName?: T;
         street?: T;
         room?: T;
         postCode?: T;
@@ -6029,6 +6039,15 @@ export interface SyAtlasTranslation {
       | number
       | boolean
       | null;
+    title?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
   };
   registration?: {
     form?:
@@ -6306,6 +6325,7 @@ export interface SyAtlasTranslationsSelect<T extends boolean = true> {
         details?: T;
         recurrence?: T;
         timing?: T;
+        title?: T;
       };
   registration?:
     | T

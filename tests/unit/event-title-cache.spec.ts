@@ -3,13 +3,13 @@ import type { PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
-  DEFAULT_EVENT_TITLE_PREFIX,
   composeEventTitle,
+  EVENT_TITLE_DEFAULTS,
   firstAddressSegment,
 } from '@/collections/Events/hooks/eventTitle'
 
 /**
- * Minimal PayloadRequest stub — resolveTitlePrefix only touches `context` and
+ * Minimal PayloadRequest stub — resolveTitleTemplates only touches `context` and
  * `payload.findGlobal`. We test it indirectly via the beforeChange hook.
  */
 function makeReq(impl: () => Promise<Record<string, unknown>>) {
@@ -21,6 +21,9 @@ function makeReq(impl: () => Promise<Record<string, unknown>>) {
   return { req, findGlobal }
 }
 
+/** A schedule whose local start time lands in the given slot. */
+const eveningSchedule = { firstDate: '2024-09-06T17:30:00.000Z', firstDate_tz: 'UTC' }
+
 describe('Event title memoization (#542 bulk-import stampede guard)', () => {
   describe('helper functions', () => {
     it('extracts the first address segment', () => {
@@ -29,18 +32,25 @@ describe('Event title memoization (#542 bulk-import stampede guard)', () => {
       expect(firstAddressSegment(null)).toBe('')
     })
 
-    it('composes event title from prefix and venue', () => {
-      expect(composeEventTitle('Meditation at', 'Berlin')).toBe('Meditation at Berlin')
-      expect(composeEventTitle('', 'Berlin')).toBe('Berlin')
-      expect(composeEventTitle('  ', 'Berlin')).toBe('Berlin')
-      expect(composeEventTitle('Meditation at', '')).toBeNull()
+    it('interpolates %{place} into the template', () => {
+      expect(composeEventTitle('Meditation at %{place}', { street: 'Berlin' })).toBe(
+        'Meditation at Berlin',
+      )
+      expect(composeEventTitle('Meditation at %{place}', { street: '' })).toBeNull()
+    })
+
+    it('falls back to the place alone for a blank or placeholder-less template', () => {
+      // Otherwise every event would share one fixed, place-free title.
+      expect(composeEventTitle('', { street: 'Berlin' })).toBe('Berlin')
+      expect(composeEventTitle('  ', { street: 'Berlin' })).toBe('Berlin')
+      expect(composeEventTitle('Meditation at', { street: 'Berlin' })).toBe('Berlin')
     })
   })
 
-  describe('title prefix caching', () => {
+  describe('title template caching', () => {
     it('memoizes the in-flight promise across concurrent beforeChange hooks', async () => {
       // Simulates a bulk import: many events' beforeChange hooks fire concurrently
-      // (Promise.all), all calling resolveTitlePrefix while it's still pending.
+      // (Promise.all), all resolving templates while the load is still pending.
       // A value cache would issue 8 findGlobal calls; a promise cache collapses to 1.
       let resolve!: (v: Record<string, unknown>) => void
       const pending = new Promise<Record<string, unknown>>((r) => {
@@ -48,14 +58,11 @@ describe('Event title memoization (#542 bulk-import stampede guard)', () => {
       })
       const { req, findGlobal } = makeReq(() => pending)
 
-      // Simulate 8 concurrent beforeChange hooks all calling resolveTitlePrefix
-      // (via the eventTitleBeforeChange hook, but we test the memoization
-      // directly by importing and calling resolveTitlePrefix).
       const { eventTitleBeforeChange } = await import('@/collections/Events/hooks/eventTitle')
 
       const hookCalls = Array.from({ length: 8 }, (_, i) => ({
-        value: '', // empty title triggers prefix resolution
-        data: { address: { street: `Street ${i}` } },
+        value: '', // empty title triggers template resolution
+        data: { address: { street: `Street ${i}` }, schedule: eveningSchedule },
         originalDoc: { id: i },
         req,
       }))
@@ -63,7 +70,7 @@ describe('Event title memoization (#542 bulk-import stampede guard)', () => {
       const inflight = hookCalls.map((args) =>
         eventTitleBeforeChange(args as unknown as Parameters<typeof eventTitleBeforeChange>[0]),
       )
-      resolve({ event: { titlePrefix: 'Custom Prefix' } })
+      resolve({ event: { title: { evening: 'Custom Evening at %{place}' } } })
       const results = await Promise.all(inflight)
 
       // A value cache would call findGlobal 8× — all 8 clear "not cached yet" before
@@ -75,9 +82,8 @@ describe('Event title memoization (#542 bulk-import stampede guard)', () => {
           depth: 0,
         }),
       )
-      // All results should have the custom prefix
       results.forEach((result) => {
-        expect(result).toMatch(/^Custom Prefix Street/)
+        expect(result).toMatch(/^Custom Evening at Street/)
       })
     })
 
@@ -87,63 +93,91 @@ describe('Event title memoization (#542 bulk-import stampede guard)', () => {
         calls += 1
         return calls === 1
           ? Promise.reject(new Error('network timeout'))
-          : Promise.resolve({ event: { titlePrefix: 'Retry Success' } })
+          : Promise.resolve({ event: { title: { evening: 'Retry Success at %{place}' } } })
       })
 
       const { eventTitleBeforeChange } = await import('@/collections/Events/hooks/eventTitle')
 
-      // First call — the prefix resolution fails; resolveTitlePrefix catches
-      // the error internally and falls back to DEFAULT_EVENT_TITLE_PREFIX. The
-      // promise still resolves (never rejects).
+      // The load fails; resolveTitleTemplates catches the error internally and
+      // falls back to EVENT_TITLE_DEFAULTS. The promise still resolves.
       const result1 = await eventTitleBeforeChange({
         value: '',
-        data: { address: { street: 'Street 1' } },
+        data: { address: { street: 'Street 1' }, schedule: eveningSchedule },
         originalDoc: { id: 1 },
         req,
       } as unknown as Parameters<typeof eventTitleBeforeChange>[0])
-      expect(result1).toMatch(/^Meditation at Street 1/)
+      expect(result1).toBe('Evening Meditation at Street 1')
       expect(findGlobal).toHaveBeenCalledTimes(1)
     })
 
     it('does not share the cache across requests', async () => {
-      const a = makeReq(async () => ({ event: { titlePrefix: 'Prefix A' } }))
-      const b = makeReq(async () => ({ event: { titlePrefix: 'Prefix B' } }))
+      const a = makeReq(async () => ({ event: { title: { evening: 'A at %{place}' } } }))
+      const b = makeReq(async () => ({ event: { title: { evening: 'B at %{place}' } } }))
 
       const { eventTitleBeforeChange } = await import('@/collections/Events/hooks/eventTitle')
 
       const result1 = await eventTitleBeforeChange({
         value: '',
-        data: { address: { street: 'Street' } },
+        data: { address: { street: 'Street' }, schedule: eveningSchedule },
         originalDoc: { id: 1 },
         req: a.req,
       } as unknown as Parameters<typeof eventTitleBeforeChange>[0])
 
       const result2 = await eventTitleBeforeChange({
         value: '',
-        data: { address: { street: 'Street' } },
+        data: { address: { street: 'Street' }, schedule: eveningSchedule },
         originalDoc: { id: 2 },
         req: b.req,
       } as unknown as Parameters<typeof eventTitleBeforeChange>[0])
 
-      expect(result1).toMatch(/^Prefix A/)
-      expect(result2).toMatch(/^Prefix B/)
+      expect(result1).toBe('A at Street')
+      expect(result2).toBe('B at Street')
       expect(a.findGlobal).toHaveBeenCalledTimes(1)
       expect(b.findGlobal).toHaveBeenCalledTimes(1)
     })
 
-    it('falls back to default prefix when translations global is missing', async () => {
+    it('falls back per slot when the global omits it', async () => {
+      // Payload falls back per *field*, not per key, so a translated blob that
+      // defines only some slots would otherwise yield undefined for the rest.
+      const { req } = makeReq(async () => ({
+        event: { title: { morning: 'Ochtendmeditatie bij %{place}' } },
+      }))
+
+      const { eventTitleBeforeChange } = await import('@/collections/Events/hooks/eventTitle')
+
+      const morning = await eventTitleBeforeChange({
+        value: '',
+        data: {
+          address: { street: 'Berlin' },
+          schedule: { firstDate: '2024-09-06T09:00:00.000Z', firstDate_tz: 'UTC' },
+        },
+        originalDoc: { id: 1 },
+        req,
+      } as unknown as Parameters<typeof eventTitleBeforeChange>[0])
+      const evening = await eventTitleBeforeChange({
+        value: '',
+        data: { address: { street: 'Berlin' }, schedule: eveningSchedule },
+        originalDoc: { id: 2 },
+        req,
+      } as unknown as Parameters<typeof eventTitleBeforeChange>[0])
+
+      expect(morning).toBe('Ochtendmeditatie bij Berlin')
+      expect(evening).toBe('Evening Meditation at Berlin')
+    })
+
+    it('falls back to the English defaults when the global is empty', async () => {
       const { req } = makeReq(async () => ({}))
 
       const { eventTitleBeforeChange } = await import('@/collections/Events/hooks/eventTitle')
 
       const result = await eventTitleBeforeChange({
         value: '',
-        data: { address: { street: 'Berlin' } },
+        data: { address: { street: 'Berlin' }, schedule: eveningSchedule },
         originalDoc: { id: 1 },
         req,
       } as unknown as Parameters<typeof eventTitleBeforeChange>[0])
 
-      expect(result).toBe(`${DEFAULT_EVENT_TITLE_PREFIX} Berlin`)
+      expect(result).toBe(EVENT_TITLE_DEFAULTS.evening.replace('%{place}', 'Berlin'))
     })
   })
 })
