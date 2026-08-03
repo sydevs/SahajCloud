@@ -127,9 +127,17 @@ in `src/emails/`.
 
 - **Branding is per-project**: `getEmailBrand(project)` composes
   `{ productName, colors, iconUrl }` from the existing `getProjectLabel` /
-  `getBrandColors` / `getProjectIcon` helpers. Defaults to `wemeditate-web`;
-  pass a `project` prop to a template to brand a send for another project
-  (`wemeditate-app`, `sahaj-atlas`). Templates never hardcode a color or name.
+  `getBrandColors` / `getProjectIcon` helpers. Defaults to `wemeditate-web`.
+  Templates never hardcode a color or name — they take branding as a prop, in one
+  of two shapes:
+
+  - **`project?: ProjectSlug`**, resolved inside the template
+    (`EventRegistrationEmail`). Fine when the template is the only consumer of
+    the brand.
+  - **`brand: EmailBrand`**, resolved once by the send helper and passed down
+    (`SessionReminderEmail`, `RegistrationDigestEmail`, `ContactAdminEmail`).
+    Prefer this when the **sender** also needs the brand — e.g. for the `From`
+    display name — so the header and the body can't resolve to different brands.
 
 - **Registrant mail is branded per client service**, not per project:
   `getClientEmailBrand(client)` returns the same `EmailBrand` shape from a

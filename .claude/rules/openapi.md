@@ -15,7 +15,7 @@ for spec generation with a custom Scalar plugin for the UI.
 src/plugins/openapi/
 ├── index.ts                       # barrel export
 ├── scalarPlugin.ts                # custom Scalar plugin with branding + project selector
-├── specFilter.ts                  # filtering + post-merge parameter injection
+├── specFilter.ts                  # filtering + post-merge parameter injection + `rootEndpointPathsFrom`
 ├── customEndpoints.ts             # hand-authored shim for custom collection endpoints
 ├── rateLimitingDocs.ts            # X-User-ID header parameter definition
 └── clientReadParametersDocs.ts    # select / populate / depth / limit / page param definitions
@@ -78,6 +78,13 @@ import {
 
 filterSpec(rawSpec) // union of all client collections
 filterSpec(rawSpec, { project: 'wemeditate-web' }) // single project
+
+// Root endpoints (`config.endpoints`) belong to no collection, so they must be
+// declared or the project tiers hide them — see the root-path note below.
+filterSpec(rawSpec, {
+  project,
+  rootEndpointPaths: rootEndpointPathsFrom(payload.config.endpoints),
+})
 ```
 
 **Always-hidden collections** (system collections, never visible):
@@ -106,7 +113,8 @@ is shown. Uses `getProjectCollections()` and `getRoleOptions()` from
 2. Validate project via `isValidProject()` from `@/plugins/access`.
 3. Generate spec via `payload-oapi` internals (avoids self-referential fetch).
 4. Merge in `customEndpoints.ts` entries.
-5. Apply `filterSpec()` with project filtering.
+5. Apply `filterSpec()` with project filtering, passing
+   `rootEndpointPaths: rootEndpointPathsFrom(payload.config.endpoints)`.
 6. Return with caching headers (Cloudflare Cache API in production).
 
 ## Custom-endpoint shim (`customEndpoints.ts`)
@@ -198,10 +206,16 @@ Review payload-oapi quarterly for native support of these.
 Current guards (both **unit** — no Payload bootstrap):
 
 - `tests/unit/openapi-custom-endpoints.spec.ts` — the hand-authored custom paths
-  + schemas stay registered (Atlas events, `/lectures/{id}/related-meditations`),
-  shaped endpoints expose no `select`/`populate`, and `filterSpec` POST visibility
-  (the auto-generated base-collection `POST /api/{collection}` is hidden unless the
-  collection is in `ALLOW_POST_FOR`; hand-authored custom POST subpaths stay visible).
+  + schemas stay registered (Atlas events, `/lectures/{id}/related-meditations`,
+  `/contact-admin`), shaped endpoints expose no `select`/`populate`, `filterSpec`
+  POST visibility (the auto-generated base-collection `POST /api/{collection}` is
+  hidden unless the collection is in `ALLOW_POST_FOR`; hand-authored custom POST
+  subpaths stay visible), and the root-path exemption in both directions —
+  declared → visible in all three projects, undeclared → `x-internal`.
+
+  Its `op()` helper asserts the operation **exists** before reading `x-internal`.
+  Without that, a path missing from the spec entirely reads as `undefined` →
+  falsy → "visible", and every visibility assertion passes vacuously.
 - `tests/unit/openapi-endpoint-auth.spec.ts` — the `DOCS_PASSWORD` basic-auth gate
   on `/openapi-raw.json` (passes through when unset, 401 on a wrong password).
 
