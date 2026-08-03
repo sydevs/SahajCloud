@@ -141,3 +141,59 @@ describe('depth parameter (OpenAPI)', () => {
     expect(depthParameter.schema.minimum).toBe(0)
   })
 })
+
+describe('contact-admin root endpoint (OpenAPI)', () => {
+  const post = CUSTOM_ENDPOINT_PATHS['/api/contact-admin']?.post as
+    | { description?: string; responses?: Record<string, { description?: string }> }
+    | undefined
+
+  it('registers the POST path and both hand-authored schemas', () => {
+    expect(post).toBeDefined()
+    expect(CUSTOM_ENDPOINT_SCHEMAS['ContactAdminRequest']).toBeDefined()
+    expect(CUSTOM_ENDPOINT_SCHEMAS['ContactAdminResponse']).toBeDefined()
+  })
+
+  it('documents the bounds a public caller must respect', () => {
+    // The bounds are the contract — mirrors the Zod schema in the handler.
+    const schema = CUSTOM_ENDPOINT_SCHEMAS['ContactAdminRequest'] as {
+      required?: string[]
+      properties?: Record<string, { minLength?: number; maxLength?: number }>
+    }
+    expect(schema.required).toEqual(['message', 'turnstileToken'])
+    expect(schema.properties?.message).toMatchObject({ minLength: 10, maxLength: 5000 })
+    expect(schema.properties?.turnstileToken?.maxLength).toBe(2048)
+    // Optional by design: an anonymous message is allowed, it just can't be replied to.
+    expect(schema.required ?? []).not.toContain('email')
+  })
+
+  it('documents the distinguishable captcha code and the 502 delivery failure', () => {
+    // A caller resets its widget on `captcha_failed` rather than treating the
+    // 403 as fatal, so the code has to be discoverable from /api/docs.
+    expect(post?.responses?.['403']?.description).toContain('captcha_failed')
+    // And 502 means the message is gone — nothing was persisted to retry from.
+    expect(post?.responses?.['502']).toBeDefined()
+    expect(post?.description).toContain('502')
+  })
+
+  it('stays visible in every project spec despite owning no collection', () => {
+    // `/api/contact-admin`'s first path segment names no collection, so without
+    // the ROOT_CUSTOM_ENDPOINT_PATHS exemption the project tier would mark it
+    // x-internal and hide the endpoint from every /docs page.
+    const build = () =>
+      JSON.parse(
+        JSON.stringify({
+          openapi: '3.1.0',
+          info: { title: 't', version: '1' },
+          paths: { ...CUSTOM_ENDPOINT_PATHS },
+          components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
+        }),
+      ) as unknown as OpenAPISpec
+
+    for (const project of ['sahaj-atlas', 'wemeditate-web', 'wemeditate-app'] as const) {
+      const filtered = filterSpec(build(), { project })
+      const op = (filtered.paths?.['/api/contact-admin'] as Record<string, Record<string, unknown>>)
+        ?.post
+      expect(op?.['x-internal'], `hidden for ${project}`).toBeFalsy()
+    }
+  })
+})
