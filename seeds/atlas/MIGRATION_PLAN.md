@@ -103,7 +103,25 @@ Pruned to the 407 venues referenced by an event. Deduped by unique `place_id`. F
 `legacyId`, `eventType` (STI `OfflineEvent`/`OnlineEvent` → `offline`/`online`), `category` (`{1:dropin, 2:single, 3:course, 4:festival, 5:concert, 6:inactive}`), `customName`, `room`, `description`, `published`, `languageCode`, `onlineUrl`, `registrationMode` (`{0:native,1:external,2:meetup,3:eventbrite,4:facebook}` → **collapsed in Payload to `sahaj-atlas`** (native) **/ `external`** (all third-party modes)), `registrationUrl`, `registrationLimit`, `registrationNotification` (`{0:digest,1:immediate,2:disabled}` — **dropped**, not modelled in Payload), `registrationQuestions` (`flag` bitmask → the matching booleans in the Event's `registrationQuestions` **checkbox group**; the legacy `questions`/`experience`/`aspirations`/`referral` flags map onto that group's placeholder checkboxes, which will be finalised against the real registration flow), `contactInfo` (object, holds `phone_name`/`phone_number`), `status` (the **raw Atlas status integer** — only `0` and `6` appear; the importer maps **`0`→`verified` / `6`→`finished`** into #484's `verificationStage`), `managerId`, `venueId`, `areaId`, `finishDate`, `createdAt`, `schedule` (below), and **`legacyData`** — the full raw Atlas event row (all columns, jsonb parsed), so the deferred #484 lifecycle work has the timestamps without re-accessing `atlas.dump`. `verificationStreak` is **dropped** (removed by #484; the raw value rides along in `legacyData`). The top-level `phoneName`/`phoneNumber` are **dropped** as duplicates of `contactInfo`. One field in this file does **not** come from Atlas: `website` (present on 14 events) was curated by hand from the free-text `description`s and is dropped by any re-extraction — see [AGENTS.md](AGENTS.md#event-website-is-curated-not-extracted).
 
 - **`schedule`**: parsed from `recurrence_data` (two Ruby-YAML dialects: old `:symbol:` keys + ISO dates; new string keys + human dates like `August 19, 2023`). Shape: `{frequency: 'daily'|'weekly'|'monthly', interval, weekNumber, weekday, startDate (ISO), startTime (HH:MM), endDate (ISO|null), endTime}`. Types seen: `daily`, `weekly_1`, `weekly_2` (interval 2), `monthly_1st` (weekNumber 1). `null` for the 18 inactive events with no recurrence. Phase 3 maps this to the project `scheduleFields` (rrule-based).
-- Drop the top-level `images` field (superseded by `pictures`). The lifecycle timestamps (`latest_registration_at`, all `*_email_sent_at`, `should_update_status_at`, `verified_at`, `expired_at`, `archived_at`, `finished_at`, `expiration_period`) are **no longer dropped** — they're preserved verbatim in `legacyData` for the deferred #484 verification/expiry state machine.
+- Drop the top-level `images` field (superseded by `pictures`). The lifecycle timestamps (`latest_registration_at`, all `*_email_sent_at`, `should_update_status_at`, `verified_at`, `expired_at`, `archived_at`, `finished_at`, `expiration_period`) are **no longer dropped** — they're preserved verbatim in `legacyData` for the #484 verification/expiry state machine.
+
+> **`status` is the only authoritative current-state flag.** Atlas stamped
+> `expired_at` / `archived_at` / `finished_at` on transition but **never cleared them
+> on reactivation**, so they're stale on almost every row: 287 of 289 `archived_at`
+> and 295 of 297 `expired_at` values are superseded by a later `verified_at`, and all
+> 12 events with a `finished_at` but `status: 0` were re-verified afterwards. Never
+> derive state from one of these timestamps alone — check it against `verified_at`
+> first (`isCurrentLifecycleFlag` in `helpers/verification.ts`). The only place the
+> importer acts on one is `archived_at` when nothing supersedes it, which trashes the
+> event (2 of 511: legacyId 75 and 199).
+>
+> The dump is also a **2024-10-13 snapshot**, so `should_update_status_at` is 13–25
+> months stale — every non-finished event reads as long overdue. The importer
+> deliberately does **not** derive a ladder position from it: that would place all 419
+> past the trash threshold and empty the map. Each event keeps a full verification
+> lease and re-expires through the live machinery instead, which is what buys time to
+> onboard managers. The lease is staggered (`cadence + legacyId % cadence` days) so
+> they don't all fall due in the same week.
 
 ### registrations.json — new Registrations collection
 

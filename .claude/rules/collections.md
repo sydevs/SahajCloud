@@ -299,18 +299,44 @@ Custom block icons → see `.claude/rules/blocks.md`.
 Trash (soft delete) supported. File attachments cascade-delete via the
 ownership system.
 
-## Trash (soft delete) on Files / Images
+## Trash (soft delete)
 
-Collections with `trash: true` (Files, Images) soft-delete on first
-delete and permanently delete on second delete:
+Collections with `trash: true`: Files, Images, **Events**.
+
+**`payload.delete` is always a *hard* delete, even on a trash-enabled
+collection.** Its own `trash` argument only widens *which* documents are
+deletable (i.e. whether already-trashed ones can be targeted) — it does not
+choose soft vs hard, and `deleteByID` never writes `deletedAt`. Trashing is
+setting `deletedAt` yourself:
 
 ```typescript
-await payload.delete({ collection: 'files', id })             // moves to trash (sets deletedAt)
-await payload.delete({ collection: 'files', id, trash: true })// trashed → permanently delete
+// ✅ trash (recoverable from the admin trash view)
+await payload.update({ collection: 'events', id, data: { deletedAt: new Date().toISOString() } })
+
+// ⚠️ permanent, irreversible — not "move to trash"
+await payload.delete({ collection: 'events', id })
 ```
 
-`deletedAt` is automatically managed by Payload — use it in `where`
-clauses (`{ deletedAt: { exists: true|false } }`), don't query `_status`.
+The ExpireEvents job's `expired → trash` step and the Atlas importer's
+archived-event handling both use the `update` form.
+
+Use `deletedAt` in `where` clauses (`{ deletedAt: { exists: true|false } }`),
+don't query `_status`.
+
+### Trashed docs are invisible to a default query
+
+Payload appends `deletedAt exists: false` to every read on a trash-enabled
+collection unless you pass **`trash: true`** (`appendNonTrashedFilter`). That
+flag *includes* trashed docs alongside live ones — it does not filter to
+only-trashed — and it's a no-op on collections without `trash`, so it's safe to
+pass unconditionally.
+
+This matters for any **existence check**: a trashed row still occupies its
+natural key, so a lookup that omits `trash: true` reports "absent" and the caller
+creates a duplicate. That was a live bug in the seed importers'
+`preloadCollection` — `CleanupOrphanedMedia` trashes orphaned Files/Images, so a
+later re-seed re-uploaded them instead of finding the trashed row (see
+`tests/int/seed-importer-preload.int.spec.ts`).
 
 The admin UI shows a "permanently delete" checkbox.
 
