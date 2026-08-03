@@ -9,6 +9,7 @@ import type { NotificationLogEntry } from '@/lib/eventVerification/log'
 import { signVerifyToken } from '@/lib/eventVerification/token'
 import type { Event, Manager } from '@/payload-types'
 
+import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -20,32 +21,11 @@ import { createTestEnvironment } from '../utils/testHelpers'
  * tested separately.
  */
 
-type ExpireOutput = {
-  processed: number
-  finished: number
-  advanced: number
-  trashed: number
-  remindersSent: number
-  failed: number
-}
-
 const DAY_MS = 24 * 60 * 60 * 1000
 const daysAgo = (n: number) => new Date(Date.now() - n * DAY_MS).toISOString()
 const inDays = (n: number) => new Date(Date.now() + n * DAY_MS).toISOString()
 
-async function runJob(payload: Payload): Promise<ExpireOutput> {
-  const req = { payload, context: {}, headers: new Headers() } as Parameters<
-    typeof ExpireEvents.handler
-  >[0]['req']
-  const res = await ExpireEvents.handler({
-    req,
-    input: {},
-    job: {} as Parameters<typeof ExpireEvents.handler>[0]['job'],
-    tasks: {} as Parameters<typeof ExpireEvents.handler>[0]['tasks'],
-    inlineTask: (() => {}) as Parameters<typeof ExpireEvents.handler>[0]['inlineTask'],
-  })
-  return res.output as ExpireOutput
-}
+const runJob = (payload: Payload) => runTaskHandler(ExpireEvents, { payload })
 
 /** Back-date an event's nextCheckAt so the next run treats it as due. */
 async function makeDue(payload: Payload, id: number): Promise<void> {

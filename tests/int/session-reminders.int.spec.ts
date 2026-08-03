@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { SendSessionReminders } from '@/jobs/RegistrationNotifications/SendSessionReminders'
 
+import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 
@@ -21,29 +22,8 @@ const NOW = new Date('2026-07-20T00:00:00.000Z')
 const OCCURRENCE = '2026-07-20T09:00:00.000Z'
 const OUT_OF_WINDOW = '2026-07-25T09:00:00.000Z'
 
-type ReminderResult = {
-  processedEvents: number
-  remindersSent: number
-  skipped: number
-  failed: number
-}
-
-async function runReminders(payload: Payload, now: Date = NOW): Promise<ReminderResult> {
-  const req = {
-    payload,
-    context: { now },
-    headers: new Headers(),
-  } as Parameters<typeof SendSessionReminders.handler>[0]['req']
-
-  const result = await SendSessionReminders.handler({
-    req,
-    input: {},
-    job: {} as Parameters<typeof SendSessionReminders.handler>[0]['job'],
-    tasks: {} as Parameters<typeof SendSessionReminders.handler>[0]['tasks'],
-    inlineTask: (() => {}) as Parameters<typeof SendSessionReminders.handler>[0]['inlineTask'],
-  })
-  return result.output as ReminderResult
-}
+const runReminders = (payload: Payload, now: Date = NOW) =>
+  runTaskHandler(SendSessionReminders, { payload, context: { now } })
 
 describe('SendSessionReminders job', () => {
   let payload: Payload
