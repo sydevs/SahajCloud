@@ -26,6 +26,7 @@ import { storagePlugin } from '@/plugins/storage'
 import { usagePlugin } from '@/plugins/usage'
 
 import { collections, Managers } from './collections'
+import { contactAdmin } from './endpoints/contactAdmin'
 import { globals } from './globals'
 import { tasks } from './jobs'
 import { migrations } from './migrations'
@@ -130,6 +131,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     },
     collections,
     globals,
+    // Root-level custom endpoints — for resources that belong to no collection.
+    // Everything else is colocated on its owning collection; see
+    // `.claude/rules/endpoints.md`.
+    endpoints: [contactAdmin],
     editor: lexicalEditor(),
     // GraphQL is disabled — this project exposes a REST-only API (see
     // src/app/(payload)/api/[[...slug]]/route.ts for the REST handler).
