@@ -233,6 +233,7 @@ Set via Railway service settings (encrypted at rest):
 # Service → Variables → Add variable
 PAYLOAD_SECRET=<secret>
 RESEND_API_KEY=<key>
+TURNSTILE_SECRET_KEY=<key>
 DATABASE_URL=postgres://...
 R2_BUCKET=<bucket>
 R2_ACCESS_KEY_ID=<key>
@@ -298,6 +299,22 @@ SENTRY_AUTH_TOKEN=<token>
 **Email (Resend)**:
 
 - `RESEND_API_KEY` - transactional email API key
+
+**Captcha (Cloudflare Turnstile)**:
+
+- `TURNSTILE_SECRET_KEY` - **required in production**; server-side secret for the
+  captcha on `POST /api/contact-admin`. Validated at **point of use**, not at
+  boot, so a missing key can't take the app (or a PR preview) down — but the
+  verifier then fails closed: the endpoint returns `500` and logs
+  `contactAdmin: Turnstile verification could not be completed` with
+  `reason: "not-configured"`, and **never** lets a message through unverified.
+  Pair it with the matching **site key** in the client app's widget (a different
+  value, held by SahajAtlasWeb / WeMeditateWeb — not needed here).
+  Non-production environments can use Cloudflare's public test keys —
+  `1x0000000000000000000000000000000AA` always passes,
+  `2x0000000000000000000000000000000AA` always fails. Never use those in
+  production. See
+  [Turnstile testing](https://developers.cloudflare.com/turnstile/troubleshooting/testing/).
 
 **Frontend URLs**:
 

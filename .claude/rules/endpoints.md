@@ -1,6 +1,7 @@
 ---
 paths:
   - src/collections/*/endpoints/**/*.ts
+  - src/endpoints/**/*.ts
 ---
 
 # Custom Endpoint Rules
@@ -42,6 +43,42 @@ export const myEndpoint: Endpoint = {
   },
 }
 ```
+
+## Root-level endpoints (the exception)
+
+Almost every endpoint here belongs to a collection and lives in its
+`endpoints/` folder. A resource that belongs to **no** collection goes in
+`src/endpoints/` and is registered on the config root instead:
+
+```typescript
+// src/payload.config.ts
+import { contactAdmin } from './endpoints/contactAdmin'
+
+endpoints: [contactAdmin],
+```
+
+Currently one such endpoint exists: `POST /api/contact-admin` — a contact
+message is stored nowhere and owned by nothing. Prefer a collection endpoint
+whenever a collection plausibly owns the resource; reach for the root only when
+none does.
+
+**Two things you lose by leaving the collection seam** — both are the usage
+plugin's `beforeOperation` hooks, which only run on collection operations, so a
+root handler that touches no collection runs neither:
+
+- **Origin enforcement.** Call `assertClientOriginAllowed(req)` from
+  `@/plugins/usage` directly, right after `requireActiveClient`, and map the
+  thrown `APIError` to a response. Don't rely on an incidental collection read to
+  trigger it — reading `clients` in particular won't, since that collection is
+  excluded from the plugin.
+- **Usage tracking.** The request isn't counted against the client's quota.
+  Cloudflare edge rate limiting still fronts the route; if a root endpoint needs
+  per-client accounting, it has to do it itself.
+
+Everything else still applies unchanged: `requireActiveClient` as the first
+statement, and an OpenAPI entry — see the root-path note in
+`.claude/rules/openapi.md`, since project visibility can't be derived from a path
+segment that names no collection.
 
 ## Registration
 
