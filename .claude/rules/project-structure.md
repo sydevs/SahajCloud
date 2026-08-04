@@ -53,7 +53,11 @@ No loose files at the root — every file lives in a named folder:
   `parseQuery`, `emptyPaginatedResponse`)
 - domain folders shared across 2+ owners: `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
-  `pageTags/`, `cascadeDeletion/`, `registrations/` (the
+  `pageTags/`, `cascadeDeletion/`, `eventTitle/` (the pure auto-title
+  composition — the Events title hook and the quality checks both recompose it),
+  `eventQuality/` (the listing-quality check registry + report builder, consumed
+  by the Events collection, the admin panel and the backfill script; barrelled),
+  `registrations/` (the
   `EVENT_REGISTRATION_QUESTIONS` contract + `questions` validation/shaping,
   shared by Events, Registrations, and the notification email; plus the
   `unsubscribeToken` / `unsubscribeUrl` helpers for the reminder unsubscribe link)
