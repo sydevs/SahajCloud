@@ -47,7 +47,7 @@ describe('Videos Collection — custom behavior', () => {
     expect(tagged.tags).toBe('workshop')
   })
 
-  describe('subtitles validator wiring (#317)', () => {
+  describe('subtitles jsonSchema wiring (#317, #597)', () => {
     it('accepts well-formed subtitles', async () => {
       const valid = [{ startTimeMs: 0, endTimeMs: 1000, durationMs: 1000, content: 'Hello' }]
       const video = await testData.createVideo(payload, {
@@ -60,14 +60,16 @@ describe('Videos Collection — custom behavior', () => {
 
     it('rejects malformed subtitles via the field validator', async () => {
       // Guards against a future regression where someone removes
-      // `validate: validateSubtitles` from the field config — the unit
+      // `jsonSchema: subtitlesJsonSchema` from the field config — the unit
       // suite would still pass, but the wiring would be silently broken.
       await expect(
         testData.createVideo(payload, {
           title: 'Invalid Subs Video',
           // Deliberately malformed — the case asserts the field validator
           // rejects it, so it can't be typed as a valid row.
-          subtitles: [{ startTimeMs: 'oops', endTimeMs: 1000, content: 'x' }] as unknown as Video['subtitles'],
+          subtitles: [
+            { startTimeMs: 'oops', endTimeMs: 1000, content: 'x' },
+          ] as unknown as Video['subtitles'],
         }),
       ).rejects.toThrow(/subtitles|startTimeMs/i)
     })

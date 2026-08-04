@@ -1,50 +1,59 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseSubtitles } from '@/lib/utilities/subtitles'
+import { subtitlesJsonSchema, subtitlesZodSchema } from '@/lib/utilities/subtitles'
 
-describe('parseSubtitles', () => {
-  const validSubtitles = [
-    { startTimeMs: 0, endTimeMs: 1500, durationMs: 1500, content: 'Hello' },
-    { startTimeMs: 1500, endTimeMs: 3500, content: 'World' },
-  ]
+/**
+ * The subtitles JSON Schema is *derived* from the Zod schema
+ * (`z.toJSONSchema`), and Payload feeds it to both Ajv (write validation) and
+ * the TypeScript generator. So the derivation itself is the contract: a Zod
+ * edit that silently changes it also changes the public API type and what a
+ * client is allowed to POST. These cases pin the parts that matter.
+ */
+describe('subtitlesJsonSchema', () => {
+  const items = subtitlesJsonSchema.schema.items as {
+    additionalProperties?: boolean
+    properties?: Record<string, { type?: string }>
+    required?: string[]
+    type?: string
+  }
 
-  it('accepts well-formed subtitles', () => {
-    expect(parseSubtitles(validSubtitles)).toBe(true)
+  it('targets draft-07 — the dialect Ajv’s default export understands', () => {
+    expect(subtitlesJsonSchema.schema.$schema).toBe('http://json-schema.org/draft-07/schema#')
   })
 
-  it('treats undefined / null / empty object / empty array as valid (field is optional)', () => {
-    expect(parseSubtitles(undefined)).toBe(true)
-    expect(parseSubtitles(null)).toBe(true)
-    expect(parseSubtitles({})).toBe(true)
-    expect(parseSubtitles([])).toBe(true)
+  it('describes an array of cue objects', () => {
+    expect(subtitlesJsonSchema.schema.type).toBe('array')
+    expect(items.type).toBe('object')
   })
 
-  it('rejects top-level objects', () => {
-    const result = parseSubtitles({ notSubtitles: [] })
-    expect(typeof result).toBe('string')
-    expect(result as string).toMatch(/array/i)
+  it('requires content + the time bounds, leaving durationMs optional', () => {
+    expect(items.required).toEqual(['content', 'startTimeMs', 'endTimeMs'])
+    expect(Object.keys(items.properties ?? {}).sort()).toEqual([
+      'content',
+      'durationMs',
+      'endTimeMs',
+      'startTimeMs',
+    ])
   })
 
-  it('rejects when a subtitle is missing a required field', () => {
-    const result = parseSubtitles([{ startTimeMs: 0, content: 'no endTimeMs' }])
-    expect(typeof result).toBe('string')
-    expect(result as string).toContain('endTimeMs')
+  it('pins each cue property to its scalar type', () => {
+    expect(items.properties?.content.type).toBe('string')
+    expect(items.properties?.startTimeMs.type).toBe('number')
+    expect(items.properties?.endTimeMs.type).toBe('number')
+    expect(items.properties?.durationMs.type).toBe('number')
   })
 
-  it('rejects when a subtitle field has the wrong type', () => {
-    const result = parseSubtitles([{ startTimeMs: '0', endTimeMs: 1000, content: 'oops' }])
-    expect(typeof result).toBe('string')
-    expect(result as string).toMatch(/0\.startTimeMs/)
+  it('forbids extra keys, so the generated type is exhaustive', () => {
+    expect(items.additionalProperties).toBe(false)
   })
 
-  it('rejects when the top-level value is not an array', () => {
-    const result = parseSubtitles({ subtitles: 'not-an-array' })
-    expect(typeof result).toBe('string')
-    expect(result as string).toMatch(/array/i)
-  })
-
-  it('rejects top-level non-array values', () => {
-    expect(typeof parseSubtitles('a string')).toBe('string')
-    expect(typeof parseSubtitles(42)).toBe('string')
+  it('still parses the same values as the Zod source of truth', () => {
+    expect(
+      subtitlesZodSchema.safeParse([{ content: 'Hello', startTimeMs: 0, endTimeMs: 1500 }]).success,
+    ).toBe(true)
+    expect(
+      subtitlesZodSchema.safeParse([{ content: 'Hello', startTimeMs: '0', endTimeMs: 1500 }])
+        .success,
+    ).toBe(false)
   })
 })
