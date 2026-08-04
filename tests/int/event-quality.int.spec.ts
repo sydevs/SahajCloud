@@ -3,9 +3,9 @@ import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { QUALITY_CHECK_VERSION } from '@/lib/eventQuality'
+import { backfillEventQuality } from '@/lib/eventQuality/backfill'
 import type { EventQualityReport } from '@/lib/eventQuality/types'
 import type { Event } from '@/payload-types'
-
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -248,6 +248,45 @@ describe('Event listing quality', () => {
       if (result.skipped) throw new Error('expected a report')
       expect(fresh.qualityOpenCount).toBe(result.openCount)
       expect(result.openCount).toBe(result.document.filter((r) => r.status === 'failed').length)
+    })
+  })
+
+  describe('the backfill', () => {
+    it('restamps a row whose stored count went stale', async () => {
+      // Rows written before the columns shipped hold NULL, and NULL sorts as
+      // "no open items" — burying the worst listings. `stampEventQuality` runs
+      // on every write, so a stale row can only be produced by bypassing the
+      // hooks, which is what the adapter-level write below does.
+      const event = await createPublished({ title: 'Stale Sitting' })
+      const correct = event.qualityOpenCount ?? 0
+      expect(correct).toBeGreaterThan(0)
+
+      await payload.db.updateOne({
+        collection: 'events',
+        id: event.id,
+        data: { qualityOpenCount: 99, qualityCheckVersion: null },
+        returning: false,
+      })
+      const stale = await payload.findByID({ collection: 'events', id: event.id })
+      expect(stale.qualityOpenCount).toBe(99)
+
+      const dry = await backfillEventQuality({ payload, apply: false })
+      expect(dry.changed).toBeGreaterThan(0)
+      // A dry run must not write.
+      const untouched = await payload.findByID({ collection: 'events', id: event.id })
+      expect(untouched.qualityOpenCount).toBe(99)
+
+      await backfillEventQuality({ payload, apply: true })
+      const fixed = await payload.findByID({ collection: 'events', id: event.id })
+      expect(fixed.qualityOpenCount).toBe(correct)
+      expect(fixed.qualityCheckVersion).toBe(QUALITY_CHECK_VERSION)
+    })
+
+    it('is a no-op on a second pass', async () => {
+      const again = await backfillEventQuality({ payload, apply: true })
+      expect(again.changed).toBe(0)
+      expect(again.failed).toBe(0)
+      expect(again.scanned).toBeGreaterThan(0)
     })
   })
 
