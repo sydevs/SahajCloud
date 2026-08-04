@@ -2,11 +2,14 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import type { Region } from '@/payload-types'
+
+import { createData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
  * Recursive-descendant coverage for the Regions child-join tabs
- * (childrenRegions / childrenCities / childrenCenters).
+ * (childrenRegions / childrenCities / childrenVenues).
  *
  * These joins are defined `on: 'breadcrumbs.doc'` (the denormalized nested-docs
  * ancestor path), not `on: 'parent'`, so each tab must list every descendant at
@@ -18,12 +21,12 @@ import { createTestEnvironment } from '../utils/testHelpers'
  *   countryA
  *   ├─ regionA
  *   │   └─ cityA
- *   │       └─ centerA
+ *   │       └─ venueA
  *   └─ regionB
  *       └─ cityB
  *
  * The two region branches prove scoping (regionA's tab must not see cityB) on
- * top of recursion (countryA's tab must see the 2-hop cityA / 3-hop centerA).
+ * top of recursion (countryA's tab must see the 2-hop cityA / 3-hop venueA).
  */
 describe('Regions child-join recursive descendants', () => {
   let payload: Payload
@@ -34,31 +37,27 @@ describe('Regions child-join recursive descendants', () => {
   let regionB: number
   let cityA: number
   let cityB: number
-  let centerA: number
+  let venueA: number
 
-  type ChildJoinField = 'childrenRegions' | 'childrenCities' | 'childrenCenters'
+  type ChildJoinField = 'childrenRegions' | 'childrenCities' | 'childrenVenues'
 
   /** Descendant ids from a child join, shape-agnostic (depth 0 ids or populated docs). */
-  const joinIds = (doc: Record<string, unknown>, field: ChildJoinField): number[] => {
+  const joinIds = (doc: Region, field: ChildJoinField): number[] => {
     const join = doc[field] as { docs?: (number | { id: number })[] } | undefined
     return (join?.docs ?? []).map((entry) => (typeof entry === 'number' ? entry : entry.id))
   }
 
-  const createRegion = async (data: {
-    name: string
-    level: 'country' | 'region' | 'city' | 'center'
-    mapboxId: string
-    parent?: number
-    slug?: string
-  }): Promise<number> => {
-    const region = await payload.create({ collection: 'regions', overrideAccess: true, data })
+  const createRegion = async (data: FixtureOverrides<Region>): Promise<number> => {
+    const region = await payload.create({
+      collection: 'regions',
+      overrideAccess: true,
+      data: createData<'regions'>(data),
+    })
     return region.id
   }
 
-  const readRegion = (id: number, locale?: 'en' | 'cs'): Promise<Record<string, unknown>> =>
-    payload.findByID({ collection: 'regions', id, depth: 0, locale }) as Promise<
-      Record<string, unknown>
-    >
+  const readRegion = (id: number, locale?: 'en' | 'cs'): Promise<Region> =>
+    payload.findByID({ collection: 'regions', id, depth: 0, locale })
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -90,10 +89,10 @@ describe('Regions child-join recursive descendants', () => {
       mapboxId: 'rd.cityB',
       parent: regionB,
     })
-    centerA = await createRegion({
-      name: 'Center A',
-      level: 'center',
-      mapboxId: 'rd.centerA',
+    venueA = await createRegion({
+      name: 'Venue A',
+      level: 'venue',
+      mapboxId: 'rd.venueA',
       parent: cityA,
     })
   })
@@ -115,16 +114,16 @@ describe('Regions child-join recursive descendants', () => {
       expect(joinIds(country, 'childrenCities').sort()).toEqual([cityA, cityB].sort())
     })
 
-    it('lists centers at any depth (3 hops down)', async () => {
+    it('lists venues at any depth (3 hops down)', async () => {
       const country = await readRegion(countryA)
-      expect(joinIds(country, 'childrenCenters')).toEqual([centerA])
+      expect(joinIds(country, 'childrenVenues')).toEqual([venueA])
     })
 
     it('never lists itself in any child tab', async () => {
       const country = await readRegion(countryA)
       expect(joinIds(country, 'childrenRegions')).not.toContain(countryA)
       expect(joinIds(country, 'childrenCities')).not.toContain(countryA)
-      expect(joinIds(country, 'childrenCenters')).not.toContain(countryA)
+      expect(joinIds(country, 'childrenVenues')).not.toContain(countryA)
     })
   })
 
@@ -134,22 +133,22 @@ describe('Regions child-join recursive descendants', () => {
       expect(joinIds(region, 'childrenCities')).toEqual([cityA])
     })
 
-    it('lists centers beneath its cities (2 hops down)', async () => {
+    it('lists venues beneath its cities (2 hops down)', async () => {
       const region = await readRegion(regionA)
-      expect(joinIds(region, 'childrenCenters')).toEqual([centerA])
+      expect(joinIds(region, 'childrenVenues')).toEqual([venueA])
     })
 
-    it('shows an empty centers tab when the subtree has none', async () => {
+    it('shows an empty venues tab when the subtree has none', async () => {
       const region = await readRegion(regionB)
       expect(joinIds(region, 'childrenCities')).toEqual([cityB])
-      expect(joinIds(region, 'childrenCenters')).toEqual([])
+      expect(joinIds(region, 'childrenVenues')).toEqual([])
     })
   })
 
   describe('from a City', () => {
-    it('lists its direct centers', async () => {
+    it('lists its direct venues', async () => {
       const city = await readRegion(cityA)
-      expect(joinIds(city, 'childrenCenters')).toEqual([centerA])
+      expect(joinIds(city, 'childrenVenues')).toEqual([venueA])
     })
   })
 
@@ -164,7 +163,7 @@ describe('Regions child-join recursive descendants', () => {
 
       expect(joinIds(cs, 'childrenRegions').sort()).toEqual(joinIds(en, 'childrenRegions').sort())
       expect(joinIds(cs, 'childrenCities').sort()).toEqual(joinIds(en, 'childrenCities').sort())
-      expect(joinIds(cs, 'childrenCenters').sort()).toEqual(joinIds(en, 'childrenCenters').sort())
+      expect(joinIds(cs, 'childrenVenues').sort()).toEqual(joinIds(en, 'childrenVenues').sort())
       // And the set is genuinely non-empty (guards against "both empty" passing).
       expect(joinIds(cs, 'childrenCities').sort()).toEqual([cityA, cityB].sort())
     })
@@ -194,11 +193,11 @@ describe('Regions child-join recursive descendants', () => {
     })
 
     it('builds the full ancestor slug chain including the node itself', async () => {
-      const [country, region, city, center] = await Promise.all([
+      const [country, region, city, venue] = await Promise.all([
         readRegion(countryA),
         readRegion(regionA),
         readRegion(cityA),
-        readRegion(centerA),
+        readRegion(venueA),
       ])
       const c = String(country.slug)
       const r = String(region.slug)
@@ -206,7 +205,7 @@ describe('Regions child-join recursive descendants', () => {
       expect(country.webPath).toBe(`/${c}`)
       expect(region.webPath).toBe(`/${c}/${r}`)
       expect(city.webPath).toBe(`/${c}/${r}/${ci}`)
-      expect(center.webPath).toBe(`/${c}/${r}/${ci}/${String(center.slug)}`)
+      expect(venue.webPath).toBe(`/${c}/${r}/${ci}/${String(venue.slug)}`)
     })
 
     it('collapses the region-optional shape (a city directly under a country)', async () => {
@@ -227,7 +226,7 @@ describe('Regions child-join recursive descendants', () => {
         collection: 'regions',
         id: countryZ,
         overrideAccess: true,
-        data: { slug: 'country-z-renamed' },
+        data: createData<'regions'>({ slug: 'country-z-renamed' }),
       })
       const after = await readRegion(cityZ)
       expect(after.webPath).not.toBe(before.webPath)

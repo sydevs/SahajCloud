@@ -10,8 +10,8 @@
  * Highlights:
  * - Relationships rewired via `legacyId` maps (regions keyed by `level:legacyId`
  *   since countries/regions/areas share an id space).
- * - Venues have no collection: a venue used by >1 event becomes a Regions
- *   `center`; a single-use venue's address is lifted onto the event.
+ * - Venues have no collection: a place used by >1 event becomes a Regions
+ *   `venue`; a single-use venue's address is lifted onto the event.
  * - `mapboxId` resolved via the server-side Search Box geocoder (src/lib/mapbox).
  * - Event status → #484 `verificationStage` (0→verified / 6→finished) with the
  *   verification backfill seeded under `context.skipVerifyHook`.
@@ -20,6 +20,7 @@
  * Usage: `pnpm seed atlas [--dry-run] [--update]`
  */
 
+import type { AtlasLifecycleTimestamps } from './helpers/verification'
 import type { Payload } from 'payload'
 
 import { randomUUID } from 'node:crypto'
@@ -57,7 +58,7 @@ import {
   venueParentAreaId,
   venueToEventAddress,
 } from './helpers/venueRouter'
-import { buildImportVerification } from './helpers/verification'
+import { buildImportVerification, importDeletedAt } from './helpers/verification'
 
 // ============================================================================
 // SOURCE DATA TYPES (shape of seeds/atlas/data/*.json)
@@ -115,6 +116,13 @@ interface AtlasEvent {
   registrationUrl: string | null
   /** Curated in events.json, not extracted from Atlas — see seeds/atlas/AGENTS.md. */
   website?: string
+  /** Curated in events.json, not extracted from Atlas — see seeds/atlas/AGENTS.md. */
+  contactEmail?: string
+  /**
+   * Curated override for `languageCode` on events merged from two same-slot
+   * listings that differed only in language — see seeds/atlas/AGENTS.md.
+   */
+  languageCodes?: string[]
   registrationLimit: number | null
   registrationQuestions: string[]
   contactInfo: { phone_name?: string; phone_number?: string } | null
@@ -181,7 +189,7 @@ const ATLAS_TO_PAYLOAD_LEVEL: Record<GeoRef['level'], RegionLevel> = {
 /**
  * The `idMaps.regions` key for an Atlas geo-ref, applying the area→city rename.
  * Centralised so the transform can't be forgotten at one call site. (Node keys
- * built from an already-Payload level — `city:areaId`, `center:venueId` — are
+ * built from an already-Payload level — `city:areaId`, `venue:venueId` — are
  * written inline since there's no ref to translate.)
  */
 const geoRefKey = (ref: { level: GeoRef['level']; legacyId: number }): string =>
@@ -199,6 +207,41 @@ const REGISTRATION_QUESTION_MAP: Record<string, string> = {
 }
 
 const DEFAULT_LOCALE = 'en'
+
+/**
+ * Atlas rows that must never become events, and why.
+ *
+ * #494/#575 are test records still present in events.json — skipping rather than
+ * deleting keeps them out of the import while leaving the events list handed to
+ * `multiUseVenueIds` unchanged, so the venue → region topology (and the regions
+ * count) is unaffected.
+ *
+ * The rest were **removed from events.json** as confirmed duplicates: same
+ * venue, weekday and start time as a surviving row, differing only in title,
+ * description, lifecycle status or language. They are listed here so a
+ * re-extraction — which rebuilds the file from `select * from events` and would
+ * bring every one of them back — cannot silently undo the merge. See
+ * seeds/atlas/AGENTS.md for the evidence behind each.
+ */
+const EXCLUDED_EVENT_LEGACY_IDS = new Map<number, string>([
+  [494, 'Atlas test record'],
+  [575, 'Atlas test record'],
+  [195, 'duplicate — same Zoom room + slot as #603'],
+  [752, 'duplicate — merged into the bilingual #753'],
+  [360, 'duplicate — retired half of the pair kept as #684'],
+  [392, 'duplicate — retired half of the pair kept as #698'],
+  [458, 'duplicate — retired half of the pair kept as #560'],
+  [461, 'duplicate — retired half of the pair kept as #565'],
+  [464, 'duplicate — retired half of the pair kept as #562'],
+  [468, 'duplicate — retired half of the pair kept as #570'],
+  [469, 'duplicate — retired half of the pair kept as #571'],
+  [82, 'duplicate of #496; both sides already retired'],
+  [496, 'duplicate of #82; both sides already retired'],
+  [497, 'duplicate of #534; both sides already retired'],
+  [534, 'duplicate of #497; both sides already retired'],
+  [355, 'duplicate of #535; both sides already retired'],
+  [535, 'duplicate of #355; both sides already retired'],
+])
 
 // ============================================================================
 // ATLAS IMPORTER
@@ -222,7 +265,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
   /** Venue legacyId → resolved address `mapboxId` (geocoded once, reused per event). */
   private venueMapbox = new Map<number, string>()
 
-  /** Region map key (`level:legacyId` / `center:venueId`) → unique slug (see buildRegionSlugs). */
+  /** Region map key (`level:legacyId` / `venue:venueId`) → unique slug (see buildRegionSlugs). */
   private regionSlugs = new Map<string, string>()
 
   static async runFromMigration(payload: Payload): Promise<void> {
@@ -400,7 +443,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
           (r) => r.parent && !geoKeys.has(`${r.parent.level}:${r.parent.legacyId}`),
         ).length,
       )
-      count('venues (→ centers / inline)', data.venues.length)
+      count('venues (→ shared / inline)', data.venues.length)
     }
     if (t('users')) count('users', data.users.length)
     if (t('events')) {
@@ -483,12 +526,12 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ─── Regions (country → region → city → center) ─────────────────────────
+  // ─── Regions (country → region → city → venue) ──────────────────────────
 
   /**
    * Deterministic, collision-free `slug` for every region node (country / region
-   * / city) and `center` venue, keyed by the same `level:legacyId` /
-   * `center:venueId` map key the upserts use. Six region names repeat across the
+   * / city) and shared `venue`, keyed by the same `level:legacyId` /
+   * `venue:venueId` map key the upserts use. Six region names repeat across the
    * Atlas tree (e.g. Georgia the country vs. the US state, São Paulo the state
    * vs. the city) and `regions.slug` is unique, so a bare `slugify(name)` would
    * trip the constraint. Nodes are walked in a fixed `(level, legacyId)` order so
@@ -507,11 +550,11 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
    */
   private buildRegionSlugs(data: AtlasData): Map<string, string> {
     // Legacy `level:legacyId` → region, for parent-name lookups (a node's parent
-    // and the area beneath a center are addressed by their legacy level).
+    // and the area beneath a shared venue are addressed by their legacy level).
     const byLegacyKey = new Map<string, AtlasRegion>()
     for (const region of data.regions) byLegacyKey.set(`${region.level}:${region.legacyId}`, region)
 
-    const LEVEL_RANK: Record<RegionLevel, number> = { country: 0, region: 1, city: 2, center: 3 }
+    const LEVEL_RANK: Record<RegionLevel, number> = { country: 0, region: 1, city: 2, venue: 3 }
     type Node = {
       mapKey: string
       name: string
@@ -548,9 +591,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       if (!venue) continue
       const areaId = venueParentAreaId(venueId, data.events)
       nodes.push({
-        mapKey: `center:${venueId}`,
+        mapKey: `venue:${venueId}`,
         name: venueDisplayName(venue),
-        rank: LEVEL_RANK.center,
+        rank: LEVEL_RANK.venue,
         legacyId: venueId,
         parentName: areaId != null ? byLegacyKey.get(`area:${areaId}`)?.name : undefined,
       })
@@ -612,7 +655,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       await this.upsertRegion(area, parentKey, managersByRegion)
     }
 
-    await this.importCenters(data, managersByRegion)
+    await this.importSharedVenues(data, managersByRegion)
   }
 
   /** Upsert one country/region/city node, resolving its mapboxId + parent + managers. */
@@ -668,37 +711,39 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  /** Multi-use venues (>1 event) become `center` nodes under their area/city. */
-  private async importCenters(
+  /** Venues used by >1 event become `venue` nodes under their area/city. */
+  private async importSharedVenues(
     data: AtlasData,
     managersByRegion: Map<string, (number | string)[]>,
   ): Promise<void> {
     const venuesById = new Map(data.venues.map((v) => [v.legacyId, v]))
-    const centerVenueIds = multiUseVenueIds(data.events)
-    await this.logger.info(`\n=== Importing ${centerVenueIds.size} centers (multi-use venues) ===`)
+    const sharedVenueIds = multiUseVenueIds(data.events)
+    await this.logger.info(`\n=== Importing ${sharedVenueIds.size} shared venues ===`)
 
-    for (const venueId of centerVenueIds) {
+    for (const venueId of sharedVenueIds) {
       const venue = venuesById.get(venueId)
       if (!venue) continue
       const areaId = venueParentAreaId(venueId, data.events)
       const parentId = areaId != null ? this.idMaps.regions.get(`city:${areaId}`) : undefined
-      const mapKey = `center:${venueId}`
+      const mapKey = `venue:${venueId}`
       try {
         const { location, warning } = await resolveRegionLocation({
           name: venueDisplayName(venue),
-          level: 'center',
+          level: 'venue',
           latitude: venue.latitude,
           longitude: venue.longitude,
           countryCode: venue.countryCode,
         })
         if (warning)
-          this.addWarning(`Center "${venueDisplayName(venue)}" (venue #${venueId}): ${warning}`)
+          this.addWarning(
+            `Shared venue "${venueDisplayName(venue)}" (venue #${venueId}): ${warning}`,
+          )
 
         const result = await this.upsert<{ id: number }>(
           'regions',
-          { and: [{ legacyId: { equals: venueId } }, { level: { equals: 'center' } }] },
+          { and: [{ legacyId: { equals: venueId } }, { level: { equals: 'venue' } }] },
           {
-            level: 'center',
+            level: 'venue',
             name: venueDisplayName(venue),
             slug: this.regionSlugs.get(mapKey),
             generateSlug: false, // pin the importer's slug (see upsertRegion)
@@ -708,12 +753,48 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             legacyId: venueId,
             legacyData: venue,
           },
-          { identifier: `center:${venueDisplayName(venue)}` },
+          { identifier: `venue:${venueDisplayName(venue)}` },
         )
         this.idMaps.regions.set(mapKey, result.doc.id)
       } catch (error) {
-        this.addError(`Center for venue #${venueId}`, error as Error)
+        this.addError(`Shared venue region for venue #${venueId}`, error as Error)
       }
+    }
+
+    await this.warnOrphanedVenueNodes(sharedVenueIds)
+  }
+
+  /**
+   * Report `venue` regions that no longer correspond to a shared venue.
+   *
+   * A venue drops below the >1-event bar when its events are merged away or
+   * re-pointed, and two venue rows for one place collapse into a single node —
+   * but the import only ever upserts, so the stale region lingers in the tree
+   * with its own public URL. Warn rather than delete: a manager may have hung
+   * content or child nodes off it, and a seed script shouldn't destroy that.
+   */
+  private async warnOrphanedVenueNodes(sharedVenueIds: Set<number>): Promise<void> {
+    if (!this.payload) return
+    try {
+      const existing = await this.payload.find({
+        collection: 'regions',
+        where: { level: { equals: 'venue' } },
+        limit: 0,
+        depth: 0,
+        overrideAccess: true,
+      })
+      for (const region of existing.docs) {
+        const legacyId = (region as { legacyId?: number }).legacyId
+        if (legacyId != null && !sharedVenueIds.has(legacyId)) {
+          this.addWarning(
+            `Region regions/${region.id} ("${(region as { name?: string }).name}") is a shared-venue node for ` +
+              `venue #${legacyId}, which no longer has more than one event — trash it in the admin ` +
+              `panel, or re-point its events first.`,
+          )
+        }
+      }
+    } catch (error) {
+      this.addWarning(`Could not check for orphaned venue nodes: ${(error as Error).message}`)
     }
   }
 
@@ -754,7 +835,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const now = new Date()
 
     const venuesById = new Map(data.venues.map((v) => [v.legacyId, v]))
-    const centerVenueIds = multiUseVenueIds(data.events)
+    const sharedVenueIds = multiUseVenueIds(data.events)
     const managersByLegacyId = new Map(data.managers.map((m) => [m.legacyId, m]))
     // Area (→ city) timezone, the schedule timezone for venue-less (online) events.
     const areaTimeZoneById = new Map(
@@ -764,11 +845,27 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     for (let i = 0; i < batch.length; i++) {
       const event = batch[i]
       const identifier = event.customName || `event-${event.legacyId}`
+      const excluded = EXCLUDED_EVENT_LEGACY_IDS.get(event.legacyId)
+      if (excluded) {
+        this.skip(`Event "${identifier}" (#${event.legacyId}) — ${excluded}`)
+        // Skipping stops it being (re-)created, but can't undo an earlier import
+        // that predates this guard — #575 came through as *published*, and every
+        // merged duplicate was imported before the merge. Flag it so an operator
+        // trashes the row by hand.
+        const existing = this.getPreloaded('events', String(event.legacyId))
+        if (existing) {
+          this.addWarning(
+            `Event #${event.legacyId} ("${identifier}") is excluded (${excluded}) but already ` +
+              `exists as events/${existing.id} — trash it in the admin panel.`,
+          )
+        }
+        continue
+      }
       try {
         await this.importEvent(event, {
           now,
           venuesById,
-          centerVenueIds,
+          sharedVenueIds,
           managersByLegacyId,
           areaTimeZoneById,
           current: offset + i + 1,
@@ -785,7 +882,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     ctx: {
       now: Date
       venuesById: Map<number, AtlasVenue>
-      centerVenueIds: Set<number>
+      sharedVenueIds: Set<number>
       managersByLegacyId: Map<number, AtlasManager>
       areaTimeZoneById: Map<number, string | null | undefined>
       current: number
@@ -803,9 +900,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
 
     const venue = event.venueId != null ? ctx.venuesById.get(event.venueId) : undefined
-    const isCenter = event.venueId != null && ctx.centerVenueIds.has(event.venueId)
-    const regionId = isCenter
-      ? this.idMaps.regions.get(`center:${event.venueId}`)
+    const isSharedVenue = event.venueId != null && ctx.sharedVenueIds.has(event.venueId)
+    const regionId = isSharedVenue
+      ? this.idMaps.regions.get(`venue:${event.venueId}`)
       : event.areaId != null
         ? this.idMaps.regions.get(`city:${event.areaId}`)
         : undefined
@@ -827,7 +924,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     let address: Record<string, unknown> | undefined
     if (event.eventType === 'offline' && venue) {
       const mapboxId = await this.resolveVenueMapbox(venue)
-      address = { ...venueToEventAddress(venue, mapboxId), room: event.room?.trim() || undefined }
+      address = { ...venueToEventAddress(venue, mapboxId), room: event.room?.trim() || null }
     }
 
     const language = mapLanguageCode(event.languageCode)
@@ -840,7 +937,17 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const cadence = managerVerificationCadence(
       this.managerPrefs(event.managerId, ctx.managersByLegacyId),
     )
-    const verification = buildImportVerification({ status: event.status, cadence, now: ctx.now })
+    // `legacyId` seeds the deterministic stagger on `nextCheckAt` — without it the
+    // whole dump falls due in the same week. See importCheckOffsetDays.
+    const verification = buildImportVerification({
+      status: event.status,
+      cadence,
+      legacyId: event.legacyId,
+      now: ctx.now,
+    })
+    // Atlas's `archived` terminal → a Payload soft delete. Only set when the
+    // `archived_at` stamp isn't superseded by a later re-verification (2 of 511).
+    const deletedAt = importDeletedAt(event.legacyData as AtlasLifecycleTimestamps)
 
     // Publish state. Inactive events with no contact info can't satisfy the
     // contact requirement, so import them as a draft (drafts skip validation).
@@ -851,32 +958,49 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
     const status = wantsPublish && !draftReason ? 'published' : 'draft'
 
+    // Optional fields are emitted as `null`, not `undefined`: Payload omits
+    // `undefined` keys from an update, so a value that disappears from
+    // events.json (a description the grooming pass cleared, say) would survive a
+    // `--update` reseed forever. `null` clears the column.
     const eventData: Record<string, unknown> = {
+      // An empty string (not null/undefined) is what re-triggers the title
+      // auto-fill: `eventTitleBeforeChange` keeps `originalDoc.title` for a
+      // nullish value, so clearing `customName` in events.json would otherwise
+      // leave a previously-imported title in place. '' falls through to the
+      // localized "<time of day> Meditation at <place>" auto-fill, which is
+      // preferred over a hand-written generic name.
       title:
         event.customName?.trim() ||
-        (event.eventType === 'online' ? 'Online Sahaj Yoga Meditation' : undefined),
-      languages: [language ?? DEFAULT_LOCALE],
-      contactPhone,
-      contactName,
+        (event.eventType === 'online' ? 'Online Sahaj Yoga Meditation' : ''),
+      // `languages` is hasMany, but Atlas only ever stored one code. A merged
+      // bilingual event (two listings of one session) carries the curated
+      // `languageCodes` instead — see seeds/atlas/AGENTS.md.
+      languages: this.mapEventLanguages(event, language),
+      contactPhone: contactPhone ?? null,
+      contactName: contactName ?? null,
       // Atlas stores descriptions as plain text; the richText field needs Lexical.
-      description: plainTextToLexical(event.description),
+      description: plainTextToLexical(event.description) ?? null,
       inactive,
       ...(inactive ? {} : { schedule: mapSchedule(event.schedule, timeZone) ?? undefined }),
       region: regionId,
       eventType: event.eventType,
-      onlineUrl: event.eventType === 'online' ? event.onlineUrl?.trim() || undefined : undefined,
-      website: event.website?.trim() || undefined,
+      onlineUrl: event.eventType === 'online' ? event.onlineUrl?.trim() || null : null,
+      website: event.website?.trim() || null,
+      // Deliberately outside the `hasContact` pair above — contactEmail stands on
+      // its own, and several events publish an email with no phone at all.
+      contactEmail: event.contactEmail?.trim() || null,
       ...(address ? { address } : {}),
       registrationMode: event.registrationMode === 'native' ? 'sahaj-atlas' : 'external',
       externalRegistrationUrl:
-        event.registrationMode !== 'native'
-          ? event.registrationUrl?.trim() || undefined
-          : undefined,
-      registrationLimit: event.registrationLimit ?? undefined,
+        event.registrationMode !== 'native' ? event.registrationUrl?.trim() || null : null,
+      registrationLimit: event.registrationLimit ?? null,
       registrationQuestions: this.mapRegistrationQuestions(event),
       manager: managerId,
       ...verification,
       _status: status,
+      // Payload manages `deletedAt` for trash-enabled collections, but writing it
+      // directly is how the ExpireEvents job trashes an event too.
+      ...(deletedAt ? { deletedAt } : {}),
       legacyId: event.legacyId,
       legacyData: event.legacyData,
     }
@@ -1098,7 +1222,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const id =
       (await geocodeRegion({
         name: venue.name?.trim() || venue.street?.trim() || '',
-        level: 'center',
+        level: 'venue',
         latitude: venue.latitude,
         longitude: venue.longitude,
         countryCode: venue.countryCode,
@@ -1124,6 +1248,28 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       longitude: location.longitude ?? undefined,
       radius: location.radius ?? undefined,
     }
+  }
+
+  /**
+   * The Events `languages` value. Atlas stored a single `languageCode`, so this
+   * is normally a one-element array. Events merged from two same-slot listings
+   * that differed only in language carry a curated `languageCodes` instead —
+   * one bilingual session rather than two rows. Unmappable codes are warned
+   * about and dropped; an empty result falls back to the default locale.
+   */
+  private mapEventLanguages(event: AtlasEvent, fallback: string | undefined): string[] {
+    const curated = event.languageCodes
+    if (!curated?.length) return [fallback ?? DEFAULT_LOCALE]
+    const mapped: string[] = []
+    for (const code of curated) {
+      const locale = mapLanguageCode(code)
+      if (locale) {
+        if (!mapped.includes(locale)) mapped.push(locale)
+      } else {
+        this.addWarning(`Event #${event.legacyId}: unmapped languageCodes entry "${code}"`)
+      }
+    }
+    return mapped.length ? mapped : [fallback ?? DEFAULT_LOCALE]
   }
 
   /** Compute a manager's notification prefs from the in-memory Atlas record. */

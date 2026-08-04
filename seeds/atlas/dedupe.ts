@@ -28,9 +28,49 @@ const AREA_MERGES: Record<number, number> = {
   392: 438, // Paris (FR) — drop "Paris - IDF" (under France); keep "Paris" (under Île-de-France, has the events)
 }
 
-/** Duplicate venues (become `center` nodes): delete legacyId → keep legacyId. */
+/**
+ * Duplicate venues: delete legacyId → keep legacyId.
+ *
+ * Grouping keys on `venueId`, so two events at one address filed under two venue
+ * rows each look single-use and neither becomes a shared venue. Every entry is
+ * hand-verified — coordinates alone are not sufficient evidence, in either
+ * direction: two Civitavecchia venues sit 177 m apart but are different places,
+ * while Athens 386/432 are 230 m apart yet share a name, street, city *and*
+ * postcode. The kept side is whichever carries the better data (a real name over
+ * a street, a correct postcode over a wrong one).
+ *
+ * Targets must never themselves be keys — the merge is applied in one pass, so a
+ * chain would leave events pointing at a deleted row. `dedupe.spec.ts` asserts
+ * this.
+ */
 const VENUE_MERGES: Record<number, number> = {
-  342: 104, // Manenburgstraat 22, Amsterdam
+  // Manenburgstraat 22, Amsterdam — three rows for one building. 11 keeps the
+  // real name ("Sahaja Yoga Center Netherlands"); 104 was the old target, so 342
+  // is repointed past it rather than left dangling.
+  342: 11,
+  104: 11,
+  513: 14, // Broekakkerseweg 1, Eindhoven — 14 has the fuller "Aktiviteitencentrum Orka"
+  50: 514, // Westeinde 79A, The Hague — 50's postcode 1017ZP is Amsterdam's; 514's is right
+  365: 100, // 16 Ramsden Rd, London — identical rows ("Balham Library")
+  148: 260, // Herzog-Leopold-Straße 32 — 260 is named "BORG Wiener Neustadt", 148 just the street
+  191: 215, // 169(a) King St, Norwich — 215 is "Wensum Sports Centre", which #315's own text names
+  495: 271, // Sammonkatu 2, Tampere — both events meet in room "Ritva-sali"
+  338: 500, // Vapaudenkatu 48-50, Jyväskylä — 500's name matches the full street range
+  432: 386, // Vasilissis Sofias 26, Athens — identical name, street, city and postcode
+  195: 217, // Chellaston Bowls Club, Derby — same club, 217 has the proper city casing
+}
+
+/**
+ * Field-level repairs applied to a *surviving* venue after a merge, where the
+ * deleted row held the better value for one field. Kept here rather than edited
+ * into venues.json so a re-extraction reproduces them.
+ */
+const VENUE_FIELD_OVERRIDES: Record<number, Partial<AtlasVenue>> = {
+  // Kept for its correct The Hague postcode, but the deleted row (50) carried
+  // the venue's actual name.
+  514: { name: 'Atelier' },
+  // Trailing whitespace on the surviving rows.
+  14: { city: 'Eindhoven', postCode: '5641EC' },
 }
 
 /** Region nodes removed outright because a city already covers the place. */
@@ -58,6 +98,10 @@ interface AtlasEvent {
 }
 interface AtlasVenue {
   legacyId: number
+  name?: string | null
+  street?: string | null
+  city?: string | null
+  postCode?: string | null
 }
 
 export interface DedupeData {
@@ -72,7 +116,15 @@ export interface DedupeSummary {
   eventsAreaRepointed: number
   eventsVenueRepointed: number
   reparented: number
+  venueFieldsOverridden: number
 }
+
+/** Merge targets must be terminal — a chain would strand events on a deleted row. */
+export function venueMergeChains(): number[] {
+  return Object.values(VENUE_MERGES).filter((target) => VENUE_MERGES[target] != null)
+}
+
+export { VENUE_MERGES, VENUE_FIELD_OVERRIDES }
 
 /** Apply the merge-map to in-memory Atlas data (mutates `data`). Idempotent. */
 export function dedupeAtlasData(data: DedupeData): DedupeSummary {
@@ -82,6 +134,7 @@ export function dedupeAtlasData(data: DedupeData): DedupeSummary {
     eventsAreaRepointed: 0,
     eventsVenueRepointed: 0,
     reparented: 0,
+    venueFieldsOverridden: 0,
   }
 
   // 1. Re-point events from the deleted area/venue to the kept one.
@@ -124,6 +177,17 @@ export function dedupeAtlasData(data: DedupeData): DedupeSummary {
   const beforeVenues = data.venues.length
   data.venues = data.venues.filter((v) => !deletedVenues.has(v.legacyId))
   summary.venuesRemoved = beforeVenues - data.venues.length
+
+  // 5. Repair fields on a survivor where the deleted row held the better value.
+  for (const venue of data.venues) {
+    const overrides = VENUE_FIELD_OVERRIDES[venue.legacyId]
+    if (!overrides) continue
+    for (const [field, value] of Object.entries(overrides)) {
+      if (venue[field as keyof AtlasVenue] === value) continue
+      Object.assign(venue, { [field]: value })
+      summary.venueFieldsOverridden++
+    }
+  }
 
   return summary
 }

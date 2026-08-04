@@ -5,10 +5,33 @@ import path from 'path'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
+import type { Event, Region } from '@/payload-types'
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
 
-import { createTestLexicalContent, testData } from '../utils/testData'
-import { createTestEnvironment } from '../utils/testHelpers'
+import {
+  createData,
+  createTestLexicalContent,
+  testData,
+  type FixtureOverrides,
+} from '../utils/testData'
+import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
+
+/**
+ * Region fixture data — the whole doc, loosely: every field optional at every
+ * depth, but each one that *is* passed checked against the real collection.
+ * Replaces the `Record<string, unknown>` these helpers used to take, which is
+ * how `level: 'center'` survived the rename to `venue` and surfaced only as a
+ * CI runtime failure.
+ *
+ * As of #606 Phase 2 this is a live guard, not just editor feedback:
+ * `tsconfig.test.json` covers `tests/**`, so `pnpm typecheck:tests` reads this
+ * file and a stale enum literal fails in seconds rather than 7 minutes into the
+ * int lane.
+ */
+type RegionFixture = FixtureOverrides<Region>
+
+/** A manager fixture; `testData.createManager` already attaches `collection`. */
+type ManagerFixture = Awaited<ReturnType<typeof testData.createManager>>
 
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
@@ -218,7 +241,7 @@ describe('Role-Based Access Control', () => {
   describe('Document-Level Manager Access', () => {
     // A manager (type: 'manager') with no roles — relies purely on being listed
     // on a document (or an ancestor) for access.
-    const managerUser = (m: { id: number }) => ({ ...m, collection: 'managers' as const })
+    const managerUser = (m: ManagerFixture) => ({ ...m, collection: 'managers' as const })
 
     describe('Pages — direct managers ("Page Editors")', () => {
       it('lets a listed manager with no roles read + update the page', async () => {
@@ -297,7 +320,10 @@ describe('Role-Based Access Control', () => {
         await expect(
           payload.create({
             collection: 'pages',
-            data: { title: 'Editor Created', content: createTestLexicalContent() },
+            data: createData<'pages'>({
+              title: 'Editor Created',
+              content: createTestLexicalContent(),
+            }),
             user: managerUser(editor),
             overrideAccess: false,
           }),
@@ -325,37 +351,37 @@ describe('Role-Based Access Control', () => {
         fillerManagerId = filler.id
       })
 
-      const createRegion = (data: Record<string, unknown>) =>
+      const createRegion = (data: RegionFixture) =>
         payload.create({
           collection: 'regions',
-          data: {
+          data: createData<'regions'>({
             level: 'country',
             name: 'Region',
             mapboxId: `place.${Math.random().toString(36).slice(2)}`,
             managers: [fillerManagerId],
             ...data,
-          },
+          }),
           depth: 0,
         })
 
       it('an ancestor manager reaches every descendant but not a sibling branch', async () => {
-        // Country → Region → City → Center (the 4-level Atlas tree).
+        // Country → Region → City → Venue (the 4-level Atlas tree).
         const country = await createRegion({ level: 'country', name: 'Atlasia' })
         const region = await createRegion({ level: 'region', name: 'North', parent: country.id })
         const city = await createRegion({ level: 'city', name: 'Capital', parent: region.id })
-        const center = await createRegion({ level: 'center', name: 'Downtown', parent: city.id })
+        const venue = await createRegion({ level: 'venue', name: 'Downtown', parent: city.id })
 
-        // A separate branch the manager must NOT reach. (A center nests only
-        // under a city, so the branch goes country → city → center.)
+        // A separate branch the manager must NOT reach. (A venue nests only
+        // under a city, so the branch goes country → city → venue.)
         const otherCountry = await createRegion({ level: 'country', name: 'Otherland' })
         const otherCity = await createRegion({
           level: 'city',
           name: 'Far City',
           parent: otherCountry.id,
         })
-        const otherCenter = await createRegion({
-          level: 'center',
-          name: 'Far Center',
+        const otherVenue = await createRegion({
+          level: 'venue',
+          name: 'Far Venue',
           parent: otherCity.id,
         })
 
@@ -376,13 +402,13 @@ describe('Role-Based Access Control', () => {
         })
         const visibleIds = visible.docs.map((doc) => doc.id)
         expect(visibleIds).toEqual(
-          expect.arrayContaining([country.id, region.id, city.id, center.id]),
+          expect.arrayContaining([country.id, region.id, city.id, venue.id]),
         )
-        expect(visibleIds).not.toContain(otherCenter.id)
+        expect(visibleIds).not.toContain(otherVenue.id)
         expect(visibleIds).not.toContain(otherCountry.id)
 
         // Updates: inherited down the whole chain, including the deepest leaf.
-        for (const node of [country, region, city, center]) {
+        for (const node of [country, region, city, venue]) {
           const updated = await payload.update({
             collection: 'regions',
             id: node.id,
@@ -393,11 +419,11 @@ describe('Role-Based Access Control', () => {
           expect(updated.id).toBe(node.id)
         }
 
-        // The sibling-branch center is denied for both read and update.
+        // The sibling-branch venue is denied for both read and update.
         await expect(
           payload.findByID({
             collection: 'regions',
-            id: otherCenter.id,
+            id: otherVenue.id,
             user: managerUser(mgr),
             overrideAccess: false,
           }),
@@ -405,7 +431,7 @@ describe('Role-Based Access Control', () => {
         await expect(
           payload.update({
             collection: 'regions',
-            id: otherCenter.id,
+            id: otherVenue.id,
             data: { subtitle: 'nope' },
             user: managerUser(mgr),
             overrideAccess: false,
@@ -416,45 +442,45 @@ describe('Role-Based Access Control', () => {
   })
 
   describe('Atlas manager — region-subtree write scoping', () => {
-    const managerUser = (m: { id: number }) => ({ ...m, collection: 'managers' as const })
+    const managerUser = (m: ManagerFixture) => ({ ...m, collection: 'managers' as const })
 
     let atlasManager: Awaited<ReturnType<typeof testData.createManager>>
     let fillerId: number
     let countryId: number
     let regionId: number
     let cityId: number
-    let centerId: number
+    let venueId: number
     let otherCountryId: number
-    let otherCenterId: number
+    let otherVenueId: number
 
     // Non-'manual' mapboxId keeps the conditionally-required coordinate fields out
     // of validation. Pass a `user` to exercise access (overrideAccess: false);
     // omit it to set up fixtures as admin.
-    const createRegion = (data: Record<string, unknown>, user?: { id: number }) =>
+    const createRegion = (data: RegionFixture, user?: ManagerFixture) =>
       payload.create({
         collection: 'regions',
-        data: {
+        data: createData<'regions'>({
           level: 'country',
           name: 'Region',
           mapboxId: `place.${Math.random().toString(36).slice(2)}`,
           managers: [fillerId],
           ...data,
-        },
+        }),
         depth: 0,
         ...(user ? { user: managerUser(user), overrideAccess: false } : { overrideAccess: true }),
       })
 
-    const createEvent = (data: Record<string, unknown>, user?: { id: number }) =>
+    const createEvent = (data: FixtureOverrides<Event>, user?: ManagerFixture) =>
       payload.create({
         collection: 'events',
         // draft: the now-required title/schedule are validated only on publish.
         draft: true,
-        data: {
+        data: createData<'events'>({
           eventType: 'offline',
           registrationMode: 'sahaj-atlas',
           manager: fillerId,
           ...data,
-        },
+        }),
         depth: 0,
         ...(user ? { user: managerUser(user), overrideAccess: false } : { overrideAccess: true }),
       })
@@ -467,7 +493,7 @@ describe('Role-Based Access Control', () => {
         roles: ['atlas-manager'],
       })
 
-      // country > region (owned) > city > center, plus a separate branch.
+      // country > region (owned) > city > venue, plus a separate branch.
       // Distinct names from the sibling describe block (slugs are unique).
       const country = await createRegion({ level: 'country', name: 'AtlasMgr Country' })
       countryId = country.id
@@ -480,12 +506,12 @@ describe('Role-Based Access Control', () => {
       regionId = region.id
       const city = await createRegion({ level: 'city', name: 'AtlasMgr City', parent: regionId })
       cityId = city.id
-      const center = await createRegion({
-        level: 'center',
-        name: 'AtlasMgr Center',
+      const venue = await createRegion({
+        level: 'venue',
+        name: 'AtlasMgr Venue',
         parent: cityId,
       })
-      centerId = center.id
+      venueId = venue.id
 
       const otherCountry = await createRegion({ level: 'country', name: 'AtlasMgr Otherland' })
       otherCountryId = otherCountry.id
@@ -494,12 +520,12 @@ describe('Role-Based Access Control', () => {
         name: 'AtlasMgr Far City',
         parent: otherCountryId,
       })
-      const otherCenter = await createRegion({
-        level: 'center',
-        name: 'AtlasMgr Far Center',
+      const otherVenue = await createRegion({
+        level: 'venue',
+        name: 'AtlasMgr Far Venue',
         parent: otherCity.id,
       })
-      otherCenterId = otherCenter.id
+      otherVenueId = otherVenue.id
     })
 
     it('exposes the role as project-scoped: read everywhere, write only on events/regions', () => {
@@ -533,7 +559,7 @@ describe('Role-Based Access Control', () => {
       })
       expect(region.id).toBe(otherCountryId)
 
-      const event = await createEvent({ region: otherCenterId, address: { street: 'Far' } })
+      const event = await createEvent({ region: otherVenueId, address: { street: 'Far' } })
       const seen = await payload.findByID({
         collection: 'events',
         id: event.id,
@@ -553,7 +579,7 @@ describe('Role-Based Access Control', () => {
       })
       expect(updated.id).toBe(cityId)
 
-      for (const id of [otherCenterId, countryId]) {
+      for (const id of [otherVenueId, countryId]) {
         await expect(
           payload.update({
             collection: 'regions',
@@ -612,19 +638,19 @@ describe('Role-Based Access Control', () => {
 
     it('creates events only within its subtree', async () => {
       const created = await createEvent(
-        { region: centerId, address: { street: 'Inside' } },
+        { region: venueId, address: { street: 'Inside' } },
         atlasManager,
       )
       expect(created.id).toBeDefined()
 
       await expect(
-        createEvent({ region: otherCenterId, address: { street: 'Outside' } }, atlasManager),
+        createEvent({ region: otherVenueId, address: { street: 'Outside' } }, atlasManager),
       ).rejects.toThrow()
     })
 
     it('updates and trashes events within its subtree, but not outside', async () => {
       const inside = await createEvent({ region: cityId, address: { street: 'In' } })
-      const outside = await createEvent({ region: otherCenterId, address: { street: 'Out' } })
+      const outside = await createEvent({ region: otherVenueId, address: { street: 'Out' } })
 
       const updated = await payload.update({
         collection: 'events',
@@ -670,7 +696,7 @@ describe('Role-Based Access Control', () => {
 
     it('keeps write access to an event it directly manages, even outside its subtree', async () => {
       const owned = await createEvent({
-        region: otherCenterId,
+        region: otherVenueId,
         manager: atlasManager.id,
         address: { street: 'Owned' },
       })
@@ -692,7 +718,7 @@ describe('Role-Based Access Control', () => {
           collection: 'events',
           id: inside.id,
           draft: true,
-          data: { region: otherCenterId },
+          data: { region: otherVenueId },
           user: managerUser(atlasManager),
           overrideAccess: false,
         }),
@@ -779,7 +805,7 @@ describe('Role-Based Access Control', () => {
         'videos',
         'forms',
         'form-submissions',
-      ]
+      ] as const
 
       webProjectCollections.forEach((collection) => {
         expect(
@@ -1060,10 +1086,10 @@ describe('Role-Based Access Control', () => {
       // Create a draft page (default status is draft)
       const draftPage = await payload.create({
         collection: 'pages',
-        data: {
+        data: createData<'pages'>({
           title: 'Draft Page for Client Test',
           content: createTestLexicalContent('Draft content'),
-        },
+        }),
         user: { ...admin, collection: 'managers' },
       })
 
@@ -1076,7 +1102,7 @@ describe('Role-Based Access Control', () => {
       // Note: overrideAccess: false is required to test access control with Local API
       const clientPages = await payload.find({
         collection: 'pages',
-        select: { id: true },
+        select: idOnlySelect(),
         depth: 0,
         user: client,
         overrideAccess: false,
@@ -1103,10 +1129,10 @@ describe('Role-Based Access Control', () => {
       // Create a draft page
       const draftPage = await payload.create({
         collection: 'pages',
-        data: {
+        data: createData<'pages'>({
           title: 'Draft Page for ID Test',
           content: createTestLexicalContent('Draft content'),
-        },
+        }),
         user: { ...admin, collection: 'managers' },
       })
 
@@ -1116,7 +1142,7 @@ describe('Role-Based Access Control', () => {
         payload.findByID({
           collection: 'pages',
           id: draftPage.id,
-          select: { id: true },
+          select: idOnlySelect(),
           depth: 0,
           user: client,
           overrideAccess: false,
@@ -1141,10 +1167,10 @@ describe('Role-Based Access Control', () => {
       // Create and publish a page
       const draftPage = await payload.create({
         collection: 'pages',
-        data: {
+        data: createData<'pages'>({
           title: 'Page to Publish',
           content: createTestLexicalContent('Published content'),
-        },
+        }),
         user: { ...admin, collection: 'managers' },
       })
 
@@ -1164,7 +1190,7 @@ describe('Role-Based Access Control', () => {
       // Note: overrideAccess: false is required to test access control with Local API
       const clientPages = await payload.find({
         collection: 'pages',
-        select: { id: true },
+        select: idOnlySelect(),
         depth: 0,
         user: client,
         overrideAccess: false,
@@ -1177,7 +1203,7 @@ describe('Role-Based Access Control', () => {
       const foundPage = await payload.findByID({
         collection: 'pages',
         id: publishedPage.id,
-        select: { id: true },
+        select: idOnlySelect(),
         depth: 0,
         user: client,
         overrideAccess: false,
@@ -1212,18 +1238,18 @@ describe('Role-Based Access Control', () => {
       // A published page is therefore unreadable by the draft client.
       await payload.create({
         collection: 'pages',
-        data: {
+        data: createData<'pages'>({
           title: 'Published Page Hidden From Draft Client',
           content: createTestLexicalContent('content'),
           _status: 'published',
-        },
+        }),
         user: { ...admin, collection: 'managers' },
       })
 
       await expect(
         payload.find({
           collection: 'pages',
-          select: { id: true },
+          select: idOnlySelect(),
           depth: 0,
           user: draftClient,
           overrideAccess: false,
@@ -1245,10 +1271,10 @@ describe('Role-Based Access Control', () => {
 
       const draftPage = await payload.create({
         collection: 'pages',
-        data: {
+        data: createData<'pages'>({
           title: 'Draft Page for Trusted Preview',
           content: createTestLexicalContent('Draft preview content'),
-        },
+        }),
         user: { ...admin, collection: 'managers' },
       })
 
@@ -1294,7 +1320,7 @@ describe('Role-Based Access Control', () => {
 
       const clientCards = await payload.find({
         collection: 'app-cards',
-        select: { id: true },
+        select: idOnlySelect(),
         depth: 0,
         user: client,
         overrideAccess: false,
@@ -1323,7 +1349,7 @@ describe('Role-Based Access Control', () => {
       await expect(
         payload.find({
           collection: 'app-cards',
-          select: { id: true },
+          select: idOnlySelect(),
           user: client,
           overrideAccess: false,
         }),
@@ -1348,7 +1374,7 @@ describe('Role-Based Access Control', () => {
 
         const result = await payload.find({
           collection: 'lectures',
-          select: { id: true },
+          select: idOnlySelect(),
           depth: 0,
           user: client,
           overrideAccess: false,
@@ -1377,10 +1403,10 @@ describe('Role-Based Access Control', () => {
       // Create a draft page
       const draftPage = await payload.create({
         collection: 'pages',
-        data: {
+        data: createData<'pages'>({
           title: 'Draft Page for Manager Test',
           content: createTestLexicalContent('Draft content'),
-        },
+        }),
         user: { ...admin, collection: 'managers' },
       })
 
@@ -1406,10 +1432,10 @@ describe('Role-Based Access Control', () => {
       // Create a draft page
       const draftPage = await payload.create({
         collection: 'pages',
-        data: {
+        data: createData<'pages'>({
           title: 'Draft Page for Admin Test',
           content: createTestLexicalContent('Draft content'),
-        },
+        }),
         user: { ...admin, collection: 'managers' },
       })
 
@@ -1451,7 +1477,7 @@ describe('Role-Based Access Control', () => {
       // Note: overrideAccess: false is required to test access control with Local API
       const clientMeditations = await payload.find({
         collection: 'meditations',
-        select: { id: true },
+        select: idOnlySelect(),
         depth: 0,
         user: client,
         overrideAccess: false,
@@ -1538,7 +1564,7 @@ describe('Role-Based Access Control', () => {
       // Note: overrideAccess: false is required to test access control with Local API
       const clientNarrators = await payload.find({
         collection: 'narrators',
-        select: { id: true },
+        select: idOnlySelect(),
         depth: 0,
         user: client,
         overrideAccess: false,

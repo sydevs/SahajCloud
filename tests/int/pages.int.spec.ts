@@ -7,8 +7,8 @@ import {
   createLexicalWithRelationshipNode,
   createLexicalWithUploadNode,
 } from '../utils/lexicalTestHelpers'
-import { testData } from '../utils/testData'
-import { createTestEnvironment } from '../utils/testHelpers'
+import { testData, type LexicalContent } from '../utils/testData'
+import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
 describe('Pages Collection', () => {
   let payload: Payload
@@ -252,7 +252,7 @@ describe('Pages Collection', () => {
           indent: 0,
           version: 1,
         },
-      } as unknown as Parameters<typeof testData.createPage>[1]['content']
+      } as unknown as LexicalContent
 
       const page = await testData.createPage(payload, {
         title: 'Page with App Card Relationship',
@@ -320,7 +320,7 @@ describe('Pages Collection', () => {
           indent: 0,
           version: 1,
         },
-      } as unknown as Parameters<typeof testData.createPage>[1]['content']
+      } as unknown as LexicalContent
 
       const page = await testData.createPage(payload, {
         title: 'Published Page with Client App Card Relationship',
@@ -358,7 +358,7 @@ describe('Pages Collection', () => {
 
       const directRead = await payload.find({
         collection: 'app-cards',
-        select: { id: true },
+        select: idOnlySelect(),
         depth: 0,
         user: client,
         overrideAccess: false,

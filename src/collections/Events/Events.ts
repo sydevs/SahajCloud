@@ -205,6 +205,19 @@ export const Events: CollectionConfig = {
                     description: 'The name of the person they are calling',
                   },
                 },
+                {
+                  name: 'contactEmail',
+                  // Built-in email format validation — no hand-rolled validator
+                  // (mirrors registrationNotificationEmail below).
+                  type: 'email',
+                  // Deliberately independent of the phone → name gate above: some
+                  // events publish an email and no phone at all, so this must not
+                  // inherit contactName's `required`.
+                  admin: {
+                    description:
+                      'An email address seekers can write to for more information about the program.',
+                  },
+                },
               ],
             },
             {
@@ -263,19 +276,19 @@ export const Events: CollectionConfig = {
             {
               name: 'region',
               type: 'relationship',
-              label: 'City / Center',
+              label: 'City / Venue',
               relationTo: 'regions',
               required: true,
               filterOptions: async (args) => {
-                // City/center only, and — for an atlas-manager — within their
+                // City/venue only, and — for an atlas-manager — within their
                 // owned-region subtree.
-                const cityOrCenter = { level: { in: ['city', 'center'] } }
+                const cityOrVenue = { level: { in: ['city', 'venue'] } }
                 const owned = await ownedRegionFilterOptions(args)
-                if (owned === true) return cityOrCenter
+                if (owned === true) return cityOrVenue
                 if (owned === false) return false
-                return { and: [cityOrCenter, owned] }
+                return { and: [cityOrVenue, owned] }
               },
-              admin: { description: 'The city or center this event belongs to.' },
+              admin: { description: 'The city or venue this event belongs to.' },
             },
             {
               name: 'eventType',
@@ -297,6 +310,9 @@ export const Events: CollectionConfig = {
             addressFields({
               label: false,
               required: ['street', 'city', 'country', 'latitude', 'longitude'],
+              // The building's name is what a seeker recognises, and it's what
+              // the title auto-fill prefers over the street — see eventTitle.ts.
+              hasVenueName: true,
               admin: { condition: (data) => data?.eventType === 'offline' },
             }),
           ],

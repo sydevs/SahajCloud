@@ -56,21 +56,55 @@ type DummyUserOverrides = Partial<Omit<Manager, 'roles'> | Omit<Client, 'roles'>
 }
 
 /**
+ * Fixture overrides: every field optional, at every depth.
+ *
+ * `Partial<Doc>` only relaxes the *top* level, so the moment a test passed a
+ * group or an array row it owed that subtree's required keys in full —
+ * `default: { title, image }` on an app card was rejected for omitting
+ * `aspectRatio`/`textColor`/`alignment`, which the collection fills from
+ * `defaultValue` anyway. That's ~40 of #606 Phase 2's errors, and demanding
+ * them is simply wrong for a fixture.
+ *
+ * What still errors is the part worth keeping: an unknown property, or a real
+ * property at the wrong type, at any depth. Unions distribute, so a
+ * relationship (`number | Image | null`) keeps accepting a bare id.
+ *
+ * No special case for `Date`: Payload generates every date field as an ISO
+ * `string`, so one can't reach the object branch here.
+ *
+ * Exported because specs build their own inline fixture helpers around
+ * `payload.create` — those want the same "loose but checked" contract rather
+ * than the `Record<string, unknown>` they used to reach for, which checks
+ * nothing (see #606: that's how `level: 'center'` outlived the rename).
+ */
+export type FixtureOverrides<T> = T extends (infer U)[]
+  ? FixtureOverrides<U>[]
+  : T extends object
+    ? { [K in keyof T]?: FixtureOverrides<T[K]> }
+    : T
+
+/**
  * Checks a factory's `create` payload, then hands it over at the type
  * `payload.create` wants.
  *
  * Payload derives that `data` type from the generated *output* doc, so fields it
  * fills in itself are still demanded on input (`slug`, `userChoices.type`, …), and
- * the `Partial<Doc>` overrides these factories spread in re-widen required keys to
+ * the overrides these factories spread in re-widen required keys to
  * `T | undefined`. Hence the partial: Payload supplies the rest, and its own
  * validation — which the int lane exercises — enforces what's truly required.
  *
  * What `tsc` still catches is the point: every field a test *does* pass must be a
  * real field of that collection, with a valid type. That's the #606 rot — a stale
  * enum literal like `level: 'center'` now fails here, not 7 minutes into CI.
+ *
+ * Exported for the same reason as `FixtureOverrides`: specs with their own
+ * inline `payload.create` helpers need this seam too. Without it TS can't match
+ * the non-draft `create` overload (the data type is derived from the *output*
+ * doc, so an omitted `slug` pushes it onto the draft one) and reports the
+ * baffling "Property 'draft' is missing".
  */
-function createData<TSlug extends CollectionSlug>(
-  data: Partial<RequiredDataFromCollectionSlug<TSlug>>,
+export function createData<TSlug extends CollectionSlug>(
+  data: FixtureOverrides<RequiredDataFromCollectionSlug<TSlug>>,
 ): RequiredDataFromCollectionSlug<TSlug> {
   return data as RequiredDataFromCollectionSlug<TSlug>
 }
@@ -80,11 +114,23 @@ const __dirname = path.dirname(__filename)
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
 /**
+ * The shape Payload generates for a lexical `richText` field. Structurally
+ * identical across collections, so one collection's field anchors it.
+ */
+export type LexicalContent = NonNullable<Page['content']>
+
+/**
  * Creates minimal Lexical rich text content for testing
+ *
+ * The return type is annotated rather than inferred: without it `direction` and
+ * `format` widen to `string` and the result is rejected by every `richText`
+ * field it's assigned to (`'ltr'` vs `('ltr' | 'rtl') | null`) — 7 of #606
+ * Phase 2's errors. The annotation contextually types the literal instead.
+ *
  * @param text - The text content to include
  * @returns Lexical root structure compatible with PayloadCMS richText fields
  */
-export function createTestLexicalContent(text: string = 'Test content') {
+export function createTestLexicalContent(text: string = 'Test content'): LexicalContent {
   return {
     root: {
       type: 'root',
@@ -110,7 +156,10 @@ export const testData = {
   /**
    * Create an app card with image relationship
    */
-  async createAppCard(payload: Payload, overrides: Partial<AppCard> = {}): Promise<AppCard> {
+  async createAppCard(
+    payload: Payload,
+    overrides: FixtureOverrides<AppCard> = {},
+  ): Promise<AppCard> {
     const uniqueId = Math.random().toString(36).substring(7)
     const { default: defaultOverrides, ...restOverrides } = overrides
 
@@ -194,7 +243,7 @@ export const testData = {
   /**
    * Create an album with artwork image relationship
    */
-  async createAlbum(payload: Payload, overrides: Partial<Album> = {}): Promise<Album> {
+  async createAlbum(payload: Payload, overrides: FixtureOverrides<Album> = {}): Promise<Album> {
     // Generate unique title to avoid collisions
     const uniqueId = Math.random().toString(36).substring(7)
     const defaultTitle = overrides.title || `Test Album ${uniqueId}`
@@ -209,12 +258,12 @@ export const testData = {
 
     return (await payload.create({
       collection: 'albums',
-      data: {
+      data: createData<'albums'>({
         title: defaultTitle,
         artist: defaultArtist,
         artwork: artworkId,
         ...overrides,
-      },
+      }),
     })) as Album
   },
 
@@ -275,7 +324,7 @@ export const testData = {
    */
   async createUserChoice(
     payload: Payload,
-    overrides: Partial<UserChoice> = {},
+    overrides: FixtureOverrides<UserChoice> = {},
     sampleFile = 'icon-test.svg',
   ): Promise<UserChoice> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
@@ -315,7 +364,7 @@ export const testData = {
   async createSubtleSystemNode(
     payload: Payload,
     deps: { page?: number } = {},
-    overrides: Partial<SubtleSystemNode> = {},
+    overrides: FixtureOverrides<SubtleSystemNode> = {},
   ): Promise<SubtleSystemNode> {
     const NODE_SLUGS = [
       'mooladhara',
@@ -356,11 +405,11 @@ export const testData = {
 
     return (await payload.create({
       collection: 'subtle-system-nodes',
-      data: {
+      data: createData<'subtle-system-nodes'>({
         slug,
         page: pageId,
         ...overrides,
-      },
+      }),
     })) as SubtleSystemNode
   },
 
@@ -370,7 +419,7 @@ export const testData = {
    */
   async createSongTag(
     payload: Payload,
-    overrides: Partial<SongTag> = {},
+    overrides: FixtureOverrides<SongTag> = {},
     sampleFile = 'icon-test.svg',
   ): Promise<SongTag> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
@@ -404,16 +453,19 @@ export const testData = {
    * All fields are optional — omit a range to leave it unbounded; omit
    * country to match all countries.
    */
-  async createAudience(payload: Payload, overrides: Partial<Audience> = {}): Promise<Audience> {
+  async createAudience(
+    payload: Payload,
+    overrides: FixtureOverrides<Audience> = {},
+  ): Promise<Audience> {
     const uniqueId = Math.random().toString(36).substring(7)
     const defaultLabel = overrides.label || `Test Audience ${uniqueId}`
 
     return (await payload.create({
       collection: 'audiences',
-      data: {
+      data: createData<'audiences'>({
         label: defaultLabel,
         ...overrides,
-      },
+      }),
     })) as Audience
   },
 
@@ -426,7 +478,7 @@ export const testData = {
    */
   async createVideo(
     payload: Payload,
-    overrides: Partial<Video> = {},
+    overrides: FixtureOverrides<Video> = {},
     sampleFile = 'video-30s.mp4',
   ): Promise<Video> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
@@ -453,11 +505,11 @@ export const testData = {
 
     return (await payload.create({
       collection: 'videos',
-      data: {
+      data: createData<'videos'>({
         title: defaultTitle,
         tags: 'testimonial', // Default tag for required field (single select, not hasMany)
         ...overrides,
-      },
+      }),
       file: {
         data: fileData as unknown as Buffer,
         mimetype,
@@ -473,7 +525,7 @@ export const testData = {
   async createMeditation(
     payload: Payload,
     deps?: { narrator?: number; thumbnail?: number },
-    overrides: Partial<Meditation> = {},
+    overrides: FixtureOverrides<Meditation> = {},
     sampleFile = 'audio-42s.mp3',
   ): Promise<Meditation> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
@@ -513,14 +565,14 @@ export const testData = {
       // locale option provides request-level locale context for join subqueries
       // that reference localized fields on other collections (e.g., user-choices)
       locale: overrides.locale || 'en',
-      data: {
+      data: createData<'meditations'>({
         label: overrides.label || overrides.title || defaultLabel,
         thumbnail: thumbnail,
         narrator: narrator,
         locale: overrides.locale || 'en',
         type: overrides.type || 'daily', // Default to 'daily' type
         ...overrides,
-      },
+      }),
       file: {
         data: fileData as unknown as Buffer,
         mimetype:
@@ -541,7 +593,7 @@ export const testData = {
    */
   async createSong(
     payload: Payload,
-    overrides: Partial<Song> & { album?: number | Album } = {},
+    overrides: FixtureOverrides<Song> & { album?: number | Album } = {},
     sampleFile = 'audio-42s.mp3',
   ): Promise<Song> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
@@ -567,11 +619,11 @@ export const testData = {
 
     return (await payload.create({
       collection: 'songs',
-      data: {
+      data: createData<'songs'>({
         title: defaultTitle,
         album: albumId,
         ...restOverrides,
-      },
+      }),
       file: {
         data: fileData as unknown as Buffer,
         mimetype:
@@ -652,7 +704,7 @@ export const testData = {
    */
   async createManager(
     payload: Payload,
-    overrides: Partial<Omit<Manager, 'roles'>> & {
+    overrides: FixtureOverrides<Omit<Manager, 'roles'>> & {
       roles?: ManagerRole[] | { en?: string[]; cs?: string[] } | null
     } = {},
   ) {
@@ -673,14 +725,14 @@ export const testData = {
     const manager = await payload.create({
       collection: 'managers',
       locale: 'en', // Create with English locale - roles will be auto-localized
-      data: {
+      data: createData<'managers'>({
         name: 'Test Manager',
         email: `${testEmail}@example.com`,
         password: 'password123',
         type: 'manager', // Default to 'manager' type
         ...overrides,
         roles: rolesData, // Pass array directly, Payload handles localization
-      },
+      }),
     })
 
     // `collection` last: the access-control mocks in `.claude/rules/tests.md`
@@ -694,17 +746,21 @@ export const testData = {
    * @param managerId - Manager user ID (required)
    * @param overrides - Optional field overrides
    */
-  async createClient(payload: Payload, managerId: number, overrides: Partial<Client> = {}) {
+  async createClient(
+    payload: Payload,
+    managerId: number,
+    overrides: FixtureOverrides<Client> = {},
+  ) {
     const client = await payload.create({
       collection: 'clients',
-      data: {
+      data: createData<'clients'>({
         name: 'Test Client',
         managers: [managerId],
         primaryContact: managerId,
         enableAPIKey: true,
         _status: 'published', // Published = active (publish/unpublish is the auth gate)
         ...overrides,
-      },
+      }),
     })
 
     return { ...client, collection: 'clients' as const }
@@ -713,7 +769,7 @@ export const testData = {
   /**
    * Create a page
    */
-  async createPage(payload: Payload, overrides: Partial<Page> = {}): Promise<Page> {
+  async createPage(payload: Payload, overrides: FixtureOverrides<Page> = {}): Promise<Page> {
     // Generate unique title to avoid slug collisions
     const uniqueId = Math.random().toString(36).substring(7)
     const defaultTitle = `Test Page ${uniqueId}`
@@ -764,7 +820,7 @@ export const testData = {
    */
   async createLesson(
     payload: Payload,
-    overrides: Omit<Partial<Lesson>, 'meditation'> & {
+    overrides: Omit<FixtureOverrides<Lesson>, 'meditation'> & {
       meditation?: number | Lesson['meditation']
     } = {},
   ): Promise<Lesson> {
@@ -821,7 +877,7 @@ export const testData = {
   /**
    * Create an author
    */
-  async createAuthor(payload: Payload, overrides: Partial<Author> = {}): Promise<Author> {
+  async createAuthor(payload: Payload, overrides: FixtureOverrides<Author> = {}): Promise<Author> {
     return (await payload.create({
       collection: 'authors',
       data: createData<'authors'>({
@@ -845,7 +901,7 @@ export const testData = {
   async createLecture(
     payload: Payload,
     deps?: { thumbnail?: number },
-    overrides: Partial<Lecture> = {},
+    overrides: FixtureOverrides<Lecture> = {},
   ): Promise<Lecture> {
     // Thumbnail is an optional editor override — only set it when the caller asks.
     const thumbnail = deps?.thumbnail
@@ -855,13 +911,13 @@ export const testData = {
     const uniqueVimeoId = `${Date.now()}${Math.floor(Math.random() * 1000)}`
     return (await payload.create({
       collection: 'lectures',
-      data: {
+      data: createData<'lectures'>({
         type: 'full',
         title: 'Test Lecture',
         ...(thumbnail !== undefined ? { thumbnail } : {}),
         nirmalVidyaVimeoUrl: `https://vimeo.com/${uniqueVimeoId}`,
         ...overrides,
-      },
+      }),
     })) as Lecture
   },
 
@@ -879,7 +935,7 @@ export const testData = {
   async createLectureExcerpt(
     payload: Payload,
     deps?: { fullLecture?: number },
-    overrides: Partial<Lecture> = {},
+    overrides: FixtureOverrides<Lecture> = {},
   ): Promise<Lecture> {
     let fullLecture = deps?.fullLecture
     if (!fullLecture) {
@@ -888,19 +944,19 @@ export const testData = {
     }
     return (await payload.create({
       collection: 'lectures',
-      data: {
+      data: createData<'lectures'>({
         type: 'clip',
         title: 'Test Lecture Excerpt',
         startTime: 0,
         stopTime: 60,
         fullLecture,
         ...overrides,
-      },
+      }),
     })) as Lecture
   },
 
   // Alias for createManager to maintain backward compatibility with tests
-  async createUser(payload: Payload, overrides: Partial<Manager> = {}) {
+  async createUser(payload: Payload, overrides: FixtureOverrides<Manager> = {}) {
     return this.createManager(payload, overrides)
   },
 
@@ -962,7 +1018,7 @@ export const testData = {
    * Regions require name, level, and mapboxId (unique)
    * For manual locations, also provide latitude, longitude, and radius
    */
-  async createRegion(payload: Payload, overrides: Partial<Region> = {}): Promise<Region> {
+  async createRegion(payload: Payload, overrides: FixtureOverrides<Region> = {}): Promise<Region> {
     const uniqueId = Math.random().toString(36).substring(7)
     const name = overrides.name || `Test City ${uniqueId}`
     const mapboxId = overrides.mapboxId || `manual-test-${Date.now()}-${uniqueId}`
@@ -994,7 +1050,7 @@ export const testData = {
    * Create an event with all required fields populated
    * Events require: title, languages, region, manager, schedule (with firstDate when not inactive)
    */
-  async createEvent(payload: Payload, overrides: Partial<Event> = {}): Promise<Event> {
+  async createEvent(payload: Payload, overrides: FixtureOverrides<Event> = {}): Promise<Event> {
     const uniqueId = Math.random().toString(36).substring(7)
 
     // Create required relationships if not provided

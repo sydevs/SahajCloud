@@ -50,7 +50,7 @@ Manual fallback: `pnpm dev` (start), `pnpm devsafe` (clean dev — removes `.nex
 
 - `pnpm lint` — ESLint
 - `pnpm typecheck` — TypeScript type checking over `src/` (the root `tsconfig.json` excludes `tests`)
-- `pnpm typecheck:tests` — the same over the test suite, via `tsconfig.test.json` (unit lane for now; `tests/int/**` is #606 Phase 2)
+- `pnpm typecheck:tests` — the same over the whole test suite, via `tsconfig.test.json`
 - `pnpm generate:types` — TypeScript types from Payload schema (after schema changes)
 - `pnpm generate:importmap` — admin-panel import map
 - `pnpm test:unit` — fast unit lane (~1–2 s, no Payload bootstrap)

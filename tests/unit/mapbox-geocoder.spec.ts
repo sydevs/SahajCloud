@@ -76,11 +76,11 @@ describe('resolveRegionLocation', () => {
     expect(warning).toBeNull()
   })
 
-  it('falls back to manual + legacy coords when a city/center misses', async () => {
+  it('falls back to manual + legacy coords when a city/venue misses', async () => {
     stubFetch(() => ({ body: { features: [] } }))
     const { location, warning } = await resolveRegionLocation({
       name: 'Some Center',
-      level: 'center',
+      level: 'venue',
       latitude: 49.2,
       longitude: -123.0,
     })
@@ -89,7 +89,7 @@ describe('resolveRegionLocation', () => {
       manual: true,
       latitude: 49.2,
       longitude: -123.0,
-      radius: 500, // default center radius
+      radius: 500, // default venue radius
     })
     expect(warning).toContain('manual')
   })
