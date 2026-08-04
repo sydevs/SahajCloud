@@ -7,7 +7,7 @@ import {
   firstAddressSegment,
   titleSlotForLocalTime,
   titleSlotForSchedule,
-} from '@/collections/Events/hooks/eventTitle'
+} from '@/lib/eventTitle/compose'
 
 describe('firstAddressSegment', () => {
   it('returns the first comma-segment, trimmed', () => {

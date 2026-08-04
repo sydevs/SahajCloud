@@ -332,7 +332,7 @@ never reach an already-imported row.
 The four auto-title templates live in the `sy-atlas-translations` global under
 `event.title` (`morning` / `afternoon` / `evening` / `default`), with English
 source copy in `EVENT_TITLE_DEFAULTS`
-([`eventTitle.ts`](../../src/collections/Events/hooks/eventTitle.ts)).
+([`compose.ts`](../../src/lib/eventTitle/compose.ts)).
 
 - Each slot is a **complete sentence** with a `%{place}` placeholder, not a
   shared prefix plus a separate time-of-day word. A locale that puts the time of
