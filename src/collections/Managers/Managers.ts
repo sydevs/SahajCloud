@@ -1,9 +1,11 @@
 import type { CollectionConfig } from 'payload'
 
+import { validations } from 'payload'
 import { createElement } from 'react'
 
 import {
   buildDefaultNotificationPreferences,
+  buildNotificationPreferencesJsonSchema,
   NOTIFICATION_TYPES,
   validateNotificationPreferences,
 } from '@/components/admin/NotificationPreferences/config'
@@ -229,7 +231,16 @@ export const Managers: CollectionConfig = {
               name: 'notificationPreferences',
               type: 'json',
               defaultValue: buildDefaultNotificationPreferences(),
-              validate: (value: unknown) => validateNotificationPreferences(value),
+              jsonSchema: buildNotificationPreferencesJsonSchema(),
+              // A custom `validate` REPLACES Payload's built-in json validation,
+              // so the schema above would never run if this only checked the
+              // cross-field rule. Delegate first, then add what JSON Schema
+              // can't express with a message worth reading.
+              validate: (value, options) => {
+                const schemaResult = validations.json(value, options)
+                if (schemaResult !== true) return schemaResult
+                return validateNotificationPreferences(value)
+              },
               admin: {
                 description: 'Choose how and how often to receive each kind of notification.',
                 custom: { notificationTypes: NOTIFICATION_TYPES },

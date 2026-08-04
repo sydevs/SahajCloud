@@ -8,6 +8,8 @@
  * by the field's `defaultValue`/`validate` and unit-tested directly.
  */
 
+import type { JSONField } from 'payload'
+
 export const NEVER_FREQUENCY = 'Never'
 export const DEFAULT_NOTIFICATION_METHOD = 'email'
 
@@ -108,9 +110,55 @@ export function buildDefaultNotificationPreferences(
   return prefs
 }
 
+const NOTIFICATION_PREFERENCES_SCHEMA_URI =
+  'https://sahajcloud.dev/schemas/notification-preferences.json'
+
+/**
+ * JSON Schema for the stored preferences: one optional entry per configured
+ * notification type, each `{ frequency, method }` with the frequency confined
+ * to that type's own options. Derived from `NOTIFICATION_TYPES` so it can't
+ * drift from the rows the field renders.
+ *
+ * Payload uses it to BOTH validate on write (Ajv → `ValidationError` → 400) AND
+ * generate the field's TypeScript type in `payload-types.ts`, which would
+ * otherwise be `unknown`. The one rule it deliberately doesn't carry is
+ * "a method is required unless the frequency is Never" — expressing that as
+ * `if`/`then` costs the message that names the offending types, so
+ * `validateNotificationPreferences` keeps it (see Managers.ts).
+ */
+export function buildNotificationPreferencesJsonSchema(
+  types: NotificationType[] = NOTIFICATION_TYPES,
+): NonNullable<JSONField['jsonSchema']> {
+  return {
+    uri: NOTIFICATION_PREFERENCES_SCHEMA_URI,
+    fileMatch: [NOTIFICATION_PREFERENCES_SCHEMA_URI],
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: Object.fromEntries(
+        types.map((type) => [
+          type.key,
+          {
+            type: 'object',
+            description: type.title,
+            additionalProperties: false,
+            required: ['frequency', 'method'],
+            properties: {
+              frequency: { type: 'string', enum: [...type.frequencyOptions] },
+              // Empty for a "Never" frequency, which needs no delivery channel.
+              method: { type: 'string' },
+            },
+          },
+        ]),
+      ),
+    },
+  }
+}
+
 /**
  * Every configured preference requires a delivery method unless its frequency
- * is "Never". Returns an error message naming the offending types, or `true`.
+ * is "Never". The one constraint `buildNotificationPreferencesJsonSchema` above
+ * leaves out. Returns an error message naming the offending types, or `true`.
  */
 export function validateNotificationPreferences(
   value: unknown,

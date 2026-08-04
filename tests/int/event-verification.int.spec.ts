@@ -397,6 +397,8 @@ describe('Event verification lifecycle', () => {
           {
             kind: 'reminder',
             stage: 'escalated',
+            level: 'urgent',
+            role: 'manager',
             at: daysAgo(1),
             manager: { id: eventManager.id, name: 'Event Manager' },
             channel: 'email',

@@ -16,8 +16,19 @@ function event(
   }
 }
 
-/** Minimal Manager with only the fields the resolver / pickChannel read. */
-function manager(overrides: Partial<Manager> = {}): Manager {
+/**
+ * Minimal Manager with only the fields the resolver / pickChannel read.
+ *
+ * `notificationPreferences` is widened with `| null`: the field's `jsonSchema`
+ * types it, and Payload's type-gen doesn't add `| null` to a jsonSchema-typed
+ * field — but a manager row that has never been given preferences really does
+ * read back null, which is exactly the fallback these cases exercise.
+ */
+function manager(
+  overrides: Partial<Omit<Manager, 'notificationPreferences'>> & {
+    notificationPreferences?: Manager['notificationPreferences'] | null
+  } = {},
+): Manager {
   return {
     id: 1,
     name: 'Anna Manager',
@@ -149,7 +160,7 @@ describe('resolveRegistrationRecipient', () => {
     it('defaults the frequency to Immediate when the manager has no preference', () => {
       const result = resolveRegistrationRecipient(
         event(),
-        manager({ notificationPreferences: null } as Partial<Manager>),
+        manager({ notificationPreferences: null }),
       )
       expect(result?.frequency).toBe('Immediate')
     })
