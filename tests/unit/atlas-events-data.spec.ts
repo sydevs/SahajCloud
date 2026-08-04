@@ -3,6 +3,8 @@ import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
+import { EMAIL_RE, findStaleDates, GENERIC_TITLE_RE, URL_RE } from '@/lib/eventQuality'
+
 import { EXPECTED_COUNTS } from '../../seeds/lib/expectedCounts'
 
 /**
@@ -14,6 +16,11 @@ import { EXPECTED_COUNTS } from '../../seeds/lib/expectedCounts'
  * These are data assertions, not code assertions — they exist so a future
  * re-extraction (which regenerates the file from the SQL dump and drops every
  * curated value) can't quietly undo the pass. See seeds/atlas/AGENTS.md.
+ *
+ * The heuristics themselves are imported from `@/lib/eventQuality` (#609),
+ * which makes the same judgements permanently on every listing a manager
+ * edits. Shared rather than copied so the migration's definition of "a URL in
+ * the description" and the runtime's can't drift apart.
  */
 
 interface AtlasEventRow {
@@ -53,8 +60,12 @@ const textValues = (e: AtlasEventRow) =>
 const offenders = (predicate: (e: AtlasEventRow) => boolean) =>
   events.filter(predicate).map((e) => e.legacyId)
 
-const URL_RE = /(?:https?:\/\/|www\.)[^\s<>"')]+/i
-const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.]{2,}/
+/**
+ * The grooming pass was made in 2026, so every year it left behind must read as
+ * current or future against that year — the same test the runtime check applies
+ * against today's year.
+ */
+const GROOMING_YEAR = 2026
 
 describe('events.json integrity', () => {
   it('holds every source row bar the removed duplicates', () => {
@@ -123,10 +134,11 @@ describe('events.json redundancy', () => {
 
   it('carries no dates that have already gone stale', () => {
     // 1970 is allowed: #511 cites Sahaja Yoga's founding year, not a schedule.
-    const bad = offenders((e) => {
-      const text = `${e.description ?? ''} ${e.customName ?? ''}`
-      return (text.match(/\b(?:19|20)\d{2}\b/g) ?? []).some((y) => y !== '1970' && Number(y) < 2026)
-    })
+    // findStaleDates encodes that exemption.
+    const bad = offenders(
+      (e) =>
+        findStaleDates(`${e.description ?? ''} ${e.customName ?? ''}`, GROOMING_YEAR).length > 0,
+    )
     expect(bad).toEqual([])
   })
 })
@@ -175,9 +187,7 @@ describe('events.json structured fields', () => {
     // localizes and can be improved for every event at once. A title earns its
     // place by naming something the auto-title can't: a venue, an audience, a
     // language, a format, or a named event.
-    const GENERIC =
-      /^(free\s+|weekly\s+|daily\s+|online\s+|open\s+)*(guided\s+)?(meditation|meditación|meditazione|meditatie|méditation|meditação|meditaatio|медитация)(\s+(class|classes|course|courses|session|sessions|workshop|meeting|cursus|corso|curso|taller|kurssi))?$/i
-    const bad = events.filter((e) => e.customName && GENERIC.test(e.customName.trim()))
+    const bad = events.filter((e) => e.customName && GENERIC_TITLE_RE.test(e.customName.trim()))
     expect(bad.map((e) => `#${e.legacyId} ${e.customName}`)).toEqual([])
   })
 
