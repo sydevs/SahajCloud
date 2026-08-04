@@ -138,6 +138,29 @@ const lesson = await payload.findByID({ collection: 'lessons', id, depth: 1 })
 expect((lesson.meditation as Meditation).tagAssignments).toBeFalsy()
 ```
 
+### `defaultPopulate` does **not** cover the list view
+
+It only applies to relationship hydration. A list read is a plain `find`, so an
+expensive `afterRead` still runs once per row — 25 rows, 25 fan-outs. The guard
+for that is the **`findMany`** flag Payload passes to every field hook (`true`
+for `find`, absent for `findByID`):
+
+```typescript
+hooks: {
+  afterRead: [
+    async ({ data, req, findMany }) => {
+      if (findMany) return null   // list read — don't pay the per-row cost
+      return computeSomethingExpensive(data, req)
+    },
+  ],
+}
+```
+
+Pair it with a cheap **stored** column for anything the list actually needs to
+sort or filter on (`Events.qualityOpenCount` is that column for the
+listing-quality report — see `src/lib/eventQuality/`). Test it by asserting the
+field is null on a `payload.find()`; removing the guard must make that fail.
+
 ## Plugins
 
 ### SEO (`@payloadcms/plugin-seo`)
