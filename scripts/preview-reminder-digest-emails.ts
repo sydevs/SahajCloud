@@ -27,8 +27,8 @@ import type { Event } from '@/payload-types'
 import { Temporal } from '@js-temporal/polyfill'
 import dotenv from 'dotenv'
 
-dotenv.config({ path: '.env' })
-dotenv.config({ path: '.env.local', override: true })
+// Shell env wins, then .env.local, then .env (see seeds/env.ts).
+dotenv.config({ path: ['.env.local', '.env'] })
 
 process.env.SAHAJCLOUD_URL ||= 'https://cloud.sydevelopers.com'
 
