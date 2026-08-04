@@ -161,6 +161,45 @@ sort or filter on (`Events.qualityOpenCount` is that column for the
 listing-quality report — see `src/lib/eventQuality/`). Test it by asserting the
 field is null on a `payload.find()`; removing the guard must make that fail.
 
+### A nested read of another locale must not reuse the caller's `req`
+
+`locale` is **not** a per-call argument to the Local API. `createLocalReq`
+assigns it straight onto the request object you hand over
+(`payload/dist/utilities/createLocalReq.js`):
+
+```js
+req.locale = localeCandidate && typeof localeCandidate === 'string' ? localeCandidate : defaultLocale
+req.fallbackLocale = sanitizedFallback
+```
+
+So `payload.findByID({ locale: 'all', req })` inside a hook doesn't scope `all`
+to that read — it **repoints the caller's whole request** for the rest of its
+life. In a hook that runs during a write, every later step of that write then
+runs under the wrong locale, and a localized field's value is silently dropped:
+the operation reports success and persists nothing. That was a real bug in the
+Events quality report (#609) — a German title saved on a published event
+vanished, with no error.
+
+Pass a copy whenever the nested call reads a **different** locale than the
+caller:
+
+```typescript
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
+
+const doc = await req.payload.findByID({
+  collection: 'events',
+  id,
+  locale: 'all',
+  select: { title: true },
+  req: localeIsolatedReq(req), // not `req`
+})
+```
+
+`context`, `transactionID`, `user` and `payload` still travel by reference, so
+memoization, the transaction and access control are unaffected — only
+`locale`/`fallbackLocale` become the copy's own. Not needed when the nested call
+uses the caller's own locale.
+
 ## Plugins
 
 ### SEO (`@payloadcms/plugin-seo`)
