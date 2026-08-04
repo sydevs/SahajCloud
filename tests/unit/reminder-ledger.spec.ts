@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { asReminderLog, hasReminderFor } from '@/jobs/RegistrationNotifications/reminderLedger'
+import { asReminderLog, hasReminderFor } from '@/lib/registrations/reminderLog'
 
 describe('reminder ledger', () => {
   describe('asReminderLog', () => {

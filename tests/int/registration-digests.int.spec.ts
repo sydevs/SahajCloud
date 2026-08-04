@@ -4,10 +4,16 @@ import type { Payload } from 'payload'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { SendRegistrationDigests } from '@/jobs/RegistrationNotifications/SendRegistrationDigests'
+import type { Manager } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
+
+/** The cadences `event_registration` accepts, off the field's own jsonSchema. */
+type RegistrationFrequency = NonNullable<
+  NonNullable<Manager['notificationPreferences']>['event_registration']
+>['frequency']
 
 const SCHEDULE = {
   firstDate: '2026-07-01T09:00:00.000Z',
@@ -52,7 +58,7 @@ describe('SendRegistrationDigests job', () => {
     emailAdapter.clearCapturedEmails()
   })
 
-  async function createManager(email: string, frequency: string): Promise<number> {
+  async function createManager(email: string, frequency: RegistrationFrequency): Promise<number> {
     const manager = await testData.createManager(payload, {
       name: `Dig ${email}`,
       email,

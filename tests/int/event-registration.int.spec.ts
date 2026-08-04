@@ -3,9 +3,15 @@ import type { Payload, PayloadRequest } from 'payload'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { registerForEvent } from '@/collections/Events/endpoints/registerForEvent'
+import type { Manager } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
+
+/** The cadences `event_registration` accepts, off the field's own jsonSchema. */
+type RegistrationFrequency = NonNullable<
+  NonNullable<Manager['notificationPreferences']>['event_registration']
+>['frequency']
 
 type TestUser = {
   id: number | string
@@ -556,7 +562,7 @@ describe('registerForEvent endpoint', () => {
         )
     }
 
-    async function createManagerWithFrequency(frequency: string, method = 'email') {
+    async function createManagerWithFrequency(frequency: RegistrationFrequency, method = 'email') {
       return testData.createManager(payload, {
         name: `Notify Mgr ${frequency}`,
         notificationPreferences: { event_registration: { frequency, method } },

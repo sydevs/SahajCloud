@@ -3,6 +3,7 @@ import type { CollectionConfig } from 'payload'
 import { legacyMigrationFields } from '@/fields'
 import { DEFAULT_LOCALE, getLocaleOptions } from '@/lib/locales'
 import { registrationQuestionsJsonSchema } from '@/lib/registrations/questions'
+import { reminderLogJsonSchema } from '@/lib/registrations/reminderLog'
 
 import { syncFullnessAfterChange, syncFullnessAfterDelete } from './hooks/syncFullness'
 
@@ -127,6 +128,7 @@ export const Registrations: CollectionConfig = {
       // `notificationLog` pattern.
       name: 'reminderLog',
       type: 'json',
+      jsonSchema: reminderLogJsonSchema,
       admin: { readOnly: true },
     },
     ...legacyMigrationFields(),

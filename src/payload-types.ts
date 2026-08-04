@@ -1315,18 +1315,36 @@ export interface Manager {
         id?: string | null;
       }[]
     | null;
-  /**
-   * Choose how and how often to receive each kind of notification.
-   */
-  notificationPreferences?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  notificationPreferences?: {
+    /**
+     * New Responsibility
+     */
+    new_responsibility?: {
+      frequency: 'Immediate' | 'Never';
+      method: string;
+    };
+    /**
+     * Event Verification
+     */
+    event_verification?: {
+      frequency: 'Monthly' | '3 Months' | '6 Months';
+      method: string;
+    };
+    /**
+     * Event Registration
+     */
+    event_registration?: {
+      frequency: 'Immediate' | 'Daily Summary' | 'Weekly Summary' | 'Never';
+      method: string;
+    };
+    /**
+     * Regional Summary
+     */
+    regional_summary?: {
+      frequency: 'Monthly' | 'Never';
+      method: string;
+    };
+  };
   lastRegistrationDigestSentAt?: string | null;
   legacyId?: number | null;
   legacyData?:
@@ -1793,18 +1811,58 @@ export interface Event {
   manager: number | Manager;
   verificationStage: 'verified' | 'reminded' | 'escalated' | 'urgent' | 'expired' | 'finished';
   nextCheckAt?: string | null;
-  /**
-   * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.
-   */
-  notificationLog?:
+  notificationLog?: (
     | {
-        [k: string]: unknown;
+        kind: 'verification';
+        /**
+         * ISO 8601 timestamp.
+         */
+        at: string;
+        /**
+         * The manager who verified, or null for an automated verification.
+         */
+        by: {
+          id: number;
+          name: string;
+        } | null;
+        method: 're-save' | 'verify-action' | 'email-link' | 'import';
       }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+    | {
+        kind: 'reminder';
+        /**
+         * The from-stage — the per-recipient dedup key.
+         */
+        stage: 'verified' | 'reminded' | 'escalated' | 'urgent' | 'expired' | 'finished';
+        /**
+         * due / escalated / urgent / expired.
+         */
+        level: string;
+        /**
+         * manager (the event's own) or region.
+         */
+        role: string;
+        /**
+         * The ancestor region that linked a region manager to the event.
+         */
+        region?: string;
+        /**
+         * ISO 8601 timestamp.
+         */
+        at: string;
+        manager: {
+          id: number;
+          name: string;
+        };
+        /**
+         * Delivery method used, e.g. email.
+         */
+        channel: string;
+        /**
+         * Address/handle the reminder went to.
+         */
+        destination: string;
+      }
+  )[];
   webPath?: string | null;
   webUrl?: string | null;
   appUrl?: string | null;
@@ -1894,15 +1952,16 @@ export interface Registration {
   uuid: string;
   mailingListSubscribedAt?: string | null;
   remindersUnsubscribedAt?: string | null;
-  reminderLog?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  reminderLog?: {
+    /**
+     * ISO start of the reminded occurrence — the exactly-once dedup key.
+     */
+    occurrence: string;
+    /**
+     * When the reminder was sent (ISO).
+     */
+    sentAt: string;
+  }[];
   legacyId?: number | null;
   legacyData?:
     | {

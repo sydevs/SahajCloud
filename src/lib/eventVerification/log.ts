@@ -1,7 +1,11 @@
 import type { VerificationStage } from './stages'
+import type { JSONSchema4 } from 'json-schema'
+import type { JSONField } from 'payload'
+
 
 import type { ReminderAudience, ReminderLevel } from '@/lib/notifications'
 
+import { VERIFICATION_STAGES } from './stages'
 
 /**
  * The on-document `notificationLog` — the **current verification cycle**.
@@ -15,7 +19,9 @@ import type { ReminderAudience, ReminderLevel } from '@/lib/notifications'
  */
 
 /** How a verification was triggered. */
-export type VerificationMethod = 're-save' | 'verify-action' | 'email-link' | 'import'
+export const VERIFICATION_METHODS = ['re-save', 'verify-action', 'email-link', 'import'] as const
+
+export type VerificationMethod = (typeof VERIFICATION_METHODS)[number]
 
 /** A manager reference captured in the log (id + display name). */
 export interface ActorRef {
@@ -106,4 +112,79 @@ export function hasReminderForStage(
 /** Narrow an unknown json value (the stored field) to a log-entry array. */
 export function asNotificationLog(value: unknown): NotificationLogEntry[] {
   return Array.isArray(value) ? (value as NotificationLogEntry[]) : []
+}
+
+const NOTIFICATION_LOG_SCHEMA_URI = 'https://sahajcloud.dev/schemas/event-notification-log.json'
+
+/** `ActorRef` as JSON Schema. */
+const actorRefSchema: JSONSchema4 = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['id', 'name'],
+  properties: {
+    id: { type: 'number' },
+    name: { type: 'string' },
+  },
+}
+
+/**
+ * `jsonSchema` for `Events.notificationLog` — the two entry shapes above as a
+ * discriminated union on `kind`. Nothing but the builders in this file writes
+ * the field, so this is primarily about the generated TypeScript type: without
+ * it the whole log reads back as `unknown`. Validation is the free bonus, and
+ * it holds a hand-written fixture to the same shape the builders produce.
+ *
+ * `level` and `role` stay plain strings: their vocabulary is declared by
+ * `EventVerificationEmail`, and this module is value-imported by admin client
+ * components — enumerating them here would pull react-email into that bundle.
+ */
+export const notificationLogJsonSchema: NonNullable<JSONField['jsonSchema']> = {
+  uri: NOTIFICATION_LOG_SCHEMA_URI,
+  fileMatch: [NOTIFICATION_LOG_SCHEMA_URI],
+  schema: {
+    type: 'array',
+    items: {
+      anyOf: [
+        {
+          type: 'object',
+          description: 'The verification that opened the current cycle.',
+          additionalProperties: false,
+          required: ['kind', 'at', 'by', 'method'],
+          properties: {
+            kind: { enum: ['verification'] },
+            at: { type: 'string', description: 'ISO 8601 timestamp.' },
+            by: {
+              anyOf: [actorRefSchema, { type: 'null' }],
+              description: 'The manager who verified, or null for an automated verification.',
+            },
+            method: { type: 'string', enum: [...VERIFICATION_METHODS] },
+          },
+        },
+        {
+          type: 'object',
+          description: 'One reminder delivery, appended per recipient per stage.',
+          additionalProperties: false,
+          required: ['kind', 'stage', 'level', 'role', 'at', 'manager', 'channel', 'destination'],
+          properties: {
+            kind: { enum: ['reminder'] },
+            stage: {
+              type: 'string',
+              enum: [...VERIFICATION_STAGES],
+              description: 'The from-stage — the per-recipient dedup key.',
+            },
+            level: { type: 'string', description: 'due / escalated / urgent / expired.' },
+            role: { type: 'string', description: "manager (the event's own) or region." },
+            region: {
+              type: 'string',
+              description: 'The ancestor region that linked a region manager to the event.',
+            },
+            at: { type: 'string', description: 'ISO 8601 timestamp.' },
+            manager: actorRefSchema,
+            channel: { type: 'string', description: 'Delivery method used, e.g. email.' },
+            destination: { type: 'string', description: 'Address/handle the reminder went to.' },
+          },
+        },
+      ],
+    },
+  },
 }

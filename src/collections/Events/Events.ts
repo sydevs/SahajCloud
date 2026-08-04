@@ -23,6 +23,7 @@ import {
 import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
+import { notificationLogJsonSchema } from '@/lib/eventVerification/log'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
@@ -482,6 +483,7 @@ export const Events: CollectionConfig = {
               // stage). Read-only, rendered by NotificationLogTable.
               name: 'notificationLog',
               type: 'json',
+              jsonSchema: notificationLogJsonSchema,
               admin: {
                 readOnly: true,
                 description:
