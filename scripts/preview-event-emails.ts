@@ -264,11 +264,26 @@ async function persistSampleEvent(): Promise<SampleData> {
   }
 }
 
+/**
+ * A partly-translated locale, to show the two things the English previews
+ * can't: copy resolved for a manager's own language, and the per-key fallback
+ * when a translator hasn't filled everything in (labels stay English here).
+ */
+const CZECH_SAMPLE: Record<string, string> = {
+  verify_greeting: 'Dobrý den, %{name},',
+  verify_manager_due_subject: 'Ověřte prosím svou událost: %{event}',
+  verify_manager_due_heading: 'Ověřte svou hodinu Sahaja Yogy',
+  verify_manager_due_preview: 'Rychlá kontrola, že vaše hodina stále probíhá.',
+  verify_manager_due_cta: 'Ověřit událost',
+  verify_manager_due_body:
+    'Aby byly veřejné výpisy přesné, je potřeba události na %{brand} pravidelně kontrolovat. Neověřené události se automaticky skryjí. Zkontrolujte prosím údaje o své hodině níže.',
+  verify_manager_due_callout: '✅ Ověřte do %{deadline}, aby událost zůstala zveřejněná.',
+  verify_details_heading: 'Údaje o události',
+}
+
 async function main() {
-  const { createElement } = await import('react')
   const nodemailer = (await import('nodemailer')).default
-  const { EventVerificationEmail } = await import('@/emails/EventVerificationEmail')
-  const { renderEmail } = await import('@/plugins/email')
+  const { sendEmailReminder } = await import('@/lib/notifications/channels/email')
   const { signVerifyToken } = await import('@/lib/eventVerification/token')
   const { buildVerifyEmailLink } = await import('@/lib/eventVerification/verifyUrl')
   const { formatLongDate } = await import('@/lib/notifications')
@@ -283,7 +298,7 @@ async function main() {
         managerEmail: 'priya.deshmukh@example.com',
         details: {
           title: 'Saturday Morning Sahaja Yoga Meditation',
-          locationLabel: 'Address',
+          isOnline: false,
           location: '12 MG Road, 2nd Floor, Cultural Hall, Pune, Maharashtra, IN 411001',
           schedule: 'Every week on Saturday at 9:26 AM',
           contact: 'Priya Deshmukh · +91 98765 43210',
@@ -319,8 +334,15 @@ async function main() {
   }
 
   // The event manager gets all four levels; region managers are looped in from
-  // escalated onward (a different framing + the manager's contacts).
-  const combos: { level: ReminderLevel; audience: ReminderAudience }[] = [
+  // escalated onward (a different framing + the manager's contacts). The last
+  // combo is the same `due` reminder for a Czech-speaking manager.
+  const combos: {
+    level: ReminderLevel
+    audience: ReminderAudience
+    language?: string
+    translations?: Record<string, string>
+    note?: string
+  }[] = [
     { level: 'due', audience: 'manager' },
     { level: 'escalated', audience: 'manager' },
     { level: 'urgent', audience: 'manager' },
@@ -328,35 +350,69 @@ async function main() {
     { level: 'escalated', audience: 'region' },
     { level: 'urgent', audience: 'region' },
     { level: 'expired', audience: 'region' },
+    {
+      level: 'due',
+      audience: 'manager',
+      language: 'cs',
+      translations: CZECH_SAMPLE,
+      note: 'partly-translated locale — untranslated keys fall back to English',
+    },
   ]
 
-  const previews: { label: string; url: string | false }[] = []
-  for (const { level, audience } of combos) {
+  const previews: { label: string; note?: string; url: string | false }[] = []
+  for (const { level, audience, language, translations, note } of combos) {
+    const label = `${audience} · ${level}${language ? ` · ${language}` : ''}`
     const token = signVerifyToken({ eventId: sample.eventId, managerId: sample.managerId }, secret)
-    const html = await renderEmail(
-      createElement(EventVerificationEmail, {
-        name: audience === 'region' ? 'Rohan Patil' : sample.managerName,
+    const destination = audience === 'region' ? 'rohan.patil@example.com' : sample.managerEmail
+
+    // Drive the real send path so the preview can't drift from production —
+    // it resolves the manager's language, renders, and builds the subject.
+    // Only the two seams a preview must fake are stubbed: the translations
+    // read and the transport.
+    const payload = {
+      findGlobal: async () => ({ emails: translations ?? {} }),
+      logger: { debug() {}, error() {}, info() {}, warn() {} },
+      sendEmail: async (message: Record<string, unknown>) => {
+        const info = await transport.sendMail({
+          ...message,
+          from: 'Sahaj Atlas <dev@wemeditate.com>',
+          // Label the inbox row so combos are distinguishable at a glance; the
+          // real (localized) subject stays visible inside the message.
+          subject: `[${label}] ${String(message.subject)}`,
+        } as never)
+        previews.push({ label, note, url: nodemailer.getTestMessageUrl(info) })
+      },
+    }
+
+    await sendEmailReminder(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      payload as any,
+      {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        manager: {
+          name: audience === 'region' ? 'Rohan Patil' : sample.managerName,
+          language,
+        } as any,
+        role: audience,
+        channel: 'email',
+        destination,
+        regionName: audience === 'region' ? 'Maharashtra' : undefined,
+      },
+      {
         eventTitle: sample.eventTitle,
+        level,
+        audience,
         verifyUrl: buildVerifyEmailLink(token),
         // Published events link to the map; expired (unpublished) ones don't.
         eventUrl:
           level === 'expired' ? null : `https://wemeditate.com/map#/!/events/${sample.eventId}`,
-        level,
-        audience,
         details: sample.details,
         deadline: level === 'expired' ? today : futureDeadline,
         sinceLastVerified,
         regionName: audience === 'region' ? 'Maharashtra' : undefined,
         eventManager: audience === 'region' ? eventManager : undefined,
-      }),
+      },
     )
-    const info = await transport.sendMail({
-      from: 'Sahaj Atlas <dev@wemeditate.com>',
-      to: audience === 'region' ? 'rohan.patil@example.com' : sample.managerEmail,
-      subject: `[${audience}/${level}] ${sample.eventTitle}`,
-      html,
-    })
-    previews.push({ label: `${audience} · ${level}`, url: nodemailer.getTestMessageUrl(info) })
   }
 
   console.log('\n━━━ Event verification reminder previews ━━━\n')
@@ -370,7 +426,9 @@ async function main() {
   console.log(`  user: ${account.user}`)
   console.log(`  pass: ${account.pass}`)
   console.log(`\nDirect preview links:`)
-  for (const { label, url } of previews) console.log(`  ${label.padEnd(20)} ${url}`)
+  for (const { label, note, url } of previews) {
+    console.log(`  ${label.padEnd(26)} ${url}${note ? `\n  ${' '.repeat(26)} ↳ ${note}` : ''}`)
+  }
   console.log('')
 
   process.exit(0)

@@ -159,7 +159,7 @@ async function processEvent(args: {
       regionName: recipient.regionName,
     }
 
-    const delivered = await sendNotification({ client: payload, recipient, reminder })
+    const delivered = await sendNotification({ client: payload, recipient, reminder, req })
     if (!delivered) {
       allDelivered = false
       continue

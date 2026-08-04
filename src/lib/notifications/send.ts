@@ -1,5 +1,5 @@
 import type { ReminderPayload, ResolvedRecipient } from './types'
-import type { Payload } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 
 import { sendEmailReminder } from './channels/email'
 import { sendStubReminder } from './channels/stubs'
@@ -10,16 +10,20 @@ import { sendStubReminder } from './channels/stubs'
  * failed/throwing send is retried (for un-logged recipients only) on the next
  * run. Errors are caught + logged, never thrown, so one bad recipient doesn't
  * abort the batch.
+ *
+ * `req` is forwarded so the email channel's translations read joins the caller's
+ * transaction, and so its per-locale memo is shared across the whole sweep.
  */
 export async function sendNotification(args: {
   client: Payload
   recipient: ResolvedRecipient
   reminder: ReminderPayload
+  req?: PayloadRequest
 }): Promise<boolean> {
-  const { client, recipient, reminder } = args
+  const { client, recipient, reminder, req } = args
   try {
     if (recipient.channel === 'email') {
-      await sendEmailReminder(client, recipient, reminder)
+      await sendEmailReminder(client, recipient, reminder, req)
     } else {
       await sendStubReminder(client, recipient, reminder)
     }

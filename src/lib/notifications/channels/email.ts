@@ -1,44 +1,34 @@
-import type { ReminderAudience, ReminderLevel, ReminderPayload, ResolvedRecipient } from '../types'
-import type { Payload } from 'payload'
+import type { ReminderPayload, ResolvedRecipient } from '../types'
+import type { Payload, PayloadRequest } from 'payload'
 
 import { createElement } from 'react'
 
-import { EventVerificationEmail } from '@/emails/EventVerificationEmail'
+import { EventVerificationEmail, verificationSubject } from '@/emails/EventVerificationEmail'
+import { languageToLocale } from '@/lib/locales'
+import { resolveEmailStrings } from '@/lib/translations/emailStrings'
+import { stripNewlines } from '@/lib/utilities/emailSafeText'
 import { renderEmail } from '@/plugins/email'
-
-function subjectFor(level: ReminderLevel, audience: ReminderAudience, title: string): string {
-  if (audience === 'region') {
-    switch (level) {
-      case 'expired':
-        return `Unpublished — an event in your region: ${title}`
-      case 'urgent':
-        return `Final notice — an event in your region: ${title}`
-      default:
-        return `Needs verification — an event in your region: ${title}`
-    }
-  }
-  switch (level) {
-    case 'due':
-      return `Please verify your event: ${title}`
-    case 'escalated':
-      return `Action needed — verify your event: ${title}`
-    case 'urgent':
-      return `Final reminder — verify your event: ${title}`
-    case 'expired':
-      return `Your event has been unpublished: ${title}`
-  }
-}
 
 /**
  * Email channel — renders the reminder template (branded `sahaj-atlas`, via
  * #483's `renderEmail`) and sends through the configured adapter
  * (Resend in prod, Ethereal in dev).
+ *
+ * Subject and body resolve in the recipient's own language off
+ * `Managers.language`. That field offers every ISO 639-1 language, so it maps
+ * through `languageToLocale` onto a CMS locale; unset — or set to a language the
+ * CMS isn't translated into — resolves the default locale, and an individually
+ * untranslated key falls back to its English default.
  */
 export async function sendEmailReminder(
   client: Payload,
   recipient: ResolvedRecipient,
   reminder: ReminderPayload,
+  req?: PayloadRequest,
 ): Promise<void> {
+  const locale = languageToLocale(recipient.manager.language)
+  const strings = await resolveEmailStrings({ payload: client, locale, req })
+
   const html = await renderEmail(
     createElement(EventVerificationEmail, {
       name: recipient.manager.name || recipient.destination,
@@ -47,6 +37,8 @@ export async function sendEmailReminder(
       eventUrl: reminder.eventUrl,
       level: reminder.level,
       audience: reminder.audience,
+      strings,
+      locale,
       details: reminder.details,
       deadline: reminder.deadline,
       sinceLastVerified: reminder.sinceLastVerified,
@@ -57,7 +49,16 @@ export async function sendEmailReminder(
 
   await client.sendEmail({
     to: recipient.destination,
-    subject: subjectFor(reminder.level, reminder.audience, reminder.eventTitle),
+    // The event title is manager-authored free text; strip line breaks so it
+    // can't inject a second header off the Subject line.
+    subject: stripNewlines(
+      verificationSubject({
+        strings,
+        audience: reminder.audience,
+        level: reminder.level,
+        eventTitle: reminder.eventTitle,
+      }),
+    ),
     html,
   })
 }

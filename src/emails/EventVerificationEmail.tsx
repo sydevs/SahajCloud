@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react'
 
+import { Fragment } from 'react'
 import { Hr, Link, Section, Text } from 'react-email'
 
+import type { LocaleCode } from '@/lib/locales'
+import { type EmailStrings, interpolate, pluralize } from '@/lib/translations/emailStrings'
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
@@ -13,11 +16,26 @@ export type ReminderLevel = 'due' | 'escalated' | 'urgent' | 'expired'
 /** Who the reminder is going to — its manager, or a region manager above it. */
 export type ReminderAudience = 'manager' | 'region'
 
+/** Levels a region manager sees — they're escalated to, so never at `due`. */
+type RegionLevel = Exclude<ReminderLevel, 'due'>
+
+/** The slots one variation's copy fills. */
+type VariantSlot = 'subject' | 'heading' | 'preview' | 'cta' | 'body' | 'callout'
+
+/**
+ * Translation keys the audience × level matrix can address — deliberately
+ * ragged. Indexing `strings` with this union is what makes a key missing from
+ * `EMAIL_STRING_DEFAULTS` a compile error rather than a blank line in an email.
+ */
+type VariantKey =
+  | `verify_manager_${ReminderLevel}_${VariantSlot}`
+  | `verify_region_${RegionLevel}_${VariantSlot}`
+
 /** Key event facts shown in the email so the manager can verify at a glance. */
 export interface EventDetails {
   title: string
-  /** `Address` (offline) or `Online`. */
-  locationLabel: string
+  /** Whether `location` is a joining URL rather than a street address. */
+  isOnline: boolean
   /** One-line address, or the online URL. */
   location: string
   /** One-line schedule summary. */
@@ -26,8 +44,8 @@ export interface EventDetails {
   contact?: string
   /** Formatted scheduled-break lines, when any. */
   breaks?: string[]
-  /** Date the event was last verified (shown in every email). */
-  lastVerified: string
+  /** Date the event was last verified; `null` when it never has been. */
+  lastVerified: string | null
   /** Registrations in the last 30 days — omitted when there are none. */
   recentRegistrations?: number
 }
@@ -51,6 +69,10 @@ interface EventVerificationEmailProps {
   level: ReminderLevel
   /** Whether the recipient is the event manager or a region manager. */
   audience: ReminderAudience
+  /** Localized copy, pre-resolved for the recipient — a template never queries. */
+  strings: EmailStrings
+  /** Recipient's locale — drives plural-form selection (the registration count). */
+  locale?: LocaleCode | null
   /** Formatted date the event is / was unpublished. */
   deadline?: string
   /** Human duration the event has gone unverified. */
@@ -65,190 +87,6 @@ interface EventVerificationEmailProps {
   project?: ProjectSlug
 }
 
-/** Interpolation values available to every `body` below. */
-interface CopyVars {
-  /** The event title (bold). */
-  title: ReactNode
-  /** The event manager's name (bold) — for region copy. */
-  manager: ReactNode
-  /** The product/brand name, e.g. "Sahaj Atlas". */
-  brandName: string
-  /** The unpublish date (bold), or "shortly" when unknown. */
-  deadline: ReactNode
-  /** The region linking a region manager to the event (bold) — region copy. */
-  region: ReactNode
-  /** How long the event has gone unverified. */
-  sinceLastVerified: string
-}
-
-interface VariantCopy {
-  /** Card heading. */
-  heading: string
-  /** Inbox preview snippet. */
-  preview: string
-  /** Verify-button label. */
-  cta: string
-  /** The main paragraph. */
-  body: (vars: CopyVars) => ReactNode
-  /** Coloured callout banner — the plain-English "do X by {deadline}" instruction. */
-  callout: (vars: CopyVars) => ReactNode
-}
-
-/* ───────────────────────────────────────────────────────────────────────────
- * EMAIL COPY — edit everything here.
- *
- * `COPY.variants[audience][level]` holds the entire wording for one variation
- * (heading, inbox preview, button label, body paragraph, and optional callout)
- * in a single block, so a variation can be reworded without hunting through the
- * component. `{values}` in a `body` come from CopyVars above. Shared lines
- * (greeting, footer, button hint) sit at the top.
- * ─────────────────────────────────────────────────────────────────────────── */
-const COPY: {
-  greeting: (name: string) => ReactNode
-  buttonHint: string
-  footer: (audience: ReminderAudience, brandName: string) => ReactNode
-  /** The pre-filled email a region manager's "Contact manager" button opens. */
-  contactManager: {
-    subject: (eventTitle: string) => string
-    body: (eventTitle: string, managerName: string) => string
-  }
-  variants: {
-    manager: Record<ReminderLevel, VariantCopy>
-    // Region managers are first looped in at `escalated`; there is no `due`.
-    region: Partial<Record<ReminderLevel, VariantCopy>>
-  }
-} = {
-  greeting: (name) => (
-    <>
-      Hello <strong>{name}</strong>,
-    </>
-  ),
-
-  buttonHint: 'If the button doesn’t work, copy and paste this link into your browser:',
-
-  footer: (audience, brandName) => (
-    <>
-      You’re receiving this because you manage{' '}
-      {audience === 'region' ? 'this region' : 'this event'} on {brandName}. The links in this email
-      are unique to you and acts on your behalf — please don’t forward this email.
-    </>
-  ),
-
-  contactManager: {
-    subject: (eventTitle) => `Please verify your Sahaja Yoga class: ${eventTitle}`,
-    body: (eventTitle, managerName) =>
-      `Hello ${managerName},\n\nYour event “${eventTitle}” is going to be automatically unpublished soon if we don't check it. Could you verify it from your reminder email, or let me know if it is no longer running?\n\nThank you.`,
-  },
-
-  variants: {
-    manager: {
-      due: {
-        heading: 'Verify your Sahaja Yoga class',
-        preview: 'A quick check that your class is still running.',
-        cta: 'Verify this event',
-        body: ({ brandName }) => (
-          <>
-            To keep public listings accurate, {brandName} events need to be checked periodically.
-            Events which are not verified are automatically unpublished. Please verify the details
-            of your class below.
-          </>
-        ),
-        callout: ({ deadline }) => <>✅ Verify by {deadline} to keep this event published.</>,
-      },
-      escalated: {
-        heading: 'Sahaja Yoga class still needs verification',
-        preview: 'Your event is overdue for verification.',
-        cta: 'Verify now',
-        body: () => (
-          <>
-            This is a reminder that your event still needs verification. Please check the details
-            below and verify now.
-          </>
-        ),
-        callout: ({ deadline }) => <>⏰ Verify by {deadline} or this event will be unpublished.</>,
-      },
-      urgent: {
-        heading: 'Final reminder: verify your Sahaja Yoga class',
-        preview: 'Last reminder before your class is unpublished.',
-        cta: 'Verify now',
-        body: () => (
-          <>
-            This is the final reminder to verify your event. Please check the details below and
-            verify it immediately.
-          </>
-        ),
-        callout: ({ deadline }) => (
-          <>⚠️ Final reminder — verify by {deadline} or this event will be unpublished.</>
-        ),
-      },
-      expired: {
-        heading: 'Your Sahaja Yoga class has been unpublished',
-        preview: 'Your unverified event is now hidden from the public.',
-        cta: 'Verify to restore',
-        body: ({ sinceLastVerified }) => (
-          <>
-            Your event wasn’t verified in over {sinceLastVerified}, so it has been hidden from the
-            public. If this event is still running, please verify the details below to immediately
-            republish the event.
-          </>
-        ),
-        callout: ({ deadline }) => <>🚫 Unpublished on {deadline}. Verify now to republish.</>,
-      },
-    },
-
-    region: {
-      escalated: {
-        heading: 'Event manager not responding',
-        preview: 'Please contact the event manager to verify their event.',
-        cta: 'Contact manager',
-        body: ({ manager, region }) => (
-          <>
-            The following event in {region} needs verification, but the event manager has not yet
-            responded. Please reach out to {manager} and confirm if it’s still running.
-          </>
-        ),
-        callout: ({ deadline }) => (
-          <>
-            ⏰ Contact the manager. They must verify by {deadline} or this event will be
-            unpublished.
-          </>
-        ),
-      },
-      urgent: {
-        heading: 'Event will soon be unpublished',
-        preview: 'Last notice before an event in your region is unpublished.',
-        cta: 'Contact manager',
-        body: ({ manager, region }) => (
-          <>
-            An event in {region} still needs verification, and its manager hasn’t responded to
-            earlier reminders. Please get in touch with {manager} to check on it.
-          </>
-        ),
-        callout: ({ deadline }) => (
-          <>
-            ⚠️ Final notice — contact the manager. They must verify by {deadline} or this event will
-            be unpublished.
-          </>
-        ),
-      },
-      expired: {
-        heading: 'Event has been unpublished',
-        preview: 'An unverified event in your region is now hidden.',
-        cta: 'Contact manager',
-        body: ({ manager, region, sinceLastVerified }) => (
-          <>
-            An event in {region} was unpublished after going unverified for {sinceLastVerified}. If
-            it’s still running, please contact {manager} and ask them to verify the event.
-          </>
-        ),
-        callout: ({ deadline }) => (
-          <>🚫 Unpublished on {deadline}. Contact the manager to republish.</>
-        ),
-      },
-    },
-  },
-}
-
 // One colour per level — calm at `due`, escalating to red once unpublished.
 const CALLOUT_COLORS: Record<ReminderLevel, { bg: string; border: string }> = {
   due: { bg: '#eef5fc', border: '#4a8cd4' },
@@ -257,31 +95,90 @@ const CALLOUT_COLORS: Record<ReminderLevel, { bg: string; border: string }> = {
   expired: { bg: '#fdecea', border: '#ef4444' },
 }
 
-/** Look up a variation's copy, throwing for unsupported combinations (region/due). */
-function getVariant(audience: ReminderAudience, level: ReminderLevel): VariantCopy {
-  const variant = COPY.variants[audience][level]
-  if (!variant) {
+/** Key for one slot of a variation, or `null` for the unsupported region/due. */
+function variantKey(
+  audience: ReminderAudience,
+  level: ReminderLevel,
+  slot: VariantSlot,
+): VariantKey | null {
+  if (audience === 'region') {
+    if (level === 'due') return null
+    return `verify_region_${level}_${slot}`
+  }
+  return `verify_manager_${level}_${slot}`
+}
+
+/** One slot of a variation's copy, throwing for unsupported combinations. */
+function variantString(
+  strings: EmailStrings,
+  audience: ReminderAudience,
+  level: ReminderLevel,
+  slot: VariantSlot,
+): string {
+  const key = variantKey(audience, level, slot)
+  if (!key) {
     throw new Error(
       `EventVerificationEmail: the "${level}" reminder is not supported for ${audience} recipients`,
     )
   }
-  return variant
+  return strings[key]
+}
+
+/**
+ * The localized subject line for one variation, so the send path doesn't have
+ * to know how the copy is keyed. Throws for region/due, exactly as render does.
+ */
+export function verificationSubject(args: {
+  strings: EmailStrings
+  audience: ReminderAudience
+  level: ReminderLevel
+  eventTitle: string
+}): string {
+  const { strings, audience, level, eventTitle } = args
+  return interpolate(variantString(strings, audience, level, 'subject'), { event: eventTitle })
+}
+
+/**
+ * Interpolate `%{...}` placeholders with ReactNodes, so a value can carry markup
+ * — the deadline, region and manager name render bold inside the sentence.
+ * Placeholders rather than concatenation are what let a translator move a value
+ * to wherever their language puts it. `interpolate()` is the plain-string
+ * equivalent, for a subject or a mailto body. An unknown placeholder is left
+ * intact so a copy mistake is visible in the rendered email.
+ */
+function interpolateNodes(template: string, values: Record<string, ReactNode>): ReactNode {
+  return template.split(/(%\{\w+\})/g).map((part, index) => {
+    const key = /^%\{(\w+)\}$/.exec(part)?.[1]
+    if (key === undefined || !(key in values)) return part
+    return <Fragment key={index}>{values[key]}</Fragment>
+  })
 }
 
 /** mailto a region manager uses to reach the event manager (the region CTA). */
-function contactManagerHref(email: string, eventTitle: string, managerName: string): string {
-  const subject = COPY.contactManager.subject(eventTitle)
-  const body = COPY.contactManager.body(eventTitle, managerName)
+function contactManagerHref(
+  strings: EmailStrings,
+  email: string,
+  eventTitle: string,
+  managerName: string,
+): string {
+  const subject = interpolate(strings.verify_contact_subject, { event: eventTitle })
+  const body = interpolate(strings.verify_contact_body, { event: eventTitle, manager: managerName })
   return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 }
 
 /**
  * Event verification email — the escalating nudge the ExpireEvents job sends as
- * an event ages `verified → reminded → escalated → urgent → expired`. All
- * wording lives in `COPY` above; this component only wires the chosen variation
- * to the layout, the summary tables, and the tokenized verify button. Region
+ * an event ages `verified → reminded → escalated → urgent → expired`. Every
+ * word comes from the `emails` group of the `sy-atlas-translations` global,
+ * resolved for the recipient's own language before render (`resolveEmailStrings`
+ * off `Managers.language`); this component only wires the chosen variation to
+ * the layout, the summary tables, and the tokenized verify button. Region
  * managers (looped in from `escalated`) get region-framed copy plus the event
  * manager's contacts so they can follow up.
+ *
+ * The event facts themselves — schedule phrase, dates, how long it has gone
+ * unverified — arrive pre-formatted in English from `buildEventEmailDetails`:
+ * as the translations group puts it, event data is never translated.
  */
 export function EventVerificationEmail({
   name,
@@ -290,6 +187,8 @@ export function EventVerificationEmail({
   eventUrl,
   level,
   audience,
+  strings,
+  locale,
   deadline,
   sinceLastVerified,
   details,
@@ -298,30 +197,31 @@ export function EventVerificationEmail({
   project = 'sahaj-atlas',
 }: EventVerificationEmailProps) {
   const brand = getEmailBrand(project)
-  const variant = getVariant(audience, level)
+  const copy = (slot: VariantSlot) => variantString(strings, audience, level, slot)
   const calloutColor = CALLOUT_COLORS[level]
   const isUrl = details ? /^https?:\/\//.test(details.location) : false
-  const vars: CopyVars = {
-    title: <strong>{eventTitle}</strong>,
-    manager: <strong>{eventManager?.name ?? 'the event manager'}</strong>,
-    brandName: brand.productName,
-    deadline: deadline ? <strong>{deadline}</strong> : 'shortly',
-    region: <strong>{regionName ?? 'your region'}</strong>,
-    sinceLastVerified,
+  const vars: Record<string, ReactNode> = {
+    brand: brand.productName,
+    deadline: deadline ? <strong>{deadline}</strong> : strings.verify_fallback_deadline,
+    manager: <strong>{eventManager?.name ?? strings.verify_fallback_manager}</strong>,
+    region: <strong>{regionName ?? strings.verify_fallback_region}</strong>,
+    since: sinceLastVerified,
   }
 
   // Region managers don't verify (they may lack the details); their CTA emails
   // the event manager instead. Everyone else gets the tokenized verify link.
   const contactEmail = eventManager?.contacts.find((entry) => entry.label === 'Email')?.value
   const ctaHref =
-    audience === 'region' && contactEmail
-      ? contactManagerHref(contactEmail, eventTitle, eventManager?.name ?? 'there')
+    audience === 'region' && eventManager && contactEmail
+      ? contactManagerHref(strings, contactEmail, eventTitle, eventManager.name)
       : verifyUrl
 
   return (
-    <EmailLayout brand={brand} heading={variant.heading} previewText={variant.preview}>
-      <Text style={styles.paragraph}>{COPY.greeting(name)}</Text>
-      <Text style={styles.paragraph}>{variant.body(vars)}</Text>
+    <EmailLayout brand={brand} heading={copy('heading')} previewText={copy('preview')}>
+      <Text style={styles.paragraph}>
+        {interpolateNodes(strings.verify_greeting, { name: <strong>{name}</strong> })}
+      </Text>
+      <Text style={styles.paragraph}>{interpolateNodes(copy('body'), vars)}</Text>
 
       <Section
         style={{
@@ -335,13 +235,13 @@ export function EventVerificationEmail({
           lineHeight: 1.5,
         }}
       >
-        {variant.callout(vars)}
+        {interpolateNodes(copy('callout'), vars)}
       </Section>
 
       {audience === 'region' && eventManager ? (
         <Section>
-          <SectionHeading>Event manager</SectionHeading>
-          <DetailRow label="Name">{eventManager.name}</DetailRow>
+          <SectionHeading>{strings.verify_manager_heading}</SectionHeading>
+          <DetailRow label={strings.verify_label_name}>{eventManager.name}</DetailRow>
           {eventManager.contacts.map((entry) => (
             <DetailRow key={entry.label} label={entry.label}>
               {entry.value}
@@ -352,10 +252,12 @@ export function EventVerificationEmail({
 
       {details ? (
         <Section>
-          <SectionHeading>Event details</SectionHeading>
-          <DetailRow label="Event">{details.title}</DetailRow>
+          <SectionHeading>{strings.verify_details_heading}</SectionHeading>
+          <DetailRow label={strings.verify_label_event}>{details.title}</DetailRow>
           {details.location ? (
-            <DetailRow label={details.locationLabel}>
+            <DetailRow
+              label={details.isOnline ? strings.verify_label_online : strings.verify_label_address}
+            >
               {isUrl ? (
                 <Link
                   href={details.location}
@@ -368,9 +270,11 @@ export function EventVerificationEmail({
               )}
             </DetailRow>
           ) : null}
-          {details.schedule ? <DetailRow label="Schedule">{details.schedule}</DetailRow> : null}
+          {details.schedule ? (
+            <DetailRow label={strings.verify_label_schedule}>{details.schedule}</DetailRow>
+          ) : null}
           {details.breaks && details.breaks.length > 0 ? (
-            <DetailRow label="Scheduled breaks">
+            <DetailRow label={strings.verify_label_breaks}>
               {details.breaks.map((line, index) => (
                 <span key={index}>
                   {line}
@@ -379,29 +283,36 @@ export function EventVerificationEmail({
               ))}
             </DetailRow>
           ) : null}
-          {details.contact ? <DetailRow label="Contact">{details.contact}</DetailRow> : null}
+          {details.contact ? (
+            <DetailRow label={strings.verify_label_contact}>{details.contact}</DetailRow>
+          ) : null}
           {typeof details.recentRegistrations === 'number' ? (
-            <DetailRow label="Registrations">
-              {`${details.recentRegistrations} registration${
-                details.recentRegistrations === 1 ? '' : 's'
-              } in the last 30 days`}
+            <DetailRow label={strings.verify_label_registrations}>
+              {pluralize(
+                strings,
+                'verify_registrations_count',
+                details.recentRegistrations,
+                locale,
+              )}
             </DetailRow>
           ) : null}
-          <DetailRow label="Last verified">{details.lastVerified}</DetailRow>
+          <DetailRow label={strings.verify_label_last_verified}>
+            {details.lastVerified ?? strings.verify_never_verified}
+          </DetailRow>
         </Section>
       ) : null}
 
       <BrandButton href={ctaHref} brand={brand}>
-        {variant.cta}
+        {copy('cta')}
       </BrandButton>
       {eventUrl ? (
         <BrandButton href={eventUrl} brand={brand} variant="secondary" tight>
-          View event
+          {strings.verify_view_event_cta}
         </BrandButton>
       ) : null}
       {audience === 'region' ? null : (
         <Text style={styles.hint}>
-          {COPY.buttonHint}
+          {strings.verify_button_hint}
           <br />
           <Link href={verifyUrl} style={{ ...styles.link, color: brand.colors.primary }}>
             {verifyUrl}
@@ -409,7 +320,12 @@ export function EventVerificationEmail({
         </Text>
       )}
       <Hr style={styles.hr} />
-      <Text style={styles.footer}>{COPY.footer(audience, brand.productName)}</Text>
+      <Text style={styles.footer}>
+        {interpolate(
+          audience === 'region' ? strings.verify_footer_region : strings.verify_footer_manager,
+          { brand: brand.productName },
+        )}
+      </Text>
     </EmailLayout>
   )
 }
