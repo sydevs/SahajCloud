@@ -48,11 +48,11 @@ import { default as default_b3cee161bebb1edefc1eda122400dd67 } from '@/component
 import { default as default_ef5838f2c1b8d0747618a584b33f2f1e } from '@/components/admin/AddressSearchField'
 import { default as default_f15760648f21b91f3f2a0494c08e91bc } from '@/components/admin/AddChildRegionButton'
 import { default as default_ed3b039830992dc45486e37aaf03df7c } from '@/components/admin/EventVerificationNotice'
-import { default as default_42fbdbfc3b16bbe7c43aa9f07c715c1c } from '@/components/admin/EventQualityPanel'
 import { default as default_1dd99abed7767ee797cacf1ad150de88 } from '@/components/admin/StringSelectField'
 import { default as default_d749fd4cc4f11cb94ed2d6b537f6015d } from '@/components/admin/InfoBanner'
 import { default as default_d73215fe105de40829b40e0975052656 } from '@/components/admin/VerificationStageField'
 import { default as default_e9940a7953b8550d5f74ed2aed219091 } from '@/components/admin/NotificationLogTable'
+import { default as default_42fbdbfc3b16bbe7c43aa9f07c715c1c } from '@/components/admin/EventQualityPanel'
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ChecklistFeatureClient as ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { IndentFeatureClient as IndentFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -130,11 +130,11 @@ export const importMap = {
   "@/components/admin/AddressSearchField#default": default_ef5838f2c1b8d0747618a584b33f2f1e,
   "@/components/admin/AddChildRegionButton#default": default_f15760648f21b91f3f2a0494c08e91bc,
   "@/components/admin/EventVerificationNotice#default": default_ed3b039830992dc45486e37aaf03df7c,
-  "@/components/admin/EventQualityPanel#default": default_42fbdbfc3b16bbe7c43aa9f07c715c1c,
   "@/components/admin/StringSelectField#default": default_1dd99abed7767ee797cacf1ad150de88,
   "@/components/admin/InfoBanner#default": default_d749fd4cc4f11cb94ed2d6b537f6015d,
   "@/components/admin/VerificationStageField#default": default_d73215fe105de40829b40e0975052656,
   "@/components/admin/NotificationLogTable#default": default_e9940a7953b8550d5f74ed2aed219091,
+  "@/components/admin/EventQualityPanel#default": default_42fbdbfc3b16bbe7c43aa9f07c715c1c,
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#ChecklistFeatureClient": ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#IndentFeatureClient": IndentFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,

@@ -1456,17 +1456,6 @@ export interface Region {
  */
 export interface Event {
   id: number;
-  qualityReport?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  qualityOpenCount?: number | null;
-  qualityCheckVersion?: number | null;
   /**
    * Event name. Leave blank to auto-fill from the address (e.g. "Meditation at Beethovenstraße 12").
    */
@@ -1819,6 +1808,17 @@ export interface Event {
   webPath?: string | null;
   webUrl?: string | null;
   appUrl?: string | null;
+  qualityReport?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  qualityOpenCount?: number | null;
+  qualityCheckVersion?: number | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -4531,9 +4531,6 @@ export interface RegionsSelect<T extends boolean = true> {
  * via the `definition` "events_select".
  */
 export interface EventsSelect<T extends boolean = true> {
-  qualityReport?: T;
-  qualityOpenCount?: T;
-  qualityCheckVersion?: T;
   title?: T;
   languages?: T;
   contactPhone?: T;
@@ -4611,6 +4608,9 @@ export interface EventsSelect<T extends boolean = true> {
   webPath?: T;
   webUrl?: T;
   appUrl?: T;
+  qualityReport?: T;
+  qualityOpenCount?: T;
+  qualityCheckVersion?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;

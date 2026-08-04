@@ -25,8 +25,13 @@ export const DESCRIPTION_MIN_LENGTH = 60
 /**
  * Bumped whenever a check's definition changes in a way that makes a stored
  * `qualityOpenCount` incomparable with a freshly computed one — a check added
- * or removed from the document scope, or an `evaluate` whose verdict moves. The
- * backfill script uses it to find rows written by an older definition.
+ * or removed from the document scope, or an `evaluate` whose verdict moves.
+ *
+ * Stamped on every write, so it records which definition produced the count
+ * sitting in the row. Nothing re-stamps rows in bulk: every event reaches the
+ * database through a write that runs `stampEventQuality` (the Atlas import
+ * included), so a stale row can only exist if it hasn't been saved since the
+ * bump — and the next save fixes it.
  */
 export const QUALITY_CHECK_VERSION = 1
 

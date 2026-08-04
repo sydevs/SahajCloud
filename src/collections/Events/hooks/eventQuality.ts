@@ -116,13 +116,19 @@ function rememberPendingLocales(req: PayloadRequest, id: unknown, locales: Local
 /**
  * `afterRead` for the virtual `qualityReport` field.
  *
- * Skipped entirely on a list read (`findMany`): the report needs two extra
- * queries, and paying them 25 times to render a list nobody reads the report in
- * would be the one thing that makes this feature expensive. The list view sorts
- * on the stored `qualityOpenCount` instead.
+ * The report costs two extra queries, and exactly one consumer wants it: the
+ * admin edit view. So it is skipped for the two read shapes that would pay that
+ * cost by the hundred and never look at the result:
+ *
+ * - **list reads** (`findMany`) — 25 rows would mean 50 extra queries to render
+ *   a list that shows the stored `qualityOpenCount` instead;
+ * - **system writes** (`req.context.skipVerifyHook`) — the marker the Atlas
+ *   importer and the ExpireEvents job already set on their own writes. Payload
+ *   runs `afterRead` on the document an `update` returns, so a 500-event import
+ *   would otherwise pay two queries per event for a report nothing reads.
  */
 export const computeEventQualityReport: FieldHook = async ({ data, req, findMany }) => {
-  if (findMany) return null
+  if (findMany || req.context?.skipVerifyHook) return null
   const event = (data ?? {}) as EventQualityInput & { id?: number | string }
   const id = event.id
   if (id == null) return null

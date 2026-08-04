@@ -334,6 +334,21 @@ The four auto-title templates live in the `sy-atlas-translations` global under
 source copy in `EVENT_TITLE_DEFAULTS`
 ([`compose.ts`](../../src/lib/eventTitle/compose.ts)).
 
+### Listing-quality stamps (#609)
+
+Events carry two derived columns — `qualityOpenCount` and `qualityCheckVersion`
+— written by the Events `stampEventQuality` beforeChange hook. The import gets
+them for free: every event goes through `upsert`, which goes through the Local
+API, so the hook runs.
+
+**That is why there is no backfill script.** Production is seeded from here, so
+there are no pre-existing rows to repair; a row can only lack a stamp if it has
+never been saved since the columns shipped. The batch that finishes the events
+collection calls `verifyEventQualityStamps()` and warns if any remain — scoped
+past the excluded duplicates and trashed rows, which this import refuses to
+touch by design and so can never stamp.
+
+
 - Each slot is a **complete sentence** with a `%{place}` placeholder, not a
   shared prefix plus a separate time-of-day word. A locale that puts the time of
   day after the place, or inflects it with the preposition, cannot be served by
