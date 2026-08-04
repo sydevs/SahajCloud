@@ -34,7 +34,7 @@ import * as migration_20260730_170909_schedule_last_date from './20260730_170909
 import * as migration_20260730_171520_add_event_venue_name from './20260730_171520_add_event_venue_name';
 import * as migration_20260730_172342_rename_region_level_center_to_venue from './20260730_172342_rename_region_level_center_to_venue';
 import * as migration_20260803_221051_registrations_full_flag from './20260803_221051_registrations_full_flag';
-import * as migration_20260804_003956_add_event_quality_columns from './20260804_003956_add_event_quality_columns';
+import * as migration_20260804_012138_add_event_quality_columns from './20260804_012138_add_event_quality_columns';
 
 export const migrations = [
   {
@@ -218,8 +218,8 @@ export const migrations = [
     name: '20260803_221051_registrations_full_flag',
   },
   {
-    up: migration_20260804_003956_add_event_quality_columns.up,
-    down: migration_20260804_003956_add_event_quality_columns.down,
-    name: '20260804_003956_add_event_quality_columns'
+    up: migration_20260804_012138_add_event_quality_columns.up,
+    down: migration_20260804_012138_add_event_quality_columns.down,
+    name: '20260804_012138_add_event_quality_columns'
   },
 ];
