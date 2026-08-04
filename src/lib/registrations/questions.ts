@@ -10,7 +10,7 @@
  * `.claude/rules/project-structure.md`).
  */
 
-import type { JSONSchema4 } from 'json-schema'
+import type { JSONField } from 'payload'
 
 /**
  * Optional questions an event can ask registrants. Rendered as a group of
@@ -32,27 +32,33 @@ export interface RegistrationAnswer {
   value: string
 }
 
+const QUESTIONS_SCHEMA_URI = 'https://sahajcloud.dev/schemas/registration-questions.json'
+
 /**
- * JSON Schema for the stored `questions` answers: an object keyed by the
+ * `jsonSchema` for the stored `questions` answers: an object keyed by the
  * configured question names, each answer a string, no other keys allowed.
  * Derived from `EVENT_REGISTRATION_QUESTIONS` so it can't drift.
  *
- * Wired onto `Registrations.questions` via the field's `jsonSchema`, which
- * Payload uses to BOTH validate on write (an unknown key or non-string answer
- * throws a `ValidationError` → the register endpoint returns 400) AND generate
- * the field's TypeScript type in `payload-types.ts`. (This compiles an Ajv
- * `new Function()` validator — fine on Railway/Node; the old comments warning it
- * breaks under Cloudflare Workers predate the migration off Workers.)
+ * Wired onto `Registrations.questions`, which Payload uses to BOTH validate on
+ * write (an unknown key or non-string answer throws a `ValidationError` → the
+ * register endpoint returns 400) AND generate the field's TypeScript type in
+ * `payload-types.ts`. (This compiles an Ajv `new Function()` validator — fine on
+ * Railway/Node; the old comments warning it breaks under Cloudflare Workers
+ * predate the migration off Workers.)
  */
-export const registrationQuestionsJsonSchema: JSONSchema4 = {
-  type: 'object',
-  additionalProperties: false,
-  properties: Object.fromEntries(
-    EVENT_REGISTRATION_QUESTIONS.map((question) => [
-      question.name,
-      { type: 'string', description: question.label },
-    ]),
-  ),
+export const registrationQuestionsJsonSchema: NonNullable<JSONField['jsonSchema']> = {
+  uri: QUESTIONS_SCHEMA_URI,
+  fileMatch: [QUESTIONS_SCHEMA_URI],
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: Object.fromEntries(
+      EVENT_REGISTRATION_QUESTIONS.map((question) => [
+        question.name,
+        { type: 'string', description: question.label },
+      ]),
+    ),
+  },
 }
 
 const CONFIGURED_QUESTION_NAMES = new Set<string>(
