@@ -24,7 +24,7 @@ import type { ProjectSlug } from '@/payload-types'
 import { isValidProject } from '@/plugins/access'
 import { checkBasicAuth } from '@/plugins/openapi/basicAuth'
 import { CUSTOM_ENDPOINT_PATHS, CUSTOM_ENDPOINT_SCHEMAS } from '@/plugins/openapi/customEndpoints'
-import { filterSpec, type OpenAPISpec } from '@/plugins/openapi/specFilter'
+import { filterSpec, rootEndpointPathsFrom, type OpenAPISpec } from '@/plugins/openapi/specFilter'
 
 import config from '@payload-config'
 
@@ -96,8 +96,13 @@ export async function GET(request: NextRequest) {
       ...CUSTOM_ENDPOINT_SCHEMAS,
     }
 
-    // Filter spec using project-based filtering
-    const filteredSpec = filterSpec(rawSpec, { project })
+    // Filter spec using project-based filtering. Root endpoints
+    // (`config.endpoints`) belong to no collection, so their paths are derived
+    // from the live config and exempted — see `rootEndpointPathsFrom`.
+    const filteredSpec = filterSpec(rawSpec, {
+      project,
+      rootEndpointPaths: rootEndpointPathsFrom(payload.config.endpoints),
+    })
 
     // Create response with cache headers
     const response = NextResponse.json(filteredSpec, {

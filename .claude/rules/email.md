@@ -87,6 +87,7 @@ package (v6 unified them — the older `@react-email/components` and
 | `RegistrationConfirmationEmail.tsx` | Registrant confirmation for an event registration — client-branded, localized, ICS attached. Also exports `registrationConfirmationText` (the plain-text alternative). |
 | `SessionReminderEmail.tsx` | Registrant reminder ~24h before a session (#589) — client-branded, localized sibling of the confirmation sharing `StackedDetailRow`; states the single next occurrence, **no** ICS, footer unsubscribe link. Also exports `sessionReminderText`. Sent by the `SendSessionReminders` job. |
 | `EventRegistrationEmail.tsx` | Manager-facing notice that a seeker registered — Sahaj Atlas project brand; event/registrant/start-date `DetailRow`s, the registrant's forwarded question answers (resolved via `buildRegistrationAnswers`), and a `BrandButtonRow` of Reply (a `mailto:` pre-filled with a quoted recap) + View event. Also exports `buildReplyBody`. Informational (no alert callout). |
+| `ContactAdminEmail.tsx` | Admin-facing message sent on a viewer's behalf via `POST /api/contact-admin` (#602) — the informational shape (no callout, no CTA: replying *is* the action, and `Reply-To` is already the sender). Deliberately caller-agnostic: the message, then a `DetailRow` block built by the exported `buildContactDetails` from whatever context the caller sent, each row omitted when its value is absent. |
 | `RegistrationDigestEmail.tsx` | Manager-facing digest (#589) — Sahaj Atlas project brand; new registrations grouped by event, one email per recipient per period. Each registration is a card: an inline identity line (name · email · "Attending" session) plus the registrant's question answers; a compact `formatShortDate` is used for the session. Also exports `registrationDigestText`. Sent by the `SendRegistrationDigests` job. |
 
 ### Manager mail vs registrant mail
@@ -126,9 +127,17 @@ in `src/emails/`.
 
 - **Branding is per-project**: `getEmailBrand(project)` composes
   `{ productName, colors, iconUrl }` from the existing `getProjectLabel` /
-  `getBrandColors` / `getProjectIcon` helpers. Defaults to `wemeditate-web`;
-  pass a `project` prop to a template to brand a send for another project
-  (`wemeditate-app`, `sahaj-atlas`). Templates never hardcode a color or name.
+  `getBrandColors` / `getProjectIcon` helpers. Defaults to `wemeditate-web`.
+  Templates never hardcode a color or name — they take branding as a prop, in one
+  of two shapes:
+
+  - **`project?: ProjectSlug`**, resolved inside the template
+    (`EventRegistrationEmail`). Fine when the template is the only consumer of
+    the brand.
+  - **`brand: EmailBrand`**, resolved once by the send helper and passed down
+    (`SessionReminderEmail`, `RegistrationDigestEmail`, `ContactAdminEmail`).
+    Prefer this when the **sender** also needs the brand — e.g. for the `From`
+    display name — so the header and the body can't resolve to different brands.
 
 - **Registrant mail is branded per client service**, not per project:
   `getClientEmailBrand(client)` returns the same `EmailBrand` shape from a
