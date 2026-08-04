@@ -3,7 +3,7 @@
 import type { ChecksMetadata, PanelItem } from './model'
 import type { JSONFieldClientComponent } from 'payload'
 
-import { Collapsible, Pill, useField } from '@payloadcms/ui'
+import { Collapsible, useField } from '@payloadcms/ui'
 import React from 'react'
 
 import { StatusIcon } from '@/components/admin/ReadinessField/StatusIcon'
@@ -32,59 +32,69 @@ const PendingIcon: React.FC = () => (
   />
 )
 
-const localeLabel = (locale: string): string => {
-  try {
-    return new Intl.DisplayNames(['en'], { type: 'language' }).of(locale) ?? locale
-  } catch {
-    return locale
-  }
+/**
+ * Render a label, bolding the language where `%{language}` marks it — so the
+ * language reads as part of the sentence ("Add a **German** title") instead of
+ * as a chip beside it, which said nothing about what it qualified.
+ */
+const LabelText: React.FC<{ label: string; language?: string }> = ({ label, language }) => {
+  if (!language || !label.includes('%{language}')) return <>{label}</>
+  const [before, after = ''] = label.split('%{language}')
+  return (
+    <>
+      {before}
+      <strong style={{ fontWeight: 600 }}>{language}</strong>
+      {after}
+    </>
+  )
 }
 
 /**
- * One finding, on one line.
- *
- * The explanation rides in `title` rather than rendering inline: the sidebar is
- * ~275px wide, and a paragraph under every item pushed the whole panel past a
- * screen height. Payload's `Tooltip` isn't used because it's `display: none`
- * below 1024px — exactly the widths where the sidebar collapses under the form
- * and this needs to keep working.
+ * One row: the recommendation, and — when it's open — the one sentence saying
+ * why it's being made. A manager shouldn't have to hover to find that out, so
+ * the reason renders inline rather than in a `title`; the passing rows, which
+ * are collapsed by default, stay to a single line each.
  */
-const CheckRow: React.FC<{ item: PanelItem }> = ({ item }) => (
-  <li
-    title={item.description}
-    style={{
-      display: 'flex',
-      alignItems: 'baseline',
-      gap: 'calc(var(--base) * 0.3)',
-      padding: 'calc(var(--base) * 0.12) 0',
-      lineHeight: 1.35,
-      fontSize: 'calc(var(--base-body-size) * 0.92px)',
-      opacity: item.status === 'passed' ? 0.6 : 1,
-    }}
-  >
-    <span style={{ flexShrink: 0, position: 'relative', top: '2px' }}>
-      {item.status === 'pending' ? (
-        <PendingIcon />
-      ) : (
-        <StatusIcon passed={item.status === 'passed'} />
-      )}
-    </span>
-    <span style={{ minWidth: 0 }}>
-      {item.label}
-      {item.locale ? (
-        <>
-          {' '}
-          <Pill size="small">{localeLabel(item.locale)}</Pill>
-        </>
-      ) : null}
-    </span>
-  </li>
-)
+const CheckRow: React.FC<{ item: PanelItem }> = ({ item }) => {
+  const passed = item.status === 'passed'
+  return (
+    <li
+      style={{
+        display: 'flex',
+        gap: 'calc(var(--base) * 0.3)',
+        padding: passed ? 'calc(var(--base) * 0.12) 0' : 'calc(var(--base) * 0.25) 0',
+        lineHeight: 1.35,
+        fontSize: 'calc(var(--base-body-size) * 0.92px)',
+        opacity: passed ? 0.6 : 1,
+      }}
+    >
+      <span style={{ flexShrink: 0, position: 'relative', top: '3px' }}>
+        {item.status === 'pending' ? <PendingIcon /> : <StatusIcon passed={passed} />}
+      </span>
+      <span style={{ minWidth: 0 }}>
+        <LabelText label={item.label} language={item.language} />
+        {passed ? null : (
+          <span
+            style={{
+              display: 'block',
+              marginTop: '1px',
+              color: 'var(--theme-elevation-500)',
+              fontSize: 'calc(var(--base-body-size) * 0.85px)',
+              lineHeight: 1.3,
+            }}
+          >
+            {item.description}
+          </span>
+        )}
+      </span>
+    </li>
+  )
+}
 
 const itemList = (items: PanelItem[]) => (
   <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
     {items.map((item) => (
-      <CheckRow key={`${item.key}:${item.locale ?? 'doc'}`} item={item} />
+      <CheckRow key={`${item.key}:${item.language ?? 'doc'}`} item={item} />
     ))}
   </ul>
 )
@@ -97,11 +107,12 @@ const itemList = (items: PanelItem[]) => (
  * blocks anything — it tells a volunteer manager what would make their listing
  * better, in their terms rather than as check keys.
  *
- * Laid out for a ~275px column: one line per finding, tier headings as small
- * caps, explanations on hover, and everything already passing folded away. There
- * is deliberately no refresh control — the report is computed on read, so
- * opening the event is already fresh, and a button that re-saved the document to
- * recompute would write on read.
+ * Laid out for a ~275px column: tier headings as small caps, each open
+ * recommendation followed by the one sentence explaining it, and everything
+ * already passing folded away behind a count. There is deliberately no refresh
+ * control — the report is computed on read, so opening the event is already
+ * fresh, and a button that re-saved the document to recompute would write on
+ * read.
  */
 const EventQualityPanel: JSONFieldClientComponent = ({ field }) => {
   const { value } = useField<EventQualityReport>()
@@ -174,7 +185,7 @@ const EventQualityPanel: JSONFieldClientComponent = ({ field }) => {
             whiteSpace: 'nowrap',
           }}
         >
-          {model.resolved}/{model.total}
+          {model.total === 0 ? '—' : `${Math.round((model.resolved / model.total) * 100)}%`}
         </span>
       </div>
 

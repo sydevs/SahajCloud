@@ -127,7 +127,32 @@ export type QualityCheck = {
   key: string
   tier: QualityTier
   scope: CheckScope
+  /**
+   * The recommendation, in the imperative — shown when the check **fails**.
+   * "Take the address out of the description", not "The description repeats the
+   * address": a finding is a thing to do, and the panel puts a cross beside it.
+   */
   label: string
+  /**
+   * The same item worded as a state already reached, for when the check
+   * **passes**. Reusing `label` there put a tick beside an instruction, which
+   * read as "yes, do repeat the address" — the opposite of the point.
+   */
+  passedLabel: string
+  /**
+   * `label` / `passedLabel` for a named language, with a `%{language}`
+   * placeholder the panel renders in bold ("Add a **German** title"). Required
+   * on `perLocale` checks and unused elsewhere; only shown when the event is
+   * judged in more than one language, since one language is the common case and
+   * naming it there is noise.
+   */
+  localeLabel?: string
+  localePassedLabel?: string
+  /**
+   * One short sentence: why this is worth doing, and what to write. Shown under
+   * an open recommendation — a manager shouldn't have to hover to learn why
+   * they're being asked for something.
+   */
   description: string
   /**
    * Skip this check for a locale whose title is the auto-fill (or absent).

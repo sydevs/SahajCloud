@@ -9,17 +9,30 @@ import { QUALITY_TIERS } from '@/lib/eventQuality/types'
 /** Metadata threaded through `admin.custom` from the check registry. */
 export type ChecksMetadata = Record<
   string,
-  { label: string; description: string; tier: QualityTier }
+  {
+    label: string
+    passedLabel: string
+    localeLabel?: string
+    localePassedLabel?: string
+    description: string
+    tier: QualityTier
+  }
 >
 
 export type PanelItem = {
   key: string
+  /** Already resolved for status and language — what the panel prints. */
   label: string
+  /** One short sentence; the panel shows it only under an open recommendation. */
   description: string
   tier: QualityTier
   status: CheckStatus
-  /** Set for per-locale checks — which language the finding is about. */
-  locale?: string
+  /**
+   * The language to bold inside `label`, set only when naming it earns its
+   * place — i.e. the event is judged in more than one. `label` then contains a
+   * `%{language}` placeholder marking where it goes.
+   */
+  language?: string
 }
 
 export type PanelGroup = {
@@ -39,6 +52,15 @@ export type PanelModel =
       openCount: number
       pendingCount: number
     }
+
+/** "de" → "German". Falls back to the raw code where Intl has no name. */
+function languageName(locale: string): string {
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'language' }).of(locale) ?? locale
+  } catch {
+    return locale
+  }
+}
 
 const TIER_LABELS: Record<QualityTier, string> = {
   completeness: 'Completeness',
@@ -67,15 +89,38 @@ export function buildPanelModel(
   if (!report) return null
   if (report.skipped) return { skipped: true, reason: report.reason }
 
+  // One language is the overwhelmingly common case, and naming it on every row
+  // ("Add a title in English" on an English-only event) is noise. Only when an
+  // event is genuinely multilingual does the language carry information.
+  const namesLanguages = report.locales.length > 1
+
   const items: PanelItem[] = []
   for (const result of report.document) {
     const meta = checksMetadata[result.key]
-    if (meta) items.push({ key: result.key, ...meta, status: result.status })
+    if (!meta) continue
+    items.push({
+      key: result.key,
+      tier: meta.tier,
+      status: result.status,
+      label: result.status === 'passed' ? meta.passedLabel : meta.label,
+      description: meta.description,
+    })
   }
   for (const locale of report.locales) {
     for (const result of report.perLocale[locale] ?? []) {
       const meta = checksMetadata[result.key]
-      if (meta) items.push({ key: result.key, ...meta, status: result.status, locale })
+      if (!meta) continue
+      const passed = result.status === 'passed'
+      const plain = passed ? meta.passedLabel : meta.label
+      const named = passed ? meta.localePassedLabel : meta.localeLabel
+      items.push({
+        key: result.key,
+        tier: meta.tier,
+        status: result.status,
+        label: namesLanguages && named ? named : plain,
+        description: meta.description,
+        ...(namesLanguages && named ? { language: languageName(locale) } : {}),
+      })
     }
   }
 

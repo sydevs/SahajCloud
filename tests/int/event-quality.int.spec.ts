@@ -239,8 +239,9 @@ describe('Event listing quality', () => {
   describe('the stored columns', () => {
     it('stamps the count and the check version on create', async () => {
       const event = await createPublished({ title: 'Counted Sitting' })
-      // No description, images or website on the fixture → three open items.
-      expect(event.qualityOpenCount).toBe(3)
+      // No description and no images on the fixture → two open items. A missing
+      // website isn't one: it's optional by design.
+      expect(event.qualityOpenCount).toBe(2)
       expect(event.qualityCheckVersion).toBe(QUALITY_CHECK_VERSION)
     })
 
@@ -267,9 +268,40 @@ describe('Event listing quality', () => {
       const improved = await payload.update({
         collection: 'events',
         id: event.id,
-        data: { website: 'https://example.org/improving' },
+        data: { images: [] as never, description: null } as never,
       })
-      expect(improved.qualityOpenCount).toBe(before - 1)
+      expect(improved.qualityOpenCount).toBe(before)
+
+      // Attaching nothing changes nothing; writing a real description does.
+      const described = await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: {
+          description: {
+            root: {
+              type: 'root',
+              children: [
+                {
+                  type: 'paragraph',
+                  children: [
+                    {
+                      type: 'text',
+                      text: 'A quiet hour for anyone who works nights. No experience needed, and nothing to bring.',
+                      version: 1,
+                    },
+                  ],
+                  version: 1,
+                },
+              ],
+              direction: null,
+              format: '',
+              indent: 0,
+              version: 1,
+            },
+          },
+        } as never,
+      })
+      expect(described.qualityOpenCount).toBe(before - 1)
     })
 
     it('counts document-scope items only, so it stays correct across locales', async () => {
