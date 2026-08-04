@@ -10,6 +10,8 @@
  * many flat localized columns. wm-app-translations has ~478 leaf keys, which
  * a column-per-key design blows past.
  */
+import type { GroupField, JSONField, TabsField } from 'payload'
+
 import { describe, expect, it } from 'vitest'
 
 import { buildTranslationTabs, type SchemaEntry, type TranslationsSchema } from '@/fields'
@@ -159,7 +161,7 @@ describe('buildTranslationTabs', () => {
       expect(entries.find((e) => e.key === 'footer_reason')?.maxLength).toBeUndefined()
     })
 
-    it('expands a plural key into its CLDR family for storage + validation', () => {
+    it('passes a plural key to the admin as one grouped entry', () => {
       const schema: TranslationsSchema = {
         type: 'object',
         properties: {
@@ -180,20 +182,13 @@ describe('buildTranslationTabs', () => {
       const tabs = buildTranslationTabs(schema, 'sy-atlas-translations')
       const field = tabs[0].fields[0] as {
         admin?: { custom?: { schemaEntries?: SchemaEntry[] } }
-        validate?: (value: unknown) => true | string
       }
 
       // One grouped entry, flagged plural — the admin expands it per locale.
+      // (The *stored* keys are the expanded family; see the jsonSchema cases.)
       expect(field.admin?.custom?.schemaEntries).toEqual([
         { key: 'sessions_count', description: 'Session count', maxLength: 18, plural: true },
       ])
-
-      // Validation accepts the expanded category keys and rejects the bare base.
-      const validate = field.validate!
-      expect(validate({ sessions_count_one: '1 session', sessions_count_other: '%{count}' })).toBe(
-        true,
-      )
-      expect(validate({ sessions_count: 'nope' })).toContain('Unknown key')
     })
 
     it('EMAIL_STRING_DEFAULTS covers every plural form the field builder can store', () => {
@@ -209,7 +204,7 @@ describe('buildTranslationTabs', () => {
       }
     })
 
-    it('sets localized: true and no jsonSchema (Ajv breaks on Cloudflare Workers)', () => {
+    it('sets localized: true and leaves validation to the jsonSchema', () => {
       const schema: TranslationsSchema = {
         type: 'object',
         properties: {
@@ -221,14 +216,13 @@ describe('buildTranslationTabs', () => {
       }
 
       const tabs = buildTranslationTabs(schema, 'test')
-      const field = tabs[0].fields[0] as {
-        localized?: boolean
-        jsonSchema?: unknown
-        validate?: unknown
-      }
+      const field = tabs[0].fields[0] as JSONField
+
       expect(field.localized).toBe(true)
-      expect(field.jsonSchema).toBeUndefined()
-      expect(typeof field.validate).toBe('function')
+      expect(field.jsonSchema).toBeDefined()
+      // A custom `validate` would *replace* Payload's built-in json validation,
+      // silently disabling the schema — so the field must not declare one.
+      expect(field.validate).toBeUndefined()
     })
 
     it('omits the JSON field when a leaf contains only richText keys', () => {
@@ -327,14 +321,18 @@ describe('buildTranslationTabs', () => {
     })
   })
 
-  describe('validate function on the JSON field', () => {
-    function getValidate(schema: TranslationsSchema, fieldName: string) {
+  // The group schema is projected onto the field as a `jsonSchema` (#597), which
+  // Payload feeds to Ajv on write and to the TypeScript generator. These cases
+  // pin the projection; `translations-globals.int.spec.ts` proves the write
+  // rejection end-to-end against a real global.
+  describe('jsonSchema on the JSON field', () => {
+    function getJsonSchema(schema: TranslationsSchema, fieldName: string) {
       const tabs = buildTranslationTabs(schema, 'test')
       const field = tabs[0].fields.find(
         (f) => 'name' in f && (f as { name?: string }).name === fieldName,
-      ) as { validate?: (v: unknown) => true | string } | undefined
-      if (!field?.validate) throw new Error(`No validate function on field "${fieldName}"`)
-      return field.validate
+      ) as JSONField | undefined
+      if (!field?.jsonSchema) throw new Error(`No jsonSchema on field "${fieldName}"`)
+      return field.jsonSchema
     }
 
     const baseSchema: TranslationsSchema = {
@@ -351,24 +349,23 @@ describe('buildTranslationTabs', () => {
       },
     }
 
-    it('accepts undefined / null', () => {
-      const validate = getValidate(baseSchema, 'common')
-      expect(validate(undefined)).toBe(true)
-      expect(validate(null)).toBe(true)
+    it('declares each string key as an optional string, carrying its description', () => {
+      const { schema } = getJsonSchema(baseSchema, 'common')
+
+      expect(schema).toMatchObject({
+        type: 'object',
+        properties: {
+          loading: { type: 'string', description: 'L' },
+          error: { type: 'string', description: 'E' },
+        },
+      })
+      // No `required` — a locale may translate any subset of its group.
+      expect(schema.required).toBeUndefined()
     })
 
-    it('rejects non-object values', () => {
-      const validate = getValidate(baseSchema, 'common')
-      expect(validate('x')).toMatch(/must be a JSON object/)
-      expect(validate([])).toMatch(/must be a JSON object/)
-    })
+    it('forbids unknown keys unless the group opts into additionalProperties', () => {
+      expect(getJsonSchema(baseSchema, 'common').schema.additionalProperties).toBe(false)
 
-    it('rejects unknown keys when additionalProperties is false', () => {
-      const validate = getValidate(baseSchema, 'common')
-      expect(validate({ loading: 'a', mystery: 'b' })).toMatch(/Unknown key "mystery"/)
-    })
-
-    it('accepts unknown keys when additionalProperties is true', () => {
       const flexible: TranslationsSchema = {
         type: 'object',
         properties: {
@@ -379,23 +376,53 @@ describe('buildTranslationTabs', () => {
           },
         },
       }
-      const validate = getValidate(flexible, 'flexible')
-      expect(validate({ known: 'x', extra: 'y' })).toBe(true)
+      expect(getJsonSchema(flexible, 'flexible').schema.additionalProperties).toBe(true)
     })
 
-    it('rejects non-string values for declared keys', () => {
-      const validate = getValidate(baseSchema, 'common')
-      expect(validate({ loading: 42 })).toMatch(/must be a string/)
+    it('declares the expanded CLDR family for a plural key, not the bare key', () => {
+      const plural: TranslationsSchema = {
+        type: 'object',
+        properties: {
+          notices: {
+            type: 'object',
+            properties: { day_count: { type: 'string', description: 'D', plural: true } },
+          },
+        },
+      }
+      const { schema } = getJsonSchema(plural, 'notices')
+
+      expect(Object.keys(schema.properties ?? {})).toEqual(
+        PLURAL_CATEGORIES.map((cat) => `day_count_${cat}`),
+      )
+      expect(schema.properties?.day_count).toBeUndefined()
     })
 
-    it('accepts a well-formed object', () => {
-      const validate = getValidate(baseSchema, 'common')
-      expect(validate({ loading: 'Loading', error: 'Oops' })).toBe(true)
-    })
+    it('gives every field its own schema URI, namespaced by global and group', () => {
+      const nested: TranslationsSchema = {
+        type: 'object',
+        properties: {
+          onboarding: {
+            type: 'object',
+            properties: {
+              welcome: {
+                type: 'object',
+                properties: { title: { type: 'string', description: 'T' } },
+              },
+            },
+          },
+        },
+      }
+      const groupField = buildTranslationTabs(nested, 'wm-app-translations')[0]
+        .fields[0] as GroupField
+      const inner = (groupField.fields[0] as TabsField).tabs[0].fields[0] as JSONField
 
-    it('accepts an object that omits some optional keys', () => {
-      const validate = getValidate(baseSchema, 'common')
-      expect(validate({ loading: 'Loading' })).toBe(true)
+      expect(inner.jsonSchema?.uri).toBe(
+        'https://sahajcloud.dev/schemas/translations/wm-app-translations/onboarding/welcome.json',
+      )
+      expect(inner.jsonSchema?.fileMatch).toEqual([inner.jsonSchema?.uri])
+      expect(getJsonSchema(baseSchema, 'common').uri).toBe(
+        'https://sahajcloud.dev/schemas/translations/test/common.json',
+      )
     })
   })
 })
