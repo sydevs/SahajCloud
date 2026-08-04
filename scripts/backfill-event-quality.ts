@@ -41,8 +41,7 @@ function parseArgs(argv: string[]): { force: boolean } {
  * and the config has to be pulled in dynamically.
  */
 async function loadPayload(): Promise<Payload> {
-  dotenv.config({ path: '.env' })
-  dotenv.config({ path: '.env.local', override: true })
+  dotenv.config({ path: ['.env.local', '.env'] })
   const { default: configPromise } = await import('../src/payload.config')
   return getPayload({ config: await configPromise })
 }
