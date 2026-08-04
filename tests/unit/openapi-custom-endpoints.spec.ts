@@ -40,14 +40,24 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
     expect(description).toContain('GET /api/events/{id}')
   })
 
-  it('documents the 409 refusal for registering on an event that has ended', () => {
+  it('documents the 409 state-based registration rejection codes', () => {
     const post = (
       CUSTOM_ENDPOINT_PATHS['/api/events/{id}/register'] as {
         post?: { responses?: Record<string, { description?: string }> }
       }
     ).post
-    expect(post?.responses?.['409']).toBeDefined()
-    expect(post?.responses?.['409']?.description).toContain('run out')
+    const conflict = post?.responses?.['409']
+    expect(conflict).toBeDefined()
+    // The widget maps each code to its registration-state UI, so the contract
+    // must name every one it can send.
+    for (const code of [
+      'external_registration',
+      'event_ended',
+      'registration_closed',
+      'event_full',
+    ]) {
+      expect(conflict?.description).toContain(code)
+    }
   })
 
   it('documents the optional subscribe consent flag on the register request body', () => {
