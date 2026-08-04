@@ -102,6 +102,74 @@ Returning `true` for null in your custom validator silently overrides
 When `admin.condition` is false, PayloadCMS skips both `required` and
 your custom `validate` entirely. When it's true, it runs both normally.
 
+## `type: 'json'` fields — reach for `jsonSchema`
+
+A `json` field with no `jsonSchema` is typed `unknown` in `payload-types.ts`
+and validated by nothing. Setting one buys **both** at once: Payload feeds
+`jsonSchema.schema` to Ajv on write (a `ValidationError` → 400) *and* to the
+TypeScript generator. So the default for any json field with a known structure
+is a `jsonSchema` **derived from that structure's source of truth** — never
+hand-copied, or it drifts.
+
+```typescript
+{
+  name: 'questions',
+  type: 'json',
+  jsonSchema: {
+    uri: SCHEMA_URI,          // must be unique per schema; also identifies it
+    fileMatch: [SCHEMA_URI],  // to the admin's JSON editor
+    schema: derivedFromTheSourceOfTruth,
+  },
+}
+```
+
+Four things that bite:
+
+- **A custom `validate` replaces the built-in json validation**, so it silently
+  disables `jsonSchema` (`payload/dist/fields/config/sanitize.js` only installs
+  the default when `validate` is `undefined`). To keep a rule JSON Schema can't
+  express, delegate first — the field is spread into the validate options, so
+  `jsonSchema` arrives for free:
+  ```typescript
+  validate: (value, options) => {
+    const schemaResult = validations.json(value, options)   // from 'payload'
+    if (schemaResult !== true) return schemaResult
+    return myCrossFieldRule(value)
+  }
+  ```
+- **Empty values skip validation entirely** — `undefined`, `null`, `[]`, and
+  `{}` are all "no value" to Payload's json validator, so an optional field
+  needs no special-casing (and a bare `[]` slips past an `type: 'object'` schema).
+- **Target draft-07.** Ajv's default export is a draft-07 instance. Deriving
+  from Zod: `z.toJSONSchema(schema, { target: 'draft-7' })` (Zod 4, built in —
+  no `zod-to-json-schema` needed).
+- **`typescriptSchema` is redundant** once `jsonSchema` is set, and wins over it
+  for type generation. Use one or the other, not both.
+
+### Audit (#597)
+
+Every `type: 'json'` field, and why it does or doesn't carry a schema:
+
+| Field(s) | Schema derived from |
+|---|---|
+| translations leaf groups (`translationsField.ts`, all 3 globals) | the group's own `properties` |
+| `Registrations.questions` | `EVENT_REGISTRATION_QUESTIONS` (#595) |
+| `Registrations.reminderLog` | `ReminderLogEntry` (`lib/registrations/reminderLog.ts`) |
+| `Managers.notificationPreferences` | `NOTIFICATION_TYPES` |
+| `Videos.subtitles`, `Lessons.introSubtitles`, `Lessons.panels.*.subtitles` | `subtitlesZodSchema` via `z.toJSONSchema` |
+| `Events.notificationLog` | the entry builders + `VERIFICATION_STAGES` |
+| `Meditations.subtleSystemNodeWeights` | `Record<slug, seconds>` |
+
+| Field(s) | Deliberately no schema |
+|---|---|
+| `legacyFields.legacyData`, `Clients.legacyConfig`, `TextBoxBlock.importData` | verbatim legacy import blobs — no structure to pin |
+| `SyncLectureMetadata` / `CleanupOrphanedMedia` task fields | internal job state, never read as a typed API surface |
+| `Images/Songs/Videos/Frames.fileMetadata` | probe output; keys vary by source format and adapter |
+| `Lectures.metadata` | third-party Nirmala Vidya payload — not ours to pin |
+| `Meditations.frames` | a `beforeChange` hook normalises and repairs input; a strict schema would 400 what it's designed to fix |
+| `TableOfContentsBlock.headings` | written only by its own admin component from Lexical editor state, and richText block fields don't surface in `payload-types.ts` |
+| virtual/computed reads — `Events.qualityReport`, `Clients.usage.abuseScore`, `AppCards.viewSchedule`, `scheduleFields.upcomingDates`, `virtualReadinessField`, the Meditations virtual joins | computed in `afterRead`, so a schema buys nothing on write but would still validate one if a client sent the field |
+
 ## `defaultPopulate`
 
 `defaultPopulate` controls what's included **only when a doc is loaded

@@ -20,6 +20,9 @@ import { filterMeditationsByLocale } from './hooks/filterMeditationsByLocale'
 import { invalidateMeditationNodeWeights } from './hooks/invalidateMeditationNodeWeights'
 import { recomputeMeditationNodeWeights } from './hooks/recomputeMeditationNodeWeights'
 
+const SUBTLE_SYSTEM_NODE_WEIGHTS_SCHEMA_URI =
+  'https://sahajcloud.dev/schemas/subtle-system-node-weights.json'
+
 /**
  * Factory for afterRead hooks that find UserChoices referencing this meditation
  * for a specific timing field. Returns an array of { id, title } objects.
@@ -230,6 +233,28 @@ export const Meditations: CollectionConfig = {
               // and cascaded from Frames via `cascadeFrameNodeChange`.
               name: 'subtleSystemNodeWeights',
               type: 'json',
+              // Types the cache as `{ [slug]: seconds } | null` for the two
+              // ranking endpoints that read it. Type-only in practice: the sole
+              // writer goes through `payload.db.updateOne`, which skips
+              // validation. `null` is spelled out because clearing the cache is
+              // a real operation (persistMeditationNodeWeightsCache) — Payload
+              // doesn't add `| null` to a jsonSchema-typed field on its own.
+              jsonSchema: {
+                uri: SUBTLE_SYSTEM_NODE_WEIGHTS_SCHEMA_URI,
+                fileMatch: [SUBTLE_SYSTEM_NODE_WEIGHTS_SCHEMA_URI],
+                schema: {
+                  anyOf: [
+                    {
+                      type: 'object',
+                      additionalProperties: {
+                        type: 'number',
+                        description: 'On-screen seconds for the node slug.',
+                      },
+                    },
+                    { type: 'null' },
+                  ],
+                },
+              },
               admin: {
                 readOnly: true,
                 hidden: true,
