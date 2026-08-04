@@ -7,6 +7,7 @@ import {
   EVENT_TITLE_DEFAULTS,
   titleSlotForSchedule,
 } from '@/lib/eventTitle/compose'
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
 /** Where the in-flight `sy-atlas-translations` load is stashed on `req.context`. */
 const CACHE_KEY = 'eventTitleTemplates'
@@ -18,52 +19,34 @@ const CACHE_KEY = 'eventTitleTemplates'
  * English default independently, so a partially translated locale still yields
  * a complete set.
  *
- * Why memoize the in-flight *promise* rather than the resolved value: bulk
- * operations can issue many `beforeChange` hooks concurrently. A resolved-value
- * cache stampedes under that concurrency — all N hooks clear the "not cached
- * yet" check before the first load settles, so each issues its own `findGlobal`.
- * Storing the promise synchronously (no await between the check and the store)
- * means every later caller awaits the same one, collapsing the load to exactly
- * one. A failed load is evicted so a later read in the same request can retry.
+ * `memoizeOnRequest` is what collapses a bulk save's N concurrent hooks to one
+ * `findGlobal` — see its own doc comment for why the in-flight promise, rather
+ * than the resolved value, is the thing cached.
  */
 async function resolveTitleTemplates(req: PayloadRequest): Promise<Record<EventTitleSlot, string>> {
-  const ctx = (req.context ?? {}) as Record<string, unknown>
-  let templatesPromise = ctx[CACHE_KEY] as Promise<Record<EventTitleSlot, string>> | undefined
-  if (!templatesPromise) {
-    templatesPromise = (async () => {
-      try {
-        const translations = await req.payload.findGlobal({
-          slug: 'sy-atlas-translations',
-          locale: req.locale,
-          depth: 0,
-          req,
-        })
-        const stored = (translations as { event?: { title?: Record<string, unknown> } }).event
-          ?.title
-        const resolved = { ...EVENT_TITLE_DEFAULTS }
-        for (const slot of Object.keys(EVENT_TITLE_DEFAULTS) as EventTitleSlot[]) {
-          const value = stored?.[slot]
-          if (typeof value === 'string' && value.trim()) resolved[slot] = value
-        }
-        return resolved
-      } catch (error) {
-        req.payload.logger.debug({
-          msg: 'Failed to read sy-atlas-translations event.title; using defaults',
-          error,
-        })
-        return { ...EVENT_TITLE_DEFAULTS }
+  return memoizeOnRequest(req, CACHE_KEY, async () => {
+    try {
+      const translations = await req.payload.findGlobal({
+        slug: 'sy-atlas-translations',
+        locale: req.locale,
+        depth: 0,
+        req,
+      })
+      const stored = (translations as { event?: { title?: Record<string, unknown> } }).event?.title
+      const resolved = { ...EVENT_TITLE_DEFAULTS }
+      for (const slot of Object.keys(EVENT_TITLE_DEFAULTS) as EventTitleSlot[]) {
+        const value = stored?.[slot]
+        if (typeof value === 'string' && value.trim()) resolved[slot] = value
       }
-    })()
-    ctx[CACHE_KEY] = templatesPromise
-    req.context = ctx
-    // Evict on failure so a transient error doesn't poison the rest of the
-    // request (restores the un-memoized retry behaviour). Callers already
-    // awaiting this in-flight promise still reject together — the load did fail.
-    void templatesPromise.catch(() => {
-      if (ctx[CACHE_KEY] === templatesPromise) delete ctx[CACHE_KEY]
-    })
-  }
-  return templatesPromise
+      return resolved
+    } catch (error) {
+      req.payload.logger.debug({
+        msg: 'Failed to read sy-atlas-translations event.title; using defaults',
+        error,
+      })
+      return { ...EVENT_TITLE_DEFAULTS }
+    }
+  })
 }
 
 /**

@@ -11,6 +11,7 @@ import {
 import type { EventTitleSlot } from '@/lib/eventTitle/compose'
 import { EVENT_TITLE_DEFAULTS, EVENT_TITLE_SLOTS } from '@/lib/eventTitle/compose'
 import type { LocaleCode } from '@/lib/locales'
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
 /** `req.context` keys — one in-flight load each, shared across a request. */
 const TEMPLATES_CACHE_KEY = 'eventQualityTitleTemplates'
@@ -18,29 +19,6 @@ const PENDING_LOCALES_KEY = 'eventQualityPendingLocales'
 
 /** Only what the per-locale tier needs, so the read can't recurse into this hook. */
 const LOCALIZED_TITLE_SELECT = { title: true } as const
-
-/**
- * Memoize an in-flight load on `req.context`, keyed by `key`.
- *
- * The **promise** is stored, not its resolved value: a bulk read can issue many
- * hooks concurrently, and a resolved-value cache stampedes under that — every
- * caller clears the "not cached yet" check before the first load settles. A
- * failed load is evicted so a later read in the same request can retry. Same
- * reasoning (and the same shape) as `resolveTitleTemplates` in ./eventTitle.
- */
-function memoizeOnRequest<T>(req: PayloadRequest, key: string, load: () => Promise<T>): Promise<T> {
-  const ctx = (req.context ?? {}) as Record<string, unknown>
-  let inFlight = ctx[key] as Promise<T> | undefined
-  if (!inFlight) {
-    inFlight = load()
-    ctx[key] = inFlight
-    req.context = ctx
-    void inFlight.catch(() => {
-      if (ctx[key] === inFlight) delete ctx[key]
-    })
-  }
-  return inFlight
-}
 
 /**
  * Auto-title templates for every locale, in one `locale: 'all'` read of the

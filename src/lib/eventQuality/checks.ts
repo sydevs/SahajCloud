@@ -30,13 +30,20 @@ export const DESCRIPTION_MIN_LENGTH = 60
  */
 export const QUALITY_CHECK_VERSION = 1
 
-/** The event's description as plain text, memo-free — callers use it once. */
-function descriptionText(event: EventQualityInput): string {
+/**
+ * The event's description as plain text. Computed once per report and handed to
+ * every check on the context — six checks read it, and each read would
+ * otherwise walk the whole Lexical tree again.
+ */
+export function eventDescriptionText(event: EventQualityInput): string {
   return lexicalPlainText(event.description).trim()
 }
 
-/** Non-empty strings the address renders on the listing already. */
-function addressPhrases(event: EventQualityInput): string[] {
+/**
+ * Non-empty strings the address already renders on the listing. Computed once
+ * per report for the same reason as the description text above.
+ */
+export function eventAddressPhrases(event: EventQualityInput): string[] {
   const address = (event.address ?? {}) as Record<string, unknown>
   const candidates = [
     addressPlaceName(address),
@@ -70,7 +77,7 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     label: 'Add a description',
     description:
       'A seeker deciding whether to come reads the description first. Say who the class is for and what an evening looks like.',
-    evaluate: ({ event }) => descriptionText(event).length === 0,
+    evaluate: ({ descriptionText }) => descriptionText.length === 0,
   },
   {
     key: 'images.missing',
@@ -108,6 +115,7 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     key: 'title.generic',
     tier: 'title',
     scope: 'perLocale',
+    requiresHandWrittenTitle: true,
     label: 'Give the title something of its own to say',
     description:
       'A title that only says "Meditation" is strictly worse than leaving it blank: the auto-title names the venue and translates itself. Name the audience, the language, the format, or clear the field.',
@@ -117,19 +125,21 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     key: 'title.restatesAddress',
     tier: 'title',
     scope: 'perLocale',
+    requiresHandWrittenTitle: true,
     label: 'The title only repeats the address',
     description:
       'The listing already renders the venue, street and city from the address. A title that repeats one of them spends the most prominent line saying nothing new.',
-    evaluate: ({ event, title }) => {
+    evaluate: ({ addressPhrases, title }) => {
       if (!title) return false
       const normalized = normalizeForComparison(title)
-      return addressPhrases(event).some((phrase) => normalizeForComparison(phrase) === normalized)
+      return addressPhrases.some((phrase) => normalizeForComparison(phrase) === normalized)
     },
   },
   {
     key: 'title.restatesSchedule',
     tier: 'title',
     scope: 'perLocale',
+    requiresHandWrittenTitle: true,
     label: 'The title repeats the schedule',
     description:
       'The listing renders the weekday and time from the schedule, and keeps them right when the schedule changes. A day or time written into the title goes stale silently.',
@@ -144,10 +154,9 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     label: 'The description repeats the address',
     description:
       'The address is already rendered above the description, with a map. Repeating it in prose costs the reader a paragraph and tells them nothing.',
-    evaluate: ({ event }) => {
-      const text = descriptionText(event)
-      return text.length > 0 && addressPhrases(event).some((phrase) => containsPhrase(text, phrase))
-    },
+    evaluate: ({ addressPhrases, descriptionText }) =>
+      descriptionText.length > 0 &&
+      addressPhrases.some((phrase) => containsPhrase(descriptionText, phrase)),
   },
   {
     key: 'description.repeatsSchedule',
@@ -156,10 +165,8 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     label: 'The description repeats the schedule',
     description:
       'The weekday and time come from the schedule, which stays correct when the schedule is edited. The same information typed into prose does not.',
-    evaluate: ({ event }) => {
-      const text = descriptionText(event)
-      return text.length > 0 && containsScheduleInfo(text)
-    },
+    evaluate: ({ descriptionText }) =>
+      descriptionText.length > 0 && containsScheduleInfo(descriptionText),
   },
   {
     key: 'description.repeatsContact',
@@ -168,10 +175,8 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     label: 'Move the phone number or email out of the description',
     description:
       'A phone number or address in prose is unclickable and invisible to the contact fields. Put it in Contact Phone or Contact Email and it renders as a real link.',
-    evaluate: ({ event }) => {
-      const text = descriptionText(event)
-      return text.length > 0 && containsContactInfo(text)
-    },
+    evaluate: ({ descriptionText }) =>
+      descriptionText.length > 0 && containsContactInfo(descriptionText),
   },
   {
     key: 'description.containsUrl',
@@ -180,10 +185,8 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     label: 'Move the link out of the description',
     description:
       'A URL typed into the description renders as dead, unclickable text. It belongs in Website, or in Online URL for a link attendees join through.',
-    evaluate: ({ event }) => {
-      const text = descriptionText(event)
-      return text.length > 0 && containsUrl(text)
-    },
+    evaluate: ({ descriptionText }) =>
+      descriptionText.length > 0 && containsUrl(descriptionText),
   },
   {
     key: 'description.staleDate',
@@ -192,8 +195,8 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     label: 'The description names a date that has passed',
     description:
       'A date in the past makes a live listing look abandoned. Remove it, or move a real one-off date into the schedule.',
-    evaluate: ({ event, currentYear }) =>
-      findStaleDates(descriptionText(event), currentYear).length > 0,
+    evaluate: ({ currentYear, descriptionText }) =>
+      findStaleDates(descriptionText, currentYear).length > 0,
   },
   {
     key: 'description.tooShort',
@@ -201,10 +204,8 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     scope: 'document',
     label: 'Say a little more',
     description: `A description under ${DESCRIPTION_MIN_LENGTH} characters rarely says anything the structured fields don't. Two sentences about who comes and what happens is enough.`,
-    evaluate: ({ event }) => {
-      const length = descriptionText(event).length
-      return length > 0 && length < DESCRIPTION_MIN_LENGTH
-    },
+    evaluate: ({ descriptionText }) =>
+      descriptionText.length > 0 && descriptionText.length < DESCRIPTION_MIN_LENGTH,
   },
 
   // ── Translation coverage (per locale) ──────────────────────────────────────
@@ -218,11 +219,6 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     evaluate: ({ title }) => !title,
   },
 ]
-
-/** Registry keyed for lookup by the panel and by anything resolving a label. */
-export const EVENT_QUALITY_CHECKS_BY_KEY: Record<string, QualityCheck> = Object.fromEntries(
-  EVENT_QUALITY_CHECKS.map((check) => [check.key, check]),
-)
 
 /** Label + description for every key, for the admin panel's `admin.custom`. */
 export const EVENT_QUALITY_CHECK_METADATA: Record<

@@ -15,7 +15,6 @@ export {
   DOCUMENT_SCOPE_CHECKS,
   EVENT_QUALITY_CHECK_METADATA,
   EVENT_QUALITY_CHECKS,
-  EVENT_QUALITY_CHECKS_BY_KEY,
   PER_LOCALE_CHECKS,
   QUALITY_CHECK_VERSION,
 } from './checks'
@@ -23,7 +22,6 @@ export {
   containsContactInfo,
   containsScheduleInfo,
   containsUrl,
-  containsWeekday,
   EMAIL_RE,
   findStaleDates,
   GENERIC_TITLE_RE,
@@ -40,7 +38,6 @@ export {
 } from './report'
 export { SKIP_REASON_LABELS, shouldSkipQualityChecks } from './skip'
 export type {
-  CheckContext,
   CheckScope,
   CheckStatus,
   EventQualityInput,

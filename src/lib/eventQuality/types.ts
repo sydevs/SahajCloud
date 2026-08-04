@@ -92,6 +92,16 @@ export type TitleTemplateSet = Record<EventTitleSlot, string>
 /** What a check's `evaluate` is handed. */
 export type CheckContext = {
   event: EventQualityInput
+  /**
+   * The description flattened to plain text, computed once per report rather
+   * than per check — six checks read it, and each read walks the Lexical tree.
+   */
+  descriptionText: string
+  /**
+   * The non-empty strings the address already renders on the listing (venue,
+   * street, city). Computed once per report for the same reason.
+   */
+  addressPhrases: string[]
   /** Only set for `perLocale` checks — the locale being judged. */
   locale?: LocaleCode
   /** The title stored for `locale`, already resolved off the localized field. */
@@ -119,6 +129,16 @@ export type QualityCheck = {
   scope: CheckScope
   label: string
   description: string
+  /**
+   * Skip this check for a locale whose title is the auto-fill (or absent).
+   *
+   * Declared per check rather than inferred from the tier so a check states its
+   * own precondition: the auto-title is generated from the address by design,
+   * so judging its wording would flag the exact state #605 set out to create.
+   * Translation coverage is a different question and deliberately doesn't set
+   * this — a missing translation matters whatever the English title looks like.
+   */
+  requiresHandWrittenTitle?: true
   /** True when the listing **fails** this check. */
   evaluate: (ctx: CheckContext) => boolean
 }

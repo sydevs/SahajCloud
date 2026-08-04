@@ -11,7 +11,12 @@ import type { LocaleCode } from '@/lib/locales'
 import { DEFAULT_LOCALE, LOCALES } from '@/lib/locales'
 
 import { isAutoFilledTitle } from './autoTitle'
-import { DOCUMENT_SCOPE_CHECKS, PER_LOCALE_CHECKS } from './checks'
+import {
+  DOCUMENT_SCOPE_CHECKS,
+  eventAddressPhrases,
+  eventDescriptionText,
+  PER_LOCALE_CHECKS,
+} from './checks'
 import { shouldSkipQualityChecks } from './skip'
 
 export type BuildReportOptions = {
@@ -102,30 +107,36 @@ export function buildEventQualityReport(
   const currentYear = (options.now ?? new Date()).getUTCFullYear()
   const locales = options.locales ?? qualityLocalesForEvent(event)
   const pending = new Set(options.pendingLocales ?? [])
+  // Both walk a structure every time they're read, and between them eight
+  // checks want them — so they're computed once here and passed down.
+  const shared = {
+    event,
+    currentYear,
+    descriptionText: eventDescriptionText(event),
+    addressPhrases: eventAddressPhrases(event),
+  }
 
   const document: QualityCheckResult[] = DOCUMENT_SCOPE_CHECKS.map((check) => ({
     key: check.key,
-    status: check.evaluate({ event, currentYear }) ? 'failed' : 'passed',
+    status: check.evaluate(shared) ? 'failed' : 'passed',
   }))
 
   const perLocale: Record<string, QualityCheckResult[]> = {}
   for (const locale of locales) {
     const templates = options.templates?.[locale] ?? EVENT_TITLE_DEFAULTS
     const title = titleForLocale(event.title, locale)
-    // The title tier judges prose a manager wrote. An auto-filled title is
-    // generated from the address by design — #605 blanked 78 titles precisely
-    // so they'd fall back to it — so the tier stays silent for that locale.
-    // Translation coverage is a different question and still applies.
-    const titleIsJudgeable = title.length > 0 && !isAutoFilledTitle(title, event, templates)
+    // A check that judges the manager's own wording stays silent when the
+    // title is the auto-fill (or absent) — see `requiresHandWrittenTitle`.
+    const handWritten = title.length > 0 && !isAutoFilledTitle(title, event, templates)
 
     perLocale[locale] = PER_LOCALE_CHECKS.filter(
-      (check) => check.tier !== 'title' || titleIsJudgeable,
+      (check) => handWritten || !check.requiresHandWrittenTitle,
     ).map((check) => ({
       key: check.key,
       // A locale added in this very save cannot have a translation yet.
       status: pending.has(locale)
         ? 'pending'
-        : check.evaluate({ event, locale, title, templates, currentYear })
+        : check.evaluate({ ...shared, locale, title, templates })
           ? 'failed'
           : 'passed',
     }))
@@ -149,6 +160,8 @@ export function buildEventQualityReport(
  * compute from the document it already has, with no extra read.
  */
 export function countOpenDocumentIssues(event: EventQualityInput, now?: Date): number {
+  // An empty locale list is how a caller asks for document scope only — there
+  // is nothing per-locale to evaluate, so nothing per-locale is computed.
   const report = buildEventQualityReport(event, { locales: [], now })
   return report.skipped ? 0 : report.openCount
 }
