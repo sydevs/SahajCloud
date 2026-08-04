@@ -30,10 +30,11 @@ import * as migration_20260719_213905_registration_client_locale_and_client_emai
 import * as migration_20260720_141351_event_registration_notification_fields from './20260720_141351_event_registration_notification_fields';
 import * as migration_20260720_195203_registration_notifications from './20260720_195203_registration_notifications';
 import * as migration_20260729_222924_add_event_contact_email from './20260729_222924_add_event_contact_email';
+import * as migration_20260730_170909_schedule_last_date from './20260730_170909_schedule_last_date';
 import * as migration_20260730_171520_add_event_venue_name from './20260730_171520_add_event_venue_name';
 import * as migration_20260730_172342_rename_region_level_center_to_venue from './20260730_172342_rename_region_level_center_to_venue';
-import * as migration_20260730_170909_schedule_last_date from './20260730_170909_schedule_last_date';
 import * as migration_20260803_221051_registrations_full_flag from './20260803_221051_registrations_full_flag';
+import * as migration_20260804_011222_resync_schema_snapshot from './20260804_011222_resync_schema_snapshot';
 
 export const migrations = [
   {
@@ -197,6 +198,11 @@ export const migrations = [
     name: '20260729_222924_add_event_contact_email',
   },
   {
+    up: migration_20260730_170909_schedule_last_date.up,
+    down: migration_20260730_170909_schedule_last_date.down,
+    name: '20260730_170909_schedule_last_date',
+  },
+  {
     up: migration_20260730_171520_add_event_venue_name.up,
     down: migration_20260730_171520_add_event_venue_name.down,
     name: '20260730_171520_add_event_venue_name',
@@ -204,16 +210,16 @@ export const migrations = [
   {
     up: migration_20260730_172342_rename_region_level_center_to_venue.up,
     down: migration_20260730_172342_rename_region_level_center_to_venue.down,
-    name: '20260730_172342_rename_region_level_center_to_venue'
-  },
-  {
-    up: migration_20260730_170909_schedule_last_date.up,
-    down: migration_20260730_170909_schedule_last_date.down,
-    name: '20260730_170909_schedule_last_date',
+    name: '20260730_172342_rename_region_level_center_to_venue',
   },
   {
     up: migration_20260803_221051_registrations_full_flag.up,
     down: migration_20260803_221051_registrations_full_flag.down,
-    name: '20260803_221051_registrations_full_flag'
+    name: '20260803_221051_registrations_full_flag',
+  },
+  {
+    up: migration_20260804_011222_resync_schema_snapshot.up,
+    down: migration_20260804_011222_resync_schema_snapshot.down,
+    name: '20260804_011222_resync_schema_snapshot'
   },
 ];
