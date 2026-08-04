@@ -11,6 +11,7 @@ import {
 import type { EventTitleSlot } from '@/lib/eventTitle/compose'
 import { EVENT_TITLE_DEFAULTS, EVENT_TITLE_SLOTS } from '@/lib/eventTitle/compose'
 import type { LocaleCode } from '@/lib/locales'
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
 /** `req.context` keys — one in-flight load each, shared across a request. */
@@ -38,7 +39,9 @@ async function loadTitleTemplates(
         slug: 'sy-atlas-translations',
         locale: 'all',
         depth: 0,
-        req,
+        // Copied, not the caller's own — `locale: 'all'` would otherwise be
+        // assigned onto `req` and repoint the whole request. See localeIsolatedReq.
+        req: localeIsolatedReq(req),
       })
       // With `locale: 'all'` a localized leaf reads as `{ en: {...}, de: {...} }`.
       const byLocale = (translations as { event?: { title?: Record<string, unknown> } }).event
@@ -82,7 +85,10 @@ async function loadLocalizedTitles(
       locale: 'all',
       depth: 0,
       select: LOCALIZED_TITLE_SELECT,
-      req,
+      // Copied, not the caller's own: this hook runs during a write, and
+      // `locale: 'all'` assigned onto `req` would send the rest of that
+      // write — including a localized title — to the wrong locale.
+      req: localeIsolatedReq(req),
     })
     const title = (doc as { title?: unknown }).title
     return title && typeof title === 'object' ? (title as Record<string, string>) : {}
