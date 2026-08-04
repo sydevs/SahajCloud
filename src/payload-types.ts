@@ -2365,15 +2365,12 @@ export interface Meditation {
    */
   songTag?: (number | null) | SongTag;
   duration?: number | null;
-  subtleSystemNodeWeights?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  subtleSystemNodeWeights?: {
+    /**
+     * On-screen seconds for the node slug.
+     */
+    [k: string]: number;
+  } | null;
   durationMinutes?: number | null;
   /**
    * Optional auto-generated fallback title (e.g. Meditation for Anahat), derived from this meditation's dominant subtle-system node. Front-end clients use it only when they have no composed label of their own.
