@@ -7,6 +7,7 @@ import {
   localeForLanguage,
   QUALITY_CHECK_VERSION,
   qualityLocalesForEvent,
+  shouldSkipQualityChecks,
 } from '@/lib/eventQuality'
 import type { EventTitleSlot } from '@/lib/eventTitle/compose'
 import { EVENT_TITLE_DEFAULTS, EVENT_TITLE_SLOTS } from '@/lib/eventTitle/compose'
@@ -39,8 +40,7 @@ async function loadTitleTemplates(
         slug: 'sy-atlas-translations',
         locale: 'all',
         depth: 0,
-        // Copied, not the caller's own — `locale: 'all'` would otherwise be
-        // assigned onto `req` and repoint the whole request. See localeIsolatedReq.
+        // Copied — `locale: 'all'` would otherwise repoint the caller's request.
         req: localeIsolatedReq(req),
       })
       // With `locale: 'all'` a localized leaf reads as `{ en: {...}, de: {...} }`.
@@ -85,9 +85,8 @@ async function loadLocalizedTitles(
       locale: 'all',
       depth: 0,
       select: LOCALIZED_TITLE_SELECT,
-      // Copied, not the caller's own: this hook runs during a write, and
-      // `locale: 'all'` assigned onto `req` would send the rest of that
-      // write — including a localized title — to the wrong locale.
+      // Copied — `locale: 'all'` would otherwise repoint the caller's request,
+      // and this hook runs during writes.
       req: localeIsolatedReq(req),
     })
     const title = (doc as { title?: unknown }).title
@@ -128,9 +127,10 @@ export const computeEventQualityReport: FieldHook = async ({ data, req, findMany
   const id = event.id
   if (id == null) return null
 
-  // Cheap exit before either query — a skipped report needs neither.
-  const skipped = buildEventQualityReport(event, { locales: [] })
-  if (skipped.skipped) return skipped
+  // Cheap exit before either query — a skipped report needs neither, and the
+  // predicate alone avoids walking the description tree just to throw it away.
+  const reason = shouldSkipQualityChecks(event)
+  if (reason) return { skipped: true, reason }
 
   const [templates, titles] = await Promise.all([
     loadTitleTemplates(req),
