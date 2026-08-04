@@ -165,6 +165,11 @@ export function humanDurationSince(fromIso: string, now: Date): string {
  * the key facts at a glance: title, location (address one-line, or the online
  * URL), schedule, contact, scheduled breaks, and — only when there are any —
  * registrations in the last 30 days.
+ *
+ * Values only: the reminder email is localized per manager, so every label and
+ * every stand-in for a missing value ("Online", "Never") comes from the
+ * translations global instead. What's returned here is formatted event data,
+ * which is deliberately never translated.
  */
 export async function buildEventEmailDetails(args: {
   payload: Payload
@@ -200,12 +205,12 @@ export async function buildEventEmailDetails(args: {
 
   return {
     title: typeof event.title === 'string' ? event.title : `Event #${event.id}`,
-    locationLabel: isOnline ? 'Online' : 'Address',
+    isOnline,
     location: isOnline ? (event.onlineUrl ?? '') : addressOneLine(event.address ?? {}),
     schedule: scheduleOneLine(event.schedule),
     contact: contact || undefined,
     breaks: breaks.length > 0 ? breaks : undefined,
-    lastVerified: verifiedAt ? formatLongDate(verifiedAt) : 'Never',
+    lastVerified: verifiedAt ? formatLongDate(verifiedAt) : null,
     recentRegistrations,
   }
 }

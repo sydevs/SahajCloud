@@ -82,13 +82,17 @@ export function ActionButtons({ brand, actions }: { brand: EmailBrand; actions: 
  * The event's key facts, matching the reminder email's "Event details" table
  * (same fields + order). `details` is the shared `EventDetails` built by
  * `buildEventEmailDetails`, so the page and email never drift.
+ *
+ * The labels are this page's own: the email resolves its own from the
+ * translations global, since it goes out in the manager's language while this
+ * page — like the rest of the verify flow — is English.
  */
 export function EventSummary({ brand, details }: { brand: EmailBrand; details: EventDetails }) {
   const isUrl = /^https?:\/\//.test(details.location)
   const rows: { label: string; value: ReactNode }[] = [{ label: 'Event', value: details.title }]
   if (details.location) {
     rows.push({
-      label: details.locationLabel,
+      label: details.isOnline ? 'Online' : 'Address',
       value: isUrl ? (
         <a href={details.location} style={{ color: brand.colors.primary, wordBreak: 'break-all' }}>
           {details.location}
@@ -119,7 +123,7 @@ export function EventSummary({ brand, details }: { brand: EmailBrand; details: E
       } in the last 30 days`,
     })
   }
-  rows.push({ label: 'Last verified', value: details.lastVerified })
+  rows.push({ label: 'Last verified', value: details.lastVerified ?? 'Never' })
 
   return (
     <div style={summaryWrap}>
