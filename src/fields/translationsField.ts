@@ -1,3 +1,4 @@
+import type { JSONSchema4 } from 'json-schema'
 import type { Field, GroupField, JSONField, RichTextField, TabsField, UIField } from 'payload'
 
 import { toWords } from 'payload/shared'
@@ -109,6 +110,9 @@ function isRichTextProp(prop: LeafPropertySchema | GroupSchema): prop is RichTex
 // Helpers
 // ============================================================================
 
+/** Namespace for the per-group `jsonSchema` URIs (see createStringsJsonField). */
+const TRANSLATIONS_SCHEMA_URI_BASE = 'https://sahajcloud.dev/schemas/translations'
+
 function createScreenshotField(
   groupSlug: string,
   groupSchema: GroupSchema,
@@ -143,12 +147,11 @@ function createScreenshotField(
  * RichText keys are emitted as sibling richText fields at the same level
  * (see createRichTextField), not packed into this JSON blob.
  *
- * NOTE — no `jsonSchema` is set. Payload would compile it to a validator via
- * Ajv which uses `new Function()` for performance. Cloudflare Workers' V8
- * isolate disallows dynamic code generation, so any write to a
- * `jsonSchema`-validated field throws "Code generation from strings
- * disallowed" in prod. A pure-JS `validate` function enforces the same
- * key/type constraints instead.
+ * The group's own schema is projected into the field's `jsonSchema`, which
+ * Payload uses to BOTH validate on write (Ajv rejects an unknown key or a
+ * non-string value → `ValidationError` → 400) AND generate the field's
+ * TypeScript type in `payload-types.ts` — every translations global gets a
+ * real per-group type instead of `unknown`.
  */
 function createStringsJsonField(
   fieldName: string,
@@ -166,19 +169,37 @@ function createStringsJsonField(
     plural: prop.plural === true ? true : undefined,
   }))
   // A plural key is declared once but stored as its CLDR family, so the JSON
-  // blob holds `<key>_one`/`_few`/… — validate against the expanded keys.
-  const allowedKeys = new Set(
-    stringProps.flatMap(([key, prop]) =>
-      prop.plural === true ? PLURAL_CATEGORIES.map((cat) => `${key}_${cat}`) : [key],
-    ),
-  )
-  const allowAdditional = group.additionalProperties === true
+  // blob holds `<key>_one`/`_few`/… — the schema declares the expanded keys.
+  const properties: Record<string, JSONSchema4> = {}
+  for (const [key, prop] of stringProps) {
+    const storedKeys =
+      prop.plural === true ? PLURAL_CATEGORIES.map((cat) => `${key}_${cat}`) : [key]
+    for (const storedKey of storedKeys) {
+      properties[storedKey] = {
+        type: 'string',
+        ...(prop.description && { description: prop.description }),
+      }
+    }
+  }
+  // One URI per field — it identifies this group's schema to the admin editor.
+  const uri = `${TRANSLATIONS_SCHEMA_URI_BASE}/${[globalSlug, parentGroup, fieldName]
+    .filter(Boolean)
+    .join('/')}.json`
 
   return {
     name: fieldName,
     type: 'json',
     localized: true,
     label: false,
+    jsonSchema: {
+      uri,
+      fileMatch: [uri],
+      schema: {
+        type: 'object',
+        properties,
+        additionalProperties: group.additionalProperties === true,
+      },
+    },
     admin: {
       components: { Field: '@/components/admin/TranslationsRow' },
       custom: {
@@ -186,21 +207,6 @@ function createStringsJsonField(
         globalSlug,
         parentGroup,
       },
-    },
-    validate: (value): true | string => {
-      if (value === null || value === undefined) return true
-      if (typeof value !== 'object' || Array.isArray(value)) return 'Value must be a JSON object'
-      const obj = value as Record<string, unknown>
-      if (!allowAdditional) {
-        for (const key of Object.keys(obj)) {
-          if (!allowedKeys.has(key)) return `Unknown key "${key}" (not in schema)`
-        }
-      }
-      for (const key of allowedKeys) {
-        if (!(key in obj)) continue
-        if (typeof obj[key] !== 'string') return `Key "${key}" must be a string`
-      }
-      return true
     },
   }
 }

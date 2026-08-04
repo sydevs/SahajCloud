@@ -15,7 +15,7 @@
  *   `welcome_legal_disclaimer` and the API path is
  *   `onboarding.welcome_legal_disclaimer`.
  */
-import type { Field, Payload, TabsField } from 'payload'
+import type { Field, Payload, TabsField, ValidationError } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -198,6 +198,54 @@ describe('Translations Globals Configuration', () => {
           expect(groups, label).toHaveLength(0)
         }
       }
+    })
+  })
+
+  // The per-group `jsonSchema` (#597) is what enforces the key/type contract now
+  // that the hand-rolled `validate` is gone. These cases prove the wiring
+  // survives Payload's config sanitization and reaches Ajv on a real write.
+  describe('jsonSchema enforcement on write', () => {
+    /** Write `common` and return the ValidationError's status + per-field messages. */
+    async function rejectedCommonWrite(common: unknown) {
+      try {
+        await payload.updateGlobal({
+          slug: 'wm-web-translations',
+          data: { common } as Parameters<typeof payload.updateGlobal>[0]['data'],
+        })
+      } catch (error) {
+        const { data, status } = error as ValidationError
+        return { messages: data.errors.map((e) => e.message).join(' '), status }
+      }
+      throw new Error('Expected the write to be rejected')
+    }
+
+    it('rejects a key the group schema does not declare', async () => {
+      const { messages, status } = await rejectedCommonWrite({
+        loading: 'Loading…',
+        not_a_declared_key: 'nope',
+      })
+
+      expect(status).toBe(400)
+      // Ajv's default `errorsText()` doesn't name the offending key here. That
+      // only reaches API clients — the admin edits these groups key-by-key
+      // through TranslationsRow, which can't produce an undeclared one.
+      expect(messages).toMatch(/must NOT have additional properties/)
+    })
+
+    it('rejects a non-string value for a declared key', async () => {
+      const { messages, status } = await rejectedCommonWrite({ loading: 42 })
+
+      expect(status).toBe(400)
+      expect(messages).toMatch(/loading.*must be string/)
+    })
+
+    it('accepts a partial, well-formed group', async () => {
+      const updated = await payload.updateGlobal({
+        slug: 'wm-web-translations',
+        data: { common: { loading: 'Loading…' } },
+      })
+
+      expect(updated.common).toMatchObject({ loading: 'Loading…' })
     })
   })
 })
