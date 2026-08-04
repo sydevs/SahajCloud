@@ -84,11 +84,7 @@ export const Registrations: CollectionConfig = {
       // Payload generates the `questions` TS type AND validates on write (an unknown
       // key or non-string answer throws a ValidationError → 400 at the register
       // endpoint, surfaced verbatim rather than a 500).
-      jsonSchema: {
-        uri: 'https://sahajcloud.dev/schemas/registration-questions.json',
-        fileMatch: ['https://sahajcloud.dev/schemas/registration-questions.json'],
-        schema: registrationQuestionsJsonSchema,
-      },
+      jsonSchema: registrationQuestionsJsonSchema,
       admin: {
         description:
           "Raw registrant answers, keyed by the event's enabled registration questions (EVENT_REGISTRATION_QUESTIONS — priorExperience, referralSource, healthInfo, accessibility, guests).",

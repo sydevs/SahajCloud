@@ -2,7 +2,6 @@ import type { VerificationStage } from './stages'
 import type { JSONSchema4 } from 'json-schema'
 import type { JSONField } from 'payload'
 
-
 import type { ReminderAudience, ReminderLevel } from '@/lib/notifications'
 
 import { VERIFICATION_STAGES } from './stages'
