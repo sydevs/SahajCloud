@@ -25,7 +25,7 @@ one-time backfills, deployment helpers, etc.
 | File | Purpose |
 |---|---|
 | `setup-stream-webhook.ts` | Register / inspect / delete the account-level Cloudflare Stream webhook |
-| `preview-event-emails.ts` | Send the manager event-verification reminders (all levels/audiences) to an Ethereal inbox |
+| `preview-event-emails.ts` | Send the manager event-verification reminders (all levels/audiences, plus one partly-translated locale) to an Ethereal inbox |
 | `preview-registration-emails.ts` | Send the registrant confirmation in each state (online/offline, locale, branded/fallback, one-off, minimal) to an Ethereal inbox, with the `.ics` attached |
 | `preview-registration-notification-emails.ts` | Send the manager registration notice (#588) in each state (named manager / override address / no session / long title) to an Ethereal inbox |
 | `preview-reminder-digest-emails.ts` | Send the registrant session reminder + manager registration digest (#589) in each state (online/offline, locale, branded/fallback, daily/weekly) to an Ethereal inbox |
