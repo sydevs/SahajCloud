@@ -7,7 +7,7 @@
  * publishing, hides an event, or gates the Verify action.
  *
  * Lives in `src/lib/` rather than `src/collections/Events/` because the
- * collection, the reminder emails and the backfill script all consume it.
+ * collection, the admin panel and the reminder emails all consume it.
  */
 export { isAutoFilledTitle } from './autoTitle'
 export {

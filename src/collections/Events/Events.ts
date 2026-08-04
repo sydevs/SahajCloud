@@ -152,50 +152,6 @@ export const Events: CollectionConfig = {
           label: 'Details',
           fields: [
             {
-              // Advisory listing-quality recommendations (#609). Computed on
-              // read, so opening the event is already fresh — there is
-              // deliberately no refresh control, which would have to re-save the
-              // document and churn `updatedAt` and the version history.
-              //
-              // NOT localized: `description`/`images`/`website` aren't, and the
-              // per-locale tier's whole job is answering "which of my languages
-              // is missing a title" — which a localized field, returning only
-              // the active locale, structurally cannot do.
-              name: 'qualityReport',
-              type: 'json',
-              virtual: true,
-              label: false,
-              admin: {
-                readOnly: true,
-                components: { Field: '@/components/admin/EventQualityPanel' },
-                // Labels live with the check definitions, so the code stays the
-                // single source of truth and a new check can't ship unlabelled.
-                custom: {
-                  checksMetadata: EVENT_QUALITY_CHECK_METADATA,
-                  skipReasonLabels: SKIP_REASON_LABELS,
-                },
-              },
-              hooks: { afterRead: [computeEventQualityReport] },
-            },
-            {
-              // Open document-scope items, for list-view sorting and targeted
-              // queries. A query pre-filter, not a score: the per-locale checks
-              // read localized titles a write hook can't see, so a single
-              // non-localized column cannot hold a correct cross-locale figure.
-              name: 'qualityOpenCount',
-              type: 'number',
-              index: true,
-              admin: { hidden: true },
-            },
-            {
-              // Which definition of the check set produced `qualityOpenCount`,
-              // so a stored count stays comparable across deploys and the
-              // backfill can find rows an older definition wrote.
-              name: 'qualityCheckVersion',
-              type: 'number',
-              admin: { hidden: true },
-            },
-            {
               // Primary event name + useAsTitle. Stored and localized. Required,
               // but a beforeChange hook auto-fills an empty title with
               // "<localized prefix> <venue>" from the first segment of the
@@ -562,6 +518,52 @@ export const Events: CollectionConfig = {
         return regionPath != null ? `${regionPath}/${id}` : null
       },
     }),
+    {
+      // Advisory listing-quality recommendations (#609), in the sidebar above
+      // Legacy Data. Computed on read, so opening the event is already fresh —
+      // there is deliberately no refresh control, which would have to re-save
+      // the document and churn `updatedAt` and the version history.
+      //
+      // NOT localized: `description`/`images`/`website` aren't, and the
+      // per-locale tier's whole job is answering "which of my languages is
+      // missing a title" — which a localized field, returning only the active
+      // locale, structurally cannot do.
+      name: 'qualityReport',
+      type: 'json',
+      virtual: true,
+      label: false,
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        components: { Field: '@/components/admin/EventQualityPanel' },
+        // Labels live with the check definitions, so the code stays the
+        // single source of truth and a new check can't ship unlabelled.
+        custom: {
+          checksMetadata: EVENT_QUALITY_CHECK_METADATA,
+          skipReasonLabels: SKIP_REASON_LABELS,
+        },
+      },
+      hooks: { afterRead: [computeEventQualityReport] },
+    },
+    {
+      // Open document-scope items, for list-view sorting and targeted queries.
+      // A query pre-filter, not a score: the per-locale checks read localized
+      // titles a write hook can't see, so a single non-localized column cannot
+      // hold a correct cross-locale figure.
+      name: 'qualityOpenCount',
+      type: 'number',
+      index: true,
+      admin: { hidden: true },
+    },
+    {
+      // Which definition of the check set produced `qualityOpenCount`, so a
+      // stored count stays comparable across deploys. Stamped on every write;
+      // nothing re-stamps in bulk (production is seeded by the Atlas import,
+      // which writes through the same hook).
+      name: 'qualityCheckVersion',
+      type: 'number',
+      admin: { hidden: true },
+    },
     ...legacyMigrationFields(),
   ],
 }

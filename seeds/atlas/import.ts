@@ -875,6 +875,45 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         this.addError(`Event "${identifier}" (#${event.legacyId})`, error as Error)
       }
     }
+
+    // Only the batch that finishes the collection can judge the whole of it.
+    if (offset + batch.length >= total) await this.verifyEventQualityStamps()
+  }
+
+  /**
+   * Confirm every imported event carries its listing-quality stamps (#609).
+   *
+   * `qualityOpenCount` / `qualityCheckVersion` are written by the Events
+   * `stampEventQuality` beforeChange hook, so the import gets them for free —
+   * every event reaches the database through `upsert`, which goes through the
+   * Local API. That is *why* there is no backfill script: production is seeded
+   * from here, so there are no pre-existing rows to repair.
+   *
+   * The guarantee is worth checking rather than assuming. A NULL count sorts as
+   * "no open items", so a hook that silently stopped firing would bury the worst
+   * listings at the bottom of the admin list with nothing to indicate why. This
+   * turns that into a visible warning at import time.
+   *
+   * Whole-pass only. A paginated run imports one batch per invocation, so a
+   * count taken mid-run legitimately includes every event the later batches
+   * haven't reached yet — checking there would warn on every batch but the last.
+   */
+  private async verifyEventQualityStamps(): Promise<void> {
+    if (this.options.dryRun || this.isPaginated()) return
+
+    const { totalDocs } = await this.payload.count({
+      collection: 'events',
+      where: { or: [{ qualityOpenCount: { exists: false } }, { qualityCheckVersion: { exists: false } }] },
+      overrideAccess: true,
+      trash: true,
+    })
+
+    if (totalDocs > 0) {
+      this.addWarning(
+        `${totalDocs} event(s) have no listing-quality stamp — the Events stampEventQuality ` +
+          `hook did not run on import. Re-save them, or re-run with --update.`,
+      )
+    }
   }
 
   private async importEvent(
