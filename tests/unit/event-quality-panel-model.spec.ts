@@ -51,7 +51,17 @@ describe('buildPanelModel', () => {
     expect(item.description).toBe(metadata['description.missing'].description)
   })
 
-  it('tags a per-locale item with the locale it is about', () => {
+  it('words a passing item as a state, not as the instruction', () => {
+    // A tick beside "Take the address out of the description" read as an
+    // endorsement of repeating it.
+    const model = buildPanelModel(report(), metadata)
+    if (!model || model.skipped) throw new Error('expected a report model')
+    const passing = model.groups[0].items.find((i) => i.status === 'passed')
+    expect(passing?.label).toBe(metadata['images.missing'].passedLabel)
+    expect(passing?.label).not.toBe(metadata['images.missing'].label)
+  })
+
+  it('names the language inline when the event is judged in more than one', () => {
     const model = buildPanelModel(
       report({
         perLocale: {
@@ -64,10 +74,21 @@ describe('buildPanelModel', () => {
     )
     if (!model || model.skipped) throw new Error('expected a report model')
     const translations = model.groups.find((g) => g.tier === 'translation')
-    expect(translations?.items.map((i) => [i.locale, i.status])).toEqual([
-      ['de', 'failed'],
-      ['en', 'passed'],
+    expect(translations?.items.map((i) => [i.language, i.status])).toEqual([
+      ['German', 'failed'],
+      ['English', 'passed'],
     ])
+    // The placeholder the panel bolds has to survive into the label.
+    expect(translations?.items[0].label).toContain('%{language}')
+  })
+
+  it('leaves the language out when there is only one — the common case', () => {
+    // "Add a title in English" on an English-only event is noise.
+    const model = buildPanelModel(report(), metadata)
+    if (!model || model.skipped) throw new Error('expected a report model')
+    const translations = model.groups.find((g) => g.tier === 'translation')
+    expect(translations?.items[0].language).toBeUndefined()
+    expect(translations?.items[0].label).not.toContain('%{language}')
   })
 
   it('excludes pending items from the ratio — they are neither debt nor achievement', () => {

@@ -33,7 +33,7 @@ export const DESCRIPTION_MIN_LENGTH = 60
  * included), so a stale row can only exist if it hasn't been saved since the
  * bump — and the next save fixes it.
  */
-export const QUALITY_CHECK_VERSION = 1
+export const QUALITY_CHECK_VERSION = 2
 
 /**
  * The event's description as plain text. Computed once per report and handed to
@@ -80,8 +80,9 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     tier: 'completeness',
     scope: 'document',
     label: 'Add a description',
+    passedLabel: 'Has a description',
     description:
-      'A seeker deciding whether to come reads the description first. Say who the class is for and what an evening looks like.',
+      'Seekers decide from this — say who comes, what an evening is like, and what to bring.',
     evaluate: ({ descriptionText }) => descriptionText.length === 0,
   },
   {
@@ -89,25 +90,18 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     tier: 'completeness',
     scope: 'document',
     label: 'Add a photo',
-    description:
-      'Listings with a photo of the room or the group get noticeably more interest than listings without one.',
+    passedLabel: 'Has a photo',
+    description: 'A photo of the room or the group draws noticeably more interest than none.',
     evaluate: ({ event }) => !Array.isArray(event.images) || event.images.length === 0,
-  },
-  {
-    key: 'website.missing',
-    tier: 'completeness',
-    scope: 'document',
-    label: 'Add a website',
-    description: 'Without a link there is nowhere for a seeker to read more about the programme.',
-    evaluate: ({ event }) => !hasValue(event.website),
   },
   {
     key: 'contact.none',
     tier: 'completeness',
     scope: 'document',
     label: 'Add a way to get in touch',
+    passedLabel: 'Seekers can get in touch',
     description:
-      'This listing offers no phone, no email, no website and no online link — a seeker with a question has no way to ask it.',
+      'There is no phone, email, website or online link, so a seeker with a question has nowhere to send it.',
     evaluate: ({ event }) =>
       !hasValue(event.contactPhone) &&
       !hasValue(event.contactEmail) &&
@@ -122,8 +116,11 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     scope: 'perLocale',
     requiresHandWrittenTitle: true,
     label: 'Give the title something of its own to say',
+    passedLabel: 'Title says something specific',
+    localeLabel: 'Give the %{language} title something of its own to say',
+    localePassedLabel: 'The %{language} title says something specific',
     description:
-      'A title that only says "Meditation" is strictly worse than leaving it blank: the auto-title names the venue and translates itself. Name the audience, the language, the format, or clear the field.',
+      'Name the audience, language or format — or clear the field, and the venue name fills in automatically and translates itself.',
     evaluate: ({ title }) => !!title && GENERIC_TITLE_RE.test(title.trim()),
   },
   {
@@ -131,9 +128,12 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     tier: 'title',
     scope: 'perLocale',
     requiresHandWrittenTitle: true,
-    label: 'The title only repeats the address',
+    label: 'Say something the address doesn’t already say',
+    passedLabel: 'Title adds to the address',
+    localeLabel: 'Make the %{language} title say something the address doesn’t',
+    localePassedLabel: 'The %{language} title adds to the address',
     description:
-      'The listing already renders the venue, street and city from the address. A title that repeats one of them spends the most prominent line saying nothing new.',
+      'The venue, street and city are already shown from the address, so the title spends the most prominent line repeating them.',
     evaluate: ({ addressPhrases, title }) => {
       if (!title) return false
       const normalized = normalizeForComparison(title)
@@ -145,9 +145,12 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     tier: 'title',
     scope: 'perLocale',
     requiresHandWrittenTitle: true,
-    label: 'The title repeats the schedule',
+    label: 'Take the day or time out of the title',
+    passedLabel: 'Title leaves the timing to the schedule',
+    localeLabel: 'Take the day or time out of the %{language} title',
+    localePassedLabel: 'The %{language} title leaves the timing to the schedule',
     description:
-      'The listing renders the weekday and time from the schedule, and keeps them right when the schedule changes. A day or time written into the title goes stale silently.',
+      'The schedule already shows it, and keeps it right when it changes — a day typed into the title goes stale silently.',
     evaluate: ({ title }) => !!title && containsScheduleInfo(title),
   },
 
@@ -156,9 +159,9 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     key: 'description.repeatsAddress',
     tier: 'description',
     scope: 'document',
-    label: 'The description repeats the address',
-    description:
-      'The address is already rendered above the description, with a map. Repeating it in prose costs the reader a paragraph and tells them nothing.',
+    label: 'Take the address out of the description',
+    passedLabel: 'Description doesn’t repeat the address',
+    description: 'The listing already shows the address above the description, with a map.',
     evaluate: ({ addressPhrases, descriptionText }) =>
       descriptionText.length > 0 &&
       addressPhrases.some((phrase) => containsPhrase(descriptionText, phrase)),
@@ -167,9 +170,10 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     key: 'description.repeatsSchedule',
     tier: 'description',
     scope: 'document',
-    label: 'The description repeats the schedule',
+    label: 'Take the day and time out of the description',
+    passedLabel: 'Description doesn’t repeat the schedule',
     description:
-      'The weekday and time come from the schedule, which stays correct when the schedule is edited. The same information typed into prose does not.',
+      'The schedule stays correct when you edit it; the same day typed into prose quietly doesn’t.',
     evaluate: ({ descriptionText }) =>
       descriptionText.length > 0 && containsScheduleInfo(descriptionText),
   },
@@ -177,9 +181,10 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     key: 'description.repeatsContact',
     tier: 'description',
     scope: 'document',
-    label: 'Move the phone number or email out of the description',
+    label: 'Move the phone number or email into the contact fields',
+    passedLabel: 'Contact details are in their own fields',
     description:
-      'A phone number or address in prose is unclickable and invisible to the contact fields. Put it in Contact Phone or Contact Email and it renders as a real link.',
+      'Written into the description they aren’t clickable, and the listing can’t offer them as a way to make contact.',
     evaluate: ({ descriptionText }) =>
       descriptionText.length > 0 && containsContactInfo(descriptionText),
   },
@@ -187,19 +192,19 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     key: 'description.containsUrl',
     tier: 'description',
     scope: 'document',
-    label: 'Move the link out of the description',
-    description:
-      'A URL typed into the description renders as dead, unclickable text. It belongs in Website, or in Online URL for a link attendees join through.',
-    evaluate: ({ descriptionText }) =>
-      descriptionText.length > 0 && containsUrl(descriptionText),
+    label: 'Move the link into the Website or Online URL field',
+    passedLabel: 'No stray links in the description',
+    description: 'A web address typed into the description renders as dead, unclickable text.',
+    evaluate: ({ descriptionText }) => descriptionText.length > 0 && containsUrl(descriptionText),
   },
   {
     key: 'description.staleDate',
     tier: 'description',
     scope: 'document',
-    label: 'The description names a date that has passed',
+    label: 'Remove the date that has passed',
+    passedLabel: 'No dates that have gone stale',
     description:
-      'A date in the past makes a live listing look abandoned. Remove it, or move a real one-off date into the schedule.',
+      'A past date makes a live listing look abandoned — move a real one-off date into the schedule instead.',
     evaluate: ({ currentYear, descriptionText }) =>
       findStaleDates(descriptionText, currentYear).length > 0,
   },
@@ -207,8 +212,10 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     key: 'description.tooShort',
     tier: 'description',
     scope: 'document',
-    label: 'Say a little more',
-    description: `A description under ${DESCRIPTION_MIN_LENGTH} characters rarely says anything the structured fields don't. Two sentences about who comes and what happens is enough.`,
+    label: 'Say more about what to expect',
+    passedLabel: 'Description says enough to go on',
+    description:
+      'Two or three sentences: who comes, what happens in a session, whether it suits a complete beginner, and what to bring.',
     evaluate: ({ descriptionText }) =>
       descriptionText.length > 0 && descriptionText.length < DESCRIPTION_MIN_LENGTH,
   },
@@ -219,21 +226,35 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
     tier: 'translation',
     scope: 'perLocale',
     label: 'Add a title in this language',
+    passedLabel: 'Has a title in this language',
+    // "in %{language}" rather than "a %{language} title": the latter renders
+    // "Add a English title" for every vowel-initial language name.
+    localeLabel: 'Add a title in %{language}',
+    localePassedLabel: 'Has a title in %{language}',
     description:
-      'This event is listed as being conducted in this language, but has no title for it — a seeker browsing in that language sees the English one.',
+      'This event is listed as being run in this language, but a seeker browsing in it sees the English title.',
     evaluate: ({ title }) => !title,
   },
 ]
 
-/** Label + description for every key, for the admin panel's `admin.custom`. */
+/** Every label the panel renders, keyed for `admin.custom`. */
 export const EVENT_QUALITY_CHECK_METADATA: Record<
   string,
-  { label: string; description: string; tier: QualityCheck['tier'] }
+  {
+    label: string
+    passedLabel: string
+    localeLabel?: string
+    localePassedLabel?: string
+    description: string
+    tier: QualityCheck['tier']
+  }
 > = Object.fromEntries(
-  EVENT_QUALITY_CHECKS.map(({ key, label, description, tier }) => [
-    key,
-    { label, description, tier },
-  ]),
+  EVENT_QUALITY_CHECKS.map(
+    ({ key, label, passedLabel, localeLabel, localePassedLabel, description, tier }) => [
+      key,
+      { label, passedLabel, localeLabel, localePassedLabel, description, tier },
+    ],
+  ),
 )
 
 /** Document-scope checks — the ones `qualityOpenCount` counts. */

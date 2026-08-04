@@ -72,12 +72,52 @@ const failedKeys = (event: EventQualityInput, options = {}) => {
 }
 
 describe('registry integrity', () => {
-  it('gives every check a label and a description', () => {
-    // Without this, a check added later renders in the panel as a bare key.
+  it('gives every check a label, a passing label and a description', () => {
+    // Without this, a check added later renders in the panel as a bare key —
+    // and a missing passedLabel would put a tick beside an instruction, which
+    // reads as an endorsement of the thing we're asking them to stop doing.
     const unlabelled = EVENT_QUALITY_CHECKS.filter(
-      (check) => !check.label?.trim() || !check.description?.trim(),
+      (check) => !check.label?.trim() || !check.passedLabel?.trim() || !check.description?.trim(),
     )
     expect(unlabelled.map((c) => c.key)).toEqual([])
+  })
+
+  it('words the passing label as a state, not as an instruction', () => {
+    // "The description repeats the address" beside a tick said the opposite of
+    // what was meant. A passing label must never be the imperative one.
+    const sameBothWays = EVENT_QUALITY_CHECKS.filter((c) => c.passedLabel === c.label)
+    expect(sameBothWays.map((c) => c.key)).toEqual([])
+  })
+
+  it('gives every per-locale check a language-named wording', () => {
+    // Multilingual events name the language inline ("Add a German title"), so
+    // both wordings need the placeholder the panel bolds.
+    const missing = EVENT_QUALITY_CHECKS.filter(
+      (check) =>
+        check.scope === 'perLocale' &&
+        (!check.localeLabel?.includes('%{language}') ||
+          !check.localePassedLabel?.includes('%{language}')),
+    )
+    expect(missing.map((c) => c.key)).toEqual([])
+  })
+
+  it('never puts an article straight before the language name', () => {
+    // "Add a %{language} title" renders "Add a English title". Phrase around it.
+    const ungrammatical = EVENT_QUALITY_CHECKS.filter((check) =>
+      [check.localeLabel, check.localePassedLabel].some((label) =>
+        /\b(a|an)\s+%\{language\}/i.test(label ?? ''),
+      ),
+    )
+    expect(ungrammatical.map((c) => c.key)).toEqual([])
+  })
+
+  it('keeps every description to a single sentence', () => {
+    // The panel prints these under each open recommendation; a paragraph there
+    // turns the sidebar into a wall of text.
+    const tooLong = EVENT_QUALITY_CHECKS.filter(
+      (check) => (check.description.match(/[.!?](\s|$)/g) ?? []).length > 1,
+    )
+    expect(tooLong.map((c) => c.key)).toEqual([])
   })
 
   it('keeps every key unique', () => {
@@ -101,7 +141,6 @@ describe('registry integrity', () => {
         'title.restatesAddress',
         'title.restatesSchedule',
         'translation.title.missing',
-        'website.missing',
       ].sort(),
     )
   })
@@ -122,8 +161,10 @@ describe('completeness checks', () => {
     expect(failedKeys(goodEvent({ images: [] }))).toEqual(['images.missing'])
   })
 
-  it('flags a missing website', () => {
-    expect(failedKeys(goodEvent({ website: null }))).toEqual(['website.missing'])
+  it('does not ask for a website — it is optional by design', () => {
+    // A listing that says everything in place is better than one that sends a
+    // seeker to an external site, so its absence is not a finding.
+    expect(failedKeys(goodEvent({ website: null }))).toEqual([])
   })
 
   it('flags an event with no contact route at all', () => {
@@ -133,14 +174,12 @@ describe('completeness checks', () => {
       website: null,
       onlineUrl: null,
     })
-    expect(failedKeys(stranded).sort()).toEqual(['contact.none', 'website.missing'])
+    expect(failedKeys(stranded)).toEqual(['contact.none'])
   })
 
   it('accepts an online link as the contact route', () => {
     const online = goodEvent({ contactPhone: null, contactEmail: null, website: null })
-    expect(failedKeys({ ...online, onlineUrl: 'https://meet.example.org/room' })).toEqual([
-      'website.missing',
-    ])
+    expect(failedKeys({ ...online, onlineUrl: 'https://meet.example.org/room' })).toEqual([])
   })
 })
 
@@ -398,21 +437,21 @@ describe('openCount', () => {
     const event = goodEvent({ images: [], website: null, title: 'Meditation' })
     const report = buildEventQualityReport(event, { now: NOW })
     if (report.skipped) throw new Error('expected a report')
-    // images.missing + website.missing — title.generic is per-locale.
-    expect(report.openCount).toBe(2)
-    expect(countOpenDocumentIssues(event, NOW)).toBe(2)
+    // images.missing only — title.generic is per-locale, and a missing website
+    // is not a finding.
+    expect(report.openCount).toBe(1)
+    expect(countOpenDocumentIssues(event, NOW)).toBe(1)
   })
 
-  it('reports an empty listing as the four things it is actually missing', () => {
+  it('reports an empty listing as the three things it is actually missing', () => {
     // The six description-quality checks stay silent on an empty description,
-    // so a bare listing yields four findings rather than every check at once.
+    // so a bare listing yields three findings rather than every check at once.
     const empty: EventQualityInput = { _status: 'published', verificationStage: 'verified' }
     const report = buildEventQualityReport(empty, { now: NOW })
     if (report.skipped) throw new Error('expected a report')
     expect(report.document.filter((r) => r.status === 'failed').map((r) => r.key)).toEqual([
       'description.missing',
       'images.missing',
-      'website.missing',
       'contact.none',
     ])
     expect(report.openCount).toBeLessThanOrEqual(DOCUMENT_SCOPE_CHECKS.length)
