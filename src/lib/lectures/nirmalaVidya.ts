@@ -1,6 +1,6 @@
 import type { NirmalaVidyaVideoData } from '@/lib/lectures/nirmalaVidyaApi'
 import type { LocaleCode } from '@/lib/locales'
-import { isValidLocale } from '@/lib/locales'
+import { languageToLocale } from '@/lib/locales'
 
 // =============================================================================
 // Language Code Mapping
@@ -11,18 +11,7 @@ import { isValidLocale } from '@/lib/locales'
  * Returns null for unrecognized codes (silently skipped).
  */
 export function apiLanguageToLocale(apiCode: string): LocaleCode | null {
-  if (isValidLocale(apiCode)) return apiCode
-  // Normalize to BCP-47 shape: lowercase language subtag, uppercase region
-  // subtag (e.g. 'pt_BR' / 'pt-br' -> 'pt-BR'), so a lowercased region no
-  // longer collides with the old invalid 'pt-br' spelling.
-  const [language, region] = apiCode.replace('_', '-').split('-')
-  const normalized = region
-    ? `${language.toLowerCase()}-${region.toUpperCase()}`
-    : language.toLowerCase()
-  if (isValidLocale(normalized)) return normalized
-  // Special case: API may use 'pt' for Brazilian Portuguese
-  if (normalized === 'pt') return 'pt-BR'
-  return null
+  return languageToLocale(apiCode)
 }
 
 // =============================================================================

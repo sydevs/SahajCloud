@@ -58,6 +58,32 @@ export function isValidLocale(code: string): code is LocaleCode {
 }
 
 /**
+ * Map a language code onto a CMS locale, or `null` when the CMS isn't
+ * translated into it (the caller then falls back to `DEFAULT_LOCALE`).
+ *
+ * The bridge between the two sets this folder exposes: the ~183 ISO 639-1
+ * languages `getLanguageOptions()` offers (what a manager/client picks as their
+ * `language`, and what external APIs send) and the 19 `LOCALES` the CMS is
+ * actually translated into. Accepts the loose spellings those sources use —
+ * `pt_BR`, `pt-br` — and treats bare `pt` as Brazilian Portuguese, the only
+ * Portuguese locale configured.
+ */
+export function languageToLocale(code: string | null | undefined): LocaleCode | null {
+  if (!code) return null
+  if (isValidLocale(code)) return code
+  // Normalize to BCP-47 shape: lowercase language subtag, uppercase region
+  // subtag (e.g. 'pt_BR' / 'pt-br' -> 'pt-BR'), so a lowercased region no
+  // longer collides with the old invalid 'pt-br' spelling.
+  const [language, region] = code.replace('_', '-').split('-')
+  const normalized = region
+    ? `${language.toLowerCase()}-${region.toUpperCase()}`
+    : language.toLowerCase()
+  if (isValidLocale(normalized)) return normalized
+  if (normalized === 'pt') return 'pt-BR'
+  return null
+}
+
+/**
  * Select options for the app's configured locales.
  *
  * Distinct from `getLanguageOptions()`, which offers every ISO 639-1 language.
