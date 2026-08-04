@@ -87,16 +87,13 @@ describe('lecturesForAudience endpoint', () => {
 
     audienceBeginner = await testData.createAudience(payload, {
       label: 'Beginner',
-      rules: { logic: 'AND', pathProgress: { min: 0, max: 5 } },
     })
     audienceIntermediate = await testData.createAudience(payload, {
       label: 'Intermediate',
-      rules: { logic: 'AND', pathProgress: { min: 5, max: 10 } },
     })
     // No lectures attached — used to exercise the empty-result path.
     audienceUnused = await testData.createAudience(payload, {
       label: 'Unused',
-      rules: { logic: 'AND', pathProgress: { min: 50, max: 100 } },
     })
 
     beginnerOnly = String(audienceBeginner.id)

@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import { testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 // Mock the Nirmala Vidya API client — prevents real network calls when creating lectures
@@ -63,7 +63,7 @@ describe('Audiences Collection', () => {
       await expect(
         payload.create({
           collection: 'audiences',
-          data: {} as Record<string, unknown>,
+          data: createData<'audiences'>({}),
         }),
       ).rejects.toThrow()
     })
@@ -82,7 +82,7 @@ describe('Audiences Collection', () => {
       const updated = await payload.update({
         collection: 'audiences',
         id: audience.id,
-        data: { label: 'Updated' },
+        data: createData<'audiences'>({ label: 'Updated' }),
       })
       expect(updated.label).toBe('Updated')
     })
@@ -112,10 +112,10 @@ describe('Audiences Collection', () => {
       await expect(
         payload.create({
           collection: 'audiences',
-          data: {
+          data: createData<'audiences'>({
             label: 'Invalid Range',
             pathProgress: { min: 10, max: 5 },
-          },
+          }),
         }),
       ).rejects.toThrow()
     })
@@ -214,7 +214,7 @@ describe('Audiences Collection', () => {
     it('includes app cards in the appCards join', async () => {
       const audience = await testData.createAudience(payload, { label: 'AppCard Join Test' })
       const card = await testData.createAppCard(payload, {
-        title: 'Card With Audience',
+        default: { title: 'Card With Audience' },
         audiences: [audience.id],
       })
 

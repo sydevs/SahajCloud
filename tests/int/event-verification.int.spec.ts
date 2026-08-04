@@ -9,7 +9,8 @@ import type { NotificationLogEntry } from '@/lib/eventVerification/log'
 import { signVerifyToken } from '@/lib/eventVerification/token'
 import type { Event, Manager } from '@/payload-types'
 
-import { testData } from '../utils/testData'
+import { runTaskHandler } from '../utils/taskRunner'
+import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -20,32 +21,11 @@ import { createTestEnvironment } from '../utils/testHelpers'
  * tested separately.
  */
 
-type ExpireOutput = {
-  processed: number
-  finished: number
-  advanced: number
-  trashed: number
-  remindersSent: number
-  failed: number
-}
-
 const DAY_MS = 24 * 60 * 60 * 1000
 const daysAgo = (n: number) => new Date(Date.now() - n * DAY_MS).toISOString()
 const inDays = (n: number) => new Date(Date.now() + n * DAY_MS).toISOString()
 
-async function runJob(payload: Payload): Promise<ExpireOutput> {
-  const req = { payload, context: {}, headers: new Headers() } as Parameters<
-    typeof ExpireEvents.handler
-  >[0]['req']
-  const res = await ExpireEvents.handler({
-    req,
-    input: {},
-    job: {} as Parameters<typeof ExpireEvents.handler>[0]['job'],
-    tasks: {} as Parameters<typeof ExpireEvents.handler>[0]['tasks'],
-    inlineTask: (() => {}) as Parameters<typeof ExpireEvents.handler>[0]['inlineTask'],
-  })
-  return res.output as ExpireOutput
-}
+const runJob = (payload: Payload) => runTaskHandler(ExpireEvents, { payload })
 
 /** Back-date an event's nextCheckAt so the next run treats it as due. */
 async function makeDue(payload: Payload, id: number): Promise<void> {
@@ -91,12 +71,12 @@ describe('Event verification lifecycle', () => {
     defaultRegion = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: {
+      data: createData<'regions'>({
         name: 'Default City',
         level: 'city',
         mapboxId: 'default-city',
         managers: [eventManager.id],
-      },
+      }),
     })
   })
 
@@ -104,10 +84,15 @@ describe('Event verification lifecycle', () => {
     await cleanup()
   })
 
-  async function createEvent(overrides: Partial<Event> = {}): Promise<Event> {
+  /** `schedule: null` is a local sentinel meaning "omit the group" (inactive events). */
+  type EventFixture = Omit<FixtureOverrides<Event>, 'schedule'> & {
+    schedule?: FixtureOverrides<Event>['schedule'] | null
+  }
+
+  async function createEvent(overrides: EventFixture = {}): Promise<Event> {
     const hasScheduleOverride = 'schedule' in overrides
-    const { schedule: scheduleOverride, ...rest } = overrides as Record<string, unknown>
-    const data: Record<string, unknown> = {
+    const { schedule: scheduleOverride, ...rest } = overrides
+    const data: FixtureOverrides<Event> = {
       title: 'Lifecycle Event',
       languages: ['en'],
       eventType: 'online',
@@ -131,7 +116,11 @@ describe('Event verification lifecycle', () => {
       // A null override omits the schedule entirely (inactive events).
       data.schedule = scheduleOverride
     }
-    return payload.create({ collection: 'events', overrideAccess: true, data: data as Event })
+    return payload.create({
+      collection: 'events',
+      overrideAccess: true,
+      data: createData<'events'>(data),
+    })
   }
 
   it('opens a verified, published cycle on create (verify-on-save hook)', async () => {
@@ -149,12 +138,12 @@ describe('Event verification lifecycle', () => {
     const region = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: {
+      data: createData<'regions'>({
         name: 'Country LC',
         level: 'country',
         mapboxId: 'lc-country',
         managers: [eventManager.id],
-      },
+      }),
     })
     const regionManager = await testData.createManager(payload, {
       name: 'Region Manager',
@@ -163,13 +152,13 @@ describe('Event verification lifecycle', () => {
     const city = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: {
+      data: createData<'regions'>({
         name: 'City LC',
         level: 'city',
         mapboxId: 'lc-city',
         parent: region.id,
         managers: [regionManager.id],
-      },
+      }),
     })
     const event = await createEvent({ region: city.id })
 
@@ -298,12 +287,12 @@ describe('Event verification lifecycle', () => {
     const country = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: {
+      data: createData<'regions'>({
         name: 'Country DD',
         level: 'country',
         mapboxId: 'dd-country',
         managers: [eventManager.id],
-      },
+      }),
     })
     const countryManager = await testData.createManager(payload, {
       name: 'Country Manager',
@@ -313,19 +302,19 @@ describe('Event verification lifecycle', () => {
       collection: 'regions',
       id: country.id,
       overrideAccess: true,
-      data: { managers: [countryManager.id] },
+      data: createData<'regions'>({ managers: [countryManager.id] }),
     })
     const city = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: {
+      data: createData<'regions'>({
         name: 'City DD',
         level: 'city',
         mapboxId: 'dd-city',
         parent: country.id,
         // The event manager is *also* this region's manager.
         managers: [eventManager.id],
-      },
+      }),
     })
     const event = await createEvent({ region: city.id })
 
@@ -369,12 +358,12 @@ describe('Event verification lifecycle', () => {
     const region = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: {
+      data: createData<'regions'>({
         name: 'Country RS',
         level: 'country',
         mapboxId: 'rs-country',
         managers: [eventManager.id],
-      },
+      }),
     })
     const regionManager = await testData.createManager(payload, {
       name: 'Resume Region Manager',
@@ -383,13 +372,13 @@ describe('Event verification lifecycle', () => {
     const city = await payload.create({
       collection: 'regions',
       overrideAccess: true,
-      data: {
+      data: createData<'regions'>({
         name: 'City RS',
         level: 'city',
         mapboxId: 'rs-city',
         parent: region.id,
         managers: [regionManager.id],
-      },
+      }),
     })
     const event = await createEvent({ region: city.id })
 
@@ -535,7 +524,7 @@ describe('Event verification lifecycle', () => {
       schedule: null,
       contactPhone: '+44 20 7946 0000',
       contactName: 'Event Contact',
-    } as Partial<Event>)
+    })
     await makeDue(payload, event.id)
     const result = await runJob(payload)
 

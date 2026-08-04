@@ -6,6 +6,7 @@ import { SyncLectureMetadata } from '@/jobs/SyncLectureMetadata/SyncLectureMetad
 import type { LectureMetadata } from '@/lib/lectures/nirmalaVidya'
 import type { Lecture } from '@/payload-types'
 
+import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -23,29 +24,8 @@ vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
   }
 })
 
-type SyncOutput = {
-  totalProcessed: number
-  synced: number
-  failed: number
-  skippedNoVimeoId: number
-}
-
-async function runTask(payload: Payload, input?: { lectureIds?: number[] }): Promise<SyncOutput> {
-  const req = {
-    payload,
-    context: {},
-    headers: new Headers(),
-  } as Parameters<typeof SyncLectureMetadata.handler>[0]['req']
-
-  const result = await SyncLectureMetadata.handler({
-    req,
-    input: input ?? {},
-    job: {} as Parameters<typeof SyncLectureMetadata.handler>[0]['job'],
-    tasks: {} as Parameters<typeof SyncLectureMetadata.handler>[0]['tasks'],
-    inlineTask: (() => {}) as Parameters<typeof SyncLectureMetadata.handler>[0]['inlineTask'],
-  })
-  return result.output as SyncOutput
-}
+const runTask = (payload: Payload, input?: { lectureIds?: number[] }) =>
+  runTaskHandler(SyncLectureMetadata, { payload, input: input ?? {} })
 
 describe('SyncLectureMetadata task', () => {
   let payload: Payload
