@@ -377,7 +377,7 @@
     },
     "emails": {
       "type": "object",
-      "description": "Chrome for emails the CMS sends to registrants. Event data (title, address, times) is never translated — only the surrounding copy is.",
+      "description": "Chrome for the emails the CMS sends: the confirmations and reminders seekers receive in the language they registered in, and the `verify_*` event-verification reminders managers receive in their own language. Event data (title, address, times, durations) is never translated — only the surrounding copy is.",
       "properties": {
         "confirmation_subject": {
           "type": "string",
@@ -493,6 +493,314 @@
         "unsubscribe_error_message": {
           "type": "string",
           "description": "Body of the error card when unsubscribing fails."
+        },
+        "verify_greeting": {
+          "type": "string",
+          "description": "Opening line of the event-verification reminder sent to managers. `%{name}` = the manager's name (shown in bold).",
+          "maxLength": 40
+        },
+        "verify_button_hint": {
+          "type": "string",
+          "description": "Line introducing the plain-text verify URL, shown for email clients that strip buttons."
+        },
+        "verify_footer_manager": {
+          "type": "string",
+          "description": "Footer of the reminder sent to the event's own manager, explaining why they received it and warning against forwarding. `%{brand}` = product name."
+        },
+        "verify_footer_region": {
+          "type": "string",
+          "description": "Same footer, for a region manager escalated to above the event manager. `%{brand}` = product name."
+        },
+        "verify_contact_subject": {
+          "type": "string",
+          "description": "Subject of the pre-filled email a region manager's \"Contact manager\" button opens. `%{event}` = event title.",
+          "maxLength": 78
+        },
+        "verify_contact_body": {
+          "type": "string",
+          "description": "Body of that pre-filled email, asking the event manager to verify. `%{manager}` = their name, `%{event}` = event title. Line breaks are preserved."
+        },
+        "verify_manager_heading": {
+          "type": "string",
+          "description": "Section heading above the event manager's contact card (region reminders only).",
+          "maxLength": 24
+        },
+        "verify_details_heading": {
+          "type": "string",
+          "description": "Section heading above the event's summary table.",
+          "maxLength": 24
+        },
+        "verify_label_name": {
+          "type": "string",
+          "description": "Row label for the event manager's name.",
+          "maxLength": 20
+        },
+        "verify_label_event": {
+          "type": "string",
+          "description": "Row label for the event's title.",
+          "maxLength": 20
+        },
+        "verify_label_online": {
+          "type": "string",
+          "description": "Row label for an online event's joining link (replaces the address label).",
+          "maxLength": 20
+        },
+        "verify_label_address": {
+          "type": "string",
+          "description": "Row label for an in-person event's address.",
+          "maxLength": 20
+        },
+        "verify_label_schedule": {
+          "type": "string",
+          "description": "Row label for the event's schedule. The schedule itself is a formatted date/time and stays untranslated.",
+          "maxLength": 20
+        },
+        "verify_label_breaks": {
+          "type": "string",
+          "description": "Row label for the event's scheduled breaks (holiday pauses).",
+          "maxLength": 20
+        },
+        "verify_label_contact": {
+          "type": "string",
+          "description": "Row label for the event's public contact name and phone.",
+          "maxLength": 20
+        },
+        "verify_label_registrations": {
+          "type": "string",
+          "description": "Row label for how many people registered recently.",
+          "maxLength": 20
+        },
+        "verify_label_last_verified": {
+          "type": "string",
+          "description": "Row label for the date the event was last verified.",
+          "maxLength": 20
+        },
+        "verify_never_verified": {
+          "type": "string",
+          "description": "Value shown in the last-verified row when the event has never been verified.",
+          "maxLength": 20
+        },
+        "verify_view_event_cta": {
+          "type": "string",
+          "description": "Secondary button label opening the event's public page on the map.",
+          "maxLength": 20
+        },
+        "verify_registrations_count": {
+          "type": "string",
+          "plural": true,
+          "maxLength": 48,
+          "description": "Recent-registration count shown in the summary table, entered per plural form. `%{count}` = number of registrations in the last 30 days."
+        },
+        "verify_fallback_manager": {
+          "type": "string",
+          "description": "Stand-in used in place of the event manager's name when it is unknown, e.g. \"the event manager\".",
+          "maxLength": 24
+        },
+        "verify_fallback_region": {
+          "type": "string",
+          "description": "Stand-in used in place of the region's name when it is unknown, e.g. \"your region\".",
+          "maxLength": 24
+        },
+        "verify_fallback_deadline": {
+          "type": "string",
+          "description": "Stand-in used in place of the unpublish date when it is unknown, e.g. \"shortly\".",
+          "maxLength": 24
+        },
+        "verify_manager_due_subject": {
+          "type": "string",
+          "description": "Subject of the first verification reminder to the event manager. `%{event}` = event title.",
+          "maxLength": 78
+        },
+        "verify_manager_due_heading": {
+          "type": "string",
+          "description": "Heading of the first reminder to the event manager.",
+          "maxLength": 60
+        },
+        "verify_manager_due_preview": {
+          "type": "string",
+          "description": "Inbox preview snippet of the first reminder to the event manager.",
+          "maxLength": 90
+        },
+        "verify_manager_due_cta": {
+          "type": "string",
+          "description": "Verify-button label on the first reminder to the event manager.",
+          "maxLength": 24
+        },
+        "verify_manager_due_body": {
+          "type": "string",
+          "description": "Main paragraph of the first reminder: why events are checked periodically. `%{brand}` = product name."
+        },
+        "verify_manager_due_callout": {
+          "type": "string",
+          "description": "Highlighted instruction on the first reminder. `%{deadline}` = the date the event is unpublished (shown in bold)."
+        },
+        "verify_manager_escalated_subject": {
+          "type": "string",
+          "description": "Subject of the overdue reminder to the event manager. `%{event}` = event title.",
+          "maxLength": 78
+        },
+        "verify_manager_escalated_heading": {
+          "type": "string",
+          "description": "Heading of the overdue reminder to the event manager.",
+          "maxLength": 60
+        },
+        "verify_manager_escalated_preview": {
+          "type": "string",
+          "description": "Inbox preview snippet of the overdue reminder to the event manager.",
+          "maxLength": 90
+        },
+        "verify_manager_escalated_cta": {
+          "type": "string",
+          "description": "Verify-button label on the overdue reminder to the event manager.",
+          "maxLength": 24
+        },
+        "verify_manager_escalated_body": {
+          "type": "string",
+          "description": "Main paragraph of the overdue reminder to the event manager."
+        },
+        "verify_manager_escalated_callout": {
+          "type": "string",
+          "description": "Highlighted instruction on the overdue reminder. `%{deadline}` = the date the event is unpublished (shown in bold)."
+        },
+        "verify_manager_urgent_subject": {
+          "type": "string",
+          "description": "Subject of the final reminder to the event manager. `%{event}` = event title.",
+          "maxLength": 78
+        },
+        "verify_manager_urgent_heading": {
+          "type": "string",
+          "description": "Heading of the final reminder to the event manager.",
+          "maxLength": 60
+        },
+        "verify_manager_urgent_preview": {
+          "type": "string",
+          "description": "Inbox preview snippet of the final reminder to the event manager.",
+          "maxLength": 90
+        },
+        "verify_manager_urgent_cta": {
+          "type": "string",
+          "description": "Verify-button label on the final reminder to the event manager.",
+          "maxLength": 24
+        },
+        "verify_manager_urgent_body": {
+          "type": "string",
+          "description": "Main paragraph of the final reminder to the event manager."
+        },
+        "verify_manager_urgent_callout": {
+          "type": "string",
+          "description": "Highlighted instruction on the final reminder. `%{deadline}` = the date the event is unpublished (shown in bold)."
+        },
+        "verify_manager_expired_subject": {
+          "type": "string",
+          "description": "Subject of the notice telling the event manager their event was unpublished. `%{event}` = event title.",
+          "maxLength": 78
+        },
+        "verify_manager_expired_heading": {
+          "type": "string",
+          "description": "Heading of the unpublished notice to the event manager.",
+          "maxLength": 60
+        },
+        "verify_manager_expired_preview": {
+          "type": "string",
+          "description": "Inbox preview snippet of the unpublished notice to the event manager.",
+          "maxLength": 90
+        },
+        "verify_manager_expired_cta": {
+          "type": "string",
+          "description": "Verify-button label on the unpublished notice — verifying republishes the event.",
+          "maxLength": 24
+        },
+        "verify_manager_expired_body": {
+          "type": "string",
+          "description": "Main paragraph of the unpublished notice. `%{since}` = how long the event went unverified (a formatted duration, e.g. \"3 months\")."
+        },
+        "verify_manager_expired_callout": {
+          "type": "string",
+          "description": "Highlighted instruction on the unpublished notice. `%{deadline}` = the date the event was unpublished (shown in bold)."
+        },
+        "verify_region_escalated_subject": {
+          "type": "string",
+          "description": "Subject of the first escalation to a region manager. `%{event}` = event title.",
+          "maxLength": 78
+        },
+        "verify_region_escalated_heading": {
+          "type": "string",
+          "description": "Heading of the first escalation to a region manager.",
+          "maxLength": 60
+        },
+        "verify_region_escalated_preview": {
+          "type": "string",
+          "description": "Inbox preview snippet of the first escalation to a region manager.",
+          "maxLength": 90
+        },
+        "verify_region_escalated_cta": {
+          "type": "string",
+          "description": "Button label that opens a pre-filled email to the event manager.",
+          "maxLength": 24
+        },
+        "verify_region_escalated_body": {
+          "type": "string",
+          "description": "Main paragraph asking the region manager to chase the event manager. `%{region}` = region name, `%{manager}` = event manager's name (both shown in bold)."
+        },
+        "verify_region_escalated_callout": {
+          "type": "string",
+          "description": "Highlighted instruction on the first escalation. `%{deadline}` = the date the event is unpublished (shown in bold)."
+        },
+        "verify_region_urgent_subject": {
+          "type": "string",
+          "description": "Subject of the final escalation to a region manager. `%{event}` = event title.",
+          "maxLength": 78
+        },
+        "verify_region_urgent_heading": {
+          "type": "string",
+          "description": "Heading of the final escalation to a region manager.",
+          "maxLength": 60
+        },
+        "verify_region_urgent_preview": {
+          "type": "string",
+          "description": "Inbox preview snippet of the final escalation to a region manager.",
+          "maxLength": 90
+        },
+        "verify_region_urgent_cta": {
+          "type": "string",
+          "description": "Button label that opens a pre-filled email to the event manager.",
+          "maxLength": 24
+        },
+        "verify_region_urgent_body": {
+          "type": "string",
+          "description": "Main paragraph of the final escalation. `%{region}` = region name, `%{manager}` = event manager's name (both shown in bold)."
+        },
+        "verify_region_urgent_callout": {
+          "type": "string",
+          "description": "Highlighted instruction on the final escalation. `%{deadline}` = the date the event is unpublished (shown in bold)."
+        },
+        "verify_region_expired_subject": {
+          "type": "string",
+          "description": "Subject of the notice telling a region manager an event in their region was unpublished. `%{event}` = event title.",
+          "maxLength": 78
+        },
+        "verify_region_expired_heading": {
+          "type": "string",
+          "description": "Heading of the unpublished notice to a region manager.",
+          "maxLength": 60
+        },
+        "verify_region_expired_preview": {
+          "type": "string",
+          "description": "Inbox preview snippet of the unpublished notice to a region manager.",
+          "maxLength": 90
+        },
+        "verify_region_expired_cta": {
+          "type": "string",
+          "description": "Button label that opens a pre-filled email to the event manager.",
+          "maxLength": 24
+        },
+        "verify_region_expired_body": {
+          "type": "string",
+          "description": "Main paragraph of the unpublished notice to a region manager. `%{region}` = region name, `%{manager}` = event manager's name (both shown in bold), `%{since}` = how long it went unverified (a formatted duration, e.g. \"3 months\")."
+        },
+        "verify_region_expired_callout": {
+          "type": "string",
+          "description": "Highlighted instruction on the unpublished notice. `%{deadline}` = the date the event was unpublished (shown in bold)."
         }
       },
       "additionalProperties": false
