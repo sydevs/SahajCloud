@@ -23,8 +23,8 @@ import type { Event } from '@/payload-types'
 
 import dotenv from 'dotenv'
 
-dotenv.config({ path: '.env' })
-dotenv.config({ path: '.env.local', override: true })
+// Shell env wins, then .env.local, then .env (see seeds/env.ts).
+dotenv.config({ path: ['.env.local', '.env'] })
 
 // Absolute icon + admin-link URLs must resolve for the reviewer, so default to
 // production rather than a localhost the Ethereal viewer can't reach.

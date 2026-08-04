@@ -26,8 +26,11 @@ SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed <script>
 **Environment variables**:
 
 - `SAHAJCLOUD_URL` - Target URL (default: `http://localhost:PORT`)
-- `ADMIN_EMAIL` / `ADMIN_PASSWORD` - **only needed for a remote target** (loaded
-  from `.env.local` by `seeds/env.ts`)
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` - **only needed for a remote target**.
+  `seeds/env.ts` resolves them the way Next.js does: a value exported in the
+  shell (or prefixed onto the command) wins, then `.env.local`, then `.env` — so
+  the blank `ADMIN_PASSWORD=` that local dev keeps in `.env.local` never
+  clobbers a credential you pass for a production run.
 
 **Seeding localhost needs no credentials.** Local dev enables Payload's
 `admin.autoLogin` (`src/payload.config.ts`), which Payload applies in its JWT

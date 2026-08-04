@@ -9,9 +9,12 @@ import { z } from 'zod'
 
 // Load env files BEFORE parsing process.env
 // This must happen at module load time, before the IIFE below runs
-// Following Next.js convention: .env.local takes precedence over .env
-dotenv.config({ path: '.env' })
-dotenv.config({ path: '.env.local', override: true })
+// Next.js precedence: the real shell environment wins, then .env.local, then
+// .env. dotenv walks the array in order and never overwrites a key that is
+// already set, so listing .env.local first gives all three rules at once.
+// Do NOT reintroduce `override: true` — it lets a blank `FOO=` in a file clobber
+// a credential passed on the command line (see tests/unit/env-file-precedence).
+dotenv.config({ path: ['.env.local', '.env'] })
 
 /**
  * Make a var optional *and* tolerate an empty value.

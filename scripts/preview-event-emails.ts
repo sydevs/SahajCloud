@@ -20,8 +20,8 @@ import type { Event } from '@/payload-types'
 
 import dotenv from 'dotenv'
 
-dotenv.config({ path: '.env' })
-dotenv.config({ path: '.env.local', override: true })
+// Shell env wins, then .env.local, then .env (see seeds/env.ts).
+dotenv.config({ path: ['.env.local', '.env'] })
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const iso = (offsetDays: number) => new Date(Date.now() + offsetDays * DAY_MS).toISOString()

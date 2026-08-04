@@ -202,6 +202,13 @@ plugin means it covers standard client reads **and** the custom Atlas endpoints
 (`GET /api/events/geojson`, `POST /api/events/:id/register`), whose internal
 `payload.find` / `payload.create` calls forward the client `req`.
 
+The rule itself lives in **`assertClientOriginAllowed(req)`**; the hook is a thin
+wrapper adding the `currentDepth` exemption. An endpoint that touches **no**
+collection runs no beforeOperation hook at all, so it must call the assertion
+itself — `POST /api/contact-admin` does, right after `requireActiveClient`. Don't
+lean on an incidental collection read to trigger the hook instead: `clients` is
+excluded from the plugin, so re-reading the caller's own record wouldn't fire it.
+
 ### Rule
 
 - Runs only when `req.user?.collection === 'clients'` — managers, admin UI, and
