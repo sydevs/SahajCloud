@@ -13,8 +13,6 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildTranslationTabs, type SchemaEntry, type TranslationsSchema } from '@/fields'
-import { PLURAL_CATEGORIES } from '@/fields/translationsField'
-import { EMAIL_STRING_DEFAULTS } from '@/lib/translations/emailStrings'
 
 describe('buildTranslationTabs', () => {
   describe('tab generation', () => {
@@ -196,18 +194,10 @@ describe('buildTranslationTabs', () => {
       expect(validate({ sessions_count: 'nope' })).toContain('Unknown key')
     })
 
-    it('EMAIL_STRING_DEFAULTS covers every plural form the field builder can store', () => {
-      // The field builder expands a plural key to every `PLURAL_CATEGORIES` form,
-      // but `resolveEmailStrings`/`withDefaults` only preserves keys present in the
-      // defaults — so an uncovered category would silently drop a translated
-      // `_few`/`_many`. Guards that the two layers stay in sync.
-      const pluralEmailKeys = ['sessions_count'] // keys declared `plural: true` in the emails group
-      for (const base of pluralEmailKeys) {
-        for (const category of PLURAL_CATEGORIES) {
-          expect(EMAIL_STRING_DEFAULTS).toHaveProperty(`${base}_${category}`)
-        }
-      }
-    })
+    // The defaults-vs-schema sync this used to spot-check (every `plural: true`
+    // key covering all `PLURAL_CATEGORIES` forms) is now asserted over the whole
+    // `emails` group, in both directions and without a hand-kept key list, by
+    // `tests/unit/email-strings.spec.ts`.
 
     it('sets localized: true and no jsonSchema (Ajv breaks on Cloudflare Workers)', () => {
       const schema: TranslationsSchema = {

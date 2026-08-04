@@ -1,15 +1,18 @@
 /**
- * Unit tests for the registrant-email translation resolver.
+ * Unit tests for the email translation resolver.
  *
  * Covers the two fallback layers separately, since they catch different
  * failures: Payload's own locale fallback (a wholly untranslated locale) and
  * the English key defaults (a partially translated locale, an unfilled key, or
- * an empty global).
+ * an empty global). Plus the contract between those defaults and the schema
+ * that decides what a translator can fill in.
  */
 import type { Payload } from 'payload'
 
 import { describe, expect, it, vi } from 'vitest'
 
+import { PLURAL_CATEGORIES } from '@/fields/translationsField'
+import atlasSchema from '@/globals/SahajAtlasTranslations/translationsSchema.json' with { type: 'json' }
 import {
   EMAIL_STRING_DEFAULTS,
   type EmailStrings,
@@ -17,6 +20,12 @@ import {
   pluralize,
   resolveEmailStrings,
 } from '@/lib/translations/emailStrings'
+
+/** One string key as declared in `translationsSchema.json`. */
+interface EmailKeySchema {
+  type: string
+  plural?: boolean
+}
 
 /** A stub Payload whose `findGlobal` returns the given `emails` blob. */
 function stubPayload(emails: unknown, opts: { reject?: boolean } = {}) {
@@ -180,5 +189,23 @@ describe('resolveEmailStrings', () => {
     await resolveEmailStrings({ payload, locale: 'de', req })
 
     expect(payload.findGlobal).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('EMAIL_STRING_DEFAULTS ↔ translations schema', () => {
+  // The defaults and the schema are two halves of one contract: the schema
+  // decides what a translator can fill in, the defaults decide what
+  // `withDefaults` will keep. A key in only one half is silently useless —
+  // untranslatable, or translated but dropped on resolve.
+  const emails = (
+    atlasSchema as { properties: Record<string, { properties: Record<string, EmailKeySchema> }> }
+  ).properties.emails.properties
+
+  const schemaKeys = Object.entries(emails).flatMap(([key, prop]) =>
+    prop.plural ? PLURAL_CATEGORIES.map((category) => `${key}_${category}`) : [key],
+  )
+
+  it('declares exactly the keys the defaults define', () => {
+    expect(schemaKeys.slice().sort()).toEqual(Object.keys(EMAIL_STRING_DEFAULTS).sort())
   })
 })
