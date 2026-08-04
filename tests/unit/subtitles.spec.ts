@@ -43,8 +43,11 @@ describe('subtitlesJsonSchema', () => {
     expect(items.properties?.durationMs.type).toBe('number')
   })
 
-  it('forbids extra keys, so the generated type is exhaustive', () => {
-    expect(items.additionalProperties).toBe(false)
+  it('tolerates extra keys, so a legacy cue field still saves', () => {
+    // Stored rows carry legacy cue keys (`startOfParagraph`, …). The Zod-based
+    // field validator this schema replaces accepted them, and `false` here
+    // would 400 every later save of a lesson or video holding one.
+    expect(items.additionalProperties).not.toBe(false)
   })
 
   it('still parses the same values as the Zod source of truth', () => {

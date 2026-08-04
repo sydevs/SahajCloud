@@ -140,6 +140,13 @@ Four things that bite:
 - **Empty values skip validation entirely** — `undefined`, `null`, `[]`, and
   `{}` are all "no value" to Payload's json validator, so an optional field
   needs no special-casing (and a bare `[]` slips past an `type: 'object'` schema).
+- **`additionalProperties: false` is a claim about the rows already in the
+  database.** Validation runs on every write of the field, so a key that only
+  legacy data carries doesn't fail once — it 400s every later save of an
+  otherwise untouched document. Check each existing writer (and any legacy
+  import) before tightening. `Videos`/`Lessons` subtitles derive from a
+  **loose** cue for exactly this reason; the generated type gains
+  `[k: string]: unknown`, which is the honest shape.
 - **Target draft-07.** Ajv's default export is a draft-07 instance. Deriving
   from Zod: `z.toJSONSchema(schema, { target: 'draft-7' })` (Zod 4, built in —
   no `zod-to-json-schema` needed).
