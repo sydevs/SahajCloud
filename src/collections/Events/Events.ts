@@ -23,6 +23,7 @@ import {
 import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
+import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS } from '@/lib/eventQuality'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
@@ -38,6 +39,7 @@ import {
   VERIFICATION_STAGE_OPTIONS,
 } from './eventOptions'
 import { ensureWebPathDeps } from './hooks/ensureWebPathDeps'
+import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuality'
 import { eventTitleBeforeChange } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { verifyOnSave } from './hooks/verifyOnSave'
@@ -71,6 +73,10 @@ export const Events: CollectionConfig = {
   // Soft-delete: "archiving" a long-expired event = trashing it (recoverable
   // from the admin trash view) — replaces Atlas's `archived` terminal.
   trash: true,
+  // The listing-quality report costs two extra reads to compute, and nothing
+  // hydrating an Event through a relationship (a Registration, the sidebar)
+  // wants it. Its `afterRead` also opts out of list reads — see the field.
+  defaultPopulate: { qualityReport: false },
   admin: {
     group: 'Classes',
     useAsTitle: 'title',
@@ -101,7 +107,9 @@ export const Events: CollectionConfig = {
     // so their pages resolve, but shouldn't be listed) — see
     // excludeFinishedEvents.
     beforeOperation: [ensureWebPathDeps, excludeFinishedEvents],
-    beforeChange: [verifyOnSave],
+    // stampEventQuality runs after verifyOnSave: the skip rules read
+    // `verificationStage`, so it has to see the stage this save lands on.
+    beforeChange: [verifyOnSave, stampEventQuality],
     // Bust the Atlas manager sidebar cache (event list + region counts) whenever
     // an event changes or is trashed/restored.
     afterChange: [revalidateAtlasSidebarHook],
@@ -127,6 +135,50 @@ export const Events: CollectionConfig = {
         {
           label: 'Details',
           fields: [
+            {
+              // Advisory listing-quality recommendations (#609). Computed on
+              // read, so opening the event is already fresh — there is
+              // deliberately no refresh control, which would have to re-save the
+              // document and churn `updatedAt` and the version history.
+              //
+              // NOT localized: `description`/`images`/`website` aren't, and the
+              // per-locale tier's whole job is answering "which of my languages
+              // is missing a title" — which a localized field, returning only
+              // the active locale, structurally cannot do.
+              name: 'qualityReport',
+              type: 'json',
+              virtual: true,
+              label: false,
+              admin: {
+                readOnly: true,
+                components: { Field: '@/components/admin/EventQualityPanel' },
+                // Labels live with the check definitions, so the code stays the
+                // single source of truth and a new check can't ship unlabelled.
+                custom: {
+                  checksMetadata: EVENT_QUALITY_CHECK_METADATA,
+                  skipReasonLabels: SKIP_REASON_LABELS,
+                },
+              },
+              hooks: { afterRead: [computeEventQualityReport] },
+            },
+            {
+              // Open document-scope items, for list-view sorting and targeted
+              // queries. A query pre-filter, not a score: the per-locale checks
+              // read localized titles a write hook can't see, so a single
+              // non-localized column cannot hold a correct cross-locale figure.
+              name: 'qualityOpenCount',
+              type: 'number',
+              index: true,
+              admin: { hidden: true },
+            },
+            {
+              // Which definition of the check set produced `qualityOpenCount`,
+              // so a stored count stays comparable across deploys and the
+              // backfill can find rows an older definition wrote.
+              name: 'qualityCheckVersion',
+              type: 'number',
+              admin: { hidden: true },
+            },
             {
               // Primary event name + useAsTitle. Stored and localized. Required,
               // but a beforeChange hook auto-fills an empty title with

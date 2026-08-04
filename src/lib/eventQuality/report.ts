@@ -1,4 +1,3 @@
-import type { LocaleCode } from '@/lib/locales'
 
 import type {
   EventQualityInput,
@@ -8,6 +7,7 @@ import type {
 } from './types'
 
 import { EVENT_TITLE_DEFAULTS } from '@/lib/eventTitle/compose'
+import type { LocaleCode } from '@/lib/locales'
 import { DEFAULT_LOCALE, LOCALES } from '@/lib/locales'
 
 import { isAutoFilledTitle } from './autoTitle'

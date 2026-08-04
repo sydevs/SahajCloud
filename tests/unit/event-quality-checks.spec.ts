@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import type { EventQualityInput } from '@/lib/eventQuality'
-
 import {
   buildEventQualityReport,
   countOpenDocumentIssues,
