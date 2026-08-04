@@ -6,7 +6,7 @@ import {
   composeEventTitle,
   EVENT_TITLE_DEFAULTS,
   firstAddressSegment,
-} from '@/collections/Events/hooks/eventTitle'
+} from '@/lib/eventTitle/compose'
 
 /**
  * Minimal PayloadRequest stub — resolveTitleTemplates only touches `context` and
