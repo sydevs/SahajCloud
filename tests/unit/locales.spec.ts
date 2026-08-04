@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest'
 
-import { buildPayloadLocales } from '../../src/lib/locales'
+import { buildPayloadLocales, languageToLocale } from '../../src/lib/locales'
 
 // Build locales once for all tests
 const allLocales = buildPayloadLocales()
@@ -80,5 +80,32 @@ describe('Locale Configuration (buildPayloadLocales)', () => {
 
     const dutchLocale = allLocales.find((l) => l.code === 'nl')
     expect(dutchLocale?.label).toBe('Dutch')
+  })
+})
+
+describe('languageToLocale', () => {
+  it('passes through a code that is already a CMS locale', () => {
+    expect(languageToLocale('en')).toBe('en')
+    expect(languageToLocale('cs')).toBe('cs')
+    expect(languageToLocale('pt-BR')).toBe('pt-BR')
+  })
+
+  it('normalizes the loose spellings language fields and APIs use', () => {
+    expect(languageToLocale('pt_BR')).toBe('pt-BR')
+    expect(languageToLocale('pt-br')).toBe('pt-BR')
+    expect(languageToLocale('EN_au')).toBe('en-AU')
+  })
+
+  it('treats bare Portuguese as Brazilian Portuguese, the only one configured', () => {
+    expect(languageToLocale('pt')).toBe('pt-BR')
+  })
+
+  it('returns null for an unset language or one the CMS has no locale for', () => {
+    // A manager picks from every ISO 639-1 language, most of which the CMS
+    // isn't translated into; the caller falls back to the default locale.
+    expect(languageToLocale('sw')).toBeNull()
+    expect(languageToLocale('')).toBeNull()
+    expect(languageToLocale(null)).toBeNull()
+    expect(languageToLocale(undefined)).toBeNull()
   })
 })
