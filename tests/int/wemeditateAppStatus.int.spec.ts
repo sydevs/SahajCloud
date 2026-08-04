@@ -571,6 +571,8 @@ describe('WeMeditateAppStatus Global', () => {
     it('throws when a group evaluator emits a check key not declared in the section spec', async () => {
       const badSection: SectionSpec<WeMeditateAppStatusConfig, void> = {
         key: 'bogus',
+        label: 'Bogus',
+        description: 'Section whose evaluator emits an undeclared check key.',
         tutorialLink: null,
         checks: {
           // 'declared-check' is the only allowed key

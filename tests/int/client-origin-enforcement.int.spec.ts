@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
 import { registerForEvent } from '@/collections/Events/endpoints/registerForEvent'
 
-import { testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -22,9 +22,9 @@ import { createTestEnvironment } from '../utils/testHelpers'
 const SCHEDULE = {
   firstDate: '2025-01-06T10:00:00.000Z',
   firstDate_tz: 'Europe/London',
-  recurrenceType: 'DAILY' as const,
+  recurrenceType: 'DAILY',
   interval: 1,
-}
+} as const
 
 describe('client Origin/Referer enforcement', () => {
   let payload: Payload
@@ -95,7 +95,7 @@ describe('client Origin/Referer enforcement', () => {
     const event = await payload.create({
       collection: 'events',
       overrideAccess: true,
-      data: {
+      data: createData<'events'>({
         title: 'Origin Event',
         languages: ['en'],
         eventType: 'online',
@@ -105,7 +105,7 @@ describe('client Origin/Referer enforcement', () => {
         region: region.id,
         schedule: SCHEDULE,
         _status: 'published',
-      },
+      }),
     })
     eventId = event.id
   })

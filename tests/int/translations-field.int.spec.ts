@@ -91,7 +91,7 @@ describe('buildTranslationTabs', () => {
       }
 
       const tabs = buildTranslationTabs(schema, 'test')
-      const group = tabs[0].fields[0] as {
+      const group = tabs[0].fields[0] as unknown as {
         type: 'group'
         name: string
         fields: [{ type: 'tabs'; tabs: Array<{ fields: Array<{ name: string }> }> }]

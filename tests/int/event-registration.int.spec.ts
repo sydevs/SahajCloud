@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 
 import { registerForEvent } from '@/collections/Events/endpoints/registerForEvent'
 
-import { testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 type TestUser = {
@@ -23,9 +23,9 @@ type RegisterBody = {
 const SCHEDULE = {
   firstDate: '2025-01-06T10:00:00.000Z',
   firstDate_tz: 'Europe/London',
-  recurrenceType: 'DAILY' as const,
+  recurrenceType: 'DAILY',
   interval: 1,
-}
+} as const
 
 async function userCountByEmail(payload: Payload, email: string): Promise<number> {
   const { totalDocs } = await payload.find({
@@ -89,7 +89,7 @@ describe('registerForEvent endpoint', () => {
     const event = await payload.create({
       collection: 'events',
       overrideAccess: true,
-      data: {
+      data: createData<'events'>({
         title: 'Registrable Event',
         languages: ['en'],
         eventType: 'online',
@@ -99,7 +99,7 @@ describe('registerForEvent endpoint', () => {
         region: region.id,
         schedule: SCHEDULE,
         _status: 'published',
-      },
+      }),
     })
     eventId = event.id
   })
@@ -182,7 +182,7 @@ describe('registerForEvent endpoint', () => {
     const finished = await payload.create({
       collection: 'events',
       overrideAccess: true,
-      data: {
+      data: createData<'events'>({
         title: 'Finished Session',
         eventType: 'online',
         onlineUrl: 'https://example.com/over',
@@ -195,7 +195,7 @@ describe('registerForEvent endpoint', () => {
         // One-off, years past.
         schedule: { firstDate: '2021-03-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
         _status: 'published',
-      },
+      }),
     })
 
     const { status, body } = await callRegister(finished.id, {
@@ -481,7 +481,7 @@ describe('registerForEvent endpoint', () => {
       await payload.update({
         collection: 'events',
         id: eventId,
-        data: { title: 'Registrable Event\r\nBcc: attacker@evil.example' },
+        data: createData<'events'>({ title: 'Registrable Event\r\nBcc: attacker@evil.example' }),
         overrideAccess: true,
       })
       const send = captureSend()
@@ -495,7 +495,7 @@ describe('registerForEvent endpoint', () => {
       await payload.update({
         collection: 'events',
         id: eventId,
-        data: { title: 'Registrable Event' },
+        data: createData<'events'>({ title: 'Registrable Event' }),
         overrideAccess: true,
       })
     })
@@ -567,7 +567,7 @@ describe('registerForEvent endpoint', () => {
       const event = await payload.create({
         collection: 'events',
         overrideAccess: true,
-        data: {
+        data: createData<'events'>({
           title: 'Notify Event',
           languages: ['en'],
           eventType: 'online',
@@ -578,7 +578,7 @@ describe('registerForEvent endpoint', () => {
           schedule: SCHEDULE,
           _status: 'published',
           ...overrides,
-        },
+        }),
       })
       return event.id
     }

@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 
+import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -23,31 +24,7 @@ vi.mock('@sentry/nextjs', () => ({
   captureMessage: vi.fn(),
 }))
 
-type ExpireResult = {
-  processed: number
-  finished: number
-  advanced: number
-  trashed: number
-  remindersSent: number
-  failed: number
-}
-
-async function runTask(payload: Payload): Promise<ExpireResult> {
-  const req = {
-    payload,
-    context: {},
-    headers: new Headers(),
-  } as Parameters<typeof ExpireEvents.handler>[0]['req']
-
-  const result = await ExpireEvents.handler({
-    req,
-    input: {},
-    job: {} as Parameters<typeof ExpireEvents.handler>[0]['job'],
-    tasks: {} as Parameters<typeof ExpireEvents.handler>[0]['tasks'],
-    inlineTask: (() => {}) as Parameters<typeof ExpireEvents.handler>[0]['inlineTask'],
-  })
-  return result.output as ExpireResult
-}
+const runTask = (payload: Payload) => runTaskHandler(ExpireEvents, { payload })
 
 /** Make `payload.findByID` throw for one event id (mimics a broken record), pass through otherwise. */
 function failEventLoad(payload: Payload, failingId: number) {

@@ -5,39 +5,19 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { SendRegistrationDigests } from '@/jobs/RegistrationNotifications/SendRegistrationDigests'
 
-import { testData } from '../utils/testData'
+import { runTaskHandler } from '../utils/taskRunner'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 
 const SCHEDULE = {
   firstDate: '2026-07-01T09:00:00.000Z',
   firstDate_tz: 'Europe/London',
-  recurrenceType: 'DAILY' as const,
+  recurrenceType: 'DAILY',
   interval: 1,
-}
+} as const
 
-type DigestResult = {
-  eligibleManagers: number
-  digestsSent: number
-  registrationsIncluded: number
-  failed: number
-}
-
-async function runDigests(payload: Payload, now?: Date): Promise<DigestResult> {
-  const req = {
-    payload,
-    context: now ? { now } : {},
-    headers: new Headers(),
-  } as Parameters<typeof SendRegistrationDigests.handler>[0]['req']
-
-  const result = await SendRegistrationDigests.handler({
-    req,
-    input: {},
-    job: {} as Parameters<typeof SendRegistrationDigests.handler>[0]['job'],
-    tasks: {} as Parameters<typeof SendRegistrationDigests.handler>[0]['tasks'],
-    inlineTask: (() => {}) as Parameters<typeof SendRegistrationDigests.handler>[0]['inlineTask'],
-  })
-  return result.output as DigestResult
-}
+const runDigests = (payload: Payload, now?: Date) =>
+  runTaskHandler(SendRegistrationDigests, { payload, context: now ? { now } : {} })
 
 /** The smallest Monday (UTC) at or after `from` — always ≥ now, so today's registrations stay in-window. */
 function mondayOnOrAfter(from: Date): Date {
@@ -85,7 +65,7 @@ describe('SendRegistrationDigests job', () => {
     const event = await payload.create({
       collection: 'events',
       overrideAccess: true,
-      data: {
+      data: createData<'events'>({
         title,
         languages: ['en'],
         eventType: 'online',
@@ -95,7 +75,7 @@ describe('SendRegistrationDigests job', () => {
         region: regionId,
         schedule: SCHEDULE,
         _status: 'published',
-      },
+      }),
     })
     return event.id
   }

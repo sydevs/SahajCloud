@@ -2,7 +2,14 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import type { Meditation, Narrator, Image, SongTag, Album } from '@/payload-types'
+import type {
+  Meditation,
+  MeditationsSelect,
+  Narrator,
+  Image,
+  SongTag,
+  Album,
+} from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -257,7 +264,9 @@ describe('Meditations Collection', () => {
       })
       const allCount = await payload.count({
         collection: 'meditations',
-        locale: 'all',
+        // Payload's cross-locale read; the generated union lists configured
+        // locales only, so it doesn't include this.
+        locale: 'all' as Parameters<typeof payload.count>[0]['locale'],
       })
 
       expect(csCount.totalDocs).toBe(1)
@@ -368,7 +377,7 @@ describe('Meditations Collection', () => {
     // upload thumbnail fields appended by appendUploadSelectFields. Replicated
     // here because the select is assembled in @payloadcms/next's RSC List view,
     // which an integration test can't invoke directly.
-    const LIST_VIEW_SELECT = {
+    const LIST_VIEW_SELECT: MeditationsSelect<true> = {
       label: true,
       thumbnail: true,
       _status: true,

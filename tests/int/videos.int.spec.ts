@@ -9,6 +9,8 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import type { Video } from '@/payload-types'
+
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -63,7 +65,9 @@ describe('Videos Collection — custom behavior', () => {
       await expect(
         testData.createVideo(payload, {
           title: 'Invalid Subs Video',
-          subtitles: [{ startTimeMs: 'oops', endTimeMs: 1000, content: 'x' }],
+          // Deliberately malformed — the case asserts the field validator
+          // rejects it, so it can't be typed as a valid row.
+          subtitles: [{ startTimeMs: 'oops', endTimeMs: 1000, content: 'x' }] as unknown as Video['subtitles'],
         }),
       ).rejects.toThrow(/subtitles|startTimeMs/i)
     })

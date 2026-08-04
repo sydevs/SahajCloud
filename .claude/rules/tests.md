@@ -169,6 +169,51 @@ The bound is deliberate: the lane is **DB-bound** (every suite runs a full-schem
 exhausting connections — see `tests/PERF.md`. `maxConcurrency: 1` only serialises
 tests **within** a file; it does **not** serialise files.
 
+## Typed fixtures
+
+`pnpm typecheck:tests` (`tsconfig.test.json`) type-checks all of `tests/**` in
+~6 s — Vitest doesn't, since esbuild erases types without checking them. Fixtures
+have to be typed against the real schema for that to catch anything, so
+`tests/utils/testData.ts` exports two helpers. Prefer them over
+`Record<string, unknown>`, a bare object literal, or `as any`:
+
+| Use | For |
+| --- | --- |
+| `createData<'slug'>({ … })` | Anything you hand to `payload.create` as `data` |
+| `FixtureOverrides<Doc>` | The param type of a spec's own fixture helper |
+
+```typescript
+import { createData, testData, type FixtureOverrides } from '../utils/testData'
+
+const createRegion = (data: FixtureOverrides<Region>) =>
+  payload.create({
+    collection: 'regions',
+    data: createData<'regions'>({ level: 'country', name: 'Region', ...data }),
+  })
+
+createRegion({ level: 'center' }) // TS2322 — 'center' was renamed to 'venue' (#605)
+```
+
+Why each is needed:
+
+- **`createData`** — Payload derives the create `data` type from the *output*
+  doc, so fields it fills itself (`slug`, …) are still demanded on input. Omit
+  one and `tsc` falls through to the draft-create overload and reports
+  `Property 'draft' is missing`, which points nowhere near the real problem.
+- **`FixtureOverrides<T>`** — every field optional at *every* depth. `Partial<T>`
+  relaxes only the top level, so passing a group obliges you to fill in its
+  `defaultValue`-backed subfields (`default: { title, image }` on an app card
+  wanted `aspectRatio`/`textColor`/`alignment` too). Unknown and mistyped
+  properties still error at any depth, which is the part worth keeping.
+
+Two more shared helpers worth knowing: `runTaskHandler(task, { payload, … })`
+(`tests/utils/taskRunner.ts`) invokes a job task without the queue and returns
+its generated output type — don't hand-roll `Parameters<typeof Task.handler>[0]`,
+which can't compile because `handler` is `string | TaskHandler`. And
+`idOnlySelect()` (`tests/utils/testHelpers.ts`) is the minimal `select` an
+API-client read can pass; `select: {}` is **not** equivalent — the client gate
+rejects an empty select with a 400.
+
 ## Test file organization
 
 | File                              | Purpose                                                                                                                                                                                                                                                                    |

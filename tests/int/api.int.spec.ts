@@ -339,7 +339,7 @@ describe('API', () => {
       // defeated the afterRead dedup tracker and double-counted; post-fix,
       // beforeOperation counts the top-level read once and skips the
       // currentDepth-bearing populate sub-read.
-      const meditation = await testData.createMeditation(payload, {
+      const meditation = await testData.createMeditation(payload, undefined, {
         title: 'Test Meditation for Usage Tracking',
       })
 
@@ -371,8 +371,9 @@ describe('API', () => {
           id: true,
           morningMeditation: true,
         },
+        // `populate` is keyed by the *target collection*, not the field name.
         populate: {
-          morningMeditation: {
+          meditations: {
             title: true,
           },
         },

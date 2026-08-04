@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildAtlasSidebarData } from '@/lib/atlasSidebar/getAtlasSidebarData'
 
-import { testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -32,12 +32,12 @@ describe('Atlas sidebar data builder', () => {
     const createRegion = (data: Record<string, unknown>) =>
       payload.create({
         collection: 'regions',
-        data: {
+        data: createData<'regions'>({
           level: 'country',
           name: 'Region',
           mapboxId: `place.${Math.random().toString(36).slice(2)}`,
           ...data,
-        },
+        }),
         depth: 0,
       })
 

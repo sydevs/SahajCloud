@@ -1,15 +1,8 @@
 {
-  "extends": "../tsconfig.json",
-  "compilerOptions": {
-    "types": ["vitest/globals"]
-  },
-  "include": [
-    "../next-env.d.ts",
-    "../worker-configuration.d.ts",
-    "../src/**/*.ts",
-    "../src/**/*.tsx",
-    "./**/*.ts",
-    "./**/*.tsx"
-  ],
-  "exclude": ["../node_modules"]
+  // Editor-only entry point. TS servers resolve the nearest `tsconfig.json`
+  // walking up from a file, so specs under `tests/` land here — this re-exports
+  // the real gate config (`pnpm typecheck:tests`) so the editor and CI agree.
+  // Relative paths resolve against the config that declares them, so the
+  // parent's `tests/**` still points at this directory.
+  "extends": "../tsconfig.test.json"
 }

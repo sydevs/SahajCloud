@@ -281,3 +281,17 @@ export function createClientAuthenticatedRequest(
     } as unknown as PayloadRequest['user'],
   }
 }
+
+/**
+ * The narrowest `select` an API-client read can pass.
+ *
+ * `validateClientQuery` (src/plugins/usage/hooks.ts) rejects a missing *or
+ * empty* `select` with a 400, so a spec exercising client access still owes it
+ * one key. `id` is the cheapest: Payload returns it regardless of selection —
+ * which is also why `id` is absent from the generated `…Select` types, and why
+ * this needs an assertion. Returned as the caller's own select type so it slots
+ * into any collection's `find`.
+ */
+export function idOnlySelect<TSelect>(): TSelect {
+  return { id: true } as TSelect
+}

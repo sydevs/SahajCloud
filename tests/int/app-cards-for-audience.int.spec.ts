@@ -650,7 +650,7 @@ describe('appCardsForAudience endpoint', () => {
         const pageFindCalls = findSpy.mock.calls.filter(
           ([args]) => (args as { collection?: string }).collection === 'pages',
         )
-        expect(pageFindCalls).toHaveLength(1, 'pages should be fetched in a single batched query')
+        expect(pageFindCalls).toHaveLength(1)
       } finally {
         findSpy.mockRestore()
       }

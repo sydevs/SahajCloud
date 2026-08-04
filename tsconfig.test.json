@@ -3,14 +3,14 @@
   // `tests`, and it's the config the Next.js build consumes — so the test lane
   // gets its own config here instead, keeping this work off the shipping build.
   //
-  // Scoped to the unit lane for now (#606 Phase 1). `tests/int/**` still has
-  // ~154 errors; widening `include` to `tests/**` is Phase 2. `src/**` needs no
-  // entry — it's pulled in transitively via the `@/` imports these files make,
-  // and the root config already typechecks it directly.
+  // Covers the whole suite as of #606 Phase 2 (Phase 1 shipped the unit lane
+  // only). `src/**` needs no entry — it's pulled in transitively via the `@/`
+  // imports these files make, and the root config already typechecks it directly.
   //
-  // Note: `tests/tsconfig.json` is a separate editor-only config covering all of
-  // `tests/**`. No script runs it; Phase 2 should collapse the two.
+  // `tests/tsconfig.json` is the editor's entry point — TS servers resolve the
+  // nearest `tsconfig.json` walking up from a file and won't find this one by
+  // name — and is a one-line re-export, so the options live here only.
   "extends": "./tsconfig.json",
-  "include": ["tests/unit/**/*.ts", "tests/utils/**/*.ts"],
+  "include": ["tests/**/*.ts", "tests/**/*.tsx"],
   "exclude": ["node_modules"]
 }

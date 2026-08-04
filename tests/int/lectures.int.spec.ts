@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { LectureMetadata } from '@/lib/lectures/nirmalaVidya'
 import type { Image } from '@/payload-types'
 
-import { testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 // Mock the Nirmala Vidya API client — prevents real network calls in tests.
@@ -47,14 +47,15 @@ describe('Lectures Collection', () => {
           { languageCode: 'en', url: 'https://example.com/subs/en.vtt' },
           { languageCode: 'cs', url: 'https://example.com/subs/cs.vtt' },
         ],
+        duration: null,
       })
 
       const lecture = await payload.create({
         collection: 'lectures',
-        data: {
+        data: createData<'lectures'>({
           nirmalVidyaVimeoUrl: 'https://vimeo.com/123456789',
-        },
-      } as any)
+        }),
+      })
 
       expect(lecture.title).toBe('Auto-populated Title')
 
@@ -76,15 +77,16 @@ describe('Lectures Collection', () => {
         thumbnailUrl: 'https://example.com/thumb.jpg',
         hlsUrl: 'https://example.com/stream.m3u8',
         subtitles: [],
+        duration: null,
       })
 
       const lecture = await payload.create({
         collection: 'lectures',
-        data: {
+        data: createData<'lectures'>({
           nirmalVidyaVimeoUrl: 'https://vimeo.com/111111111',
           title: 'User Provided Title',
-        },
-      } as any)
+        }),
+      })
 
       // User-provided title takes precedence over the API title in the editor-
       // visible field, but metadata.title still captures the canonical API value.
@@ -99,14 +101,15 @@ describe('Lectures Collection', () => {
         thumbnailUrl: 'https://example.com/thumb.jpg',
         hlsUrl: 'https://example.com/stream.m3u8',
         subtitles: [],
+        duration: null,
       })
 
       const lecture = await payload.create({
         collection: 'lectures',
-        data: {
+        data: createData<'lectures'>({
           nirmalVidyaVimeoUrl: 'https://vimeo.com/222222222',
-        },
-      } as any)
+        }),
+      })
 
       // `thumbnail` stays null — the endpoint falls back to metadata.thumbnailUrl.
       expect(lecture.thumbnail).toBeNull()
@@ -126,14 +129,15 @@ describe('Lectures Collection', () => {
           { languageCode: 'zh-hans', url: 'https://example.com/subs/zh-hans.vtt' },
           { languageCode: 'ja', url: 'https://example.com/subs/ja.vtt' },
         ],
+        duration: null,
       })
 
       const lecture = await payload.create({
         collection: 'lectures',
-        data: {
+        data: createData<'lectures'>({
           nirmalVidyaVimeoUrl: 'https://vimeo.com/777777777',
-        },
-      } as any)
+        }),
+      })
 
       const metadata = lecture.metadata as LectureMetadata
       // zh-hans and ja have no matching CMS locale → dropped
@@ -149,12 +153,13 @@ describe('Lectures Collection', () => {
         thumbnailUrl: null,
         hlsUrl: 'https://example.com/stream.m3u8',
         subtitles: [{ languageCode: 'pt', url: 'https://example.com/subs/pt.vtt' }],
+        duration: null,
       })
 
       const lecture = await payload.create({
         collection: 'lectures',
-        data: { nirmalVidyaVimeoUrl: 'https://vimeo.com/333333333' },
-      } as any)
+        data: createData<'lectures'>({ nirmalVidyaVimeoUrl: 'https://vimeo.com/333333333' }),
+      })
 
       expect((lecture.metadata as LectureMetadata).subtitles['pt-BR']).toBe(
         'https://example.com/subs/pt.vtt',
@@ -165,10 +170,10 @@ describe('Lectures Collection', () => {
       await expect(
         payload.create({
           collection: 'lectures',
-          data: {
+          data: createData<'lectures'>({
             nirmalVidyaVimeoUrl: 'https://youtube.com/watch?v=abc123',
-          },
-        } as any),
+          }),
+        }),
       ).rejects.toThrow()
     })
 
@@ -183,10 +188,10 @@ describe('Lectures Collection', () => {
       await expect(
         payload.create({
           collection: 'lectures',
-          data: {
+          data: createData<'lectures'>({
             nirmalVidyaVimeoUrl: 'https://vimeo.com/404',
-          },
-        } as any),
+          }),
+        }),
       ).rejects.toThrow()
     })
 
@@ -220,12 +225,13 @@ describe('Lectures Collection', () => {
           { languageCode: 'en', url: 'https://example.com/subs/en.vtt' },
           { languageCode: 'ru', url: 'https://example.com/subs/ru.vtt' },
         ],
+        duration: null,
       })
 
       const lecture = await payload.create({
         collection: 'lectures',
-        data: { nirmalVidyaVimeoUrl: 'https://vimeo.com/444444444' },
-      } as any)
+        data: createData<'lectures'>({ nirmalVidyaVimeoUrl: 'https://vimeo.com/444444444' }),
+      })
 
       const en = await payload.findByID({
         collection: 'lectures',
@@ -411,12 +417,13 @@ describe('Lectures Collection', () => {
         thumbnailUrl: null,
         hlsUrl: 'https://example.com/stream.m3u8',
         subtitles: [],
+        duration: null,
       })
       const uniqueId = `${Date.now()}${Math.floor(Math.random() * 1000)}`
       const lecture = await payload.create({
         collection: 'lectures',
 
-        data: { nirmalVidyaVimeoUrl: `https://vimeo.com/${uniqueId}` } as any,
+        data: createData<'lectures'>({ nirmalVidyaVimeoUrl: `https://vimeo.com/${uniqueId}` }),
       })
       expect(lecture.type).toBe('full')
     })
@@ -429,7 +436,7 @@ describe('Lectures Collection', () => {
         await payload.create({
           collection: 'lectures',
 
-          data: { type: 'full', nirmalVidyaVimeoUrl: dupUrl } as any,
+          data: createData<'lectures'>({ type: 'full', nirmalVidyaVimeoUrl: dupUrl }),
         })
         throw new Error('expected create to throw — duplicate URL should be rejected')
       } catch (err) {
@@ -448,7 +455,7 @@ describe('Lectures Collection', () => {
         payload.create({
           collection: 'lectures',
 
-          data: { type: 'clip' } as any,
+          data: createData<'lectures'>({ type: 'clip' }),
         }),
       ).rejects.toThrow()
     })
@@ -463,7 +470,7 @@ describe('Lectures Collection', () => {
       const clip = await payload.create({
         collection: 'lectures',
 
-        data: { type: 'clip', nirmalVidyaVimeoUrl: parentUrl } as any,
+        data: createData<'lectures'>({ type: 'clip', nirmalVidyaVimeoUrl: parentUrl }),
       })
 
       // Clip linked to existing parent — no NV API call (parent already exists).
@@ -486,13 +493,14 @@ describe('Lectures Collection', () => {
         thumbnailUrl: 'https://example.com/parent.jpg',
         hlsUrl: 'https://example.com/parent.m3u8',
         subtitles: [],
+        duration: null,
       })
 
       const newUrl = `https://vimeo.com/${Date.now()}999`
       const clip = await payload.create({
         collection: 'lectures',
 
-        data: { type: 'clip', nirmalVidyaVimeoUrl: newUrl } as any,
+        data: createData<'lectures'>({ type: 'clip', nirmalVidyaVimeoUrl: newUrl }),
       })
 
       const parentId =
@@ -518,7 +526,7 @@ describe('Lectures Collection', () => {
       const clip = await payload.create({
         collection: 'lectures',
 
-        data: { type: 'clip', fullLecture: parent.id } as any,
+        data: createData<'lectures'>({ type: 'clip', fullLecture: parent.id }),
       })
       const parentId =
         typeof clip.fullLecture === 'object' && clip.fullLecture !== null
@@ -537,7 +545,7 @@ describe('Lectures Collection', () => {
       await payload.create({
         collection: 'lectures',
 
-        data: { type: 'clip', fullLecture: parent.id } as any,
+        data: createData<'lectures'>({ type: 'clip', fullLecture: parent.id }),
       })
 
       expect(vi.mocked(fetchNirmalaVidyaVideo).mock.calls.length).toBe(callCountBefore)
@@ -546,8 +554,9 @@ describe('Lectures Collection', () => {
 
   describe('NirmalaVidyaResponseSchema', () => {
     it('coerces subtitles: null to an empty array', async () => {
-      const { NirmalaVidyaResponseSchema } =
-        await vi.importActual<typeof import('@/lib/lectures/nirmalaVidyaApi')>('@/lib/lectures/nirmalaVidyaApi')
+      const { NirmalaVidyaResponseSchema } = await vi.importActual<
+        typeof import('@/lib/lectures/nirmalaVidyaApi')
+      >('@/lib/lectures/nirmalaVidyaApi')
 
       const parsed = NirmalaVidyaResponseSchema.parse({
         name: 'Older Lecture',
@@ -560,8 +569,9 @@ describe('Lectures Collection', () => {
     })
 
     it('still accepts an omitted subtitles field', async () => {
-      const { NirmalaVidyaResponseSchema } =
-        await vi.importActual<typeof import('@/lib/lectures/nirmalaVidyaApi')>('@/lib/lectures/nirmalaVidyaApi')
+      const { NirmalaVidyaResponseSchema } = await vi.importActual<
+        typeof import('@/lib/lectures/nirmalaVidyaApi')
+      >('@/lib/lectures/nirmalaVidyaApi')
 
       const parsed = NirmalaVidyaResponseSchema.parse({
         name: 'Lecture',
