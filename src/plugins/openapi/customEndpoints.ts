@@ -372,7 +372,10 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'The Sahaj Atlas widget write path. Requires a published client key. Upserts ' +
         'the registrant `user` by normalized email (elevated access, since `users` ' +
         'is admin-only) and creates a `registration` with a fresh uuid. The event ' +
-        '(`:id`) must be one the client can read (published).',
+        '(`:id`) must be one the client can read (published); an event the client ' +
+        'can read but whose state is closed to registration is refused with a `409` ' +
+        'and a machine-readable `errors[0].code` — `external_registration`, ' +
+        '`event_ended`, `registration_closed`, or `event_full`.',
       operationId: 'registerForEvent',
       parameters: [
         {
@@ -404,9 +407,10 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         '403': errorResponse('Caller is not a published API client.'),
         '404': errorResponse('Event not found or not open for registration.'),
         '409': errorResponse(
-          'The event exists but its state conflicts with registering — its schedule ' +
-            'has already run out ("This event has ended"). A finished event stays ' +
-            'published so its page keeps resolving, so this is a distinct case from 404.',
+          'Registration refused because the event state conflicts with registering. ' +
+            '`errors[0].code` is one of `external_registration`, `event_ended`, ' +
+            '`registration_closed`, or `event_full`. Distinct from 404: the event exists ' +
+            'and is readable (a finished event stays published), its state just conflicts.',
         ),
       },
     },

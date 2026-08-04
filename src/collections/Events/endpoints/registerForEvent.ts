@@ -1,4 +1,4 @@
-import type { EventRegistrationResponse } from './responseTypes'
+import type { EventRegistrationError, EventRegistrationResponse } from './responseTypes'
 import type { Endpoint, PayloadRequest } from 'payload'
 
 import { randomUUID } from 'node:crypto'
@@ -12,8 +12,8 @@ import { resolveRegistrationRecipient } from '@/lib/notifications/registrationRe
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
+import { evaluateRegistrationGate } from '@/lib/registrations/gating'
 import { buildRegistrationAnswers } from '@/lib/registrations/questions'
-import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import { resolveEmailStrings } from '@/lib/translations/emailStrings'
 import { relationId } from '@/lib/utilities/relationId'
 import { asTrustedReq } from '@/plugins/usage/hooks'
@@ -103,9 +103,9 @@ async function loadEmailClient(
  * (surfaced verbatim by the catch below).
  *
  * Flow: parse the `:id` + body → confirm the event is one the client may see
- * (published + project-visible) → refuse it if its schedule has run out (a
- * finished event stays published, so the access filter no longer catches it —
- * 409) → upsert the registrant `user` by normalized
+ * (published + project-visible) → refuse it when the event's state is closed to
+ * registration (external mode / ended / a started course / full — a
+ * machine-readable 409) → upsert the registrant `user` by normalized
  * email with elevated access (`users` is admin-only) → create the `registration`
  * (event + user + startingAt + questions + a fresh uuid, plus the originating
  * `client` and `locale`, and `mailingListSubscribedAt` when the registrant opted
@@ -150,15 +150,29 @@ export const registerForEvent: Endpoint = {
           { status: 404 },
         )
       }
+      const event = eventDocs[0]
 
-      // A finished event is still published (#603) so its page keeps resolving,
-      // which means the published-only filter above no longer refuses one whose
-      // schedule has run out. Reject it explicitly instead. 409, not 404: the
-      // event exists and is readable, its state just conflicts with registering.
-      // (#599 owns the broader gating rules — capacity, external mode, a course
-      // already under way; this closes only the hole reopened here.)
-      if (shouldFinish(eventDocs[0])) {
-        return Response.json({ errors: [{ message: 'This event has ended.' }] }, { status: 409 })
+      // State-based gating: an event the client *can* read may still be closed
+      // to new registrations (external mode / ended / a started course / full).
+      // Refuse with a machine-readable `code` the widget maps to its UI. Capacity
+      // is checked against a live count (the denormalized `registrationsFull` flag
+      // is only the read-time hint); registrations are admin-only, hence the
+      // elevated count. The count→create window isn't transactional, so a burst of
+      // concurrent registrations can overshoot the limit by a few — an acceptable
+      // soft cap here (a meditation class, not ticketed inventory); a hard cap
+      // would need a row lock or DB constraint.
+      const { totalDocs: registrationCount } = await req.payload.count({
+        collection: 'registrations',
+        where: { event: { equals: eventId } },
+        overrideAccess: true,
+        req,
+      })
+      const rejection = evaluateRegistrationGate({ event, registrationCount, now: new Date() })
+      if (rejection) {
+        const body: EventRegistrationError = {
+          errors: [{ message: rejection.message, code: rejection.code }],
+        }
+        return Response.json(body, { status: rejection.status })
       }
 
       // Upsert the registrant by normalized email. `users` is admin-only, so the
@@ -234,7 +248,7 @@ export const registerForEvent: Endpoint = {
 
         await sendRegistrationConfirmation({
           payload: req.payload,
-          event: eventDocs[0],
+          event,
           client: emailClient,
           registrantName: name,
           registrantEmail: normalizedEmail,
@@ -259,7 +273,6 @@ export const registerForEvent: Endpoint = {
       // separately (as the verification path does) rather than re-reading the
       // event at a higher depth, which the confirmation send also relies on.
       try {
-        const event = eventDocs[0]
         const managerId = relationId(event.manager)
         const manager = managerId
           ? await req.payload

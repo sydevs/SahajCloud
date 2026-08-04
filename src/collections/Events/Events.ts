@@ -40,6 +40,7 @@ import {
 import { ensureWebPathDeps } from './hooks/ensureWebPathDeps'
 import { eventTitleBeforeChange } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
+import { syncEventFullness } from './hooks/syncFullness'
 import { verifyOnSave } from './hooks/verifyOnSave'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
@@ -63,6 +64,20 @@ const eventDescriptionEditor = lexicalEditor({
  * (Payload owns the publish control). The schedule lives in the project
  * `scheduleFields` (which also stores the timezone on its First Date & Time);
  * Atlas `finishDate` maps into its ending (not a standalone field).
+ *
+ * **Finished-event read contract (for `sahaj-atlas-client`).** When an event's
+ * schedule runs out, the ExpireEvents job marks it `finished` but leaves it
+ * **published** (#603, see `finishEvent`): its Atlas page must keep resolving
+ * for a late seeker following an old link, and `webPath`/`webUrl` are
+ * publish-gated. So `GET /api/events/:id` stays readable and the widget renders
+ * an "Ended" panel — while the public *feeds* drop it (`GET /api/events` for
+ * clients and `GET /api/events/geojson`) via `excludeFinishedEvents` /
+ * `notFinishedWhere`. The pinned contract: finished ⇒ readable by id, absent
+ * from the feeds.
+ *
+ * Registration is refused for a finished (or otherwise elapsed) event by the
+ * register endpoint's gate (`event_ended`), so the read staying open can't leak
+ * a registration into an event that is really over.
  */
 export const Events: CollectionConfig = {
   slug: 'events',
@@ -98,10 +113,11 @@ export const Events: CollectionConfig = {
     // Keep `webPath`/`webUrl` resolvable when a read selects them without their
     // inputs (`region`, and `_status` for `webUrl`) — see ensureWebPathDeps.
     // Then drop finished events from API-client list reads (they stay published
-    // so their pages resolve, but shouldn't be listed) — see
-    // excludeFinishedEvents.
+    // so their pages resolve, but shouldn't be listed) — see excludeFinishedEvents.
     beforeOperation: [ensureWebPathDeps, excludeFinishedEvents],
-    beforeChange: [verifyOnSave],
+    // verifyOnSave first (re-opens the verification cycle), then the fullness
+    // recompute stamps `registrationsFull` onto the outgoing data.
+    beforeChange: [verifyOnSave, syncEventFullness],
     // Bust the Atlas manager sidebar cache (event list + region counts) whenever
     // an event changes or is trashed/restored.
     afterChange: [revalidateAtlasSidebarHook],
@@ -386,6 +402,23 @@ export const Events: CollectionConfig = {
               collection: 'registrations',
               on: 'event',
               admin: { condition: hideUntilCreated },
+            },
+            {
+              // Denormalized "at capacity" flag the Atlas widget reads to render
+              // its "Full" registration state. A boolean — never a raw count —
+              // so a public `sahaj-atlas-client` can select fullness without
+              // learning exact registration numbers. Stored (not computed per
+              // read) so the geojson feed and list reads stay O(1): maintained
+              // by the Registrations create/delete hooks
+              // (`syncEventRegistrationsFull`) and recomputed here on a
+              // registrationMode / registrationLimit change (`syncEventFullness`
+              // beforeChange). True only for `sahaj-atlas` mode with a set limit
+              // the registration count has reached; false for `external` mode or
+              // a blank (unlimited) limit. System-managed — hidden + read-only.
+              name: 'registrationsFull',
+              type: 'checkbox',
+              defaultValue: false,
+              admin: { hidden: true, readOnly: true },
             },
           ],
         },
