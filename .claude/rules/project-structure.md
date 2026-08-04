@@ -45,7 +45,9 @@ No loose files at the root — every file lives in a named folder:
 - `env/` — environment-variable validation (broadly imported config)
 - `logger/` — `clientLogger`, `workerSafeLogger`
 - `utilities/` — purposeful cross-boundary helpers (`serverUrl`, `previewSecret`,
-  `gender`, `subtitles`, `weightedSample`, `isRecord`)
+  `gender`, `subtitles`, `weightedSample`, `isRecord`, `requestMemo` — collapse a
+  per-request load to one in-flight promise, `localeIsolatedReq` — hand a nested
+  cross-locale read a copy so it can't repoint the caller's request)
 - `locales/` — locale config (`@/lib/locales` resolves to `locales/index.ts`)
 - `richEditor/` — Lexical editor presets + `blocks/` (the editor's block set) +
   `lexicalHooks`
