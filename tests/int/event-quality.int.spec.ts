@@ -88,27 +88,15 @@ describe('Event listing quality', () => {
     })
 
     it('reads every locale’s title, not just the one the read was made in', async () => {
-      // Localize while the event is still a draft, then publish. A
-      // locale-scoped title update on an **already published** event silently
-      // doesn't persist — reproducible on `main` with none of this feature's
-      // hooks attached, and not the case for a published Page, so it's an
-      // Events-specific pre-existing bug rather than anything #609 introduced.
-      const event = await testData.createEvent(payload, {
-        manager: managerId,
-        region: regionId,
+      const event = await createPublished({
         title: 'Evening Sitting for Carers',
         languages: ['de'],
-      } as never)
+      })
       await payload.update({
         collection: 'events',
         id: event.id,
         locale: 'de',
         data: { title: 'Abendsitzung für Pflegende' },
-      })
-      await payload.update({
-        collection: 'events',
-        id: event.id,
-        data: { _status: 'published' } as never,
       })
 
       // Read in English — the German title still has to be visible to the
@@ -120,6 +108,33 @@ describe('Event listing quality', () => {
         key: 'translation.title.missing',
         status: 'passed',
       })
+    })
+
+    it('leaves a locale-scoped title write on a published event intact', async () => {
+      // Regression guard. This field's afterRead runs *during* a published
+      // update, and its all-locale read used to be handed the caller's own
+      // `req`. Payload's createLocalReq assigns `req.locale` straight onto that
+      // object, so `locale: 'all'` repointed the whole in-flight request and
+      // the German title never reached the German column — silently, with the
+      // update still reporting success. See @/lib/utilities/localeIsolatedReq.
+      const event = await createPublished({ title: 'Localized Sitting', languages: ['de'] })
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        locale: 'de',
+        data: { title: 'Lokalisierte Sitzung' },
+      })
+
+      const allLocales = await payload.findByID({
+        collection: 'events',
+        id: event.id,
+        locale: 'all',
+        depth: 0,
+      })
+      expect((allLocales.title as unknown as Record<string, string>).de).toBe(
+        'Lokalisierte Sitzung',
+      )
+      expect((allLocales.title as unknown as Record<string, string>).en).toBe('Localized Sitting')
     })
 
     it('flags a language that has no title of its own', async () => {
