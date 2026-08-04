@@ -12239,6 +12239,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "registrations_full": {
+          "name": "registrations_full",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
         "manager_id": {
           "name": "manager_id",
           "type": "integer",
@@ -13261,6 +13268,13 @@
           "type": "boolean",
           "primaryKey": false,
           "notNull": false
+        },
+        "version_registrations_full": {
+          "name": "version_registrations_full",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
         },
         "version_manager_id": {
           "name": "version_manager_id",
@@ -27429,6 +27443,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "e6a35431-9af9-4034-95b1-91b85131169d",
+  "id": "c5a9a7b1-1b36-45e7-8354-8fb3d4c73fe1",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }
