@@ -83,7 +83,7 @@ package (v6 unified them — the older `@react-email/components` and
 | `EmailLayout.tsx` | Shared shell — gradient brand header, card body, footer. Exports `BrandButton`, `BrandButtonRow` (2–3 actions centered together on one row), `DetailRow` (label/value fact-table row, for manager emails), `StackedDetailRow` (label-above-value itinerary row, for guest emails), `SectionHeading` (uppercase section label), and shared `styles`. Reuse these so templates stay visually consistent. |
 | `VerifyEmail.tsx` | Managers email-verification message. |
 | `ResetPasswordEmail.tsx` | Managers password-reset message (replaces Payload's bare default). |
-| `EventVerificationEmail.tsx` | Manager/region event-verification reminder — coloured alert callout keyed on `ReminderLevel`. |
+| `EventVerificationEmail.tsx` | Manager/region event-verification reminder — coloured alert callout keyed on `ReminderLevel`; localized per `Managers.language` (#610). Also exports `verificationSubject`. |
 | `RegistrationConfirmationEmail.tsx` | Registrant confirmation for an event registration — client-branded, localized, ICS attached. Also exports `registrationConfirmationText` (the plain-text alternative). |
 | `SessionReminderEmail.tsx` | Registrant reminder ~24h before a session (#589) — client-branded, localized sibling of the confirmation sharing `StackedDetailRow`; states the single next occurrence, **no** ICS, footer unsubscribe link. Also exports `sessionReminderText`. Sent by the `SendSessionReminders` job. |
 | `EventRegistrationEmail.tsx` | Manager-facing notice that a seeker registered — Sahaj Atlas project brand; event/registrant/start-date `DetailRow`s, the registrant's forwarded question answers (resolved via `buildRegistrationAnswers`), and a `BrandButtonRow` of Reply (a `mailto:` pre-filled with a quoted recap) + View event. Also exports `buildReplyBody`. Informational (no alert callout). |
@@ -171,11 +171,32 @@ in `src/emails/`.
 
 ## Localized copy & plural forms
 
-Registrant-facing chrome (the confirmation / reminder / unsubscribe copy) is
-resolved **server-side** by `resolveEmailStrings()` (`src/lib/translations/emailStrings.ts`)
-from the Atlas translations `emails` group, merged over the English
-`EMAIL_STRING_DEFAULTS`. Templates receive already-resolved strings as props and
-never query — see the group note in `.claude/rules/globals.md`.
+Email chrome is resolved **server-side** by `resolveEmailStrings()`
+(`src/lib/translations/emailStrings.ts`) from the Atlas translations `emails`
+group, merged over the English `EMAIL_STRING_DEFAULTS`. Templates receive
+already-resolved strings as props and never query — see the group note in
+`.claude/rules/globals.md`. Two audiences, one group:
+
+- **Registrant** (confirmation / reminder / unsubscribe) — resolved for the
+  `locale` stored on the registration.
+- **Manager** (`EventVerificationEmail`, the `verify_*` keys) — resolved for
+  `Managers.language`. That field offers every ISO 639-1 language, not just the
+  19 CMS locales, so `sendEmailReminder` maps it through `languageToLocale`
+  (`@/lib/locales`); unset, or a language the CMS isn't translated into,
+  resolves the default locale.
+
+**A localized string interpolates its values; it never concatenates around
+them** — word order differs by language, so `'Verify ' + title` is
+untranslatable. Use `interpolate()` for a plain string (subject, mailto body),
+and `EventVerificationEmail`'s local `interpolateNodes()` when a value carries
+markup (the bold deadline / region / manager name inside a sentence).
+
+The verification copy is keyed as a **ragged matrix**:
+`verify_<audience>_<level>_<slot>`, where a region manager has no `due` level
+(they're escalated to, never notified first). `variantKey()` narrows the union
+so a combination without copy is a `null` → thrown error, and a key missing from
+`EMAIL_STRING_DEFAULTS` is a **compile** error rather than a blank line in a
+sent email.
 
 **Plurals go through `pluralize()`, not `interpolate()`.** A quantity-dependent
 string is stored as a family of keys suffixed with the CLDR categories —

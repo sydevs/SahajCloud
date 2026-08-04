@@ -70,12 +70,16 @@ the global. Versions: max 3.
 
 The Atlas `Emails` group is read **server-side** (not just exported to the
 widget) by `resolveEmailStrings()` in `src/lib/translations/emailStrings.ts`,
-which supplies the localized chrome for registrant mail. Note Payload's locale
-fallback is **per field, not per key**: a JSON blob that exists but omits a key
-yields `undefined`, not the English value — so the resolver merges over English
-key defaults. Add a key to `translationsSchema.json` *and* to
-`EMAIL_STRING_DEFAULTS`, or it renders blank in every locale that has any
-translation at all.
+which supplies the localized chrome for registrant mail *and* — under the
+`verify_*` prefix — the manager-facing event-verification reminder. The two
+resolve against different languages (the registrant's stored `locale`, the
+manager's `Managers.language`) but share one group, one resolver and one set of
+English defaults. Note Payload's locale fallback is **per field, not per key**:
+a JSON blob that exists but omits a key yields `undefined`, not the English
+value — so the resolver merges over English key defaults. Add a key to
+`translationsSchema.json` *and* to `EMAIL_STRING_DEFAULTS`, or it renders blank
+in every locale that has any translation at all; a guard in
+`tests/unit/email-strings.spec.ts` fails if the two sides drift.
 
 ```typescript
 import { buildTranslationTabs, type TranslationsSchema } from '@/fields'
