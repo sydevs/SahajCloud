@@ -1,7 +1,6 @@
 import type { FieldHook, PayloadRequest } from 'payload'
 
 import type { EventTitleSlot } from '@/lib/eventTitle/compose'
-
 import {
   addressPlaceName,
   composeEventTitle,
