@@ -7,12 +7,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
 import type { EventFeature } from '@/collections/Events/endpoints/responseTypes'
 
-import { testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 type TestUser = { id: number | string; collection: string; _status?: string; roles?: string[] }
 
-const FUTURE_ONE_OFF = { firstDate: '2027-01-06T10:00:00.000Z', firstDate_tz: 'Europe/London' }
+const FUTURE_ONE_OFF = {
+  firstDate: '2027-01-06T10:00:00.000Z',
+  firstDate_tz: 'Europe/London',
+} as const
 
 describe('registrationsFull signal (#599)', () => {
   let payload: Payload
@@ -26,7 +29,7 @@ describe('registrationsFull signal (#599)', () => {
     const event = await payload.create({
       collection: 'events',
       overrideAccess: true,
-      data: {
+      data: createData<'events'>({
         title: 'Fullness Event',
         languages: ['en'],
         eventType: 'online',
@@ -37,7 +40,7 @@ describe('registrationsFull signal (#599)', () => {
         schedule: FUTURE_ONE_OFF,
         _status: 'published',
         ...overrides,
-      },
+      }),
     })
     return event.id
   }

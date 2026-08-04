@@ -732,7 +732,7 @@ describe('registerForEvent endpoint', () => {
       const event = await payload.create({
         collection: 'events',
         overrideAccess: true,
-        data: {
+        data: createData<'events'>({
           title: 'Gating Event',
           languages: ['en'],
           eventType: 'online',
@@ -740,9 +740,11 @@ describe('registerForEvent endpoint', () => {
           registrationMode: 'sahaj-atlas',
           manager: managerId,
           region: gatingRegionId,
+          // A default so the base data typechecks; every gating case overrides it.
+          schedule: SCHEDULE,
           _status: 'published',
           ...overrides,
-        },
+        }),
       })
       return event.id
     }
