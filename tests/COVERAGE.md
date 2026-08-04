@@ -19,7 +19,7 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 | `meditations`         | `filterMeditationsByLocale` beforeOperation, `extractAudioDuration` beforeChange, `durationMinutes` virtual, weight invalidation          | `meditations`, `meditation-duration`, `meditation-lectures`    |
 | `pages`               | `webUrl` virtual, Lexical block relationship depth, stale-content stripping                                                               | `pages`                                                        |
 | `songs`               | `autoSetIncludeForMeditationsOnCreate` beforeChange                                                                                       | `meditations` (via `includeForMeditations` behavior)           |
-| `videos`              | `previewUrl` virtual, `validateSubtitles` validator                                                                                       | `videos`                                                       |
+| `videos`              | `previewUrl` virtual, `subtitles` jsonSchema validation                                                                                   | `videos`                                                       |
 | `authors`             | Reachability only                                                                                                                         | `collections-smoke`                                            |
 | `images`              | `detectOrientationHook` beforeChange (auto-tags landscape/portrait/square)                                                                | `image-orientation`                                            |
 | `lectures`            | `populateFromNirmalaVidya` beforeChange, clip ↔ parent linking, subtitle language normalization, custom validators (stopTime > startTime) | `lectures`, `sync-lecture-metadata`, `meditation-lectures`     |
@@ -74,6 +74,7 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 | Content-Index block API endpoint generation (`computeApiEndpoint` virtual)                                     | `content-index-block`       |
 | Project-based admin visibility (`createHidden` from accessPlugin)                                              | `project-visibility`        |
 | RBAC (`hasPermission`, `hasAnyPermission`, document-level manager access, locale roles, translator scopes)     | `role-based-access`         |
+| `type: 'json'` fields reaching Ajv on write — malformed value is a 400 (`notificationPreferences`, both notification ledgers, Lessons subtitles) | `json-schema-fields`        |
 
 ## Gaps
 
