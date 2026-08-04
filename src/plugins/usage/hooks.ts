@@ -213,12 +213,10 @@ function describeStringPreview(value: unknown): string | null {
 // ============================================================================
 
 /**
- * beforeOperation hook enforcing per-client `Origin`/`Referer` allow-listing.
- *
- * Runs for every API-client operation on a usage-wrapped collection (the same
- * seam as `validateClientQueryParamsHook`), so it covers standard client reads
- * and the custom Atlas endpoints (geojson / register) whose internal
- * `payload.find` / `payload.create` calls forward the client `req`. Rules:
+ * Enforce a client's `Origin`/`Referer` allowlist, throwing `APIError(403)` when
+ * the request host isn't on it. The single source of the rule; both
+ * {@link validateClientOriginHook} (collection reads/writes) and endpoints that
+ * touch no collection at all (`POST /api/contact-admin`) call it. Rules:
  *
  * - Non-client requests (managers, admin UI, server tasks): untouched.
  * - Empty / unset `allowedDomains`: ALLOW any origin (backward-compatible default).
@@ -227,8 +225,6 @@ function describeStringPreview(value: unknown): string | null {
  * - No `Origin`/`Referer` (server-to-server, cron): ALLOW — the API key is the gate.
  * - Valid live-preview secret: bypass — the same trust signal that unlocks drafts
  *   and skips the select/populate gate.
- * - Internal relationship-population reads (numeric `currentDepth`): skipped; the
- *   already-validated top-level read carries the same origin.
  *
  * Unlike `asTrustedReq`'s `skipClientQueryValidation` flag (a query-shape opt-out),
  * there is deliberately no trusted-req bypass here: origin is a security gate, so
@@ -237,8 +233,11 @@ function describeStringPreview(value: unknown): string | null {
  *
  * On rejection, logs `clientId` + origin + referer at WARN so production denials
  * are debuggable from the application logs.
+ *
+ * @throws {APIError} 403 when the caller is a client whose allowlist excludes the
+ *   request host.
  */
-export const validateClientOriginHook: CollectionBeforeOperationHook = ({ args, req }) => {
+export function assertClientOriginAllowed(req: PayloadRequest): void {
   if (req.user?.collection !== 'clients') {
     return
   }
@@ -246,12 +245,6 @@ export const validateClientOriginHook: CollectionBeforeOperationHook = ({ args, 
   // Trusted live-preview reads render the whole document from a known frontend —
   // same bypass the select/populate gate uses.
   if (hasValidPreviewSecret(req)) {
-    return
-  }
-
-  // Internal relationship-population reads reuse the top-level request's origin,
-  // which has already passed this check; don't re-evaluate (or double-log) them.
-  if (typeof (args as { currentDepth?: unknown }).currentDepth === 'number') {
     return
   }
 
@@ -277,6 +270,28 @@ export const validateClientOriginHook: CollectionBeforeOperationHook = ({ args, 
     referer: req.headers?.get?.('referer') ?? null,
   })
   throw new APIError('This origin is not allowed for this API client.', 403)
+}
+
+/**
+ * beforeOperation hook enforcing per-client `Origin`/`Referer` allow-listing.
+ *
+ * Runs for every API-client operation on a usage-wrapped collection (the same
+ * seam as `validateClientQueryParamsHook`), so it covers standard client reads
+ * and the custom Atlas endpoints (geojson / register) whose internal
+ * `payload.find` / `payload.create` calls forward the client `req`. The rule
+ * itself lives in {@link assertClientOriginAllowed}; this hook adds the one
+ * operation-shaped exemption:
+ *
+ * - Internal relationship-population reads (numeric `currentDepth`) are skipped;
+ *   the already-validated top-level read carries the same origin, so
+ *   re-evaluating would only double-log.
+ */
+export const validateClientOriginHook: CollectionBeforeOperationHook = ({ args, req }) => {
+  if (typeof (args as { currentDepth?: unknown }).currentDepth === 'number') {
+    return
+  }
+
+  assertClientOriginAllowed(req)
 }
 
 // ============================================================================
