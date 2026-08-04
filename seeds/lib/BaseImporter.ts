@@ -14,10 +14,9 @@ import * as path from 'path'
 import dotenv from 'dotenv'
 import { getPayload, Payload, CollectionSlug, Where, TypedLocale } from 'payload'
 
-// Load env files in order (later files override earlier)
-// Following Next.js convention: .env.local takes precedence over .env
-dotenv.config({ path: '.env' })
-dotenv.config({ path: '.env.local', override: true })
+// Next.js precedence: the real shell environment wins, then .env.local, then
+// .env. dotenv walks the array in order and never overwrites an already-set key.
+dotenv.config({ path: ['.env.local', '.env'] })
 
 import { parseArgs, CLIArgs } from './cliParser'
 import { isRetryableError } from './delays'
