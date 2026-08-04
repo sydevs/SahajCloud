@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { mediaField } from '@/fields'
-import { subtitlesJsonSchema, validateSubtitles } from '@/lib/utilities/subtitles'
+import { subtitlesJsonSchema } from '@/lib/utilities/subtitles'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { getCloudflareStreamThumbnailUrl } from '@/plugins/storage/cloudflareStreamAdapter'
 import {
@@ -64,8 +64,7 @@ export const Videos: CollectionConfig = {
       admin: {
         description: 'Subtitle cues: [{ startTimeMs, endTimeMs, durationMs?, content }]',
       },
-      validate: validateSubtitles,
-      typescriptSchema: [() => subtitlesJsonSchema],
+      jsonSchema: subtitlesJsonSchema,
     },
     {
       name: 'tags',

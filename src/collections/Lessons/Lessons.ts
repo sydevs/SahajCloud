@@ -4,7 +4,7 @@ import { mediaField } from '@/fields'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { QuoteBlock } from '@/lib/richEditor/blocks'
 import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexicalHooks'
-import { subtitlesJsonSchema, validateSubtitles } from '@/lib/utilities/subtitles'
+import { subtitlesJsonSchema } from '@/lib/utilities/subtitles'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
@@ -79,8 +79,7 @@ export const Lessons: CollectionConfig = {
                     description:
                       'Subtitles for video media: [{ startTimeMs, endTimeMs, durationMs?, content }].',
                   },
-                  validate: validateSubtitles,
-                  typescriptSchema: [() => subtitlesJsonSchema],
+                  jsonSchema: subtitlesJsonSchema,
                 },
               ],
             },
@@ -138,8 +137,7 @@ export const Lessons: CollectionConfig = {
                 description:
                   'Subtitles for intro audio: [{ startTimeMs, endTimeMs, durationMs?, content }].',
               },
-              validate: validateSubtitles,
-              typescriptSchema: [() => subtitlesJsonSchema],
+              jsonSchema: subtitlesJsonSchema,
             },
           ],
         },

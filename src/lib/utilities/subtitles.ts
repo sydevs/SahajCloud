@@ -1,12 +1,14 @@
 import type { JSONSchema4 } from 'json-schema'
-import type { JSONFieldValidation } from 'payload'
+import type { JSONField } from 'payload'
 
 import { z } from 'zod'
 
-// Zod schema and JSON schema below mirror each other. If you change one,
-// change the other — they describe the same shape but feed different
-// systems (Zod = runtime validation, JSON schema = `typescriptSchema`
-// for generated TypeScript types).
+/**
+ * The subtitle-cue contract, and the single source of truth for it. The
+ * Storyblok seed importer parses raw subtitle files with this schema, and
+ * `subtitlesJsonSchema` below is derived from it — so the field's write
+ * validation and its generated TypeScript type can't drift from the parser.
+ */
 export const subtitlesZodSchema = z.array(
   z.object({
     content: z.string(),
@@ -18,45 +20,23 @@ export const subtitlesZodSchema = z.array(
 
 export type Subtitles = z.infer<typeof subtitlesZodSchema>
 
-// Mirrors `subtitlesZodSchema` — see the note above.
-export const subtitlesJsonSchema: JSONSchema4 = {
-  type: 'array',
-  items: {
-    type: 'object',
-    properties: {
-      content: { type: 'string' },
-      startTimeMs: { type: 'number' },
-      endTimeMs: { type: 'number' },
-      durationMs: { type: 'number' },
-    },
-    required: ['content', 'startTimeMs', 'endTimeMs'],
-    additionalProperties: false,
-  },
+const SUBTITLES_SCHEMA_URI = 'https://sahajcloud.dev/schemas/subtitles.json'
+
+/**
+ * `jsonSchema` for every subtitles field (Videos, Lessons). Payload uses it to
+ * BOTH validate on write — Ajv rejects a malformed cue, raising a
+ * `ValidationError` (a 400 over REST) — AND generate the field's TypeScript
+ * type in `payload-types.ts`, which would otherwise be `unknown`.
+ *
+ * Emitted at `draft-7` because Ajv's default export, the one Payload's json
+ * validator instantiates, is a draft-07 instance.
+ *
+ * Empty values (`undefined` / `null` / `[]` / `{}`) skip validation entirely —
+ * Payload's json validator treats them as "no value" — so the field stays
+ * optional with no special-casing here.
+ */
+export const subtitlesJsonSchema: NonNullable<JSONField['jsonSchema']> = {
+  uri: SUBTITLES_SCHEMA_URI,
+  fileMatch: [SUBTITLES_SCHEMA_URI],
+  schema: z.toJSONSchema(subtitlesZodSchema, { target: 'draft-7' }) as JSONSchema4,
 }
-
-const isEmpty = (value: unknown): boolean => {
-  if (value === undefined || value === null) return true
-  if (Array.isArray(value) && value.length === 0) return true
-  if (typeof value === 'object' && value !== null && Object.keys(value).length === 0) return true
-  return false
-}
-
-// Workers-safe replacement for Payload's built-in jsonSchema validation,
-// which compiles via AJV's `new Function(...)` and is blocked by the V8
-// isolate (issue #317). Uses Zod, which is already a project dependency
-// and runs cleanly under Workers.
-export const parseSubtitles = (value: unknown): true | string => {
-  if (isEmpty(value)) return true
-
-  const result = subtitlesZodSchema.safeParse(value)
-  if (result.success) return true
-
-  return result.error.issues
-    .map((issue) => {
-      const path = issue.path.join('.')
-      return path ? `${path}: ${issue.message}` : issue.message
-    })
-    .join('; ')
-}
-
-export const validateSubtitles: JSONFieldValidation = (value) => parseSubtitles(value)
