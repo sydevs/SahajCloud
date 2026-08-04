@@ -1042,6 +1042,7 @@ export interface Video {
     startTimeMs: number;
     endTimeMs: number;
     durationMs?: number;
+    [k: string]: unknown;
   }[];
   tags: 'testimonial' | 'workshop' | 'event' | 'technique';
   /**
@@ -2573,6 +2574,7 @@ export interface Lesson {
       startTimeMs: number;
       endTimeMs: number;
       durationMs?: number;
+      [k: string]: unknown;
     }[];
     id?: string | null;
   }[];
@@ -2605,6 +2607,7 @@ export interface Lesson {
     startTimeMs: number;
     endTimeMs: number;
     durationMs?: number;
+    [k: string]: unknown;
   }[];
   article?: {
     root: {
