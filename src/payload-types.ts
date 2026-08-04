@@ -1797,6 +1797,7 @@ export interface Event {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  registrationsFull?: boolean | null;
   /**
    * Manager responsible for verifying this event.
    */
@@ -4602,6 +4603,7 @@ export interface EventsSelect<T extends boolean = true> {
         guests?: T;
       };
   registrations?: T;
+  registrationsFull?: T;
   manager?: T;
   verificationStage?: T;
   nextCheckAt?: T;

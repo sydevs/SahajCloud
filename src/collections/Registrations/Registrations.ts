@@ -4,6 +4,8 @@ import { legacyMigrationFields } from '@/fields'
 import { DEFAULT_LOCALE, getLocaleOptions } from '@/lib/locales'
 import { registrationQuestionsJsonSchema } from '@/lib/registrations/questions'
 
+import { syncFullnessAfterChange, syncFullnessAfterDelete } from './hooks/syncFullness'
+
 /**
  * Registrations — a registrant (User) signing up for an Event. Migrated from
  * the Atlas `registrations` table.
@@ -15,6 +17,12 @@ export const Registrations: CollectionConfig = {
     group: 'Classes',
     defaultColumns: ['event', 'user', 'startingAt'],
     hidden: true,
+  },
+  // Keep the owning event's denormalized `registrationsFull` flag in step as
+  // registrations come and go (see the event's registrationsFull field).
+  hooks: {
+    afterChange: [syncFullnessAfterChange],
+    afterDelete: [syncFullnessAfterDelete],
   },
   fields: [
     {

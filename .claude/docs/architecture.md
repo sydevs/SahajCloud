@@ -53,6 +53,25 @@ Two places to add HTTP endpoints, chosen by scope:
 | `seed/[script]/route.ts`              | `/api/seed/:script`               | seed trigger with SSE             |
 | `webhooks/cloudflare-stream/route.ts` | `/api/webhooks/cloudflare-stream` | Cloudflare Stream webhook handler |
 
+### Atlas event read + registration contract
+
+`GET /api/events/geojson` + `POST /api/events/:id/register` back the Sahaj Atlas
+widget. Two behaviours it depends on:
+
+- **Finished events stay published but drop off the feeds (#603/#604).** When an
+  event's schedule runs out, the ExpireEvents job marks it `finished` but leaves
+  it **published** — so `GET /api/events/:id` stays readable and the widget
+  renders an "Ended" panel, while the public feeds (`GET /api/events` for clients
+  and `GET /api/events/geojson`) exclude it via `excludeFinishedEvents` /
+  `notFinishedWhere`. Finished-ness keys off the stored `schedule.lastDate`
+  (`shouldFinish` and its SQL counterpart), not the virtual `upcomingDates`.
+- **Registration is gated server-side (#599).** The register endpoint refuses
+  external-mode / ended / started-course / full events with a `409` and a stable
+  machine-readable `code` (`src/collections/Events/endpoints/responseTypes.ts`),
+  and a denormalized `registrationsFull` boolean on the event lets the widget
+  render the "Full" state at read time (O(1), no raw counts). The gate + fullness
+  logic live in `src/lib/registrations/`.
+
 ## OpenAPI / Scalar API Docs
 
 REST API documentation built on `payload-oapi` + a custom Scalar plugin
