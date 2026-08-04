@@ -318,7 +318,7 @@ Registrants who unsubscribe do so via the logged-out, token-gated page at
 | --- | --- |
 | `src/jobs/RegistrationNotifications/SendSessionReminders.ts` | Reminder task |
 | `src/jobs/RegistrationNotifications/SendRegistrationDigests.ts` | Digest task |
-| `src/jobs/RegistrationNotifications/reminderLedger.ts` | Per-registration dedup ledger |
+| `src/lib/registrations/reminderLog.ts` | Per-registration dedup ledger + the field's `jsonSchema` (shared with the Registrations collection) |
 | `tests/int/session-reminders.int.spec.ts` / `registration-digests.int.spec.ts` | Integration tests |
 
 ### Usage tracking (`src/plugins/usage/tasks.ts`)
