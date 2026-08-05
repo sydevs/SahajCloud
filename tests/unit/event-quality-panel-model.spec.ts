@@ -11,7 +11,7 @@ const report = (overrides: Partial<Extract<EventQualityReport, { skipped: false 
   ({
     skipped: false,
     document: [
-      { key: 'description.missing', status: 'failed' },
+      { key: 'description.insufficient', status: 'failed' },
       { key: 'images.missing', status: 'passed' },
     ],
     perLocale: { en: [{ key: 'translation.title.missing', status: 'passed' }] },
@@ -38,7 +38,7 @@ describe('buildPanelModel', () => {
     if (!model || model.skipped) throw new Error('expected a report model')
     expect(model.groups.map((g) => g.tier)).toEqual(['completeness', 'translation'])
     expect(model.groups[0].items.map((i) => [i.key, i.status])).toEqual([
-      ['description.missing', 'failed'],
+      ['description.insufficient', 'failed'],
       ['images.missing', 'passed'],
     ])
   })
@@ -47,8 +47,8 @@ describe('buildPanelModel', () => {
     const model = buildPanelModel(report(), metadata)
     if (!model || model.skipped) throw new Error('expected a report model')
     const item = model.groups[0].items[0]
-    expect(item.label).toBe(metadata['description.missing'].label)
-    expect(item.description).toBe(metadata['description.missing'].description)
+    expect(item.label).toBe(metadata['description.insufficient'].label)
+    expect(item.description).toBe(metadata['description.insufficient'].description)
   })
 
   it('words a passing item as a state, not as the instruction', () => {

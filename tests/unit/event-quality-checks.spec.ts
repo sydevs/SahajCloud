@@ -4,7 +4,6 @@ import type { EventQualityInput } from '@/lib/eventQuality'
 import {
   buildEventQualityReport,
   countOpenDocumentIssues,
-  DESCRIPTION_MIN_LENGTH,
   DOCUMENT_SCOPE_CHECKS,
   EVENT_QUALITY_CHECKS,
   isAutoFilledTitle,
@@ -129,17 +128,10 @@ describe('registry integrity', () => {
     expect(EVENT_QUALITY_CHECKS.map((c) => c.key).sort()).toEqual(
       [
         'contact.none',
-        'description.containsUrl',
-        'description.missing',
-        'description.repeatsAddress',
-        'description.repeatsContact',
-        'description.repeatsSchedule',
-        'description.staleDate',
-        'description.tooShort',
+        'description.insufficient',
+        'description.redundant',
         'images.missing',
-        'title.generic',
-        'title.restatesAddress',
-        'title.restatesSchedule',
+        'title.unhelpful',
         'translation.title.missing',
       ].sort(),
     )
@@ -151,10 +143,22 @@ describe('registry integrity', () => {
 })
 
 describe('completeness checks', () => {
-  it('flags a missing description, and nothing else about it', () => {
-    // The other five description checks are vacuous on an empty description —
-    // one finding, not six saying the same thing.
-    expect(failedKeys(goodEvent({ description: null }))).toEqual(['description.missing'])
+  it('folds an absent and a too-thin description into one finding', () => {
+    // Presence and length are the same conversation — "there isn't enough here
+    // to go on" — so they're one row with a detail that says which.
+    const absent = buildEventQualityReport(goodEvent({ description: null }), { now: NOW })
+    if (absent.skipped) throw new Error('expected a report')
+    const absentItem = absent.document.find((r) => r.key === 'description.insufficient')
+    expect(absentItem?.status).toBe('failed')
+    expect(absentItem?.detail).toContain('Nothing here yet')
+
+    const short = buildEventQualityReport(goodEvent({ description: richText('Meditation.') }), {
+      now: NOW,
+    })
+    if (short.skipped) throw new Error('expected a report')
+    const shortItem = short.document.find((r) => r.key === 'description.insufficient')
+    expect(shortItem?.status).toBe('failed')
+    expect(shortItem?.detail).toContain('Too short')
   })
 
   it('flags missing images', () => {
@@ -162,8 +166,8 @@ describe('completeness checks', () => {
   })
 
   it('does not ask for a website — it is optional by design', () => {
-    // A listing that says everything in place is better than one that sends a
-    // seeker to an external site, so its absence is not a finding.
+    // A listing that says everything in place beats one that sends a seeker
+    // to an external site, so its absence is not a finding.
     expect(failedKeys(goodEvent({ website: null }))).toEqual([])
   })
 
@@ -196,24 +200,21 @@ describe('title quality — auto-filled titles are never judged', () => {
 
   it('flags the same event once the title is hand-typed "Meditation"', () => {
     const handTyped = goodEvent({ title: 'Meditation', address })
-    expect(failedKeys(handTyped)).toContain('title.generic')
+    expect(failedKeys(handTyped)).toContain('title.unhelpful')
   })
 
   it('recognises every slot, not just the one the schedule implies', () => {
-    // A schedule edited from evening to morning leaves the stored title on the
-    // old template; it is still auto-filled.
     for (const template of Object.values(EVENT_TITLE_DEFAULTS)) {
       const title = template.replace('%{place}', 'Friends Meeting House')
       expect(isAutoFilledTitle(title, goodEvent())).toBe(true)
     }
   })
 
-  it('recognises a localized auto-title via the locale’s own templates', () => {
+  it('recognises a localized auto-title via the locale\u2019s own templates', () => {
     const german = { ...EVENT_TITLE_DEFAULTS, evening: 'Abendmeditation bei %{place}' }
     expect(
       isAutoFilledTitle('Abendmeditation bei Friends Meeting House', goodEvent(), german),
     ).toBe(true)
-    // Without the German templates it reads as hand-written prose.
     expect(isAutoFilledTitle('Abendmeditation bei Friends Meeting House', goodEvent())).toBe(false)
   })
 
@@ -222,113 +223,111 @@ describe('title quality — auto-filled titles are never judged', () => {
   })
 })
 
-describe('title quality — hand-written titles', () => {
-  it('flags a title that is only the venue, street or city', () => {
+describe('title quality — one finding, named causes', () => {
+  const detailFor = (event: EventQualityInput, key: string) => {
+    const report = buildEventQualityReport(event, { now: NOW })
+    if (report.skipped) throw new Error('expected a report')
+    return Object.values(report.perLocale)
+      .flat()
+      .find((r) => r.key === key)?.detail
+  }
+
+  it('names a generic title', () => {
+    expect(detailFor(goodEvent({ title: 'Meditation' }), 'title.unhelpful')).toContain(
+      'only says "Meditation"',
+    )
+  })
+
+  it('names a title that is only the address', () => {
     for (const title of ['Friends Meeting House', '9 St Peter Park Rd', 'Broadstairs']) {
-      expect(failedKeys(goodEvent({ title }))).toContain('title.restatesAddress')
+      expect(detailFor(goodEvent({ title }), 'title.unhelpful')).toContain('just the address')
     }
   })
 
-  it('leaves a title that merely mentions the venue alone', () => {
-    // "just the address" is the failure — a title that says something more is
-    // doing its job, even if the venue appears in it. "evening" is a time of
-    // day, not a weekday or a clock time, so the schedule check stays quiet.
+  it('names a day or time written into the title', () => {
+    expect(detailFor(goodEvent({ title: 'Meditation every Tuesday' }), 'title.unhelpful')).toContain(
+      'day or time',
+    )
+    expect(detailFor(goodEvent({ title: 'Meditation at 19:30' }), 'title.unhelpful')).toContain(
+      'day or time',
+    )
+  })
+
+  it('tells the manager the fix is to clear the field', () => {
+    expect(detailFor(goodEvent({ title: 'Meditation' }), 'title.unhelpful')).toContain('Clearing it')
+  })
+
+  it('leaves a title that says something of its own alone', () => {
     expect(failedKeys(goodEvent({ title: 'Beginners evening at Friends Meeting House' }))).toEqual(
       [],
     )
-  })
-
-  it('flags a weekday or a time written into the title', () => {
-    expect(failedKeys(goodEvent({ title: 'Meditation every Tuesday' }))).toContain(
-      'title.restatesSchedule',
-    )
-    expect(failedKeys(goodEvent({ title: 'Meditation at 19:30' }))).toContain(
-      'title.restatesSchedule',
-    )
-  })
-
-  it('flags a non-English weekday too', () => {
-    expect(failedKeys(goodEvent({ title: 'Meditation jeden Dienstag' }))).toContain(
-      'title.restatesSchedule',
-    )
-  })
-
-  it('accepts a generic title once it names an audience', () => {
-    expect(failedKeys(goodEvent({ title: 'Free Meditation Classes' }))).toContain('title.generic')
     expect(failedKeys(goodEvent({ title: 'Free Meditation Classes for Students' }))).toEqual([])
   })
 })
 
-describe('description quality', () => {
-  const withDescription = (...paragraphs: string[]) =>
-    failedKeys(goodEvent({ description: richText(...paragraphs) }))
+describe('description quality — one finding, named causes', () => {
+  const detailFor = (...paragraphs: string[]) => {
+    const report = buildEventQualityReport(goodEvent({ description: richText(...paragraphs) }), {
+      now: NOW,
+    })
+    if (report.skipped) throw new Error('expected a report')
+    return report.document.find((r) => r.key === 'description.redundant')?.detail
+  }
 
-  it('flags prose repeating the address', () => {
+  it('names a repeated address', () => {
     expect(
-      withDescription(
+      detailFor(
         'We meet at Friends Meeting House every week, and everyone is welcome to come along.',
       ),
-    ).toContain('description.repeatsAddress')
+    ).toContain('the address')
   })
 
-  it('flags prose repeating the schedule', () => {
+  it('names a repeated schedule', () => {
     expect(
-      withDescription('Our sessions run on Thursday, and beginners are welcome at any point.'),
-    ).toContain('description.repeatsSchedule')
+      detailFor('Our sessions run on Thursday, and beginners are welcome at any point.'),
+    ).toContain('the day and time')
     expect(
-      withDescription('Doors open at 18:45 and the guided session itself starts a little later.'),
-    ).toContain('description.repeatsSchedule')
+      detailFor('Doors open at 18:45 and the guided session itself starts a little later.'),
+    ).toContain('the day and time')
   })
 
-  it('flags a phone number or an email in prose', () => {
+  it('names contact details in prose', () => {
     expect(
-      withDescription('Ring us on +44 20 7946 0000 to ask about the class before you come along.'),
-    ).toContain('description.repeatsContact')
+      detailFor('Ring us on +44 20 7946 0000 to ask about the class before you come along.'),
+    ).toContain('phone number or email')
     expect(
-      withDescription('Write to hello@example.org if you would like to know more before coming.'),
-    ).toContain('description.repeatsContact')
+      detailFor('Write to hello@example.org if you would like to know more before coming.'),
+    ).toContain('phone number or email')
   })
 
-  it('flags a URL in prose — it renders as dead text', () => {
+  it('names a link', () => {
     expect(
-      withDescription('Everything else is on https://example.org/classes for you to read first.'),
-    ).toContain('description.containsUrl')
-    expect(
-      withDescription('Everything else is on www.example.org/classes for you to read first.'),
-    ).toContain('description.containsUrl')
+      detailFor('Everything else is on https://example.org/classes for you to read first.'),
+    ).toContain('the web link')
   })
 
-  it('flags a year or a date that has already passed', () => {
+  it('names a date that has passed', () => {
     expect(
-      withDescription('We have been running these sessions here every week since 2019 or so.'),
-    ).toContain('description.staleDate')
-    expect(
-      withDescription('The programme was last revised on 2024-03-12 and has run since then.'),
-    ).toContain('description.staleDate')
+      detailFor('We have been running these sessions here every week since 2019 or so.'),
+    ).toContain('date that has passed')
+  })
+
+  it('lists several problems in one sentence', () => {
+    const detail = detailFor(
+      'Meet at Friends Meeting House on Thursday, or ring +44 20 7946 0000 to ask first.',
+    )
+    expect(detail).toContain('the address')
+    expect(detail).toContain('the day and time')
+    expect(detail).toContain(' and ')
   })
 
   it('allows 1970 — the founding year, not a schedule', () => {
     expect(
-      withDescription('Sahaja Yoga was founded in 1970 and has been taught freely ever since.'),
-    ).not.toContain('description.staleDate')
-  })
-
-  it('allows the current and future years', () => {
-    expect(
-      withDescription('A new beginners course starts in 2027, open to anyone who wants to come.'),
-    ).not.toContain('description.staleDate')
-  })
-
-  it('flags a description under the minimum length', () => {
-    const short = 'Meditation class.'
-    expect(short.length).toBeLessThan(DESCRIPTION_MIN_LENGTH)
-    expect(withDescription(short)).toEqual(['description.tooShort'])
+      detailFor('Sahaja Yoga was founded in 1970 and has been taught freely ever since here.'),
+    ).toBeUndefined()
   })
 
   it('reads text across formatting runs without inventing phrases', () => {
-    // Sibling text nodes join with nothing (so a bolded word doesn't split a
-    // phrase), but blocks join with a newline (so a heading can't run into the
-    // paragraph below and manufacture one).
     const split = {
       root: {
         type: 'root',
@@ -349,7 +348,7 @@ describe('description quality', () => {
         version: 1,
       },
     }
-    expect(failedKeys(goodEvent({ description: split }))).toContain('description.repeatsAddress')
+    expect(failedKeys(goodEvent({ description: split }))).toContain('description.redundant')
   })
 })
 
@@ -392,6 +391,24 @@ describe('locale scope', () => {
       key: 'translation.title.missing',
       status: 'passed',
     })
+  })
+
+  it('never calls an auto-filled title untranslated', () => {
+    // A blank title is composed per locale from that locale's own template, so
+    // every language already has its own — there is nothing to translate. Only
+    // a title a manager typed can leave other languages showing English.
+    const autoFilled = goodEvent({
+      languages: ['de', 'fr'],
+      title: { en: 'Meditation at Friends Meeting House' },
+    })
+    const report = buildEventQualityReport(autoFilled, { now: NOW })
+    if (report.skipped) throw new Error('expected a report')
+    for (const locale of ['de', 'fr']) {
+      expect(report.perLocale[locale]).toContainEqual({
+        key: 'translation.title.missing',
+        status: 'passed',
+      })
+    }
   })
 
   it('reports a locale added in the current save as pending, not failing', () => {
@@ -444,13 +461,13 @@ describe('openCount', () => {
   })
 
   it('reports an empty listing as the three things it is actually missing', () => {
-    // The six description-quality checks stay silent on an empty description,
-    // so a bare listing yields three findings rather than every check at once.
+    // description.redundant stays silent on an empty description, so a bare
+    // listing yields three findings rather than every check at once.
     const empty: EventQualityInput = { _status: 'published', verificationStage: 'verified' }
     const report = buildEventQualityReport(empty, { now: NOW })
     if (report.skipped) throw new Error('expected a report')
     expect(report.document.filter((r) => r.status === 'failed').map((r) => r.key)).toEqual([
-      'description.missing',
+      'description.insufficient',
       'images.missing',
       'contact.none',
     ])

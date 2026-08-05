@@ -163,11 +163,17 @@ export const Events: CollectionConfig = {
               type: 'text',
               localized: true,
               required: true,
+              // Matches the address fields' limit. The longest title in the
+              // Atlas data is 94 characters and nothing exceeds 100, so this
+              // binds new writing without locking anyone out of a listing they
+              // already have. `maxLength` is Payload validation, not a column
+              // width, so it needs no migration.
+              maxLength: 100,
               hooks: { beforeChange: [eventTitleBeforeChange] },
               admin: {
                 placeholder: 'Meditation at …',
                 description:
-                  'Event name. Leave blank to auto-fill from the address (e.g. "Meditation at Beethovenstraße 12").',
+                  'Up to 100 characters. Leave blank to fill in from the venue — "Evening Meditation at Broadstairs Friends Meeting House" — which also translates itself into every language.',
               },
             },
             {

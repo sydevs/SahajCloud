@@ -103,7 +103,8 @@ export function buildPanelModel(
       tier: meta.tier,
       status: result.status,
       label: result.status === 'passed' ? meta.passedLabel : meta.label,
-      description: meta.description,
+      // The check's own account of what it found beats the static blurb.
+      description: result.detail ?? meta.description,
     })
   }
   for (const locale of report.locales) {
@@ -118,7 +119,7 @@ export function buildPanelModel(
         tier: meta.tier,
         status: result.status,
         label: namesLanguages && named ? named : plain,
-        description: meta.description,
+        description: result.detail ?? meta.description,
         ...(namesLanguages && named ? { language: languageName(locale) } : {}),
       })
     }

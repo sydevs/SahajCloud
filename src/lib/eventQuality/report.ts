@@ -1,7 +1,9 @@
 
 import type {
+  CheckContext,
   EventQualityInput,
   EventQualityReport,
+  QualityCheck,
   QualityCheckResult,
   TitleTemplateSet,
 } from './types'
@@ -90,6 +92,25 @@ export function titleForLocale(
   return typeof value === 'string' ? value.trim() : ''
 }
 
+/** Whether `title` is wording a manager typed, rather than the auto-fill. */
+function isHandWrittenTitle(
+  event: EventQualityInput,
+  title: string,
+  templates?: TitleTemplateSet,
+): boolean {
+  return title.length > 0 && !isAutoFilledTitle(title, event, templates ?? EVENT_TITLE_DEFAULTS)
+}
+
+/**
+ * Run one check, attaching the specific problems it found when it fails.
+ * `detail` is only consulted on failure — a passing check has nothing to name.
+ */
+function resolve(check: QualityCheck, ctx: CheckContext): Omit<QualityCheckResult, 'key'> {
+  if (!check.evaluate(ctx)) return { status: 'passed' }
+  const detail = check.detail?.(ctx)
+  return detail ? { status: 'failed', detail } : { status: 'failed' }
+}
+
 /**
  * Build the full multi-locale listing-quality report for an event.
  *
@@ -107,18 +128,26 @@ export function buildEventQualityReport(
   const currentYear = (options.now ?? new Date()).getUTCFullYear()
   const locales = options.locales ?? qualityLocalesForEvent(event)
   const pending = new Set(options.pendingLocales ?? [])
-  // Both walk a structure every time they're read, and between them eight
-  // checks want them — so they're computed once here and passed down.
+  // Both walk a structure every time they're read, and several checks want
+  // them — so they're computed once here and passed down.
   const shared = {
     event,
     currentYear,
     descriptionText: eventDescriptionText(event),
     addressPhrases: eventAddressPhrases(event),
+    // Whether the *default* locale's title is one a manager typed. A blank
+    // title is composed per locale from that locale's own template, so it is
+    // never left untranslated — only a hand-written one can be.
+    defaultTitleIsHandWritten: isHandWrittenTitle(
+      event,
+      titleForLocale(event.title, DEFAULT_LOCALE),
+      options.templates?.[DEFAULT_LOCALE],
+    ),
   }
 
   const document: QualityCheckResult[] = DOCUMENT_SCOPE_CHECKS.map((check) => ({
     key: check.key,
-    status: check.evaluate(shared) ? 'failed' : 'passed',
+    ...resolve(check, shared),
   }))
 
   const perLocale: Record<string, QualityCheckResult[]> = {}
@@ -127,18 +156,16 @@ export function buildEventQualityReport(
     const title = titleForLocale(event.title, locale)
     // A check that judges the manager's own wording stays silent when the
     // title is the auto-fill (or absent) — see `requiresHandWrittenTitle`.
-    const handWritten = title.length > 0 && !isAutoFilledTitle(title, event, templates)
+    const handWritten = isHandWrittenTitle(event, title, templates)
 
     perLocale[locale] = PER_LOCALE_CHECKS.filter(
       (check) => handWritten || !check.requiresHandWrittenTitle,
     ).map((check) => ({
       key: check.key,
       // A locale added in this very save cannot have a translation yet.
-      status: pending.has(locale)
-        ? 'pending'
-        : check.evaluate({ ...shared, locale, title, templates })
-          ? 'failed'
-          : 'passed',
+      ...(pending.has(locale)
+        ? { status: 'pending' as const }
+        : resolve(check, { ...shared, locale, title, templates })),
     }))
   }
 
