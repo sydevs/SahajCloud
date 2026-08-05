@@ -1,5 +1,8 @@
-import type { FieldHook, PayloadRequest } from 'payload'
+import type { FieldHook, PayloadRequest, TextFieldSingleValidation } from 'payload'
 
+import { text as textFieldValidation } from 'payload/shared'
+
+import { URL_RE } from '@/lib/eventQuality'
 import type { EventTitleSlot } from '@/lib/eventTitle/compose'
 import {
   addressPlaceName,
@@ -89,4 +92,42 @@ export const eventTitleBeforeChange: FieldHook = async ({ value, data, originalD
   // The guard above guarantees a usable place, so composeEventTitle returns a
   // non-null string here.
   return composeEventTitle(templates[slot], address)
+}
+
+/**
+ * `validate` for the Events `title` field — the other half of the hook above.
+ *
+ * Three jobs, in order:
+ *
+ * 1. **Refuse a link.** A title isn't clickable, so a URL in it is dead text.
+ * 2. **Permit a blank title when the auto-fill can take over.** This is the
+ *    load-bearing one. Field `beforeChange` hooks run *before* validation
+ *    server-side (`payload/dist/fields/hooks/beforeChange/promise.js` — hooks at
+ *    line 58, `validate` at 86), so on the server the field is already filled by
+ *    the time it's checked. **In the browser no hook runs at all**, so a
+ *    `required` blank field is refused before the request is ever sent — which
+ *    made the admin reject the exact workflow this field's own description
+ *    recommends ("Leave blank to fill in from the venue"). Allowing it here,
+ *    and only when there is an address to compose from, keeps the guarantee
+ *    (`required` still holds) while letting the intended path through.
+ * 3. **Otherwise defer to Payload's own text validation** — composed rather
+ *    than reimplemented, because supplying `validate` *replaces* the default
+ *    (`payload/dist/fields/config/sanitize.js` installs it only when a field has
+ *    none), which would silently drop the field's `maxLength`.
+ */
+export const eventTitleValidate: TextFieldSingleValidation = (value, options) => {
+  if (typeof value === 'string' && URL_RE.test(value)) {
+    return 'Remove the link — a title isn’t clickable. Put it in Website or Online URL instead.'
+  }
+
+  if (!value) {
+    const { address } = (options.data ?? {}) as { address?: unknown }
+    // The hook will compose "Evening Meditation at «venue»" from this.
+    if (addressPlaceName(address)) return true
+    if (options.required) {
+      return 'Add a title, or fill in the venue address and one will be written for you.'
+    }
+  }
+
+  return textFieldValidation(value, options)
 }

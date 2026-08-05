@@ -1,4 +1,4 @@
-import type { CollectionConfig, TextFieldSingleValidation } from 'payload'
+import type { CollectionConfig } from 'payload'
 
 import {
   HeadingFeature,
@@ -7,7 +7,6 @@ import {
   LinkFeature,
   lexicalEditor,
 } from '@payloadcms/richtext-lexical'
-import { text as textFieldValidation } from 'payload/shared'
 
 import {
   DEFAULT_REGISTRATION_FREQUENCY,
@@ -24,7 +23,7 @@ import {
 import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
-import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS, URL_RE } from '@/lib/eventQuality'
+import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS } from '@/lib/eventQuality'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
@@ -41,27 +40,13 @@ import {
 } from './eventOptions'
 import { ensureWebPathDeps } from './hooks/ensureWebPathDeps'
 import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuality'
-import { eventTitleBeforeChange } from './hooks/eventTitle'
+import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { syncEventFullness } from './hooks/syncFullness'
 import { verifyOnSave } from './hooks/verifyOnSave'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
 
-/**
- * Reject a link in the title, then defer to Payload's own text validation.
- *
- * Composed rather than written from scratch: supplying `validate` **replaces**
- * the default (`payload/dist/fields/config/sanitize.js` installs it only when
- * the field has none), so a hand-rolled one would silently drop the field's
- * `maxLength`.
- */
-const eventTitleValidate: TextFieldSingleValidation = (value, options) => {
-  if (typeof value === 'string' && URL_RE.test(value)) {
-    return 'Remove the link — a title isn’t clickable. Put it in Website or Online URL instead.'
-  }
-  return textFieldValidation(value, options)
-}
 
 /**
  * Minimal rich-text editor for the event description: italic, an H3,
