@@ -257,3 +257,38 @@ describe('events.json structured fields', () => {
     expect(bad).toEqual([])
   })
 })
+
+/**
+ * The user and registration counts are derived from the dump the same way the
+ * region count is — and for the same reason. Verification is `actual >=
+ * expected`, so a constant that drifts *above* what can be imported fails every
+ * run (which is what `users: 755` did), and one that drifts below degrades into
+ * no check at all.
+ */
+describe('expected counts follow from the data', () => {
+  const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const users = JSON.parse(
+    readFileSync(path.resolve(process.cwd(), 'seeds/atlas/data/users.json'), 'utf-8'),
+  ) as { legacyId: number; email: string | null }[]
+  const registrations = JSON.parse(
+    readFileSync(path.resolve(process.cwd(), 'seeds/atlas/data/registrations.json'), 'utf-8'),
+  ) as { userId: number | null }[]
+
+  const importable = users.filter((u) => EMAIL_SHAPE.test((u.email ?? '').trim()))
+
+  it('counts users as the unique addresses that can actually be imported', () => {
+    // 29 rows hold typed-in junk rather than an address; the rest collapse on
+    // case-variant duplicates, since Payload stores email lowercased + unique.
+    const unique = new Set(importable.map((u) => u.email!.trim().toLowerCase()))
+    expect(users.length - importable.length).toBe(29)
+    expect(EXPECTED_COUNTS.atlas.users).toBe(unique.size)
+  })
+
+  it('drops the registrations whose registrant cannot be imported', () => {
+    const unimportable = new Set(
+      users.filter((u) => !EMAIL_SHAPE.test((u.email ?? '').trim())).map((u) => u.legacyId),
+    )
+    const orphaned = registrations.filter((r) => r.userId != null && unimportable.has(r.userId))
+    expect(EXPECTED_COUNTS.atlas.registrations).toBe(registrations.length - orphaned.length)
+  })
+})
