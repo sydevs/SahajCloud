@@ -237,11 +237,11 @@ export const Events: CollectionConfig = {
                 {
                   name: 'contactName',
                   type: 'text',
-                  required: true,
-                  // Required (and shown) only when a phone is given — it names
-                  // the person who answers it. An inactive event reachable by
-                  // email or website has no one to name, so it isn't demanded
-                  // there. A false condition skips both `required` + this.
+                  // Shown when a phone is given — it names the person who
+                  // answers it — but not *required*: the Atlas dump holds
+                  // numbers with no name against them, and refusing those threw
+                  // away the only contact route a dormant listing had. A nicety,
+                  // not a necessity.
                   admin: {
                     condition: (data) => !!data?.contactPhone,
                     description: 'The name of the person they are calling',

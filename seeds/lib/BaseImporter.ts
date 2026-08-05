@@ -825,6 +825,11 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           where: naturalKey,
           limit: 1,
           locale: options?.locale,
+          // Include trashed rows. Payload appends `deletedAt exists: false` to
+          // every read on a trash-enabled collection unless asked otherwise, so
+          // without this a trashed row reads as absent and the importer creates
+          // a duplicate on its natural key. A no-op where trash is disabled.
+          trash: true,
         }),
       )
       if (DEBUG)
@@ -864,6 +869,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             file: fileForUpdate,
             publishSpecificLocale: options?.publishSpecificLocale,
             context: options?.context,
+            // Same reason as the find above — an update targeting a trashed row
+            // throws `Not Found` without it. Two archived Atlas events failed
+            // on every run until this was passed.
+            trash: true,
           }),
         )
         if (DEBUG)
