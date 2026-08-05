@@ -762,6 +762,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             file: fileForUpdate,
             publishSpecificLocale: options?.publishSpecificLocale,
             context: options?.context,
+            // `preloadCollection` deliberately includes trashed rows, so this id
+            // can be one — and an update without `trash: true` refuses it with
+            // `Not Found`. A no-op where trash is disabled.
+            trash: true,
           }),
         )
         if (DEBUG)
