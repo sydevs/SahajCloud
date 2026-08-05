@@ -15,6 +15,7 @@ import { DEFAULT_LOCALE, LOCALES } from '@/lib/locales'
 import { isAutoFilledTitle } from './autoTitle'
 import {
   DOCUMENT_SCOPE_CHECKS,
+  STORED_COUNT_EXCLUDED,
   eventAddressPhrases,
   eventDescriptionText,
   PER_LOCALE_CHECKS,
@@ -143,6 +144,14 @@ export function buildEventQualityReport(
       titleForLocale(event.title, DEFAULT_LOCALE),
       options.templates?.[DEFAULT_LOCALE],
     ),
+    // The translation check is document-scope — it reports one finding naming
+    // every language that's missing a title, rather than a row per language —
+    // so it needs the whole map, not just the locale in hand.
+    judgedLocales: locales,
+    pendingLocales: [...pending],
+    titleByLocale: Object.fromEntries(
+      locales.map((locale) => [locale, titleForLocale(event.title, locale)]),
+    ),
   }
 
   const document: QualityCheckResult[] = DOCUMENT_SCOPE_CHECKS.map((check) => ({
@@ -174,11 +183,14 @@ export function buildEventQualityReport(
     document,
     perLocale,
     locales,
-    // Document scope only. A single non-localized column cannot hold a correct
-    // cross-locale figure: the per-locale checks read localized titles a write
-    // hook can't see, so including them would need a `locale: 'all'` read on
-    // every write. See the ticket's design note (#609).
-    openCount: document.filter((result) => result.status === 'failed').length,
+    // Document scope, and only the checks that don't read localized data — the
+    // stored column is written by a hook that sees one locale, so counting a
+    // cross-locale check there would disagree with the report on every
+    // multilingual event. See the ticket's design note (#609).
+    openCount: document.filter(
+      (result) =>
+        result.status === 'failed' && !STORED_COUNT_EXCLUDED.has(result.key),
+    ).length,
   }
 }
 

@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, TextFieldSingleValidation } from 'payload'
 
 import {
   HeadingFeature,
@@ -7,6 +7,7 @@ import {
   LinkFeature,
   lexicalEditor,
 } from '@payloadcms/richtext-lexical'
+import { text as textFieldValidation } from 'payload/shared'
 
 import {
   DEFAULT_REGISTRATION_FREQUENCY,
@@ -23,7 +24,7 @@ import {
 import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
-import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS } from '@/lib/eventQuality'
+import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS, URL_RE } from '@/lib/eventQuality'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
@@ -46,6 +47,21 @@ import { syncEventFullness } from './hooks/syncFullness'
 import { verifyOnSave } from './hooks/verifyOnSave'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
+
+/**
+ * Reject a link in the title, then defer to Payload's own text validation.
+ *
+ * Composed rather than written from scratch: supplying `validate` **replaces**
+ * the default (`payload/dist/fields/config/sanitize.js` installs it only when
+ * the field has none), so a hand-rolled one would silently drop the field's
+ * `maxLength`.
+ */
+const eventTitleValidate: TextFieldSingleValidation = (value, options) => {
+  if (typeof value === 'string' && URL_RE.test(value)) {
+    return 'Remove the link — a title isn’t clickable. Put it in Website or Online URL instead.'
+  }
+  return textFieldValidation(value, options)
+}
 
 /**
  * Minimal rich-text editor for the event description: italic, an H3,
@@ -162,13 +178,13 @@ export const Events: CollectionConfig = {
               name: 'title',
               type: 'text',
               localized: true,
-              required: true,
               // Matches the address fields' limit. The longest title in the
               // Atlas data is 94 characters and nothing exceeds 100, so this
               // binds new writing without locking anyone out of a listing they
               // already have. `maxLength` is Payload validation, not a column
               // width, so it needs no migration.
               maxLength: 100,
+              validate: eventTitleValidate,
               hooks: { beforeChange: [eventTitleBeforeChange] },
               admin: {
                 placeholder: 'Meditation at …',
@@ -256,35 +272,6 @@ export const Events: CollectionConfig = {
           ],
         },
         {
-          label: 'Schedule',
-          fields: [
-            {
-              // Dormant events have no active schedule. They still require
-              // verification (and can expire), but never auto-`finished` — the
-              // ExpireEvents finished-check skips inactive events. Hiding the
-              // schedule when inactive also drops its `required` validation
-              // (Payload skips required + validate when a condition is false).
-              name: 'inactive',
-              type: 'checkbox',
-              defaultValue: false,
-              admin: {
-                description:
-                  'Mark this event dormant — it has no active schedule. With no schedule to show, you must provide contact info (phone + name) so seekers can reach out and find out more. Inactive events still need verification but never auto-finish.',
-              },
-            },
-            scheduleFields({
-              label: false,
-              required: true,
-              hasComplexWeekly: true,
-              hasComplexMonthly: true,
-              hasEndTime: true,
-              hasEnding: true,
-              hasExclusions: true,
-              admin: { condition: (data) => !data?.inactive },
-            }),
-          ],
-        },
-        {
           label: 'Location',
           fields: [
             {
@@ -328,6 +315,35 @@ export const Events: CollectionConfig = {
               // the title auto-fill prefers over the street — see eventTitle.ts.
               hasVenueName: true,
               admin: { condition: (data) => data?.eventType === 'offline' },
+            }),
+          ],
+        },
+        {
+          label: 'Schedule',
+          fields: [
+            {
+              // Dormant events have no active schedule. They still require
+              // verification (and can expire), but never auto-`finished` — the
+              // ExpireEvents finished-check skips inactive events. Hiding the
+              // schedule when inactive also drops its `required` validation
+              // (Payload skips required + validate when a condition is false).
+              name: 'inactive',
+              type: 'checkbox',
+              defaultValue: false,
+              admin: {
+                description:
+                  'Mark this event dormant — it has no active schedule. With no schedule to show, you must provide contact info (phone + name) so seekers can reach out and find out more. Inactive events still need verification but never auto-finish.',
+              },
+            },
+            scheduleFields({
+              label: false,
+              required: true,
+              hasComplexWeekly: true,
+              hasComplexMonthly: true,
+              hasEndTime: true,
+              hasEnding: true,
+              hasExclusions: true,
+              admin: { condition: (data) => !data?.inactive },
             }),
           ],
         },

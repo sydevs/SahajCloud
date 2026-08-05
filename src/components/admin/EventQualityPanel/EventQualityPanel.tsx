@@ -107,9 +107,9 @@ const itemList = (items: PanelItem[]) => (
  * blocks anything — it tells a volunteer manager what would make their listing
  * better, in their terms rather than as check keys.
  *
- * Laid out for a ~275px column: tier headings as small caps, each open
- * recommendation followed by the one sentence explaining it, and everything
- * already passing folded away behind a count. There is deliberately no refresh
+ * Laid out for a ~275px column: one flat list — five checks doesn't warrant
+ * headings — with each open recommendation followed by the one sentence
+ * explaining it, and everything already passing folded away behind a count. There is deliberately no refresh
  * control — the report is computed on read, so opening the event is already
  * fresh, and a button that re-saved the document to recompute would write on
  * read.
@@ -159,10 +159,8 @@ const EventQualityPanel: JSONFieldClientComponent = ({ field }) => {
     )
   }
 
-  const open = model.groups
-    .map((group) => ({ ...group, items: group.items.filter((i) => i.status !== 'passed') }))
-    .filter((group) => group.items.length > 0)
-  const passing = model.groups.flatMap((group) => group.items.filter((i) => i.status === 'passed'))
+  const open = model.items.filter((i) => i.status !== 'passed')
+  const passing = model.items.filter((i) => i.status === 'passed')
   const tone = summaryTone(model.resolved, model.total)
   const { fg } = toneToColor(tone)
 
@@ -200,22 +198,9 @@ const EventQualityPanel: JSONFieldClientComponent = ({ field }) => {
         </div>
       ) : null}
 
-      {open.map((group) => (
-        <div key={group.tier} style={{ marginTop: 'calc(var(--base) * 0.35)' }}>
-          <div
-            style={{
-              fontSize: 'calc(var(--base-body-size) * 0.78px)',
-              fontWeight: 600,
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-              color: 'var(--theme-elevation-400)',
-            }}
-          >
-            {group.label}
-          </div>
-          {itemList(group.items)}
-        </div>
-      ))}
+      {open.length > 0 ? (
+        <div style={{ marginTop: 'calc(var(--base) * 0.3)' }}>{itemList(open)}</div>
+      ) : null}
 
       {passing.length > 0 ? (
         <div style={{ marginTop: 'calc(var(--base) * 0.4)' }}>

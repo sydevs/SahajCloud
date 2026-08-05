@@ -1459,7 +1459,7 @@ export interface Event {
   /**
    * Up to 100 characters. Leave blank to fill in from the venue — "Evening Meditation at Broadstairs Friends Meeting House" — which also translates itself into every language.
    */
-  title: string;
+  title?: string | null;
   /**
    * Language(s) this event is conducted in.
    */
@@ -1684,6 +1684,30 @@ export interface Event {
    */
   images?: (number | Image)[] | null;
   /**
+   * The city or venue this event belongs to.
+   */
+  region: number | Region;
+  eventType: 'offline' | 'online';
+  /**
+   * Link attendees join the online event through.
+   */
+  onlineUrl?: string | null;
+  address?: {
+    mapboxId?: string | null;
+    /**
+     * The building's own name, where it has one. Shown in place of the street when a listing has no title of its own.
+     */
+    venueName?: string | null;
+    street?: string | null;
+    room?: string | null;
+    postCode?: string | null;
+    country?: string | null;
+    region?: string | null;
+    city?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+  /**
    * Mark this event dormant — it has no active schedule. With no schedule to show, you must provide contact info (phone + name) so seekers can reach out and find out more. Inactive events still need verification but never auto-finish.
    */
   inactive?: boolean | null;
@@ -1735,30 +1759,6 @@ export interface Event {
       | number
       | boolean
       | null;
-  };
-  /**
-   * The city or venue this event belongs to.
-   */
-  region: number | Region;
-  eventType: 'offline' | 'online';
-  /**
-   * Link attendees join the online event through.
-   */
-  onlineUrl?: string | null;
-  address?: {
-    mapboxId?: string | null;
-    /**
-     * The building's own name, where it has one. Shown in place of the street when a listing has no title of its own.
-     */
-    venueName?: string | null;
-    street?: string | null;
-    room?: string | null;
-    postCode?: string | null;
-    country?: string | null;
-    region?: string | null;
-    city?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
   };
   registrationMode: 'sahaj-atlas' | 'external';
   externalRegistrationUrl?: string | null;
@@ -4539,6 +4539,23 @@ export interface EventsSelect<T extends boolean = true> {
   description?: T;
   website?: T;
   images?: T;
+  region?: T;
+  eventType?: T;
+  onlineUrl?: T;
+  address?:
+    | T
+    | {
+        mapboxId?: T;
+        venueName?: T;
+        street?: T;
+        room?: T;
+        postCode?: T;
+        country?: T;
+        region?: T;
+        city?: T;
+        latitude?: T;
+        longitude?: T;
+      };
   inactive?: T;
   schedule?:
     | T
@@ -4567,23 +4584,6 @@ export interface EventsSelect<T extends boolean = true> {
         lastDate?: T;
         icalRule?: T;
         upcomingDates?: T;
-      };
-  region?: T;
-  eventType?: T;
-  onlineUrl?: T;
-  address?:
-    | T
-    | {
-        mapboxId?: T;
-        venueName?: T;
-        street?: T;
-        room?: T;
-        postCode?: T;
-        country?: T;
-        region?: T;
-        city?: T;
-        latitude?: T;
-        longitude?: T;
       };
   registrationMode?: T;
   externalRegistrationUrl?: T;
