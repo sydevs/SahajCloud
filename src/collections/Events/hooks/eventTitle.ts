@@ -62,9 +62,10 @@ async function resolveTitleTemplates(req: PayloadRequest): Promise<Record<EventT
  * beforeChange hook for the Events `title` field. An explicit title (newly
  * entered, or carried over on a partial update) is kept as-is; an empty title
  * is auto-filled from the event's venue (or street) and the time of day it
- * starts — "Evening Meditation at Broadstairs Friends Meeting House". `title` is
- * localized, so this computes per save-locale; clearing the field re-triggers
- * the auto-fill.
+ * starts — "Evening Meditation at Broadstairs Friends Meeting House". `title`
+ * is a single non-localized column (#609), so this composes one value in the
+ * default locale whichever locale the manager is editing in; clearing the field
+ * re-triggers the auto-fill.
  */
 export const eventTitleBeforeChange: FieldHook = async ({ value, data, originalDoc, req }) => {
   const incoming = typeof value === 'string' ? value : undefined
