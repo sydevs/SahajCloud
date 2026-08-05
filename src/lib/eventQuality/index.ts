@@ -18,13 +18,9 @@ export {
   QUALITY_CHECK_VERSION,
 } from './checks'
 export {
-  containsContactInfo,
-  containsScheduleInfo,
-  containsUrl,
   EMAIL_RE,
   findStaleDates,
   GENERIC_TITLE_RE,
-  lexicalPlainText,
   URL_RE,
 } from './heuristics'
 export {

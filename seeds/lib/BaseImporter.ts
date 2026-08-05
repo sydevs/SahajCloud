@@ -956,6 +956,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
               where: { slug: { like: normalizedSlug } },
               limit: 5,
               locale: options?.locale,
+              // A trashed row still occupies its slug, so it has to be visible
+              // here or the collision it caused looks like it came from nowhere.
+              trash: true,
             }),
           )
 
@@ -972,6 +975,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
                 where: { slug: { like: `%${searchPrefix}%` } },
                 limit: 20,
                 locale: options?.locale,
+                trash: true,
               }),
             )
             // Filter to find one where slug without hyphens matches
@@ -1052,6 +1056,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       where: naturalKey,
       limit: 1,
       locale,
+      // An existence check blind to trashed rows reports "absent", and the
+      // caller then creates a duplicate on the natural key the trashed row
+      // still holds. Same trap as `preloadCollection`.
+      trash: true,
     })
 
     return result.docs.length > 0 ? (result.docs[0] as T) : null
@@ -1134,6 +1142,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           publishSpecificLocale: shouldPublishLocale
             ? (translation.locale as TypedLocale)
             : undefined,
+          trash: true,
         }),
       )
       if (DEBUG)
