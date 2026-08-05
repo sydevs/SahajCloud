@@ -1006,8 +1006,10 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       // auto-fill: `eventTitleBeforeChange` keeps `originalDoc.title` for a
       // nullish value, so clearing `customName` in events.json would otherwise
       // leave a previously-imported title in place. '' falls through to the
-      // localized "<time of day> Meditation at <place>" auto-fill, which is
-      // preferred over a hand-written generic name.
+      // "<time of day> Meditation at <place>" auto-fill, which is preferred
+      // over a hand-written generic name. `title` is a single non-localized
+      // column, composed in the default locale — the Atlas widget translates
+      // it client-side.
       title:
         event.customName?.trim() ||
         (event.eventType === 'online' ? 'Online Sahaj Yoga Meditation' : ''),

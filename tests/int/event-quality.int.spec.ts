@@ -67,20 +67,29 @@ describe('Event listing quality', () => {
   })
 
   describe('the virtual report field', () => {
-    it('keeps the title unlocalized, so the report needs no per-locale read', () => {
-      // The Atlas widget translates client-side, so one stored value is the
-      // whole story — and the report field is a single flat list because of it.
-      const tabs = payload.collections.events.config.fields.find((f) => 'tabs' in f)
-      if (!tabs || !('tabs' in tabs)) throw new Error('expected the Events tabs')
-      const title = tabs.tabs
-        .flatMap((t) => t.fields)
-        .find((f) => 'name' in f && f.name === 'title')
-      expect((title as { localized?: boolean }).localized).toBeFalsy()
+    it('keeps the title unlocalized, so the report needs no per-locale read', async () => {
+      // Asserted functionally, not by config introspection: Payload strips
+      // `localized` during sanitization, so `expect(field.localized).toBeFalsy()`
+      // passes whether or not the field is localized — a vacuous test. Writing
+      // in one locale and reading another with the fallback off is the only
+      // thing that actually proves it. Same approach as the `website` case in
+      // events.int.spec.ts.
+      const event = await createPublished({ title: 'Evening Sitting for Carers' })
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        locale: 'cs',
+        data: { title: 'Podvečerní meditace' },
+      })
 
-      const reportField = payload.collections.events.config.fields.find(
-        (f) => 'name' in f && f.name === 'qualityReport',
-      )
-      expect((reportField as { localized?: boolean }).localized).toBeFalsy()
+      const inEnglish = await payload.findByID({
+        collection: 'events',
+        id: event.id,
+        locale: 'en',
+        fallbackLocale: false as never,
+      })
+      // One column: the Czech write landed on the same value English reads.
+      expect(inEnglish.title).toBe('Podvečerní meditace')
     })
 
     it('rejects a link in the title, and still enforces the length cap', async () => {

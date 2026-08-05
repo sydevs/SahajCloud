@@ -204,7 +204,7 @@
         },
         "title": {
           "type": "object",
-          "description": "Auto-generated event titles. Used when a manager leaves an event's title blank — preferred over a hand-written generic name, because these localize and can be improved centrally. One complete sentence per time of day (not a shared prefix plus a separate word), so each locale can put the time of day wherever its grammar needs it. `%{place}` = the first comma-segment of the street address.",
+          "description": "Auto-generated event title, used when a manager leaves an event's title blank — preferred over a hand-written generic name, because it can be improved for every event at once. One complete sentence per time of day (not a shared prefix plus a separate word). `%{place}` = the venue name, or the first comma-segment of the street address. NOTE: the event title is no longer localized (#609) — only the default locale's set below is read, and the Atlas widget translates the composed title client-side.",
           "properties": {
             "morning": {
               "type": "string",

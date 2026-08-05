@@ -272,11 +272,15 @@ prod.
 ## Event titles: a blank title beats a generic one
 
 `customName` maps to the Events `title`, and an empty title is auto-filled by
-`eventTitleBeforeChange` with a **localized** template —
-`"<time of day> Meditation at <place>"`. So a blank title is *preferred* over a
-hand-written generic one: the auto-fill translates per locale and can be improved
-for every event at once by editing one string, where 60 copies of
-"Free Meditation Classes in <Place>" cannot.
+`eventTitleBeforeChange` with a template — `"<time of day> Meditation at <place>"`.
+So a blank title is *preferred* over a hand-written generic one: it can be
+improved for every event at once by editing one string, where 60 copies of
+"Free Meditation Classes in <Place>" cannot, and the Atlas widget translates the
+result client-side.
+
+> `title` stopped being localized in #609: it is one column, composed in the
+> default locale. The `sy-atlas-translations` `event.title` templates are still
+> a localized field, but only the default locale's set is read now.
 
 The rule the grooming pass settled on:
 
