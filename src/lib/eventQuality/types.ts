@@ -133,6 +133,17 @@ export type CheckContext = {
    * English.
    */
   defaultTitleIsHandWritten: boolean
+  /** Every judged locale's stored title, keyed by locale — for the translation check. */
+  titleByLocale: Record<string, string>
+  /** The locales this event is judged in (default locale + its own languages). */
+  judgedLocales: string[]
+  /**
+   * Locales the event gained in the save currently in flight. A translation
+   * can't exist for a language chosen a moment ago, so a check that judges
+   * coverage has to leave these out rather than scold the manager for the edit
+   * they are making.
+   */
+  pendingLocales: string[]
 }
 
 /**
@@ -181,6 +192,13 @@ export type QualityCheck = {
    * this — a missing translation matters whatever the English title looks like.
    */
   requiresHandWrittenTitle?: true
+  /**
+   * This check reads localized data, so it can't contribute to the stored
+   * `qualityOpenCount`: that column is stamped by a write hook, which only ever
+   * sees the locale being written. Counting it there would make the stored
+   * figure disagree with the report on every multilingual event.
+   */
+  dependsOnLocales?: true
   /** True when the listing **fails** this check. */
   evaluate: (ctx: CheckContext) => boolean
   /**

@@ -11,10 +11,10 @@ const report = (overrides: Partial<Extract<EventQualityReport, { skipped: false 
   ({
     skipped: false,
     document: [
-      { key: 'description.insufficient', status: 'failed' },
-      { key: 'images.missing', status: 'passed' },
+      { key: 'description.missing', status: 'failed' },
+      { key: 'images.insufficient', status: 'passed' },
     ],
-    perLocale: { en: [{ key: 'translation.title.missing', status: 'passed' }] },
+    perLocale: { en: [{ key: 'title.quality', status: 'passed' }] },
     locales: ['en'],
     openCount: 1,
     ...overrides,
@@ -36,19 +36,20 @@ describe('buildPanelModel', () => {
   it('groups items by tier and puts open findings first', () => {
     const model = buildPanelModel(report(), metadata)
     if (!model || model.skipped) throw new Error('expected a report model')
-    expect(model.groups.map((g) => g.tier)).toEqual(['completeness', 'translation'])
-    expect(model.groups[0].items.map((i) => [i.key, i.status])).toEqual([
-      ['description.insufficient', 'failed'],
-      ['images.missing', 'passed'],
+    // One flat list, open findings first — no tier headings.
+    expect(model.items.map((i) => [i.key, i.status])).toEqual([
+      ['description.missing', 'failed'],
+      ['images.insufficient', 'passed'],
+      ['title.quality', 'passed'],
     ])
   })
 
   it('resolves every key to its registry label and description', () => {
     const model = buildPanelModel(report(), metadata)
     if (!model || model.skipped) throw new Error('expected a report model')
-    const item = model.groups[0].items[0]
-    expect(item.label).toBe(metadata['description.insufficient'].label)
-    expect(item.description).toBe(metadata['description.insufficient'].description)
+    const item = model.items[0]
+    expect(item.label).toBe(metadata['description.missing'].label)
+    expect(item.description).toBe(metadata['description.missing'].description)
   })
 
   it('words a passing item as a state, not as the instruction', () => {
@@ -56,47 +57,47 @@ describe('buildPanelModel', () => {
     // endorsement of repeating it.
     const model = buildPanelModel(report(), metadata)
     if (!model || model.skipped) throw new Error('expected a report model')
-    const passing = model.groups[0].items.find((i) => i.status === 'passed')
-    expect(passing?.label).toBe(metadata['images.missing'].passedLabel)
-    expect(passing?.label).not.toBe(metadata['images.missing'].label)
+    const passing = model.items.find((i) => i.status === 'passed')
+    expect(passing?.label).toBe(metadata['images.insufficient'].passedLabel)
+    expect(passing?.label).not.toBe(metadata['images.insufficient'].label)
   })
 
   it('names the language inline when the event is judged in more than one', () => {
     const model = buildPanelModel(
       report({
         perLocale: {
-          en: [{ key: 'translation.title.missing', status: 'passed' }],
-          de: [{ key: 'translation.title.missing', status: 'failed' }],
+          en: [{ key: 'title.quality', status: 'passed' }],
+          de: [{ key: 'title.quality', status: 'failed' }],
         },
         locales: ['en', 'de'],
       }),
       metadata,
     )
     if (!model || model.skipped) throw new Error('expected a report model')
-    const translations = model.groups.find((g) => g.tier === 'translation')
-    expect(translations?.items.map((i) => [i.language, i.status])).toEqual([
+    const perLocale = model.items.filter((i) => i.key === 'title.quality')
+    expect(perLocale.map((i) => [i.language, i.status])).toEqual([
       ['German', 'failed'],
       ['English', 'passed'],
     ])
     // The placeholder the panel bolds has to survive into the label.
-    expect(translations?.items[0].label).toContain('%{language}')
+    expect(perLocale[0].label).toContain('%{language}')
   })
 
   it('leaves the language out when there is only one — the common case', () => {
     // "Add a title in English" on an English-only event is noise.
     const model = buildPanelModel(report(), metadata)
     if (!model || model.skipped) throw new Error('expected a report model')
-    const translations = model.groups.find((g) => g.tier === 'translation')
-    expect(translations?.items[0].language).toBeUndefined()
-    expect(translations?.items[0].label).not.toContain('%{language}')
+    const perLocale = model.items.filter((i) => i.key === 'title.quality')
+    expect(perLocale[0].language).toBeUndefined()
+    expect(perLocale[0].label).not.toContain('%{language}')
   })
 
   it('excludes pending items from the ratio — they are neither debt nor achievement', () => {
     const model = buildPanelModel(
       report({
         perLocale: {
-          en: [{ key: 'translation.title.missing', status: 'passed' }],
-          de: [{ key: 'translation.title.missing', status: 'pending' }],
+          en: [{ key: 'title.quality', status: 'passed' }],
+          de: [{ key: 'title.quality', status: 'pending' }],
         },
         locales: ['en', 'de'],
       }),
@@ -118,9 +119,7 @@ describe('buildPanelModel', () => {
       metadata,
     )
     if (!model || model.skipped) throw new Error('expected a report model')
-    expect(model.groups.flatMap((g) => g.items).map((i) => i.key)).toEqual([
-      'translation.title.missing',
-    ])
+    expect(model.items.map((i) => i.key)).toEqual(['title.quality'])
   })
 
   it('resolves every registry key, so no shipped check can render unlabelled', () => {
@@ -134,6 +133,6 @@ describe('buildPanelModel', () => {
       metadata,
     )
     if (!model || model.skipped) throw new Error('expected a report model')
-    expect(model.groups.flatMap((g) => g.items).length).toBe(allKeys.length)
+    expect(model.items.length).toBe(allKeys.length)
   })
 })

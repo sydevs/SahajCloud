@@ -4,7 +4,6 @@ import type {
   QualitySkipReason,
   QualityTier,
 } from '@/lib/eventQuality/types'
-import { QUALITY_TIERS } from '@/lib/eventQuality/types'
 
 /** Metadata threaded through `admin.custom` from the check registry. */
 export type ChecksMetadata = Record<
@@ -35,17 +34,16 @@ export type PanelItem = {
   language?: string
 }
 
-export type PanelGroup = {
-  tier: QualityTier
-  label: string
-  items: PanelItem[]
-}
-
 export type PanelModel =
   | { skipped: true; reason: QualitySkipReason }
   | {
       skipped: false
-      groups: PanelGroup[]
+      /**
+       * One flat, ordered list. There are only five checks, so grouping them
+       * under tier headings cost more vertical space in the sidebar than the
+       * headings were worth.
+       */
+      items: PanelItem[]
       /** Checks that passed, out of those with a verdict (pending excluded). */
       resolved: number
       total: number
@@ -62,12 +60,8 @@ function languageName(locale: string): string {
   }
 }
 
-const TIER_LABELS: Record<QualityTier, string> = {
-  completeness: 'Completeness',
-  title: 'Title',
-  description: 'Description',
-  translation: 'Translations',
-}
+/** Presentation order — findings about the same thing stay adjacent. */
+const TIER_ORDER: QualityTier[] = ['completeness', 'description', 'title', 'translation']
 
 /** Open findings first, then pending, then what already passes. */
 const STATUS_ORDER: Record<CheckStatus, number> = { failed: 0, pending: 1, passed: 2 }
@@ -125,13 +119,11 @@ export function buildPanelModel(
     }
   }
 
-  const groups = QUALITY_TIERS.map((tier) => ({
-    tier,
-    label: TIER_LABELS[tier],
-    items: items
-      .filter((item) => item.tier === tier)
-      .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]),
-  })).filter((group) => group.items.length > 0)
+  const ordered = [...items].sort(
+    (a, b) =>
+      STATUS_ORDER[a.status] - STATUS_ORDER[b.status] ||
+      TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier),
+  )
 
   const openCount = items.filter((item) => item.status === 'failed').length
   const pendingCount = items.filter((item) => item.status === 'pending').length
@@ -141,7 +133,7 @@ export function buildPanelModel(
 
   return {
     skipped: false,
-    groups,
+    items: ordered,
     resolved: total - openCount,
     total,
     openCount,
