@@ -496,6 +496,29 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     for (let i = 0; i < total; i++) {
       const manager = data.managers[i]
       try {
+        // A manager already here under this email but with no `legacyId` is not
+        // an Atlas row — it's an account this deployment made for itself, the
+        // admin login among them. Its email is unique, so upserting on
+        // `legacyId` would try to *create* a second one and fail; upserting on
+        // email would instead overwrite the account, resetting its password and
+        // `type` from the dump. Neither is wanted: adopt the existing row so
+        // events owned by this Atlas manager still resolve, and leave it alone.
+        const adopted = await this.payload.find({
+          collection: 'managers',
+          where: { and: [{ email: { equals: manager.email } }, { legacyId: { exists: false } }] },
+          limit: 1,
+          overrideAccess: true,
+        })
+        if (adopted.docs.length > 0) {
+          this.idMaps.managers.set(manager.legacyId, adopted.docs[0].id as number)
+          await this.skip(
+            `manager #${manager.legacyId}: "${manager.email}" already exists as a non-Atlas ` +
+              `account (managers/${adopted.docs[0].id}) — adopted, not overwritten`,
+            { collection: 'managers', identifier: manager.email, current: i + 1, total },
+          )
+          continue
+        }
+
         const prefs = mapNotificationPreferences(manager.notifications, manager.contactMethod)
         const result = await this.upsert<{ id: number }>(
           'managers',
@@ -970,9 +993,12 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     // in legacyData regardless).
     const rawContactName = event.contactInfo?.phone_name?.trim() || undefined
     const rawContactPhone = event.contactInfo?.phone_number?.trim() || undefined
-    const hasContact = !!rawContactName && !!rawContactPhone
-    const contactName = hasContact ? rawContactName : undefined
-    const contactPhone = hasContact ? rawContactPhone : undefined
+    // A number with no name against it is still a number a seeker can call —
+    // Atlas has several, and pairing the two threw the phone away with the
+    // missing name, leaving dormant listings with no contact route at all.
+    const hasContact = !!rawContactPhone
+    const contactName = rawContactName || undefined
+    const contactPhone = rawContactPhone || undefined
 
     // Schedule timezone: the venue's (offline) or the event's area's (online).
     const timeZone =
