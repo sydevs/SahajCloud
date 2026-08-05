@@ -32,6 +32,13 @@ export type CheckStatus = 'passed' | 'failed' | 'pending'
 export type QualityCheckResult = {
   key: string
   status: CheckStatus
+  /**
+   * What went wrong, for a check that folds several problems into one finding.
+   * Replaces the check's static `description` in the panel, so "Trim what the
+   * listing already shows" can go on to name the address and the weekday it
+   * actually found. Absent when the check has nothing more specific to add.
+   */
+  detail?: string
 }
 
 /** Why the checks weren't run at all. */
@@ -116,6 +123,16 @@ export type CheckContext = {
    * in rather than read off the clock so every check stays a pure function.
    */
   currentYear: number
+  /**
+   * Whether the **default locale** carries a title a manager typed, as opposed
+   * to the auto-fill.
+   *
+   * This is what makes a missing translation a real finding: a blank title is
+   * composed per locale from that locale's own template, so it is never
+   * untranslated. Only a hand-written one leaves other languages showing
+   * English.
+   */
+  defaultTitleIsHandWritten: boolean
 }
 
 /**
@@ -166,4 +183,10 @@ export type QualityCheck = {
   requiresHandWrittenTitle?: true
   /** True when the listing **fails** this check. */
   evaluate: (ctx: CheckContext) => boolean
+  /**
+   * Names the specific problems behind a failure, for checks that cover several
+   * at once. Called only when `evaluate` fails; the panel shows the result in
+   * place of `description`.
+   */
+  detail?: (ctx: CheckContext) => string | null
 }

@@ -77,6 +77,31 @@ describe('Event listing quality', () => {
       expect((field as { localized?: boolean }).localized).toBeFalsy()
     })
 
+    it('leaves the rest of the Events schema alone', async () => {
+      // The quality fields were lifted out of the Details tab into the sidebar
+      // by hand, and a sloppy first attempt at that silently dropped `required`
+      // from `title` and pulled `contactName` out of its row. Neither showed up
+      // in lint, typecheck or any test — so pin the shape here.
+      const tabs = payload.collections.events.config.fields.find((f) => 'tabs' in f)
+      if (!tabs || !('tabs' in tabs)) throw new Error('expected the Events tabs')
+      const details = tabs.tabs.find((t) => t.label === 'Details')
+      if (!details) throw new Error('expected a Details tab')
+
+      const title = details.fields.find((f) => 'name' in f && f.name === 'title')
+      expect((title as { required?: boolean }).required).toBe(true)
+      expect((title as { maxLength?: number }).maxLength).toBe(100)
+
+      // contactPhone / contactName / contactEmail share one row.
+      const rows = details.fields.filter((f) => f.type === 'row')
+      const contactRow = rows.find((r) =>
+        ('fields' in r ? r.fields : []).some((f) => 'name' in f && f.name === 'contactPhone'),
+      )
+      const rowNames = ('fields' in contactRow! ? contactRow.fields : []).map((f) =>
+        'name' in f ? f.name : null,
+      )
+      expect(rowNames).toEqual(['contactPhone', 'contactName', 'contactEmail'])
+    })
+
     it('judges an event with languages: ["de"] in en + de only', async () => {
       const event = await createPublished({ title: 'Quiet Hour for Carers', languages: ['de'] })
       const fresh = await payload.findByID({ collection: 'events', id: event.id })
