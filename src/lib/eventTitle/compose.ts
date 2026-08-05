@@ -84,7 +84,15 @@ export function titleSlotForSchedule(schedule: unknown): EventTitleSlot {
  * empty and `useAsTitle` falls back to the document id.
  */
 export function composeEventTitle(template: string, address: unknown): string | null {
-  const place = addressPlaceName(address)
+  return composeEventTitleFromPlace(template, addressPlaceName(address))
+}
+
+/**
+ * The same, from a place name resolved however the caller likes — an online
+ * event has no address, so its title is built from the region it belongs to
+ * (see `eventTitleBeforeChange`). Returns null when there is no place to name.
+ */
+export function composeEventTitleFromPlace(template: string, place: string): string | null {
   if (!place) return null
   const trimmed = template.trim()
   // A blank or placeholder-less template would otherwise silently drop the

@@ -6,16 +6,20 @@ import { URL_RE } from '@/lib/eventQuality'
 import type { EventTitleSlot } from '@/lib/eventTitle/compose'
 import {
   addressPlaceName,
-  composeEventTitle,
+  composeEventTitleFromPlace,
   EVENT_TITLE_DEFAULTS,
   titleSlotForSchedule,
 } from '@/lib/eventTitle/compose'
 import { DEFAULT_LOCALE } from '@/lib/locales'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
+import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
 /** Where the in-flight `sy-atlas-translations` load is stashed on `req.context`. */
 const CACHE_KEY = 'eventTitleTemplates'
+
+/** Prefix for the per-region name loads stashed alongside it. */
+const REGION_NAME_KEY = 'eventTitleRegionName'
 
 /**
  * Load the localized auto-title templates from the Sahaj Atlas translations
@@ -62,13 +66,54 @@ async function resolveTitleTemplates(req: PayloadRequest): Promise<Record<EventT
 }
 
 /**
+ * The place an auto-title names. The venue (or, failing that, the street) when
+ * the event has an address; otherwise the region it hangs off — an online event
+ * has no address at all, so "Evening Meditation at Toronto" is composed from its
+ * city node. Returns `''` when there is nothing to name the event after.
+ *
+ * The region read is memoized per request like the templates above: a bulk save
+ * of many events in one city resolves the name once. Region `name` is not
+ * localized (see Regions.ts), so this needs no locale handling.
+ */
+async function resolveTitlePlace(
+  address: unknown,
+  region: unknown,
+  req: PayloadRequest,
+): Promise<string> {
+  const fromAddress = addressPlaceName(address)
+  if (fromAddress) return fromAddress
+
+  const id = relationId(region)
+  if (id === null) return ''
+
+  return memoizeOnRequest(req, `${REGION_NAME_KEY}:${id}`, async () => {
+    try {
+      const doc = await req.payload.findByID({
+        collection: 'regions',
+        id,
+        depth: 0,
+        // A narrow select is required, not an optimization: this forwards the
+        // caller's (possibly API-client) request, and the client-query gate
+        // rejects an unbounded nested read with a 400.
+        select: { name: true },
+        req,
+      })
+      return typeof doc.name === 'string' ? doc.name.trim() : ''
+    } catch (error) {
+      req.payload.logger.debug({ msg: 'Failed to read the event’s region name', error })
+      return ''
+    }
+  })
+}
+
+/**
  * beforeChange hook for the Events `title` field. An explicit title (newly
  * entered, or carried over on a partial update) is kept as-is; an empty title
- * is auto-filled from the event's venue (or street) and the time of day it
- * starts — "Evening Meditation at Broadstairs Friends Meeting House". `title`
- * is a single non-localized column (#609), so this composes one value in the
- * default locale whichever locale the manager is editing in; clearing the field
- * re-triggers the auto-fill.
+ * is auto-filled from the event's place and the time of day it starts —
+ * "Evening Meditation at Broadstairs Friends Meeting House", or, for an online
+ * event, "Evening Meditation at Toronto". `title` is a single non-localized
+ * column (#609), so this composes one value in the default locale whichever
+ * locale the manager is editing in; clearing the field re-triggers the auto-fill.
  */
 export const eventTitleBeforeChange: FieldHook = async ({ value, data, originalDoc, req }) => {
   const incoming = typeof value === 'string' ? value : undefined
@@ -78,20 +123,21 @@ export const eventTitleBeforeChange: FieldHook = async ({ value, data, originalD
   const current = incoming ?? existing
   if (current && current.trim()) return current
 
-  const address = data?.address ?? originalDoc?.address
+  const place = await resolveTitlePlace(
+    data?.address ?? originalDoc?.address,
+    data?.region ?? originalDoc?.region,
+    req,
+  )
   // Nothing to name the place with → hand the value back untouched and let the
   // field's own `required` validation reject it. Field `beforeChange` hooks run
   // *before* validation (payload/dist/fields/hooks/beforeChange/promise.js), so
-  // an event with neither a title nor an address is refused rather than saved
-  // blank. Online events have no address at all, which is why the Atlas importer
-  // supplies its own fallback title for them rather than relying on this hook.
-  if (!addressPlaceName(address)) return value
+  // an event with neither a title nor a place is refused rather than saved blank.
+  if (!place) return value
 
   const templates = await resolveTitleTemplates(req)
   const slot = titleSlotForSchedule(data?.schedule ?? originalDoc?.schedule)
-  // The guard above guarantees a usable place, so composeEventTitle returns a
-  // non-null string here.
-  return composeEventTitle(templates[slot], address)
+  // The guard above guarantees a usable place, so this returns a non-null string.
+  return composeEventTitleFromPlace(templates[slot], place)
 }
 
 /**
@@ -108,8 +154,10 @@ export const eventTitleBeforeChange: FieldHook = async ({ value, data, originalD
  *    `required` blank field is refused before the request is ever sent — which
  *    made the admin reject the exact workflow this field's own description
  *    recommends ("Leave blank to fill in from the venue"). Allowing it here,
- *    and only when there is an address to compose from, keeps the guarantee
- *    (`required` still holds) while letting the intended path through.
+ *    and only when there is a place to compose from, keeps the guarantee
+ *    (`required` still holds) while letting the intended path through. The
+ *    browser only holds the region's *id*, not its name, so this trusts a
+ *    selected region to resolve — `name` is required on every region.
  * 3. **Otherwise defer to Payload's own text validation** — composed rather
  *    than reimplemented, because supplying `validate` *replaces* the default
  *    (`payload/dist/fields/config/sanitize.js` installs it only when a field has
@@ -121,9 +169,10 @@ export const eventTitleValidate: TextFieldSingleValidation = (value, options) =>
   }
 
   if (!value) {
-    const { address } = (options.data ?? {}) as { address?: unknown }
-    // The hook will compose "Evening Meditation at «venue»" from this.
-    if (addressPlaceName(address)) return true
+    const { address, region } = (options.data ?? {}) as { address?: unknown; region?: unknown }
+    // The hook will compose "Evening Meditation at «venue»" — or, with no
+    // address, "…at «region»" — from these.
+    if (addressPlaceName(address) || relationId(region) !== null) return true
     if (options.required) {
       return 'Add a title, or fill in the venue address and one will be written for you.'
     }
