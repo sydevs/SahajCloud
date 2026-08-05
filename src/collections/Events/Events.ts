@@ -117,7 +117,8 @@ export const Events: CollectionConfig = {
     // forwarding the secret in the x-sahajcloud-preview-secret header — which
     // unlocks drafts (see @/lib/utilities/previewSecret) and must clear CORS
     // preflight (see `cors` in payload.config.ts). `locale` rides along so the
-    // localized title previews in the edited locale.
+    // widget renders its own chrome in the edited locale — the event's title is
+    // one non-localized value, which the widget translates client-side.
     livePreview: {
       // No URL for an unsaved doc (nothing to fetch yet) — null disables the panel.
       url: ({ data, locale }) =>
