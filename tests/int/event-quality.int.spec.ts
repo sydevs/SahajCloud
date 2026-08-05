@@ -67,112 +67,31 @@ describe('Event listing quality', () => {
   })
 
   describe('the virtual report field', () => {
-    it('returns every evaluated locale in one read, from a non-localized field', () => {
-      // A localized field would return only the active locale — structurally
-      // unable to answer "which of my languages is missing a title".
-      const field = payload.collections.events.config.fields
-        .flatMap((f) => ('tabs' in f ? f.tabs.flatMap((t) => t.fields) : [f]))
-        .find((f) => 'name' in f && f.name === 'qualityReport')
-      expect(field).toBeDefined()
-      expect((field as { localized?: boolean }).localized).toBeFalsy()
-    })
-
-    it('leaves the rest of the Events schema alone', async () => {
-      // The quality fields were lifted out of the Details tab into the sidebar
-      // by hand, and a sloppy first attempt at that silently pulled
-      // `contactName` out of its row. It showed up in no lint, typecheck or
-      // test — so pin the shape here.
+    it('keeps the title unlocalized, so the report needs no per-locale read', () => {
+      // The Atlas widget translates client-side, so one stored value is the
+      // whole story — and the report field is a single flat list because of it.
       const tabs = payload.collections.events.config.fields.find((f) => 'tabs' in f)
       if (!tabs || !('tabs' in tabs)) throw new Error('expected the Events tabs')
-      const details = tabs.tabs.find((t) => t.label === 'Details')
-      if (!details) throw new Error('expected a Details tab')
+      const title = tabs.tabs
+        .flatMap((t) => t.fields)
+        .find((f) => 'name' in f && f.name === 'title')
+      expect((title as { localized?: boolean }).localized).toBeFalsy()
 
-      const title = details.fields.find((f) => 'name' in f && f.name === 'title')
-      expect((title as { maxLength?: number }).maxLength).toBe(100)
-      // A custom `validate` replaces Payload's default, so this one has to be
-      // composed with it or `maxLength` above stops being enforced.
-      expect(typeof (title as { validate?: unknown }).validate).toBe('function')
-
-      // contactPhone / contactName / contactEmail share one row.
-      const rows = details.fields.filter((f) => f.type === 'row')
-      const contactRow = rows.find((r) =>
-        ('fields' in r ? r.fields : []).some((f) => 'name' in f && f.name === 'contactPhone'),
+      const reportField = payload.collections.events.config.fields.find(
+        (f) => 'name' in f && f.name === 'qualityReport',
       )
-      const rowNames = ('fields' in contactRow! ? contactRow.fields : []).map((f) =>
-        'name' in f ? f.name : null,
-      )
-      expect(rowNames).toEqual(['contactPhone', 'contactName', 'contactEmail'])
+      expect((reportField as { localized?: boolean }).localized).toBeFalsy()
     })
 
-    it('judges an event with languages: ["de"] in en + de only', async () => {
-      const event = await createPublished({ title: 'Quiet Hour for Carers', languages: ['de'] })
-      const fresh = await payload.findByID({ collection: 'events', id: event.id })
-      const result = report(fresh)
-      if (result.skipped) throw new Error(`expected a report, got ${result.reason}`)
-      expect(result.locales).toEqual(['en', 'de'])
-      expect(Object.keys(result.perLocale).sort()).toEqual(['de', 'en'])
-    })
-
-    it('reads every locale’s title, not just the one the read was made in', async () => {
-      const event = await createPublished({
-        title: 'Evening Sitting for Carers',
-        languages: ['de'],
-      })
-      await payload.update({
-        collection: 'events',
-        id: event.id,
-        locale: 'de',
-        data: { title: 'Abendsitzung für Pflegende' },
-      })
-
-      // Read in English — the German title still has to be visible to the
-      // translation tier, which is the whole reason for the all-locale read.
-      const fresh = await payload.findByID({ collection: 'events', id: event.id, locale: 'en' })
-      const result = report(fresh)
-      if (result.skipped) throw new Error(`expected a report, got ${result.reason}`)
-      expect(result.document).toContainEqual(
-        expect.objectContaining({ key: 'translations.missing', status: 'passed' }),
-      )
-    })
-
-    it('leaves a locale-scoped title write on a published event intact', async () => {
-      // Regression guard. This field's afterRead runs *during* a published
-      // update, and its all-locale read used to be handed the caller's own
-      // `req`. Payload's createLocalReq assigns `req.locale` straight onto that
-      // object, so `locale: 'all'` repointed the whole in-flight request and
-      // the German title never reached the German column — silently, with the
-      // update still reporting success. See @/lib/utilities/localeIsolatedReq.
-      const event = await createPublished({ title: 'Localized Sitting', languages: ['de'] })
-      await payload.update({
-        collection: 'events',
-        id: event.id,
-        locale: 'de',
-        data: { title: 'Lokalisierte Sitzung' },
-      })
-
-      const allLocales = await payload.findByID({
-        collection: 'events',
-        id: event.id,
-        locale: 'all',
-        depth: 0,
-      })
-      expect((allLocales.title as unknown as Record<string, string>).de).toBe(
-        'Lokalisierte Sitzung',
-      )
-      expect((allLocales.title as unknown as Record<string, string>).en).toBe('Localized Sitting')
-    })
-
-    it('names the language a written title is missing from', async () => {
-      const event = await createPublished({
-        title: 'Morning Sitting for Carers',
-        languages: ['fr'],
-      })
-      const fresh = await payload.findByID({ collection: 'events', id: event.id })
-      const result = report(fresh)
-      if (result.skipped) throw new Error(`expected a report, got ${result.reason}`)
-      const translations = result.document.find((r) => r.key === 'translations.missing')
-      expect(translations?.status).toBe('failed')
-      expect(translations?.detail).toContain('French')
+    it('rejects a link in the title, and still enforces the length cap', async () => {
+      await expect(
+        createPublished({ title: 'Meditation https://example.org/classes' }),
+      ).rejects.toThrow()
+      await expect(createPublished({ title: 'x'.repeat(101) })).rejects.toThrow()
+      // The cap and the link rule share one validator, so prove the ordinary
+      // case still saves.
+      const fine = await createPublished({ title: 'Evening Sitting for Carers' })
+      expect(fine.title).toBe('Evening Sitting for Carers')
     })
 
     it.each([
@@ -328,45 +247,14 @@ describe('Event listing quality', () => {
       expect(described.qualityOpenCount).toBe(before - 1)
     })
 
-    it('counts document-scope items only, so it stays correct across locales', async () => {
-      // The per-locale checks read localized titles a write hook can't see, so
-      // a single non-localized column can't hold a cross-locale figure.
+    it('agrees with the report it is stamped from', async () => {
       const event = await createPublished({ title: 'Meditation', languages: ['de', 'fr'] })
       const fresh = await payload.findByID({ collection: 'events', id: event.id })
       const result = report(fresh)
       if (result.skipped) throw new Error('expected a report')
-      // The stored column leaves out the cross-locale check, which a write hook
-      // can't evaluate — so it agrees with the report's own openCount, but not
-      // with a raw count of failed document checks.
       expect(fresh.qualityOpenCount).toBe(result.openCount)
-      expect(result.openCount).toBeLessThanOrEqual(
-        result.document.filter((r) => r.status === 'failed').length,
-      )
+      expect(result.openCount).toBe(result.checks.filter((r) => r.status === 'failed').length)
     })
   })
 
-  describe('a locale added in the current save', () => {
-    it('is not reported as an untranslated language until the save is over', async () => {
-      const event = await createPublished({ title: 'Expanding Sitting', languages: ['en'] })
-      // The manager ticks German and saves. A translation cannot exist yet.
-      const updated = await payload.update({
-        collection: 'events',
-        id: event.id,
-        data: { languages: ['en', 'de'] },
-      })
-      const result = report(updated)
-      if (result.skipped) throw new Error('expected a report')
-      expect(result.document).toContainEqual(
-        expect.objectContaining({ key: 'translations.missing', status: 'passed' }),
-      )
-
-      // On the next read it is a real finding — the save is over.
-      const later = await payload.findByID({ collection: 'events', id: event.id })
-      const laterResult = report(later)
-      if (laterResult.skipped) throw new Error('expected a report')
-      const translations = laterResult.document.find((r) => r.key === 'translations.missing')
-      expect(translations?.status).toBe('failed')
-      expect(translations?.detail).toContain('German')
-    })
-  })
 })

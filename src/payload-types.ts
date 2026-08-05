@@ -1459,7 +1459,7 @@ export interface Event {
   /**
    * Up to 100 characters. Leave blank to fill in from the venue — "Evening Meditation at Broadstairs Friends Meeting House" — which also translates itself into every language.
    */
-  title?: string | null;
+  title: string;
   /**
    * Language(s) this event is conducted in.
    */

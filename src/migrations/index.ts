@@ -36,6 +36,7 @@ import * as migration_20260730_172342_rename_region_level_center_to_venue from '
 import * as migration_20260803_221051_registrations_full_flag from './20260803_221051_registrations_full_flag';
 import * as migration_20260804_011222_resync_schema_snapshot from './20260804_011222_resync_schema_snapshot';
 import * as migration_20260804_012138_add_event_quality_columns from './20260804_012138_add_event_quality_columns';
+import * as migration_20260805_015327_drop_event_title_localization from './20260805_015327_drop_event_title_localization';
 
 export const migrations = [
   {
@@ -226,6 +227,11 @@ export const migrations = [
   {
     up: migration_20260804_012138_add_event_quality_columns.up,
     down: migration_20260804_012138_add_event_quality_columns.down,
-    name: '20260804_012138_add_event_quality_columns'
+    name: '20260804_012138_add_event_quality_columns',
+  },
+  {
+    up: migration_20260805_015327_drop_event_title_localization.up,
+    down: migration_20260805_015327_drop_event_title_localization.down,
+    name: '20260805_015327_drop_event_title_localization'
   },
 ];

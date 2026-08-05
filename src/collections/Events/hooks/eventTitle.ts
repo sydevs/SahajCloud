@@ -7,6 +7,8 @@ import {
   EVENT_TITLE_DEFAULTS,
   titleSlotForSchedule,
 } from '@/lib/eventTitle/compose'
+import { DEFAULT_LOCALE } from '@/lib/locales'
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
 /** Where the in-flight `sy-atlas-translations` load is stashed on `req.context`. */
@@ -28,9 +30,16 @@ async function resolveTitleTemplates(req: PayloadRequest): Promise<Record<EventT
     try {
       const translations = await req.payload.findGlobal({
         slug: 'sy-atlas-translations',
-        locale: req.locale,
+        // The default locale, not `req.locale`: `title` is a single
+        // non-localized column now, so composing from whichever locale the
+        // manager happened to be editing in would store a German title for one
+        // and an English one for the next. The widget translates client-side
+        // from this one value.
+        locale: DEFAULT_LOCALE,
         depth: 0,
-        req,
+        // Copied — the locale above would otherwise repoint the caller's
+        // request, and this hook runs during a write. See localeIsolatedReq.
+        req: localeIsolatedReq(req),
       })
       const stored = (translations as { event?: { title?: Record<string, unknown> } }).event?.title
       const resolved = { ...EVENT_TITLE_DEFAULTS }

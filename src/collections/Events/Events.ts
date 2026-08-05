@@ -168,16 +168,13 @@ export const Events: CollectionConfig = {
           label: 'Details',
           fields: [
             {
-              // Primary event name + useAsTitle. Stored and localized. Required,
-              // but a beforeChange hook auto-fills an empty title with
-              // "<localized prefix> <venue>" from the first segment of the
-              // street address (see ./hooks/eventTitle) before validation runs,
-              // so the requirement is satisfied whenever there's an address.
-              // The prefix ("Meditation at") is editable per locale in the
-              // sy-atlas-translations global.
+              // Primary event name + useAsTitle. **Not localized** — the Atlas
+              // widget translates the title client-side, so one stored value in
+              // the default locale is the whole story here. A beforeChange hook
+              // fills an empty one from the venue (see ./hooks/eventTitle).
               name: 'title',
               type: 'text',
-              localized: true,
+              required: true,
               // Matches the address fields' limit. The longest title in the
               // Atlas data is 94 characters and nothing exceeds 100, so this
               // binds new writing without locking anyone out of a listing they
