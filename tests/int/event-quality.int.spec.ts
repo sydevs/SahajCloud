@@ -92,6 +92,47 @@ describe('Event listing quality', () => {
       expect(inEnglish.title).toBe('Podvečerní meditace')
     })
 
+    it('fills a blank title from the venue rather than refusing it', async () => {
+      // `required: true` holds, but the field's beforeChange hook fills the
+      // value before validation runs — so leaving it blank is a supported
+      // workflow, not an omission. (The browser has no hook, which is why
+      // `eventTitleValidate` permits the blank case too; see its unit spec.)
+      const event = await testData.createEvent(payload, {
+        manager: managerId,
+        region: regionId,
+        _status: 'published',
+        title: '',
+        inactive: false,
+        eventType: 'offline',
+        address: {
+          venueName: 'Sunrise Hall',
+          street: 'Hauptstr 1',
+          city: 'Bremen',
+          country: 'DE',
+          latitude: 53,
+          longitude: 8,
+        },
+        schedule: { firstDate: '2030-04-01T18:00:00.000Z', firstDate_tz: 'Europe/Berlin' },
+      } as never)
+      expect(event.title).toBe('Evening Meditation at Sunrise Hall')
+    })
+
+    it('still refuses a blank title when there is no venue to name it', async () => {
+      // An online event has no address to compose from, so the guarantee that
+      // every event carries a title has to be enforced the ordinary way.
+      await expect(
+        testData.createEvent(payload, {
+          manager: managerId,
+          region: regionId,
+          _status: 'published',
+          title: '',
+          inactive: true,
+          eventType: 'online',
+          onlineUrl: 'https://meet.example.org/room',
+        } as never),
+      ).rejects.toThrow()
+    })
+
     it('rejects a link in the title, and still enforces the length cap', async () => {
       await expect(
         createPublished({ title: 'Meditation https://example.org/classes' }),
