@@ -33,6 +33,7 @@ import {
   MANUAL_LOCATION,
 } from '@/lib/mapbox/geocoder'
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
+import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { slugifyValue } from '@/lib/utilities/slugify'
 
 import {
@@ -196,15 +197,16 @@ const geoRefKey = (ref: { level: GeoRef['level']; legacyId: number }): string =>
   `${ATLAS_TO_PAYLOAD_LEVEL[ref.level]}:${ref.legacyId}`
 
 /**
- * Best-effort map of Atlas registration-question flags → the Events
- * `registrationQuestions` checkbox group. The legacy flags don't fully line up
- * with the placeholder question set, so unmapped flags are warned about for the
- * real registration flow to reconcile.
+ * What counts as an email address for import purposes. Deliberately the loose
+ * shape rather than a full RFC validator — the point is only to tell a typo'd
+ * address from a row that was never an address at all.
  */
-const REGISTRATION_QUESTION_MAP: Record<string, string> = {
-  experience: 'priorExperience',
-  referral: 'referralSource',
-}
+const ATLAS_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** The question names the contract defines — the dump's own keys, verbatim. */
+const REGISTRATION_QUESTION_NAMES = new Set<string>(
+  EVENT_REGISTRATION_QUESTIONS.map((question) => question.name),
+)
 
 const DEFAULT_LOCALE = 'en'
 
@@ -811,6 +813,21 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       // Normalize the email: Payload stores it lowercased + uniquely, so
       // case-variant duplicates must collapse to one user (and share its id).
       const email = user.email.trim().toLowerCase()
+      // 29 rows in the dump hold something that was never an address — "jbk",
+      // "dfsjdhflskdhf", people typing into a form. Payload's email validation
+      // rejects them, which turned each one into a hard error and a failed
+      // import. They are unimportable by definition, so skip them by name: a
+      // registration of theirs is dropped with its own warning below, and the
+      // operator gets a list they can act on instead of a wall of failures.
+      if (!ATLAS_EMAIL_RE.test(email)) {
+        await this.skip(`user #${user.legacyId}: "${user.email}" is not an email address`, {
+          collection: 'users',
+          identifier: email || `user-${user.legacyId}`,
+          current: offset + i + 1,
+          total,
+        })
+        continue
+      }
       try {
         const result = await this.upsert<{ id: number }>(
           'users',
@@ -1322,13 +1339,22 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     return mapNotificationPreferences(manager?.notifications, manager?.contactMethod)
   }
 
-  /** Map Atlas registration-question flags to the checkbox group (best effort). */
+  /**
+   * Atlas registration-question flags → the Events `registrationQuestions`
+   * checkbox group.
+   *
+   * A straight pass-through: `EVENT_REGISTRATION_QUESTIONS` *is* the Atlas
+   * question set, named with its own keys, so there is nothing to translate.
+   * The old best-effort map only covered `experience` and `referral` and warned
+   * away the other two — silently dropping `questions` on 435 events and
+   * `aspirations` on 78. An unknown flag is still warned about, since that
+   * would mean the dump grew a question the contract doesn't have.
+   */
   private mapRegistrationQuestions(event: AtlasEvent): Record<string, boolean> | undefined {
     const result: Record<string, boolean> = {}
     for (const flag of event.registrationQuestions ?? []) {
-      const target = REGISTRATION_QUESTION_MAP[flag]
-      if (target) result[target] = true
-      else this.addWarning(`Event #${event.legacyId}: unmapped registration question "${flag}"`)
+      if (REGISTRATION_QUESTION_NAMES.has(flag)) result[flag] = true
+      else this.addWarning(`Event #${event.legacyId}: unknown registration question "${flag}"`)
     }
     return Object.keys(result).length > 0 ? result : undefined
   }

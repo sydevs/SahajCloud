@@ -206,15 +206,28 @@ export const Events: CollectionConfig = {
                   label: 'Contact Phone Number',
                   type: 'text',
                   // Inactive events have no schedule, so a public contact is the
-                  // only way a seeker can reach out — require it (and the name
-                  // below) when inactive. Always visible, so this can't gate on
-                  // an `admin.condition`; a validate keeps active events optional.
+                  // only way a seeker can reach out — an inactive event must
+                  // carry at least one. Any route satisfies it, not a phone
+                  // specifically: an email or a page to read is just as
+                  // reachable, and demanding a phone rejected real listings
+                  // whose only contact was a Meetup page. Always visible, so
+                  // this can't gate on an `admin.condition`; a validate keeps
+                  // active events optional.
                   validate: (
                     value: string | null | undefined,
-                    { data }: { data?: { inactive?: boolean } },
+                    {
+                      data,
+                    }: {
+                      data?: {
+                        inactive?: boolean
+                        contactEmail?: string | null
+                        website?: string | null
+                        onlineUrl?: string | null
+                      }
+                    },
                   ) =>
-                    data?.inactive && !value
-                      ? 'Add a contact phone — inactive events have no schedule for seekers to rely on.'
+                    data?.inactive && !value && !data.contactEmail && !data.website && !data.onlineUrl
+                      ? 'Add a phone, an email or a website — an inactive event has no schedule for seekers to rely on.'
                       : true,
                   admin: {
                     description:
@@ -225,11 +238,12 @@ export const Events: CollectionConfig = {
                   name: 'contactName',
                   type: 'text',
                   required: true,
-                  // Required (and shown) when a phone is given, or when the event
-                  // is inactive. A false condition skips both `required` + this,
-                  // so active events without a phone stay unaffected.
+                  // Required (and shown) only when a phone is given — it names
+                  // the person who answers it. An inactive event reachable by
+                  // email or website has no one to name, so it isn't demanded
+                  // there. A false condition skips both `required` + this.
                   admin: {
-                    condition: (data) => !!data?.contactPhone || !!data?.inactive,
+                    condition: (data) => !!data?.contactPhone,
                     description: 'The name of the person they are calling',
                   },
                 },

@@ -322,41 +322,21 @@
           "type": "object",
           "description": "Optional registration questions, rendered via t('questions.<key>'); the set shown per event varies.",
           "properties": {
-            "accessibility": {
-              "type": "string",
-              "description": "Optional registration question about accessibility needs."
-            },
             "aspirations": {
               "type": "string",
-              "description": "Optional registration question about the attendee's goals."
+              "description": "Registration question: what the attendee hopes to get out of the event. Matches `aspirations` in EVENT_REGISTRATION_QUESTIONS."
             },
             "experience": {
               "type": "string",
-              "description": "Optional registration question about prior experience with this meditation."
-            },
-            "guests": {
-              "type": "string",
-              "description": "Optional registration question about accompanying guests."
-            },
-            "health_info": {
-              "type": "string",
-              "description": "Optional registration question about relevant health information (renamed from `healthInfo`)."
-            },
-            "prior_experience": {
-              "type": "string",
-              "description": "Optional registration question about prior Sahaja Yoga practice (renamed from `priorExperience`)."
+              "description": "Registration question: whether the attendee has practised Sahaja Yoga before. Matches `experience` in EVENT_REGISTRATION_QUESTIONS."
             },
             "questions": {
               "type": "string",
-              "description": "Optional registration question inviting free-form questions."
+              "description": "Registration question: anything the attendee wants to ask before coming. Matches `questions` in EVENT_REGISTRATION_QUESTIONS."
             },
             "referral": {
               "type": "string",
-              "description": "Optional registration question about how the attendee found the organisation."
-            },
-            "referral_source": {
-              "type": "string",
-              "description": "Optional registration question about how the attendee found this specific event (renamed from `referralSource`)."
+              "description": "Registration question: how the attendee heard about this event. Matches `referral` in EVENT_REGISTRATION_QUESTIONS."
             }
           },
           "additionalProperties": false
