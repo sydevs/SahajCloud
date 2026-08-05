@@ -5,16 +5,7 @@ import type { EventQualityInput, QualitySkipReason } from './types'
  * an empty report — "no recommendations" and "not checked because this event is
  * finished" are completely different messages to a manager.
  */
-export const SKIP_REASON_LABELS: Record<QualitySkipReason, string> = {
-  trashed:
-    'This event is in the trash, so its listing isn’t checked. Restore it to see recommendations.',
-  finished:
-    'This event’s schedule has ended, so its listing isn’t checked. Extend the end date to see recommendations.',
-  expired:
-    'This event expired and is hidden from the public. Republish it to verify — recommendations return once it’s listed again.',
-  unpublished:
-    'This event isn’t published yet, so its listing isn’t checked. Publish it to see recommendations.',
-}
+export { SKIP_REASON_COPY as SKIP_REASON_LABELS } from './copy'
 
 /**
  * Whether the quality checks apply to this event at all, and why not.

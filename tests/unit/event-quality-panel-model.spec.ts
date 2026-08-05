@@ -10,12 +10,11 @@ const metadata = EVENT_QUALITY_CHECK_METADATA as ChecksMetadata
 const report = (overrides: Partial<Extract<EventQualityReport, { skipped: false }>> = {}) =>
   ({
     skipped: false,
-    document: [
+    checks: [
       { key: 'description.missing', status: 'failed' },
       { key: 'images.insufficient', status: 'passed' },
+      { key: 'title.quality', status: 'passed' },
     ],
-    perLocale: { en: [{ key: 'title.quality', status: 'passed' }] },
-    locales: ['en'],
     openCount: 1,
     ...overrides,
   }) satisfies EventQualityReport
@@ -33,10 +32,11 @@ describe('buildPanelModel', () => {
     })
   })
 
-  it('groups items by tier and puts open findings first', () => {
+  it('puts open findings first, then what already passes, in one list', () => {
+    // No grouping — four checks doesn't warrant headings, and the passing rows
+    // read as a quiet confirmation directly under the work still to do.
     const model = buildPanelModel(report(), metadata)
     if (!model || model.skipped) throw new Error('expected a report model')
-    // One flat list, open findings first — no tier headings.
     expect(model.items.map((i) => [i.key, i.status])).toEqual([
       ['description.missing', 'failed'],
       ['images.insufficient', 'passed'],
@@ -47,14 +47,12 @@ describe('buildPanelModel', () => {
   it('resolves every key to its registry label and description', () => {
     const model = buildPanelModel(report(), metadata)
     if (!model || model.skipped) throw new Error('expected a report model')
-    const item = model.items[0]
-    expect(item.label).toBe(metadata['description.missing'].label)
-    expect(item.description).toBe(metadata['description.missing'].description)
+    expect(model.items[0].label).toBe(metadata['description.missing'].label)
+    expect(model.items[0].description).toBe(metadata['description.missing'].description)
   })
 
   it('words a passing item as a state, not as the instruction', () => {
-    // A tick beside "Take the address out of the description" read as an
-    // endorsement of repeating it.
+    // A tick beside "Improve the event description" read as an endorsement.
     const model = buildPanelModel(report(), metadata)
     if (!model || model.skipped) throw new Error('expected a report model')
     const passing = model.items.find((i) => i.status === 'passed')
@@ -62,60 +60,48 @@ describe('buildPanelModel', () => {
     expect(passing?.label).not.toBe(metadata['images.insufficient'].label)
   })
 
-  it('names the language inline when the event is judged in more than one', () => {
+  it('prefers the check’s own account of what it found', () => {
     const model = buildPanelModel(
       report({
-        perLocale: {
-          en: [{ key: 'title.quality', status: 'passed' }],
-          de: [{ key: 'title.quality', status: 'failed' }],
-        },
-        locales: ['en', 'de'],
+        checks: [
+          { key: 'description.quality', status: 'failed', detail: 'It repeats the address.' },
+        ],
       }),
       metadata,
     )
     if (!model || model.skipped) throw new Error('expected a report model')
-    const perLocale = model.items.filter((i) => i.key === 'title.quality')
-    expect(perLocale.map((i) => [i.language, i.status])).toEqual([
-      ['German', 'failed'],
-      ['English', 'passed'],
-    ])
-    // The placeholder the panel bolds has to survive into the label.
-    expect(perLocale[0].label).toContain('%{language}')
-  })
-
-  it('leaves the language out when there is only one — the common case', () => {
-    // "Add a title in English" on an English-only event is noise.
-    const model = buildPanelModel(report(), metadata)
-    if (!model || model.skipped) throw new Error('expected a report model')
-    const perLocale = model.items.filter((i) => i.key === 'title.quality')
-    expect(perLocale[0].language).toBeUndefined()
-    expect(perLocale[0].label).not.toContain('%{language}')
+    expect(model.items[0].description).toBe('It repeats the address.')
   })
 
   it('excludes pending items from the ratio — they are neither debt nor achievement', () => {
     const model = buildPanelModel(
       report({
-        perLocale: {
-          en: [{ key: 'title.quality', status: 'passed' }],
-          de: [{ key: 'title.quality', status: 'pending' }],
-        },
-        locales: ['en', 'de'],
+        checks: [
+          { key: 'description.missing', status: 'failed' },
+          { key: 'images.insufficient', status: 'passed' },
+          { key: 'title.quality', status: 'pending' },
+        ],
       }),
       metadata,
     )
     if (!model || model.skipped) throw new Error('expected a report model')
     expect(model.pendingCount).toBe(1)
-    // 4 items, 1 pending → 3 with a verdict, 1 of them open.
-    expect(model.total).toBe(3)
-    expect(model.resolved).toBe(2)
+    // 3 items, 1 pending → 2 with a verdict, 1 of them open.
+    expect(model.total).toBe(2)
+    expect(model.resolved).toBe(1)
     expect(model.openCount).toBe(1)
   })
 
   it('drops a key with no metadata rather than rendering a bare slug', () => {
     // A key with no label means a stale cached report; showing a volunteer
-    // manager "description.tooShort" helps nobody.
+    // manager "description.quality" helps nobody.
     const model = buildPanelModel(
-      report({ document: [{ key: 'not.a.real.check', status: 'failed' }] }),
+      report({
+        checks: [
+          { key: 'not.a.real.check', status: 'failed' },
+          { key: 'title.quality', status: 'passed' },
+        ],
+      }),
       metadata,
     )
     if (!model || model.skipped) throw new Error('expected a report model')
@@ -125,11 +111,7 @@ describe('buildPanelModel', () => {
   it('resolves every registry key, so no shipped check can render unlabelled', () => {
     const allKeys = Object.keys(metadata)
     const model = buildPanelModel(
-      report({
-        document: allKeys.map((key) => ({ key, status: 'failed' as const })),
-        perLocale: {},
-        locales: [],
-      }),
+      report({ checks: allKeys.map((key) => ({ key, status: 'failed' as const })) }),
       metadata,
     )
     if (!model || model.skipped) throw new Error('expected a report model')

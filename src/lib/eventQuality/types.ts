@@ -1,26 +1,17 @@
+import type { RedundancyKind } from './copy'
+
 import type { EventTitleSlot } from '@/lib/eventTitle/compose'
-import type { LocaleCode } from '@/lib/locales'
 
-/**
- * Which concern a check belongs to. Tiers group the panel and let a consumer
- * (the reminder email, say) surface only the tiers it cares about.
- */
-export type QualityTier = 'completeness' | 'title' | 'description' | 'translation'
 
-export const QUALITY_TIERS = ['completeness', 'title', 'description', 'translation'] as const
+export type { RedundancyKind }
 
-/**
- * `document` checks read fields that aren't localized (`description`, `images`,
- * `website`, contacts) and are evaluated once. `perLocale` checks read the
- * localized `title`, so they're evaluated once per locale in scope.
- */
-export type CheckScope = 'document' | 'perLocale'
+/** Auto-title templates per slot. */
+export type TitleTemplateSet = Record<EventTitleSlot, string>
 
 /**
  * `pending` is neither a pass nor a failure: the thing being judged cannot
- * exist yet. It is emitted for a locale added in the save currently in flight —
- * a translation can't have been written for a language chosen a moment ago, and
- * reporting that as a failure would scold a manager for the edit they just made.
+ * exist yet. Kept in the contract even though no check currently emits one —
+ * the sibling reminder-email ticket is expected to want it.
  */
 export type CheckStatus = 'passed' | 'failed' | 'pending'
 
@@ -34,8 +25,8 @@ export type QualityCheckResult = {
   status: CheckStatus
   /**
    * What went wrong, for a check that folds several problems into one finding.
-   * Replaces the check's static `description` in the panel, so "Trim what the
-   * listing already shows" can go on to name the address and the weekday it
+   * Replaces the check's static `description` in the panel, so "Improve the
+   * event description" can go on to name the address and the weekday it
    * actually found. Absent when the check has nothing more specific to add.
    */
   detail?: string
@@ -45,9 +36,10 @@ export type QualityCheckResult = {
 export type QualitySkipReason = 'unpublished' | 'finished' | 'expired' | 'trashed'
 
 /**
- * The whole multi-locale report, as returned by the virtual field in a single
- * read. Deliberately **not** localized: `perLocale` is the answer to "which of
- * my languages is missing a title", which a localized field could never give.
+ * The whole report, as returned by the virtual field in a single read.
+ *
+ * Flat: `title` stopped being localized, so there is no per-locale dimension
+ * left — the Atlas widget translates client-side from the one stored value.
  */
 export type EventQualityReport =
   | {
@@ -56,13 +48,8 @@ export type EventQualityReport =
     }
   | {
       skipped: false
-      /** Checks evaluated once for the whole document. */
-      document: QualityCheckResult[]
-      /** Checks evaluated per locale, keyed by locale code. */
-      perLocale: Record<string, QualityCheckResult[]>
-      /** Locales evaluated, in the order they were judged (default locale first). */
-      locales: LocaleCode[]
-      /** Open (failed) **document-scope** items — what `qualityOpenCount` stores. */
+      checks: QualityCheckResult[]
+      /** Open (failed) items — what `qualityOpenCount` stores. */
       openCount: number
     }
 
@@ -85,23 +72,15 @@ export type EventQualityInput = {
   address?: unknown
   schedule?: unknown
   languages?: unknown
-  /**
-   * Localized title. A single string when the document was read in one locale,
-   * or a per-locale map when read with `locale: 'all'` — which is how the
-   * per-locale tier gets every language's title from one query.
-   */
-  title?: string | Record<string, string | null | undefined> | null
+  title?: string | null
 }
-
-/** Auto-title templates per slot, for one locale. */
-export type TitleTemplateSet = Record<EventTitleSlot, string>
 
 /** What a check's `evaluate` is handed. */
 export type CheckContext = {
   event: EventQualityInput
   /**
    * The description flattened to plain text, computed once per report rather
-   * than per check — six checks read it, and each read walks the Lexical tree.
+   * than per check — each read walks the Lexical tree.
    */
   descriptionText: string
   /**
@@ -109,57 +88,22 @@ export type CheckContext = {
    * street, city). Computed once per report for the same reason.
    */
   addressPhrases: string[]
-  /** Only set for `perLocale` checks — the locale being judged. */
-  locale?: LocaleCode
-  /** The title stored for `locale`, already resolved off the localized field. */
-  title?: string
-  /**
-   * Auto-title templates for `locale`, English defaults when the locale has no
-   * translation. A title equal to a composition of these is auto-filled.
-   */
-  templates?: TitleTemplateSet
+  /** The stored title, trimmed. */
+  title: string
   /**
    * The year "now" falls in, for judging whether a date has gone stale. Passed
    * in rather than read off the clock so every check stays a pure function.
    */
   currentYear: number
-  /**
-   * Whether the **default locale** carries a title a manager typed, as opposed
-   * to the auto-fill.
-   *
-   * This is what makes a missing translation a real finding: a blank title is
-   * composed per locale from that locale's own template, so it is never
-   * untranslated. Only a hand-written one leaves other languages showing
-   * English.
-   */
-  defaultTitleIsHandWritten: boolean
-  /** Every judged locale's stored title, keyed by locale — for the translation check. */
-  titleByLocale: Record<string, string>
-  /** The locales this event is judged in (default locale + its own languages). */
-  judgedLocales: string[]
-  /**
-   * Locales the event gained in the save currently in flight. A translation
-   * can't exist for a language chosen a moment ago, so a check that judges
-   * coverage has to leave these out rather than scold the manager for the edit
-   * they are making.
-   */
-  pendingLocales: string[]
 }
 
 /**
- * One entry in the registry. `label`/`description` live here so the code stays
- * the single source of truth — a test asserts every key carries both, so a new
- * check cannot ship unlabelled.
+ * One entry in the registry. Wording is spread in from `copy.ts`, so a check
+ * here is only its key, its preconditions and its logic.
  */
 export type QualityCheck = {
   key: string
-  tier: QualityTier
-  scope: CheckScope
-  /**
-   * The recommendation, in the imperative — shown when the check **fails**.
-   * "Take the address out of the description", not "The description repeats the
-   * address": a finding is a thing to do, and the panel puts a cross beside it.
-   */
+  /** The recommendation, in the imperative — shown when the check **fails**. */
   label: string
   /**
    * The same item worded as a state already reached, for when the check
@@ -167,44 +111,26 @@ export type QualityCheck = {
    * read as "yes, do repeat the address" — the opposite of the point.
    */
   passedLabel: string
-  /**
-   * `label` / `passedLabel` for a named language, with a `%{language}`
-   * placeholder the panel renders in bold ("Add a **German** title"). Required
-   * on `perLocale` checks and unused elsewhere; only shown when the event is
-   * judged in more than one language, since one language is the common case and
-   * naming it there is noise.
-   */
-  localeLabel?: string
-  localePassedLabel?: string
-  /**
-   * One short sentence: why this is worth doing, and what to write. Shown under
-   * an open recommendation — a manager shouldn't have to hover to learn why
-   * they're being asked for something.
-   */
+  /** Why this is worth doing, and what to write. */
   description: string
   /**
-   * Skip this check for a locale whose title is the auto-fill (or absent).
-   *
-   * Declared per check rather than inferred from the tier so a check states its
-   * own precondition: the auto-title is generated from the address by design,
-   * so judging its wording would flag the exact state #605 set out to create.
-   * Translation coverage is a different question and deliberately doesn't set
-   * this — a missing translation matters whatever the English title looks like.
+   * Skip this check when the title is the auto-fill (or absent). The
+   * auto-title is generated from the venue by design, so judging its wording
+   * would flag the exact state #605 set out to create.
    */
   requiresHandWrittenTitle?: true
   /**
-   * This check reads localized data, so it can't contribute to the stored
-   * `qualityOpenCount`: that column is stamped by a write hook, which only ever
-   * sees the locale being written. Counting it there would make the stored
-   * figure disagree with the report on every multilingual event.
+   * Skip this check when the named check has failed — for a finding that only
+   * makes sense once its prerequisite is satisfied. Keeps the panel from
+   * saying two things about one empty field.
    */
-  dependsOnLocales?: true
+  skipWhenFailed?: string
   /** True when the listing **fails** this check. */
   evaluate: (ctx: CheckContext) => boolean
   /**
-   * Names the specific problems behind a failure, for checks that cover several
-   * at once. Called only when `evaluate` fails; the panel shows the result in
-   * place of `description`.
+   * Names the specific problems behind a failure, for checks that cover
+   * several at once. Called only when `evaluate` fails; the panel shows the
+   * result in place of `description`.
    */
   detail?: (ctx: CheckContext) => string | null
 }
