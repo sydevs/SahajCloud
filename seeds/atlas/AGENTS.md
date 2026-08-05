@@ -282,6 +282,13 @@ result client-side.
 > default locale. The `sy-atlas-translations` `event.title` templates are still
 > a localized field, but only the default locale's set is read now.
 
+**Online events** have no address, so `<place>` falls back to the name of the
+`region` the event hangs off — "Evening Meditation at Dublin". `region` is
+required on every event, so there is always something to name a listing after
+and the importer needs no fallback title of its own (it used to send a
+hardcoded "Online Sahaj Yoga Meditation"). Two blank-titled online events in one
+region and one time-of-day slot collide the same way two at one venue do.
+
 The rule the grooming pass settled on:
 
 - **Blank it** when the title only restated the place, the venue's own street,

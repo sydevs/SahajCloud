@@ -957,7 +957,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
     const { totalDocs } = await this.payload.count({
       collection: 'events',
-      where: { or: [{ qualityOpenCount: { exists: false } }, { qualityCheckVersion: { exists: false } }] },
+      where: {
+        or: [{ qualityOpenCount: { exists: false } }, { qualityCheckVersion: { exists: false } }],
+      },
       overrideAccess: true,
       trash: true,
     })
@@ -1064,12 +1066,11 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       // nullish value, so clearing `customName` in events.json would otherwise
       // leave a previously-imported title in place. '' falls through to the
       // "<time of day> Meditation at <place>" auto-fill, which is preferred
-      // over a hand-written generic name. `title` is a single non-localized
-      // column, composed in the default locale — the Atlas widget translates
-      // it client-side.
-      title:
-        event.customName?.trim() ||
-        (event.eventType === 'online' ? 'Online Sahaj Yoga Meditation' : ''),
+      // over a hand-written generic name — including for online events, which
+      // have no address and so are named after their region. `title` is a
+      // single non-localized column, composed in the default locale — the Atlas
+      // widget translates it client-side.
+      title: event.customName?.trim() || '',
       // `languages` is hasMany, but Atlas only ever stored one code. A merged
       // bilingual event (two listings of one session) carries the curated
       // `languageCodes` instead — see seeds/atlas/AGENTS.md.

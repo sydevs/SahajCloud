@@ -117,20 +117,45 @@ describe('Event listing quality', () => {
       expect(event.title).toBe('Evening Meditation at Sunrise Hall')
     })
 
-    it('still refuses a blank title when there is no venue to name it', async () => {
-      // An online event has no address to compose from, so the guarantee that
-      // every event carries a title has to be enforced the ordinary way.
-      await expect(
-        testData.createEvent(payload, {
-          manager: managerId,
-          region: regionId,
-          _status: 'published',
-          title: '',
-          inactive: true,
-          eventType: 'online',
-          onlineUrl: 'https://meet.example.org/room',
-        } as never),
-      ).rejects.toThrow()
+    it('names an online event after its region, having no venue to name it', async () => {
+      // An online event has no address at all, so the auto-fill composes from
+      // the region it hangs off instead. `region` is required, so every event
+      // has *something* to be named after — which is what keeps `title`'s own
+      // `required` satisfiable no matter how the manager fills the form.
+      const region = await testData.createRegion(payload, { name: 'Toronto' })
+      const event = await testData.createEvent(payload, {
+        manager: managerId,
+        region: region.id,
+        _status: 'published',
+        title: '',
+        inactive: false,
+        eventType: 'online',
+        onlineUrl: 'https://meet.example.org/room',
+        schedule: { firstDate: '2030-04-01T18:00:00.000Z', firstDate_tz: 'Europe/Berlin' },
+      } as never)
+      expect(event.title).toBe('Evening Meditation at Toronto')
+    })
+
+    it('prefers the venue over the region when the event has both', async () => {
+      const region = await testData.createRegion(payload, { name: 'Bremen' })
+      const event = await testData.createEvent(payload, {
+        manager: managerId,
+        region: region.id,
+        _status: 'published',
+        title: '',
+        inactive: false,
+        eventType: 'offline',
+        address: {
+          venueName: 'Sunrise Hall',
+          street: 'Hauptstr 1',
+          city: 'Bremen',
+          country: 'DE',
+          latitude: 53,
+          longitude: 8,
+        },
+        schedule: { firstDate: '2030-04-01T18:00:00.000Z', firstDate_tz: 'Europe/Berlin' },
+      } as never)
+      expect(event.title).toBe('Evening Meditation at Sunrise Hall')
     })
 
     it('rejects a link in the title, and still enforces the length cap', async () => {
@@ -336,5 +361,4 @@ describe('Event listing quality', () => {
       expect(result.openCount).toBe(result.checks.filter((r) => r.status === 'failed').length)
     })
   })
-
 })

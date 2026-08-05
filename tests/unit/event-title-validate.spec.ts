@@ -26,7 +26,8 @@ const opts = (data: Record<string, unknown>, extra: Record<string, unknown> = {}
 
 const withAddress = { address: { venueName: 'Sunrise Hall', street: 'Hauptstr 1' } }
 const withStreetOnly = { address: { street: 'Hauptstr 1, 2nd floor' } }
-const noAddress = { eventType: 'online', onlineUrl: 'https://meet.example.org/x' }
+const online = { eventType: 'online', onlineUrl: 'https://meet.example.org/x' }
+const onlineInRegion = { ...online, region: 42 }
 
 describe('eventTitleValidate', () => {
   it('lets a blank title through when the venue can name it', () => {
@@ -41,9 +42,17 @@ describe('eventTitleValidate', () => {
     expect(eventTitleValidate('', opts(withStreetOnly))).toBe(true)
   })
 
-  it('still demands a title when there is no address to compose from', () => {
-    // An online event has nothing to name it; the guarantee has to hold.
-    const result = eventTitleValidate('', opts(noAddress))
+  it('lets an online event through on its region alone', () => {
+    // No address to name it, so the hook composes from the region instead. The
+    // browser only has the region's id here — it trusts the name to resolve.
+    expect(eventTitleValidate('', opts(onlineInRegion))).toBe(true)
+    // Also in the shape Payload hands over once the relationship is populated.
+    expect(eventTitleValidate('', opts({ ...online, region: { id: 42 } }))).toBe(true)
+  })
+
+  it('still demands a title when there is no place at all to compose from', () => {
+    // Neither an address nor a region: the guarantee has to hold.
+    const result = eventTitleValidate('', opts(online))
     expect(typeof result).toBe('string')
     expect(result).toContain('venue address')
   })
@@ -69,6 +78,6 @@ describe('eventTitleValidate', () => {
   })
 
   it('leaves a blank alone when the field is not required', () => {
-    expect(eventTitleValidate('', opts(noAddress, { required: false }))).toBe(true)
+    expect(eventTitleValidate('', opts(online, { required: false }))).toBe(true)
   })
 })
