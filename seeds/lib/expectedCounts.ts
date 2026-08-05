@@ -73,13 +73,19 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     // `actual >= expected`, so an understated value here passes even when the
     // import silently loses rows.
     regions: 518,
-    // 910 source registrants dedupe to 755 unique emails.
-    users: 755,
+    // 910 source registrants → 881 with something usable as an email (29 hold
+    // typed-in junk like "jbk", which Payload's email validation refuses and
+    // the importer now skips by name) → 717 once case-variant duplicates
+    // collapse onto one account. 755 was the count before the junk rows were
+    // recognised as unimportable, so it could never be reached.
+    users: 717,
     // 496 rows in events.json (511 extracted, less 15 confirmed duplicates
     // removed), less the 2 leftover test records the importer skips —
     // EXCLUDED_EVENT_LEGACY_IDS in seeds/atlas/import.ts.
     events: 494,
-    registrations: 886,
+    // 886 source rows, less the 27 belonging to a registrant whose email was
+    // never an address — with no user to attach to, they can't be imported.
+    registrations: 859,
     clients: 25,
   },
 }
