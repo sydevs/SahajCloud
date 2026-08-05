@@ -76,7 +76,9 @@ No loose files at the root — every file lives in a named folder:
   `pageTags/`, `cascadeDeletion/`, `eventTitle/` (the pure auto-title
   composition — the Events title hook and the quality checks both recompose it),
   `eventQuality/` (the listing-quality check registry + report builder, consumed
-  by the Events collection and the admin panel; barrelled),
+  by the Events collection and the admin panel; barrelled — all user-facing
+  wording lives in its `copy.ts`, which is the only file to edit to change what
+  a manager reads),
   `registrations/` (the
   `EVENT_REGISTRATION_QUESTIONS` contract + `questions` validation/shaping,
   shared by Events, Registrations, and the notification email; plus the

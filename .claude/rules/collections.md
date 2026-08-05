@@ -400,6 +400,21 @@ creates a duplicate. That was a live bug in the seed importers'
 later re-seed re-uploaded them instead of finding the trashed row (see
 `tests/int/seed-importer-preload.int.spec.ts`).
 
+**It applies to writes too, which is easier to miss.** An `update` addressing a
+trashed row *by id* throws `Not Found` without the flag — even when you got that
+id from a query that did pass it. Two archived Atlas events failed on every seed
+run for exactly this reason: `preloadCollection` handed `upsert` the right id and
+the update then refused it. Fixing the read is not enough; every write that can
+land on a trashed row needs the flag as well (#609):
+
+```typescript
+await payload.update({ collection: 'events', id, data, trash: true })
+```
+
+The asymmetry is worth a test of its own — assert the write **fails** without
+the flag and succeeds with it, or the guard can be removed without anything
+noticing (`tests/int/event-quality.int.spec.ts`).
+
 The admin UI shows a "permanently delete" checkbox.
 
 ## Programmatic file upload
