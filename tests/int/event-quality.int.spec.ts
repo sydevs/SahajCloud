@@ -114,6 +114,36 @@ describe('Event listing quality', () => {
       expect(report(fresh)).toEqual({ skipped: true, reason })
     })
 
+    it('can still be updated once trashed — what the Atlas importer needs', async () => {
+      // Payload appends `deletedAt exists: false` to every read on a
+      // trash-enabled collection, so an update targeting a trashed row throws
+      // `Not Found` unless it passes `trash: true`. Two archived Atlas events
+      // failed on every seed run until `upsert` did — on *both* its paths, the
+      // preloaded one included. See .claude/rules/collections.md.
+      const event = await createPublished({ title: 'Archived Sitting' })
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { deletedAt: new Date().toISOString() },
+      })
+
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: event.id,
+          data: { contactName: 'Importer' },
+        }),
+      ).rejects.toThrow()
+
+      const updated = await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { contactName: 'Importer' },
+        trash: true,
+      })
+      expect(updated.contactName).toBe('Importer')
+    })
+
     it('returns skipped for a trashed event', async () => {
       const event = await createPublished({ title: 'Trashed Sitting' })
       await payload.update({
