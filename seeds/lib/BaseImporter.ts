@@ -1002,7 +1002,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       }
 
       const errorMsg = error instanceof Error ? error.message : String(error)
-      this.report.addError(`Upsert ${collection}: ${errorMsg}`)
+      // Name the row. Without the identifier a 291-error run says only that
+      // "registrations" failed 291 times, which is undiagnosable — the whole
+      // point of the report is telling an operator which rows to go and look at.
+      this.report.addError(`Upsert ${collection} (${identifier}): ${errorMsg}`)
       this.report.incrementErrors()
       await this.reportDocument(collection, identifier, 'error', {
         error: errorMsg,

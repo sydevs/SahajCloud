@@ -217,7 +217,7 @@ describe('registerForEvent endpoint', () => {
       email: 'Registrant@Example.com',
       name: 'Reg Istrant',
       startingAt: '2025-02-01T18:00:00.000Z',
-      questions: { priorExperience: 'none' },
+      questions: { experience: 'none' },
     })
     expect(status).toBe(201)
     expect(body.ok).toBe(true)
@@ -608,7 +608,7 @@ describe('registerForEvent endpoint', () => {
       const { status } = await callRegister(notifyEventId, {
         email: 'seeker-q@example.com',
         name: 'Seeker Q',
-        questions: { referralSource: 'A friend recommended it', guests: 'Yes, two' },
+        questions: { referral: 'A friend recommended it', questions: 'Yes, two' },
       })
       expect(status).toBe(201)
 

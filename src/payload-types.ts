@@ -1775,11 +1775,10 @@ export interface Event {
    * Optional questions to ask registrants — each enabled question appears on the registration form.
    */
   registrationQuestions?: {
-    priorExperience?: boolean | null;
-    referralSource?: boolean | null;
-    healthInfo?: boolean | null;
-    accessibility?: boolean | null;
-    guests?: boolean | null;
+    experience?: boolean | null;
+    referral?: boolean | null;
+    aspirations?: boolean | null;
+    questions?: boolean | null;
   };
   registrations?: {
     docs?: (number | Registration)[];
@@ -1884,23 +1883,19 @@ export interface Registration {
     /**
      * Have you practised Sahaja Yoga meditation before?
      */
-    priorExperience?: string;
+    experience?: string;
     /**
      * How did you hear about this event?
      */
-    referralSource?: string;
+    referral?: string;
     /**
-     * Is there anything about your health we should know?
+     * What are you hoping to get out of this?
      */
-    healthInfo?: string;
+    aspirations?: string;
     /**
-     * Do you have any accessibility requirements?
+     * Do you have any questions for us?
      */
-    accessibility?: string;
-    /**
-     * Will you be bringing any guests?
-     */
-    guests?: string;
+    questions?: string;
   };
   uuid: string;
   mailingListSubscribedAt?: string | null;
@@ -4593,11 +4588,10 @@ export interface EventsSelect<T extends boolean = true> {
   registrationQuestions?:
     | T
     | {
-        priorExperience?: T;
-        referralSource?: T;
-        healthInfo?: T;
-        accessibility?: T;
-        guests?: T;
+        experience?: T;
+        referral?: T;
+        aspirations?: T;
+        questions?: T;
       };
   registrations?: T;
   registrationsFull?: T;

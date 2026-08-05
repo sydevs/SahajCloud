@@ -90,7 +90,7 @@ export const Registrations: CollectionConfig = {
       },
       admin: {
         description:
-          "Raw registrant answers, keyed by the event's enabled registration questions (EVENT_REGISTRATION_QUESTIONS — priorExperience, referralSource, healthInfo, accessibility, guests).",
+          "Raw registrant answers, keyed by the event's enabled registration questions (EVENT_REGISTRATION_QUESTIONS — experience, referral, aspirations, questions).",
       },
     },
     {

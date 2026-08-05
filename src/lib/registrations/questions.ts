@@ -15,15 +15,20 @@ import type { JSONSchema4 } from 'json-schema'
 /**
  * Optional questions an event can ask registrants. Rendered as a group of
  * checkboxes on the Event (each label IS the question shown to the registrant);
- * checking one includes that question on the registration form. Placeholder
- * wording — refine per the real registration flow.
+ * checking one includes that question on the registration form.
+ *
+ * **These are the four questions Sahaj Atlas actually asked**, and the `name`s
+ * are the keys its dump stores answers under — deliberately verbatim, so the
+ * importer needs no translation layer between the two and the 310 registrations
+ * carrying legacy answers import as they stand. The previous set was invented
+ * placeholder wording that nothing had ever collected an answer to, and its
+ * `additionalProperties: false` schema rejected every real answer in the dump.
  */
 export const EVENT_REGISTRATION_QUESTIONS = [
-  { name: 'priorExperience', label: 'Have you practised Sahaja Yoga meditation before?' },
-  { name: 'referralSource', label: 'How did you hear about this event?' },
-  { name: 'healthInfo', label: 'Is there anything about your health we should know?' },
-  { name: 'accessibility', label: 'Do you have any accessibility requirements?' },
-  { name: 'guests', label: 'Will you be bringing any guests?' },
+  { name: 'experience', label: 'Have you practised Sahaja Yoga meditation before?' },
+  { name: 'referral', label: 'How did you hear about this event?' },
+  { name: 'aspirations', label: 'What are you hoping to get out of this?' },
+  { name: 'questions', label: 'Do you have any questions for us?' },
 ] as const
 
 /** A registrant's answer to one registration question, labelled for display. */
