@@ -493,6 +493,25 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('\n=== Importing Managers ===')
     const total = data.managers.length
 
+    // Every manager already here that Atlas didn't put here, by email. Loaded
+    // once rather than queried per manager — 327 round trips for what is one
+    // small read. Usually a single row: the deployment's own admin account.
+    const nonAtlas = await this.payload.find({
+      collection: 'managers',
+      where: { legacyId: { exists: false } },
+      limit: 0,
+      pagination: false,
+      depth: 0,
+      overrideAccess: true,
+      select: { email: true },
+    })
+    const adoptable = new Map<string, number>(
+      nonAtlas.docs.map((doc) => [
+        String((doc as { email?: string }).email ?? '').toLowerCase(),
+        doc.id as number,
+      ]),
+    )
+
     for (let i = 0; i < total; i++) {
       const manager = data.managers[i]
       try {
@@ -503,17 +522,12 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         // email would instead overwrite the account, resetting its password and
         // `type` from the dump. Neither is wanted: adopt the existing row so
         // events owned by this Atlas manager still resolve, and leave it alone.
-        const adopted = await this.payload.find({
-          collection: 'managers',
-          where: { and: [{ email: { equals: manager.email } }, { legacyId: { exists: false } }] },
-          limit: 1,
-          overrideAccess: true,
-        })
-        if (adopted.docs.length > 0) {
-          this.idMaps.managers.set(manager.legacyId, adopted.docs[0].id as number)
+        const adoptedId = adoptable.get(manager.email.trim().toLowerCase())
+        if (adoptedId != null) {
+          this.idMaps.managers.set(manager.legacyId, adoptedId)
           await this.skip(
             `manager #${manager.legacyId}: "${manager.email}" already exists as a non-Atlas ` +
-              `account (managers/${adopted.docs[0].id}) — adopted, not overwritten`,
+              `account (managers/${adoptedId}) — adopted, not overwritten`,
             { collection: 'managers', identifier: manager.email, current: i + 1, total },
           )
           continue
