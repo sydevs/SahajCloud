@@ -217,18 +217,21 @@ describe('EventVerificationEmail', () => {
           listingProgress: completeProgress,
         }),
       )
-      expect(html).toContain('3 of 3 complete')
-      expect(html).toContain('Nothing left to improve')
-      // No open items, so no "here's what to do next" framing.
+      expect(html).toContain('Your listing is complete')
+      expect(html).toContain('nothing left to improve')
+      // Names every check it passed, so "complete" is backed by specifics.
+      for (const item of completeProgress.done) {
+        expect(html).toContain(item.label)
+      }
+      // No open items, so no "here's what to do next" framing…
       expect(html).not.toContain('don’t affect verification')
+      // …and no separator heading: the one-line intro introduces the ticks.
       expect(html).not.toContain('Already done')
-      // A full bar renders one cell, never an empty remainder.
-      expect(html).toMatch(/width:\s*100%/)
     })
 
-    it('keeps the complete state compact — bar and one line, no tick list', async () => {
-      // "4 of 4 complete" already says what the ticks would, and this email's
-      // whole message is that no action is needed.
+    it('drops the progress bar once the listing is complete', async () => {
+      // A full-width bar would only restate the word "complete", and the ticks
+      // already name every check it would have counted.
       const html = await renderEmail(
         createElement(EventVerificationEmail, {
           ...baseProps,
@@ -236,10 +239,20 @@ describe('EventVerificationEmail', () => {
           listingProgress: completeProgress,
         }),
       )
-      for (const item of completeProgress.done) {
-        expect(html).not.toContain(item.label)
-      }
-      expect(html).not.toContain('✓')
+      expect(html).not.toMatch(PROGRESS_CAPTION)
+      expect(html).not.toMatch(/width:\s*100%;background-color/)
+    })
+
+    it('runs the complete heading and its line together, not stacked', async () => {
+      const html = await renderEmail(
+        createElement(EventVerificationEmail, {
+          ...baseProps,
+          level: 'due',
+          listingProgress: completeProgress,
+        }),
+      )
+      // One sentence: "<strong>Your listing is complete</strong> — nothing …".
+      expect(html).toMatch(/Your listing is complete<\/strong>[^<]*—/)
     })
 
     it('does not tell a complete listing to improve itself', async () => {
@@ -283,15 +296,20 @@ describe('EventVerificationEmail', () => {
 
     it('suppresses the section when every check bowed out', async () => {
       // `total: 0` would render "0 of 0 complete" over an empty bar — there is
-      // nothing to be a fraction of.
-      const html = await renderEmail(
+      // nothing to be a fraction of. Asserted as byte-identity against the
+      // never-checked render rather than "no caption appears": the complete
+      // state has no caption either, so that alone wouldn't tell the two apart.
+      const empty = await renderEmail(
         createElement(EventVerificationEmail, {
           ...baseProps,
           level: 'due',
           listingProgress: { open: [], done: [], resolved: 0, total: 0 },
         }),
       )
-      expect(html).not.toMatch(PROGRESS_CAPTION)
+      const neverChecked = await renderEmail(
+        createElement(EventVerificationEmail, { ...baseProps, level: 'due' }),
+      )
+      expect(empty).toBe(neverChecked)
     })
 
     it('omits it from region-manager mail — they can’t act on the listing', async () => {

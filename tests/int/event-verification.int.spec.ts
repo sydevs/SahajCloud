@@ -435,9 +435,12 @@ describe('Event verification lifecycle', () => {
       })
 
       const html = await remindOnce(event.id)
-      expect(html).toContain('Nothing left to improve')
-      // Every check passed, so the bar is full and nothing is outstanding.
-      expect(html).toMatch(/(\d+) of \1 complete/)
+      expect(html).toContain('Your listing is complete')
+      // The ticks name what passed; the bar is dropped once there's no
+      // progress left to show, so the caption goes with it.
+      expect(html).toContain('Has a description')
+      expect(html).toContain('Has 3+ photos')
+      expect(html).not.toMatch(/\d+ of \d+ complete/)
       expect(html).not.toContain('Add a description')
       expect(html).not.toContain('Add photos')
     })

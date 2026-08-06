@@ -143,9 +143,13 @@ interface CopyVars {
  * so both states are guaranteed to carry the same fields.
  */
 interface ListingStateCopy {
-  /** Section heading. */
+  /** Section heading — its own line when open, inline with `intro` when complete. */
   heading: string
-  /** The single line under the progress bar. */
+  /**
+   * The line under the heading when open; when complete it **continues** the
+   * heading on one line, so it's written to read on from it rather than as a
+   * new sentence.
+   */
   intro: ReactNode
 }
 
@@ -179,7 +183,10 @@ const COPY: {
   listing: {
     /** "2 of 4 complete" — the caption beside the progress bar. */
     caption: (resolved: number, total: number) => string
-    /** Small heading over the already-passing ticks (rendered in `open` only). */
+    /**
+     * Small heading over the already-passing ticks. Open state only — when
+     * everything passes, the one-line heading already introduces them.
+     */
     doneHeading: string
     /** Something left to do. */
     open: ListingStateCopy
@@ -227,7 +234,8 @@ const COPY: {
     },
     complete: {
       heading: 'Your listing is complete',
-      intro: <>Nothing left to improve — thank you for keeping it up to date.</>,
+      // Lower-case and no full stop: this runs on from the heading above.
+      intro: <>nothing left to improve, and thank you for keeping it up to date.</>,
     },
   },
 
@@ -502,41 +510,47 @@ export function EventVerificationEmail({
 
       {progress ? (
         <Section>
-          <SectionHeading>{listingCopy.heading}</SectionHeading>
-          <ProgressBar
-            resolved={progress.resolved}
-            total={progress.total}
-            color={brand.colors.primary}
-            caption={COPY.listing.caption(progress.resolved, progress.total)}
-          />
-          <Text style={styles.hint}>{listingCopy.intro}</Text>
-          {/* Every open item, uncapped: the registry is deliberately coarse and
-              two of its four checks are mutually exclusive, so at most three
-              can be open at once — never enough to read as a scolding. */}
-          {progress.open.map((suggestion) => (
-            <DetailRow key={suggestion.key} label={suggestion.label}>
-              {suggestion.detail}
-            </DetailRow>
-          ))}
-          {/* The ticks earn their space only next to something unfinished —
-              they put names on the bar's filled portion. With nothing open the
-              bar already reads 4 of 4, so listing all four again is padding on
-              an email whose point is "no action needed". `label` here is the
-              check's `passedLabel`; a tick beside an imperative reads as the
-              opposite of the point. */}
-          {hasOpen && progress.done.length > 0 ? (
+          {hasOpen ? (
             <>
-              <Text style={{ ...styles.hint, margin: '18px 0 4px', fontWeight: 600 }}>
-                {COPY.listing.doneHeading}
-              </Text>
-              {progress.done.map((item) => (
-                <Text key={item.key} style={doneItem}>
-                  <span style={{ color: brand.colors.primary, fontWeight: 700 }}>✓</span>{' '}
-                  {item.label}
-                </Text>
+              <SectionHeading>{listingCopy.heading}</SectionHeading>
+              <ProgressBar
+                resolved={progress.resolved}
+                total={progress.total}
+                color={brand.colors.primary}
+                caption={COPY.listing.caption(progress.resolved, progress.total)}
+              />
+              <Text style={styles.hint}>{listingCopy.intro}</Text>
+              {/* Every open item, uncapped: the registry is deliberately coarse
+                  and two of its four checks are mutually exclusive, so at most
+                  three can be open at once — never enough to read as a scolding. */}
+              {progress.open.map((suggestion) => (
+                <DetailRow key={suggestion.key} label={suggestion.label}>
+                  {suggestion.detail}
+                </DetailRow>
               ))}
+              {/* Only with ticks beneath it — a listing that passes nothing yet
+                  would otherwise get an "Already done" heading over thin air. */}
+              {progress.done.length > 0 ? (
+                <Text style={{ ...styles.hint, margin: '18px 0 4px', fontWeight: 600 }}>
+                  {COPY.listing.doneHeading}
+                </Text>
+              ) : null}
             </>
-          ) : null}
+          ) : (
+            // Complete: one line, no bar. A full-width bar would only restate
+            // the word "complete", and the ticks below name every check it
+            // would have counted — so the bar is the part that adds nothing.
+            <Text style={{ ...styles.hint, margin: '28px 0 8px' }}>
+              <strong>{listingCopy.heading}</strong> — {listingCopy.intro}
+            </Text>
+          )}
+          {/* `label` is the check's `passedLabel` — a tick beside an imperative
+              ("Take the address out") reads as an endorsement of leaving it in. */}
+          {progress.done.map((item) => (
+            <Text key={item.key} style={doneItem}>
+              <span style={{ color: brand.colors.primary, fontWeight: 700 }}>✓</span> {item.label}
+            </Text>
+          ))}
         </Section>
       ) : null}
 
