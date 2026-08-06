@@ -1,3 +1,4 @@
+import type { TitleTemplateSet } from './types'
 import type { PayloadRequest } from 'payload'
 
 import type { EventTitleSlot } from '@/lib/eventTitle/compose'
@@ -5,8 +6,6 @@ import { EVENT_TITLE_DEFAULTS, EVENT_TITLE_SLOTS } from '@/lib/eventTitle/compos
 import { DEFAULT_LOCALE } from '@/lib/locales'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
-
-import type { TitleTemplateSet } from './types'
 
 /** Where the in-flight templates load is stashed on `req.context`. */
 const TEMPLATES_CACHE_KEY = 'eventQualityTitleTemplates'

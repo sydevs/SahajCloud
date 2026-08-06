@@ -1,12 +1,13 @@
 import type {
   EventDetails,
   EventManagerContact,
+  EventSuggestion,
   ReminderAudience,
   ReminderLevel,
 } from '@/emails/EventVerificationEmail'
 import type { Manager } from '@/payload-types'
 
-export type { EventDetails, EventManagerContact, ReminderAudience, ReminderLevel }
+export type { EventDetails, EventManagerContact, EventSuggestion, ReminderAudience, ReminderLevel }
 
 /** Delivery channels. Only `email` is wired in v1; the rest are stubbed. */
 export type NotificationChannel = 'email' | 'whatsapp' | 'telegram' | 'wechat'
@@ -24,6 +25,11 @@ export interface ReminderPayload {
   eventUrl?: string | null
   /** Key event facts for the summary table (same for every recipient). */
   details?: EventDetails
+  /**
+   * Open listing-quality recommendations (#611), same for every recipient.
+   * The email template decides who actually sees them.
+   */
+  suggestions?: EventSuggestion[]
   /** Formatted date the event is / was unpublished (all levels). */
   deadline?: string
   /** Human duration the event has gone unverified. */

@@ -12,6 +12,7 @@ import { signVerifyToken } from '@/lib/eventVerification/token'
 import { buildVerifyEmailLink } from '@/lib/eventVerification/verifyUrl'
 import {
   buildEventEmailDetails,
+  buildEventSuggestions,
   buildManagerContacts,
   formatLongDate,
   humanDurationSince,
@@ -117,6 +118,13 @@ async function processEvent(args: {
   // Key event facts for the summary table — same for every recipient.
   const details = await buildEventEmailDetails({ payload, event, req })
 
+  // Open listing-quality recommendations (#611), computed fresh from the event
+  // we already loaded rather than read off the stored `qualityOpenCount` — a
+  // count can't name what to fix. Also same for every recipient, so it's built
+  // once here rather than per send; the reminder ladder itself is untouched, so
+  // adding this can't perturb the per-stage dedup below.
+  const suggestions = await buildEventSuggestions({ event, req, now })
+
   let log = asNotificationLog(event.notificationLog)
 
   // Shared across recipients: the absolute date this event is (or was)
@@ -153,6 +161,7 @@ async function processEvent(args: {
       verifyUrl: buildVerifyEmailLink(token),
       eventUrl,
       details,
+      suggestions,
       eventManager: recipient.role === 'region' ? eventManagerCard : undefined,
       deadline,
       sinceLastVerified,

@@ -38,6 +38,23 @@ export interface EventManagerContact {
   contacts: { label: string; value: string }[]
 }
 
+/**
+ * One open listing-quality recommendation (#609), resolved for display.
+ *
+ * The wording is resolved before it reaches the template — the check registry
+ * owns it, so the email and the admin panel can't drift apart. `key` rides
+ * along unused by the render, but it's what makes the list localizable if
+ * manager locales ever come back (#610 was dropped).
+ */
+export interface EventSuggestion {
+  /** Stable check key, e.g. `description.missing`. */
+  key: string
+  /** The recommendation, in the imperative — "Add a description". */
+  label: string
+  /** What the check actually found, or why the item is worth doing. */
+  detail: string
+}
+
 interface EventVerificationEmailProps {
   /** Recipient display name. */
   name: string
@@ -57,6 +74,11 @@ interface EventVerificationEmailProps {
   sinceLastVerified: string
   /** Key event facts (rendered as a summary table). */
   details?: EventDetails
+  /**
+   * Open listing-quality recommendations. Omitted (or empty) renders nothing —
+   * a complete listing gets exactly the email it did before #611.
+   */
+  suggestions?: EventSuggestion[]
   /** The ancestor region linking a region manager to the event (region audience). */
   regionName?: string
   /** Event manager's contacts — shown to region managers so they can reach out. */
@@ -107,6 +129,8 @@ const COPY: {
   greeting: (name: string) => ReactNode
   buttonHint: string
   footer: (audience: ReminderAudience, brandName: string) => ReactNode
+  /** The listing-quality recommendations section (#611). */
+  suggestions: { heading: string; intro: ReactNode }
   /** The pre-filled email a region manager's "Contact manager" button opens. */
   contactManager: {
     subject: (eventTitle: string) => string
@@ -133,6 +157,16 @@ const COPY: {
       are unique to you and acts on your behalf — please don’t forward this email.
     </>
   ),
+
+  suggestions: {
+    heading: 'Suggested improvements',
+    intro: (
+      <>
+        These are optional and don’t affect verification — a fuller listing simply helps seekers
+        find your class and know what to expect.
+      </>
+    ),
+  },
 
   contactManager: {
     subject: (eventTitle) => `Please verify your Sahaja Yoga class: ${eventTitle}`,
@@ -293,6 +327,7 @@ export function EventVerificationEmail({
   deadline,
   sinceLastVerified,
   details,
+  suggestions,
   regionName,
   eventManager,
   project = 'sahaj-atlas',
@@ -309,6 +344,11 @@ export function EventVerificationEmail({
     region: <strong>{regionName ?? 'your region'}</strong>,
     sinceLastVerified,
   }
+
+  // Shown to the event's own manager only. A region manager is here to nudge
+  // someone else into verifying — handing them a list of that volunteer's
+  // shortcomings sours a conversation they can't act on themselves.
+  const openSuggestions = audience === 'manager' ? (suggestions ?? []) : []
 
   // Region managers don't verify (they may lack the details); their CTA emails
   // the event manager instead. Everyone else gets the tokenized verify link.
@@ -388,6 +428,21 @@ export function EventVerificationEmail({
             </DetailRow>
           ) : null}
           <DetailRow label="Last verified">{details.lastVerified}</DetailRow>
+        </Section>
+      ) : null}
+
+      {openSuggestions.length > 0 ? (
+        <Section>
+          <SectionHeading>{COPY.suggestions.heading}</SectionHeading>
+          <Text style={styles.hint}>{COPY.suggestions.intro}</Text>
+          {/* Every open item, uncapped: the registry is deliberately coarse and
+              two of its four checks are mutually exclusive, so at most three
+              can be open at once — never enough to read as a scolding. */}
+          {openSuggestions.map((suggestion) => (
+            <DetailRow key={suggestion.key} label={suggestion.label}>
+              {suggestion.detail}
+            </DetailRow>
+          ))}
         </Section>
       ) : null}
 

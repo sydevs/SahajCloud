@@ -5,7 +5,9 @@ import {
   EventVerificationEmail,
   type EventDetails,
   type EventManagerContact,
+  type EventSuggestion,
 } from '@/emails/EventVerificationEmail'
+import { EVENT_QUALITY_CHECK_METADATA } from '@/lib/eventQuality'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
 const details: EventDetails = {
@@ -26,6 +28,20 @@ const eventManager: EventManagerContact = {
     { label: 'WhatsApp', value: '+91 98765 43210' },
   ],
 }
+
+/** Built the way the job builds them — labels resolved from the check registry. */
+const suggestions: EventSuggestion[] = [
+  {
+    key: 'description.missing',
+    label: EVENT_QUALITY_CHECK_METADATA['description.missing'].label,
+    detail: EVENT_QUALITY_CHECK_METADATA['description.missing'].description,
+  },
+  {
+    key: 'images.insufficient',
+    label: EVENT_QUALITY_CHECK_METADATA['images.insufficient'].label,
+    detail: 'Only one photo so far.',
+  },
+]
 
 const baseProps = {
   name: 'Jo Manager',
@@ -103,6 +119,73 @@ describe('EventVerificationEmail', () => {
     expect(urgent.toLowerCase()).toContain('final reminder')
     expect(expired).toContain('unpublished')
     expect(expired).toContain('3 months') // fairness: how long it went unverified
+  })
+
+  describe('listing suggestions', () => {
+    it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
+      'renders every open recommendation in the %s reminder',
+      async (level) => {
+        const html = await renderEmail(
+          createElement(EventVerificationEmail, { ...baseProps, level, suggestions }),
+        )
+        expect(html).toContain('Suggested improvements')
+        for (const suggestion of suggestions) {
+          expect(html).toContain(suggestion.label)
+          expect(html).toContain(suggestion.detail)
+        }
+      },
+    )
+
+    it('takes its wording from the check registry, not the template', async () => {
+      // The one source of truth with the admin panel: nothing here is spelled
+      // out in the template, so re-wording `copy.ts` re-words the email too.
+      const html = await renderEmail(
+        createElement(EventVerificationEmail, { ...baseProps, level: 'due', suggestions }),
+      )
+      expect(html).toContain(EVENT_QUALITY_CHECK_METADATA['description.missing'].label)
+      expect(html).toContain(EVENT_QUALITY_CHECK_METADATA['description.missing'].description)
+    })
+
+    it('says the suggestions are optional, so the email stays a nudge', async () => {
+      const html = await renderEmail(
+        createElement(EventVerificationEmail, { ...baseProps, level: 'due', suggestions }),
+      )
+      expect(html).toContain('don’t affect verification')
+    })
+
+    it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
+      'renders the %s email byte-identically when there is nothing open',
+      async (level) => {
+        const untouched = await renderEmail(
+          createElement(EventVerificationEmail, { ...baseProps, level }),
+        )
+        const empty = await renderEmail(
+          createElement(EventVerificationEmail, { ...baseProps, level, suggestions: [] }),
+        )
+        const absent = await renderEmail(
+          createElement(EventVerificationEmail, { ...baseProps, level, suggestions: undefined }),
+        )
+
+        expect(empty).toBe(untouched)
+        expect(absent).toBe(untouched)
+        expect(untouched).not.toContain('Suggested improvements')
+      },
+    )
+
+    it('omits them from region-manager mail — they can’t act on the listing', async () => {
+      const html = await renderEmail(
+        createElement(EventVerificationEmail, {
+          ...baseProps,
+          level: 'escalated',
+          audience: 'region',
+          regionName: 'Maharashtra',
+          eventManager,
+          suggestions,
+        }),
+      )
+      expect(html).not.toContain('Suggested improvements')
+      expect(html).not.toContain(suggestions[0].label)
+    })
   })
 
   describe('region-manager framing', () => {
