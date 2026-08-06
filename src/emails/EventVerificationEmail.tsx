@@ -468,8 +468,8 @@ export function EventVerificationEmail({
   // shortcomings sours a conversation they can't act on themselves.
   //
   // A `total` of 0 would mean every check bowed out (see `requiresHandWrittenTitle`
-  // / `skipWhenFailed`), which leaves nothing to be a fraction of — suppress
-  // rather than render "0 of 0 complete" and an empty bar.
+  // / `dependsOn`), which leaves nothing to be a fraction of — suppress rather
+  // than render "0 of 0 complete" and an empty bar.
   const progress = audience === 'manager' && listingProgress?.total ? listingProgress : null
   const hasOpen = (progress?.open.length ?? 0) > 0
   const listingCopy = hasOpen ? COPY.listing.open : COPY.listing.complete

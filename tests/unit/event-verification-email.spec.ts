@@ -86,11 +86,16 @@ const baseProps = {
   sinceLastVerified: '3 months',
 }
 
+/** Render with `baseProps`, overridden per case. Returns the promise so the
+ *  unsupported region/due combination can still be asserted with `.rejects`. */
+const render = (props: Partial<Parameters<typeof EventVerificationEmail>[0]> = {}) =>
+  renderEmail(createElement(EventVerificationEmail, { ...baseProps, level: 'due', ...props }))
+
 describe('EventVerificationEmail', () => {
   it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
     'renders the %s reminder with the verify link + sahaj-atlas brand',
     async (level) => {
-      const html = await renderEmail(createElement(EventVerificationEmail, { ...baseProps, level }))
+      const html = await render({ level })
       const brand = getEmailBrand('sahaj-atlas')
 
       expect(html).toContain(details.title) // event named in the summary table
@@ -103,15 +108,13 @@ describe('EventVerificationEmail', () => {
   it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
     'states the unpublish date in the callout for the %s level',
     async (level) => {
-      const html = await renderEmail(createElement(EventVerificationEmail, { ...baseProps, level }))
+      const html = await render({ level })
       expect(html).toContain('Saturday, 19 July 2026')
     },
   )
 
   it('renders the event details summary table', async () => {
-    const html = await renderEmail(
-      createElement(EventVerificationEmail, { ...baseProps, level: 'due' }),
-    )
+    const html = await render({ level: 'due' })
     expect(html).toContain('12 MG Road, Pune, Maharashtra, IN 411001')
     expect(html).toContain('Every week on Saturday at 9:26 AM')
     expect(html).toContain('4 registrations in the last 30 days')
@@ -120,7 +123,7 @@ describe('EventVerificationEmail', () => {
   it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
     'shows the last-verified date in the details table for the %s level',
     async (level) => {
-      const html = await renderEmail(createElement(EventVerificationEmail, { ...baseProps, level }))
+      const html = await render({ level })
       expect(html).toContain('Last verified')
       expect(html).toContain('Wednesday, 12 March 2026')
     },
@@ -128,27 +131,19 @@ describe('EventVerificationEmail', () => {
 
   it('renders a "View event" button when eventUrl is given', async () => {
     const eventUrl = 'https://wemeditate.com/map#/!/events/1042'
-    const html = await renderEmail(
-      createElement(EventVerificationEmail, { ...baseProps, level: 'due', eventUrl }),
-    )
+    const html = await render({ level: 'due', eventUrl })
     expect(html).toContain(eventUrl)
     expect(html).toContain('View event')
   })
 
   it('omits the "View event" button when eventUrl is null (unpublished)', async () => {
-    const html = await renderEmail(
-      createElement(EventVerificationEmail, { ...baseProps, level: 'expired', eventUrl: null }),
-    )
+    const html = await render({ level: 'expired', eventUrl: null })
     expect(html).not.toContain('View event')
   })
 
   it('marks the urgent level as the final reminder, expired as unpublished', async () => {
-    const urgent = await renderEmail(
-      createElement(EventVerificationEmail, { ...baseProps, level: 'urgent' }),
-    )
-    const expired = await renderEmail(
-      createElement(EventVerificationEmail, { ...baseProps, level: 'expired' }),
-    )
+    const urgent = await render({ level: 'urgent' })
+    const expired = await render({ level: 'expired' })
     expect(urgent.toLowerCase()).toContain('final reminder')
     expect(expired).toContain('unpublished')
     expect(expired).toContain('3 months') // fairness: how long it went unverified
@@ -158,9 +153,7 @@ describe('EventVerificationEmail', () => {
     it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
       'renders every open recommendation in the %s reminder',
       async (level) => {
-        const html = await renderEmail(
-          createElement(EventVerificationEmail, { ...baseProps, level, listingProgress }),
-        )
+        const html = await render({ level, listingProgress })
         expect(html).toMatch(PROGRESS_CAPTION)
         for (const suggestion of listingProgress.open) {
           expect(html).toContain(suggestion.label)
@@ -172,44 +165,33 @@ describe('EventVerificationEmail', () => {
     it('takes its wording from the check registry, not the template', async () => {
       // The one source of truth with the admin panel: nothing here is spelled
       // out in the template, so re-wording `copy.ts` re-words the email too.
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, { ...baseProps, level: 'due', listingProgress }),
-      )
+      const html = await render({ level: 'due', listingProgress })
       expect(html).toContain(check('description.missing').label)
       expect(html).toContain(check('description.missing').description)
     })
 
     it('says the suggestions are optional, so the email stays a nudge', async () => {
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, { ...baseProps, level: 'due', listingProgress }),
-      )
+      const html = await render({ level: 'due', listingProgress })
       expect(html).toContain('don’t affect verification')
     })
 
     it('states how far along the listing is', async () => {
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, { ...baseProps, level: 'due', listingProgress }),
-      )
+      const html = await render({ level: 'due', listingProgress })
       expect(html).toContain('1 of 3 complete')
     })
 
     it('draws the bar filled to the resolved share', async () => {
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, {
-          ...baseProps,
-          level: 'due',
-          listingProgress: { ...listingProgress, resolved: 1, total: 4 },
-        }),
-      )
+      const html = await render({
+        level: 'due',
+        listingProgress: { ...listingProgress, resolved: 1, total: 4 },
+      })
       // A real filled cell, not a styled div — Outlook drops div backgrounds.
       expect(html).toMatch(/width:\s*25%/)
       expect(html).toMatch(/width:\s*75%/)
     })
 
     it('names what already passes, worded as a state not an instruction', async () => {
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, { ...baseProps, level: 'due', listingProgress }),
-      )
+      const html = await render({ level: 'due', listingProgress })
       expect(html).toContain('Already done')
       expect(html).toContain(check('title.quality').passedLabel)
       // The imperative must not appear beside a tick.
@@ -217,13 +199,7 @@ describe('EventVerificationEmail', () => {
     })
 
     it('celebrates a complete listing instead of listing nothing', async () => {
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, {
-          ...baseProps,
-          level: 'due',
-          listingProgress: completeProgress,
-        }),
-      )
+      const html = await render({ level: 'due', listingProgress: completeProgress })
       expect(html).toMatch(COMPLETE_CALLOUT)
       // Names every check it passed, so "complete" is backed by specifics.
       for (const item of completeProgress.done) {
@@ -238,25 +214,13 @@ describe('EventVerificationEmail', () => {
     it('drops the progress bar once the listing is complete', async () => {
       // A full-width bar would only restate the word "complete", and the ticks
       // already name every check it would have counted.
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, {
-          ...baseProps,
-          level: 'due',
-          listingProgress: completeProgress,
-        }),
-      )
+      const html = await render({ level: 'due', listingProgress: completeProgress })
       expect(html).not.toMatch(PROGRESS_CAPTION)
       expect(html).not.toMatch(/width:\s*100%;background-color/)
     })
 
     it('stacks the complete heading above its line, not inline with it', async () => {
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, {
-          ...baseProps,
-          level: 'due',
-          listingProgress: completeProgress,
-        }),
-      )
+      const html = await render({ level: 'due', listingProgress: completeProgress })
       // Two sibling paragraphs, not one: the heading's block closes and the
       // next one opens, rather than the sentence running on inside it.
       expect(html).toMatch(/<p[^>]*font-weight:700[^>]*>[^<]+<\/p>\s*<p/)
@@ -265,16 +229,8 @@ describe('EventVerificationEmail', () => {
     it('does not tell a complete listing to improve itself', async () => {
       // The heading swaps with the state: an "Improve your listing" heading
       // sitting above a "nothing left to do" note contradicts itself.
-      const open = await renderEmail(
-        createElement(EventVerificationEmail, { ...baseProps, level: 'due', listingProgress }),
-      )
-      const complete = await renderEmail(
-        createElement(EventVerificationEmail, {
-          ...baseProps,
-          level: 'due',
-          listingProgress: completeProgress,
-        }),
-      )
+      const open = await render({ level: 'due', listingProgress })
+      const complete = await render({ level: 'due', listingProgress: completeProgress })
       expect(open).toMatch(/Improve your listing/i)
       expect(complete).not.toMatch(/Improve your listing/i)
     })
@@ -285,16 +241,8 @@ describe('EventVerificationEmail', () => {
         // The skipped case (unpublished / finished / expired / trashed): the
         // section is absent entirely, exactly as before #611. A *complete*
         // listing is deliberately not this case — it gets the note above.
-        const untouched = await renderEmail(
-          createElement(EventVerificationEmail, { ...baseProps, level }),
-        )
-        const absent = await renderEmail(
-          createElement(EventVerificationEmail, {
-            ...baseProps,
-            level,
-            listingProgress: undefined,
-          }),
-        )
+        const untouched = await render({ level })
+        const absent = await render({ level, listingProgress: undefined })
 
         expect(absent).toBe(untouched)
         expect(untouched).not.toMatch(PROGRESS_CAPTION)
@@ -306,38 +254,30 @@ describe('EventVerificationEmail', () => {
       // nothing to be a fraction of. Asserted as byte-identity against the
       // never-checked render rather than "no caption appears": the complete
       // state has no caption either, so that alone wouldn't tell the two apart.
-      const empty = await renderEmail(
-        createElement(EventVerificationEmail, {
-          ...baseProps,
-          level: 'due',
-          listingProgress: { open: [], done: [], resolved: 0, total: 0 },
-        }),
-      )
-      const neverChecked = await renderEmail(
-        createElement(EventVerificationEmail, { ...baseProps, level: 'due' }),
-      )
+      const empty = await render({
+        level: 'due',
+        listingProgress: { open: [], done: [], resolved: 0, total: 0 },
+      })
+      const neverChecked = await render({ level: 'due' })
       expect(empty).toBe(neverChecked)
     })
 
     it('omits it from region-manager mail — they can’t act on the listing', async () => {
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, {
-          ...baseProps,
-          level: 'escalated',
-          audience: 'region',
-          regionName: 'Maharashtra',
-          eventManager,
-          listingProgress,
-        }),
-      )
+      const html = await render({
+        level: 'escalated',
+        audience: 'region',
+        regionName: 'Maharashtra',
+        eventManager,
+        listingProgress,
+      })
       expect(html).not.toMatch(PROGRESS_CAPTION)
       expect(html).not.toContain(listingProgress.open[0].label)
     })
   })
 
   describe('region-manager framing', () => {
+    /** The region-audience overrides, layered onto `baseProps` by `render`. */
     const regionProps = {
-      ...baseProps,
       audience: 'region' as const,
       name: 'Rohan Patil',
       regionName: 'Maharashtra',
@@ -345,26 +285,20 @@ describe('EventVerificationEmail', () => {
     }
 
     it('frames it as an event in their region and asks them to follow up', async () => {
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, { ...regionProps, level: 'escalated' }),
-      )
+      const html = await render({ ...regionProps, level: 'escalated' })
       expect(html).toContain('event in')
       expect(html).not.toContain('your event')
       expect(html.toLowerCase()).toMatch(/reach out|get in touch|contact/)
     })
 
     it('names the region that links the manager to the event in the body', async () => {
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, { ...regionProps, level: 'escalated' }),
-      )
+      const html = await render({ ...regionProps, level: 'escalated' })
       expect(html).toContain('event in')
       expect(html).toContain('Maharashtra')
     })
 
     it('includes the event manager name and every contact method', async () => {
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, { ...regionProps, level: 'urgent' }),
-      )
+      const html = await render({ ...regionProps, level: 'urgent' })
       expect(html).toContain('Priya Deshmukh')
       expect(html).toContain('priya@example.com')
       expect(html).toContain('+91 98765 43210')
@@ -372,25 +306,21 @@ describe('EventVerificationEmail', () => {
     })
 
     it('points its CTA at the event manager (mailto), not the verify link', async () => {
-      const html = await renderEmail(
-        createElement(EventVerificationEmail, { ...regionProps, level: 'escalated' }),
-      )
+      const html = await render({ ...regionProps, level: 'escalated' })
       expect(html).toContain('mailto:priya@example.com')
       // Region managers don't verify the event themselves.
       expect(html).not.toContain(baseProps.verifyUrl)
     })
 
     it('throws for the unsupported region "due" reminder', async () => {
-      await expect(
-        renderEmail(createElement(EventVerificationEmail, { ...regionProps, level: 'due' })),
-      ).rejects.toThrow(/not supported for region/)
+      await expect(render({ ...regionProps, level: 'due' })).rejects.toThrow(
+        /not supported for region/,
+      )
     })
   })
 
   it('warns against forwarding the email', async () => {
-    const html = await renderEmail(
-      createElement(EventVerificationEmail, { ...baseProps, level: 'due' }),
-    )
+    const html = await render({ level: 'due' })
     expect(html).toContain('forward this email')
   })
 

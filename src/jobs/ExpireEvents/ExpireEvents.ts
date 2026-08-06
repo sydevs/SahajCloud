@@ -306,6 +306,13 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
           collection: 'events',
           id,
           depth: 1,
+          // Exclude-mode select (any `false` switches the whole select to
+          // exclude — `getSelectMode`), so every other field still loads. The
+          // virtual `qualityReport` is the one field this job never reads, and
+          // an unselected field returns before its `afterRead` runs
+          // (`stripUnselectedFields`), so the report isn't built here at all.
+          // It's built once, explicitly, by `buildEventListingProgress` below.
+          select: { qualityReport: false },
           overrideAccess: true,
           req,
         })
