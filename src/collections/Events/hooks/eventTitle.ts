@@ -137,6 +137,10 @@ export const eventTitleBeforeChange: FieldHook = async ({ value, data, originalD
   // Reached only when the region read fails (a trashed region, a DB blip) or an
   // event somehow has neither an address nor a region.
   if (!place) {
+    // A draft is allowed to be incomplete: Payload skips `required` entirely
+    // for one, and this throw stands in for `required`, so it has to skip too.
+    // The guarantee is that every *published* event carries a title.
+    if ((data?._status ?? originalDoc?._status) === 'draft') return value
     throw new ValidationError({
       collection: 'events',
       errors: [

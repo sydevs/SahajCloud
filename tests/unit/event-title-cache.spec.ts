@@ -243,5 +243,16 @@ describe('Event title memoization (#542 bulk-import stampede guard)', () => {
       await expect(call(req, { region: 42, schedule: eveningSchedule })).rejects.toThrow(/title/i)
       await expect(call(req, { schedule: eveningSchedule })).rejects.toThrow(/title/i)
     })
+
+    it('lets a draft stay incomplete, as `required` itself does', async () => {
+      // Payload skips `required` for a draft, and this throw stands in for it —
+      // the guarantee is that every *published* event carries a title.
+      const { req } = makeReq(
+        async () => ({}),
+        () => Promise.reject(new Error('NotFound')),
+      )
+
+      await expect(call(req, { _status: 'draft', schedule: eveningSchedule })).resolves.toBe('')
+    })
   })
 })
