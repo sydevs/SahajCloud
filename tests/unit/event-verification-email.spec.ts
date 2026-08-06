@@ -57,11 +57,15 @@ const listingProgress: EventListingProgress = {
   total: 3,
 }
 
-/** Every check passing — the state that earns the completion note. */
+/**
+ * Every check passing — the state that earns the completion note. Note the
+ * absence of `description.missing`: once `description.quality` passes it
+ * supersedes it, so a real report never carries both.
+ */
 const completeProgress: EventListingProgress = {
   open: [],
   done: [
-    { key: 'description.missing', label: check('description.missing').passedLabel },
+    { key: 'description.quality', label: check('description.quality').passedLabel },
     { key: 'title.quality', label: check('title.quality').passedLabel },
     { key: 'images.insufficient', label: check('images.insufficient').passedLabel },
   ],

@@ -438,8 +438,11 @@ describe('Event verification lifecycle', () => {
       expect(html).toContain('Your listing is complete')
       // The ticks name what passed; the bar is dropped once there's no
       // progress left to show, so the caption goes with it.
-      expect(html).toContain('Has a description')
       expect(html).toContain('Has 3+ photos')
+      // "Has a good quality description" supersedes "Has a description" — the
+      // report never carries a prerequisite its dependent has already passed.
+      expect(html).toContain('Has a good quality description')
+      expect(html).not.toContain('>Has a description<')
       expect(html).not.toMatch(/\d+ of \d+ complete/)
       expect(html).not.toContain('Add a description')
       expect(html).not.toContain('Add photos')

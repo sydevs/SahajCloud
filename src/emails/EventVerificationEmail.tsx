@@ -14,12 +14,29 @@ import {
   styles,
 } from './EmailLayout'
 
-/** One already-passing check, as a ticked line under the open recommendations. */
+/** One already-passing check, as a ticked line. */
 const doneItem: CSSProperties = {
   fontSize: '14px',
   color: '#4b5563',
   margin: '0 0 4px',
-  padding: '0 12px',
+}
+
+/** …indented to line up with the `DetailRow` cells it sits under (open state). */
+const doneItemIndented: CSSProperties = { ...doneItem, padding: '0 12px' }
+
+/**
+ * The completed-listing note's box. Deliberately grey rather than another
+ * `CALLOUT_COLORS` entry: those are keyed on how urgent verification is, and
+ * this says the opposite. It's a box at all because the complete state carries
+ * neither a section heading nor a progress bar, so without one it runs
+ * straight into the event-details table above it.
+ */
+const completeCallout: CSSProperties = {
+  backgroundColor: '#f3f4f6',
+  borderLeft: '4px solid #9ca3af',
+  borderRadius: '4px',
+  padding: '12px 14px',
+  margin: '28px 0 16px',
 }
 
 /** Escalation level → email copy. Mirrors the job's reminder stages. */
@@ -373,6 +390,27 @@ function getVariant(audience: ReminderAudience, level: ReminderLevel): VariantCo
   return variant
 }
 
+/**
+ * The already-passing checks, as ticked lines. Shared by both listing states,
+ * which differ only in indentation: the open state aligns them under the
+ * `DetailRow` cells above, while the complete state sits inside a padded box
+ * that supplies the same inset.
+ *
+ * `label` is the check's `passedLabel` — a tick beside an imperative ("Take
+ * the address out") reads as an endorsement of leaving it in.
+ */
+function renderDoneTicks(
+  done: EventListingProgress['done'],
+  color: string,
+  style: CSSProperties,
+): ReactNode {
+  return done.map((item) => (
+    <Text key={item.key} style={style}>
+      <span style={{ color, fontWeight: 700 }}>✓</span> {item.label}
+    </Text>
+  ))
+}
+
 /** mailto a region manager uses to reach the event manager (the region CTA). */
 function contactManagerHref(email: string, eventTitle: string, managerName: string): string {
   const subject = COPY.contactManager.subject(eventTitle)
@@ -509,49 +547,48 @@ export function EventVerificationEmail({
       ) : null}
 
       {progress ? (
-        <Section>
-          {hasOpen ? (
-            <>
-              <SectionHeading>{listingCopy.heading}</SectionHeading>
-              <ProgressBar
-                resolved={progress.resolved}
-                total={progress.total}
-                color={brand.colors.primary}
-                caption={COPY.listing.caption(progress.resolved, progress.total)}
-              />
-              <Text style={styles.hint}>{listingCopy.intro}</Text>
-              {/* Every open item, uncapped: the registry is deliberately coarse
-                  and two of its four checks are mutually exclusive, so at most
-                  three can be open at once — never enough to read as a scolding. */}
-              {progress.open.map((suggestion) => (
-                <DetailRow key={suggestion.key} label={suggestion.label}>
-                  {suggestion.detail}
-                </DetailRow>
-              ))}
-              {/* Only with ticks beneath it — a listing that passes nothing yet
-                  would otherwise get an "Already done" heading over thin air. */}
-              {progress.done.length > 0 ? (
+        hasOpen ? (
+          <Section>
+            <SectionHeading>{listingCopy.heading}</SectionHeading>
+            <ProgressBar
+              resolved={progress.resolved}
+              total={progress.total}
+              color={brand.colors.primary}
+              caption={COPY.listing.caption(progress.resolved, progress.total)}
+            />
+            <Text style={styles.hint}>{listingCopy.intro}</Text>
+            {/* Every open item, uncapped: the registry is deliberately coarse
+                and two of its four checks are mutually exclusive, so at most
+                three can be open at once — never enough to read as a scolding. */}
+            {progress.open.map((suggestion) => (
+              <DetailRow key={suggestion.key} label={suggestion.label}>
+                {suggestion.detail}
+              </DetailRow>
+            ))}
+            {/* Only with ticks beneath it — a listing that passes nothing yet
+                would otherwise get an "Already done" heading over thin air. */}
+            {progress.done.length > 0 ? (
+              <>
                 <Text style={{ ...styles.hint, margin: '18px 0 4px', fontWeight: 600 }}>
                   {COPY.listing.doneHeading}
                 </Text>
-              ) : null}
-            </>
-          ) : (
-            // Complete: one line, no bar. A full-width bar would only restate
-            // the word "complete", and the ticks below name every check it
-            // would have counted — so the bar is the part that adds nothing.
-            <Text style={{ ...styles.hint, margin: '28px 0 8px' }}>
+                {renderDoneTicks(progress.done, brand.colors.primary, doneItemIndented)}
+              </>
+            ) : null}
+          </Section>
+        ) : (
+          // Complete: one line, no bar, boxed. A full-width bar would only
+          // restate the word "complete", and the ticks name every check it
+          // would have counted — but with neither bar nor section heading left,
+          // the note needs the box to read as its own thing rather than as more
+          // event details.
+          <Section style={completeCallout}>
+            <Text style={{ ...styles.hint, margin: '0 0 8px' }}>
               <strong>{listingCopy.heading}</strong> — {listingCopy.intro}
             </Text>
-          )}
-          {/* `label` is the check's `passedLabel` — a tick beside an imperative
-              ("Take the address out") reads as an endorsement of leaving it in. */}
-          {progress.done.map((item) => (
-            <Text key={item.key} style={doneItem}>
-              <span style={{ color: brand.colors.primary, fontWeight: 700 }}>✓</span> {item.label}
-            </Text>
-          ))}
-        </Section>
+            {renderDoneTicks(progress.done, brand.colors.primary, doneItem)}
+          </Section>
+        )
       ) : null}
 
       <BrandButton href={ctaHref} brand={brand}>

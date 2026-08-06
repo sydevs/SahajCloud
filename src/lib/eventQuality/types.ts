@@ -2,7 +2,6 @@ import type { RedundancyKind } from './copy'
 
 import type { EventTitleSlot } from '@/lib/eventTitle/compose'
 
-
 export type { RedundancyKind }
 
 /** Auto-title templates per slot. */
@@ -120,11 +119,20 @@ export type QualityCheck = {
    */
   requiresHandWrittenTitle?: true
   /**
-   * Skip this check when the named check has failed — for a finding that only
-   * makes sense once its prerequisite is satisfied. Keeps the panel from
-   * saying two things about one empty field.
+   * The check this one builds on, by key. The report reads the dependency in
+   * **both** directions:
+   *
+   * - while the prerequisite *fails*, this check is skipped — its subject
+   *   doesn't exist yet, and two findings about one empty field is one too many;
+   * - once this check *passes*, the prerequisite's own result drops out —
+   *   "Has a good quality description" already says "Has a description", so
+   *   reporting both is a redundant row in the panel and a redundant line in
+   *   the reminder email.
+   *
+   * A prerequisite whose dependent is still **open** keeps its own result: the
+   * manager earned that tick and should see it while they work on the rest.
    */
-  skipWhenFailed?: string
+  dependsOn?: string
   /** True when the listing **fails** this check. */
   evaluate: (ctx: CheckContext) => boolean
   /**

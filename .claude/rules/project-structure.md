@@ -76,7 +76,12 @@ No loose files at the root — every file lives in a named folder:
   `pageTags/`, `cascadeDeletion/`, `eventTitle/` (the pure auto-title
   composition — the Events title hook and the quality checks both recompose it),
   `eventQuality/` (the listing-quality check registry + report builder, consumed
-  by the Events collection, the admin panel and the ExpireEvents reminder emails;
+  by the Events collection, the admin panel and the ExpireEvents reminder emails.
+  A check's `dependsOn` is read in **both** directions — the dependent is skipped
+  while its prerequisite fails, and supersedes the prerequisite once it passes,
+  so no consumer renders "Has a description" beside "Has a good quality
+  description". Only ever drops checks that *passed*, so `qualityOpenCount` and
+  `QUALITY_CHECK_VERSION` are untouched;
   barrelled — all user-facing wording lives in its `copy.ts`, which is the only
   file to edit to change what a manager reads. `titleTemplates.ts` is the one
   impure member: it reads the auto-title templates off the translations global,
