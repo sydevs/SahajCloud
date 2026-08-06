@@ -87,7 +87,7 @@ No loose files at the root — every file lives in a named folder:
   impure member: it reads the auto-title templates off the translations global,
   memoized per request, so the report can tell an auto-filled title from a
   hand-written one. Each **consumer** owns its own projection of a report —
-  `EventQualityPanel/model.ts` for the panel, `notifications/eventSuggestions.ts`
+  `EventQualityPanel/model.ts` for the panel, `notifications/listingProgress.ts`
   for the email — because those resolve display wording and would otherwise make
   this folder import a React template's types),
   `registrations/` (the
