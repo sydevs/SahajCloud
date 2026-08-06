@@ -76,9 +76,15 @@ No loose files at the root — every file lives in a named folder:
   `pageTags/`, `cascadeDeletion/`, `eventTitle/` (the pure auto-title
   composition — the Events title hook and the quality checks both recompose it),
   `eventQuality/` (the listing-quality check registry + report builder, consumed
-  by the Events collection and the admin panel; barrelled — all user-facing
-  wording lives in its `copy.ts`, which is the only file to edit to change what
-  a manager reads),
+  by the Events collection, the admin panel and the ExpireEvents reminder emails;
+  barrelled — all user-facing wording lives in its `copy.ts`, which is the only
+  file to edit to change what a manager reads. `titleTemplates.ts` is the one
+  impure member: it reads the auto-title templates off the translations global,
+  memoized per request, so the report can tell an auto-filled title from a
+  hand-written one. Each **consumer** owns its own projection of a report —
+  `EventQualityPanel/model.ts` for the panel, `notifications/eventSuggestions.ts`
+  for the email — because those resolve display wording and would otherwise make
+  this folder import a React template's types),
   `registrations/` (the
   `EVENT_REGISTRATION_QUESTIONS` contract + `questions` validation/shaping,
   shared by Events, Registrations, and the notification email; plus the
