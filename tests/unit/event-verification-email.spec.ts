@@ -30,11 +30,14 @@ const eventManager: EventManagerContact = {
 }
 
 /**
- * The section's fingerprint. Asserted instead of a heading string because
- * headings get reworded — and a reworded heading silently turns every
- * "section is absent" assertion into a vacuous pass.
+ * Fingerprints for the two listing states, asserted instead of their prose.
+ * Copy here gets reworded often, and a reworded string silently turns every
+ * "this did not render" assertion into a vacuous pass — twice already. These
+ * key on structure the wording can't drift away from: the open state's
+ * generated caption, and the complete state's grey callout.
  */
 const PROGRESS_CAPTION = /\d+ of \d+ complete/
+const COMPLETE_CALLOUT = /background-color:#f3f4f6;border-left:4px solid #9ca3af/
 
 const check = (key: string) => EVENT_QUALITY_CHECK_METADATA[key]
 
@@ -221,15 +224,14 @@ describe('EventVerificationEmail', () => {
           listingProgress: completeProgress,
         }),
       )
-      expect(html).toContain('Your listing is complete')
-      expect(html).toContain('Nothing left to improve')
+      expect(html).toMatch(COMPLETE_CALLOUT)
       // Names every check it passed, so "complete" is backed by specifics.
       for (const item of completeProgress.done) {
         expect(html).toContain(item.label)
       }
       // No open items, so no "here's what to do next" framing…
       expect(html).not.toContain('don’t affect verification')
-      // …and no separator heading: the one-line intro introduces the ticks.
+      // …and no separator heading: the note's own line introduces the ticks.
       expect(html).not.toContain('Already done')
     })
 
@@ -255,15 +257,14 @@ describe('EventVerificationEmail', () => {
           listingProgress: completeProgress,
         }),
       )
-      // The heading's own block closes right after it, so the sentence below
-      // starts a new line rather than running on from it.
-      expect(html).toMatch(/Your listing is complete<\/p>/)
-      expect(html).toContain('Nothing left to improve')
+      // Two sibling paragraphs, not one: the heading's block closes and the
+      // next one opens, rather than the sentence running on inside it.
+      expect(html).toMatch(/<p[^>]*font-weight:700[^>]*>[^<]+<\/p>\s*<p/)
     })
 
     it('does not tell a complete listing to improve itself', async () => {
-      // The heading swaps with the state: "Improve your listing" sitting
-      // directly above "Nothing left to improve" contradicts itself.
+      // The heading swaps with the state: an "Improve your listing" heading
+      // sitting above a "nothing left to do" note contradicts itself.
       const open = await renderEmail(
         createElement(EventVerificationEmail, { ...baseProps, level: 'due', listingProgress }),
       )

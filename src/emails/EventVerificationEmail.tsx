@@ -259,7 +259,9 @@ const COPY: {
     },
     complete: {
       heading: 'Your listing is complete',
-      intro: <>Nothing left to improve, and thank you for keeping it up to date.</>,
+      intro: (
+        <>Your event is optimized for seekers to find it. Thank you for keeping it up to date.</>
+      ),
     },
   },
 
