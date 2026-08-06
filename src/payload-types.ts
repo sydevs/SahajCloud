@@ -1457,7 +1457,7 @@ export interface Region {
 export interface Event {
   id: number;
   /**
-   * Event name. Leave blank to auto-fill from the address (e.g. "Meditation at Beethovenstraße 12").
+   * Up to 100 characters. Leave blank to fill in from the venue — "Evening Meditation at Broadstairs Friends Meeting House" — which also translates itself into every language.
    */
   title: string;
   /**
@@ -1684,6 +1684,30 @@ export interface Event {
    */
   images?: (number | Image)[] | null;
   /**
+   * The city or venue this event belongs to.
+   */
+  region: number | Region;
+  eventType: 'offline' | 'online';
+  /**
+   * Link attendees join the online event through.
+   */
+  onlineUrl?: string | null;
+  address?: {
+    mapboxId?: string | null;
+    /**
+     * The building's own name, where it has one. Shown in place of the street when a listing has no title of its own.
+     */
+    venueName?: string | null;
+    street?: string | null;
+    room?: string | null;
+    postCode?: string | null;
+    country?: string | null;
+    region?: string | null;
+    city?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+  /**
    * Mark this event dormant — it has no active schedule. With no schedule to show, you must provide contact info (phone + name) so seekers can reach out and find out more. Inactive events still need verification but never auto-finish.
    */
   inactive?: boolean | null;
@@ -1736,30 +1760,6 @@ export interface Event {
       | boolean
       | null;
   };
-  /**
-   * The city or venue this event belongs to.
-   */
-  region: number | Region;
-  eventType: 'offline' | 'online';
-  /**
-   * Link attendees join the online event through.
-   */
-  onlineUrl?: string | null;
-  address?: {
-    mapboxId?: string | null;
-    /**
-     * The building's own name, where it has one. Shown in place of the street when a listing has no title of its own.
-     */
-    venueName?: string | null;
-    street?: string | null;
-    room?: string | null;
-    postCode?: string | null;
-    country?: string | null;
-    region?: string | null;
-    city?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
-  };
   registrationMode: 'sahaj-atlas' | 'external';
   externalRegistrationUrl?: string | null;
   /**
@@ -1775,11 +1775,10 @@ export interface Event {
    * Optional questions to ask registrants — each enabled question appears on the registration form.
    */
   registrationQuestions?: {
-    priorExperience?: boolean | null;
-    referralSource?: boolean | null;
-    healthInfo?: boolean | null;
-    accessibility?: boolean | null;
-    guests?: boolean | null;
+    experience?: boolean | null;
+    referral?: boolean | null;
+    aspirations?: boolean | null;
+    questions?: boolean | null;
   };
   registrations?: {
     docs?: (number | Registration)[];
@@ -1808,6 +1807,17 @@ export interface Event {
   webPath?: string | null;
   webUrl?: string | null;
   appUrl?: string | null;
+  qualityReport?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  qualityOpenCount?: number | null;
+  qualityCheckVersion?: number | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -1873,23 +1883,19 @@ export interface Registration {
     /**
      * Have you practised Sahaja Yoga meditation before?
      */
-    priorExperience?: string;
+    experience?: string;
     /**
      * How did you hear about this event?
      */
-    referralSource?: string;
+    referral?: string;
     /**
-     * Is there anything about your health we should know?
+     * What are you hoping to get out of this?
      */
-    healthInfo?: string;
+    aspirations?: string;
     /**
-     * Do you have any accessibility requirements?
+     * Do you have any questions for us?
      */
-    accessibility?: string;
-    /**
-     * Will you be bringing any guests?
-     */
-    guests?: string;
+    questions?: string;
   };
   uuid: string;
   mailingListSubscribedAt?: string | null;
@@ -4528,6 +4534,23 @@ export interface EventsSelect<T extends boolean = true> {
   description?: T;
   website?: T;
   images?: T;
+  region?: T;
+  eventType?: T;
+  onlineUrl?: T;
+  address?:
+    | T
+    | {
+        mapboxId?: T;
+        venueName?: T;
+        street?: T;
+        room?: T;
+        postCode?: T;
+        country?: T;
+        region?: T;
+        city?: T;
+        latitude?: T;
+        longitude?: T;
+      };
   inactive?: T;
   schedule?:
     | T
@@ -4557,23 +4580,6 @@ export interface EventsSelect<T extends boolean = true> {
         icalRule?: T;
         upcomingDates?: T;
       };
-  region?: T;
-  eventType?: T;
-  onlineUrl?: T;
-  address?:
-    | T
-    | {
-        mapboxId?: T;
-        venueName?: T;
-        street?: T;
-        room?: T;
-        postCode?: T;
-        country?: T;
-        region?: T;
-        city?: T;
-        latitude?: T;
-        longitude?: T;
-      };
   registrationMode?: T;
   externalRegistrationUrl?: T;
   registrationLimit?: T;
@@ -4582,11 +4588,10 @@ export interface EventsSelect<T extends boolean = true> {
   registrationQuestions?:
     | T
     | {
-        priorExperience?: T;
-        referralSource?: T;
-        healthInfo?: T;
-        accessibility?: T;
-        guests?: T;
+        experience?: T;
+        referral?: T;
+        aspirations?: T;
+        questions?: T;
       };
   registrations?: T;
   registrationsFull?: T;
@@ -4597,6 +4602,9 @@ export interface EventsSelect<T extends boolean = true> {
   webPath?: T;
   webUrl?: T;
   appUrl?: T;
+  qualityReport?: T;
+  qualityOpenCount?: T;
+  qualityCheckVersion?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;

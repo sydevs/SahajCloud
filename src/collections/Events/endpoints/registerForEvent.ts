@@ -28,7 +28,7 @@ const bodySchema = z.object({
   // every registrant English.
   locale: z.string().refine(isValidLocale, 'unsupported locale').optional(),
   // Raw registrant answers, keyed by the event's enabled registration questions
-  // (EVENT_REGISTRATION_QUESTIONS names, e.g. priorExperience / referralSource) —
+  // (EVENT_REGISTRATION_QUESTIONS names, e.g. experience / referral) —
   // resolved to their labels by buildRegistrationAnswers for the manager notice.
   // Bounded so a public caller can't persist unbounded JSON via the widget.
   questions: z

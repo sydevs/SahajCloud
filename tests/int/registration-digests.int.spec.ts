@@ -111,7 +111,7 @@ describe('SendRegistrationDigests job', () => {
     const managerId = await createManager('daily@example.com', 'Daily Summary')
     const eventA = await createEvent(managerId, 'Digest Event A')
     const eventB = await createEvent(managerId, 'Digest Event B')
-    await register(eventA, 'Alice', { referralSource: 'A friend recommended it' })
+    await register(eventA, 'Alice', { referral: 'A friend recommended it' })
     await register(eventA, 'Bob')
     await register(eventB, 'Cara')
 

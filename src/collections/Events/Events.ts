@@ -23,6 +23,7 @@ import {
 import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
+import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS } from '@/lib/eventQuality'
 import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
@@ -38,12 +39,14 @@ import {
   VERIFICATION_STAGE_OPTIONS,
 } from './eventOptions'
 import { ensureWebPathDeps } from './hooks/ensureWebPathDeps'
-import { eventTitleBeforeChange } from './hooks/eventTitle'
+import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuality'
+import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { syncEventFullness } from './hooks/syncFullness'
 import { verifyOnSave } from './hooks/verifyOnSave'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
+
 
 /**
  * Minimal rich-text editor for the event description: italic, an H3,
@@ -86,6 +89,10 @@ export const Events: CollectionConfig = {
   // Soft-delete: "archiving" a long-expired event = trashing it (recoverable
   // from the admin trash view) — replaces Atlas's `archived` terminal.
   trash: true,
+  // The listing-quality report costs two extra reads to compute, and nothing
+  // hydrating an Event through a relationship (a Registration, the sidebar)
+  // wants it. Its `afterRead` also opts out of list reads — see the field.
+  defaultPopulate: { qualityReport: false },
   admin: {
     group: 'Classes',
     useAsTitle: 'title',
@@ -95,7 +102,8 @@ export const Events: CollectionConfig = {
     // forwarding the secret in the x-sahajcloud-preview-secret header — which
     // unlocks drafts (see @/lib/utilities/previewSecret) and must clear CORS
     // preflight (see `cors` in payload.config.ts). `locale` rides along so the
-    // localized title previews in the edited locale.
+    // widget renders its own chrome in the edited locale — the event's title is
+    // one non-localized value, which the widget translates client-side.
     livePreview: {
       // No URL for an unsaved doc (nothing to fetch yet) — null disables the panel.
       url: ({ data, locale }) =>
@@ -115,9 +123,11 @@ export const Events: CollectionConfig = {
     // Then drop finished events from API-client list reads (they stay published
     // so their pages resolve, but shouldn't be listed) — see excludeFinishedEvents.
     beforeOperation: [ensureWebPathDeps, excludeFinishedEvents],
-    // verifyOnSave first (re-opens the verification cycle), then the fullness
-    // recompute stamps `registrationsFull` onto the outgoing data.
-    beforeChange: [verifyOnSave, syncEventFullness],
+    // verifyOnSave first (re-opens the verification cycle), then the two
+    // stamping hooks. Both must run after it: `syncEventFullness` writes
+    // `registrationsFull`, and `stampEventQuality`'s skip rules read
+    // `verificationStage`, so it has to see the stage this save lands on.
+    beforeChange: [verifyOnSave, syncEventFullness, stampEventQuality],
     // Bust the Atlas manager sidebar cache (event list + region counts) whenever
     // an event changes or is trashed/restored.
     afterChange: [revalidateAtlasSidebarHook],
@@ -144,22 +154,25 @@ export const Events: CollectionConfig = {
           label: 'Details',
           fields: [
             {
-              // Primary event name + useAsTitle. Stored and localized. Required,
-              // but a beforeChange hook auto-fills an empty title with
-              // "<localized prefix> <venue>" from the first segment of the
-              // street address (see ./hooks/eventTitle) before validation runs,
-              // so the requirement is satisfied whenever there's an address.
-              // The prefix ("Meditation at") is editable per locale in the
-              // sy-atlas-translations global.
+              // Primary event name + useAsTitle. **Not localized** — the Atlas
+              // widget translates the title client-side, so one stored value in
+              // the default locale is the whole story here. A beforeChange hook
+              // fills an empty one from the venue (see ./hooks/eventTitle).
               name: 'title',
               type: 'text',
-              localized: true,
               required: true,
+              // Matches the address fields' limit. The longest title in the
+              // Atlas data is 94 characters and nothing exceeds 100, so this
+              // binds new writing without locking anyone out of a listing they
+              // already have. `maxLength` is Payload validation, not a column
+              // width, so it needs no migration.
+              maxLength: 100,
+              validate: eventTitleValidate,
               hooks: { beforeChange: [eventTitleBeforeChange] },
               admin: {
                 placeholder: 'Meditation at …',
                 description:
-                  'Event name. Leave blank to auto-fill from the address (e.g. "Meditation at Beethovenstraße 12").',
+                  'Up to 100 characters. Leave blank to fill in from the venue — "Evening Meditation at Broadstairs Friends Meeting House" — which also translates itself into every language.',
               },
             },
             {
@@ -178,15 +191,28 @@ export const Events: CollectionConfig = {
                   label: 'Contact Phone Number',
                   type: 'text',
                   // Inactive events have no schedule, so a public contact is the
-                  // only way a seeker can reach out — require it (and the name
-                  // below) when inactive. Always visible, so this can't gate on
-                  // an `admin.condition`; a validate keeps active events optional.
+                  // only way a seeker can reach out — an inactive event must
+                  // carry at least one. Any route satisfies it, not a phone
+                  // specifically: an email or a page to read is just as
+                  // reachable, and demanding a phone rejected real listings
+                  // whose only contact was a Meetup page. Always visible, so
+                  // this can't gate on an `admin.condition`; a validate keeps
+                  // active events optional.
                   validate: (
                     value: string | null | undefined,
-                    { data }: { data?: { inactive?: boolean } },
+                    {
+                      data,
+                    }: {
+                      data?: {
+                        inactive?: boolean
+                        contactEmail?: string | null
+                        website?: string | null
+                        onlineUrl?: string | null
+                      }
+                    },
                   ) =>
-                    data?.inactive && !value
-                      ? 'Add a contact phone — inactive events have no schedule for seekers to rely on.'
+                    data?.inactive && !value && !data.contactEmail && !data.website && !data.onlineUrl
+                      ? 'Add a phone, an email or a website — an inactive event has no schedule for seekers to rely on.'
                       : true,
                   admin: {
                     description:
@@ -196,12 +222,13 @@ export const Events: CollectionConfig = {
                 {
                   name: 'contactName',
                   type: 'text',
-                  required: true,
-                  // Required (and shown) when a phone is given, or when the event
-                  // is inactive. A false condition skips both `required` + this,
-                  // so active events without a phone stay unaffected.
+                  // Shown when a phone is given — it names the person who
+                  // answers it — but not *required*: the Atlas dump holds
+                  // numbers with no name against them, and refusing those threw
+                  // away the only contact route a dormant listing had. A nicety,
+                  // not a necessity.
                   admin: {
-                    condition: (data) => !!data?.contactPhone || !!data?.inactive,
+                    condition: (data) => !!data?.contactPhone,
                     description: 'The name of the person they are calling',
                   },
                 },
@@ -239,35 +266,6 @@ export const Events: CollectionConfig = {
               hasMany: true,
               admin: { description: 'Photos for this event.' },
             },
-          ],
-        },
-        {
-          label: 'Schedule',
-          fields: [
-            {
-              // Dormant events have no active schedule. They still require
-              // verification (and can expire), but never auto-`finished` — the
-              // ExpireEvents finished-check skips inactive events. Hiding the
-              // schedule when inactive also drops its `required` validation
-              // (Payload skips required + validate when a condition is false).
-              name: 'inactive',
-              type: 'checkbox',
-              defaultValue: false,
-              admin: {
-                description:
-                  'Mark this event dormant — it has no active schedule. With no schedule to show, you must provide contact info (phone + name) so seekers can reach out and find out more. Inactive events still need verification but never auto-finish.',
-              },
-            },
-            scheduleFields({
-              label: false,
-              required: true,
-              hasComplexWeekly: true,
-              hasComplexMonthly: true,
-              hasEndTime: true,
-              hasEnding: true,
-              hasExclusions: true,
-              admin: { condition: (data) => !data?.inactive },
-            }),
           ],
         },
         {
@@ -314,6 +312,35 @@ export const Events: CollectionConfig = {
               // the title auto-fill prefers over the street — see eventTitle.ts.
               hasVenueName: true,
               admin: { condition: (data) => data?.eventType === 'offline' },
+            }),
+          ],
+        },
+        {
+          label: 'Schedule',
+          fields: [
+            {
+              // Dormant events have no active schedule. They still require
+              // verification (and can expire), but never auto-`finished` — the
+              // ExpireEvents finished-check skips inactive events. Hiding the
+              // schedule when inactive also drops its `required` validation
+              // (Payload skips required + validate when a condition is false).
+              name: 'inactive',
+              type: 'checkbox',
+              defaultValue: false,
+              admin: {
+                description:
+                  'Mark this event dormant — it has no active schedule. With no schedule to show, you must provide contact info (phone + name) so seekers can reach out and find out more. Inactive events still need verification but never auto-finish.',
+              },
+            },
+            scheduleFields({
+              label: false,
+              required: true,
+              hasComplexWeekly: true,
+              hasComplexMonthly: true,
+              hasEndTime: true,
+              hasEnding: true,
+              hasExclusions: true,
+              admin: { condition: (data) => !data?.inactive },
             }),
           ],
         },
@@ -510,6 +537,52 @@ export const Events: CollectionConfig = {
         return regionPath != null ? `${regionPath}/${id}` : null
       },
     }),
+    {
+      // Advisory listing-quality recommendations (#609), in the sidebar above
+      // Legacy Data. Computed on read, so opening the event is already fresh —
+      // there is deliberately no refresh control, which would have to re-save
+      // the document and churn `updatedAt` and the version history.
+      //
+      // NOT localized: `description`/`images`/`website` aren't, and the
+      // per-locale tier's whole job is answering "which of my languages is
+      // missing a title" — which a localized field, returning only the active
+      // locale, structurally cannot do.
+      name: 'qualityReport',
+      type: 'json',
+      virtual: true,
+      label: false,
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        components: { Field: '@/components/admin/EventQualityPanel' },
+        // Labels live with the check definitions, so the code stays the
+        // single source of truth and a new check can't ship unlabelled.
+        custom: {
+          checksMetadata: EVENT_QUALITY_CHECK_METADATA,
+          skipReasonLabels: SKIP_REASON_LABELS,
+        },
+      },
+      hooks: { afterRead: [computeEventQualityReport] },
+    },
+    {
+      // Open document-scope items, for list-view sorting and targeted queries.
+      // A query pre-filter, not a score: the per-locale checks read localized
+      // titles a write hook can't see, so a single non-localized column cannot
+      // hold a correct cross-locale figure.
+      name: 'qualityOpenCount',
+      type: 'number',
+      index: true,
+      admin: { hidden: true },
+    },
+    {
+      // Which definition of the check set produced `qualityOpenCount`, so a
+      // stored count stays comparable across deploys. Stamped on every write;
+      // nothing re-stamps in bulk (production is seeded by the Atlas import,
+      // which writes through the same hook).
+      name: 'qualityCheckVersion',
+      type: 'number',
+      admin: { hidden: true },
+    },
     ...legacyMigrationFields(),
   ],
 }

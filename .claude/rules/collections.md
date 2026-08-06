@@ -102,6 +102,33 @@ Returning `true` for null in your custom validator silently overrides
 When `admin.condition` is false, PayloadCMS skips both `required` and
 your custom `validate` entirely. When it's true, it runs both normally.
 
+### The exception: a field a hook fills for you (Events `title`)
+
+A field that a `beforeChange` hook auto-fills has to break the rule above, and
+the reason is worth knowing: **no field hook runs in the browser**. Server-side
+the order is hooks → `validate` (`payload/dist/fields/hooks/beforeChange/promise.js`
+— hooks at line 58, `validate` at 86), so the value is already filled by the time
+it's checked. The admin panel validates *before* sending the request, with no
+hook to fill anything — so `required` refuses the blank field outright and the
+"leave it blank and we'll write it for you" workflow is unreachable.
+
+Permitting the blank in `validate` unblocks the browser but disarms `required`,
+because supplying `validate` **replaces** the default that enforces it
+(`payload/dist/fields/config/sanitize.js` installs the default only when
+`validate === undefined` — which is also why a custom validator must compose
+with `text` from `payload/shared` or it silently drops `maxLength`).
+
+So put the guarantee where the knowledge is. `src/collections/Events/hooks/eventTitle.ts`:
+
+- the **hook** throws a `ValidationError` against the field when the auto-fill
+  comes up empty — it is the only party that knows whether it actually had
+  anything to work from;
+- the **validator** answers only the cheap question the browser can answer (is a
+  value *plausible*), and never pretends to be the enforcement.
+
+Don't reach for `event: 'submit'` to tell browser from server — Payload's server
+path passes `event: 'submit'` too, so it discriminates nothing.
+
 ## `defaultPopulate`
 
 `defaultPopulate` controls what's included **only when a doc is loaded
@@ -137,6 +164,68 @@ expect(m.tagAssignments).toBeFalsy()  // FAILS
 const lesson = await payload.findByID({ collection: 'lessons', id, depth: 1 })
 expect((lesson.meditation as Meditation).tagAssignments).toBeFalsy()
 ```
+
+### `defaultPopulate` does **not** cover the list view
+
+It only applies to relationship hydration. A list read is a plain `find`, so an
+expensive `afterRead` still runs once per row — 25 rows, 25 fan-outs. The guard
+for that is the **`findMany`** flag Payload passes to every field hook (`true`
+for `find`, absent for `findByID`):
+
+```typescript
+hooks: {
+  afterRead: [
+    async ({ data, req, findMany }) => {
+      if (findMany) return null   // list read — don't pay the per-row cost
+      return computeSomethingExpensive(data, req)
+    },
+  ],
+}
+```
+
+Pair it with a cheap **stored** column for anything the list actually needs to
+sort or filter on (`Events.qualityOpenCount` is that column for the
+listing-quality report — see `src/lib/eventQuality/`). Test it by asserting the
+field is null on a `payload.find()`; removing the guard must make that fail.
+
+### A nested read of another locale must not reuse the caller's `req`
+
+`locale` is **not** a per-call argument to the Local API. `createLocalReq`
+assigns it straight onto the request object you hand over
+(`payload/dist/utilities/createLocalReq.js`):
+
+```js
+req.locale = localeCandidate && typeof localeCandidate === 'string' ? localeCandidate : defaultLocale
+req.fallbackLocale = sanitizedFallback
+```
+
+So `payload.findByID({ locale: 'all', req })` inside a hook doesn't scope `all`
+to that read — it **repoints the caller's whole request** for the rest of its
+life. In a hook that runs during a write, every later step of that write then
+runs under the wrong locale, and a localized field's value is silently dropped:
+the operation reports success and persists nothing. That was a real bug in the
+Events quality report (#609) — a German title saved on a published event
+vanished, with no error.
+
+Pass a copy whenever the nested call reads a **different** locale than the
+caller:
+
+```typescript
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
+
+const doc = await req.payload.findByID({
+  collection: 'events',
+  id,
+  locale: 'all',
+  select: { title: true },
+  req: localeIsolatedReq(req), // not `req`
+})
+```
+
+`context`, `transactionID`, `user` and `payload` still travel by reference, so
+memoization, the transaction and access control are unaffected — only
+`locale`/`fallbackLocale` become the copy's own. Not needed when the nested call
+uses the caller's own locale.
 
 ## Plugins
 
@@ -337,6 +426,21 @@ creates a duplicate. That was a live bug in the seed importers'
 `preloadCollection` — `CleanupOrphanedMedia` trashes orphaned Files/Images, so a
 later re-seed re-uploaded them instead of finding the trashed row (see
 `tests/int/seed-importer-preload.int.spec.ts`).
+
+**It applies to writes too, which is easier to miss.** An `update` addressing a
+trashed row *by id* throws `Not Found` without the flag — even when you got that
+id from a query that did pass it. Two archived Atlas events failed on every seed
+run for exactly this reason: `preloadCollection` handed `upsert` the right id and
+the update then refused it. Fixing the read is not enough; every write that can
+land on a trashed row needs the flag as well (#609):
+
+```typescript
+await payload.update({ collection: 'events', id, data, trash: true })
+```
+
+The asymmetry is worth a test of its own — assert the write **fails** without
+the flag and succeeds with it, or the guard can be removed without anything
+noticing (`tests/int/event-quality.int.spec.ts`).
 
 The admin UI shows a "permanently delete" checkbox.
 
