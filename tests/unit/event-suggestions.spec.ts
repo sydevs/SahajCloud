@@ -35,7 +35,7 @@ describe('suggestionsFromReport', () => {
         { key: 'description.quality', status: 'failed', detail: 'The description repeats it all.' },
       ]),
     )
-    expect(suggestions?.[0].detail).toBe('The description repeats it all.')
+    expect(suggestions[0].detail).toBe('The description repeats it all.')
   })
 
   it('drops passing checks — an email is a nudge, not a scorecard', () => {
@@ -45,18 +45,19 @@ describe('suggestionsFromReport', () => {
         { key: 'images.insufficient', status: 'failed' },
       ]),
     )
-    expect(suggestions?.map((item) => item.key)).toEqual(['images.insufficient'])
+    expect(suggestions.map((item) => item.key)).toEqual(['images.insufficient'])
   })
 
-  it('returns undefined for a listing with nothing open', () => {
+  it('returns nothing for a listing with nothing open', () => {
     expect(
       suggestionsFromReport(report([{ key: 'description.missing', status: 'passed' }])),
-    ).toBeUndefined()
+    ).toEqual([])
   })
 
-  it('returns undefined for a skipped report', () => {
-    // Not "no problems found" — the listing was never checked.
-    expect(suggestionsFromReport({ skipped: true, reason: 'unpublished' })).toBeUndefined()
+  it('returns nothing for a skipped report', () => {
+    // Not "no problems found" — the listing was never checked. The email says
+    // the same thing either way; `report.skipped` is where that's told apart.
+    expect(suggestionsFromReport({ skipped: true, reason: 'unpublished' })).toEqual([])
   })
 
   it('drops a key the registry no longer knows, rather than printing a slug', () => {
@@ -66,7 +67,7 @@ describe('suggestionsFromReport', () => {
         { key: 'images.insufficient', status: 'failed' },
       ]),
     )
-    expect(suggestions?.map((item) => item.key)).toEqual(['images.insufficient'])
+    expect(suggestions.map((item) => item.key)).toEqual(['images.insufficient'])
   })
 
   it('keeps every open item — the registry can only ever open three at once', () => {
@@ -76,6 +77,6 @@ describe('suggestionsFromReport', () => {
     const suggestions = suggestionsFromReport(
       report(keys.map((key) => ({ key, status: 'failed' as const }))),
     )
-    expect(suggestions?.map((item) => item.key)).toEqual([...keys])
+    expect(suggestions.map((item) => item.key)).toEqual([...keys])
   })
 })

@@ -17,17 +17,17 @@ import {
  * It differs in taking only the **failures**: an email is a nudge, and a list
  * of what already passes is padding in an inbox.
  *
- * Returns `undefined` rather than `[]` for "nothing to say" — the template
- * renders nothing either way, but the distinction keeps a skipped report and a
- * clean listing from being papered over as the same thing at the call site.
+ * Empty for a skipped report and for a clean listing alike — the email has
+ * nothing to add in either case. Anything that needs to tell those two apart
+ * should read `skipped` off the report itself rather than infer it from here.
  *
  * Labels are **English**: the verification email is English-only and staying
  * that way (#610 was dropped). Resolving them here rather than in the template
  * is still the right seam — the stable `key` travels with each item, so this is
  * the one function that would need a translations lookup if that ever changes.
  */
-export function suggestionsFromReport(report: EventQualityReport): EventSuggestion[] | undefined {
-  if (report.skipped) return undefined
+export function suggestionsFromReport(report: EventQualityReport): EventSuggestion[] {
+  if (report.skipped) return []
 
   const suggestions: EventSuggestion[] = []
   for (const result of report.checks) {
@@ -44,7 +44,7 @@ export function suggestionsFromReport(report: EventQualityReport): EventSuggesti
     })
   }
 
-  return suggestions.length > 0 ? suggestions : undefined
+  return suggestions
 }
 
 /**
@@ -60,7 +60,7 @@ export async function buildEventSuggestions(args: {
   req: PayloadRequest
   /** "Now", for judging whether a date in the copy has gone stale. */
   now?: Date
-}): Promise<EventSuggestion[] | undefined> {
+}): Promise<EventSuggestion[]> {
   const { event, req, now } = args
   const report = buildEventQualityReport(event, {
     templates: await loadTitleTemplates(req),
