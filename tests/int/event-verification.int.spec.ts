@@ -392,7 +392,6 @@ describe('Event verification lifecycle', () => {
       const event = await createEvent({ title: 'Sparse Listing' })
       const html = await remindOnce(event.id)
 
-      expect(html).toContain('Your listing')
       // Straight from `EVENT_QUALITY_COPY` — no description, no photos.
       expect(html).toContain('Add a description')
       expect(html).toContain('Add photos')
@@ -457,8 +456,9 @@ describe('Event verification lifecycle', () => {
 
       const html = await remindOnce(event.id)
       // Nothing at all — not even the celebration a complete listing earns.
-      expect(html).not.toContain('Your listing')
-      expect(html).not.toContain('complete')
+      // Keyed on the progress caption rather than a heading string: a
+      // reworded heading would turn this into a vacuous pass.
+      expect(html).not.toMatch(/\d+ of \d+ complete/)
       expect(html).not.toContain('Add a description')
     })
 

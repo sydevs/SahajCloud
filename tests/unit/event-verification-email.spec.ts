@@ -29,6 +29,13 @@ const eventManager: EventManagerContact = {
   ],
 }
 
+/**
+ * The section's fingerprint. Asserted instead of a heading string because
+ * headings get reworded — and a reworded heading silently turns every
+ * "section is absent" assertion into a vacuous pass.
+ */
+const PROGRESS_CAPTION = /\d+ of \d+ complete/
+
 const check = (key: string) => EVENT_QUALITY_CHECK_METADATA[key]
 
 /** Built the way the job builds it — labels resolved from the check registry. */
@@ -147,7 +154,7 @@ describe('EventVerificationEmail', () => {
         const html = await renderEmail(
           createElement(EventVerificationEmail, { ...baseProps, level, listingProgress }),
         )
-        expect(html).toContain('Your listing')
+        expect(html).toMatch(PROGRESS_CAPTION)
         for (const suggestion of listingProgress.open) {
           expect(html).toContain(suggestion.label)
           expect(html).toContain(suggestion.detail)
@@ -219,6 +226,23 @@ describe('EventVerificationEmail', () => {
       expect(html).toMatch(/width:\s*100%/)
     })
 
+    it('does not tell a complete listing to improve itself', async () => {
+      // The heading swaps with the state: "Improve your listing" sitting
+      // directly above "Nothing left to improve" contradicts itself.
+      const open = await renderEmail(
+        createElement(EventVerificationEmail, { ...baseProps, level: 'due', listingProgress }),
+      )
+      const complete = await renderEmail(
+        createElement(EventVerificationEmail, {
+          ...baseProps,
+          level: 'due',
+          listingProgress: completeProgress,
+        }),
+      )
+      expect(open).toMatch(/Improve your listing/i)
+      expect(complete).not.toMatch(/Improve your listing/i)
+    })
+
     it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
       'renders the %s email byte-identically when the listing was never checked',
       async (level) => {
@@ -237,7 +261,7 @@ describe('EventVerificationEmail', () => {
         )
 
         expect(absent).toBe(untouched)
-        expect(untouched).not.toContain('Your listing')
+        expect(untouched).not.toMatch(PROGRESS_CAPTION)
       },
     )
 
@@ -251,8 +275,7 @@ describe('EventVerificationEmail', () => {
           listingProgress: { open: [], done: [], resolved: 0, total: 0 },
         }),
       )
-      expect(html).not.toContain('Your listing')
-      expect(html).not.toContain('0 of 0')
+      expect(html).not.toMatch(PROGRESS_CAPTION)
     })
 
     it('omits it from region-manager mail — they can’t act on the listing', async () => {
@@ -266,8 +289,7 @@ describe('EventVerificationEmail', () => {
           listingProgress,
         }),
       )
-      expect(html).not.toContain('Your listing')
-      expect(html).not.toContain('1 of 3 complete')
+      expect(html).not.toMatch(PROGRESS_CAPTION)
       expect(html).not.toContain(listingProgress.open[0].label)
     })
   })

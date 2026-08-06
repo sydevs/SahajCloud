@@ -166,6 +166,11 @@ const COPY: {
   /** The listing-quality progress section (#611). */
   listing: {
     heading: string
+    /**
+     * Replaces `heading` once every check passes — an "Improve…" heading
+     * directly above "Nothing left to improve" contradicts itself.
+     */
+    completeHeading: string
     /** "2 of 4 complete" — the caption beside the progress bar. */
     caption: (resolved: number, total: number) => string
     /** Shown above the open items, when there are any. */
@@ -203,18 +208,19 @@ const COPY: {
   ),
 
   listing: {
-    heading: 'Your listing',
+    heading: 'Improve your listing',
+    completeHeading: 'Your listing is complete',
     caption: (resolved, total) => `${resolved} of ${total} complete`,
     intro: (
       <>
-        These are optional and don’t affect verification — a fuller listing simply helps seekers
-        find your class and know what to expect.
+        These are optional and don’t affect verification — a fuller listing helps seekers find your
+        class and know what to expect.
       </>
     ),
     complete: (
       <>
         Nothing left to improve — thank you for keeping this listing complete. It’s among the
-        easiest for a seeker to find and trust.
+        easiest for a seeker to find and sign up.
       </>
     ),
     doneHeading: 'Already done',
@@ -489,7 +495,9 @@ export function EventVerificationEmail({
 
       {progress ? (
         <Section>
-          <SectionHeading>{COPY.listing.heading}</SectionHeading>
+          <SectionHeading>
+            {progress.open.length > 0 ? COPY.listing.heading : COPY.listing.completeHeading}
+          </SectionHeading>
           <ProgressBar
             resolved={progress.resolved}
             total={progress.total}
