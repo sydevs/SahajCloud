@@ -39,6 +39,18 @@ const completeCallout: CSSProperties = {
   margin: '28px 0 16px',
 }
 
+/**
+ * The completed-listing note's first line. Carries the emphasis a
+ * `SectionHeading` would, without its uppercase treatment — inside the box it
+ * reads as the note's own opening rather than as another section of the email.
+ */
+const completeHeading: CSSProperties = {
+  fontSize: '15px',
+  fontWeight: 700,
+  color: '#1f2937',
+  margin: '0 0 4px',
+}
+
 /** Escalation level → email copy. Mirrors the job's reminder stages. */
 export type ReminderLevel = 'due' | 'escalated' | 'urgent' | 'expired'
 
@@ -160,13 +172,9 @@ interface CopyVars {
  * so both states are guaranteed to carry the same fields.
  */
 interface ListingStateCopy {
-  /** Section heading — its own line when open, inline with `intro` when complete. */
+  /** Section heading. */
   heading: string
-  /**
-   * The line under the heading when open; when complete it **continues** the
-   * heading on one line, so it's written to read on from it rather than as a
-   * new sentence.
-   */
+  /** The line under the heading. */
   intro: ReactNode
 }
 
@@ -251,8 +259,7 @@ const COPY: {
     },
     complete: {
       heading: 'Your listing is complete',
-      // Lower-case and no full stop: this runs on from the heading above.
-      intro: <>nothing left to improve, and thank you for keeping it up to date.</>,
+      intro: <>Nothing left to improve, and thank you for keeping it up to date.</>,
     },
   },
 
@@ -577,15 +584,13 @@ export function EventVerificationEmail({
             ) : null}
           </Section>
         ) : (
-          // Complete: one line, no bar, boxed. A full-width bar would only
-          // restate the word "complete", and the ticks name every check it
-          // would have counted — but with neither bar nor section heading left,
-          // the note needs the box to read as its own thing rather than as more
-          // event details.
+          // Complete: no bar, boxed. A full-width bar would only restate the
+          // word "complete", and the ticks name every check it would have
+          // counted — but without the bar or a `SectionHeading` the note needs
+          // the box to read as its own thing rather than as more event details.
           <Section style={completeCallout}>
-            <Text style={{ ...styles.hint, margin: '0 0 8px' }}>
-              <strong>{listingCopy.heading}</strong> — {listingCopy.intro}
-            </Text>
+            <Text style={completeHeading}>{listingCopy.heading}</Text>
+            <Text style={{ ...styles.hint, margin: '0 0 8px' }}>{listingCopy.intro}</Text>
             {renderDoneTicks(progress.done, brand.colors.primary, doneItem)}
           </Section>
         )

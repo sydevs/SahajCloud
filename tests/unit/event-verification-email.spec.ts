@@ -222,7 +222,7 @@ describe('EventVerificationEmail', () => {
         }),
       )
       expect(html).toContain('Your listing is complete')
-      expect(html).toContain('nothing left to improve')
+      expect(html).toContain('Nothing left to improve')
       // Names every check it passed, so "complete" is backed by specifics.
       for (const item of completeProgress.done) {
         expect(html).toContain(item.label)
@@ -247,7 +247,7 @@ describe('EventVerificationEmail', () => {
       expect(html).not.toMatch(/width:\s*100%;background-color/)
     })
 
-    it('runs the complete heading and its line together, not stacked', async () => {
+    it('stacks the complete heading above its line, not inline with it', async () => {
       const html = await renderEmail(
         createElement(EventVerificationEmail, {
           ...baseProps,
@@ -255,8 +255,10 @@ describe('EventVerificationEmail', () => {
           listingProgress: completeProgress,
         }),
       )
-      // One sentence: "<strong>Your listing is complete</strong> — nothing …".
-      expect(html).toMatch(/Your listing is complete<\/strong>[^<]*—/)
+      // The heading's own block closes right after it, so the sentence below
+      // starts a new line rather than running on from it.
+      expect(html).toMatch(/Your listing is complete<\/p>/)
+      expect(html).toContain('Nothing left to improve')
     })
 
     it('does not tell a complete listing to improve itself', async () => {
