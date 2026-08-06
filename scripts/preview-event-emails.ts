@@ -15,7 +15,12 @@
  * apply the pending migration). Without the flag, no database is touched.
  */
 
-import type { EventDetails, ReminderAudience, ReminderLevel } from '@/emails/EventVerificationEmail'
+import type {
+  EventDetails,
+  EventSuggestion,
+  ReminderAudience,
+  ReminderLevel,
+} from '@/emails/EventVerificationEmail'
 import type { Event } from '@/payload-types'
 
 import dotenv from 'dotenv'
@@ -35,6 +40,7 @@ interface SampleData {
   adminUrl?: string
   regionLine?: string
   details?: EventDetails
+  suggestions?: EventSuggestion[]
 }
 
 /** Seed a fully-populated Event + connected docs and return its summary. */
@@ -42,7 +48,8 @@ async function persistSampleEvent(): Promise<SampleData> {
   const { getPayload } = await import('payload')
   const { default: config } = await import('../src/payload.config')
   const { buildReminderEntry, buildVerificationEntry } = await import('@/lib/eventVerification/log')
-  const { buildEventEmailDetails } = await import('@/lib/notifications')
+  const { buildEventEmailDetails, suggestionsFromReport } = await import('@/lib/notifications')
+  const { buildEventQualityReport } = await import('@/lib/eventQuality')
 
   const payload = await getPayload({ config })
   const stamp = Date.now()
@@ -250,6 +257,9 @@ async function persistSampleEvent(): Promise<SampleData> {
   }
 
   const details = await buildEventEmailDetails({ payload, event })
+  // Default auto-title templates rather than the stored ones — a preview only
+  // needs a representative list, and this keeps the script off `req`.
+  const suggestions = suggestionsFromReport(buildEventQualityReport(event))
 
   const serverUrl = process.env.SAHAJCLOUD_URL || `http://localhost:${process.env.PORT || 3000}`
   return {
@@ -261,6 +271,7 @@ async function persistSampleEvent(): Promise<SampleData> {
     adminUrl: `${serverUrl}/admin/collections/events/${event.id}`,
     regionLine: `${city.name} → ${country.name} (region mgr ${regionManager.name})`,
     details,
+    suggestions,
   }
 }
 
@@ -272,6 +283,7 @@ async function main() {
   const { signVerifyToken } = await import('@/lib/eventVerification/token')
   const { buildVerifyEmailLink } = await import('@/lib/eventVerification/verifyUrl')
   const { formatLongDate } = await import('@/lib/notifications')
+  const { EVENT_QUALITY_CHECK_METADATA } = await import('@/lib/eventQuality')
 
   const sample: SampleData = process.env.PERSIST_EVENT
     ? await persistSampleEvent()
@@ -291,6 +303,21 @@ async function main() {
           lastVerified: 'Wednesday, 12 March 2026',
           recentRegistrations: 8,
         },
+        // Two open recommendations, so the section is visible in the preview.
+        // Wording comes from the check registry — see `@/lib/eventQuality/copy`.
+        suggestions: [
+          {
+            key: 'title.quality',
+            label: EVENT_QUALITY_CHECK_METADATA['title.quality'].label,
+            detail:
+              'The title repeats the day or time. The listing already shows this on its own, and a copy here goes stale as soon as the real field changes.',
+          },
+          {
+            key: 'images.insufficient',
+            label: EVENT_QUALITY_CHECK_METADATA['images.insufficient'].label,
+            detail: EVENT_QUALITY_CHECK_METADATA['images.insufficient'].description,
+          },
+        ],
       }
 
   const secret = process.env.PAYLOAD_SECRET || 'preview-secret'
@@ -344,6 +371,9 @@ async function main() {
         level,
         audience,
         details: sample.details,
+        // Passed for every combination; the template shows them to the event
+        // manager only (a region manager can't act on the listing).
+        suggestions: sample.suggestions,
         deadline: level === 'expired' ? today : futureDeadline,
         sinceLastVerified,
         regionName: audience === 'region' ? 'Maharashtra' : undefined,
