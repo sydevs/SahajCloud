@@ -17,7 +17,7 @@
 
 import type {
   EventDetails,
-  EventSuggestion,
+  EventListingProgress,
   ReminderAudience,
   ReminderLevel,
 } from '@/emails/EventVerificationEmail'
@@ -40,7 +40,7 @@ interface SampleData {
   adminUrl?: string
   regionLine?: string
   details?: EventDetails
-  suggestions?: EventSuggestion[]
+  listingProgress?: EventListingProgress
 }
 
 /** Seed a fully-populated Event + connected docs and return its summary. */
@@ -48,7 +48,7 @@ async function persistSampleEvent(): Promise<SampleData> {
   const { getPayload } = await import('payload')
   const { default: config } = await import('../src/payload.config')
   const { buildReminderEntry, buildVerificationEntry } = await import('@/lib/eventVerification/log')
-  const { buildEventEmailDetails, suggestionsFromReport } = await import('@/lib/notifications')
+  const { buildEventEmailDetails, listingProgressFromReport } = await import('@/lib/notifications')
   const { buildEventQualityReport } = await import('@/lib/eventQuality')
 
   const payload = await getPayload({ config })
@@ -259,7 +259,7 @@ async function persistSampleEvent(): Promise<SampleData> {
   const details = await buildEventEmailDetails({ payload, event })
   // Default auto-title templates rather than the stored ones — a preview only
   // needs a representative list, and this keeps the script off `req`.
-  const suggestions = suggestionsFromReport(buildEventQualityReport(event))
+  const listingProgress = listingProgressFromReport(buildEventQualityReport(event)) ?? undefined
 
   const serverUrl = process.env.SAHAJCLOUD_URL || `http://localhost:${process.env.PORT || 3000}`
   return {
@@ -271,7 +271,7 @@ async function persistSampleEvent(): Promise<SampleData> {
     adminUrl: `${serverUrl}/admin/collections/events/${event.id}`,
     regionLine: `${city.name} → ${country.name} (region mgr ${regionManager.name})`,
     details,
-    suggestions,
+    listingProgress,
   }
 }
 
@@ -303,21 +303,36 @@ async function main() {
           lastVerified: 'Wednesday, 12 March 2026',
           recentRegistrations: 8,
         },
-        // Two open recommendations, so the section is visible in the preview.
-        // Wording comes from the check registry — see `@/lib/eventQuality/copy`.
-        suggestions: [
-          {
-            key: 'title.quality',
-            label: EVENT_QUALITY_CHECK_METADATA['title.quality'].label,
-            detail:
-              'The title repeats the day or time. The listing already shows this on its own, and a copy here goes stale as soon as the real field changes.',
-          },
-          {
-            key: 'images.insufficient',
-            label: EVENT_QUALITY_CHECK_METADATA['images.insufficient'].label,
-            detail: EVENT_QUALITY_CHECK_METADATA['images.insufficient'].description,
-          },
-        ],
+        // Two open and two done, so the preview shows a part-filled bar with
+        // names on both sides of it. Wording comes from the check registry —
+        // see `@/lib/eventQuality/copy`.
+        listingProgress: {
+          open: [
+            {
+              key: 'title.quality',
+              label: EVENT_QUALITY_CHECK_METADATA['title.quality'].label,
+              detail:
+                'The title repeats the day or time. The listing already shows this on its own, and a copy here goes stale as soon as the real field changes.',
+            },
+            {
+              key: 'images.insufficient',
+              label: EVENT_QUALITY_CHECK_METADATA['images.insufficient'].label,
+              detail: EVENT_QUALITY_CHECK_METADATA['images.insufficient'].description,
+            },
+          ],
+          done: [
+            {
+              key: 'description.missing',
+              label: EVENT_QUALITY_CHECK_METADATA['description.missing'].passedLabel,
+            },
+            {
+              key: 'description.quality',
+              label: EVENT_QUALITY_CHECK_METADATA['description.quality'].passedLabel,
+            },
+          ],
+          resolved: 2,
+          total: 4,
+        },
       }
 
   const secret = process.env.PAYLOAD_SECRET || 'preview-secret'
@@ -373,7 +388,7 @@ async function main() {
         details: sample.details,
         // Passed for every combination; the template shows them to the event
         // manager only (a region manager can't act on the listing).
-        suggestions: sample.suggestions,
+        listingProgress: sample.listingProgress,
         deadline: level === 'expired' ? today : futureDeadline,
         sinceLastVerified,
         regionName: audience === 'region' ? 'Maharashtra' : undefined,

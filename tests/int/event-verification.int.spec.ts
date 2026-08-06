@@ -354,7 +354,7 @@ describe('Event verification lifecycle', () => {
     expect(reminders(after.notificationLog)).toHaveLength(reminders(before.notificationLog).length)
   })
 
-  describe('listing suggestions in the reminder email (#611)', () => {
+  describe('listing progress in the reminder email (#611)', () => {
     type SentEmail = { to: string; html: string }
     const sent: SentEmail[] = []
     let restore: () => void
@@ -392,13 +392,15 @@ describe('Event verification lifecycle', () => {
       const event = await createEvent({ title: 'Sparse Listing' })
       const html = await remindOnce(event.id)
 
-      expect(html).toContain('Suggested improvements')
+      expect(html).toContain('Your listing')
       // Straight from `EVENT_QUALITY_COPY` — no description, no photos.
       expect(html).toContain('Add a description')
       expect(html).toContain('Add photos')
+      // The bar counts what the job actually found, not a hardcoded total.
+      expect(html).toMatch(/\d+ of \d+ complete/)
     })
 
-    it('says nothing extra when the listing is already complete', async () => {
+    it('celebrates a listing with nothing left to improve', async () => {
       // Sequential: the three uploads share a source filename, and Payload's
       // collision suffixing races when they land at once.
       const images: number[] = []
@@ -434,7 +436,11 @@ describe('Event verification lifecycle', () => {
       })
 
       const html = await remindOnce(event.id)
-      expect(html).not.toContain('Suggested improvements')
+      expect(html).toContain('Nothing left to improve')
+      // Every check passed, so the bar is full and nothing is outstanding.
+      expect(html).toMatch(/(\d+) of \1 complete/)
+      expect(html).not.toContain('Add a description')
+      expect(html).not.toContain('Add photos')
     })
 
     it('sends none for an unpublished event — it was never checked', async () => {
@@ -450,13 +456,15 @@ describe('Event verification lifecycle', () => {
       })
 
       const html = await remindOnce(event.id)
-      expect(html).not.toContain('Suggested improvements')
+      // Nothing at all — not even the celebration a complete listing earns.
+      expect(html).not.toContain('Your listing')
+      expect(html).not.toContain('complete')
       expect(html).not.toContain('Add a description')
     })
 
     it('still sends exactly one reminder per recipient when the job runs twice', async () => {
       // The trap this ticket had to avoid: dedup is keyed on stage + manager id
-      // via `notificationLog`. If suggestions had perturbed that key, every
+      // via `notificationLog`. If the progress section had perturbed that key, every
       // manager would be re-sent every reminder they'd already had.
       const event = await createEvent({ title: 'Dedup Listing' })
       await remindOnce(event.id)

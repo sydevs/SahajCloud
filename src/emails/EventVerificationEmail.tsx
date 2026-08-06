@@ -1,11 +1,26 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 import { Hr, Link, Section, Text } from 'react-email'
 
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
-import { BrandButton, DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
+import {
+  BrandButton,
+  DetailRow,
+  EmailLayout,
+  ProgressBar,
+  SectionHeading,
+  styles,
+} from './EmailLayout'
+
+/** One already-passing check, as a ticked line under the open recommendations. */
+const doneItem: CSSProperties = {
+  fontSize: '14px',
+  color: '#4b5563',
+  margin: '0 0 4px',
+  padding: '0 12px',
+}
 
 /** Escalation level → email copy. Mirrors the job's reminder stages. */
 export type ReminderLevel = 'due' | 'escalated' | 'urgent' | 'expired'
@@ -55,6 +70,25 @@ export interface EventSuggestion {
   detail: string
 }
 
+/**
+ * How complete a listing is, as the reminder email presents it.
+ *
+ * Carries what already passes as well as what's open, because the point of
+ * showing a manager `2 of 4` is that the 2 they've already done are visible
+ * next to the 2 that aren't. Absent (`undefined`) means the listing was never
+ * checked and the whole section is suppressed — distinct from a complete
+ * listing, which arrives with an empty `open`.
+ */
+export interface EventListingProgress {
+  /** What's still to do, in registry order. */
+  open: EventSuggestion[]
+  /** What already passes, worded as a state reached ("Has a description"). */
+  done: { key: string; label: string }[]
+  /** Checks passed, out of those with a verdict. `resolved <= total`. */
+  resolved: number
+  total: number
+}
+
 interface EventVerificationEmailProps {
   /** Recipient display name. */
   name: string
@@ -75,10 +109,10 @@ interface EventVerificationEmailProps {
   /** Key event facts (rendered as a summary table). */
   details?: EventDetails
   /**
-   * Open listing-quality recommendations. Omitted (or empty) renders nothing —
-   * a complete listing gets exactly the email it did before #611.
+   * How complete the listing is (#611). Omitted renders nothing at all — that
+   * is the "never checked" case, not a clean bill of health.
    */
-  suggestions?: EventSuggestion[]
+  listingProgress?: EventListingProgress
   /** The ancestor region linking a region manager to the event (region audience). */
   regionName?: string
   /** Event manager's contacts — shown to region managers so they can reach out. */
@@ -129,8 +163,18 @@ const COPY: {
   greeting: (name: string) => ReactNode
   buttonHint: string
   footer: (audience: ReminderAudience, brandName: string) => ReactNode
-  /** The listing-quality recommendations section (#611). */
-  suggestions: { heading: string; intro: ReactNode }
+  /** The listing-quality progress section (#611). */
+  listing: {
+    heading: string
+    /** "2 of 4 complete" — the caption beside the progress bar. */
+    caption: (resolved: number, total: number) => string
+    /** Shown above the open items, when there are any. */
+    intro: ReactNode
+    /** Replaces `intro` once every check passes. */
+    complete: ReactNode
+    /** Small heading over the already-done ticks. */
+    doneHeading: string
+  }
   /** The pre-filled email a region manager's "Contact manager" button opens. */
   contactManager: {
     subject: (eventTitle: string) => string
@@ -158,14 +202,22 @@ const COPY: {
     </>
   ),
 
-  suggestions: {
-    heading: 'Suggested improvements',
+  listing: {
+    heading: 'Your listing',
+    caption: (resolved, total) => `${resolved} of ${total} complete`,
     intro: (
       <>
         These are optional and don’t affect verification — a fuller listing simply helps seekers
         find your class and know what to expect.
       </>
     ),
+    complete: (
+      <>
+        Nothing left to improve — thank you for keeping this listing complete. It’s among the
+        easiest for a seeker to find and trust.
+      </>
+    ),
+    doneHeading: 'Already done',
   },
 
   contactManager: {
@@ -327,7 +379,7 @@ export function EventVerificationEmail({
   deadline,
   sinceLastVerified,
   details,
-  suggestions,
+  listingProgress,
   regionName,
   eventManager,
   project = 'sahaj-atlas',
@@ -348,7 +400,11 @@ export function EventVerificationEmail({
   // Shown to the event's own manager only. A region manager is here to nudge
   // someone else into verifying — handing them a list of that volunteer's
   // shortcomings sours a conversation they can't act on themselves.
-  const openSuggestions = audience === 'manager' ? (suggestions ?? []) : []
+  //
+  // A `total` of 0 would mean every check bowed out (see `requiresHandWrittenTitle`
+  // / `skipWhenFailed`), which leaves nothing to be a fraction of — suppress
+  // rather than render "0 of 0 complete" and an empty bar.
+  const progress = audience === 'manager' && listingProgress?.total ? listingProgress : null
 
   // Region managers don't verify (they may lack the details); their CTA emails
   // the event manager instead. Everyone else gets the tokenized verify link.
@@ -431,18 +487,45 @@ export function EventVerificationEmail({
         </Section>
       ) : null}
 
-      {openSuggestions.length > 0 ? (
+      {progress ? (
         <Section>
-          <SectionHeading>{COPY.suggestions.heading}</SectionHeading>
-          <Text style={styles.hint}>{COPY.suggestions.intro}</Text>
+          <SectionHeading>{COPY.listing.heading}</SectionHeading>
+          <ProgressBar
+            resolved={progress.resolved}
+            total={progress.total}
+            color={brand.colors.primary}
+            caption={COPY.listing.caption(progress.resolved, progress.total)}
+          />
+          <Text style={styles.hint}>
+            {progress.open.length > 0 ? COPY.listing.intro : COPY.listing.complete}
+          </Text>
           {/* Every open item, uncapped: the registry is deliberately coarse and
               two of its four checks are mutually exclusive, so at most three
               can be open at once — never enough to read as a scolding. */}
-          {openSuggestions.map((suggestion) => (
+          {progress.open.map((suggestion) => (
             <DetailRow key={suggestion.key} label={suggestion.label}>
               {suggestion.detail}
             </DetailRow>
           ))}
+          {/* What's already done, listed under what isn't, so the bar's filled
+              portion has names attached. `label` here is the check's
+              `passedLabel` — a tick beside an imperative reads as the opposite
+              of the point. */}
+          {progress.done.length > 0 ? (
+            <>
+              {progress.open.length > 0 ? (
+                <Text style={{ ...styles.hint, margin: '18px 0 4px', fontWeight: 600 }}>
+                  {COPY.listing.doneHeading}
+                </Text>
+              ) : null}
+              {progress.done.map((item) => (
+                <Text key={item.key} style={doneItem}>
+                  <span style={{ color: brand.colors.primary, fontWeight: 700 }}>✓</span>{' '}
+                  {item.label}
+                </Text>
+              ))}
+            </>
+          ) : null}
         </Section>
       ) : null}
 

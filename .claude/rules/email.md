@@ -80,10 +80,10 @@ package (v6 unified them — the older `@react-email/components` and
 
 | File | Purpose |
 |---|---|
-| `EmailLayout.tsx` | Shared shell — gradient brand header, card body, footer. Exports `BrandButton`, `BrandButtonRow` (2–3 actions centered together on one row), `DetailRow` (label/value fact-table row, for manager emails), `StackedDetailRow` (label-above-value itinerary row, for guest emails), `SectionHeading` (uppercase section label), and shared `styles`. Reuse these so templates stay visually consistent. |
+| `EmailLayout.tsx` | Shared shell — gradient brand header, card body, footer. Exports `BrandButton`, `BrandButtonRow` (2–3 actions centered together on one row), `DetailRow` (label/value fact-table row, for manager emails), `StackedDetailRow` (label-above-value itinerary row, for guest emails), `SectionHeading` (uppercase section label), `ProgressBar` (filled/unfilled table cells + an "N of M" caption), and shared `styles`. Reuse these so templates stay visually consistent. |
 | `VerifyEmail.tsx` | Managers email-verification message. |
 | `ResetPasswordEmail.tsx` | Managers password-reset message (replaces Payload's bare default). |
-| `EventVerificationEmail.tsx` | Manager/region event-verification reminder — coloured alert callout keyed on `ReminderLevel`. Also carries the listing-quality recommendations (#611): a `Suggested improvements` section built from `EventSuggestion[]`, worded by the `@/lib/eventQuality` registry (never inlined here) and shown to the **event manager only**. Absent or empty renders the email byte-identically to one with no open items. |
+| `EventVerificationEmail.tsx` | Manager/region event-verification reminder — coloured alert callout keyed on `ReminderLevel`. Also carries the listing-quality progress (#611): a `Your listing` section built from `EventListingProgress`, worded by the `@/lib/eventQuality` registry (never inlined here) and shown to the **event manager only**. A progress bar + "N of M complete", then the open recommendations, then the already-passing ones ticked with each check's `passedLabel`. A complete listing gets a "nothing left to improve" note instead of the open list; an **absent** `listingProgress` (the listing was never checked) renders no section at all. |
 | `RegistrationConfirmationEmail.tsx` | Registrant confirmation for an event registration — client-branded, localized, ICS attached. Also exports `registrationConfirmationText` (the plain-text alternative). |
 | `SessionReminderEmail.tsx` | Registrant reminder ~24h before a session (#589) — client-branded, localized sibling of the confirmation sharing `StackedDetailRow`; states the single next occurrence, **no** ICS, footer unsubscribe link. Also exports `sessionReminderText`. Sent by the `SendSessionReminders` job. |
 | `EventRegistrationEmail.tsx` | Manager-facing notice that a seeker registered — Sahaj Atlas project brand; event/registrant/start-date `DetailRow`s, the registrant's forwarded question answers (resolved via `buildRegistrationAnswers`), and a `BrandButtonRow` of Reply (a `mailto:` pre-filled with a quoted recap) + View event. Also exports `buildReplyBody`. Informational (no alert callout). |
@@ -170,6 +170,15 @@ in `src/emails/`.
 
   Neither touches the database. `SAHAJCLOUD_URL` defaults to production in the
   registration script so the header icon resolves in the preview.
+
+- **A progress bar is two table cells, not a styled `<div>`.** Outlook's Word
+  rendering engine drops CSS backgrounds on a `<div>`, and no client can be
+  relied on for `<progress>`. `ProgressBar` uses `Row`/`Column` (a real
+  `<table>`) with `backgroundColor` per cell, each holding an `NBSP` sized by
+  `line-height` — an empty cell collapses in Outlook, and a *plain* space is
+  collapsed as insignificant whitespace, so the constant is spelled `'\u00A0'`
+  rather than typed literally. A zero-width cell is omitted entirely, because
+  some clients round `width: 0%` up to a visible sliver.
 
 - **Icons — emails are the exception to the no-emoji rule.** The repo uses
   `lucide-react` for HTML UI (see `.claude/rules/code-style.md`), but email

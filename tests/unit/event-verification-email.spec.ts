@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest'
 import {
   EventVerificationEmail,
   type EventDetails,
+  type EventListingProgress,
   type EventManagerContact,
-  type EventSuggestion,
 } from '@/emails/EventVerificationEmail'
 import { EVENT_QUALITY_CHECK_METADATA } from '@/lib/eventQuality'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
@@ -29,19 +29,38 @@ const eventManager: EventManagerContact = {
   ],
 }
 
-/** Built the way the job builds them — labels resolved from the check registry. */
-const suggestions: EventSuggestion[] = [
-  {
-    key: 'description.missing',
-    label: EVENT_QUALITY_CHECK_METADATA['description.missing'].label,
-    detail: EVENT_QUALITY_CHECK_METADATA['description.missing'].description,
-  },
-  {
-    key: 'images.insufficient',
-    label: EVENT_QUALITY_CHECK_METADATA['images.insufficient'].label,
-    detail: 'Only one photo so far.',
-  },
-]
+const check = (key: string) => EVENT_QUALITY_CHECK_METADATA[key]
+
+/** Built the way the job builds it — labels resolved from the check registry. */
+const listingProgress: EventListingProgress = {
+  open: [
+    {
+      key: 'description.missing',
+      label: check('description.missing').label,
+      detail: check('description.missing').description,
+    },
+    {
+      key: 'images.insufficient',
+      label: check('images.insufficient').label,
+      detail: 'Only one photo so far.',
+    },
+  ],
+  done: [{ key: 'title.quality', label: check('title.quality').passedLabel }],
+  resolved: 1,
+  total: 3,
+}
+
+/** Every check passing — the state that earns the completion note. */
+const completeProgress: EventListingProgress = {
+  open: [],
+  done: [
+    { key: 'description.missing', label: check('description.missing').passedLabel },
+    { key: 'title.quality', label: check('title.quality').passedLabel },
+    { key: 'images.insufficient', label: check('images.insufficient').passedLabel },
+  ],
+  resolved: 3,
+  total: 3,
+}
 
 const baseProps = {
   name: 'Jo Manager',
@@ -121,15 +140,15 @@ describe('EventVerificationEmail', () => {
     expect(expired).toContain('3 months') // fairness: how long it went unverified
   })
 
-  describe('listing suggestions', () => {
+  describe('listing progress', () => {
     it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
       'renders every open recommendation in the %s reminder',
       async (level) => {
         const html = await renderEmail(
-          createElement(EventVerificationEmail, { ...baseProps, level, suggestions }),
+          createElement(EventVerificationEmail, { ...baseProps, level, listingProgress }),
         )
-        expect(html).toContain('Suggested improvements')
-        for (const suggestion of suggestions) {
+        expect(html).toContain('Your listing')
+        for (const suggestion of listingProgress.open) {
           expect(html).toContain(suggestion.label)
           expect(html).toContain(suggestion.detail)
         }
@@ -140,39 +159,103 @@ describe('EventVerificationEmail', () => {
       // The one source of truth with the admin panel: nothing here is spelled
       // out in the template, so re-wording `copy.ts` re-words the email too.
       const html = await renderEmail(
-        createElement(EventVerificationEmail, { ...baseProps, level: 'due', suggestions }),
+        createElement(EventVerificationEmail, { ...baseProps, level: 'due', listingProgress }),
       )
-      expect(html).toContain(EVENT_QUALITY_CHECK_METADATA['description.missing'].label)
-      expect(html).toContain(EVENT_QUALITY_CHECK_METADATA['description.missing'].description)
+      expect(html).toContain(check('description.missing').label)
+      expect(html).toContain(check('description.missing').description)
     })
 
     it('says the suggestions are optional, so the email stays a nudge', async () => {
       const html = await renderEmail(
-        createElement(EventVerificationEmail, { ...baseProps, level: 'due', suggestions }),
+        createElement(EventVerificationEmail, { ...baseProps, level: 'due', listingProgress }),
       )
       expect(html).toContain('don’t affect verification')
     })
 
+    it('states how far along the listing is', async () => {
+      const html = await renderEmail(
+        createElement(EventVerificationEmail, { ...baseProps, level: 'due', listingProgress }),
+      )
+      expect(html).toContain('1 of 3 complete')
+    })
+
+    it('draws the bar filled to the resolved share', async () => {
+      const html = await renderEmail(
+        createElement(EventVerificationEmail, {
+          ...baseProps,
+          level: 'due',
+          listingProgress: { ...listingProgress, resolved: 1, total: 4 },
+        }),
+      )
+      // A real filled cell, not a styled div — Outlook drops div backgrounds.
+      expect(html).toMatch(/width:\s*25%/)
+      expect(html).toMatch(/width:\s*75%/)
+    })
+
+    it('names what already passes, worded as a state not an instruction', async () => {
+      const html = await renderEmail(
+        createElement(EventVerificationEmail, { ...baseProps, level: 'due', listingProgress }),
+      )
+      expect(html).toContain('Already done')
+      expect(html).toContain(check('title.quality').passedLabel)
+      // The imperative must not appear beside a tick.
+      expect(html).not.toContain(check('title.quality').label)
+    })
+
+    it('celebrates a complete listing instead of listing nothing', async () => {
+      const html = await renderEmail(
+        createElement(EventVerificationEmail, {
+          ...baseProps,
+          level: 'due',
+          listingProgress: completeProgress,
+        }),
+      )
+      expect(html).toContain('3 of 3 complete')
+      expect(html).toContain('Nothing left to improve')
+      // No open items, so no "here's what to do next" framing.
+      expect(html).not.toContain('don’t affect verification')
+      expect(html).not.toContain('Already done')
+      // A full bar renders one cell, never an empty remainder.
+      expect(html).toMatch(/width:\s*100%/)
+    })
+
     it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
-      'renders the %s email byte-identically when there is nothing open',
+      'renders the %s email byte-identically when the listing was never checked',
       async (level) => {
+        // The skipped case (unpublished / finished / expired / trashed): the
+        // section is absent entirely, exactly as before #611. A *complete*
+        // listing is deliberately not this case — it gets the note above.
         const untouched = await renderEmail(
           createElement(EventVerificationEmail, { ...baseProps, level }),
         )
-        const empty = await renderEmail(
-          createElement(EventVerificationEmail, { ...baseProps, level, suggestions: [] }),
-        )
         const absent = await renderEmail(
-          createElement(EventVerificationEmail, { ...baseProps, level, suggestions: undefined }),
+          createElement(EventVerificationEmail, {
+            ...baseProps,
+            level,
+            listingProgress: undefined,
+          }),
         )
 
-        expect(empty).toBe(untouched)
         expect(absent).toBe(untouched)
-        expect(untouched).not.toContain('Suggested improvements')
+        expect(untouched).not.toContain('Your listing')
       },
     )
 
-    it('omits them from region-manager mail — they can’t act on the listing', async () => {
+    it('suppresses the section when every check bowed out', async () => {
+      // `total: 0` would render "0 of 0 complete" over an empty bar — there is
+      // nothing to be a fraction of.
+      const html = await renderEmail(
+        createElement(EventVerificationEmail, {
+          ...baseProps,
+          level: 'due',
+          listingProgress: { open: [], done: [], resolved: 0, total: 0 },
+        }),
+      )
+      expect(html).not.toContain('Your listing')
+      expect(html).not.toContain('0 of 0')
+    })
+
+    it('omits it from region-manager mail — they can’t act on the listing', async () => {
       const html = await renderEmail(
         createElement(EventVerificationEmail, {
           ...baseProps,
@@ -180,11 +263,12 @@ describe('EventVerificationEmail', () => {
           audience: 'region',
           regionName: 'Maharashtra',
           eventManager,
-          suggestions,
+          listingProgress,
         }),
       )
-      expect(html).not.toContain('Suggested improvements')
-      expect(html).not.toContain(suggestions[0].label)
+      expect(html).not.toContain('Your listing')
+      expect(html).not.toContain('1 of 3 complete')
+      expect(html).not.toContain(listingProgress.open[0].label)
     })
   })
 
