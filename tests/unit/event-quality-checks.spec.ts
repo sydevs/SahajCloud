@@ -213,6 +213,37 @@ describe('title quality', () => {
     expect(isAutoFilledTitle('Meditation for Night-Shift Nurses', goodEvent())).toBe(false)
   })
 
+  describe('an online event, auto-titled from its region', () => {
+    // No address to recompose from, and this module only ever sees the region's
+    // id — so detection falls back to the template's shape.
+    const online = goodEvent({ address: undefined })
+
+    it('is recognised, so the check is skipped rather than crediting the manager', () => {
+      expect(isAutoFilledTitle('Evening Meditation at Toronto', online)).toBe(true)
+      expect(
+        resultFor(
+          goodEvent({ address: undefined, title: 'Morning Meditation at Rome' }),
+          'title.quality',
+        ),
+      ).toBeUndefined()
+    })
+
+    it('does not swallow a title that says something of its own', () => {
+      expect(isAutoFilledTitle('Meditation for Night-Shift Nurses', online)).toBe(false)
+      expect(
+        resultFor(goodEvent({ address: undefined, title: 'Meditation' }), 'title.quality')?.status,
+      ).toBe('failed')
+    })
+
+    it('leaves an event that has a venue on the exact comparison', () => {
+      // The shape fallback is for the address-less case only: with a venue on
+      // the listing, prose in the auto-fill's shape is still prose.
+      expect(isAutoFilledTitle('Evening Meditation at the pub down the road', goodEvent())).toBe(
+        false,
+      )
+    })
+  })
+
   it('flags a generic hand-typed title and points at the blank field', () => {
     const result = resultFor(goodEvent({ title: 'Meditation', address }), 'title.quality')
     expect(result?.status).toBe('failed')
