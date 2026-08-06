@@ -74,7 +74,7 @@ const WEEKDAY_NAMES: string[] = (() => {
 })()
 
 /** Escape a literal for embedding in a RegExp. */
-function escapeRegExp(value: string): string {
+export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
