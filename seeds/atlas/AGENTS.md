@@ -272,11 +272,22 @@ prod.
 ## Event titles: a blank title beats a generic one
 
 `customName` maps to the Events `title`, and an empty title is auto-filled by
-`eventTitleBeforeChange` with a **localized** template —
-`"<time of day> Meditation at <place>"`. So a blank title is *preferred* over a
-hand-written generic one: the auto-fill translates per locale and can be improved
-for every event at once by editing one string, where 60 copies of
-"Free Meditation Classes in <Place>" cannot.
+`eventTitleBeforeChange` with a template — `"<time of day> Meditation at <place>"`.
+So a blank title is *preferred* over a hand-written generic one: it can be
+improved for every event at once by editing one string, where 60 copies of
+"Free Meditation Classes in <Place>" cannot, and the Atlas widget translates the
+result client-side.
+
+> `title` stopped being localized in #609: it is one column, composed in the
+> default locale. The `sy-atlas-translations` `event.title` templates are still
+> a localized field, but only the default locale's set is read now.
+
+**Online events** have no address, so `<place>` falls back to the name of the
+`region` the event hangs off — "Evening Meditation at Dublin". `region` is
+required on every event, so there is always something to name a listing after
+and the importer needs no fallback title of its own (it used to send a
+hardcoded "Online Sahaj Yoga Meditation"). Two blank-titled online events in one
+region and one time-of-day slot collide the same way two at one venue do.
 
 The rule the grooming pass settled on:
 
@@ -332,7 +343,22 @@ never reach an already-imported row.
 The four auto-title templates live in the `sy-atlas-translations` global under
 `event.title` (`morning` / `afternoon` / `evening` / `default`), with English
 source copy in `EVENT_TITLE_DEFAULTS`
-([`eventTitle.ts`](../../src/collections/Events/hooks/eventTitle.ts)).
+([`compose.ts`](../../src/lib/eventTitle/compose.ts)).
+
+### Listing-quality stamps (#609)
+
+Events carry two derived columns — `qualityOpenCount` and `qualityCheckVersion`
+— written by the Events `stampEventQuality` beforeChange hook. The import gets
+them for free: every event goes through `upsert`, which goes through the Local
+API, so the hook runs.
+
+**That is why there is no backfill script.** Production is seeded from here, so
+there are no pre-existing rows to repair; a row can only lack a stamp if it has
+never been saved since the columns shipped. The batch that finishes the events
+collection calls `verifyEventQualityStamps()` and warns if any remain — scoped
+past the excluded duplicates and trashed rows, which this import refuses to
+touch by design and so can never stamp.
+
 
 - Each slot is a **complete sentence** with a `%{place}` placeholder, not a
   shared prefix plus a separate time-of-day word. A locale that puts the time of

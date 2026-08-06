@@ -60,7 +60,9 @@ No loose files at the root — every file lives in a named folder:
 - `env/` — environment-variable validation (broadly imported config)
 - `logger/` — `clientLogger`, `workerSafeLogger`
 - `utilities/` — purposeful cross-boundary helpers (`serverUrl`, `previewSecret`,
-  `gender`, `subtitles`, `weightedSample`, `isRecord`)
+  `gender`, `subtitles`, `weightedSample`, `isRecord`, `requestMemo` — collapse a
+  per-request load to one in-flight promise, `localeIsolatedReq` — hand a nested
+  cross-locale read a copy so it can't repoint the caller's request)
 - `locales/` — locale config (`@/lib/locales` resolves to `locales/index.ts`)
 - `richEditor/` — Lexical editor presets + `blocks/` (the editor's block set) +
   `lexicalHooks`
@@ -71,7 +73,13 @@ No loose files at the root — every file lives in a named folder:
   than one endpoint's private helper — and unit-testable without booting it.
 - domain folders shared across 2+ owners: `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
-  `pageTags/`, `cascadeDeletion/`, `registrations/` (the
+  `pageTags/`, `cascadeDeletion/`, `eventTitle/` (the pure auto-title
+  composition — the Events title hook and the quality checks both recompose it),
+  `eventQuality/` (the listing-quality check registry + report builder, consumed
+  by the Events collection and the admin panel; barrelled — all user-facing
+  wording lives in its `copy.ts`, which is the only file to edit to change what
+  a manager reads),
+  `registrations/` (the
   `EVENT_REGISTRATION_QUESTIONS` contract + `questions` validation/shaping,
   shared by Events, Registrations, and the notification email; plus the
   `unsubscribeToken` / `unsubscribeUrl` helpers for the reminder unsubscribe link)

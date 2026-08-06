@@ -762,6 +762,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             file: fileForUpdate,
             publishSpecificLocale: options?.publishSpecificLocale,
             context: options?.context,
+            // `preloadCollection` deliberately includes trashed rows, so this id
+            // can be one — and an update without `trash: true` refuses it with
+            // `Not Found`. A no-op where trash is disabled.
+            trash: true,
           }),
         )
         if (DEBUG)
@@ -825,6 +829,11 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           where: naturalKey,
           limit: 1,
           locale: options?.locale,
+          // Include trashed rows. Payload appends `deletedAt exists: false` to
+          // every read on a trash-enabled collection unless asked otherwise, so
+          // without this a trashed row reads as absent and the importer creates
+          // a duplicate on its natural key. A no-op where trash is disabled.
+          trash: true,
         }),
       )
       if (DEBUG)
@@ -864,6 +873,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             file: fileForUpdate,
             publishSpecificLocale: options?.publishSpecificLocale,
             context: options?.context,
+            // Same reason as the find above — an update targeting a trashed row
+            // throws `Not Found` without it. Two archived Atlas events failed
+            // on every run until this was passed.
+            trash: true,
           }),
         )
         if (DEBUG)
@@ -943,6 +956,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
               where: { slug: { like: normalizedSlug } },
               limit: 5,
               locale: options?.locale,
+              // A trashed row still occupies its slug, so it has to be visible
+              // here or the collision it caused looks like it came from nowhere.
+              trash: true,
             }),
           )
 
@@ -959,6 +975,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
                 where: { slug: { like: `%${searchPrefix}%` } },
                 limit: 20,
                 locale: options?.locale,
+                trash: true,
               }),
             )
             // Filter to find one where slug without hyphens matches
@@ -1002,7 +1019,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       }
 
       const errorMsg = error instanceof Error ? error.message : String(error)
-      this.report.addError(`Upsert ${collection}: ${errorMsg}`)
+      // Name the row. Without the identifier a 291-error run says only that
+      // "registrations" failed 291 times, which is undiagnosable — the whole
+      // point of the report is telling an operator which rows to go and look at.
+      this.report.addError(`Upsert ${collection} (${identifier}): ${errorMsg}`)
       this.report.incrementErrors()
       await this.reportDocument(collection, identifier, 'error', {
         error: errorMsg,
@@ -1036,6 +1056,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       where: naturalKey,
       limit: 1,
       locale,
+      // An existence check blind to trashed rows reports "absent", and the
+      // caller then creates a duplicate on the natural key the trashed row
+      // still holds. Same trap as `preloadCollection`.
+      trash: true,
     })
 
     return result.docs.length > 0 ? (result.docs[0] as T) : null
@@ -1118,6 +1142,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           publishSpecificLocale: shouldPublishLocale
             ? (translation.locale as TypedLocale)
             : undefined,
+          trash: true,
         }),
       )
       if (DEBUG)

@@ -33,6 +33,7 @@ import {
   MANUAL_LOCATION,
 } from '@/lib/mapbox/geocoder'
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
+import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { slugifyValue } from '@/lib/utilities/slugify'
 
 import {
@@ -196,15 +197,16 @@ const geoRefKey = (ref: { level: GeoRef['level']; legacyId: number }): string =>
   `${ATLAS_TO_PAYLOAD_LEVEL[ref.level]}:${ref.legacyId}`
 
 /**
- * Best-effort map of Atlas registration-question flags → the Events
- * `registrationQuestions` checkbox group. The legacy flags don't fully line up
- * with the placeholder question set, so unmapped flags are warned about for the
- * real registration flow to reconcile.
+ * What counts as an email address for import purposes. Deliberately the loose
+ * shape rather than a full RFC validator — the point is only to tell a typo'd
+ * address from a row that was never an address at all.
  */
-const REGISTRATION_QUESTION_MAP: Record<string, string> = {
-  experience: 'priorExperience',
-  referral: 'referralSource',
-}
+const ATLAS_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** The question names the contract defines — the dump's own keys, verbatim. */
+const REGISTRATION_QUESTION_NAMES = new Set<string>(
+  EVENT_REGISTRATION_QUESTIONS.map((question) => question.name),
+)
 
 const DEFAULT_LOCALE = 'en'
 
@@ -491,9 +493,46 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('\n=== Importing Managers ===')
     const total = data.managers.length
 
+    // Every manager already here that Atlas didn't put here, by email. Loaded
+    // once rather than queried per manager — 327 round trips for what is one
+    // small read. Usually a single row: the deployment's own admin account.
+    const nonAtlas = await this.payload.find({
+      collection: 'managers',
+      where: { legacyId: { exists: false } },
+      limit: 0,
+      pagination: false,
+      depth: 0,
+      overrideAccess: true,
+      select: { email: true },
+    })
+    const adoptable = new Map<string, number>(
+      nonAtlas.docs.map((doc) => [
+        String((doc as { email?: string }).email ?? '').toLowerCase(),
+        doc.id as number,
+      ]),
+    )
+
     for (let i = 0; i < total; i++) {
       const manager = data.managers[i]
       try {
+        // A manager already here under this email but with no `legacyId` is not
+        // an Atlas row — it's an account this deployment made for itself, the
+        // admin login among them. Its email is unique, so upserting on
+        // `legacyId` would try to *create* a second one and fail; upserting on
+        // email would instead overwrite the account, resetting its password and
+        // `type` from the dump. Neither is wanted: adopt the existing row so
+        // events owned by this Atlas manager still resolve, and leave it alone.
+        const adoptedId = adoptable.get(manager.email.trim().toLowerCase())
+        if (adoptedId != null) {
+          this.idMaps.managers.set(manager.legacyId, adoptedId)
+          await this.skip(
+            `manager #${manager.legacyId}: "${manager.email}" already exists as a non-Atlas ` +
+              `account (managers/${adoptedId}) — adopted, not overwritten`,
+            { collection: 'managers', identifier: manager.email, current: i + 1, total },
+          )
+          continue
+        }
+
         const prefs = mapNotificationPreferences(manager.notifications, manager.contactMethod)
         const result = await this.upsert<{ id: number }>(
           'managers',
@@ -811,6 +850,21 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       // Normalize the email: Payload stores it lowercased + uniquely, so
       // case-variant duplicates must collapse to one user (and share its id).
       const email = user.email.trim().toLowerCase()
+      // 29 rows in the dump hold something that was never an address — "jbk",
+      // "dfsjdhflskdhf", people typing into a form. Payload's email validation
+      // rejects them, which turned each one into a hard error and a failed
+      // import. They are unimportable by definition, so skip them by name: a
+      // registration of theirs is dropped with its own warning below, and the
+      // operator gets a list they can act on instead of a wall of failures.
+      if (!ATLAS_EMAIL_RE.test(email)) {
+        await this.skip(`user #${user.legacyId}: "${user.email}" is not an email address`, {
+          collection: 'users',
+          identifier: email || `user-${user.legacyId}`,
+          current: offset + i + 1,
+          total,
+        })
+        continue
+      }
       try {
         const result = await this.upsert<{ id: number }>(
           'users',
@@ -875,6 +929,47 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         this.addError(`Event "${identifier}" (#${event.legacyId})`, error as Error)
       }
     }
+
+    // Only the batch that finishes the collection can judge the whole of it.
+    if (offset + batch.length >= total) await this.verifyEventQualityStamps()
+  }
+
+  /**
+   * Confirm every imported event carries its listing-quality stamps (#609).
+   *
+   * `qualityOpenCount` / `qualityCheckVersion` are written by the Events
+   * `stampEventQuality` beforeChange hook, so the import gets them for free —
+   * every event reaches the database through `upsert`, which goes through the
+   * Local API. That is *why* there is no backfill script: production is seeded
+   * from here, so there are no pre-existing rows to repair.
+   *
+   * The guarantee is worth checking rather than assuming. A NULL count sorts as
+   * "no open items", so a hook that silently stopped firing would bury the worst
+   * listings at the bottom of the admin list with nothing to indicate why. This
+   * turns that into a visible warning at import time.
+   *
+   * Whole-pass only. A paginated run imports one batch per invocation, so a
+   * count taken mid-run legitimately includes every event the later batches
+   * haven't reached yet — checking there would warn on every batch but the last.
+   */
+  private async verifyEventQualityStamps(): Promise<void> {
+    if (this.options.dryRun || this.isPaginated()) return
+
+    const { totalDocs } = await this.payload.count({
+      collection: 'events',
+      where: {
+        or: [{ qualityOpenCount: { exists: false } }, { qualityCheckVersion: { exists: false } }],
+      },
+      overrideAccess: true,
+      trash: true,
+    })
+
+    if (totalDocs > 0) {
+      this.addWarning(
+        `${totalDocs} event(s) have no listing-quality stamp — the Events stampEventQuality ` +
+          `hook did not run on import. Re-save them, or re-run with --update.`,
+      )
+    }
   }
 
   private async importEvent(
@@ -914,9 +1009,12 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     // in legacyData regardless).
     const rawContactName = event.contactInfo?.phone_name?.trim() || undefined
     const rawContactPhone = event.contactInfo?.phone_number?.trim() || undefined
-    const hasContact = !!rawContactName && !!rawContactPhone
-    const contactName = hasContact ? rawContactName : undefined
-    const contactPhone = hasContact ? rawContactPhone : undefined
+    // A number with no name against it is still a number a seeker can call —
+    // Atlas has several, and pairing the two threw the phone away with the
+    // missing name, leaving dormant listings with no contact route at all.
+    const hasContact = !!rawContactPhone
+    const contactName = rawContactName || undefined
+    const contactPhone = rawContactPhone || undefined
 
     // Schedule timezone: the venue's (offline) or the event's area's (online).
     const timeZone =
@@ -967,11 +1065,12 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       // auto-fill: `eventTitleBeforeChange` keeps `originalDoc.title` for a
       // nullish value, so clearing `customName` in events.json would otherwise
       // leave a previously-imported title in place. '' falls through to the
-      // localized "<time of day> Meditation at <place>" auto-fill, which is
-      // preferred over a hand-written generic name.
-      title:
-        event.customName?.trim() ||
-        (event.eventType === 'online' ? 'Online Sahaj Yoga Meditation' : ''),
+      // "<time of day> Meditation at <place>" auto-fill, which is preferred
+      // over a hand-written generic name — including for online events, which
+      // have no address and so are named after their region. `title` is a
+      // single non-localized column, composed in the default locale — the Atlas
+      // widget translates it client-side.
+      title: event.customName?.trim() || '',
       // `languages` is hasMany, but Atlas only ever stored one code. A merged
       // bilingual event (two listings of one session) carries the curated
       // `languageCodes` instead — see seeds/atlas/AGENTS.md.
@@ -1281,13 +1380,22 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     return mapNotificationPreferences(manager?.notifications, manager?.contactMethod)
   }
 
-  /** Map Atlas registration-question flags to the checkbox group (best effort). */
+  /**
+   * Atlas registration-question flags → the Events `registrationQuestions`
+   * checkbox group.
+   *
+   * A straight pass-through: `EVENT_REGISTRATION_QUESTIONS` *is* the Atlas
+   * question set, named with its own keys, so there is nothing to translate.
+   * The old best-effort map only covered `experience` and `referral` and warned
+   * away the other two — silently dropping `questions` on 435 events and
+   * `aspirations` on 78. An unknown flag is still warned about, since that
+   * would mean the dump grew a question the contract doesn't have.
+   */
   private mapRegistrationQuestions(event: AtlasEvent): Record<string, boolean> | undefined {
     const result: Record<string, boolean> = {}
     for (const flag of event.registrationQuestions ?? []) {
-      const target = REGISTRATION_QUESTION_MAP[flag]
-      if (target) result[target] = true
-      else this.addWarning(`Event #${event.legacyId}: unmapped registration question "${flag}"`)
+      if (REGISTRATION_QUESTION_NAMES.has(flag)) result[flag] = true
+      else this.addWarning(`Event #${event.legacyId}: unknown registration question "${flag}"`)
     }
     return Object.keys(result).length > 0 ? result : undefined
   }

@@ -204,7 +204,7 @@
         },
         "title": {
           "type": "object",
-          "description": "Auto-generated event titles. Used when a manager leaves an event's title blank — preferred over a hand-written generic name, because these localize and can be improved centrally. One complete sentence per time of day (not a shared prefix plus a separate word), so each locale can put the time of day wherever its grammar needs it. `%{place}` = the first comma-segment of the street address.",
+          "description": "Auto-generated event title, used when a manager leaves an event's title blank — preferred over a hand-written generic name, because it can be improved for every event at once. One complete sentence per time of day (not a shared prefix plus a separate word). `%{place}` = the venue name, or the first comma-segment of the street address. NOTE: the event title is no longer localized (#609) — only the default locale's set below is read, and the Atlas widget translates the composed title client-side.",
           "properties": {
             "morning": {
               "type": "string",
@@ -322,41 +322,21 @@
           "type": "object",
           "description": "Optional registration questions, rendered via t('questions.<key>'); the set shown per event varies.",
           "properties": {
-            "accessibility": {
-              "type": "string",
-              "description": "Optional registration question about accessibility needs."
-            },
             "aspirations": {
               "type": "string",
-              "description": "Optional registration question about the attendee's goals."
+              "description": "Registration question: what the attendee hopes to get out of the event. Matches `aspirations` in EVENT_REGISTRATION_QUESTIONS."
             },
             "experience": {
               "type": "string",
-              "description": "Optional registration question about prior experience with this meditation."
-            },
-            "guests": {
-              "type": "string",
-              "description": "Optional registration question about accompanying guests."
-            },
-            "health_info": {
-              "type": "string",
-              "description": "Optional registration question about relevant health information (renamed from `healthInfo`)."
-            },
-            "prior_experience": {
-              "type": "string",
-              "description": "Optional registration question about prior Sahaja Yoga practice (renamed from `priorExperience`)."
+              "description": "Registration question: whether the attendee has practised Sahaja Yoga before. Matches `experience` in EVENT_REGISTRATION_QUESTIONS."
             },
             "questions": {
               "type": "string",
-              "description": "Optional registration question inviting free-form questions."
+              "description": "Registration question: anything the attendee wants to ask before coming. Matches `questions` in EVENT_REGISTRATION_QUESTIONS."
             },
             "referral": {
               "type": "string",
-              "description": "Optional registration question about how the attendee found the organisation."
-            },
-            "referral_source": {
-              "type": "string",
-              "description": "Optional registration question about how the attendee found this specific event (renamed from `referralSource`)."
+              "description": "Registration question: how the attendee heard about this event. Matches `referral` in EVENT_REGISTRATION_QUESTIONS."
             }
           },
           "additionalProperties": false

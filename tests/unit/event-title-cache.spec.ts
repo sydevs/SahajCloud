@@ -6,19 +6,23 @@ import {
   composeEventTitle,
   EVENT_TITLE_DEFAULTS,
   firstAddressSegment,
-} from '@/collections/Events/hooks/eventTitle'
+} from '@/lib/eventTitle/compose'
 
 /**
  * Minimal PayloadRequest stub — resolveTitleTemplates only touches `context` and
  * `payload.findGlobal`. We test it indirectly via the beforeChange hook.
  */
-function makeReq(impl: () => Promise<Record<string, unknown>>) {
+function makeReq(
+  impl: () => Promise<Record<string, unknown>>,
+  findByIDImpl: () => Promise<Record<string, unknown>> = async () => ({ name: 'Toronto' }),
+) {
   const findGlobal = vi.fn(impl)
+  const findByID = vi.fn(findByIDImpl)
   const req = {
     context: {},
-    payload: { findGlobal, logger: { debug: vi.fn() } },
+    payload: { findGlobal, findByID, logger: { debug: vi.fn() } },
   } as unknown as PayloadRequest
-  return { req, findGlobal }
+  return { req, findGlobal, findByID }
 }
 
 /** A schedule whose local start time lands in the given slot. */
@@ -178,6 +182,77 @@ describe('Event title memoization (#542 bulk-import stampede guard)', () => {
       } as unknown as Parameters<typeof eventTitleBeforeChange>[0])
 
       expect(result).toBe(EVENT_TITLE_DEFAULTS.evening.replace('%{place}', 'Berlin'))
+    })
+  })
+
+  describe('the region fallback (an online event has no address)', () => {
+    const call = async (
+      req: PayloadRequest,
+      data: Record<string, unknown>,
+      originalDoc: Record<string, unknown> = { id: 1 },
+    ) => {
+      const { eventTitleBeforeChange } = await import('@/collections/Events/hooks/eventTitle')
+      return eventTitleBeforeChange({ value: '', data, originalDoc, req } as unknown as Parameters<
+        typeof eventTitleBeforeChange
+      >[0])
+    }
+
+    it('names the event after its region, reading only the name', async () => {
+      const { req, findByID } = makeReq(async () => ({}))
+      const result = await call(req, { region: 42, schedule: eveningSchedule })
+
+      expect(result).toBe('Evening Meditation at Toronto')
+      expect(findByID).toHaveBeenCalledWith(
+        expect.objectContaining({ collection: 'regions', id: 42, select: { name: true } }),
+      )
+    })
+
+    it('prefers the address, so a venue never pays for a region read', async () => {
+      const { req, findByID } = makeReq(async () => ({}))
+      const result = await call(req, {
+        address: { venueName: 'Sunrise Hall' },
+        region: 42,
+        schedule: eveningSchedule,
+      })
+
+      expect(result).toBe('Evening Meditation at Sunrise Hall')
+      expect(findByID).not.toHaveBeenCalled()
+    })
+
+    it('collapses a batch of events in one region to a single read', async () => {
+      // The same stampede guard as the templates above: the Atlas seed saves
+      // events in batches, and a city's online events all resolve one name.
+      const { req, findByID } = makeReq(async () => ({}))
+      const results = await Promise.all(
+        [1, 2, 3, 4].map((id) => call(req, { region: 42, schedule: eveningSchedule }, { id })),
+      )
+
+      expect(findByID).toHaveBeenCalledTimes(1)
+      results.forEach((result) => expect(result).toBe('Evening Meditation at Toronto'))
+    })
+
+    it('refuses the save when there is no place left to name it', async () => {
+      // The guarantee lives here, not in `required`: eventTitleValidate has to
+      // permit a blank title for the browser's sake, so a failed region read
+      // would otherwise store one. A trashed region reads as NotFound.
+      const { req } = makeReq(
+        async () => ({}),
+        () => Promise.reject(new Error('NotFound')),
+      )
+
+      await expect(call(req, { region: 42, schedule: eveningSchedule })).rejects.toThrow(/title/i)
+      await expect(call(req, { schedule: eveningSchedule })).rejects.toThrow(/title/i)
+    })
+
+    it('lets a draft stay incomplete, as `required` itself does', async () => {
+      // Payload skips `required` for a draft, and this throw stands in for it —
+      // the guarantee is that every *published* event carries a title.
+      const { req } = makeReq(
+        async () => ({}),
+        () => Promise.reject(new Error('NotFound')),
+      )
+
+      await expect(call(req, { _status: 'draft', schedule: eveningSchedule })).resolves.toBe('')
     })
   })
 })

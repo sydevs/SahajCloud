@@ -87,7 +87,7 @@ describe('EventRegistrationEmail', () => {
     startDate: 'Saturday, 19 July 2026',
     answers: [
       { label: 'How did you hear about this event?', value: 'A friend recommended it' },
-      { label: 'Will you be bringing any guests?', value: 'Yes, two guests' },
+      { label: 'Do you have any questions for us?', value: 'Is parking available?' },
     ],
     eventAdminUrl: 'https://cloud.test/admin/collections/events/42',
   }
@@ -106,8 +106,8 @@ describe('EventRegistrationEmail', () => {
     expect(html).toContain('Registration answers')
     expect(html).toContain('How did you hear about this event?')
     expect(html).toContain('A friend recommended it')
-    expect(html).toContain('Will you be bringing any guests?')
-    expect(html).toContain('Yes, two guests')
+    expect(html).toContain('Do you have any questions for us?')
+    expect(html).toContain('Is parking available?')
     // Both CTAs render on the button row; Reply is a pre-filled mailto.
     expect(html).toContain('Reply')
     expect(html).toContain('mailto:sam@example.com?subject=')
