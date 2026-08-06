@@ -137,6 +137,18 @@ interface CopyVars {
   sinceLastVerified: string
 }
 
+/**
+ * Wording for one state of the listing-progress section, keyed the same way
+ * `VariantCopy` is: `COPY.listing[state]` mirrors `COPY.variants[audience][level]`,
+ * so both states are guaranteed to carry the same fields.
+ */
+interface ListingStateCopy {
+  /** Section heading. */
+  heading: string
+  /** The single line under the progress bar. */
+  intro: ReactNode
+}
+
 interface VariantCopy {
   /** Card heading. */
   heading: string
@@ -165,20 +177,14 @@ const COPY: {
   footer: (audience: ReminderAudience, brandName: string) => ReactNode
   /** The listing-quality progress section (#611). */
   listing: {
-    heading: string
-    /**
-     * Replaces `heading` once every check passes — an "Improve…" heading
-     * directly above "Nothing left to improve" contradicts itself.
-     */
-    completeHeading: string
     /** "2 of 4 complete" — the caption beside the progress bar. */
     caption: (resolved: number, total: number) => string
-    /** Shown above the open items, when there are any. */
-    intro: ReactNode
-    /** Replaces `intro` once every check passes. */
-    complete: ReactNode
-    /** Small heading over the already-done ticks. */
+    /** Small heading over the already-passing ticks (rendered in `open` only). */
     doneHeading: string
+    /** Something left to do. */
+    open: ListingStateCopy
+    /** Every check passing. Kept short — it's an acknowledgement, not a report. */
+    complete: ListingStateCopy
   }
   /** The pre-filled email a region manager's "Contact manager" button opens. */
   contactManager: {
@@ -208,22 +214,21 @@ const COPY: {
   ),
 
   listing: {
-    heading: 'Improve your listing',
-    completeHeading: 'Your listing is complete',
     caption: (resolved, total) => `${resolved} of ${total} complete`,
-    intro: (
-      <>
-        These are optional and don’t affect verification — a fuller listing helps seekers find your
-        class and know what to expect.
-      </>
-    ),
-    complete: (
-      <>
-        Nothing left to improve — thank you for keeping this listing complete. It’s among the
-        easiest for a seeker to find and sign up.
-      </>
-    ),
     doneHeading: 'Already done',
+    open: {
+      heading: 'Improve your listing',
+      intro: (
+        <>
+          These are optional and don’t affect verification — a fuller listing helps seekers find
+          your class and know what to expect.
+        </>
+      ),
+    },
+    complete: {
+      heading: 'Your listing is complete',
+      intro: <>Nothing left to improve — thank you for keeping it up to date.</>,
+    },
   },
 
   contactManager: {
@@ -411,6 +416,8 @@ export function EventVerificationEmail({
   // / `skipWhenFailed`), which leaves nothing to be a fraction of — suppress
   // rather than render "0 of 0 complete" and an empty bar.
   const progress = audience === 'manager' && listingProgress?.total ? listingProgress : null
+  const hasOpen = (progress?.open.length ?? 0) > 0
+  const listingCopy = hasOpen ? COPY.listing.open : COPY.listing.complete
 
   // Region managers don't verify (they may lack the details); their CTA emails
   // the event manager instead. Everyone else gets the tokenized verify link.
@@ -495,18 +502,14 @@ export function EventVerificationEmail({
 
       {progress ? (
         <Section>
-          <SectionHeading>
-            {progress.open.length > 0 ? COPY.listing.heading : COPY.listing.completeHeading}
-          </SectionHeading>
+          <SectionHeading>{listingCopy.heading}</SectionHeading>
           <ProgressBar
             resolved={progress.resolved}
             total={progress.total}
             color={brand.colors.primary}
             caption={COPY.listing.caption(progress.resolved, progress.total)}
           />
-          <Text style={styles.hint}>
-            {progress.open.length > 0 ? COPY.listing.intro : COPY.listing.complete}
-          </Text>
+          <Text style={styles.hint}>{listingCopy.intro}</Text>
           {/* Every open item, uncapped: the registry is deliberately coarse and
               two of its four checks are mutually exclusive, so at most three
               can be open at once — never enough to read as a scolding. */}
@@ -515,17 +518,17 @@ export function EventVerificationEmail({
               {suggestion.detail}
             </DetailRow>
           ))}
-          {/* What's already done, listed under what isn't, so the bar's filled
-              portion has names attached. `label` here is the check's
-              `passedLabel` — a tick beside an imperative reads as the opposite
-              of the point. */}
-          {progress.done.length > 0 ? (
+          {/* The ticks earn their space only next to something unfinished —
+              they put names on the bar's filled portion. With nothing open the
+              bar already reads 4 of 4, so listing all four again is padding on
+              an email whose point is "no action needed". `label` here is the
+              check's `passedLabel`; a tick beside an imperative reads as the
+              opposite of the point. */}
+          {hasOpen && progress.done.length > 0 ? (
             <>
-              {progress.open.length > 0 ? (
-                <Text style={{ ...styles.hint, margin: '18px 0 4px', fontWeight: 600 }}>
-                  {COPY.listing.doneHeading}
-                </Text>
-              ) : null}
+              <Text style={{ ...styles.hint, margin: '18px 0 4px', fontWeight: 600 }}>
+                {COPY.listing.doneHeading}
+              </Text>
               {progress.done.map((item) => (
                 <Text key={item.key} style={doneItem}>
                   <span style={{ color: brand.colors.primary, fontWeight: 700 }}>✓</span>{' '}

@@ -226,6 +226,22 @@ describe('EventVerificationEmail', () => {
       expect(html).toMatch(/width:\s*100%/)
     })
 
+    it('keeps the complete state compact — bar and one line, no tick list', async () => {
+      // "4 of 4 complete" already says what the ticks would, and this email's
+      // whole message is that no action is needed.
+      const html = await renderEmail(
+        createElement(EventVerificationEmail, {
+          ...baseProps,
+          level: 'due',
+          listingProgress: completeProgress,
+        }),
+      )
+      for (const item of completeProgress.done) {
+        expect(html).not.toContain(item.label)
+      }
+      expect(html).not.toContain('✓')
+    })
+
     it('does not tell a complete listing to improve itself', async () => {
       // The heading swaps with the state: "Improve your listing" sitting
       // directly above "Nothing left to improve" contradicts itself.
