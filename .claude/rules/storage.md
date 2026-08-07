@@ -65,18 +65,41 @@ GitHub Actions job (`.github/workflows/cleanup-preview-assets.yml` →
 `scripts/cleanup-preview-assets.ts`) reaps preview-marked assets older than 7
 days across all three backends. The reap predicate (`isReapablePreviewAsset`)
 only deletes assets that are **both** marked **and** past the cutoff; the script
-defaults to a dry run (`--apply` to delete). Required GitHub secrets — all three,
-the script exits 1 without any of them: `CLOUDFLARE_ACCOUNT_ID`,
-`CLOUDFLARE_API_KEY`, `R2_BUCKET`.
+defaults to a dry run (`--apply` to delete).
+
+**Config, split by whether it's actually sensitive.** Only the token is a GitHub
+*secret*; the rest are *variables*, so they stay unmasked in the run log — a
+masked `R2_BUCKET: ***` is exactly what makes an R2 403 hard to read.
+
+| Name | Kind | Required |
+| --- | --- | --- |
+| `CLOUDFLARE_ACCOUNT_ID` | secret | yes |
+| `CLOUDFLARE_API_KEY` | secret | yes |
+| `R2_BUCKET` | variable | yes |
+| `R2_JURISDICTION` | workflow env | only for a jurisdiction-bound bucket |
+
+The script exits 1 without any of the required three — deliberately: a cleanup
+that silently reaps nothing is worse than one that fails loudly.
 
 **One token, three backends.** The script takes no R2 access-key pair of its own.
 R2's `Object Read & Write` permission is honoured only by the S3-compatible API
 (SigV4) — the REST API rejects object-scoped tokens — so `r2Credentials.ts`
 derives the pair from `CLOUDFLARE_API_KEY` the way
 [Cloudflare documents](https://developers.cloudflare.com/r2/api/tokens/): access
-key = the token's id (`GET /user/tokens/verify`), secret = **hex** SHA-256 of the
-token value. Any other digest encoding fails as an opaque
-`SignatureDoesNotMatch`, which is what `tests/unit/r2-credentials.spec.ts` pins.
+key = the token's id, secret = **hex** SHA-256 of the token value. Any other
+digest encoding fails as an opaque `SignatureDoesNotMatch`.
+
+Two things here only fail against the live API, so both are pinned in
+`tests/unit/r2-credentials.spec.ts` rather than rediscovered:
+
+- **The id lives under one verify scope only.** Cloudflare issues account-owned
+  and user-owned tokens; asking the wrong scope answers `Invalid API Token` —
+  identical to the reply for a genuinely bad token. `r2AccessKeyId` tries
+  `/accounts/<id>/tokens/verify` then `/user/tokens/verify` before concluding.
+- **A jurisdiction-bound bucket lives on its own host**
+  (`<account>.<eu|fedramp>.r2.cloudflarestorage.com`). On the default host R2
+  answers `AccessDenied`, not a 404 — so it impersonates a permissions problem
+  and sends you auditing token scopes. Set `R2_JURISDICTION`.
 
 This is the **script's** contract only. The app's own R2 adapter still uses
 `serverEnv.R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_S3_ENDPOINT` as

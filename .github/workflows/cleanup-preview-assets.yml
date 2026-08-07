@@ -36,12 +36,15 @@ jobs:
     env:
       # One token covers all three backends: Images:Edit, Stream:Edit, and R2
       # Object Read & Write (the script derives R2's S3 credentials from it).
+      # One token covers all three backends; only it is a secret. The bucket
+      # name and jurisdiction are configuration, so they stay unmasked — a
+      # masked `R2_BUCKET: ***` is exactly what makes an R2 403 hard to read.
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-      R2_BUCKET: ${{ secrets.R2_BUCKET }}
-      # Not a secret, so it stays readable here: the bucket is jurisdiction-bound
-      # and is only reachable on the matching host. On the default host R2
-      # answers AccessDenied, which reads as a permissions problem.
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      # The bucket is jurisdiction-bound and reachable only on the matching
+      # host; on the default host R2 answers AccessDenied, which impersonates a
+      # permissions problem.
       R2_JURISDICTION: eu
     steps:
       - uses: actions/checkout@v4
