@@ -18,11 +18,15 @@
  *   pnpm tsx scripts/cleanup-preview-assets.ts --apply          # actually delete
  *   pnpm tsx scripts/cleanup-preview-assets.ts --days 3 --apply
  *
- * Env required (Images + Stream):
+ * Env required (all three):
  *   CLOUDFLARE_ACCOUNT_ID
- *   CLOUDFLARE_API_KEY        (token with Images:Edit + Stream:Edit)
- * Env required for R2 cleanup (R2 step is skipped when any is unset):
- *   R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY  [, R2_S3_ENDPOINT]
+ *   CLOUDFLARE_API_KEY   one token covering Images:Edit, Stream:Edit and
+ *                        R2 Object Read & Write — see `r2CredentialsFromToken`
+ *   R2_BUCKET
+ * Optional:
+ *   R2_JURISDICTION      `eu` / `fedramp` when the bucket was created with one.
+ *                        Not a secret; set it in the workflow. A jurisdictional
+ *                        bucket is unreachable on the default host.
  */
 import { DeleteObjectCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3'
 import { z } from 'zod'
@@ -32,6 +36,12 @@ import {
   isPreviewOwnedVideoMeta,
   isReapablePreviewAsset,
 } from '../src/plugins/storage/previewIsolation'
+import {
+  R2_JURISDICTIONS,
+  r2AccessKeyId,
+  r2S3Endpoint,
+  r2SecretAccessKey,
+} from '../src/plugins/storage/r2Credentials'
 
 const DEFAULT_MAX_AGE_DAYS = 7
 const CF_API_BASE = 'https://api.cloudflare.com/client/v4'
@@ -79,7 +89,7 @@ function printUsage(): void {
       '  pnpm tsx scripts/cleanup-preview-assets.ts [--days <n>] [--apply]',
       '',
       'Defaults to a dry run (no deletes). Pass --apply to delete.',
-      'Env: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_KEY [, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_S3_ENDPOINT]',
+      'Env: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_KEY, R2_BUCKET [, R2_JURISDICTION]',
     ].join('\n'),
   )
 }
@@ -242,24 +252,38 @@ async function reapStream(
 }
 
 /**
+ * S3 credentials for R2, derived from the same Cloudflare API token used for
+ * Images and Stream — see `r2Credentials.ts` for why hashing a credential is
+ * the documented approach rather than a mistake.
+ */
+async function r2CredentialsFromToken(
+  accountId: string,
+  apiKey: string,
+): Promise<{ accessKeyId: string; secretAccessKey: string }> {
+  return {
+    accessKeyId: await r2AccessKeyId(accountId, (path) => cfFetch('GET', path, apiKey)),
+    secretAccessKey: r2SecretAccessKey(apiKey),
+  }
+}
+
+/**
  * Reap preview-marked R2 objects older than the cutoff. R2 keys are
  * `<collection>/<filename>`; the marker is the `preview-` prefix on the
  * filename segment.
  */
-async function reapR2(now: Date, days: number, apply: boolean): Promise<ReapSummary | null> {
-  const bucket = process.env.R2_BUCKET
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY
-  if (!bucket || !accessKeyId || !secretAccessKey) {
-    console.log('  [r2] skipped (R2_BUCKET / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY not set)')
-    return null
-  }
-
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
+async function reapR2(
+  accountId: string,
+  apiKey: string,
+  bucket: string,
+  now: Date,
+  days: number,
+  apply: boolean,
+): Promise<ReapSummary> {
+  const endpoint = r2S3Endpoint(accountId, process.env.R2_JURISDICTION)
   const client = new S3Client({
     region: 'auto',
-    endpoint: process.env.R2_S3_ENDPOINT || `https://${accountId}.r2.cloudflarestorage.com`,
-    credentials: { accessKeyId, secretAccessKey },
+    endpoint,
+    credentials: await r2CredentialsFromToken(accountId, apiKey),
   })
 
   let continuationToken: string | undefined
@@ -267,9 +291,19 @@ async function reapR2(now: Date, days: number, apply: boolean): Promise<ReapSumm
   let reaped = 0
 
   do {
-    const list = await client.send(
-      new ListObjectsV2Command({ Bucket: bucket, ContinuationToken: continuationToken }),
-    )
+    // R2 answers a jurisdictional bucket addressed on the default host with
+    // AccessDenied, not a 404 — so the raw SDK error sends you auditing token
+    // permissions when the endpoint is what's wrong. Name both.
+    const list = await client
+      .send(new ListObjectsV2Command({ Bucket: bucket, ContinuationToken: continuationToken }))
+      .catch((error: unknown) => {
+        const reason = error instanceof Error ? error.message : String(error)
+        throw new Error(
+          `R2 list failed for bucket "${bucket}" at ${endpoint}: ${reason}. ` +
+            'If the bucket was created with a jurisdiction, set R2_JURISDICTION ' +
+            `(${R2_JURISDICTIONS.join(' / ')}); otherwise check the token covers this bucket.`,
+        )
+      })
     const objects = list.Contents ?? []
     scanned += objects.length
 
@@ -300,17 +334,18 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv)
   const accountId = requireEnv('CLOUDFLARE_ACCOUNT_ID')
   const apiKey = requireEnv('CLOUDFLARE_API_KEY')
+  const bucket = requireEnv('R2_BUCKET')
   const now = new Date()
 
   console.log(
     `Preview asset cleanup — cutoff ${args.days} day(s), ${args.apply ? 'APPLY (deleting)' : 'DRY RUN (no deletes)'}`,
   )
 
-  const summaries: ReapSummary[] = []
-  summaries.push(await reapImages(accountId, apiKey, now, args.days, args.apply))
-  summaries.push(await reapStream(accountId, apiKey, now, args.days, args.apply))
-  const r2Summary = await reapR2(now, args.days, args.apply)
-  if (r2Summary) summaries.push(r2Summary)
+  const summaries: ReapSummary[] = [
+    await reapImages(accountId, apiKey, now, args.days, args.apply),
+    await reapStream(accountId, apiKey, now, args.days, args.apply),
+    await reapR2(accountId, apiKey, bucket, now, args.days, args.apply),
+  ]
 
   console.log('\nSummary:')
   for (const summary of summaries) {
