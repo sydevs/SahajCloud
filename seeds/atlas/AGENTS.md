@@ -47,21 +47,32 @@ for stable Atlas identity/routing.
 
 [extract.ts](extract.ts) regenerates `events.json` from `select * from events`,
 so **every value listed below is silently dropped by a re-extraction** and has to
-be re-applied before the regenerated file is committed. The raw `atlas.dump` is
-not in this repo, so re-extraction is not a routine operation — but if you do it,
-work through this list.
+be re-applied before the regenerated file is committed. The raw dumps are not in
+this repo, so re-extraction is not a routine operation — but if you do it, work
+through this list.
 
 `tests/unit/atlas-events-data.spec.ts` asserts most of these invariants, so a
 naive re-extraction fails the unit lane rather than quietly shipping.
 
+**Re-applying is mechanical for unchanged rows.** Each committed event carries
+its raw source row in `legacyData`, so a refresh can port curated values
+per-field: where the fresh dump's raw value equals the committed `legacyData`
+value, the curated top-level value is still valid and copies over verbatim
+(`contactEmail`/`website` port when their sources — `description`,
+`contact_info`, and for `website` the URL fields — are all unchanged). Only rows
+the managers edited upstream, plus brand-new rows, need a fresh grooming pass.
+That is how the 2026-08 refresh was done: ~170 events ported automatically,
+~330 groomed by hand.
+
 | What | Scope |
 | --- | --- |
-| `website` | 29 events — the "learn more" link (#584, extended by the grooming pass) |
-| `contactEmail` | 27 events — no Atlas column at all |
-| Groomed `customName` / `description` / `room` | 446 events (below) |
-| Derived `schedule.weekday` | 44 events — reproducible, `parseSchedule` now emits it |
-| Contact name/phone repairs | 4 events whose two `contactInfo` values were swapped |
-| URL-field repairs | #159, #286 (missing scheme/colon), #352 (an email in a URL field) |
+| `website` | 56 events — the "learn more" link (#584, extended by both grooming passes) |
+| `contactEmail` | 31 events — no Atlas column at all |
+| Groomed `customName` / `description` / `room` | ~490 events across both passes (below) |
+| Derived `schedule.weekday` | reproducible — `parseSchedule` emits it for rows with no `on` key |
+| **Curated** `schedule.weekday` | 7 events (#102, #455, #517, #520, #527, #629, #2291) whose own title/description names a different day than Atlas's stale `on` value or a misleading `start_date`-derivation; title + start date agree in each case |
+| Contact name/phone repairs | swapped `contactInfo` pairs (#1990, #5189 in this pass) |
+| URL-field repairs | scheme-less (#1724 `vk.com`), leading whitespace (#1823), an email in a URL field (#2846, the #352 class) |
 
 ### `contactInfo` carries more than the importer reads
 
@@ -101,10 +112,11 @@ otherwise-uncontactable event publishable.
 ### The grooming pass
 
 Atlas had no validation on `customName` / `description` / `room`, so ~200
-volunteer managers used the description as a notice-board. 446 of the 511 extracted
-events were
-groomed. The managers' own wording is kept **verbatim**; only these classes were
-touched:
+volunteer managers used the description as a notice-board. 446 of the 511 events
+extracted from the 2024 dump were groomed (#605); the **2026-08 refresh** ran
+the same pass over the 230 new events and the ~100 rows managers had edited
+upstream, under the same rules. The managers' own wording is kept **verbatim**;
+only these classes were touched:
 
 1. **Information the listing already renders structurally** — the venue, street,
    postcode, room, weekday, time, phone, email and URLs all have their own
@@ -136,14 +148,22 @@ per-day timetable, the three Brasília parks whose monthly meet-ups are stored a
 **Deliberately left alone**, and worth a manager's attention:
 
 - `contactName` values that aren't people: `WhatsApp` (#443/#444/#445),
-  `Cootamundra` (#546). Clearing them would unpublish #445 (inactive events
-  require a contact); inventing a name is worse.
-- #576's old title held an **Addlestone** address while its venue is Weybridge
-  Library — a genuine address conflict only the manager can resolve.
-- #128 and #159 are near-duplicate `sahaj.me` online listings.
+  `Cootamundra` (#546), `Mödling` (#3111). Clearing them would unpublish
+  inactive listings that require a contact; inventing a name is worse.
+- #2714's `room` says **Walcote Drive Community centre** while its venue is
+  The Mary Potter Centre on Gregory Blvd — the #576-style address conflict only
+  the manager can resolve.
+- #4958 (Cornwall PE, Canada) has **no Atlas area at all**, so the importer
+  cannot resolve a region for it.
+- #965's `onlineUrl` is the bare `https://zoom.com` — not a join link; the
+  real information lives on its `website`.
+- Two Atlas *areas* are actually street addresses masquerading as geo nodes —
+  `Rue de Nimy 46` (Mons) and `Rue du Petit Bruxelles 94 Quenast (Rebecq)` —
+  and surface as oddly-named region entries.
 - Venue-side typos in [data/venues.json](data/venues.json): city
-  `Bichinno do Mato` (#586/#587), a postcode in the `street` field (#455), a
-  zero-width space in #100's postcode.
+  `Bichinno do Mato` (#586/#587), `Феодосия Росиия` jammed into #1465's city,
+  the junk street `Rua A` (#2719) and `-` (#4106), and #448's street being an
+  office address rather than Kitsilano Beach.
 
 ## Shared venues — grouping events that meet at one address
 
@@ -160,7 +180,19 @@ onto the event and the venue record is discarded (`multiUseVenueIds` /
 Grouping keys on `venueId`, and Atlas holds the same place under several venue
 rows — so two events at one address each looked single-use and neither grouped.
 `VENUE_MERGES` in [dedupe.ts](dedupe.ts) collapses them; `dedupeAtlasData`
-re-points the events and drops the losing row. **44 shared venues, 346 inlined.**
+re-points the events and drops the losing row. **53 shared venues** as of the
+2026-08 dump.
+
+The refresh added six merge pairs under the same hand-verified bar: a fourth
+row for the Amsterdam Manenburgstraat building (3116 → 11), the Mons P'tite
+Maison Folie (4337 → 4336), *three* rows for the Frankfurt stadtRAUM concert
+hall at 293 Mainzer Landstraße (5062/5293 → 5194), two rows for the Frankfurt
+Burgstraße 72 centre (5095/5096 → 492, three different managers list there),
+and a second Nottingham Central Library row (4765 → 4798). It also normalizes
+venue `name`/`street`/`city`/`postCode` whitespace at extraction time — 126
+fields carried stray spaces — and repairs two venue names via
+`VENUE_FIELD_OVERRIDES`: 2125's name was its whole marketing slogan (now
+`Málnárium`), 5755's city was lowercase `sydney`.
 
 Ten pairs were added, each verified by hand. Coordinates alone are not evidence
 **in either direction**: two Civitavecchia venues sit 177 m apart but are
@@ -193,18 +225,39 @@ stand — Eindhoven `5641EC` vs `5641PC`, Tampere `33541` vs `33540`, Derby
 importer warns with the document id rather than deleting — a manager may have
 hung content or child nodes off it.
 
-## Merged duplicates — 15 rows removed from events.json
+## Merged duplicates — 15 rows removed by #605, 9 more by the 2026-08 refresh
 
-Atlas let one real class be entered twice. 12 pairs were confirmed by sharing a
-venue **and** an identical `frequency` / `interval` / `weekday` / `weekNumber` /
-`startTime`, then differing only in title, description, lifecycle status or
-language. Their superseded rows are deleted from
-[data/events.json](data/events.json) (511 → 496) and listed in
+Atlas let one real class be entered twice. The #605 pairs were confirmed by
+sharing a venue **and** an identical `frequency` / `interval` / `weekday` /
+`weekNumber` / `startTime`, then differing only in title, description,
+lifecycle status or language. Their superseded rows are deleted from
+[data/events.json](data/events.json) and listed in
 `EXCLUDED_EVENT_LEGACY_IDS` ([import.ts](import.ts)) so a re-extraction can't
 bring them back.
 
 Atlas's own `status` decided which row survives: `0` = verified/live, `6` =
 finished. A `6/0` pair means Atlas had already retired one side.
+
+The refresh added a **session re-listing** variant of the same evidence: one
+manager's class re-entered as a new row for each term, with sequential
+non-overlapping date ranges at the same venue and slot. The open-ended or
+latest term survives; anything the removed rows held that it lacked was carried
+over first (#4662 gained #1988's contact number and room).
+
+| Removed (2026-08) | Survivor | Why |
+| --- | --- | --- |
+| #4365 #4366 | #4364 | Melbourne Ross House entered three times, identical rows |
+| #5849 | #5684 | "Klanken van India" Amsterdam concert entered twice |
+| #4299 | #4298 | one bilingual Mons session listed twice, FR and NL (`languageCodes: ['FR','NL']`) |
+| #2951 | #3440 | Mittagong re-entered two months later, same manager/address/slot |
+| #1988 | #4662 | Nottingham Central Library under two venue rows, same manager/slot |
+| #1328 | #2945 | Reading: Feb–Apr 2025 term superseded by the open-ended re-listing |
+| #3078 #4331 | #4332 | Milton Parc fall/winter terms superseded by the latest |
+
+Of the #605 exclusions, five rows (#575, #458, #461, #468, #469) have since
+been deleted in Atlas itself — their entries stay as harmless no-ops. The #605
+survivors #570/#571 were also deleted upstream, so the Swiss set is gone
+entirely.
 
 | Removed | Survivor | Why |
 | --- | --- | --- |
@@ -225,49 +278,63 @@ Two knock-on effects:
 
 - **Venue topology.** `multiUseVenueIds` counts events per venue, so removing a
   row can drop a venue from multi-use to single-use — its address is then inlined
-  on the event instead of becoming a Regions `venue` node. Three venues moved
-  this way (132 Amstelveen, 317 Winterthur, 562 Ixelles), so the import creates
-  3 fewer shared-venue nodes. `atlas-events-data.spec.ts` recomputes the count
-  from the data and asserts `expectedCounts` matches, so a further removal that
-  changes the topology fails the unit lane instead of drifting silently.
-- **`expectedCounts.events` is now 494** (496 rows less the 2 test records).
-- **`expectedCounts.regions` is now 518** — 474 source geo nodes (29 country +
-  99 region + 346 area) plus 44 shared-venue nodes. It read 482 before, which
-  was the pre-dedupe source count; because verification is `actual >= expected`,
-  an understated value there is not conservative, it just stops checking.
+  on the event instead of becoming a Regions `venue` node.
+  `atlas-events-data.spec.ts` recomputes the count from the data and asserts
+  `expectedCounts` matches, so a removal that changes the topology fails the
+  unit lane instead of drifting silently.
+- **`expectedCounts.events` is 652** (653 rows less test record #494).
+- **`expectedCounts.regions` is 653** — 600 source geo nodes (34 country +
+  101 region + 465 area, post-dedupe) plus 53 shared-venue nodes. Because
+  verification is `actual >= expected`, an understated value there is not
+  conservative, it just stops checking.
 
 ### `languageCodes` — a curated multi-language override
 
 Atlas stored exactly one `languageCode` per row, but Payload's `languages` is
-`hasMany`. #753 merged an English and a French listing of one session, so it
-carries `languageCodes: ['EN', 'FR']`; `mapEventLanguages` prefers that over
-`languageCode` when present. Every other row leaves it unset.
+`hasMany`. Seven rows carry the override, which `mapEventLanguages` prefers
+over `languageCode`: the two merged one-session-per-language pairs (#753
+EN/FR, #4298 FR/NL) and five rows whose own text declares both languages —
+the Milton Parc workshops "offered in French and English" (#4332), Florence's
+"hosted both in Italian and in English" (#4464), Marburg's part-bilingual
+Russian/German course (#4793), and the bilingual Frankfurt programs (#4859,
+#5387, both DE/EN). Every other row leaves it unset.
 
 ### Not merged, and why
 
 - **#115 / #116** — same Zoom link and slot, same manager, but different
   `areaId` (Kamloops / Kelowna). One online room deliberately advertised to two
   regions; merging would delete a region's listing.
-- **#35/#36, #84/#704, #156/#524, #315/#340, #362/#543** — same slot and venue,
-  but **two different managers own the rows** (and #35/#36 differ in `endTime`,
-  #156/#524 in `room`). Needs both people to agree first.
+- **#35/#36, #84/#704, #156/#524, #315/#340** — same slot and venue, but **two
+  different managers own the rows** (and #35/#36 differ in `endTime`, #156/#524
+  in `room`). Needs both people to agree first.
 - **#400/#404 (Brasília), #435/#437 (Rio)** — these look co-located only because
   a venue record's coordinates disagree with its own stated address. A *venue*
   data bug, not duplicate events.
+- **2026-08 additions to the different-managers list**: #748/#759 (Mol — the
+  same Thursday course re-listed for the new season under a second manager
+  account, same contact person on both), #3242/#5618 (Gent — a finished course
+  and its drop-in continuation at the same venue and slot), #3308/#4333
+  (Québec — same Zoom room and Monday slot, different managers), and
+  #4893/#5486 (Frankfurt Burgstraße — two listings of the same Tuesday-evening
+  slot by different managers).
 
 ### Test records
 
-#494 (`Test`) and #575 (`Test Event`) are leftover Atlas test rows. Unlike the
-merged duplicates above they are still *in* events.json — the importer skips them
-via `EXCLUDED_EVENT_LEGACY_IDS` ([import.ts](import.ts)), which keeps them in the
-list handed to `multiUseVenueIds` so the venue → center topology is unchanged.
+#494 (`Test`) is the one leftover Atlas test row still in events.json — the
+importer skips it via `EXCLUDED_EVENT_LEGACY_IDS` ([import.ts](import.ts)),
+which keeps it in the list handed to `multiUseVenueIds` so the venue topology
+is unchanged. (#575, the other #605-era test record, has since been deleted in
+Atlas itself.)
 
 **Skipping can't undo an earlier import.** Any environment seeded before these
-guards still holds the rows — both test records (#575's Atlas `published` was
-`true`, so it landed as a *published* listing) and all 15 merged duplicates. The
+guards still holds the rows — the test records (#575's Atlas `published` was
+`true`, so it landed as a *published* listing) and every merged duplicate. The
 importer emits a warning naming the existing document id (`events/<id>`) for
-every excluded row on every run; trash them by hand in the admin panel. Check
-prod.
+every excluded row on every run, and — since the 2026-08 refresh — a warning
+for every imported event whose `legacyId` no longer appears in events.json at
+all (`reportUpstreamDeletedEvents`), which is how the 64 events deleted in
+Atlas between the two dumps surface for hand-trashing. Trash them by hand in
+the admin panel. Check prod.
 
 ## Event titles: a blank title beats a generic one
 
@@ -316,13 +383,16 @@ The rule the grooming pass settled on:
   centre", and #371's street is the unusable `B26`.
 
 **Blanking can collide.** Two events at one venue in the same time-of-day slot
-auto-fill to the same title, so check before blanking. Two titles were kept for
-exactly this reason — #463 (sharing 56 Tramstrasse with #567) and #569 (sharing
-14 Hauptstrasse with the already-blank #467). Seven collisions remain, all
-pre-existing pairs the grooming didn't create: #263–#266 (four Madrid classes at
-one address, previously four identical `Taller de meditación` titles), plus
-#138/#244, #156/#524, #362/#543, #377/#625, #612/#696 and #641/#682 — every one
-of them already on the unmerged-duplicates list.
+auto-fill to the same title, so check before blanking. After the 2026-08
+refresh, 16 collision groups remain — all either pre-existing pairs whose
+identical hand-written titles already collided (#263–#266 Madrid, #84/#704,
+#138/#244, #156/#524, #315/#340, #612/#696, #641/#682, #319/#342, #389/#683,
+#493/#690) or unmerged near-duplicates on the different-managers list above
+(#748/#759 Mol, #3242/#5618 Gent), plus sibling sets whose Atlas titles were
+blank or identical to begin with: #1103/#1104 (Lansdale), #1328→#2945
+(Reading, resolved by the merge), #3803/#3804/#3836 (three Poitiers evening
+classes), and #4925/#4926 (Luzern's DE/PT pair, distinguished by language and
+weekday chips rather than title).
 
 Because the auto-fill takes the **first comma-segment** of `street`, a stray
 comma or a lowercase town name surfaces straight into the listing's name. Three
@@ -383,7 +453,7 @@ keys are a `title` group rather than a bare `event.titlePrefix`.
 
 `payload.config.ts` sets `admin.timezones.supportedTimezones = SUPPORTED_TIMEZONES`
 (581 zones, the full IANA set from the pinned `@vvo/tzdb`) *because* the Atlas
-data uses zones beyond Payload's curated default — 276 of the 509 events sit on
+data uses zones beyond Payload's curated default — over half the events sit on
 one (`Europe/Prague`, `Europe/Vienna`, `Asia/Novosibirsk`, …).
 
 `tests/utils/testHelpers.ts` does **not** mirror that setting, so every

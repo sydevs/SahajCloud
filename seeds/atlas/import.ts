@@ -226,6 +226,9 @@ const DEFAULT_LOCALE = 'en'
  * seeds/atlas/AGENTS.md for the evidence behind each.
  */
 const EXCLUDED_EVENT_LEGACY_IDS = new Map<number, string>([
+  // ── #605 pass (June dump). Rows whose Atlas source was since deleted
+  // upstream (575, 458, 461, 468, 469) are kept as harmless no-ops so an older
+  // dump can never resurrect them.
   [494, 'Atlas test record'],
   [575, 'Atlas test record'],
   [195, 'duplicate — same Zoom room + slot as #603'],
@@ -243,6 +246,18 @@ const EXCLUDED_EVENT_LEGACY_IDS = new Map<number, string>([
   [534, 'duplicate of #497; both sides already retired'],
   [355, 'duplicate of #535; both sides already retired'],
   [535, 'duplicate of #355; both sides already retired'],
+  // ── 2026-08 dump refresh. Same evidence bar: same manager plus a shared
+  // venue/Zoom room and identical slot; "session re-listing" means sequential
+  // non-overlapping terms of one class, where the latest term survives.
+  [2951, 'duplicate — re-entered as #3440 (same manager, venue, slot)'],
+  [1988, 'duplicate — superseded by #4662 (same manager, library, slot)'],
+  [1328, 'duplicate — session re-listing; open-ended term kept as #2945'],
+  [3078, 'duplicate — session re-listing; latest term kept as #4332'],
+  [4331, 'duplicate — session re-listing; latest term kept as #4332'],
+  [4365, 'duplicate — triple entry of #4364 (identical rows)'],
+  [4366, 'duplicate — triple entry of #4364 (identical rows)'],
+  [4299, 'duplicate — merged into the bilingual #4298 (FR/NL pair)'],
+  [5849, 'duplicate — double entry of #5684 (identical rows)'],
 ])
 
 // ============================================================================
@@ -931,7 +946,38 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
 
     // Only the batch that finishes the collection can judge the whole of it.
-    if (offset + batch.length >= total) await this.verifyEventQualityStamps()
+    if (offset + batch.length >= total) {
+      await this.verifyEventQualityStamps()
+      await this.reportUpstreamDeletedEvents(data)
+    }
+  }
+
+  /**
+   * Report imported events whose Atlas source row no longer exists.
+   *
+   * The import only upserts, so an event deleted in Atlas after an earlier seed
+   * survives here indefinitely — the 2026-08 dump refresh dropped 64 such rows.
+   * Deletion stays manual by design (a manager may have hung content off the
+   * doc); this warning names each row so an operator can trash it in the admin
+   * panel. Events created directly in SahajCloud carry no legacyId and are never
+   * flagged; already-trashed docs are excluded by the default `trash` behaviour,
+   * and excluded legacy ids get their own targeted warning in the import loop.
+   */
+  private async reportUpstreamDeletedEvents(data: AtlasData): Promise<void> {
+    const knownIds = [...data.events.map((e) => e.legacyId), ...EXCLUDED_EVENT_LEGACY_IDS.keys()]
+    const { docs } = await this.payload.find({
+      collection: 'events',
+      where: { and: [{ legacyId: { exists: true } }, { legacyId: { not_in: knownIds } }] },
+      select: { legacyId: true, title: true },
+      pagination: false,
+      overrideAccess: true,
+    })
+    for (const doc of docs) {
+      this.addWarning(
+        `Event events/${doc.id} (legacy #${doc.legacyId}, "${doc.title}") is gone from the ` +
+          `Atlas data — deleted upstream; trash it in the admin panel.`,
+      )
+    }
   }
 
   /**

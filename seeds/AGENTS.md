@@ -89,12 +89,12 @@ Each script has collection-level metadata in `seeds/lib/expectedCounts.ts`:
 | meditations | meditations  | 73    | Yes        | narrators, frames, tags |
 | storyblok   | lessons      | 17    | Yes        | None                    |
 | storyblok   | lectures     | 0     | No         | None                    |
-| atlas       | managers      | 327   | No         | None                    |
-| atlas       | regions       | 518   | No         | managers                |
-| atlas       | users         | 755   | Yes        | None                    |
-| atlas       | events        | 494   | Yes        | managers, regions       |
-| atlas       | registrations | 886   | Yes        | events, users           |
-| atlas       | clients       | 25    | No         | managers                |
+| atlas       | managers      | 495   | No         | None                    |
+| atlas       | regions       | 653   | No         | managers                |
+| atlas       | users         | 1864  | Yes        | None                    |
+| atlas       | events        | 652   | Yes        | managers, regions       |
+| atlas       | registrations | 2007  | Yes        | events, users           |
+| atlas       | clients       | 31    | No         | managers                |
 
 > **Note (meditations script)**: When targeting `collection=meditations`, the importer automatically runs `narrators`, `frames`, and `tags` imports in the same request (in bulk, without pagination). This ensures the ID maps are populated for keyframe and tag references. The meditations themselves are then processed with pagination if enabled.
 
@@ -161,11 +161,13 @@ can run at any point. Its own six collections do have an internal order, which
 the importer handles; `SCRIPT_RUN_ORDER` in [run.ts](run.ts) places it last.
 
 Atlas reads its eight pre-extracted dumps from `seeds/atlas/data/` (regenerated
-by [atlas/extract.ts](atlas/extract.ts) from a PostgreSQL dump — note that
-`events.json` carries curated `website` / `contactEmail` values and a groomed
-`customName` / `description` / `room` for 446 events, all of which a
-re-extraction drops; see [atlas/AGENTS.md](atlas/AGENTS.md)). For the
-Atlas-specific backend surface and importer decisions, see
+by [atlas/extract.ts](atlas/extract.ts) from a PostgreSQL dump; the current
+data comes from the 2026-08 dump). Note that `events.json` carries curated
+`website` / `contactEmail` / `languageCodes` values and a groomed `customName`
+/ `description` / `room` for most events, all of which a re-extraction drops —
+each row's `legacyData` preserves the raw source, so unchanged rows can be
+re-ported mechanically; see [atlas/AGENTS.md](atlas/AGENTS.md) for the
+procedure. For the Atlas-specific backend surface and importer decisions, see
 [atlas/AGENTS.md](atlas/AGENTS.md) and
 [atlas/MIGRATION_PLAN.md](atlas/MIGRATION_PLAN.md).
 

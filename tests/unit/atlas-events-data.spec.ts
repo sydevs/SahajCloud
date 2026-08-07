@@ -69,18 +69,25 @@ const GROOMING_YEAR = 2026
 
 describe('events.json integrity', () => {
   it('holds every source row bar the removed duplicates', () => {
-    // 511 extracted, less the 15 confirmed duplicates merged away (same venue,
-    // weekday and start time as a surviving row) — see EXCLUDED_EVENT_LEGACY_IDS.
-    expect(events).toHaveLength(496)
-    expect(new Set(events.map((e) => e.legacyId)).size).toBe(496)
+    // 673 extracted from the 2026-08 dump, less the 11 previously-merged
+    // duplicates still in Atlas (re-dropped) and the 9 confirmed in this
+    // refresh — see EXCLUDED_EVENT_LEGACY_IDS.
+    expect(events).toHaveLength(653)
+    expect(new Set(events.map((e) => e.legacyId)).size).toBe(653)
   })
 
   it('has no survivor left pointing at a removed duplicate', () => {
     const present = new Set(events.map((e) => e.legacyId))
-    const removed = [82, 195, 355, 360, 392, 458, 461, 464, 468, 469, 496, 497, 534, 535, 752]
+    const removed = [
+      // #605 pass (rows deleted upstream since are simply absent either way)
+      82, 195, 355, 360, 392, 458, 461, 464, 468, 469, 496, 497, 534, 535, 752,
+      // 2026-08 refresh
+      1328, 1988, 2951, 3078, 4299, 4331, 4365, 4366, 5849,
+    ]
     expect(removed.filter((id) => present.has(id))).toEqual([])
-    // The survivors must all still be there.
-    const survivors = [560, 562, 565, 570, 571, 603, 684, 698, 753]
+    // The survivors must all still be there. (#570/#571 were merge survivors
+    // in #605 but have since been deleted in Atlas itself.)
+    const survivors = [560, 562, 565, 603, 684, 698, 753, 2945, 3440, 4298, 4332, 4364, 4662, 5684]
     expect(survivors.filter((id) => !present.has(id))).toEqual([])
   })
 
@@ -176,10 +183,11 @@ describe('events.json structured fields', () => {
       (e) => !!e.contactEmail && !new RegExp(`^${EMAIL_RE.source}$`).test(e.contactEmail),
     )
     expect(bad).toEqual([])
-    // 16 lifted out of free-text descriptions + 12 promoted from the legacy
-    // `contactInfo.email_address` the importer never read, less one on a
-    // removed duplicate.
-    expect(events.filter((e) => e.contactEmail).length).toBe(27)
+    // Lifted out of free-text descriptions and promoted from the legacy
+    // `contactInfo.email_address` the importer never read, across the #605
+    // pass and the 2026-08 refresh (the QLD network's shared info@ address
+    // accounts for six of them).
+    expect(events.filter((e) => e.contactEmail).length).toBe(31)
   })
 
   it('keeps no title that only says "meditation"', () => {
@@ -212,38 +220,49 @@ describe('events.json structured fields', () => {
     const sourceNodes = JSON.parse(
       readFileSync(path.resolve(process.cwd(), 'seeds/atlas/data/regions.json'), 'utf-8'),
     ) as unknown[]
-    // The two leftover Atlas test records are the only excluded ids still in the
-    // file, and they carry a venue reference — so a venue whose second user is a
-    // test record is single-use as far as the importer is concerned.
+    // #494 is the one leftover Atlas test record still in the file (the
+    // importer skips it but keeps it in the venue-usage computation, and no
+    // venue's multi-use status currently hinges on it either way).
     const usage = new Map<number, number>()
     for (const e of events) {
       if (e.venueId == null || [494, 575].includes(e.legacyId)) continue
       usage.set(e.venueId, (usage.get(e.venueId) ?? 0) + 1)
     }
     const sharedVenues = [...usage.values()].filter((count) => count > 1).length
-    expect(sourceNodes).toHaveLength(474)
-    expect(sharedVenues).toBe(44)
+    expect(sourceNodes).toHaveLength(600)
+    expect(sharedVenues).toBe(53)
     expect(EXPECTED_COUNTS.atlas.regions).toBe(sourceNodes.length + sharedVenues)
   })
 
-  it('uses languageCodes only where two language listings were merged', () => {
+  it('uses languageCodes only where a listing is genuinely multi-language', () => {
     // Atlas stored one `languageCode` per row; the curated override exists for
-    // a session that was listed twice, once per language.
-    const merged = events.filter((e) => e.languageCodes?.length)
-    expect(merged.map((e) => e.legacyId)).toEqual([753])
-    expect(merged[0].languageCodes).toEqual(['EN', 'FR'])
+    // sessions listed once per language and then merged (#753, #4298), and for
+    // rows whose own text declares both languages (bilingual workshops and
+    // concerts).
+    const merged = Object.fromEntries(
+      events.filter((e) => e.languageCodes?.length).map((e) => [e.legacyId, e.languageCodes]),
+    )
+    expect(merged).toEqual({
+      753: ['EN', 'FR'],
+      4298: ['FR', 'NL'],
+      4332: ['FR', 'EN'],
+      4464: ['IT', 'EN'],
+      4793: ['DE', 'RU'],
+      4859: ['DE', 'EN'],
+      5387: ['DE', 'EN'],
+    })
   })
 
   it('preserves the legacy contactInfo keys the importer does not read', () => {
     // Atlas's contact_info also carries `meetup` / `facebook` / `email_name` /
-    // `email_address`. 18 rows have the keys; 13 have at least one non-empty
-    // value, mostly dormant events where a contact is the whole offer. The
-    // importer reads only phone_name/phone_number, so these are easy to drop by
-    // accident — which is exactly what happened once during the grooming pass.
+    // `email_address`, mostly on dormant events where a contact is the whole
+    // offer. The importer reads only phone_name/phone_number, so these are easy
+    // to drop by accident — which happened once during the #605 grooming pass.
+    // (13 rows before the refresh; upstream deletions and merges leave 10.)
     const withLegacyKeys = events.filter((e) =>
       Object.keys(e.contactInfo ?? {}).some((k) => !['phone_name', 'phone_number'].includes(k)),
     )
-    expect(withLegacyKeys.length).toBe(13)
+    expect(withLegacyKeys.length).toBe(10)
   })
 
   it('holds no empty-string contactInfo values, and no phone number in the name slot', () => {

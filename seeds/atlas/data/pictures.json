@@ -306,12 +306,6 @@
     "sourceUrl": "https://storage.googleapis.com/sahaj-atlas/uploads/picture/file/75/0ac39c633b.jpg"
   },
   {
-    "legacyId": 76,
-    "eventId": 323,
-    "filename": "0034560d4d.jpg",
-    "sourceUrl": "https://storage.googleapis.com/sahaj-atlas/uploads/picture/file/76/0034560d4d.jpg"
-  },
-  {
     "legacyId": 78,
     "eventId": 445,
     "filename": "fd3b90f855.jpg",
@@ -784,23 +778,5 @@
     "eventId": 669,
     "filename": "3ccf05b1d8.jpg",
     "sourceUrl": "https://storage.googleapis.com/sahaj-atlas/uploads/picture/file/174/3ccf05b1d8.jpg"
-  },
-  {
-    "legacyId": 175,
-    "eventId": 670,
-    "filename": "cfcddcbde0.jpg",
-    "sourceUrl": "https://storage.googleapis.com/sahaj-atlas/uploads/picture/file/175/cfcddcbde0.jpg"
-  },
-  {
-    "legacyId": 176,
-    "eventId": 670,
-    "filename": "fe2707e6e1.jpg",
-    "sourceUrl": "https://storage.googleapis.com/sahaj-atlas/uploads/picture/file/176/fe2707e6e1.jpg"
-  },
-  {
-    "legacyId": 177,
-    "eventId": 670,
-    "filename": "ff54fbeb00.jpg",
-    "sourceUrl": "https://storage.googleapis.com/sahaj-atlas/uploads/picture/file/177/ff54fbeb00.jpg"
   }
 ]

@@ -77,17 +77,6 @@
     "osmId": "R365331"
   },
   {
-    "legacyId": 3,
-    "level": "country",
-    "parent": null,
-    "name": "Netherlands",
-    "countryCode": "NL",
-    "defaultLanguageCode": null,
-    "enableRegions": false,
-    "mailingService": null,
-    "osmId": "R2323309"
-  },
-  {
     "legacyId": 19,
     "level": "country",
     "parent": null,
@@ -143,17 +132,6 @@
     "osmId": "R178009"
   },
   {
-    "legacyId": 27,
-    "level": "country",
-    "parent": null,
-    "name": "France",
-    "countryCode": "FR",
-    "defaultLanguageCode": "FR",
-    "enableRegions": true,
-    "mailingService": null,
-    "osmId": "R2202162"
-  },
-  {
     "legacyId": 26,
     "level": "country",
     "parent": null,
@@ -187,6 +165,39 @@
     "osmId": "R62149"
   },
   {
+    "legacyId": 27,
+    "level": "country",
+    "parent": null,
+    "name": "France",
+    "countryCode": "FR",
+    "defaultLanguageCode": "FR",
+    "enableRegions": false,
+    "mailingService": null,
+    "osmId": "R2202162"
+  },
+  {
+    "legacyId": 3,
+    "level": "country",
+    "parent": null,
+    "name": "Netherlands",
+    "countryCode": "NL",
+    "defaultLanguageCode": "NL",
+    "enableRegions": false,
+    "mailingService": null,
+    "osmId": "R2323309"
+  },
+  {
+    "legacyId": 134,
+    "level": "country",
+    "parent": null,
+    "name": "Lithuania",
+    "countryCode": "LT",
+    "defaultLanguageCode": "LT",
+    "enableRegions": false,
+    "mailingService": null,
+    "osmId": "R72596"
+  },
+  {
     "legacyId": 30,
     "level": "country",
     "parent": null,
@@ -198,15 +209,15 @@
     "osmId": "R49715"
   },
   {
-    "legacyId": 32,
+    "legacyId": 35,
     "level": "country",
     "parent": null,
-    "name": "Armenia",
-    "countryCode": "AM",
-    "defaultLanguageCode": null,
+    "name": "Hungary",
+    "countryCode": "HU",
+    "defaultLanguageCode": "HU",
     "enableRegions": false,
     "mailingService": null,
-    "osmId": "R364066"
+    "osmId": "R21335"
   },
   {
     "legacyId": 20,
@@ -302,7 +313,7 @@
     "parent": null,
     "name": "Belgium",
     "countryCode": "BE",
-    "defaultLanguageCode": null,
+    "defaultLanguageCode": "NL",
     "enableRegions": false,
     "mailingService": null,
     "osmId": "R52411"
@@ -313,10 +324,54 @@
     "parent": null,
     "name": "Luxembourg",
     "countryCode": "LU",
-    "defaultLanguageCode": null,
+    "defaultLanguageCode": "FR",
     "enableRegions": false,
     "mailingService": null,
     "osmId": "R2171347"
+  },
+  {
+    "legacyId": 101,
+    "level": "country",
+    "parent": null,
+    "name": "Portugal",
+    "countryCode": "PT",
+    "defaultLanguageCode": "PT",
+    "enableRegions": false,
+    "mailingService": null,
+    "osmId": "R295480"
+  },
+  {
+    "legacyId": 102,
+    "level": "country",
+    "parent": null,
+    "name": "Andorra",
+    "countryCode": "AD",
+    "defaultLanguageCode": "CA",
+    "enableRegions": false,
+    "mailingService": null,
+    "osmId": "R9407"
+  },
+  {
+    "legacyId": 167,
+    "level": "country",
+    "parent": null,
+    "name": "Bulgaria",
+    "countryCode": "BG",
+    "defaultLanguageCode": "BG",
+    "enableRegions": false,
+    "mailingService": null,
+    "osmId": "R186382"
+  },
+  {
+    "legacyId": 32,
+    "level": "country",
+    "parent": null,
+    "name": "Armenia",
+    "countryCode": "AM",
+    "defaultLanguageCode": "HY",
+    "enableRegions": false,
+    "mailingService": null,
+    "osmId": "R364066"
   },
   {
     "legacyId": 5,
@@ -1408,6 +1463,28 @@
     "osmId": "R296584"
   },
   {
+    "legacyId": 144,
+    "level": "region",
+    "parent": {
+      "level": "country",
+      "legacyId": 25
+    },
+    "name": "Texas",
+    "countryCode": "US",
+    "osmId": "R114690"
+  },
+  {
+    "legacyId": 145,
+    "level": "region",
+    "parent": {
+      "level": "country",
+      "legacyId": 25
+    },
+    "name": "Washington",
+    "countryCode": "US",
+    "osmId": "R165479"
+  },
+  {
     "legacyId": 1,
     "level": "area",
     "parent": {
@@ -2209,7 +2286,7 @@
       "level": "region",
       "legacyId": 2
     },
-    "name": "Waterloo",
+    "name": "Kitchener/Waterloo",
     "countryCode": "CA",
     "subtitle": null,
     "latitude": 43.464,
@@ -2334,7 +2411,7 @@
     "subtitle": null,
     "latitude": 45.502,
     "longitude": -73.567,
-    "radius": 37.16,
+    "radius": 50,
     "timeZone": "America/Toronto"
   },
   {
@@ -2391,7 +2468,7 @@
     },
     "name": "Halton Region",
     "countryCode": "CA",
-    "subtitle": "Burlington, Milton",
+    "subtitle": "Milton, Oakville",
     "latitude": 43.533,
     "longitude": -79.874,
     "radius": 30,
@@ -3370,7 +3447,7 @@
     "latitude": -34.604,
     "longitude": -58.382,
     "radius": 16.2,
-    "timeZone": "America/Buenos_Aires"
+    "timeZone": "America/Argentina/Buenos_Aires"
   },
   {
     "legacyId": 239,
@@ -4164,7 +4241,7 @@
     "subtitle": null,
     "latitude": -6.187,
     "longitude": -35.092,
-    "radius": 0.88,
+    "radius": 6.38,
     "timeZone": "America/Fortaleza"
   },
   {
@@ -4210,21 +4287,6 @@
     "latitude": -22.886,
     "longitude": -43.115,
     "radius": 20.2,
-    "timeZone": "America/Sao_Paulo"
-  },
-  {
-    "legacyId": 333,
-    "level": "area",
-    "parent": {
-      "level": "region",
-      "legacyId": 77
-    },
-    "name": "Condomínio Fazenda da Grama - Rio Claro",
-    "countryCode": "BR",
-    "subtitle": null,
-    "latitude": -22.654,
-    "longitude": -44.042,
-    "radius": 0.57,
     "timeZone": "America/Sao_Paulo"
   },
   {
@@ -4564,7 +4626,7 @@
       "level": "country",
       "legacyId": 26
     },
-    "name": "Lucerne",
+    "name": "Luzern",
     "countryCode": "CH",
     "subtitle": null,
     "latitude": 47.05,
@@ -4633,33 +4695,18 @@
     "timeZone": "Europe/Zurich"
   },
   {
-    "legacyId": 368,
-    "level": "area",
-    "parent": {
-      "level": "country",
-      "legacyId": 26
-    },
-    "name": "Winterthur",
-    "countryCode": "CH",
-    "subtitle": null,
-    "latitude": 47.499,
-    "longitude": 8.724,
-    "radius": 8.48,
-    "timeZone": "Europe/Zurich"
-  },
-  {
     "legacyId": 369,
     "level": "area",
     "parent": {
       "level": "country",
       "legacyId": 26
     },
-    "name": "Zürich",
+    "name": "Hohlstrasse 67",
     "countryCode": "CH",
     "subtitle": null,
-    "latitude": 47.377,
-    "longitude": 8.542,
-    "radius": 9.55,
+    "latitude": 47.378,
+    "longitude": 8.524,
+    "radius": 2.55,
     "timeZone": "Europe/Zurich"
   },
   {
@@ -5066,21 +5113,6 @@
     "longitude": 117.795,
     "radius": 8.33,
     "timeZone": "Australia/Perth"
-  },
-  {
-    "legacyId": 401,
-    "level": "area",
-    "parent": {
-      "level": "region",
-      "legacyId": 102
-    },
-    "name": "Hartford Area",
-    "countryCode": "US",
-    "subtitle": null,
-    "latitude": 41.766,
-    "longitude": -72.673,
-    "radius": 20,
-    "timeZone": "America/New_York"
   },
   {
     "legacyId": 402,
@@ -5563,21 +5595,6 @@
     "timeZone": "Europe/London"
   },
   {
-    "legacyId": 438,
-    "level": "area",
-    "parent": {
-      "level": "region",
-      "legacyId": 83
-    },
-    "name": "Paris",
-    "countryCode": "FR",
-    "subtitle": null,
-    "latitude": 48.857,
-    "longitude": 2.352,
-    "radius": 6.5,
-    "timeZone": "Europe/Paris"
-  },
-  {
     "legacyId": 439,
     "level": "area",
     "parent": {
@@ -5635,7 +5652,7 @@
     "latitude": 50.45,
     "longitude": 30.525,
     "radius": 33.98,
-    "timeZone": "Europe/Kiev"
+    "timeZone": "Europe/Kyiv"
   },
   {
     "legacyId": 443,
@@ -5650,21 +5667,6 @@
     "latitude": -20.32,
     "longitude": -40.338,
     "radius": 13.18,
-    "timeZone": "America/Sao_Paulo"
-  },
-  {
-    "legacyId": 444,
-    "level": "area",
-    "parent": {
-      "level": "region",
-      "legacyId": 76
-    },
-    "name": "Vila Velha",
-    "countryCode": "BR",
-    "subtitle": null,
-    "latitude": -20.348,
-    "longitude": -40.295,
-    "radius": 21.42,
     "timeZone": "America/Sao_Paulo"
   },
   {
@@ -5854,27 +5856,12 @@
       "level": "country",
       "legacyId": 11
     },
-    "name": "Munich",
+    "name": "München",
     "countryCode": "DE",
     "subtitle": null,
     "latitude": 48.135,
     "longitude": 11.582,
     "radius": 25,
-    "timeZone": "Europe/Berlin"
-  },
-  {
-    "legacyId": 458,
-    "level": "area",
-    "parent": {
-      "level": "country",
-      "legacyId": 11
-    },
-    "name": "Frankfurt",
-    "countryCode": "DE",
-    "subtitle": null,
-    "latitude": 50.111,
-    "longitude": 8.682,
-    "radius": 19.76,
     "timeZone": "Europe/Berlin"
   },
   {
@@ -6176,21 +6163,6 @@
     "longitude": -75.165,
     "radius": 40,
     "timeZone": "America/New_York"
-  },
-  {
-    "legacyId": 479,
-    "level": "area",
-    "parent": {
-      "level": "country",
-      "legacyId": 31
-    },
-    "name": "Batumi",
-    "countryCode": "GE",
-    "subtitle": null,
-    "latitude": 41.646,
-    "longitude": 41.64,
-    "radius": 15.54,
-    "timeZone": "Asia/Tbilisi"
   },
   {
     "legacyId": 480,
@@ -6591,10 +6563,1900 @@
     },
     "name": "Antwerpen",
     "countryCode": "BE",
-    "subtitle": "Deurne",
+    "subtitle": "Hoboken",
     "latitude": 51.22008987351788,
     "longitude": 4.459599691195013,
     "radius": 20,
     "timeZone": "Europe/Brussels"
+  },
+  {
+    "legacyId": 541,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 102
+    },
+    "name": "Hartford Area",
+    "countryCode": "US",
+    "subtitle": null,
+    "latitude": 41.766,
+    "longitude": -72.673,
+    "radius": 20,
+    "timeZone": "America/New_York"
+  },
+  {
+    "legacyId": 542,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 33
+    },
+    "name": "Ciney",
+    "countryCode": "BE",
+    "subtitle": null,
+    "latitude": 50.29856675647017,
+    "longitude": 5.100073183912706,
+    "radius": 25,
+    "timeZone": "Europe/Brussels"
+  },
+  {
+    "legacyId": 543,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 34
+    },
+    "name": "Luxembourg",
+    "countryCode": "LU",
+    "subtitle": null,
+    "latitude": 49.60975325630941,
+    "longitude": 6.14426937343056,
+    "radius": 25,
+    "timeZone": "Europe/Luxembourg"
+  },
+  {
+    "legacyId": 544,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 4
+    },
+    "name": "Новороссийск",
+    "countryCode": "RU",
+    "subtitle": null,
+    "latitude": 44.718,
+    "longitude": 37.777,
+    "radius": 8.82,
+    "timeZone": "Europe/Moscow"
+  },
+  {
+    "legacyId": 546,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Savigny-sur-Orge",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 48.685,
+    "longitude": 2.349,
+    "radius": 5,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 547,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 29
+    },
+    "name": "Dnipro",
+    "countryCode": "UA",
+    "subtitle": null,
+    "latitude": 48.465,
+    "longitude": 35.046,
+    "radius": 24.2,
+    "timeZone": "Europe/Kiev"
+  },
+  {
+    "legacyId": 548,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 13
+    },
+    "name": "Saskatoon",
+    "countryCode": "CA",
+    "subtitle": null,
+    "latitude": 52.158,
+    "longitude": -106.67,
+    "radius": 15.01,
+    "timeZone": "America/Regina"
+  },
+  {
+    "legacyId": 581,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Agen",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 44.201,
+    "longitude": 0.625,
+    "radius": 3,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 615,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Chelles",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 48.878,
+    "longitude": 2.59,
+    "radius": 12,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 616,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Bordeaux",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 44.842,
+    "longitude": -0.581,
+    "radius": 9.51,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 617,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Poitiers",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 46.58,
+    "longitude": 0.342,
+    "radius": 9.41,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 647,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Montbéliard",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 47.51,
+    "longitude": 6.798,
+    "radius": 5.57,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 680,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 66
+    },
+    "name": "Parque da Família Mahatma Gandhi",
+    "countryCode": "BR",
+    "subtitle": "Av.Ver.Juliano da costa Marques. Terra Nova .Cuiabá/MT",
+    "latitude": -15.579,
+    "longitude": -56.068,
+    "radius": 0.22,
+    "timeZone": "America/Campo_Grande"
+  },
+  {
+    "legacyId": 681,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 66
+    },
+    "name": "Galeria Mandala",
+    "countryCode": "BR",
+    "subtitle": "Meditação na Galeria Mandala",
+    "latitude": -15.603,
+    "longitude": -56.108,
+    "radius": 0.22,
+    "timeZone": "America/Campo_Grande"
+  },
+  {
+    "legacyId": 713,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Aix-en-Provence",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 43.532,
+    "longitude": 5.451,
+    "radius": 17.96,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 714,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Saint-Rémy-de-Provence",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 43.789,
+    "longitude": 4.831,
+    "radius": 9.84,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 715,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "La Roche-sur-Foron",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 46.067,
+    "longitude": 6.312,
+    "radius": 7.36,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 746,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 77
+    },
+    "name": "Maricá",
+    "countryCode": "BR",
+    "subtitle": "Aula aberta semanalmente",
+    "latitude": -22.916,
+    "longitude": -42.819,
+    "radius": 21.55,
+    "timeZone": "America/Sao_Paulo"
+  },
+  {
+    "legacyId": 812,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 57
+    },
+    "name": "Plano Piloto",
+    "countryCode": "BR",
+    "subtitle": null,
+    "latitude": -15.8,
+    "longitude": -47.892,
+    "radius": 10,
+    "timeZone": "America/Sao_Paulo"
+  },
+  {
+    "legacyId": 813,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 57
+    },
+    "name": "Sobradinho",
+    "countryCode": "BR",
+    "subtitle": null,
+    "latitude": -15.657,
+    "longitude": -47.73,
+    "radius": 12.5,
+    "timeZone": "America/Sao_Paulo"
+  },
+  {
+    "legacyId": 814,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 57
+    },
+    "name": "Taguatinga",
+    "countryCode": "BR",
+    "subtitle": null,
+    "latitude": -15.834,
+    "longitude": -48.057,
+    "radius": 12.32,
+    "timeZone": "America/Sao_Paulo"
+  },
+  {
+    "legacyId": 845,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Nice",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 43.703,
+    "longitude": 7.259,
+    "radius": 5,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 846,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Limoges",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 45.834,
+    "longitude": 1.261,
+    "radius": 13.8,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 878,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 35
+    },
+    "name": "Budapest",
+    "countryCode": "HU",
+    "subtitle": null,
+    "latitude": 47.498,
+    "longitude": 19.04,
+    "radius": 27.64,
+    "timeZone": "Europe/Budapest"
+  },
+  {
+    "legacyId": 879,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 35
+    },
+    "name": "Gödöllő",
+    "countryCode": "HU",
+    "subtitle": null,
+    "latitude": 47.601,
+    "longitude": 19.361,
+    "radius": 7.61,
+    "timeZone": "Europe/Budapest"
+  },
+  {
+    "legacyId": 911,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 37
+    },
+    "name": "Gmünd",
+    "countryCode": "AT",
+    "subtitle": null,
+    "latitude": 48.772,
+    "longitude": 14.985,
+    "radius": 6.31,
+    "timeZone": "Europe/Vienna"
+  },
+  {
+    "legacyId": 944,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 78
+    },
+    "name": "Taubaté",
+    "countryCode": "BR",
+    "subtitle": null,
+    "latitude": -23.025,
+    "longitude": -45.564,
+    "radius": 20,
+    "timeZone": "America/Sao_Paulo"
+  },
+  {
+    "legacyId": 977,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 2
+    },
+    "name": "Barrie",
+    "countryCode": "CA",
+    "subtitle": null,
+    "latitude": 44.389,
+    "longitude": -79.69,
+    "radius": 13.5,
+    "timeZone": "America/Toronto"
+  },
+  {
+    "legacyId": 1010,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 4
+    },
+    "name": "Феодосия",
+    "countryCode": "RU",
+    "subtitle": null,
+    "latitude": 45.032,
+    "longitude": 35.382,
+    "radius": 7.45,
+    "timeZone": "Europe/Simferopol"
+  },
+  {
+    "legacyId": 1076,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 3
+    },
+    "name": "Rotterdam",
+    "countryCode": "NL",
+    "subtitle": null,
+    "latitude": 51.924,
+    "longitude": 4.478,
+    "radius": 11.04,
+    "timeZone": "Europe/Amsterdam"
+  },
+  {
+    "legacyId": 1109,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 3
+    },
+    "name": "Leiden",
+    "countryCode": "NL",
+    "subtitle": null,
+    "latitude": 52.164,
+    "longitude": 4.48,
+    "radius": 5.81,
+    "timeZone": "Europe/Amsterdam"
+  },
+  {
+    "legacyId": 1110,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 3
+    },
+    "name": "Fryslân",
+    "countryCode": "NL",
+    "subtitle": null,
+    "latitude": 53.084,
+    "longitude": 5.654,
+    "radius": 45,
+    "timeZone": "Europe/Amsterdam"
+  },
+  {
+    "legacyId": 1142,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 5
+    },
+    "name": "Ashby-de-la-Zouch",
+    "countryCode": "GB",
+    "subtitle": null,
+    "latitude": 52.747,
+    "longitude": -1.473,
+    "radius": 2.62,
+    "timeZone": "Europe/London"
+  },
+  {
+    "legacyId": 1175,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Toulouse",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 43.605,
+    "longitude": 1.443,
+    "radius": 15,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 1208,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Paris",
+    "countryCode": "FR",
+    "subtitle": "Paris 15e",
+    "latitude": 48.858,
+    "longitude": 2.351,
+    "radius": 8,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 1241,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Cergy",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 49.036,
+    "longitude": 2.06,
+    "radius": 12,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 1242,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Argenteuil",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 48.947,
+    "longitude": 2.247,
+    "radius": 12,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 1244,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Aulnay-sous-Bois",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 48.941,
+    "longitude": 2.497,
+    "radius": 12,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 1246,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Bois-d'Arcy",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 48.806,
+    "longitude": 2.022,
+    "radius": 12,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 1274,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Saint-Brieuc",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 48.512,
+    "longitude": -2.768,
+    "radius": 12,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 1275,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Mazamet",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 43.49,
+    "longitude": 2.377,
+    "radius": 12,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 1276,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Caen",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 49.182,
+    "longitude": -0.371,
+    "radius": 12,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 1307,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Région Parisienne",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 48.858,
+    "longitude": 2.351,
+    "radius": 20,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 1340,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 35
+    },
+    "name": "Vác",
+    "countryCode": "HU",
+    "subtitle": null,
+    "latitude": 47.784,
+    "longitude": 19.135,
+    "radius": 8.91,
+    "timeZone": "Europe/Budapest"
+  },
+  {
+    "legacyId": 1406,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 35
+    },
+    "name": "Tiszadorogma",
+    "countryCode": "HU",
+    "subtitle": null,
+    "latitude": 47.684,
+    "longitude": 20.866,
+    "radius": 8.18,
+    "timeZone": "Europe/Budapest"
+  },
+  {
+    "legacyId": 1439,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 1
+    },
+    "name": "Tauranga",
+    "countryCode": "NZ",
+    "subtitle": null,
+    "latitude": -37.687,
+    "longitude": 176.165,
+    "radius": 28.5,
+    "timeZone": "Pacific/Auckland"
+  },
+  {
+    "legacyId": 1472,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 41
+    },
+    "name": "Québec",
+    "countryCode": "CA",
+    "subtitle": null,
+    "latitude": 46.813,
+    "longitude": -71.207,
+    "radius": 50,
+    "timeZone": "America/Toronto"
+  },
+  {
+    "legacyId": 1473,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 41
+    },
+    "name": "Trois-Rivières",
+    "countryCode": "CA",
+    "subtitle": null,
+    "latitude": 46.343,
+    "longitude": -72.542,
+    "radius": 100,
+    "timeZone": "America/Toronto"
+  },
+  {
+    "legacyId": 1474,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 41
+    },
+    "name": "Victoriaville",
+    "countryCode": "CA",
+    "subtitle": null,
+    "latitude": 46.056,
+    "longitude": -71.959,
+    "radius": 9.9,
+    "timeZone": "America/Toronto"
+  },
+  {
+    "legacyId": 1505,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 53
+    },
+    "name": "Denman Prospect",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -35.306,
+    "longitude": 149.026,
+    "radius": 3.5,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 1506,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 53
+    },
+    "name": "Canberra",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -35.28,
+    "longitude": 149.131,
+    "radius": 25,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 1538,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 5
+    },
+    "name": "Nottingham",
+    "countryCode": "GB",
+    "subtitle": null,
+    "latitude": 52.954,
+    "longitude": -1.155,
+    "radius": 11.03,
+    "timeZone": "Europe/London"
+  },
+  {
+    "legacyId": 1571,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 2
+    },
+    "name": "Hamilton Region",
+    "countryCode": "CA",
+    "subtitle": null,
+    "latitude": 43.256,
+    "longitude": -79.871,
+    "radius": 30,
+    "timeZone": "America/Toronto"
+  },
+  {
+    "legacyId": 1604,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 33
+    },
+    "name": "Oostende",
+    "countryCode": "BE",
+    "subtitle": "Mariakerke",
+    "latitude": 51.225,
+    "longitude": 2.909,
+    "radius": 7.99,
+    "timeZone": "Europe/Brussels"
+  },
+  {
+    "legacyId": 1637,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 48
+    },
+    "name": "Pennant Hills",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -33.739,
+    "longitude": 151.072,
+    "radius": 3.05,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 1638,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 48
+    },
+    "name": "Kirrawee",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -34.032,
+    "longitude": 151.072,
+    "radius": 2.09,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 1639,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 48
+    },
+    "name": "Marsden Park",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -33.712,
+    "longitude": 150.842,
+    "radius": 5.27,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 1640,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 48
+    },
+    "name": "The Ponds",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -33.706,
+    "longitude": 150.902,
+    "radius": 2.35,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 1641,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 48
+    },
+    "name": "Mittagong",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -34.451,
+    "longitude": 150.447,
+    "radius": 11.12,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 1642,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 48
+    },
+    "name": "Goulburn",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -34.757,
+    "longitude": 149.714,
+    "radius": 8.7,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 1643,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 48
+    },
+    "name": "Wentworth Falls",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -33.71,
+    "longitude": 150.376,
+    "radius": 7.47,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 1670,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 48
+    },
+    "name": "Manly",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -33.797,
+    "longitude": 151.285,
+    "radius": 3.65,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 1703,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 37
+    },
+    "name": "Mödling",
+    "countryCode": "AT",
+    "subtitle": null,
+    "latitude": 48.083,
+    "longitude": 16.287,
+    "radius": 3.12,
+    "timeZone": "Europe/Vienna"
+  },
+  {
+    "legacyId": 1737,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 48
+    },
+    "name": "Ultimo",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -33.88,
+    "longitude": 151.199,
+    "radius": 0.71,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 1802,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 41
+    },
+    "name": "Sherbrooke",
+    "countryCode": "CA",
+    "subtitle": null,
+    "latitude": 45.404,
+    "longitude": -71.894,
+    "radius": 100,
+    "timeZone": "America/Toronto"
+  },
+  {
+    "legacyId": 1803,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 41
+    },
+    "name": "Gatineau",
+    "countryCode": "CA",
+    "subtitle": null,
+    "latitude": 45.477,
+    "longitude": -75.701,
+    "radius": 100,
+    "timeZone": "America/Toronto"
+  },
+  {
+    "legacyId": 1804,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 41
+    },
+    "name": "Saint-Georges",
+    "countryCode": "CA",
+    "subtitle": null,
+    "latitude": 46.123,
+    "longitude": -70.67,
+    "radius": 100,
+    "timeZone": "America/Toronto"
+  },
+  {
+    "legacyId": 1805,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 41
+    },
+    "name": "Saguenay",
+    "countryCode": "CA",
+    "subtitle": null,
+    "latitude": 48.428,
+    "longitude": -71.06,
+    "radius": 150,
+    "timeZone": "America/Toronto"
+  },
+  {
+    "legacyId": 1806,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 41
+    },
+    "name": "Sept-Iles",
+    "countryCode": "CA",
+    "subtitle": null,
+    "latitude": 50.213,
+    "longitude": -66.376,
+    "radius": 300,
+    "timeZone": "America/Toronto"
+  },
+  {
+    "legacyId": 1807,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 41
+    },
+    "name": "Province Québec",
+    "countryCode": "CA",
+    "subtitle": null,
+    "latitude": 48.516,
+    "longitude": -72.221,
+    "radius": 700,
+    "timeZone": "America/Toronto"
+  },
+  {
+    "legacyId": 1835,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 48
+    },
+    "name": "Batemans Bay",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -35.716,
+    "longitude": 150.179,
+    "radius": 6.67,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 1868,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 48
+    },
+    "name": "Tahmoor",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -34.225,
+    "longitude": 150.593,
+    "radius": 4.28,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 1901,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 48
+    },
+    "name": "Burwood",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -33.877,
+    "longitude": 151.104,
+    "radius": 1.48,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 1934,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 26
+    },
+    "name": "Morbio Inferiore",
+    "countryCode": "CH",
+    "subtitle": null,
+    "latitude": 45.862,
+    "longitude": 9.009,
+    "radius": 7.76,
+    "timeZone": "Europe/Zurich"
+  },
+  {
+    "legacyId": 1967,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Marseille",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 43.303,
+    "longitude": 5.369,
+    "radius": 20,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 2000,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Saint-Étienne",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 45.44,
+    "longitude": 4.387,
+    "radius": 20,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 2033,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Lyon",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 45.764,
+    "longitude": 4.836,
+    "radius": 20,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 2034,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Clermont-Ferrand",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 45.794,
+    "longitude": 3.079,
+    "radius": 20,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 2066,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Rouen",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 49.444,
+    "longitude": 1.098,
+    "radius": 20,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 2099,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Locronan",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 48.099,
+    "longitude": -4.207,
+    "radius": 20,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 2132,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Biarritz",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 43.483,
+    "longitude": -1.559,
+    "radius": 20,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 2165,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 76
+    },
+    "name": "Vila Velha",
+    "countryCode": "BR",
+    "subtitle": null,
+    "latitude": -20.348,
+    "longitude": -40.295,
+    "radius": 21.1,
+    "timeZone": "America/Sao_Paulo"
+  },
+  {
+    "legacyId": 2198,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Compiègne",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 49.418,
+    "longitude": 2.826,
+    "radius": 20,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 2231,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Martinique",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 14.642,
+    "longitude": -61.024,
+    "radius": 39.6,
+    "timeZone": "America/Martinique"
+  },
+  {
+    "legacyId": 2232,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Noyon",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 49.58,
+    "longitude": 3.001,
+    "radius": 20,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 2233,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Morlaix",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 48.578,
+    "longitude": -3.828,
+    "radius": 20,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 2264,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 47
+    },
+    "name": "Gold Coast",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -27.977,
+    "longitude": 153.381,
+    "radius": 35.51,
+    "timeZone": "Australia/Brisbane"
+  },
+  {
+    "legacyId": 2297,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Orvault",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 47.274,
+    "longitude": -1.619,
+    "radius": 5,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 2330,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Tahiti",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": -17.651,
+    "longitude": -149.426,
+    "radius": 40.89,
+    "timeZone": "Pacific/Tahiti"
+  },
+  {
+    "legacyId": 2396,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 52
+    },
+    "name": "Darwin",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -12.464,
+    "longitude": 130.844,
+    "radius": 23.41,
+    "timeZone": "Australia/Darwin"
+  },
+  {
+    "legacyId": 2429,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "La Réunion",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": -21.115,
+    "longitude": 55.536,
+    "radius": 45.32,
+    "timeZone": "Indian/Reunion"
+  },
+  {
+    "legacyId": 2462,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 49
+    },
+    "name": "Ringwood",
+    "countryCode": "AU",
+    "subtitle": "Sahaja Yoga Meditation",
+    "latitude": -37.815,
+    "longitude": 145.231,
+    "radius": 4.1,
+    "timeZone": "Australia/Melbourne"
+  },
+  {
+    "legacyId": 2463,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 49
+    },
+    "name": "Doncaster",
+    "countryCode": "AU",
+    "subtitle": "Sahaja Yoga Meditation",
+    "latitude": -37.787,
+    "longitude": 145.125,
+    "radius": 3.15,
+    "timeZone": "Australia/Melbourne"
+  },
+  {
+    "legacyId": 2495,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Montpellier",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 43.611,
+    "longitude": 3.876,
+    "radius": 20,
+    "timeZone": "Europe/Paris"
+  },
+  {
+    "legacyId": 2528,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 33
+    },
+    "name": "Rue de Nimy 46",
+    "countryCode": "BE",
+    "subtitle": "P'tite Maison Folie",
+    "latitude": 50.457,
+    "longitude": 3.955,
+    "radius": 0.18,
+    "timeZone": "Europe/Brussels"
+  },
+  {
+    "legacyId": 2529,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 33
+    },
+    "name": "Mons",
+    "countryCode": "BE",
+    "subtitle": "P'tite Maison Folie, Rue de Nimy 46",
+    "latitude": 50.457,
+    "longitude": 3.955,
+    "radius": 0.18,
+    "timeZone": "Europe/Brussels"
+  },
+  {
+    "legacyId": 2561,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 49
+    },
+    "name": "Melbourne",
+    "countryCode": "AU",
+    "subtitle": "Ross House",
+    "latitude": -37.817,
+    "longitude": 144.966,
+    "radius": 0.2,
+    "timeZone": "Australia/Melbourne"
+  },
+  {
+    "legacyId": 2562,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 49
+    },
+    "name": "Wheelers Hill",
+    "countryCode": "AU",
+    "subtitle": "Meeting Room",
+    "latitude": -37.908,
+    "longitude": 145.19,
+    "radius": 0.2,
+    "timeZone": "Australia/Melbourne"
+  },
+  {
+    "legacyId": 2563,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 49
+    },
+    "name": "Tarneit",
+    "countryCode": "AU",
+    "subtitle": "Tarneit Community Centre",
+    "latitude": -37.836,
+    "longitude": 144.696,
+    "radius": 0.2,
+    "timeZone": "Australia/Melbourne"
+  },
+  {
+    "legacyId": 2564,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 49
+    },
+    "name": "Point Cook",
+    "countryCode": "AU",
+    "subtitle": "Featherbrook Community Centre",
+    "latitude": -37.899,
+    "longitude": 144.729,
+    "radius": 0.19,
+    "timeZone": "Australia/Melbourne"
+  },
+  {
+    "legacyId": 2565,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 49
+    },
+    "name": "Nunawading",
+    "countryCode": "AU",
+    "subtitle": "Nunawading Community Hub",
+    "latitude": -37.815,
+    "longitude": 145.176,
+    "radius": 0.2,
+    "timeZone": "Australia/Melbourne"
+  },
+  {
+    "legacyId": 2594,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 29
+    },
+    "name": "Kharkiv",
+    "countryCode": "UA",
+    "subtitle": null,
+    "latitude": 49.99136,
+    "longitude": 36.23578,
+    "radius": 17,
+    "timeZone": "Europe/Kiev"
+  },
+  {
+    "legacyId": 2627,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 48
+    },
+    "name": "Maitland",
+    "countryCode": "AU",
+    "subtitle": null,
+    "latitude": -32.73,
+    "longitude": 151.552,
+    "radius": 17.48,
+    "timeZone": "Australia/Sydney"
+  },
+  {
+    "legacyId": 2660,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 31
+    },
+    "name": "Batumi",
+    "countryCode": "GE",
+    "subtitle": null,
+    "latitude": 41.646,
+    "longitude": 41.64,
+    "radius": 15.54,
+    "timeZone": "Asia/Tbilisi"
+  },
+  {
+    "legacyId": 2693,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 33
+    },
+    "name": "Poperinge",
+    "countryCode": "BE",
+    "subtitle": null,
+    "latitude": 50.856,
+    "longitude": 2.725,
+    "radius": 12.7,
+    "timeZone": "Europe/Brussels"
+  },
+  {
+    "legacyId": 2726,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 26
+    },
+    "name": "Colombier",
+    "countryCode": "CH",
+    "subtitle": null,
+    "latitude": 46.967,
+    "longitude": 6.859,
+    "radius": 3.07,
+    "timeZone": "Europe/Zurich"
+  },
+  {
+    "legacyId": 2759,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "name": "Martinique",
+    "countryCode": "FR",
+    "subtitle": null,
+    "latitude": 14.642,
+    "longitude": -61.024,
+    "radius": 36.6,
+    "timeZone": "America/Martinique"
+  },
+  {
+    "legacyId": 2792,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 35
+    },
+    "name": "Verőce",
+    "countryCode": "HU",
+    "subtitle": null,
+    "latitude": 47.826,
+    "longitude": 19.037,
+    "radius": 4.85,
+    "timeZone": "Europe/Budapest"
+  },
+  {
+    "legacyId": 2825,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 11
+    },
+    "name": "Karlsruhe",
+    "countryCode": "DE",
+    "subtitle": null,
+    "latitude": 49.007,
+    "longitude": 8.404,
+    "radius": 13.15,
+    "timeZone": "Europe/Berlin"
+  },
+  {
+    "legacyId": 2826,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 11
+    },
+    "name": "Ulm",
+    "countryCode": "DE",
+    "subtitle": null,
+    "latitude": 48.401,
+    "longitude": 9.988,
+    "radius": 13.11,
+    "timeZone": "Europe/Berlin"
+  },
+  {
+    "legacyId": 2891,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 11
+    },
+    "name": "Marburg",
+    "countryCode": "DE",
+    "subtitle": null,
+    "latitude": 50.802,
+    "longitude": 8.766,
+    "radius": 11.6,
+    "timeZone": "Europe/Berlin"
+  },
+  {
+    "legacyId": 2926,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 11
+    },
+    "name": "Nürnberg",
+    "countryCode": "DE",
+    "subtitle": null,
+    "latitude": 49.454,
+    "longitude": 11.075,
+    "radius": 20.35,
+    "timeZone": "Europe/Berlin"
+  },
+  {
+    "legacyId": 2927,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 11
+    },
+    "name": "Stuttgart",
+    "countryCode": "DE",
+    "subtitle": null,
+    "latitude": 48.776,
+    "longitude": 9.183,
+    "radius": 14.61,
+    "timeZone": "Europe/Berlin"
+  },
+  {
+    "legacyId": 2928,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 11
+    },
+    "name": "Dresden",
+    "countryCode": "DE",
+    "subtitle": null,
+    "latitude": 51.05,
+    "longitude": 13.737,
+    "radius": 18.09,
+    "timeZone": "Europe/Berlin"
+  },
+  {
+    "legacyId": 2929,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 11
+    },
+    "name": "Frankfurt am Main",
+    "countryCode": "DE",
+    "subtitle": null,
+    "latitude": 50.111,
+    "longitude": 8.682,
+    "radius": 19.76,
+    "timeZone": "Europe/Berlin"
+  },
+  {
+    "legacyId": 2931,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 11
+    },
+    "name": "Köln",
+    "countryCode": "DE",
+    "subtitle": null,
+    "latitude": 50.938,
+    "longitude": 6.96,
+    "radius": 21.02,
+    "timeZone": "Europe/Berlin"
+  },
+  {
+    "legacyId": 2990,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 59
+    },
+    "name": "Barra Grande",
+    "countryCode": "BR",
+    "subtitle": null,
+    "latitude": -13.894,
+    "longitude": -38.95,
+    "radius": 4,
+    "timeZone": "America/Bahia"
+  },
+  {
+    "legacyId": 3023,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 11
+    },
+    "name": "Mosbach Baden",
+    "countryCode": "DE",
+    "subtitle": "Meditation für alle  - In der Ruhe liegt die Kraft",
+    "latitude": 49.349,
+    "longitude": 9.129,
+    "radius": 12.84,
+    "timeZone": "Europe/Berlin"
+  },
+  {
+    "legacyId": 3056,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 26
+    },
+    "name": "Zürich",
+    "countryCode": "CH",
+    "subtitle": null,
+    "latitude": 47.378,
+    "longitude": 8.524,
+    "radius": 2,
+    "timeZone": "Europe/Zurich"
+  },
+  {
+    "legacyId": 3089,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 63
+    },
+    "name": "Greater Los Angeles",
+    "countryCode": "US",
+    "subtitle": null,
+    "latitude": 34.055,
+    "longitude": -118.243,
+    "radius": 100,
+    "timeZone": "America/Los_Angeles"
+  },
+  {
+    "legacyId": 3122,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 1
+    },
+    "name": "Coquitlam",
+    "countryCode": "CA",
+    "subtitle": null,
+    "latitude": 49.284,
+    "longitude": -122.793,
+    "radius": 14.54,
+    "timeZone": "America/Vancouver"
+  },
+  {
+    "legacyId": 3155,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 33
+    },
+    "name": "Brugge",
+    "countryCode": "BE",
+    "subtitle": null,
+    "latitude": 51.208,
+    "longitude": 3.225,
+    "radius": 18.37,
+    "timeZone": "Europe/Brussels"
+  },
+  {
+    "legacyId": 3188,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 59
+    },
+    "name": "Lençóis",
+    "countryCode": "BR",
+    "subtitle": null,
+    "latitude": -12.562,
+    "longitude": -41.389,
+    "radius": 1.35,
+    "timeZone": "America/Bahia"
+  },
+  {
+    "legacyId": 3221,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 35
+    },
+    "name": "Siófok",
+    "countryCode": "HU",
+    "subtitle": null,
+    "latitude": 46.909,
+    "longitude": 18.075,
+    "radius": 12.42,
+    "timeZone": "Europe/Budapest"
+  },
+  {
+    "legacyId": 3254,
+    "level": "area",
+    "parent": {
+      "level": "country",
+      "legacyId": 35
+    },
+    "name": "Szeged",
+    "countryCode": "HU",
+    "subtitle": null,
+    "latitude": 46.253,
+    "longitude": 20.141,
+    "radius": 19.98,
+    "timeZone": "Europe/Budapest"
+  },
+  {
+    "legacyId": 3287,
+    "level": "area",
+    "parent": {
+      "level": "region",
+      "legacyId": 63
+    },
+    "name": "Bay Area",
+    "countryCode": "US",
+    "subtitle": null,
+    "latitude": 37.827,
+    "longitude": -122.291,
+    "radius": 300,
+    "timeZone": "America/Los_Angeles"
   }
 ]

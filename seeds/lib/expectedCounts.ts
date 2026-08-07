@@ -65,28 +65,30 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   'wm-app-translations': {},
   // translations updates three PayloadCMS globals, not collections.
   translations: {},
+  // Counts follow the 2026-08 Atlas dump (activity through Aug 2026; the
+  // previous dump's data ended Oct 2024). Counted, not estimated —
+  // verification is `actual >= expected`, so an understated value passes even
+  // when the import silently loses rows. `tests/unit/atlas-events-data.spec.ts`
+  // re-derives regions/users/registrations from the data files.
   atlas: {
-    managers: 327,
-    // 474 source geo nodes (29 country + 99 region + 346 area, post-dedupe),
-    // plus the 44 shared-venue nodes the importer creates for venues used by
-    // more than one surviving event. Counted, not estimated — verification is
-    // `actual >= expected`, so an understated value here passes even when the
-    // import silently loses rows.
-    regions: 518,
-    // 910 source registrants → 881 with something usable as an email (29 hold
-    // typed-in junk like "jbk", which Payload's email validation refuses and
-    // the importer now skips by name) → 717 once case-variant duplicates
-    // collapse onto one account. 755 was the count before the junk rows were
-    // recognised as unimportable, so it could never be reached.
-    users: 717,
-    // 496 rows in events.json (511 extracted, less 15 confirmed duplicates
-    // removed), less the 2 leftover test records the importer skips —
-    // EXCLUDED_EVENT_LEGACY_IDS in seeds/atlas/import.ts.
-    events: 494,
-    // 886 source rows, less the 27 belonging to a registrant whose email was
+    managers: 495,
+    // 600 source geo nodes (34 country + 101 region + 465 area, post-dedupe),
+    // plus the 53 shared-venue nodes the importer creates for venues used by
+    // more than one surviving event.
+    regions: 653,
+    // 2284 source registrants → 2255 with something usable as an email (29
+    // hold typed-in junk, which Payload's email validation refuses and the
+    // importer skips by name) → 1864 once case-variant duplicates collapse
+    // onto one account.
+    users: 1864,
+    // 653 rows in events.json (673 extracted, less 11 previously-merged
+    // duplicates re-dropped and 9 new ones), less the 1 leftover test record
+    // the importer skips — EXCLUDED_EVENT_LEGACY_IDS in seeds/atlas/import.ts.
+    events: 652,
+    // 2034 source rows, less the 27 belonging to a registrant whose email was
     // never an address — with no user to attach to, they can't be imported.
-    registrations: 859,
-    clients: 25,
+    registrations: 2007,
+    clients: 31,
   },
 }
 
