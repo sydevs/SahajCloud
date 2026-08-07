@@ -47,10 +47,11 @@ jobs:
       - run: pnpm test # test:unit + test:int (integration runs against Postgres)
 
       # ── Smoke specs against the Railway PR preview ──────────────────────────
-      # Discover the PR's Railway preview URL via the Railway API and wait until
+      # Discover the PR's Railway preview URL from Railway's commit status (via
+      # the built-in GITHUB_TOKEN — no Railway API token needed) and wait until
       # it's healthy, then run the smoke specs against it. Skips gracefully (empty
-      # preview_url) when there's no preview env or no RAILWAY_API_TOKEN secret —
-      # e.g. PRs whose branch is itself a deployed environment.
+      # preview_url) when there's no preview env — e.g. PRs whose branch is
+      # itself a deployed environment.
       - name: Discover Railway preview URL
         id: preview
         env:

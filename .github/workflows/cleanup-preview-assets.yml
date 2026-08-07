@@ -34,12 +34,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
+      # One token covers all three backends: Images:Edit, Stream:Edit, and R2
+      # Object Read & Write (the script derives R2's S3 credentials from it).
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
       R2_BUCKET: ${{ secrets.R2_BUCKET }}
-      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-      R2_S3_ENDPOINT: ${{ secrets.R2_S3_ENDPOINT }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -51,10 +50,10 @@ jobs:
       # Scheduled runs always delete. Manual runs delete only when `apply` is
       # checked; otherwise they print a dry-run report.
       #
-      # This job is inert until the Cloudflare/R2 secrets are added (the script
-      # exits early without them). Before relying on the scheduled --apply, run
-      # this workflow once via "Run workflow" with `apply` UNCHECKED and review
-      # the dry-run output against real data.
+      # All three secrets above are REQUIRED — the script exits 1 without them,
+      # which is deliberate: a cleanup that silently reaps nothing is worse than
+      # a loud failure. (It previously read a secret name that didn't exist and
+      # failed nightly for six weeks unnoticed.)
       - name: Cleanup preview assets
         run: >-
           pnpm tsx scripts/cleanup-preview-assets.ts
