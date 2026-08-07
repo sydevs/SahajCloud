@@ -15,7 +15,12 @@
  * apply the pending migration). Without the flag, no database is touched.
  */
 
-import type { EventDetails, ReminderAudience, ReminderLevel } from '@/emails/EventVerificationEmail'
+import type {
+  EventDetails,
+  EventListingProgress,
+  ReminderAudience,
+  ReminderLevel,
+} from '@/emails/EventVerificationEmail'
 import type { Event } from '@/payload-types'
 
 import dotenv from 'dotenv'
@@ -35,6 +40,7 @@ interface SampleData {
   adminUrl?: string
   regionLine?: string
   details?: EventDetails
+  listingProgress?: EventListingProgress
 }
 
 /** Seed a fully-populated Event + connected docs and return its summary. */
@@ -42,7 +48,8 @@ async function persistSampleEvent(): Promise<SampleData> {
   const { getPayload } = await import('payload')
   const { default: config } = await import('../src/payload.config')
   const { buildReminderEntry, buildVerificationEntry } = await import('@/lib/eventVerification/log')
-  const { buildEventEmailDetails } = await import('@/lib/notifications')
+  const { buildEventEmailDetails, listingProgressFromReport } = await import('@/lib/notifications')
+  const { buildEventQualityReport } = await import('@/lib/eventQuality')
 
   const payload = await getPayload({ config })
   const stamp = Date.now()
@@ -250,6 +257,9 @@ async function persistSampleEvent(): Promise<SampleData> {
   }
 
   const details = await buildEventEmailDetails({ payload, event })
+  // Default auto-title templates rather than the stored ones — a preview only
+  // needs a representative list, and this keeps the script off `req`.
+  const listingProgress = listingProgressFromReport(buildEventQualityReport(event)) ?? undefined
 
   const serverUrl = process.env.SAHAJCLOUD_URL || `http://localhost:${process.env.PORT || 3000}`
   return {
@@ -261,6 +271,7 @@ async function persistSampleEvent(): Promise<SampleData> {
     adminUrl: `${serverUrl}/admin/collections/events/${event.id}`,
     regionLine: `${city.name} → ${country.name} (region mgr ${regionManager.name})`,
     details,
+    listingProgress,
   }
 }
 
@@ -272,6 +283,7 @@ async function main() {
   const { signVerifyToken } = await import('@/lib/eventVerification/token')
   const { buildVerifyEmailLink } = await import('@/lib/eventVerification/verifyUrl')
   const { formatLongDate } = await import('@/lib/notifications')
+  const { EVENT_QUALITY_CHECK_METADATA } = await import('@/lib/eventQuality')
 
   const sample: SampleData = process.env.PERSIST_EVENT
     ? await persistSampleEvent()
@@ -290,6 +302,36 @@ async function main() {
           breaks: ['Diwali break: 21 Jul – 23 Jul 2026'],
           lastVerified: 'Wednesday, 12 March 2026',
           recentRegistrations: 8,
+        },
+        // Two open and two done, so the preview shows a part-filled bar with
+        // names on both sides of it. Wording comes from the check registry —
+        // see `@/lib/eventQuality/copy`.
+        listingProgress: {
+          open: [
+            {
+              key: 'title.quality',
+              label: EVENT_QUALITY_CHECK_METADATA['title.quality'].label,
+              detail:
+                'The title repeats the day or time. The listing already shows this on its own, and a copy here goes stale as soon as the real field changes.',
+            },
+            {
+              key: 'images.insufficient',
+              label: EVENT_QUALITY_CHECK_METADATA['images.insufficient'].label,
+              detail: EVENT_QUALITY_CHECK_METADATA['images.insufficient'].description,
+            },
+          ],
+          done: [
+            {
+              key: 'description.missing',
+              label: EVENT_QUALITY_CHECK_METADATA['description.missing'].passedLabel,
+            },
+            {
+              key: 'description.quality',
+              label: EVENT_QUALITY_CHECK_METADATA['description.quality'].passedLabel,
+            },
+          ],
+          resolved: 2,
+          total: 4,
         },
       }
 
@@ -344,6 +386,9 @@ async function main() {
         level,
         audience,
         details: sample.details,
+        // Passed for every combination; the template shows them to the event
+        // manager only (a region manager can't act on the listing).
+        listingProgress: sample.listingProgress,
         deadline: level === 'expired' ? today : futureDeadline,
         sinceLastVerified,
         regionName: audience === 'region' ? 'Maharashtra' : undefined,

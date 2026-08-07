@@ -120,10 +120,10 @@ export const EVENT_QUALITY_CHECKS: readonly QualityCheck[] = [
   {
     key: 'description.quality',
     ...EVENT_QUALITY_COPY['description.quality'],
-    // Nothing to say about the quality of a description that isn't there —
-    // `description.missing` is already making that point, and two rows about
-    // the same empty field is one too many.
-    skipWhenFailed: 'description.missing',
+    // Builds on `description.missing`: nothing to say about the quality of a
+    // description that isn't there, and once this passes it has already said
+    // there is one — so that check's own tick drops out. See `dependsOn`.
+    dependsOn: 'description.missing',
     evaluate: (ctx) => redundantParts(ctx.descriptionText, ctx).length > 0,
     detail: (ctx) =>
       redundancyDetail(

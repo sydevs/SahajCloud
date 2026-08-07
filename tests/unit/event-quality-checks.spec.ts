@@ -101,7 +101,11 @@ describe('description', () => {
     expect(
       resultFor(goodEvent({ description: richText('Meditation.') }), 'description.missing')?.status,
     ).toBe('failed')
-    expect(resultFor(goodEvent(), 'description.missing')?.status).toBe('passed')
+    // A real description satisfies it. Not observable as a `passed` result:
+    // `description.quality` then passes too and supersedes it — so what's
+    // asserted is that it stopped being a finding, and that its dependent ran.
+    expect(failedKeys(goodEvent())).not.toContain('description.missing')
+    expect(resultFor(goodEvent(), 'description.quality')?.status).toBe('passed')
   })
 
   it('says nothing about quality while the description is missing', () => {
@@ -114,6 +118,70 @@ describe('description', () => {
 
   it('judges quality again once there is something to judge', () => {
     expect(resultFor(goodEvent(), 'description.quality')?.status).toBe('passed')
+  })
+
+  describe('a dependent supersedes the prerequisite it passed', () => {
+    // The other half of `dependsOn`: while the prerequisite fails, the
+    // dependent is skipped; once the dependent passes, the prerequisite has
+    // nothing left to add. "Has a description" beside "Has a good quality
+    // description" is one row of noise wherever the report is rendered.
+    const keys = (event: EventQualityInput) => {
+      const report = buildEventQualityReport(event, { now: NOW })
+      if (report.skipped) throw new Error('expected a report')
+      return report.checks.map((r) => r.key)
+    }
+
+    it('drops the prerequisite once its dependent also passes', () => {
+      expect(keys(goodEvent())).toContain('description.quality')
+      expect(keys(goodEvent())).not.toContain('description.missing')
+    })
+
+    it('keeps the prerequisite while its dependent is still open', () => {
+      // The manager earned that tick and should see it while they fix the rest.
+      const repeats = goodEvent({
+        description: richText(
+          'Meditation every Saturday at 9:00 AM at 9 St Peter Park Rd. Call us on +44 7700 900123 to check before coming.',
+        ),
+      })
+      expect(resultFor(repeats, 'description.quality')?.status).toBe('failed')
+      expect(resultFor(repeats, 'description.missing')?.status).toBe('passed')
+    })
+
+    it('never lowers the completion ratio when a listing improves', () => {
+      // Superseding shrinks the denominator (4 checks collapse to 3), so the
+      // reminder email's "N of M" has to be re-proved monotonic against real
+      // reports, not just the projection's arithmetic. A bar that slides
+      // backwards after a manager acts is worse than no bar.
+      const ratio = (event: EventQualityInput) => {
+        const report = buildEventQualityReport(event, { now: NOW })
+        if (report.skipped) throw new Error('expected a report')
+        return report.checks.filter((r) => r.status === 'passed').length / report.checks.length
+      }
+      const none = goodEvent({ description: null })
+      const repeats = goodEvent({
+        description: richText(
+          'Meditation every Saturday at 9:00 AM at 9 St Peter Park Rd. Call us on +44 7700 900123 to check before coming.',
+        ),
+      })
+
+      expect(ratio(repeats)).toBeGreaterThan(ratio(none))
+      expect(ratio(goodEvent())).toBeGreaterThan(ratio(repeats))
+    })
+
+    it('cannot change openCount, so a stored qualityOpenCount stays comparable', () => {
+      // Only ever drops checks that passed — which is what lets this ship
+      // without a QUALITY_CHECK_VERSION bump.
+      for (const event of [
+        goodEvent(),
+        goodEvent({ images: [] }),
+        goodEvent({ description: null }),
+      ]) {
+        const report = buildEventQualityReport(event, { now: NOW })
+        if (report.skipped) throw new Error('expected a report')
+        expect(report.openCount).toBe(countOpenDocumentIssues(event, NOW))
+        expect(report.checks.filter((r) => r.status === 'failed')).toHaveLength(report.openCount)
+      }
+    })
   })
 
   it('names exactly what the description repeats', () => {
@@ -173,9 +241,10 @@ describe('description', () => {
     expect(
       resultFor(goodEvent({ description: richText(justUnder) }), 'description.missing')?.status,
     ).toBe('failed')
-    expect(
-      resultFor(goodEvent({ description: richText(justOver) }), 'description.missing')?.status,
-    ).toBe('passed')
+    // Superseded once it passes, so absence from the findings is the assertion.
+    expect(failedKeys(goodEvent({ description: richText(justOver) }))).not.toContain(
+      'description.missing',
+    )
   })
 })
 
