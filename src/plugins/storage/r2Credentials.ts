@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 
+import { z } from 'zod'
+
 /**
  * R2's S3-compatible API, addressed from a Cloudflare API token.
  *
@@ -26,3 +28,44 @@ export const r2S3Endpoint = (accountId: string): string =>
  */
 export const r2SecretAccessKey = (apiToken: string): string =>
   createHash('sha256').update(apiToken).digest('hex')
+
+const TokenVerifySchema = z.object({
+  success: z.boolean(),
+  // `.min(1)`: an empty id would reach the S3 client as a blank access key and
+  // fail as SignatureDoesNotMatch, which names neither the token nor the cause.
+  result: z.object({ id: z.string().min(1) }).nullish(),
+})
+
+/** Issues an authenticated `GET` against the Cloudflare API and returns the parsed body. */
+export type CloudflareGet = (path: string) => Promise<unknown>
+
+/**
+ * The **Access Key ID** for an API token: the token's own id.
+ *
+ * Only the token's value is in the environment, so the id has to be looked up —
+ * and *which* endpoint answers depends on how the token was created. Cloudflare
+ * issues two kinds, and each is verifiable under one scope only:
+ *
+ * - **account-owned** (what it recommends for services, since they outlive any
+ *   one person) → `/accounts/<id>/tokens/verify`
+ * - **user-owned** → `/user/tokens/verify`
+ *
+ * The value alone doesn't say which it is, and asking the wrong one answers
+ * `Invalid API Token` — indistinguishable from a genuinely bad token. So try
+ * both before concluding anything.
+ */
+export async function r2AccessKeyId(accountId: string, cfGet: CloudflareGet): Promise<string> {
+  const scopes = [`/accounts/${accountId}/tokens/verify`, '/user/tokens/verify']
+
+  for (const path of scopes) {
+    const parsed = TokenVerifySchema.safeParse(await cfGet(path))
+    if (parsed.success && parsed.data.success && parsed.data.result) {
+      return parsed.data.result.id
+    }
+  }
+
+  throw new Error(
+    `Could not resolve the API token's id — neither ${scopes.join(' nor ')} accepted it. ` +
+      'Check CLOUDFLARE_API_KEY is valid and carries R2 Object Read & Write.',
+  )
+}

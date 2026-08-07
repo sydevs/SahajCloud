@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 
 import { describe, expect, it } from 'vitest'
 
-import { r2S3Endpoint, r2SecretAccessKey } from '@/plugins/storage/r2Credentials'
+import { r2AccessKeyId, r2S3Endpoint, r2SecretAccessKey } from '@/plugins/storage/r2Credentials'
 
 /**
  * R2's S3 API is the only way to reach objects held by an `Object Read & Write`
@@ -37,5 +37,62 @@ describe('r2SecretAccessKey', () => {
 describe('r2S3Endpoint', () => {
   it('addresses the account bucket host', () => {
     expect(r2S3Endpoint('abc123')).toBe('https://abc123.r2.cloudflarestorage.com')
+  })
+})
+
+/**
+ * Cloudflare issues account-owned and user-owned tokens, each verifiable under
+ * one scope only, and asking the wrong one answers `Invalid API Token` — which
+ * is indistinguishable from a genuinely bad token. A live dry run caught this:
+ * the token worked for Images and Stream but the id lookup rejected it.
+ *
+ * `cfGet` is injected rather than stubbing global fetch, per `.claude/rules/tests.md`.
+ */
+describe('r2AccessKeyId', () => {
+  const ACCOUNT = 'acct-1'
+  const ACCOUNT_SCOPE = `/accounts/${ACCOUNT}/tokens/verify`
+  const USER_SCOPE = '/user/tokens/verify'
+  const invalid = { success: false, errors: [{ code: 1000, message: 'Invalid API Token' }] }
+  const valid = (id: string) => ({ success: true, result: { id, status: 'active' } })
+
+  /** Records the paths tried, answering `valid` only for `respondsAt`. */
+  const cfGet = (respondsAt: string | null, id = 'tok-id') => {
+    const tried: string[] = []
+    const get = async (path: string) => {
+      tried.push(path)
+      return path === respondsAt ? valid(id) : invalid
+    }
+    return { get, tried }
+  }
+
+  it('resolves an account-owned token', async () => {
+    const { get, tried } = cfGet(ACCOUNT_SCOPE, 'acct-token-id')
+    await expect(r2AccessKeyId(ACCOUNT, get)).resolves.toBe('acct-token-id')
+    // Account scope is tried first — it's the kind Cloudflare recommends for
+    // services, so the common case shouldn't pay for a wasted round trip.
+    expect(tried).toEqual([ACCOUNT_SCOPE])
+  })
+
+  it('falls back to the user scope when the account scope rejects it', async () => {
+    const { get, tried } = cfGet(USER_SCOPE, 'user-token-id')
+    await expect(r2AccessKeyId(ACCOUNT, get)).resolves.toBe('user-token-id')
+    expect(tried).toEqual([ACCOUNT_SCOPE, USER_SCOPE])
+  })
+
+  it('throws only after both scopes reject it, naming both', async () => {
+    const { get, tried } = cfGet(null)
+    await expect(r2AccessKeyId(ACCOUNT, get)).rejects.toThrow(/tokens\/verify/)
+    expect(tried).toEqual([ACCOUNT_SCOPE, USER_SCOPE])
+  })
+
+  it('treats a success with no result as a rejection, not an empty key', async () => {
+    // Would otherwise hand the S3 client `undefined` as its access key.
+    const get = async () => ({ success: true, result: null })
+    await expect(r2AccessKeyId(ACCOUNT, get)).rejects.toThrow()
+  })
+
+  it('treats an empty id as a rejection', async () => {
+    const get = async () => ({ success: true, result: { id: '' } })
+    await expect(r2AccessKeyId(ACCOUNT, get)).rejects.toThrow()
   })
 })
