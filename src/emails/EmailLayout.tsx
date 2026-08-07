@@ -18,6 +18,14 @@ import {
 import type { BrandColors } from '@/lib/branding'
 import type { EmailBrand } from '@/plugins/email'
 
+/**
+ * Non-breaking space, spelled out rather than typed literally: it is the only
+ * thing holding an empty table cell open in Outlook, and a bare literal in the
+ * source is invisible enough that a later edit would quietly replace it with a
+ * plain space — which HTML collapses, taking the cell with it.
+ */
+const NBSP = '\u00A0'
+
 /** Diagonal brand gradient shared by the header and CTA buttons. */
 export const brandGradient = (colors: BrandColors): string =>
   `linear-gradient(135deg, ${colors.primary} 0%, ${colors.light} 100%)`
@@ -160,6 +168,53 @@ export function BrandButtonRow({ brand, buttons }: BrandButtonRowProps) {
           {cta.label}
         </Button>
       ))}
+    </Section>
+  )
+}
+
+/**
+ * A horizontal progress bar with its own "N of M" caption.
+ *
+ * Built from `Row`/`Column` (i.e. a real `<table>`) with `backgroundColor` on
+ * the cells, because that is the one fill technique every client renders —
+ * Outlook's Word engine drops CSS backgrounds on a styled `<div>`, and no email
+ * client can be relied on for `<progress>` or a gradient. A zero-width cell is
+ * omitted rather than emitted at `width: 0%`, which some clients round up to a
+ * visible sliver: an empty bar would otherwise show a stub of "complete".
+ */
+export function ProgressBar({
+  resolved,
+  total,
+  color,
+  caption,
+}: {
+  resolved: number
+  total: number
+  /** Fill colour — pass the brand primary so the bar reads as "ours". */
+  color: string
+  /** Text beside the bar, e.g. "2 of 4 complete". */
+  caption: string
+}) {
+  const percent = total > 0 ? Math.round((resolved / total) * 100) : 0
+  // Height comes from line-height: an empty table cell collapses in Outlook,
+  // so each cell carries a non-breaking space sized to the bar instead.
+  const cell: CSSProperties = { height: '8px', fontSize: '1px', lineHeight: '8px' }
+
+  return (
+    <Section style={{ margin: '0 0 14px' }}>
+      <Row>
+        {percent > 0 ? (
+          <Column style={{ ...cell, width: `${percent}%`, backgroundColor: color }}>{NBSP}</Column>
+        ) : null}
+        {percent < 100 ? (
+          <Column style={{ ...cell, width: `${100 - percent}%`, backgroundColor: '#e5e7eb' }}>
+            {NBSP}
+          </Column>
+        ) : null}
+      </Row>
+      <Text style={{ fontSize: '13px', color: '#6b7280', margin: '6px 0 0', fontWeight: 600 }}>
+        {caption}
+      </Text>
     </Section>
   )
 }

@@ -1,11 +1,55 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 import { Hr, Link, Section, Text } from 'react-email'
 
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
-import { BrandButton, DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
+import {
+  BrandButton,
+  DetailRow,
+  EmailLayout,
+  ProgressBar,
+  SectionHeading,
+  styles,
+} from './EmailLayout'
+
+/** One already-passing check, as a ticked line. */
+const doneItem: CSSProperties = {
+  fontSize: '14px',
+  color: '#4b5563',
+  margin: '0 0 4px',
+}
+
+/** …indented to line up with the `DetailRow` cells it sits under (open state). */
+const doneItemIndented: CSSProperties = { ...doneItem, padding: '0 12px' }
+
+/**
+ * The completed-listing note's box. Deliberately grey rather than another
+ * `CALLOUT_COLORS` entry: those are keyed on how urgent verification is, and
+ * this says the opposite. It's a box at all because the complete state carries
+ * neither a section heading nor a progress bar, so without one it runs
+ * straight into the event-details table above it.
+ */
+const completeCallout: CSSProperties = {
+  backgroundColor: '#f3f4f6',
+  borderLeft: '4px solid #9ca3af',
+  borderRadius: '4px',
+  padding: '12px 14px',
+  margin: '28px 0 16px',
+}
+
+/**
+ * The completed-listing note's first line. Carries the emphasis a
+ * `SectionHeading` would, without its uppercase treatment — inside the box it
+ * reads as the note's own opening rather than as another section of the email.
+ */
+const completeHeading: CSSProperties = {
+  fontSize: '15px',
+  fontWeight: 700,
+  color: '#1f2937',
+  margin: '0 0 4px',
+}
 
 /** Escalation level → email copy. Mirrors the job's reminder stages. */
 export type ReminderLevel = 'due' | 'escalated' | 'urgent' | 'expired'
@@ -38,6 +82,42 @@ export interface EventManagerContact {
   contacts: { label: string; value: string }[]
 }
 
+/**
+ * One open listing-quality recommendation (#609), resolved for display.
+ *
+ * The wording is resolved before it reaches the template — the check registry
+ * owns it, so the email and the admin panel can't drift apart. `key` rides
+ * along unused by the render, but it's what makes the list localizable if
+ * manager locales ever come back (#610 was dropped).
+ */
+export interface EventSuggestion {
+  /** Stable check key, e.g. `description.missing`. */
+  key: string
+  /** The recommendation, in the imperative — "Add a description". */
+  label: string
+  /** What the check actually found, or why the item is worth doing. */
+  detail: string
+}
+
+/**
+ * How complete a listing is, as the reminder email presents it.
+ *
+ * Carries what already passes as well as what's open, because the point of
+ * showing a manager `2 of 4` is that the 2 they've already done are visible
+ * next to the 2 that aren't. Absent (`undefined`) means the listing was never
+ * checked and the whole section is suppressed — distinct from a complete
+ * listing, which arrives with an empty `open`.
+ */
+export interface EventListingProgress {
+  /** What's still to do, in registry order. */
+  open: EventSuggestion[]
+  /** What already passes, worded as a state reached ("Has a description"). */
+  done: { key: string; label: string }[]
+  /** Checks passed, out of those with a verdict. `resolved <= total`. */
+  resolved: number
+  total: number
+}
+
 interface EventVerificationEmailProps {
   /** Recipient display name. */
   name: string
@@ -57,6 +137,11 @@ interface EventVerificationEmailProps {
   sinceLastVerified: string
   /** Key event facts (rendered as a summary table). */
   details?: EventDetails
+  /**
+   * How complete the listing is (#611). Omitted renders nothing at all — that
+   * is the "never checked" case, not a clean bill of health.
+   */
+  listingProgress?: EventListingProgress
   /** The ancestor region linking a region manager to the event (region audience). */
   regionName?: string
   /** Event manager's contacts — shown to region managers so they can reach out. */
@@ -79,6 +164,18 @@ interface CopyVars {
   region: ReactNode
   /** How long the event has gone unverified. */
   sinceLastVerified: string
+}
+
+/**
+ * Wording for one state of the listing-progress section, keyed the same way
+ * `VariantCopy` is: `COPY.listing[state]` mirrors `COPY.variants[audience][level]`,
+ * so both states are guaranteed to carry the same fields.
+ */
+interface ListingStateCopy {
+  /** Section heading. */
+  heading: string
+  /** The line under the heading. */
+  intro: ReactNode
 }
 
 interface VariantCopy {
@@ -107,6 +204,20 @@ const COPY: {
   greeting: (name: string) => ReactNode
   buttonHint: string
   footer: (audience: ReminderAudience, brandName: string) => ReactNode
+  /** The listing-quality progress section (#611). */
+  listing: {
+    /** "2 of 4 complete" — the caption beside the progress bar. */
+    caption: (resolved: number, total: number) => string
+    /**
+     * Small heading over the already-passing ticks. Open state only — when
+     * everything passes, the one-line heading already introduces them.
+     */
+    doneHeading: string
+    /** Something left to do. */
+    open: ListingStateCopy
+    /** Every check passing. Kept short — it's an acknowledgement, not a report. */
+    complete: ListingStateCopy
+  }
   /** The pre-filled email a region manager's "Contact manager" button opens. */
   contactManager: {
     subject: (eventTitle: string) => string
@@ -133,6 +244,26 @@ const COPY: {
       are unique to you and acts on your behalf — please don’t forward this email.
     </>
   ),
+
+  listing: {
+    caption: (resolved, total) => `${resolved} of ${total} complete`,
+    doneHeading: 'Already done',
+    open: {
+      heading: 'Improve your listing',
+      intro: (
+        <>
+          These are optional and don’t affect verification — a fuller listing helps seekers find
+          your class and know what to expect.
+        </>
+      ),
+    },
+    complete: {
+      heading: 'Your listing is complete',
+      intro: (
+        <>Your event is optimized for seekers to find it. Thank you for keeping it up to date.</>
+      ),
+    },
+  },
 
   contactManager: {
     subject: (eventTitle) => `Please verify your Sahaja Yoga class: ${eventTitle}`,
@@ -268,6 +399,27 @@ function getVariant(audience: ReminderAudience, level: ReminderLevel): VariantCo
   return variant
 }
 
+/**
+ * The already-passing checks, as ticked lines. Shared by both listing states,
+ * which differ only in indentation: the open state aligns them under the
+ * `DetailRow` cells above, while the complete state sits inside a padded box
+ * that supplies the same inset.
+ *
+ * `label` is the check's `passedLabel` — a tick beside an imperative ("Take
+ * the address out") reads as an endorsement of leaving it in.
+ */
+function renderDoneTicks(
+  done: EventListingProgress['done'],
+  color: string,
+  style: CSSProperties,
+): ReactNode {
+  return done.map((item) => (
+    <Text key={item.key} style={style}>
+      <span style={{ color, fontWeight: 700 }}>✓</span> {item.label}
+    </Text>
+  ))
+}
+
 /** mailto a region manager uses to reach the event manager (the region CTA). */
 function contactManagerHref(email: string, eventTitle: string, managerName: string): string {
   const subject = COPY.contactManager.subject(eventTitle)
@@ -293,6 +445,7 @@ export function EventVerificationEmail({
   deadline,
   sinceLastVerified,
   details,
+  listingProgress,
   regionName,
   eventManager,
   project = 'sahaj-atlas',
@@ -309,6 +462,17 @@ export function EventVerificationEmail({
     region: <strong>{regionName ?? 'your region'}</strong>,
     sinceLastVerified,
   }
+
+  // Shown to the event's own manager only. A region manager is here to nudge
+  // someone else into verifying — handing them a list of that volunteer's
+  // shortcomings sours a conversation they can't act on themselves.
+  //
+  // A `total` of 0 would mean every check bowed out (see `requiresHandWrittenTitle`
+  // / `dependsOn`), which leaves nothing to be a fraction of — suppress rather
+  // than render "0 of 0 complete" and an empty bar.
+  const progress = audience === 'manager' && listingProgress?.total ? listingProgress : null
+  const hasOpen = (progress?.open.length ?? 0) > 0
+  const listingCopy = hasOpen ? COPY.listing.open : COPY.listing.complete
 
   // Region managers don't verify (they may lack the details); their CTA emails
   // the event manager instead. Everyone else gets the tokenized verify link.
@@ -389,6 +553,49 @@ export function EventVerificationEmail({
           ) : null}
           <DetailRow label="Last verified">{details.lastVerified}</DetailRow>
         </Section>
+      ) : null}
+
+      {progress ? (
+        hasOpen ? (
+          <Section>
+            <SectionHeading>{listingCopy.heading}</SectionHeading>
+            <ProgressBar
+              resolved={progress.resolved}
+              total={progress.total}
+              color={brand.colors.primary}
+              caption={COPY.listing.caption(progress.resolved, progress.total)}
+            />
+            <Text style={styles.hint}>{listingCopy.intro}</Text>
+            {/* Every open item, uncapped: the registry is deliberately coarse
+                and two of its four checks are mutually exclusive, so at most
+                three can be open at once — never enough to read as a scolding. */}
+            {progress.open.map((suggestion) => (
+              <DetailRow key={suggestion.key} label={suggestion.label}>
+                {suggestion.detail}
+              </DetailRow>
+            ))}
+            {/* Only with ticks beneath it — a listing that passes nothing yet
+                would otherwise get an "Already done" heading over thin air. */}
+            {progress.done.length > 0 ? (
+              <>
+                <Text style={{ ...styles.hint, margin: '18px 0 4px', fontWeight: 600 }}>
+                  {COPY.listing.doneHeading}
+                </Text>
+                {renderDoneTicks(progress.done, brand.colors.primary, doneItemIndented)}
+              </>
+            ) : null}
+          </Section>
+        ) : (
+          // Complete: no bar, boxed. A full-width bar would only restate the
+          // word "complete", and the ticks name every check it would have
+          // counted — but without the bar or a `SectionHeading` the note needs
+          // the box to read as its own thing rather than as more event details.
+          <Section style={completeCallout}>
+            <Text style={completeHeading}>{listingCopy.heading}</Text>
+            <Text style={{ ...styles.hint, margin: '0 0 8px' }}>{listingCopy.intro}</Text>
+            {renderDoneTicks(progress.done, brand.colors.primary, doneItem)}
+          </Section>
+        )
       ) : null}
 
       <BrandButton href={ctaHref} brand={brand}>

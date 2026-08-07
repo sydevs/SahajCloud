@@ -33,15 +33,39 @@ function resolve(check: QualityCheck, ctx: CheckContext): QualityCheckResult {
 }
 
 /**
+ * Prerequisites a dependent check has made redundant.
+ *
+ * A check declaring `dependsOn` only runs at all once its prerequisite passed,
+ * so a dependent that *also* passed states the same fact more precisely —
+ * "Has a good quality description" already says "Has a description". Reporting
+ * both is one row of noise in the panel and one line of it in the email.
+ *
+ * Only ever names checks that passed, so dropping them cannot change
+ * `openCount` — which is what keeps a stored `qualityOpenCount` comparable
+ * across this change, with no `QUALITY_CHECK_VERSION` bump.
+ */
+function impliedPrerequisites(results: QualityCheckResult[]): Set<string> {
+  const passed = new Set(
+    results.filter((result) => result.status === 'passed').map((result) => result.key),
+  )
+  const implied = new Set<string>()
+  for (const check of EVENT_QUALITY_CHECKS) {
+    if (check.dependsOn && passed.has(check.key)) implied.add(check.dependsOn)
+  }
+  return implied
+}
+
+/**
  * Build the listing-quality report for an event.
  *
  * Pure: everything it needs — the auto-title templates, the clock — is passed
  * in, so the whole check set is unit-testable without a Payload bootstrap.
  *
- * A check can bow out rather than report, in two ways: `requiresHandWrittenTitle`
- * (nothing of the manager's to judge) and `skipWhenFailed` (its prerequisite is
- * the finding worth showing). Neither appears in the results at all — a skipped
- * check is not a passing one, and shouldn't pad the tally.
+ * A check can leave the results in three ways, none of which pads the tally:
+ * `requiresHandWrittenTitle` (nothing of the manager's to judge), `dependsOn`
+ * while its prerequisite fails (the prerequisite is the finding worth showing),
+ * and `dependsOn` in reverse — a passing prerequisite whose dependent also
+ * passed has been superseded by it.
  */
 export function buildEventQualityReport(
   event: EventQualityInput,
@@ -68,16 +92,19 @@ export function buildEventQualityReport(
   const failed = new Set<string>()
   for (const check of EVENT_QUALITY_CHECKS) {
     if (check.requiresHandWrittenTitle && !handWritten) continue
-    if (check.skipWhenFailed && failed.has(check.skipWhenFailed)) continue
+    if (check.dependsOn && failed.has(check.dependsOn)) continue
     const result = resolve(check, ctx)
     if (result.status === 'failed') failed.add(check.key)
     checks.push(result)
   }
 
+  const implied = impliedPrerequisites(checks)
+  const reported = checks.filter((result) => !implied.has(result.key))
+
   return {
     skipped: false,
-    checks,
-    openCount: checks.filter((result) => result.status === 'failed').length,
+    checks: reported,
+    openCount: reported.filter((result) => result.status === 'failed').length,
   }
 }
 

@@ -354,6 +354,147 @@ describe('Event verification lifecycle', () => {
     expect(reminders(after.notificationLog)).toHaveLength(reminders(before.notificationLog).length)
   })
 
+  describe('listing progress in the reminder email (#611)', () => {
+    type SentEmail = { to: string; html: string }
+    const sent: SentEmail[] = []
+    let restore: () => void
+
+    beforeAll(() => {
+      // The report is only observable in the rendered message, so capture what
+      // the job hands the adapter rather than asserting on the log.
+      const original = payload.sendEmail.bind(payload)
+      payload.sendEmail = (async (message: Parameters<Payload['sendEmail']>[0]) => {
+        sent.push({ to: String(message.to ?? ''), html: String(message.html ?? '') })
+        return original(message)
+      }) as Payload['sendEmail']
+      restore = () => {
+        payload.sendEmail = original
+      }
+    })
+
+    afterAll(() => {
+      restore()
+    })
+
+    const mailTo = (address: string) => sent.filter((email) => email.to.includes(address))
+
+    /** Run one reminder cycle for `event` and return the manager's email. */
+    async function remindOnce(eventId: number): Promise<string> {
+      sent.length = 0
+      await makeDue(payload, eventId)
+      await runJob(payload)
+      const [email] = mailTo('event-manager@example.com')
+      expect(email).toBeDefined()
+      return email.html
+    }
+
+    it('tells a thin listing what to improve, in the registry’s own words', async () => {
+      const event = await createEvent({ title: 'Sparse Listing' })
+      const html = await remindOnce(event.id)
+
+      // Straight from `EVENT_QUALITY_COPY` — no description, no photos.
+      expect(html).toContain('Add a description')
+      expect(html).toContain('Add photos')
+      // The bar counts what the job actually found, not a hardcoded total.
+      expect(html).toMatch(/\d+ of \d+ complete/)
+    })
+
+    it('celebrates a listing with nothing left to improve', async () => {
+      // Sequential: the three uploads share a source filename, and Payload's
+      // collision suffixing races when they land at once.
+      const images: number[] = []
+      for (const alt of ['Hall one', 'Hall two', 'Hall three']) {
+        const image = await testData.createMediaImage(payload, { alt })
+        images.push(image.id)
+      }
+      const event = await createEvent({
+        title: 'Evening Sitting for Night-Shift Nurses',
+        images,
+        description: {
+          root: {
+            type: 'root',
+            children: [
+              {
+                type: 'paragraph',
+                children: [
+                  {
+                    type: 'text',
+                    text: 'A quiet hour of guided meditation for anyone who works nights. No experience needed, and there is nothing at all to bring.',
+                    version: 1,
+                  },
+                ],
+                version: 1,
+              },
+            ],
+            direction: null,
+            format: '',
+            indent: 0,
+            version: 1,
+          },
+        } as never,
+      })
+
+      const html = await remindOnce(event.id)
+      expect(html).toContain('Your listing is complete')
+      // The ticks name what passed; the bar is dropped once there's no
+      // progress left to show, so the caption goes with it.
+      expect(html).toContain('Has 3+ photos')
+      // "Has a good quality description" supersedes "Has a description" — the
+      // report never carries a prerequisite its dependent has already passed.
+      expect(html).toContain('Has a good quality description')
+      expect(html).not.toContain('>Has a description<')
+      expect(html).not.toMatch(/\d+ of \d+ complete/)
+      expect(html).not.toContain('Add a description')
+      expect(html).not.toContain('Add photos')
+    })
+
+    it('sends none for an unpublished event — it was never checked', async () => {
+      // Not "no problems found": an invisible listing isn't graded (#609). The
+      // reminder itself still goes out, because the ladder doesn't care.
+      const event = await createEvent({ title: 'Hidden Listing' })
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { _status: 'draft' },
+        context: { skipVerifyHook: true },
+        overrideAccess: true,
+      })
+
+      const html = await remindOnce(event.id)
+      // Nothing at all — not even the celebration a complete listing earns.
+      // Keyed on the progress caption rather than a heading string: a
+      // reworded heading would turn this into a vacuous pass.
+      expect(html).not.toMatch(/\d+ of \d+ complete/)
+      expect(html).not.toContain('Add a description')
+    })
+
+    it('still sends exactly one reminder per recipient when the job runs twice', async () => {
+      // The trap this ticket had to avoid: dedup is keyed on stage + manager id
+      // via `notificationLog`. If the progress section had perturbed that key, every
+      // manager would be re-sent every reminder they'd already had.
+      const event = await createEvent({ title: 'Dedup Listing' })
+      await remindOnce(event.id)
+      expect(mailTo('event-manager@example.com')).toHaveLength(1)
+
+      // Rewind to the stage just sent for, and make it due again — the log
+      // entry alone has to stop the second send.
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { verificationStage: 'verified', nextCheckAt: daysAgo(1) },
+        context: { skipVerifyHook: true },
+        overrideAccess: true,
+      })
+
+      const second = await runJob(payload)
+      expect(second.remindersSent).toBe(0)
+      expect(mailTo('event-manager@example.com')).toHaveLength(1)
+
+      const fresh = await getEvent(payload, event.id)
+      expect(reminders(fresh.notificationLog).filter((e) => e.stage === 'verified')).toHaveLength(1)
+    })
+  })
+
   it('resumes a partial fan-out by sending only the un-logged recipient', async () => {
     const region = await payload.create({
       collection: 'regions',

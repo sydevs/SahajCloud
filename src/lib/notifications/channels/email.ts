@@ -48,6 +48,7 @@ export async function sendEmailReminder(
       level: reminder.level,
       audience: reminder.audience,
       details: reminder.details,
+      listingProgress: reminder.listingProgress,
       deadline: reminder.deadline,
       sinceLastVerified: reminder.sinceLastVerified,
       regionName: reminder.regionName,
