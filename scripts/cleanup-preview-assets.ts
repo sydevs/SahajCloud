@@ -32,7 +32,11 @@ import {
   isPreviewOwnedVideoMeta,
   isReapablePreviewAsset,
 } from '../src/plugins/storage/previewIsolation'
-import { r2S3Endpoint, r2SecretAccessKey } from '../src/plugins/storage/r2Credentials'
+import {
+  r2AccessKeyId,
+  r2S3Endpoint,
+  r2SecretAccessKey,
+} from '../src/plugins/storage/r2Credentials'
 
 const DEFAULT_MAX_AGE_DAYS = 7
 const CF_API_BASE = 'https://api.cloudflare.com/client/v4'
@@ -123,14 +127,6 @@ const StreamListSchema = z.object({
       }),
     )
     .default([]),
-})
-
-const TokenVerifySchema = z.object({
-  success: z.boolean(),
-  errors: z.array(z.object({ code: z.number().optional(), message: z.string() })).default([]),
-  // `.min(1)`: an empty id would reach the S3 client as a blank access key and
-  // fail as SignatureDoesNotMatch, which names nothing useful.
-  result: z.object({ id: z.string().min(1) }).nullish(),
 })
 
 async function cfFetch(method: 'GET' | 'DELETE', path: string, apiKey: string): Promise<unknown> {
@@ -254,20 +250,15 @@ async function reapStream(
  * S3 credentials for R2, derived from the same Cloudflare API token used for
  * Images and Stream — see `r2Credentials.ts` for why hashing a credential is
  * the documented approach rather than a mistake.
- *
- * The access key is the token's **id**, which costs one extra call: only the
- * token's value is in the environment.
  */
 async function r2CredentialsFromToken(
+  accountId: string,
   apiKey: string,
 ): Promise<{ accessKeyId: string; secretAccessKey: string }> {
-  const parsed = TokenVerifySchema.parse(await cfFetch('GET', '/user/tokens/verify', apiKey))
-  if (!parsed.success || !parsed.result) {
-    throw new Error(
-      `Cloudflare token verify failed: ${parsed.errors.map((e) => e.message).join(', ') || 'no token id returned'}`,
-    )
+  return {
+    accessKeyId: await r2AccessKeyId(accountId, (path) => cfFetch('GET', path, apiKey)),
+    secretAccessKey: r2SecretAccessKey(apiKey),
   }
-  return { accessKeyId: parsed.result.id, secretAccessKey: r2SecretAccessKey(apiKey) }
 }
 
 /**
@@ -286,7 +277,7 @@ async function reapR2(
   const client = new S3Client({
     region: 'auto',
     endpoint: r2S3Endpoint(accountId),
-    credentials: await r2CredentialsFromToken(apiKey),
+    credentials: await r2CredentialsFromToken(accountId, apiKey),
   })
 
   let continuationToken: string | undefined
