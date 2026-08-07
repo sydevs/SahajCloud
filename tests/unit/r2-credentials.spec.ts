@@ -34,9 +34,29 @@ describe('r2SecretAccessKey', () => {
   })
 })
 
+/**
+ * A jurisdictional bucket addressed on the default host answers `AccessDenied`,
+ * not a 404 — so getting this wrong looks like a token-permissions problem and
+ * sends you auditing scopes. A live dry run cost exactly that detour.
+ */
 describe('r2S3Endpoint', () => {
-  it('addresses the account bucket host', () => {
+  it('addresses the default host when there is no jurisdiction', () => {
     expect(r2S3Endpoint('abc123')).toBe('https://abc123.r2.cloudflarestorage.com')
+    expect(r2S3Endpoint('abc123', undefined)).toBe('https://abc123.r2.cloudflarestorage.com')
+    // Unset env arrives as '' rather than undefined.
+    expect(r2S3Endpoint('abc123', '')).toBe('https://abc123.r2.cloudflarestorage.com')
+  })
+
+  it('infixes the jurisdiction when there is one', () => {
+    expect(r2S3Endpoint('abc123', 'eu')).toBe('https://abc123.eu.r2.cloudflarestorage.com')
+    expect(r2S3Endpoint('abc123', 'fedramp')).toBe(
+      'https://abc123.fedramp.r2.cloudflarestorage.com',
+    )
+  })
+
+  it('rejects an unknown jurisdiction rather than building a dead host', () => {
+    // `europe` would otherwise yield a plausible URL that fails at DNS.
+    expect(() => r2S3Endpoint('abc123', 'europe')).toThrow(/Unknown R2 jurisdiction/)
   })
 })
 

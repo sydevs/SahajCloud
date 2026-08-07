@@ -23,6 +23,10 @@
  *   CLOUDFLARE_API_KEY   one token covering Images:Edit, Stream:Edit and
  *                        R2 Object Read & Write — see `r2CredentialsFromToken`
  *   R2_BUCKET
+ * Optional:
+ *   R2_JURISDICTION      `eu` / `fedramp` when the bucket was created with one.
+ *                        Not a secret; set it in the workflow. A jurisdictional
+ *                        bucket is unreachable on the default host.
  */
 import { DeleteObjectCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3'
 import { z } from 'zod'
@@ -33,6 +37,7 @@ import {
   isReapablePreviewAsset,
 } from '../src/plugins/storage/previewIsolation'
 import {
+  R2_JURISDICTIONS,
   r2AccessKeyId,
   r2S3Endpoint,
   r2SecretAccessKey,
@@ -84,7 +89,7 @@ function printUsage(): void {
       '  pnpm tsx scripts/cleanup-preview-assets.ts [--days <n>] [--apply]',
       '',
       'Defaults to a dry run (no deletes). Pass --apply to delete.',
-      'Env: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_KEY, R2_BUCKET',
+      'Env: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_KEY, R2_BUCKET [, R2_JURISDICTION]',
     ].join('\n'),
   )
 }
@@ -274,9 +279,10 @@ async function reapR2(
   days: number,
   apply: boolean,
 ): Promise<ReapSummary> {
+  const endpoint = r2S3Endpoint(accountId, process.env.R2_JURISDICTION)
   const client = new S3Client({
     region: 'auto',
-    endpoint: r2S3Endpoint(accountId),
+    endpoint,
     credentials: await r2CredentialsFromToken(accountId, apiKey),
   })
 
@@ -285,9 +291,19 @@ async function reapR2(
   let reaped = 0
 
   do {
-    const list = await client.send(
-      new ListObjectsV2Command({ Bucket: bucket, ContinuationToken: continuationToken }),
-    )
+    // R2 answers a jurisdictional bucket addressed on the default host with
+    // AccessDenied, not a 404 — so the raw SDK error sends you auditing token
+    // permissions when the endpoint is what's wrong. Name both.
+    const list = await client
+      .send(new ListObjectsV2Command({ Bucket: bucket, ContinuationToken: continuationToken }))
+      .catch((error: unknown) => {
+        const reason = error instanceof Error ? error.message : String(error)
+        throw new Error(
+          `R2 list failed for bucket "${bucket}" at ${endpoint}: ${reason}. ` +
+            'If the bucket was created with a jurisdiction, set R2_JURISDICTION ' +
+            `(${R2_JURISDICTIONS.join(' / ')}); otherwise check the token covers this bucket.`,
+        )
+      })
     const objects = list.Contents ?? []
     scanned += objects.length
 

@@ -15,9 +15,29 @@ import { z } from 'zod'
  * https://developers.cloudflare.com/r2/api/tokens/
  */
 
-/** Default S3 endpoint for an account's buckets (no jurisdiction). */
-export const r2S3Endpoint = (accountId: string): string =>
-  `https://${accountId}.r2.cloudflarestorage.com`
+/** Jurisdictions a bucket can be bound to, each reachable at its own host. */
+export const R2_JURISDICTIONS = ['eu', 'fedramp'] as const
+export type R2Jurisdiction = (typeof R2_JURISDICTIONS)[number]
+
+/**
+ * S3 endpoint for an account's buckets.
+ *
+ * A bucket created with a jurisdiction is reachable **only** through that
+ * jurisdiction's host. Addressing it on the default host doesn't 404 — it
+ * answers `AccessDenied`, which reads as a permissions problem and sends you
+ * off auditing token scopes instead of the URL.
+ * https://developers.cloudflare.com/r2/reference/data-location/
+ */
+export function r2S3Endpoint(accountId: string, jurisdiction?: string | null): string {
+  if (!jurisdiction) return `https://${accountId}.r2.cloudflarestorage.com`
+  if (!R2_JURISDICTIONS.includes(jurisdiction as R2Jurisdiction)) {
+    // Otherwise this builds a plausible-looking host that fails at DNS.
+    throw new Error(
+      `Unknown R2 jurisdiction "${jurisdiction}" — expected one of: ${R2_JURISDICTIONS.join(', ')}`,
+    )
+  }
+  return `https://${accountId}.${jurisdiction}.r2.cloudflarestorage.com`
+}
 
 /**
  * The Secret Access Key for an API token: the SHA-256 of its **value**.
