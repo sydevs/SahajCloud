@@ -128,7 +128,9 @@ const StreamListSchema = z.object({
 const TokenVerifySchema = z.object({
   success: z.boolean(),
   errors: z.array(z.object({ code: z.number().optional(), message: z.string() })).default([]),
-  result: z.object({ id: z.string() }).nullish(),
+  // `.min(1)`: an empty id would reach the S3 client as a blank access key and
+  // fail as SignatureDoesNotMatch, which names nothing useful.
+  result: z.object({ id: z.string().min(1) }).nullish(),
 })
 
 async function cfFetch(method: 'GET' | 'DELETE', path: string, apiKey: string): Promise<unknown> {
