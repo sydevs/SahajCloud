@@ -29,6 +29,7 @@ one-time backfills, deployment helpers, etc.
 | `preview-registration-emails.ts` | Send the registrant confirmation in each state (online/offline, locale, branded/fallback, one-off, minimal) to an Ethereal inbox, with the `.ics` attached |
 | `preview-registration-notification-emails.ts` | Send the manager registration notice (#588) in each state (named manager / override address / no session / long title) to an Ethereal inbox |
 | `preview-reminder-digest-emails.ts` | Send the registrant session reminder + manager registration digest (#589) in each state (online/offline, locale, branded/fallback, daily/weekly) to an Ethereal inbox |
+| `cleanup-preview-assets.ts` | Reap preview-namespaced Cloudflare Images / Stream / R2 assets older than `--days` (#432). Dry run by default, `--apply` to delete; run nightly by `.github/workflows/cleanup-preview-assets.yml`. Needs `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_KEY`, `R2_BUCKET` — one token covers all three backends, see `.claude/rules/storage.md` |
 | `repair-r2-meditation-filenames.ts` | Backfill / fix R2 filenames on existing meditations |
 | `create-sample-page.ts` | Generate a sample Pages document |
 | `backfill-schedule-last-date.ts` | Recompute the derived `schedule.lastDate` column on existing `events` + `app-cards` rows (#603). Dry run by default, `--force` to write, re-runnable. Routine lives in `src/lib/schedule/backfillLastDate.ts` |

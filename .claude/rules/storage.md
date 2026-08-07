@@ -65,9 +65,22 @@ GitHub Actions job (`.github/workflows/cleanup-preview-assets.yml` →
 `scripts/cleanup-preview-assets.ts`) reaps preview-marked assets older than 7
 days across all three backends. The reap predicate (`isReapablePreviewAsset`)
 only deletes assets that are **both** marked **and** past the cutoff; the script
-defaults to a dry run (`--apply` to delete). Required GitHub secrets:
-`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_KEY`, and (for R2) `R2_BUCKET`,
-`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` [, `R2_S3_ENDPOINT`].
+defaults to a dry run (`--apply` to delete). Required GitHub secrets — all three,
+the script exits 1 without any of them: `CLOUDFLARE_ACCOUNT_ID`,
+`CLOUDFLARE_API_KEY`, `R2_BUCKET`.
+
+**One token, three backends.** The script takes no R2 access-key pair of its own.
+R2's `Object Read & Write` permission is honoured only by the S3-compatible API
+(SigV4) — the REST API rejects object-scoped tokens — so `r2Credentials.ts`
+derives the pair from `CLOUDFLARE_API_KEY` the way
+[Cloudflare documents](https://developers.cloudflare.com/r2/api/tokens/): access
+key = the token's id (`GET /user/tokens/verify`), secret = **hex** SHA-256 of the
+token value. Any other digest encoding fails as an opaque
+`SignatureDoesNotMatch`, which is what `tests/unit/r2-credentials.spec.ts` pins.
+
+This is the **script's** contract only. The app's own R2 adapter still uses
+`serverEnv.R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_S3_ENDPOINT` as
+described below — those are unchanged.
 
 ### Manual safety verification (one-time, per #432 AC)
 
