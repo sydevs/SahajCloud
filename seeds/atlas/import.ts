@@ -710,6 +710,42 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
 
     await this.importSharedVenues(data, managersByRegion)
+    await this.reportUpstreamDeletedRegions(data)
+  }
+
+  /**
+   * Report imported regions whose Atlas source row no longer exists.
+   *
+   * The events-side counterpart is `reportUpstreamDeletedEvents`; regions need
+   * it just as much because Atlas *renumbers* geo nodes (the 2026-08 dump moved
+   * Paris from area 438 to 1208, and similar). The stale doc is worse than
+   * clutter here: `slug` and `mapboxId` are unique, so it blocks the renumbered
+   * node's create until an operator trashes it — errors like
+   * "The following field is invalid: Slug/mapboxId" on a region upsert are this.
+   * Regions created directly in SahajCloud carry no legacyId and are never
+   * flagged.
+   */
+  private async reportUpstreamDeletedRegions(data: AtlasData): Promise<void> {
+    const known = new Set<string>()
+    for (const region of data.regions)
+      known.add(`${ATLAS_TO_PAYLOAD_LEVEL[region.level]}:${region.legacyId}`)
+    for (const venueId of multiUseVenueIds(data.events)) known.add(`venue:${venueId}`)
+
+    const { docs } = await this.payload.find({
+      collection: 'regions',
+      where: { legacyId: { exists: true } },
+      select: { legacyId: true, level: true, name: true },
+      pagination: false,
+      overrideAccess: true,
+    })
+    for (const doc of docs) {
+      if (known.has(`${doc.level}:${doc.legacyId}`)) continue
+      this.addWarning(
+        `Region regions/${doc.id} (${doc.level} legacy #${doc.legacyId}, "${doc.name}") is gone ` +
+          `from the Atlas data — deleted or renumbered upstream; trash it in the admin panel ` +
+          `(it may be blocking a renumbered node's slug/mapboxId), then re-run the import.`,
+      )
+    }
   }
 
   /** Upsert one country/region/city node, resolving its mapboxId + parent + managers. */

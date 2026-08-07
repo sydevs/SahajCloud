@@ -180,19 +180,26 @@ onto the event and the venue record is discarded (`multiUseVenueIds` /
 Grouping keys on `venueId`, and Atlas holds the same place under several venue
 rows — so two events at one address each looked single-use and neither grouped.
 `VENUE_MERGES` in [dedupe.ts](dedupe.ts) collapses them; `dedupeAtlasData`
-re-points the events and drops the losing row. **53 shared venues** as of the
+re-points the events and drops the losing row. **52 shared venues** as of the
 2026-08 dump.
 
-The refresh added six merge pairs under the same hand-verified bar: a fourth
-row for the Amsterdam Manenburgstraat building (3116 → 11), the Mons P'tite
-Maison Folie (4337 → 4336), *three* rows for the Frankfurt stadtRAUM concert
-hall at 293 Mainzer Landstraße (5062/5293 → 5194), two rows for the Frankfurt
-Burgstraße 72 centre (5095/5096 → 492, three different managers list there),
-and a second Nottingham Central Library row (4765 → 4798). It also normalizes
-venue `name`/`street`/`city`/`postCode` whitespace at extraction time — 126
-fields carried stray spaces — and repairs two venue names via
-`VENUE_FIELD_OVERRIDES`: 2125's name was its whole marketing slogan (now
-`Málnárium`), 5755's city was lowercase `sydney`.
+The refresh added seven venue-merge pairs under the same hand-verified bar: a
+fourth row for the Amsterdam Manenburgstraat building (3116 → 11), the Mons
+P'tite Maison Folie (4337 → 4336), *three* rows for the Frankfurt stadtRAUM
+concert hall at 293 Mainzer Landstraße (5062/5293 → 5194), two rows for the
+Frankfurt Burgstraße 72 centre (5095/5096 → 492, three different managers list
+there), a second Nottingham Central Library row (4765 → 4798), and a second
+row for the München Am Lilienberg building (5063 → 458). Five `AREA_MERGES`
+were added for city rows Atlas now holds twice — Nottingham (1538 → 226),
+Colombier (2726 → 364), Compiègne (2198 → 393), Martinique (2759 → 2231) —
+plus "Province Québec" (1807 → 1472), which duplicated the Québec feature the
+existing nodes already claim; the kept side is always the id
+previously-seeded environments already hold, so reseeds update instead of
+colliding on the unique `slug`/`mapboxId`. Extraction also normalizes venue
+`name`/`street`/`city`/`postCode` whitespace — 126 fields carried stray
+spaces — and repairs two venue fields via `VENUE_FIELD_OVERRIDES`: 2125's
+name was its whole marketing slogan (now `Málnárium`), 5755's city was
+lowercase `sydney`.
 
 Ten pairs were added, each verified by hand. Coordinates alone are not evidence
 **in either direction**: two Civitavecchia venues sit 177 m apart but are
@@ -283,8 +290,8 @@ Two knock-on effects:
   `expectedCounts` matches, so a removal that changes the topology fails the
   unit lane instead of drifting silently.
 - **`expectedCounts.events` is 652** (653 rows less test record #494).
-- **`expectedCounts.regions` is 653** — 600 source geo nodes (34 country +
-  101 region + 465 area, post-dedupe) plus 53 shared-venue nodes. Because
+- **`expectedCounts.regions` is 647** — 595 source geo nodes (34 country +
+  101 region + 460 area, post-dedupe) plus 52 shared-venue nodes. Because
   verification is `actual >= expected`, an understated value there is not
   conservative, it just stops checking.
 
@@ -333,8 +340,13 @@ importer emits a warning naming the existing document id (`events/<id>`) for
 every excluded row on every run, and — since the 2026-08 refresh — a warning
 for every imported event whose `legacyId` no longer appears in events.json at
 all (`reportUpstreamDeletedEvents`), which is how the 64 events deleted in
-Atlas between the two dumps surface for hand-trashing. Trash them by hand in
-the admin panel. Check prod.
+Atlas between the two dumps surface for hand-trashing. The same report exists
+for regions (`reportUpstreamDeletedRegions`), and there it is **load-bearing**:
+Atlas *renumbers* geo nodes (Paris moved from area 438 to 1208 between dumps),
+and because `slug` and `mapboxId` are unique, a stale doc under the old id
+*blocks the renumbered node's create* — a region upsert failing with
+"The following field is invalid: Slug"/"mapboxId" means exactly this. Trash the
+reported docs in the admin panel, then re-run the import. Check prod.
 
 ## Event titles: a blank title beats a generic one
 

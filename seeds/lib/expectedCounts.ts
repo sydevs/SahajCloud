@@ -72,10 +72,10 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   // re-derives regions/users/registrations from the data files.
   atlas: {
     managers: 495,
-    // 600 source geo nodes (34 country + 101 region + 465 area, post-dedupe),
-    // plus the 53 shared-venue nodes the importer creates for venues used by
+    // 595 source geo nodes (34 country + 101 region + 460 area, post-dedupe),
+    // plus the 52 shared-venue nodes the importer creates for venues used by
     // more than one surviving event.
-    regions: 653,
+    regions: 647,
     // 2284 source registrants → 2255 with something usable as an email (29
     // hold typed-in junk, which Payload's email validation refuses and the
     // importer skips by name) → 1864 once case-variant duplicates collapse

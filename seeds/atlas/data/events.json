@@ -35405,7 +35405,7 @@
     "category": "dropin",
     "status": 0,
     "customName": "Медитация в KOKON SPACE",
-    "room": "Перед поворотом на Большой проспект Вам нужна самая последняя дверь с надписью KOKON Space. Вы набираете на домофоне 77 и поднимаетесь на 3 этаж",
+    "room": "Последняя дверь с надписью KOKON Space, домофон 77, 3 этаж",
     "description": "Наши медитации подходят всем, кто хочет почувствовать внутреннюю тишину и поймать состояние безмыслия, научиться оставаться в настоящем.\nНа месте есть все удобства для медитации, вам ничего не нужно брать с собой. Получить больше информации и записаться:\n\ntelegram: @spb_sy",
     "published": true,
     "languageCode": "RU",
@@ -42042,7 +42042,7 @@
     "verificationStreak": 0,
     "managerId": 1125,
     "venueId": 4666,
-    "areaId": 1538,
+    "areaId": 226,
     "finishDate": null,
     "schedule": {
       "frequency": "weekly",
@@ -43919,7 +43919,7 @@
     "verificationStreak": 0,
     "managerId": 1521,
     "venueId": null,
-    "areaId": 1807,
+    "areaId": 1472,
     "finishDate": "2025-12-16",
     "schedule": {
       "frequency": "weekly",
@@ -45796,7 +45796,7 @@
     "verificationStreak": 0,
     "managerId": 2478,
     "venueId": 3973,
-    "areaId": 2198,
+    "areaId": 393,
     "finishDate": null,
     "schedule": {
       "frequency": "weekly",
@@ -47428,7 +47428,7 @@
     "verificationStreak": 0,
     "managerId": 1818,
     "venueId": null,
-    "areaId": 1807,
+    "areaId": 1472,
     "finishDate": null,
     "schedule": {
       "frequency": "weekly",
@@ -48659,7 +48659,7 @@
     "verificationStreak": 0,
     "managerId": 1125,
     "venueId": 4798,
-    "areaId": 1538,
+    "areaId": 226,
     "finishDate": "2026-09-23",
     "schedule": {
       "frequency": "weekly",
@@ -48742,7 +48742,7 @@
     "verificationStreak": 0,
     "managerId": 281,
     "venueId": 4865,
-    "areaId": 2726,
+    "areaId": 364,
     "finishDate": null,
     "schedule": {
       "frequency": "weekly",
@@ -49403,7 +49403,7 @@
     "contactInfo": null,
     "verificationStreak": 0,
     "managerId": 3204,
-    "venueId": 5063,
+    "venueId": 458,
     "areaId": 457,
     "finishDate": null,
     "schedule": {
@@ -51292,7 +51292,7 @@
     "contactInfo": null,
     "verificationStreak": 0,
     "managerId": 3204,
-    "venueId": 5063,
+    "venueId": 458,
     "areaId": 457,
     "finishDate": null,
     "schedule": {

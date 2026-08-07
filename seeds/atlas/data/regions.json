@@ -7335,21 +7335,6 @@
     "timeZone": "Australia/Sydney"
   },
   {
-    "legacyId": 1538,
-    "level": "area",
-    "parent": {
-      "level": "region",
-      "legacyId": 5
-    },
-    "name": "Nottingham",
-    "countryCode": "GB",
-    "subtitle": null,
-    "latitude": 52.954,
-    "longitude": -1.155,
-    "radius": 11.03,
-    "timeZone": "Europe/London"
-  },
-  {
     "legacyId": 1571,
     "level": "area",
     "parent": {
@@ -7605,21 +7590,6 @@
     "timeZone": "America/Toronto"
   },
   {
-    "legacyId": 1807,
-    "level": "area",
-    "parent": {
-      "level": "region",
-      "legacyId": 41
-    },
-    "name": "Province Québec",
-    "countryCode": "CA",
-    "subtitle": null,
-    "latitude": 48.516,
-    "longitude": -72.221,
-    "radius": 700,
-    "timeZone": "America/Toronto"
-  },
-  {
     "legacyId": 1835,
     "level": "area",
     "parent": {
@@ -7798,21 +7768,6 @@
     "longitude": -40.295,
     "radius": 21.1,
     "timeZone": "America/Sao_Paulo"
-  },
-  {
-    "legacyId": 2198,
-    "level": "area",
-    "parent": {
-      "level": "country",
-      "legacyId": 27
-    },
-    "name": "Compiègne",
-    "countryCode": "FR",
-    "subtitle": null,
-    "latitude": 49.418,
-    "longitude": 2.826,
-    "radius": 20,
-    "timeZone": "Europe/Paris"
   },
   {
     "legacyId": 2231,
@@ -8143,36 +8098,6 @@
     "longitude": 2.725,
     "radius": 12.7,
     "timeZone": "Europe/Brussels"
-  },
-  {
-    "legacyId": 2726,
-    "level": "area",
-    "parent": {
-      "level": "country",
-      "legacyId": 26
-    },
-    "name": "Colombier",
-    "countryCode": "CH",
-    "subtitle": null,
-    "latitude": 46.967,
-    "longitude": 6.859,
-    "radius": 3.07,
-    "timeZone": "Europe/Zurich"
-  },
-  {
-    "legacyId": 2759,
-    "level": "area",
-    "parent": {
-      "level": "country",
-      "legacyId": 27
-    },
-    "name": "Martinique",
-    "countryCode": "FR",
-    "subtitle": null,
-    "latitude": 14.642,
-    "longitude": -61.024,
-    "radius": 36.6,
-    "timeZone": "America/Martinique"
   },
   {
     "legacyId": 2792,

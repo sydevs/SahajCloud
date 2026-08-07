@@ -229,8 +229,8 @@ describe('events.json structured fields', () => {
       usage.set(e.venueId, (usage.get(e.venueId) ?? 0) + 1)
     }
     const sharedVenues = [...usage.values()].filter((count) => count > 1).length
-    expect(sourceNodes).toHaveLength(600)
-    expect(sharedVenues).toBe(53)
+    expect(sourceNodes).toHaveLength(595)
+    expect(sharedVenues).toBe(52)
     expect(EXPECTED_COUNTS.atlas.regions).toBe(sourceNodes.length + sharedVenues)
   })
 

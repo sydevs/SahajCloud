@@ -6370,19 +6370,6 @@
     "timeZone": "America/Sao_Paulo"
   },
   {
-    "legacyId": 5063,
-    "placeId": "ChIJqap-B33fnUcR5XXCpoVnYeU",
-    "name": "Am Lilienberg 2a",
-    "street": "2a Am Lilienberg",
-    "city": "München",
-    "countryCode": "DE",
-    "postCode": "81669",
-    "regionCode": "BY",
-    "latitude": 48.1312556,
-    "longitude": 11.5889559,
-    "timeZone": "Europe/Berlin"
-  },
-  {
     "legacyId": 5128,
     "placeId": "ChIJuw-m8Yn7j0cRnsWcEC7NesY",
     "name": "Vita Plena Spa experience",

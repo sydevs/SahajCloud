@@ -26,6 +26,17 @@ const AREA_MERGES: Record<number, number> = {
   429: 247, // Wingham (AU)
   436: 367, // Stalden-Saas (CH)
   392: 438, // Paris (FR) — drop "Paris - IDF" (under France); keep "Paris" (under Île-de-France, has the events)
+  // ── 2026-08 dump. Each pair geocodes to one Mapbox feature (the unique
+  // `mapboxId` catches them at import otherwise); the kept side is the id the
+  // previously-seeded environments already know, so it updates instead of
+  // colliding.
+  1538: 226, // Nottingham (GB) — identical coords; 226 is parented to the Midlands
+  2726: 364, // Colombier (CH) — both on the Neuchâtel lakeshore; 364 has the older events
+  2198: 393, // Compiègne (FR) — identical coords
+  2759: 2231, // Martinique (FR) — identical coords; 2231 has the events
+  // "Province Québec" duplicates the Québec feature the province/city nodes
+  // already claim; its two online events roll up under Québec (1472) instead.
+  1807: 1472,
 }
 
 /**
@@ -67,6 +78,7 @@ const VENUE_MERGES: Record<number, number> = {
   5062: 5194,
   5293: 5194,
   4765: 4798, // Nottingham Central Library — 4798 has the clean single-segment street
+  5063: 458, // Am Lilienberg 2(a), München — the 2026 concerts re-listed the existing building
   // Burgstraße 72, Frankfurt — 5095 ("Burgstraße", no number) and 5096 are the
   // same building as the older 492; three different managers list there.
   5095: 492,
