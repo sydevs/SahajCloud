@@ -47,6 +47,19 @@ const WEEKDAY_NAMES = [
   'saturday',
 ] as const
 
+/**
+ * Atlas `monthly_*` recurrence types → schedule `weekNumber` (`-1` = last).
+ * The dump holds `monthly_1st` / `monthly_2nd` / `monthly_last`; 3rd/4th are
+ * covered for completeness. Matches `scheduleMapper`'s WEEK_NUMBERS domain.
+ */
+const MONTHLY_WEEK_NUMBERS: Record<string, number> = {
+  monthly_1st: 1,
+  monthly_2nd: 2,
+  monthly_3rd: 3,
+  monthly_4th: 4,
+  monthly_last: -1,
+}
+
 /** The weekday an ISO `YYYY-MM-DD` date falls on, as a lowercase Atlas day name. */
 export function weekdayOf(isoDate: string | null): string | null {
   if (!isoDate) return null
@@ -60,17 +73,21 @@ export function weekdayOf(isoDate: string | null): string | null {
  * Parse the event `recurrence_data` Ruby-YAML into a structured schedule.
  * Returns null for inactive events with no real recurrence.
  *
- * Three dialects appear in the dump:
- *   1. old `:symbol:` keys with ISO dates and an explicit `:on:` weekday (411 rows)
- *   2. newer string keys with human dates and a quoted `'on':` weekday (33 rows)
- *   3. the same string keys with **no `on` key at all** (49 rows)
+ * Three dialects have appeared across dumps:
+ *   1. old `:symbol:` keys with ISO dates and an explicit `:on:` weekday
+ *      (2024 dump only — the 2026-08 dump re-serialized every row)
+ *   2. string keys with human dates and a quoted `'on':` weekday (394 rows)
+ *   3. the same string keys with **no `on` key at all** (263 rows)
  *
  * In dialect 3 the recurring weekday is implied by `start_date`, so it's derived
- * from there. This matters most for `monthly_1st`: without a weekday,
+ * from there. This matters most for monthly types: without a weekday,
  * `scheduleMapper` falls back to `monthlyMode: 'date'` and turns "first Sunday
- * of the month" into "the 3rd of every month" (2 events in the current dump).
- * Weekly events are covered either way — `scheduleMapper` has the same fallback
- * — but recording it here keeps events.json self-describing.
+ * of the month" into "the 3rd of every month". Weekly events are covered either
+ * way — `scheduleMapper` has the same fallback — but recording it here keeps
+ * events.json self-describing. The derivation can also be *wrong* when a
+ * manager entered the creation date rather than a first occurrence — seven
+ * events carry a hand-curated `schedule.weekday` in events.json where their own
+ * title or description names a different day (see seeds/atlas/AGENTS.md).
  */
 export function parseSchedule(raw: unknown): ParsedSchedule | null {
   const text = typeof raw === 'string' ? raw : null
@@ -98,7 +115,7 @@ export function parseSchedule(raw: unknown): ParsedSchedule | null {
     if (m) interval = parseInt(m[1], 10)
   } else if (type.startsWith('monthly')) {
     frequency = 'monthly'
-    weekNumber = 1 // only `monthly_1st` is present in the data
+    weekNumber = MONTHLY_WEEK_NUMBERS[type] ?? 1
   } else return null
 
   const startDate = normalizeDate(get('start_date'))

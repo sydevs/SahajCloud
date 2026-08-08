@@ -65,28 +65,37 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   'wm-app-translations': {},
   // translations updates three PayloadCMS globals, not collections.
   translations: {},
+  // Counts follow the 2026-08 Atlas dump (activity through Aug 2026; the
+  // previous dump's data ended Oct 2024). Counted, not estimated —
+  // verification is `actual >= expected`, so an understated value passes even
+  // when the import silently loses rows. `tests/unit/atlas-events-data.spec.ts`
+  // re-derives regions/users/registrations from the data files.
   atlas: {
-    managers: 327,
-    // 474 source geo nodes (29 country + 99 region + 346 area, post-dedupe),
-    // plus the 44 shared-venue nodes the importer creates for venues used by
-    // more than one surviving event. Counted, not estimated — verification is
-    // `actual >= expected`, so an understated value here passes even when the
-    // import silently loses rows.
-    regions: 518,
-    // 910 source registrants → 881 with something usable as an email (29 hold
-    // typed-in junk like "jbk", which Payload's email validation refuses and
-    // the importer now skips by name) → 717 once case-variant duplicates
-    // collapse onto one account. 755 was the count before the junk rows were
-    // recognised as unimportable, so it could never be reached.
-    users: 717,
-    // 496 rows in events.json (511 extracted, less 15 confirmed duplicates
-    // removed), less the 2 leftover test records the importer skips —
-    // EXCLUDED_EVENT_LEGACY_IDS in seeds/atlas/import.ts.
-    events: 494,
-    // 886 source rows, less the 27 belonging to a registrant whose email was
-    // never an address — with no user to attach to, they can't be imported.
-    registrations: 859,
-    clients: 25,
+    managers: 495,
+    // 595 source geo nodes (34 country + 101 region + 460 area, post-dedupe),
+    // plus the 52 shared-venue nodes the importer creates for venues used by
+    // more than one surviving event, less region:East (#42), whose source
+    // latitude/longitude/radius are invalid and can never import.
+    regions: 646,
+    // 2284 source registrants → 2255 with something usable as an email (29
+    // hold typed-in junk, which Payload's email validation refuses and the
+    // importer skips by name) → 1864 once case-variant duplicates collapse
+    // onto one account.
+    users: 1864,
+    // 653 rows in events.json (673 extracted, less 11 previously-merged
+    // duplicates re-dropped and 9 new ones), less: the 1 leftover test record
+    // the importer skips (EXCLUDED_EVENT_LEGACY_IDS in seeds/atlas/import.ts),
+    // #4958 (no Atlas area, so no resolvable region), and the 2 archived
+    // events (#75, #199) that import straight into the trash, which
+    // `payload.count` doesn't see.
+    events: 649,
+    // 2034 source rows, less: the 27 belonging to a registrant whose email was
+    // never an address, the 2 whose event has neither a row in events.json nor
+    // a merge survivor (MERGED_EVENT_TARGETS in seeds/atlas/import.ts), and the
+    // 1 on an event that imports straight into the trash — Payload silently
+    // rolls back a create whose relationship target is trashed.
+    registrations: 2004,
+    clients: 31,
   },
 }
 
@@ -266,49 +275,49 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   atlas: [
     {
       slug: 'managers',
-      totalItems: 327,
+      totalItems: 495,
       requiresPagination: false,
       dependencies: [],
       naturalKey: 'legacyId',
     },
     {
       slug: 'regions',
-      totalItems: 482,
+      totalItems: 595,
       requiresPagination: false,
       dependencies: ['managers'],
       naturalKey: 'legacyId',
     },
     {
       slug: 'users',
-      totalItems: 910,
+      totalItems: 2284,
       requiresPagination: true,
       dependencies: [],
       naturalKey: 'email',
     },
     {
       slug: 'events',
-      totalItems: 511,
+      totalItems: 653,
       requiresPagination: true,
       dependencies: ['managers', 'regions'],
       naturalKey: 'legacyId',
     },
     {
       slug: 'registrations',
-      totalItems: 886,
+      totalItems: 2034,
       requiresPagination: true,
       dependencies: ['events', 'users'],
       naturalKey: 'legacyId',
     },
     {
       slug: 'clients',
-      totalItems: 25,
+      totalItems: 31,
       requiresPagination: false,
       dependencies: ['managers', 'regions'],
       naturalKey: 'legacyId',
     },
     {
       slug: 'pictures',
-      totalItems: 134,
+      totalItems: 130,
       requiresPagination: true,
       dependencies: ['events'],
       naturalKey: 'legacyId',

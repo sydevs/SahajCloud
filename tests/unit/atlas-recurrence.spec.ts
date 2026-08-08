@@ -18,6 +18,11 @@ const DIALECT_NO_ON_MONTHLY =
   "---\ntype: monthly_1st\nstart_date: November 3, 2024\nend_date: ''\nstart_time: '09:00'\nend_time: '11:00'\n"
 const DIALECT_DAILY =
   "---\n:type: :daily\n:start_date: 2023-08-06\n:start_time: '10:00'\n:end_date: \n:end_time: '13:00'\n:on: \n"
+// The 2026 dump added monthly types beyond `monthly_1st` (events #318, #397).
+const MONTHLY_2ND =
+  "---\ntype: monthly_2nd\nstart_date: December 9, 2024\nstart_time: '19:30'\nend_date: ''\nend_time: '21:00'\n'on': :monday\n"
+const MONTHLY_LAST_EMPTY_ON =
+  "---\ntype: monthly_last\nstart_date: November 24, 2024\nstart_time: '09:30'\nend_date: ''\nend_time: '11:30'\n'on':\n"
 
 describe('weekdayOf', () => {
   it('names the weekday of an ISO date', () => {
@@ -124,6 +129,24 @@ describe('parseSchedule', () => {
   it('returns null for an unrecognised frequency', () => {
     expect(parseSchedule('---\ntype: yearly\nstart_date: 2024-01-03\n')).toBeNull()
   })
+
+  it('maps `monthly_2nd` to weekNumber 2, not 1', () => {
+    expect(parseSchedule(MONTHLY_2ND)).toMatchObject({
+      frequency: 'monthly',
+      weekNumber: 2,
+      weekday: 'monday',
+    })
+  })
+
+  it('maps `monthly_last` to weekNumber -1 and derives the weekday from an empty `on`', () => {
+    // 2024-11-24 is a Sunday — the last Sunday of that November.
+    expect(parseSchedule(MONTHLY_LAST_EMPTY_ON)).toMatchObject({
+      frequency: 'monthly',
+      weekNumber: -1,
+      weekday: 'sunday',
+      startDate: '2024-11-24',
+    })
+  })
 })
 
 describe('parseSchedule → mapSchedule (the reason the fallback matters)', () => {
@@ -149,5 +172,15 @@ describe('parseSchedule → mapSchedule (the reason the fallback matters)', () =
   it('maps a derived weekly weekday to the RFC 5545 code', () => {
     const mapped = mapSchedule(parseSchedule(DIALECT_NO_ON), 'Europe/Helsinki')
     expect(mapped).toMatchObject({ recurrenceType: 'WEEKLY', weekdays: ['FR'] })
+  })
+
+  it("carries `monthly_last`'s -1 through to the schedule field ('-1' is a valid weekNumber)", () => {
+    const mapped = mapSchedule(parseSchedule(MONTHLY_LAST_EMPTY_ON), 'Europe/Berlin')
+    expect(mapped).toMatchObject({
+      recurrenceType: 'MONTHLY',
+      monthlyMode: 'weekday',
+      weekNumber: '-1',
+      weekdayOfMonth: 'SU',
+    })
   })
 })

@@ -183,6 +183,10 @@ async function main() {
   write('regions', geoNodes)
 
   // --- venues.json (pruned to event-referenced) ---
+  // Venue text fields surface directly into rendered addresses and blank-title
+  // auto-fills, so stray whitespace is normalized at extraction time.
+  const trimField = (v: unknown): unknown =>
+    typeof v === 'string' ? v.trim().replace(/ {2,}/g, ' ') : v
   const venues = await all('select * from venues order by id')
   write(
     'venues',
@@ -191,11 +195,11 @@ async function main() {
       .map((v) => ({
         legacyId: v.id,
         placeId: v.place_id,
-        name: v.name,
-        street: v.street,
-        city: v.city,
+        name: trimField(v.name),
+        street: trimField(v.street),
+        city: trimField(v.city),
         countryCode: v.country_code,
-        postCode: v.post_code,
+        postCode: trimField(v.post_code),
         regionCode: v.region_code,
         latitude: v.latitude,
         longitude: v.longitude,
