@@ -345,16 +345,19 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     // events ← registrations/pictures; users ← registrations.
     const need = (slug: string): boolean => !this.isPaginated() || this.isCollectionTargeted(slug)
 
+    // Deliberately excludes trashed docs (Payload's default): two events
+    // import straight into the trash (a current Atlas `archived_at` maps to
+    // `deletedAt`), and a registration created against a trashed event is
+    // silently rolled back after the API returns success — reproduced via a
+    // bare REST create. Leaving those events out of the map makes their one
+    // registration (#252, on the archived #199) a visible, counted skip
+    // instead of a phantom "created" on every run.
     const rebuildLegacyIdMap = async (slug: 'managers' | 'events'): Promise<void> => {
       const docs = await this.payload.find({
         collection: slug,
         limit: 100000,
         depth: 0,
         select: { legacyId: true },
-        // Two events import straight into the trash (a current Atlas
-        // `archived_at` maps to `deletedAt`); their registrations still have
-        // to attach, so the rebuilt map must see trashed docs too.
-        trash: true,
       })
       this.idMaps[slug].clear()
       for (const doc of docs.docs) {

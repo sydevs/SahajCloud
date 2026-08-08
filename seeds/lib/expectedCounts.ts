@@ -89,10 +89,12 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     // events (#75, #199) that import straight into the trash, which
     // `payload.count` doesn't see.
     events: 649,
-    // 2034 source rows, less the 27 belonging to a registrant whose email was
-    // never an address, and the 2 whose event has neither a row in events.json
-    // nor a merge survivor (MERGED_EVENT_TARGETS in seeds/atlas/import.ts).
-    registrations: 2005,
+    // 2034 source rows, less: the 27 belonging to a registrant whose email was
+    // never an address, the 2 whose event has neither a row in events.json nor
+    // a merge survivor (MERGED_EVENT_TARGETS in seeds/atlas/import.ts), and the
+    // 1 on an event that imports straight into the trash — Payload silently
+    // rolls back a create whose relationship target is trashed.
+    registrations: 2004,
     clients: 31,
   },
 }
@@ -273,49 +275,49 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   atlas: [
     {
       slug: 'managers',
-      totalItems: 327,
+      totalItems: 495,
       requiresPagination: false,
       dependencies: [],
       naturalKey: 'legacyId',
     },
     {
       slug: 'regions',
-      totalItems: 482,
+      totalItems: 595,
       requiresPagination: false,
       dependencies: ['managers'],
       naturalKey: 'legacyId',
     },
     {
       slug: 'users',
-      totalItems: 910,
+      totalItems: 2284,
       requiresPagination: true,
       dependencies: [],
       naturalKey: 'email',
     },
     {
       slug: 'events',
-      totalItems: 511,
+      totalItems: 653,
       requiresPagination: true,
       dependencies: ['managers', 'regions'],
       naturalKey: 'legacyId',
     },
     {
       slug: 'registrations',
-      totalItems: 886,
+      totalItems: 2034,
       requiresPagination: true,
       dependencies: ['events', 'users'],
       naturalKey: 'legacyId',
     },
     {
       slug: 'clients',
-      totalItems: 25,
+      totalItems: 31,
       requiresPagination: false,
       dependencies: ['managers', 'regions'],
       naturalKey: 'legacyId',
     },
     {
       slug: 'pictures',
-      totalItems: 134,
+      totalItems: 130,
       requiresPagination: true,
       dependencies: ['events'],
       naturalKey: 'legacyId',

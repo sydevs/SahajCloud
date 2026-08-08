@@ -37,6 +37,7 @@ interface AtlasEventRow {
   languageCodes?: string[]
   contactInfo: { phone_name?: string; phone_number?: string } | null
   schedule: { frequency: string; weekday: string | null } | null
+  legacyData: { archived_at?: string | null; verified_at?: string | null }
 }
 
 const DATA_PATH = path.resolve(process.cwd(), 'seeds/atlas/data/events.json')
@@ -331,11 +332,24 @@ describe('expected counts follow from the data', () => {
       5849: 5684,
     }
     const eventIds = new Set(events.map((e) => e.legacyId))
-    const orphaned = registrations.filter(
-      (r) =>
-        (r.userId != null && unimportable.has(r.userId)) ||
-        (!eventIds.has(r.eventId) && !eventIds.has(survivor[r.eventId] ?? -1)),
+    // Events whose Atlas `archived_at` is still current import straight into
+    // the trash (importDeletedAt), and Payload silently rolls back a create
+    // whose relationship target is trashed — so their registrations skip.
+    const trashedOnImport = new Set(
+      events
+        .filter((e) => {
+          const raw = e.legacyData
+          return raw.archived_at && !(raw.verified_at && raw.verified_at > raw.archived_at)
+        })
+        .map((e) => e.legacyId),
     )
+    const resolves = (id: number) =>
+      (eventIds.has(id) && !trashedOnImport.has(id)) ||
+      (eventIds.has(survivor[id] ?? -1) && !trashedOnImport.has(survivor[id] ?? -1))
+    const orphaned = registrations.filter(
+      (r) => (r.userId != null && unimportable.has(r.userId)) || !resolves(r.eventId),
+    )
+    expect(trashedOnImport.size).toBe(2) // #75 and #199
     expect(EXPECTED_COUNTS.atlas.registrations).toBe(registrations.length - orphaned.length)
   })
 })

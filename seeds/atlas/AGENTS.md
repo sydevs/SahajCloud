@@ -294,9 +294,13 @@ Two knock-on effects:
   events #75/#199, which import straight into the trash where `payload.count`
   doesn't see them). Registrations on merged-away duplicates re-attach to the
   merge survivor via `MERGED_EVENT_TARGETS` (a merge is not a delete — #195's
-  39 registrants belong to #603's class); only the 2 registrations whose event
-  has neither a row nor a survivor are dropped, so
-  **`expectedCounts.registrations` is 2005**.
+  39 registrants belong to #603's class). Dropped: the 2 registrations whose
+  event has neither a row nor a survivor, and the 1 on the archived #199 —
+  **Payload silently rolls back a create whose relationship target is
+  trashed** (the API returns 201 with a doc id, but the row never lands;
+  reproduced with a bare REST create), so trashed events stay out of the
+  registration id-map and that skip is visible instead of a phantom success.
+  **`expectedCounts.registrations` is 2004**.
 - **`expectedCounts.regions` is 646** — 595 source geo nodes (34 country +
   101 region + 460 area, post-dedupe) plus 52 shared-venue nodes, less
   region:East (#42), whose invalid source coordinates fail validation on every
