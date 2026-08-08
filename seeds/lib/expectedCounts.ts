@@ -74,8 +74,9 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     managers: 495,
     // 595 source geo nodes (34 country + 101 region + 460 area, post-dedupe),
     // plus the 52 shared-venue nodes the importer creates for venues used by
-    // more than one surviving event.
-    regions: 647,
+    // more than one surviving event, less region:East (#42), whose source
+    // latitude/longitude/radius are invalid and can never import.
+    regions: 646,
     // 2284 source registrants → 2255 with something usable as an email (29
     // hold typed-in junk, which Payload's email validation refuses and the
     // importer skips by name) → 1864 once case-variant duplicates collapse
@@ -83,8 +84,9 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     users: 1864,
     // 653 rows in events.json (673 extracted, less 11 previously-merged
     // duplicates re-dropped and 9 new ones), less the 1 leftover test record
-    // the importer skips — EXCLUDED_EVENT_LEGACY_IDS in seeds/atlas/import.ts.
-    events: 652,
+    // the importer skips (EXCLUDED_EVENT_LEGACY_IDS in seeds/atlas/import.ts)
+    // and #4958, which has no Atlas area and so no resolvable region.
+    events: 651,
     // 2034 source rows, less the 27 belonging to a registrant whose email was
     // never an address — with no user to attach to, they can't be imported.
     registrations: 2007,

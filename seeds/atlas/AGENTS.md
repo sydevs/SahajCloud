@@ -289,11 +289,14 @@ Two knock-on effects:
   `atlas-events-data.spec.ts` recomputes the count from the data and asserts
   `expectedCounts` matches, so a removal that changes the topology fails the
   unit lane instead of drifting silently.
-- **`expectedCounts.events` is 652** (653 rows less test record #494).
-- **`expectedCounts.regions` is 647** — 595 source geo nodes (34 country +
-  101 region + 460 area, post-dedupe) plus 52 shared-venue nodes. Because
-  verification is `actual >= expected`, an understated value there is not
-  conservative, it just stops checking.
+- **`expectedCounts.events` is 651** (653 rows, less test record #494 and
+  #4958, which has no Atlas area and so no resolvable region).
+- **`expectedCounts.regions` is 646** — 595 source geo nodes (34 country +
+  101 region + 460 area, post-dedupe) plus 52 shared-venue nodes, less
+  region:East (#42), whose invalid source coordinates fail validation on every
+  run. Because verification is `actual >= expected`, an understated value
+  there is not conservative, it just stops checking; both floors are proven
+  reachable by the local end-to-end reseed against a cleaned database.
 
 ### `languageCodes` — a curated multi-language override
 
