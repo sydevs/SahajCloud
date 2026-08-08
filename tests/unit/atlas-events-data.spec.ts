@@ -293,7 +293,7 @@ describe('expected counts follow from the data', () => {
   ) as { legacyId: number; email: string | null }[]
   const registrations = JSON.parse(
     readFileSync(path.resolve(process.cwd(), 'seeds/atlas/data/registrations.json'), 'utf-8'),
-  ) as { userId: number | null }[]
+  ) as { userId: number | null; eventId: number }[]
 
   const importable = users.filter((u) => EMAIL_SHAPE.test((u.email ?? '').trim()))
 
@@ -305,11 +305,37 @@ describe('expected counts follow from the data', () => {
     expect(EXPECTED_COUNTS.atlas.users).toBe(unique.size)
   })
 
-  it('drops the registrations whose registrant cannot be imported', () => {
+  it('drops the registrations whose registrant or event cannot be imported', () => {
     const unimportable = new Set(
       users.filter((u) => !EMAIL_SHAPE.test((u.email ?? '').trim())).map((u) => u.legacyId),
     )
-    const orphaned = registrations.filter((r) => r.userId != null && unimportable.has(r.userId))
+    // Mirrors MERGED_EVENT_TARGETS in seeds/atlas/import.ts: a registration on
+    // a merged-away duplicate belongs to its survivor. Only events with neither
+    // a row in events.json nor a survivor lose their registrations.
+    const survivor: Record<number, number> = {
+      195: 603,
+      752: 753,
+      360: 684,
+      392: 698,
+      458: 560,
+      461: 565,
+      464: 562,
+      2951: 3440,
+      1988: 4662,
+      1328: 2945,
+      3078: 4332,
+      4331: 4332,
+      4365: 4364,
+      4366: 4364,
+      4299: 4298,
+      5849: 5684,
+    }
+    const eventIds = new Set(events.map((e) => e.legacyId))
+    const orphaned = registrations.filter(
+      (r) =>
+        (r.userId != null && unimportable.has(r.userId)) ||
+        (!eventIds.has(r.eventId) && !eventIds.has(survivor[r.eventId] ?? -1)),
+    )
     expect(EXPECTED_COUNTS.atlas.registrations).toBe(registrations.length - orphaned.length)
   })
 })

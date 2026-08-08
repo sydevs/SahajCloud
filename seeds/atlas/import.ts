@@ -260,6 +260,32 @@ const EXCLUDED_EVENT_LEGACY_IDS = new Map<number, string>([
   [5849, 'duplicate — double entry of #5684 (identical rows)'],
 ])
 
+/**
+ * Merge survivors for rows removed as duplicates: a merge is not a delete, so
+ * a registration on the removed listing belongs to the class that survived it.
+ * Pairs with no survivor — the both-retired #605 sets, and the Swiss rows
+ * whose survivors (#570/#571) were since deleted in Atlas — have no entry;
+ * their registrations are genuinely unresolvable and are skipped.
+ */
+const MERGED_EVENT_TARGETS: Record<number, number> = {
+  195: 603,
+  752: 753,
+  360: 684,
+  392: 698,
+  458: 560,
+  461: 565,
+  464: 562,
+  2951: 3440,
+  1988: 4662,
+  1328: 2945,
+  3078: 4332,
+  4331: 4332,
+  4365: 4364,
+  4366: 4364,
+  4299: 4298,
+  5849: 5684,
+}
+
 // ============================================================================
 // ATLAS IMPORTER
 // ============================================================================
@@ -325,6 +351,10 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         limit: 100000,
         depth: 0,
         select: { legacyId: true },
+        // Two events import straight into the trash (a current Atlas
+        // `archived_at` maps to `deletedAt`); their registrations still have
+        // to attach, so the rebuilt map must see trashed docs too.
+        trash: true,
       })
       this.idMaps[slug].clear()
       for (const doc of docs.docs) {
@@ -482,7 +512,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       count('registrations', data.registrations.length)
       dangling(
         'registrations.event',
-        data.registrations.filter((r) => !eventIds.has(r.eventId)).length,
+        data.registrations.filter(
+          (r) => !eventIds.has(r.eventId) && !eventIds.has(MERGED_EVENT_TARGETS[r.eventId] ?? -1),
+        ).length,
       )
       dangling(
         'registrations.user',
@@ -1222,7 +1254,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
     for (let i = 0; i < batch.length; i++) {
       const reg = batch[i]
-      const eventId = this.idMaps.events.get(reg.eventId)
+      const eventId =
+        this.idMaps.events.get(reg.eventId) ??
+        this.idMaps.events.get(MERGED_EVENT_TARGETS[reg.eventId] ?? -1)
       const userId = this.idMaps.users.get(reg.userId)
       if (eventId == null || userId == null) {
         await this.skip(`registration ${reg.uuid}: event/user unresolved`, {

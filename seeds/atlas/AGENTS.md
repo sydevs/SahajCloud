@@ -289,8 +289,14 @@ Two knock-on effects:
   `atlas-events-data.spec.ts` recomputes the count from the data and asserts
   `expectedCounts` matches, so a removal that changes the topology fails the
   unit lane instead of drifting silently.
-- **`expectedCounts.events` is 651** (653 rows, less test record #494 and
-  #4958, which has no Atlas area and so no resolvable region).
+- **`expectedCounts.events` is 649** (653 rows, less test record #494, #4958 —
+  which has no Atlas area and so no resolvable region — and the 2 archived
+  events #75/#199, which import straight into the trash where `payload.count`
+  doesn't see them). Registrations on merged-away duplicates re-attach to the
+  merge survivor via `MERGED_EVENT_TARGETS` (a merge is not a delete — #195's
+  39 registrants belong to #603's class); only the 2 registrations whose event
+  has neither a row nor a survivor are dropped, so
+  **`expectedCounts.registrations` is 2005**.
 - **`expectedCounts.regions` is 646** — 595 source geo nodes (34 country +
   101 region + 460 area, post-dedupe) plus 52 shared-venue nodes, less
   region:East (#42), whose invalid source coordinates fail validation on every

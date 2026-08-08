@@ -83,13 +83,16 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     // onto one account.
     users: 1864,
     // 653 rows in events.json (673 extracted, less 11 previously-merged
-    // duplicates re-dropped and 9 new ones), less the 1 leftover test record
-    // the importer skips (EXCLUDED_EVENT_LEGACY_IDS in seeds/atlas/import.ts)
-    // and #4958, which has no Atlas area and so no resolvable region.
-    events: 651,
+    // duplicates re-dropped and 9 new ones), less: the 1 leftover test record
+    // the importer skips (EXCLUDED_EVENT_LEGACY_IDS in seeds/atlas/import.ts),
+    // #4958 (no Atlas area, so no resolvable region), and the 2 archived
+    // events (#75, #199) that import straight into the trash, which
+    // `payload.count` doesn't see.
+    events: 649,
     // 2034 source rows, less the 27 belonging to a registrant whose email was
-    // never an address — with no user to attach to, they can't be imported.
-    registrations: 2007,
+    // never an address, and the 2 whose event has neither a row in events.json
+    // nor a merge survivor (MERGED_EVENT_TARGETS in seeds/atlas/import.ts).
+    registrations: 2005,
     clients: 31,
   },
 }

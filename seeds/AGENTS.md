@@ -92,8 +92,8 @@ Each script has collection-level metadata in `seeds/lib/expectedCounts.ts`:
 | atlas       | managers      | 495   | No         | None                    |
 | atlas       | regions       | 646   | No         | managers                |
 | atlas       | users         | 1864  | Yes        | None                    |
-| atlas       | events        | 651   | Yes        | managers, regions       |
-| atlas       | registrations | 2007  | Yes        | events, users           |
+| atlas       | events        | 649   | Yes        | managers, regions       |
+| atlas       | registrations | 2005  | Yes        | events, users           |
 | atlas       | clients       | 31    | No         | managers                |
 
 > **Note (meditations script)**: When targeting `collection=meditations`, the importer automatically runs `narrators`, `frames`, and `tags` imports in the same request (in bulk, without pagination). This ensures the ID maps are populated for keyframe and tag references. The meditations themselves are then processed with pagination if enabled.
