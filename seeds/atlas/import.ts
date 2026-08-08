@@ -226,6 +226,9 @@ const DEFAULT_LOCALE = 'en'
  * seeds/atlas/AGENTS.md for the evidence behind each.
  */
 const EXCLUDED_EVENT_LEGACY_IDS = new Map<number, string>([
+  // ── #605 pass (June dump). Rows whose Atlas source was since deleted
+  // upstream (575, 458, 461, 468, 469) are kept as harmless no-ops so an older
+  // dump can never resurrect them.
   [494, 'Atlas test record'],
   [575, 'Atlas test record'],
   [195, 'duplicate — same Zoom room + slot as #603'],
@@ -243,7 +246,45 @@ const EXCLUDED_EVENT_LEGACY_IDS = new Map<number, string>([
   [534, 'duplicate of #497; both sides already retired'],
   [355, 'duplicate of #535; both sides already retired'],
   [535, 'duplicate of #355; both sides already retired'],
+  // ── 2026-08 dump refresh. Same evidence bar: same manager plus a shared
+  // venue/Zoom room and identical slot; "session re-listing" means sequential
+  // non-overlapping terms of one class, where the latest term survives.
+  [2951, 'duplicate — re-entered as #3440 (same manager, venue, slot)'],
+  [1988, 'duplicate — superseded by #4662 (same manager, library, slot)'],
+  [1328, 'duplicate — session re-listing; open-ended term kept as #2945'],
+  [3078, 'duplicate — session re-listing; latest term kept as #4332'],
+  [4331, 'duplicate — session re-listing; latest term kept as #4332'],
+  [4365, 'duplicate — triple entry of #4364 (identical rows)'],
+  [4366, 'duplicate — triple entry of #4364 (identical rows)'],
+  [4299, 'duplicate — merged into the bilingual #4298 (FR/NL pair)'],
+  [5849, 'duplicate — double entry of #5684 (identical rows)'],
 ])
+
+/**
+ * Merge survivors for rows removed as duplicates: a merge is not a delete, so
+ * a registration on the removed listing belongs to the class that survived it.
+ * Pairs with no survivor — the both-retired #605 sets, and the Swiss rows
+ * whose survivors (#570/#571) were since deleted in Atlas — have no entry;
+ * their registrations are genuinely unresolvable and are skipped.
+ */
+const MERGED_EVENT_TARGETS: Record<number, number> = {
+  195: 603,
+  752: 753,
+  360: 684,
+  392: 698,
+  458: 560,
+  461: 565,
+  464: 562,
+  2951: 3440,
+  1988: 4662,
+  1328: 2945,
+  3078: 4332,
+  4331: 4332,
+  4365: 4364,
+  4366: 4364,
+  4299: 4298,
+  5849: 5684,
+}
 
 // ============================================================================
 // ATLAS IMPORTER
@@ -304,6 +345,13 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     // events ← registrations/pictures; users ← registrations.
     const need = (slug: string): boolean => !this.isPaginated() || this.isCollectionTargeted(slug)
 
+    // Deliberately excludes trashed docs (Payload's default): two events
+    // import straight into the trash (a current Atlas `archived_at` maps to
+    // `deletedAt`), and a registration created against a trashed event is
+    // silently rolled back after the API returns success — reproduced via a
+    // bare REST create. Leaving those events out of the map makes their one
+    // registration (#252, on the archived #199) a visible, counted skip
+    // instead of a phantom "created" on every run.
     const rebuildLegacyIdMap = async (slug: 'managers' | 'events'): Promise<void> => {
       const docs = await this.payload.find({
         collection: slug,
@@ -467,7 +515,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       count('registrations', data.registrations.length)
       dangling(
         'registrations.event',
-        data.registrations.filter((r) => !eventIds.has(r.eventId)).length,
+        data.registrations.filter(
+          (r) => !eventIds.has(r.eventId) && !eventIds.has(MERGED_EVENT_TARGETS[r.eventId] ?? -1),
+        ).length,
       )
       dangling(
         'registrations.user',
@@ -695,6 +745,42 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
 
     await this.importSharedVenues(data, managersByRegion)
+    await this.reportUpstreamDeletedRegions(data)
+  }
+
+  /**
+   * Report imported regions whose Atlas source row no longer exists.
+   *
+   * The events-side counterpart is `reportUpstreamDeletedEvents`; regions need
+   * it just as much because Atlas *renumbers* geo nodes (the 2026-08 dump moved
+   * Paris from area 438 to 1208, and similar). The stale doc is worse than
+   * clutter here: `slug` and `mapboxId` are unique, so it blocks the renumbered
+   * node's create until an operator trashes it — errors like
+   * "The following field is invalid: Slug/mapboxId" on a region upsert are this.
+   * Regions created directly in SahajCloud carry no legacyId and are never
+   * flagged.
+   */
+  private async reportUpstreamDeletedRegions(data: AtlasData): Promise<void> {
+    const known = new Set<string>()
+    for (const region of data.regions)
+      known.add(`${ATLAS_TO_PAYLOAD_LEVEL[region.level]}:${region.legacyId}`)
+    for (const venueId of multiUseVenueIds(data.events)) known.add(`venue:${venueId}`)
+
+    const { docs } = await this.payload.find({
+      collection: 'regions',
+      where: { legacyId: { exists: true } },
+      select: { legacyId: true, level: true, name: true },
+      pagination: false,
+      overrideAccess: true,
+    })
+    for (const doc of docs) {
+      if (known.has(`${doc.level}:${doc.legacyId}`)) continue
+      this.addWarning(
+        `Region regions/${doc.id} (${doc.level} legacy #${doc.legacyId}, "${doc.name}") is gone ` +
+          `from the Atlas data — deleted or renumbered upstream; trash it in the admin panel ` +
+          `(it may be blocking a renumbered node's slug/mapboxId), then re-run the import.`,
+      )
+    }
   }
 
   /** Upsert one country/region/city node, resolving its mapboxId + parent + managers. */
@@ -931,7 +1017,38 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
 
     // Only the batch that finishes the collection can judge the whole of it.
-    if (offset + batch.length >= total) await this.verifyEventQualityStamps()
+    if (offset + batch.length >= total) {
+      await this.verifyEventQualityStamps()
+      await this.reportUpstreamDeletedEvents(data)
+    }
+  }
+
+  /**
+   * Report imported events whose Atlas source row no longer exists.
+   *
+   * The import only upserts, so an event deleted in Atlas after an earlier seed
+   * survives here indefinitely — the 2026-08 dump refresh dropped 64 such rows.
+   * Deletion stays manual by design (a manager may have hung content off the
+   * doc); this warning names each row so an operator can trash it in the admin
+   * panel. Events created directly in SahajCloud carry no legacyId and are never
+   * flagged; already-trashed docs are excluded by the default `trash` behaviour,
+   * and excluded legacy ids get their own targeted warning in the import loop.
+   */
+  private async reportUpstreamDeletedEvents(data: AtlasData): Promise<void> {
+    const knownIds = [...data.events.map((e) => e.legacyId), ...EXCLUDED_EVENT_LEGACY_IDS.keys()]
+    const { docs } = await this.payload.find({
+      collection: 'events',
+      where: { and: [{ legacyId: { exists: true } }, { legacyId: { not_in: knownIds } }] },
+      select: { legacyId: true, title: true },
+      pagination: false,
+      overrideAccess: true,
+    })
+    for (const doc of docs) {
+      this.addWarning(
+        `Event events/${doc.id} (legacy #${doc.legacyId}, "${doc.title}") is gone from the ` +
+          `Atlas data — deleted upstream; trash it in the admin panel.`,
+      )
+    }
   }
 
   /**
@@ -1140,7 +1257,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
     for (let i = 0; i < batch.length; i++) {
       const reg = batch[i]
-      const eventId = this.idMaps.events.get(reg.eventId)
+      const eventId =
+        this.idMaps.events.get(reg.eventId) ??
+        this.idMaps.events.get(MERGED_EVENT_TARGETS[reg.eventId] ?? -1)
       const userId = this.idMaps.users.get(reg.userId)
       if (eventId == null || userId == null) {
         await this.skip(`registration ${reg.uuid}: event/user unresolved`, {

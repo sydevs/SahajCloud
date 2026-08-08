@@ -15,7 +15,7 @@
       "level": "country",
       "legacyId": 2
     },
-    "createdAt": "2021-07-07T18:06:00.537Z"
+    "createdAt": "2021-07-08T09:06:00.537Z"
   },
   {
     "legacyId": 2,
@@ -33,7 +33,7 @@
       "level": "country",
       "legacyId": 1
     },
-    "createdAt": "2021-07-09T16:49:39.226Z"
+    "createdAt": "2021-07-10T07:49:39.226Z"
   },
   {
     "legacyId": 3,
@@ -48,7 +48,7 @@
     "clientId": "4409217d-53fb-481c-ad86-e69a3b51b5d0",
     "enabled": true,
     "location": null,
-    "createdAt": "2021-07-10T11:38:42.559Z"
+    "createdAt": "2021-07-11T02:38:42.559Z"
   },
   {
     "legacyId": 4,
@@ -60,7 +60,7 @@
     "clientId": "e725b7b8-e6ca-45aa-8ed3-9f5737ad13b8",
     "enabled": true,
     "location": null,
-    "createdAt": "2021-09-08T07:40:20.784Z"
+    "createdAt": "2021-09-08T22:40:20.784Z"
   },
   {
     "legacyId": 5,
@@ -78,7 +78,7 @@
       "level": "country",
       "legacyId": 3
     },
-    "createdAt": "2021-09-18T01:22:33.261Z"
+    "createdAt": "2021-09-18T16:22:33.261Z"
   },
   {
     "legacyId": 6,
@@ -93,16 +93,14 @@
     "clientId": "0b1e22f9-3bfd-4a8c-8384-08db6a7e912e",
     "enabled": true,
     "location": null,
-    "createdAt": "2021-11-04T11:59:16.580Z"
+    "createdAt": "2021-11-05T02:59:16.580Z"
   },
   {
     "legacyId": 12,
     "label": "Sahaja Yoga UK",
     "config": {
       "domain": "www.sahajayoga.org.uk",
-      "embed_type": "script",
-      "default_view": "map",
-      "routing_type": "query"
+      "embed_type": "iframe"
     },
     "managerId": 50,
     "clientId": "30965b09-2438-4680-bae0-c79197a923f0",
@@ -111,7 +109,7 @@
       "level": "country",
       "legacyId": 7
     },
-    "createdAt": "2022-05-29T09:13:00.324Z"
+    "createdAt": "2022-05-30T00:13:00.324Z"
   },
   {
     "legacyId": 13,
@@ -129,7 +127,7 @@
       "level": "area",
       "legacyId": 63
     },
-    "createdAt": "2022-05-29T09:14:17.023Z"
+    "createdAt": "2022-05-30T00:14:17.023Z"
   },
   {
     "legacyId": 14,
@@ -148,7 +146,7 @@
       "level": "country",
       "legacyId": 9
     },
-    "createdAt": "2022-06-05T08:33:55.394Z"
+    "createdAt": "2022-06-05T23:33:55.394Z"
   },
   {
     "legacyId": 15,
@@ -166,7 +164,7 @@
       "level": "country",
       "legacyId": 6
     },
-    "createdAt": "2022-09-09T03:33:35.070Z"
+    "createdAt": "2022-09-09T18:33:35.070Z"
   },
   {
     "legacyId": 16,
@@ -184,7 +182,7 @@
       "level": "country",
       "legacyId": 10
     },
-    "createdAt": "2022-10-12T03:10:09.450Z"
+    "createdAt": "2022-10-12T18:10:09.450Z"
   },
   {
     "legacyId": 17,
@@ -202,7 +200,7 @@
       "level": "country",
       "legacyId": 5
     },
-    "createdAt": "2022-10-14T08:46:32.498Z"
+    "createdAt": "2022-10-14T23:46:32.498Z"
   },
   {
     "legacyId": 18,
@@ -220,7 +218,7 @@
       "level": "country",
       "legacyId": 5
     },
-    "createdAt": "2022-10-14T09:28:54.384Z"
+    "createdAt": "2022-10-15T00:28:54.384Z"
   },
   {
     "legacyId": 19,
@@ -238,7 +236,7 @@
       "level": "region",
       "legacyId": 1
     },
-    "createdAt": "2022-11-12T10:20:29.702Z"
+    "createdAt": "2022-11-13T02:20:29.702Z"
   },
   {
     "legacyId": 20,
@@ -253,7 +251,7 @@
     "clientId": "425e97e3-a86d-48f5-8b15-2f9d79fb1a22",
     "enabled": true,
     "location": null,
-    "createdAt": "2022-12-12T14:16:12.805Z"
+    "createdAt": "2022-12-13T06:16:12.805Z"
   },
   {
     "legacyId": 21,
@@ -272,7 +270,7 @@
       "level": "country",
       "legacyId": 5
     },
-    "createdAt": "2023-02-15T08:35:44.940Z"
+    "createdAt": "2023-02-16T00:35:44.940Z"
   },
   {
     "legacyId": 22,
@@ -291,7 +289,7 @@
       "level": "country",
       "legacyId": 12
     },
-    "createdAt": "2023-03-05T12:06:04.078Z"
+    "createdAt": "2023-03-06T04:06:04.078Z"
   },
   {
     "legacyId": 23,
@@ -309,17 +307,14 @@
       "level": "country",
       "legacyId": 20
     },
-    "createdAt": "2023-05-28T04:20:51.674Z"
+    "createdAt": "2023-05-28T19:20:51.674Z"
   },
   {
     "legacyId": 24,
     "label": "Sahaja Yoga Brazil",
     "config": {
       "domain": "www.sahajayoga.org.br",
-      "locale": "pt-BR",
-      "embed_type": "script",
-      "default_view": "map",
-      "routing_type": "query"
+      "canonical_url": "https://www.sahajayoga.org.br/sahaj-atlas/"
     },
     "managerId": 258,
     "clientId": "a5ad49a8-7f17-430f-ab74-c288f2f405cd",
@@ -328,7 +323,7 @@
       "level": "country",
       "legacyId": 19
     },
-    "createdAt": "2023-06-28T11:26:07.850Z"
+    "createdAt": "2023-06-29T02:26:07.850Z"
   },
   {
     "legacyId": 25,
@@ -347,7 +342,7 @@
       "level": "country",
       "legacyId": 11
     },
-    "createdAt": "2023-06-29T01:07:11.350Z"
+    "createdAt": "2023-06-29T16:07:11.350Z"
   },
   {
     "legacyId": 26,
@@ -365,16 +360,14 @@
       "level": "country",
       "legacyId": 21
     },
-    "createdAt": "2023-07-23T12:08:40.183Z"
+    "createdAt": "2023-07-24T03:08:40.183Z"
   },
   {
     "legacyId": 27,
     "label": "Sahaja Yoga Switzerland",
     "config": {
       "domain": "www.sahajayoga.ch",
-      "embed_type": "script",
-      "default_view": "map",
-      "routing_type": "query",
+      "canonical_url": "https://www.sahajayoga.ch/en/the-courses/centers/",
       "primary_color": "#f16f23"
     },
     "managerId": 281,
@@ -384,7 +377,7 @@
       "level": "country",
       "legacyId": 26
     },
-    "createdAt": "2023-08-25T04:29:44.149Z"
+    "createdAt": "2023-08-25T19:29:44.149Z"
   },
   {
     "legacyId": 29,
@@ -403,7 +396,7 @@
       "level": "country",
       "legacyId": 28
     },
-    "createdAt": "2023-12-06T01:55:47.217Z"
+    "createdAt": "2023-12-06T17:55:47.217Z"
   },
   {
     "legacyId": 30,
@@ -422,7 +415,7 @@
       "level": "country",
       "legacyId": 18
     },
-    "createdAt": "2024-07-11T11:25:14.168Z"
+    "createdAt": "2024-07-12T02:25:14.168Z"
   },
   {
     "legacyId": 31,
@@ -441,6 +434,91 @@
       "level": "country",
       "legacyId": 18
     },
-    "createdAt": "2024-07-11T11:25:50.781Z"
+    "createdAt": "2024-07-12T02:25:50.781Z"
+  },
+  {
+    "legacyId": 32,
+    "label": "Sahaja Yoga FR",
+    "config": {
+      "domain": "sahajayoga.fr\r\nyogaessonne.fr",
+      "locale": "fr"
+    },
+    "managerId": 350,
+    "clientId": "3abb64a1-a878-4677-aff7-96fe684ad8a5",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 27
+    },
+    "createdAt": "2024-11-12T15:02:07.881Z"
+  },
+  {
+    "legacyId": 33,
+    "label": "Sahaj Atlas Dev",
+    "config": {
+      "domain": "localhost",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 1,
+    "clientId": "a503fe34-fcf4-4231-86eb-4c0f83471149",
+    "enabled": true,
+    "location": null,
+    "createdAt": "2024-12-16T12:30:30.319Z"
+  },
+  {
+    "legacyId": 66,
+    "label": "Sahaj Atlas",
+    "config": {
+      "domain": "syatlas.pages.dev\r\natlas.sydevelopers.com"
+    },
+    "managerId": 1,
+    "clientId": "cda2bed3-1503-447b-89d7-13120938d0c2",
+    "enabled": true,
+    "location": null,
+    "createdAt": "2025-01-17T00:45:56.053Z"
+  },
+  {
+    "legacyId": 99,
+    "label": "We Meditate App",
+    "config": {
+      "domain": "n/a"
+    },
+    "managerId": 15,
+    "clientId": "633fa8c1-121a-4d93-acdc-f0747d639dd2",
+    "enabled": true,
+    "location": null,
+    "createdAt": "2026-02-16T20:51:16.769Z"
+  },
+  {
+    "legacyId": 132,
+    "label": "Sahaja Yoga AU",
+    "config": {
+      "domain": "au.sahajayoga.org",
+      "locale": "en"
+    },
+    "managerId": 3237,
+    "clientId": "3562e551-32f1-4a8a-a8b3-4c16e8de8c92",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 21
+    },
+    "createdAt": "2026-04-13T15:16:58.472Z"
+  },
+  {
+    "legacyId": 165,
+    "label": "Shri Mataji Org Map (Mayank)",
+    "config": {
+      "domain": "shrimataji.org",
+      "locale": "en",
+      "canonical_url": "https://shrimataji.org"
+    },
+    "managerId": 96,
+    "clientId": "bcc1d1ed-7fda-434c-b99f-f821e0589c95",
+    "enabled": true,
+    "location": null,
+    "createdAt": "2026-05-31T20:09:58.170Z"
   }
 ]
