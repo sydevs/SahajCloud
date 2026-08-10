@@ -365,7 +365,38 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       }
     }
 
-    if (need('regions') || need('events') || need('clients')) await rebuildLegacyIdMap('managers')
+    if (need('regions') || need('events') || need('clients')) {
+      await rebuildLegacyIdMap('managers')
+      // Re-adopt managers whose Atlas email belongs to a pre-existing non-Atlas
+      // account. importManagers deliberately never stamps `legacyId` on such an
+      // account (a later --update would then overwrite its password and type),
+      // so the adoption exists only in that request's memory — and each
+      // paginated batch is a fresh importer. Without re-adopting here, an
+      // adopted manager's events resolve to nothing and silently skip.
+      const { managers } = await this.getData()
+      const unmapped = managers.filter((m) => !this.idMaps.managers.has(m.legacyId))
+      if (unmapped.length > 0) {
+        const nonAtlas = await this.payload.find({
+          collection: 'managers',
+          where: { legacyId: { exists: false } },
+          limit: 0,
+          pagination: false,
+          depth: 0,
+          overrideAccess: true,
+          select: { email: true },
+        })
+        const byEmail = new Map<string, number | string>(
+          nonAtlas.docs.map((doc) => [
+            String((doc as { email?: string }).email ?? '').toLowerCase(),
+            doc.id,
+          ]),
+        )
+        for (const manager of unmapped) {
+          const adoptedId = byEmail.get(manager.email.toLowerCase())
+          if (adoptedId != null) this.idMaps.managers.set(manager.legacyId, adoptedId)
+        }
+      }
+    }
     if (need('registrations') || need('pictures')) await rebuildLegacyIdMap('events')
 
     if (need('events') || need('clients')) {
