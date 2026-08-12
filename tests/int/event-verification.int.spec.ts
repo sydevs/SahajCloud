@@ -734,7 +734,9 @@ describe('Event verification lifecycle', () => {
     expect(result.remindersSent).toBe(0)
     const fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('finished')
-    expect(fresh.nextCheckAt ?? null).toBeNull()
+    // Re-armed at the retention deadline rather than cleared — that watermark
+    // is how the job finds it again to trash it 6 months on.
+    expect(new Date(fresh.nextCheckAt as string).getTime()).toBeGreaterThan(Date.now())
     // #603 inverted this: finishing no longer unpublishes. The event's Atlas page
     // must keep resolving for a seeker following an old link — it leaves the
     // public feeds instead (see notFinishedWhere). Only the unverified ladder
@@ -779,7 +781,8 @@ describe('Event verification lifecycle', () => {
       expect(result.finished).toBe(1)
       const fresh = await getEvent(payload, event.id)
       expect(fresh.verificationStage).toBe('finished')
-      expect(fresh.nextCheckAt ?? null).toBeNull()
+      // The retention watermark, not null — see the finished rule in stageMachine.
+      expect(fresh.nextCheckAt).toBeTruthy()
       return fresh
     }
 
@@ -836,7 +839,7 @@ describe('Event verification lifecycle', () => {
 
       expect(saved.title).toBe('Renamed But Still Over')
       expect(saved.verificationStage).toBe('finished')
-      expect(saved.nextCheckAt ?? null).toBeNull()
+      expect(saved.nextCheckAt).toBeTruthy()
     })
 
     it('stays finished when the schedule moves but is still in the past', async () => {

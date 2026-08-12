@@ -1183,12 +1183,18 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const cadence = managerVerificationCadence(
       this.managerPrefs(event.managerId, ctx.managersByLegacyId),
     )
+    // Mapped once: the verification watermark is capped by the schedule's end
+    // (and a finished event's retention runs from it), so it needs the same
+    // value the document is written with.
+    const schedule = inactive ? undefined : (mapSchedule(event.schedule, timeZone) ?? undefined)
     // `legacyId` seeds the deterministic stagger on `nextCheckAt` — without it the
     // whole dump falls due in the same week. See importCheckOffsetDays.
     const verification = buildImportVerification({
       status: event.status,
       cadence,
       legacyId: event.legacyId,
+      schedule,
+      inactive,
       now: ctx.now,
     })
     // Atlas's `archived` terminal → a Payload soft delete. Only set when the
@@ -1228,7 +1234,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       // Atlas stores descriptions as plain text; the richText field needs Lexical.
       description: plainTextToLexical(event.description) ?? null,
       inactive,
-      ...(inactive ? {} : { schedule: mapSchedule(event.schedule, timeZone) ?? undefined }),
+      ...(inactive ? {} : { schedule }),
       region: regionId,
       eventType: event.eventType,
       onlineUrl: event.eventType === 'online' ? event.onlineUrl?.trim() || null : null,
