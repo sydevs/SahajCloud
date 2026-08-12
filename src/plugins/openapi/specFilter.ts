@@ -64,7 +64,7 @@ export const EXCLUDED_OPERATIONS = ['delete', 'patch'] as const
  * Collections allowed to have POST operations visible.
  * These are collections where API clients can create new documents.
  */
-export const ALLOW_POST_FOR: CollectionSlug[] = ['form-submissions']
+export const ALLOW_POST_FOR: CollectionSlug[] = ['form-submissions', 'event-submissions']
 
 export interface FilterOptions {
   /** Project/client role to filter collections by (null = all client role collections) */

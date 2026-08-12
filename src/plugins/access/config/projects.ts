@@ -148,6 +148,29 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
 })()
 
 // =============================================================================
+// Restricted collections
+// =============================================================================
+
+/**
+ * Collections that carry personal data and must NEVER fall under the
+ * "not in any project → shared, readable by every role" rule. Implicit read
+ * (`hasPermission` step 4a) skips these entirely; only an explicit `read`
+ * grant in a role, or the admin bypass, reaches them.
+ *
+ * - `users` — Atlas registrants (names + emails). Was implicitly readable by
+ *   any published API client before this list existed — including the Atlas
+ *   widget's public key.
+ * - `event-submissions` — public event submissions (submitter emails + notes).
+ *   Clients may create them (explicit grant) but never read them back.
+ */
+const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set(['users', 'event-submissions'])
+
+/** Whether implicit (project/shared) read must never apply to this collection. */
+export function isRestrictedCollection(collection: ContentSlug): boolean {
+  return RESTRICTED_COLLECTIONS.has(collection)
+}
+
+// =============================================================================
 // Type Generation Helper
 // =============================================================================
 

@@ -18,6 +18,7 @@ import { buildConfig } from 'payload'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { accessPlugin, bypassPermissions } from '@/plugins/access'
 import { usagePlugin } from '@/plugins/usage'
+import { writeGuardPlugin } from '@/plugins/writeGuard'
 
 import { EmailTestAdapter } from './emailTestAdapter'
 import { TEST_PG_POOL_OPTIONS } from './postgresTestPool'
@@ -119,6 +120,9 @@ function createBaseTestConfig(emailConfig: any, schemaName: string) {
     },
     plugins: [
       usagePlugin({ enabled: true }),
+      // Write Guard: anti-spam checks on client-originated writes (mirrors the
+      // real payload.config.ts — the event-submission specs exercise it).
+      writeGuardPlugin(),
       // Nested docs: injects parent + breadcrumbs into Regions (mirrors the
       // real payload.config.ts so collection hooks relying on them are tested).
       nestedDocsPlugin({
