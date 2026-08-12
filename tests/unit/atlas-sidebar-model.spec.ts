@@ -26,7 +26,11 @@ describe('bucketForEvent', () => {
       ['urgent', 'urgent'],
       ['reminded', 'needsVerification'],
       ['escalated', 'needsVerification'],
+      // Pre-adoption stages share existing buckets: unverified sits with the
+      // verification-pending events, denied with the system-unpublished ones.
+      ['unverified', 'needsVerification'],
       ['expired', 'expired'],
+      ['denied', 'expired'],
       ['verified', 'verified'],
       ['finished', 'finished'],
     ]
@@ -206,8 +210,8 @@ describe('region pill helpers', () => {
   })
 
   it('describes the pill in its tooltip', () => {
-    expect(regionPillTooltip({ published: 2, total: 2 })).toBe('All events are verified')
-    expect(regionPillTooltip({ published: 1, total: 3 })).toBe('2 expired events')
+    expect(regionPillTooltip({ published: 2, total: 2 })).toBe('All events are published')
+    expect(regionPillTooltip({ published: 1, total: 3 })).toBe('2 unpublished events')
   })
 
   it('shows a single number + success when all events are published', () => {

@@ -14,7 +14,7 @@
  * returns plain serializable data — the React rendering happens by the caller.
  */
 
-import type { TypedLocale } from 'payload'
+import type { TypedLocale, Where } from 'payload'
 
 import { unstable_cache } from 'next/cache'
 import { getPayload } from 'payload'
@@ -87,55 +87,79 @@ export async function buildAtlasSidebarData(
 ): Promise<AtlasSidebarData> {
   const payload = await getPayload({ config })
 
-  // Queries 1 and 2 are independent — run them together.
-  const [ownEvents, ownedRegions] = await Promise.all([
-    // 1. The manager's own events (incl. trashed — "Trashed" is a bucket).
+  // 2. The regions the manager directly manages (the subtree roots). Runs
+  // first: the event list now also needs the subtree ids (see below).
+  // `select: {}` returns only `id` — all we need for the subtree roots.
+  const ownedRegions = await payload.find({
+    collection: 'regions',
+    where: { managers: { in: [managerId] } },
+    depth: 0,
+    pagination: false,
+    select: {},
+  })
+  const ownedRegionIds = ownedRegions.docs.map((doc) => doc.id)
+
+  // 3. Those roots plus every descendant (one breadcrumb query).
+  const subtree = ownedRegionIds.length
+    ? await payload.find({
+        collection: 'regions',
+        where: {
+          or: [{ id: { in: ownedRegionIds } }, { 'breadcrumbs.doc': { in: ownedRegionIds } }],
+        },
+        depth: 0,
+        pagination: false,
+        select: { name: true, level: true, parent: true, breadcrumbs: true },
+      })
+    : null
+  const regionInputs = (subtree?.docs ?? []).map(toRegionInput)
+  const regionById = new Map(regionInputs.map((region) => [region.id, region]))
+  const subtreeRegionIds = new Set(regionInputs.map((region) => region.id))
+
+  // The event list: the manager's own events (incl. trashed — "Trashed" is a
+  // bucket), plus the pre-adoption (unverified/denied) events in their region
+  // subtree. The latter have no manager at all, so without this OR branch no
+  // sidebar would ever surface them and nobody would find them to adopt.
+  const eventListWhere: Where = subtreeRegionIds.size
+    ? {
+        or: [
+          { manager: { equals: managerId } },
+          {
+            and: [
+              { verificationStage: { in: ['unverified', 'denied'] } },
+              { region: { in: [...subtreeRegionIds] } },
+            ],
+          },
+        ],
+      }
+    : { manager: { equals: managerId } }
+
+  // Queries 1 and 4 are independent of each other — run them together.
+  const [listEvents, subtreeEvents] = await Promise.all([
+    // 1. Events for the sidebar list.
     payload.find({
       collection: 'events',
-      where: { manager: { equals: managerId } },
+      where: eventListWhere,
       trash: true,
       depth: 0,
       pagination: false,
       locale,
       select: { title: true, verificationStage: true, deletedAt: true, updatedAt: true },
     }),
-    // 2. The regions the manager directly manages (the subtree roots).
-    // `select: {}` returns only `id` — all we need for the subtree roots.
-    payload.find({
-      collection: 'regions',
-      where: { managers: { in: [managerId] } },
-      depth: 0,
-      pagination: false,
-      select: {},
-    }),
+    // 4. Non-trashed events in the subtree, for the published/total counts.
+    subtreeRegionIds.size
+      ? payload.find({
+          collection: 'events',
+          where: { region: { in: [...subtreeRegionIds] } },
+          depth: 0,
+          pagination: false,
+          select: { region: true, _status: true, verificationStage: true, deletedAt: true },
+        })
+      : null,
   ])
-  const events = sortEventsIntoBuckets(ownEvents.docs.map(toEventInput))
-  const ownedRegionIds = ownedRegions.docs.map((doc) => doc.id)
+  const events = sortEventsIntoBuckets(listEvents.docs.map(toEventInput))
 
   let regions: RegionTreeNode[] = []
-  if (ownedRegionIds.length) {
-    // 3. Those roots plus every descendant (one breadcrumb query).
-    const subtree = await payload.find({
-      collection: 'regions',
-      where: {
-        or: [{ id: { in: ownedRegionIds } }, { 'breadcrumbs.doc': { in: ownedRegionIds } }],
-      },
-      depth: 0,
-      pagination: false,
-      select: { name: true, level: true, parent: true, breadcrumbs: true },
-    })
-    const regionInputs = subtree.docs.map(toRegionInput)
-    const regionById = new Map(regionInputs.map((region) => [region.id, region]))
-    const subtreeRegionIds = new Set(regionInputs.map((region) => region.id))
-
-    // 4. Non-trashed events in the subtree, for the published/total counts.
-    const subtreeEvents = await payload.find({
-      collection: 'events',
-      where: { region: { in: [...subtreeRegionIds] } },
-      depth: 0,
-      pagination: false,
-      select: { region: true, _status: true, verificationStage: true, deletedAt: true },
-    })
+  if (subtreeEvents) {
     const counts = rollUpRegionCounts(
       subtreeEvents.docs.map((doc) => toCountInput(doc, regionById)),
       subtreeRegionIds,

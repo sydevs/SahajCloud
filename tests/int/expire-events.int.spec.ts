@@ -163,8 +163,12 @@ describe('ExpireEvents job', () => {
         inactive: false,
         eventType: 'online',
         onlineUrl: 'https://example.com/ran-out',
-        // A one-off long past — finished.
-        schedule: { firstDate: '2021-02-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
+        // A one-off in the recent past — finished, but within the 6-month
+        // retention window, so the cleanup sweep must NOT trash it this run.
+        schedule: {
+          firstDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+          firstDate_tz: 'Europe/London',
+        },
       })
       expect(event._status).toBe('published')
 
@@ -225,6 +229,167 @@ describe('ExpireEvents job', () => {
         trash: true,
       })
       expect(after.deletedAt).toBeTruthy()
+    })
+  })
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Stage-independent sweeps: pre-adoption (unverified/denied) events carry
+  // `nextCheckAt: null` and are invisible to the due sweep, so a separate pass
+  // finishes them when their schedule runs out; and finished events are
+  // trashed once their schedule ended 6+ months ago.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('stage-independent sweeps', () => {
+    const reload = (payload: Payload, id: number, trash = false) =>
+      payload.findByID({ collection: 'events', id, overrideAccess: true, depth: 0, trash })
+
+    /** An event pinned at a pre-adoption stage (no manager, no nextCheckAt). */
+    async function createUnmanagedEvent(
+      payload: Payload,
+      title: string,
+      stage: 'unverified' | 'denied',
+      overrides: Record<string, unknown> = {},
+    ) {
+      const event = await testData.createEvent(payload, {
+        title,
+        manager: null,
+        verificationStage: stage,
+        ...overrides,
+      } as never)
+      // createEvent's create ran verifyOnSave-exempt (no manager → hook skips),
+      // but pin the stage + nextCheckAt explicitly for clarity.
+      return payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { verificationStage: stage, nextCheckAt: null, _status: 'published' },
+        context: { skipVerifyHook: true },
+      })
+    }
+
+    const RAN_OUT_RECENTLY = {
+      inactive: false,
+      eventType: 'online',
+      onlineUrl: 'https://example.com/stale',
+      // One-off two months back: schedule has run out, within retention.
+      schedule: {
+        firstDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+        firstDate_tz: 'Europe/London',
+      },
+    }
+
+    it('finishes an unverified event whose schedule ran out (published stays)', async () => {
+      const event = await createUnmanagedEvent(
+        payload,
+        'Stale Unverified',
+        'unverified',
+        RAN_OUT_RECENTLY,
+      )
+      expect(event.nextCheckAt).toBeNull() // invisible to the due sweep
+
+      const result = await runTask(payload)
+      expect(result.finishedStale).toBeGreaterThanOrEqual(1)
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe('finished')
+      expect(after._status).toBe('published')
+      expect(after.deletedAt ?? null).toBeNull() // within retention — not trashed
+    })
+
+    it('finishes a denied event whose schedule ran out', async () => {
+      const event = await createUnmanagedEvent(payload, 'Stale Denied', 'denied', RAN_OUT_RECENTLY)
+
+      await runTask(payload)
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe('finished')
+    })
+
+    it('leaves an unverified event with an ongoing schedule untouched', async () => {
+      const event = await createUnmanagedEvent(payload, 'Ongoing Unverified', 'unverified', {
+        inactive: false,
+        eventType: 'online',
+        onlineUrl: 'https://example.com/ongoing',
+        schedule: {
+          firstDate: '2021-02-01T10:00:00.000Z',
+          firstDate_tz: 'Europe/London',
+          recurrenceType: 'DAILY',
+          interval: 1,
+        },
+      })
+
+      await runTask(payload)
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe('unverified')
+    })
+
+    it('never finishes an inactive (dormant) unverified event', async () => {
+      const event = await createUnmanagedEvent(payload, 'Dormant Unverified', 'unverified')
+
+      await runTask(payload)
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe('unverified')
+    })
+
+    it('does not advance a pre-adoption event through the reminder ladder even when due', async () => {
+      // Force a (stray) due nextCheckAt onto an inactive unverified event: the
+      // due sweep picks it up, the finished-check skips it (inactive), and the
+      // stage machine has no transition — so nothing may change.
+      const event = await createUnmanagedEvent(payload, 'Due Unverified', 'unverified')
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { nextCheckAt: DUE },
+        context: { skipVerifyHook: true },
+      })
+
+      const result = await runTask(payload)
+      expect(result.failed).toBe(0)
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe('unverified')
+      expect(after._status).toBe('published')
+    })
+
+    it('trashes a finished event whose schedule ended 6+ months ago', async () => {
+      const event = await createUnmanagedEvent(payload, 'Ancient Finished', 'unverified', {
+        inactive: false,
+        eventType: 'online',
+        onlineUrl: 'https://example.com/ancient',
+        // A one-off long past — beyond the 6-month retention window. The same
+        // run finishes it (stale sweep) and then trashes it (cleanup sweep):
+        // retention is measured from the schedule's end, not from when the
+        // stage flipped.
+        schedule: { firstDate: '2021-02-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
+      })
+
+      const result = await runTask(payload)
+      expect(result.trashedOldFinished).toBeGreaterThanOrEqual(1)
+
+      const after = await reload(payload, event.id, true)
+      expect(after.verificationStage).toBe('finished')
+      expect(after.deletedAt).toBeTruthy()
+    })
+
+    it('keeps a recently finished event out of the trash', async () => {
+      const event = await createUnmanagedEvent(
+        payload,
+        'Recent Finished',
+        'unverified',
+        RAN_OUT_RECENTLY,
+      )
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { verificationStage: 'finished' },
+        context: { skipVerifyHook: true },
+      })
+
+      await runTask(payload)
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe('finished')
+      expect(after.deletedAt ?? null).toBeNull()
     })
   })
 })

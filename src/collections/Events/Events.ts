@@ -24,7 +24,7 @@ import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
 import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS } from '@/lib/eventQuality'
-import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
+import { DEFAULT_VERIFICATION_STAGE, isUnmanagedStage } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { ownedRegionFilterOptions } from '@/plugins/access'
@@ -46,7 +46,6 @@ import { syncEventFullness } from './hooks/syncFullness'
 import { verifyOnSave } from './hooks/verifyOnSave'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
-
 
 /**
  * Minimal rich-text editor for the event description: italic, an H3,
@@ -211,7 +210,11 @@ export const Events: CollectionConfig = {
                       }
                     },
                   ) =>
-                    data?.inactive && !value && !data.contactEmail && !data.website && !data.onlineUrl
+                    data?.inactive &&
+                    !value &&
+                    !data.contactEmail &&
+                    !data.website &&
+                    !data.onlineUrl
                       ? 'Add a phone, an email or a website — an inactive event has no schedule for seekers to rely on.'
                       : true,
                   admin: {
@@ -264,7 +267,8 @@ export const Events: CollectionConfig = {
               type: 'upload',
               relationTo: 'images',
               hasMany: true,
-              admin: { description: 'Photos for this event.' },
+              maxRows: 7,
+              admin: { description: 'Photos for this event (up to 7).' },
             },
           ],
         },
@@ -385,7 +389,12 @@ export const Events: CollectionConfig = {
                   // Built-in email format validation — no hand-rolled validator.
                   type: 'email',
                   admin: {
-                    condition: (data) => data?.registrationMode === 'sahaj-atlas',
+                    // Hidden pre-adoption: an unverified/denied event has no
+                    // manager, and its registrations are recorded but forwarded
+                    // to nobody until a manager adopts it.
+                    condition: (data) =>
+                      data?.registrationMode === 'sahaj-atlas' &&
+                      !isUnmanagedStage(data?.verificationStage),
                     placeholder: 'Event Manager',
                     description:
                       'Enter an email to redirect updates about new seeker registrations to. Leave blank to send registration updates to the event manager.',
@@ -471,8 +480,28 @@ export const Events: CollectionConfig = {
               name: 'manager',
               type: 'relationship',
               relationTo: 'managers',
-              required: true,
-              admin: { description: 'Manager responsible for verifying this event.' },
+              // Conditionally required, not `required: true`: the pre-adoption
+              // stages (`unverified` / `denied`) have no manager by definition,
+              // and the field must stay *visible* there — assigning a manager
+              // and saving is exactly how those events are adopted (the
+              // verifyOnSave hook then flips the stage to `verified`). Every
+              // ladder stage still demands one: verified implies managed.
+              // `finished` is also exempt — the stale sweep finishes run-out
+              // unverified events that never got adopted, and a terminal stage
+              // sends no reminders for a manager to receive.
+              validate: (
+                value: unknown,
+                { data }: { data?: { verificationStage?: string | null } },
+              ) => {
+                const stage = data?.verificationStage
+                return value || stage == null || isUnmanagedStage(stage) || stage === 'finished'
+                  ? true
+                  : 'A manager is required — only unverified, denied or finished events can be unmanaged.'
+              },
+              admin: {
+                description:
+                  'Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.',
+              },
             },
             {
               name: 'verificationStage',
@@ -516,9 +545,43 @@ export const Events: CollectionConfig = {
                 components: { Field: '@/components/admin/NotificationLogTable' },
               },
             },
+            {
+              // Who sent this listing in: the registrant record upserted by the
+              // public submission flow (or the system user for bulk imports).
+              // Record-keeping/abuse tracking only — grants no access.
+              name: 'submitter',
+              type: 'relationship',
+              relationTo: 'users',
+              admin: {
+                readOnly: true,
+                description: 'Who submitted this listing (record-keeping only).',
+              },
+            },
           ],
         },
       ],
+    },
+    {
+      // Wilson lower bound of registrant confirm/deny votes on an unverified
+      // event, in [0, 1]; null until the first vote. A real, indexed column —
+      // unlike the counts in `systemMeta` — because the Atlas feeds sort and
+      // filter on it to rank unverified listings by confidence. Written only by
+      // the Registrations vote-sync hook.
+      name: 'confidenceScore',
+      type: 'number',
+      index: true,
+      admin: { hidden: true, readOnly: true },
+    },
+    {
+      // Namespaced grab-bag for system-managed, non-editable, NON-INDEXABLE
+      // event metadata — add keys here, not columns. Today:
+      // `communityFeedback: { confirmations, denials, updatedAt }`, maintained
+      // by the Registrations vote-sync hook alongside `confidenceScore` (which
+      // stays a real column only because feeds sort on it). Anything needing a
+      // `where` or an index does NOT belong in here.
+      name: 'systemMeta',
+      type: 'json',
+      admin: { hidden: true, readOnly: true },
     },
     // Canonical Atlas web path/URL: the event's region path + `/<id>`
     // (`/belgium/flanders/antwerp/downtown-hall/12345`). `webPath` + `webUrl`

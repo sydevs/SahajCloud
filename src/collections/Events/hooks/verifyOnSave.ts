@@ -20,6 +20,10 @@ import { actorFromUser, computeVerifyFields, managerCadence } from '../lifecycle
  *   aren't clobbered.
  * - `finished` — terminal *while the schedule is still run out*. A save that
  *   extends the schedule past today revives it; see `revivesFinishedEvent`.
+ * - **no manager** — an unverified/denied event stays exactly where it is
+ *   through grooming edits: editing text is not vouching that the event
+ *   exists. Assigning a manager and saving (adoption) is what verifies it —
+ *   that save has a manager, passes this guard, and flips the stage.
  */
 export const verifyOnSave: CollectionBeforeChangeHook = async ({
   data,
@@ -33,15 +37,15 @@ export const verifyOnSave: CollectionBeforeChangeHook = async ({
   }
 
   // `data.manager` is the incoming relationship id; fall back to the persisted
-  // value when the manager isn't part of this change.
+  // value when the manager isn't part of this change. No manager at all means
+  // a pre-adoption event (`unverified` / `denied`) — leave it untouched.
   const managerId = relationId(data.manager ?? originalDoc?.manager)
-  let frequency: string | undefined
-  if (managerId) {
-    const manager = await req.payload
-      .findByID({ collection: 'managers', id: managerId, depth: 0, overrideAccess: true, req })
-      .catch(() => null)
-    frequency = managerCadence(manager)
-  }
+  if (!managerId) return data
+
+  const manager = await req.payload
+    .findByID({ collection: 'managers', id: managerId, depth: 0, overrideAccess: true, req })
+    .catch(() => null)
+  const frequency = managerCadence(manager)
 
   return {
     ...data,

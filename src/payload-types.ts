@@ -692,6 +692,7 @@ export interface Config {
     };
     users: {
       registrations: 'registrations';
+      submittedEvents: 'events';
     };
   };
   collectionsSelect: {
@@ -1680,7 +1681,7 @@ export interface Event {
    */
   website?: string | null;
   /**
-   * Photos for this event.
+   * Photos for this event (up to 7).
    */
   images?: (number | Image)[] | null;
   /**
@@ -1787,15 +1788,37 @@ export interface Event {
   };
   registrationsFull?: boolean | null;
   /**
-   * Manager responsible for verifying this event.
+   * Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.
    */
-  manager: number | Manager;
-  verificationStage: 'verified' | 'reminded' | 'escalated' | 'urgent' | 'expired' | 'finished';
+  manager?: (number | null) | Manager;
+  verificationStage:
+    | 'unverified'
+    | 'denied'
+    | 'verified'
+    | 'reminded'
+    | 'escalated'
+    | 'urgent'
+    | 'expired'
+    | 'finished';
   nextCheckAt?: string | null;
   /**
    * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.
    */
   notificationLog?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Who submitted this listing (record-keeping only).
+   */
+  submitter?: (number | null) | User;
+  confidenceScore?: number | null;
+  systemMeta?:
     | {
         [k: string]: unknown;
       }
@@ -1932,6 +1955,11 @@ export interface User {
   email: string;
   registrations?: {
     docs?: (number | Registration)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  submittedEvents?: {
+    docs?: (number | Event)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -4599,6 +4627,9 @@ export interface EventsSelect<T extends boolean = true> {
   verificationStage?: T;
   nextCheckAt?: T;
   notificationLog?: T;
+  submitter?: T;
+  confidenceScore?: T;
+  systemMeta?: T;
   webPath?: T;
   webUrl?: T;
   appUrl?: T;
@@ -4641,6 +4672,7 @@ export interface UsersSelect<T extends boolean = true> {
   name?: T;
   email?: T;
   registrations?: T;
+  submittedEvents?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;
@@ -6410,6 +6442,8 @@ export interface TaskExpireEvents {
     trashed: number;
     remindersSent: number;
     failed: number;
+    finishedStale: number;
+    trashedOldFinished: number;
   };
 }
 /**
