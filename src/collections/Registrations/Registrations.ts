@@ -4,6 +4,11 @@ import { legacyMigrationFields } from '@/fields'
 import { DEFAULT_LOCALE, getLocaleOptions } from '@/lib/locales'
 import { registrationQuestionsJsonSchema } from '@/lib/registrations/questions'
 
+import {
+  gateEventFeedback,
+  restrictClientRegistrationUpdate,
+  syncCommunityFeedback,
+} from './hooks/eventFeedback'
 import { syncFullnessAfterChange, syncFullnessAfterDelete } from './hooks/syncFullness'
 
 /**
@@ -19,9 +24,14 @@ export const Registrations: CollectionConfig = {
     hidden: true,
   },
   // Keep the owning event's denormalized `registrationsFull` flag in step as
-  // registrations come and go (see the event's registrationsFull field).
+  // registrations come and go (see the event's registrationsFull field), and
+  // roll confirm/deny votes up onto the event (`syncCommunityFeedback`). A
+  // client update is whitelisted to the `eventFeedback` field and gated on the
+  // event still being published + unverified.
   hooks: {
-    afterChange: [syncFullnessAfterChange],
+    beforeValidate: [restrictClientRegistrationUpdate],
+    beforeChange: [gateEventFeedback],
+    afterChange: [syncFullnessAfterChange, syncCommunityFeedback],
     afterDelete: [syncFullnessAfterDelete],
   },
   fields: [
@@ -128,6 +138,40 @@ export const Registrations: CollectionConfig = {
       name: 'reminderLog',
       type: 'json',
       admin: { readOnly: true },
+    },
+    {
+      type: 'row',
+      fields: [
+        {
+          // The registrant's community verdict on an UNVERIFIED event — "did
+          // this class actually take place?". One vote per registration
+          // (that's the dedup), re-votable while the event stays unverified;
+          // the write is authenticated by possession of the registration
+          // `uuid` (see registrationFeedbackAccess). The vote-sync hook rolls
+          // tallies up onto the event.
+          name: 'eventFeedback',
+          type: 'select',
+          options: [
+            { label: 'Confirmed', value: 'confirmed' },
+            { label: 'Denied', value: 'denied' },
+          ],
+          enumName: 'enum_registrations_event_feedback',
+          admin: { description: 'Registrant’s verdict on an unverified event.' },
+        },
+        {
+          name: 'eventFeedbackAt',
+          type: 'date',
+          admin: { hidden: true },
+        },
+        {
+          // Ledger for the post-event follow-up email (generic watermark: the
+          // feedback ask today, future follow-up content later) — the
+          // SendPostEventFollowUps job sends at most one per registration.
+          name: 'followUpSentAt',
+          type: 'date',
+          admin: { hidden: true },
+        },
+      ],
     },
     ...legacyMigrationFields(),
   ],
