@@ -827,6 +827,7 @@ export interface Config {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       expireEvents: TaskExpireEvents;
       screenEventSubmission: TaskScreenEventSubmission;
+      sendPostEventFollowUps: TaskSendPostEventFollowUps;
       sendRegistrationDigests: TaskSendRegistrationDigests;
       sendSessionReminders: TaskSendSessionReminders;
       syncLectureMetadata: TaskSyncLectureMetadata;
@@ -1943,6 +1944,12 @@ export interface Registration {
     | number
     | boolean
     | null;
+  /**
+   * Registrant’s verdict on an unverified event.
+   */
+  eventFeedback?: ('confirmed' | 'denied') | null;
+  eventFeedbackAt?: string | null;
+  followUpSentAt?: string | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -3860,6 +3867,7 @@ export interface PayloadJob {
           | 'cleanupOrphanedMedia'
           | 'expireEvents'
           | 'screenEventSubmission'
+          | 'sendPostEventFollowUps'
           | 'sendRegistrationDigests'
           | 'sendSessionReminders'
           | 'syncLectureMetadata'
@@ -3904,6 +3912,7 @@ export interface PayloadJob {
         | 'cleanupOrphanedMedia'
         | 'expireEvents'
         | 'screenEventSubmission'
+        | 'sendPostEventFollowUps'
         | 'sendRegistrationDigests'
         | 'sendSessionReminders'
         | 'syncLectureMetadata'
@@ -4842,6 +4851,9 @@ export interface RegistrationsSelect<T extends boolean = true> {
   mailingListSubscribedAt?: T;
   remindersUnsubscribedAt?: T;
   reminderLog?: T;
+  eventFeedback?: T;
+  eventFeedbackAt?: T;
+  followUpSentAt?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;
@@ -6637,6 +6649,18 @@ export interface TaskScreenEventSubmission {
   };
   output: {
     status: string;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSendPostEventFollowUps".
+ */
+export interface TaskSendPostEventFollowUps {
+  input?: unknown;
+  output: {
+    scanned: number;
+    sent: number;
+    failed: number;
   };
 }
 /**

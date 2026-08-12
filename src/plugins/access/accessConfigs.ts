@@ -46,6 +46,19 @@ function isActiveNonAdminManager(user: PayloadRequest['user']): boolean {
 }
 
 /**
+ * The registration uuid a client's vote request proves possession of —
+ * `?registrationUuid=` (REST query) with a `req.query` fallback for
+ * handler-forwarded requests.
+ */
+function extractRegistrationUuid(req: PayloadRequest): string | null {
+  const fromQuery = (req.query as Record<string, unknown> | undefined)?.registrationUuid
+  if (typeof fromQuery === 'string' && fromQuery) return fromQuery
+  const fromSearch =
+    typeof req.searchParams?.get === 'function' ? req.searchParams.get('registrationUuid') : null
+  return fromSearch || null
+}
+
+/**
  * Create unified access config for collections and globals
  *
  * @param collection - Collection slug
@@ -92,6 +105,22 @@ export function createAccessConfig(
           isRegionSubtreeCollection(collection)
         ) {
           return scopeRegionSubtreeWrite({ req, collection, operation, id, data })
+        }
+
+        // A client's registrations `update` grant (the confirm/deny vote) is
+        // scoped to the one registration whose unguessable `uuid` the caller
+        // proves it holds — `?registrationUuid=` on the request. No param, no
+        // access; a mismatched uuid resolves to Not Found. The uuid is the
+        // credential (it's only ever revealed in the register response), so no
+        // login is needed. See registrations' eventFeedback hooks for the
+        // field whitelist + vote gate this composes with.
+        if (
+          operation === 'update' &&
+          req.user?.collection === 'clients' &&
+          collection === 'registrations'
+        ) {
+          const uuid = extractRegistrationUuid(req)
+          return uuid ? { uuid: { equals: uuid } } : false
         }
 
         return true

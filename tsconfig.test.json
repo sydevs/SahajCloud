@@ -11,6 +11,6 @@
   // nearest `tsconfig.json` walking up from a file and won't find this one by
   // name — and is a one-line re-export, so the options live here only.
   "extends": "./tsconfig.json",
-  "include": ["tests/**/*.ts", "tests/**/*.tsx"],
+  "include": ["tests/**/*.ts", "tests/**/*.tsx", "src/types/*.d.ts"],
   "exclude": ["node_modules"]
 }
