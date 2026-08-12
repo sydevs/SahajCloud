@@ -72,6 +72,15 @@ describe('Atlas sidebar data builder', () => {
     // The manager's own events span three buckets. All sit in `city`.
     await createEvent({ title: 'Urgent One', region: city.id, verificationStage: 'urgent' })
     await createEvent({ title: 'Verified One', region: city.id, verificationStage: 'verified' })
+    // A pre-adoption event in the subtree with NO manager: it must still show
+    // up in the sidebar (that's the adoption surface) via the region branch of
+    // the event-list query, bucketed with the needs-verification events.
+    await createEvent({
+      title: 'Unverified Orphan',
+      region: city.id,
+      manager: null,
+      verificationStage: 'unverified',
+    })
     const trashed = await createEvent({
       title: 'Trashed One',
       region: city.id,
@@ -91,11 +100,17 @@ describe('Atlas sidebar data builder', () => {
     await cleanup()
   })
 
-  it('lists the manager events bucket-ordered, including the trashed one', async () => {
+  it('lists the manager + subtree events bucket-ordered, including the trashed one', async () => {
     const { events } = await buildAtlasSidebarData(managerId, 'en')
-    expect(events.map((event) => event.bucket)).toEqual(['urgent', 'verified', 'trashed'])
+    expect(events.map((event) => event.bucket)).toEqual([
+      'urgent',
+      'needsVerification',
+      'verified',
+      'trashed',
+    ])
     expect(events.map((event) => event.title)).toEqual([
       'Urgent One',
+      'Unverified Orphan',
       'Verified One',
       'Trashed One',
     ])
@@ -110,9 +125,10 @@ describe('Atlas sidebar data builder', () => {
     expect(root.name).toBe(regionName)
     expect(root.children.map((child) => child.name)).toEqual([cityName])
 
-    // Two non-trashed events in the subtree; both drafts, so none published.
-    // Counts roll up from the city to its parent.
-    expect(root.counts).toEqual({ published: 0, total: 2 })
-    expect(root.children[0].counts).toEqual({ published: 0, total: 2 })
+    // Three non-trashed events in the subtree (incl. the managerless
+    // unverified one); all drafts, so none published. Counts roll up from the
+    // city to its parent.
+    expect(root.counts).toEqual({ published: 0, total: 3 })
+    expect(root.children[0].counts).toEqual({ published: 0, total: 3 })
   })
 })

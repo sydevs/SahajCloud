@@ -6,20 +6,32 @@ import {
 } from '@/lib/eventVerification/stages'
 
 /**
+ * Stages rendered as a standalone step instead of the escalation journey:
+ * `finished` (terminal), and the pre-adoption pair `unverified` / `denied`
+ * (no manager, no `nextCheckAt` — the ladder hasn't started).
+ */
+const OFF_LADDER = ['unverified', 'denied', 'finished'] as const
+type OffLadderStage = (typeof OFF_LADDER)[number]
+
+function isOffLadder(stage: VerificationStage): stage is OffLadderStage {
+  return (OFF_LADDER as readonly string[]).includes(stage)
+}
+
+/**
  * Internal 5-stage journey, used only for date math. The UI collapses the three
  * reminder stages into one "Reminders" step (see STEP_ORDER).
  */
-const JOURNEY = VERIFICATION_STAGES.filter((stage) => stage !== 'finished') as Exclude<
+const JOURNEY = VERIFICATION_STAGES.filter((stage) => !isOffLadder(stage)) as Exclude<
   VerificationStage,
-  'finished'
+  OffLadderStage
 >[] // verified · reminded · escalated · urgent · expired
 
 const EXPIRED_INDEX = JOURNEY.indexOf('expired')
 const DAY_MS = 24 * 60 * 60 * 1000
 
-/** `finished` is rendered as a standalone terminal step, not part of the journey. */
-export type StepKey = 'verified' | 'reminders' | 'expired' | 'finished'
-type JourneyKey = Exclude<StepKey, 'finished'>
+/** Off-ladder stages are rendered as a standalone step, not part of the journey. */
+export type StepKey = 'verified' | 'reminders' | 'expired' | OffLadderStage
+type JourneyKey = Exclude<StepKey, OffLadderStage>
 export type StepStatus = 'done' | 'current' | 'upcoming'
 
 const STEP_ORDER: JourneyKey[] = ['verified', 'reminders', 'expired']
@@ -27,6 +39,18 @@ const STEP_ORDER: JourneyKey[] = ['verified', 'reminders', 'expired']
 interface StepCopy {
   label: string
   caption: string
+}
+
+const UNVERIFIED_COPY: StepCopy = {
+  label: 'Unverified',
+  caption:
+    'Submitted or imported without a manager. Assign a manager and save to adopt it — verification starts from there.',
+}
+
+const DENIED_COPY: StepCopy = {
+  label: 'Denied',
+  caption:
+    'Attendees reported this event doesn’t take place, so it was unpublished. Assign a manager to adopt, correct, and republish it.',
 }
 
 /**
@@ -84,6 +108,18 @@ const STEP_COPY: Record<StepKey, Record<StepStatus, StepCopy>> = {
       caption: 'Will no longer be publicly listed once its schedule ends.',
     },
   },
+  // The two pre-adoption stages are always rendered as `current` — the copy
+  // for the other statuses exists only to satisfy the Record shape.
+  unverified: {
+    done: UNVERIFIED_COPY,
+    current: UNVERIFIED_COPY,
+    upcoming: UNVERIFIED_COPY,
+  },
+  denied: {
+    done: DENIED_COPY,
+    current: DENIED_COPY,
+    upcoming: DENIED_COPY,
+  },
 }
 
 export interface TrackerStep {
@@ -133,7 +169,7 @@ function projectedExpiry(
   nextCheckAt: string | null | undefined,
 ): string | null {
   if (!nextCheckAt) return null
-  const from = JOURNEY.indexOf(stage as Exclude<VerificationStage, 'finished'>)
+  const from = JOURNEY.indexOf(stage as Exclude<VerificationStage, OffLadderStage>)
   if (from < 0 || from >= EXPIRED_INDEX) return null
   let ms = new Date(nextCheckAt).getTime()
   if (Number.isNaN(ms)) return null
@@ -159,15 +195,15 @@ export function buildStageTracker(args: {
   const log = asNotificationLog(args.log)
   const { currentStage, nextCheckAt, updatedAt } = args
 
-  // Finished is off the escalation path: a single terminal step (styled like a
-  // completed stage) rather than the full journey.
-  if (currentStage === 'finished') {
+  // Off-ladder stages (finished / unverified / denied) sit outside the
+  // escalation path: a single step rather than the full journey.
+  if (currentStage && isOffLadder(currentStage)) {
     return {
       steps: [
         {
-          key: 'finished',
-          label: STEP_COPY.finished.current.label,
-          caption: STEP_COPY.finished.current.caption,
+          key: currentStage,
+          label: STEP_COPY[currentStage].current.label,
+          caption: STEP_COPY[currentStage].current.caption,
           status: 'current',
           date: updatedAt ?? null,
         },

@@ -122,6 +122,22 @@ describe('buildStageTracker', () => {
     })
     expect(steps[0].caption).toBeTruthy()
   })
+
+  it('unverified / denied: a single pre-adoption step, off the ladder', () => {
+    // No manager, no cycle: the tracker must not render the journey (whose
+    // projections would read as an active verification cycle).
+    for (const stage of ['unverified', 'denied'] as const) {
+      const { steps } = buildStageTracker({
+        log: [],
+        currentStage: stage,
+        nextCheckAt: null,
+        updatedAt: '2026-07-20T00:00:00.000Z',
+      })
+      expect(steps).toHaveLength(1)
+      expect(steps[0]).toMatchObject({ key: stage, status: 'current' })
+      expect(steps[0].caption).toContain('manager')
+    }
+  })
 })
 
 describe('formatStageDate', () => {

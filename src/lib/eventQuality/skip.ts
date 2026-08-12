@@ -21,6 +21,11 @@ export function shouldSkipQualityChecks(event: EventQualityInput): QualitySkipRe
   if (event.deletedAt) return 'trashed'
   if (event.verificationStage === 'finished') return 'finished'
   if (event.verificationStage === 'expired') return 'expired'
+  // Community-rejected (also unpublished) — "denied" is the actionable fact,
+  // same reasoning as `expired` above. Published `unverified` events fall
+  // through to `null`: user-submitted listings are exactly the ones whose
+  // grooming to-do list an adopting manager wants to see.
+  if (event.verificationStage === 'denied') return 'denied'
   if (event._status !== 'published') return 'unpublished'
   return null
 }

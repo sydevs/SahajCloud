@@ -42,6 +42,17 @@ export const Users: CollectionConfig = {
         condition: hideUntilCreated,
       },
     },
+    {
+      // Events this registrant sent in through the public submission flow
+      // (`events.submitter` is record-keeping only — no access implications).
+      name: 'submittedEvents',
+      type: 'join',
+      collection: 'events',
+      on: 'submitter',
+      admin: {
+        condition: hideUntilCreated,
+      },
+    },
     ...legacyMigrationFields(),
   ],
 }

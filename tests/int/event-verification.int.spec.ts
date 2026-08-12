@@ -582,6 +582,92 @@ describe('Event verification lifecycle', () => {
     expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
   })
 
+  describe('pre-adoption stages (unverified / denied)', () => {
+    it('a grooming save leaves a managerless unverified event untouched', async () => {
+      const event = await createEvent({
+        manager: null,
+        verificationStage: 'unverified',
+      })
+      expect(event.verificationStage).toBe('unverified')
+      expect(event.nextCheckAt ?? null).toBeNull()
+
+      // An admin fixes a typo without assigning a manager: editing text is not
+      // vouching the event exists, so nothing about verification may change.
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: { title: 'Groomed Title' },
+      })
+
+      const after = await getEvent(payload, event.id)
+      expect(after.title).toBe('Groomed Title')
+      expect(after.verificationStage).toBe('unverified')
+      expect(after.nextCheckAt ?? null).toBeNull()
+    })
+
+    it('assigning a manager and saving adopts the event (→ verified, cycle opens)', async () => {
+      const event = await createEvent({
+        manager: null,
+        verificationStage: 'unverified',
+      })
+
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: { manager: eventManager.id },
+      })
+
+      const after = await getEvent(payload, event.id)
+      expect(after.verificationStage).toBe('verified')
+      expect(after.nextCheckAt).toBeTruthy()
+      const log = after.notificationLog as NotificationLogEntry[]
+      expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
+    })
+
+    it('adoption also rescues a denied event (stage flips; publish stays a manual step)', async () => {
+      const event = await createEvent({
+        manager: null,
+        verificationStage: 'denied',
+        _status: 'draft',
+      })
+
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: { manager: eventManager.id },
+      })
+
+      const after = await getEvent(payload, event.id)
+      expect(after.verificationStage).toBe('verified')
+      // verifyOnSave never forces _status — republish is the manager's call.
+      expect(after._status).toBe('draft')
+    })
+
+    it('refuses to hold a managed stage without a manager', async () => {
+      const event = await createEvent({
+        manager: null,
+        verificationStage: 'unverified',
+      })
+
+      // Forcing the stage to `verified` while the manager is still null must
+      // fail validation: verified always implies managed. (Payload surfaces
+      // the per-field message in `error.data`; the thrown message names the
+      // field.)
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: event.id,
+          overrideAccess: true,
+          context: { skipVerifyHook: true },
+          data: { verificationStage: 'verified' },
+        }),
+      ).rejects.toThrow(/Verification > Manager/i)
+    })
+  })
+
   it('the admin verify endpoint re-publishes an expired event (method verify-action)', async () => {
     const event = await createEvent()
     // Drive to expired (verified → reminded → escalated → urgent → expired).

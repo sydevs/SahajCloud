@@ -61,6 +61,13 @@ describe('nextStageTransition', () => {
   it('finished is terminal (no transition)', () => {
     expect(nextStageTransition('finished')).toBeNull()
   })
+
+  it('pre-adoption stages are outside the ladder (no transition)', () => {
+    // They also carry `nextCheckAt: null`, so the due sweep never selects
+    // them — this pins that even a stray due row cannot be advanced.
+    expect(nextStageTransition('unverified')).toBeNull()
+    expect(nextStageTransition('denied')).toBeNull()
+  })
 })
 
 describe('computeNextCheckAt', () => {

@@ -27,6 +27,12 @@ import { computeNextCheckAt, nextStageTransition, unpublishDate } from './stageM
 
 const PAGINATION_LIMIT = 200
 
+/**
+ * How long a finished event's page keeps resolving before the cleanup sweep
+ * trashes it: 6 months after the end of its schedule.
+ */
+const FINISHED_RETENTION_MONTHS = 6
+
 interface ExpireResult {
   /** Due events examined. */
   processed: number
@@ -40,6 +46,10 @@ interface ExpireResult {
   remindersSent: number
   /** Events whose processing threw. */
   failed: number
+  /** Pre-adoption (unverified/denied) events marked `finished` by the stale sweep. */
+  finishedStale: number
+  /** Finished events trashed by the 6-month retention sweep. */
+  trashedOldFinished: number
 }
 
 /**
@@ -228,11 +238,143 @@ async function processEvent(args: {
 }
 
 /**
+ * Collect the ids matching `where` up front (read-only → stable pagination;
+ * processing mutates the rows, which would otherwise shift live pages).
+ */
+async function collectIds(
+  payload: Payload,
+  req: PayloadRequest,
+  where: Parameters<Payload['find']>[0]['where'],
+): Promise<number[]> {
+  const ids: number[] = []
+  let page = 1
+  let hasNextPage = true
+  while (hasNextPage) {
+    const batch = await payload.find({
+      collection: 'events',
+      where,
+      depth: 0,
+      limit: PAGINATION_LIMIT,
+      page,
+      overrideAccess: true,
+      req,
+    })
+    ids.push(...batch.docs.map((doc) => doc.id))
+    hasNextPage = batch.hasNextPage
+    page++
+  }
+  return ids
+}
+
+/**
+ * Mark pre-adoption (unverified/denied) events whose schedule has run out as
+ * `finished`. They carry `nextCheckAt: null`, so the main due sweep never sees
+ * them — without this pass they'd read as open listings forever after their
+ * last occurrence (the public feeds already drop them via `schedule.lastDate`,
+ * but the stage, the admin, and the sidebar would all still say "upcoming").
+ * Inactive events are dormant by design and never finish; the default query
+ * already excludes trashed rows.
+ */
+async function finishStaleUnmanagedEvents(
+  payload: Payload,
+  req: PayloadRequest,
+  now: Date,
+  result: ExpireResult,
+): Promise<void> {
+  const ids = await collectIds(payload, req, {
+    and: [
+      { verificationStage: { in: ['unverified', 'denied'] } },
+      { inactive: { not_equals: true } },
+      { 'schedule.lastDate': { less_than: now.toISOString() } },
+    ],
+  })
+
+  for (const id of ids) {
+    try {
+      await payload.update({
+        collection: 'events',
+        id,
+        data: { verificationStage: 'finished', nextCheckAt: null },
+        context: { skipVerifyHook: true },
+        overrideAccess: true,
+        req,
+      })
+      result.finishedStale++
+    } catch (error) {
+      result.failed++
+      Sentry.withScope((scope) => {
+        scope.setContext('expireEvents', { eventId: id, sweep: 'finishStale' })
+        Sentry.captureException(error)
+      })
+      req.payload.logger.warn({
+        msg: 'ExpireEvents: stale finish failure — continuing',
+        eventId: id,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+}
+
+/**
+ * Trash finished events whose schedule ended more than 6 months ago. A
+ * finished event stays published so old links resolve (#603) — but not
+ * forever: after the retention window the listing is stale clutter, so it
+ * moves to the trash (recoverable from the admin trash view). Trashing =
+ * setting `deletedAt`; `payload.delete` would be a hard delete.
+ */
+async function trashOldFinishedEvents(
+  payload: Payload,
+  req: PayloadRequest,
+  now: Date,
+  result: ExpireResult,
+): Promise<void> {
+  const cutoff = new Date(now)
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - FINISHED_RETENTION_MONTHS)
+
+  const ids = await collectIds(payload, req, {
+    and: [
+      { verificationStage: { equals: 'finished' } },
+      { 'schedule.lastDate': { less_than: cutoff.toISOString() } },
+    ],
+  })
+
+  for (const id of ids) {
+    try {
+      await payload.update({
+        collection: 'events',
+        id,
+        data: { deletedAt: now.toISOString() },
+        context: { skipVerifyHook: true },
+        overrideAccess: true,
+        req,
+      })
+      result.trashedOldFinished++
+    } catch (error) {
+      result.failed++
+      Sentry.withScope((scope) => {
+        scope.setContext('expireEvents', { eventId: id, sweep: 'trashOldFinished' })
+        Sentry.captureException(error)
+      })
+      req.payload.logger.warn({
+        msg: 'ExpireEvents: retention trash failure — continuing',
+        eventId: id,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+}
+
+/**
  * Daily verification sweep. Ages each event whose `nextCheckAt` has passed one
  * step along `verified → reminded → escalated → expired` (then trashes it), or
  * marks it `finished` when its schedule has run out — sending escalating
  * reminders and auto-unpublishing on expiry. Single-threaded on the `nightly`
  * queue so the read-advance is race-free.
+ *
+ * Two stage-independent sweeps run after the ladder: pre-adoption
+ * (unverified/denied) events whose schedule ran out are marked `finished`
+ * (they have no `nextCheckAt`, so the due sweep can't reach them), and
+ * finished events past the 6-month retention window are trashed.
  *
  * Only the **unverified** ladder unpublishes. Finishing leaves the event
  * published and simply drops it from the public feeds (#603), so this sweep no
@@ -257,6 +399,8 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
     { name: 'trashed', type: 'number', required: true },
     { name: 'remindersSent', type: 'number', required: true },
     { name: 'failed', type: 'number', required: true },
+    { name: 'finishedStale', type: 'number', required: true },
+    { name: 'trashedOldFinished', type: 'number', required: true },
   ],
   schedule: [
     {
@@ -275,27 +419,11 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
       trashed: 0,
       remindersSent: 0,
       failed: 0,
+      finishedStale: 0,
+      trashedOldFinished: 0,
     }
 
-    // Collect due ids up front (read-only → stable pagination; processing
-    // mutates `nextCheckAt`, which would otherwise shift live pages).
-    const dueIds: number[] = []
-    let page = 1
-    let hasNextPage = true
-    while (hasNextPage) {
-      const batch = await payload.find({
-        collection: 'events',
-        where: { nextCheckAt: { less_than_equal: nowIso } },
-        depth: 0,
-        limit: PAGINATION_LIMIT,
-        page,
-        overrideAccess: true,
-        req,
-      })
-      dueIds.push(...batch.docs.map((doc) => doc.id))
-      hasNextPage = batch.hasNextPage
-      page++
-    }
+    const dueIds = await collectIds(payload, req, { nextCheckAt: { less_than_equal: nowIso } })
 
     req.payload.logger.info({ msg: 'ExpireEvents: starting', due: dueIds.length })
 
@@ -330,6 +458,13 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
         })
       }
     }
+
+    // Stage-independent sweeps: finish elapsed pre-adoption events (invisible
+    // to the due sweep above), then trash finished events past retention. In
+    // this order so an event that both ran out long ago AND was never adopted
+    // is finished today and trashed by a later run, never skipped.
+    await finishStaleUnmanagedEvents(payload, req, now, result)
+    await trashOldFinishedEvents(payload, req, now, result)
 
     // The run mutates many events (advance/unpublish/trash); refresh the Atlas
     // manager sidebars once at the end rather than per-event.
