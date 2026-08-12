@@ -13,7 +13,12 @@
  */
 import type { ActorRef, VerificationLogEntry } from '@/lib/eventVerification/log'
 import { buildVerificationEntry } from '@/lib/eventVerification/log'
-import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
+import {
+  addDays,
+  resolveNextCheckAt,
+  verificationPeriodDays,
+} from '@/lib/eventVerification/periods'
+import type { EventScheduleInput } from '@/types/schedule'
 
 /** The only two stages the Atlas dump's status (0, 6) maps to. */
 export type ImportVerificationStage = 'verified' | 'finished'
@@ -101,28 +106,45 @@ export function importCheckOffsetDays(
 
 /**
  * Build the verification field patch for an imported event. Mirrors
- * `computeVerifyFields` for the `verified` case (stage + a staggered `nextCheckAt`
- * derived from the manager's cadence + a single `import` log entry). `finished` is
- * terminal, so it carries the log entry but no active `nextCheckAt`.
+ * `computeVerifyFields` for the `verified` case (stage + a staggered
+ * `nextCheckAt` derived from the manager's cadence + a single `import` log
+ * entry).
+ *
+ * Both stages route their watermark through the shared `resolveNextCheckAt`, so
+ * imported rows obey the same rules as everything else: a `verified` event's
+ * stagger is capped by its schedule's end, and a `finished` one carries its
+ * retention deadline — without which imported history would sit in the trash
+ * queue forever, since the job's only query is `nextCheckAt <= now`.
  */
 export function buildImportVerification(args: {
   status: number | null | undefined
   cadence?: string | null
   legacyId: number
+  schedule?: EventScheduleInput | null
+  inactive?: boolean | null
   now: Date
   actor?: ActorRef | null
 }): ImportVerificationFields {
   const stage = mapStatusToStage(args.status)
   const entry = buildVerificationEntry('import', args.actor ?? null, args.now.toISOString())
+  const { schedule, inactive } = args
+
   if (stage === 'finished') {
-    return { verificationStage: 'finished', notificationLog: [entry] }
+    return {
+      verificationStage: 'finished',
+      nextCheckAt: resolveNextCheckAt({ stage: 'finished', schedule, inactive }) ?? undefined,
+      notificationLog: [entry],
+    }
   }
   return {
     verificationStage: 'verified',
-    nextCheckAt: addDays(
-      args.now,
-      importCheckOffsetDays(args.cadence, args.legacyId),
-    ).toISOString(),
+    nextCheckAt:
+      resolveNextCheckAt({
+        stage: 'verified',
+        stageDeadline: addDays(args.now, importCheckOffsetDays(args.cadence, args.legacyId)),
+        schedule,
+        inactive,
+      }) ?? undefined,
     notificationLog: [entry],
   }
 }

@@ -53,9 +53,25 @@ export const verifyOnSave: CollectionBeforeChangeHook = async ({
       method: 're-save',
       by: actorFromUser(req.user),
       frequency,
+      // The prospective schedule, merged the same way `revivesFinishedEvent`
+      // does — collection beforeChange hooks run before the field hook that
+      // writes `schedule.lastDate`, so the stored column isn't current yet.
+      schedule: mergedSchedule(data, originalDoc),
+      inactive: (data.inactive ?? originalDoc?.inactive) as boolean | null | undefined,
       now: new Date(),
     }),
   }
+}
+
+/** The schedule this save lands on: an explicit patch value wins over the stored one. */
+function mergedSchedule(
+  data: Record<string, unknown>,
+  originalDoc: Record<string, unknown> | undefined,
+): EventScheduleInput | null {
+  const original = originalDoc?.schedule as EventScheduleInput | null | undefined
+  const incoming = data?.schedule as EventScheduleInput | null | undefined
+  if (!incoming && !original) return null
+  return { ...original, ...incoming } as EventScheduleInput
 }
 
 /**
@@ -80,10 +96,9 @@ function revivesFinishedEvent(
   data: Record<string, unknown>,
   originalDoc: Record<string, unknown>,
 ): boolean {
-  const original = originalDoc?.schedule as EventScheduleInput | null | undefined
-  const incoming = data?.schedule as EventScheduleInput | null | undefined
-  if (!incoming && !original) return false
+  const schedule = mergedSchedule(data, originalDoc)
+  if (!schedule) return false
 
-  const lastDate = lastOccurrenceEnd({ ...original, ...incoming } as EventScheduleInput)
+  const lastDate = lastOccurrenceEnd(schedule)
   return lastDate === null || new Date(lastDate) >= new Date()
 }

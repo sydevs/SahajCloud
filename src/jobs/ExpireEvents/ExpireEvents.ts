@@ -8,6 +8,7 @@ import {
   buildReminderEntry,
   hasReminderForStage,
 } from '@/lib/eventVerification/log'
+import { addDays, resolveNextCheckAt } from '@/lib/eventVerification/periods'
 import { signVerifyToken } from '@/lib/eventVerification/token'
 import { buildVerifyEmailLink } from '@/lib/eventVerification/verifyUrl'
 import {
@@ -23,15 +24,9 @@ import {
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import type { Event } from '@/payload-types'
 
-import { computeNextCheckAt, nextStageTransition, unpublishDate } from './stageMachine'
+import { stageRule, unpublishDate } from './stageMachine'
 
 const PAGINATION_LIMIT = 200
-
-/**
- * How long a finished event's page keeps resolving before the cleanup sweep
- * trashes it: 6 months after the end of its schedule.
- */
-const FINISHED_RETENTION_MONTHS = 6
 
 interface ExpireResult {
   /** Due events examined. */
@@ -40,16 +35,12 @@ interface ExpireResult {
   finished: number
   /** Advanced one reminder stage. */
   advanced: number
-  /** Soft-deleted (the expired → trash terminal). */
+  /** Soft-deleted — the `expired` grace terminal or the `finished` retention window. */
   trashed: number
   /** Individual reminders delivered. */
   remindersSent: number
   /** Events whose processing threw. */
   failed: number
-  /** Pre-adoption (unverified/denied) events marked `finished` by the stale sweep. */
-  finishedStale: number
-  /** Finished events trashed by the 6-month retention sweep. */
-  trashedOldFinished: number
 }
 
 /**
@@ -61,12 +52,40 @@ interface ExpireResult {
  * old link (and `webPath` / `webUrl` are publish-gated, so unpublishing is
  * exactly what would break those links). It drops out of the public *feeds*
  * instead, via `notFinishedWhere`. Only the unverified ladder unpublishes.
+ *
+ * The watermark moves to the retention deadline rather than null: `finished` is
+ * a dwell state, not the end of the line — the event is trashed once its
+ * retention window elapses (see the `finished` rule in the stage machine).
  */
 async function finishEvent(payload: Payload, req: PayloadRequest, event: Event): Promise<void> {
   await payload.update({
     collection: 'events',
     id: event.id,
-    data: { verificationStage: 'finished', nextCheckAt: null },
+    data: {
+      verificationStage: 'finished',
+      nextCheckAt: resolveNextCheckAt({
+        stage: 'finished',
+        schedule: event.schedule,
+        inactive: event.inactive,
+      }),
+    },
+    context: { skipVerifyHook: true },
+    overrideAccess: true,
+    req,
+  })
+}
+
+/** Soft-delete an event: trashing is setting `deletedAt` (`payload.delete` is a hard delete). */
+async function trashEvent(
+  payload: Payload,
+  req: PayloadRequest,
+  event: Event,
+  now: Date,
+): Promise<void> {
+  await payload.update({
+    collection: 'events',
+    id: event.id,
+    data: { deletedAt: now.toISOString() },
     context: { skipVerifyHook: true },
     overrideAccess: true,
     req,
@@ -74,12 +93,14 @@ async function finishEvent(payload: Payload, req: PayloadRequest, event: Event):
 }
 
 /**
- * Process one due event: finished-check first, then the reminder ladder. Sends
- * a stage's reminder only to recipients not already logged for that stage this
- * cycle, persisting each successful send immediately (so a crash resumes
- * without duplicating), and advances the stage only once every recipient is
- * logged. A partial fan-out leaves the stage + (past) `nextCheckAt` untouched so
- * the next run retries the missing recipients.
+ * Process one due event, per its rule in the stage machine: the finished-check
+ * first (where the stage allows it), then the rule's own action.
+ *
+ * For a reminder stage, sends only to recipients not already logged for that
+ * stage this cycle, persisting each successful send immediately (so a crash
+ * resumes without duplicating), and advances the stage only once every
+ * recipient is logged. A partial fan-out leaves the stage + (past)
+ * `nextCheckAt` untouched so the next run retries the missing recipients.
  */
 async function processEvent(args: {
   payload: Payload
@@ -89,39 +110,57 @@ async function processEvent(args: {
   result: ExpireResult
 }): Promise<void> {
   const { payload, req, event, now, result } = args
+  const stage = event.verificationStage
+  const rule = stageRule(stage)
 
-  // Finished-check first — supersedes the reminder ladder.
-  if (shouldFinish(event, now)) {
+  // Finished-check first — it supersedes every other action. Skipped for an
+  // event that is already `finished`, whose due-ness means its retention
+  // window elapsed: re-finishing it would push that window out again and it
+  // would never be trashed.
+  if (rule.finishesOnRunOut && shouldFinish(event, now)) {
     await finishEvent(payload, req, event)
     result.finished++
     return
   }
 
-  const transition = nextStageTransition(event.verificationStage)
-  if (!transition) return
+  const action = rule.onDue
 
-  // Expired grace elapsed → soft-delete (the "archived" terminal, no email).
-  // Trashing = setting `deletedAt` (payload.delete is a hard delete); the doc
-  // is then excluded from default queries but recoverable from the admin trash.
-  if (transition.nextStage === 'trash') {
-    await payload.update({
-      collection: 'events',
-      id: event.id,
-      data: { deletedAt: now.toISOString() },
-      context: { skipVerifyHook: true },
-      overrideAccess: true,
-      req,
-    })
+  // Terminal: the expired grace period elapsed, or a finished event outlived
+  // its retention window. No email either way. The doc is then excluded from
+  // default queries but recoverable from the admin trash.
+  if (action.kind === 'trash') {
+    await trashEvent(payload, req, event, now)
     result.trashed++
     return
   }
 
+  // Pre-adoption drift guard: nothing to do but re-arm the watermark from the
+  // schedule, so a due event can't be re-examined every night forever.
+  // Unreachable in practice — a due pre-adoption event has a run-out schedule,
+  // which the finish-check above already claimed.
+  if (action.kind === 'await-schedule') {
+    await payload.update({
+      collection: 'events',
+      id: event.id,
+      data: {
+        nextCheckAt: resolveNextCheckAt({
+          stage,
+          schedule: event.schedule,
+          inactive: event.inactive,
+        }),
+      },
+      context: { skipVerifyHook: true },
+      overrideAccess: true,
+      req,
+    })
+    return
+  }
+
   // Reminder stage. Dedup key = the current (from) stage.
-  const stage = event.verificationStage
   const recipients = await resolveRecipients({
     payload,
     event,
-    includeRegion: transition.includeRegion,
+    includeRegion: action.includeRegion,
     req,
   })
 
@@ -142,14 +181,23 @@ async function processEvent(args: {
   // unpublished — every reminder shows the same date; how long it's gone
   // unverified (for the expired notice); and the event manager's contacts,
   // included in region-manager emails so they can follow up.
-  const nextCheckAtIso = computeNextCheckAt(transition, now)
+  //
+  // The watermark is the next stage's own deadline capped by the schedule's
+  // end, so an event that runs out mid-cycle is finished the day after its
+  // last occurrence rather than waiting for the next reminder.
+  const nextCheckAtIso = resolveNextCheckAt({
+    stage: action.nextStage,
+    stageDeadline: addDays(now, action.offsetDays),
+    schedule: event.schedule,
+    inactive: event.inactive,
+  })
   const deadline = formatLongDate(unpublishDate(stage, now).toISOString())
   const verifiedAt = log.find((entry) => entry.kind === 'verification')?.at
   const sinceLastVerified = verifiedAt ? humanDurationSince(verifiedAt, now) : 'some time'
   // Public map link, but only while the event stays published: the in-memory
   // event still reads `published` during the unpublishing (expired) transition,
   // so suppress the link there — the page is about to disappear.
-  const eventUrl = transition.unpublish ? null : (event.webUrl ?? null)
+  const eventUrl = action.unpublish ? null : (event.webUrl ?? null)
   const eventManagerCard =
     typeof event.manager === 'object' && event.manager
       ? buildManagerContacts(event.manager)
@@ -167,7 +215,7 @@ async function processEvent(args: {
     )
     const reminder: ReminderPayload = {
       eventTitle: typeof event.title === 'string' ? event.title : `Event #${event.id}`,
-      level: transition.level!,
+      level: action.level,
       audience: recipient.role,
       verifyUrl: buildVerifyEmailLink(token),
       eventUrl,
@@ -191,7 +239,7 @@ async function processEvent(args: {
       ...log,
       buildReminderEntry({
         stage,
-        level: transition.level!,
+        level: action.level,
         role: recipient.role,
         region: recipient.regionName,
         manager: {
@@ -225,9 +273,9 @@ async function processEvent(args: {
       collection: 'events',
       id: event.id,
       data: {
-        verificationStage: transition.nextStage,
+        verificationStage: action.nextStage,
         nextCheckAt: nextCheckAtIso,
-        ...(transition.unpublish ? { _status: 'draft' } : {}),
+        ...(action.unpublish ? { _status: 'draft' } : {}),
       },
       context: { skipVerifyHook: true },
       overrideAccess: true,
@@ -267,114 +315,22 @@ async function collectIds(
 }
 
 /**
- * Mark pre-adoption (unverified/denied) events whose schedule has run out as
- * `finished`. They carry `nextCheckAt: null`, so the main due sweep never sees
- * them — without this pass they'd read as open listings forever after their
- * last occurrence (the public feeds already drop them via `schedule.lastDate`,
- * but the stage, the admin, and the sidebar would all still say "upcoming").
- * Inactive events are dormant by design and never finish; the default query
- * already excludes trashed rows.
- */
-async function finishStaleUnmanagedEvents(
-  payload: Payload,
-  req: PayloadRequest,
-  now: Date,
-  result: ExpireResult,
-): Promise<void> {
-  const ids = await collectIds(payload, req, {
-    and: [
-      { verificationStage: { in: ['unverified', 'denied'] } },
-      { inactive: { not_equals: true } },
-      { 'schedule.lastDate': { less_than: now.toISOString() } },
-    ],
-  })
-
-  for (const id of ids) {
-    try {
-      await payload.update({
-        collection: 'events',
-        id,
-        data: { verificationStage: 'finished', nextCheckAt: null },
-        context: { skipVerifyHook: true },
-        overrideAccess: true,
-        req,
-      })
-      result.finishedStale++
-    } catch (error) {
-      result.failed++
-      Sentry.withScope((scope) => {
-        scope.setContext('expireEvents', { eventId: id, sweep: 'finishStale' })
-        Sentry.captureException(error)
-      })
-      req.payload.logger.warn({
-        msg: 'ExpireEvents: stale finish failure — continuing',
-        eventId: id,
-        error: error instanceof Error ? error.message : String(error),
-      })
-    }
-  }
-}
-
-/**
- * Trash finished events whose schedule ended more than 6 months ago. A
- * finished event stays published so old links resolve (#603) — but not
- * forever: after the retention window the listing is stale clutter, so it
- * moves to the trash (recoverable from the admin trash view). Trashing =
- * setting `deletedAt`; `payload.delete` would be a hard delete.
- */
-async function trashOldFinishedEvents(
-  payload: Payload,
-  req: PayloadRequest,
-  now: Date,
-  result: ExpireResult,
-): Promise<void> {
-  const cutoff = new Date(now)
-  cutoff.setUTCMonth(cutoff.getUTCMonth() - FINISHED_RETENTION_MONTHS)
-
-  const ids = await collectIds(payload, req, {
-    and: [
-      { verificationStage: { equals: 'finished' } },
-      { 'schedule.lastDate': { less_than: cutoff.toISOString() } },
-    ],
-  })
-
-  for (const id of ids) {
-    try {
-      await payload.update({
-        collection: 'events',
-        id,
-        data: { deletedAt: now.toISOString() },
-        context: { skipVerifyHook: true },
-        overrideAccess: true,
-        req,
-      })
-      result.trashedOldFinished++
-    } catch (error) {
-      result.failed++
-      Sentry.withScope((scope) => {
-        scope.setContext('expireEvents', { eventId: id, sweep: 'trashOldFinished' })
-        Sentry.captureException(error)
-      })
-      req.payload.logger.warn({
-        msg: 'ExpireEvents: retention trash failure — continuing',
-        eventId: id,
-        error: error instanceof Error ? error.message : String(error),
-      })
-    }
-  }
-}
-
-/**
- * Daily verification sweep. Ages each event whose `nextCheckAt` has passed one
- * step along `verified → reminded → escalated → expired` (then trashes it), or
- * marks it `finished` when its schedule has run out — sending escalating
- * reminders and auto-unpublishing on expiry. Single-threaded on the `nightly`
+ * Daily verification sweep. Every lifecycle transition an event can make is
+ * driven by one query — `nextCheckAt <= now` — and decided by the stage machine
+ * (`./stageMachine`): ages a managed event one step along
+ * `verified → reminded → escalated → urgent → expired` (then trashes it), marks
+ * any event `finished` when its schedule has run out, and trashes a finished
+ * event once its retention window elapses. Single-threaded on the `nightly`
  * queue so the read-advance is race-free.
  *
- * Two stage-independent sweeps run after the ladder: pre-adoption
- * (unverified/denied) events whose schedule ran out are marked `finished`
- * (they have no `nextCheckAt`, so the due sweep can't reach them), and
- * finished events past the 6-month retention window are trashed.
+ * **Why one query.** `nextCheckAt` is a watermark: every event that isn't
+ * actionable is future-dated or null, so the index range in the past holds only
+ * work that is genuinely due, however large the table grows. Expressing a
+ * transition any other way — e.g. sweeping `schedule.lastDate < now` for
+ * run-out pre-adoption events — means scanning every event that ever ended, on
+ * every run, forever. `resolveNextCheckAt` is where each stage's watermark is
+ * defined, and it is the reason the pre-adoption stages need no sweep of their
+ * own.
  *
  * Only the **unverified** ladder unpublishes. Finishing leaves the event
  * published and simply drops it from the public feeds (#603), so this sweep no
@@ -399,8 +355,6 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
     { name: 'trashed', type: 'number', required: true },
     { name: 'remindersSent', type: 'number', required: true },
     { name: 'failed', type: 'number', required: true },
-    { name: 'finishedStale', type: 'number', required: true },
-    { name: 'trashedOldFinished', type: 'number', required: true },
   ],
   schedule: [
     {
@@ -419,8 +373,6 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
       trashed: 0,
       remindersSent: 0,
       failed: 0,
-      finishedStale: 0,
-      trashedOldFinished: 0,
     }
 
     const dueIds = await collectIds(payload, req, { nextCheckAt: { less_than_equal: nowIso } })
@@ -458,13 +410,6 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
         })
       }
     }
-
-    // Stage-independent sweeps: finish elapsed pre-adoption events (invisible
-    // to the due sweep above), then trash finished events past retention. In
-    // this order so an event that both ran out long ago AND was never adopted
-    // is finished today and trashed by a later run, never skipped.
-    await finishStaleUnmanagedEvents(payload, req, now, result)
-    await trashOldFinishedEvents(payload, req, now, result)
 
     // The run mutates many events (advance/unpublish/trash); refresh the Atlas
     // manager sidebars once at the end rather than per-event.
