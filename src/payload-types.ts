@@ -6442,8 +6442,6 @@ export interface TaskExpireEvents {
     trashed: number;
     remindersSent: number;
     failed: number;
-    finishedStale: number;
-    trashedOldFinished: number;
   };
 }
 /**

@@ -36,8 +36,19 @@ export const VerificationStageField: FieldClientComponent = ({ field }) => {
   const log = useFormFields(([fields]) => fields?.notificationLog?.value)
   const nextCheckAt = useFormFields(([fields]) => fields?.nextCheckAt?.value as string | undefined)
   const updatedAt = useFormFields(([fields]) => fields?.updatedAt?.value as string | undefined)
+  // The derived end of the final occurrence — tells a capped watermark (the
+  // event finishes before its next check) from a real reminder date.
+  const scheduleEnd = useFormFields(
+    ([fields]) => fields?.['schedule.lastDate']?.value as string | undefined,
+  )
 
-  const { steps } = buildStageTracker({ log, currentStage: stage, nextCheckAt, updatedAt })
+  const { steps } = buildStageTracker({
+    log,
+    currentStage: stage,
+    nextCheckAt,
+    updatedAt,
+    scheduleEnd,
+  })
 
   return (
     <div className="field-type vstage-field read-only">

@@ -158,7 +158,7 @@ describe('ExpireEvents job', () => {
     const reload = (payload: Payload, id: number) =>
       payload.findByID({ collection: 'events', id, overrideAccess: true, depth: 0 })
 
-    it('marks a run-out event finished and clears nextCheckAt without unpublishing it', async () => {
+    it('marks a run-out event finished and arms retention without unpublishing it', async () => {
       const event = await createDueEventAtStage(payload, 'Ran Out', 'verified', {
         inactive: false,
         eventType: 'online',
@@ -177,7 +177,9 @@ describe('ExpireEvents job', () => {
 
       const after = await reload(payload, event.id)
       expect(after.verificationStage).toBe('finished')
-      expect(after.nextCheckAt).toBeNull()
+      // Re-armed at the retention deadline, not cleared: `finished` is a dwell
+      // state, and the watermark is how the job finds it again to trash it.
+      expect(new Date(after.nextCheckAt as string).getTime()).toBeGreaterThan(Date.now())
       // The whole point: still published, so webPath/webUrl stay resolvable.
       expect(after._status).toBe('published')
       expect(after.webPath).toBeTruthy()
@@ -238,11 +240,17 @@ describe('ExpireEvents job', () => {
   // finishes them when their schedule runs out; and finished events are
   // trashed once their schedule ended 6+ months ago.
   // ──────────────────────────────────────────────────────────────────────────
-  describe('stage-independent sweeps', () => {
+  // ──────────────────────────────────────────────────────────────────────────
+  // Watermark-driven transitions. Pre-adoption (unverified/denied) events and
+  // the finished-retention terminal have no sweep of their own: each one sets
+  // `nextCheckAt`, so the single due-query above reaches them like any other
+  // stage. These pin that the watermark is armed on write and honoured on run.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('watermark-driven transitions', () => {
     const reload = (payload: Payload, id: number, trash = false) =>
       payload.findByID({ collection: 'events', id, overrideAccess: true, depth: 0, trash })
 
-    /** An event pinned at a pre-adoption stage (no manager, no nextCheckAt). */
+    /** An event at a pre-adoption stage (no manager). */
     async function createUnmanagedEvent(
       payload: Payload,
       title: string,
@@ -255,12 +263,13 @@ describe('ExpireEvents job', () => {
         verificationStage: stage,
         ...overrides,
       } as never)
-      // createEvent's create ran verifyOnSave-exempt (no manager → hook skips),
-      // but pin the stage + nextCheckAt explicitly for clarity.
+      // Pin the stage + publish state; `nextCheckAt` is deliberately NOT set
+      // here — the syncUnmanagedCheckAt hook derives it from the schedule, and
+      // that is precisely what these tests exercise.
       return payload.update({
         collection: 'events',
         id: event.id,
-        data: { verificationStage: stage, nextCheckAt: null, _status: 'published' },
+        data: { verificationStage: stage, _status: 'published' },
         context: { skipVerifyHook: true },
       })
     }
@@ -276,6 +285,25 @@ describe('ExpireEvents job', () => {
       },
     }
 
+    const ONGOING = {
+      inactive: false,
+      eventType: 'online',
+      onlineUrl: 'https://example.com/ongoing',
+      schedule: {
+        firstDate: '2021-02-01T10:00:00.000Z',
+        firstDate_tz: 'Europe/London',
+        recurrenceType: 'DAILY',
+        interval: 1,
+      },
+    }
+
+    it('arms the watermark from the schedule on save, so the due-query can reach it', async () => {
+      const event = await createUnmanagedEvent(payload, 'Armed', 'unverified', RAN_OUT_RECENTLY)
+      // Set to the schedule end — in the past, so it is due right now.
+      expect(event.nextCheckAt).toBeTruthy()
+      expect(new Date(event.nextCheckAt as string).getTime()).toBeLessThan(Date.now())
+    })
+
     it('finishes an unverified event whose schedule ran out (published stays)', async () => {
       const event = await createUnmanagedEvent(
         payload,
@@ -283,15 +311,17 @@ describe('ExpireEvents job', () => {
         'unverified',
         RAN_OUT_RECENTLY,
       )
-      expect(event.nextCheckAt).toBeNull() // invisible to the due sweep
 
       const result = await runTask(payload)
-      expect(result.finishedStale).toBeGreaterThanOrEqual(1)
+      expect(result.finished).toBeGreaterThanOrEqual(1)
 
       const after = await reload(payload, event.id)
       expect(after.verificationStage).toBe('finished')
       expect(after._status).toBe('published')
       expect(after.deletedAt ?? null).toBeNull() // within retention — not trashed
+      // Re-armed at the retention deadline rather than cleared, which is how
+      // the retention transition becomes reachable at all.
+      expect(new Date(after.nextCheckAt as string).getTime()).toBeGreaterThan(Date.now())
     })
 
     it('finishes a denied event whose schedule ran out', async () => {
@@ -303,18 +333,9 @@ describe('ExpireEvents job', () => {
       expect(after.verificationStage).toBe('finished')
     })
 
-    it('leaves an unverified event with an ongoing schedule untouched', async () => {
-      const event = await createUnmanagedEvent(payload, 'Ongoing Unverified', 'unverified', {
-        inactive: false,
-        eventType: 'online',
-        onlineUrl: 'https://example.com/ongoing',
-        schedule: {
-          firstDate: '2021-02-01T10:00:00.000Z',
-          firstDate_tz: 'Europe/London',
-          recurrenceType: 'DAILY',
-          interval: 1,
-        },
-      })
+    it('never arms a watermark for an ongoing recurrence — it can never come due', async () => {
+      const event = await createUnmanagedEvent(payload, 'Ongoing Unverified', 'unverified', ONGOING)
+      expect(event.nextCheckAt ?? null).toBeNull()
 
       await runTask(payload)
 
@@ -322,8 +343,9 @@ describe('ExpireEvents job', () => {
       expect(after.verificationStage).toBe('unverified')
     })
 
-    it('never finishes an inactive (dormant) unverified event', async () => {
+    it('never arms a watermark for an inactive (dormant) event', async () => {
       const event = await createUnmanagedEvent(payload, 'Dormant Unverified', 'unverified')
+      expect(event.nextCheckAt ?? null).toBeNull()
 
       await runTask(payload)
 
@@ -332,9 +354,11 @@ describe('ExpireEvents job', () => {
     })
 
     it('does not advance a pre-adoption event through the reminder ladder even when due', async () => {
-      // Force a (stray) due nextCheckAt onto an inactive unverified event: the
-      // due sweep picks it up, the finished-check skips it (inactive), and the
-      // stage machine has no transition — so nothing may change.
+      // Force a (stray) due watermark onto a dormant unverified event: the due
+      // query picks it up, the finished-check skips it (inactive), and its rule
+      // has no ladder transition — so nothing may change, and the drift guard
+      // must clear the stale watermark rather than leave it re-processing
+      // every night.
       const event = await createUnmanagedEvent(payload, 'Due Unverified', 'unverified')
       await payload.update({
         collection: 'events',
@@ -349,22 +373,28 @@ describe('ExpireEvents job', () => {
       const after = await reload(payload, event.id)
       expect(after.verificationStage).toBe('unverified')
       expect(after._status).toBe('published')
+      expect(after.nextCheckAt ?? null).toBeNull()
     })
 
-    it('trashes a finished event whose schedule ended 6+ months ago', async () => {
+    it('trashes a finished event once its retention watermark comes due', async () => {
       const event = await createUnmanagedEvent(payload, 'Ancient Finished', 'unverified', {
         inactive: false,
         eventType: 'online',
         onlineUrl: 'https://example.com/ancient',
-        // A one-off long past — beyond the 6-month retention window. The same
-        // run finishes it (stale sweep) and then trashes it (cleanup sweep):
-        // retention is measured from the schedule's end, not from when the
-        // stage flipped.
         schedule: { firstDate: '2021-02-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
       })
 
+      // First run finishes it and arms retention ~6 months past the schedule
+      // end — which, for a 2021 schedule, is already behind us.
+      await runTask(payload)
+      const finished = await reload(payload, event.id)
+      expect(finished.verificationStage).toBe('finished')
+      expect(new Date(finished.nextCheckAt as string).getTime()).toBeLessThan(Date.now())
+
+      // Second run sees it due and trashes it — crucially it is NOT re-finished
+      // (which would push retention out another 6 months, forever).
       const result = await runTask(payload)
-      expect(result.trashedOldFinished).toBeGreaterThanOrEqual(1)
+      expect(result.trashed).toBeGreaterThanOrEqual(1)
 
       const after = await reload(payload, event.id, true)
       expect(after.verificationStage).toBe('finished')
@@ -378,13 +408,10 @@ describe('ExpireEvents job', () => {
         'unverified',
         RAN_OUT_RECENTLY,
       )
-      await payload.update({
-        collection: 'events',
-        id: event.id,
-        data: { verificationStage: 'finished' },
-        context: { skipVerifyHook: true },
-      })
 
+      // Finishes on the first run; its retention sits ~4 months out.
+      await runTask(payload)
+      // A second run must not touch it — it is no longer due.
       await runTask(payload)
 
       const after = await reload(payload, event.id)
