@@ -123,6 +123,34 @@ describe('buildStageTracker', () => {
     expect(steps[0].caption).toBeTruthy()
   })
 
+  it('an event that finishes before its next check shows Finishes, not a reminder', () => {
+    // The watermark is capped by the schedule's end (see resolveNextCheckAt),
+    // so here `nextCheckAt` IS the finish date — labelling it "next reminder"
+    // and projecting an expiry off it would both be fiction.
+    const scheduleEnd = '2026-06-30T22:59:59.999Z'
+    const { steps } = buildStageTracker({
+      log: [verification],
+      currentStage: 'verified',
+      nextCheckAt: scheduleEnd,
+      scheduleEnd,
+    })
+
+    expect(steps.map((step) => step.key)).toEqual(['verified', 'finished'])
+    expect(steps[1]).toMatchObject({ label: 'Finishes', status: 'upcoming', date: scheduleEnd })
+    // No expiry projection anywhere — it is never going to expire.
+    expect(steps.some((step) => step.datePrefix === 'if not verified by')).toBe(false)
+  })
+
+  it('keeps the ladder when the next reminder lands before the schedule ends', () => {
+    const { steps } = buildStageTracker({
+      log: [verification],
+      currentStage: 'verified',
+      nextCheckAt: '2026-06-18T00:00:00.000Z',
+      scheduleEnd: '2027-01-01T00:00:00.000Z',
+    })
+    expect(steps.map((step) => step.key)).toEqual(['verified', 'reminders', 'expired'])
+  })
+
   it('unverified / denied: a single pre-adoption step, off the ladder', () => {
     // No manager, no cycle: the tracker must not render the journey (whose
     // projections would read as an active verification cycle).

@@ -1,17 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  computeNextCheckAt,
-  daysUntilUnpublish,
-  nextStageTransition,
-  unpublishDate,
-} from '@/jobs/ExpireEvents/stageMachine'
+import { daysUntilUnpublish, stageRule, unpublishDate } from '@/jobs/ExpireEvents/stageMachine'
+import { VERIFICATION_STAGES } from '@/lib/eventVerification/stages'
 
 const NOW = new Date('2026-06-11T02:00:00.000Z')
 
 describe('nextStageTransition', () => {
   it('verified → reminded (due, manager only, +1wk, stays published)', () => {
-    expect(nextStageTransition('verified')).toMatchObject({
+    expect(stageRule('verified').onDue).toMatchObject({
       level: 'due',
       includeRegion: false,
       nextStage: 'reminded',
@@ -21,7 +17,7 @@ describe('nextStageTransition', () => {
   })
 
   it('reminded → escalated (adds region, +1wk)', () => {
-    expect(nextStageTransition('reminded')).toMatchObject({
+    expect(stageRule('reminded').onDue).toMatchObject({
       level: 'escalated',
       includeRegion: true,
       nextStage: 'escalated',
@@ -31,7 +27,7 @@ describe('nextStageTransition', () => {
   })
 
   it('escalated → urgent (final reminder, region, +1wk, still published)', () => {
-    expect(nextStageTransition('escalated')).toMatchObject({
+    expect(stageRule('escalated').onDue).toMatchObject({
       level: 'urgent',
       includeRegion: true,
       nextStage: 'urgent',
@@ -41,7 +37,7 @@ describe('nextStageTransition', () => {
   })
 
   it('urgent → expired (region, +2wk, unpublishes)', () => {
-    expect(nextStageTransition('urgent')).toMatchObject({
+    expect(stageRule('urgent').onDue).toMatchObject({
       level: 'expired',
       includeRegion: true,
       nextStage: 'expired',
@@ -51,34 +47,36 @@ describe('nextStageTransition', () => {
   })
 
   it('expired → trash (terminal, no email)', () => {
-    expect(nextStageTransition('expired')).toMatchObject({
-      level: null,
-      nextStage: 'trash',
-      offsetDays: null,
-    })
+    expect(stageRule('expired').onDue).toEqual({ kind: 'trash' })
   })
 
-  it('finished is terminal (no transition)', () => {
-    expect(nextStageTransition('finished')).toBeNull()
+  it('finished → trash once its retention window elapses', () => {
+    expect(stageRule('finished').onDue).toEqual({ kind: 'trash' })
   })
 
-  it('pre-adoption stages are outside the ladder (no transition)', () => {
-    // They also carry `nextCheckAt: null`, so the due sweep never selects
-    // them — this pins that even a stray due row cannot be advanced.
-    expect(nextStageTransition('unverified')).toBeNull()
-    expect(nextStageTransition('denied')).toBeNull()
-  })
-})
-
-describe('computeNextCheckAt', () => {
-  it('adds the stage offset to now', () => {
-    expect(computeNextCheckAt(nextStageTransition('verified')!, NOW)).toBe(
-      '2026-06-18T02:00:00.000Z',
-    )
+  it('never re-runs the finished-check on an already-finished event', () => {
+    // Load-bearing: a due `finished` event is due *because* its retention
+    // elapsed. Re-finishing it would push the retention out another 6 months
+    // and it would never be trashed at all.
+    expect(stageRule('finished').finishesOnRunOut).toBe(false)
+    for (const stage of VERIFICATION_STAGES.filter((s) => s !== 'finished')) {
+      expect(stageRule(stage).finishesOnRunOut).toBe(true)
+    }
   })
 
-  it('returns null for the terminal (trash) transition', () => {
-    expect(computeNextCheckAt(nextStageTransition('expired')!, NOW)).toBeNull()
+  it('pre-adoption stages only wait on their schedule', () => {
+    // No manager means no cadence: the sole transition is finishing when the
+    // schedule runs out, which the finish-check performs before this action.
+    expect(stageRule('unverified').onDue).toEqual({ kind: 'await-schedule' })
+    expect(stageRule('denied').onDue).toEqual({ kind: 'await-schedule' })
+  })
+
+  it('defines a rule for every stage', () => {
+    // The machine is an exhaustive Record, so this can only fail if a stage is
+    // added without deciding what the nightly job does with it.
+    for (const stage of VERIFICATION_STAGES) {
+      expect(stageRule(stage).onDue.kind).toBeTruthy()
+    }
   })
 })
 

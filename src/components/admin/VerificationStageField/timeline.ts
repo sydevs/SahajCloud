@@ -147,6 +147,23 @@ function stepForStage(stage: VerificationStage | null | undefined): JourneyKey |
   return null
 }
 
+/**
+ * Whether the schedule runs out at or before the next scheduled check — i.e.
+ * this event finishes rather than reaching its next reminder. Both dates come
+ * from the same watermark rule, so equality is the common case (the cap made
+ * them the same date).
+ */
+function finishesBeforeNextCheck(
+  scheduleEnd: string | null | undefined,
+  nextCheckAt: string | null | undefined,
+): boolean {
+  if (!scheduleEnd || !nextCheckAt) return false
+  const end = new Date(scheduleEnd).getTime()
+  const next = new Date(nextCheckAt).getTime()
+  if (Number.isNaN(end) || Number.isNaN(next)) return false
+  return end <= next
+}
+
 /** ISO `at` of the cycle-opening verification entry. */
 function verificationAt(log: Log): string | null {
   const entry = log.find((e) => e.kind === 'verification')
@@ -191,9 +208,11 @@ export function buildStageTracker(args: {
   nextCheckAt: string | null | undefined
   /** The event's `updatedAt` — used as the "Finished" date. */
   updatedAt?: string | null
+  /** End of the schedule's final occurrence (`schedule.lastDate`), when it ends. */
+  scheduleEnd?: string | null
 }): StageTracker {
   const log = asNotificationLog(args.log)
-  const { currentStage, nextCheckAt, updatedAt } = args
+  const { currentStage, nextCheckAt, updatedAt, scheduleEnd } = args
 
   // Off-ladder stages (finished / unverified / denied) sit outside the
   // escalation path: a single step rather than the full journey.
@@ -215,6 +234,33 @@ export function buildStageTracker(args: {
   const currentIndex = currentKey ? STEP_ORDER.indexOf(currentKey) : -1
   const verifiedDate = verificationAt(log)
   const expiredActual = advancedFrom(log, 'urgent') // when it entered `expired`
+
+  // The event's schedule runs out before its next check is due, so the
+  // reminder ladder never gets there: `nextCheckAt` is the finish date, not a
+  // reminder date (see `resolveNextCheckAt` — the watermark is capped by the
+  // schedule's end). Showing the ladder here would label a finish date as a
+  // reminder and project an expiry that will never happen.
+  if (finishesBeforeNextCheck(scheduleEnd, nextCheckAt)) {
+    return {
+      steps: [
+        {
+          key: 'verified',
+          label: STEP_COPY.verified[currentIndex === 0 ? 'current' : 'done'].label,
+          caption: STEP_COPY.verified[currentIndex === 0 ? 'current' : 'done'].caption,
+          status: currentIndex === 0 ? 'current' : 'done',
+          date: verifiedDate,
+        },
+        {
+          key: 'finished',
+          label: STEP_COPY.finished.upcoming.label,
+          caption: STEP_COPY.finished.upcoming.caption,
+          status: 'upcoming',
+          date: scheduleEnd ?? null,
+          datePrefix: 'on',
+        },
+      ],
+    }
+  }
 
   const steps: TrackerStep[] = STEP_ORDER.map((key, index) => {
     let status: StepStatus

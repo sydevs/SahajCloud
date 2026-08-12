@@ -43,6 +43,7 @@ import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuali
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { syncEventFullness } from './hooks/syncFullness'
+import { syncUnmanagedCheckAt } from './hooks/syncUnmanagedCheckAt'
 import { verifyOnSave } from './hooks/verifyOnSave'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
@@ -122,11 +123,13 @@ export const Events: CollectionConfig = {
     // Then drop finished events from API-client list reads (they stay published
     // so their pages resolve, but shouldn't be listed) — see excludeFinishedEvents.
     beforeOperation: [ensureWebPathDeps, excludeFinishedEvents],
-    // verifyOnSave first (re-opens the verification cycle), then the two
-    // stamping hooks. Both must run after it: `syncEventFullness` writes
-    // `registrationsFull`, and `stampEventQuality`'s skip rules read
-    // `verificationStage`, so it has to see the stage this save lands on.
-    beforeChange: [verifyOnSave, syncEventFullness, stampEventQuality],
+    // verifyOnSave first (re-opens the verification cycle), then
+    // syncUnmanagedCheckAt — which must see the stage the save lands on, so an
+    // adoption that just moved the event to `verified` is left alone. Then the
+    // two stamping hooks: `syncEventFullness` writes `registrationsFull`, and
+    // `stampEventQuality`'s skip rules read `verificationStage`, so both also
+    // need the final stage.
+    beforeChange: [verifyOnSave, syncUnmanagedCheckAt, syncEventFullness, stampEventQuality],
     // Bust the Atlas manager sidebar cache (event list + region counts) whenever
     // an event changes or is trashed/restored.
     afterChange: [revalidateAtlasSidebarHook],
