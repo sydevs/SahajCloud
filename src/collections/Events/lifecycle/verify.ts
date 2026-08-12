@@ -2,9 +2,14 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import type { ActorRef, VerificationMethod } from '@/lib/eventVerification/log'
 import { buildVerificationEntry } from '@/lib/eventVerification/log'
-import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
+import {
+  addDays,
+  resolveNextCheckAt,
+  verificationPeriodDays,
+} from '@/lib/eventVerification/periods'
 import { verifyVerifyToken } from '@/lib/eventVerification/token'
 import type { Event, Manager } from '@/payload-types'
+import type { EventScheduleInput } from '@/types/schedule'
 
 /**
  * Shared "verify" semantics used by both verify paths (the save hook and the
@@ -22,7 +27,12 @@ import type { Event, Manager } from '@/payload-types'
 /** Field patch applied to an event when it's verified. */
 export interface VerifyFields {
   verificationStage: 'verified'
-  nextCheckAt: string
+  /**
+   * Always a date in practice (the cadence deadline is the floor), but typed
+   * nullable because it comes from the shared watermark rule, whose other
+   * stages legitimately return null.
+   */
+  nextCheckAt: string | null
   notificationLog: ReturnType<typeof buildVerificationEntry>[]
 }
 
@@ -43,17 +53,33 @@ export function actorFromUser(user: PayloadRequest['user']): ActorRef | null {
   return { id: manager.id, name: manager.name || manager.email || `#${manager.id}` }
 }
 
-/** Compute the verify field patch. Pure — the cadence + clock are inputs. */
+/**
+ * Compute the verify field patch. Pure — the cadence, schedule + clock are
+ * inputs.
+ *
+ * `nextCheckAt` goes through `resolveNextCheckAt`, so the cadence is capped by
+ * the schedule's end: an event whose last occurrence falls inside the
+ * verification window is finished the day after it happens rather than sitting
+ * as "verified" until the next reminder is due (up to 6 months later).
+ */
 export function computeVerifyFields(args: {
   method: VerificationMethod
   by: ActorRef | null
   frequency?: string | null
+  /** The event's schedule, so the watermark can't outrun its last occurrence. */
+  schedule?: EventScheduleInput | null
+  inactive?: boolean | null
   now: Date
 }): VerifyFields {
-  const { method, by, frequency, now } = args
+  const { method, by, frequency, schedule, inactive, now } = args
   return {
     verificationStage: 'verified',
-    nextCheckAt: addDays(now, verificationPeriodDays(frequency)).toISOString(),
+    nextCheckAt: resolveNextCheckAt({
+      stage: 'verified',
+      stageDeadline: addDays(now, verificationPeriodDays(frequency)),
+      schedule,
+      inactive,
+    }),
     notificationLog: [buildVerificationEntry(method, by, now.toISOString())],
   }
 }
@@ -86,7 +112,14 @@ export async function applyVerification(args: {
     req,
   })
 
-  const fields = computeVerifyFields({ method, by, frequency: managerCadence(event.manager), now })
+  const fields = computeVerifyFields({
+    method,
+    by,
+    frequency: managerCadence(event.manager),
+    schedule: event.schedule,
+    inactive: event.inactive,
+    now,
+  })
 
   return payload.update({
     collection: 'events',
