@@ -1,12 +1,17 @@
-import type { ContactAdminError, ContactAdminResponse } from './responseTypes'
+import type { ContactAdminResponse } from './responseTypes'
 import type { Endpoint } from 'payload'
 
 import { APIError } from 'payload'
 import { z } from 'zod'
 
 import { parseBody, requireActiveClient } from '@/lib/endpoints'
+import {
+  antiSpamErrorResponse,
+  checkEmailAllowed,
+  checkNoUrls,
+  verifyTurnstileOrFail,
+} from '@/lib/endpoints/antiSpamGuard'
 import { sendContactAdmin } from '@/lib/notifications/sendContactAdmin'
-import { verifyTurnstileToken } from '@/lib/turnstile/verifyTurnstile'
 import { assertClientOriginAllowed } from '@/plugins/usage'
 
 /**
@@ -85,42 +90,21 @@ export const contactAdmin: Endpoint = {
     if (!parsed.ok) return parsed.response
     const { message, email, subject, turnstileToken, context } = parsed.data
 
-    // Cloudflare sets CF-Connecting-IP at the edge; it's absent for a direct
-    // origin hit, which siteverify tolerates (remoteip is optional).
-    const remoteIp = req.headers?.get?.('cf-connecting-ip')
-    const verification = await verifyTurnstileToken(turnstileToken, remoteIp)
+    // Cheap sync anti-spam checks first (shared with the write-guard plugin's
+    // collection coverage — same codes, same copy): no links in the free-text
+    // message, and no throwaway reply-to address. `context.error` is exempt —
+    // a crash report legitimately contains URLs.
+    const noUrls = checkNoUrls({ message })
+    if (!noUrls.ok) return antiSpamErrorResponse(noUrls)
+    const emailAllowed = checkEmailAllowed(email)
+    if (!emailAllowed.ok) return antiSpamErrorResponse(emailAllowed)
 
-    if (!verification.success) {
-      if (verification.reason === 'rejected') {
-        // Cloudflare's verdict: forged, expired, or already redeemed (tokens are
-        // single-use, so a replay lands here). A distinguishable code lets the
-        // caller reset its widget and let the sender retry.
-        req.payload.logger.warn({
-          msg: 'contactAdmin: Turnstile token rejected',
-          clientId: req.user?.id,
-          errorCodes: verification.errorCodes,
-        })
-        const body: ContactAdminError = {
-          errors: [
-            { message: 'Captcha verification failed. Please try again.', code: 'captcha_failed' },
-          ],
-        }
-        return Response.json(body, { status: 403 })
-      }
-
-      // Our own failure — an unset secret or an unreachable Cloudflare. Never
-      // pass on it (that would silently disable the gate), and don't tell a
-      // public caller which it was.
-      req.payload.logger.error({
-        msg: 'contactAdmin: Turnstile verification could not be completed',
-        clientId: req.user?.id,
-        reason: verification.reason,
-      })
-      return Response.json(
-        { errors: [{ message: 'Could not verify the captcha. Please try again later.' }] },
-        { status: 500 },
-      )
-    }
+    // Then the captcha: Cloudflare's verdict (forged / expired / replayed) is a
+    // 403 with a distinguishable code so the caller resets its widget; our own
+    // failure (unset secret, unreachable Cloudflare) is a 500 that never passes
+    // and carries no code. Both mappings live in the shared guard.
+    const verification = await verifyTurnstileOrFail(req, turnstileToken)
+    if (!verification.ok) return antiSpamErrorResponse(verification)
 
     try {
       await sendContactAdmin({

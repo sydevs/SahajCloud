@@ -53,6 +53,8 @@ import { default as default_d749fd4cc4f11cb94ed2d6b537f6015d } from '@/component
 import { default as default_d73215fe105de40829b40e0975052656 } from '@/components/admin/VerificationStageField'
 import { default as default_e9940a7953b8550d5f74ed2aed219091 } from '@/components/admin/NotificationLogTable'
 import { default as default_42fbdbfc3b16bbe7c43aa9f07c715c1c } from '@/components/admin/EventQualityPanel'
+import { default as default_c16d1cf1ac6f65000608422028e5ef76 } from '@/components/admin/EventSubmissionNotice'
+import { default as default_fec8075c718009cbccb8294a368c15ff } from '@/components/admin/EventSubmissionSaveButton'
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ChecklistFeatureClient as ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { IndentFeatureClient as IndentFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -135,6 +137,8 @@ export const importMap = {
   "@/components/admin/VerificationStageField#default": default_d73215fe105de40829b40e0975052656,
   "@/components/admin/NotificationLogTable#default": default_e9940a7953b8550d5f74ed2aed219091,
   "@/components/admin/EventQualityPanel#default": default_42fbdbfc3b16bbe7c43aa9f07c715c1c,
+  "@/components/admin/EventSubmissionNotice#default": default_c16d1cf1ac6f65000608422028e5ef76,
+  "@/components/admin/EventSubmissionSaveButton#default": default_fec8075c718009cbccb8294a368c15ff,
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#ChecklistFeatureClient": ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#IndentFeatureClient": IndentFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,

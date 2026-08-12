@@ -640,6 +640,7 @@ export interface Config {
     'app-cards': AppCard;
     regions: Region;
     events: Event;
+    'event-submissions': EventSubmission;
     registrations: Registration;
     users: User;
     forms: Form;
@@ -717,6 +718,7 @@ export interface Config {
     'app-cards': AppCardsSelect<false> | AppCardsSelect<true>;
     regions: RegionsSelect<false> | RegionsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
+    'event-submissions': EventSubmissionsSelect<false> | EventSubmissionsSelect<true>;
     registrations: RegistrationsSelect<false> | RegistrationsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
@@ -824,6 +826,7 @@ export interface Config {
     tasks: {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       expireEvents: TaskExpireEvents;
+      screenEventSubmission: TaskScreenEventSubmission;
       sendRegistrationDigests: TaskSendRegistrationDigests;
       sendSessionReminders: TaskSendSessionReminders;
       syncLectureMetadata: TaskSyncLectureMetadata;
@@ -3461,6 +3464,271 @@ export interface Frame {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "event-submissions".
+ */
+export interface EventSubmission {
+  id: number;
+  /**
+   * The event this submission proposes changes to. Leave empty for a brand-new event; after acceptance it links the created event.
+   */
+  event?: (number | null) | Event;
+  submitterName: string;
+  submitterEmail: string;
+  /**
+   * Anything the submitter wanted to tell the reviewing manager.
+   */
+  submitterNote?: string | null;
+  languages?:
+    | (
+        | 'ab'
+        | 'aa'
+        | 'af'
+        | 'ak'
+        | 'sq'
+        | 'am'
+        | 'ar'
+        | 'an'
+        | 'hy'
+        | 'as'
+        | 'av'
+        | 'ae'
+        | 'ay'
+        | 'az'
+        | 'bm'
+        | 'ba'
+        | 'eu'
+        | 'be'
+        | 'bn'
+        | 'bi'
+        | 'bs'
+        | 'br'
+        | 'bg'
+        | 'my'
+        | 'ca'
+        | 'ch'
+        | 'ce'
+        | 'ny'
+        | 'zh'
+        | 'cv'
+        | 'kw'
+        | 'co'
+        | 'cr'
+        | 'hr'
+        | 'cs'
+        | 'da'
+        | 'dv'
+        | 'nl'
+        | 'dz'
+        | 'en'
+        | 'eo'
+        | 'et'
+        | 'ee'
+        | 'fo'
+        | 'fj'
+        | 'fi'
+        | 'fr'
+        | 'ff'
+        | 'gl'
+        | 'lg'
+        | 'ka'
+        | 'de'
+        | 'el'
+        | 'gn'
+        | 'gu'
+        | 'ht'
+        | 'ha'
+        | 'he'
+        | 'hz'
+        | 'hi'
+        | 'ho'
+        | 'hu'
+        | 'is'
+        | 'io'
+        | 'ig'
+        | 'id'
+        | 'ia'
+        | 'ie'
+        | 'iu'
+        | 'ik'
+        | 'ga'
+        | 'it'
+        | 'ja'
+        | 'jv'
+        | 'kl'
+        | 'kn'
+        | 'kr'
+        | 'ks'
+        | 'kk'
+        | 'km'
+        | 'ki'
+        | 'rw'
+        | 'rn'
+        | 'kv'
+        | 'kg'
+        | 'ko'
+        | 'ku'
+        | 'kj'
+        | 'ky'
+        | 'lo'
+        | 'la'
+        | 'lv'
+        | 'li'
+        | 'ln'
+        | 'lt'
+        | 'lu'
+        | 'lb'
+        | 'mk'
+        | 'mg'
+        | 'ms'
+        | 'ml'
+        | 'mt'
+        | 'gv'
+        | 'mi'
+        | 'mr'
+        | 'mh'
+        | 'mn'
+        | 'na'
+        | 'nv'
+        | 'ng'
+        | 'ne'
+        | 'nd'
+        | 'se'
+        | 'no'
+        | 'nb'
+        | 'nn'
+        | 'ii'
+        | 'oc'
+        | 'oj'
+        | 'cu'
+        | 'or'
+        | 'om'
+        | 'os'
+        | 'pi'
+        | 'pa'
+        | 'ps'
+        | 'fa'
+        | 'pl'
+        | 'pt'
+        | 'qu'
+        | 'ro'
+        | 'rm'
+        | 'ru'
+        | 'sm'
+        | 'sg'
+        | 'sa'
+        | 'sc'
+        | 'gd'
+        | 'sr'
+        | 'sn'
+        | 'sd'
+        | 'si'
+        | 'sk'
+        | 'sl'
+        | 'so'
+        | 'nr'
+        | 'st'
+        | 'es'
+        | 'su'
+        | 'sw'
+        | 'ss'
+        | 'sv'
+        | 'tl'
+        | 'ty'
+        | 'tg'
+        | 'ta'
+        | 'tt'
+        | 'te'
+        | 'th'
+        | 'bo'
+        | 'ti'
+        | 'to'
+        | 'ts'
+        | 'tn'
+        | 'tr'
+        | 'tk'
+        | 'tw'
+        | 'uk'
+        | 'ur'
+        | 'ug'
+        | 'uz'
+        | 've'
+        | 'vi'
+        | 'vo'
+        | 'wa'
+        | 'cy'
+        | 'fy'
+        | 'wo'
+        | 'xh'
+        | 'yi'
+        | 'yo'
+        | 'za'
+        | 'zu'
+      )[]
+    | null;
+  eventType?: ('offline' | 'online') | null;
+  onlineUrl?: string | null;
+  address?: {
+    mapboxId?: string | null;
+    /**
+     * The building's own name, where it has one. Shown in place of the street when a listing has no title of its own.
+     */
+    venueName?: string | null;
+    street?: string | null;
+    room?: string | null;
+    postCode?: string | null;
+    country?: string | null;
+    region?: string | null;
+    city?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+  contactName?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  description?: string | null;
+  schedule?: {
+    scheduleType?: ('one-off' | 'weekly') | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    startTime?: string | null;
+    endTime?: string | null;
+    weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
+    timezone?: string | null;
+  };
+  /**
+   * Existing country the event belongs to (required for new events; must be a country-level region).
+   */
+  country?: (number | null) | Region;
+  /**
+   * Existing state/region, when known.
+   */
+  state?: (number | null) | Region;
+  /**
+   * Existing city or venue the submitter was browsing, when the widget knows it.
+   */
+  anchorRegion?: (number | null) | Region;
+  /**
+   * Resolved city/venue (set by screening).
+   */
+  region?: (number | null) | Region;
+  submitter?: (number | null) | User;
+  status: 'screening' | 'pending' | 'spam' | 'created' | 'updated' | 'rejected';
+  screeningResult?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  reviewedBy?: (number | null) | Manager;
+  reviewedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "forms".
  */
 export interface Form {
@@ -3714,6 +3982,7 @@ export interface PayloadJob {
           | 'inline'
           | 'cleanupOrphanedMedia'
           | 'expireEvents'
+          | 'screenEventSubmission'
           | 'sendRegistrationDigests'
           | 'sendSessionReminders'
           | 'syncLectureMetadata'
@@ -3756,6 +4025,7 @@ export interface PayloadJob {
         | 'inline'
         | 'cleanupOrphanedMedia'
         | 'expireEvents'
+        | 'screenEventSubmission'
         | 'sendRegistrationDigests'
         | 'sendSessionReminders'
         | 'syncLectureMetadata'
@@ -3872,6 +4142,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'events';
         value: number | Event;
+      } | null)
+    | ({
+        relationTo: 'event-submissions';
+        value: number | EventSubmission;
       } | null)
     | ({
         relationTo: 'registrations';
@@ -4642,6 +4916,59 @@ export interface EventsSelect<T extends boolean = true> {
   createdAt?: T;
   deletedAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "event-submissions_select".
+ */
+export interface EventSubmissionsSelect<T extends boolean = true> {
+  event?: T;
+  submitterName?: T;
+  submitterEmail?: T;
+  submitterNote?: T;
+  languages?: T;
+  eventType?: T;
+  onlineUrl?: T;
+  address?:
+    | T
+    | {
+        mapboxId?: T;
+        venueName?: T;
+        street?: T;
+        room?: T;
+        postCode?: T;
+        country?: T;
+        region?: T;
+        city?: T;
+        latitude?: T;
+        longitude?: T;
+      };
+  contactName?: T;
+  contactEmail?: T;
+  contactPhone?: T;
+  description?: T;
+  schedule?:
+    | T
+    | {
+        scheduleType?: T;
+        startDate?: T;
+        endDate?: T;
+        startTime?: T;
+        endTime?: T;
+        weekdays?: T;
+        timezone?: T;
+      };
+  country?: T;
+  state?: T;
+  anchorRegion?: T;
+  region?: T;
+  submitter?: T;
+  status?: T;
+  screeningResult?: T;
+  reviewedBy?: T;
+  reviewedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -6444,6 +6771,18 @@ export interface TaskExpireEvents {
     failed: number;
     finishedStale: number;
     trashedOldFinished: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskScreenEventSubmission".
+ */
+export interface TaskScreenEventSubmission {
+  input: {
+    submissionId: number;
+  };
+  output: {
+    status: string;
   };
 }
 /**

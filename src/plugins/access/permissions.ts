@@ -20,7 +20,12 @@ import type { Operation } from 'payload'
 import type { LocaleCode } from '@/lib/locales'
 import type { RoleSlug } from '@/payload-types'
 
-import { getPermissionsForRole, getRoleProject, isCollectionVisibleInProject } from './config'
+import {
+  getPermissionsForRole,
+  getRoleProject,
+  isCollectionVisibleInProject,
+  isRestrictedCollection,
+} from './config'
 
 /**
  * Check if a user has permission for an operation
@@ -74,7 +79,9 @@ export function hasPermission(
     // Both managers and API clients get the same behavior:
     // - Collections in their role's project are readable
     // - Shared collections (not in any project) are readable by all
-    if (operation === 'read') {
+    // - EXCEPT restricted collections (users, event-submissions): personal
+    //   data never rides the shared-read rule — explicit grant or admin only.
+    if (operation === 'read' && !isRestrictedCollection(collection)) {
       const project = getRoleProject(role)
       if (isCollectionVisibleInProject(collection, project || null)) return true
     }
