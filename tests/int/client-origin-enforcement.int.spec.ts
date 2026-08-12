@@ -200,7 +200,10 @@ describe('client Origin/Referer enforcement', () => {
     it('register: 201 for an allowed origin', async () => {
       const req = clientReq({ allowedDomains, origin: 'https://allowed.org' })
       req.routeParams = { id: String(eventId) }
-      req.json = async () => ({ email: 'reg@allowed.org', name: 'Reg' })
+      // `example.com`, not `allowed.org`: the write-guard's disposable-email list
+      // (mailchecker) happens to blacklist allowed.org, and this test is about
+      // origins, not email screening.
+      req.json = async () => ({ email: 'reg@example.com', name: 'Reg' })
       const res = (await registerForEvent.handler(req)) as Response
       expect(res.status).toBe(201)
     })
