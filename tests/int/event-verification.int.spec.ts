@@ -239,8 +239,9 @@ describe('Event verification lifecycle', () => {
       expect(region.webPath).toBe(`/${region.slug}`)
       expect(fetched.webPath).toBe(`/${region.slug}/${event.id}`)
       expect(fetched.webUrl).toBe(`http://localhost:5174/${region.slug}/${event.id}`)
-      // appUrl is always emitted but null — there's no Atlas app deep-link base.
-      expect(fetched.appUrl).toBeNull()
+      // Events opt out of `appUrl` entirely (`hasAppUrl: false`) — there's no
+      // Atlas app deep-link, so the field isn't emitted rather than emitted null.
+      expect('appUrl' in fetched).toBe(false)
     })
 
     it('resolves on a direct read that selects only the path fields', async () => {
@@ -589,6 +590,62 @@ describe('Event verification lifecycle', () => {
     expect(reminders(fresh.notificationLog)).toHaveLength(0)
     const log = fresh.notificationLog as NotificationLogEntry[]
     expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
+  })
+
+  describe('systemMeta write protection', () => {
+    // `systemMeta` is hidden from non-admin managers in the admin UI. That is
+    // only safe because visibility and writability are decided separately: the
+    // field's `access.update` refuses every non-overrideAccess write, and
+    // Payload responds by *deleting the key from the incoming patch* rather
+    // than nulling the column. Without that, a manager saving a form that
+    // never rendered the field could silently wipe it.
+    it('survives a save that omits it, and one that tries to clear it', async () => {
+      const event = await createEvent()
+      const feedback = { confirmations: 3, denials: 1, updatedAt: new Date().toISOString() }
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        context: { skipVerifyHook: true },
+        data: { systemMeta: { communityFeedback: feedback } } as Partial<Event>,
+      })
+
+      // A normal manager save (access enforced, field absent from the patch).
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: false,
+        user: { ...eventManager, collection: 'managers' } as never,
+        data: { title: 'Edited Without System Meta' } as Partial<Event>,
+      })
+      let fresh = await getEvent(payload, event.id)
+      expect(fresh.title).toBe('Edited Without System Meta')
+      expect(fresh.systemMeta).toEqual({ communityFeedback: feedback })
+
+      // And an explicit attempt to null it through the API is refused too.
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: false,
+        user: { ...eventManager, collection: 'managers' } as never,
+        data: { systemMeta: null } as Partial<Event>,
+      })
+      fresh = await getEvent(payload, event.id)
+      expect(fresh.systemMeta).toEqual({ communityFeedback: feedback })
+    })
+
+    it('still lets the system write it (overrideAccess skips field access)', async () => {
+      const event = await createEvent()
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        context: { skipVerifyHook: true },
+        data: { systemMeta: { communityFeedback: { confirmations: 9, denials: 0 } } } as never,
+      })
+      const fresh = await getEvent(payload, event.id)
+      expect(fresh.systemMeta).toMatchObject({ communityFeedback: { confirmations: 9 } })
+    })
   })
 
   describe('pre-adoption stages (unverified / denied)', () => {

@@ -1,4 +1,4 @@
-import type { FieldHook, PayloadRequest, TextField } from 'payload'
+import type { Field, FieldHook, PayloadRequest, TextField } from 'payload'
 
 /** A base URL — a literal, or a resolver (e.g. reading an env var per request). */
 type UrlBase = string | (() => string | null | undefined)
@@ -42,6 +42,16 @@ export interface PublicUrlFieldsOptions {
    * so this stays an explicit per-collection choice rather than a runtime guess.
    */
   requirePublished?: boolean
+  /**
+   * Emit the `appUrl` field. Default `true`. Set `false` for a collection with
+   * no app deep-link at all (Events) so the API doesn't carry a field that can
+   * only ever read `null`. Deliberately explicit rather than inferred from an
+   * absent `app` base — Regions has no base either but keeps the field, and
+   * silently dropping a published field is not something to guess at.
+   */
+  hasAppUrl?: boolean
+  /** Label for the collapsible the fields are grouped into. Default `Public Links`. */
+  label?: string
 }
 
 /** Shared per-read inputs for a field's afterRead hook. */
@@ -97,15 +107,22 @@ function virtualUrlField(name: string, hook: FieldHook): TextField {
 }
 
 /**
- * Build the three virtual public-link fields every collection exposes
- * consistently, all from one `buildPath` and all published-gated:
+ * Build the virtual public-link fields every collection exposes consistently,
+ * all from one `buildPath` and all published-gated:
  *
  * - `webPath` — the raw path (no base).
  * - `webUrl` — the web path prefixed with the `web` base (null if `web` unset).
  * - `appUrl` — the app path prefixed with the `app` base (null if `app` unset).
+ *   Omitted entirely when `hasAppUrl: false`.
  *
  * Fields are published-gated by default; pass `requirePublished: false` for
  * collections without `_status`.
+ *
+ * They're always wrapped in a **collapsed collapsible**: these are read-only
+ * derived values an editor only occasionally wants to copy, so they shouldn't
+ * cost vertical space in the edit view by default. A collapsible carries no
+ * `name`, so this is presentation only — the fields stay top-level in the data
+ * (and in `select` / `flattenedFields`), and no migration is involved.
  *
  * @example
  * publicUrlFields({
@@ -120,11 +137,15 @@ export function publicUrlFields({
   buildPath,
   exposeWhen,
   requirePublished = true,
-}: PublicUrlFieldsOptions): TextField[] {
+  hasAppUrl = true,
+  label = 'Public Links',
+}: PublicUrlFieldsOptions): Field[] {
   const config: HookConfig = { buildPath, exposeWhen, requirePublished }
-  return [
+  const fields: TextField[] = [
     virtualUrlField('webPath', computeHook('web', null, config)),
     virtualUrlField('webUrl', computeHook('web', web, config)),
-    virtualUrlField('appUrl', computeHook('app', app, config)),
   ]
+  if (hasAppUrl) fields.push(virtualUrlField('appUrl', computeHook('app', app, config)))
+
+  return [{ label, type: 'collapsible', admin: { initCollapsed: true }, fields }]
 }
