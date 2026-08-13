@@ -1,18 +1,27 @@
 import { describe, expect, it } from 'vitest'
 
-import { daysUntilUnpublish, stageAction, unpublishDate } from '@/jobs/ExpireEvents/stageMachine'
-import { VERIFICATION_STAGES } from '@/lib/eventVerification/stages'
+import {
+  daysUntilUnpublish,
+  isPreAdoptionStage,
+  isUnmanagedStage,
+  LADDER,
+  PUBLISHED_STAGES,
+  stageAction,
+  transitionUnpublishes,
+  UNMANAGED_STAGES,
+  unpublishDate,
+  VERIFICATION_STAGES,
+} from '@/lib/eventVerification/stages'
 
 const NOW = new Date('2026-06-11T02:00:00.000Z')
 
-describe('nextStageTransition', () => {
+describe('stageAction', () => {
   it('verified → reminded (due, manager only, +1wk, stays published)', () => {
     expect(stageAction('verified')).toMatchObject({
       level: 'due',
       includeRegion: false,
       nextStage: 'reminded',
       offsetDays: 7,
-      unpublish: false,
     })
   })
 
@@ -22,7 +31,6 @@ describe('nextStageTransition', () => {
       includeRegion: true,
       nextStage: 'escalated',
       offsetDays: 7,
-      unpublish: false,
     })
   })
 
@@ -32,7 +40,6 @@ describe('nextStageTransition', () => {
       includeRegion: true,
       nextStage: 'urgent',
       offsetDays: 7,
-      unpublish: false,
     })
   })
 
@@ -42,8 +49,39 @@ describe('nextStageTransition', () => {
       includeRegion: true,
       nextStage: 'expired',
       offsetDays: 14,
-      unpublish: true,
     })
+  })
+
+  it('derives unpublishing from the stage a transition lands on', () => {
+    // Was a hand-written `unpublish` boolean on the transition *and* a
+    // PUBLISHED_STAGES membership list — two encodings of one fact, free to
+    // disagree. Now there is only the `published` flag on each stage.
+    expect(transitionUnpublishes('urgent')).toBe(true) // lands on `expired`
+    for (const stage of ['verified', 'reminded', 'escalated'] as const) {
+      expect(transitionUnpublishes(stage)).toBe(false)
+    }
+    // A non-remind action never "advances", so it never unpublishes either.
+    expect(transitionUnpublishes('finished')).toBe(false)
+    expect(transitionUnpublishes('unverified')).toBe(false)
+  })
+
+  it('keeps the derived stage lists in step with the config', () => {
+    expect(PUBLISHED_STAGES).toEqual([
+      'unverified',
+      'verified',
+      'reminded',
+      'escalated',
+      'urgent',
+      'finished',
+    ])
+    expect(UNMANAGED_STAGES).toEqual(['unverified', 'denied', 'finished'])
+    expect(LADDER).toEqual(['verified', 'reminded', 'escalated', 'urgent'])
+    // `finished` may be unmanaged, but it is NOT pre-adoption — conflating the
+    // two skipped its retention deadline entirely.
+    expect(isUnmanagedStage('finished')).toBe(true)
+    expect(isPreAdoptionStage('finished')).toBe(false)
+    expect(isPreAdoptionStage('unverified')).toBe(true)
+    expect(isPreAdoptionStage('denied')).toBe(true)
   })
 
   it('expired → trash (terminal, no email)', () => {
