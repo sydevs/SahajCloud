@@ -23,10 +23,11 @@ function stepClassName(step: TrackerStep): string {
 }
 
 /**
- * Read-only visualization of `verificationStage`: a vertical 3-step tracker
- * (Verified → Reminders → Expired) with a one-line caption per step, the
- * relevant date, and the current step highlighted. `finished` (off-path) shows
- * a terminal note above a muted tracker.
+ * Read-only visualization of `verificationStage`: a vertical tracker of the
+ * journey the event is on — Unverified → Denied → Verified for a pre-adoption
+ * listing, Verified → Reminders → Expired once a manager owns it — with a
+ * one-line caption per step, the relevant date, and the current step
+ * highlighted. See `./timeline` for the journeys and their copy.
  */
 export const VerificationStageField: FieldClientComponent = ({ field }) => {
   const { name, label } = field as SelectFieldClient
