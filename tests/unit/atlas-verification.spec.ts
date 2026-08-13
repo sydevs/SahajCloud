@@ -170,10 +170,14 @@ describe('buildImportVerification', () => {
     expect(fields.notificationLog[0]).toMatchObject({ kind: 'verification', method: 'import' })
   })
 
-  it('leaves a finished event with no schedule end un-armed — nothing to measure from', () => {
+  it('still arms a finished event with no schedule end, measured from the import', () => {
+    // The dump maps status straight to the stage, so a dormant or open-ended
+    // event can land on `finished` with nothing to measure retention from.
+    // Falling back to the import moment keeps it reachable — otherwise the row
+    // would carry a null watermark and never be trashed.
     const fields = buildImportVerification({ status: 6, cadence: 'Monthly', legacyId: 1, now })
     expect(fields.verificationStage).toBe('finished')
-    expect(fields.nextCheckAt).toBeUndefined()
+    expect(fields.nextCheckAt?.slice(0, 7)).toBe('2026-12') // now (2026-06-15) + 6 months
   })
 
   it('records the acting manager when given', () => {

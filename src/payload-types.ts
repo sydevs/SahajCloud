@@ -1657,13 +1657,13 @@ export interface Event {
    */
   contactPhone?: string | null;
   /**
-   * The name of the person they are calling
-   */
-  contactName?: string | null;
-  /**
    * An email address seekers can write to for more information about the program.
    */
   contactEmail?: string | null;
+  /**
+   * The name of the person seekers will reach
+   */
+  contactName?: string | null;
   description?: {
     root: {
       type: string;
@@ -1689,6 +1689,7 @@ export interface Event {
   images?: (number | Image)[] | null;
   webPath?: string | null;
   webUrl?: string | null;
+  appUrl?: string | null;
   /**
    * The city or venue this event belongs to.
    */
@@ -1817,10 +1818,6 @@ export interface Event {
     | boolean
     | null;
   /**
-   * Who submitted this listing (record-keeping only).
-   */
-  submitter?: (number | null) | User;
-  /**
    * How strongly attendees confirm this event is real (0–1). Rises with confirmations, falls with denials, and stays cautious while there are few votes — the Atlas map ranks unverified listings by it. Blank until the first vote.
    */
   confidenceScore?: number | null;
@@ -1833,6 +1830,10 @@ export interface Event {
     | number
     | boolean
     | null;
+  /**
+   * Who submitted this listing (record-keeping only).
+   */
+  submitter?: (number | null) | User;
   /**
    * When the nightly job will next act on this event.
    */
@@ -4848,13 +4849,14 @@ export interface EventsSelect<T extends boolean = true> {
   title?: T;
   languages?: T;
   contactPhone?: T;
-  contactName?: T;
   contactEmail?: T;
+  contactName?: T;
   description?: T;
   website?: T;
   images?: T;
   webPath?: T;
   webUrl?: T;
+  appUrl?: T;
   region?: T;
   eventType?: T;
   onlineUrl?: T;
@@ -4918,9 +4920,9 @@ export interface EventsSelect<T extends boolean = true> {
   manager?: T;
   verificationStage?: T;
   notificationLog?: T;
-  submitter?: T;
   confidenceScore?: T;
   qualityReport?: T;
+  submitter?: T;
   nextCheckAt?: T;
   registrationsFull?: T;
   qualityOpenCount?: T;

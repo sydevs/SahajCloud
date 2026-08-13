@@ -13,7 +13,7 @@
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
 import type { EventScheduleInput } from '@/types/schedule'
 
-import { isUnmanagedStage, type VerificationStage } from './stages'
+import { isPreAdoptionStage, type VerificationStage } from './stages'
 
 /**
  * How long a `finished` event's page keeps resolving before the retention
@@ -42,6 +42,8 @@ export interface NextCheckAtInput {
   /** The event's schedule (merged, if this is a partial write). */
   schedule?: EventScheduleInput | null
   inactive?: boolean | null
+  /** Injected clock — the `finished` retention fallback needs a reference point. */
+  now?: Date
 }
 
 /**
@@ -65,22 +67,47 @@ export interface NextCheckAtInput {
  *   rather than waiting up to a cadence for its next reminder.
  * - **`finished`** — the retention deadline, after which it's trashed.
  *
+ * ## When this returns `null`, and why that's the whole point
+ *
+ * `null` means "no scheduled transition exists" — not "unknown". It's the
+ * mechanism that keeps the sweep cheap, so it can't be designed away: making
+ * the column non-nullable would mean inventing a fake deadline for every
+ * dormant listing and waking each one up forever to do nothing, which is the
+ * cost the watermark exists to avoid.
+ *
+ * What *can* be guaranteed, and is:
+ *
+ * - **Every managed stage** (`verified` → `expired`) always has a deadline —
+ *   its own cadence — so it is never null.
+ * - **`finished`** is never null either: retention runs from the schedule's end
+ *   when there is one, and otherwise from `now` (an event can reach `finished`
+ *   with no computable schedule end — the Atlas importer maps a dump status
+ *   straight to the stage, dormant or open-ended recurrence included. Without
+ *   this fallback those rows would keep a null watermark and never be trashed).
+ *
+ * So the contract narrows to exactly one case: **null ⟺ a pre-adoption stage
+ * with no schedule end** (dormant, or an open-ended recurrence). Those events
+ * genuinely have nothing scheduled — adoption is an editor action, not a date.
+ * `tests/unit/next-check-at.spec.ts` pins that as an invariant over every stage.
+ *
  * The schedule end is *computed* via `lastOccurrenceEnd` rather than read off
  * the stored `schedule.lastDate` column, for the reason `shouldFinish`
  * documents: a collection `beforeChange` hook runs before the field hook that
  * writes that column, and an un-backfilled NULL would read as "never ends".
  */
 export function resolveNextCheckAt(input: NextCheckAtInput): string | null {
-  const { stage, stageDeadline, schedule, inactive } = input
+  const { stage, stageDeadline, schedule, inactive, now = new Date() } = input
 
   // Dormant events have no schedule to run out — nothing schedule-driven can
   // happen to them, so only a stage deadline can bring them back.
   const scheduleEnd = inactive ? null : scheduleEndDate(schedule)
 
-  if (isUnmanagedStage(stage)) return scheduleEnd?.toISOString() ?? null
+  if (isPreAdoptionStage(stage)) return scheduleEnd?.toISOString() ?? null
 
+  // Retention runs from the schedule's end where there is one, else from the
+  // moment it finished — so a finished event always has a date to be trashed on.
   if (stage === 'finished') {
-    return scheduleEnd ? addMonths(scheduleEnd, FINISHED_RETENTION_MONTHS).toISOString() : null
+    return addMonths(scheduleEnd ?? now, FINISHED_RETENTION_MONTHS).toISOString()
   }
 
   const deadlines = [stageDeadline, scheduleEnd].filter((date): date is Date => date != null)

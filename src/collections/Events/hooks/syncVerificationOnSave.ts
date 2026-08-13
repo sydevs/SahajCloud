@@ -1,6 +1,6 @@
 import type { CollectionBeforeChangeHook } from 'payload'
 
-import { isUnmanagedStage } from '@/lib/eventVerification/stages'
+import { isPreAdoptionStage } from '@/lib/eventVerification/stages'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
 import { relationId } from '@/lib/utilities/relationId'
@@ -53,7 +53,7 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
   const stage = (data.verificationStage ?? originalDoc?.verificationStage) as string | undefined
 
   // Pre-adoption branch — derived data only, so it ignores `skipVerifyHook`.
-  if (!managerId && isUnmanagedStage(stage)) {
+  if (!managerId && isPreAdoptionStage(stage)) {
     return { ...data, nextCheckAt: resolveNextCheckAt({ stage: 'unverified', schedule, inactive }) }
   }
 

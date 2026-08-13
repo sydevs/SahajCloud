@@ -129,7 +129,9 @@ export function buildImportVerification(args: {
   if (stage === 'finished') {
     return {
       verificationStage: 'finished',
-      nextCheckAt: resolveNextCheckAt({ stage: 'finished', schedule, inactive }) ?? undefined,
+      nextCheckAt:
+        resolveNextCheckAt({ stage: 'finished', schedule, inactive, now: args.now }) ??
+        undefined,
       notificationLog: [entry],
     }
   }
@@ -141,6 +143,7 @@ export function buildImportVerification(args: {
         stageDeadline: addDays(args.now, importCheckOffsetDays(args.cadence, args.legacyId)),
         schedule,
         inactive,
+        now: args.now,
       }) ?? undefined,
     notificationLog: [entry],
   }
