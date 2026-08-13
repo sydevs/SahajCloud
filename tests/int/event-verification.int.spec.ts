@@ -239,9 +239,8 @@ describe('Event verification lifecycle', () => {
       expect(region.webPath).toBe(`/${region.slug}`)
       expect(fetched.webPath).toBe(`/${region.slug}/${event.id}`)
       expect(fetched.webUrl).toBe(`http://localhost:5174/${region.slug}/${event.id}`)
-      // Events opt out of `appUrl` entirely (`hasAppUrl: false`) — there's no
-      // Atlas app deep-link, so the field isn't emitted rather than emitted null.
-      expect('appUrl' in fetched).toBe(false)
+      // appUrl is always emitted but null — there's no Atlas app deep-link base.
+      expect(fetched.appUrl).toBeNull()
     })
 
     it('resolves on a direct read that selects only the path fields', async () => {
@@ -847,7 +846,7 @@ describe('Event verification lifecycle', () => {
       expect(result.finished).toBe(1)
       const fresh = await getEvent(payload, event.id)
       expect(fresh.verificationStage).toBe('finished')
-      // The retention watermark, not null — see the finished rule in stageMachine.
+      // The retention watermark, not null — see the `finished` entry in STAGES.
       expect(fresh.nextCheckAt).toBeTruthy()
       return fresh
     }
