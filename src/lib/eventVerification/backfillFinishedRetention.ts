@@ -21,7 +21,7 @@ import type { Payload } from 'payload'
 
 import type { EventScheduleInput } from '@/types/schedule'
 
-import { resolveNextCheckAt } from './periods'
+import { resolveNextCheckAt } from './watermark'
 
 const BATCH_SIZE = 200
 

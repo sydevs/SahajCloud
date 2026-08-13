@@ -2,12 +2,9 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import type { ActorRef, VerificationMethod } from '@/lib/eventVerification/log'
 import { buildVerificationEntry } from '@/lib/eventVerification/log'
-import {
-  addDays,
-  resolveNextCheckAt,
-  verificationPeriodDays,
-} from '@/lib/eventVerification/periods'
+import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
 import { verifyVerifyToken } from '@/lib/eventVerification/token'
+import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import type { Event, Manager } from '@/payload-types'
 import type { EventScheduleInput } from '@/types/schedule'
 

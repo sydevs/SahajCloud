@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { FINISHED_RETENTION_MONTHS, resolveNextCheckAt } from '@/lib/eventVerification/periods'
+import {
+  FINISHED_RETENTION_MONTHS,
+  resolveNextCheckAt,
+} from '@/lib/eventVerification/watermark'
 import type { EventScheduleInput } from '@/types/schedule'
 
 
