@@ -622,12 +622,14 @@ describe('Event verification lifecycle', () => {
       expect(fresh.systemMeta).toEqual({ communityFeedback: feedback })
 
       // And an explicit attempt to null it through the API is refused too.
+      // `as never` because the field's JSON Schema type forbids null — which is
+      // exactly the forged payload this is proving the server rejects.
       await payload.update({
         collection: 'events',
         id: event.id,
         overrideAccess: false,
         user: { ...eventManager, collection: 'managers' } as never,
-        data: { systemMeta: null } as Partial<Event>,
+        data: { systemMeta: null } as never,
       })
       fresh = await getEvent(payload, event.id)
       expect(fresh.systemMeta).toEqual({ communityFeedback: feedback })

@@ -32,6 +32,7 @@ export type { SchemaEntry, TranslationsSchema } from './translationsField'
 
 // Schedule fields - group of datetime, timezone, and RRULE sub-fields
 export { scheduleFields } from './scheduleFields'
+export { systemMetaField } from './systemMetaField'
 export type { ScheduleFieldsOptions } from './scheduleFields'
 
 // Address fields - group of postal-address sub-fields with country/region dropdowns

@@ -151,20 +151,43 @@ describe('buildStageTracker', () => {
     expect(steps.map((step) => step.key)).toEqual(['verified', 'reminders', 'expired'])
   })
 
-  it('unverified / denied: a single pre-adoption step, off the ladder', () => {
-    // No manager, no cycle: the tracker must not render the journey (whose
-    // projections would read as an active verification cycle).
-    for (const stage of ['unverified', 'denied'] as const) {
-      const { steps } = buildStageTracker({
-        log: [],
-        currentStage: stage,
-        nextCheckAt: null,
-        updatedAt: '2026-07-20T00:00:00.000Z',
-      })
-      expect(steps).toHaveLength(1)
-      expect(steps[0]).toMatchObject({ key: stage, status: 'current' })
-      expect(steps[0].caption).toContain('manager')
-    }
+  it('unverified: shows the whole pre-adoption journey and what adoption takes', () => {
+    const { steps } = buildStageTracker({
+      log: [],
+      currentStage: 'unverified',
+      nextCheckAt: null,
+      updatedAt: '2026-07-20T00:00:00.000Z',
+    })
+    expect(steps.map((step) => step.key)).toEqual(['unverified', 'denied', 'verified'])
+    expect(steps.map((step) => step.status)).toEqual(['current', 'upcoming', 'upcoming'])
+    // The destination step has to say what the manager must actually do.
+    expect(steps[2].caption).toContain('Assign a manager')
+    // Denial is a possibility, not a past event.
+    expect(steps[1].label).toBe('Could Be Denied')
+  })
+
+  it('denied: the same journey, one step further along', () => {
+    const { steps } = buildStageTracker({
+      log: [],
+      currentStage: 'denied',
+      nextCheckAt: null,
+      updatedAt: '2026-07-20T00:00:00.000Z',
+    })
+    expect(steps.map((step) => step.key)).toEqual(['unverified', 'denied', 'verified'])
+    expect(steps.map((step) => step.status)).toEqual(['done', 'current', 'upcoming'])
+    expect(steps[1].caption).toContain('unpublished')
+    // Only the stage the event actually sits at carries a date.
+    expect(steps[1].date).toBe('2026-07-20T00:00:00.000Z')
+    expect(steps[0].date).toBeNull()
+  })
+
+  it('a managed event never shows the pre-adoption steps', () => {
+    const { steps } = buildStageTracker({
+      log: [verification],
+      currentStage: 'verified',
+      nextCheckAt: '2026-07-01T00:00:00.000Z',
+    })
+    expect(steps.map((step) => step.key)).toEqual(['verified', 'reminders', 'expired'])
   })
 })
 

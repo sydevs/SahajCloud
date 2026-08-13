@@ -12,7 +12,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 
 import { SendPostEventFollowUps } from '@/jobs/RegistrationNotifications/SendPostEventFollowUps'
-import { readCommunityFeedback } from '@/lib/eventVerification/communityFeedback'
 import type { Event, Manager, Registration } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
@@ -187,7 +186,7 @@ describe('Event feedback (registrant voting)', () => {
       await voteAsClient(second, 'denied')
 
       const after = await reloadEvent(event.id)
-      const feedback = readCommunityFeedback(after.systemMeta)
+      const feedback = after.systemMeta?.communityFeedback
       expect(feedback).toMatchObject({ confirmations: 1, denials: 1 })
       expect(after.confidenceScore).toBeGreaterThan(0)
       expect(after.confidenceScore).toBeLessThan(1)
@@ -206,7 +205,7 @@ describe('Event feedback (registrant voting)', () => {
       const after = await reloadEvent(event.id)
       expect(after.verificationStage).toBe('denied')
       expect(after._status).toBe('draft')
-      expect(readCommunityFeedback(after.systemMeta)).toMatchObject({
+      expect(after.systemMeta?.communityFeedback).toMatchObject({
         confirmations: 0,
         denials: 5,
       })
@@ -235,7 +234,7 @@ describe('Event feedback (registrant voting)', () => {
       await voteAsClient(registration, 'confirmed')
 
       const after = await reloadEvent(event.id)
-      expect(readCommunityFeedback(after.systemMeta)).toMatchObject({
+      expect(after.systemMeta?.communityFeedback).toMatchObject({
         confirmations: 1,
         denials: 0,
       })

@@ -31,8 +31,6 @@ import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import type { Event } from '@/payload-types'
 
 
-const PAGINATION_LIMIT = 200
-
 interface ExpireResult {
   /** Due events examined. */
   processed: number
@@ -293,32 +291,25 @@ async function processEvent(args: {
 }
 
 /**
- * Collect the ids matching `where` up front (read-only → stable pagination;
- * processing mutates the rows, which would otherwise shift live pages).
+ * The ids of every event whose watermark has come due, in one query.
+ *
+ * Read-only and taken up front, because processing mutates the very column
+ * being filtered on — a live paginated walk would shift rows between pages.
+ * `pagination: false` is safe precisely because of the watermark: only rows
+ * with something to do sit in the past, so this result set is bounded by the
+ * day's work rather than by the size of the table.
  */
-async function collectIds(
-  payload: Payload,
-  req: PayloadRequest,
-  where: Parameters<Payload['find']>[0]['where'],
-): Promise<number[]> {
-  const ids: number[] = []
-  let page = 1
-  let hasNextPage = true
-  while (hasNextPage) {
-    const batch = await payload.find({
-      collection: 'events',
-      where,
-      depth: 0,
-      limit: PAGINATION_LIMIT,
-      page,
-      overrideAccess: true,
-      req,
-    })
-    ids.push(...batch.docs.map((doc) => doc.id))
-    hasNextPage = batch.hasNextPage
-    page++
-  }
-  return ids
+async function dueEventIds(payload: Payload, req: PayloadRequest, now: Date): Promise<number[]> {
+  const { docs } = await payload.find({
+    collection: 'events',
+    where: { nextCheckAt: { less_than_equal: now.toISOString() } },
+    depth: 0,
+    select: {},
+    pagination: false,
+    overrideAccess: true,
+    req,
+  })
+  return docs.map((doc) => doc.id)
 }
 
 /**
@@ -372,7 +363,6 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
   handler: async ({ req }) => {
     const payload = req.payload
     const now = new Date()
-    const nowIso = now.toISOString()
     const result: ExpireResult = {
       processed: 0,
       finished: 0,
@@ -382,7 +372,7 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
       failed: 0,
     }
 
-    const dueIds = await collectIds(payload, req, { nextCheckAt: { less_than_equal: nowIso } })
+    const dueIds = await dueEventIds(payload, req, now)
 
     req.payload.logger.info({ msg: 'ExpireEvents: starting', due: dueIds.length })
 
