@@ -42,14 +42,6 @@ export interface PublicUrlFieldsOptions {
    * so this stays an explicit per-collection choice rather than a runtime guess.
    */
   requirePublished?: boolean
-  /**
-   * Emit the `appUrl` field. Default `true`. Set `false` for a collection with
-   * no app deep-link at all (Events) so the API doesn't carry a field that can
-   * only ever read `null`. Deliberately explicit rather than inferred from an
-   * absent `app` base — Regions has no base either but keeps the field, and
-   * silently dropping a published field is not something to guess at.
-   */
-  hasAppUrl?: boolean
   /** Label for the collapsible the fields are grouped into. Default `Public Links`. */
   label?: string
 }
@@ -113,7 +105,6 @@ function virtualUrlField(name: string, hook: FieldHook): TextField {
  * - `webPath` — the raw path (no base).
  * - `webUrl` — the web path prefixed with the `web` base (null if `web` unset).
  * - `appUrl` — the app path prefixed with the `app` base (null if `app` unset).
- *   Omitted entirely when `hasAppUrl: false`.
  *
  * Fields are published-gated by default; pass `requirePublished: false` for
  * collections without `_status`.
@@ -137,15 +128,14 @@ export function publicUrlFields({
   buildPath,
   exposeWhen,
   requirePublished = true,
-  hasAppUrl = true,
   label = 'Public Links',
 }: PublicUrlFieldsOptions): Field[] {
   const config: HookConfig = { buildPath, exposeWhen, requirePublished }
   const fields: TextField[] = [
     virtualUrlField('webPath', computeHook('web', null, config)),
     virtualUrlField('webUrl', computeHook('web', web, config)),
+    virtualUrlField('appUrl', computeHook('app', app, config)),
   ]
-  if (hasAppUrl) fields.push(virtualUrlField('appUrl', computeHook('app', app, config)))
 
   return [{ label, type: 'collapsible', admin: { initCollapsed: true }, fields }]
 }

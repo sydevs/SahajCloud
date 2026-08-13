@@ -9,6 +9,11 @@ import {
   hasReminderForStage,
 } from '@/lib/eventVerification/log'
 import { addDays } from '@/lib/eventVerification/periods'
+import {
+  stageAction,
+  transitionUnpublishes,
+  unpublishDate,
+} from '@/lib/eventVerification/stages'
 import { signVerifyToken } from '@/lib/eventVerification/token'
 import { buildVerifyEmailLink } from '@/lib/eventVerification/verifyUrl'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
@@ -25,7 +30,6 @@ import {
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import type { Event } from '@/payload-types'
 
-import { stageAction, unpublishDate } from './stageMachine'
 
 const PAGINATION_LIMIT = 200
 
@@ -56,7 +60,7 @@ interface ExpireResult {
  *
  * The watermark moves to the retention deadline rather than null: `finished` is
  * a dwell state, not the end of the line — the event is trashed once its
- * retention window elapses (see the `finished` rule in the stage machine).
+ * retention window elapses (see the `finished` entry in `STAGES`).
  */
 async function finishEvent(payload: Payload, req: PayloadRequest, event: Event): Promise<void> {
   await payload.update({
@@ -157,7 +161,9 @@ async function processEvent(args: {
     return
   }
 
-  // Reminder stage. Dedup key = the current (from) stage.
+  // Reminder stage. Dedup key = the current (from) stage. Whether advancing
+  // unpublishes is derived from the stage it lands on — see the stage config.
+  const unpublishes = transitionUnpublishes(stage)
   const recipients = await resolveRecipients({
     payload,
     event,
@@ -198,7 +204,7 @@ async function processEvent(args: {
   // Public map link, but only while the event stays published: the in-memory
   // event still reads `published` during the unpublishing (expired) transition,
   // so suppress the link there — the page is about to disappear.
-  const eventUrl = action.unpublish ? null : (event.webUrl ?? null)
+  const eventUrl = unpublishes ? null : (event.webUrl ?? null)
   const eventManagerCard =
     typeof event.manager === 'object' && event.manager
       ? buildManagerContacts(event.manager)
@@ -276,7 +282,7 @@ async function processEvent(args: {
       data: {
         verificationStage: action.nextStage,
         nextCheckAt: nextCheckAtIso,
-        ...(action.unpublish ? { _status: 'draft' } : {}),
+        ...(unpublishes ? { _status: 'draft' } : {}),
       },
       context: { skipVerifyHook: true },
       overrideAccess: true,
@@ -318,7 +324,7 @@ async function collectIds(
 /**
  * Daily verification sweep. Every lifecycle transition an event can make is
  * driven by one query — `nextCheckAt <= now` — and decided by the stage machine
- * (`./stageMachine`): ages a managed event one step along
+ * (`@/lib/eventVerification/stages`): ages a managed event one step along
  * `verified → reminded → escalated → urgent → expired` (then trashes it), marks
  * any event `finished` when its schedule has run out, and trashes a finished
  * event once its retention window elapses. Single-threaded on the `nightly`
