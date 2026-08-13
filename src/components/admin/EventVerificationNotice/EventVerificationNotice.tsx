@@ -10,8 +10,8 @@ import {
 } from '@payloadcms/ui'
 import React from 'react'
 
-import { readCommunityFeedback } from '@/lib/eventVerification/communityFeedback'
 import type { VerificationStage } from '@/lib/eventVerification/stages'
+import type { Event } from '@/payload-types'
 
 
 type Severity = 'warning' | 'error' | 'info'
@@ -111,16 +111,20 @@ const EventVerificationNotice: React.FC = () => {
     ([fields]) => fields?.verificationStage?.value as VerificationStage | undefined,
   )
   const nextCheckAt = useFormFields(([fields]) => fields?.nextCheckAt?.value as string | undefined)
-  const systemMeta = useFormFields(([fields]) => fields?.systemMeta?.value)
+  // Typed by the field's JSON Schema (see `systemMetaField`), so no runtime
+  // shape-check is needed — Payload validates it on the way in.
+  const systemMeta = useFormFields(
+    ([fields]) => fields?.systemMeta?.value as Event['systemMeta'] | undefined,
+  )
 
   const notice = stage ? NOTICES[stage] : undefined
   // No banner for verified events or unsaved (no id) documents.
   if (!id || !notice) return null
 
-  const feedback = readCommunityFeedback(systemMeta)
+  const { confirmations = 0, denials = 0 } = systemMeta?.communityFeedback ?? {}
   const votes =
-    feedback && feedback.confirmations + feedback.denials > 0
-      ? ` — ${feedback.confirmations} attendee${feedback.confirmations === 1 ? '' : 's'} confirmed it, ${feedback.denials} denied it`
+    confirmations + denials > 0
+      ? ` — ${confirmations} attendee${confirmations === 1 ? '' : 's'} confirmed it, ${denials} denied it`
       : ''
 
   const Icon = SEVERITY_ICON[notice.severity]
