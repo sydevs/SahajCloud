@@ -8,9 +8,10 @@ import {
   buildReminderEntry,
   hasReminderForStage,
 } from '@/lib/eventVerification/log'
-import { addDays, resolveNextCheckAt } from '@/lib/eventVerification/periods'
+import { addDays } from '@/lib/eventVerification/periods'
 import { signVerifyToken } from '@/lib/eventVerification/token'
 import { buildVerifyEmailLink } from '@/lib/eventVerification/verifyUrl'
+import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import {
   buildEventEmailDetails,
   buildEventListingProgress,
@@ -24,7 +25,7 @@ import {
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import type { Event } from '@/payload-types'
 
-import { stageRule, unpublishDate } from './stageMachine'
+import { stageAction, unpublishDate } from './stageMachine'
 
 const PAGINATION_LIMIT = 200
 
@@ -93,8 +94,8 @@ async function trashEvent(
 }
 
 /**
- * Process one due event, per its rule in the stage machine: the finished-check
- * first (where the stage allows it), then the rule's own action.
+ * Process one due event: the finished-check first, then the action the stage
+ * machine assigns to its stage.
  *
  * For a reminder stage, sends only to recipients not already logged for that
  * stage this cycle, persisting each successful send immediately (so a crash
@@ -111,19 +112,19 @@ async function processEvent(args: {
 }): Promise<void> {
   const { payload, req, event, now, result } = args
   const stage = event.verificationStage
-  const rule = stageRule(stage)
 
-  // Finished-check first — it supersedes every other action. Skipped for an
-  // event that is already `finished`, whose due-ness means its retention
-  // window elapsed: re-finishing it would push that window out again and it
-  // would never be trashed.
-  if (rule.finishesOnRunOut && shouldFinish(event, now)) {
+  // Finished-check first — it supersedes every other action. Finishing is a
+  // transition *into* `finished`, so it can't apply to an event already there —
+  // and mustn't: such an event is due precisely because its retention window
+  // elapsed, so re-finishing it would push that window out another 6 months,
+  // every night, and it would never be trashed at all.
+  if (stage !== 'finished' && shouldFinish(event, now)) {
     await finishEvent(payload, req, event)
     result.finished++
     return
   }
 
-  const action = rule.onDue
+  const action = stageAction(stage)
 
   // Terminal: the expired grace period elapsed, or a finished event outlived
   // its retention window. No email either way. The doc is then excluded from
