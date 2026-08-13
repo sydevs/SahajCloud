@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   computeCommunityVerdict,
   DENIAL_MINIMUM,
-  readCommunityFeedback,
+  communityFeedbackJsonSchema,
   WILSON_UPPER_BOUND_THRESHOLD,
 } from '@/lib/eventVerification/communityFeedback'
 
@@ -40,19 +40,19 @@ describe('computeCommunityVerdict', () => {
   })
 })
 
-describe('readCommunityFeedback', () => {
-  it('round-trips the shape the sync hook writes', () => {
-    expect(
-      readCommunityFeedback({
-        communityFeedback: { confirmations: 3, denials: 1, updatedAt: '2026-08-11T00:00:00Z' },
-        otherNamespace: { anything: true },
-      }),
-    ).toEqual({ confirmations: 3, denials: 1, updatedAt: '2026-08-11T00:00:00Z' })
+describe('communityFeedbackJsonSchema', () => {
+  // The schema replaced a runtime reader: Payload generates the field's type
+  // from it AND validates writes against it, so the shape is guaranteed on the
+  // way in rather than defensively re-checked on the way out.
+  it('declares exactly the three keys the sync hook writes', () => {
+    expect(Object.keys(communityFeedbackJsonSchema.properties ?? {}).sort()).toEqual([
+      'confirmations',
+      'denials',
+      'updatedAt',
+    ])
   })
 
-  it('returns null for absent or malformed metadata', () => {
-    expect(readCommunityFeedback(null)).toBeNull()
-    expect(readCommunityFeedback({})).toBeNull()
-    expect(readCommunityFeedback({ communityFeedback: { confirmations: 'many' } })).toBeNull()
+  it('is closed, so an unknown namespace key fails validation on write', () => {
+    expect(communityFeedbackJsonSchema.additionalProperties).toBe(false)
   })
 })
