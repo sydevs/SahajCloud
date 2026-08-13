@@ -47,22 +47,6 @@ export type StageAction =
    */
   | { kind: 'await-schedule' }
 
-export interface StageRule {
-  /** What to do when the event is due. */
-  onDue: StageAction
-  /**
-   * Whether a run-out schedule finishes this event, checked *before* `onDue`.
-   *
-   * True everywhere except `finished` itself — and that exception is
-   * load-bearing. A finished event's watermark is its retention deadline, so
-   * it comes due precisely when it should be trashed; if the finish-check ran
-   * on it, `shouldFinish` would still be true (its schedule did run out), it
-   * would be re-finished, its retention would be pushed another 6 months, and
-   * it would never be trashed at all.
-   */
-  finishesOnRunOut: boolean
-}
-
 /**
  * The verification state machine, keyed by stage.
  *
@@ -77,72 +61,60 @@ export interface StageRule {
  * looped in from `escalated` onward. The dedup key for a stage's sends is the
  * *current* (from) stage, so advancing never re-sends.
  */
-const MACHINE: Record<VerificationStage, StageRule> = {
+const MACHINE: Record<VerificationStage, StageAction> = {
   // Pre-adoption: no manager, no cadence. Finishes when its schedule runs out;
   // adoption (assigning a manager) is the only other way out, and that happens
   // on save, not here.
-  unverified: { onDue: { kind: 'await-schedule' }, finishesOnRunOut: true },
-  denied: { onDue: { kind: 'await-schedule' }, finishesOnRunOut: true },
+  unverified: { kind: 'await-schedule' },
+  denied: { kind: 'await-schedule' },
 
   verified: {
-    onDue: {
-      kind: 'remind',
-      level: 'due',
-      includeRegion: false,
-      nextStage: 'reminded',
-      offsetDays: STAGE_DURATION_DAYS.verified,
-      unpublish: false,
-    },
-    finishesOnRunOut: true,
+    kind: 'remind',
+    level: 'due',
+    includeRegion: false,
+    nextStage: 'reminded',
+    offsetDays: STAGE_DURATION_DAYS.verified,
+    unpublish: false,
   },
   reminded: {
-    onDue: {
-      kind: 'remind',
-      level: 'escalated',
-      includeRegion: true,
-      nextStage: 'escalated',
-      offsetDays: STAGE_DURATION_DAYS.reminded,
-      unpublish: false,
-    },
-    finishesOnRunOut: true,
+    kind: 'remind',
+    level: 'escalated',
+    includeRegion: true,
+    nextStage: 'escalated',
+    offsetDays: STAGE_DURATION_DAYS.reminded,
+    unpublish: false,
   },
   escalated: {
-    onDue: {
-      kind: 'remind',
-      level: 'urgent',
-      includeRegion: true,
-      nextStage: 'urgent',
-      offsetDays: STAGE_DURATION_DAYS.escalated,
-      unpublish: false,
-    },
-    finishesOnRunOut: true,
+    kind: 'remind',
+    level: 'urgent',
+    includeRegion: true,
+    nextStage: 'urgent',
+    offsetDays: STAGE_DURATION_DAYS.escalated,
+    unpublish: false,
   },
   urgent: {
-    onDue: {
-      kind: 'remind',
-      level: 'expired',
-      includeRegion: true,
-      nextStage: 'expired',
-      offsetDays: STAGE_DURATION_DAYS.urgent,
-      unpublish: true,
-    },
-    finishesOnRunOut: true,
+    kind: 'remind',
+    level: 'expired',
+    includeRegion: true,
+    nextStage: 'expired',
+    offsetDays: STAGE_DURATION_DAYS.urgent,
+    unpublish: true,
   },
 
   // Terminals: the expired grace period elapsed, or a finished event outlived
   // its retention window. Neither sends an email.
-  expired: { onDue: { kind: 'trash' }, finishesOnRunOut: true },
-  finished: { onDue: { kind: 'trash' }, finishesOnRunOut: false },
+  expired: { kind: 'trash' },
+  finished: { kind: 'trash' },
 }
 
-/** The rule for a stage. Falls back to a no-op for an unrecognised value. */
-export function stageRule(stage: VerificationStage): StageRule {
-  return MACHINE[stage] ?? { onDue: { kind: 'await-schedule' }, finishesOnRunOut: true }
+/** What to do with a due event at this stage. No-op fallback for an unrecognised value. */
+export function stageAction(stage: VerificationStage): StageAction {
+  return MACHINE[stage] ?? { kind: 'await-schedule' }
 }
 
 /** Every stage that sends reminders, in ladder order — the escalation path. */
 const LADDER: VerificationStage[] = VERIFICATION_STAGES.filter(
-  (stage) => MACHINE[stage].onDue.kind === 'remind',
+  (stage) => MACHINE[stage].kind === 'remind',
 )
 
 /**
@@ -160,7 +132,7 @@ export function daysUntilUnpublish(stage: VerificationStage): number {
   const seen = new Set<VerificationStage>()
   while (!seen.has(current)) {
     seen.add(current)
-    const action = MACHINE[current]?.onDue
+    const action = MACHINE[current]
     if (action?.kind !== 'remind') break
     if (action.unpublish) break // processing this stage unpublishes — no further wait
     total += action.offsetDays

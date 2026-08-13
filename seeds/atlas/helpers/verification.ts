@@ -13,11 +13,8 @@
  */
 import type { ActorRef, VerificationLogEntry } from '@/lib/eventVerification/log'
 import { buildVerificationEntry } from '@/lib/eventVerification/log'
-import {
-  addDays,
-  resolveNextCheckAt,
-  verificationPeriodDays,
-} from '@/lib/eventVerification/periods'
+import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
+import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import type { EventScheduleInput } from '@/types/schedule'
 
 /** The only two stages the Atlas dump's status (0, 6) maps to. */
