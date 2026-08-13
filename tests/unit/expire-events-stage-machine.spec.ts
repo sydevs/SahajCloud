@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { daysUntilUnpublish, stageRule, unpublishDate } from '@/jobs/ExpireEvents/stageMachine'
+import { daysUntilUnpublish, stageAction, unpublishDate } from '@/jobs/ExpireEvents/stageMachine'
 import { VERIFICATION_STAGES } from '@/lib/eventVerification/stages'
 
 const NOW = new Date('2026-06-11T02:00:00.000Z')
 
 describe('nextStageTransition', () => {
   it('verified → reminded (due, manager only, +1wk, stays published)', () => {
-    expect(stageRule('verified').onDue).toMatchObject({
+    expect(stageAction('verified')).toMatchObject({
       level: 'due',
       includeRegion: false,
       nextStage: 'reminded',
@@ -17,7 +17,7 @@ describe('nextStageTransition', () => {
   })
 
   it('reminded → escalated (adds region, +1wk)', () => {
-    expect(stageRule('reminded').onDue).toMatchObject({
+    expect(stageAction('reminded')).toMatchObject({
       level: 'escalated',
       includeRegion: true,
       nextStage: 'escalated',
@@ -27,7 +27,7 @@ describe('nextStageTransition', () => {
   })
 
   it('escalated → urgent (final reminder, region, +1wk, still published)', () => {
-    expect(stageRule('escalated').onDue).toMatchObject({
+    expect(stageAction('escalated')).toMatchObject({
       level: 'urgent',
       includeRegion: true,
       nextStage: 'urgent',
@@ -37,7 +37,7 @@ describe('nextStageTransition', () => {
   })
 
   it('urgent → expired (region, +2wk, unpublishes)', () => {
-    expect(stageRule('urgent').onDue).toMatchObject({
+    expect(stageAction('urgent')).toMatchObject({
       level: 'expired',
       includeRegion: true,
       nextStage: 'expired',
@@ -47,35 +47,30 @@ describe('nextStageTransition', () => {
   })
 
   it('expired → trash (terminal, no email)', () => {
-    expect(stageRule('expired').onDue).toEqual({ kind: 'trash' })
+    expect(stageAction('expired')).toEqual({ kind: 'trash' })
   })
 
   it('finished → trash once its retention window elapses', () => {
-    expect(stageRule('finished').onDue).toEqual({ kind: 'trash' })
+    expect(stageAction('finished')).toEqual({ kind: 'trash' })
   })
 
-  it('never re-runs the finished-check on an already-finished event', () => {
-    // Load-bearing: a due `finished` event is due *because* its retention
-    // elapsed. Re-finishing it would push the retention out another 6 months
-    // and it would never be trashed at all.
-    expect(stageRule('finished').finishesOnRunOut).toBe(false)
-    for (const stage of VERIFICATION_STAGES.filter((s) => s !== 'finished')) {
-      expect(stageRule(stage).finishesOnRunOut).toBe(true)
-    }
-  })
+  // "An already-finished event is never re-finished" used to be a flag on the
+  // table; it's now a guard in the job (finishing is a transition *into*
+  // `finished`), covered end-to-end by the retention case in
+  // tests/int/expire-events.int.spec.ts.
 
   it('pre-adoption stages only wait on their schedule', () => {
     // No manager means no cadence: the sole transition is finishing when the
     // schedule runs out, which the finish-check performs before this action.
-    expect(stageRule('unverified').onDue).toEqual({ kind: 'await-schedule' })
-    expect(stageRule('denied').onDue).toEqual({ kind: 'await-schedule' })
+    expect(stageAction('unverified')).toEqual({ kind: 'await-schedule' })
+    expect(stageAction('denied')).toEqual({ kind: 'await-schedule' })
   })
 
   it('defines a rule for every stage', () => {
     // The machine is an exhaustive Record, so this can only fail if a stage is
     // added without deciding what the nightly job does with it.
     for (const stage of VERIFICATION_STAGES) {
-      expect(stageRule(stage).onDue.kind).toBeTruthy()
+      expect(stageAction(stage).kind).toBeTruthy()
     }
   })
 })
