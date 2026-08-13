@@ -378,19 +378,28 @@ describe('Event verification lifecycle', () => {
 
     const mailTo = (address: string) => sent.filter((email) => email.to.includes(address))
 
-    /** Run one reminder cycle for `event` and return the manager's email. */
-    async function remindOnce(eventId: number): Promise<string> {
+    /**
+     * Run one reminder cycle for `event` and return the manager's email for it.
+     *
+     * Selected by title, not by taking the first message: every event in this
+     * spec shares one manager address, and the job processes *every* due event
+     * in the suite's database — so a second reminder landing in the same run
+     * would otherwise be picked up here at random.
+     */
+    async function remindOnce(eventId: number, title: string): Promise<string> {
       sent.length = 0
       await makeDue(payload, eventId)
       await runJob(payload)
-      const [email] = mailTo('event-manager@example.com')
+      const email = mailTo('event-manager@example.com').find((message) =>
+        message.html.includes(title),
+      )
       expect(email).toBeDefined()
-      return email.html
+      return email!.html
     }
 
     it('tells a thin listing what to improve, in the registry’s own words', async () => {
       const event = await createEvent({ title: 'Sparse Listing' })
-      const html = await remindOnce(event.id)
+      const html = await remindOnce(event.id, 'Sparse Listing')
 
       // Straight from `EVENT_QUALITY_COPY` — no description, no photos.
       expect(html).toContain('Add a description')
@@ -434,7 +443,7 @@ describe('Event verification lifecycle', () => {
         } as never,
       })
 
-      const html = await remindOnce(event.id)
+      const html = await remindOnce(event.id, 'Evening Sitting for Night-Shift Nurses')
       expect(html).toContain('Your listing is complete')
       // The ticks name what passed; the bar is dropped once there's no
       // progress left to show, so the caption goes with it.
@@ -460,7 +469,7 @@ describe('Event verification lifecycle', () => {
         overrideAccess: true,
       })
 
-      const html = await remindOnce(event.id)
+      const html = await remindOnce(event.id, 'Hidden Listing')
       // Nothing at all — not even the celebration a complete listing earns.
       // Keyed on the progress caption rather than a heading string: a
       // reworded heading would turn this into a vacuous pass.
@@ -473,7 +482,7 @@ describe('Event verification lifecycle', () => {
       // via `notificationLog`. If the progress section had perturbed that key, every
       // manager would be re-sent every reminder they'd already had.
       const event = await createEvent({ title: 'Dedup Listing' })
-      await remindOnce(event.id)
+      await remindOnce(event.id, 'Dedup Listing')
       expect(mailTo('event-manager@example.com')).toHaveLength(1)
 
       // Rewind to the stage just sent for, and make it due again — the log

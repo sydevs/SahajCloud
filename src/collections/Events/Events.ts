@@ -43,8 +43,7 @@ import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuali
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { syncEventFullness } from './hooks/syncFullness'
-import { syncUnmanagedCheckAt } from './hooks/syncUnmanagedCheckAt'
-import { verifyOnSave } from './hooks/verifyOnSave'
+import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
 
@@ -123,13 +122,11 @@ export const Events: CollectionConfig = {
     // Then drop finished events from API-client list reads (they stay published
     // so their pages resolve, but shouldn't be listed) — see excludeFinishedEvents.
     beforeOperation: [ensureWebPathDeps, excludeFinishedEvents],
-    // verifyOnSave first (re-opens the verification cycle), then
-    // syncUnmanagedCheckAt — which must see the stage the save lands on, so an
-    // adoption that just moved the event to `verified` is left alone. Then the
-    // two stamping hooks: `syncEventFullness` writes `registrationsFull`, and
-    // `stampEventQuality`'s skip rules read `verificationStage`, so both also
-    // need the final stage.
-    beforeChange: [verifyOnSave, syncUnmanagedCheckAt, syncEventFullness, stampEventQuality],
+    // syncVerificationOnSave first — it decides the stage this save lands on
+    // (verify, or just re-arm the pre-adoption watermark). Both stamping hooks
+    // must run after it: `syncEventFullness` writes `registrationsFull`, and
+    // `stampEventQuality`'s skip rules read `verificationStage`.
+    beforeChange: [syncVerificationOnSave, syncEventFullness, stampEventQuality],
     // Bust the Atlas manager sidebar cache (event list + region counts) whenever
     // an event changes or is trashed/restored.
     afterChange: [revalidateAtlasSidebarHook],
@@ -487,7 +484,7 @@ export const Events: CollectionConfig = {
               // stages (`unverified` / `denied`) have no manager by definition,
               // and the field must stay *visible* there — assigning a manager
               // and saving is exactly how those events are adopted (the
-              // verifyOnSave hook then flips the stage to `verified`). Every
+              // save hook then flips the stage to `verified`). Every
               // ladder stage still demands one: verified implies managed.
               // `finished` is also exempt — the stale sweep finishes run-out
               // unverified events that never got adopted, and a terminal stage
