@@ -1,68 +1,113 @@
 import { asNotificationLog } from '@/lib/eventVerification/log'
 import {
+  isPreAdoptionStage,
+  LADDER,
   STAGE_DURATION_DAYS,
-  VERIFICATION_STAGES,
   type VerificationStage,
 } from '@/lib/eventVerification/stages'
 
 /**
- * Stages rendered as a standalone step instead of the escalation journey:
- * `finished` (terminal), and the pre-adoption pair `unverified` / `denied`
- * (no manager, no `nextCheckAt` — the ladder hasn't started).
+ * View model for the verification tracker: which steps to draw for an event,
+ * what each one says, and the date to put against it.
+ *
+ * The tracker shows the **journey the event is on**, not a fixed list of
+ * stages. There are three, and every stage belongs to exactly one:
+ *
+ * - **pre-adoption** (`unverified` → `denied` → `verified`) — a submitted or
+ *   imported listing, what could take it down, and what it takes to adopt it.
+ * - **managed** (`verified` → reminders → `expired`) — the re-verification
+ *   cycle a manager owns.
+ * - **finished** — a single terminal step; its schedule has run out.
+ *
+ * Three reminder stages collapse into one "Reminders" step because a manager
+ * doesn't care which of the three reminders was last sent — only that the
+ * event is being chased. That collapse is the *only* thing this file knows
+ * that the stage config doesn't; everything else (which stages are
+ * pre-adoption, the ladder order, each stage's dwell time) is imported from
+ * `@/lib/eventVerification/stages` so the two can't drift.
  */
-const OFF_LADDER = ['unverified', 'denied', 'finished'] as const
-type OffLadderStage = (typeof OFF_LADDER)[number]
 
-function isOffLadder(stage: VerificationStage): stage is OffLadderStage {
-  return (OFF_LADDER as readonly string[]).includes(stage)
-}
-
-/**
- * Internal 5-stage journey, used only for date math. The UI collapses the three
- * reminder stages into one "Reminders" step (see STEP_ORDER).
- */
-const JOURNEY = VERIFICATION_STAGES.filter((stage) => !isOffLadder(stage)) as Exclude<
-  VerificationStage,
-  OffLadderStage
->[] // verified · reminded · escalated · urgent · expired
-
-const EXPIRED_INDEX = JOURNEY.indexOf('expired')
 const DAY_MS = 24 * 60 * 60 * 1000
 
-/** Off-ladder stages are rendered as a standalone step, not part of the journey. */
-export type StepKey = 'verified' | 'reminders' | 'expired' | OffLadderStage
-type JourneyKey = Exclude<StepKey, OffLadderStage>
+export type StepKey = 'unverified' | 'denied' | 'verified' | 'reminders' | 'expired' | 'finished'
 export type StepStatus = 'done' | 'current' | 'upcoming'
 
-const STEP_ORDER: JourneyKey[] = ['verified', 'reminders', 'expired']
+/** The step each stage renders as. Exhaustive: a new stage is a compile error. */
+const STAGE_STEP: Record<VerificationStage, StepKey> = {
+  unverified: 'unverified',
+  denied: 'denied',
+  verified: 'verified',
+  reminded: 'reminders',
+  escalated: 'reminders',
+  urgent: 'reminders',
+  expired: 'expired',
+  finished: 'finished',
+}
+
+const PRE_ADOPTION_STEPS: StepKey[] = ['unverified', 'denied', 'verified']
+const MANAGED_STEPS: StepKey[] = ['verified', 'reminders', 'expired']
+
+/** The steps to draw for an event at this stage. */
+function journeyFor(stage: VerificationStage | null | undefined): StepKey[] {
+  if (stage && isPreAdoptionStage(stage)) return PRE_ADOPTION_STEPS
+  if (stage === 'finished') return ['finished']
+  return MANAGED_STEPS
+}
 
 interface StepCopy {
   label: string
   caption: string
 }
 
-const UNVERIFIED_COPY: StepCopy = {
-  label: 'Unverified',
-  caption:
-    'Submitted or imported without a manager. Assign a manager and save to adopt it — verification starts from there.',
-}
-
-const DENIED_COPY: StepCopy = {
-  label: 'Denied',
-  caption:
-    'Attendees reported this event doesn’t take place, so it was unpublished. Assign a manager to adopt, correct, and republish it.',
-}
-
 /**
  * Label + one-line caption for every step, tensed by status — `done` reads in
- * the past, `current` in the present, `upcoming` in the future. The component
- * looks up `STEP_COPY[key][status]`; `finished` is rendered as `current`.
+ * the past, `current` in the present, `upcoming` in the future.
+ *
+ * `verified.upcoming` is written for the pre-adoption journey, where it's the
+ * destination and the reader needs to know what *they* must do to get there.
+ * It can't collide with the managed journey, where `verified` is the first
+ * step and so is never `upcoming`.
  */
 const STEP_COPY: Record<StepKey, Record<StepStatus, StepCopy>> = {
+  unverified: {
+    done: {
+      label: 'Submitted',
+      caption: 'Was listed unverified until a manager took it on.',
+    },
+    current: {
+      label: 'Unverified',
+      caption:
+        'Listed from an import or a public submission, and shown on the map as unverified. Attendees who register can confirm or deny that it really happens.',
+    },
+    upcoming: {
+      label: 'Unverified',
+      caption: 'Would be listed as unverified until a manager takes it on.',
+    },
+  },
+  denied: {
+    done: {
+      label: 'Was Denied',
+      caption: 'Attendees reported this event doesn’t exist, and it was restored afterwards.',
+    },
+    current: {
+      label: 'Denied',
+      caption:
+        'Enough attendees reported this event doesn’t exist, so it was unpublished automatically. Assigning a manager restores it.',
+    },
+    upcoming: {
+      label: 'Could Be Denied',
+      caption:
+        'If enough registered attendees report that this event doesn’t exist, it’s unpublished automatically.',
+    },
+  },
   verified: {
     done: { label: 'Last Verified', caption: 'Was confirmed accurate and publicly listed.' },
     current: { label: 'Last Verified', caption: 'Confirmed accurate and publicly listed.' },
-    upcoming: { label: 'Verification', caption: 'Will be confirmed accurate and publicly listed.' },
+    upcoming: {
+      label: 'Verified',
+      caption:
+        'Assign a manager and save to adopt this event. That verifies it and starts the regular re-verification cycle.',
+    },
   },
   reminders: {
     done: {
@@ -108,18 +153,6 @@ const STEP_COPY: Record<StepKey, Record<StepStatus, StepCopy>> = {
       caption: 'Will no longer be publicly listed once its schedule ends.',
     },
   },
-  // The two pre-adoption stages are always rendered as `current` — the copy
-  // for the other statuses exists only to satisfy the Record shape.
-  unverified: {
-    done: UNVERIFIED_COPY,
-    current: UNVERIFIED_COPY,
-    upcoming: UNVERIFIED_COPY,
-  },
-  denied: {
-    done: DENIED_COPY,
-    current: DENIED_COPY,
-    upcoming: DENIED_COPY,
-  },
 }
 
 export interface TrackerStep {
@@ -138,14 +171,6 @@ export interface StageTracker {
 }
 
 type Log = ReturnType<typeof asNotificationLog>
-
-/** Which display step a raw stage belongs to (`null` for finished/unknown). */
-function stepForStage(stage: VerificationStage | null | undefined): JourneyKey | null {
-  if (stage === 'verified') return 'verified'
-  if (stage === 'reminded' || stage === 'escalated' || stage === 'urgent') return 'reminders'
-  if (stage === 'expired') return 'expired'
-  return null
-}
 
 /**
  * Whether the schedule runs out at or before the next scheduled check — i.e.
@@ -177,134 +202,131 @@ function advancedFrom(log: Log, fromStage: string): string | null {
 }
 
 /**
- * Projected date the event reaches `expired`: `nextCheckAt` (the current stage's
- * next advance) plus the durations of the stages between the next one and
- * expired. Null when already expired or no `nextCheckAt`.
+ * Projected date the event reaches `expired`: `nextCheckAt` (the current
+ * stage's next advance) plus the dwell time of every ladder stage between the
+ * next one and the end. Null when the stage is off the ladder or there's no
+ * `nextCheckAt` to count from.
  */
 function projectedExpiry(
   stage: VerificationStage,
   nextCheckAt: string | null | undefined,
 ): string | null {
   if (!nextCheckAt) return null
-  const from = JOURNEY.indexOf(stage as Exclude<VerificationStage, OffLadderStage>)
-  if (from < 0 || from >= EXPIRED_INDEX) return null
+  const from = LADDER.indexOf(stage)
+  if (from < 0) return null
   let ms = new Date(nextCheckAt).getTime()
   if (Number.isNaN(ms)) return null
-  // j never reaches EXPIRED_INDEX, so JOURNEY[j] is always a duration-bearing stage.
-  for (let j = from + 1; j < EXPIRED_INDEX; j++)
-    ms += (STAGE_DURATION_DAYS[JOURNEY[j] as keyof typeof STAGE_DURATION_DAYS] ?? 0) * DAY_MS
+  for (let j = from + 1; j < LADDER.length; j++)
+    ms += (STAGE_DURATION_DAYS[LADDER[j]] ?? 0) * DAY_MS
   return new Date(ms).toISOString()
 }
 
 /**
- * Build the 3-step verification tracker for an event's current cycle. Verified
- * shows the last-verified date; Reminders (while current) shows the next reminder
- * date; Expired shows the unpublish date — actual once reached, else a projected
- * estimate. `finished` is flagged separately (off the escalation path).
+ * Build the tracker for an event's current position in its lifecycle.
+ *
+ * On the managed journey: Verified shows the last-verified date; Reminders
+ * (while current) shows the next reminder date; Expired shows the unpublish
+ * date — actual once reached, else projected.
  */
 export function buildStageTracker(args: {
   log: unknown
   currentStage: VerificationStage | null | undefined
   nextCheckAt: string | null | undefined
-  /** The event's `updatedAt` — used as the "Finished" date. */
+  /** The event's `updatedAt` — the date shown on a pre-adoption or finished step. */
   updatedAt?: string | null
-  /** End of the schedule's final occurrence (`schedule.lastDate`), when it ends. */
+  /** Derived end of the final occurrence, from `schedule.lastDate`. */
   scheduleEnd?: string | null
 }): StageTracker {
   const log = asNotificationLog(args.log)
   const { currentStage, nextCheckAt, updatedAt, scheduleEnd } = args
 
-  // Off-ladder stages (finished / unverified / denied) sit outside the
-  // escalation path: a single step rather than the full journey.
-  if (currentStage && isOffLadder(currentStage)) {
-    return {
-      steps: [
-        {
-          key: currentStage,
-          label: STEP_COPY[currentStage].current.label,
-          caption: STEP_COPY[currentStage].current.caption,
-          status: 'current',
-          date: updatedAt ?? null,
-        },
-      ],
-    }
-  }
-
-  const currentKey = stepForStage(currentStage)
-  const currentIndex = currentKey ? STEP_ORDER.indexOf(currentKey) : -1
+  const steps = journeyFor(currentStage)
+  const currentKey = currentStage ? STAGE_STEP[currentStage] : null
+  const currentIndex = currentKey ? steps.indexOf(currentKey) : -1
   const verifiedDate = verificationAt(log)
   const expiredActual = advancedFrom(log, 'urgent') // when it entered `expired`
 
-  // The event's schedule runs out before its next check is due, so the
-  // reminder ladder never gets there: `nextCheckAt` is the finish date, not a
-  // reminder date (see `resolveNextCheckAt` — the watermark is capped by the
-  // schedule's end). Showing the ladder here would label a finish date as a
-  // reminder and project an expiry that will never happen.
-  if (finishesBeforeNextCheck(scheduleEnd, nextCheckAt)) {
-    return {
-      steps: [
-        {
-          key: 'verified',
-          label: STEP_COPY.verified[currentIndex === 0 ? 'current' : 'done'].label,
-          caption: STEP_COPY.verified[currentIndex === 0 ? 'current' : 'done'].caption,
-          status: currentIndex === 0 ? 'current' : 'done',
-          date: verifiedDate,
-        },
-        {
-          key: 'finished',
-          label: STEP_COPY.finished.upcoming.label,
-          caption: STEP_COPY.finished.upcoming.caption,
-          status: 'upcoming',
-          date: scheduleEnd ?? null,
-          datePrefix: 'on',
-        },
-      ],
-    }
+  // The schedule runs out before the next check is due, so the ladder never
+  // gets there: `nextCheckAt` is the finish date, not a reminder date (see
+  // `resolveNextCheckAt` — the watermark is capped by the schedule's end).
+  // Drawing the ladder would label a finish date as a reminder and project an
+  // expiry that will never happen.
+  const finishesFirst = steps === MANAGED_STEPS && finishesBeforeNextCheck(scheduleEnd, nextCheckAt)
+
+  const layout: StepKey[] = finishesFirst ? ['verified', 'finished'] : steps
+
+  return {
+    steps: layout.map((key, index) => {
+      let status: StepStatus
+      if (finishesFirst) {
+        status = key === 'verified' ? (currentIndex === 0 ? 'current' : 'done') : 'upcoming'
+      } else if (currentIndex < 0) status = 'upcoming'
+      else if (index < currentIndex) status = 'done'
+      else if (index === currentIndex) status = 'current'
+      else status = 'upcoming'
+
+      const copy = STEP_COPY[key][status]
+      const { date, datePrefix } = stepDate({
+        key,
+        status,
+        currentStage,
+        nextCheckAt,
+        updatedAt,
+        scheduleEnd,
+        verifiedDate,
+        expiredActual,
+        finishesFirst,
+      })
+      return { key, label: copy.label, caption: copy.caption, status, date, datePrefix }
+    }),
   }
+}
 
-  const steps: TrackerStep[] = STEP_ORDER.map((key, index) => {
-    let status: StepStatus
-    if (currentIndex < 0) status = 'upcoming'
-    else if (index < currentIndex) status = 'done'
-    else if (index === currentIndex) status = 'current'
-    else status = 'upcoming'
+/** The date (and its qualifier) shown against one step. */
+function stepDate(args: {
+  key: StepKey
+  status: StepStatus
+  currentStage: VerificationStage | null | undefined
+  nextCheckAt: string | null | undefined
+  updatedAt?: string | null
+  scheduleEnd?: string | null
+  verifiedDate: string | null
+  expiredActual: string | null
+  finishesFirst: boolean
+}): { date: string | null; datePrefix?: string } {
+  const { key, status, currentStage, nextCheckAt, verifiedDate, expiredActual } = args
 
-    let date: string | null = null
-    let datePrefix: string | undefined
+  switch (key) {
+    case 'verified':
+      return { date: verifiedDate }
 
-    if (key === 'verified') {
-      date = verifiedDate
-    } else if (key === 'reminders') {
-      if (status === 'current') {
-        date = nextCheckAt ?? null
-        datePrefix = 'next reminder on'
-      } else if (status === 'upcoming') {
-        // While verified: when this event will first need re-verification.
-        date = nextCheckAt ?? null
-        datePrefix = 'on'
-      }
-    } else if (status === 'current' && expiredActual) {
-      // already expired — the actual unpublish date
-      date = expiredActual
-      datePrefix = 'on'
-    } else if (currentStage) {
-      // not yet expired — the projected date if it isn't re-verified first
-      date = projectedExpiry(currentStage, nextCheckAt)
-      if (date) datePrefix = 'if not verified by'
-    }
+    case 'finished':
+      // Upcoming (the capped-watermark case) shows when it will finish;
+      // current shows when it did.
+      return status === 'upcoming'
+        ? { date: args.scheduleEnd ?? null, datePrefix: 'on' }
+        : { date: args.updatedAt ?? null }
 
-    const copy = STEP_COPY[key][status]
-    return {
-      key,
-      label: copy.label,
-      caption: copy.caption,
-      status,
-      date,
-      datePrefix,
-    }
-  })
+    case 'reminders':
+      if (status === 'current') return { date: nextCheckAt ?? null, datePrefix: 'next reminder on' }
+      // While verified: when this event will first need re-verification.
+      if (status === 'upcoming') return { date: nextCheckAt ?? null, datePrefix: 'on' }
+      return { date: null }
 
-  return { steps }
+    case 'expired':
+      // Already expired — the actual unpublish date.
+      if (status === 'current' && expiredActual) return { date: expiredActual, datePrefix: 'on' }
+      if (!currentStage) return { date: null }
+      // Not yet expired — the projected date if it isn't re-verified first.
+      const projected = projectedExpiry(currentStage, nextCheckAt)
+      return projected ? { date: projected, datePrefix: 'if not verified by' } : { date: null }
+
+    // Pre-adoption steps turn on an editor's action, not a date. Only the one
+    // the event is actually sitting at gets a timestamp.
+    case 'unverified':
+    case 'denied':
+      return status === 'current' ? { date: args.updatedAt ?? null } : { date: null }
+  }
 }
 
 const DATE_FORMAT = new Intl.DateTimeFormat('en-GB', {

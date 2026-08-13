@@ -1850,18 +1850,7 @@ export interface Event {
    * Check-set version the count was stamped from.
    */
   qualityCheckVersion?: number | null;
-  /**
-   * Raw system metadata (community vote tallies, and future internals).
-   */
-  systemMeta?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  systemMeta?: HttpsSahajcloudDevSchemasEventSystemMetaJson;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -2324,6 +2313,22 @@ export interface Client {
   apiKey?: string | null;
   apiKeyIndex?: string | null;
   collection: 'clients';
+}
+export interface HttpsSahajcloudDevSchemasEventSystemMetaJson {
+  communityFeedback?: {
+    /**
+     * Registrants who confirmed the event exists.
+     */
+    confirmations?: number;
+    /**
+     * Registrants who denied it.
+     */
+    denials?: number;
+    /**
+     * ISO timestamp of the last vote applied.
+     */
+    updatedAt?: string;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -19,12 +19,14 @@ import {
   legacyMigrationFields,
   publicUrlFields,
   scheduleFields,
+  systemMetaField,
   urlField,
 } from '@/fields'
 import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
 import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS } from '@/lib/eventQuality'
+import { communityFeedbackJsonSchema } from '@/lib/eventVerification/communityFeedback'
 import {
   DEFAULT_VERIFICATION_STAGE,
   isPreAdoptionStage,
@@ -564,17 +566,18 @@ export const Events: CollectionConfig = {
               // filter on it to rank unverified listings by confidence. Written
               // only by the Registrations vote-sync hook.
               //
-              // Shown only while `unverified`: that's the one stage where votes
-              // are still being collected (the gate closes at `denied`, and an
-              // adopted event is vouched for by a manager instead), so anywhere
-              // else the number is a stale artefact rather than information.
+              // Shown for both pre-adoption stages: `unverified` is where votes
+              // are collected, and on a `denied` event the score is the reason
+              // it was taken down — exactly when a manager wants to see it.
+              // Hidden once adopted, where a manager vouches for the event
+              // instead and the number is a stale artefact.
               name: 'confidenceScore',
               label: 'Community Confidence',
               type: 'number',
               index: true,
               admin: {
                 readOnly: true,
-                condition: (data) => data?.verificationStage === 'unverified',
+                condition: (data) => isPreAdoptionStage(data?.verificationStage),
                 description:
                   'How strongly attendees confirm this event is real (0–1). Rises with confirmations, falls with denials, and stays cautious while there are few votes — the Atlas map ranks unverified listings by it. Blank until the first vote.',
               },
@@ -680,32 +683,17 @@ export const Events: CollectionConfig = {
           type: 'number',
           admin: { readOnly: true, description: 'Check-set version the count was stamped from.' },
         },
-        {
-          // Namespaced grab-bag for system-managed, non-editable, NON-INDEXABLE
-          // event metadata — add keys here, not columns. Today:
-          // `communityFeedback: { confirmations, denials, updatedAt }`,
-          // maintained by the Registrations vote-sync hook alongside
-          // `confidenceScore` (which stays a real column only because feeds
-          // sort on it). Anything needing a `where` or an index does NOT belong
-          // in here.
-          name: 'systemMeta',
-          type: 'json',
-          // Never writable through the API, by anyone. The system writers (the
-          // vote-sync hook, the job, the importer) all pass `overrideAccess`,
-          // which skips field access entirely — while for everyone else Payload
-          // *deletes the key from the incoming patch* rather than nulling the
-          // column (beforeValidate/promise.js), so an admin-panel save can
-          // never clear it. That's what makes hiding it below safe: visibility
-          // and writability are decided independently.
-          access: { update: () => false },
+        systemMetaField({
+          uri: 'https://sahajcloud.dev/schemas/event-system-meta.json',
+          namespaces: { communityFeedback: communityFeedbackJsonSchema },
           admin: {
-            readOnly: true,
             // Raw internal state — useful when debugging why an event was
             // ranked or denied, noise for a region manager grooming a listing.
             condition: adminOnlyCondition,
-            description: 'Raw system metadata (community vote tallies, and future internals).',
+            description:
+              'Raw system metadata (community vote tallies, and future internals).',
           },
-        },
+        }),
       ],
     },
     ...legacyMigrationFields(),
