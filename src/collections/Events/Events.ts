@@ -27,7 +27,7 @@ import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS } from '@/lib/eventQua
 import { DEFAULT_VERIFICATION_STAGE, isUnmanagedStage } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
-import { ownedRegionFilterOptions } from '@/plugins/access'
+import { adminOnlyCondition, ownedRegionFilterOptions } from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
 
 import { eventsGeoJson } from './endpoints/geojson'
@@ -270,6 +270,25 @@ export const Events: CollectionConfig = {
               maxRows: 7,
               admin: { description: 'Photos for this event (up to 7).' },
             },
+            // Canonical Atlas web path/URL: the event's region path + `/<id>`
+            // (`/belgium/flanders/antwerp/downtown-hall/12345`). Publish-gated —
+            // an unpublished event has no public page, and the verify/reminder
+            // links + ExpireEvents job rely on that null-on-unpublish contract.
+            // No `appUrl`: there is no Atlas app deep-link to build.
+            // `region` (an id at depth 0) must be present for the path to
+            // resolve; the ensureWebPathDeps beforeOperation hook keeps it
+            // selectable on its own.
+            ...publicUrlFields({
+              web: serverEnv.SAHAJATLAS_URL,
+              hasAppUrl: false,
+              buildPath: async ({ data, req }) => {
+                const regionId = relationId(data?.region)
+                const id = data?.id
+                if (regionId == null || typeof id !== 'number') return null
+                const regionPath = (await getRegionWebPaths(req)).get(regionId)
+                return regionPath != null ? `${regionPath}/${id}` : null
+              },
+            }),
           ],
         },
         {
@@ -439,23 +458,6 @@ export const Events: CollectionConfig = {
               on: 'event',
               admin: { condition: hideUntilCreated },
             },
-            {
-              // Denormalized "at capacity" flag the Atlas widget reads to render
-              // its "Full" registration state. A boolean — never a raw count —
-              // so a public `sahaj-atlas-client` can select fullness without
-              // learning exact registration numbers. Stored (not computed per
-              // read) so the geojson feed and list reads stay O(1): maintained
-              // by the Registrations create/delete hooks
-              // (`syncEventRegistrationsFull`) and recomputed here on a
-              // registrationMode / registrationLimit change (`syncEventFullness`
-              // beforeChange). True only for `sahaj-atlas` mode with a set limit
-              // the registration count has reached; false for `external` mode or
-              // a blank (unlimited) limit. System-managed — hidden + read-only.
-              name: 'registrationsFull',
-              type: 'checkbox',
-              defaultValue: false,
-              admin: { hidden: true, readOnly: true },
-            },
           ],
         },
         {
@@ -520,18 +522,6 @@ export const Events: CollectionConfig = {
               },
             },
             {
-              // `should_update_status_at` analog the job filters on
-              // (`nextCheckAt <= now`). Set to now + cadence on verification,
-              // then to the per-stage offset as the job advances. Hidden — the
-              // verification time itself lives in `notificationLog[0]`.
-              name: 'nextCheckAt',
-              type: 'date',
-              // Indexed: the daily ExpireEvents sweep selects on
-              // `nextCheckAt <= now`, so this is the one column it filters on.
-              index: true,
-              admin: { hidden: true },
-            },
-            {
               // Current cycle's ledger: the verification that opened it plus a
               // reminder entry per send. Reset on every verification, and the
               // job's exactly-once marker (skip recipients already logged this
@@ -557,49 +547,32 @@ export const Events: CollectionConfig = {
                 description: 'Who submitted this listing (record-keeping only).',
               },
             },
+            {
+              // Wilson lower bound of registrant confirm/deny votes, in [0, 1];
+              // null until the first vote. A real, indexed column — unlike the
+              // raw tallies in `systemMeta` — because the Atlas feeds sort and
+              // filter on it to rank unverified listings by confidence. Written
+              // only by the Registrations vote-sync hook.
+              //
+              // Shown only while `unverified`: that's the one stage where votes
+              // are still being collected (the gate closes at `denied`, and an
+              // adopted event is vouched for by a manager instead), so anywhere
+              // else the number is a stale artefact rather than information.
+              name: 'confidenceScore',
+              label: 'Community Confidence',
+              type: 'number',
+              index: true,
+              admin: {
+                readOnly: true,
+                condition: (data) => data?.verificationStage === 'unverified',
+                description:
+                  'How strongly attendees confirm this event is real (0–1). Rises with confirmations, falls with denials, and stays cautious while there are few votes — the Atlas map ranks unverified listings by it. Blank until the first vote.',
+              },
+            },
           ],
         },
       ],
     },
-    {
-      // Wilson lower bound of registrant confirm/deny votes on an unverified
-      // event, in [0, 1]; null until the first vote. A real, indexed column —
-      // unlike the counts in `systemMeta` — because the Atlas feeds sort and
-      // filter on it to rank unverified listings by confidence. Written only by
-      // the Registrations vote-sync hook.
-      name: 'confidenceScore',
-      type: 'number',
-      index: true,
-      admin: { hidden: true, readOnly: true },
-    },
-    {
-      // Namespaced grab-bag for system-managed, non-editable, NON-INDEXABLE
-      // event metadata — add keys here, not columns. Today:
-      // `communityFeedback: { confirmations, denials, updatedAt }`, maintained
-      // by the Registrations vote-sync hook alongside `confidenceScore` (which
-      // stays a real column only because feeds sort on it). Anything needing a
-      // `where` or an index does NOT belong in here.
-      name: 'systemMeta',
-      type: 'json',
-      admin: { hidden: true, readOnly: true },
-    },
-    // Canonical Atlas web path/URL: the event's region path + `/<id>`
-    // (`/belgium/flanders/antwerp/downtown-hall/12345`). `webPath` + `webUrl`
-    // are published-gated — an unpublished event has no public page, and the
-    // verify/reminder links + ExpireEvents job rely on that null-on-unpublish
-    // contract (`appUrl` is always null — there's no Atlas app deep-link).
-    // `region` (an id at depth 0) must be present for the path to resolve; the
-    // ensureWebPathDeps beforeOperation hook keeps it selectable on its own.
-    ...publicUrlFields({
-      web: serverEnv.SAHAJATLAS_URL,
-      buildPath: async ({ data, req }) => {
-        const regionId = relationId(data?.region)
-        const id = data?.id
-        if (regionId == null || typeof id !== 'number') return null
-        const regionPath = (await getRegionWebPaths(req)).get(regionId)
-        return regionPath != null ? `${regionPath}/${id}` : null
-      },
-    }),
     {
       // Advisory listing-quality recommendations (#609), in the sidebar above
       // Legacy Data. Computed on read, so opening the event is already fresh —
@@ -628,23 +601,90 @@ export const Events: CollectionConfig = {
       hooks: { afterRead: [computeEventQualityReport] },
     },
     {
-      // Open document-scope items, for list-view sorting and targeted queries.
-      // A query pre-filter, not a score: the per-locale checks read localized
-      // titles a write hook can't see, so a single non-localized column cannot
-      // hold a correct cross-locale figure.
-      name: 'qualityOpenCount',
-      type: 'number',
-      index: true,
-      admin: { hidden: true },
-    },
-    {
-      // Which definition of the check set produced `qualityOpenCount`, so a
-      // stored count stays comparable across deploys. Stamped on every write;
-      // nothing re-stamps in bulk (production is seeded by the Atlas import,
-      // which writes through the same hook).
-      name: 'qualityCheckVersion',
-      type: 'number',
-      admin: { hidden: true },
+      // Every machine-maintained value on the document, in one collapsed
+      // drawer. None of these are editable — they're written by hooks and the
+      // nightly job — but hiding them outright (as they were) meant the only
+      // way to see why an event behaved as it did was to query the database.
+      label: 'System',
+      type: 'collapsible',
+      admin: { initCollapsed: true },
+      fields: [
+        {
+          // `should_update_status_at` analog the job filters on
+          // (`nextCheckAt <= now`) — the watermark that makes every lifecycle
+          // transition reachable. See @/lib/eventVerification/watermark.
+          name: 'nextCheckAt',
+          type: 'date',
+          // Indexed: the daily ExpireEvents sweep selects on
+          // `nextCheckAt <= now`, so this is the one column it filters on.
+          index: true,
+          admin: {
+            readOnly: true,
+            description: 'When the nightly job will next act on this event.',
+          },
+        },
+        {
+          // Denormalized "at capacity" flag the Atlas widget reads to render
+          // its "Full" registration state. A boolean — never a raw count — so a
+          // public `sahaj-atlas-client` can select fullness without learning
+          // exact registration numbers. Stored (not computed per read) so the
+          // geojson feed and list reads stay O(1): maintained by the
+          // Registrations create/delete hooks (`syncEventRegistrationsFull`)
+          // and recomputed here on a registrationMode / registrationLimit
+          // change (`syncEventFullness` beforeChange). True only for
+          // `sahaj-atlas` mode with a set limit the registration count has
+          // reached; false for `external` mode or a blank (unlimited) limit.
+          name: 'registrationsFull',
+          type: 'checkbox',
+          defaultValue: false,
+          admin: { readOnly: true, description: 'Registrations have reached the limit.' },
+        },
+        {
+          // Open document-scope items, for list-view sorting and targeted
+          // queries. A query pre-filter, not a score: the per-locale checks read
+          // localized titles a write hook can't see, so a single non-localized
+          // column cannot hold a correct cross-locale figure.
+          name: 'qualityOpenCount',
+          type: 'number',
+          index: true,
+          admin: { readOnly: true, description: 'Open listing-quality recommendations.' },
+        },
+        {
+          // Which definition of the check set produced `qualityOpenCount`, so a
+          // stored count stays comparable across deploys. Stamped on every
+          // write; nothing re-stamps in bulk (production is seeded by the Atlas
+          // import, which writes through the same hook).
+          name: 'qualityCheckVersion',
+          type: 'number',
+          admin: { readOnly: true, description: 'Check-set version the count was stamped from.' },
+        },
+        {
+          // Namespaced grab-bag for system-managed, non-editable, NON-INDEXABLE
+          // event metadata — add keys here, not columns. Today:
+          // `communityFeedback: { confirmations, denials, updatedAt }`,
+          // maintained by the Registrations vote-sync hook alongside
+          // `confidenceScore` (which stays a real column only because feeds
+          // sort on it). Anything needing a `where` or an index does NOT belong
+          // in here.
+          name: 'systemMeta',
+          type: 'json',
+          // Never writable through the API, by anyone. The system writers (the
+          // vote-sync hook, the job, the importer) all pass `overrideAccess`,
+          // which skips field access entirely — while for everyone else Payload
+          // *deletes the key from the incoming patch* rather than nulling the
+          // column (beforeValidate/promise.js), so an admin-panel save can
+          // never clear it. That's what makes hiding it below safe: visibility
+          // and writability are decided independently.
+          access: { update: () => false },
+          admin: {
+            readOnly: true,
+            // Raw internal state — useful when debugging why an event was
+            // ranked or denied, noise for a region manager grooming a listing.
+            condition: adminOnlyCondition,
+            description: 'Raw system metadata (community vote tallies, and future internals).',
+          },
+        },
+      ],
     },
     ...legacyMigrationFields(),
   ],
