@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  FINISHED_RETENTION_MONTHS,
-  resolveNextCheckAt,
-} from '@/lib/eventVerification/watermark'
+import { isPreAdoptionStage, VERIFICATION_STAGES } from '@/lib/eventVerification/stages'
+import { FINISHED_RETENTION_MONTHS, resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import type { EventScheduleInput } from '@/types/schedule'
-
 
 /**
  * `resolveNextCheckAt` is the whole reason the ExpireEvents job needs only one
@@ -113,8 +110,21 @@ describe('resolveNextCheckAt — finished retention', () => {
     expect(months).toBe(FINISHED_RETENTION_MONTHS)
   })
 
-  it('is null when the schedule never ends — no date to measure retention from', () => {
-    expect(resolveNextCheckAt({ stage: 'finished', schedule: openEndedSchedule })).toBeNull()
+  it('falls back to the finish moment when there is no schedule end', () => {
+    // An event can reach `finished` with nothing to measure from — the Atlas
+    // importer maps a dump status straight to the stage, dormant and
+    // open-ended recurrences included. Those rows used to keep a null
+    // watermark and so could never be trashed.
+    const now = new Date('2026-06-15T00:00:00.000Z')
+    for (const input of [
+      { schedule: openEndedSchedule },
+      { schedule: endingSchedule, inactive: true },
+      { schedule: null },
+    ]) {
+      const result = resolveNextCheckAt({ stage: 'finished', ...input, now })
+      expect(result).not.toBeNull()
+      expect(result!.slice(0, 7)).toBe('2026-12') // now + 6 months
+    }
   })
 
   it('ignores any stage deadline — retention is the only clock that matters', () => {
@@ -125,5 +135,50 @@ describe('resolveNextCheckAt — finished retention', () => {
     })
     expect(result).not.toBe(NOW.toISOString())
     expect(new Date(result!).getTime()).toBeGreaterThan(NOW.getTime())
+  })
+})
+
+describe('the nullability contract', () => {
+  // The question this pins: `nextCheckAt` is nullable, so which stages may
+  // actually be null? Exactly one class — a pre-adoption stage with no
+  // schedule end. Everything else always has a date, which is what makes each
+  // transition reachable from the job's single `nextCheckAt <= now` query.
+  const now = new Date('2026-06-15T00:00:00.000Z')
+  const cadence = new Date('2026-09-01T00:00:00.000Z')
+
+  /** What each stage's writer actually supplies: a cadence for the ladder, nothing else. */
+  const deadlineFor = (stage: (typeof VERIFICATION_STAGES)[number]) =>
+    isPreAdoptionStage(stage) || stage === 'finished' ? undefined : cadence
+
+  it('is null only for a pre-adoption stage with nothing scheduled', () => {
+    for (const stage of VERIFICATION_STAGES) {
+      // Strip every schedule-derived input, leaving only what the stage's own
+      // writer would pass. Pre-adoption stages have nothing left; every other
+      // stage still has a clock.
+      const bare = resolveNextCheckAt({
+        stage,
+        stageDeadline: deadlineFor(stage),
+        schedule: null,
+        inactive: true,
+        now,
+      })
+      if (isPreAdoptionStage(stage)) {
+        expect(bare, `${stage} is pre-adoption — nothing is scheduled`).toBeNull()
+      } else {
+        expect(bare, `${stage} must stay reachable`).not.toBeNull()
+      }
+    }
+  })
+
+  it('is never null for any stage once the event has a schedule that ends', () => {
+    for (const stage of VERIFICATION_STAGES) {
+      const armed = resolveNextCheckAt({
+        stage,
+        stageDeadline: deadlineFor(stage),
+        schedule: endingSchedule,
+        now,
+      })
+      expect(armed, `${stage} with a schedule end`).not.toBeNull()
+    }
   })
 })
