@@ -1688,6 +1688,8 @@ export interface Event {
    * Photos for this event (up to 7).
    */
   images?: (number | Image)[] | null;
+  webPath?: string | null;
+  webUrl?: string | null;
   /**
    * The city or venue this event belongs to.
    */
@@ -1790,7 +1792,6 @@ export interface Event {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
-  registrationsFull?: boolean | null;
   /**
    * Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.
    */
@@ -1804,7 +1805,6 @@ export interface Event {
     | 'urgent'
     | 'expired'
     | 'finished';
-  nextCheckAt?: string | null;
   /**
    * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.
    */
@@ -1821,19 +1821,10 @@ export interface Event {
    * Who submitted this listing (record-keeping only).
    */
   submitter?: (number | null) | User;
+  /**
+   * How strongly attendees confirm this event is real (0–1). Rises with confirmations, falls with denials, and stays cautious while there are few votes — the Atlas map ranks unverified listings by it. Blank until the first vote.
+   */
   confidenceScore?: number | null;
-  systemMeta?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  webPath?: string | null;
-  webUrl?: string | null;
-  appUrl?: string | null;
   qualityReport?:
     | {
         [k: string]: unknown;
@@ -1843,8 +1834,34 @@ export interface Event {
     | number
     | boolean
     | null;
+  /**
+   * When the nightly job will next act on this event.
+   */
+  nextCheckAt?: string | null;
+  /**
+   * Registrations have reached the limit.
+   */
+  registrationsFull?: boolean | null;
+  /**
+   * Open listing-quality recommendations.
+   */
   qualityOpenCount?: number | null;
+  /**
+   * Check-set version the count was stamped from.
+   */
   qualityCheckVersion?: number | null;
+  /**
+   * Raw system metadata (community vote tallies, and future internals).
+   */
+  systemMeta?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -4845,6 +4862,8 @@ export interface EventsSelect<T extends boolean = true> {
   description?: T;
   website?: T;
   images?: T;
+  webPath?: T;
+  webUrl?: T;
   region?: T;
   eventType?: T;
   onlineUrl?: T;
@@ -4905,20 +4924,17 @@ export interface EventsSelect<T extends boolean = true> {
         questions?: T;
       };
   registrations?: T;
-  registrationsFull?: T;
   manager?: T;
   verificationStage?: T;
-  nextCheckAt?: T;
   notificationLog?: T;
   submitter?: T;
   confidenceScore?: T;
-  systemMeta?: T;
-  webPath?: T;
-  webUrl?: T;
-  appUrl?: T;
   qualityReport?: T;
+  nextCheckAt?: T;
+  registrationsFull?: T;
   qualityOpenCount?: T;
   qualityCheckVersion?: T;
+  systemMeta?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;

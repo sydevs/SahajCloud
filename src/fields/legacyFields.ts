@@ -16,15 +16,24 @@ import type { Field } from 'payload'
 export function legacyMigrationFields(): Field[] {
   return [
     {
-      name: 'legacyId',
-      type: 'number',
-      index: true,
-      admin: { readOnly: true, hidden: true },
-    },
-    {
-      name: 'legacyData',
-      type: 'json',
-      admin: { readOnly: true, position: 'sidebar' },
+      label: 'Legacy',
+      type: 'collapsible',
+      // Import-only debugging data — never what an editor opened the document
+      // for, so it stays out of the way until asked for.
+      admin: { initCollapsed: true },
+      fields: [
+        {
+          name: 'legacyId',
+          type: 'number',
+          index: true,
+          admin: { readOnly: true },
+        },
+        {
+          name: 'legacyData',
+          type: 'json',
+          admin: { readOnly: true },
+        },
+      ],
     },
   ]
 }
