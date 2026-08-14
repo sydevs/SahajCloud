@@ -32,10 +32,12 @@
 .vstage__step--finished {
   --vstage-color: var(--theme-success-500);
 }
-.vstage__step--reminders {
+.vstage__step--reminders,
+.vstage__step--unverified {
   --vstage-color: var(--theme-warning-500);
 }
-.vstage__step--expired {
+.vstage__step--expired,
+.vstage__step--denied {
   --vstage-color: var(--theme-error-500);
 }
 

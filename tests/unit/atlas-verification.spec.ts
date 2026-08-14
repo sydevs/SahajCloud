@@ -151,11 +151,33 @@ describe('buildImportVerification', () => {
     expect(a.nextCheckAt).not.toBe(b.nextCheckAt)
   })
 
-  it('seeds a finished (terminal) event with no active nextCheckAt', () => {
+  it('seeds a finished event with its retention deadline, so it can be trashed later', () => {
+    // The job's only query is `nextCheckAt <= now`, so an imported finished
+    // event with no watermark would never reach the retention transition.
+    const fields = buildImportVerification({
+      status: 6,
+      cadence: 'Monthly',
+      legacyId: 1,
+      now,
+      schedule: {
+        firstDate: '2026-02-01T10:00:00.000Z',
+        firstDate_tz: 'Europe/London',
+      },
+    })
+    expect(fields.verificationStage).toBe('finished')
+    // 6 months after the end of the single occurrence's local day.
+    expect(fields.nextCheckAt?.slice(0, 7)).toBe('2026-08')
+    expect(fields.notificationLog[0]).toMatchObject({ kind: 'verification', method: 'import' })
+  })
+
+  it('still arms a finished event with no schedule end, measured from the import', () => {
+    // The dump maps status straight to the stage, so a dormant or open-ended
+    // event can land on `finished` with nothing to measure retention from.
+    // Falling back to the import moment keeps it reachable — otherwise the row
+    // would carry a null watermark and never be trashed.
     const fields = buildImportVerification({ status: 6, cadence: 'Monthly', legacyId: 1, now })
     expect(fields.verificationStage).toBe('finished')
-    expect(fields.nextCheckAt).toBeUndefined()
-    expect(fields.notificationLog[0]).toMatchObject({ kind: 'verification', method: 'import' })
+    expect(fields.nextCheckAt?.slice(0, 7)).toBe('2026-12') // now (2026-06-15) + 6 months
   })
 
   it('records the acting manager when given', () => {

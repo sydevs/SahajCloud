@@ -14,6 +14,8 @@ export const EVENT_TYPE_OPTIONS = [
 ] as const
 
 const VERIFICATION_STAGE_LABELS: Record<(typeof VERIFICATION_STAGES)[number], string> = {
+  unverified: 'Unverified',
+  denied: 'Denied',
   verified: 'Verified',
   reminded: 'Reminded',
   escalated: 'Escalated',

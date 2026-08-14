@@ -74,6 +74,8 @@ export const SKIP_REASON_COPY = {
     'This event’s schedule has ended, so its listing isn’t checked. Extend the end date to see recommendations.',
   expired:
     'This event expired and is hidden from the public. Republish it to verify — recommendations return once it’s listed again.',
+  denied:
+    'This event was unpublished after attendees reported it doesn’t exist. Assign a manager to adopt and republish it — recommendations return once it’s listed again.',
   unpublished:
     'This event isn’t published yet, so its listing isn’t checked. Publish it to see recommendations.',
 } as const

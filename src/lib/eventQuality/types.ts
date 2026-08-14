@@ -32,7 +32,7 @@ export type QualityCheckResult = {
 }
 
 /** Why the checks weren't run at all. */
-export type QualitySkipReason = 'unpublished' | 'finished' | 'expired' | 'trashed'
+export type QualitySkipReason = 'unpublished' | 'finished' | 'expired' | 'denied' | 'trashed'
 
 /**
  * The whole report, as returned by the virtual field in a single read.
