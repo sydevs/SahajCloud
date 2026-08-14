@@ -9,21 +9,24 @@ paths:
 **Development** uses Postgres with `push: true` (auto-schema-sync via Drizzle).
 **Production** uses explicit migration files, applied automatically in-process on server boot via `prodMigrations`.
 
-The old 36 SQLite/D1 migrations were deleted. The Postgres baseline is managed via migration files committed to git; they auto-apply on Railway boot (no manual `pnpm db:migrate` step in the deploy flow).
+The old 36 SQLite/D1 migrations were deleted. The Postgres baseline is managed via migration files committed to git; they auto-apply on Railway boot (no manual `pnpm payload migrate` step in the deploy flow).
 
 ## First-time dev setup
 
 Dev uses `push: true`, so the schema auto-syncs against your local Postgres on
-boot — no `pnpm db:migrate` needed locally. Point `DATABASE_URL` at a running
+boot — no `pnpm payload migrate` needed locally. Point `DATABASE_URL` at a running
 Postgres (Docker or Railway). Production applies migration files automatically
 in-process on server boot via `prodMigrations` (see "Production workflow" below).
 
 ## Creating a migration
 
-`pnpm db:migrations:create` is just an alias for `pnpm payload migrate:create`
-(see `package.json`) — both run the same Payload CLI, so they behave
-identically. Pass the name as the first argument:
-`pnpm db:migrations:create my_migration_name`.
+There is **one** entry point: `pnpm payload <command>` (the `payload` script in
+`package.json` is a passthrough to the Payload CLI). The old
+`db:migrate` / `db:migrations:create` aliases were removed — they added a second
+set of names for the same commands and made argument forwarding look like the
+culprit whenever a command failed for an unrelated reason (see "When a payload
+command seems to do nothing" below). Pass the name as the first argument:
+`pnpm payload migrate:create my_migration_name`.
 
 **Attempt it non-interactively first; hand off to the user only if it would
 become interactive.** The command has exactly two interactive prompts (verified
@@ -40,7 +43,7 @@ against Payload 3.86.0 / drizzle-kit 0.31.7 source):
 So run:
 
 ```bash
-timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null
+timeout 30 pnpm payload migrate:create <name> --skip-empty < /dev/null
 ```
 
 (No `--` separator: pnpm 11 forwards run-script args as-is, and a literal `--`
@@ -51,12 +54,82 @@ prompt still rendered.) Then classify the outcome:
 | --- | --- | --- |
 | Migration created | exit 0, new `.ts` + `.json` pair in `src/migrations/` | Validate (migration-validator skill), review the `.ts` for duplicate DDL (snapshot trap below), commit both files |
 | No schema changes | exit 0, no new files | Report it — dev `push: true` may have already synced, or a pending migration already captures the schema. Not an error |
-| Interactive hang | exit 124 (timeout), no new files | Drizzle hit the rename-vs-create prompt. Hand the user the plain `pnpm db:migrations:create <name>` to run interactively, then validate + commit their result |
+| Interactive hang | exit 124 (timeout), no new files | Drizzle hit the rename-vs-create prompt. Hand the user the plain `pnpm payload migrate:create <name>` to run interactively, then validate + commit their result |
 | Partial write | exit 124, lone `.json` (no `.ts`) | The `.json` snapshot is written before the `.ts`; delete the orphaned `.json`, then hand off to the user as above |
 | Other error | exit ≥ 1 with output | Surface the error; don't retry blindly |
 
 On success, augment the `.ts` only if needed (see "Augmenting" below) and
 commit both files.
+
+## When a payload command seems to do nothing
+
+Three failure modes account for nearly every "the command just exited with no
+output" report. All were diagnosed from the CLI source; none is a problem with
+our script wiring — which is why the `db:migrate` / `db:migrations:create`
+aliases were removed rather than rewritten.
+
+### 1. `generate:types` prints "Compiling…" and nothing else — that's success
+
+`payload/dist/bin/generateTypes.js` compiles the schema, **diffs it against the
+file on disk, and returns early when they are identical** — before the "Types
+written to …" log. So:
+
+- `Compiling TS types…` **and** `Types written to …` → the file changed.
+- `Compiling TS types…` alone → **no schema change**; nothing to write.
+
+There is no third state and no hang. Note this makes the output of a *stale*
+read misleading: if you edit a schema and immediately `grep` the generated file
+in the same shell pipeline, you can read the previous contents. Re-read the file
+as a separate step.
+
+### 2. Dev email hits ethereal.email on **every** CLI invocation
+
+Every payload command loads `payload.config.ts`, and outside production that
+config builds `nodemailerAdapter({})` with no `transportOptions`. Payload reads
+that as "give me a test account" and calls `nodemailer.createTestAccount()` —
+a live HTTPS request to ethereal.email — before the command does any work. It's
+why every CLI run prints:
+
+```
+E-mail configured with ethereal.email test account.
+Mock email account username: …
+```
+
+When that request fails (ethereal rate-limits, or you're offline) the adapter
+`throw`s `InvalidConfiguration`. Payload's `bin.js` starts the CLI with a bare
+`void start()` and **no `.catch()`**, so the rejection kills the process with
+**exit 0 and no output at all**.
+
+This is the intermittent one: run `pnpm payload migrate:status` several times in
+a row and it alternates between a full table and zero lines, same command, same
+tree. If a payload command produced *nothing whatsoever*, this is almost always
+why — just run it again.
+
+The permanent fix is to stop making a network call for dev email (nodemailer's
+`jsonTransport` / `streamTransport` keeps it local), at the cost of the ethereal
+preview URL. Not yet done — raise it before changing dev email behaviour.
+
+### 3. A desynced `src/migrations/index.ts` breaks **every** payload command
+
+`payload.config.ts` imports `migrations` from `src/migrations/index.ts` for
+`prodMigrations`, and that index statically imports every migration file. Delete
+or rename a migration `.ts` without updating the index and the config fails to
+load, so `migrate:create`, `generate:types`, `migrate:status` — everything —
+dies at startup:
+
+```
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '.../src/migrations/<name>'
+    imported from .../src/migrations/index.ts
+```
+
+The message is at the *top* of a long stack trace, so it scrolls away, and it is
+lost entirely if you pipe the command through `head`/`tail`. **When a payload
+command fails inexplicably, run it once with output redirected to a file and
+read the first 20 lines.**
+
+Fix by restoring the deleted file or removing its `import` + `migrations[]` entry
+from the index (the index is regenerated wholesale by the next successful
+`migrate:create`).
 
 ## Running locally
 
@@ -72,11 +145,11 @@ visibility into progress and any interactive prompts.
 
 Migrations are applied **automatically in-process on server boot** via
 `prodMigrations` in `src/payload.config.ts` (see `postgresAdapter({ prodMigrations: migrations })`).
-There is no manual `pnpm db:migrate` step in the deploy flow.
+There is no manual `pnpm payload migrate` step in the deploy flow.
 
 **Local authoring → commit → auto-apply on next Railway boot**, unchanged:
 
-1. Run `pnpm db:migrations:create` locally; commit both `.ts` and `.json` files.
+1. Run `pnpm payload migrate:create` locally; commit both `.ts` and `.json` files.
 2. On next deploy, Railway boots the Node app, Payload's `prodMigrations` hook
    runs automatically, applies any pending migrations, and the server starts.
 3. No separate migration step needed; build → start → migrated in one process.
@@ -139,7 +212,7 @@ old table only has the previous column name. Prefer a guarded
 When the migration chain gets painfully large, squash it (see DEPLOYMENT.md).
 After pulling a squash commit, reset your local Postgres so it no longer carries
 pre-squash `payload_migrations` rows: drop the local database/schema and let
-`push` recreate it (dev), or re-run `pnpm db:migrate` from a clean database —
+`push` recreate it (dev), or re-run `pnpm payload migrate` from a clean database —
 otherwise future migrations behave inconsistently.
 
 ## Postgres Advantages
@@ -156,7 +229,7 @@ The old SQLite/D1 gotchas **no longer apply**. Migrations are much simpler to re
 
 ## Augmenting generated migrations
 
-**Default: don't.** Leave the output of `pnpm db:migrations:create` exactly
+**Default: don't.** Leave the output of `pnpm payload migrate:create` exactly
 as generated. Hand-editing has repeatedly caused FK / table-rebuild bugs
 (polymorphic FK renames, `_rels` rebuilds, versioned-table companion drift),
 so the cost of a clean post-deploy resync is lower than the risk of a

@@ -4,7 +4,7 @@ End-to-end plan for migrating the legacy **Sahaj Atlas** Rails app into this Pay
 
 Source: `atlas.dump` (PostgreSQL custom-format, PG 16.4) at the repo root. Legacy Rails codebase: `/Users/devindra/Documents/Projects/Atlas`.
 
-**Target platform:** the CMS now runs on **Railway + Postgres 18** (infra migration #466 / PR #468 — **deployed; DNS cutover complete**: `cloud.sydevelopers.com` serves from Railway behind the Cloudflare edge, and the old Cloudflare Workers + D1 stack is being decommissioned). Atlas Phases 2–4 run against this Postgres stack: Phase 2's schema migration uses `pnpm db:migrations:create` (Postgres), and the Phase 3 importer seeds the Railway environment via the seed API.
+**Target platform:** the CMS now runs on **Railway + Postgres 18** (infra migration #466 / PR #468 — **deployed; DNS cutover complete**: `cloud.sydevelopers.com` serves from Railway behind the Cloudflare edge, and the old Cloudflare Workers + D1 stack is being decommissioned). Atlas Phases 2–4 run against this Postgres stack: Phase 2's schema migration uses `pnpm payload migrate:create` (Postgres), and the Phase 3 importer seeds the Railway environment via the seed API.
 
 ## Overview & status
 
@@ -32,7 +32,7 @@ Restore the dump into a scratch local Postgres, run a one-shot `tsx` extractor (
 - Fields remapped to Payload-native shapes: drafts (Events) replace Atlas's `published`; ToggleGroup for every Rails enum/bitmask; the project `scheduleFields` (Atlas `finishDate` maps into the schedule's ending, not a standalone field); ISO-639-1 language selects; timezone selects sourced from Payload's bundled `defaultTimezones` (deterministic across hosts — `Intl.supportedValuesOf` is ICU-version-dependent and would bake a host-specific enum into the migration).
 - **`legacyId`** (hidden, indexed) + **`legacyData`** (hidden json — full raw source record) on all four, populated by the Phase 3 importer and dropped in a future cleanup once the import is verified.
 - Project visibility: `events`, `registrations`, `regions` added to `sahaj-atlas`; **`users` is admin-only** (in no project).
-- One Payload migration (`pnpm db:migrations:create` — **maintainer runs it**; interactive, hangs when piped — see `.claude/rules/migrations.md`), then `pnpm generate:types`.
+- One Payload migration (`pnpm payload migrate:create` — **maintainer runs it**; interactive, hangs when piped — see `.claude/rules/migrations.md`), then `pnpm generate:types`.
 
 **Implementation notes / deviations from the original sketch:**
 

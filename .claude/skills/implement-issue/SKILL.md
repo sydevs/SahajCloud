@@ -107,11 +107,11 @@ If you edited `src/collections/`, `src/fields/`, `src/lib/richEditor/blocks/`, `
 - The `payload-types-gen` PostToolUse hook should regenerate `src/payload-types.ts` automatically.
 - **Migration required**: attempt it non-interactively first —
   ```bash
-  timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null
+  timeout 30 pnpm payload migrate:create <name> --skip-empty < /dev/null
   ```
   - **Success** (exit 0, new `.ts` + `.json` pair): validate with the migration-validator skill, review for duplicate DDL, commit.
   - **No files** (exit 0): no schema changes detected — report it; dev `push: true` may have already synced.
-  - **Timeout** (exit 124): drizzle hit its interactive rename-vs-create prompt; delete any orphaned lone `.json`, then hand the user the plain `pnpm db:migrations:create <name>` to run interactively.
+  - **Timeout** (exit 124): drizzle hit its interactive rename-vs-create prompt; delete any orphaned lone `.json`, then hand the user the plain `pnpm payload migrate:create <name>` to run interactively.
   See `.claude/rules/migrations.md` for the full outcome table.
 - Commit the migration files in a separate commit:
   ```bash
@@ -188,7 +188,7 @@ Report the PR URL, CI status, and any manual-verification items, and note the **
 
 - **Never** force-push to main or any shared branch
 - **Never** skip hooks (`--no-verify`)
-- **Never** run `pnpm db:migrations:create` without the `timeout 30 … --skip-empty < /dev/null` wrapper — a bare run hangs on interactive prompts; on timeout, hand off to the user per `.claude/rules/migrations.md`
+- **Never** run `pnpm payload migrate:create` without the `timeout 30 … --skip-empty < /dev/null` wrapper — a bare run hangs on interactive prompts; on timeout, hand off to the user per `.claude/rules/migrations.md`
 - **Never** commit secrets / credentials (`.env` is git-tracked here, but never add new secrets to it)
 - **Always** create commits incrementally; never one monolithic commit at the end
 - **Always** run the lean local gate (`.claude/skills/pr-prep/check.sh`) as you implement

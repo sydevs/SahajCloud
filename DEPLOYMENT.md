@@ -174,7 +174,7 @@ Migrations are managed via Payload CMS and Drizzle ORM. The workflow differs bet
 
 ```bash
 # Ask the user to run this interactively (it prompts for a name)
-pnpm db:migrations:create
+pnpm payload migrate:create <name>
 
 # This creates a migration file in src/migrations/
 
@@ -346,7 +346,7 @@ SENTRY_AUTH_TOKEN=<token>
 2. **Create Migration** (if schema changed):
 
    ```bash
-   pnpm db:migrations:create   # ask user to run interactively
+   pnpm payload migrate:create <name>   # ask user to run interactively
    ```
 
 3. **Deploy to Production**:
