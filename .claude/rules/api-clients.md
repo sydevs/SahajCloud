@@ -17,8 +17,93 @@ access is REST-only.
 - Managers can regenerate keys and manage settings.
 - Virtual `highUsageAlert` field surfaces when daily limits are exceeded.
 - `usage` group: `dailyRequests`, `peakDailyRequests`, `lastRequestAt`.
-- Custom hook in `src/collections/Clients/hooks/validateClientData.ts`:
+- Custom hooks in `src/collections/Clients/hooks/`:
   - `validateClientData` — ensures `primaryContact` is in the managers list.
+  - `validateCanonicalOwnership` — the canonical-ownership rule, below.
+
+## Canonical ownership + observed embeds (#633)
+
+Two Atlas white-label fields, both on the Atlas Config tab. **Data only** —
+`canonical.enabled` defaults false and nothing resolves differently yet; the
+per-region `webUrl` resolver that consumes them is a follow-up ticket.
+
+### `canonical` — who owns a region's canonical URLs
+
+`client.region` alone cannot identify an owner: three published clients map to
+Czechia, two to Finland, two to Australia. So ownership is an explicit opt-in
+with a uniqueness rule.
+
+| Field | Notes |
+| --- | --- |
+| `canonical.enabled` | checkbox, **default false**. Load-bearing — several client domains are dead or on site builders, and a cross-origin iframe would name a URL that cannot restore the view |
+| `canonical.domain` | bare host, `^[a-z0-9.-]+$`. Deliberately **not** derived from `allowedDomains`, which is a newline-separated textarea and genuinely multi-valued in the data |
+| `canonical.mount` | the page the embed lives on, default `/`. **May carry a query string** — WordPress default permalinks are `/?p=123`, so a URL builder must join with `&` in that case |
+| `canonical.routing` | `query` \| `path`, default `query`. **No `hash`, ever** — the widget is dropping hash routing, and a canonical URL a crawler can't follow is not a canonical URL |
+
+`validateCanonicalOwnership` (beforeChange) enforces the rule: enabling requires
+`region` **and** `canonical.domain`, and a second enabled client on a region is
+rejected with the incumbent named. It watches `region` as well as `canonical`,
+so moving an already-enabled client onto an owned region can't walk around it,
+and it skips entirely when a write touches neither — including every
+`embedMetadata` report. Uniqueness is checked against **committed** state, so a
+conflicting draft is caught on publish.
+
+Vocabulary + validators live in `src/collections/Clients/canonical.ts`;
+`scripts/backfill-client-canonical.ts` seeds `domain`/`routing` from
+`legacyData.config` and always leaves `enabled` false (see
+`.claude/rules/scripts.md`). `legacyConfig` was **removed** rather than
+promoted — a second, contradictory source of `routing_type`/`embed_type` beside
+these fields is how they drift, and its values were unverified.
+
+### `embedMetadata` — what the widget observed
+
+Admin-readonly JSON, keyed by **origin + pathname**, one record per mount
+(`mode`, `topLevel`, `urlWritable`, `paramPersisted`, `routing`, `lastSeen`). A
+JSON column because nothing queries it — the ownership resolver loads every
+client with `pagination: false` (~31 rows) and filters in memory. ⚠ Revisit if
+the client count grows by an order of magnitude. The field carries a
+`jsonSchema`, so Payload both generates the type and rejects a malformed write.
+
+Observed, never configured: the hand-maintained legacy `embed_type` was wrong in
+the field (`sahajayoga.at` is recorded as `script` and in fact serves an
+`<iframe>`).
+
+**Canonical viability is automatic; canonical *identity* is not.** A human
+designates which discovered mount is canonical; the reported metadata only
+decides whether that mount currently qualifies, in both directions. That stops a
+canonical flip-flopping between two embeds on one site, and bounds the tampering
+surface — a forged report can only assert viability for a mount someone already
+chose.
+
+### `POST /api/clients/report`
+
+The write path (`src/collections/Clients/endpoints/report.ts`). Merges into the
+keyed object; never replaces it.
+
+- **`clients` is excluded from the usage plugin** (`usagePlugin.ts`), so **no**
+  `beforeOperation` hook fires on this route. The handler calls
+  `assertClientOriginAllowed(req)` itself, right after `requireActiveClient` —
+  the same compensation a root endpoint makes. Usage tracking likewise does not
+  apply.
+- **Two origin checks.** The request's `Origin`/`Referer` must be in
+  `allowedDomains`, *and* so must the reported `url`'s host — a client can only
+  describe pages on domains it owns, whether or not a browser sent an `Origin`.
+- **`url` is origin + pathname only.** A query string or fragment is rejected
+  (`400`, `errors[0].code: query_or_fragment`), not stripped: the widget already
+  strips them (as `hostPageUrl()` does for Sentry), so a payload carrying either
+  means the widget is misbehaving and cleaning it up quietly would hide that.
+- **Rate limiting is Cloudflare's**, at the edge, as for every other client
+  route (this app's `rateLimitHook` is a no-op on Railway). On top of that the
+  handler is free when there's nothing new to say — the widget only POSTs on a
+  *change*, so a repeat of a recent identical observation is answered
+  `updated: false` with **no read and no write** — and `MAX_EMBED_MOUNTS` caps
+  what a forger can accumulate, evicting least-recently-seen first.
+- It is registered in the OpenAPI shim but stays `x-internal`; see
+  `.claude/rules/openapi.md`.
+
+Tests: `tests/unit/client-embed-metadata.spec.ts` (mount keys + the merge),
+`tests/int/client-canonical.int.spec.ts` (the hook, the endpoint, the backfill,
+and that no event `webUrl` changes).
 
 ## Usage plugin (`src/plugins/usage/`)
 
