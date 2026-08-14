@@ -137,6 +137,17 @@ collection slug.
 | `GET /api/events/geojson`                    | `src/collections/Events/endpoints/geojson.ts`       | `#/components/schemas/EventFeatureCollection` (hand-authored) |
 | `POST /api/events/{id}/register`             | `src/collections/Events/endpoints/registerForEvent.ts` | `#/components/schemas/EventRegistrationResponse` (hand-authored) |
 | `POST /api/contact-admin`                    | `src/endpoints/contactAdmin.ts` (root endpoint)     | `#/components/schemas/ContactAdminResponse` (hand-authored) |
+| `POST /api/clients/report`                   | `src/collections/Clients/endpoints/report.ts`       | `#/components/schemas/ClientEmbedReportResponse` (hand-authored) — **`x-internal`**, see below |
+
+`POST /api/clients/report` is the one registered custom endpoint that is
+deliberately **not** visible in `/api/docs`. `clients` is in
+`ALWAYS_HIDDEN_COLLECTIONS` and belongs to no project, so `filterSpec` marks it
+`x-internal` under tiers 1 and 2. That is the intended outcome — it is the
+first-party Atlas widget's telemetry channel, not a third-party integration
+surface, and advertising it only invites forged reports. It is still in
+`/api/openapi-raw.json`, and the "stays x-internal" case in
+`tests/unit/openapi-custom-endpoints.spec.ts` pins the behaviour so a future
+filter change can't publish it by accident.
 
 ### Root-level endpoints have no collection to key visibility off
 
