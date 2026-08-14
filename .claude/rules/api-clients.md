@@ -48,7 +48,9 @@ and it skips entirely when a write touches neither — including every
 `embedMetadata` report. Uniqueness is checked against **committed** state, so a
 conflicting draft is caught on publish.
 
-Vocabulary + validators live in `src/collections/Clients/canonical.ts`;
+Vocabulary + validators live in `src/lib/clients/canonical.ts` (there, not in the
+collection folder, because the OpenAPI plugin sources the `routing` enum from
+them — see `.claude/rules/project-structure.md` rule 4);
 `scripts/backfill-client-canonical.ts` seeds `domain`/`routing` from
 `legacyData.config` and always leaves `enabled` false (see
 `.claude/rules/scripts.md`). `legacyConfig` was **removed** rather than

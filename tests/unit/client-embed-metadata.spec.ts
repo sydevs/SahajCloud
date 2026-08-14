@@ -1,7 +1,7 @@
 import type {
   EmbedMetadata,
   EmbedMountObservation,
-} from '../../src/collections/Clients/embedMetadata'
+} from '../../src/lib/clients/embedMetadata'
 import type { Client } from '../../src/payload-types'
 
 import { describe, expect, expectTypeOf, it } from 'vitest'
@@ -14,7 +14,7 @@ import {
   mergeEmbedReport,
   parseMountKey,
   sanitizeEmbedMetadata,
-} from '../../src/collections/Clients/embedMetadata'
+} from '../../src/lib/clients/embedMetadata'
 
 const OBSERVATION: EmbedMountObservation = {
   mode: 'iframe',

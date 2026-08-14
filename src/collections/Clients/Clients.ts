@@ -1,12 +1,13 @@
 import type { CollectionConfig } from 'payload'
 
 import { colorField, legacyMigrationFields } from '@/fields'
+import { isValidCanonicalDomain, ROUTING_MODE_OPTIONS } from '@/lib/clients/canonical'
+import { embedMetadataJsonSchema } from '@/lib/clients/embedMetadata'
 import { getLanguageOptions } from '@/lib/locales'
 import { getRoleOptions } from '@/plugins/access'
 import { calculateAbuseScore } from '@/plugins/usage'
 
-import { isValidCanonicalDomain, ROUTING_MODE_OPTIONS } from './canonical'
-import { embedMetadataJsonSchema } from './embedMetadata'
+
 import { clientEmbedReport } from './endpoints/report'
 import { ensureClientId } from './hooks/ensureClientId'
 import { validateCanonicalOwnership } from './hooks/validateCanonicalOwnership'

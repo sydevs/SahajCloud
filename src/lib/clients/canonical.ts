@@ -8,8 +8,12 @@
  * (`canonical.routing`).
  *
  * Shared by the `Clients` field definitions, the observed-mount metadata
- * (`./embedMetadata`), and `scripts/backfill-client-canonical.ts`.
+ * (`./embedMetadata`), the OpenAPI shim (which sources the `routing` enum from
+ * here so it can't drift from the handler), and
+ * `scripts/backfill-client-canonical.ts`.
  */
+
+import { normalizeHost } from '@/plugins/usage'
 
 /**
  * How the widget encodes its state into the host page's URL.
@@ -44,19 +48,16 @@ export function isValidCanonicalDomain(value: string | null | undefined): value 
  * Normalize a raw host into the `canonical.domain` form, or return `null` when
  * nothing host-like survives. Accepts what the legacy Atlas config stored — a
  * bare host, occasionally with a scheme or a trailing path.
+ *
+ * Delegates the parsing to `normalizeHost`, the origin-enforcement helper that
+ * already reduces exactly these shapes to a bare host, rather than keeping a
+ * second URL-normalizer that could drift from it. One thing it does that we
+ * must not inherit: it *preserves* a `*.` wildcard label, because allowlist
+ * patterns are allowed to be wildcards while a canonical domain names one
+ * page's host. {@link CANONICAL_DOMAIN_PATTERN} rejects those for free — `*`
+ * is not in its character class.
  */
 export function normalizeCanonicalDomain(raw: string | null | undefined): string | null {
-  if (typeof raw !== 'string') return null
-  const trimmed = raw.trim().toLowerCase()
-  if (!trimmed) return null
-
-  let host: string
-  try {
-    host = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`).hostname
-  } catch {
-    return null
-  }
-
-  host = host.replace(/\.$/, '') // trailing-dot FQDN form
-  return isValidCanonicalDomain(host) ? host : null
+  const host = normalizeHost(raw)
+  return host && isValidCanonicalDomain(host) ? host : null
 }

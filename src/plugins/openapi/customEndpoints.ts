@@ -17,8 +17,8 @@
  * module and the merge block in the route handler.
  */
 
-import { ROUTING_MODES } from '@/collections/Clients/canonical'
-import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '@/collections/Clients/embedMetadata'
+import { ROUTING_MODES } from '@/lib/clients/canonical'
+import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '@/lib/clients/embedMetadata'
 import { LOCALES } from '@/lib/locales'
 
 import {

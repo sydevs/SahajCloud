@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { ROUTING_MODES } from '../../src/collections/Clients/canonical'
-import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '../../src/collections/Clients/embedMetadata'
+import { ROUTING_MODES } from '../../src/lib/clients/canonical'
+import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '../../src/lib/clients/embedMetadata'
 import { depthParameter } from '../../src/plugins/openapi/clientReadParametersDocs'
 import {
   CUSTOM_ENDPOINT_PATHS,
