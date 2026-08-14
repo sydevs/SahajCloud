@@ -283,9 +283,9 @@ describe('client canonical ownership + embed metadata', () => {
     })
   })
 
-  // ── The ticket is data-only ───────────────────────────────────────────────
+  // ── What enabling ownership actually does, now the resolver exists ────────
 
-  it('changes no event webUrl', async () => {
+  it('re-roots an event webUrl on the owner’s domain, leaving webPath alone', async () => {
     // Events are scoped to a city/venue region by `filterOptions`.
     const region = await createRegion('weburl-city', 'city')
     const event = await payload.create({
@@ -328,8 +328,13 @@ describe('client canonical ownership + embed metadata', () => {
       id: event.id,
       overrideAccess: true,
     })
-    // Data only: the resolver that consumes these fields is a follow-up ticket.
-    expect(after.webUrl).toBe(before.webUrl)
+    // #633 shipped these fields inert, and this case asserted `webUrl` did not
+    // move. #634 is the follow-up that consumes them, so the same scenario now
+    // has the opposite expectation: enabling ownership re-roots the canonical.
+    expect(before.webUrl).not.toContain('example.org')
+    expect(after.webUrl).toBe(`https://example.org${String(after.webPath)}`)
+    // …while the path itself — the part every consumer joins to a base — is
+    // untouched by ownership.
     expect(after.webPath).toBe(before.webPath)
   })
 
