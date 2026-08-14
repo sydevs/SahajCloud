@@ -106,14 +106,22 @@ export async function backfillClientCanonical(args: {
     const legacyDomain = config ? normalizeCanonicalDomain(config.domain as string) : null
     const legacyRouting = config ? legacyRoutingOf(config) : null
 
-    // Only ever fill an empty field — a hand-set value outranks the legacy one.
+    // `domain` is only ever filled when empty — it is typed by hand, so a
+    // stored value is someone's decision and outranks the legacy one.
     const domain = doc.canonical?.domain ? null : legacyDomain
-    const routing = doc.canonical?.routing ? null : legacyRouting
+
+    // `routing` is different, and the difference is in the migration: the
+    // column ships `DEFAULT 'query'`, which Postgres backfills onto every
+    // existing row. So a stored `routing` is not evidence anyone chose it, and
+    // gating on emptiness here would silently skip the one legacy client on
+    // `path`. Seeding it is safe because this loop already skipped every client
+    // that opted in — nobody has committed to this configuration yet.
+    const routing = legacyRouting && legacyRouting !== doc.canonical?.routing ? legacyRouting : null
 
     if (domain === null && routing === null) {
-      // Nothing to seed: either the row is already filled in, or the legacy
-      // record held nothing usable.
-      if (doc.canonical?.domain || doc.canonical?.routing) stats.unchanged++
+      // Nothing to seed: either the row already says this, or the legacy record
+      // held nothing usable.
+      if (doc.canonical?.domain || legacyRouting) stats.unchanged++
       else stats.skipped++
       continue
     }
