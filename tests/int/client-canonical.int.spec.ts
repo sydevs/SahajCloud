@@ -260,6 +260,26 @@ describe('client canonical ownership + embed reporting', () => {
       const client = await createClient('Fresh')
       expect(client.canonical?.enabled).toBe(false)
     })
+
+    it('offers exactly `query` and `path` for routing — never `hash`', async () => {
+      // Read off the sanitized config rather than the source array: what the
+      // admin panel and the REST validator both enforce is what ends up here.
+      const findField = (fields: unknown[], name: string): Record<string, unknown> | null => {
+        for (const field of fields as Record<string, unknown>[]) {
+          if (field.name === name) return field
+          const nested = (field.fields ?? field.tabs) as unknown[] | undefined
+          const hit = nested && findField(nested, name)
+          if (hit) return hit
+        }
+        return null
+      }
+
+      const canonical = findField(payload.collections.clients.config.fields, 'canonical')
+      const routing = canonical && findField(canonical.fields as unknown[], 'routing')
+      const options = (routing?.options ?? []) as { value: string }[]
+
+      expect(options.map((o) => o.value)).toEqual(['query', 'path'])
+    })
   })
 
   describe('canonical does not change how anything resolves', () => {
