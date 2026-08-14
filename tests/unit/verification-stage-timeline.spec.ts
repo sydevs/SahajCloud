@@ -5,7 +5,6 @@ import {
   formatStageDate,
 } from '@/components/admin/VerificationStageField/timeline'
 import type { NotificationLogEntry } from '@/lib/eventVerification/log'
-
 const T0 = '2026-06-06T00:00:00.000Z' // verified (cycle open)
 const T1 = '2026-06-13T00:00:00.000Z' // advanced verified → reminded
 const T2 = '2026-06-20T00:00:00.000Z' // advanced reminded → escalated
@@ -67,7 +66,11 @@ describe('buildStageTracker', () => {
   })
 
   it('escalated → Reminders current (next reminder date), Verified done, Expired projected', () => {
-    const log = [verification, reminderAt('verified', T1), reminderAt('reminded', T2)]
+    const log = [
+      verification,
+      reminderAt('verified', T1),
+      reminderAt('reminded', T2),
+    ]
     const nextCheckAt = '2026-06-27T00:00:00.000Z' // escalated advances → urgent
     const s = byKey(buildStageTracker({ log, currentStage: 'escalated', nextCheckAt }).steps)
     expect(s.verified).toMatchObject({ status: 'done', date: T0 })

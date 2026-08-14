@@ -1,6 +1,10 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import type { ActorRef, VerificationMethod } from '@/lib/eventVerification/log'
+import type {
+  ActorRef,
+  NotificationLogEntry,
+  VerificationMethod,
+} from '@/lib/eventVerification/log'
 import { buildVerificationEntry } from '@/lib/eventVerification/log'
 import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
 import { verifyVerifyToken } from '@/lib/eventVerification/token'
@@ -30,7 +34,7 @@ export interface VerifyFields {
    * stages legitimately return null.
    */
   nextCheckAt: string | null
-  notificationLog: ReturnType<typeof buildVerificationEntry>[]
+  notificationLog: NotificationLogEntry[]
 }
 
 /** Pull the `event_verification` cadence off a (possibly unpopulated) manager. */

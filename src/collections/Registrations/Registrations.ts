@@ -133,8 +133,10 @@ export const Registrations: CollectionConfig = {
       // Exactly-once ledger for session reminders: one entry per occurrence
       // this registration has already been reminded for. The reminder job
       // checks membership before sending and appends immediately after, so a
-      // task retry or an overlapping run never double-sends. Mirrors the Events
-      // `notificationLog` pattern.
+      // task retry or an overlapping run never double-sends. Same pattern as
+      // the Events `notificationLog`, minus its JSON Schema — this field is
+      // still a bare array with a defensive reader, and would need its own
+      // data migration to follow.
       name: 'reminderLog',
       type: 'json',
       admin: { readOnly: true },

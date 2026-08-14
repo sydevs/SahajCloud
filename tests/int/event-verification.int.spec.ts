@@ -6,6 +6,7 @@ import { verifyEventAction } from '@/collections/Events/endpoints/verifyEventAct
 import { verifyEventFromToken } from '@/collections/Events/lifecycle/verify'
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 import type { NotificationLogEntry } from '@/lib/eventVerification/log'
+import { asNotificationLog } from '@/lib/eventVerification/log'
 import { signVerifyToken } from '@/lib/eventVerification/token'
 import type { Event, Manager } from '@/payload-types'
 
@@ -45,8 +46,7 @@ async function getEvent(payload: Payload, id: number, trash = false): Promise<Ev
 function reminders(
   log: Event['notificationLog'],
 ): Extract<NotificationLogEntry, { kind: 'reminder' }>[] {
-  const entries = Array.isArray(log) ? (log as NotificationLogEntry[]) : []
-  return entries.filter(
+  return asNotificationLog(log).filter(
     (e): e is Extract<NotificationLogEntry, { kind: 'reminder' }> => e.kind === 'reminder',
   )
 }
@@ -128,9 +128,7 @@ describe('Event verification lifecycle', () => {
     expect(event.verificationStage).toBe('verified')
     expect(event._status).toBe('published')
     expect(event.nextCheckAt).toBeTruthy()
-    const log = Array.isArray(event.notificationLog)
-      ? (event.notificationLog as NotificationLogEntry[])
-      : []
+    const log = asNotificationLog(event.notificationLog)
     expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
   })
 
@@ -542,17 +540,21 @@ describe('Event verification lifecycle', () => {
       data: {
         verificationStage: 'escalated',
         nextCheckAt: daysAgo(1),
+        // The schema requires every reminder key, so this fixture can no
+        // longer omit `level` / `role` the way it used to.
         notificationLog: [
           { kind: 'verification', at: daysAgo(40), by: null, method: 'import' },
           {
             kind: 'reminder',
             stage: 'escalated',
+            level: 'escalated',
+            role: 'manager',
             at: daysAgo(1),
             manager: { id: eventManager.id, name: 'Event Manager' },
             channel: 'email',
             destination: 'event-manager@example.com',
           },
-        ] as NotificationLogEntry[],
+        ],
       },
     })
 
@@ -587,7 +589,7 @@ describe('Event verification lifecycle', () => {
     const fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('verified')
     expect(reminders(fresh.notificationLog)).toHaveLength(0)
-    const log = fresh.notificationLog as NotificationLogEntry[]
+    const log = asNotificationLog(fresh.notificationLog)
     expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
   })
 
@@ -689,7 +691,7 @@ describe('Event verification lifecycle', () => {
       const after = await getEvent(payload, event.id)
       expect(after.verificationStage).toBe('verified')
       expect(after.nextCheckAt).toBeTruthy()
-      const log = after.notificationLog as NotificationLogEntry[]
+      const log = asNotificationLog(after.notificationLog)
       expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
     })
 
@@ -757,7 +759,7 @@ describe('Event verification lifecycle', () => {
     const fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('verified')
     expect(fresh._status).toBe('published')
-    const log = fresh.notificationLog as NotificationLogEntry[]
+    const log = asNotificationLog(fresh.notificationLog)
     expect(log[0]).toMatchObject({ kind: 'verification', method: 'verify-action' })
   })
 
@@ -772,11 +774,54 @@ describe('Event verification lifecycle', () => {
     expect(verified).not.toBeNull()
     expect(verified?.verificationStage).toBe('verified')
     expect(verified?._status).toBe('published')
-    const log = (verified as Event).notificationLog as NotificationLogEntry[]
+    const log = asNotificationLog((verified as Event).notificationLog)
     expect(log[0]).toMatchObject({ kind: 'verification', method: 'email-link' })
     expect((log[0] as Extract<NotificationLogEntry, { kind: 'verification' }>).by?.id).toBe(
       eventManager.id,
     )
+  })
+
+  it('rejects a malformed notificationLog entry on write (JSON Schema)', async () => {
+    // The whole reason the log moved to an object root: Payload validates it on
+    // the way in, so a writer that omits a required key or invents one fails
+    // loudly here rather than leaving a reader to defend against the row.
+    const event = await createEvent()
+    const write = (entries: unknown[]) =>
+      payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        context: { skipVerifyHook: true },
+        data: { notificationLog: entries as never },
+      })
+
+    // Missing `level` / `role`.
+    await expect(
+      write([
+        {
+          kind: 'reminder',
+          stage: 'verified',
+          at: daysAgo(0),
+          manager: { id: eventManager.id, name: 'Event Manager' },
+          channel: 'email',
+          destination: 'event-manager@example.com',
+        },
+      ]),
+    ).rejects.toThrow()
+
+    // A key the schema doesn't declare.
+    await expect(
+      write([{ kind: 'verification', at: daysAgo(0), by: null, method: 'import', oops: true }]),
+    ).rejects.toThrow()
+
+    // A stage value outside the enum.
+    await expect(
+      write([{ kind: 'verification', at: daysAgo(0), by: null, method: 'telepathy' }]),
+    ).rejects.toThrow()
+
+    // The well-formed equivalent still writes.
+    await write([{ kind: 'verification', at: daysAgo(0), by: null, method: 'import' }])
+    expect(asNotificationLog((await getEvent(payload, event.id)).notificationLog)).toHaveLength(1)
   })
 
   it('verifyEventFromToken returns null for an invalid token, leaving the event unchanged', async () => {

@@ -7,6 +7,22 @@ import {
   whoCell,
 } from '@/components/admin/NotificationLogTable/format'
 import type { NotificationLogEntry } from '@/lib/eventVerification/log'
+import type { Event } from '@/payload-types'
+
+/**
+ * The hand-written entry types and the JSON Schema on the field are two
+ * encodings of one shape: the builders use the types, while Payload validates
+ * writes and generates `Event['notificationLog']` from the schema. These
+ * assignments fail to compile if they drift apart — the schema gaining a
+ * required key the types don't have, or an enum losing a member.
+ */
+const _generatedMatchesHandWritten: NotificationLogEntry[] = [] as NonNullable<
+  Event['notificationLog']
+>
+const _handWrittenMatchesGenerated: NonNullable<Event['notificationLog']> =
+  [] as NotificationLogEntry[]
+void _generatedMatchesHandWritten
+void _handWrittenMatchesGenerated
 
 const verification: NotificationLogEntry = {
   kind: 'verification',
