@@ -1364,13 +1364,11 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             locale: mapLanguageCode(client.config?.locale),
             region,
             clientId: client.clientId ?? undefined,
-            legacyConfig: client.config
-              ? {
-                  routing_type: client.config.routing_type,
-                  embed_type: client.config.embed_type,
-                  default_view: client.config.default_view,
-                }
-              : undefined,
+            // `config.routing_type` / `embed_type` are deliberately NOT mapped (#633).
+            // They were hand-maintained and are wrong in the field — `sahajayoga.at`
+            // claims `script` while serving an iframe — so `canonical` is seeded from
+            // `legacyData.config` by scripts/backfill-client-canonical.ts, which leaves
+            // `canonical.enabled` false for a human to confirm against reported embeds.
             legacyId: client.legacyId,
             legacyData: client,
           },
