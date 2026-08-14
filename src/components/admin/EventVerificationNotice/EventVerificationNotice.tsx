@@ -10,8 +10,10 @@ import {
 } from '@payloadcms/ui'
 import React from 'react'
 
-import type { VerificationStage } from '@/lib/eventVerification/stages'
+import type { StageAttention, VerificationStage } from '@/lib/eventVerification/stages'
 import type { Event } from '@/payload-types'
+
+import { stageAttention } from '@/lib/eventVerification/stages'
 
 
 type Severity = 'warning' | 'error' | 'info'
@@ -23,55 +25,49 @@ interface NoticeContext {
   votes: string
 }
 
-interface NoticeConfig {
-  severity: Severity
-  message: (ctx: NoticeContext) => string
+/** Renders a stage's banner copy, or `null` for the stages that show none. */
+type NoticeMessage = ((ctx: NoticeContext) => string) | null
+
+/**
+ * How loudly each attention level is rendered. The stage tables below carry
+ * only *copy*; how alarming that copy looks is a property of the stage's
+ * declared attention, so a new stage can't drift into the wrong colour.
+ * `ok` needs no banner at all.
+ */
+const SEVERITY_BY_ATTENTION: Record<StageAttention, Severity | null> = {
+  ok: null,
+  due: 'warning',
+  urgent: 'error',
+  unpublished: 'error',
+  ended: 'info',
 }
 
 /**
- * Which stages surface a banner. `verified` (and unsaved docs) show nothing.
+ * Banner copy per stage — exhaustive over `VerificationStage`, so adding a
+ * stage is a type error here until its wording is written (`verified` opts out
+ * explicitly with `null` rather than by omission).
  * Every ladder banner tells the manager to **republish** — saving the event
  * runs the verify-on-save hook, which re-opens the verification cycle (and
  * publishing an unpublished/expired event also restores its public listing).
  * The pre-adoption pair (`unverified` / `denied`) instead tells them to
  * **assign a manager** — saves without one deliberately change nothing.
  */
-const NOTICES: Partial<Record<VerificationStage, NoticeConfig>> = {
-  unverified: {
-    severity: 'warning',
-    message: ({ votes }) =>
-      `This listing is unverified — it was submitted or imported and has no manager yet${votes}. Assign a manager and save to adopt it into the verification cycle.`,
-  },
-  denied: {
-    severity: 'error',
-    message: ({ votes }) =>
-      `This event was unpublished after attendee feedback${votes}. Assign a manager to adopt it, correct the details, and republish to restore the listing.`,
-  },
-  reminded: {
-    severity: 'warning',
-    message: ({ dueDate: due }) =>
-      `This event needs verification${due ? ` by ${due}` : ''} to stay listed publicly. Republish it to verify.`,
-  },
-  escalated: {
-    severity: 'warning',
-    message: ({ dueDate: due }) =>
-      `This event is overdue for verification${due ? ` (due ${due})` : ''}. Region managers have been notified — republish it to verify and stop further escalation.`,
-  },
-  urgent: {
-    severity: 'error',
-    message: ({ dueDate: due }) =>
-      `Final reminder${due ? ` — due ${due}` : ''}: republish this event to verify it before it’s unpublished and hidden from the public.`,
-  },
-  expired: {
-    severity: 'error',
-    message: () =>
-      'This event is hidden from the public. Republish it to verify and restore the listing.',
-  },
-  finished: {
-    severity: 'info',
-    message: () =>
-      'This event’s schedule has ended, so it’s no longer listed on the Atlas map, but old links to the event will continue to work. Update the end date to relist the event on the map.',
-  },
+const NOTICES: Record<VerificationStage, NoticeMessage> = {
+  verified: null,
+  unverified: ({ votes }) =>
+    `This listing is unverified — it was submitted or imported and has no manager yet${votes}. Assign a manager and save to adopt it into the verification cycle.`,
+  denied: ({ votes }) =>
+    `This event was unpublished after attendee feedback${votes}. Assign a manager to adopt it, correct the details, and republish to restore the listing.`,
+  reminded: ({ dueDate: due }) =>
+    `This event needs verification${due ? ` by ${due}` : ''} to stay listed publicly. Republish it to verify.`,
+  escalated: ({ dueDate: due }) =>
+    `This event is overdue for verification${due ? ` (due ${due})` : ''}. Region managers have been notified — republish it to verify and stop further escalation.`,
+  urgent: ({ dueDate: due }) =>
+    `Final reminder${due ? ` — due ${due}` : ''}: republish this event to verify it before it’s unpublished and hidden from the public.`,
+  expired: () =>
+    'This event is hidden from the public. Republish it to verify and restore the listing.',
+  finished: () =>
+    'This event’s schedule has ended, so it’s no longer listed on the Atlas map, but old links to the event will continue to work. Update the end date to relist the event on the map.',
 }
 
 // Payload's Banner ships distinct styles only for `default` / `error` /
@@ -117,9 +113,10 @@ const EventVerificationNotice: React.FC = () => {
     ([fields]) => fields?.systemMeta?.value as Event['systemMeta'] | undefined,
   )
 
-  const notice = stage ? NOTICES[stage] : undefined
+  const message = stage ? NOTICES[stage] : null
+  const severity = stage ? SEVERITY_BY_ATTENTION[stageAttention(stage)] : null
   // No banner for verified events or unsaved (no id) documents.
-  if (!id || !notice) return null
+  if (!id || !message || !severity) return null
 
   const { confirmations = 0, denials = 0 } = systemMeta?.communityFeedback ?? {}
   const votes =
@@ -127,11 +124,11 @@ const EventVerificationNotice: React.FC = () => {
       ? ` — ${confirmations} attendee${confirmations === 1 ? '' : 's'} confirmed it, ${denials} denied it`
       : ''
 
-  const Icon = SEVERITY_ICON[notice.severity]
+  const Icon = SEVERITY_ICON[severity]
 
   return (
-    <Banner type={SEVERITY_BANNER_TYPE[notice.severity]} icon={<Icon />} alignIcon="left">
-      {notice.message({ dueDate: formatDueDate(nextCheckAt), votes })}
+    <Banner type={SEVERITY_BANNER_TYPE[severity]} icon={<Icon />} alignIcon="left">
+      {message({ dueDate: formatDueDate(nextCheckAt), votes })}
     </Banner>
   )
 }

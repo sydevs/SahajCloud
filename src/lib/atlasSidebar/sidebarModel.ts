@@ -8,8 +8,10 @@
  * maps Payload docs onto these inputs; `StageIcon.tsx` maps buckets to glyphs.
  */
 
-import type { VerificationStage } from '@/lib/eventVerification/stages'
+import type { StageAttention, VerificationStage } from '@/lib/eventVerification/stages'
+import { stageAttention } from '@/lib/eventVerification/stages'
 import type { RegionLevel } from '@/lib/mapbox/geocoder'
+
 
 // =============================================================================
 // Events
@@ -75,6 +77,22 @@ export interface SidebarEventItem {
 }
 
 /**
+ * The bucket each attention level renders as. Keyed on `StageAttention` rather
+ * than on the stage itself, so a new stage is bucketed correctly the moment it
+ * declares what kind of attention it needs — this used to be an eight-way
+ * switch whose `default` silently labelled anything unfamiliar "verified".
+ */
+const BUCKET_BY_ATTENTION: Record<StageAttention, EventBucket> = {
+  ok: 'verified',
+  // Both are listings a manager must act on before the system acts for them.
+  due: 'needsVerification',
+  urgent: 'urgent',
+  // Already off the map; a manager can rescue either by adopting/republishing.
+  unpublished: 'expired',
+  ended: 'finished',
+}
+
+/**
  * Map an event to its display bucket. Trash wins over stage — a trashed event
  * is `expired` in practice, but belongs in the Trashed bucket — so `deletedAt`
  * is checked first.
@@ -84,26 +102,7 @@ export function bucketForEvent(event: {
   deletedAt?: string | null
 }): EventBucket {
   if (event.deletedAt) return 'trashed'
-  switch (event.verificationStage) {
-    case 'urgent':
-      return 'urgent'
-    case 'reminded':
-    case 'escalated':
-    // `unverified` sits with the other verification-pending events: both are
-    // listings a manager needs to act on before the system acts for them.
-    case 'unverified':
-      return 'needsVerification'
-    case 'expired':
-    // `denied` shares the bucket with `expired`: both are system-unpublished
-    // states a manager can rescue by adopting/republishing.
-    case 'denied':
-      return 'expired'
-    case 'finished':
-      return 'finished'
-    case 'verified':
-    default:
-      return 'verified'
-  }
+  return BUCKET_BY_ATTENTION[stageAttention(event.verificationStage)]
 }
 
 /** Untitled events still need a stable, clickable label. */

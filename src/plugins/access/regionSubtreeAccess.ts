@@ -27,7 +27,9 @@
 import type { ContentSlug } from './types'
 import type { PayloadRequest, Where } from 'payload'
 
-import { getDocManagerFields, relationId, resolveManagedDocIds } from './documentManagers'
+import { relationId } from '@/lib/utilities/relationId'
+
+import { getDocManagerFields, resolveManagedDocIds } from './documentManagers'
 
 /** Collections whose writes are scoped to the Atlas manager's owned-region subtree. */
 const REGION_SUBTREE_COLLECTIONS = new Set<ContentSlug>(['regions', 'events'])

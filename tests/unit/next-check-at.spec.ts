@@ -127,6 +127,19 @@ describe('resolveNextCheckAt — finished retention', () => {
     }
   })
 
+  it('clamps to the last day of the month when the target day does not exist', () => {
+    // 31 Aug + 6 months is "31 Feb": `setUTCMonth` alone rolls that into March,
+    // pushing retention past the intended window by a few days. 2027 isn't a
+    // leap year, so the clamp lands on the 28th.
+    const endsOn31Aug: EventScheduleInput = {
+      firstDate: '2026-08-31T12:00:00.000Z',
+      firstDate_tz: 'UTC',
+      recurrenceType: 'NONE',
+    }
+    const result = resolveNextCheckAt({ stage: 'finished', schedule: endsOn31Aug })
+    expect(result!.slice(0, 10)).toBe('2027-02-28')
+  })
+
   it('ignores any stage deadline — retention is the only clock that matters', () => {
     const result = resolveNextCheckAt({
       stage: 'finished',

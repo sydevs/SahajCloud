@@ -6,6 +6,7 @@ import type { FollowUpSection } from '@/emails/PostEventFollowUpEmail'
 import { PostEventFollowUpEmail } from '@/emails/PostEventFollowUpEmail'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { buildFeedbackEmailLink, signFeedbackToken } from '@/lib/registrations/feedbackLinks'
+import { DAY_MS } from '@/lib/utilities/time'
 import type { Event, Registration, User } from '@/payload-types'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
@@ -26,7 +27,7 @@ interface FollowUpResult {
 
 /** The registration's registered-for moment has passed and no follow-up went out. */
 function dueWhere(now: Date): Where {
-  const windowStart = new Date(now.getTime() - FOLLOW_UP_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+  const windowStart = new Date(now.getTime() - FOLLOW_UP_WINDOW_DAYS * DAY_MS)
   return {
     and: [
       { startingAt: { less_than: now.toISOString() } },

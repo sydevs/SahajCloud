@@ -11,7 +11,7 @@ import { addDays } from './periods'
  * nightly ExpireEvents job does when a stage's watermark comes due.
  *
  * Everything downstream is **derived** from `STAGES` below rather than
- * restated: `PUBLISHED_STAGES`, `UNMANAGED_STAGES`, `STAGE_DURATION_DAYS`, the
+ * restated: `PUBLISHED_STAGES`, `STAGE_DURATION_DAYS`, the attention level, the
  * reminder ladder, and whether a transition unpublishes. That last one used to
  * be an `unpublish` boolean written on the transition *and* a `PUBLISHED_STAGES`
  * membership list — two encodings of the same fact, free to disagree. Now a
@@ -87,7 +87,31 @@ export type StageAction =
    */
   | { kind: 'await-schedule' }
 
+/**
+ * How much attention a stage needs, and why.
+ *
+ * This is the one semantic fact every per-stage *display* is really asking
+ * about, so it's declared once here rather than three times downstream: the
+ * Atlas sidebar derives its bucket from it, the admin notice its severity, and
+ * the listing-quality checks whether to run at all. A new stage sets
+ * `attention` and all three follow — each previously kept its own eight-way
+ * table, and the sidebar's silently mislabelled anything it hadn't been taught.
+ */
+export type StageAttention =
+  /** Healthy — nothing is being chased. */
+  | 'ok'
+  /** Someone must act before the system acts for them. */
+  | 'due'
+  /** Last call before the listing comes down. */
+  | 'urgent'
+  /** Already off the map; a manager can still rescue it. */
+  | 'unpublished'
+  /** Ran its course — nothing to chase, nothing to groom. */
+  | 'ended'
+
 export interface StageConfig {
+  /** What this stage means to anything displaying it — see {@link StageAttention}. */
+  attention: StageAttention
   /** The event stays published (`_status`) at this stage. */
   published: boolean
   /** A manager is required at this stage — `verified` always implies one. */
@@ -106,17 +130,20 @@ export interface StageConfig {
  */
 export const STAGES: Record<VerificationStage, StageConfig> = {
   unverified: {
+    attention: 'due',
     published: true, // the whole point — the community can only vouch for what it can see
     managed: false,
     onDue: { kind: 'await-schedule' },
   },
   denied: {
+    attention: 'unpublished',
     published: false, // the community's verdict took it off the map
     managed: false,
     onDue: { kind: 'await-schedule' },
   },
 
   verified: {
+    attention: 'ok',
     published: true,
     managed: true,
     onDue: {
@@ -128,6 +155,7 @@ export const STAGES: Record<VerificationStage, StageConfig> = {
     },
   },
   reminded: {
+    attention: 'due',
     published: true,
     managed: true,
     onDue: {
@@ -139,6 +167,7 @@ export const STAGES: Record<VerificationStage, StageConfig> = {
     },
   },
   escalated: {
+    attention: 'due',
     published: true,
     managed: true,
     onDue: {
@@ -150,6 +179,7 @@ export const STAGES: Record<VerificationStage, StageConfig> = {
     },
   },
   urgent: {
+    attention: 'urgent',
     published: true,
     managed: true,
     // Lands on `expired`, which isn't published — so this is the transition
@@ -164,11 +194,13 @@ export const STAGES: Record<VerificationStage, StageConfig> = {
   },
 
   expired: {
+    attention: 'unpublished',
     published: false, // hidden from the public until re-verified
     managed: true,
     onDue: { kind: 'trash' }, // the grace period elapsed
   },
   finished: {
+    attention: 'ended',
     // Still published (#603): its Atlas page must keep resolving for a late
     // seeker following an old link. Published ≠ publicly listed — the feeds
     // drop it via `notFinishedWhere`.
@@ -184,6 +216,20 @@ export const STAGES: Record<VerificationStage, StageConfig> = {
 /** What to do with a due event at this stage. No-op fallback for an unrecognised value. */
 export function stageAction(stage: VerificationStage): StageAction {
   return STAGES[stage]?.onDue ?? { kind: 'await-schedule' }
+}
+
+/** How much attention this stage needs — the shared basis for every per-stage display. */
+export function stageAttention(stage: string | null | undefined): StageAttention {
+  return STAGES[stage as VerificationStage]?.attention ?? 'ok'
+}
+
+/**
+ * Whether a listing at this stage is beyond grooming — already off the map, or
+ * finished. Nothing in a to-do list would help a listing nobody can see.
+ */
+export function isDormantStage(stage: string | null | undefined): boolean {
+  const attention = stageAttention(stage)
+  return attention === 'unpublished' || attention === 'ended'
 }
 
 /** Whether an event at this stage should be published. */
@@ -233,11 +279,6 @@ export const PUBLISHED_STAGES: VerificationStage[] = VERIFICATION_STAGES.filter(
   (stage) => STAGES[stage].published,
 )
 
-/** Stages that may have no manager. Derived — see `STAGES`. */
-export const UNMANAGED_STAGES: VerificationStage[] = VERIFICATION_STAGES.filter(
-  (stage) => !STAGES[stage].managed,
-)
-
 /** Every stage that sends reminders, in ladder order — the escalation path. */
 export const LADDER: VerificationStage[] = VERIFICATION_STAGES.filter(
   (stage) => STAGES[stage].onDue.kind === 'remind',
@@ -263,8 +304,11 @@ export const STAGE_DURATION_DAYS: Record<string, number> = Object.fromEntries(
  *
  * Walks only `remind` actions, so it terminates on any other kind — a stage off
  * the ladder simply has nothing to count.
+ *
+ * Module-private: `unpublishDate` is the projection callers actually want, and
+ * a bare day count invites the caller to redo the date arithmetic itself.
  */
-export function daysUntilUnpublish(stage: VerificationStage): number {
+function daysUntilUnpublish(stage: VerificationStage): number {
   let total = 0
   let current: VerificationStage = stage
   const seen = new Set<VerificationStage>()

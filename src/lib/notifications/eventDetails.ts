@@ -2,9 +2,9 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import type { EventDetails } from '@/emails/EventVerificationEmail'
 import { asNotificationLog } from '@/lib/eventVerification/log'
+import { DAY_MS } from '@/lib/utilities/time'
 import type { Event } from '@/payload-types'
 
-const DAY_MS = 24 * 60 * 60 * 1000
 const RECENT_REGISTRATION_DAYS = 30
 
 type Address = NonNullable<Event['address']>

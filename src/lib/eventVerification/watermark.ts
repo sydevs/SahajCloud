@@ -23,10 +23,25 @@ import { isPreAdoptionStage, type VerificationStage } from './stages'
  */
 export const FINISHED_RETENTION_MONTHS = 6
 
-/** Add whole months to `from` (calendar-aware, so it lands on the same day-of-month). */
+/**
+ * Add whole months to `from`, landing on the same day-of-month — clamped to the
+ * target month's last day when that day doesn't exist there.
+ *
+ * `setUTCMonth` alone overflows: 31 Aug + 6 months is "31 Feb", which JS rolls
+ * forward into March. Retention would then be applied from a date the event's
+ * schedule never had. Setting the day to 1 first makes the month arithmetic
+ * unambiguous, then `Math.min` clamps the day back (31 Aug + 6 → 28/29 Feb).
+ */
 function addMonths(from: Date, months: number): Date {
+  const day = from.getUTCDate()
   const result = new Date(from)
+  result.setUTCDate(1)
   result.setUTCMonth(result.getUTCMonth() + months)
+  // Day 0 of the *next* month is the last day of the target month.
+  const daysInTargetMonth = new Date(
+    Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0),
+  ).getUTCDate()
+  result.setUTCDate(Math.min(day, daysInTargetMonth))
   return result
 }
 

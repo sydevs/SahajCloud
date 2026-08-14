@@ -1,6 +1,6 @@
 import type { PayloadRequest } from 'payload'
 
-import { relationId } from '@/plugins/access/documentManagers'
+import { relationId } from '@/lib/utilities/relationId'
 
 /**
  * Canonical Atlas web paths for the Regions tree, resolved once per request.

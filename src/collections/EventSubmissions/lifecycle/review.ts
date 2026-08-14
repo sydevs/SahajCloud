@@ -5,6 +5,7 @@ import { APIError } from 'payload'
 import { relationId } from '@/lib/utilities/relationId'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { signToken, verifyToken, type SignedTokenResult } from '@/lib/utilities/signedToken'
+import { DAY_MS } from '@/lib/utilities/time'
 import type { EventSubmission } from '@/payload-types'
 
 import { OPEN_SUBMISSION_STATUSES, type SubmissionStatus } from '../EventSubmissions'
@@ -34,7 +35,7 @@ export interface ReviewResult {
 const REVIEW_TOKEN_KIND = 'event-submission-review'
 
 /** 30 days: a review email may sit in an inbox a while; the page re-checks status anyway. */
-export const REVIEW_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000
+export const REVIEW_TOKEN_TTL_MS = 30 * DAY_MS
 
 export interface ReviewTokenClaims {
   submissionId: number
