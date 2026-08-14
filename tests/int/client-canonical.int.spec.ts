@@ -170,6 +170,36 @@ describe('client canonical ownership + embed metadata', () => {
       expect(updated.canonical?.mount).toBe('/')
     })
 
+    it.each([
+      ['a full URL in mount', { mount: 'https://nirmala.cz:8080/lessons' }, 'canonical.mount'],
+      ['a scheme in domain', { domain: 'https://nirmala.cz' }, 'canonical.domain'],
+    ])('rejects %s', async (_label, patch, path) => {
+      // The host is stated once, in `domain`. Pasting a full URL into `mount`
+      // would have the resolver join the two into a URL resolving nowhere.
+      const client = await createClient(`Mount Shape ${path}`)
+      const message = await fieldErrorMessage(
+        payload.update({
+          collection: 'clients',
+          id: client.id,
+          data: { canonical: patch },
+          overrideAccess: true,
+        }),
+        path,
+      )
+      expect(message).toBeTruthy()
+    })
+
+    it('accepts a query-string mount — WordPress default permalinks', async () => {
+      const client = await createClient('WP Permalink')
+      const updated = await payload.update({
+        collection: 'clients',
+        id: client.id,
+        data: { canonical: { mount: '/?p=123' } },
+        overrideAccess: true,
+      })
+      expect(updated.canonical?.mount).toBe('/?p=123')
+    })
+
     it('rejects a second enabled client on an owned region, naming the incumbent', async () => {
       const incumbent = await createClient('Meditace Online', { region: finlandId })
       await payload.update({
