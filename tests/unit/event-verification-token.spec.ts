@@ -6,6 +6,10 @@ import {
   VERIFY_TOKEN_TTL_MS,
   verifyVerifyToken,
 } from '@/lib/eventVerification/token'
+import {
+  readUnsubscribeToken,
+  signUnsubscribeToken,
+} from '@/lib/registrations/unsubscribeToken'
 
 const SECRET = 'test-payload-secret'
 const NOW = new Date('2026-06-11T00:00:00.000Z')
@@ -33,9 +37,23 @@ describe('verify token', () => {
     const token = signVerifyToken({ eventId: 1, managerId: 2 }, SECRET, NOW)
     const [, signature] = token.split('.')
     const forgedPayload = Buffer.from(
-      JSON.stringify({ eventId: 999, managerId: 2, exp: NOW.getTime() + VERIFY_TOKEN_TTL_MS }),
+      JSON.stringify({
+        kind: 'event-verify',
+        exp: NOW.getTime() + VERIFY_TOKEN_TTL_MS,
+        claims: { eventId: 999, managerId: 2 },
+      }),
     ).toString('base64url')
     expect(verifyVerifyToken(`${forgedPayload}.${signature}`, SECRET, NOW)).toBeNull()
+  })
+
+  it('cannot be replayed against another link kind', () => {
+    // Both tokens are signed with the same Payload secret, so only the `kind`
+    // baked into the envelope stops an unsubscribe link from verifying an
+    // event (and vice versa).
+    const verify = signVerifyToken({ eventId: 1, managerId: 2 }, SECRET, NOW)
+    const unsubscribe = signUnsubscribeToken({ registrationId: 1 }, SECRET)
+    expect(verifyVerifyToken(unsubscribe, SECRET, NOW)).toBeNull()
+    expect(readUnsubscribeToken(verify, SECRET).status).not.toBe('valid')
   })
 
   it('rejects malformed tokens', () => {
@@ -66,7 +84,11 @@ describe('verify token', () => {
       expect(readVerifyToken(token, 'other-secret', NOW)).toEqual({ status: 'invalid' })
       const [, signature] = token.split('.')
       const forged = Buffer.from(
-        JSON.stringify({ eventId: 999, managerId: 2, exp: NOW.getTime() + VERIFY_TOKEN_TTL_MS }),
+        JSON.stringify({
+          kind: 'event-verify',
+          exp: NOW.getTime() + VERIFY_TOKEN_TTL_MS,
+          claims: { eventId: 999, managerId: 2 },
+        }),
       ).toString('base64url')
       expect(readVerifyToken(`${forged}.${signature}`, SECRET, NOW)).toEqual({ status: 'invalid' })
     })

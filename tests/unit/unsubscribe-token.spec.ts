@@ -45,9 +45,9 @@ describe('unsubscribe token', () => {
 
   it('never expires — an authentic token stays valid regardless of age (no exp claim)', () => {
     const token = signUnsubscribeToken({ registrationId: 7 }, SECRET)
-    // The claims carry no `exp`, so there is no 'expired' outcome to reach.
+    // The envelope carries no `exp`, so there is no 'expired' outcome to reach.
     const decoded = JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString('utf-8'))
-    expect(decoded).toEqual({ registrationId: 7 })
+    expect(decoded).toEqual({ kind: 'registration-unsubscribe', claims: { registrationId: 7 } })
     expect(readUnsubscribeToken(token, SECRET).status).toBe('valid')
   })
 
