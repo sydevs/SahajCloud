@@ -7,7 +7,9 @@
  *   1. the manager's own events (incl. trashed) for the event list,
  *   2. the regions they directly manage,
  *   3. those regions' whole subtree (one breadcrumb query),
- *   4. all non-trashed events in that subtree for the counts.
+ *   4. all non-trashed events in that subtree — for the region counts *and*
+ *      the pre-adoption events the manager could adopt (those have no manager,
+ *      so query 1 can't see them).
  *
  * The result is memoized per (manager, locale) via `unstable_cache` under the
  * `atlas-sidebar` tag(s); see `cache.ts` for invalidation. The cached function
@@ -19,6 +21,7 @@ import type { TypedLocale } from 'payload'
 import { unstable_cache } from 'next/cache'
 import { getPayload } from 'payload'
 
+import { isPreAdoptionStage } from '@/lib/eventVerification/stages'
 import { breadcrumbAncestorIds, relationId } from '@/plugins/access/documentManagers'
 
 import config from '@payload-config'
@@ -39,6 +42,14 @@ export interface AtlasSidebarData {
   events: SidebarEventItem[]
   regions: RegionTreeNode[]
 }
+
+/** The fields a sidebar event row renders. */
+const EVENT_LIST_SELECT = {
+  title: true,
+  verificationStage: true,
+  deletedAt: true,
+  updatedAt: true,
+} as const
 
 function toEventInput(doc: Record<string, unknown>): SidebarEventInput {
   return {
@@ -97,7 +108,7 @@ export async function buildAtlasSidebarData(
       depth: 0,
       pagination: false,
       locale,
-      select: { title: true, verificationStage: true, deletedAt: true, updatedAt: true },
+      select: EVENT_LIST_SELECT,
     }),
     // 2. The regions the manager directly manages (the subtree roots).
     // `select: {}` returns only `id` — all we need for the subtree roots.
@@ -109,10 +120,14 @@ export async function buildAtlasSidebarData(
       select: {},
     }),
   ])
-  const events = sortEventsIntoBuckets(ownEvents.docs.map(toEventInput))
   const ownedRegionIds = ownedRegions.docs.map((doc) => doc.id)
 
   let regions: RegionTreeNode[] = []
+  // Pre-adoption events have no manager, so query 1 can't see them — but they
+  // are exactly what a region manager needs to find in order to adopt one.
+  // They come out of the subtree read below rather than a second event query.
+  let adoptable: SidebarEventInput[] = []
+
   if (ownedRegionIds.length) {
     // 3. Those roots plus every descendant (one breadcrumb query).
     const subtree = await payload.find({
@@ -128,20 +143,28 @@ export async function buildAtlasSidebarData(
     const regionById = new Map(regionInputs.map((region) => [region.id, region]))
     const subtreeRegionIds = new Set(regionInputs.map((region) => region.id))
 
-    // 4. Non-trashed events in the subtree, for the published/total counts.
+    // 4. Non-trashed events in the subtree. Feeds both the region counts and
+    // the adoptable list — the extra `title`/`updatedAt` in the select is the
+    // whole cost of surfacing pre-adoption events in the sidebar.
     const subtreeEvents = await payload.find({
       collection: 'events',
       where: { region: { in: [...subtreeRegionIds] } },
       depth: 0,
       pagination: false,
-      select: { region: true, _status: true, verificationStage: true, deletedAt: true },
+      locale,
+      select: { region: true, _status: true, ...EVENT_LIST_SELECT },
     })
     const counts = rollUpRegionCounts(
       subtreeEvents.docs.map((doc) => toCountInput(doc, regionById)),
       subtreeRegionIds,
     )
     regions = buildRegionTree(regionInputs, counts)
+    adoptable = subtreeEvents.docs
+      .filter((doc) => isPreAdoptionStage(doc.verificationStage))
+      .map(toEventInput)
   }
+
+  const events = sortEventsIntoBuckets([...ownEvents.docs.map(toEventInput), ...adoptable])
 
   return { events, regions }
 }

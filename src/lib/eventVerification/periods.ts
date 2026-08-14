@@ -1,6 +1,9 @@
 /**
  * Re-verification cadence helpers.
  *
+ * The cadence is one input to the `nextCheckAt` watermark; the watermark rule
+ * itself lives in `./watermark`.
+ *
  * The verification period is the event manager's `event_verification`
  * notification frequency — that cadence IS the re-verification window. There
  * is no per-event override and no opt-out; an unset/unknown cadence falls back

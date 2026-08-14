@@ -378,19 +378,28 @@ describe('Event verification lifecycle', () => {
 
     const mailTo = (address: string) => sent.filter((email) => email.to.includes(address))
 
-    /** Run one reminder cycle for `event` and return the manager's email. */
-    async function remindOnce(eventId: number): Promise<string> {
+    /**
+     * Run one reminder cycle for `event` and return the manager's email for it.
+     *
+     * Selected by title, not by taking the first message: every event in this
+     * spec shares one manager address, and the job processes *every* due event
+     * in the suite's database — so a second reminder landing in the same run
+     * would otherwise be picked up here at random.
+     */
+    async function remindOnce(eventId: number, title: string): Promise<string> {
       sent.length = 0
       await makeDue(payload, eventId)
       await runJob(payload)
-      const [email] = mailTo('event-manager@example.com')
+      const email = mailTo('event-manager@example.com').find((message) =>
+        message.html.includes(title),
+      )
       expect(email).toBeDefined()
-      return email.html
+      return email!.html
     }
 
     it('tells a thin listing what to improve, in the registry’s own words', async () => {
       const event = await createEvent({ title: 'Sparse Listing' })
-      const html = await remindOnce(event.id)
+      const html = await remindOnce(event.id, 'Sparse Listing')
 
       // Straight from `EVENT_QUALITY_COPY` — no description, no photos.
       expect(html).toContain('Add a description')
@@ -434,7 +443,7 @@ describe('Event verification lifecycle', () => {
         } as never,
       })
 
-      const html = await remindOnce(event.id)
+      const html = await remindOnce(event.id, 'Evening Sitting for Night-Shift Nurses')
       expect(html).toContain('Your listing is complete')
       // The ticks name what passed; the bar is dropped once there's no
       // progress left to show, so the caption goes with it.
@@ -460,7 +469,7 @@ describe('Event verification lifecycle', () => {
         overrideAccess: true,
       })
 
-      const html = await remindOnce(event.id)
+      const html = await remindOnce(event.id, 'Hidden Listing')
       // Nothing at all — not even the celebration a complete listing earns.
       // Keyed on the progress caption rather than a heading string: a
       // reworded heading would turn this into a vacuous pass.
@@ -473,7 +482,7 @@ describe('Event verification lifecycle', () => {
       // via `notificationLog`. If the progress section had perturbed that key, every
       // manager would be re-sent every reminder they'd already had.
       const event = await createEvent({ title: 'Dedup Listing' })
-      await remindOnce(event.id)
+      await remindOnce(event.id, 'Dedup Listing')
       expect(mailTo('event-manager@example.com')).toHaveLength(1)
 
       // Rewind to the stage just sent for, and make it due again — the log
@@ -582,6 +591,150 @@ describe('Event verification lifecycle', () => {
     expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
   })
 
+  describe('systemMeta write protection', () => {
+    // `systemMeta` is hidden from non-admin managers in the admin UI. That is
+    // only safe because visibility and writability are decided separately: the
+    // field's `access.update` refuses every non-overrideAccess write, and
+    // Payload responds by *deleting the key from the incoming patch* rather
+    // than nulling the column. Without that, a manager saving a form that
+    // never rendered the field could silently wipe it.
+    it('survives a save that omits it, and one that tries to clear it', async () => {
+      const event = await createEvent()
+      const feedback = { confirmations: 3, denials: 1, updatedAt: new Date().toISOString() }
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        context: { skipVerifyHook: true },
+        data: { systemMeta: { communityFeedback: feedback } } as Partial<Event>,
+      })
+
+      // A normal manager save (access enforced, field absent from the patch).
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: false,
+        user: { ...eventManager, collection: 'managers' } as never,
+        data: { title: 'Edited Without System Meta' } as Partial<Event>,
+      })
+      let fresh = await getEvent(payload, event.id)
+      expect(fresh.title).toBe('Edited Without System Meta')
+      expect(fresh.systemMeta).toEqual({ communityFeedback: feedback })
+
+      // And an explicit attempt to null it through the API is refused too.
+      // `as never` because the field's JSON Schema type forbids null — which is
+      // exactly the forged payload this is proving the server rejects.
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: false,
+        user: { ...eventManager, collection: 'managers' } as never,
+        data: { systemMeta: null } as never,
+      })
+      fresh = await getEvent(payload, event.id)
+      expect(fresh.systemMeta).toEqual({ communityFeedback: feedback })
+    })
+
+    it('still lets the system write it (overrideAccess skips field access)', async () => {
+      const event = await createEvent()
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        context: { skipVerifyHook: true },
+        data: { systemMeta: { communityFeedback: { confirmations: 9, denials: 0 } } } as never,
+      })
+      const fresh = await getEvent(payload, event.id)
+      expect(fresh.systemMeta).toMatchObject({ communityFeedback: { confirmations: 9 } })
+    })
+  })
+
+  describe('pre-adoption stages (unverified / denied)', () => {
+    it('a grooming save leaves a managerless unverified event untouched', async () => {
+      const event = await createEvent({
+        manager: null,
+        verificationStage: 'unverified',
+      })
+      expect(event.verificationStage).toBe('unverified')
+      expect(event.nextCheckAt ?? null).toBeNull()
+
+      // An admin fixes a typo without assigning a manager: editing text is not
+      // vouching the event exists, so nothing about verification may change.
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: { title: 'Groomed Title' },
+      })
+
+      const after = await getEvent(payload, event.id)
+      expect(after.title).toBe('Groomed Title')
+      expect(after.verificationStage).toBe('unverified')
+      expect(after.nextCheckAt ?? null).toBeNull()
+    })
+
+    it('assigning a manager and saving adopts the event (→ verified, cycle opens)', async () => {
+      const event = await createEvent({
+        manager: null,
+        verificationStage: 'unverified',
+      })
+
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: { manager: eventManager.id },
+      })
+
+      const after = await getEvent(payload, event.id)
+      expect(after.verificationStage).toBe('verified')
+      expect(after.nextCheckAt).toBeTruthy()
+      const log = after.notificationLog as NotificationLogEntry[]
+      expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
+    })
+
+    it('adoption also rescues a denied event (stage flips; publish stays a manual step)', async () => {
+      const event = await createEvent({
+        manager: null,
+        verificationStage: 'denied',
+        _status: 'draft',
+      })
+
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: { manager: eventManager.id },
+      })
+
+      const after = await getEvent(payload, event.id)
+      expect(after.verificationStage).toBe('verified')
+      // verifyOnSave never forces _status — republish is the manager's call.
+      expect(after._status).toBe('draft')
+    })
+
+    it('refuses to hold a managed stage without a manager', async () => {
+      const event = await createEvent({
+        manager: null,
+        verificationStage: 'unverified',
+      })
+
+      // Forcing the stage to `verified` while the manager is still null must
+      // fail validation: verified always implies managed. (Payload surfaces
+      // the per-field message in `error.data`; the thrown message names the
+      // field.)
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: event.id,
+          overrideAccess: true,
+          context: { skipVerifyHook: true },
+          data: { verificationStage: 'verified' },
+        }),
+      ).rejects.toThrow(/Verification > Manager/i)
+    })
+  })
+
   it('the admin verify endpoint re-publishes an expired event (method verify-action)', async () => {
     const event = await createEvent()
     // Drive to expired (verified → reminded → escalated → urgent → expired).
@@ -648,7 +801,9 @@ describe('Event verification lifecycle', () => {
     expect(result.remindersSent).toBe(0)
     const fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('finished')
-    expect(fresh.nextCheckAt ?? null).toBeNull()
+    // Re-armed at the retention deadline rather than cleared — that watermark
+    // is how the job finds it again to trash it 6 months on.
+    expect(new Date(fresh.nextCheckAt as string).getTime()).toBeGreaterThan(Date.now())
     // #603 inverted this: finishing no longer unpublishes. The event's Atlas page
     // must keep resolving for a seeker following an old link — it leaves the
     // public feeds instead (see notFinishedWhere). Only the unverified ladder
@@ -693,7 +848,8 @@ describe('Event verification lifecycle', () => {
       expect(result.finished).toBe(1)
       const fresh = await getEvent(payload, event.id)
       expect(fresh.verificationStage).toBe('finished')
-      expect(fresh.nextCheckAt ?? null).toBeNull()
+      // The retention watermark, not null — see the `finished` entry in STAGES.
+      expect(fresh.nextCheckAt).toBeTruthy()
       return fresh
     }
 
@@ -750,7 +906,7 @@ describe('Event verification lifecycle', () => {
 
       expect(saved.title).toBe('Renamed But Still Over')
       expect(saved.verificationStage).toBe('finished')
-      expect(saved.nextCheckAt ?? null).toBeNull()
+      expect(saved.nextCheckAt).toBeTruthy()
     })
 
     it('stays finished when the schedule moves but is still in the past', async () => {

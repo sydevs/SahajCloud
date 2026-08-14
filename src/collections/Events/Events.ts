@@ -7,6 +7,7 @@ import {
   LinkFeature,
   lexicalEditor,
 } from '@payloadcms/richtext-lexical'
+import { email, text } from 'payload/shared'
 
 import {
   DEFAULT_REGISTRATION_FREQUENCY,
@@ -18,16 +19,22 @@ import {
   legacyMigrationFields,
   publicUrlFields,
   scheduleFields,
+  systemMetaField,
   urlField,
 } from '@/fields'
 import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
 import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS } from '@/lib/eventQuality'
-import { DEFAULT_VERIFICATION_STAGE } from '@/lib/eventVerification/stages'
+import { communityFeedbackJsonSchema } from '@/lib/eventVerification/communityFeedback'
+import {
+  DEFAULT_VERIFICATION_STAGE,
+  isPreAdoptionStage,
+  isUnmanagedStage,
+} from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
-import { ownedRegionFilterOptions } from '@/plugins/access'
+import { adminOnlyCondition, ownedRegionFilterOptions } from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
 
 import { eventsGeoJson } from './endpoints/geojson'
@@ -43,10 +50,14 @@ import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuali
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { syncEventFullness } from './hooks/syncFullness'
-import { verifyOnSave } from './hooks/verifyOnSave'
+import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
 
+/** Bound on the free-text contact fields — matches the address fields' limit. */
+const CONTACT_TEXT_MAX = 100
+/** Bound on a contact email address (the RFC 5321 maximum). */
+const CONTACT_EMAIL_MAX = 254
 
 /**
  * Minimal rich-text editor for the event description: italic, an H3,
@@ -123,11 +134,11 @@ export const Events: CollectionConfig = {
     // Then drop finished events from API-client list reads (they stay published
     // so their pages resolve, but shouldn't be listed) — see excludeFinishedEvents.
     beforeOperation: [ensureWebPathDeps, excludeFinishedEvents],
-    // verifyOnSave first (re-opens the verification cycle), then the two
-    // stamping hooks. Both must run after it: `syncEventFullness` writes
-    // `registrationsFull`, and `stampEventQuality`'s skip rules read
-    // `verificationStage`, so it has to see the stage this save lands on.
-    beforeChange: [verifyOnSave, syncEventFullness, stampEventQuality],
+    // syncVerificationOnSave first — it decides the stage this save lands on
+    // (verify, or just re-arm the pre-adoption watermark). Both stamping hooks
+    // must run after it: `syncEventFullness` writes `registrationsFull`, and
+    // `stampEventQuality`'s skip rules read `verificationStage`.
+    beforeChange: [syncVerificationOnSave, syncEventFullness, stampEventQuality],
     // Bust the Atlas manager sidebar cache (event list + region counts) whenever
     // an event changes or is trashed/restored.
     afterChange: [revalidateAtlasSidebarHook],
@@ -190,59 +201,76 @@ export const Events: CollectionConfig = {
                   name: 'contactPhone',
                   label: 'Contact Phone Number',
                   type: 'text',
-                  // Inactive events have no schedule, so a public contact is the
-                  // only way a seeker can reach out — an inactive event must
-                  // carry at least one. Any route satisfies it, not a phone
-                  // specifically: an email or a page to read is just as
-                  // reachable, and demanding a phone rejected real listings
-                  // whose only contact was a Meetup page. Always visible, so
-                  // this can't gate on an `admin.condition`; a validate keeps
-                  // active events optional.
+                  maxLength: CONTACT_TEXT_MAX,
+                  // Inactive events have no schedule, so a *reachable person* is
+                  // the only way a seeker can find out more — an inactive event
+                  // must carry one. A phone or an email satisfies it; a website
+                  // deliberately does not, because a page is metadata about the
+                  // event rather than a route to someone who can answer a
+                  // question (same for `onlineUrl`, a join link for sessions an
+                  // inactive event isn't running). Always visible, so this can't
+                  // gate on an `admin.condition`; a validate keeps active events
+                  // optional.
+                  //
+                  // Composed with `text` from payload/shared because supplying
+                  // `validate` REPLACES Payload's default, which would otherwise
+                  // silently drop `maxLength` — see .claude/rules/collections.md.
                   validate: (
                     value: string | null | undefined,
-                    {
-                      data,
-                    }: {
-                      data?: {
-                        inactive?: boolean
-                        contactEmail?: string | null
-                        website?: string | null
-                        onlineUrl?: string | null
-                      }
-                    },
-                  ) =>
-                    data?.inactive && !value && !data.contactEmail && !data.website && !data.onlineUrl
-                      ? 'Add a phone, an email or a website — an inactive event has no schedule for seekers to rely on.'
-                      : true,
+                    options: { data?: { inactive?: boolean; contactEmail?: string | null } },
+                  ) => {
+                    const base = text(value, options as Parameters<typeof text>[1])
+                    if (base !== true) return base
+                    return options.data?.inactive && !value && !options.data.contactEmail
+                      ? 'Add a phone number or an email address — an inactive event has no schedule, so this is the only way a seeker can reach you.'
+                      : true
+                  },
                   admin: {
                     description:
                       'A phone number that seekers can call to learn more about the program.',
                   },
                 },
                 {
-                  name: 'contactName',
-                  type: 'text',
-                  // Shown when a phone is given — it names the person who
-                  // answers it — but not *required*: the Atlas dump holds
-                  // numbers with no name against them, and refusing those threw
-                  // away the only contact route a dormant listing had. A nicety,
-                  // not a necessity.
-                  admin: {
-                    condition: (data) => !!data?.contactPhone,
-                    description: 'The name of the person they are calling',
-                  },
-                },
-                {
                   name: 'contactEmail',
-                  // Built-in email format validation — no hand-rolled validator
-                  // (mirrors registrationNotificationEmail below).
                   type: 'email',
-                  // Deliberately independent of the phone → name gate above: some
-                  // events publish an email and no phone at all, so this must not
-                  // inherit contactName's `required`.
+                  // An `email` field validates format but takes no `maxLength`
+                  // of its own, so without this it's unbounded on a public-
+                  // facing listing. Composed with `email` from payload/shared
+                  // for the same reason as the phone above: a custom `validate`
+                  // replaces the built-in check, so it has to re-run it before
+                  // adding the bound.
+                  //
+                  // Deliberately does NOT repeat the inactive-contact rule —
+                  // either field satisfies it, and asserting it here too would
+                  // surface the same complaint on two fields at once.
+                  validate: (
+                    value: string | null | undefined,
+                    options: Parameters<typeof email>[1],
+                  ) => {
+                    const base = email(value, options)
+                    if (base !== true) return base
+                    return !value || value.length <= CONTACT_EMAIL_MAX
+                      ? true
+                      : `Keep the email address under ${CONTACT_EMAIL_MAX} characters.`
+                  },
                   admin: {
                     description:
                       'An email address seekers can write to for more information about the program.',
+                  },
+                },
+                {
+                  name: 'contactName',
+                  type: 'text',
+                  maxLength: CONTACT_TEXT_MAX,
+                  // Shown once there's a contact route to put a name to —
+                  // whoever answers the phone or reads the inbox. Not
+                  // *required*: the Atlas dump holds numbers and addresses with
+                  // no name against them, and refusing those threw away the only
+                  // contact route a dormant listing had. A nicety, not a
+                  // necessity.
+                  admin: {
+                    condition: (data) => !!data?.contactPhone || !!data?.contactEmail,
+                    description: 'The name of the person seekers will reach',
                   },
                 },
               ],
@@ -264,8 +292,27 @@ export const Events: CollectionConfig = {
               type: 'upload',
               relationTo: 'images',
               hasMany: true,
-              admin: { description: 'Photos for this event.' },
+              maxRows: 7,
+              admin: { description: 'Photos for this event (up to 7).' },
             },
+            // Canonical Atlas web path/URL: the event's region path + `/<id>`
+            // (`/belgium/flanders/antwerp/downtown-hall/12345`). Publish-gated —
+            // an unpublished event has no public page, and the verify/reminder
+            // links + ExpireEvents job rely on that null-on-unpublish contract
+            // (`appUrl` is always null — there's no Atlas app deep-link).
+            // `region` (an id at depth 0) must be present for the path to
+            // resolve; the ensureWebPathDeps beforeOperation hook keeps it
+            // selectable on its own.
+            ...publicUrlFields({
+              web: serverEnv.SAHAJATLAS_URL,
+              buildPath: async ({ data, req }) => {
+                const regionId = relationId(data?.region)
+                const id = data?.id
+                if (regionId == null || typeof id !== 'number') return null
+                const regionPath = (await getRegionWebPaths(req)).get(regionId)
+                return regionPath != null ? `${regionPath}/${id}` : null
+              },
+            }),
           ],
         },
         {
@@ -385,7 +432,12 @@ export const Events: CollectionConfig = {
                   // Built-in email format validation — no hand-rolled validator.
                   type: 'email',
                   admin: {
-                    condition: (data) => data?.registrationMode === 'sahaj-atlas',
+                    // Hidden pre-adoption: an unverified/denied event has no
+                    // manager, and its registrations are recorded but forwarded
+                    // to nobody until a manager adopts it.
+                    condition: (data) =>
+                      data?.registrationMode === 'sahaj-atlas' &&
+                      !isPreAdoptionStage(data?.verificationStage),
                     placeholder: 'Event Manager',
                     description:
                       'Enter an email to redirect updates about new seeker registrations to. Leave blank to send registration updates to the event manager.',
@@ -430,23 +482,6 @@ export const Events: CollectionConfig = {
               on: 'event',
               admin: { condition: hideUntilCreated },
             },
-            {
-              // Denormalized "at capacity" flag the Atlas widget reads to render
-              // its "Full" registration state. A boolean — never a raw count —
-              // so a public `sahaj-atlas-client` can select fullness without
-              // learning exact registration numbers. Stored (not computed per
-              // read) so the geojson feed and list reads stay O(1): maintained
-              // by the Registrations create/delete hooks
-              // (`syncEventRegistrationsFull`) and recomputed here on a
-              // registrationMode / registrationLimit change (`syncEventFullness`
-              // beforeChange). True only for `sahaj-atlas` mode with a set limit
-              // the registration count has reached; false for `external` mode or
-              // a blank (unlimited) limit. System-managed — hidden + read-only.
-              name: 'registrationsFull',
-              type: 'checkbox',
-              defaultValue: false,
-              admin: { hidden: true, readOnly: true },
-            },
           ],
         },
         {
@@ -471,8 +506,28 @@ export const Events: CollectionConfig = {
               name: 'manager',
               type: 'relationship',
               relationTo: 'managers',
-              required: true,
-              admin: { description: 'Manager responsible for verifying this event.' },
+              // Conditionally required, not `required: true`: the pre-adoption
+              // stages (`unverified` / `denied`) have no manager by definition,
+              // and the field must stay *visible* there — assigning a manager
+              // and saving is exactly how those events are adopted (the
+              // save hook then flips the stage to `verified`). Every
+              // ladder stage still demands one: verified implies managed.
+              // `finished` is also exempt — the stale sweep finishes run-out
+              // unverified events that never got adopted, and a terminal stage
+              // sends no reminders for a manager to receive.
+              validate: (
+                value: unknown,
+                { data }: { data?: { verificationStage?: string | null } },
+              ) => {
+                const stage = data?.verificationStage
+                return value || stage == null || isUnmanagedStage(stage)
+                  ? true
+                  : 'A manager is required — only unverified, denied or finished events can be unmanaged.'
+              },
+              admin: {
+                description:
+                  'Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.',
+              },
             },
             {
               name: 'verificationStage',
@@ -491,18 +546,6 @@ export const Events: CollectionConfig = {
               },
             },
             {
-              // `should_update_status_at` analog the job filters on
-              // (`nextCheckAt <= now`). Set to now + cadence on verification,
-              // then to the per-stage offset as the job advances. Hidden — the
-              // verification time itself lives in `notificationLog[0]`.
-              name: 'nextCheckAt',
-              type: 'date',
-              // Indexed: the daily ExpireEvents sweep selects on
-              // `nextCheckAt <= now`, so this is the one column it filters on.
-              index: true,
-              admin: { hidden: true },
-            },
-            {
               // Current cycle's ledger: the verification that opened it plus a
               // reminder entry per send. Reset on every verification, and the
               // job's exactly-once marker (skip recipients already logged this
@@ -516,27 +559,33 @@ export const Events: CollectionConfig = {
                 components: { Field: '@/components/admin/NotificationLogTable' },
               },
             },
+            {
+              // Wilson lower bound of registrant confirm/deny votes, in [0, 1];
+              // null until the first vote. A real, indexed column — unlike the
+              // raw tallies in `systemMeta` — because the Atlas feeds sort and
+              // filter on it to rank unverified listings by confidence. Written
+              // only by the Registrations vote-sync hook.
+              //
+              // Shown for both pre-adoption stages: `unverified` is where votes
+              // are collected, and on a `denied` event the score is the reason
+              // it was taken down — exactly when a manager wants to see it.
+              // Hidden once adopted, where a manager vouches for the event
+              // instead and the number is a stale artefact.
+              name: 'confidenceScore',
+              label: 'Community Confidence',
+              type: 'number',
+              index: true,
+              admin: {
+                readOnly: true,
+                condition: (data) => isPreAdoptionStage(data?.verificationStage),
+                description:
+                  'How strongly attendees confirm this event is real (0–1). Rises with confirmations, falls with denials, and stays cautious while there are few votes — the Atlas map ranks unverified listings by it. Blank until the first vote.',
+              },
+            },
           ],
         },
       ],
     },
-    // Canonical Atlas web path/URL: the event's region path + `/<id>`
-    // (`/belgium/flanders/antwerp/downtown-hall/12345`). `webPath` + `webUrl`
-    // are published-gated — an unpublished event has no public page, and the
-    // verify/reminder links + ExpireEvents job rely on that null-on-unpublish
-    // contract (`appUrl` is always null — there's no Atlas app deep-link).
-    // `region` (an id at depth 0) must be present for the path to resolve; the
-    // ensureWebPathDeps beforeOperation hook keeps it selectable on its own.
-    ...publicUrlFields({
-      web: serverEnv.SAHAJATLAS_URL,
-      buildPath: async ({ data, req }) => {
-        const regionId = relationId(data?.region)
-        const id = data?.id
-        if (regionId == null || typeof id !== 'number') return null
-        const regionPath = (await getRegionWebPaths(req)).get(regionId)
-        return regionPath != null ? `${regionPath}/${id}` : null
-      },
-    }),
     {
       // Advisory listing-quality recommendations (#609), in the sidebar above
       // Legacy Data. Computed on read, so opening the event is already fresh —
@@ -565,23 +614,87 @@ export const Events: CollectionConfig = {
       hooks: { afterRead: [computeEventQualityReport] },
     },
     {
-      // Open document-scope items, for list-view sorting and targeted queries.
-      // A query pre-filter, not a score: the per-locale checks read localized
-      // titles a write hook can't see, so a single non-localized column cannot
-      // hold a correct cross-locale figure.
-      name: 'qualityOpenCount',
-      type: 'number',
-      index: true,
-      admin: { hidden: true },
-    },
-    {
-      // Which definition of the check set produced `qualityOpenCount`, so a
-      // stored count stays comparable across deploys. Stamped on every write;
-      // nothing re-stamps in bulk (production is seeded by the Atlas import,
-      // which writes through the same hook).
-      name: 'qualityCheckVersion',
-      type: 'number',
-      admin: { hidden: true },
+      // Every machine-maintained value on the document, in one collapsed
+      // drawer. None of these are editable — they're written by hooks and the
+      // nightly job — but hiding them outright (as they were) meant the only
+      // way to see why an event behaved as it did was to query the database.
+      label: 'System',
+      type: 'collapsible',
+      admin: { initCollapsed: true },
+      fields: [
+        {
+          // Who sent this listing in: the registrant record upserted by the
+          // public submission flow (or the system user for bulk imports).
+          // Record-keeping/abuse tracking only — grants no access.
+          name: 'submitter',
+          type: 'relationship',
+          relationTo: 'users',
+          admin: {
+            readOnly: true,
+            description: 'Who submitted this listing (record-keeping only).',
+          },
+        },
+        {
+          // `should_update_status_at` analog the job filters on
+          // (`nextCheckAt <= now`) — the watermark that makes every lifecycle
+          // transition reachable. See @/lib/eventVerification/watermark.
+          name: 'nextCheckAt',
+          type: 'date',
+          // Indexed: the daily ExpireEvents sweep selects on
+          // `nextCheckAt <= now`, so this is the one column it filters on.
+          index: true,
+          admin: {
+            readOnly: true,
+            description: 'When the nightly job will next act on this event.',
+          },
+        },
+        {
+          // Denormalized "at capacity" flag the Atlas widget reads to render
+          // its "Full" registration state. A boolean — never a raw count — so a
+          // public `sahaj-atlas-client` can select fullness without learning
+          // exact registration numbers. Stored (not computed per read) so the
+          // geojson feed and list reads stay O(1): maintained by the
+          // Registrations create/delete hooks (`syncEventRegistrationsFull`)
+          // and recomputed here on a registrationMode / registrationLimit
+          // change (`syncEventFullness` beforeChange). True only for
+          // `sahaj-atlas` mode with a set limit the registration count has
+          // reached; false for `external` mode or a blank (unlimited) limit.
+          name: 'registrationsFull',
+          type: 'checkbox',
+          defaultValue: false,
+          admin: { readOnly: true, description: 'Registrations have reached the limit.' },
+        },
+        {
+          // Open document-scope items, for list-view sorting and targeted
+          // queries. A query pre-filter, not a score: the per-locale checks read
+          // localized titles a write hook can't see, so a single non-localized
+          // column cannot hold a correct cross-locale figure.
+          name: 'qualityOpenCount',
+          type: 'number',
+          index: true,
+          admin: { readOnly: true, description: 'Open listing-quality recommendations.' },
+        },
+        {
+          // Which definition of the check set produced `qualityOpenCount`, so a
+          // stored count stays comparable across deploys. Stamped on every
+          // write; nothing re-stamps in bulk (production is seeded by the Atlas
+          // import, which writes through the same hook).
+          name: 'qualityCheckVersion',
+          type: 'number',
+          admin: { readOnly: true, description: 'Check-set version the count was stamped from.' },
+        },
+        systemMetaField({
+          uri: 'https://sahajcloud.dev/schemas/event-system-meta.json',
+          namespaces: { communityFeedback: communityFeedbackJsonSchema },
+          admin: {
+            // Raw internal state — useful when debugging why an event was
+            // ranked or denied, noise for a region manager grooming a listing.
+            condition: adminOnlyCondition,
+            description:
+              'Raw system metadata (community vote tallies, and future internals).',
+          },
+        }),
+      ],
     },
     ...legacyMigrationFields(),
   ],

@@ -220,6 +220,29 @@ describe('Event listing quality', () => {
       const fresh = await payload.findByID({ collection: 'events', id: event.id, trash: true })
       expect(report(fresh)).toEqual({ skipped: true, reason: 'trashed' })
     })
+
+    it('checks a published unverified event — the adopting manager’s to-do list', async () => {
+      const event = await createPublished({
+        title: 'Unverified Sitting',
+        manager: null,
+        verificationStage: 'unverified',
+      })
+      const fresh = await payload.findByID({ collection: 'events', id: event.id })
+      const built = report(fresh)
+      expect(built.skipped).toBe(false)
+      if (!built.skipped) expect(built.checks.length).toBeGreaterThan(0)
+    })
+
+    it('returns skipped (denied) for a community-rejected event', async () => {
+      const event = await createPublished({
+        title: 'Denied Sitting',
+        manager: null,
+        verificationStage: 'unverified',
+      })
+      await setStage(event.id, { verificationStage: 'denied', _status: 'draft' })
+      const fresh = await payload.findByID({ collection: 'events', id: event.id, draft: true })
+      expect(report(fresh)).toEqual({ skipped: true, reason: 'denied' })
+    })
   })
 
   describe('read cost', () => {

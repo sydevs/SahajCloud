@@ -11,35 +11,55 @@ import {
 import React from 'react'
 
 import type { VerificationStage } from '@/lib/eventVerification/stages'
+import type { Event } from '@/payload-types'
+
 
 type Severity = 'warning' | 'error' | 'info'
 
+interface NoticeContext {
+  /** Formatted `nextCheckAt` (or null). */
+  dueDate: string | null
+  /** ` — N attendees confirmed it, M denied it` (or empty when no votes). */
+  votes: string
+}
+
 interface NoticeConfig {
   severity: Severity
-  /** Banner copy; `dueDate` is the formatted `nextCheckAt` (or null). */
-  message: (dueDate: string | null) => string
+  message: (ctx: NoticeContext) => string
 }
 
 /**
  * Which stages surface a banner. `verified` (and unsaved docs) show nothing.
- * Every banner tells the manager to **republish** — saving the event runs the
- * verify-on-save hook, which re-opens the verification cycle (and publishing an
- * unpublished/expired event also restores its public listing).
+ * Every ladder banner tells the manager to **republish** — saving the event
+ * runs the verify-on-save hook, which re-opens the verification cycle (and
+ * publishing an unpublished/expired event also restores its public listing).
+ * The pre-adoption pair (`unverified` / `denied`) instead tells them to
+ * **assign a manager** — saves without one deliberately change nothing.
  */
 const NOTICES: Partial<Record<VerificationStage, NoticeConfig>> = {
+  unverified: {
+    severity: 'warning',
+    message: ({ votes }) =>
+      `This listing is unverified — it was submitted or imported and has no manager yet${votes}. Assign a manager and save to adopt it into the verification cycle.`,
+  },
+  denied: {
+    severity: 'error',
+    message: ({ votes }) =>
+      `This event was unpublished after attendee feedback${votes}. Assign a manager to adopt it, correct the details, and republish to restore the listing.`,
+  },
   reminded: {
     severity: 'warning',
-    message: (due) =>
+    message: ({ dueDate: due }) =>
       `This event needs verification${due ? ` by ${due}` : ''} to stay listed publicly. Republish it to verify.`,
   },
   escalated: {
     severity: 'warning',
-    message: (due) =>
+    message: ({ dueDate: due }) =>
       `This event is overdue for verification${due ? ` (due ${due})` : ''}. Region managers have been notified — republish it to verify and stop further escalation.`,
   },
   urgent: {
     severity: 'error',
-    message: (due) =>
+    message: ({ dueDate: due }) =>
       `Final reminder${due ? ` — due ${due}` : ''}: republish this event to verify it before it’s unpublished and hidden from the public.`,
   },
   expired: {
@@ -91,16 +111,27 @@ const EventVerificationNotice: React.FC = () => {
     ([fields]) => fields?.verificationStage?.value as VerificationStage | undefined,
   )
   const nextCheckAt = useFormFields(([fields]) => fields?.nextCheckAt?.value as string | undefined)
+  // Typed by the field's JSON Schema (see `systemMetaField`), so no runtime
+  // shape-check is needed — Payload validates it on the way in.
+  const systemMeta = useFormFields(
+    ([fields]) => fields?.systemMeta?.value as Event['systemMeta'] | undefined,
+  )
 
   const notice = stage ? NOTICES[stage] : undefined
   // No banner for verified events or unsaved (no id) documents.
   if (!id || !notice) return null
 
+  const { confirmations = 0, denials = 0 } = systemMeta?.communityFeedback ?? {}
+  const votes =
+    confirmations + denials > 0
+      ? ` — ${confirmations} attendee${confirmations === 1 ? '' : 's'} confirmed it, ${denials} denied it`
+      : ''
+
   const Icon = SEVERITY_ICON[notice.severity]
 
   return (
     <Banner type={SEVERITY_BANNER_TYPE[notice.severity]} icon={<Icon />} alignIcon="left">
-      {notice.message(formatDueDate(nextCheckAt))}
+      {notice.message({ dueDate: formatDueDate(nextCheckAt), votes })}
     </Banner>
   )
 }
