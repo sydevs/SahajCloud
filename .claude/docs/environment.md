@@ -68,7 +68,8 @@ Copy from `.env.example` and configure:
 ### Live Preview URLs
 
 - `WEMEDITATE_WEB_URL` - Preview URL for We Meditate Web frontend (required) — Pages/Meditations live preview + CSP `frame-src`
-- `SAHAJATLAS_URL` - Preview URL for Sahaj Atlas frontend (required) — Regions/Events live preview (#575), CSP `frame-src`, and the `csrf` allowlist
+- `SAHAJATLAS_URL` - Preview URL for Sahaj Atlas frontend (required) — Regions/Events live preview (#575), CSP `frame-src`, and the `csrf` allowlist. **Not a canonical base**: the Atlas host is `noindex` on three layers, so `webUrl` deliberately never points at it (#634)
+- `WEMEDITATE_ATLAS_BASE_PATH` - Path the Atlas widget is mounted at on We Meditate (optional, default `/map`). The canonical `webUrl` fallback for any region no client owns: `WEMEDITATE_WEB_URL + WEMEDITATE_ATLAS_BASE_PATH + webPath`. Path only, no query or fragment; `''` mounts at the root (#634)
 
 **No trailing slash** on either URL: they're used as URL prefixes (`${URL}/preview?...`)
 and compared against `Origin` headers, which never carry one.
@@ -221,6 +222,7 @@ CLOUDFLARE_STREAM_DELIVERY_URL=https://customer-code.cloudflarestream.com
 CLOUDFLARE_R2_DELIVERY_URL=https://assets.sydevelopers.com
 NEXT_PUBLIC_LOG_LEVEL=debug
 WEMEDITATE_WEB_URL=http://localhost:5173
+WEMEDITATE_ATLAS_BASE_PATH=/map
 SAHAJATLAS_URL=http://localhost:5173
 ```
 
