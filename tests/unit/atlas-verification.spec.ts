@@ -188,6 +188,8 @@ describe('buildImportVerification', () => {
       now,
       actor: { id: 7, name: 'Priya' },
     })
-    expect(fields.notificationLog[0].by).toEqual({ id: 7, name: 'Priya' })
+    const [entry] = fields.notificationLog
+    expect(entry.kind).toBe('verification')
+    expect(entry).toMatchObject({ by: { id: 7, name: 'Priya' } })
   })
 })

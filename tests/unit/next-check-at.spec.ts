@@ -134,7 +134,6 @@ describe('resolveNextCheckAt — finished retention', () => {
     const endsOn31Aug: EventScheduleInput = {
       firstDate: '2026-08-31T12:00:00.000Z',
       firstDate_tz: 'UTC',
-      recurrenceType: 'NONE',
     }
     const result = resolveNextCheckAt({ stage: 'finished', schedule: endsOn31Aug })
     expect(result!.slice(0, 10)).toBe('2027-02-28')

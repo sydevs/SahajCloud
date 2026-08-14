@@ -1,7 +1,9 @@
 import type { VerificationStage } from './stages'
+import type { JSONSchema4 } from 'json-schema'
 
 import type { ReminderAudience, ReminderLevel } from '@/lib/notifications'
 
+import { VERIFICATION_STAGES } from './stages'
 
 /**
  * The on-document `notificationLog` — the **current verification cycle**.
@@ -12,10 +14,16 @@ import type { ReminderAudience, ReminderLevel } from '@/lib/notifications'
  * the job sends a stage's reminder only to recipients not already logged for
  * that stage this cycle, so a crashed mid-fan-out run resumes without
  * duplicating.
+ *
+ * Stored as a bare array under a JSON Schema (below), which is what buys the
+ * generated `Event['notificationLog']` type *and* write-time validation — a
+ * malformed entry throws a `ValidationError` instead of landing in the column
+ * for a reader to defend against.
  */
 
 /** How a verification was triggered. */
-export type VerificationMethod = 're-save' | 'verify-action' | 'email-link' | 'import'
+export const VERIFICATION_METHODS = ['re-save', 'verify-action', 'email-link', 'import'] as const
+export type VerificationMethod = (typeof VERIFICATION_METHODS)[number]
 
 /** A manager reference captured in the log (id + display name). */
 export interface ActorRef {
@@ -51,6 +59,92 @@ export interface ReminderLogEntry {
 }
 
 export type NotificationLogEntry = VerificationLogEntry | ReminderLogEntry
+
+/**
+ * Restate a union as a runtime array, rejecting an incomplete list.
+ *
+ * `ReminderLevel` / `ReminderAudience` are declared in an email template, so
+ * importing a runtime constant from there would pull React into every module
+ * that reads a log. Listing the members here instead is safe only if the
+ * compiler checks the list is *exhaustive* — `satisfies` alone would happily
+ * accept a list missing a member, and the schema would then reject a level the
+ * job legitimately sends.
+ */
+function completeList<Union extends string>() {
+  return <const List extends readonly Union[]>(
+    list: [Union] extends [List[number]] ? List : never,
+  ): List => list
+}
+
+const REMINDER_LEVELS = completeList<ReminderLevel>()(['due', 'escalated', 'urgent', 'expired'])
+const REMINDER_AUDIENCES = completeList<ReminderAudience>()(['manager', 'region'])
+
+const actorRefProperties: JSONSchema4 = {
+  additionalProperties: false,
+  required: ['id', 'name'],
+  properties: { id: { type: 'number' }, name: { type: 'string' } },
+}
+
+const actorRefSchema: JSONSchema4 = { type: 'object', ...actorRefProperties }
+
+/**
+ * `by` is null for a system-triggered verification (the importer, the job).
+ * Expressed as a `type` union rather than `oneOf: [actorRef, null]` — the two
+ * are equivalent here (`required`/`properties` only constrain the object
+ * branch), and the flatter form is what the type generator renders as
+ * `{ id, name } | null`.
+ */
+const nullableActorRefSchema: JSONSchema4 = { type: ['object', 'null'], ...actorRefProperties }
+
+/**
+ * JSON Schema for the stored `notificationLog`, wired onto the Events field's
+ * `jsonSchema`. The entry variants mirror the two interfaces above, keyed on
+ * `kind`; the stage/level/audience enums are derived from their own constants
+ * so they can't drift from the lifecycle config.
+ *
+ * `additionalProperties: false` on each variant is the point — a writer that
+ * invents a key gets a `ValidationError` rather than a column nobody notices
+ * is wrong.
+ */
+/** `$id` / `fileMatch` key Payload names the generated type from. */
+export const NOTIFICATION_LOG_SCHEMA_URI =
+  'https://sahajcloud.dev/schemas/event-notification-log.json'
+
+export const notificationLogJsonSchema: JSONSchema4 = {
+  $id: NOTIFICATION_LOG_SCHEMA_URI,
+  type: 'array',
+  items: {
+    anyOf: [
+      {
+        type: 'object',
+        additionalProperties: false,
+        required: ['kind', 'at', 'by', 'method'],
+        properties: {
+          kind: { enum: ['verification'] },
+          at: { type: 'string' },
+          by: nullableActorRefSchema,
+          method: { enum: [...VERIFICATION_METHODS] },
+        },
+      },
+      {
+        type: 'object',
+        additionalProperties: false,
+        required: ['kind', 'stage', 'level', 'role', 'at', 'manager', 'channel', 'destination'],
+        properties: {
+          kind: { enum: ['reminder'] },
+          stage: { enum: [...VERIFICATION_STAGES] },
+          level: { enum: [...REMINDER_LEVELS] },
+          role: { enum: [...REMINDER_AUDIENCES] },
+          region: { type: 'string' },
+          at: { type: 'string' },
+          manager: actorRefSchema,
+          channel: { type: 'string' },
+          destination: { type: 'string' },
+        },
+      },
+    ],
+  },
+}
 
 /** Build the cycle-opening verification entry. */
 export function buildVerificationEntry(
@@ -103,7 +197,13 @@ export function hasReminderForStage(
   )
 }
 
-/** Narrow an unknown json value (the stored field) to a log-entry array. */
+/**
+ * Read the stored field as a log-entry array.
+ *
+ * The schema guarantees the shape of anything written *through Payload*, so
+ * this only has to cope with the field being absent — a document that has
+ * never been verified.
+ */
 export function asNotificationLog(value: unknown): NotificationLogEntry[] {
   return Array.isArray(value) ? (value as NotificationLogEntry[]) : []
 }

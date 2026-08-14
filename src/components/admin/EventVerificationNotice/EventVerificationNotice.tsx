@@ -11,9 +11,9 @@ import {
 import React from 'react'
 
 import type { StageAttention, VerificationStage } from '@/lib/eventVerification/stages'
+import { stageAttention } from '@/lib/eventVerification/stages'
 import type { Event } from '@/payload-types'
 
-import { stageAttention } from '@/lib/eventVerification/stages'
 
 
 type Severity = 'warning' | 'error' | 'info'

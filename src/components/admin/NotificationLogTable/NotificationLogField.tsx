@@ -6,6 +6,7 @@ import { FieldDescription, FieldLabel, Table, useField } from '@payloadcms/ui'
 import React from 'react'
 
 import type { NotificationLogEntry } from '@/lib/eventVerification/log'
+import { asNotificationLog } from '@/lib/eventVerification/log'
 
 import {
   deliveryCell,
@@ -66,7 +67,7 @@ function column(accessor: string, heading: string, cells: React.ReactNode[]): Lo
 export const NotificationLogField: FieldClientComponent = ({ field }) => {
   const { name, label, admin } = field as JSONFieldClient
   const { value } = useField<NotificationLogEntry[]>()
-  const entries = Array.isArray(value) ? value : []
+  const entries = asNotificationLog(value)
 
   return (
     <div className="field-type json read-only">

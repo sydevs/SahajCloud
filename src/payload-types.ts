@@ -594,6 +594,31 @@ export type SupportedTimezones =
   | 'Etc/GMT+10'
   | 'Etc/GMT+11'
   | 'Etc/GMT+12';
+export type HttpsSahajcloudDevSchemasEventNotificationLogJson = (
+  | {
+      kind: 'verification';
+      at: string;
+      by: {
+        id: number;
+        name: string;
+      } | null;
+      method: 're-save' | 'verify-action' | 'email-link' | 'import';
+    }
+  | {
+      kind: 'reminder';
+      stage: 'unverified' | 'denied' | 'verified' | 'reminded' | 'escalated' | 'urgent' | 'expired' | 'finished';
+      level: 'due' | 'escalated' | 'urgent' | 'expired';
+      role: 'manager' | 'region';
+      region?: string;
+      at: string;
+      manager: {
+        id: number;
+        name: string;
+      };
+      channel: string;
+      destination: string;
+    }
+)[];
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "ProjectSlug".
@@ -1806,18 +1831,7 @@ export interface Event {
     | 'urgent'
     | 'expired'
     | 'finished';
-  /**
-   * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.
-   */
-  notificationLog?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  notificationLog?: HttpsSahajcloudDevSchemasEventNotificationLogJson;
   /**
    * How strongly attendees confirm this event is real (0–1). Rises with confirmations, falls with denials, and stays cautious while there are few votes — the Atlas map ranks unverified listings by it. Blank until the first vote.
    */

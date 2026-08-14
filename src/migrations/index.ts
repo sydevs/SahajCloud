@@ -41,6 +41,7 @@ import * as migration_20260805_184012_replace_registration_questions from './202
 import * as migration_20260812_022527_add_unverified_denied_stages from './20260812_022527_add_unverified_denied_stages';
 import * as migration_20260812_032435_add_event_submissions from './20260812_032435_add_event_submissions';
 import * as migration_20260812_034732_add_registration_event_feedback from './20260812_034732_add_registration_event_feedback';
+import * as migration_20260814_164256 from './20260814_164256';
 
 export const migrations = [
   {
@@ -256,6 +257,11 @@ export const migrations = [
   {
     up: migration_20260812_034732_add_registration_event_feedback.up,
     down: migration_20260812_034732_add_registration_event_feedback.down,
-    name: '20260812_034732_add_registration_event_feedback'
+    name: '20260812_034732_add_registration_event_feedback',
+  },
+  {
+    up: migration_20260814_164256.up,
+    down: migration_20260814_164256.down,
+    name: '20260814_164256',
   },
 ];

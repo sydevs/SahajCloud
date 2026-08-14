@@ -3,8 +3,9 @@
  *
  * One entry per occurrence a registration has been reminded for. The reminder
  * job checks membership before sending and appends immediately after, so a task
- * retry or an overlapping run never double-sends. Mirrors the Events
- * `notificationLog` shape and helpers (`asNotificationLog` / `hasReminderForStage`).
+ * retry or an overlapping run never double-sends. Same idea as the Events
+ * `notificationLog`, but stored as a bare array — that one moved to a
+ * schema-validated `{ entries: [...] }` object; this hasn't followed yet.
  */
 
 /** One reminded occurrence. */

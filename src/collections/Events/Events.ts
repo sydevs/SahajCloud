@@ -28,14 +28,18 @@ import { serverEnv } from '@/lib/env/server'
 import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS } from '@/lib/eventQuality'
 import { communityFeedbackJsonSchema } from '@/lib/eventVerification/communityFeedback'
 import {
+  NOTIFICATION_LOG_SCHEMA_URI,
+  notificationLogJsonSchema,
+} from '@/lib/eventVerification/log'
+import {
   DEFAULT_VERIFICATION_STAGE,
   isPreAdoptionStage,
   isUnmanagedStage,
 } from '@/lib/eventVerification/stages'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
-import { adminOnlyCondition, ownedRegionFilterOptions } from '@/plugins/access'
 import { relationId } from '@/lib/utilities/relationId'
+import { adminOnlyCondition, ownedRegionFilterOptions } from '@/plugins/access'
 
 import { eventsGeoJson } from './endpoints/geojson'
 import { registerForEvent } from './endpoints/registerForEvent'
@@ -552,6 +556,14 @@ export const Events: CollectionConfig = {
               // stage). Read-only, rendered by NotificationLogTable.
               name: 'notificationLog',
               type: 'json',
+              // Payload generates the `notificationLog` TS type from this AND
+              // validates on write, so a malformed entry throws a
+              // ValidationError instead of landing in the column.
+              jsonSchema: {
+                uri: NOTIFICATION_LOG_SCHEMA_URI,
+                fileMatch: [NOTIFICATION_LOG_SCHEMA_URI],
+                schema: notificationLogJsonSchema,
+              },
               admin: {
                 readOnly: true,
                 description:
