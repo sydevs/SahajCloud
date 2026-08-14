@@ -11,7 +11,7 @@
  * these regions is cannot be derived from the data, so fixing them is a human
  * decision made in the admin panel (or by the Atlas importer). This script
  * exists to say precisely which rows need that decision and what each is
- * costing, so `requireNonEmptySlug`'s grandfather clause can eventually be
+ * costing, so `withNonEmptySlug`'s grandfather clause can eventually be
  * dropped.
  *
  * Usage:
@@ -24,21 +24,14 @@ import type { Payload } from 'payload'
 import dotenv from 'dotenv'
 import { getPayload } from 'payload'
 
+import { relationId } from '../src/lib/utilities/relationId'
+
 interface RegionRow {
   id: number
   name?: string | null
   slug?: string | null
   level?: string | null
   breadcrumbs?: Array<{ doc?: unknown }> | null
-}
-
-/** The relationship shape breadcrumbs use at depth 0 — an id, or `{ id }`. */
-function crumbId(doc: unknown): number | null {
-  if (typeof doc === 'number') return doc
-  if (doc && typeof doc === 'object' && typeof (doc as { id?: unknown }).id === 'number') {
-    return (doc as { id: number }).id
-  }
-  return null
 }
 
 async function loadPayload(): Promise<Payload> {
@@ -70,7 +63,7 @@ async function main(): Promise<void> {
   // ancestry — that is exactly the set whose canonical URLs cannot be built.
   const affected = rows.filter((row) =>
     (row.breadcrumbs ?? []).some((crumb) => {
-      const id = crumbId(crumb?.doc)
+      const id = relationId(crumb?.doc)
       return id !== null && blankIds.has(id)
     }),
   )
@@ -89,7 +82,7 @@ async function main(): Promise<void> {
   })
   const eventsByRegion = new Map<number, number>()
   for (const doc of eventDocs) {
-    const id = crumbId((doc as { region?: unknown }).region)
+    const id = relationId((doc as { region?: unknown }).region)
     if (id !== null) eventsByRegion.set(id, (eventsByRegion.get(id) ?? 0) + 1)
   }
 

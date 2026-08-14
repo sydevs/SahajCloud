@@ -1,5 +1,7 @@
 import type { Payload } from 'payload'
 
+import { relationId } from '@/lib/utilities/relationId'
+
 /**
  * Backfill `breadcrumbs[].url` on existing regions (#634).
  *
@@ -17,9 +19,12 @@ import type { Payload } from 'payload'
  * by the plugin's own cascade, which is also the machinery that keeps
  * breadcrumbs correct in normal operation.
  *
+ * "Root" here means *anything the cascade has to be started from*, which
+ * includes orphans as well as true roots — see the filter below.
+ *
  * The write is an **empty patch**: it changes no field, and exists purely to
  * make the beforeChange hook recompute breadcrumbs from `{...originalDoc}`.
- * That also means it can't trip `requireNonEmptySlug` on the root itself.
+ * That also means it can't trip `withNonEmptySlug` on the root itself.
  *
  * Re-runnable — `url` is a pure function of the ancestor slug chain.
  */
@@ -75,7 +80,13 @@ export async function backfillBreadcrumbUrls({
 }): Promise<BreadcrumbBackfillStats> {
   const rows = await loadRegions(payload)
   const missing = rows.filter(isMissingUrl)
-  const roots = rows.filter((row) => row.parent == null)
+
+  // Every region the cascade has to be started from. `parent == null` is the
+  // whole set: a region can't be stranded holding a dangling parent id, because
+  // `regions_parent_id_regions_id_fk` is ON DELETE **set null** — deleting a
+  // parent turns its children into roots rather than orphaning them, so they
+  // are picked up here. Pinned by a test, since the strategy depends on it.
+  const roots = rows.filter((row) => relationId(row.parent) === null)
 
   if (!apply) {
     return {
@@ -88,6 +99,11 @@ export async function backfillBreadcrumbUrls({
   }
 
   let failed = 0
+  // Sequential on purpose. Each root's write cascades recursively through its
+  // whole subtree, so running the roots concurrently multiplies out into many
+  // concurrent writes — enough to exhaust the connection pool on a tree this
+  // shape. This is a one-off operator script; the wall-clock saving would not
+  // pay for that risk.
   for (const root of roots) {
     try {
       await payload.update({

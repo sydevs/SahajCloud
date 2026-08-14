@@ -130,4 +130,35 @@ describe('breadcrumb URL backfill', () => {
     expect(stats.remaining).toBe(0)
     expect(stats.failed).toBe(0)
   })
+
+  it('still reaches a region whose parent was deleted', async () => {
+    // Starting the cascade from `parent == null` alone is only sufficient
+    // because nothing can be left holding a dangling parent id:
+    // `regions_parent_id_regions_id_fk` is ON DELETE **set null**, so deleting
+    // a parent promotes its children to roots. If that FK ever changed to
+    // RESTRICT-and-leave, or the column stopped being nulled, those regions
+    // would become unreachable from any root and this backfill would skip them
+    // and their whole subtree in silence — so the assumption is pinned here.
+    const stranded = await createRegion('stranded', 'region', uk)
+    const strandedCity = await createRegion('stranded-city', 'city', stranded)
+    await payload.delete({ collection: 'regions', id: uk, overrideAccess: true })
+
+    const promoted = await payload.findByID({
+      collection: 'regions',
+      id: stranded,
+      depth: 0,
+      overrideAccess: true,
+    })
+    expect(promoted.parent).toBeNull()
+
+    await clearBreadcrumbUrls()
+    const stats = await backfillBreadcrumbUrls({ payload, apply: true })
+    expect(stats.failed).toBe(0)
+    expect(stats.remaining).toBe(0)
+
+    // Rebuilt from the promoted region down — the deleted ancestor simply
+    // drops out of the chain rather than leaving a gap in it.
+    expect(await urlsFor(stranded)).toEqual(['/stranded'])
+    expect(await urlsFor(strandedCity)).toEqual(['/stranded', '/stranded/stranded-city'])
+  })
 })
