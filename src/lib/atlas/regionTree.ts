@@ -2,6 +2,7 @@ import type { GenerateURL, NestedDocsPluginConfig } from '@payloadcms/plugin-nes
 import type { PayloadRequest } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
 /**
  * The Regions tree, resolved once per request: every region's canonical Atlas
@@ -70,12 +71,8 @@ export interface RegionTree {
   chainById: Map<number, number[]>
 }
 
-/**
- * Per-request memo of the tree, keyed by the `PayloadRequest` (one per
- * request). Every webPath/webUrl read in a single request — the whole geojson
- * feed included — then shares one `regions` query.
- */
-const requestCache = new WeakMap<PayloadRequest, Promise<RegionTree>>()
+/** `req.context` key for the per-request tree memo. */
+const TREE_MEMO_KEY = 'atlas:regionTree'
 
 /**
  * Join an ordered chain of slugs into a canonical path, or `null` when any
@@ -149,14 +146,15 @@ async function loadRegionTree(req: PayloadRequest): Promise<RegionTree> {
 /**
  * Resolve the region tree for the current request in a single `regions` query.
  * Memoized per request, so a bulk read (the geojson feed) pays for exactly one.
+ *
+ * `memoizeOnRequest` stores the **promise**, not the resolved value — a bulk
+ * read issues every document's afterRead concurrently, and a resolved-value
+ * cache stampedes under that (each caller clears the "not cached yet" check
+ * before the first load settles). It also evicts a failed load so a later read
+ * in the same request can retry.
  */
 export function getRegionTree(req: PayloadRequest): Promise<RegionTree> {
-  let cached = requestCache.get(req)
-  if (!cached) {
-    cached = loadRegionTree(req)
-    requestCache.set(req, cached)
-  }
-  return cached
+  return memoizeOnRequest(req, TREE_MEMO_KEY, () => loadRegionTree(req))
 }
 
 /**

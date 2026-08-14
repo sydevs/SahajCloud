@@ -75,22 +75,36 @@ async function main(): Promise<void> {
     }),
   )
 
+  // Every region whose canonical URL is unbuildable: the blank ones plus
+  // everything that inherits the gap. One `events` query over the whole set,
+  // tallied in memory — a count per region would be one round-trip each.
+  const affectedIds = new Set([...blankIds, ...affected.map((row) => row.id)])
+  const { docs: eventDocs } = await payload.find({
+    collection: 'events',
+    where: { region: { in: [...affectedIds] } },
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    select: { region: true },
+  })
+  const eventsByRegion = new Map<number, number>()
+  for (const doc of eventDocs) {
+    const id = crumbId((doc as { region?: unknown }).region)
+    if (id !== null) eventsByRegion.set(id, (eventsByRegion.get(id) ?? 0) + 1)
+  }
+
   console.log(`${blank.length} of ${rows.length} regions have a blank slug:\n`)
   for (const row of blank) {
-    const eventCount = await payload.count({
-      collection: 'events',
-      where: { region: { equals: row.id } },
-      overrideAccess: true,
-    })
     console.log(
       `  regions#${row.id}  level=${row.level ?? '?'}  name=${JSON.stringify(row.name ?? '')}` +
-        `  events=${eventCount.totalDocs}`,
+        `  events=${eventsByRegion.get(row.id) ?? 0}`,
     )
   }
 
   const collateral = affected.filter((row) => !blankIds.has(row.id)).length
   console.log(
-    `\n${collateral} further region(s) inherit the gap and resolve no canonical URL either.`,
+    `\n${collateral} further region(s) inherit the gap and resolve no canonical URL either,` +
+      ` and ${eventDocs.length} event(s) sit somewhere in the affected set.`,
   )
   console.log('Fix: give each region above a name (or set its slug) in the admin panel.')
   process.exit(0)
