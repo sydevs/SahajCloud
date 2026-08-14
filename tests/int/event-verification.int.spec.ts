@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { verifyEventAction } from '@/collections/Events/endpoints/verifyEventAction'
 import { verifyEventFromToken } from '@/collections/Events/lifecycle/verify'
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
+import { serverEnv } from '@/lib/env'
 import type { NotificationLogEntry } from '@/lib/eventVerification/log'
 import { signVerifyToken } from '@/lib/eventVerification/token'
 import type { Event, Manager } from '@/payload-types'
@@ -12,6 +13,9 @@ import type { Event, Manager } from '@/payload-types'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
+
+/** Canonical base for a region no client owns — the We Meditate Atlas mount. */
+const CANONICAL_FALLBACK = `${serverEnv.WEMEDITATE_WEB_URL}${serverEnv.WEMEDITATE_ATLAS_BASE_PATH}`
 
 /**
  * End-to-end coverage for the event verification lifecycle (#484): the
@@ -238,7 +242,9 @@ describe('Event verification lifecycle', () => {
       // appends its id, and webUrl joins that to the Atlas host.
       expect(region.webPath).toBe(`/${region.slug}`)
       expect(fetched.webPath).toBe(`/${region.slug}/${event.id}`)
-      expect(fetched.webUrl).toBe(`http://localhost:5174/${region.slug}/${event.id}`)
+      // Rooted at the We Meditate surface, not the (noindex) Atlas host — no
+      // client owns this region, so the canonical falls all the way back (#634).
+      expect(fetched.webUrl).toBe(`${CANONICAL_FALLBACK}/${region.slug}/${event.id}`)
       // appUrl is always emitted but null — there's no Atlas app deep-link base.
       expect(fetched.appUrl).toBeNull()
     })
@@ -257,7 +263,9 @@ describe('Event verification lifecycle', () => {
         payload.findByID({ collection: 'regions', id: defaultRegion.id, overrideAccess: true }),
       ])
       expect(fetched.webPath).toBe(`/${region.slug}/${event.id}`)
-      expect(fetched.webUrl).toBe(`http://localhost:5174/${region.slug}/${event.id}`)
+      // Rooted at the We Meditate surface, not the (noindex) Atlas host — no
+      // client owns this region, so the canonical falls all the way back (#634).
+      expect(fetched.webUrl).toBe(`${CANONICAL_FALLBACK}/${region.slug}/${event.id}`)
     })
 
     it('exposes neither webPath nor webUrl while unpublished', async () => {

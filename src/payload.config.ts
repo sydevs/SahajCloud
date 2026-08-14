@@ -1,5 +1,3 @@
-import type { GenerateURL } from '@payloadcms/plugin-nested-docs/types'
-
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -12,7 +10,7 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 
-import { buildRegionPath } from '@/lib/atlas/regionTree'
+import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
@@ -269,34 +267,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // the latter sees the injected fields. `parentFieldSlug: 'parent'` tells
       // the plugin Regions defines its own `parent` (in the Details tab, with
       // a level-based filter) so it doesn't inject a duplicate into the sidebar.
-      // `generateURL` makes the region path *queryable* (#634):
-      // `where[breadcrumbs.url][equals]='/nl/amsterdam'` resolves a region in
-      // one query, with no new endpoint and no new stored field — the `url`
-      // sub-field already exists in the schema and has simply been null,
-      // because `formatBreadcrumb` populates it only when this is supplied.
-      //
-      // It shares `buildRegionPath` with the `webPath` resolver, so the
-      // canonical URL and the lookup cannot disagree. Region slugs are not
-      // unique (10 collide across 34 regions), and Payload's `where` traverses
-      // `parent.slug` one level rather than the four a
-      // country/region/area/venue path needs — so the whole path, stored, is
-      // what makes the lookup possible at all.
-      //
-      // ⚠ Breadcrumbs populate on write, so existing rows need a resave to
-      // backfill: `pnpm tsx scripts/backfill-region-breadcrumb-urls.ts`.
-      nestedDocsPlugin({
-        collections: ['regions'],
-        parentFieldSlug: 'parent',
-        generateLabel: (_docs, currentDoc) => String(currentDoc?.name ?? ''),
-        // Returns `undefined` — not `''` — when a slug in the chain is blank,
-        // leaving the column NULL exactly as an unsupplied `generateURL` does.
-        // The plugin types this as `string`, but its own default *is* undefined
-        // (`let url = undefined`), so an absent path is a shape it already
-        // handles; an empty string would be a value claiming to be a path.
-        generateURL: ((docs) =>
-          buildRegionPath(docs.map((doc) => doc.slug as string | null | undefined)) ??
-          undefined) as GenerateURL,
-      }),
+      // Config (including the `generateURL` that makes region paths queryable)
+      // lives in REGION_NESTED_DOCS_CONFIG, shared with the test harness — which
+      // builds its own config, so a plugin configured in only one of the two
+      // behaves differently under test than in production.
+      nestedDocsPlugin(REGION_NESTED_DOCS_CONFIG),
       // Edge cache (#555): the unified cachePlugin. This registration attaches
       // the best-effort Cloudflare purge-on-write hooks for the collections that
       // back cached reads (no-op unless CLOUDFLARE_ZONE_ID +

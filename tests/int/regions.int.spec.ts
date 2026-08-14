@@ -2,7 +2,9 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { serverEnv } from '@/lib/env'
 import type { Region } from '@/payload-types'
+
 
 import { createData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -213,9 +215,15 @@ describe('Regions child-join recursive descendants', () => {
       expect(city.webPath).toBe(`/${String(country.slug)}/${String(city.slug)}`)
     })
 
-    it('exposes webUrl as webPath joined to the Atlas host', async () => {
+    it('exposes webUrl as webPath joined to the canonical base for the region', async () => {
       const country = await readRegion(countryA)
-      expect(country.webUrl).toBe(`http://localhost:5174${String(country.webPath)}`)
+      // No client owns this region, so the base is the We Meditate surface
+      // (#634). It is deliberately *not* the Atlas host any more — that host is
+      // noindex on three layers, so a canonical URL there named a page we had
+      // told search engines to ignore.
+      const expectedBase = `${serverEnv.WEMEDITATE_WEB_URL}${serverEnv.WEMEDITATE_ATLAS_BASE_PATH}`
+      expect(country.webUrl).toBe(`${expectedBase}${String(country.webPath)}`)
+      expect(country.webUrl).not.toContain(serverEnv.SAHAJATLAS_URL)
       // appUrl is always emitted but null — there's no Atlas app deep-link base.
       expect(country.appUrl).toBeNull()
     })

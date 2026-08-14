@@ -10,8 +10,8 @@ import { serverEnv } from '@/lib/env/server'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { ownedRegionFilterOptions } from '@/plugins/access'
 
-import { requireNonEmptySlug } from './hooks/requireNonEmptySlug'
 import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
+import { withNonEmptySlug } from './nonEmptySlug'
 
 /**
  * The four geo levels of the Atlas region tree. Country → Region → Area form
@@ -129,10 +129,7 @@ export const Regions: CollectionConfig = {
   hooks: {
     // Atlas managers can only create regions inside their owned subtree (a child
     // of a region they own) — block rootless creates the capability check must allow.
-    // Then refuse a *newly* blank slug — one segment of every canonical URL in
-    // the subtree below this region, and the slug field's own validator lets an
-    // empty value through. Pre-existing blanks are grandfathered; see the hook.
-    beforeValidate: [requireOwnedParentOnCreate, requireNonEmptySlug],
+    beforeValidate: [requireOwnedParentOnCreate],
     // Bust the Atlas manager sidebar cache (region tree + counts) on any region write.
     afterChange: [revalidateAtlasSidebarHook],
     afterDelete: [revalidateAtlasSidebarHook],
@@ -403,6 +400,13 @@ export const Regions: CollectionConfig = {
         // (transliterated) regardless of the checkbox. Off also keeps the column
         // default off, so the production backfill of existing rows stays cascade-safe.
         if (field.fields[0].type === 'checkbox') field.fields[0].defaultValue = false
+        // Refuse a *newly* blank slug — one segment of every canonical URL in
+        // the subtree below this region. Wraps (rather than replaces) the
+        // uniqueness validator the factory just installed; see withNonEmptySlug
+        // for why this is a validator and not a collection hook.
+        if (field.fields[1].type === 'text') {
+          field.fields[1].validate = withNonEmptySlug(field.fields[1].validate)
+        }
         return field
       },
     }),

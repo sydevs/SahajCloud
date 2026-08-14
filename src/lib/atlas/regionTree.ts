@@ -1,3 +1,4 @@
+import type { GenerateURL, NestedDocsPluginConfig } from '@payloadcms/plugin-nested-docs/types'
 import type { PayloadRequest } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
@@ -18,6 +19,41 @@ import { relationId } from '@/lib/utilities/relationId'
  * resolves by walking it (see `./regionOwners`) — computing it twice from the
  * same breadcrumbs would be two ways for one hierarchy to disagree.
  */
+
+/**
+ * The nested-docs registration for Regions — **one definition**, imported by
+ * both `payload.config.ts` and `tests/utils/testHelpers.ts`.
+ *
+ * The test harness builds its own config rather than importing the real one, so
+ * a plugin configured in only one of them behaves differently under test than
+ * in production. That is not hypothetical: `generateURL` was added here and the
+ * integration suite kept reading `breadcrumbs.url: null`, because the test
+ * config still registered the plugin without it.
+ *
+ * `generateURL` is what makes the region path queryable —
+ * `where[breadcrumbs.url][equals]='/nl/amsterdam'` resolves in one query, with
+ * no new endpoint and no new stored field, because the `url` sub-field already
+ * exists in the schema and has simply been null. It shares
+ * {@link buildRegionPath} with the read-time resolver, so the canonical URL and
+ * the lookup cannot disagree.
+ *
+ * ⚠ Breadcrumbs populate on write, so existing rows need a resave to backfill:
+ * `pnpm tsx scripts/backfill-region-breadcrumb-urls.ts`.
+ */
+export const REGION_NESTED_DOCS_CONFIG = {
+  collections: ['regions'],
+  parentFieldSlug: 'parent',
+  generateLabel: (_docs: Array<Record<string, unknown>>, currentDoc: Record<string, unknown>) =>
+    String(currentDoc?.name ?? ''),
+  // Returns `undefined` — not `''` — when a slug in the chain is blank, leaving
+  // the column NULL exactly as an unsupplied `generateURL` does. The plugin
+  // types this as `string`, but its own default *is* undefined (`let url =
+  // undefined`), so an absent path is a shape it already handles; an empty
+  // string would be a value claiming to be a path.
+  generateURL: ((docs: Array<Record<string, unknown>>) =>
+    buildRegionPath(docs.map((doc) => doc.slug as string | null | undefined)) ??
+    undefined) as GenerateURL,
+} satisfies NestedDocsPluginConfig
 
 /** The breadcrumb + slug shape this resolver reads off a region row. */
 interface RegionRow {
