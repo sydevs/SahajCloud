@@ -33,4 +33,5 @@ one-time backfills, deployment helpers, etc.
 | `repair-r2-meditation-filenames.ts` | Backfill / fix R2 filenames on existing meditations |
 | `create-sample-page.ts` | Generate a sample Pages document |
 | `backfill-schedule-last-date.ts` | Recompute the derived `schedule.lastDate` column on existing `events` + `app-cards` rows (#603). Dry run by default, `--force` to write, re-runnable. Routine lives in `src/lib/schedule/backfillLastDate.ts` |
+| `backfill-client-canonical.ts` | Seed `canonical.domain` / `canonical.routing` on imported Atlas services from `legacyData.config` (#633). Never writes `canonical.enabled` — the legacy values are unverified, so a human confirms them against reported embeds. Dry run by default, `--force` to write, `--overwrite` to replace existing values. Derivation lives in `src/collections/Clients/canonicalSeed.ts` |
 | `postinstall.cjs` | Run after `pnpm install` |

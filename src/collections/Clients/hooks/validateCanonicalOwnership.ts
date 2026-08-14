@@ -9,6 +9,19 @@ import { relationId } from '@/lib/utilities/relationId'
 const CANONICAL_DOMAIN_RE = /^[a-z0-9.-]+$/
 
 /**
+ * Whether `value` is a usable canonical domain — a single bare host.
+ *
+ * The authority for the shape, shared with the backfill so a seeded value can
+ * never be one the admin panel would refuse. Note what the character class
+ * excludes: whitespace. Two legacy Atlas records hold *two* hosts in one field
+ * (`sahajayoga.fr\r\nyogaessonne.fr`), and those must not be seeded as if they
+ * named one canonical site.
+ */
+export function isCanonicalDomain(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && CANONICAL_DOMAIN_RE.test(value)
+}
+
+/**
  * `validate` for `canonical.domain` — shape only.
  *
  * Deliberately permissive about *absence*: whether a domain is required depends
