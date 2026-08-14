@@ -1,13 +1,14 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 /**
- * Generic HMAC-signed, self-contained token for logged-out email links —
+ * The one HMAC-signed, self-contained token for logged-out email links —
  * `<base64url(json claims + exp)>.<base64url(hmac-sha256)>`, signed with the
- * Payload `secret`, no server-side store. The same construction as the event
- * verify-link token (`@/lib/eventVerification/token`), generalized so new
- * link kinds (submission review, registration feedback) don't each hand-roll
- * crypto. A `kind` discriminator is baked into the claims so a token signed
- * for one link type can never be replayed against another.
+ * Payload `secret`, no server-side store. Every link kind (event verify,
+ * submission review, registration feedback, unsubscribe) goes through here
+ * rather than hand-rolling the same twenty lines of crypto; each had drifted
+ * into its own subtly different validity checks. A `kind` discriminator is
+ * baked into the envelope so a token signed for one link type can never be
+ * replayed against another.
  *
  * Pure (clock injected) — unit-testable without env or Payload.
  */
@@ -15,12 +16,21 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 export interface SignedTokenOptions {
   /** Discriminates link types; verification requires an exact match. */
   kind: string
-  ttlMs: number
+  /**
+   * Lifetime in milliseconds, or `null` for a token that never expires.
+   *
+   * `null` is only appropriate when the action the token authorizes is narrow
+   * and idempotent, so replaying an aged link can't cause harm — an
+   * unsubscribe link clicked months into a course is the motivating case, and
+   * a TTL there would only break legitimate links.
+   */
+  ttlMs: number | null
 }
 
 interface Envelope {
   kind: string
-  exp: number
+  /** Expiry, epoch milliseconds. Absent on never-expiring tokens. */
+  exp?: number
   claims: Record<string, unknown>
 }
 
@@ -37,7 +47,7 @@ export function signToken(
 ): string {
   const envelope: Envelope = {
     kind: options.kind,
-    exp: now.getTime() + options.ttlMs,
+    ...(options.ttlMs === null ? {} : { exp: now.getTime() + options.ttlMs }),
     claims,
   }
   const payloadB64 = Buffer.from(JSON.stringify(envelope)).toString('base64url')
@@ -80,7 +90,13 @@ export function verifyToken<T = Record<string, unknown>>(
   } catch {
     return { status: 'invalid' }
   }
-  if (envelope.kind !== kind || typeof envelope.exp !== 'number') return { status: 'invalid' }
-  if (envelope.exp <= now.getTime()) return { status: 'expired' }
+  if (envelope.kind !== kind) return { status: 'invalid' }
+  // Signature is authentic from here — an aged link is `expired`, not
+  // `invalid`, so the page can say so instead of 404ing. A token signed with
+  // `ttlMs: null` carries no `exp` and is never expired.
+  if (envelope.exp !== undefined) {
+    if (typeof envelope.exp !== 'number') return { status: 'invalid' }
+    if (envelope.exp <= now.getTime()) return { status: 'expired' }
+  }
   return { status: 'valid', claims: envelope.claims as T }
 }
