@@ -20,9 +20,9 @@
  * (`./endpoints/report.ts`) is the only writer, and it is a thin transport
  * shell around {@link parseMountKey} and {@link mergeEmbedReport}.
  */
+import type { RoutingMode } from './canonical'
 import type { JSONSchema4 } from 'json-schema'
 
-import type { RoutingMode } from './canonical'
 
 import { ROUTING_MODES } from './canonical'
 

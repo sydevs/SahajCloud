@@ -1,10 +1,10 @@
-import type { Client } from '@/payload-types'
 import type { Endpoint } from 'payload'
 
 import { APIError } from 'payload'
 import { z } from 'zod'
 
 import { parseBody, requireActiveClient } from '@/lib/endpoints'
+import type { Client } from '@/payload-types'
 import { assertClientOriginAllowed, isHostAllowed, parseAllowedDomains } from '@/plugins/usage'
 
 import { ROUTING_MODES } from '../canonical'

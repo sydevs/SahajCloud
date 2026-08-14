@@ -21,10 +21,11 @@
  *
  * Driven by `scripts/backfill-client-canonical.ts`.
  */
-import type { Client } from '@/payload-types'
+import type { RoutingMode } from './canonical'
 import type { Payload } from 'payload'
 
-import type { RoutingMode } from './canonical'
+import type { Client } from '@/payload-types'
+
 
 import { normalizeCanonicalDomain, ROUTING_MODES } from './canonical'
 
