@@ -2197,17 +2197,27 @@ export interface Client {
    */
   region?: (number | null) | Region;
   /**
-   * Deprecated Atlas config (routing_type, embed_type, default_view).
+   * Declares that this service owns the canonical Atlas URLs for its region. Off by default, and nothing resolves differently until it is switched on.
    */
-  legacyConfig?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  canonical?: {
+    /**
+     * At most one service per region may own them. Requires a region and a canonical domain — check the reported embeds below first: a dead domain, a site builder that rewrites URLs, or a cross-origin iframe would name a canonical URL that cannot restore the view.
+     */
+    enabled?: boolean | null;
+    /**
+     * Host only — no scheme, no path (e.g. `sahajayoga.nl`).
+     */
+    domain?: string | null;
+    /**
+     * Page the embed lives on (e.g. `/locatelessons/`). May carry a query string — WordPress default permalinks look like `/?p=123` — so the URL builder joins with `&` in that case.
+     */
+    mount?: string | null;
+    /**
+     * How the widget expresses its view in the URL.
+     */
+    routing?: ('query' | 'path') | null;
+  };
+  embedMetadata?: HttpsSahajcloudDevSchemasClientEmbedMetadataJson;
   /**
    * Public identifier for this service. Auto-generated, or the Atlas public key for imported services.
    */
@@ -2275,6 +2285,16 @@ export interface Client {
   apiKey?: string | null;
   apiKeyIndex?: string | null;
   collection: 'clients';
+}
+export interface HttpsSahajcloudDevSchemasClientEmbedMetadataJson {
+  [k: string]: {
+    mode: 'inline' | 'iframe';
+    topLevel: boolean;
+    urlWritable: boolean;
+    paramPersisted: boolean;
+    routing: 'query' | 'path';
+    lastSeen: string;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -4362,7 +4382,15 @@ export interface ClientsSelect<T extends boolean = true> {
   supportEmail?: T;
   locale?: T;
   region?: T;
-  legacyConfig?: T;
+  canonical?:
+    | T
+    | {
+        enabled?: T;
+        domain?: T;
+        mount?: T;
+        routing?: T;
+      };
+  embedMetadata?: T;
   clientId?: T;
   keyGeneratedAt?: T;
   usage?:

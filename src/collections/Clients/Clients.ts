@@ -5,8 +5,25 @@ import { getLanguageOptions } from '@/lib/locales'
 import { getRoleOptions } from '@/plugins/access'
 import { calculateAbuseScore } from '@/plugins/usage'
 
+import {
+  EMBED_METADATA_SCHEMA_URI,
+  EMBED_ROUTING,
+  embedMetadataJsonSchema,
+  type EmbedRouting,
+} from './embedMetadata'
+import { reportEmbedMetadata } from './endpoints/report'
 import { ensureClientId } from './hooks/ensureClientId'
+import {
+  canonicalDomainValidate,
+  validateCanonicalOwnership,
+} from './hooks/validateCanonicalOwnership'
 import { validateClientData } from './hooks/validateClientData'
+
+/** Admin-facing labels for the shared routing enum. */
+const ROUTING_LABELS: Record<EmbedRouting, string> = {
+  query: 'Query parameter (?event=…)',
+  path: 'Path segment (/event/…)',
+}
 
 export const Clients: CollectionConfig = {
   slug: 'clients',
@@ -167,11 +184,88 @@ export const Clients: CollectionConfig = {
               admin: { description: 'Atlas geographic scope for this service.' },
             },
             {
-              name: 'legacyConfig',
-              type: 'json',
+              name: 'canonical',
+              type: 'group',
+              label: 'Canonical Ownership',
               admin: {
+                description:
+                  'Declares that this service owns the canonical Atlas URLs for its region. ' +
+                  'Off by default, and nothing resolves differently until it is switched on.',
+              },
+              fields: [
+                {
+                  name: 'enabled',
+                  type: 'checkbox',
+                  defaultValue: false,
+                  label: 'Owns the canonical URLs for its region',
+                  admin: {
+                    description:
+                      'At most one service per region may own them. Requires a region and a ' +
+                      'canonical domain — check the reported embeds below first: a dead domain, ' +
+                      'a site builder that rewrites URLs, or a cross-origin iframe would name a ' +
+                      'canonical URL that cannot restore the view.',
+                  },
+                },
+                {
+                  type: 'row',
+                  fields: [
+                    {
+                      name: 'domain',
+                      type: 'text',
+                      // Deliberately NOT derived from `allowedDomains` — that field is a
+                      // newline-separated textarea and genuinely multi-valued in the data
+                      // (`sahajayoga.fr\nyogaessonne.fr`), so it cannot name a single host.
+                      validate: canonicalDomainValidate,
+                      admin: {
+                        description: 'Host only — no scheme, no path (e.g. `sahajayoga.nl`).',
+                      },
+                    },
+                    {
+                      name: 'mount',
+                      type: 'text',
+                      defaultValue: '/',
+                      admin: {
+                        description:
+                          'Page the embed lives on (e.g. `/locatelessons/`). May carry a query ' +
+                          'string — WordPress default permalinks look like `/?p=123` — so the URL ' +
+                          'builder joins with `&` in that case.',
+                      },
+                    },
+                    {
+                      name: 'routing',
+                      type: 'select',
+                      defaultValue: 'query',
+                      // Exactly `query` and `path`, derived from the shared enum: hash routing
+                      // is being dropped from the widget entirely, so it is never an option.
+                      options: EMBED_ROUTING.map((value) => ({
+                        value,
+                        label: ROUTING_LABELS[value],
+                      })),
+                      admin: { description: 'How the widget expresses its view in the URL.' },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: 'embedMetadata',
+              label: 'Reported Embeds',
+              type: 'json',
+              // Payload generates the TS type from this AND compiles it to a validator that
+              // runs on write, so a malformed entry throws a ValidationError instead of
+              // landing in the column. Contract + merge rule live in ./embedMetadata.ts.
+              jsonSchema: {
+                uri: EMBED_METADATA_SCHEMA_URI,
+                fileMatch: [EMBED_METADATA_SCHEMA_URI],
+                schema: embedMetadataJsonSchema,
+              },
+              admin: {
+                // Observed data, not configuration: written only by the widget via
+                // POST /api/clients/report. Editing it here would just be overwritten.
                 readOnly: true,
-                description: 'Deprecated Atlas config (routing_type, embed_type, default_view).',
+                description:
+                  'What the widget reports about each page it is mounted on, keyed by origin + ' +
+                  'path. Use it to decide which mount the canonical settings above should name.',
               },
             },
           ],
@@ -290,7 +384,8 @@ export const Clients: CollectionConfig = {
     },
     ...legacyMigrationFields(),
   ],
+  endpoints: [reportEmbedMetadata],
   hooks: {
-    beforeChange: [validateClientData, ensureClientId],
+    beforeChange: [validateClientData, ensureClientId, validateCanonicalOwnership],
   },
 }
