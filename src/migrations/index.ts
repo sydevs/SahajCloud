@@ -38,6 +38,8 @@ import * as migration_20260804_011222_resync_schema_snapshot from './20260804_01
 import * as migration_20260804_012138_add_event_quality_columns from './20260804_012138_add_event_quality_columns';
 import * as migration_20260805_015327_drop_event_title_localization from './20260805_015327_drop_event_title_localization';
 import * as migration_20260805_184012_replace_registration_questions from './20260805_184012_replace_registration_questions';
+import * as migration_20260814_171037_add_client_canonical from './20260814_171037_add_client_canonical';
+import * as migration_20260814_171055_drop_client_legacy_config from './20260814_171055_drop_client_legacy_config';
 
 export const migrations = [
   {
@@ -238,6 +240,16 @@ export const migrations = [
   {
     up: migration_20260805_184012_replace_registration_questions.up,
     down: migration_20260805_184012_replace_registration_questions.down,
-    name: '20260805_184012_replace_registration_questions'
+    name: '20260805_184012_replace_registration_questions',
+  },
+  {
+    up: migration_20260814_171037_add_client_canonical.up,
+    down: migration_20260814_171037_add_client_canonical.down,
+    name: '20260814_171037_add_client_canonical',
+  },
+  {
+    up: migration_20260814_171055_drop_client_legacy_config.up,
+    down: migration_20260814_171055_drop_client_legacy_config.down,
+    name: '20260814_171055_drop_client_legacy_config'
   },
 ];
