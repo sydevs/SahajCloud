@@ -33,4 +33,5 @@ one-time backfills, deployment helpers, etc.
 | `repair-r2-meditation-filenames.ts` | Backfill / fix R2 filenames on existing meditations |
 | `create-sample-page.ts` | Generate a sample Pages document |
 | `backfill-schedule-last-date.ts` | Recompute the derived `schedule.lastDate` column on existing `events` + `app-cards` rows (#603). Dry run by default, `--force` to write, re-runnable. Routine lives in `src/lib/schedule/backfillLastDate.ts` |
+| `backfill-client-canonical.ts` | Seed `canonical.domain` / `canonical.routing` on existing `clients` from `legacyData.config` (#633). Dry run by default, `--force` to write, re-runnable. **Always leaves `canonical.enabled` false** — the legacy values are unverified, so a human opts a client in after reading `embedMetadata`. Routine lives in `src/collections/Clients/backfillCanonical.ts` |
 | `postinstall.cjs` | Run after `pnpm install` |
