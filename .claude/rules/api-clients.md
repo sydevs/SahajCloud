@@ -17,8 +17,77 @@ access is REST-only.
 - Managers can regenerate keys and manage settings.
 - Virtual `highUsageAlert` field surfaces when daily limits are exceeded.
 - `usage` group: `dailyRequests`, `peakDailyRequests`, `lastRequestAt`.
-- Custom hook in `src/collections/Clients/hooks/validateClientData.ts`:
+- Custom hooks in `src/collections/Clients/hooks/`:
   - `validateClientData` — ensures `primaryContact` is in the managers list.
+  - `validateCanonicalOwnership` — the two canonical-ownership rules (below).
+
+## Canonical ownership + embed reporting (#633)
+
+Two Atlas-config fields the white-label program needs. **Data only** —
+`canonical.enabled` defaults false and nothing resolves differently until a
+follow-up ticket's resolver reads it.
+
+| Field | What it is |
+| --- | --- |
+| `embedMetadata` (json, admin-readonly) | What the widget *observed*, one entry per `origin + pathname`. Written only by `POST /api/clients/report`. |
+| `canonical.enabled` (checkbox, default false) | This service owns the canonical URLs for its region. |
+| `canonical.domain` (text) | Bare host — no scheme, no path. **Not** derived from `allowedDomains`, which is a newline-separated textarea and genuinely multi-valued in the data. |
+| `canonical.mount` (text, default `/`) | The page the embed lives on. **May carry a query string** — WordPress default permalinks are `/?p=123` — so a URL builder must join with `&` in that case. |
+| `canonical.routing` (select, default `query`) | `query` \| `path`. **No `hash`, ever** — the widget is dropping hash routing entirely. |
+
+`legacyConfig` was **removed**, not promoted: a second contradictory source of
+routing/embed data beside these fields is how the two drift, and the legacy
+values are wrong in the field (`sahajayoga.at` records `embed_type: 'script'`
+while serving an iframe). The raw record survives in `legacyData.config`, which
+is what `scripts/backfill-client-canonical.ts` seeds domain/routing from — it
+never writes `enabled`.
+
+### The two ownership rules
+
+`validateCanonicalOwnership` (beforeChange) enforces both, and only queries when
+a write actually leaves `enabled` true:
+
+- **Enabling needs a target** — a `region` *and* a `canonical.domain`, refused
+  with a message naming whichever is missing.
+- **One owner per region** — a second enabled service on a region already spoken
+  for is refused, naming the incumbent. `region` alone can never identify an
+  owner: three published services map to Czechia, two each to Finland and
+  Australia. The incumbent lookup reads **published** state, since
+  publish/unpublish is this collection's auth gate.
+
+### `POST /api/clients/report`
+
+`src/collections/Clients/endpoints/report.ts`. The widget's write path; the
+contract + merge rule are pure in `src/collections/Clients/embedMetadata.ts`.
+
+- **`clients` is excluded from the usage plugin**, so the beforeOperation origin
+  hook never runs here — the handler calls `assertClientOriginAllowed(req)`
+  itself, exactly as the root `contactAdmin` endpoint does.
+- **Two origins, both checked.** The `Origin`/`Referer` header is what the
+  browser vouches for; the body's `origin` is what becomes the stored key and is
+  self-reported. They're checked separately rather than required to match — a
+  widget in a cross-origin iframe legitimately differs, which is the
+  `topLevel: false` case the feature exists to detect.
+- **An empty `allowedDomains` refuses**, unlike every read surface. The
+  allow-all default exists to keep existing read clients working; this endpoint
+  is new, and with no allowlist there is nothing to attribute a mount to.
+- **`pathname` carrying `?` or `#` is a 400**, not a server-side strip — a
+  widget leaking a seeker's query parameters must fail loudly.
+- **Rate story.** Request rate stays at the Cloudflare edge as everywhere else.
+  The two app-level bounds are a cap of `MAX_EMBED_MOUNTS` (50) distinct mounts
+  (**429** on a new one past it; known mounts keep reporting) and *no write at
+  all* for an unchanged report seen within the hour (**200** with
+  `stored: false`), which collapses a flood into ~1 write/mount/hour.
+- The column is typed **and validated** by a JSON Schema, so a malformed entry
+  throws a `ValidationError` rather than landing in the column.
+
+Documented at `/api/docs` via `ALWAYS_VISIBLE_CUSTOM_PATHS` — `clients` is an
+always-hidden collection, so this one exact path is exempted while the CRUD
+surface stays unadvertised (see `.claude/rules/openapi.md`).
+
+Tests: `tests/unit/client-embed-metadata.spec.ts` (merge rule, body schema,
+legacy seed) and `tests/int/client-canonical.int.spec.ts` (both surfaces wired
+through real documents).
 
 ## Usage plugin (`src/plugins/usage/`)
 
@@ -209,6 +278,10 @@ itself — `POST /api/contact-admin` does, right after `requireActiveClient`. Do
 lean on an incidental collection read to trigger the hook instead: `clients` is
 excluded from the plugin, so re-reading the caller's own record wouldn't fire it.
 
+That exclusion is also why an endpoint **on** `clients` gets no coverage for
+free: `POST /api/clients/report` reads and writes only that collection, so it
+calls the assertion by hand too (see the canonical-ownership section above).
+
 ### Rule
 
 - Runs only when `req.user?.collection === 'clients'` — managers, admin UI, and
@@ -326,6 +399,7 @@ X-User-ID: user_12345678
 ## Testing
 
 - `tests/int/clients.int.spec.ts` — Client CRUD + hooks
+- `tests/int/client-canonical.int.spec.ts` — canonical ownership rules + the embed-report endpoint
 - `tests/int/api.int.spec.ts` — usage tracking + reset jobs
 - `tests/e2e/clients.e2e.spec.ts` — admin UI flows
 - `tests/utils/` — factories for clients and authenticated requests
