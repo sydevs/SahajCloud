@@ -5,7 +5,11 @@ import { getLanguageOptions } from '@/lib/locales'
 import { getRoleOptions } from '@/plugins/access'
 import { calculateAbuseScore } from '@/plugins/usage'
 
+import { isValidCanonicalDomain, ROUTING_MODE_OPTIONS } from './canonical'
+import { embedMetadataJsonSchema } from './embedMetadata'
+import { clientEmbedReport } from './endpoints/report'
 import { ensureClientId } from './hooks/ensureClientId'
+import { validateCanonicalOwnership } from './hooks/validateCanonicalOwnership'
 import { validateClientData } from './hooks/validateClientData'
 
 export const Clients: CollectionConfig = {
@@ -167,11 +171,86 @@ export const Clients: CollectionConfig = {
               admin: { description: 'Atlas geographic scope for this service.' },
             },
             {
-              name: 'legacyConfig',
+              name: 'canonical',
+              type: 'group',
+              label: 'Canonical URLs',
+              admin: {
+                description:
+                  'Declare that this service owns the canonical URLs for its region. At most one service per region.',
+              },
+              fields: [
+                {
+                  name: 'enabled',
+                  type: 'checkbox',
+                  defaultValue: false,
+                  label: 'This service owns its region’s canonical URLs',
+                  admin: {
+                    description:
+                      'Off by default, and load-bearing: several client domains are dead or on site builders, and a cross-origin iframe would name a URL that cannot restore the view. Requires a region and a canonical domain.',
+                  },
+                },
+                {
+                  type: 'row',
+                  fields: [
+                    {
+                      name: 'domain',
+                      type: 'text',
+                      label: 'Canonical Domain',
+                      validate: (value: string | null | undefined) => {
+                        if (!value) return true
+                        return (
+                          isValidCanonicalDomain(value) ||
+                          'Enter a bare host — lowercase letters, digits, dots and dashes only (no scheme, port or path).'
+                        )
+                      },
+                      admin: {
+                        description:
+                          'Host only, e.g. sahajayoga.nl. Deliberately separate from Allowed Domains, which is multi-valued.',
+                      },
+                    },
+                    {
+                      name: 'mount',
+                      type: 'text',
+                      defaultValue: '/',
+                      label: 'Mount Path',
+                      admin: {
+                        description:
+                          'The page the embed lives on, e.g. /locatelessons/. May carry a query string — WordPress default permalinks are /?p=123.',
+                      },
+                    },
+                  ],
+                },
+                {
+                  name: 'routing',
+                  type: 'select',
+                  options: ROUTING_MODE_OPTIONS,
+                  defaultValue: 'query',
+                  admin: {
+                    description:
+                      'How the widget encodes state into the canonical URL. Hash routing is not offered — the widget is dropping it.',
+                  },
+                },
+              ],
+            },
+            {
+              // Observed data, not configuration — written only by
+              // `POST /api/clients/report`, hence read-only here. One record per
+              // mount, keyed by origin + pathname; see ./embedMetadata.ts.
+              name: 'embedMetadata',
               type: 'json',
+              label: 'Discovered Embeds',
+              jsonSchema: {
+                uri: 'https://sahajcloud.dev/schemas/client-embed-metadata.json',
+                fileMatch: ['https://sahajcloud.dev/schemas/client-embed-metadata.json'],
+                schema: {
+                  $id: 'https://sahajcloud.dev/schemas/client-embed-metadata.json',
+                  ...embedMetadataJsonSchema,
+                },
+              },
               admin: {
                 readOnly: true,
-                description: 'Deprecated Atlas config (routing_type, embed_type, default_view).',
+                description:
+                  'What the widget reported about each page it is installed on. Reported, never configured — the legacy hand-maintained embed type was wrong in the field.',
               },
             },
           ],
@@ -290,7 +369,8 @@ export const Clients: CollectionConfig = {
     },
     ...legacyMigrationFields(),
   ],
+  endpoints: [clientEmbedReport],
   hooks: {
-    beforeChange: [validateClientData, ensureClientId],
+    beforeChange: [validateClientData, ensureClientId, validateCanonicalOwnership],
   },
 }
