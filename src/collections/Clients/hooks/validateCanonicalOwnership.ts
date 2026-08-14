@@ -1,9 +1,9 @@
-import type { Client } from '@/payload-types'
 import type { CollectionBeforeChangeHook } from 'payload'
 
 import { ValidationError } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
+import type { Client } from '@/payload-types'
 
 /**
  * Enforce the rule that makes "who owns this region's canonical URLs?"

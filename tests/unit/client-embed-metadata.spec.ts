@@ -1,11 +1,11 @@
-import type { Client } from '../../src/payload-types'
-
-import { describe, expect, expectTypeOf, it } from 'vitest'
-
 import type {
   EmbedMetadata,
   EmbedMountObservation,
 } from '../../src/collections/Clients/embedMetadata'
+import type { Client } from '../../src/payload-types'
+
+import { describe, expect, expectTypeOf, it } from 'vitest'
+
 
 import {
   EMBED_REPORT_REFRESH_MS,
