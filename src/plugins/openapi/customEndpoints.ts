@@ -17,6 +17,8 @@
  * module and the merge block in the route handler.
  */
 
+import { ROUTING_MODES } from '@/collections/Clients/canonical'
+import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '@/collections/Clients/embedMetadata'
 import { LOCALES } from '@/lib/locales'
 
 import {
@@ -411,6 +413,62 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
             '`errors[0].code` is one of `external_registration`, `event_ended`, ' +
             '`registration_closed`, or `event_full`. Distinct from 404: the event exists ' +
             'and is readable (a finished event stays published), its state just conflicts.',
+        ),
+      },
+    },
+  },
+
+  /**
+   * Registered so the contract is written down and reachable from
+   * `/api/openapi-raw.json`, but `clients` is in `ALWAYS_HIDDEN_COLLECTIONS`
+   * (and in no project), so `filterSpec` marks this `x-internal` and the public
+   * Scalar UI does not render it. That is the right outcome: this is the
+   * first-party widget's telemetry channel, not a surface a third-party
+   * integrator calls, and advertising it only invites forged reports.
+   */
+  '/api/clients/report': {
+    post: {
+      tags: ['Clients'],
+      summary: 'Report an observed embed mount',
+      description:
+        'The Sahaj Atlas widget reports what it observed about the page it is ' +
+        'installed on. Records accumulate keyed by **origin + pathname**, so a site ' +
+        'with several embeds produces one record per mount rather than overwriting a ' +
+        'single one. Requires a published client key. `url` must be origin + pathname ' +
+        'only — a query string or fragment is rejected (`400`), not silently stripped, ' +
+        'because the widget already strips them and a payload carrying either means it ' +
+        'is misbehaving. Both the request `Origin`/`Referer` **and** the reported ' +
+        '`url`’s host must be in the client’s `allowedDomains`. The report is ' +
+        'observation only: it decides whether a mount currently *qualifies* as ' +
+        'canonical, never which mount *is* canonical — a human sets that on the ' +
+        'client. Repeating a recent identical observation is answered `updated: false` ' +
+        'without a write.',
+      operationId: 'clientEmbedReport',
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ClientEmbedReportRequest' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Report accepted. `updated` is false when nothing changed.',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ClientEmbedReportResponse' },
+            },
+          },
+        },
+        '400': errorResponse(
+          'Request body failed validation, or `url` was not an absolute http(s) URL of ' +
+            'origin + pathname only. `errors[0].code` is `invalid_url`, ' +
+            '`unsupported_scheme`, `query_or_fragment`, `credentials`, or `too_long`.',
+        ),
+        '403': errorResponse(
+          'Caller is not a published API client, its `Origin`/`Referer` is not in the ' +
+            'client’s `allowedDomains`, or the reported `url` is on a host that is not.',
         ),
       },
     },
@@ -992,6 +1050,67 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
           id: { type: 'integer' },
           uuid: { type: 'string' },
         },
+      },
+    },
+  },
+  /**
+   * `POST /api/clients/report` request body. The enums are sourced from the
+   * collection's own constants, so adding an embed mode or routing mode updates
+   * the spec for free rather than drifting from the Zod schema in
+   * `src/collections/Clients/endpoints/report.ts`.
+   */
+  ClientEmbedReportRequest: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['url', 'mode', 'topLevel', 'urlWritable', 'paramPersisted', 'routing'],
+    properties: {
+      url: {
+        type: 'string',
+        maxLength: MAX_MOUNT_KEY_LENGTH,
+        description:
+          'Origin + pathname of the page the embed is mounted on, e.g. ' +
+          '`https://sahajayoga.nl/locatelessons`. No query string, no fragment.',
+      },
+      mode: {
+        type: 'string',
+        enum: [...EMBED_MODES],
+        description:
+          '`iframe` when the widget is running inside a frame it did not create, ' +
+          '`script` when it was injected directly into the host document.',
+      },
+      topLevel: {
+        type: 'boolean',
+        description: 'Whether the widget is running in the top-level browsing context.',
+      },
+      urlWritable: {
+        type: 'boolean',
+        description: 'Whether the widget can write to the host page’s URL.',
+      },
+      paramPersisted: {
+        type: 'boolean',
+        description: 'Whether a written URL parameter survived a reload of the host page.',
+      },
+      routing: {
+        type: 'string',
+        enum: [...ROUTING_MODES],
+        description: 'How the widget encodes its state into that URL. There is no `hash` option.',
+      },
+    },
+  },
+  /** `POST /api/clients/report` success body. */
+  ClientEmbedReportResponse: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['ok', 'mounts', 'updated'],
+    properties: {
+      ok: { type: 'boolean', enum: [true] },
+      mounts: {
+        type: 'integer',
+        description: 'Distinct mounts stored for this service after the merge.',
+      },
+      updated: {
+        type: 'boolean',
+        description: 'False when the report repeated a recent, identical observation.',
       },
     },
   },
