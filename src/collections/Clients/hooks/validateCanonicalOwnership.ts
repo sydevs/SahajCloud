@@ -52,9 +52,8 @@ export const canonicalDomainValidate: TextFieldSingleValidation = (value, option
  *    owner. A second enabled service on a region already spoken for is refused,
  *    naming the incumbent — otherwise "who owns Czechia" has no answer.
  *
- * Runs on both create and update. The incumbent lookup only fires when the write
- * actually leaves `enabled` true, so ordinary client writes — including the
- * widget's `embedMetadata` reports — cost no extra query.
+ * Runs on both create and update, but **only when the write actually moves
+ * ownership** — see the guard below.
  */
 export const validateCanonicalOwnership: CollectionBeforeChangeHook = async ({
   data,
@@ -65,10 +64,25 @@ export const validateCanonicalOwnership: CollectionBeforeChangeHook = async ({
   // empty object for a group the patch omits — so both halves are read as
   // "patch over stored". Shallow spread, not a deep merge: an explicit null in
   // the patch (someone clearing the domain) has to win over the stored value.
-  const canonical = { ...originalDoc?.canonical, ...data?.canonical }
+  const stored = originalDoc?.canonical ?? {}
+  const patch = data?.canonical ?? {}
+  const canonical = { ...stored, ...patch }
   if (!canonical.enabled) return data
 
   const region = relationId('region' in (data ?? {}) ? data.region : originalDoc?.region)
+
+  // Nothing the two rules read has moved, so the stored state was already
+  // validated when it was set. Skipping here is not just the cheaper path — it
+  // keeps an unrelated write from being *refused*: the widget's `embedMetadata`
+  // report is a `clients` update, and it must not start failing because someone
+  // left two services enabled on one region, or cleared a region by hand.
+  // (`originalDoc` is absent on create, so a new document always validates.)
+  const moved =
+    !originalDoc ||
+    ('enabled' in patch && patch.enabled !== stored.enabled) ||
+    ('domain' in patch && patch.domain !== stored.domain) ||
+    ('region' in (data ?? {}) && region !== relationId(originalDoc.region))
+  if (!moved) return data
   const domain = typeof canonical.domain === 'string' ? canonical.domain.trim() : ''
 
   const missing: string[] = []

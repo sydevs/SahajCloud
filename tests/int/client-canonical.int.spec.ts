@@ -261,6 +261,51 @@ describe('client canonical ownership + embed reporting', () => {
       expect(client.canonical?.enabled).toBe(false)
     })
 
+    it('lets an unrelated write through even when the region is already owned', async () => {
+      // The widget's embed report is a `clients` update. Re-running the ownership
+      // rules on it would mean a stale misconfiguration elsewhere — two services
+      // left enabled on one region — starts failing reports that touch neither.
+      const region = await createRegion('estonia', 'Estonia')
+      const owner = await createClient('Sole Owner', { region: region.id })
+      await payload.update({
+        collection: 'clients',
+        id: owner.id,
+        data: { canonical: { enabled: true, domain: 'sole.fi' } },
+        overrideAccess: true,
+      })
+
+      const updated = await payload.update({
+        collection: 'clients',
+        id: owner.id,
+        data: { notes: 'still the owner, just editing a note' },
+        overrideAccess: true,
+      })
+      expect(updated.canonical?.enabled).toBe(true)
+    })
+
+    it('re-checks ownership when an enabled service moves to an owned region', async () => {
+      // The other half of that guard: `region` is one of the fields the rules
+      // read, so changing it has to re-run them.
+      const spare = await createRegion('spare', 'Spare')
+      const mover = await createClient('Mover', { region: spare.id })
+      await payload.update({
+        collection: 'clients',
+        id: mover.id,
+        data: { canonical: { enabled: true, domain: 'mover.org' } },
+        overrideAccess: true,
+      })
+
+      const errors = await fieldErrors(
+        payload.update({
+          collection: 'clients',
+          id: mover.id,
+          data: { region: czechiaId },
+          overrideAccess: true,
+        }),
+      )
+      expect(errors).toMatch(/Czech Owner.*already owns/)
+    })
+
     it('offers exactly `query` and `path` for routing — never `hash`', async () => {
       // Read off the sanitized config rather than the source array: what the
       // admin panel and the REST validator both enforce is what ends up here.
