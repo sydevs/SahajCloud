@@ -11,12 +11,12 @@ import type { RegistrationAnswer } from '@/lib/registrations/questions'
 import { buildRegistrationAnswers } from '@/lib/registrations/questions'
 import { relationId } from '@/lib/utilities/relationId'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
+import { DAY_MS } from '@/lib/utilities/time'
 import type { Event, Manager } from '@/payload-types'
 
 import { loadUsers } from './loadUsers'
 
 const PAGINATION_LIMIT = 200
-const DAY_MS = 24 * 60 * 60 * 1000
 const WEEK_MS = 7 * DAY_MS
 /** Weekly digests fire on this UTC weekday (Sunday = 0 … Monday = 1). */
 const WEEKLY_ANCHOR_WEEKDAY = 1

@@ -1,17 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  daysUntilUnpublish,
   isPreAdoptionStage,
   isUnmanagedStage,
   LADDER,
   PUBLISHED_STAGES,
   stageAction,
   transitionUnpublishes,
-  UNMANAGED_STAGES,
   unpublishDate,
   VERIFICATION_STAGES,
 } from '@/lib/eventVerification/stages'
+import { DAY_MS } from '@/lib/utilities/time'
 
 const NOW = new Date('2026-06-11T02:00:00.000Z')
 
@@ -74,7 +73,11 @@ describe('stageAction', () => {
       'urgent',
       'finished',
     ])
-    expect(UNMANAGED_STAGES).toEqual(['unverified', 'denied', 'finished'])
+    expect(VERIFICATION_STAGES.filter(isUnmanagedStage)).toEqual([
+      'unverified',
+      'denied',
+      'finished',
+    ])
     expect(LADDER).toEqual(['verified', 'reminded', 'escalated', 'urgent'])
     // `finished` may be unmanaged, but it is NOT pre-adoption — conflating the
     // two skipped its retention deadline entirely.
@@ -113,12 +116,14 @@ describe('stageAction', () => {
   })
 })
 
-describe('daysUntilUnpublish', () => {
+describe('unpublishDate', () => {
   it('sums the remaining offsets up to the urgent → expired transition', () => {
-    expect(daysUntilUnpublish('verified')).toBe(21) // 7 + 7 + 7
-    expect(daysUntilUnpublish('reminded')).toBe(14) // 7 + 7
-    expect(daysUntilUnpublish('escalated')).toBe(7) // 7
-    expect(daysUntilUnpublish('urgent')).toBe(0) // processing urgent unpublishes now
+    const daysOut = (stage: Parameters<typeof unpublishDate>[0]) =>
+      Math.round((unpublishDate(stage, NOW).getTime() - NOW.getTime()) / DAY_MS)
+    expect(daysOut('verified')).toBe(21) // 7 + 7 + 7
+    expect(daysOut('reminded')).toBe(14) // 7 + 7
+    expect(daysOut('escalated')).toBe(7) // 7
+    expect(daysOut('urgent')).toBe(0) // processing urgent unpublishes now
   })
 
   it('every pre-expiry stage points at the same absolute unpublish date', () => {

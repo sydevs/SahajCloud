@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
+import { DAY_MS } from '@/lib/utilities/time'
+
 /**
  * Tokenized verify-link signing.
  *
@@ -13,7 +15,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
  * is injected) so it unit-tests without env or Payload.
  */
 
-export const VERIFY_TOKEN_TTL_MS = 10 * 24 * 60 * 60 * 1000 // 10 days
+export const VERIFY_TOKEN_TTL_MS = 10 * DAY_MS
 
 export interface VerifyTokenClaims {
   eventId: number

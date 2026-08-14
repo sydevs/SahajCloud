@@ -22,7 +22,8 @@ import { unstable_cache } from 'next/cache'
 import { getPayload } from 'payload'
 
 import { isPreAdoptionStage } from '@/lib/eventVerification/stages'
-import { breadcrumbAncestorIds, relationId } from '@/plugins/access/documentManagers'
+import { relationId } from '@/lib/utilities/relationId'
+import { breadcrumbAncestorIds } from '@/plugins/access/documentManagers'
 
 import config from '@payload-config'
 

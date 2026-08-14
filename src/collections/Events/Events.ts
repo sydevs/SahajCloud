@@ -35,7 +35,7 @@ import {
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { adminOnlyCondition, ownedRegionFilterOptions } from '@/plugins/access'
-import { relationId } from '@/plugins/access/documentManagers'
+import { relationId } from '@/lib/utilities/relationId'
 
 import { eventsGeoJson } from './endpoints/geojson'
 import { registerForEvent } from './endpoints/registerForEvent'

@@ -10,6 +10,8 @@
  * to `3 Months` (Atlas's historical default).
  */
 
+import { DAY_MS } from '@/lib/utilities/time'
+
 /** Manager `event_verification` frequency → period length in days. */
 export const VERIFICATION_PERIOD_DAYS: Record<string, number> = {
   Monthly: 30,
@@ -30,5 +32,5 @@ export function verificationPeriodDays(frequency?: string | null): number {
 
 /** Add `days` to `from`, returning a new Date (UTC-ms arithmetic). */
 export function addDays(from: Date, days: number): Date {
-  return new Date(from.getTime() + days * 24 * 60 * 60 * 1000)
+  return new Date(from.getTime() + days * DAY_MS)
 }

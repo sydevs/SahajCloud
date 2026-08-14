@@ -8,6 +8,7 @@ import { sendSessionReminder } from '@/lib/notifications/sendSessionReminder'
 import type { ScheduleSubFields } from '@/lib/schedule/scheduleHooks'
 import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
 import { relationId } from '@/lib/utilities/relationId'
+import { DAY_MS } from '@/lib/utilities/time'
 import type { Event } from '@/payload-types'
 
 import { loadUsers } from './loadUsers'
@@ -15,7 +16,7 @@ import { asReminderLog, hasReminderFor, type ReminderLogEntry } from './reminder
 
 const PAGINATION_LIMIT = 200
 /** 24 hours — how far ahead a run reminds. */
-const REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000
+const REMINDER_WINDOW_MS = DAY_MS
 
 const CLIENT_BRAND_SELECT = {
   name: true,

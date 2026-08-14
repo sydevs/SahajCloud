@@ -1,5 +1,7 @@
 import type { EventQualityInput, QualitySkipReason } from './types'
 
+import { isDormantStage } from '@/lib/eventVerification/stages'
+
 /**
  * Human-readable explanation per skip reason. The panel renders this instead of
  * an empty report — "no recommendations" and "not checked because this event is
@@ -19,13 +21,13 @@ export { SKIP_REASON_COPY as SKIP_REASON_LABELS } from './copy'
  */
 export function shouldSkipQualityChecks(event: EventQualityInput): QualitySkipReason | null {
   if (event.deletedAt) return 'trashed'
-  if (event.verificationStage === 'finished') return 'finished'
-  if (event.verificationStage === 'expired') return 'expired'
-  // Community-rejected (also unpublished) — "denied" is the actionable fact,
-  // same reasoning as `expired` above. Published `unverified` events fall
-  // through to `null`: user-submitted listings are exactly the ones whose
-  // grooming to-do list an adopting manager wants to see.
-  if (event.verificationStage === 'denied') return 'denied'
+  // A listing that's off the map or finished has nothing worth grooming, and
+  // the stage name is exactly the reason to show. Derived from the stage's
+  // declared attention rather than an if-chain, so a new terminal stage is
+  // covered by declaring it — see `isDormantStage`.
+  if (isDormantStage(event.verificationStage)) {
+    return event.verificationStage as QualitySkipReason
+  }
   if (event._status !== 'published') return 'unpublished'
   return null
 }

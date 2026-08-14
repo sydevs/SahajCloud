@@ -24,6 +24,8 @@
 import type { ContentSlug } from './types'
 import type { CollectionSlug, FlattenedField, Payload, PayloadRequest, Where } from 'payload'
 
+import { relationId } from '@/lib/utilities/relationId'
+
 export interface DocManagerFields {
   /** Name of the hasMany relationship → managers, if present. */
   managersField: string | null
@@ -51,18 +53,7 @@ function relationTargets(relationTo: string | string[], target: string): boolean
   return Array.isArray(relationTo) ? relationTo.includes(target) : relationTo === target
 }
 
-/** Pull a numeric id out of a relationship value (id, populated doc, or string). */
-export function relationId(value: unknown): number | null {
-  if (typeof value === 'number') return value
-  if (typeof value === 'string') {
-    const n = Number(value)
-    return Number.isInteger(n) ? n : null
-  }
-  if (value && typeof value === 'object' && 'id' in value) {
-    return relationId((value as { id: unknown }).id)
-  }
-  return null
-}
+
 
 function detectDocManagerFields(fields: FlattenedField[], collection: string): DocManagerFields {
   const result: DocManagerFields = { ...EMPTY_FIELDS }

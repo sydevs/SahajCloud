@@ -1,5 +1,6 @@
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { signToken, verifyToken, type SignedTokenResult } from '@/lib/utilities/signedToken'
+import { DAY_MS } from '@/lib/utilities/time'
 
 /**
  * Tokenized links for the post-event feedback page — "did this class take
@@ -11,7 +12,7 @@ import { signToken, verifyToken, type SignedTokenResult } from '@/lib/utilities/
 const FEEDBACK_TOKEN_KIND = 'registration-feedback'
 
 /** 30 days — a follow-up may sit unread; the vote gate re-checks the event anyway. */
-export const FEEDBACK_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000
+export const FEEDBACK_TOKEN_TTL_MS = 30 * DAY_MS
 
 export interface FeedbackTokenClaims {
   registrationId: number

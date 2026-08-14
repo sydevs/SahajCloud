@@ -5,6 +5,7 @@ import {
   STAGE_DURATION_DAYS,
   type VerificationStage,
 } from '@/lib/eventVerification/stages'
+import { DAY_MS } from '@/lib/utilities/time'
 
 /**
  * View model for the verification tracker: which steps to draw for an event,
@@ -27,7 +28,6 @@ import {
  * `@/lib/eventVerification/stages` so the two can't drift.
  */
 
-const DAY_MS = 24 * 60 * 60 * 1000
 
 export type StepKey = 'unverified' | 'denied' | 'verified' | 'reminders' | 'expired' | 'finished'
 export type StepStatus = 'done' | 'current' | 'upcoming'
