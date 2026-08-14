@@ -3,17 +3,17 @@ import type { Endpoint } from 'payload'
 import { APIError } from 'payload'
 import { z } from 'zod'
 
-import { parseBody, requireActiveClient } from '@/lib/endpoints'
-import type { Client } from '@/payload-types'
-import { assertClientOriginAllowed, isHostAllowed, parseAllowedDomains } from '@/plugins/usage'
-
-import { ROUTING_MODES } from '../canonical'
+import { ROUTING_MODES } from '@/lib/clients/canonical'
 import {
   EMBED_MODES,
   MAX_MOUNT_KEY_LENGTH,
   mergeEmbedReport,
   parseMountKey,
-} from '../embedMetadata'
+} from '@/lib/clients/embedMetadata'
+import { parseBody, requireActiveClient } from '@/lib/endpoints'
+import type { Client } from '@/payload-types'
+import { assertClientOriginAllowed, isHostAllowed, parseAllowedDomains } from '@/plugins/usage'
+
 
 /** Response body of a successful `POST /api/clients/report`. */
 export interface ClientEmbedReportResponse {

@@ -2,9 +2,9 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { backfillClientCanonical } from '@/collections/Clients/backfillCanonical'
 import { Clients } from '@/collections/Clients/Clients'
 import { clientEmbedReport } from '@/collections/Clients/endpoints/report'
+import { backfillClientCanonical } from '@/lib/clients/backfillCanonical'
 import type { Client } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'

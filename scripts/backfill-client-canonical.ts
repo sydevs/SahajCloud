@@ -12,7 +12,7 @@
  * fills a field that is currently empty, so a second pass finds nothing to do.
  * The routine itself (and the reasoning behind reading `legacyData` rather than
  * the dropped `legacyConfig` column) lives in
- * `src/collections/Clients/backfillCanonical.ts`.
+ * `src/lib/clients/backfillCanonical.ts`.
  *
  * Usage:
  *   pnpm tsx scripts/backfill-client-canonical.ts            # dry run
@@ -25,7 +25,7 @@ import type { Payload } from 'payload'
 import dotenv from 'dotenv'
 import { getPayload } from 'payload'
 
-import { backfillClientCanonical } from '../src/collections/Clients/backfillCanonical'
+import { backfillClientCanonical } from '../src/lib/clients/backfillCanonical'
 
 function parseArgs(argv: string[]): { force: boolean } {
   let force = false
