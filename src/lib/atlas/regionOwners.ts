@@ -6,7 +6,6 @@ import { serverEnv } from '@/lib/env'
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
-
 import { canonicalUrlBase } from './canonicalUrl'
 import { getRegionTree } from './regionTree'
 
