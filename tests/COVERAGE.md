@@ -77,6 +77,7 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 | Canonical Atlas URL shapes (`path` / `query`, `?` vs `&`, never a fragment), pinned to the cross-repo `atlas-url-contract.json` fixture | unit: `atlas-canonical-url.spec.ts` |
 | Canonical ownership precedence (nearest owning ancestor wins; disabled/draft client owns nothing; We Meditate fallback) | unit: `atlas-region-owners.spec.ts`, `region-canonical-url` |
 | Canonical resolution cost — a `webUrl` read costs exactly two extra queries regardless of N, and a `webPath`-only read costs one | `region-canonical-url` |
+| `breadcrumbs[].url` backfill — roots-only resave repopulates the whole tree via the nested-docs cascade, and is re-runnable | `region-breadcrumb-url-backfill` |
 | RBAC (`hasPermission`, `hasAnyPermission`, document-level manager access, locale roles, translator scopes)     | `role-based-access`         |
 
 ## Gaps

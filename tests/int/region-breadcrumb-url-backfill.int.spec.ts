@@ -1,0 +1,133 @@
+import type { Payload } from 'payload'
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
+import { backfillBreadcrumbUrls } from '@/lib/atlas/backfillBreadcrumbUrls'
+
+import { createTestEnvironment } from '../utils/testHelpers'
+
+/**
+ * The `breadcrumbs[].url` backfill (#634).
+ *
+ * `generateURL` populates that column only on write, so enabling it leaves
+ * every pre-existing row null — and the
+ * `where[breadcrumbs.url][equals]='/nl/amsterdam'` lookup resolves nothing
+ * until this has run.
+ *
+ * The routine lives in `src/lib/atlas/` rather than in the script precisely so
+ * it can be exercised here; the CLI wrapper is argument parsing and printing.
+ */
+describe('breadcrumb URL backfill', () => {
+  let payload: Payload
+  let cleanup: () => Promise<void>
+
+  let uk: number
+  let england: number
+  let london: number
+  let france: number
+
+  const createRegion = async (slug: string, level: string, parent?: number): Promise<number> => {
+    const doc = await payload.create({
+      collection: 'regions',
+      overrideAccess: true,
+      data: {
+        name: slug,
+        slug,
+        level,
+        mapboxId: `bf-${slug}`,
+        ...(parent ? { parent } : {}),
+      } as never,
+    })
+    return doc.id
+  }
+
+  /** Null every stored breadcrumb URL, simulating rows written before #634. */
+  const clearBreadcrumbUrls = async (): Promise<void> => {
+    const { docs } = await payload.find({
+      collection: 'regions',
+      pagination: false,
+      depth: 0,
+      overrideAccess: true,
+      select: { breadcrumbs: true },
+    })
+    for (const doc of docs) {
+      const stripped = (doc.breadcrumbs ?? []).map((crumb) => ({ ...crumb, url: null }))
+      // Straight through the DB adapter: an ordinary `update` would re-run the
+      // plugin hook and immediately repopulate what we are trying to clear.
+      await payload.db.updateOne({
+        collection: 'regions',
+        id: doc.id,
+        data: { breadcrumbs: stripped },
+      })
+    }
+  }
+
+  const urlsFor = async (id: number): Promise<Array<string | null | undefined>> => {
+    const doc = await payload.findByID({
+      collection: 'regions',
+      id,
+      depth: 0,
+      overrideAccess: true,
+    })
+    return (doc.breadcrumbs ?? []).map((crumb) => crumb.url)
+  }
+
+  beforeAll(async () => {
+    const env = await createTestEnvironment()
+    payload = env.payload
+    cleanup = env.cleanup
+
+    uk = await createRegion('uk', 'country')
+    england = await createRegion('england', 'region', uk)
+    london = await createRegion('london', 'city', england)
+    france = await createRegion('france', 'country')
+  })
+
+  afterAll(async () => {
+    await cleanup()
+  })
+
+  it('reports what is missing without writing anything on a dry run', async () => {
+    await clearBreadcrumbUrls()
+
+    const stats = await backfillBreadcrumbUrls({ payload, apply: false })
+    expect(stats.scanned).toBe(4)
+    expect(stats.missing).toBe(4)
+    // Two roots (uk, france) would be re-saved; the cascade covers the rest.
+    expect(stats.resaved).toBe(2)
+    expect(stats.failed).toBe(0)
+
+    // Nothing was written.
+    expect(await urlsFor(london)).toEqual([null, null, null])
+  })
+
+  it('repopulates the whole tree from a roots-only resave', async () => {
+    const stats = await backfillBreadcrumbUrls({ payload, apply: true })
+
+    expect(stats.failed).toBe(0)
+    expect(stats.remaining).toBe(0)
+
+    // The deepest node proves the cascade reached three levels down, and that
+    // each crumb carries its own ancestor's path — not just the leaf's.
+    expect(await urlsFor(london)).toEqual(['/uk', '/uk/england', '/uk/england/london'])
+    expect(await urlsFor(england)).toEqual(['/uk', '/uk/england'])
+    expect(await urlsFor(france)).toEqual(['/france'])
+  })
+
+  it('makes the path lookup resolve, which is the whole point', async () => {
+    const { docs } = await payload.find({
+      collection: 'regions',
+      where: { 'breadcrumbs.url': { equals: '/uk/england/london' } },
+      depth: 0,
+      overrideAccess: true,
+    })
+    expect(docs.map((doc) => doc.id)).toEqual([london])
+  })
+
+  it('is re-runnable — a second pass finds nothing missing', async () => {
+    const stats = await backfillBreadcrumbUrls({ payload, apply: true })
+    expect(stats.missing).toBe(0)
+    expect(stats.remaining).toBe(0)
+    expect(stats.failed).toBe(0)
+  })
+})

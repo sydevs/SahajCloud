@@ -4,6 +4,7 @@ import type { PayloadRequest } from 'payload'
 import type { RoutingMode } from '@/lib/clients/canonical'
 import { serverEnv } from '@/lib/env'
 import { relationId } from '@/lib/utilities/relationId'
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
 
 import { canonicalUrlBase } from './canonicalUrl'
@@ -47,7 +48,8 @@ interface ClientRow {
   } | null
 }
 
-const requestCache = new WeakMap<PayloadRequest, Promise<Map<number, CanonicalOwner>>>()
+/** `req.context` key for the per-request ownership memo. */
+const OWNERS_MEMO_KEY = 'atlas:regionOwners'
 
 /**
  * The clients that directly own a region, keyed by that region's id.
@@ -146,14 +148,14 @@ async function loadRegionOwners(req: PayloadRequest): Promise<Map<number, Canoni
  * The canonical owner for every region, keyed by region id, resolved once per
  * request. A region with no owner anywhere in its ancestry is simply absent —
  * the caller falls back to the We Meditate surface.
+ *
+ * `memoizeOnRequest` stores the **promise**, not the resolved value: a bulk
+ * read issues every document's afterRead concurrently, and a resolved-value
+ * cache stampedes under that. It also evicts a failed load so a later read in
+ * the same request can retry.
  */
-export function getRegionOwners(req: PayloadRequest): Promise<Map<number, CanonicalOwner>> {
-  let cached = requestCache.get(req)
-  if (!cached) {
-    cached = loadRegionOwners(req)
-    requestCache.set(req, cached)
-  }
-  return cached
+function getRegionOwners(req: PayloadRequest): Promise<Map<number, CanonicalOwner>> {
+  return memoizeOnRequest(req, OWNERS_MEMO_KEY, () => loadRegionOwners(req))
 }
 
 /**
