@@ -7,7 +7,6 @@ import { getLanguageOptions } from '@/lib/locales'
 import { getRoleOptions } from '@/plugins/access'
 import { calculateAbuseScore } from '@/plugins/usage'
 
-
 import { clientEmbedReport } from './endpoints/report'
 import { ensureClientId } from './hooks/ensureClientId'
 import { validateCanonicalOwnership } from './hooks/validateCanonicalOwnership'
@@ -214,6 +213,17 @@ export const Clients: CollectionConfig = {
                       type: 'text',
                       defaultValue: '/',
                       label: 'Mount Path',
+                      // A path, not a URL — the host is stated once, in
+                      // `domain`. Without this an operator can paste a full
+                      // `https://…` here and the resolver would join the two
+                      // into a canonical URL that resolves nowhere.
+                      validate: (value: string | null | undefined) => {
+                        if (!value) return true
+                        return (
+                          value.startsWith('/') ||
+                          'Enter a path beginning with “/” — the host belongs in Canonical Domain. A query string is fine (e.g. /?p=123).'
+                        )
+                      },
                       admin: {
                         description:
                           'The page the embed lives on, e.g. /locatelessons/. May carry a query string — WordPress default permalinks are /?p=123.',

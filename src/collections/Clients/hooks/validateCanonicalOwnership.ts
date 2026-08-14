@@ -61,6 +61,15 @@ export const validateCanonicalOwnership: CollectionBeforeChangeHook = async ({
   // Committed state only: a draft edit lives in `_clients_v` and doesn't show
   // up here, so a conflicting draft is caught on publish, when this hook runs
   // again with the values that are about to become real.
+  //
+  // Check-then-write, so two *simultaneous* enables on one region could both
+  // pass. Not defended against, deliberately: this runs on an admin save — a
+  // human ticking a checkbox — so the window is a few milliseconds of human-paced
+  // traffic, and the result is a visible data state a later save reports rather
+  // than silent corruption. The airtight fix is a partial unique index
+  // (`WHERE canonical_enabled`), which Payload can't declare and which would
+  // need a hand-written migration; if the resolver ticket comes to depend on
+  // one-owner-per-region as an invariant rather than a rule, add it there.
   const { docs: incumbents } = await req.payload.find({
     collection: 'clients',
     where: {

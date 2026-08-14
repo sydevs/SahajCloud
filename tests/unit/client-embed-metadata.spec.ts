@@ -1,11 +1,7 @@
-import type {
-  EmbedMetadata,
-  EmbedMountObservation,
-} from '../../src/lib/clients/embedMetadata'
+import type { EmbedMetadata, EmbedMountObservation } from '../../src/lib/clients/embedMetadata'
 import type { Client } from '../../src/payload-types'
 
 import { describe, expect, expectTypeOf, it } from 'vitest'
-
 
 import {
   EMBED_REPORT_REFRESH_MS,
@@ -91,6 +87,18 @@ describe('sanitizeEmbedMetadata', () => {
     ['a string', 'nope'],
   ])('treats %s as empty', (_label, stored) => {
     expect(sanitizeEmbedMetadata(stored)).toEqual({ metadata: {}, dropped: 0 })
+  })
+
+  it('drops a record whose lastSeen is a string but not a date', () => {
+    // `lastSeen` is the eviction sort key. An unparseable stamp would make that
+    // comparator return NaN, which doesn't sort the record last — it corrupts
+    // the ordering of the whole array. So it has to be rejected here, not
+    // tolerated as "some string".
+    const { metadata, dropped } = sanitizeEmbedMetadata({
+      'https://a.org/x': { ...OBSERVATION, lastSeen: 'not a date' },
+    })
+    expect(metadata).toEqual({})
+    expect(dropped).toBe(1)
   })
 })
 

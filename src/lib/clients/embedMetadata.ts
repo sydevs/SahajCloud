@@ -23,7 +23,6 @@
 import type { RoutingMode } from './canonical'
 import type { JSONSchema4 } from 'json-schema'
 
-
 import { ROUTING_MODES } from './canonical'
 
 /**
@@ -159,7 +158,13 @@ function isEmbedMountRecord(value: unknown): value is EmbedMountRecord {
     typeof record.urlWritable === 'boolean' &&
     typeof record.paramPersisted === 'boolean' &&
     ROUTING_MODES.includes(record.routing as RoutingMode) &&
-    typeof record.lastSeen === 'string'
+    // Parseable, not merely a string: `lastSeen` is the eviction sort key, and
+    // an unparseable stamp would make that comparator return NaN — which is not
+    // "sorts last", it corrupts the ordering of the whole array. Rejecting it
+    // here means the corrupt record is dropped and repaired on the next write,
+    // which is what this layer already promises for every other field.
+    typeof record.lastSeen === 'string' &&
+    !Number.isNaN(Date.parse(record.lastSeen))
   )
 }
 
@@ -219,6 +224,10 @@ function isRecentlySeen(lastSeen: string, at: string): boolean {
  * Drop least-recently-seen mounts until at most {@link MAX_EMBED_MOUNTS}
  * remain. `keep` is never evicted — it is the mount just reported, so a clock
  * skew that makes its stamp look old must not delete the write we came to make.
+ *
+ * The comparator can't see a NaN: every record here has been through
+ * {@link sanitizeEmbedMetadata}, which rejects an unparseable `lastSeen`, and
+ * the one record this pass added was stamped from the caller's clock.
  */
 function evictOldest(metadata: EmbedMetadata, keep: string): string[] {
   const keys = Object.keys(metadata)
