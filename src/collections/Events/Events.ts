@@ -20,7 +20,8 @@ import {
   scheduleFields,
   urlField,
 } from '@/fields'
-import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
+import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
+import { getRegionWebPaths } from '@/lib/atlas/regionTree'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
 import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS } from '@/lib/eventQuality'
@@ -46,7 +47,6 @@ import { syncEventFullness } from './hooks/syncFullness'
 import { verifyOnSave } from './hooks/verifyOnSave'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
-
 
 /**
  * Minimal rich-text editor for the event description: italic, an H3,
@@ -211,7 +211,11 @@ export const Events: CollectionConfig = {
                       }
                     },
                   ) =>
-                    data?.inactive && !value && !data.contactEmail && !data.website && !data.onlineUrl
+                    data?.inactive &&
+                    !value &&
+                    !data.contactEmail &&
+                    !data.website &&
+                    !data.onlineUrl
                       ? 'Add a phone, an email or a website — an inactive event has no schedule for seekers to rely on.'
                       : true,
                   admin: {
@@ -526,9 +530,15 @@ export const Events: CollectionConfig = {
     // verify/reminder links + ExpireEvents job rely on that null-on-unpublish
     // contract (`appUrl` is always null — there's no Atlas app deep-link).
     // `region` (an id at depth 0) must be present for the path to resolve; the
-    // ensureWebPathDeps beforeOperation hook keeps it selectable on its own.
+    // ensureWebPathDeps beforeOperation hook keeps it selectable on its own —
+    // and `region` is also exactly the input canonical ownership resolves on,
+    // so that hook needs no change to keep `webUrl` resolvable.
+    //
+    // The base is per-region (#634): the client that owns this event's region —
+    // or the nearest owning ancestor — on its own domain, falling back to the
+    // We Meditate surface. Not `SAHAJATLAS_URL`, which is `noindex` by policy.
     ...publicUrlFields({
-      web: serverEnv.SAHAJATLAS_URL,
+      web: ({ data, req }) => getCanonicalUrlBase(req, relationId(data?.region)),
       buildPath: async ({ data, req }) => {
         const regionId = relationId(data?.region)
         const id = data?.id
