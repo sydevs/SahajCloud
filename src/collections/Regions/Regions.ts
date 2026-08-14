@@ -3,12 +3,14 @@ import type { CollectionConfig } from 'payload'
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
 import { hideUntilCreated, legacyMigrationFields, publicUrlFields, slugField } from '@/fields'
-import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
+import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
+import { getRegionWebPaths } from '@/lib/atlas/regionTree'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { ownedRegionFilterOptions } from '@/plugins/access'
 
+import { requireNonEmptySlug } from './hooks/requireNonEmptySlug'
 import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
 
 /**
@@ -127,7 +129,10 @@ export const Regions: CollectionConfig = {
   hooks: {
     // Atlas managers can only create regions inside their owned subtree (a child
     // of a region they own) — block rootless creates the capability check must allow.
-    beforeValidate: [requireOwnedParentOnCreate],
+    // Then refuse a *newly* blank slug — one segment of every canonical URL in
+    // the subtree below this region, and the slug field's own validator lets an
+    // empty value through. Pre-existing blanks are grandfathered; see the hook.
+    beforeValidate: [requireOwnedParentOnCreate, requireNonEmptySlug],
     // Bust the Atlas manager sidebar cache (region tree + counts) on any region write.
     afterChange: [revalidateAtlasSidebarHook],
     afterDelete: [revalidateAtlasSidebarHook],
@@ -422,7 +427,11 @@ export const Regions: CollectionConfig = {
     // `requirePublished: false` exposes `webPath` + `webUrl` (`appUrl` is null —
     // no Atlas app deep-link).
     ...publicUrlFields({
-      web: serverEnv.SAHAJATLAS_URL,
+      // Per-region base (#634): the client owning this region — or its nearest
+      // owning ancestor — on its own domain, falling back to the We Meditate
+      // surface. Not `SAHAJATLAS_URL`, which is `noindex` by policy.
+      web: ({ data, req }) =>
+        getCanonicalUrlBase(req, typeof data?.id === 'number' ? data.id : null),
       buildPath: async ({ data, req }) => {
         const id = data?.id
         if (typeof id !== 'number') return null
