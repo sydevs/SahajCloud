@@ -2197,17 +2197,27 @@ export interface Client {
    */
   region?: (number | null) | Region;
   /**
-   * Deprecated Atlas config (routing_type, embed_type, default_view).
+   * Declare that this service owns the canonical URLs for its region. At most one service per region.
    */
-  legacyConfig?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  canonical?: {
+    /**
+     * Off by default, and load-bearing: several client domains are dead or on site builders, and a cross-origin iframe would name a URL that cannot restore the view. Requires a region and a canonical domain.
+     */
+    enabled?: boolean | null;
+    /**
+     * Host only, e.g. sahajayoga.nl. Deliberately separate from Allowed Domains, which is multi-valued.
+     */
+    domain?: string | null;
+    /**
+     * The page the embed lives on, e.g. /locatelessons/. May carry a query string — WordPress default permalinks are /?p=123.
+     */
+    mount?: string | null;
+    /**
+     * How the widget encodes state into the canonical URL. Hash routing is not offered — the widget is dropping it.
+     */
+    routing?: ('query' | 'path') | null;
+  };
+  embedMetadata?: HttpsSahajcloudDevSchemasClientEmbedMetadataJson;
   /**
    * Public identifier for this service. Auto-generated, or the Atlas public key for imported services.
    */
@@ -2275,6 +2285,16 @@ export interface Client {
   apiKey?: string | null;
   apiKeyIndex?: string | null;
   collection: 'clients';
+}
+export interface HttpsSahajcloudDevSchemasClientEmbedMetadataJson {
+  [k: string]: {
+    mode: 'iframe' | 'script';
+    topLevel: boolean;
+    urlWritable: boolean;
+    paramPersisted: boolean;
+    routing: 'query' | 'path';
+    lastSeen: string;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -4362,7 +4382,15 @@ export interface ClientsSelect<T extends boolean = true> {
   supportEmail?: T;
   locale?: T;
   region?: T;
-  legacyConfig?: T;
+  canonical?:
+    | T
+    | {
+        enabled?: T;
+        domain?: T;
+        mount?: T;
+        routing?: T;
+      };
+  embedMetadata?: T;
   clientId?: T;
   keyGeneratedAt?: T;
   usage?:
