@@ -36,7 +36,7 @@ Pre-flight checks for Payload migrations in `src/migrations/`. Catches the most 
 | Check                        | Why it matters                                                                                                        |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | File exists & is `.ts`       | Catches typos in invocation                                                                                           |
-| Matching `.json` snapshot    | Drizzle uses the snapshot to compute future diffs; missing one breaks subsequent `db:migrations:create`               |
+| Matching `.json` snapshot    | Drizzle uses the snapshot to compute future diffs; missing one breaks subsequent `payload migrate:create`               |
 | `export async function up`   | Migration without `up` does nothing on apply                                                                          |
 | `export async function down` | Reversibility — without `down`, rollback is impossible                                                                |
 | `pnpm tsc --noEmit`          | Compile-time errors block migration from being importable from `src/migrations/index.ts`                              |
@@ -58,7 +58,7 @@ For semantic review, follow up with the `migration-reviewer` subagent (if availa
 
 ## When to use
 
-- After `pnpm db:migrations:create` (user-run, interactive)
+- After `pnpm payload migrate:create` (user-run, interactive)
 - Before opening a PR that contains migrations
 - Before `pnpm payload migrate` in any environment
 - Before deploying to production (migrations auto-apply on server boot; irreversible without DB restore)

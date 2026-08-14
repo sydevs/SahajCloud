@@ -32,7 +32,7 @@ Complete guide for managing and monitoring this Next.js + Payload CMS applicatio
 For common tasks:
 
 - **Deploy a change**: Push to `main` → Railway auto-builds and deploys → migrations apply on boot
-- **Create a schema migration**: `pnpm db:migrations:create` (local, interactive)
+- **Create a schema migration**: `pnpm payload migrate:create <name>` (local, may prompt)
 - **Apply schema changes**: Commit the migration, push, Railway applies it automatically
 - **View logs**: `railway logs -s <app-service-name> --tail`
 - **Monitor metrics**: https://railway.app/project/[id] (CPU, memory, database pool)
@@ -414,10 +414,10 @@ This ensures zero-downtime deploys — the new app instance applies migrations b
 
 ```bash
 # Generate a new migration interactively
-pnpm db:migrations:create
+pnpm payload migrate:create <name>
 
 # Apply migrations to your local Postgres
-pnpm db:migrate
+pnpm payload migrate
 ```
 
 **For production**, simply push to `main` and deploy. Migrations apply automatically on boot.
@@ -426,8 +426,8 @@ pnpm db:migrate
 
 ```bash
 # Run LOCALLY where you can respond to interactive prompts
-# The pnpm db:migrations:create command is interactive and requires terminal input
-pnpm db:migrations:create
+# migrate:create can prompt (rename-vs-create) and needs terminal input
+pnpm payload migrate:create <name>
 
 # Interactive prompt (requires terminal input):
 # ? Name of migration: add_new_field
@@ -441,7 +441,7 @@ pnpm db:migrations:create
 
 ```bash
 # Apply all pending migrations to your local database
-pnpm db:migrate
+pnpm payload migrate
 
 # Expected output:
 # ✓ Applied 1701234567890_add_new_field
@@ -870,7 +870,7 @@ git push origin main
 ### Before Deploying to Production
 
 - [ ] Code changes tested locally: `pnpm lint && pnpm test:unit`
-- [ ] Migration tested locally (if schema changes): `pnpm db:migrate`
+- [ ] Migration tested locally (if schema changes): `pnpm payload migrate`
 - [ ] All required environment variables verified in Railway
 - [ ] Backup exists (automated backups run daily)
 - [ ] Sentry is set up and receiving events from staging
@@ -902,7 +902,7 @@ railway logs -s <app-service-name> --tail -n 200
 # Look for the migration error; fix it in src/migrations/<timestamp>.ts
 
 # Test the migration locally before re-deploying
-pnpm db:migrate
+pnpm payload migrate
 
 # If the migration partially applied, you may need to manually rollback
 # (consult .claude/rules/migrations.md for migration rollback procedures)

@@ -1,6 +1,6 @@
 ---
 name: migration-reviewer
-description: Semantic review of a Payload schema migration. Use after `pnpm db:migrations:create` and before `pnpm payload migrate`. Goes deeper than the migration-validator skill — checks reversibility, FK cascade behavior on D1, data-loss risk, performance, and rollback plan.
+description: Semantic review of a Payload schema migration. Use after `pnpm payload migrate:create` and before `pnpm payload migrate`. Goes deeper than the migration-validator skill — checks reversibility, FK cascade behavior on D1, data-loss risk, performance, and rollback plan.
 model: sonnet
 tools: [Read, Bash, Grep, Glob]
 ---

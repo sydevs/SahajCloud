@@ -103,7 +103,7 @@ For custom field components:
 
 ```bash
 # Ask the user to run this — it's interactive
-pnpm db:migrations:create
+pnpm payload migrate:create
 ```
 
 See `.claude/rules/migrations.md` for the full migration workflow and the D1 PRAGMA foreign_keys gotcha.

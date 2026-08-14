@@ -32,7 +32,7 @@ End-to-end bug troubleshooting for the sy-devs-cms PayloadCMS + Next.js + Railwa
 
 - Commit changes (user's job)
 - Open PRs (use `/implement-issue` for that flow)
-- Schema migrations (use `pnpm db:migrations:create` — ask the user; see `.claude/rules/migrations.md`)
+- Schema migrations (use `pnpm payload migrate:create` — ask the user; see `.claude/rules/migrations.md`)
 - Refactor working code
 
 ## Quick references
