@@ -137,6 +137,20 @@ collection slug.
 | `GET /api/events/geojson`                    | `src/collections/Events/endpoints/geojson.ts`       | `#/components/schemas/EventFeatureCollection` (hand-authored) |
 | `POST /api/events/{id}/register`             | `src/collections/Events/endpoints/registerForEvent.ts` | `#/components/schemas/EventRegistrationResponse` (hand-authored) |
 | `POST /api/contact-admin`                    | `src/endpoints/contactAdmin.ts` (root endpoint)     | `#/components/schemas/ContactAdminResponse` (hand-authored) |
+| `POST /api/clients/report`                   | `src/collections/Clients/endpoints/report.ts`       | `#/components/schemas/EmbedReportResponse` (hand-authored) |
+
+### A custom path on an always-hidden collection
+
+`clients` is in `ALWAYS_HIDDEN_COLLECTIONS`, so Tier 1 would mark
+`POST /api/clients/report` `x-internal` and no client app could find the endpoint
+it is expected to call. `ALWAYS_VISIBLE_CUSTOM_PATHS` in `specFilter.ts` exempts
+that one **exact** path before any tier runs.
+
+The hiding rule is about a collection's *CRUD* surface — `clients` documents must
+stay unadvertised — so the exemption is a path allowlist, not a per-collection
+opt-out: widening the access collections' public surface stays one auditable line.
+`tests/unit/openapi-custom-endpoints.spec.ts` pins both halves (the report path
+visible in every project; `/api/clients` and `/api/clients/{id}` still hidden).
 
 ### Root-level endpoints have no collection to key visibility off
 

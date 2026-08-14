@@ -55,6 +55,21 @@ export const ALWAYS_HIDDEN_COLLECTIONS: ContentSlug[] = [
 export const CUSTOM_ENDPOINTS_ONLY_COLLECTIONS: ContentSlug[] = ['lectures', 'app-cards']
 
 /**
+ * Hand-authored paths that stay visible even though their collection is in
+ * {@link ALWAYS_HIDDEN_COLLECTIONS}.
+ *
+ * The hiding rule is about a collection's **CRUD** surface — `clients` is
+ * internal user management and its documents must never be advertised. But a
+ * client app is expected to *call* `POST /api/clients/report`, and a documented
+ * endpoint nobody can find in `/api/docs` may as well not exist.
+ *
+ * An explicit path allowlist rather than a per-collection opt-out, so widening
+ * the access collections' public surface is one auditable line and can't happen
+ * by accident. Exact full paths only — no prefix matching.
+ */
+export const ALWAYS_VISIBLE_CUSTOM_PATHS: string[] = ['/api/clients/report']
+
+/**
  * HTTP operations excluded from public docs.
  * API clients only have read access (plus form-submissions POST).
  */
@@ -380,6 +395,12 @@ export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): Open
   const markedSpec = JSON.parse(JSON.stringify(spec)) as OpenAPISpec
 
   for (const [path, pathItem] of Object.entries(markedSpec.paths!)) {
+    // A hand-authored path on an always-hidden collection that clients must be
+    // able to find. Exempted before any tier runs, same as a root endpoint.
+    if (ALWAYS_VISIBLE_CUSTOM_PATHS.includes(path)) {
+      continue
+    }
+
     const collection = getCollectionFromPath(path, rootPaths)
 
     if (!collection) {

@@ -241,6 +241,96 @@ describe('contact-admin root endpoint (OpenAPI)', () => {
   })
 })
 
+describe('clients embed-report endpoint (OpenAPI)', () => {
+  const post = CUSTOM_ENDPOINT_PATHS['/api/clients/report']?.post as
+    | { description?: string; responses?: Record<string, { description?: string }> }
+    | undefined
+
+  it('registers the path and both schemas', () => {
+    expect(post).toBeDefined()
+    expect(CUSTOM_ENDPOINT_SCHEMAS['EmbedReportRequest']).toBeDefined()
+    expect(CUSTOM_ENDPOINT_SCHEMAS['EmbedReportResponse']).toBeDefined()
+  })
+
+  it('requires every observed field and rejects unknown keys', () => {
+    const schema = CUSTOM_ENDPOINT_SCHEMAS['EmbedReportRequest'] as {
+      required?: string[]
+      additionalProperties?: boolean
+      properties?: Record<string, { enum?: string[] }>
+    }
+    expect(schema.additionalProperties).toBe(false)
+    for (const field of [
+      'origin',
+      'pathname',
+      'mode',
+      'topLevel',
+      'urlWritable',
+      'paramPersisted',
+      'routing',
+    ]) {
+      expect(schema.required ?? []).toContain(field)
+    }
+    // Hash routing is being dropped from the widget, so it must never be offered.
+    expect(schema.properties?.routing?.enum).toEqual(['query', 'path'])
+  })
+
+  it('documents the caller-visible rules the widget cannot infer', () => {
+    // A widget that leaks the seeker's query string is refused, not cleaned up —
+    // so the rejection has to be discoverable before someone ships the leak.
+    expect(post?.responses?.['400']?.description).toContain('query string or fragment')
+    // An unconfigured allowlist refuses, unlike every read surface.
+    expect(post?.responses?.['403']?.description).toContain('no `allowedDomains`')
+    // And the mount cap is the reason a new page can start failing.
+    expect(post?.responses?.['429']).toBeDefined()
+  })
+
+  it('stays visible despite `clients` being an always-hidden collection', () => {
+    const spec = JSON.parse(
+      JSON.stringify({
+        openapi: '3.1.0',
+        info: { title: 't', version: '1' },
+        paths: { ...CUSTOM_ENDPOINT_PATHS },
+        components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
+      }),
+    ) as unknown as OpenAPISpec
+
+    for (const project of ['sahaj-atlas', 'wemeditate-web', 'wemeditate-app'] as const) {
+      const filtered = filterSpec(spec, { project })
+      const operation = (
+        filtered.paths?.['/api/clients/report'] as
+          | Record<string, Record<string, unknown>>
+          | undefined
+      )?.post
+      expect(operation, `POST /api/clients/report missing for ${project}`).toBeDefined()
+      expect(operation!['x-internal'], `hidden for ${project}`).toBeFalsy()
+    }
+  })
+
+  it('still hides the clients CRUD surface the exemption does not name', () => {
+    // The exemption is one exact path, not a licence for the whole collection —
+    // `clients` documents must stay unadvertised.
+    const spec = JSON.parse(
+      JSON.stringify({
+        openapi: '3.1.0',
+        info: { title: 't', version: '1' },
+        paths: { '/api/clients': { get: {} }, '/api/clients/{id}': { get: {} } },
+      }),
+    ) as unknown as OpenAPISpec
+
+    const filtered = filterSpec(spec, { project: 'sahaj-atlas' })
+    expect(
+      (filtered.paths?.['/api/clients'] as Record<string, Record<string, unknown>>).get[
+        'x-internal'
+      ],
+    ).toBe(true)
+    expect(
+      (filtered.paths?.['/api/clients/{id}'] as Record<string, Record<string, unknown>>).get[
+        'x-internal'
+      ],
+    ).toBe(true)
+  })
+})
+
 describe('rootEndpointPathsFrom', () => {
   it('prefixes each root endpoint path with the API route', () => {
     expect(rootEndpointPathsFrom([{ path: '/contact-admin' }, { path: '/og' }])).toEqual([

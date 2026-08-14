@@ -17,6 +17,7 @@
  * module and the merge block in the route handler.
  */
 
+import { EMBED_MODES, EMBED_ROUTING } from '@/collections/Clients/embedMetadata'
 import { LOCALES } from '@/lib/locales'
 
 import {
@@ -411,6 +412,65 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
             '`errors[0].code` is one of `external_registration`, `event_ended`, ' +
             '`registration_closed`, or `event_full`. Distinct from 404: the event exists ' +
             'and is readable (a finished event stays published), its state just conflicts.',
+        ),
+      },
+    },
+  },
+
+  '/api/clients/report': {
+    post: {
+      tags: ['Clients'],
+      summary: 'Report what the embed observed about its host page',
+      description:
+        'The Sahaj Atlas widget reports how it is mounted on the page it is running ' +
+        'on; the record accumulates one entry per `origin` + `pathname`, so a site ' +
+        'running several embeds produces several entries rather than overwriting one. ' +
+        'A human then designates which of them is canonical — this endpoint never ' +
+        'changes `canonical`, only what is known about each mount.\n\n' +
+        '**Send `origin` and `pathname` separately, and strip the host page’s query ' +
+        'string and fragment first.** A `pathname` carrying `?` or `#` is rejected ' +
+        'with `400` rather than cleaned up server-side, so a widget that leaks a ' +
+        'seeker’s query parameters fails loudly instead of silently.\n\n' +
+        'The reported `origin` must appear in the client’s `allowedDomains`, and — ' +
+        'unlike a read — a client with **no** `allowedDomains` configured is refused ' +
+        'rather than allowed: with no allowlist there is nothing to attribute the ' +
+        'mount to.\n\n' +
+        '**Only POST on a change.** An unchanged report seen within the hour is ' +
+        'answered `200` with `stored: false` and writes nothing, and a client may ' +
+        'accumulate at most 50 distinct mounts before new ones are refused with `429`.',
+      operationId: 'reportEmbedMetadata',
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/EmbedReportRequest' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description:
+            'Report accepted. `stored` is `false` when it matched what was already ' +
+            'recorded and nothing was written.',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/EmbedReportResponse' },
+            },
+          },
+        },
+        '400': errorResponse(
+          'Request body failed validation — including a `pathname` that carries a ' +
+            'query string or fragment, or an `origin` that is not a bare ' +
+            '`scheme://host[:port]`.',
+        ),
+        '403': errorResponse(
+          'Caller is not a published API client, its `Origin`/`Referer` is not in the ' +
+            'client’s `allowedDomains`, the reported `origin` is not either, or the ' +
+            'client has no `allowedDomains` configured at all.',
+        ),
+        '429': errorResponse(
+          'This client already tracks the maximum number of distinct mounts. Known ' +
+            'mounts keep reporting normally; only new ones are refused.',
         ),
       },
     },
@@ -1054,6 +1114,79 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
           },
           userAgent: { type: 'string', maxLength: 500, description: 'The sender’s user agent.' },
         },
+      },
+    },
+  },
+  /**
+   * `POST /api/clients/report` request body. Keep in lockstep with
+   * `embedReportSchema` in `src/collections/Clients/embedMetadata.ts` — a
+   * published key can post this from any allowed page, so the bounds are contract.
+   */
+  EmbedReportRequest: {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'origin',
+      'pathname',
+      'mode',
+      'topLevel',
+      'urlWritable',
+      'paramPersisted',
+      'routing',
+    ],
+    properties: {
+      origin: {
+        type: 'string',
+        maxLength: 255,
+        description:
+          'Bare origin of the host page — `scheme://host[:port]`, no trailing slash, ' +
+          'path, query or fragment. Must be in the client’s `allowedDomains`.',
+      },
+      pathname: {
+        type: 'string',
+        maxLength: 512,
+        description:
+          'Path of the host page, starting with `/`. Must not carry a query string ' +
+          'or fragment — strip them before reporting.',
+      },
+      mode: {
+        type: 'string',
+        enum: [...EMBED_MODES],
+        description: 'How the widget is mounted, as observed at runtime.',
+      },
+      topLevel: {
+        type: 'boolean',
+        description: 'False when the widget runs inside an iframe rather than the host document.',
+      },
+      urlWritable: {
+        type: 'boolean',
+        description: 'Whether the widget can write the host URL (same-origin + History API).',
+      },
+      paramPersisted: {
+        type: 'boolean',
+        description: 'Whether a written parameter survives a reload — a router can eat it.',
+      },
+      routing: {
+        type: 'string',
+        enum: [...EMBED_ROUTING],
+        description: 'How the widget expresses its view in the URL. Hash routing is not offered.',
+      },
+    },
+  },
+  /** `POST /api/clients/report` success body. */
+  EmbedReportResponse: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['ok', 'mount', 'stored'],
+    properties: {
+      ok: { type: 'boolean', enum: [true] },
+      mount: {
+        type: 'string',
+        description: 'The `origin` + `pathname` key this report was filed under.',
+      },
+      stored: {
+        type: 'boolean',
+        description: 'False when the report matched what was stored and no write was made.',
       },
     },
   },
