@@ -49,8 +49,25 @@ describe('parseMountKey', () => {
   it.each([
     ['a query string', 'https://sahajayoga.nl/locatelessons?token=secret'],
     ['a fragment', 'https://sahajayoga.nl/locatelessons#section'],
-    ['a bare query marker', 'https://sahajayoga.nl/?p=123'],
   ])('rejects %s', (_label, url) => {
+    expect(parseMountKey(url)).toEqual({ ok: false, reason: 'query_or_fragment' })
+  })
+
+  // The one carve-out: a WordPress site on default permalinks has no other way to
+  // name its page, and `?p=<id>` is a post id rather than seeker input.
+  it('keeps a WordPress default permalink in the key', () => {
+    expect(parseMountKey('https://sahajayoga.nl/?p=123')).toEqual({
+      ok: true,
+      key: 'https://sahajayoga.nl/?p=123',
+      host: 'sahajayoga.nl',
+    })
+  })
+
+  it.each([
+    ['a permalink with anything appended', 'https://sahajayoga.nl/?p=123&utm_source=news'],
+    ['a non-numeric permalink', 'https://sahajayoga.nl/?p=abc'],
+    ['a different query parameter', 'https://sahajayoga.nl/?page_id=4'],
+  ])('still rejects %s', (_label, url) => {
     expect(parseMountKey(url)).toEqual({ ok: false, reason: 'query_or_fragment' })
   })
 
@@ -115,7 +132,7 @@ describe('mergeEmbedReport', () => {
     const second = mergeEmbedReport({
       stored: first.metadata,
       key: 'https://a.org/classes',
-      observation: { ...OBSERVATION, mode: 'script' },
+      observation: { ...OBSERVATION, mode: 'inline' },
       at: AT,
     })
 
@@ -124,7 +141,7 @@ describe('mergeEmbedReport', () => {
       'https://a.org/lessons',
     ])
     expect(second.metadata['https://a.org/lessons'].mode).toBe('iframe')
-    expect(second.metadata['https://a.org/classes'].mode).toBe('script')
+    expect(second.metadata['https://a.org/classes'].mode).toBe('inline')
   })
 
   it('stamps lastSeen from the supplied clock', () => {

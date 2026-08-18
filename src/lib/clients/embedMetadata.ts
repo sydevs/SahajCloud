@@ -30,7 +30,10 @@ import { ROUTING_MODES } from './canonical'
  * running inside a frame it did not itself create, `script` when it was
  * injected directly into the host document.
  */
-export const EMBED_MODES = ['iframe', 'script'] as const
+// `inline` (not `component`/`script`) and `iframe` — the vocabulary the shipped
+// widget sends. See `EmbedMode` in sydevs/SahajAtlasWeb `src/loader/detect.ts`;
+// changing either side without the other 400s every report.
+export const EMBED_MODES = ['inline', 'iframe'] as const
 
 export type EmbedMode = (typeof EMBED_MODES)[number]
 
@@ -103,6 +106,9 @@ export const embedMetadataJsonSchema: JSONSchema4 = {
   },
 }
 
+/** The one query string a reported mount may carry — a WordPress default permalink. */
+const WORDPRESS_PERMALINK_RE = /^\?p=\d+$/
+
 /** Why a reported mount URL was refused. */
 export type MountKeyRejection =
   | 'invalid_url'
@@ -141,12 +147,20 @@ export function parseMountKey(raw: string): MountKeyResult {
   if (url.protocol !== 'https:' && url.protocol !== 'http:') {
     return { ok: false, reason: 'unsupported_scheme' }
   }
-  if (url.search || url.hash) return { ok: false, reason: 'query_or_fragment' }
+  // A WordPress site on default permalinks has no other way to name its page:
+  // every post is `/?p=<id>`, so discarding the query would collapse the whole
+  // site onto one mount and leave the canonical page unnameable. `?p=<digits>`
+  // is a post id, not seeker input — every other query string is still refused,
+  // `?p=123&utm_source=…` included.
+  const permalink = WORDPRESS_PERMALINK_RE.test(url.search) ? url.search : ''
+  if ((url.search && !permalink) || url.hash) {
+    return { ok: false, reason: 'query_or_fragment' }
+  }
   if (url.username || url.password) return { ok: false, reason: 'credentials' }
 
   // `url.origin` drops a default port and lowercases the host; `url.pathname`
   // is percent-normalized. Two spellings of one page therefore share a key.
-  return { ok: true, key: `${url.origin}${url.pathname}`, host: url.hostname }
+  return { ok: true, key: `${url.origin}${url.pathname}${permalink}`, host: url.hostname }
 }
 
 function isEmbedMountRecord(value: unknown): value is EmbedMountRecord {

@@ -2323,7 +2323,7 @@ export interface Client {
 }
 export interface HttpsSahajcloudDevSchemasClientEmbedMetadataJson {
   [k: string]: {
-    mode: 'iframe' | 'script';
+    mode: 'inline' | 'iframe';
     topLevel: boolean;
     urlWritable: boolean;
     paramPersisted: boolean;

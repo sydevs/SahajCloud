@@ -12,7 +12,35 @@ import {
 } from '@/lib/clients/embedMetadata'
 import { parseBody, requireActiveClient } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
-import { assertClientOriginAllowed, isHostAllowed, parseAllowedDomains } from '@/plugins/usage'
+import {
+  assertClientOriginAllowed,
+  getPgPool,
+  isHostAllowed,
+  parseAllowedDomains,
+  quotedDbSchema,
+} from '@/plugins/usage'
+
+/**
+ * Merge one mount into `embed_metadata` as a single atomic statement.
+ *
+ * **Not `payload.update`.** The usage plugin increments `usage_daily_requests` on this very row, on
+ * its own connection, for this very request — while `payload.update` would hold the row inside the
+ * request's transaction. The two block on each other and the request never returns; both sides were
+ * observed waiting on `Lock: transactionid` in `pg_stat_activity`. A single autocommit statement has
+ * no transaction to overlap with.
+ *
+ * `||` also merges server-side, which closes the read-modify-write window: two mounts of one site
+ * reporting at the same instant both land instead of one overwriting the other.
+ *
+ * Same trade-off the usage counters already accept — this writes the published `clients` row and
+ * not `_clients_v`, and skips the column's JSON Schema validator. Safe because the entry is built
+ * here from a Zod-validated body; no caller-supplied shape reaches the column.
+ */
+const embedMergeSql = (quotedSchema: string) => `
+  UPDATE ${quotedSchema}.clients
+  SET embed_metadata = COALESCE(embed_metadata, '{}'::jsonb) || $1::jsonb
+  WHERE id = $2
+`
 
 
 /** Response body of a successful `POST /api/clients/report`. */
@@ -26,11 +54,15 @@ export interface ClientEmbedReportResponse {
 
 const bodySchema = z.object({
   /**
-   * Origin + pathname of the page the embed is mounted on. The widget strips
-   * the host page's query string and fragment before sending; `parseMountKey`
-   * re-checks rather than trusting it.
+   * The page the embed is mounted on, as two fields.
+   *
+   * Separate rather than one URL because that is what the shipped widget sends
+   * (sydevs/SahajAtlasWeb#159) — and because the split is what lets the path be
+   * checked on its own. The widget strips the host page's query string and
+   * fragment before sending; `parseMountKey` re-checks rather than trusting it.
    */
-  url: z.string().max(MAX_MOUNT_KEY_LENGTH),
+  origin: z.string().max(MAX_MOUNT_KEY_LENGTH),
+  pathname: z.string().max(MAX_MOUNT_KEY_LENGTH),
   mode: z.enum(EMBED_MODES),
   topLevel: z.boolean(),
   urlWritable: z.boolean(),
@@ -40,11 +72,12 @@ const bodySchema = z.object({
 
 /** Human-readable refusal per {@link parseMountKey} rejection reason. */
 const MOUNT_KEY_MESSAGES = {
-  invalid_url: '`url` must be an absolute URL.',
-  unsupported_scheme: '`url` must be http or https.',
-  query_or_fragment: '`url` must carry no query string or fragment — send origin + pathname only.',
-  credentials: '`url` must not carry credentials.',
-  too_long: '`url` is too long.',
+  invalid_url: '`origin` + `pathname` must form an absolute URL.',
+  unsupported_scheme: '`origin` must be http or https.',
+  query_or_fragment:
+    '`pathname` must carry no query string or fragment, apart from a WordPress `?p=<digits>` permalink.',
+  credentials: '`origin` must not carry credentials.',
+  too_long: 'The reported mount is too long.',
 } as const
 
 /**
@@ -96,9 +129,9 @@ export const clientEmbedReport: Endpoint = {
 
     const parsed = await parseBody(req, bodySchema)
     if (!parsed.ok) return parsed.response
-    const { url, ...observation } = parsed.data
+    const { origin, pathname, ...observation } = parsed.data
 
-    const mount = parseMountKey(url)
+    const mount = parseMountKey(`${origin}${pathname}`)
     if (!mount.ok) {
       return Response.json(
         { errors: [{ message: MOUNT_KEY_MESSAGES[mount.reason], code: mount.reason }] },
@@ -138,15 +171,24 @@ export const clientEmbedReport: Endpoint = {
           evicted: evicted.length,
         })
       }
-      // `overrideAccess` because API clients cannot write `clients` at all; the
-      // id is the caller's own (`req.user.id`), never one from the body.
-      await req.payload.update({
-        collection: 'clients',
-        id: client.id,
-        data: { embedMetadata: metadata },
-        overrideAccess: true,
-        req,
-      })
+      const pool = getPgPool(req)
+      if (!pool) {
+        req.payload.logger.error({
+          msg: 'clientEmbedReport: Postgres pool unavailable; report dropped',
+          clientId: client.id,
+        })
+        return Response.json(
+          { errors: [{ message: 'Could not record this report.' }] },
+          { status: 500 },
+        )
+      }
+
+      // Only the merged record goes over the wire; eviction is already applied
+      // to it, so this is a whole-column write only when a mount was evicted.
+      await pool.query(embedMergeSql(quotedDbSchema(req)), [
+        JSON.stringify(metadata),
+        client.id,
+      ])
     }
 
     const body: ClientEmbedReportResponse = {

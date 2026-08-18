@@ -383,7 +383,7 @@ describe('client canonical ownership + embed metadata', () => {
         reportReq({
           clientId: client.id,
           status: 'draft',
-          body: { url: 'https://a.org/x', ...OBSERVATION },
+          body: { origin: 'https://a.org', pathname: '/x', ...OBSERVATION },
         }),
       )
       expect(res.status).toBe(403)
@@ -396,7 +396,7 @@ describe('client canonical ownership + embed metadata', () => {
           clientId: client.id,
           allowedDomains: 'sahajayoga.nl',
           origin: 'https://evil.example',
-          body: { url: 'https://sahajayoga.nl/x', ...OBSERVATION },
+          body: { origin: 'https://sahajayoga.nl', pathname: '/x', ...OBSERVATION },
         }),
       )
       expect(res.status).toBe(403)
@@ -411,7 +411,7 @@ describe('client canonical ownership + embed metadata', () => {
           clientId: client.id,
           allowedDomains: 'sahajayoga.nl',
           origin: 'https://sahajayoga.nl',
-          body: { url: 'https://evil.example/x', ...OBSERVATION },
+          body: { origin: 'https://evil.example', pathname: '/x', ...OBSERVATION },
         }),
       )
       expect(res.status).toBe(403)
@@ -419,12 +419,17 @@ describe('client canonical ownership + embed metadata', () => {
     })
 
     it.each([
-      ['a query string', 'https://sahajayoga.nl/x?token=secret'],
-      ['a fragment', 'https://sahajayoga.nl/x#frag'],
-    ])('refuses a url carrying %s', async (_label, url) => {
-      const client = await createClient(`Path Reporter ${url}`)
+      ['a query string', '/x?token=secret'],
+      ['a fragment', '/x#frag'],
+      // The permalink carve-out is exact: anything appended is still seeker data.
+      ['a permalink with tracking appended', '/?p=12&utm_source=news'],
+    ])('refuses a pathname carrying %s', async (_label, pathname) => {
+      const client = await createClient(`Path Reporter ${pathname}`)
       const res = await clientEmbedReport.handler(
-        reportReq({ clientId: client.id, body: { url, ...OBSERVATION } }),
+        reportReq({
+          clientId: client.id,
+          body: { origin: 'https://sahajayoga.nl', pathname, ...OBSERVATION },
+        }),
       )
       expect(res.status).toBe(400)
       expect(await res.json()).toMatchObject({
@@ -435,7 +440,7 @@ describe('client canonical ownership + embed metadata', () => {
     it('refuses a body missing required observations', async () => {
       const client = await createClient('Partial Reporter')
       const res = await clientEmbedReport.handler(
-        reportReq({ clientId: client.id, body: { url: 'https://a.org/x', mode: 'iframe' } }),
+        reportReq({ clientId: client.id, body: { origin: 'https://a.org', pathname: '/x', mode: 'iframe' } }),
       )
       expect(res.status).toBe(400)
     })
@@ -450,7 +455,7 @@ describe('client canonical ownership + embed metadata', () => {
           clientId: client.id,
           allowedDomains: 'sahajayoga.nl',
           origin: 'https://sahajayoga.nl',
-          body: { url: 'https://sahajayoga.nl/locatelessons', ...OBSERVATION },
+          body: { origin: 'https://sahajayoga.nl', pathname: '/locatelessons', ...OBSERVATION },
         }),
       )
       expect(first.status).toBe(200)
@@ -466,9 +471,9 @@ describe('client canonical ownership + embed metadata', () => {
           origin: 'https://sahajayoga.nl',
           embedMetadata: afterFirst,
           body: {
-            url: 'https://sahajayoga.nl/meditations-kurse-finden',
+            origin: 'https://sahajayoga.nl', pathname: '/meditations-kurse-finden',
             ...OBSERVATION,
-            mode: 'script',
+            mode: 'inline',
           },
         }),
       )
@@ -480,7 +485,7 @@ describe('client canonical ownership + embed metadata', () => {
         'https://sahajayoga.nl/meditations-kurse-finden',
       ])
       expect(stored['https://sahajayoga.nl/locatelessons'].mode).toBe('iframe')
-      expect(stored['https://sahajayoga.nl/meditations-kurse-finden'].mode).toBe('script')
+      expect(stored['https://sahajayoga.nl/meditations-kurse-finden'].mode).toBe('inline')
     })
 
     it('answers a repeated identical report without writing', async () => {
@@ -488,7 +493,7 @@ describe('client canonical ownership + embed metadata', () => {
       const req = () =>
         reportReq({
           clientId: client.id,
-          body: { url: 'https://a.org/x', ...OBSERVATION },
+          body: { origin: 'https://a.org', pathname: '/x', ...OBSERVATION },
         })
 
       await clientEmbedReport.handler(req())
@@ -503,7 +508,7 @@ describe('client canonical ownership + embed metadata', () => {
         reportReq({
           clientId: client.id,
           embedMetadata: stored,
-          body: { url: 'https://a.org/x', ...OBSERVATION },
+          body: { origin: 'https://a.org', pathname: '/x', ...OBSERVATION },
         }),
       )
       expect(await repeat.json()).toMatchObject({ updated: false })
