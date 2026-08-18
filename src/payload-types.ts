@@ -692,6 +692,7 @@ export interface Config {
     };
     users: {
       registrations: 'registrations';
+      submittedEvents: 'events';
     };
   };
   collectionsSelect: {
@@ -1653,13 +1654,13 @@ export interface Event {
    */
   contactPhone?: string | null;
   /**
-   * The name of the person they are calling
-   */
-  contactName?: string | null;
-  /**
    * An email address seekers can write to for more information about the program.
    */
   contactEmail?: string | null;
+  /**
+   * The name of the person seekers will reach
+   */
+  contactName?: string | null;
   description?: {
     root: {
       type: string;
@@ -1680,9 +1681,12 @@ export interface Event {
    */
   website?: string | null;
   /**
-   * Photos for this event.
+   * Photos for this event (up to 7).
    */
   images?: (number | Image)[] | null;
+  webPath?: string | null;
+  webUrl?: string | null;
+  appUrl?: string | null;
   /**
    * The city or venue this event belongs to.
    */
@@ -1785,13 +1789,19 @@ export interface Event {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
-  registrationsFull?: boolean | null;
   /**
-   * Manager responsible for verifying this event.
+   * Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.
    */
-  manager: number | Manager;
-  verificationStage: 'verified' | 'reminded' | 'escalated' | 'urgent' | 'expired' | 'finished';
-  nextCheckAt?: string | null;
+  manager?: (number | null) | Manager;
+  verificationStage:
+    | 'unverified'
+    | 'denied'
+    | 'verified'
+    | 'reminded'
+    | 'escalated'
+    | 'urgent'
+    | 'expired'
+    | 'finished';
   /**
    * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.
    */
@@ -1804,9 +1814,10 @@ export interface Event {
     | number
     | boolean
     | null;
-  webPath?: string | null;
-  webUrl?: string | null;
-  appUrl?: string | null;
+  /**
+   * How strongly attendees confirm this event is real (0–1). Rises with confirmations, falls with denials, and stays cautious while there are few votes — the Atlas map ranks unverified listings by it. Blank until the first vote.
+   */
+  confidenceScore?: number | null;
   qualityReport?:
     | {
         [k: string]: unknown;
@@ -1816,8 +1827,27 @@ export interface Event {
     | number
     | boolean
     | null;
+  /**
+   * Who submitted this listing (record-keeping only).
+   */
+  submitter?: (number | null) | User;
+  /**
+   * When the nightly job will next act on this event.
+   */
+  nextCheckAt?: string | null;
+  /**
+   * Registrations have reached the limit.
+   */
+  registrationsFull?: boolean | null;
+  /**
+   * Open listing-quality recommendations.
+   */
   qualityOpenCount?: number | null;
+  /**
+   * Check-set version the count was stamped from.
+   */
   qualityCheckVersion?: number | null;
+  systemMeta?: HttpsSahajcloudDevSchemasEventSystemMetaJson;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -1932,6 +1962,11 @@ export interface User {
   email: string;
   registrations?: {
     docs?: (number | Registration)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  submittedEvents?: {
+    docs?: (number | Event)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -2294,6 +2329,22 @@ export interface HttpsSahajcloudDevSchemasClientEmbedMetadataJson {
     paramPersisted: boolean;
     routing: 'query' | 'path';
     lastSeen: string;
+  };
+}
+export interface HttpsSahajcloudDevSchemasEventSystemMetaJson {
+  communityFeedback?: {
+    /**
+     * Registrants who confirmed the event exists.
+     */
+    confirmations?: number;
+    /**
+     * Registrants who denied it.
+     */
+    denials?: number;
+    /**
+     * ISO timestamp of the last vote applied.
+     */
+    updatedAt?: string;
   };
 }
 /**
@@ -4557,11 +4608,14 @@ export interface EventsSelect<T extends boolean = true> {
   title?: T;
   languages?: T;
   contactPhone?: T;
-  contactName?: T;
   contactEmail?: T;
+  contactName?: T;
   description?: T;
   website?: T;
   images?: T;
+  webPath?: T;
+  webUrl?: T;
+  appUrl?: T;
   region?: T;
   eventType?: T;
   onlineUrl?: T;
@@ -4622,17 +4676,17 @@ export interface EventsSelect<T extends boolean = true> {
         questions?: T;
       };
   registrations?: T;
-  registrationsFull?: T;
   manager?: T;
   verificationStage?: T;
-  nextCheckAt?: T;
   notificationLog?: T;
-  webPath?: T;
-  webUrl?: T;
-  appUrl?: T;
+  confidenceScore?: T;
   qualityReport?: T;
+  submitter?: T;
+  nextCheckAt?: T;
+  registrationsFull?: T;
   qualityOpenCount?: T;
   qualityCheckVersion?: T;
+  systemMeta?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;
@@ -4669,6 +4723,7 @@ export interface UsersSelect<T extends boolean = true> {
   name?: T;
   email?: T;
   registrations?: T;
+  submittedEvents?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;

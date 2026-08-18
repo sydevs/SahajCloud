@@ -23,10 +23,11 @@ function stepClassName(step: TrackerStep): string {
 }
 
 /**
- * Read-only visualization of `verificationStage`: a vertical 3-step tracker
- * (Verified → Reminders → Expired) with a one-line caption per step, the
- * relevant date, and the current step highlighted. `finished` (off-path) shows
- * a terminal note above a muted tracker.
+ * Read-only visualization of `verificationStage`: a vertical tracker of the
+ * journey the event is on — Unverified → Denied → Verified for a pre-adoption
+ * listing, Verified → Reminders → Expired once a manager owns it — with a
+ * one-line caption per step, the relevant date, and the current step
+ * highlighted. See `./timeline` for the journeys and their copy.
  */
 export const VerificationStageField: FieldClientComponent = ({ field }) => {
   const { name, label } = field as SelectFieldClient
@@ -36,8 +37,19 @@ export const VerificationStageField: FieldClientComponent = ({ field }) => {
   const log = useFormFields(([fields]) => fields?.notificationLog?.value)
   const nextCheckAt = useFormFields(([fields]) => fields?.nextCheckAt?.value as string | undefined)
   const updatedAt = useFormFields(([fields]) => fields?.updatedAt?.value as string | undefined)
+  // The derived end of the final occurrence — tells a capped watermark (the
+  // event finishes before its next check) from a real reminder date.
+  const scheduleEnd = useFormFields(
+    ([fields]) => fields?.['schedule.lastDate']?.value as string | undefined,
+  )
 
-  const { steps } = buildStageTracker({ log, currentStage: stage, nextCheckAt, updatedAt })
+  const { steps } = buildStageTracker({
+    log,
+    currentStage: stage,
+    nextCheckAt,
+    updatedAt,
+    scheduleEnd,
+  })
 
   return (
     <div className="field-type vstage-field read-only">

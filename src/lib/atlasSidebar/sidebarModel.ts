@@ -44,9 +44,14 @@ export const EVENT_BUCKET_META: Record<EventBucket, { label: string; tooltip: st
   urgent: { label: 'Urgent', tooltip: 'Urgent — verify now or it will be unpublished' },
   needsVerification: {
     label: 'Needs verification',
-    tooltip: 'A verification reminder has been sent',
+    tooltip:
+      'A verification reminder has been sent, or the listing is unverified — assign a manager to adopt it',
   },
-  expired: { label: 'Expired', tooltip: 'Unpublished — recoverable for ~2 weeks, then trashed' },
+  expired: {
+    label: 'Unpublished',
+    tooltip:
+      'Unpublished — expired (recoverable for ~2 weeks, then trashed) or denied by attendee feedback',
+  },
   verified: { label: 'Verified', tooltip: 'Verified and published' },
   trashed: { label: 'Trashed', tooltip: 'Trashed — pending permanent deletion' },
   finished: { label: 'Finished', tooltip: 'The event schedule has ended' },
@@ -84,8 +89,14 @@ export function bucketForEvent(event: {
       return 'urgent'
     case 'reminded':
     case 'escalated':
+    // `unverified` sits with the other verification-pending events: both are
+    // listings a manager needs to act on before the system acts for them.
+    case 'unverified':
       return 'needsVerification'
     case 'expired':
+    // `denied` shares the bucket with `expired`: both are system-unpublished
+    // states a manager can rescue by adopting/republishing.
+    case 'denied':
       return 'expired'
     case 'finished':
       return 'finished'
@@ -308,6 +319,6 @@ export function regionPillStyle(counts: RegionCounts): 'success' | 'warning' {
 /** Tooltip for a region's published/total pill. */
 export function regionPillTooltip(counts: RegionCounts): string {
   return hasUnpublished(counts)
-    ? `${counts.total - counts.published} expired events`
-    : 'All events are verified'
+    ? `${counts.total - counts.published} unpublished events`
+    : 'All events are published'
 }
