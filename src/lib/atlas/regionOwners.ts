@@ -13,11 +13,20 @@ import { getRegionTree } from './regionTree'
  * Which client owns the canonical URLs for each region (#634).
  *
  * A client declares ownership of one region (`canonical.enabled` + `region` +
- * `canonical.domain`, enforced unique per region by
+ * `canonical.embed`, enforced unique per region by
  * `validateCanonicalOwnership`). That ownership then covers the whole subtree
  * beneath it: a sub-region, and an event inside it, resolve to the same owner,
  * with the **nearest** ancestor winning over a more distant one — Greater
  * London under `sahajayogalondon.co.uk`, not `sahajayoga.org.uk`.
+ *
+ * **The host, mount and routing come from `canonical.verification.verified` —
+ * never from the declaration itself.** `canonical.embed` only *nominates* one of
+ * the mounts the widget reported, and the report endpoint is reachable by anyone
+ * holding a published key from an allowed origin (#633). `verified` is written
+ * solely by the verification job, from what it observed loading the page itself,
+ * so a forged report can nominate a mount but can never reshape a public URL.
+ * An enabled client whose embed has not yet verified therefore owns nothing and
+ * falls through to the next ancestor.
  *
  * Loaded lazily and memoized separately from the region tree, so a read that
  * only wants `webPath` — the widget's geojson feed selects `webPath` and not
@@ -41,9 +50,13 @@ interface ClientRow {
   region?: unknown
   canonical?: {
     enabled?: boolean | null
-    domain?: string | null
-    mount?: string | null
-    routing?: RoutingMode | null
+    verification?: {
+      verified?: {
+        domain?: string | null
+        mount?: string | null
+        routing?: RoutingMode | null
+      } | null
+    } | null
   } | null
 }
 
@@ -85,19 +98,20 @@ async function loadDirectOwners(req: PayloadRequest): Promise<Map<number, Canoni
 
   for (const row of rows) {
     const regionId = relationId(row.region)
-    const canonical = row.canonical
+    const verified = row.canonical?.verification?.verified
     // An incomplete declaration owns nothing: without a region there is no
-    // subtree to cover, and without a domain there is no URL to build. Better
-    // to fall through to the next ancestor (or We Meditate) than to emit a
-    // canonical URL pointing at a host we were never given.
-    if (regionId == null || !canonical?.domain) continue
+    // subtree to cover, and without a *verified* host there is no URL we are
+    // willing to publish. Better to fall through to the next ancestor (or We
+    // Meditate) than to emit a canonical URL pointing at a page we have never
+    // confirmed actually runs the widget.
+    if (regionId == null || !verified?.domain) continue
     if (owners.has(regionId)) continue
 
     owners.set(regionId, {
       clientId: row.id,
-      domain: canonical.domain,
-      mount: canonical.mount ?? '/',
-      routing: canonical.routing ?? 'query',
+      domain: verified.domain,
+      mount: verified.mount ?? '/',
+      routing: verified.routing ?? 'query',
     })
   }
   return owners

@@ -55,6 +55,42 @@ describe('per-region canonical webUrl', () => {
     return doc.id
   }
 
+  /**
+   * Seed a client that owns a region.
+   *
+   * The host/mount/routing a canonical URL is built from live in
+   * `canonical.verification.verified` — job-written from what the CMS observed
+   * on the live page — not in the declaration. `canonical.embed` only nominates
+   * which reported mount is the candidate, so both have to be set for a client
+   * to actually own anything (#633's trust boundary, consumed by #634).
+   */
+  const createOwner = async (args: {
+    name: string
+    region: number
+    domain: string
+    mount: string
+    routing: 'query' | 'path'
+    enabled?: boolean
+  }): Promise<number> => {
+    const { name, region: regionId, domain, mount, routing, enabled = true } = args
+    const doc = await testData.createClient(payload, managerId, {
+      name,
+      roles: ['sahaj-atlas-client'],
+      region: regionId,
+      canonical: {
+        enabled,
+        embed: `https://${domain}${mount}`,
+        verification: {
+          verified: { domain, mount, routing, widgetVersion: 2, at: '2026-08-18T00:00:00.000Z' },
+          failureCount: 0,
+          attempts: [],
+        },
+      },
+      _status: 'published',
+    } as never)
+    return doc.id
+  }
+
   const readEvent = (id: number) =>
     payload.findByID({ collection: 'events', id, depth: 0, overrideAccess: true })
 
@@ -97,31 +133,33 @@ describe('per-region canonical webUrl', () => {
 
     // The UK client owns the whole country, in `query` routing on a page whose
     // path carries a trailing slash.
-    await testData.createClient(payload, managerId, {
+    await createOwner({
       name: 'Sahaja Yoga UK',
-      roles: ['sahaj-atlas-client'],
       region: region.uk,
-      canonical: { enabled: true, domain: UK_DOMAIN, mount: '/classes/', routing: 'query' },
-      _status: 'published',
-    } as never)
+      domain: UK_DOMAIN,
+      mount: '/classes/',
+      routing: 'query',
+    })
 
     // London owns a sub-tree of it, in `path` routing.
-    await testData.createClient(payload, managerId, {
+    await createOwner({
       name: 'Sahaja Yoga London',
-      roles: ['sahaj-atlas-client'],
       region: region.london,
-      canonical: { enabled: true, domain: LONDON_DOMAIN, mount: '/map', routing: 'path' },
-      _status: 'published',
-    } as never)
+      domain: LONDON_DOMAIN,
+      mount: '/map',
+      routing: 'path',
+    })
 
-    // France has a client, but it has not been opted in.
-    await testData.createClient(payload, managerId, {
+    // France has a client with a fully verified embed, but it has not been
+    // opted in — so it must own nothing.
+    await createOwner({
       name: 'Sahaja Yoga France (not opted in)',
-      roles: ['sahaj-atlas-client'],
       region: region.france,
-      canonical: { enabled: false, domain: 'sahajayoga.fr', mount: '/', routing: 'query' },
-      _status: 'published',
-    } as never)
+      domain: 'sahajayoga.fr',
+      mount: '/',
+      routing: 'query',
+      enabled: false,
+    })
   })
 
   afterAll(async () => {
