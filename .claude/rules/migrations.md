@@ -102,6 +102,53 @@ chain, stop and trim or regenerate it; adding `IF NOT EXISTS` to a new
 migration is only a replay-recovery tool, not a substitute for a clean
 migration delta.
 
+### "Unmerged" does not mean "unapplied" — Railway deploys every push
+
+A migration is **applied somewhere** the moment its branch is pushed: Railway
+builds a per-PR preview environment and runs `prodMigrations` on boot. So
+regenerating a migration — deleting the file and reissuing it under a new
+timestamp — is only safe **before the branch has ever deployed**.
+
+Do it later and the preview database keeps the *columns* the old migration
+created but has no `payload_migrations` row naming the new one, so the new
+migration re-runs and dies on the first `ADD COLUMN`:
+
+```
+Error running migration 20260819_002657_add_client_canonical
+column "canonical_enabled" of relation "clients" already exists
+```
+
+The app then crash-loops on boot and every route 502s — while `/api/health` may
+answer briefly, which makes it look like a networking fault rather than a
+migration one. (#633: the canonical migrations were regenerated to emit their
+final shape after four pushes had already deployed them.)
+
+**A clean-database test cannot catch this.** `pnpm payload migrate` against an
+empty database passes precisely because it is empty. The failing state needs a
+database that ran the *old* migration.
+
+When you need to reshape a migration that has already deployed, pick one:
+
+- **Reset the environment** — `railway environment delete SahajCloud-pr-<n> --yes`;
+  the next push recreates it from prod and the chain applies as it will on merge.
+  Preferred: no hand-edited schema, and it exercises a realistic starting state.
+- **Stack a new migration** instead of regenerating, and accept the
+  add-then-change churn in the chain.
+
+Do **not** reach for `ADD COLUMN IF NOT EXISTS` to paper over it — that ships
+permanently weaker DDL to production to accommodate one disposable preview.
+
+**Reading a failed preview deploy.** A Railway *project* token only sees the
+`production` environment, so it cannot fetch PR-environment logs. The CLI's own
+user session can (`~/.railway/config.json` → `user.token`), against
+`backboard.railway.com/graphql/v2`:
+
+```graphql
+query { deploymentLogs(deploymentId: "<id>", limit: 200) { timestamp message } }
+```
+
+The deployment id is in the Railway check's URL on the PR.
+
 ### Never generate a migration (or types) with `E2E_TEST=true`
 
 `payload.config.ts` disables several plugins under that flag — including the usage
