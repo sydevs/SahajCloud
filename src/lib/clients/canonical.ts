@@ -13,7 +13,12 @@
  * from the handler).
  */
 
-import { normalizeHost } from '@/plugins/usage'
+// Deep import, not the `@/plugins/usage` barrel, and load-bearing: this module is
+// reached from the admin picker (a client component), and the barrel re-exports
+// the pg-pool seam — which drags `pg` into the browser bundle and fails the
+// Next.js build. `originEnforcement` is pure and type-only at its edges.
+// See the barrel note in `.claude/rules/project-structure.md`.
+import { normalizeHost } from '@/plugins/usage/originEnforcement'
 
 /**
  * How the widget encodes its state into the host page's URL.
