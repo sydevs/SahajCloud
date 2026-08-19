@@ -217,6 +217,13 @@ Things worth knowing before touching it:
   `payload.find` calls in `tests/int/region-canonical-url.int.spec.ts`.
 - **Never a fragment.** Hash routing is gone from the widget with no
   back-compat, so nothing may emit `#!`.
+- **The verified host is re-checked at read time, not trusted.** VerifyEmbeds
+  writes `canonical.verification` with a raw `pool.query`, so the JSON schema's
+  `CANONICAL_DOMAIN_PATTERN` never runs on the write that fills it — and
+  `splitMountKey` records `url.host`, which keeps a port that `allowedDomains`
+  (port-stripped) would let through. `loadDirectOwners` re-validates, *before*
+  the ancestor walk, so an unusable client is skipped and the next ancestor up
+  wins rather than its whole subtree collapsing to the fallback.
 - **The path is emitted raw**, not percent-encoded — a no-op only because region
   slugs are transliterated to `[a-z0-9-]` and event ids are numeric. That
   assumption is asserted in `tests/unit/atlas-canonical-url.spec.ts`; widening
