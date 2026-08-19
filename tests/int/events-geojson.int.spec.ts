@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
 import type { EventFeature } from '@/collections/Events/endpoints/responseTypes'
+import { serverEnv } from '@/lib/env'
 import type { Event } from '@/payload-types'
 
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
@@ -239,7 +240,10 @@ describe('eventsGeoJson endpoint', () => {
       // Region "Geo City" (slug geo-city) has no parent → event path is
       // `/geo-city/<id>`. `region` was injected so the path resolves.
       expect(feature?.properties.webPath).toBe(`/geo-city/${offlineEventId}`)
-      expect(feature?.properties.webUrl).toBe(`http://localhost:5174/geo-city/${offlineEventId}`)
+      // No client owns this region, so `webUrl` is rooted at the We Meditate
+      // surface rather than the (noindex) Atlas host — see #634.
+      const base = `${serverEnv.WEMEDITATE_WEB_URL}${serverEnv.WEMEDITATE_ATLAS_BASE_PATH}`
+      expect(feature?.properties.webUrl).toBe(`${base}/geo-city/${offlineEventId}`)
     })
 
     // Country slugs are ISO alpha-2 codes (#556) — a feature under a

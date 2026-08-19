@@ -10,6 +10,7 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 
+import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
@@ -266,11 +267,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // the latter sees the injected fields. `parentFieldSlug: 'parent'` tells
       // the plugin Regions defines its own `parent` (in the Details tab, with
       // a level-based filter) so it doesn't inject a duplicate into the sidebar.
-      nestedDocsPlugin({
-        collections: ['regions'],
-        parentFieldSlug: 'parent',
-        generateLabel: (_docs, currentDoc) => String(currentDoc?.name ?? ''),
-      }),
+      // Config (including the `generateURL` that makes region paths queryable)
+      // lives in REGION_NESTED_DOCS_CONFIG, shared with the test harness — which
+      // builds its own config, so a plugin configured in only one of the two
+      // behaves differently under test than in production.
+      nestedDocsPlugin(REGION_NESTED_DOCS_CONFIG),
       // Edge cache (#555): the unified cachePlugin. This registration attaches
       // the best-effort Cloudflare purge-on-write hooks for the collections that
       // back cached reads (no-op unless CLOUDFLARE_ZONE_ID +

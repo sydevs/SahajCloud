@@ -3,13 +3,15 @@ import type { CollectionConfig } from 'payload'
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
 import { hideUntilCreated, legacyMigrationFields, publicUrlFields, slugField } from '@/fields'
-import { getRegionWebPaths } from '@/lib/atlas/regionWebPaths'
+import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
+import { getRegionWebPaths } from '@/lib/atlas/regionTree'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { ownedRegionFilterOptions } from '@/plugins/access'
 
 import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
+import { withNonEmptySlug } from './nonEmptySlug'
 
 /**
  * The four geo levels of the Atlas region tree. Country → Region → Area form
@@ -398,6 +400,13 @@ export const Regions: CollectionConfig = {
         // (transliterated) regardless of the checkbox. Off also keeps the column
         // default off, so the production backfill of existing rows stays cascade-safe.
         if (field.fields[0].type === 'checkbox') field.fields[0].defaultValue = false
+        // Refuse a *newly* blank slug — one segment of every canonical URL in
+        // the subtree below this region. Wraps (rather than replaces) the
+        // uniqueness validator the factory just installed; see withNonEmptySlug
+        // for why this is a validator and not a collection hook.
+        if (field.fields[1].type === 'text') {
+          field.fields[1].validate = withNonEmptySlug(field.fields[1].validate)
+        }
         return field
       },
     }),
@@ -422,7 +431,11 @@ export const Regions: CollectionConfig = {
     // `requirePublished: false` exposes `webPath` + `webUrl` (`appUrl` is null —
     // no Atlas app deep-link).
     ...publicUrlFields({
-      web: serverEnv.SAHAJATLAS_URL,
+      // Per-region base (#634): the client owning this region — or its nearest
+      // owning ancestor — on its own domain, falling back to the We Meditate
+      // surface. Not `SAHAJATLAS_URL`, which is `noindex` by policy.
+      web: ({ data, req }) =>
+        getCanonicalUrlBase(req, typeof data?.id === 'number' ? data.id : null),
       buildPath: async ({ data, req }) => {
         const id = data?.id
         if (typeof id !== 'number') return null

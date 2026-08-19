@@ -209,6 +209,20 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   WEMEDITATE_WEB_URL: z.url(),
 
   /**
+   * Path the Atlas widget is mounted at on the We Meditate web frontend.
+   *
+   * The canonical fallback for any region no client owns: a region with no
+   * canonical-enabled client anywhere in its ancestry resolves its `webUrl` to
+   * `WEMEDITATE_WEB_URL + WEMEDITATE_ATLAS_BASE_PATH + webPath`. Path only —
+   * the host is `WEMEDITATE_WEB_URL`. Use `''` to mount the widget at the root.
+   */
+  WEMEDITATE_ATLAS_BASE_PATH: z
+    .string()
+    .regex(/^(\/[^/?#\s]+)*$/, 'Must be empty or a slash-prefixed path with no query or fragment')
+    .optional()
+    .default('/map'),
+
+  /**
    * Shared secret that allows trusted server-side preview requests to read drafts.
    * This should match the web frontend's SAHAJCLOUD_PREVIEW_SECRET value.
    */

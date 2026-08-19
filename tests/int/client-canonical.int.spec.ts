@@ -283,9 +283,9 @@ describe('client canonical ownership + embed metadata', () => {
     })
   })
 
-  // ── The ticket is data-only ───────────────────────────────────────────────
+  // ── What enabling ownership actually does, now the resolver exists ────────
 
-  it('changes no event webUrl', async () => {
+  it('re-roots an event webUrl on the owner’s domain, leaving webPath alone', async () => {
     // Events are scoped to a city/venue region by `filterOptions`.
     const region = await createRegion('weburl-city', 'city')
     const event = await payload.create({
@@ -319,7 +319,40 @@ describe('client canonical ownership + embed metadata', () => {
     await payload.update({
       collection: 'clients',
       id: owner.id,
-      data: { canonical: { enabled: true, embed: 'https://example.org/map' } },
+      data: { canonical: { enabled: true, embed: 'https://example.org/' } },
+      overrideAccess: true,
+    })
+
+    const enabledOnly = await payload.findByID({
+      collection: 'events',
+      id: event.id,
+      overrideAccess: true,
+    })
+    // Opting in is a *nomination*, not an attestation. `canonical.embed` names
+    // one of the mounts the widget reported, and a report is reachable by anyone
+    // holding a published key from an allowed origin — so until the CMS has
+    // loaded that page itself, this client owns nothing and the canonical must
+    // not move.
+    expect(enabledOnly.webUrl).toBe(before.webUrl)
+
+    await payload.update({
+      collection: 'clients',
+      id: owner.id,
+      data: {
+        canonical: {
+          verification: {
+            verified: {
+              domain: 'example.org',
+              mount: '/',
+              routing: 'path',
+              widgetVersion: 2,
+              at: '2026-08-18T00:00:00.000Z',
+            },
+            failureCount: 0,
+            attempts: [],
+          },
+        },
+      } as never,
       overrideAccess: true,
     })
 
@@ -328,8 +361,13 @@ describe('client canonical ownership + embed metadata', () => {
       id: event.id,
       overrideAccess: true,
     })
-    // Data only: the resolver that consumes these fields is a follow-up ticket.
-    expect(after.webUrl).toBe(before.webUrl)
+    // #633 shipped these fields inert, and this case asserted `webUrl` did not
+    // move. #634 is the follow-up that consumes them, so the same scenario now
+    // has the opposite expectation: a *verified* owner re-roots the canonical.
+    expect(before.webUrl).not.toContain('example.org')
+    expect(after.webUrl).toBe(`https://example.org${String(after.webPath)}`)
+    // …while the path itself — the part every consumer joins to a base — is
+    // untouched by ownership.
     expect(after.webPath).toBe(before.webPath)
   })
 
@@ -444,7 +482,10 @@ describe('client canonical ownership + embed metadata', () => {
     it('refuses a body missing required observations', async () => {
       const client = await createClient('Partial Reporter')
       const res = await clientEmbedReport.handler(
-        reportReq({ clientId: client.id, body: { origin: 'https://a.org', pathname: '/x', mode: 'iframe' } }),
+        reportReq({
+          clientId: client.id,
+          body: { origin: 'https://a.org', pathname: '/x', mode: 'iframe' },
+        }),
       )
       expect(res.status).toBe(400)
     })
@@ -475,7 +516,8 @@ describe('client canonical ownership + embed metadata', () => {
           origin: 'https://sahajayoga.nl',
           embedMetadata: afterFirst,
           body: {
-            origin: 'https://sahajayoga.nl', pathname: '/meditations-kurse-finden',
+            origin: 'https://sahajayoga.nl',
+            pathname: '/meditations-kurse-finden',
             ...OBSERVATION,
             mode: 'inline',
           },
