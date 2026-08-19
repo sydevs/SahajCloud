@@ -1,0 +1,167 @@
+import type { GenerateURL, NestedDocsPluginConfig } from '@payloadcms/plugin-nested-docs/types'
+import type { PayloadRequest } from 'payload'
+
+import { relationId } from '@/lib/utilities/relationId'
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
+
+/**
+ * The Regions tree, resolved once per request: every region's canonical Atlas
+ * web path, and the ancestor chain each path was built from.
+ *
+ * A region's `webPath` is the ordered slug chain of its ancestors including
+ * itself (`/belgium/flanders/antwerp`). The nested-docs plugin already keeps a
+ * denormalized `breadcrumbs` trail (`[root, …, self]`) on every region and
+ * re-saves descendants when ancestry changes, so this resolver just maps that
+ * trail to current slugs — it never re-derives the hierarchy. Reading slugs
+ * fresh (rather than off a stored breadcrumb URL) means a slug rename is
+ * reflected on the next read with no backfill.
+ *
+ * The chain is exposed alongside the path because canonical **ownership**
+ * resolves by walking it (see `./regionOwners`) — computing it twice from the
+ * same breadcrumbs would be two ways for one hierarchy to disagree.
+ */
+
+/**
+ * The nested-docs registration for Regions — **one definition**, imported by
+ * both `payload.config.ts` and `tests/utils/testHelpers.ts`.
+ *
+ * The test harness builds its own config rather than importing the real one, so
+ * a plugin configured in only one of them behaves differently under test than
+ * in production. That is not hypothetical: `generateURL` was added here and the
+ * integration suite kept reading `breadcrumbs.url: null`, because the test
+ * config still registered the plugin without it.
+ *
+ * `generateURL` is what makes the region path queryable —
+ * `where[breadcrumbs.url][equals]='/nl/amsterdam'` resolves in one query, with
+ * no new endpoint and no new stored field, because the `url` sub-field already
+ * exists in the schema and has simply been null. It shares
+ * {@link buildRegionPath} with the read-time resolver, so the canonical URL and
+ * the lookup cannot disagree.
+ *
+ * ⚠ Breadcrumbs populate on write, so existing rows need a resave to backfill:
+ * `pnpm tsx scripts/backfill-region-breadcrumb-urls.ts`.
+ */
+export const REGION_NESTED_DOCS_CONFIG = {
+  collections: ['regions'],
+  parentFieldSlug: 'parent',
+  generateLabel: (_docs: Array<Record<string, unknown>>, currentDoc: Record<string, unknown>) =>
+    String(currentDoc?.name ?? ''),
+  // Returns `undefined` — not `''` — when a slug in the chain is blank, leaving
+  // the column NULL exactly as an unsupplied `generateURL` does. The plugin
+  // types this as `string`, but its own default *is* undefined (`let url =
+  // undefined`), so an absent path is a shape it already handles; an empty
+  // string would be a value claiming to be a path.
+  generateURL: ((docs: Array<Record<string, unknown>>) =>
+    buildRegionPath(docs.map((doc) => doc.slug as string | null | undefined)) ??
+    undefined) as GenerateURL,
+} satisfies NestedDocsPluginConfig
+
+/** The breadcrumb + slug shape this resolver reads off a region row. */
+interface RegionRow {
+  id: number
+  slug?: string | null
+  breadcrumbs?: Array<{ doc?: unknown }> | null
+}
+
+/** Everything the single `regions` query yields, keyed by region id. */
+export interface RegionTree {
+  /** Canonical web path (`/belgium/flanders/antwerp`), absent when a segment is blank. */
+  pathById: Map<number, string>
+  /** Ordered ancestor ids, root → self. Always terminal-inclusive. */
+  chainById: Map<number, number[]>
+}
+
+/** `req.context` key for the per-request tree memo. */
+const TREE_MEMO_KEY = 'atlas:regionTree'
+
+/**
+ * Join an ordered chain of slugs into a canonical path, or `null` when any
+ * segment is missing or blank.
+ *
+ * The single definition of "what a region path looks like", shared by this
+ * resolver and the nested-docs `generateURL` that stores the same value on
+ * `breadcrumbs.url` — so the canonical URL and the path *lookup* cannot
+ * disagree. A gap (an ancestor with no slug) yields no path at all rather than
+ * a `//`-containing one: 16 regions have a blank name today, and a malformed
+ * canonical URL is worse than an absent one.
+ */
+export function buildRegionPath(slugs: Array<string | null | undefined>): string | null {
+  if (slugs.length === 0) return null
+  if (!slugs.every((slug): slug is string => typeof slug === 'string' && slug.length > 0))
+    return null
+  return `/${slugs.join('/')}`
+}
+
+/**
+ * Ordered region ids for a region's breadcrumb trail (root → self). The
+ * nested-docs plugin stores self as the last breadcrumb, so the mapped chain is
+ * already terminal-inclusive. When the trail is missing or holds no resolvable
+ * ids (a root, a not-yet-populated create, or corrupt breadcrumbs) it collapses
+ * to `[id]` — the region's own globally-unique slug still resolves.
+ */
+function breadcrumbChainIds(region: RegionRow, id: number): number[] {
+  const crumbs = region.breadcrumbs
+  if (!Array.isArray(crumbs)) return [id]
+  const ids = crumbs
+    .map((crumb) => relationId(crumb?.doc))
+    .filter((crumbId): crumbId is number => crumbId !== null)
+  return ids.length > 0 ? ids : [id]
+}
+
+async function loadRegionTree(req: PayloadRequest): Promise<RegionTree> {
+  const { docs } = await req.payload.find({
+    collection: 'regions',
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    // Only the slug (each segment) and the breadcrumb chain (the ordering) are
+    // read. Excluding every other field also skips their afterRead hooks — this
+    // resolver's own webPath/webUrl among them — so this query can't recurse
+    // back into the resolver (see stripUnselectedFields: an unselected field
+    // returns before its hook runs). Anything added here must be checked
+    // against that same rule.
+    select: { slug: true, breadcrumbs: true },
+    req,
+  })
+  const rows = docs as RegionRow[]
+
+  // Two passes: collect every slug first — a region's chain references ancestor
+  // ids that may sort after it in `rows` — then resolve each chain to a path.
+  const slugById = new Map<number, string>()
+  for (const row of rows) {
+    if (typeof row.slug === 'string' && row.slug) slugById.set(row.id, row.slug)
+  }
+
+  const pathById = new Map<number, string>()
+  const chainById = new Map<number, number[]>()
+  for (const row of rows) {
+    const chain = breadcrumbChainIds(row, row.id)
+    chainById.set(row.id, chain)
+    const path = buildRegionPath(chain.map((crumbId) => slugById.get(crumbId)))
+    if (path !== null) pathById.set(row.id, path)
+  }
+  return { pathById, chainById }
+}
+
+/**
+ * Resolve the region tree for the current request in a single `regions` query.
+ * Memoized per request, so a bulk read (the geojson feed) pays for exactly one.
+ *
+ * `memoizeOnRequest` stores the **promise**, not the resolved value — a bulk
+ * read issues every document's afterRead concurrently, and a resolved-value
+ * cache stampedes under that (each caller clears the "not cached yet" check
+ * before the first load settles). It also evicts a failed load so a later read
+ * in the same request can retry.
+ */
+export function getRegionTree(req: PayloadRequest): Promise<RegionTree> {
+  return memoizeOnRequest(req, TREE_MEMO_KEY, () => loadRegionTree(req))
+}
+
+/**
+ * Every region's canonical web path, keyed by region id — the long-standing
+ * entry point, now a thin projection of {@link getRegionTree} so a `webPath`
+ * read still costs exactly one query and never touches canonical ownership.
+ */
+export async function getRegionWebPaths(req: PayloadRequest): Promise<Map<number, string>> {
+  return (await getRegionTree(req)).pathById
+}

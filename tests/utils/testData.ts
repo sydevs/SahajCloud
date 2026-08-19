@@ -1039,6 +1039,34 @@ export const testData = {
   },
 
   /**
+   * Create one node of a region tree, for suites that build an explicit
+   * hierarchy — canonical URLs, the breadcrumb backfill, the blank-slug cascade.
+   *
+   * Distinct from {@link createRegion}, which makes a single throwaway city with
+   * a random id: here the slug, level and ancestry *are* the fixture. `prefix`
+   * keeps `mapboxId` unique per suite (it is a unique index), so two suites can
+   * each build a `london` in the same database.
+   */
+  async createRegionNode(
+    payload: Payload,
+    args: { prefix: string; slug: string; level: string; parent?: number },
+  ): Promise<number> {
+    const { prefix, slug, level, parent } = args
+    const doc = await payload.create({
+      collection: 'regions',
+      overrideAccess: true,
+      data: {
+        name: slug,
+        slug,
+        level,
+        mapboxId: `${prefix}-${slug}`,
+        ...(parent ? { parent } : {}),
+      } as never,
+    })
+    return doc.id
+  },
+
+  /**
    * Create an image using sample file
    * Alias for createMediaImage for convenience in cleanup tests
    */

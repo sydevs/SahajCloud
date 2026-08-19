@@ -1,10 +1,8 @@
+import { buildCanonicalUrl, canonicalTargetForHost } from '@/lib/atlas/canonicalUrl'
 import type { RoutingMode } from '@/lib/clients/canonical'
 import type { EmbedMetadata, EmbedMountRecord } from '@/lib/clients/embedMetadata'
-import type {
-  CanonicalVerification,
-  VerifiedEmbed,
-} from '@/lib/clients/verification'
-import { buildCanonicalUrl, splitMountKey } from '@/lib/clients/verification'
+import type { CanonicalVerification, VerifiedEmbed } from '@/lib/clients/verification'
+import { splitMountKey } from '@/lib/clients/verification'
 
 /**
  * Turns the two stored facts — what the widget reported, and what the CMS has
@@ -16,8 +14,12 @@ import { buildCanonicalUrl, splitMountKey } from '@/lib/clients/verification'
  * `EventQualityPanel/model.ts`.
  */
 
-/** A representative Atlas path, used only to render an example URL. */
-const SAMPLE_ATLAS_PATH = 'events/12345'
+/**
+ * A representative Atlas path, used only to render an example URL. Slash-led,
+ * because that is what a real `webPath` is — the preview has to be the shape
+ * the resolver actually emits, not a near-miss.
+ */
+const SAMPLE_ATLAS_PATH = '/events/12345'
 
 export type EmbedStatus = 'verified' | 'unverified' | 'failing' | 'missing'
 
@@ -171,18 +173,21 @@ function summarise(args: {
   let sampleIsProvisional = false
   let routing: RoutingMode | null = null
 
+  // A null target means the host can't make a canonical URL at all (not a bare
+  // host — most likely a mount carrying a port). `sampleUrl` stays null, which
+  // the picker already renders as "no example", and that is the truth: the
+  // resolver would refuse this embed too.
   if (isVerifiedForThisEmbed && verified) {
     routing = verified.routing
-    sampleUrl = buildCanonicalUrl(verified, SAMPLE_ATLAS_PATH)
+    const target = canonicalTargetForHost(verified)
+    sampleUrl = target && buildCanonicalUrl(target, SAMPLE_ATLAS_PATH)
   } else if (mount) {
     const split = splitMountKey(embed)
     if (split) {
       routing = mount.routing
       sampleIsProvisional = true
-      sampleUrl = buildCanonicalUrl(
-        { ...split, routing: mount.routing, widgetVersion: 0, at: '' },
-        SAMPLE_ATLAS_PATH,
-      )
+      const target = canonicalTargetForHost({ ...split, routing: mount.routing })
+      sampleUrl = target && buildCanonicalUrl(target, SAMPLE_ATLAS_PATH)
     }
   }
 

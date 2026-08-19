@@ -24,9 +24,9 @@ access is REST-only.
 ## Canonical ownership + observed embeds (#633)
 
 Two Atlas white-label fields, split across the **Config** and **SEO** tabs.
-**Data only** — `canonical.enabled` defaults false and nothing resolves
-differently yet; the per-region `webUrl` resolver that consumes them is a
-follow-up ticket.
+`canonical.enabled` defaults false, so a client owns nothing until someone opts
+it in — but once opted in **and verified**, these fields do resolve: they are
+what `webUrl` is built from, per region (#634, below).
 
 ### `canonical` — who owns a region's canonical URLs
 
@@ -183,7 +183,56 @@ parsing, error classification, and the failed/inconclusive split),
 `tests/unit/canonical-embed-picker.spec.ts` (canonical-URL building incl. the `&`
 join, the three-strikes ladder, picker option derivation), and
 `tests/int/client-canonical.int.spec.ts` (the hook, the endpoint, the job ladder,
-and that no event `webUrl` changes).
+and that enabling ownership re-roots an event's `webUrl` while leaving `webPath`
+byte-identical).
+
+## Per-region canonical `webUrl` (#634)
+
+`webUrl` is **not** one global base. It resolves to the client that owns the
+document's region — or the nearest owning ancestor — and falls back to the We
+Meditate surface when nothing in the ancestry is owned. `SAHAJATLAS_URL` is no
+longer a canonical base anywhere; it survives only in the two live-preview URLs.
+
+| Piece | Where |
+| --- | --- |
+| The two URL shapes (`path` / `query`), and the cross-repo fixture | `src/lib/atlas/canonicalUrl.ts`, `atlas-url-contract.json` |
+| Region tree + ancestor chains, one query per request | `src/lib/atlas/regionTree.ts` |
+| Ownership: the `clients` read + nearest-ancestor walk | `src/lib/atlas/regionOwners.ts` |
+
+```
+path :  https://{domain}{mount}{webPath}   → https://wemeditate.com/map/nl/amsterdam/1204
+query:  https://{domain}{mount}{?|&}atlas={webPath}
+                                           → https://sahajayoga.nl/locatelessons/?atlas=/nl/amsterdam/1204
+                                           → https://host.example/?p=42&atlas=/nl/amsterdam/1204
+```
+
+Things worth knowing before touching it:
+
+- **`webPath` is unchanged by any of this** — still the bare ancestor slug chain,
+  no base, no owner. Ownership only decides what it is joined to.
+- **Two extra queries per request, total** — one `regions`, one `clients`, both
+  memoized on the `PayloadRequest`, independent of how many documents resolve.
+  Ownership loads **lazily**: a `webPath`-only read (the widget's geojson feed)
+  still issues one query and never looks at ownership. Asserted by counting
+  `payload.find` calls in `tests/int/region-canonical-url.int.spec.ts`.
+- **Never a fragment.** Hash routing is gone from the widget with no
+  back-compat, so nothing may emit `#!`.
+- **The verified host is re-checked at read time, not trusted.** VerifyEmbeds
+  writes `canonical.verification` with a raw `pool.query`, so the JSON schema's
+  `CANONICAL_DOMAIN_PATTERN` never runs on the write that fills it — and
+  `splitMountKey` records `url.host`, which keeps a port that `allowedDomains`
+  (port-stripped) would let through. `loadDirectOwners` re-validates, *before*
+  the ancestor walk, so an unusable client is skipped and the next ancestor up
+  wins rather than its whole subtree collapsing to the fallback.
+- **The path is emitted raw**, not percent-encoded — a no-op only because region
+  slugs are transliterated to `[a-z0-9-]` and event ids are numeric. That
+  assumption is asserted in `tests/unit/atlas-canonical-url.spec.ts`; widening
+  the slug charset fails there.
+- **Region paths are queryable** now that the nested-docs plugin has a
+  `generateURL`: `where[breadcrumbs.url][equals]='/nl/amsterdam'`. Note it
+  matches **descendants too** (their trail contains the ancestor's URL) — add
+  `slug` to the `where` to resolve exactly one region. Existing rows need
+  `pnpm tsx scripts/backfill-region-breadcrumb-urls.ts` once.
 
 ## Usage plugin (`src/plugins/usage/`)
 

@@ -219,25 +219,19 @@ export function nextVerificationState(args: {
 }
 
 /**
- * Build the canonical URL a verified embed yields for one Atlas path.
+ * Canonical URLs are built by `@/lib/atlas/canonicalUrl` — `buildCanonicalUrl`
+ * over a `canonicalTargetForHost(verified)` target.
  *
- * The `&` case is the reason this is a shared function rather than a template
- * literal at each call site: a WordPress default permalink mount is already
- * `/?p=123`, so the Atlas parameter has to join with `&`. Getting that wrong
- * produces a URL that silently 404s, which is exactly the failure the picker
- * exists to make visible before anyone saves.
+ * There used to be a second builder here, and the two disagreed in a way that
+ * mattered: this one emitted the Atlas path with its leading slash stripped and
+ * the rest percent-encoded (`?atlas=events%2F12345`). The widget guards that
+ * parameter with `safeLoaderPath`, which requires a leading `/` and rejects a
+ * bare `relative/path` outright — so every query-routed URL of that shape was
+ * refused and the widget silently fell back to the embed's default route.
+ *
+ * One builder, pinned to `atlas-url-contract.json`, is the fix. Nothing may
+ * compose a canonical URL by hand.
  */
-export function buildCanonicalUrl(embed: VerifiedEmbed, atlasPath: string): string {
-  const path = atlasPath.replace(/^\//, '')
-
-  if (embed.routing === 'path') {
-    const mount = embed.mount.replace(/\/$/, '')
-    return `https://${embed.domain}${mount}/${path}`
-  }
-
-  const separator = embed.mount.includes('?') ? '&' : '?'
-  return `https://${embed.domain}${embed.mount}${separator}atlas=${encodeURIComponent(path)}`
-}
 
 /**
  * Split a mount key back into the host and the page path.
