@@ -107,6 +107,16 @@ add a barrel that re-exports unrelated modules just for symmetry — it can pull
 server-only code into client bundles, hurts tree-shaking, and invites import
 cycles.
 
+**That barrel hazard is not hypothetical, and CI cannot see it.** GitHub Actions
+does not build this app — Railway does — so a client component that reaches
+server-only code type-checks, passes every test, and then fails the *deploy* with
+`Module not found: Can't resolve 'dns'`. It happened in #633: the canonical
+picker imported `@/lib/clients/canonical`, which imported the `@/plugins/usage`
+barrel, which re-exports the pg-pool seam, which pulls `pg` into the browser
+bundle. The fix is a deep import (`@/plugins/usage/originEnforcement`); the guard
+is `tests/unit/client-bundle-safety.spec.ts`, which walks the real import graph
+from each admin client component. Add new client entry points to its list.
+
 ## Organization rules
 
 1. **`src/plugins/`** holds every module registered in `payload.config.ts`.

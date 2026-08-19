@@ -827,6 +827,7 @@ export interface Config {
       sendRegistrationDigests: TaskSendRegistrationDigests;
       sendSessionReminders: TaskSendSessionReminders;
       syncLectureMetadata: TaskSyncLectureMetadata;
+      verifyEmbeds: TaskVerifyEmbeds;
       resetUsage: TaskResetUsage;
       schedulePublish: TaskSchedulePublish;
       inline: {
@@ -1994,22 +1995,6 @@ export interface Client {
    */
   name: string;
   /**
-   * Purpose and usage notes for this client
-   */
-  notes?: string | null;
-  /**
-   * Assign API client roles. Roles apply to all locales.
-   */
-  roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null;
-  /**
-   * Users who can manage this client
-   */
-  managers: (number | Manager)[];
-  /**
-   * Primary user contact for this client. Only needed when more than one manager is assigned.
-   */
-  primaryContact?: (number | null) | Manager;
-  /**
    * What domains are associated with this client. Put each domain on a new line.
    */
   allowedDomains?: string | null;
@@ -2232,17 +2217,37 @@ export interface Client {
    */
   region?: (number | null) | Region;
   /**
-   * Deprecated Atlas config (routing_type, embed_type, default_view).
+   * Declares that this service owns the canonical Atlas URLs for its region. Off by default, and nothing resolves differently until it is switched on.
    */
-  legacyConfig?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  canonical?: {
+    /**
+     * At most one service per region may own them. Requires a region and one of the embeds this service has reported — the CMS then loads that page itself to confirm the widget is really there, and only a verified embed ever yields a canonical URL.
+     */
+    enabled?: boolean | null;
+    /**
+     * Which of the embeds this service reported owns the canonical URLs. Domain, mount and routing all come from this one choice.
+     */
+    embed?: string | null;
+    verification?: HttpsSahajcloudDevSchemasClientCanonicalVerificationJson;
+    nextVerifyAt?: string | null;
+  };
+  embedMetadata?: HttpsSahajcloudDevSchemasClientEmbedMetadataJson;
+  /**
+   * Purpose and usage notes for this client
+   */
+  notes?: string | null;
+  /**
+   * Assign API client roles. Roles apply to all locales.
+   */
+  roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null;
+  /**
+   * Users who can manage this client
+   */
+  managers: (number | Manager)[];
+  /**
+   * Primary user contact for this client. Only needed when more than one manager is assigned.
+   */
+  primaryContact?: (number | null) | Manager;
   /**
    * Public identifier for this service. Auto-generated, or the Atlas public key for imported services.
    */
@@ -2310,6 +2315,31 @@ export interface Client {
   apiKey?: string | null;
   apiKeyIndex?: string | null;
   collection: 'clients';
+}
+export interface HttpsSahajcloudDevSchemasClientCanonicalVerificationJson {
+  verified: {
+    domain: string;
+    mount: string;
+    routing: 'query' | 'path';
+    widgetVersion: number;
+    at: string;
+  } | null;
+  failureCount: number;
+  attempts: {
+    at: string;
+    status: 'verified' | 'failed' | 'inconclusive';
+    reason?: 'dns' | 'http' | 'marker-absent' | 'not-configured' | 'provider-error' | 'quota' | 'bot-challenge';
+  }[];
+}
+export interface HttpsSahajcloudDevSchemasClientEmbedMetadataJson {
+  [k: string]: {
+    mode: 'inline' | 'iframe';
+    topLevel: boolean;
+    urlWritable: boolean;
+    paramPersisted: boolean;
+    routing: 'query' | 'path';
+    lastSeen: string;
+  };
 }
 export interface HttpsSahajcloudDevSchemasEventSystemMetaJson {
   communityFeedback?: {
@@ -3740,6 +3770,7 @@ export interface PayloadJob {
           | 'sendRegistrationDigests'
           | 'sendSessionReminders'
           | 'syncLectureMetadata'
+          | 'verifyEmbeds'
           | 'resetUsage'
           | 'schedulePublish';
         taskID: string;
@@ -3782,6 +3813,7 @@ export interface PayloadJob {
         | 'sendRegistrationDigests'
         | 'sendSessionReminders'
         | 'syncLectureMetadata'
+        | 'verifyEmbeds'
         | 'resetUsage'
         | 'schedulePublish'
       )
@@ -4400,10 +4432,6 @@ export interface ManagersSelect<T extends boolean = true> {
  */
 export interface ClientsSelect<T extends boolean = true> {
   name?: T;
-  notes?: T;
-  roles?: T;
-  managers?: T;
-  primaryContact?: T;
   allowedDomains?: T;
   color1?: T;
   color2?: T;
@@ -4413,7 +4441,19 @@ export interface ClientsSelect<T extends boolean = true> {
   supportEmail?: T;
   locale?: T;
   region?: T;
-  legacyConfig?: T;
+  canonical?:
+    | T
+    | {
+        enabled?: T;
+        embed?: T;
+        verification?: T;
+        nextVerifyAt?: T;
+      };
+  embedMetadata?: T;
+  notes?: T;
+  roles?: T;
+  managers?: T;
+  primaryContact?: T;
   clientId?: T;
   keyGeneratedAt?: T;
   usage?:
@@ -6514,6 +6554,20 @@ export interface TaskSyncLectureMetadata {
     synced: number;
     failed: number;
     skippedNoVimeoId: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskVerifyEmbeds".
+ */
+export interface TaskVerifyEmbeds {
+  input?: unknown;
+  output: {
+    processed: number;
+    verified: number;
+    failed: number;
+    inconclusive: number;
+    disabled: number;
   };
 }
 /**

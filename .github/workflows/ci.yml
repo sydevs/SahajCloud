@@ -15,7 +15,7 @@ jobs:
   test:
     name: Lint, Test & Smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:18
@@ -58,9 +58,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: pnpm tsx scripts/get-railway-preview-url.ts
-      - name: Install Playwright (chromium)
-        if: ${{ steps.preview.outputs.preview_url != '' }}
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Warn when the smoke lane was skipped
+        if: ${{ steps.preview.outputs.preview_url == '' }}
+        run: |
+          echo "::warning title=Smoke specs skipped::No Railway preview was discovered for this \
+          commit, so the Tier-3 smoke lane did not run. The job is still green — treat it as \
+          'unit + integration passed', not 'smoke passed'."
+
       - name: Run smoke specs against the Railway preview
         if: ${{ steps.preview.outputs.preview_url != '' }}
         env:

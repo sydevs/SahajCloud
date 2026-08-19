@@ -43,6 +43,11 @@ export {
 // Rate limiting utilities (for testing)
 export { buildRateLimitKey } from './hooks'
 
+// Raw-SQL seam — the pg pool behind Payload's adapter plus its schema, quoted.
+// Shared by anything that has to write a `clients` row outside the request
+// transaction (usage counters, the embed-report merge, the verification job).
+export { getPgPool, quotedDbSchema } from './db'
+
 // Task configs (for testing)
 export { resetUsageTask } from './tasks'
 
