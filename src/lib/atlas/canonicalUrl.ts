@@ -1,4 +1,5 @@
 import type { RoutingMode } from '@/lib/clients/canonical'
+import { isValidCanonicalDomain } from '@/lib/clients/canonical'
 
 /**
  * The canonical Atlas URL builder — two shapes, no hash.
@@ -38,7 +39,8 @@ export interface CanonicalTarget {
 export const ATLAS_QUERY_PARAM = 'atlas'
 
 /**
- * A verified host + mount + routing, as a {@link CanonicalTarget}.
+ * A verified host + mount + routing, as a {@link CanonicalTarget}, or `null`
+ * when the host is not one we are willing to publish.
  *
  * Named for the role rather than the caller, because two callers fill it from
  * different records: the resolver, from a client's
@@ -46,16 +48,32 @@ export const ATLAS_QUERY_PARAM = 'atlas'
  * operator is about to choose. Both must produce the same URL — a picker that
  * previews a shape the resolver does not emit is worse than no preview.
  *
- * The scheme is stated here, not carried: `domain` is a bare host by
- * construction (`CANONICAL_DOMAIN_PATTERN`), and a canonical URL a crawler
- * should follow is https — so it is ours to state rather than an operator's to
- * mistype.
+ * The scheme is stated here, not carried: a canonical URL a crawler should
+ * follow is https, so it is ours to state rather than an operator's to mistype.
+ *
+ * **The bare-host check is enforced here rather than assumed.** It is declared
+ * by `CANONICAL_DOMAIN_PATTERN` and validated by the `canonical.verification`
+ * JSON schema on `payload.update` — but the VerifyEmbeds job persists that
+ * column with a raw `pool.query` (to avoid a lock it would otherwise take on
+ * the row it is serving), so the schema never runs on the job's write. And
+ * `splitMountKey` records `url.host`, which keeps a port.
+ *
+ * A mount of `https://example.org:8080/` therefore stores `example.org:8080` —
+ * past `allowedDomains`, which compares port-stripped hostnames — and would
+ * interpolate into a public canonical naming a port nobody chose. Refusing it
+ * here means such a client owns nothing and falls through to the next ancestor,
+ * which is the honest answer: we cannot express that page as a canonical host.
+ *
+ * Deliberately *not* fixed by having `splitMountKey` drop the port: the
+ * verifier loads the mount URL itself, so dropping it would verify `:8080` and
+ * publish `:443` — a page we never looked at.
  */
 export function canonicalTargetForHost(host: {
   domain: string
   mount?: string | null
   routing?: RoutingMode | null
-}): CanonicalTarget {
+}): CanonicalTarget | null {
+  if (!isValidCanonicalDomain(host?.domain)) return null
   return {
     origin: `https://${host.domain}`,
     mount: host.mount ?? '/',

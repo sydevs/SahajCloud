@@ -173,18 +173,21 @@ function summarise(args: {
   let sampleIsProvisional = false
   let routing: RoutingMode | null = null
 
+  // A null target means the host can't make a canonical URL at all (not a bare
+  // host — most likely a mount carrying a port). `sampleUrl` stays null, which
+  // the picker already renders as "no example", and that is the truth: the
+  // resolver would refuse this embed too.
   if (isVerifiedForThisEmbed && verified) {
     routing = verified.routing
-    sampleUrl = buildCanonicalUrl(canonicalTargetForHost(verified), SAMPLE_ATLAS_PATH)
+    const target = canonicalTargetForHost(verified)
+    sampleUrl = target && buildCanonicalUrl(target, SAMPLE_ATLAS_PATH)
   } else if (mount) {
     const split = splitMountKey(embed)
     if (split) {
       routing = mount.routing
       sampleIsProvisional = true
-      sampleUrl = buildCanonicalUrl(
-        canonicalTargetForHost({ ...split, routing: mount.routing }),
-        SAMPLE_ATLAS_PATH,
-      )
+      const target = canonicalTargetForHost({ ...split, routing: mount.routing })
+      sampleUrl = target && buildCanonicalUrl(target, SAMPLE_ATLAS_PATH)
     }
   }
 

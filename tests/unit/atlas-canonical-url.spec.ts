@@ -12,7 +12,12 @@ import { describe, expect, it } from 'vitest'
 
 import contract from '@/lib/atlas/atlas-url-contract.json'
 import type { CanonicalTarget } from '@/lib/atlas/canonicalUrl'
-import { ATLAS_QUERY_PARAM, buildCanonicalUrl, canonicalUrlBase } from '@/lib/atlas/canonicalUrl'
+import {
+  ATLAS_QUERY_PARAM,
+  buildCanonicalUrl,
+  canonicalTargetForHost,
+  canonicalUrlBase,
+} from '@/lib/atlas/canonicalUrl'
 
 interface ContractCase {
   name: string
@@ -120,4 +125,53 @@ describe('slug-charset assumption behind emitting the path raw', () => {
       expect(SLUG_PATH.test(path)).toBe(false)
     },
   )
+})
+
+/**
+ * A verified host only becomes a public origin if it is a *bare* host.
+ *
+ * `CANONICAL_DOMAIN_PATTERN` declares that rule and the `canonical.verification`
+ * JSON schema enforces it on `payload.update` — but the VerifyEmbeds job writes
+ * that column with a raw `pool.query`, so the schema never runs on the job's
+ * write, and `splitMountKey` records `url.host`, which keeps a port.
+ *
+ * Before #634 that was inert: the value only rendered an admin sample. This
+ * ticket is what puts it in a public canonical URL, so the check has to hold
+ * here rather than be assumed upstream.
+ */
+describe('canonicalTargetForHost rejects anything that is not a bare host', () => {
+  it('accepts a bare host', () => {
+    expect(canonicalTargetForHost({ domain: 'sahajayoga.nl', mount: '/x/', routing: 'query' })).toEqual(
+      { origin: 'https://sahajayoga.nl', mount: '/x/', routing: 'query' },
+    )
+  })
+
+  it('defaults an absent mount and routing', () => {
+    expect(canonicalTargetForHost({ domain: 'sahajayoga.nl' })).toEqual({
+      origin: 'https://sahajayoga.nl',
+      mount: '/',
+      routing: 'query',
+    })
+  })
+
+  // The realistic one: `allowedDomains` compares port-stripped hostnames, so a
+  // mount of `https://example.org:8080/` passes that gate and is recorded with
+  // its port intact.
+  it.each([
+    'example.org:8080',
+    'example.org/path',
+    'https://example.org',
+    'user@example.org',
+    'exa mple.org',
+    '*.example.org',
+    '',
+  ])('refuses %j', (domain) => {
+    expect(canonicalTargetForHost({ domain, mount: '/', routing: 'query' })).toBeNull()
+  })
+
+  it('refuses a missing domain rather than emitting https://undefined', () => {
+    expect(
+      canonicalTargetForHost({ domain: undefined as unknown as string }),
+    ).toBeNull()
+  })
 })

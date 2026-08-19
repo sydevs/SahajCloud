@@ -59,9 +59,9 @@ describe('the sample URL the picker shows', () => {
     }).selected
 
   it('is byte-identical to what the resolver would build', () => {
-    expect(model(verified)?.sampleUrl).toBe(
-      buildCanonicalUrl(canonicalTargetForHost(verified), '/events/12345'),
-    )
+    const target = canonicalTargetForHost(verified)
+    expect(target).not.toBeNull()
+    expect(model(verified)?.sampleUrl).toBe(buildCanonicalUrl(target!, '/events/12345'))
   })
 
   it('keeps the Atlas path slash-led and unencoded, as the widget requires', () => {

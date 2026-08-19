@@ -230,6 +230,55 @@ describe('per-region canonical webUrl', () => {
       })
       expect((await readRegion(region.london)).webUrl).toContain(LONDON_DOMAIN)
     })
+
+    /**
+     * The verification column is written by the VerifyEmbeds job with a raw
+     * `pool.query`, so Payload's JSON-schema validation of `domain` never runs
+     * on that write — and `splitMountKey` records `url.host`, which keeps a
+     * port that `allowedDomains` (port-stripped) would have let through.
+     *
+     * A canonical URL naming a port nobody chose is not one we publish. The
+     * region must fall through as though it had no owner.
+     */
+    it('refuses a verified host that is not a bare host, and falls through', async () => {
+      const { docs } = await payload.find({
+        collection: 'clients',
+        where: { name: { equals: 'Sahaja Yoga London' } },
+        limit: 1,
+        overrideAccess: true,
+      })
+      const londonClient = docs[0]
+      // Written the way the job writes it — a raw UPDATE, which is exactly why
+      // the JSON schema's domain check never runs on this path. Going through
+      // `payload.update` here would be rejected by that schema and would prove
+      // nothing about the state the job can actually leave behind.
+      const db = payload.db as unknown as {
+        pool?: { query: (sql: string, values: unknown[]) => Promise<unknown> }
+        schemaName?: string
+      }
+      const verified = {
+        verified: {
+          domain: `${LONDON_DOMAIN}:8080`,
+          mount: '/map',
+          routing: 'path',
+          widgetVersion: 2,
+          at: '2026-08-18T00:00:00.000Z',
+        },
+        failureCount: 0,
+        attempts: [],
+      }
+      await db.pool!.query(
+        `UPDATE "${db.schemaName ?? 'public'}".clients
+           SET canonical_verification = $1::jsonb WHERE id = $2`,
+        [JSON.stringify(verified), londonClient.id],
+      )
+
+      const london = await readRegion(region.london)
+      expect(london.webUrl).not.toContain('8080')
+      // Falls through to the UK client one level up — the nearest ancestor that
+      // can actually make a canonical URL.
+      expect(london.webUrl).toBe(`https://${UK_DOMAIN}/classes/?atlas=/uk/england/greater-london`)
+    })
   })
 
   // ── The contract the whole ticket exists to enforce ───────────────────────
@@ -310,7 +359,9 @@ describe('per-region canonical webUrl', () => {
      * whatever N is", which a timing assertion could satisfy by accident on a
      * fast local database.
      */
-    const countFinds = async <T>(operation: () => Promise<T>): Promise<Record<string, number>> => {
+    const countFinds = async <T>(
+      operation: () => Promise<T>,
+    ): Promise<{ counts: Record<string, number>; result: T }> => {
       const counts: Record<string, number> = {}
       const original = payload.find.bind(payload)
       const spy = vi.spyOn(payload, 'find').mockImplementation(((args: never) => {
@@ -318,12 +369,13 @@ describe('per-region canonical webUrl', () => {
         counts[slug] = (counts[slug] ?? 0) + 1
         return original(args)
       }) as typeof payload.find)
+      let result: T
       try {
-        await operation()
+        result = await operation()
       } finally {
         spy.mockRestore()
       }
-      return counts
+      return { counts, result }
     }
 
     it('resolves N events with exactly two extra queries, independent of N', async () => {
@@ -346,16 +398,27 @@ describe('per-region canonical webUrl', () => {
       // One `regions` query for the tree, one `clients` query for ownership —
       // memoized on the request, so the count does not move with the number of
       // documents being resolved.
-      expect(one.regions).toBe(1)
-      expect(one.clients).toBe(1)
-      expect(many.regions).toBe(1)
-      expect(many.clients).toBe(1)
+      expect(one.counts.regions).toBe(1)
+      expect(one.counts.clients).toBe(1)
+      expect(many.counts.regions).toBe(1)
+      expect(many.counts.clients).toBe(1)
+
+      // …and every document actually resolved one. Counting queries alone would
+      // pass just as happily if the resolver returned null for all of them,
+      // which is the cheapest possible way to issue two queries.
+      // `select` is cast to `never` above (it names virtual fields), so the docs
+      // come back untyped — narrow to just what is asserted.
+      const resolved = many.result.docs as Array<{ webUrl?: string | null }>
+      expect(resolved.length).toBeGreaterThan(1)
+      for (const doc of resolved) {
+        expect(doc.webUrl).toMatch(/^https?:\/\//)
+      }
     })
 
     it('does not resolve ownership at all for a webPath-only read', async () => {
       // The widget's geojson feed selects `webPath` and not `webUrl`; it should
       // keep paying for one query, not two.
-      const counts = await countFinds(() =>
+      const { counts, result } = await countFinds(() =>
         payload.find({
           collection: 'events',
           limit: 3,
@@ -367,6 +430,10 @@ describe('per-region canonical webUrl', () => {
       )
       expect(counts.regions).toBe(1)
       expect(counts.clients ?? 0).toBe(0)
+      // Paths still resolved — the saving is the ownership query, not the work.
+      for (const doc of result.docs as Array<{ webPath?: string | null }>) {
+        expect(doc.webPath).toMatch(/^\//)
+      }
     })
   })
 

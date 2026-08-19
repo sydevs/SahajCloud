@@ -2,6 +2,7 @@ import type { CanonicalTarget } from './canonicalUrl'
 import type { PayloadRequest } from 'payload'
 
 import type { RoutingMode } from '@/lib/clients/canonical'
+import { isValidCanonicalDomain } from '@/lib/clients/canonical'
 import { serverEnv } from '@/lib/env'
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
@@ -104,7 +105,14 @@ async function loadDirectOwners(req: PayloadRequest): Promise<Map<number, Canoni
     // willing to publish. Better to fall through to the next ancestor (or We
     // Meditate) than to emit a canonical URL pointing at a page we have never
     // confirmed actually runs the widget.
-    if (regionId == null || !verified?.domain) continue
+    //
+    // The host must also be a *bare* host, checked here rather than trusted:
+    // the VerifyEmbeds job writes this column with a raw UPDATE, so the JSON
+    // schema's domain rule never runs on that write (see `canonicalTargetForHost`).
+    // Rejecting it at this point — before the ancestor walk, not after — is what
+    // makes the next ancestor up win, rather than collapsing the whole subtree
+    // to the We Meditate fallback because one client mid-chain is unusable.
+    if (regionId == null || !isValidCanonicalDomain(verified?.domain)) continue
     if (owners.has(regionId)) continue
 
     owners.set(regionId, {
@@ -182,14 +190,18 @@ function getRegionOwners(req: PayloadRequest): Promise<Map<number, CanonicalOwne
  * had told search engines to ignore.
  */
 export function canonicalTargetFor(owner: CanonicalOwner | undefined): CanonicalTarget {
-  if (!owner) {
-    return {
-      origin: serverEnv.WEMEDITATE_WEB_URL,
-      mount: serverEnv.WEMEDITATE_ATLAS_BASE_PATH,
-      routing: 'path',
-    }
+  // An owner whose verified host is not a bare host (a port survives
+  // `allowedDomains`, which compares port-stripped hostnames) can't make a
+  // canonical URL — see `canonicalTargetForHost`. Treat it as no owner rather
+  // than publishing a host nobody chose.
+  const owned = owner ? canonicalTargetForHost(owner) : null
+  if (owned) return owned
+
+  return {
+    origin: serverEnv.WEMEDITATE_WEB_URL,
+    mount: serverEnv.WEMEDITATE_ATLAS_BASE_PATH,
+    routing: 'path',
   }
-  return canonicalTargetForHost(owner)
 }
 
 /**
