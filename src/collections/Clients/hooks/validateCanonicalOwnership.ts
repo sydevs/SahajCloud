@@ -14,7 +14,7 @@ import type { Client } from '@/payload-types'
  * explicit opt-in (`canonical.enabled`) plus a uniqueness rule, not an
  * inference. When a client enables it:
  *
- * - `region` and `canonical.domain` are required — an enabled client with
+ * - `region` and `canonical.embed` are required — an enabled client with
  *   neither names no region and no host, so it could never resolve anything.
  * - at most one enabled client per region, rejected with the incumbent's name
  *   so whoever hit the error knows who to talk to.
@@ -32,17 +32,33 @@ export const validateCanonicalOwnership: CollectionBeforeChangeHook = async ({
 
   // A collection `beforeChange` receives the incoming patch, not the merged
   // document, so the effective post-write state is the patch over the original.
-  // Spread, not deep merge — an explicit `null` in the patch (a cleared domain)
+  // Spread, not deep merge — an explicit `null` in the patch (a cleared embed)
   // must win over the stored value.
   const previous = (originalDoc ?? {}) as Partial<Client>
-  const canonical = { ...previous.canonical, ...data.canonical }
+  const stored = previous.canonical ?? {}
+  const patch = data.canonical ?? {}
+  const canonical = { ...stored, ...patch }
   const region = relationId(data.region === undefined ? previous.region : data.region)
 
   if (!canonical.enabled) return data
 
+  // Payload materialises an empty object for a group the patch omits, so the
+  // guard above still lets an unrelated write through to here. Nothing the two
+  // rules read has actually moved, and the stored state was validated when it
+  // was set — so skip. This is not only the cheaper path: it stops an unrelated
+  // edit being *refused* because someone left two services enabled on one region
+  // or cleared a region by hand. (`originalDoc` is absent on create, so a new
+  // document always validates.)
+  const moved =
+    !originalDoc ||
+    ('enabled' in patch && patch.enabled !== stored.enabled) ||
+    ('embed' in patch && patch.embed !== stored.embed) ||
+    (data.region !== undefined && region !== relationId(previous.region))
+  if (!moved) return data
+
   const missing: string[] = []
   if (region == null) missing.push('a region')
-  if (!canonical.domain) missing.push('a canonical domain')
+  if (!canonical.embed) missing.push('a canonical embed')
 
   if (missing.length > 0) {
     throw new ValidationError({

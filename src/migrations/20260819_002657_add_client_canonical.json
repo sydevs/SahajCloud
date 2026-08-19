@@ -6835,18 +6835,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "notes": {
-          "name": "notes",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "primary_contact_id": {
-          "name": "primary_contact_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "allowed_domains": {
           "name": "allowed_domains",
           "type": "varchar",
@@ -6905,6 +6893,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "legacy_config": {
+          "name": "legacy_config",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "canonical_enabled": {
           "name": "canonical_enabled",
           "type": "boolean",
@@ -6912,30 +6906,39 @@
           "notNull": false,
           "default": false
         },
-        "canonical_domain": {
-          "name": "canonical_domain",
+        "canonical_embed": {
+          "name": "canonical_embed",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
-        "canonical_mount": {
-          "name": "canonical_mount",
-          "type": "varchar",
+        "canonical_verification": {
+          "name": "canonical_verification",
+          "type": "jsonb",
           "primaryKey": false,
-          "notNull": false,
-          "default": "'/'"
+          "notNull": false
         },
-        "canonical_routing": {
-          "name": "canonical_routing",
-          "type": "enum_clients_canonical_routing",
-          "typeSchema": "public",
+        "canonical_next_verify_at": {
+          "name": "canonical_next_verify_at",
+          "type": "timestamp(3) with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "default": "'query'"
+          "notNull": false
         },
         "embed_metadata": {
           "name": "embed_metadata",
           "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "primary_contact_id": {
+          "name": "primary_contact_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -7051,21 +7054,6 @@
         }
       },
       "indexes": {
-        "clients_primary_contact_idx": {
-          "name": "clients_primary_contact_idx",
-          "columns": [
-            {
-              "expression": "primary_contact_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "clients_logo_idx": {
           "name": "clients_logo_idx",
           "columns": [
@@ -7086,6 +7074,36 @@
           "columns": [
             {
               "expression": "region_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "clients_canonical_canonical_next_verify_at_idx": {
+          "name": "clients_canonical_canonical_next_verify_at_idx",
+          "columns": [
+            {
+              "expression": "canonical_next_verify_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "clients_primary_contact_idx": {
+          "name": "clients_primary_contact_idx",
+          "columns": [
+            {
+              "expression": "primary_contact_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -7158,19 +7176,6 @@
         }
       },
       "foreignKeys": {
-        "clients_primary_contact_id_managers_id_fk": {
-          "name": "clients_primary_contact_id_managers_id_fk",
-          "tableFrom": "clients",
-          "tableTo": "managers",
-          "columnsFrom": [
-            "primary_contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "clients_logo_id_images_id_fk": {
           "name": "clients_logo_id_images_id_fk",
           "tableFrom": "clients",
@@ -7190,6 +7195,19 @@
           "tableTo": "regions",
           "columnsFrom": [
             "region_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "clients_primary_contact_id_managers_id_fk": {
+          "name": "clients_primary_contact_id_managers_id_fk",
+          "tableFrom": "clients",
+          "tableTo": "managers",
+          "columnsFrom": [
+            "primary_contact_id"
           ],
           "columnsTo": [
             "id"
@@ -7440,18 +7458,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_notes": {
-          "name": "version_notes",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_primary_contact_id": {
-          "name": "version_primary_contact_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "version_allowed_domains": {
           "name": "version_allowed_domains",
           "type": "varchar",
@@ -7510,6 +7516,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "version_legacy_config": {
+          "name": "version_legacy_config",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "version_canonical_enabled": {
           "name": "version_canonical_enabled",
           "type": "boolean",
@@ -7517,30 +7529,39 @@
           "notNull": false,
           "default": false
         },
-        "version_canonical_domain": {
-          "name": "version_canonical_domain",
+        "version_canonical_embed": {
+          "name": "version_canonical_embed",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
-        "version_canonical_mount": {
-          "name": "version_canonical_mount",
-          "type": "varchar",
+        "version_canonical_verification": {
+          "name": "version_canonical_verification",
+          "type": "jsonb",
           "primaryKey": false,
-          "notNull": false,
-          "default": "'/'"
+          "notNull": false
         },
-        "version_canonical_routing": {
-          "name": "version_canonical_routing",
-          "type": "enum__clients_v_version_canonical_routing",
-          "typeSchema": "public",
+        "version_canonical_next_verify_at": {
+          "name": "version_canonical_next_verify_at",
+          "type": "timestamp(3) with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "default": "'query'"
+          "notNull": false
         },
         "version_embed_metadata": {
           "name": "version_embed_metadata",
           "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_notes": {
+          "name": "version_notes",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_primary_contact_id": {
+          "name": "version_primary_contact_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -7702,21 +7723,6 @@
           "method": "btree",
           "with": {}
         },
-        "_clients_v_version_version_primary_contact_idx": {
-          "name": "_clients_v_version_version_primary_contact_idx",
-          "columns": [
-            {
-              "expression": "version_primary_contact_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "_clients_v_version_version_logo_idx": {
           "name": "_clients_v_version_version_logo_idx",
           "columns": [
@@ -7737,6 +7743,36 @@
           "columns": [
             {
               "expression": "version_region_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_clients_v_version_canonical_version_canonical_next_veri_idx": {
+          "name": "_clients_v_version_canonical_version_canonical_next_veri_idx",
+          "columns": [
+            {
+              "expression": "version_canonical_next_verify_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_clients_v_version_version_primary_contact_idx": {
+          "name": "_clients_v_version_version_primary_contact_idx",
+          "columns": [
+            {
+              "expression": "version_primary_contact_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -7897,19 +7933,6 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "_clients_v_version_primary_contact_id_managers_id_fk": {
-          "name": "_clients_v_version_primary_contact_id_managers_id_fk",
-          "tableFrom": "_clients_v",
-          "tableTo": "managers",
-          "columnsFrom": [
-            "version_primary_contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "_clients_v_version_logo_id_images_id_fk": {
           "name": "_clients_v_version_logo_id_images_id_fk",
           "tableFrom": "_clients_v",
@@ -7929,6 +7952,19 @@
           "tableTo": "regions",
           "columnsFrom": [
             "version_region_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_clients_v_version_primary_contact_id_managers_id_fk": {
+          "name": "_clients_v_version_primary_contact_id_managers_id_fk",
+          "tableFrom": "_clients_v",
+          "tableTo": "managers",
+          "columnsFrom": [
+            "version_primary_contact_id"
           ],
           "columnsTo": [
             "id"
@@ -12024,14 +12060,14 @@
           "primaryKey": false,
           "notNull": false
         },
-        "contact_name": {
-          "name": "contact_name",
+        "contact_email": {
+          "name": "contact_email",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
-        "contact_email": {
-          "name": "contact_email",
+        "contact_name": {
+          "name": "contact_name",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -12283,13 +12319,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "registrations_full": {
-          "name": "registrations_full",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
         "manager_id": {
           "name": "manager_id",
           "type": "integer",
@@ -12304,17 +12333,36 @@
           "notNull": false,
           "default": "'verified'"
         },
+        "notification_log": {
+          "name": "notification_log",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confidence_score": {
+          "name": "confidence_score",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "submitter_id": {
+          "name": "submitter_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "next_check_at": {
           "name": "next_check_at",
           "type": "timestamp(3) with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "notification_log": {
-          "name": "notification_log",
-          "type": "jsonb",
+        "registrations_full": {
+          "name": "registrations_full",
+          "type": "boolean",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "default": false
         },
         "quality_open_count": {
           "name": "quality_open_count",
@@ -12325,6 +12373,12 @@
         "quality_check_version": {
           "name": "quality_check_version",
           "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "system_meta": {
+          "name": "system_meta",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -12405,6 +12459,36 @@
           "columns": [
             {
               "expression": "manager_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "events_confidence_score_idx": {
+          "name": "events_confidence_score_idx",
+          "columns": [
+            {
+              "expression": "confidence_score",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "events_submitter_idx": {
+          "name": "events_submitter_idx",
+          "columns": [
+            {
+              "expression": "submitter_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -12541,6 +12625,19 @@
           "tableTo": "managers",
           "columnsFrom": [
             "manager_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "events_submitter_id_users_id_fk": {
+          "name": "events_submitter_id_users_id_fk",
+          "tableFrom": "events",
+          "tableTo": "users",
+          "columnsFrom": [
+            "submitter_id"
           ],
           "columnsTo": [
             "id"
@@ -12980,14 +13077,14 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_contact_name": {
-          "name": "version_contact_name",
+        "version_contact_email": {
+          "name": "version_contact_email",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
-        "version_contact_email": {
-          "name": "version_contact_email",
+        "version_contact_name": {
+          "name": "version_contact_name",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -13239,13 +13336,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_registrations_full": {
-          "name": "version_registrations_full",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
         "version_manager_id": {
           "name": "version_manager_id",
           "type": "integer",
@@ -13260,17 +13350,36 @@
           "notNull": false,
           "default": "'verified'"
         },
+        "version_notification_log": {
+          "name": "version_notification_log",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_confidence_score": {
+          "name": "version_confidence_score",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_submitter_id": {
+          "name": "version_submitter_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "version_next_check_at": {
           "name": "version_next_check_at",
           "type": "timestamp(3) with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "version_notification_log": {
-          "name": "version_notification_log",
-          "type": "jsonb",
+        "version_registrations_full": {
+          "name": "version_registrations_full",
+          "type": "boolean",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "default": false
         },
         "version_quality_open_count": {
           "name": "version_quality_open_count",
@@ -13281,6 +13390,12 @@
         "version_quality_check_version": {
           "name": "version_quality_check_version",
           "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_system_meta": {
+          "name": "version_system_meta",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -13407,6 +13522,36 @@
           "columns": [
             {
               "expression": "version_manager_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_events_v_version_version_confidence_score_idx": {
+          "name": "_events_v_version_version_confidence_score_idx",
+          "columns": [
+            {
+              "expression": "version_confidence_score",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_events_v_version_version_submitter_idx": {
+          "name": "_events_v_version_version_submitter_idx",
+          "columns": [
+            {
+              "expression": "version_submitter_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -13631,6 +13776,19 @@
           "tableTo": "managers",
           "columnsFrom": [
             "version_manager_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_events_v_version_submitter_id_users_id_fk": {
+          "name": "_events_v_version_submitter_id_users_id_fk",
+          "tableFrom": "_events_v",
+          "tableTo": "users",
+          "columnsFrom": [
+            "version_submitter_id"
           ],
           "columnsTo": [
             "id"
@@ -22751,14 +22909,6 @@
         "zu"
       ]
     },
-    "public.enum_clients_canonical_routing": {
-      "name": "enum_clients_canonical_routing",
-      "schema": "public",
-      "values": [
-        "query",
-        "path"
-      ]
-    },
     "public.enum_clients_status": {
       "name": "enum_clients_status",
       "schema": "public",
@@ -22963,14 +23113,6 @@
         "yo",
         "za",
         "zu"
-      ]
-    },
-    "public.enum__clients_v_version_canonical_routing": {
-      "name": "enum__clients_v_version_canonical_routing",
-      "schema": "public",
-      "values": [
-        "query",
-        "path"
       ]
     },
     "public.enum__clients_v_version_status": {
@@ -25405,6 +25547,8 @@
       "name": "enum_events_verification_stage",
       "schema": "public",
       "values": [
+        "unverified",
+        "denied",
         "verified",
         "reminded",
         "escalated",
@@ -26938,6 +27082,7 @@
         "sendRegistrationDigests",
         "sendSessionReminders",
         "syncLectureMetadata",
+        "verifyEmbeds",
         "resetUsage",
         "schedulePublish"
       ]
@@ -26960,6 +27105,7 @@
         "sendRegistrationDigests",
         "sendSessionReminders",
         "syncLectureMetadata",
+        "verifyEmbeds",
         "resetUsage",
         "schedulePublish"
       ]
@@ -27367,6 +27513,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "e5b68132-0a58-4c34-9519-15549b8dc6d5",
+  "id": "5bce8b60-dcad-4a3b-a979-9f8fb4dd7a4f",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

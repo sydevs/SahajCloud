@@ -4,7 +4,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { Clients } from '@/collections/Clients/Clients'
 import { clientEmbedReport } from '@/collections/Clients/endpoints/report'
-import { backfillClientCanonical } from '@/lib/clients/backfillCanonical'
+import { runVerifyEmbeds } from '@/jobs/VerifyEmbeds/VerifyEmbeds'
+import type { VerificationResult } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
@@ -15,7 +16,6 @@ import { createTestEnvironment } from '../utils/testHelpers'
  *
  * Three surfaces, one Payload bootstrap: the `validateCanonicalOwnership`
  * beforeChange hook, the `POST /api/clients/report` write path, and the
- * `legacyData` → `canonical.*` backfill.
  */
 describe('client canonical ownership + embed metadata', () => {
   let payload: Payload
@@ -76,41 +76,39 @@ describe('client canonical ownership + embed metadata', () => {
   // ── Field configuration ───────────────────────────────────────────────────
 
   describe('field configuration', () => {
-    const atlasTab = () => {
-      const tabs = Clients.fields.find((field) => field.type === 'tabs')
-      if (tabs?.type !== 'tabs') throw new Error('Clients has no tabs field')
-      const tab = tabs.tabs.find((candidate) => candidate.label === 'Atlas Config')
-      if (!tab) throw new Error('Clients has no Atlas Config tab')
-      return tab
+    const findField = (fields: unknown[], name: string): Record<string, unknown> | null => {
+      for (const field of fields as Record<string, unknown>[]) {
+        if (field.name === name) return field
+        const nested = (field.fields ?? field.tabs) as unknown[] | undefined
+        const hit = nested && findField(nested, name)
+        if (hit) return hit
+      }
+      return null
     }
 
-    it('offers exactly query and path for canonical.routing', () => {
-      const canonical = atlasTab().fields.find(
-        (field) => 'name' in field && field.name === 'canonical',
-      )
-      if (canonical?.type !== 'group') throw new Error('canonical is not a group')
-      const routing = canonical.fields.find((field) => 'name' in field && field.name === 'routing')
-      if (routing?.type !== 'select') throw new Error('canonical.routing is not a select')
-
-      const values = routing.options.map((option) =>
-        typeof option === 'string' ? option : option.value,
-      )
-      // No `hash`, ever — a canonical URL a crawler can't follow is not a
-      // canonical URL, and the widget is dropping hash routing entirely.
-      expect(values).toEqual(['query', 'path'])
+    it('declares canonical.embed required and conditional — required only when enabled', () => {
+      // `required` + the `enabled` condition is the whole "an embed must be chosen
+      // whenever canonical ownership is on" rule.
+      const embed = findField(Clients.fields as unknown[], 'embed')
+      expect(embed?.required).toBe(true)
+      const condition = (embed?.admin as { condition?: (d: unknown) => boolean } | undefined)
+        ?.condition
+      expect(condition?.({ canonical: { enabled: true } })).toBe(true)
+      expect(condition?.({ canonical: { enabled: false } })).toBe(false)
+      expect(condition?.({})).toBe(false)
     })
 
-    it('no longer declares legacyConfig', () => {
-      expect(
-        atlasTab().fields.some((field) => 'name' in field && field.name === 'legacyConfig'),
-      ).toBe(false)
+    it('no longer declares legacyConfig, or the three hand-typed canonical fields', () => {
+      for (const gone of ['legacyConfig', 'domain', 'mount', 'routing']) {
+        expect(findField(Clients.fields as unknown[], gone)).toBeNull()
+      }
     })
   })
 
   // ── validateCanonicalOwnership ────────────────────────────────────────────
 
   describe('validateCanonicalOwnership', () => {
-    it('rejects enabling with neither a region nor a domain, naming both', async () => {
+    it('rejects enabling with neither a region nor an embed, naming both', async () => {
       const client = await createClient('No Region No Domain')
       const message = await fieldErrorMessage(
         payload.update({
@@ -121,10 +119,10 @@ describe('client canonical ownership + embed metadata', () => {
         }),
         'canonical.enabled',
       )
-      expect(message).toContain('a region and a canonical domain')
+      expect(message).toContain('a region and a canonical embed')
     })
 
-    it('rejects enabling without a domain, naming the domain', async () => {
+    it('rejects enabling without an embed, naming the embed', async () => {
       const client = await createClient('No Domain', { region: czechiaId })
       const message = await fieldErrorMessage(
         payload.update({
@@ -135,7 +133,7 @@ describe('client canonical ownership + embed metadata', () => {
         }),
         'canonical.enabled',
       )
-      expect(message).toContain('a canonical domain')
+      expect(message).toContain('a canonical embed')
       expect(message).not.toContain('a region')
     })
 
@@ -145,59 +143,65 @@ describe('client canonical ownership + embed metadata', () => {
         payload.update({
           collection: 'clients',
           id: client.id,
-          data: { canonical: { enabled: true, domain: 'nirmala.cz' } },
+          data: { canonical: { enabled: true, embed: 'https://nirmala.cz/' } },
           overrideAccess: true,
         }),
         'canonical.enabled',
       )
       expect(message).toContain('a region')
-      expect(message).not.toContain('canonical domain')
+      expect(message).not.toContain('canonical embed')
     })
 
-    it('accepts an enabled client with a region and a domain', async () => {
+    it('accepts an enabled client with a region and an embed', async () => {
       const client = await createClient('Czechia Owner', { region: czechiaId })
       const updated = await payload.update({
         collection: 'clients',
         id: client.id,
-        data: { canonical: { enabled: true, domain: 'nirmala.cz', routing: 'path' } },
+        data: { canonical: { enabled: true, embed: 'https://nirmala.cz/lessons' } },
         overrideAccess: true,
       })
 
       expect(updated.canonical?.enabled).toBe(true)
-      expect(updated.canonical?.domain).toBe('nirmala.cz')
-      expect(updated.canonical?.routing).toBe('path')
-      // Not supplied on create, so the field default is what landed.
-      expect(updated.canonical?.mount).toBe('/')
+      expect(updated.canonical?.embed).toBe('https://nirmala.cz/lessons')
+      // Nothing is verified yet — the operator nominated a mount, and only the
+      // job may fill in what a canonical URL is actually built from.
+      expect(updated.canonical?.verification ?? null).toBeNull()
     })
 
-    it.each([
-      ['a full URL in mount', { mount: 'https://nirmala.cz:8080/lessons' }, 'canonical.mount'],
-      ['a scheme in domain', { domain: 'https://nirmala.cz' }, 'canonical.domain'],
-    ])('rejects %s', async (_label, patch, path) => {
-      // The host is stated once, in `domain`. Pasting a full URL into `mount`
-      // would have the resolver join the two into a URL resolving nowhere.
-      const client = await createClient(`Mount Shape ${path}`)
-      const message = await fieldErrorMessage(
+    it('refuses a verification snapshot whose host is not a bare host', async () => {
+      // The bare-host rule moved from a field validator into the JSON Schema: the
+      // host is job-written now, so the guard belongs at the write it governs.
+      const region = await createRegion('latvia')
+      const client = await createClient('Bad Verified Host', { region: region.id })
+      await payload.update({
+        collection: 'clients',
+        id: client.id,
+        data: { canonical: { enabled: true, embed: 'https://bad.example/' } },
+        overrideAccess: true,
+      })
+
+      await expect(
         payload.update({
           collection: 'clients',
           id: client.id,
-          data: { canonical: patch },
+          data: {
+            canonical: {
+              verification: {
+                verified: {
+                  domain: 'https://example.org/map',
+                  mount: '/',
+                  routing: 'query',
+                  widgetVersion: 2,
+                  at: '2026-08-18T00:00:00.000Z',
+                },
+                failureCount: 0,
+                attempts: [],
+              },
+            },
+          } as never,
           overrideAccess: true,
         }),
-        path,
-      )
-      expect(message).toBeTruthy()
-    })
-
-    it('accepts a query-string mount — WordPress default permalinks', async () => {
-      const client = await createClient('WP Permalink')
-      const updated = await payload.update({
-        collection: 'clients',
-        id: client.id,
-        data: { canonical: { mount: '/?p=123' } },
-        overrideAccess: true,
-      })
-      expect(updated.canonical?.mount).toBe('/?p=123')
+      ).rejects.toThrow()
     })
 
     it('rejects a second enabled client on an owned region, naming the incumbent', async () => {
@@ -205,7 +209,7 @@ describe('client canonical ownership + embed metadata', () => {
       await payload.update({
         collection: 'clients',
         id: incumbent.id,
-        data: { canonical: { enabled: true, domain: 'meditoi.fi' } },
+        data: { canonical: { enabled: true, embed: 'https://meditoi.fi/' } },
         overrideAccess: true,
       })
 
@@ -216,7 +220,7 @@ describe('client canonical ownership + embed metadata', () => {
         payload.update({
           collection: 'clients',
           id: challenger.id,
-          data: { canonical: { enabled: true, domain: 'jooga.org' } },
+          data: { canonical: { enabled: true, embed: 'https://jooga.org/' } },
           overrideAccess: true,
         }),
         'canonical.enabled',
@@ -234,12 +238,12 @@ describe('client canonical ownership + embed metadata', () => {
       const updated = await payload.update({
         collection: 'clients',
         id: docs[0].id,
-        data: { canonical: { enabled: true, domain: 'meditoi.fi', mount: '/?p=123' } },
+        data: { canonical: { enabled: true, embed: 'https://meditoi.fi/?p=123' } },
         overrideAccess: true,
       })
       // Self-exclusion — otherwise the incumbent becomes its own conflict and
       // can never be edited again.
-      expect(updated.canonical?.mount).toBe('/?p=123')
+      expect(updated.canonical?.embed).toBe('https://meditoi.fi/?p=123')
     })
 
     it('allows a second DISABLED client on an owned region', async () => {
@@ -247,11 +251,11 @@ describe('client canonical ownership + embed metadata', () => {
       const updated = await payload.update({
         collection: 'clients',
         id: client.id,
-        data: { canonical: { enabled: false, domain: 'freemeditation.fi' } },
+        data: { canonical: { enabled: false, embed: 'https://freemeditation.fi/' } },
         overrideAccess: true,
       })
       expect(updated.canonical?.enabled).toBe(false)
-      expect(updated.canonical?.domain).toBe('freemeditation.fi')
+      expect(updated.canonical?.embed).toBe('https://freemeditation.fi/')
     })
 
     it('rejects a region change that would collide with an incumbent', async () => {
@@ -262,7 +266,7 @@ describe('client canonical ownership + embed metadata', () => {
       await payload.update({
         collection: 'clients',
         id: client.id,
-        data: { canonical: { enabled: true, domain: 'mcpraha.org' } },
+        data: { canonical: { enabled: true, embed: 'https://mcpraha.org/' } },
         overrideAccess: true,
       })
 
@@ -315,7 +319,7 @@ describe('client canonical ownership + embed metadata', () => {
     await payload.update({
       collection: 'clients',
       id: owner.id,
-      data: { canonical: { enabled: true, domain: 'example.org', routing: 'path' } },
+      data: { canonical: { enabled: true, embed: 'https://example.org/map' } },
       overrideAccess: true,
     })
 
@@ -548,91 +552,109 @@ describe('client canonical ownership + embed metadata', () => {
 
   // ── Backfill ──────────────────────────────────────────────────────────────
 
-  describe('backfillClientCanonical', () => {
-    const legacyData = (config: Record<string, unknown> | null) => ({
-      legacyId: 99,
-      label: 'Legacy',
-      ...(config ? { config } : {}),
-    })
+  describe('VerifyEmbeds job', () => {
+    const verified: VerificationResult = {
+      status: 'verified',
+      embed: {
+        domain: 'verify.example',
+        mount: '/embed',
+        routing: 'query',
+        widgetVersion: 2,
+        at: '2026-08-18T03:00:00.000Z',
+      },
+    }
+    const failed: VerificationResult = { status: 'failed', reason: 'marker-absent' }
+    const inconclusive: VerificationResult = { status: 'inconclusive', reason: 'provider-error' }
 
-    it('seeds domain + routing from legacyData.config and never opts a client in', async () => {
-      const client = await createClient('Legacy Seeded', {
-        legacyData: legacyData({ domain: 'www.sahajayoga.ca', routing_type: 'path' }),
-      })
-
-      await backfillClientCanonical({ payload, apply: true })
-
-      const doc = await payload.findByID({
+    /** A service that owns canonical URLs and is due for a check. */
+    async function createOwner(name: string, slug: string) {
+      const region = await createRegion(slug)
+      const client = await createClient(name, { region: region.id })
+      await payload.update({
         collection: 'clients',
         id: client.id,
+        data: { canonical: { enabled: true, embed: 'https://verify.example/embed' } },
         overrideAccess: true,
       })
-      expect(doc.canonical?.domain).toBe('www.sahajayoga.ca')
-      expect(doc.canonical?.routing).toBe('path')
-      // The AC, and the reason the script exists at all: the legacy values are
-      // unverified, so a human opts in after reading `embedMetadata`.
-      expect(doc.canonical?.enabled).toBeFalsy()
-    })
+      return client.id
+    }
 
-    it('leaves a draft client a draft', async () => {
-      // A disabled Atlas service imports as a draft precisely so it can't
-      // authenticate; seeding it must not publish it.
-      const client = await createClient('Legacy Draft', {
-        _status: 'draft',
-        legacyData: legacyData({ domain: 'dormant.example', routing_type: 'query' }),
+    const read = async (id: number) =>
+      payload.findByID({ collection: 'clients', id, depth: 0, overrideAccess: true })
+
+    /**
+     * Run the job with a stubbed verifier — never reaches Cloudflare.
+     *
+     * `now` has to advance between runs: a failure backs the watermark off geometrically, so a
+     * second call at the same instant finds nothing due and would make these assertions vacuous.
+     */
+    const run = (result: VerificationResult, now: Date) =>
+      runVerifyEmbeds({
+        payload,
+        req: { payload } as never,
+        now,
+        deps: { verify: async () => result },
       })
 
-      await backfillClientCanonical({ payload, apply: true })
+    const T0 = new Date('2026-09-01T03:00:00.000Z')
+    const daysAfter = (days: number) => new Date(T0.getTime() + days * 86_400_000)
 
-      const doc = await payload.findByID({
+    it('records a verified snapshot and schedules the next check', async () => {
+      const id = await createOwner('Verify OK', 'verify-ok')
+      const output = await run(verified, T0)
+
+      expect(output.verified).toBeGreaterThanOrEqual(1)
+      const doc = await read(id)
+      expect(doc.canonical?.verification?.verified).toMatchObject({ domain: 'verify.example' })
+      expect(doc.canonical?.nextVerifyAt).toBeTruthy()
+      expect(doc.canonical?.enabled).toBe(true)
+    })
+
+    it('disables canonical ownership on the third definitive failure, not the second', async () => {
+      const id = await createOwner('Verify Failing', 'verify-failing')
+
+      // 1× = +24h, 2× = +48h — each run has to sit past the previous backoff.
+      await run(failed, T0)
+      await run(failed, daysAfter(2))
+      let doc = await read(id)
+      expect(doc.canonical?.verification?.failureCount).toBe(2)
+      expect(doc.canonical?.enabled).toBe(true)
+
+      await run(failed, daysAfter(6))
+      doc = await read(id)
+      expect(doc.canonical?.verification?.failureCount).toBe(3)
+      expect(doc.canonical?.enabled).toBe(false)
+    })
+
+    // The rule the whole design leans on: our integration breaking is not their embed breaking.
+    it('changes nothing on an inconclusive run', async () => {
+      const id = await createOwner('Verify Inconclusive', 'verify-incon')
+      await run(failed, T0)
+      const before = await read(id)
+
+      // Past the failure backoff, so this run genuinely examines the service.
+      await run(inconclusive, daysAfter(2))
+      const after = await read(id)
+      expect(after.canonical?.verification?.attempts?.[0]?.status).toBe('inconclusive')
+
+      expect(after.canonical?.verification?.failureCount).toBe(
+        before.canonical?.verification?.failureCount,
+      )
+      expect(after.canonical?.enabled).toBe(true)
+    })
+
+    it('ignores services that do not own canonical URLs', async () => {
+      await createClient('Not An Owner', { allowedDomains: 'sahajayoga.nl' })
+      const output = await run(verified, daysAfter(30))
+      // Only the enabled owners above are ever examined.
+      expect(output.processed).toBeGreaterThanOrEqual(0)
+      const doc = await payload.find({
         collection: 'clients',
-        id: client.id,
+        where: { name: { equals: 'Not An Owner' } },
+        depth: 0,
         overrideAccess: true,
       })
-      expect(doc._status).toBe('draft')
-      expect(doc.canonical?.domain).toBe('dormant.example')
-    })
-
-    it('does not overwrite a hand-set domain', async () => {
-      const client = await createClient('Hand Set', {
-        canonical: { domain: 'chosen.example' },
-        legacyData: legacyData({ domain: 'legacy.example', routing_type: 'query' }),
-      })
-
-      await backfillClientCanonical({ payload, apply: true })
-
-      const doc = await payload.findByID({
-        collection: 'clients',
-        id: client.id,
-        overrideAccess: true,
-      })
-      expect(doc.canonical?.domain).toBe('chosen.example')
-    })
-
-    it('skips a client whose legacy record holds nothing usable', async () => {
-      const client = await createClient('No Legacy', { legacyData: legacyData(null) })
-      const stats = await backfillClientCanonical({ payload, apply: true })
-
-      const doc = await payload.findByID({
-        collection: 'clients',
-        id: client.id,
-        overrideAccess: true,
-      })
-      expect(doc.canonical?.domain).toBeFalsy()
-      expect(stats.skipped).toBeGreaterThan(0)
-    })
-
-    it('is a no-op on a dry run, and idempotent once applied', async () => {
-      await createClient('Dry Run Target', {
-        legacyData: legacyData({ domain: 'dry.example', routing_type: 'query' }),
-      })
-
-      const dry = await backfillClientCanonical({ payload, apply: false })
-      expect(dry.changed).toBeGreaterThan(0)
-
-      await backfillClientCanonical({ payload, apply: true })
-      const second = await backfillClientCanonical({ payload, apply: true })
-      expect(second.changed).toBe(0)
+      expect(doc.docs[0]?.canonical?.verification ?? null).toBeNull()
     })
   })
 })

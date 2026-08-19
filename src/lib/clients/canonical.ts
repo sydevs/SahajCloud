@@ -3,14 +3,14 @@
  *
  * A client may declare that it owns the canonical URLs for its `region` — the
  * page a seeker should land on for events in that region. The declaration is
- * three parts: the host (`canonical.domain`), the page the embed lives on
- * (`canonical.mount`), and how the widget encodes state into that URL
- * (`canonical.routing`).
+ * now a single choice (`canonical.embed`): which of the embeds the widget has
+ * reported owns those URLs. Host, mount and routing all follow from it, and are
+ * filled in by the verification job from what it observed on the live page.
  *
  * Shared by the `Clients` field definitions, the observed-mount metadata
- * (`./embedMetadata`), the OpenAPI shim (which sources the `routing` enum from
- * here so it can't drift from the handler), and
- * `scripts/backfill-client-canonical.ts`.
+ * (`./embedMetadata`), the verification state (`./verification`), and the
+ * OpenAPI shim (which sources the `routing` enum from here so it can't drift
+ * from the handler).
  */
 
 import { normalizeHost } from '@/plugins/usage'
