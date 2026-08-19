@@ -1062,21 +1062,36 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
   ClientEmbedReportRequest: {
     type: 'object',
     additionalProperties: false,
-    required: ['url', 'mode', 'topLevel', 'urlWritable', 'paramPersisted', 'routing'],
+    required: [
+      'origin',
+      'pathname',
+      'mode',
+      'topLevel',
+      'urlWritable',
+      'paramPersisted',
+      'routing',
+    ],
     properties: {
-      url: {
+      origin: {
         type: 'string',
         maxLength: MAX_MOUNT_KEY_LENGTH,
         description:
-          'Origin + pathname of the page the embed is mounted on, e.g. ' +
-          '`https://sahajayoga.nl/locatelessons`. No query string, no fragment.',
+          'Bare origin of the host page, e.g. `https://sahajayoga.nl`. No path, query or fragment.',
+      },
+      pathname: {
+        type: 'string',
+        maxLength: MAX_MOUNT_KEY_LENGTH,
+        description:
+          'Path of the host page, e.g. `/locatelessons`. No query string or fragment — the one ' +
+          'exception is a WordPress default permalink, `?p=<digits>`, which is kept because such ' +
+          'sites cannot name their page any other way.',
       },
       mode: {
         type: 'string',
         enum: [...EMBED_MODES],
         description:
           '`iframe` when the widget is running inside a frame it did not create, ' +
-          '`script` when it was injected directly into the host document.',
+          '`inline` when it rendered directly into the host document.',
       },
       topLevel: {
         type: 'boolean',

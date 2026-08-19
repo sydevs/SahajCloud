@@ -23,9 +23,10 @@ access is REST-only.
 
 ## Canonical ownership + observed embeds (#633)
 
-Two Atlas white-label fields, both on the Atlas Config tab. **Data only** —
-`canonical.enabled` defaults false and nothing resolves differently yet; the
-per-region `webUrl` resolver that consumes them is a follow-up ticket.
+Two Atlas white-label fields, split across the **Config** and **SEO** tabs.
+**Data only** — `canonical.enabled` defaults false and nothing resolves
+differently yet; the per-region `webUrl` resolver that consumes them is a
+follow-up ticket.
 
 ### `canonical` — who owns a region's canonical URLs
 
@@ -35,27 +36,74 @@ with a uniqueness rule.
 
 | Field | Notes |
 | --- | --- |
-| `canonical.enabled` | checkbox, **default false**. Load-bearing — several client domains are dead or on site builders, and a cross-origin iframe would name a URL that cannot restore the view |
-| `canonical.domain` | bare host, `^[a-z0-9.-]+$`. Deliberately **not** derived from `allowedDomains`, which is a newline-separated textarea and genuinely multi-valued in the data |
-| `canonical.mount` | the page the embed lives on, default `/`. **May carry a query string** — WordPress default permalinks are `/?p=123`, so a URL builder must join with `&` in that case |
-| `canonical.routing` | `query` \| `path`, default `query`. **No `hash`, ever** — the widget is dropping hash routing, and a canonical URL a crawler can't follow is not a canonical URL |
+| `canonical.enabled` | checkbox, **default false**. The master switch — every other canonical field is `admin.condition`-gated on it |
+| `canonical.embed` | **required when enabled.** Which reported mount owns the canonical URLs, chosen from a picker, never typed. Host, mount and routing all follow from it |
+| `canonical.verification` | json, admin-readonly. **Written only by the CMS**, from what it observed loading the page: the verified snapshot, a consecutive-failure count, and a bounded attempt log |
+| `canonical.nextVerifyAt` | date, indexed, hidden. The verification job's watermark — a real column so it stays a cheap predicate |
 
 `validateCanonicalOwnership` (beforeChange) enforces the rule: enabling requires
-`region` **and** `canonical.domain`, and a second enabled client on a region is
+`region` **and** `canonical.embed`, and a second enabled client on a region is
 rejected with the incumbent named. It watches `region` as well as `canonical`,
 so moving an already-enabled client onto an owned region can't walk around it,
-and it skips entirely when a write touches neither — including every
-`embedMetadata` report. Uniqueness is checked against **committed** state, so a
-conflicting draft is caught on publish.
+and it skips when nothing the rules read has actually moved — which also stops
+an unrelated edit being *refused* because two services were left enabled on one
+region. Uniqueness is checked against **committed** state, so a conflicting
+draft is caught on publish.
 
-Vocabulary + validators live in `src/lib/clients/canonical.ts` (there, not in the
-collection folder, because the OpenAPI plugin sources the `routing` enum from
-them — see `.claude/rules/project-structure.md` rule 4);
-`scripts/backfill-client-canonical.ts` seeds `domain`/`routing` from
-`legacyData.config` and always leaves `enabled` false (see
-`.claude/rules/scripts.md`). `legacyConfig` was **removed** rather than
-promoted — a second, contradictory source of `routing_type`/`embed_type` beside
-these fields is how they drift, and its values were unverified.
+**`required` + a condition is the mechanism, not a hazard.** Payload skips both
+`required` and any custom `validate` while `admin.condition` is false and runs
+them normally when it is true, so `required` on `embed` reads as exactly
+"required when canonical ownership is on" — the same shape as `primaryContact`.
+Verified for **non-admin writes** too by an integration test that saves a
+canonical-disabled service with no embed through a plain API write; the whole
+gating design rests on it, so that test is load-bearing.
+
+### Verification — how a nomination becomes a canonical URL
+
+`canonical.embed` is only a nomination. What a canonical URL is built from is
+`canonical.verification.verified`, written **solely** by the CMS after it loads
+the page itself.
+
+- **`src/lib/embedVerification/`** — a Cloudflare Browser Rendering client, the
+  readiness-marker parser, and the routine that turns a render into a result. A
+  real browser is required: the widget is JavaScript, so fetching HTML would only
+  prove a `<script>` tag exists and would false-FAIL every client-rendered site.
+- **The marker** is `data-sahaj-atlas-ready` on `<html>`, carrying
+  `{ v, routing, topLevel, urlWritable }` — the cross-repo contract from
+  sydevs/SahajAtlasWeb#153, shipped in #159. Reading `routing` off the rendered
+  page is what makes it server-attested rather than self-reported.
+- **`src/jobs/VerifyEmbeds`** — nightly (`0 3 * * *`), watermarked on
+  `canonical.nextVerifyAt`, bounded to enabled services. Three consecutive
+  definitive failures switch ownership off and notify the `primaryContact`.
+  Writes go through the atomic-SQL seam, not `payload.update`.
+- **`POST /api/clients/:id/verify-embed`** — manager-authenticated, the same
+  routine on demand so setup isn't gated on the cron. It never disables.
+
+**`failed` vs `inconclusive` is the load-bearing distinction.** `failed` is
+evidence about the customer's embed and counts toward the budget.
+`inconclusive` — provider error, exhausted quota, bot challenge, missing
+credentials — means we could not look, and changes nothing. Cloudflare reports
+both through one error channel, so `classifyRenderError` biases every
+unrecognised message to inconclusive, and matches quota *before* timeout (a
+"quota exceeded" message matches both, and reading our own exhausted allowance
+as their embed timing out would count a strike against them).
+
+**What the marker proves, precisely.** It detects an embed that is installed and
+*not working* — the case a report can never reveal, since the report is sent by
+the same widget whose health is in question. It does **not** prove the page is
+honest: the attribute carries no nonce, and any host that can run our script can
+hand-write it. The trust boundary stays `allowedDomains`. What it buys against a
+third party holding a stolen key is real though — they can claim a mount on the
+client's domain in a report, but cannot make that domain serve a marker they
+control.
+
+Vocabulary lives in `src/lib/clients/canonical.ts` and the verification contract
+in `src/lib/clients/verification.ts` (there, not in the collection folder,
+because the job and the verifier both need them — see
+`.claude/rules/project-structure.md` rule 4). `legacyConfig` was **removed**
+rather than promoted, and nothing backfills from it any more: canonical
+ownership now requires a *verified reported* embed, which legacy Atlas config can
+never produce.
 
 ### `embedMetadata` — what the widget observed
 
@@ -75,7 +123,24 @@ designates which discovered mount is canonical; the reported metadata only
 decides whether that mount currently qualifies, in both directions. That stops a
 canonical flip-flopping between two embeds on one site, and bounds the tampering
 surface — a forged report can only assert viability for a mount someone already
-chose.
+chose, and cannot make the *verifier* see something that is not there.
+
+**The body is `origin` + `pathname`, two fields**, matching what the widget
+sends (sydevs/SahajAtlasWeb#159). The split is not cosmetic: the endpoint refuses
+a path carrying a query string, and can only enforce that if the path arrives on
+its own. The single exception is a WordPress default permalink, `?p=<digits>` —
+discarding the query would collapse such a site onto one mount and leave the page
+an operator must name as canonical unnameable, for exactly this feature's
+audience. Every other query string is still refused, `?p=123&utm_source=…`
+included.
+
+**The write is raw SQL, and has to be.** `payload.update` deadlocks here: the
+usage plugin increments `usage_daily_requests` on the caller's own row, on its
+own connection, for the very request being served, while `payload.update` holds
+that row inside the request transaction — both sides then sit on
+`Lock: transactionid` and the request never returns. A single autocommit
+`jsonb ||` merge has no transaction to overlap with, and closes the
+read-modify-write window as a side effect.
 
 ### `POST /api/clients/report`
 
@@ -103,8 +168,12 @@ keyed object; never replaces it.
 - It is registered in the OpenAPI shim but stays `x-internal`; see
   `.claude/rules/openapi.md`.
 
-Tests: `tests/unit/client-embed-metadata.spec.ts` (mount keys + the merge),
-`tests/int/client-canonical.int.spec.ts` (the hook, the endpoint, the backfill,
+Tests: `tests/unit/client-embed-metadata.spec.ts` (mount keys incl. the `?p=`
+carve-out, and the merge), `tests/unit/embed-verification.spec.ts` (marker
+parsing, error classification, and the failed/inconclusive split),
+`tests/unit/canonical-embed-picker.spec.ts` (canonical-URL building incl. the `&`
+join, the three-strikes ladder, picker option derivation), and
+`tests/int/client-canonical.int.spec.ts` (the hook, the endpoint, the job ladder,
 and that no event `webUrl` changes).
 
 ## Usage plugin (`src/plugins/usage/`)

@@ -191,9 +191,13 @@ describe('clients embed-report custom endpoint (OpenAPI)', () => {
     // The whole point of the ticket's routing decision — a canonical URL a
     // crawler can't follow is not a canonical URL.
     expect(schema.properties?.routing?.enum).not.toContain('hash')
-    expect(schema.properties?.url?.maxLength).toBe(MAX_MOUNT_KEY_LENGTH)
+    expect(schema.properties?.origin?.maxLength).toBe(MAX_MOUNT_KEY_LENGTH)
+    expect(schema.properties?.pathname?.maxLength).toBe(MAX_MOUNT_KEY_LENGTH)
+    // Two fields, not one URL — the shipped widget sends them apart, and the
+    // endpoint can only check the path on its own if it arrives on its own.
     expect(schema.required).toEqual([
-      'url',
+      'origin',
+      'pathname',
       'mode',
       'topLevel',
       'urlWritable',
