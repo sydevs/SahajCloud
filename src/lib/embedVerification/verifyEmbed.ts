@@ -63,12 +63,29 @@ export function resultFromRender(mountKey: string, render: RenderResult): Verifi
   }
 }
 
+/**
+ * True when `value` is a mount we are willing to send a browser at.
+ *
+ * `canonical.embed` normally comes from the picker, whose options are report keys that
+ * `parseMountKey` has already constrained to http(s) — but it is a plain text field, so an admin
+ * can type into it, and this is the point where a string becomes an outbound page load. Refusing
+ * anything but http(s) keeps `data:`, `file:` and `javascript:` out of the renderer.
+ */
+function isFetchableMount(value: string): boolean {
+  try {
+    const { protocol } = new URL(value)
+    return protocol === 'http:' || protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 /** Load and judge one mount. Never throws. */
 export async function verifyEmbed(
   mountKey: string,
   deps: RenderDeps = {},
 ): Promise<VerificationResult> {
-  if (!splitMountKey(mountKey)) {
+  if (!splitMountKey(mountKey) || !isFetchableMount(mountKey)) {
     return { status: 'failed', reason: 'http', detail: `Unparseable mount: ${mountKey}` }
   }
   const render = await renderPage(mountKey, `[${READY_ATTR}]`, deps)

@@ -88,6 +88,15 @@ unrecognised message to inconclusive, and matches quota *before* timeout (a
 "quota exceeded" message matches both, and reading our own exhausted allowance
 as their embed timing out would count a strike against them).
 
+**Exercising it for real.** Every test stubs the render, so the integration itself — request
+shape, auth, and how Cloudflare's errors map onto our vocabulary — is proven by
+`pnpm tsx scripts/verify-embed-live.ts --self-test`, which drives all four outcomes against the
+live API. The error codes it classifies on (`6002` selector timeout, `5006` network/DNS, `10000`
+auth) were captured from real responses and are pinned in
+`tests/unit/embed-verification.spec.ts`; prose matching is only the fallback, because the messages
+are generic enough to be dangerous (`Network connection closed.` is what a dead customer domain
+returns).
+
 **What the marker proves, precisely.** It detects an embed that is installed and
 *not working* — the case a report can never reveal, since the report is sent by
 the same widget whose health is in question. It does **not** prove the page is
