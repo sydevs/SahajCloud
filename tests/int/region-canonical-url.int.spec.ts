@@ -40,20 +40,8 @@ describe('per-region canonical webUrl', () => {
   const LONDON_DOMAIN = 'sahajayogalondon.co.uk'
   const WEMEDITATE_BASE = `${serverEnv.WEMEDITATE_WEB_URL}${serverEnv.WEMEDITATE_ATLAS_BASE_PATH}`
 
-  const createRegion = async (slug: string, level: string, parent?: number): Promise<number> => {
-    const doc = await payload.create({
-      collection: 'regions',
-      overrideAccess: true,
-      data: {
-        name: slug,
-        slug,
-        level,
-        mapboxId: `mb-${slug}`,
-        ...(parent ? { parent } : {}),
-      } as never,
-    })
-    return doc.id
-  }
+  const createRegion = (slug: string, level: string, parent?: number): Promise<number> =>
+    testData.createRegionNode(payload, { prefix: 'mb', slug, level, parent })
 
   /**
    * Seed a client that owns a region.

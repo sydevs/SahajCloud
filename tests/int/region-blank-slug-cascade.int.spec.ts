@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -30,20 +31,8 @@ describe('blank region slug vs the nested-docs cascade', () => {
   let blankRegion: number
   let cityBelow: number
 
-  const createRegion = async (slug: string, level: string, parent?: number): Promise<number> => {
-    const doc = await payload.create({
-      collection: 'regions',
-      overrideAccess: true,
-      data: {
-        name: slug,
-        slug,
-        level,
-        mapboxId: `bs-${slug}`,
-        ...(parent ? { parent } : {}),
-      } as never,
-    })
-    return doc.id
-  }
+  const createRegion = (slug: string, level: string, parent?: number): Promise<number> =>
+    testData.createRegionNode(payload, { prefix: 'bs', slug, level, parent })
 
   const readRegion = (id: number) =>
     payload.findByID({ collection: 'regions', id, depth: 0, overrideAccess: true })

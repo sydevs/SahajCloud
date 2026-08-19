@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { backfillBreadcrumbUrls } from '@/lib/atlas/backfillBreadcrumbUrls'
 
+import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -26,20 +27,8 @@ describe('breadcrumb URL backfill', () => {
   let london: number
   let france: number
 
-  const createRegion = async (slug: string, level: string, parent?: number): Promise<number> => {
-    const doc = await payload.create({
-      collection: 'regions',
-      overrideAccess: true,
-      data: {
-        name: slug,
-        slug,
-        level,
-        mapboxId: `bf-${slug}`,
-        ...(parent ? { parent } : {}),
-      } as never,
-    })
-    return doc.id
-  }
+  const createRegion = (slug: string, level: string, parent?: number): Promise<number> =>
+    testData.createRegionNode(payload, { prefix: 'bf', slug, level, parent })
 
   /** Null every stored breadcrumb URL, simulating rows written before #634. */
   const clearBreadcrumbUrls = async (): Promise<void> => {
