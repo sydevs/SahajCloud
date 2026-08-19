@@ -6,7 +6,7 @@ import { serverEnv } from '@/lib/env'
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
-import { canonicalUrlBase } from './canonicalUrl'
+import { canonicalTargetForHost, canonicalUrlBase } from './canonicalUrl'
 import { getRegionTree } from './regionTree'
 
 /**
@@ -189,10 +189,7 @@ export function canonicalTargetFor(owner: CanonicalOwner | undefined): Canonical
       routing: 'path',
     }
   }
-  // `canonical.domain` is a bare host by construction, and a canonical URL a
-  // crawler should follow is https — so the scheme is ours to state, not the
-  // operator's to mistype.
-  return { origin: `https://${owner.domain}`, mount: owner.mount, routing: owner.routing }
+  return canonicalTargetForHost(owner)
 }
 
 /**

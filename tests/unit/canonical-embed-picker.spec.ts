@@ -1,8 +1,5 @@
 import type { EmbedMetadata } from '../../src/lib/clients/embedMetadata'
-import type {
-  CanonicalVerification,
-  VerifiedEmbed,
-} from '../../src/lib/clients/verification'
+import type { CanonicalVerification, VerifiedEmbed } from '../../src/lib/clients/verification'
 
 import { describe, expect, it } from 'vitest'
 
@@ -12,8 +9,8 @@ import {
   formatAge,
   splitMountKey,
 } from '../../src/components/admin/CanonicalEmbedPicker/model'
+import { buildCanonicalUrl, canonicalTargetForHost } from '../../src/lib/atlas/canonicalUrl'
 import {
-  buildCanonicalUrl,
   CANONICAL_FAILURE_LIMIT,
   MAX_VERIFICATION_ATTEMPTS,
   nextVerificationState,
@@ -38,24 +35,51 @@ const verified: VerifiedEmbed = {
   at: '2026-08-17T03:00:00.000Z',
 }
 
-describe('buildCanonicalUrl', () => {
-  it('appends the Atlas parameter with `?` on a plain mount', () => {
-    expect(buildCanonicalUrl(verified, 'events/12345')).toBe(
-      'https://sahajayoga.nl/locatelessons/?atlas=events%2F12345',
+/**
+ * The URL *shapes* are pinned against the cross-repo fixture in
+ * `atlas-canonical-url.spec.ts`. What matters here is that the picker previews
+ * the same URL the resolver emits — the preview exists to let an operator catch
+ * a bad canonical before saving, so a preview that differs from production is
+ * worse than none.
+ *
+ * This regressed once already: the picker had its own builder, which stripped
+ * the Atlas path's leading slash and percent-encoded the rest
+ * (`?atlas=events%2F12345`). The widget guards that parameter with
+ * `safeLoaderPath`, which requires a leading `/` and rejects a bare
+ * `relative/path`, so URLs of that shape were refused and the widget fell back
+ * to the embed's default route.
+ */
+describe('the sample URL the picker shows', () => {
+  const model = (v: VerifiedEmbed) =>
+    buildPickerModel({
+      embedMetadata: { [`https://${v.domain}${v.mount}`]: { ...healthy, routing: v.routing } },
+      embed: `https://${v.domain}${v.mount}`,
+      verification: { verified: v, failureCount: 0, attempts: [] },
+      now,
+    }).selected
+
+  it('is byte-identical to what the resolver would build', () => {
+    expect(model(verified)?.sampleUrl).toBe(
+      buildCanonicalUrl(canonicalTargetForHost(verified), '/events/12345'),
     )
   })
 
-  // The whole reason this is a shared function: a WordPress default permalink
-  // mount already carries a query, so the Atlas parameter must join with `&`.
-  // Getting it wrong yields a URL that silently 404s.
+  it('keeps the Atlas path slash-led and unencoded, as the widget requires', () => {
+    expect(model(verified)?.sampleUrl).toBe(
+      'https://sahajayoga.nl/locatelessons/?atlas=/events/12345',
+    )
+  })
+
+  // A WordPress default permalink mount already carries a query, so the Atlas
+  // parameter must join with `&`. Getting it wrong yields a URL that 404s.
   it('joins with `&` when the mount is a WordPress permalink', () => {
-    expect(buildCanonicalUrl({ ...verified, mount: '/?p=123' }, 'events/12345')).toBe(
-      'https://sahajayoga.nl/?p=123&atlas=events%2F12345',
+    expect(model({ ...verified, mount: '/?p=123' })?.sampleUrl).toBe(
+      'https://sahajayoga.nl/?p=123&atlas=/events/12345',
     )
   })
 
-  it('builds a path-routed URL without a query at all', () => {
-    expect(buildCanonicalUrl({ ...verified, routing: 'path' }, 'events/12345')).toBe(
+  it('builds a path-routed sample without a query at all', () => {
+    expect(model({ ...verified, routing: 'path' })?.sampleUrl).toBe(
       'https://sahajayoga.nl/locatelessons/events/12345',
     )
   })
@@ -211,7 +235,12 @@ describe('buildPickerModel', () => {
   })
 
   it('offers every reported mount, carrying its cautions', () => {
-    const model = buildPickerModel({ embedMetadata: reported, embed: null, verification: null, now })
+    const model = buildPickerModel({
+      embedMetadata: reported,
+      embed: null,
+      verification: null,
+      now,
+    })
     expect(model.options.map((o) => o.value)).toEqual([
       'https://sahajayoga.nl/locatelessons/',
       'https://sahajayoga.nl/map',
