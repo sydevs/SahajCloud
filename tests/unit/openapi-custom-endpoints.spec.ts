@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { ROUTING_MODES } from '../../src/lib/clients/canonical'
+import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '../../src/lib/clients/embedMetadata'
 import { depthParameter } from '../../src/plugins/openapi/clientReadParametersDocs'
 import {
   CUSTOM_ENDPOINT_PATHS,
@@ -165,6 +167,73 @@ describe('depth parameter (OpenAPI)', () => {
     expect(depthParameter.schema.maximum).toBe(3)
     expect(depthParameter.schema.default).toBe(2)
     expect(depthParameter.schema.minimum).toBe(0)
+  })
+})
+
+describe('clients embed-report custom endpoint (OpenAPI)', () => {
+  const post = CUSTOM_ENDPOINT_PATHS['/api/clients/report']?.post as
+    | { description?: string; responses?: Record<string, { description?: string }> }
+    | undefined
+
+  it('registers the POST path and both hand-authored schemas', () => {
+    expect(post).toBeDefined()
+    expect(CUSTOM_ENDPOINT_SCHEMAS['ClientEmbedReportRequest']).toBeDefined()
+    expect(CUSTOM_ENDPOINT_SCHEMAS['ClientEmbedReportResponse']).toBeDefined()
+  })
+
+  it('sources its enums from the collection constants, so they cannot drift', () => {
+    const schema = CUSTOM_ENDPOINT_SCHEMAS['ClientEmbedReportRequest'] as {
+      required?: string[]
+      properties?: Record<string, { enum?: string[]; maxLength?: number }>
+    }
+    expect(schema.properties?.mode?.enum).toEqual([...EMBED_MODES])
+    expect(schema.properties?.routing?.enum).toEqual([...ROUTING_MODES])
+    // The whole point of the ticket's routing decision — a canonical URL a
+    // crawler can't follow is not a canonical URL.
+    expect(schema.properties?.routing?.enum).not.toContain('hash')
+    expect(schema.properties?.origin?.maxLength).toBe(MAX_MOUNT_KEY_LENGTH)
+    expect(schema.properties?.pathname?.maxLength).toBe(MAX_MOUNT_KEY_LENGTH)
+    // Two fields, not one URL — the shipped widget sends them apart, and the
+    // endpoint can only check the path on its own if it arrives on its own.
+    expect(schema.required).toEqual([
+      'origin',
+      'pathname',
+      'mode',
+      'topLevel',
+      'urlWritable',
+      'paramPersisted',
+      'routing',
+    ])
+  })
+
+  it('documents the machine codes a rejected url carries', () => {
+    // The widget distinguishes "I sent a bad URL" from "this host isn't mine",
+    // so both refusals have to be discoverable from the spec.
+    for (const code of ['query_or_fragment', 'invalid_url', 'unsupported_scheme']) {
+      expect(post?.responses?.['400']?.description).toContain(code)
+    }
+    expect(post?.responses?.['403']?.description).toContain('allowedDomains')
+  })
+
+  // `clients` is in ALWAYS_HIDDEN_COLLECTIONS and belongs to no project, so
+  // filterSpec marks this x-internal. Deliberate — it is the first-party
+  // widget's telemetry channel, not a third-party integration surface — and
+  // pinned here so a future filter change doesn't publish it by accident.
+  it('stays x-internal in the public spec', () => {
+    const filtered = filterSpec(
+      {
+        openapi: '3.1.0',
+        info: { title: 't', version: '1' },
+        paths: { ...CUSTOM_ENDPOINT_PATHS },
+        components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
+      } as unknown as OpenAPISpec,
+      { project: 'sahaj-atlas' },
+    )
+    const operation = (
+      filtered.paths?.['/api/clients/report'] as Record<string, Record<string, unknown>>
+    )?.post
+    expect(operation, 'POST /api/clients/report is missing from the filtered spec').toBeDefined()
+    expect(operation['x-internal']).toBe(true)
   })
 })
 

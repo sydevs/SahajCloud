@@ -33,4 +33,5 @@ one-time backfills, deployment helpers, etc.
 | `repair-r2-meditation-filenames.ts` | Backfill / fix R2 filenames on existing meditations |
 | `create-sample-page.ts` | Generate a sample Pages document |
 | `backfill-schedule-last-date.ts` | Recompute the derived `schedule.lastDate` column on existing `events` + `app-cards` rows (#603). Dry run by default, `--force` to write, re-runnable. Routine lives in `src/lib/schedule/backfillLastDate.ts` |
+| `verify-embed-live.ts` | Exercise the Cloudflare Browser Rendering integration against real pages (#633). `--self-test` proves all four outcomes without a live site; pass URLs to diagnose why a service's canonical was disabled. Calls the same `verifyEmbed()` the nightly job does, so a green run is evidence about production. Costs one Browser Rendering call per URL |
 | `postinstall.cjs` | Run after `pnpm install` |

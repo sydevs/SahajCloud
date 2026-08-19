@@ -81,7 +81,20 @@ masked `R2_BUCKET: ***` is exactly what makes an R2 403 hard to read.
 The script exits 1 without any of the required three — deliberately: a cleanup
 that silently reaps nothing is worse than one that fails loudly.
 
-**One token, three backends.** The script takes no R2 access-key pair of its own.
+**One token, now four surfaces.** Alongside Images (Edit), Stream (Edit) and R2
+(Object Read & Write), `CLOUDFLARE_API_KEY` also carries **Browser Rendering**
+(Read & Write). That last one is not storage — it renders a third-party page so
+`VerifyEmbeds` can confirm a client's embed actually booted before its mount may
+yield a canonical URL (`src/lib/embedVerification/`, `.claude/rules/api-clients.md`).
+It shares the token because it shares the account, and Browser Rendering needs a
+Workers Paid plan.
+
+If that permission is ever dropped from the token, the verifier degrades to
+`inconclusive: 'not-configured'` — which by design changes nothing and disables
+nothing, so the failure is silent apart from the job's own logs. Check there
+first if canonical verification stops advancing.
+
+**One token, three storage backends.** The script takes no R2 access-key pair of its own.
 R2's `Object Read & Write` permission is honoured only by the S3-compatible API
 (SigV4) — the REST API rejects object-scoped tokens — so `r2Credentials.ts`
 derives the pair from `CLOUDFLARE_API_KEY` the way

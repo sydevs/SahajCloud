@@ -1,12 +1,28 @@
 import type { CollectionConfig } from 'payload'
 
 import { colorField, legacyMigrationFields } from '@/fields'
+import { embedMetadataJsonSchema } from '@/lib/clients/embedMetadata'
+import {
+  CANONICAL_VERIFICATION_SCHEMA_URI,
+  canonicalVerificationJsonSchema,
+} from '@/lib/clients/verification'
 import { getLanguageOptions } from '@/lib/locales'
 import { getRoleOptions } from '@/plugins/access'
 import { calculateAbuseScore } from '@/plugins/usage'
 
+import { clientEmbedReport } from './endpoints/report'
+import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
+import { validateCanonicalOwnership } from './hooks/validateCanonicalOwnership'
 import { validateClientData } from './hooks/validateClientData'
+
+/**
+ * Canonical ownership is one master switch: with it off the feature is off, and every field it
+ * governs is hidden rather than shown inert. Shared so the fields cannot drift apart, and so
+ * `required` on `embed` reads as exactly "required when canonical ownership is on".
+ */
+const canonicalEnabled = (data: { canonical?: { enabled?: boolean | null } | null }): boolean =>
+  Boolean(data?.canonical?.enabled)
 
 export const Clients: CollectionConfig = {
   slug: 'clients',
@@ -37,7 +53,7 @@ export const Clients: CollectionConfig = {
       type: 'tabs',
       tabs: [
         {
-          label: 'Details',
+          label: 'Config',
           fields: [
             {
               name: 'name',
@@ -48,6 +64,188 @@ export const Clients: CollectionConfig = {
                 description: 'Client organization or application name',
               },
             },
+            {
+              // The Atlas-only settings. The condition sits here rather than on the
+              // tab because `name` is required and `useAsTitle` — hiding the whole tab
+              // from a non-Atlas service would hide the one field every service must
+              // have, and Payload skips `required` on a field behind a false condition.
+              type: 'collapsible',
+              label: 'Sahaj Atlas',
+              admin: {
+                initCollapsed: false,
+                condition: (data) =>
+                  Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client'),
+              },
+              fields: [
+                {
+                  name: 'allowedDomains',
+                  type: 'textarea',
+                  admin: {
+                    description:
+                      'What domains are associated with this client. Put each domain on a new line.',
+                  },
+                },
+                {
+                  type: 'row',
+                  fields: [
+                    colorField({ name: 'color1', label: 'Primary Color' }),
+                    colorField({ name: 'color2', label: 'Secondary Color' }),
+                    colorField({ name: 'color3', label: 'Tertiary Color' }),
+                  ],
+                },
+                {
+                  name: 'logo',
+                  type: 'upload',
+                  relationTo: 'images',
+                  admin: {
+                    description:
+                      'Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.',
+                  },
+                },
+                {
+                  type: 'row',
+                  fields: [
+                    {
+                      name: 'websiteUrl',
+                      type: 'text',
+                      admin: { description: 'Linked from the footer of registrant emails.' },
+                    },
+                    {
+                      name: 'supportEmail',
+                      type: 'email',
+                      admin: {
+                        description:
+                          'Reply-To on registrant emails, so replies reach this service rather than us.',
+                      },
+                    },
+                  ],
+                },
+                {
+                  name: 'locale',
+                  type: 'select',
+                  options: getLanguageOptions(),
+                  admin: { description: 'Primary language for this service (any language).' },
+                },
+                {
+                  name: 'region',
+                  type: 'relationship',
+                  relationTo: 'regions',
+                  admin: { description: 'Atlas geographic scope for this service.' },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          label: 'SEO',
+          admin: {
+            condition: (data) =>
+              Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client'),
+          },
+          fields: [
+            {
+              name: 'canonical',
+              type: 'group',
+              label: 'Canonical Ownership',
+              admin: {
+                description:
+                  'Declares that this service owns the canonical Atlas URLs for its region. Off by default, and nothing resolves differently until it is switched on.',
+              },
+              fields: [
+                {
+                  name: 'enabled',
+                  type: 'checkbox',
+                  defaultValue: false,
+                  label: 'This service owns its region’s canonical URLs',
+                  admin: {
+                    description:
+                      'At most one service per region may own them. Requires a region and one of the embeds this service has reported — the CMS then loads that page itself to confirm the widget is really there, and only a verified embed ever yields a canonical URL.',
+                  },
+                },
+                {
+                  name: 'embed',
+                  type: 'text',
+                  label: 'Canonical Embed',
+                  // `required` + the condition below is the whole "an embed must be
+                  // chosen whenever canonical ownership is on" rule: Payload skips
+                  // `required` while a condition is false and enforces it when true.
+                  // Same shape as `primaryContact`.
+                  required: true,
+                  admin: {
+                    condition: canonicalEnabled,
+                    components: {
+                      Field: '@/components/admin/CanonicalEmbedPicker',
+                      Description: '@/components/admin/CanonicalEmbedPicker/Description',
+                    },
+                    description:
+                      'Which of the embeds this service reported owns the canonical URLs. Domain, mount and routing all come from this one choice.',
+                  },
+                },
+                {
+                  name: 'verification',
+                  type: 'json',
+                  label: 'Verification',
+                  // Written only by the VerifyEmbeds job (and verify-on-demand) from
+                  // what was observed on the live page — never by a client report, so
+                  // a forged report can nominate a mount but never reshape a public URL.
+                  jsonSchema: {
+                    uri: CANONICAL_VERIFICATION_SCHEMA_URI,
+                    fileMatch: [CANONICAL_VERIFICATION_SCHEMA_URI],
+                    schema: canonicalVerificationJsonSchema,
+                  },
+                  admin: {
+                    readOnly: true,
+                    condition: canonicalEnabled,
+                    description:
+                      'What the CMS last confirmed by loading the page itself. Only a verified embed ever yields a canonical URL.',
+                  },
+                },
+                {
+                  name: 'nextVerifyAt',
+                  type: 'date',
+                  // A real indexed column, not part of the JSON above: it is the
+                  // VerifyEmbeds job's only query predicate, so it has to stay cheap
+                  // (the role `events.nextCheckAt` plays for ExpireEvents).
+                  index: true,
+                  admin: { hidden: true },
+                },
+              ],
+            },
+            {
+              // Collapsed by default: evidence someone consults when deciding the
+              // canonical embed above, not something they read on every visit.
+              type: 'collapsible',
+              label: 'Reported Embeds',
+              admin: { initCollapsed: true },
+              fields: [
+                {
+                  // Observed data, not configuration — written only by
+                  // `POST /api/clients/report`, hence read-only here. One record per
+                  // mount, keyed by origin + pathname; see ./embedMetadata.ts.
+                  name: 'embedMetadata',
+                  type: 'json',
+                  label: 'Discovered Embeds',
+                  jsonSchema: {
+                    uri: 'https://sahajcloud.dev/schemas/client-embed-metadata.json',
+                    fileMatch: ['https://sahajcloud.dev/schemas/client-embed-metadata.json'],
+                    schema: {
+                      $id: 'https://sahajcloud.dev/schemas/client-embed-metadata.json',
+                      ...embedMetadataJsonSchema,
+                    },
+                  },
+                  admin: {
+                    readOnly: true,
+                    description:
+                      'What the widget reported about each page it is installed on. Reported, never configured — the legacy hand-maintained embed type was wrong in the field.',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          label: 'Access',
+          fields: [
             {
               name: 'notes',
               type: 'textarea',
@@ -101,78 +299,6 @@ export const Clients: CollectionConfig = {
                   },
                 },
               ],
-            },
-          ],
-        },
-        {
-          label: 'Atlas Config',
-          admin: {
-            condition: (data) =>
-              Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client'),
-          },
-          fields: [
-            {
-              name: 'allowedDomains',
-              type: 'textarea',
-              admin: {
-                description:
-                  'What domains are associated with this client. Put each domain on a new line.',
-              },
-            },
-            {
-              type: 'row',
-              fields: [
-                colorField({ name: 'color1', label: 'Primary Color' }),
-                colorField({ name: 'color2', label: 'Secondary Color' }),
-                colorField({ name: 'color3', label: 'Tertiary Color' }),
-              ],
-            },
-            {
-              name: 'logo',
-              type: 'upload',
-              relationTo: 'images',
-              admin: {
-                description:
-                  'Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.',
-              },
-            },
-            {
-              type: 'row',
-              fields: [
-                {
-                  name: 'websiteUrl',
-                  type: 'text',
-                  admin: { description: 'Linked from the footer of registrant emails.' },
-                },
-                {
-                  name: 'supportEmail',
-                  type: 'email',
-                  admin: {
-                    description:
-                      'Reply-To on registrant emails, so replies reach this service rather than us.',
-                  },
-                },
-              ],
-            },
-            {
-              name: 'locale',
-              type: 'select',
-              options: getLanguageOptions(),
-              admin: { description: 'Primary language for this service (any language).' },
-            },
-            {
-              name: 'region',
-              type: 'relationship',
-              relationTo: 'regions',
-              admin: { description: 'Atlas geographic scope for this service.' },
-            },
-            {
-              name: 'legacyConfig',
-              type: 'json',
-              admin: {
-                readOnly: true,
-                description: 'Deprecated Atlas config (routing_type, embed_type, default_view).',
-              },
             },
           ],
         },
@@ -290,7 +416,8 @@ export const Clients: CollectionConfig = {
     },
     ...legacyMigrationFields(),
   ],
+  endpoints: [clientEmbedReport, verifyEmbedOnDemand],
   hooks: {
-    beforeChange: [validateClientData, ensureClientId],
+    beforeChange: [validateClientData, ensureClientId, validateCanonicalOwnership],
   },
 }
