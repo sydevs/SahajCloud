@@ -227,6 +227,39 @@ memoization, the transaction and access control are unaffected — only
 `locale`/`fallbackLocale` become the copy's own. Not needed when the nested call
 uses the caller's own locale.
 
+### A virtual field's `afterRead` must not join the caller's transaction
+
+The sibling trap, and a nastier one: **`afterRead` also runs on the response of
+a `create`/`update`**, while that write's transaction is still open. A nested
+read that forwards `req` joins it — and if that read goes wrong, it takes the
+*write* down with it:
+
+```typescript
+// ❌ inside a virtual field's afterRead — aborts the create it is decorating
+const target = await req.payload.findByID({ collection: 'events', id, req })
+```
+
+The failure is silent and looks impossible: `payload.create` **returns a
+document with an id**, and no row exists afterwards. `disableErrors: true` does
+not save you — the read resolving to `null` is not the problem, the shared
+transaction is. In #641 this rolled back every event-submission create that
+named a target event, and only those, because only they took the branch that
+issued the nested read.
+
+Drop `req` from the nested call. A virtual field is a **projection of committed
+state**, so its own connection is the correct one:
+
+```typescript
+// ✅ its own connection; `req` still keys the per-request memo
+return memoizeOnRequest(req, `target:${id}`, () =>
+  req.payload.findByID({ collection: 'events', id, depth: 0, overrideAccess: true }),
+)
+```
+
+Keep passing `req` when the nested call genuinely must see the caller's
+uncommitted writes — a `beforeChange` hook reading a row the same operation just
+wrote. A read-only projection never does.
+
 ## Plugins
 
 ### SEO (`@payloadcms/plugin-seo`)

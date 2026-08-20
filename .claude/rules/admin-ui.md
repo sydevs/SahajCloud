@@ -58,6 +58,44 @@ For non-admin (public) React, Payload's components don't apply — use
 `lucide-react` (see `.claude/rules/code-style.md`). Emails never use either
 (no SVG) — see `.claude/rules/email.md`.
 
+## Live preview pushes the document — the frontend needn't fetch it
+
+Payload posts the edited document's **form state** into the preview iframe on
+every change (`@payloadcms/ui/dist/elements/LivePreview/Window/index.js`):
+
+```js
+const values = reduceFieldsToValues(formState, true)
+iframeRef.current.contentWindow?.postMessage(
+  { type: 'payload-live-preview', collectionSlug, data: values }, url,
+)
+```
+
+Most of this repo's preview routes ignore that and re-fetch by
+`?collection=…&id=…` instead, which is fine for Events/Regions/Pages — but it
+is a *choice*, not a requirement, and it costs you preview on anything the
+frontend can't read:
+
+- a **restricted** collection (API clients hold create-only on
+  `event-submissions`, and the preview secret only unlocks drafts for
+  collections a client can already read);
+- a document with **no id to fetch** — a submission proposing a brand-new event.
+
+For those, carry the render-ready shape in a field and let postMessage deliver
+it: `EventSubmissions.previewEvent` is a virtual JSON field holding the merged
+event, and the widget renders from the message. No access change, no preview
+endpoint. Relationship hydration still fetches by id, so referenced docs must
+stay readable by the client.
+
+Two mechanics worth knowing:
+
+- **Open the panel from a field component**, not a `ui` field:
+  `setIsLivePreviewing(true)` from `useLivePreviewContext()` on mount, mounted
+  on the field whose value the preview consumes (see `EventPreviewMount`), so
+  the panel can't be opened on a document with nothing to show it.
+- A **virtual** field's value is computed on read, so it does not recompute as
+  the user types. That's the right trade only when the document isn't editable —
+  which is exactly the submission-review case.
+
 ## Styling — PayloadCMS CSS variables
 
 **Always use PayloadCMS CSS variables** for theme compatibility (dark/light
