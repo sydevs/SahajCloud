@@ -260,6 +260,38 @@ Keep passing `req` when the nested call genuinely must see the caller's
 uncommitted writes — a `beforeChange` hook reading a row the same operation just
 wrote. A read-only projection never does.
 
+### A field hook's relationship values are bare ids, at any depth
+
+Relationship population happens elsewhere in the read, so inside a field hook
+`data.<rel>` is the raw id **regardless of the `depth` the caller asked for**.
+Rendering one straight into a user-facing projection prints a row number:
+`proposedChanges` showed `Manager: 496` because the value looked populated at
+`depth: 1` from the outside.
+
+Resolve it explicitly, memoized, and — per the section above — **without**
+forwarding `req`:
+
+```typescript
+function loadManager(req: PayloadRequest, managerId: number) {
+  return memoizeOnRequest(req, `submissionManager:${managerId}`, () =>
+    req.payload.findByID({ collection: 'managers', id: managerId, depth: 0,
+      overrideAccess: true, disableErrors: true }),
+  )
+}
+```
+
+`memoizeOnRequest` (`@/lib/utilities/requestMemo`) matters when two hooks on the
+same document need the same doc — `computePreviewEvent` and
+`computeProposedChanges` share one load this way. Fall back to the raw id if the
+row is gone, so a deleted manager degrades to `#496` rather than blanking the
+line.
+
+The neighbouring trap: a **populated** relationship is a plain object, so any
+code that treats "plain object ⇒ a group to expand" will render the whole row.
+`proposedChanges` had to special-case `relationship`/`upload` as references to
+*name*, or a proposed manager came out as their id, roles, email and every
+notification preference.
+
 ## Plugins
 
 ### SEO (`@payloadcms/plugin-seo`)
