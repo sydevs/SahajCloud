@@ -141,6 +141,73 @@ export function labelForPath(path: (string | number)[], fields?: FlattenedField[
 }
 
 /**
+ * Is this a group/json value — something rendered as a block, not a line?
+ *
+ * Lexical rich text is a plain object too, and emphatically not a block to
+ * render: YAML-ing a description turned it into `Root: / Type: root /
+ * Children: [{...}]`. `formatValue` already renders it as the words a reader
+ * would see, so it stays on the scalar path.
+ */
+function isBlockValue(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === 'object' && value !== null && !Array.isArray(value) && !isLexicalValue(value)
+  )
+}
+
+/**
+ * Values the system computes or the UI hides — noise inside a rendered group.
+ * The schedule alone carries `icalRule`, `upcomingDates` and `lastDate`, all
+ * derived from the dates beside them, plus the opaque Mapbox id behind the
+ * address search box.
+ */
+function isNoiseField(field: FlattenedField | undefined, key: string): boolean {
+  if (key === 'mapboxId') return true
+  if (!field) return false
+  if ('virtual' in field && field.virtual) return true
+  return Boolean(field.admin?.hidden)
+}
+
+/**
+ * Render a group as YAML-ish `label: value` lines.
+ *
+ * Hand-rolled rather than handed to a YAML library, because the point is *not*
+ * to serialise the stored object: keys are replaced with the Events field
+ * labels a reviewer already reads elsewhere in the diff, and leaves go through
+ * `formatValue`, so a lexical description or a populated relationship reads the
+ * same here as it does on its own row. A serialiser would print the raw shape.
+ *
+ * Empty leaves are dropped — a group listing ten `null`s buries the four values
+ * that matter.
+ */
+export function renderGroupYaml(
+  value: unknown,
+  fields?: FlattenedField[],
+  depth = 0,
+): string {
+  if (!isBlockValue(value)) return formatValue(value) ?? ''
+  const pad = '  '.repeat(depth)
+  const lines: string[] = []
+
+  for (const [key, child] of Object.entries(value)) {
+    const field = fields?.find((entry) => 'name' in entry && entry.name === key)
+    if (isNoiseField(field, key)) continue
+    const label = fieldLabel(field, key)
+    const nested =
+      field && 'flattenedFields' in field ? (field.flattenedFields as FlattenedField[]) : undefined
+
+    if (isBlockValue(child)) {
+      const block = renderGroupYaml(child, nested, depth + 1)
+      if (block.trim()) lines.push(`${pad}${label}:`, block)
+      continue
+    }
+    const rendered = formatValue(child)
+    if (rendered !== null) lines.push(`${pad}${label}: ${rendered}`)
+  }
+
+  return lines.join('\n')
+}
+
+/**
  * Diff the target event against what it would become. `before` is the existing
  * event for an update proposal, or the new-event defaults for a fresh listing —
  * in which case every entry naturally reads as an addition.
@@ -150,32 +217,68 @@ export function buildProposedChanges(args: {
   after: Record<string, unknown>
   fields?: FlattenedField[]
 }): ProposedChange[] {
-  return (
-    diff(args.before, args.after)
-      .filter((entry) => !OMITTED_ROOTS.has(String(entry.path[0])))
-      .map((entry): ProposedChange => {
-        const before = 'oldValue' in entry ? formatValue(entry.oldValue) : null
-        const after = 'value' in entry ? formatValue(entry.value) : null
-        const longEdit =
-          before !== null &&
-          after !== null &&
-          (before.length >= WORD_DIFF_MIN_LENGTH || after.length >= WORD_DIFF_MIN_LENGTH)
-
-        return {
-          path: entry.path.join('.'),
-          label: labelForPath(entry.path, args.fields),
-          ...(longEdit ? { segments: wordSegments(before, after) } : {}),
-          // Classify by what the reviewer sees, not by microdiff's key-level
-          // verdict: a column that held `null` and now holds a value is a
-          // CHANGE to microdiff and plainly an addition to a human.
-          kind: before === null ? 'added' : after === null ? 'removed' : 'changed',
-          before,
-          after,
-        }
-      })
-      // Formatting can collapse a raw difference to no visible difference at all
-      // (`null` vs `''`, an unchanged relationship rendered by title). Showing
-      // those would tell a reviewer something changed when nothing they can see did.
-      .filter((change) => change.before !== change.after)
+  const entries = diff(args.before, args.after).filter(
+    (entry) => !OMITTED_ROOTS.has(String(entry.path[0])),
   )
+
+  // Group/json fields collapse to one entry each. Seven separate
+  // "Address › …" rows told a reviewer which keys moved but never what the
+  // address now reads as; one YAML block with every subfield, word-diffed,
+  // shows the change in the context that makes it judgeable.
+  const blockKeys = new Set<string>()
+  for (const entry of entries) {
+    const key = String(entry.path[0])
+    if (isBlockValue(args.before[key]) || isBlockValue(args.after[key])) blockKeys.add(key)
+  }
+
+  const changes: ProposedChange[] = []
+
+  for (const key of blockKeys) {
+    const field = args.fields?.find((entry) => 'name' in entry && entry.name === key)
+    const nested =
+      field && 'flattenedFields' in field ? (field.flattenedFields as FlattenedField[]) : undefined
+    const before = renderGroupYaml(args.before[key], nested) || null
+    const after = renderGroupYaml(args.after[key], nested) || null
+    if (before === after) continue
+    changes.push({
+      path: key,
+      label: labelForPath([key], args.fields),
+      kind: before === null ? 'added' : after === null ? 'removed' : 'changed',
+      before,
+      after,
+      // Always word-diffed: a block is exactly the case where showing both
+      // copies in full defeats the purpose.
+      ...(before !== null && after !== null ? { segments: wordSegments(before, after) } : {}),
+    })
+  }
+
+  const scalars = entries
+    .filter((entry) => !blockKeys.has(String(entry.path[0])))
+    .map((entry): ProposedChange => {
+      const before = 'oldValue' in entry ? formatValue(entry.oldValue) : null
+      const after = 'value' in entry ? formatValue(entry.value) : null
+
+      const longEdit =
+        before !== null &&
+        after !== null &&
+        (before.length >= WORD_DIFF_MIN_LENGTH || after.length >= WORD_DIFF_MIN_LENGTH)
+
+      return {
+        path: entry.path.join('.'),
+        label: labelForPath(entry.path, args.fields),
+        ...(longEdit ? { segments: wordSegments(before, after) } : {}),
+        // Classify by what the reviewer sees, not by microdiff's key-level
+        // verdict: a column that held `null` and now holds a value is a
+        // CHANGE to microdiff and plainly an addition to a human.
+        kind: before === null ? 'added' : after === null ? 'removed' : 'changed',
+        before,
+        after,
+      }
+    })
+    // Formatting can collapse a raw difference to no visible difference at all
+    // (`null` vs `''`, an unchanged relationship rendered by title). Showing
+    // those would tell a reviewer something changed when nothing they can see did.
+    .filter((change) => change.before !== change.after)
+
+  return [...changes, ...scalars]
 }

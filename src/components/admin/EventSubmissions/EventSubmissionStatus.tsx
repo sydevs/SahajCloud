@@ -63,7 +63,9 @@ const COPY: Record<SubmissionStatus, { severity: Severity; title: string; messag
     message: 'The proposed changes were applied.',
   },
   rejected: {
-    severity: 'info',
+    // Red like spam: both are refusals, and a reviewer scanning the list
+    // should read "this was turned down" at the same glance either way.
+    severity: 'error',
     title: 'Rejected',
     message: 'Kept for the record. Nothing was created or changed.',
   },
@@ -80,7 +82,7 @@ const ICONS: Record<Severity, React.FC> = {
  * Banner's own `type` — the built-in property, used wherever it has a variant.
  *
  * It ships `default | error | success` only. `warning` maps to `default` here
- * and gets its colour from `.event-submission-notice--warning` instead
+ * and gets its colour from `.event-submission-status--warning` instead
  * (Payload's own `--theme-warning-*` ramp): mapping it to `error` is what
  * previously repainted the amber WarningIcon red — `.banner--type-error`
  * applies `color-svg(var(--theme-error-600))` to every nested svg — making a
@@ -108,7 +110,7 @@ function stringsOf(value: unknown): string[] {
  * field, so it reads its own value through `useField` instead of reaching
  * across form state for it.
  */
-export const EventSubmissionNotice: FieldClientComponent = ({ field }) => {
+export const EventSubmissionStatus: FieldClientComponent = ({ field }) => {
   const { name, label } = field as JSONFieldClient
   const { id } = useDocumentInfo()
   const status = useFormFields(([fields]) => fields?.status?.value as SubmissionStatus | undefined)
@@ -136,13 +138,13 @@ export const EventSubmissionNotice: FieldClientComponent = ({ field }) => {
     <div className="field-type json read-only">
       <FieldLabel label={label} path={name} />
       <Banner
-        className={`event-submission-notice event-submission-notice--${severity}`}
+        className={`event-submission-status event-submission-status--${severity}`}
         type={BANNER_TYPE[severity]}
         icon={<Icon />}
         alignIcon="left"
       >
         <div>
-          <strong className="event-submission-notice__title">{title}</strong>
+          <strong className="event-submission-status__title">{title}</strong>
           <div>{message}</div>
           {notes.length > 0 && (
             <ul style={{ margin: 'calc(var(--base) * 0.4) 0 0', paddingLeft: '1.2em' }}>
@@ -157,4 +159,4 @@ export const EventSubmissionNotice: FieldClientComponent = ({ field }) => {
   )
 }
 
-export default EventSubmissionNotice
+export default EventSubmissionStatus

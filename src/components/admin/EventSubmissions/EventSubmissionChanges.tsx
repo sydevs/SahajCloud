@@ -19,8 +19,8 @@ const CHANGED_SUFFIX = ' — Changed'
 /** One `−`/`+` row. `null` renders the word "empty" rather than a blank line. */
 function DiffLine({ kind, text }: { kind: 'removed' | 'added'; text: string | null }) {
   return (
-    <div className={`proposed-changes__line proposed-changes__line--${kind}`}>
-      <span className="proposed-changes__marker">{kind === 'removed' ? '−' : '+'}</span>
+    <div className={`event-submission-changes__line event-submission-changes__line--${kind}`}>
+      <span className="event-submission-changes__marker">{kind === 'removed' ? '−' : '+'}</span>
       <span>{text ?? 'empty'}</span>
     </div>
   )
@@ -33,13 +33,13 @@ function DiffLine({ kind, text }: { kind: 'removed' | 'added'; text: string | nu
  */
 function WordDiff({ change }: { change: ProposedChange }) {
   return (
-    <div className="proposed-changes__line proposed-changes__line--words">
+    <div className="event-submission-changes__line event-submission-changes__line--words">
       <span>
         {change.segments?.map((segment, index) => (
           <span
             key={index}
             className={
-              segment.kind === 'same' ? undefined : `proposed-changes__word--${segment.kind}`
+              segment.kind === 'same' ? undefined : `event-submission-changes__word--${segment.kind}`
             }
           >
             {segment.text}
@@ -76,16 +76,16 @@ export const EventSubmissionChanges: FieldClientComponent = ({ field }) => {
       <FieldLabel label={label} path={name} />
       <div className="field-type__wrap">
         {changes.length === 0 ? (
-          <div className="proposed-changes__empty">
+          <div className="event-submission-changes__empty">
             This submission would not change anything on the event.
           </div>
         ) : (
           changes.map((change) => (
-            <div className="proposed-changes__entry" key={change.path}>
-              <div className="proposed-changes__label">
+            <div className="event-submission-changes__entry" key={change.path}>
+              <div className="event-submission-changes__label">
                 {change.label}
                 {change.kind === 'changed' && (
-                  <span className="proposed-changes__kind">{CHANGED_SUFFIX}</span>
+                  <span className="event-submission-changes__kind">{CHANGED_SUFFIX}</span>
                 )}
               </div>
               {change.segments ? (

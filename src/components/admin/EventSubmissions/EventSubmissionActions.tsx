@@ -45,7 +45,7 @@ const DONE: Record<Action, (status?: string) => string> = {
  * The `region` Save button stays alongside while the submission is open,
  * because correcting an unresolved region is a prerequisite for Accept.
  */
-const EventSubmissionSaveButton: React.FC = () => {
+const EventSubmissionActions: React.FC = () => {
   const { id } = useDocumentInfo()
   const router = useRouter()
   const status = useFormFields(([fields]) => fields?.status?.value as SubmissionStatus | undefined)
@@ -124,4 +124,4 @@ const EventSubmissionSaveButton: React.FC = () => {
   )
 }
 
-export default EventSubmissionSaveButton
+export default EventSubmissionActions

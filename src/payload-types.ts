@@ -3521,10 +3521,6 @@ export interface Frame {
  */
 export interface EventSubmission {
   id: number;
-  /**
-   * Generated from the proposal when the submission arrives.
-   */
-  title?: string | null;
   screeningResult?:
     | {
         [k: string]: unknown;
@@ -3569,6 +3565,10 @@ export interface EventSubmission {
    * The city or venue this event belongs to. Resolved by screening — correct it here if it came back empty or wrong.
    */
   region?: (number | null) | Region;
+  /**
+   * Generated from the proposal when the submission arrives.
+   */
+  title?: string | null;
   /**
    * The proposed Events field patch, exactly as submitted.
    */
@@ -4805,13 +4805,13 @@ export interface EventsSelect<T extends boolean = true> {
  * via the `definition` "event-submissions_select".
  */
 export interface EventSubmissionsSelect<T extends boolean = true> {
-  title?: T;
   screeningResult?: T;
   submitterInfo?: T;
   proposedChanges?: T;
   previewEvent?: T;
   event?: T;
   region?: T;
+  title?: T;
   proposed?: T;
   status?: T;
   submitter?: T;

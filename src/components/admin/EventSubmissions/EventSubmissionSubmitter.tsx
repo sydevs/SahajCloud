@@ -23,11 +23,14 @@ function text(value: unknown): string | null {
  * read-only: the reviewer is judging a submission, not correcting the
  * submitter's details.
  *
- * Built on Payload's `Banner` with its default (neutral) type rather than
- * hand-rolled markup, so the card's background, padding and radius come from
- * the admin theme. `Card` would be the obvious alternative and doesn't fit —
- * it takes a `title` string and no children, so there is nowhere to put the
- * note.
+ * Built on Payload's `Banner` rather than hand-rolled markup, so the card's
+ * padding and radius come from the admin theme. `Card` would be the obvious
+ * alternative and doesn't fit — it takes a `title` string and no children, so
+ * there is nowhere to put the note.
+ *
+ * Its background is overridden to a true grey: Banner's default reads from
+ * `--theme-elevation-*`, which `ProjectTheme` tints per project, so under
+ * Sahaj Atlas the "neutral" card came out blue.
  *
  * The identity goes in the banner's first line and the note below it, labelled
  * "Message:" and **in quotation marks**, because it is a stranger's own words:
@@ -44,7 +47,7 @@ function text(value: unknown): string | null {
  * this shows the raw strings as typed, which is what matters when deciding
  * whether a submission is genuine.
  */
-export const EventSubmitterPanel: FieldClientComponent = ({ field }) => {
+export const EventSubmissionSubmitter: FieldClientComponent = ({ field }) => {
   const { name, label } = field as JSONFieldClient
   const { value } = useField<SubmitterInfo | null>()
   const info = (value ?? {}) as SubmitterInfo
@@ -58,20 +61,20 @@ export const EventSubmitterPanel: FieldClientComponent = ({ field }) => {
       <FieldLabel label={label} path={name} />
       <div className="field-type__wrap">
         {!submitterName && !email && !note ? (
-          <div className="submitter-panel__empty">No submitter details were recorded.</div>
+          <div className="event-submission-submitter__empty">No submitter details were recorded.</div>
         ) : (
-          <Banner alignIcon="left">
-            <div className="submitter-panel__identity">
-              {submitterName && <span className="submitter-panel__name">{submitterName}</span>}
+          <Banner className="event-submission-submitter__card" alignIcon="left">
+            <div className="event-submission-submitter__identity">
+              {submitterName && <span className="event-submission-submitter__name">{submitterName}</span>}
               {email && (
-                <a className="submitter-panel__email" href={`mailto:${email}`}>
+                <a className="event-submission-submitter__email" href={`mailto:${email}`}>
                   {email}
                 </a>
               )}
             </div>
             {note && (
-              <div className="submitter-panel__note">
-                <span className="submitter-panel__note-label">Message:</span>{' '}
+              <div className="event-submission-submitter__note">
+                <span className="event-submission-submitter__note-label">Message:</span>{' '}
                 <q>{note}</q>
               </div>
             )}
@@ -82,4 +85,4 @@ export const EventSubmitterPanel: FieldClientComponent = ({ field }) => {
   )
 }
 
-export default EventSubmitterPanel
+export default EventSubmissionSubmitter

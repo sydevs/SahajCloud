@@ -91,7 +91,7 @@ export const EventSubmissions: CollectionConfig = {
         // Accept / Reject replace Save while the submission is open — nothing
         // on the page is editable except `region`, so there is no form to save
         // first (see the component).
-        SaveButton: '@/components/admin/EventSubmissionSaveButton',
+        SaveButton: '@/components/admin/EventSubmissions/EventSubmissionActions',
       },
     },
     // Live Preview renders the event **as this submission would leave it**.
@@ -119,22 +119,6 @@ export const EventSubmissions: CollectionConfig = {
   endpoints: [reviewSubmission],
   fields: [
     {
-      // What this submission is about, stamped on create by `submissionTitle`:
-      // "New Event: <the title the event would be created with>" or
-      // "Update Event: <the target's title>". `useAsTitle`, so it names the
-      // row, the breadcrumb and the browser tab.
-      //
-      // Not client-writable: it is derived, and a submitter naming their own
-      // submission would put unreviewed text in the admin's list view.
-      name: 'title',
-      type: 'text',
-      access: systemFieldAccess,
-      admin: {
-        readOnly: true,
-        description: 'Generated from the proposal when the submission arrives.',
-      },
-    },
-    {
       // Status banner + screening verdict. Mounted on the data it renders
       // rather than on a `ui` field, so the component reads its own value
       // instead of reaching across form state (as `notificationLog` →
@@ -147,7 +131,7 @@ export const EventSubmissions: CollectionConfig = {
       access: systemFieldAccess,
       admin: {
         readOnly: true,
-        components: { Field: '@/components/admin/EventSubmissionNotice' },
+        components: { Field: '@/components/admin/EventSubmissions/EventSubmissionStatus' },
       },
     },
     {
@@ -158,7 +142,7 @@ export const EventSubmissions: CollectionConfig = {
       label: 'Submitted By',
       admin: {
         readOnly: true,
-        components: { Field: '@/components/admin/EventSubmitterPanel' },
+        components: { Field: '@/components/admin/EventSubmissions/EventSubmissionSubmitter' },
       },
     },
     {
@@ -171,7 +155,7 @@ export const EventSubmissions: CollectionConfig = {
       label: 'Proposed Changes',
       admin: {
         readOnly: true,
-        components: { Field: '@/components/admin/EventSubmissionChanges' },
+        components: { Field: '@/components/admin/EventSubmissions/EventSubmissionChanges' },
       },
       hooks: { afterRead: [computeProposedChanges] },
     },
@@ -187,7 +171,7 @@ export const EventSubmissions: CollectionConfig = {
       label: false,
       admin: {
         readOnly: true,
-        components: { Field: '@/components/admin/EventSubmissionPreview' },
+        components: { Field: '@/components/admin/EventSubmissions/EventSubmissionPreview' },
       },
       hooks: { afterRead: [computePreviewEvent] },
     },
@@ -227,6 +211,22 @@ export const EventSubmissions: CollectionConfig = {
       type: 'collapsible',
       admin: { initCollapsed: true },
       fields: [
+        {
+          // What this submission is about, stamped on create by `submissionTitle`:
+          // "New Event: <the title the event would be created with>" or
+          // "Update Event: <the target's title>". `useAsTitle`, so it names the
+          // row, the breadcrumb and the browser tab.
+          //
+          // Not client-writable: it is derived, and a submitter naming their own
+          // submission would put unreviewed text in the admin's list view.
+          name: 'title',
+          type: 'text',
+          access: systemFieldAccess,
+          admin: {
+            readOnly: true,
+            description: 'Generated from the proposal when the submission arrives.',
+          },
+        },
         {
           // The raw patch behind the diff above. Kept visible (read-only) so a
           // reviewer triaging an odd diff can see exactly what was submitted.
