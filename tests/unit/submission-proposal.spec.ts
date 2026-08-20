@@ -26,13 +26,22 @@ const EVENT_FIELDS = [
   { name: 'contactPhone', type: 'text', label: 'Contact Phone Number' },
   { name: 'onlineUrl', type: 'text', label: 'Online URL' },
   { name: 'description', type: 'richText' },
+  {
+    name: 'address',
+    type: 'group',
+    flattenedFields: [{ name: 'venueName', type: 'text', label: 'Venue Name' }],
+  },
   { name: 'verificationStage', type: 'select', admin: { readOnly: true } },
   { name: 'manager', type: 'relationship' },
   { name: 'region', type: 'relationship' },
   {
     name: 'schedule',
     type: 'group',
-    flattenedFields: [{ name: 'firstDate', type: 'date', label: 'First Date & Time' }],
+    flattenedFields: [
+      { name: 'firstDate', type: 'date', label: 'First Date & Time' },
+      { name: 'endTime', type: 'text', label: 'End Time' },
+      { name: 'recurrenceType', type: 'select', label: 'Repeats' },
+    ],
   },
 ] as unknown as FlattenedField[]
 
@@ -235,6 +244,46 @@ describe('word-level segments', () => {
       fields: EVENT_FIELDS,
     })
     expect(change.segments).toBeUndefined()
+  })
+})
+
+describe('group blocks', () => {
+  it('renders keys in the collection order, not the object order', () => {
+    // A proposal's patch and a stored event enumerate their keys differently,
+    // so insertion order put the same group's lines in one order on a new
+    // submission and another on an update — and the diff called the reshuffle
+    // a change.
+    const scrambled = {
+      schedule: { recurrenceType: 'WEEKLY', endTime: '20:00', firstDate: '2026-09-03T16:30:00.000Z' },
+    }
+    const [change] = buildProposedChanges({ before: {}, after: scrambled, fields: EVENT_FIELDS })
+    const keys = (change.after ?? '').split('\n').map((line) => line.split(':')[0])
+    expect(keys).toEqual(['First Date & Time', 'End Time', 'Repeats'])
+  })
+
+  it('formats a date so the diff lands on parts a human reads', () => {
+    const [change] = buildProposedChanges({
+      before: { schedule: { firstDate: '2026-07-18T16:00:00.000Z' } },
+      after: { schedule: { firstDate: '2026-09-03T16:30:00.000Z' } },
+      fields: EVENT_FIELDS,
+    })
+    expect(change.before).toContain('18 Jul 2026, 16:00 UTC')
+    expect(change.after).toContain('3 Sept 2026, 16:30 UTC')
+    // Not `2026-«-07»«+09»-«-18T16»` — whole date parts, not digits.
+    expect(change.segments?.some((segment) => segment.text.includes('Jul'))).toBe(true)
+  })
+
+  it('segments a wholly-new group too, so its keys can be emphasised', () => {
+    const [change] = buildProposedChanges({
+      before: {},
+      after: { address: { venueName: 'Riverside Hall' } },
+      fields: EVENT_FIELDS,
+    })
+    expect(change.kind).toBe('added')
+    expect(change.block).toBe(true)
+    expect(change.segments).toEqual([
+      { text: 'Venue Name: Riverside Hall', kind: 'added' },
+    ])
   })
 })
 

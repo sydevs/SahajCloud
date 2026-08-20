@@ -87,12 +87,21 @@ function isLexicalValue(value: unknown): boolean {
  * Returns `null` for "no value", so an added field reads as blank → value
  * rather than `"undefined" → value`.
  */
-export function formatValue(value: unknown): string | null {
+export function formatValue(value: unknown, field?: FlattenedField): string | null {
   if (value == null || value === '') return null
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
 
+  // A stored instant is unreadable as `2026-09-03T16:30:00.000Z`, and diffing
+  // it word by word produces nonsense like `2026-«-07»«+09»-«-18T16»«+03T16»`.
+  // Formatted first, the diff lands on whole date parts a human can compare.
+  if (field?.type === 'date' && typeof value === 'string') {
+    const formatted = formatInstant(value)
+    if (formatted) return formatted
+  }
+
   if (Array.isArray(value)) {
-    const parts = value.map(formatValue).filter((part): part is string => part != null)
+    const parts = value.map((entry) => formatValue(entry, field))
+      .filter((part): part is string => part != null)
     return parts.length > 0 ? parts.join(', ') : null
   }
 
@@ -109,6 +118,23 @@ export function formatValue(value: unknown): string | null {
   }
 
   return String(value)
+}
+
+/**
+ * `3 Sep 2026, 16:30 UTC` — fixed locale and zone on purpose. This runs
+ * server-side, so anything locale- or machine-timezone-dependent would render
+ * differently per deploy; and the stored value *is* a UTC instant (the event's
+ * own zone lives beside it in `firstDate_tz`), so saying so is honest rather
+ * than silently reinterpreting it.
+ */
+function formatInstant(value: string): string | null {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return `${new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(date)} UTC`
 }
 
 function fieldLabel(field: FlattenedField | undefined, fallback: string): string {
@@ -185,6 +211,21 @@ function isNoiseField(field: FlattenedField | undefined, key: string): boolean {
  * Empty leaves are dropped — a group listing ten `null`s buries the four values
  * that matter.
  */
+/**
+ * The group's keys in the order the collection declares them, with any key the
+ * config doesn't know about appended in its own order rather than dropped —
+ * an unrecognised key is exactly the kind of thing a reviewer should see.
+ */
+function orderedKeys(value: Record<string, unknown>, fields?: FlattenedField[]): string[] {
+  const own = Object.keys(value)
+  if (!fields) return own
+  const declared = fields
+    .map((field) => ('name' in field ? field.name : null))
+    .filter((name): name is string => typeof name === 'string' && name in value)
+  const seen = new Set(declared)
+  return [...declared, ...own.filter((key) => !seen.has(key))]
+}
+
 export function renderGroupYaml(
   value: unknown,
   fields?: FlattenedField[],
@@ -194,7 +235,13 @@ export function renderGroupYaml(
   const pad = '  '.repeat(depth)
   const lines: string[] = []
 
-  for (const [key, child] of Object.entries(value)) {
+  // Ordered by the collection, not by the object's own keys. A proposal's
+  // patch and a stored event enumerate their keys in different orders, so
+  // rendering insertion order put the same group's lines in one order on a new
+  // submission and another on an update — and the word diff then reported the
+  // reshuffle as a change.
+  for (const key of orderedKeys(value, fields)) {
+    const child = value[key]
     const field = fields?.find((entry) => 'name' in entry && entry.name === key)
     if (isNoiseField(field, key)) continue
     const label = fieldLabel(field, key)
@@ -206,7 +253,7 @@ export function renderGroupYaml(
       if (block.trim()) lines.push(`${pad}${label}:`, block)
       continue
     }
-    const rendered = formatValue(child)
+    const rendered = formatValue(child, field)
     if (rendered !== null) lines.push(`${pad}${label}: ${rendered}`)
   }
 
@@ -218,6 +265,23 @@ export function renderGroupYaml(
  * event for an update proposal, or the new-event defaults for a fresh listing —
  * in which case every entry naturally reads as an addition.
  */
+/** The field a diff path lands on, for type-aware formatting. */
+function fieldAtPath(
+  path: (string | number)[],
+  fields?: FlattenedField[],
+): FlattenedField | undefined {
+  let current = fields
+  let found: FlattenedField | undefined
+  for (const segment of path) {
+    if (typeof segment === 'number') continue
+    found = current?.find((entry) => 'name' in entry && entry.name === segment)
+    if (!found) return undefined
+    current =
+      'flattenedFields' in found ? (found.flattenedFields as FlattenedField[]) : undefined
+  }
+  return found
+}
+
 export function buildProposedChanges(args: {
   before: Record<string, unknown>
   after: Record<string, unknown>
@@ -253,17 +317,22 @@ export function buildProposedChanges(args: {
       before,
       after,
       block: true,
-      // Always word-diffed: a block is exactly the case where showing both
-      // copies in full defeats the purpose.
-      ...(before !== null && after !== null ? { segments: wordSegments(before, after) } : {}),
+      // Always segmented, including when one side is absent: the renderer
+      // bolds a group's keys off these, so a wholly-new group rendered as a
+      // plain line came out unbolded while an edited one didn't.
+      segments:
+        before !== null && after !== null
+          ? wordSegments(before, after)
+          : [{ text: (after ?? before) as string, kind: after !== null ? 'added' : 'removed' }],
     })
   }
 
   const scalars = entries
     .filter((entry) => !blockKeys.has(String(entry.path[0])))
     .map((entry): ProposedChange => {
-      const before = 'oldValue' in entry ? formatValue(entry.oldValue) : null
-      const after = 'value' in entry ? formatValue(entry.value) : null
+      const field = fieldAtPath(entry.path, args.fields)
+      const before = 'oldValue' in entry ? formatValue(entry.oldValue, field) : null
+      const after = 'value' in entry ? formatValue(entry.value, field) : null
 
       const longEdit =
         before !== null &&
