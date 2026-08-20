@@ -17,7 +17,7 @@ export {
   MINIMUM_IMAGES,
   QUALITY_CHECK_VERSION,
 } from './checks'
-export { EMAIL_RE, findStaleDates, GENERIC_TITLE_RE, URL_RE } from './heuristics'
+export { EMAIL_RE, findStaleDates, GENERIC_TITLE_RE, lexicalPlainText, URL_RE } from './heuristics'
 export { buildEventQualityReport, countOpenDocumentIssues, type BuildReportOptions } from './report'
 export { SKIP_REASON_LABELS, shouldSkipQualityChecks } from './skip'
 export { loadTitleTemplates } from './titleTemplates'

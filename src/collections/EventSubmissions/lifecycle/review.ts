@@ -4,17 +4,16 @@ import { APIError } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
-import { signToken, verifyToken, type SignedTokenResult } from '@/lib/utilities/signedToken'
 import type { EventSubmission } from '@/payload-types'
 
 import { OPEN_SUBMISSION_STATUSES, type SubmissionStatus } from '../EventSubmissions'
-import { submissionEventPatch } from './mapToEvent'
+import { NEW_EVENT_DEFAULTS, type ProposedPatch } from './mergeProposal'
 
 /**
  * Shared review semantics for an event submission — the one place Accept and
- * Reject actually happen, called by the admin Accept/Reject buttons' endpoint
- * and by the tokenized email-link page. Kept off the route/component layer so
- * it's testable with a plain `payload` instance.
+ * Reject actually happen, called by the admin Accept/Reject buttons' endpoint.
+ * Kept off the route/component layer so it's testable with a plain `payload`
+ * instance.
  */
 
 export type ReviewAction = 'accept' | 'reject'
@@ -28,51 +27,22 @@ export interface ReviewResult {
 }
 
 // ---------------------------------------------------------------------------
-// Tokenized email link
+// Email link
 // ---------------------------------------------------------------------------
 
-const REVIEW_TOKEN_KIND = 'event-submission-review'
-
-/** 30 days: a review email may sit in an inbox a while; the page re-checks status anyway. */
-export const REVIEW_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000
-
-export interface ReviewTokenClaims {
-  submissionId: number
-  /** Null when the review email fell back to the system contact. */
-  managerId: number | null
-}
-
-export function signReviewToken(
-  claims: ReviewTokenClaims,
-  secret: string,
-  now: Date = new Date(),
-): string {
-  return signToken(
-    { ...claims },
-    { kind: REVIEW_TOKEN_KIND, ttlMs: REVIEW_TOKEN_TTL_MS },
-    secret,
-    now,
-  )
-}
-
-export function verifyReviewToken(
-  token: string | null | undefined,
-  secret: string,
-  now: Date = new Date(),
-): SignedTokenResult<ReviewTokenClaims> {
-  return verifyToken<ReviewTokenClaims>(token, REVIEW_TOKEN_KIND, secret, now)
-}
-
 /**
- * Absolute URL of the SahajCloud-hosted review page (mirrors the
- * `/events/verify` pattern: the email link opens a confirmation page; the
- * mutation runs on that page's explicit button, never on the GET — mail
- * scanners prefetch links).
+ * Where the notification email sends the manager: the submission's own admin
+ * edit view, which is now the only review surface.
+ *
+ * There is no token here by design. The standalone `/submissions/review` page
+ * existed so a manager could act while logged out, at the cost of a second
+ * implementation of Accept/Reject and a second rendering of the submission.
+ * With the review collapsed onto the admin view — where the diff and the live
+ * preview are — a signed link would only reach a page that already requires a
+ * session.
  */
-export function buildReviewEmailLink(token: string, action?: ReviewAction): string {
-  const params = new URLSearchParams({ token })
-  if (action) params.set('action', action)
-  return `${getServerUrl()}/submissions/review?${params.toString()}`
+export function buildReviewEmailLink(submissionId: number): string {
+  return `${getServerUrl()}/admin/collections/event-submissions/${submissionId}`
 }
 
 // ---------------------------------------------------------------------------
@@ -138,7 +108,7 @@ export async function applyReview(args: {
   }
 
   const targetEventId = relationId(submission.event)
-  const patch = submissionEventPatch(submission)
+  const patch = (submission.proposed ?? {}) as ProposedPatch
 
   if (targetEventId != null) {
     // Update proposal: apply the patch as a normal save (verifyOnSave runs).
@@ -154,10 +124,11 @@ export async function applyReview(args: {
     return { status: 'updated', submission: updated, eventId: targetEventId }
   }
 
-  const regionId = relationId(submission.region) ?? relationId(submission.anchorRegion)
+  const hint = (submission.regionHint ?? {}) as Record<string, unknown>
+  const regionId = relationId(submission.region) ?? relationId(hint.anchorRegion)
   if (regionId == null) {
     throw new APIError(
-      'This submission has no resolved city/venue yet — set an anchor region (or wait for screening) before accepting.',
+      'This submission has no resolved city/venue yet — set the Region field (or wait for screening) before accepting.',
       409,
       { code: 'region_unresolved' },
       true,
@@ -167,7 +138,7 @@ export async function applyReview(args: {
   const created = await payload.create({
     collection: 'events',
     data: {
-      languages: ['en'],
+      ...NEW_EVENT_DEFAULTS,
       ...patch,
       region: regionId,
       submitter: relationId(submission.submitter),

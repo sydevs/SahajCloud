@@ -1,11 +1,9 @@
-import type { Payload, PayloadRequest, TaskConfig } from 'payload'
+import type { FlattenedField, Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
-import {
-  buildReviewEmailLink,
-  signReviewToken,
-} from '@/collections/EventSubmissions/lifecycle/review'
+import { buildReviewEmailLink } from '@/collections/EventSubmissions/lifecycle/review'
+import { formatValue, labelForPath } from '@/collections/EventSubmissions/lifecycle/proposedChanges'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { checkEmailAllowed } from '@/lib/endpoints/antiSpamGuard'
 import { findManagerForRegion } from '@/lib/notifications/recipients'
@@ -41,11 +39,14 @@ async function resolveSubmissionRegion(
   outcome: NonNullable<ScreeningResult['region']>
   warning?: string
 }> {
-  const anchorId = relationId(submission.anchorRegion)
+  const hint = (submission.regionHint ?? {}) as Record<string, unknown>
+  const anchorId = relationId(hint.anchorRegion)
   if (anchorId != null) return { regionId: anchorId, outcome: 'anchor' }
 
-  const countryId = relationId(submission.country)
-  const cityName = submission.address?.city?.trim()
+  const countryId = relationId(hint.country)
+  const proposed = (submission.proposed ?? {}) as Record<string, unknown>
+  const address = (proposed.address ?? {}) as Record<string, unknown>
+  const cityName = typeof address.city === 'string' ? address.city.trim() : undefined
   if (countryId == null || !cityName) {
     return { regionId: null, outcome: 'unresolved' }
   }
@@ -56,9 +57,9 @@ async function resolveSubmissionRegion(
       req,
       cityName,
       countryId,
-      stateId: relationId(submission.state),
-      latitude: submission.address?.latitude,
-      longitude: submission.address?.longitude,
+      stateId: relationId(hint.state),
+      latitude: address.latitude as number | undefined,
+      longitude: address.longitude as number | undefined,
     })
     if (!result) return { regionId: null, outcome: 'unresolved' }
     return {
@@ -123,12 +124,12 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
     const warnings: string[] = []
 
     // --- Email verdict -----------------------------------------------------
-    const listCheck = checkEmailAllowed(submission.submitterEmail)
+    const listCheck = checkEmailAllowed(submitterEmail(submission))
     let emailVerdict: ScreeningResult['emailVerdict'] = 'ok'
     if (!listCheck.ok) {
       emailVerdict = listCheck.code === 'disposable_email' ? 'disposable_email' : 'invalid_email'
     } else {
-      const mx = await hasMxRecords(submission.submitterEmail)
+      const mx = await hasMxRecords(submitterEmail(submission))
       if (mx === false) emailVerdict = 'no_mx_records'
       if (mx === null) warnings.push('MX lookup inconclusive — passed open')
     }
@@ -192,8 +193,8 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
       resolvedRegionId = resolution.regionId
       if (resolution.warning) warnings.push(resolution.warning)
 
-      const chainStartId =
-        resolvedRegionId ?? relationId(submission.state) ?? relationId(submission.country)
+      const hint = (submission.regionHint ?? {}) as Record<string, unknown>
+      const chainStartId = resolvedRegionId ?? relationId(hint.state) ?? relationId(hint.country)
       const regionManager =
         chainStartId != null ? await findManagerForRegion(payload, chainStartId, { req }) : null
       if (regionManager?.manager.email) {
@@ -236,22 +237,20 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
       req,
     })
 
-    const token = signReviewToken(
-      { submissionId, managerId: recipient.managerId },
-      payload.secret,
-      now,
-    )
     await sendSubmissionReview({
       payload,
       to: recipient.email,
       recipientName: recipient.name,
       kind: targetEventId != null ? 'event-update' : 'new-event',
       eventTitle,
-      submitterName: submission.submitterName,
-      submitterNote: submission.submitterNote,
-      details: buildDetails(submission, eventTitle),
-      acceptUrl: buildReviewEmailLink(token, 'accept'),
-      rejectUrl: buildReviewEmailLink(token, 'reject'),
+      submitterName: submitterField(submission, 'name') ?? 'A visitor',
+      submitterNote: submitterField(submission, 'note'),
+      details: buildDetails(
+        submission,
+        eventTitle,
+        payload.collections?.events?.config?.flattenedFields,
+      ),
+      reviewUrl: buildReviewEmailLink(submissionId),
     })
 
     await payload.update({
@@ -267,28 +266,47 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
   },
 }
 
-/** Human-readable summary rows for the review email. */
+/** Read one string off the submitted `submitterInfo` blob. */
+function submitterField(submission: EventSubmission, key: string): string | undefined {
+  const info = (submission.submitterInfo ?? {}) as Record<string, unknown>
+  const value = info[key]
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined
+}
+
+/** The submitter's email — screened for disposable domains and MX records. */
+function submitterEmail(submission: EventSubmission): string {
+  return submitterField(submission, 'email') ?? ''
+}
+
+/**
+ * Summary rows for the review email — every field the submitter proposed,
+ * labelled from the Events config.
+ *
+ * Reuses the admin diff's own formatter and labeller (`proposedChanges.ts`) so
+ * the email and the review screen describe a submission the same way, and a new
+ * Events field appears in both without either being edited.
+ */
 function buildDetails(
   submission: EventSubmission,
   eventTitle: string | null,
+  eventFields?: FlattenedField[],
 ): { label: string; value: string }[] {
-  const rows: [string, string | null | undefined][] = [
-    ['Event', eventTitle],
-    ['Type', submission.eventType],
-    ['City', submission.address?.city],
-    ['Street', submission.address?.street],
-    ['Online URL', submission.onlineUrl],
-    ['Languages', submission.languages?.join(', ')],
-    [
-      'Schedule',
-      submission.schedule?.startDate
-        ? `${submission.schedule.scheduleType ?? 'one-off'} from ${submission.schedule.startDate.slice(0, 10)}${submission.schedule.startTime ? ` at ${submission.schedule.startTime}` : ''}`
-        : null,
-    ],
-    ['Contact', submission.contactEmail || submission.contactPhone],
-    ['Submitted by', `${submission.submitterName} <${submission.submitterEmail}>`],
-  ]
-  return rows
-    .filter((row): row is [string, string] => typeof row[1] === 'string' && row[1].trim() !== '')
-    .map(([label, value]) => ({ label, value }))
+  const proposed = (submission.proposed ?? {}) as Record<string, unknown>
+  const info = (submission.submitterInfo ?? {}) as Record<string, unknown>
+
+  const proposedRows = Object.entries(proposed).map(([key, value]) => ({
+    label: labelForPath([key], eventFields),
+    value: formatValue(value),
+  }))
+
+  return [
+    { label: 'Event', value: eventTitle },
+    ...proposedRows,
+    {
+      label: 'Submitted by',
+      value: info.name && info.email ? `${String(info.name)} <${String(info.email)}>` : null,
+    },
+  ].filter((row): row is { label: string; value: string } => {
+    return typeof row.value === 'string' && row.value.trim() !== ''
+  })
 }
