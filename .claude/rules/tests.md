@@ -94,7 +94,14 @@ pnpm exec vitest run tests/int/albums.int.spec.ts -t "creates an album"         
 pnpm exec vitest run tests/unit/convert-vimeo.spec.ts --config ./vitest.config.mts  # one unit file
 ```
 
-The `--config ./vitest.config.mts` flag is required — the config defines the `unit`/`int` projects and injects test env vars. Reserve the full `pnpm test:int` / `pnpm build` for reproducing a red CI check. See `.claude/rules/testing-reqs.md` for the local-vs-CI split.
+The `--config ./vitest.config.mts` flag is required — the config defines the `unit`/`int` projects and injects test env vars.
+
+**`Tests  no tests` on a file you just edited means the spec doesn't parse** — not
+that no case matched. Vitest reports a syntax error in a spec as an empty file,
+so it looks like a config or lane problem. Re-run without piping through `grep`
+to see the real error, or `pnpm exec tsc --noEmit -p tsconfig.test.json`. (The
+one that caused this: an unescaped apostrophe inside a single-quoted test name —
+`it('renders keys in the collection's order', …)`.) Reserve the full `pnpm test:int` / `pnpm build` for reproducing a red CI check. See `.claude/rules/testing-reqs.md` for the local-vs-CI split.
 
 ## Verifying "coverage gap" claims
 

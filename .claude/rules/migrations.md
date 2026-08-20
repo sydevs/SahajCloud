@@ -50,13 +50,38 @@ prompt still rendered.) Then classify the outcome:
 | Outcome | Signal | Action |
 | --- | --- | --- |
 | Migration created | exit 0, new `.ts` + `.json` pair in `src/migrations/` | Validate (migration-validator skill), review the `.ts` for duplicate DDL (snapshot trap below), commit both files |
-| No schema changes | exit 0, no new files | Report it — dev `push: true` may have already synced, or a pending migration already captures the schema. Not an error |
+| No schema changes | exit 0, no new files, **and** the newest `.json` snapshot already has the column | Report it — dev `push: true` may have already synced, or a pending migration already captures the schema. Not an error |
+| Silent CLI death | exit 0, no new files, no output, and the column is **absent** from the newest snapshot | The CLI died without saying so — see below. Do **not** conclude "no changes" |
 | Interactive hang | exit 124 (timeout), no new files | Drizzle hit the rename-vs-create prompt. Hand the user the plain `pnpm db:migrations:create <name>` to run interactively, then validate + commit their result |
 | Partial write | exit 124, lone `.json` (no `.ts`) | The `.json` snapshot is written before the `.ts`; delete the orphaned `.json`, then hand off to the user as above |
 | Other error | exit ≥ 1 with output | Surface the error; don't retry blindly |
 
 On success, augment the `.ts` only if needed (see "Augmenting" below) and
 commit both files.
+
+### "exit 0, no new files" is ambiguous — check the snapshot
+
+It means either *no schema changes* or *the CLI died silently* (exit 0, zero
+bytes on stdout **and** stderr — `payload/bin.js` runs `void start()` with no
+`.catch()`, so a config-load rejection vanishes). The two look identical from
+the shell, and reading the wrong one ships a schema change with no migration —
+which is a prod crash-loop on boot (`column ... does not exist`), not a silent
+no-op.
+
+Disambiguate against the newest snapshot, which is the schema the *next*
+migration will diff against. If the column you just added isn't there, no
+migration has captured it:
+
+```bash
+python3 -c "import json,pathlib,sys;print(sorted(json.loads(pathlib.Path(sys.argv[1]).read_text())['tables']['public.<table>']['columns']))"   "$(ls -t src/migrations/*.json | head -1)"
+```
+
+If it's absent, escalate: preload the env and redirect stdout to a file
+(`set -a; . ./.env; set +a` — piping to `tail`/`grep` also loses the output),
+and if that still says nothing, drive `payload.db.createMigration()` directly
+from `node --import tsx/esm` with an `unhandledRejection` handler. Both worked
+in PR #642 where `dangerouslyDisableSandbox` alone did not; the full ladder is
+in the `payload-cli-dies-silently-in-sandbox` memory.
 
 ## Running locally
 
