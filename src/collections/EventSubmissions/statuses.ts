@@ -39,15 +39,18 @@ export const OPEN_SUBMISSION_STATUSES: readonly SubmissionStatus[] = ['screening
 export const REOPENABLE_STATUSES: readonly SubmissionStatus[] = ['spam', 'rejected']
 
 /**
- * Wording for the `status` select in the System drawer. The review banner says
- * something different on purpose — it is telling a reviewer what to do next,
- * not naming a stored value (see `EventSubmissionStatus`).
+ * What each status is *called*, everywhere a reviewer meets it: the list
+ * column, the `status` select in the System drawer, and the heading of the
+ * review banner (`EventSubmissionStatus`, which adds the sentence saying what
+ * to do about it). One definition, because a row reading "Pending Review" that
+ * opens onto a banner headed "Awaiting Review" makes a reader stop and wonder
+ * whether they are two different things.
  */
 export const STATUS_LABELS: Record<SubmissionStatus, string> = {
-  screening: 'Screening',
-  pending: 'Pending Review',
-  spam: 'Spam',
-  created: 'Accepted — Event Created',
-  updated: 'Accepted — Event Updated',
+  screening: 'Checking',
+  pending: 'Awaiting Review',
+  spam: 'Marked Spam',
+  created: 'Event Created',
+  updated: 'Event Updated',
   rejected: 'Rejected',
 }

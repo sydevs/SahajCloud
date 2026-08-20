@@ -84,6 +84,11 @@ export const EventSubmissions: CollectionConfig = {
           ? `${serverEnv.SAHAJATLAS_URL}/preview?collection=event-submissions&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`
           : null,
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
+      // A reviewer is here to judge how a listing would look, so the panel is
+      // open on arrival rather than a click away. Payload's own option (3.86):
+      // it applies only until the reviewer toggles the panel themselves, after
+      // which their stored preference wins — which a mount effect could not do.
+      openByDefault: true,
     },
   },
   hooks: {
@@ -137,18 +142,16 @@ export const EventSubmissions: CollectionConfig = {
       hooks: { afterRead: [computeProposedChanges] },
     },
     {
-      // The merged event, carried into the live-preview iframe via form state.
-      // Its component renders nothing — it opens the preview panel on mount.
+      // The merged event, carried into the live-preview iframe via form state —
+      // which is the whole of its job, so it renders as nothing at all.
+      // `admin.hidden` puts it in the form without putting it on the page (a
+      // `HiddenField`), so the value still reaches the iframe.
       name: 'previewEvent',
       type: 'json',
       virtual: true,
-      // The one field that keeps `label: false`: its component renders
-      // nothing (it opens the preview panel), so a label would sit on the
-      // page with empty space under it.
-      label: false,
       admin: {
         readOnly: true,
-        components: { Field: '@/components/admin/EventSubmissions/EventSubmissionPreview' },
+        hidden: true,
       },
       hooks: { afterRead: [computePreviewEvent] },
     },

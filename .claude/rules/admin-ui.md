@@ -88,10 +88,20 @@ stay readable by the client.
 
 Two mechanics worth knowing:
 
-- **Open the panel from a field component**, not a `ui` field:
-  `setIsLivePreviewing(true)` from `useLivePreviewContext()` on mount, mounted
-  on the field whose value the preview consumes (see `EventSubmissionPreview`), so
-  the panel can't be opened on a document with nothing to show it.
+- **Open the panel with `livePreview.openByDefault: true`** (Payload 3.86+), not
+  a mount effect. It is applied server-side when building the document view, and
+  only until the user toggles the panel themselves — after that their stored
+  `editViewType` preference wins (`@payloadcms/next/dist/views/Document/index.js`).
+  A `setIsLivePreviewing(true)` effect can't honour that, and re-opened the panel
+  every time a reviewer closed it and navigated back. `EventSubmissions` was
+  ported off exactly such a component; `FrameEditor` still uses the effect
+  because it arms the preview on a *tab*, not on the document.
+- **A field that exists only to carry data to the iframe** wants
+  `admin.hidden: true`, not a Field component rendering `null`. Payload renders
+  it as a `HiddenField`, so the value still sits in form state — which is what
+  `reduceFieldsToValues` posts — while nothing takes up space on the page. (The
+  DOM attribute reads `[object Object]` for a JSON value; that's cosmetic, the
+  form-state value is the real object.)
 - A **virtual** field's value is computed on read, so it does not recompute as
   the user types. That's the right trade only when the document isn't editable —
   which is exactly the submission-review case.

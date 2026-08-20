@@ -17,6 +17,7 @@ import React from 'react'
 import type { ScreeningResult } from '@/collections/EventSubmissions/screening'
 import {
   OPEN_SUBMISSION_STATUSES,
+  STATUS_LABELS,
   type SubmissionStatus,
 } from '@/collections/EventSubmissions/statuses'
 
@@ -31,46 +32,41 @@ import './styles.css'
 type Severity = 'info' | 'error' | 'success'
 
 /**
- * One line naming the state, one saying what to do about it.
+ * How loudly to draw each status, and what to do about it. The **heading** is
+ * not here — it is `STATUS_LABELS`, shared with the list column and the
+ * `status` select, so a row and the banner it opens onto can't call the same
+ * state two different things.
  *
  * Written for a manager who runs meditation classes, not for whoever built
  * this. So: no internal vocabulary ("adopt into the verification cycle"), no
- * delivery bookkeeping (who got emailed), and nothing that restates the title.
- * `spam` deliberately carries no message of its own — the reason it was
- * classified that way is a screening note, and a fixed line beside it just
+ * delivery bookkeeping (who got emailed), and nothing that restates the
+ * heading. `spam` deliberately carries no message of its own — the reason it
+ * was classified that way is a screening note, and a fixed line beside it just
  * said the same thing twice.
  */
-const COPY: Record<
-  SubmissionStatus,
-  { severity: Severity; title: string; message?: string }
-> = {
+const COPY: Record<SubmissionStatus, { severity: Severity; message?: string }> = {
   screening: {
     severity: 'info',
-    title: 'Checking',
     message: 'Checking the submitter’s details. This usually takes a few minutes.',
   },
   pending: {
     severity: 'info',
-    title: 'Awaiting Review',
     message: 'Compare the proposed changes with the preview, then accept or reject.',
   },
-  spam: { severity: 'error', title: 'Marked Spam' },
+  spam: { severity: 'error' },
   created: {
     severity: 'success',
-    title: 'Event Created',
     message:
       'This event is on the map, but the public sees it marked unverified. Give it a manager to have it verified.',
   },
   updated: {
     severity: 'success',
-    title: 'Event Updated',
     message: 'The proposed changes were applied to the event.',
   },
   rejected: {
     // Red like spam: both are refusals, and a reviewer scanning the list
     // should read "this was turned down" at the same glance either way.
     severity: 'error',
-    title: 'Rejected',
     message: 'Nothing was created or changed.',
   },
 }
@@ -136,7 +132,8 @@ export const EventSubmissionStatus: FieldClientComponent = ({ field }) => {
 
   if (!id || !status || !COPY[status]) return null
 
-  const { severity, title } = COPY[status]
+  const { severity } = COPY[status]
+  const title = STATUS_LABELS[status]
   const Icon = ICONS[severity]
   const message =
     status === 'created' && hasManager ? CREATED_WITH_MANAGER : COPY[status].message

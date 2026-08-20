@@ -58,7 +58,6 @@ import { default as default_42fbdbfc3b16bbe7c43aa9f07c715c1c } from '@/component
 import { default as default_8b69e6ea88d83799ec84e5cf9e71c246 } from '@/components/admin/EventSubmissions/EventSubmissionStatus'
 import { default as default_93de032a2c439140bbcbc60bbf0ac5c7 } from '@/components/admin/EventSubmissions/EventSubmissionSubmitter'
 import { default as default_52d2c1a1f8d858fe877927984eb0360b } from '@/components/admin/EventSubmissions/EventSubmissionChanges'
-import { default as default_c4668fc7c414706c9cfadf8dd7db5d5a } from '@/components/admin/EventSubmissions/EventSubmissionPreview'
 import { default as default_69083c55f10983d6a93284b6710057b2 } from '@/components/admin/EventSubmissions/EventSubmissionActions'
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ChecklistFeatureClient as ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -147,7 +146,6 @@ export const importMap = {
   "@/components/admin/EventSubmissions/EventSubmissionStatus#default": default_8b69e6ea88d83799ec84e5cf9e71c246,
   "@/components/admin/EventSubmissions/EventSubmissionSubmitter#default": default_93de032a2c439140bbcbc60bbf0ac5c7,
   "@/components/admin/EventSubmissions/EventSubmissionChanges#default": default_52d2c1a1f8d858fe877927984eb0360b,
-  "@/components/admin/EventSubmissions/EventSubmissionPreview#default": default_c4668fc7c414706c9cfadf8dd7db5d5a,
   "@/components/admin/EventSubmissions/EventSubmissionActions#default": default_69083c55f10983d6a93284b6710057b2,
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#ChecklistFeatureClient": ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
