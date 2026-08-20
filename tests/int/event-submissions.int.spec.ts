@@ -470,6 +470,51 @@ describe('Event submissions', () => {
     })
   })
 
+  describe('submission title', () => {
+    it('names a new-event submission with the title the event would be given', async () => {
+      // Composed through `autoEventTitle` — the same path the Events title hook
+      // runs — so the label a reviewer approves is the title they end up with.
+      const created = await submit({
+        ...baseSubmission,
+        country: countryId,
+        address: { city: 'Novo Selo', street: '1 Main St', venueName: 'Riverside Hall' },
+      })
+      expect(created.title).toBe('New Event: Meditation at Riverside Hall')
+    })
+
+    it('prefers a title the submitter supplied, as Events would', async () => {
+      const created = await submit({
+        ...baseSubmission,
+        country: countryId,
+        title: 'Sunrise Meditation Circle',
+      })
+      expect(created.title).toBe('New Event: Sunrise Meditation Circle')
+    })
+
+    it('names an update proposal after its target event', async () => {
+      const target = await testData.createEvent(payload, {
+        title: 'Morning Meditation at World Tree',
+        _status: 'published',
+      })
+      const { address: _a, ...noAddress } = baseSubmission
+      const created = await submit({ ...noAddress, event: target.id })
+      expect(created.title).toBe('Update Event: Morning Meditation at World Tree')
+    })
+
+    it('degrades to the bare prefix rather than guessing', async () => {
+      // An online submission with no address and no anchor has nothing to name
+      // the event after; screening resolves a region only afterwards.
+      const { address: _a, ...noAddress } = baseSubmission
+      const created = await submit({
+        ...noAddress,
+        country: countryId,
+        eventType: 'online',
+        onlineUrl: 'https://meet.example.test/abc',
+      })
+      expect(created.title).toBe('New Event')
+    })
+  })
+
   describe('reopen', () => {
     const shelve = async (status: 'spam' | 'rejected') => {
       const created = await submit({ ...baseSubmission, country: countryId })

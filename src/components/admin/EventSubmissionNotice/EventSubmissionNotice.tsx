@@ -28,34 +28,44 @@ interface ScreeningResultShape {
 
 type Severity = 'info' | 'warning' | 'error' | 'success'
 
-const COPY: Record<SubmissionStatus, { severity: Severity; message: string }> = {
+/**
+ * One line naming the state, one saying what follows from it.
+ *
+ * The body deliberately doesn't restate what the title already says, name the
+ * buttons (they are right there), or repeat a field's own description — the
+ * region hint and the Event link each explain themselves where they sit.
+ */
+const COPY: Record<SubmissionStatus, { severity: Severity; title: string; message: string }> = {
   screening: {
     severity: 'info',
+    title: 'Screening',
     message:
-      'Screening in progress — the submitter’s email is being checked and the region resolved. The responsible manager is notified automatically once it passes (retried every 15 minutes).',
+      'Checking the submitter’s email and resolving the region. Retries every 15 minutes.',
   },
   pending: {
     severity: 'warning',
-    message:
-      'Awaiting review. Check the proposed changes below against the live preview, then Accept — a new event is published as an unverified listing (adoption stays a separate step); an update proposal is applied to its event. Reject shelves it.',
+    title: 'Needs Review',
+    message: 'Compare the proposed changes with the preview, then accept or reject.',
   },
   spam: {
     severity: 'error',
-    message:
-      'Classified as spam by screening (see the details below) and kept for abuse tracking. Nobody was notified.',
+    title: 'Marked Spam',
+    message: 'Kept for abuse tracking. Nobody was notified.',
   },
   created: {
     severity: 'success',
-    message:
-      'Accepted — a new unverified event was created and published; the Event field links to it. Assigning it a manager will adopt it into the verification cycle.',
+    title: 'Event Created',
+    message: 'Published as unverified — assign a manager to adopt it into the verification cycle.',
   },
   updated: {
     severity: 'success',
-    message: 'Accepted — the proposed changes were applied to the linked event.',
+    title: 'Event Updated',
+    message: 'The proposed changes were applied.',
   },
   rejected: {
     severity: 'info',
-    message: 'Rejected. Kept for record-keeping; no event was created or changed.',
+    title: 'Rejected',
+    message: 'Kept for the record. Nothing was created or changed.',
   },
 }
 
@@ -106,7 +116,7 @@ export const EventSubmissionNotice: FieldClientComponent = ({ field }) => {
 
   if (!id || !status || !COPY[status]) return null
 
-  const { severity, message } = COPY[status]
+  const { severity, title, message } = COPY[status]
   const Icon = ICONS[severity]
   const screening = (value ?? {}) as ScreeningResultShape
 
@@ -132,7 +142,8 @@ export const EventSubmissionNotice: FieldClientComponent = ({ field }) => {
         alignIcon="left"
       >
         <div>
-          {message}
+          <strong className="event-submission-notice__title">{title}</strong>
+          <div>{message}</div>
           {notes.length > 0 && (
             <ul style={{ margin: 'calc(var(--base) * 0.4) 0 0', paddingLeft: '1.2em' }}>
               {notes.map((note) => (

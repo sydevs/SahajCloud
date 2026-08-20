@@ -31,3 +31,10 @@
   background: var(--theme-warning-100);
   color: var(--theme-warning-750);
 }
+
+/* The state, named. Inherits the banner's colour so it can't drift from it. */
+.event-submission-notice__title {
+  display: block;
+  font-weight: 600;
+  margin-bottom: calc(var(--base) * 0.15);
+}

@@ -6,6 +6,7 @@ import { reviewSubmission } from './endpoints/review'
 import { computePreviewEvent, computeProposedChanges } from './hooks/computeReviewFields'
 import { enqueueScreening } from './hooks/enqueueScreening'
 import { prepareSubmission } from './hooks/prepareSubmission'
+import { submissionTitle } from './hooks/submissionTitle'
 import { validateProposal } from './hooks/validateProposal'
 
 /**
@@ -83,8 +84,8 @@ export const EventSubmissions: CollectionConfig = {
   labels: { singular: 'Event Submission', plural: 'Event Submissions' },
   admin: {
     group: 'Classes',
-    useAsTitle: 'id',
-    defaultColumns: ['id', 'status', 'event', 'createdAt'],
+    useAsTitle: 'title',
+    defaultColumns: ['title', 'status', 'createdAt'],
     components: {
       edit: {
         // Accept / Reject replace Save while the submission is open — nothing
@@ -110,11 +111,29 @@ export const EventSubmissions: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [validateProposal],
-    beforeChange: [prepareSubmission],
+    // `submissionTitle` after `prepareSubmission`: it names the submission from
+    // the same `proposed` / `regionHint` data that hook has just validated.
+    beforeChange: [prepareSubmission, submissionTitle],
     afterChange: [enqueueScreening],
   },
   endpoints: [reviewSubmission],
   fields: [
+    {
+      // What this submission is about, stamped on create by `submissionTitle`:
+      // "New Event: <the title the event would be created with>" or
+      // "Update Event: <the target's title>". `useAsTitle`, so it names the
+      // row, the breadcrumb and the browser tab.
+      //
+      // Not client-writable: it is derived, and a submitter naming their own
+      // submission would put unreviewed text in the admin's list view.
+      name: 'title',
+      type: 'text',
+      access: systemFieldAccess,
+      admin: {
+        readOnly: true,
+        description: 'Generated from the proposal when the submission arrives.',
+      },
+    },
     {
       // Status banner + screening verdict. Mounted on the data it renders
       // rather than on a `ui` field, so the component reads its own value

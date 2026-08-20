@@ -3521,6 +3521,10 @@ export interface Frame {
  */
 export interface EventSubmission {
   id: number;
+  /**
+   * Generated from the proposal when the submission arrives.
+   */
+  title?: string | null;
   screeningResult?:
     | {
         [k: string]: unknown;
@@ -4801,6 +4805,7 @@ export interface EventsSelect<T extends boolean = true> {
  * via the `definition` "event-submissions_select".
  */
 export interface EventSubmissionsSelect<T extends boolean = true> {
+  title?: T;
   screeningResult?: T;
   submitterInfo?: T;
   proposedChanges?: T;
