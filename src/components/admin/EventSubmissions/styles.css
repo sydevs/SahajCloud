@@ -149,3 +149,9 @@
   font-style: italic;
   font-size: 13px;
 }
+
+/* Screening's verdict + warnings, under the message. */
+.event-submission-status__notes {
+  margin: calc(var(--base) * 0.4) 0 0;
+  padding-left: 1.2em;
+}

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { proposableEventFields } from '@/collections/EventSubmissions/hooks/validateProposal'
 import {
   mergeProposal,
-  NEW_EVENT_DEFAULTS,
+  newEventDefaults,
 } from '@/collections/EventSubmissions/lifecycle/mergeProposal'
 import {
   buildProposedChanges,
@@ -55,15 +55,43 @@ describe('mergeProposal', () => {
   it('replaces arrays and honours an explicit null', () => {
     // Payload replaces arrays rather than appending, and a null in a patch is
     // how a value gets cleared.
-    const target = { languages: ['en', 'cs'], website: 'https://a.test' } as unknown as Partial<Event>
+    const target = {
+      languages: ['en', 'cs'],
+      website: 'https://a.test',
+    } as unknown as Partial<Event>
     const merged = mergeProposal({ proposed: { languages: ['de'], website: null }, target })
     expect(merged.languages).toEqual(['de'])
     expect(merged.website).toBeNull()
   })
 
   it('starts a new-event submission from the accept-time defaults', () => {
-    const merged = mergeProposal({ proposed: { contactPhone: '+1 555' } })
-    expect(merged).toMatchObject({ ...NEW_EVENT_DEFAULTS, contactPhone: '+1 555' })
+    const proposed = { contactPhone: '+1 555' }
+    const merged = mergeProposal({ proposed })
+    expect(merged).toMatchObject({ ...newEventDefaults(proposed), contactPhone: '+1 555' })
+  })
+
+  it('shows a schedule-less proposal as the dormant listing it would create', () => {
+    // `inactive` is derived from the patch by `applyReview`. As a constant it
+    // was invisible here, so a reviewer accepted a complete-looking diff and
+    // got an event that never appears on the map.
+    expect(mergeProposal({ proposed: { contactPhone: '+1 555' } }).inactive).toBe(true)
+    expect(
+      mergeProposal({ proposed: { schedule: { firstDate: '2026-09-01T00:00:00.000Z' } } }).inactive,
+    ).toBe(false)
+  })
+
+  it('replaces rich text wholesale rather than merging two node trees', () => {
+    const target = {
+      description: { root: { type: 'root', direction: 'ltr', children: [{ text: 'old' }] } },
+    } as unknown as Partial<Event>
+    const merged = mergeProposal({
+      proposed: { description: { root: { type: 'root', children: [{ text: 'new' }] } } },
+      target,
+    })
+    // No `direction` grafted on from the target's root.
+    expect(merged.description).toEqual({
+      root: { type: 'root', children: [{ text: 'new' }] },
+    })
   })
 
   it('is a no-op for an absent proposal', () => {

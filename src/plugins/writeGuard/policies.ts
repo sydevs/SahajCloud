@@ -51,8 +51,10 @@ export const DEFAULT_WRITE_GUARD_POLICIES: Partial<Record<CollectionSlug, WriteG
       urlScanFields: [
         'proposed.description',
         'proposed.contactName',
-        // Inside the address group, not beside it — `addressFields` nests it.
-        'proposed.address.venueName',
+        // The whole address group: `stringLeaves` walks it, so street, room,
+        // city and the rest are scanned too. Naming only `venueName` left a
+        // spammer free to put a URL in the street line.
+        'proposed.address',
         'proposed.title',
         'submitterInfo.note',
         'submitterInfo.name',

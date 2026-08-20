@@ -413,6 +413,41 @@ describe('Event submissions', () => {
       ])
     })
 
+    it('does not carry an unknown nested key through to the event', async () => {
+      // Validation is top-level only: a group's subfields aren't individually
+      // checked. Payload drops unknown keys on the way into Events, but that
+      // is its behaviour, not ours — pin it, so a future change that starts
+      // honouring nested keys can't quietly widen the intake.
+      const created = await submit({
+        ...baseSubmission,
+        country: countryId,
+        region: cityId,
+        address: { city: 'Novo Selo', street: '1 Main St', smuggled: 'nope' },
+        // No schedule ⇒ Accept creates a dormant listing, and Events requires
+        // a contact route on one. See `newEventDefaults`.
+        contactPhone: '+44 20 7000 0000',
+      })
+      await payload.update({
+        collection: 'event-submissions',
+        id: created.id,
+        data: { status: 'pending' },
+        overrideAccess: true,
+      })
+      const result = await applyReview({
+        payload,
+        submissionId: created.id,
+        action: 'accept',
+        managerId: regionManager.id,
+      })
+      const event = await payload.findByID({
+        collection: 'events',
+        id: result.eventId as number,
+        overrideAccess: true,
+      })
+      expect((event.address as Record<string, unknown>).smuggled).toBeUndefined()
+      expect((event.address as Record<string, unknown>).street).toBe('1 Main St')
+    })
+
     it('stores an accepted patch verbatim, keyed by Events field names', async () => {
       const created = await submit({
         ...baseSubmission,

@@ -26,15 +26,25 @@ import type { Event } from '@/payload-types'
 export type ProposedPatch = Record<string, unknown>
 
 /**
- * Baseline for a submission that proposes a brand-new event — the same
- * defaults `applyReview` creates it with, so the preview isn't optimistic
- * about fields the submitter never supplied.
+ * Everything `applyReview` adds when it creates an event from a submission —
+ * so the preview and the diff can't be optimistic about fields the submitter
+ * never supplied.
+ *
+ * A **function** of the patch, not a constant, because one of those defaults is
+ * derived from it: a submission proposing no schedule creates a *dormant*
+ * listing. As a constant this was invisible to the reviewer, who accepted a
+ * complete-looking diff and got an event that never appears on the map until
+ * someone gives it a schedule.
  */
-export const NEW_EVENT_DEFAULTS: ProposedPatch = {
-  languages: ['en'],
-  eventType: 'offline',
-  verificationStage: 'unverified',
-  manager: null,
+export function newEventDefaults(proposed: ProposedPatch | null | undefined): ProposedPatch {
+  return {
+    languages: ['en'],
+    eventType: 'offline',
+    verificationStage: 'unverified',
+    manager: null,
+    inactive: (proposed ?? {}).schedule == null,
+    _status: 'published',
+  }
 }
 
 /**
@@ -46,13 +56,22 @@ export function mergeProposal(args: {
   proposed: ProposedPatch | null | undefined
   target?: Partial<Event> | null
 }): ProposedPatch {
-  const base: ProposedPatch = args.target ?? NEW_EVENT_DEFAULTS
+  const base: ProposedPatch = args.target ?? newEventDefaults(args.proposed)
   return mergeInto(base, args.proposed ?? {})
 }
 
-/** A group value — merged into. Arrays and nulls are values, and replace. */
+/**
+ * A group value — merged into. Arrays and nulls are values, and replace.
+ *
+ * Lexical rich text is excluded: it is a plain object (`{ root: … }`) but a
+ * *value*, not a group. Merging one into another would graft the target's root
+ * attributes onto the proposal's tree — the same reason `proposedChanges`
+ * keeps it off the block path. A proposed description replaces, whole.
+ */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+  return (
+    typeof value === 'object' && value !== null && !Array.isArray(value) && !('root' in value)
+  )
 }
 
 function mergeInto(base: ProposedPatch, patch: ProposedPatch): ProposedPatch {

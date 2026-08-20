@@ -12,12 +12,17 @@ import {
 import { useRouter } from 'next/navigation'
 import React, { useCallback, useState } from 'react'
 
-type SubmissionStatus = 'screening' | 'pending' | 'spam' | 'created' | 'updated' | 'rejected'
+import type { SubmissionStatus } from '@/collections/EventSubmissions/statuses'
+import {
+  OPEN_SUBMISSION_STATUSES,
+  REOPENABLE_STATUSES,
+} from '@/collections/EventSubmissions/statuses'
 
-/** Still actionable — Accept / Reject. */
-const OPEN_STATUSES = new Set<SubmissionStatus>(['screening', 'pending'])
-/** Shelved without touching an event — recoverable. */
-const REOPENABLE_STATUSES = new Set<SubmissionStatus>(['spam', 'rejected'])
+// The same sets the review op enforces server-side, from the leaf module both
+// can import — a button offered for a status `applyReview` would refuse is a
+// promise the UI can't keep.
+const OPEN = new Set<SubmissionStatus>(OPEN_SUBMISSION_STATUSES)
+const REOPENABLE = new Set<SubmissionStatus>(REOPENABLE_STATUSES)
 
 type Action = 'accept' | 'reject' | 'reopen' | 'delete'
 
@@ -107,7 +112,7 @@ const EventSubmissionActions: React.FC = () => {
   // An unsaved document has nothing to act on yet.
   if (!id || !status) return <SaveButton />
 
-  if (OPEN_STATUSES.has(status)) {
+  if (OPEN.has(status)) {
     return (
       <div style={{ display: 'flex', gap: 'calc(var(--base) * 0.4)' }}>
         <Button onClick={() => run('reject')} buttonStyle="secondary" disabled={busy !== null}>
@@ -120,7 +125,7 @@ const EventSubmissionActions: React.FC = () => {
     )
   }
 
-  if (REOPENABLE_STATUSES.has(status)) {
+  if (REOPENABLE.has(status)) {
     return (
       <Button onClick={() => run('reopen')} disabled={busy !== null}>
         {busy === 'reopen' ? 'Reopening…' : 'Reopen'}

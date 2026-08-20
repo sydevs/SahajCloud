@@ -8,37 +8,13 @@ import { enqueueScreening } from './hooks/enqueueScreening'
 import { prepareSubmission } from './hooks/prepareSubmission'
 import { submissionTitle } from './hooks/submissionTitle'
 import { validateProposal } from './hooks/validateProposal'
+import { STATUS_LABELS, SUBMISSION_STATUSES } from './statuses'
 
-/**
- * Workflow states. `screening` → the async ScreenEventSubmissions job is (or
- * will be) checking the submitter's email + resolving the region; `pending` →
- * awaiting a manager's review; the rest are terminal and double as the outcome
- * record: `spam` (kept for abuse tracking, never notified), `created` (a new
- * Event was created — `event` points at it), `updated` (the proposal was
- * applied to the existing `event`), `rejected`.
- */
-export const SUBMISSION_STATUSES = [
-  'screening',
-  'pending',
-  'spam',
-  'created',
-  'updated',
-  'rejected',
-] as const
-
-export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number]
-
-/** Statuses a submission can still be acted on from (Accept / Reject shown). */
-export const OPEN_SUBMISSION_STATUSES: readonly SubmissionStatus[] = ['screening', 'pending']
-
-const STATUS_LABELS: Record<SubmissionStatus, string> = {
-  screening: 'Screening',
-  pending: 'Pending Review',
-  spam: 'Spam',
-  created: 'Accepted — Event Created',
-  updated: 'Accepted — Event Updated',
-  rejected: 'Rejected',
-}
+export {
+  OPEN_SUBMISSION_STATUSES,
+  SUBMISSION_STATUSES,
+  type SubmissionStatus,
+} from './statuses'
 
 /**
  * System/workflow fields must never be set by the submitting client — the

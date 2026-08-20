@@ -14,9 +14,10 @@ import {
 } from '@payloadcms/ui'
 import React from 'react'
 
+import type { SubmissionStatus } from '@/collections/EventSubmissions/statuses'
+
 import './styles.css'
 
-type SubmissionStatus = 'screening' | 'pending' | 'spam' | 'created' | 'updated' | 'rejected'
 
 /** What the screening job recorded. Shape owned by `ScreenEventSubmissions`. */
 interface ScreeningResultShape {
@@ -144,7 +145,7 @@ export const EventSubmissionStatus: FieldClientComponent = ({ field }) => {
           <strong className="event-submission-status__title">{title}</strong>
           <div>{message}</div>
           {notes.length > 0 && (
-            <ul style={{ margin: 'calc(var(--base) * 0.4) 0 0', paddingLeft: '1.2em' }}>
+            <ul className="event-submission-status__notes">
               {notes.map((note) => (
                 <li key={note}>{note}</li>
               ))}

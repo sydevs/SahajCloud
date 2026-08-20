@@ -6,8 +6,12 @@ import { relationId } from '@/lib/utilities/relationId'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { EventSubmission } from '@/payload-types'
 
-import { OPEN_SUBMISSION_STATUSES, type SubmissionStatus } from '../EventSubmissions'
-import { NEW_EVENT_DEFAULTS, type ProposedPatch } from './mergeProposal'
+import {
+  OPEN_SUBMISSION_STATUSES,
+  REOPENABLE_STATUSES,
+  type SubmissionStatus,
+} from '../statuses'
+import { newEventDefaults, type ProposedPatch } from './mergeProposal'
 
 /**
  * Shared review semantics for an event submission — the one place Accept and
@@ -18,13 +22,6 @@ import { NEW_EVENT_DEFAULTS, type ProposedPatch } from './mergeProposal'
 
 export type ReviewAction = 'accept' | 'reject' | 'reopen'
 
-/**
- * Statuses `reopen` can rescue. Deliberately not `created` / `updated`: those
- * already wrote to an event, and reopening one would invite a second Accept
- * that created a duplicate listing or re-applied a patch a manager has since
- * edited away.
- */
-export const REOPENABLE_STATUSES: readonly SubmissionStatus[] = ['spam', 'rejected']
 
 export interface ReviewResult {
   /** The submission's terminal status after the review. */
@@ -168,17 +165,15 @@ export async function applyReview(args: {
   const created = await payload.create({
     collection: 'events',
     data: {
-      ...NEW_EVENT_DEFAULTS,
+      // `newEventDefaults` is the whole contract — including the derived
+      // `inactive` (no schedule proposed → a dormant listing, whose contact
+      // info the Events validation then requires) and `_status`. The preview
+      // and the diff compose from the same function, so what a reviewer
+      // approves is what gets written.
+      ...newEventDefaults(patch),
       ...patch,
       region: regionId,
       submitter: relationId(submission.submitter),
-      verificationStage: 'unverified',
-      manager: null,
-      // No schedule proposed → a dormant listing (its contact info is then
-      // required by the Events validation — a failure here surfaces to the
-      // reviewing manager, who can fill the gap on the submission and retry).
-      inactive: patch.schedule == null,
-      _status: 'published',
     } as never,
     overrideAccess: true,
     context: { skipVerifyHook: true, skipWriteGuard: true },
