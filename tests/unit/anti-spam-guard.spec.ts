@@ -2,10 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 
 import {
-  mapSubmissionSchedule,
-  submissionEventPatch,
-} from '@/collections/EventSubmissions/lifecycle/mapToEvent'
-import {
   antiSpamErrorResponse,
   checkEmailAllowed,
   checkNoUrls,
@@ -121,84 +117,5 @@ describe('signedToken', () => {
     expect(verifyToken(`${token}x`, 'unit-test', SECRET, NOW).status).toBe('invalid')
     expect(verifyToken('garbage', 'unit-test', SECRET, NOW).status).toBe('invalid')
     expect(verifyToken(null, 'unit-test', SECRET, NOW).status).toBe('invalid')
-  })
-})
-
-describe('mapSubmissionSchedule', () => {
-  it('maps a one-off to a zoned firstDate with no recurrence', () => {
-    const mapped = mapSubmissionSchedule({
-      scheduleType: 'one-off',
-      startDate: '2026-09-01T00:00:00.000Z',
-      startTime: '18:30',
-      endTime: '20:00',
-      timezone: 'Europe/London',
-    } as EventSubmission['schedule'])
-    // 18:30 London (BST, UTC+1) → 17:30 UTC.
-    expect(mapped).toMatchObject({
-      firstDate: '2026-09-01T17:30:00.000Z',
-      firstDate_tz: 'Europe/London',
-      endTime: '20:00',
-    })
-    expect(mapped?.recurrenceType).toBeUndefined()
-  })
-
-  it('maps weekly with weekdays and an until date', () => {
-    const mapped = mapSubmissionSchedule({
-      scheduleType: 'weekly',
-      startDate: '2026-09-01T00:00:00.000Z',
-      endDate: '2026-12-01T00:00:00.000Z',
-      startTime: '09:00',
-      weekdays: ['TU', 'TH'],
-      timezone: 'Pacific/Auckland',
-    } as EventSubmission['schedule'])
-    expect(mapped).toMatchObject({
-      recurrenceType: 'WEEKLY',
-      interval: 1,
-      weekdays: ['TU', 'TH'],
-      endingType: 'until',
-      untilDate: '2026-12-01T00:00:00.000Z',
-    })
-  })
-
-  it('falls back to interpreting the time as UTC on an unknown timezone', () => {
-    const mapped = mapSubmissionSchedule({
-      scheduleType: 'one-off',
-      startDate: '2026-09-01T00:00:00.000Z',
-      startTime: '10:00',
-      timezone: 'Not/AZone',
-    } as EventSubmission['schedule'])
-    expect(mapped?.firstDate).toBe('2026-09-01T10:00:00.000Z')
-  })
-
-  it('returns null without a date + time to anchor on', () => {
-    expect(
-      mapSubmissionSchedule({ scheduleType: 'weekly' } as EventSubmission['schedule']),
-    ).toBeNull()
-    expect(mapSubmissionSchedule(null as never)).toBeNull()
-  })
-})
-
-describe('submissionEventPatch', () => {
-  it('includes only provided fields — the partial-update contract', () => {
-    const patch = submissionEventPatch({
-      contactPhone: '+44 20 1234',
-      description: 'First line\n\nSecond line',
-    } as EventSubmission)
-    expect(Object.keys(patch).sort()).toEqual(['contactPhone', 'description'])
-    const description = patch.description as { root: { children: unknown[] } }
-    expect(description.root.children).toHaveLength(2)
-  })
-
-  it('activates the event when a schedule is proposed', () => {
-    const patch = submissionEventPatch({
-      schedule: {
-        scheduleType: 'one-off',
-        startDate: '2026-09-01T00:00:00.000Z',
-        startTime: '10:00',
-        timezone: 'UTC',
-      },
-    } as EventSubmission)
-    expect(patch.inactive).toBe(false)
-    expect(patch.schedule).toBeTruthy()
   })
 })
