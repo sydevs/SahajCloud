@@ -7,7 +7,6 @@ import {
   checkNoUrls,
 } from '@/lib/endpoints/antiSpamGuard'
 import { signToken, verifyToken } from '@/lib/utilities/signedToken'
-import type { EventSubmission } from '@/payload-types'
 
 const NOW = new Date('2026-08-11T12:00:00.000Z')
 
