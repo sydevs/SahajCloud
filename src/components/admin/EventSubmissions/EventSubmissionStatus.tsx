@@ -11,7 +11,6 @@ import {
   useDocumentInfo,
   useField,
   useFormFields,
-  WarningIcon,
 } from '@payloadcms/ui'
 import React from 'react'
 
@@ -26,7 +25,13 @@ interface ScreeningResultShape {
   warnings?: unknown
 }
 
-type Severity = 'info' | 'warning' | 'error' | 'success'
+/**
+ * How loudly a status is drawn. There is deliberately no `warning`: the one
+ * state that used it — a submission awaiting a decision — is the collection's
+ * normal inbox, not a problem, and amber beside red Spam made routine work
+ * look like a fault.
+ */
+type Severity = 'info' | 'error' | 'success'
 
 /**
  * One line naming the state, one saying what follows from it.
@@ -43,8 +48,8 @@ const COPY: Record<SubmissionStatus, { severity: Severity; title: string; messag
       'Checking the submitter’s email and resolving the region. Retries every 15 minutes.',
   },
   pending: {
-    severity: 'warning',
-    title: 'Needs Review',
+    severity: 'info',
+    title: 'Awaiting Review',
     message: 'Compare the proposed changes with the preview, then accept or reject.',
   },
   spam: {
@@ -73,24 +78,16 @@ const COPY: Record<SubmissionStatus, { severity: Severity; title: string; messag
 
 const ICONS: Record<Severity, React.FC> = {
   info: InfoIcon,
-  warning: WarningIcon,
   error: ErrorIcon,
   success: SuccessIcon,
 }
 
 /**
- * Banner's own `type` — the built-in property, used wherever it has a variant.
- *
- * It ships `default | error | success` only. `warning` maps to `default` here
- * and gets its colour from `.event-submission-status--warning` instead
- * (Payload's own `--theme-warning-*` ramp): mapping it to `error` is what
- * previously repainted the amber WarningIcon red — `.banner--type-error`
- * applies `color-svg(var(--theme-error-600))` to every nested svg — making a
- * "needs a look" notice look like a failure.
+ * Banner's own `type` — the built-in property, used as-is now that every
+ * severity maps onto a variant it actually ships.
  */
 const BANNER_TYPE: Record<Severity, 'default' | 'error' | 'success'> = {
   info: 'default',
-  warning: 'default',
   error: 'error',
   success: 'success',
 }

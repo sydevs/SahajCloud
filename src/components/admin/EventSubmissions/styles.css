@@ -13,24 +13,6 @@
   flex-shrink: 0;
 }
 
-/*
- * Banner ships `default | error | success` only, so a "needs a look" notice
- * had nothing to be but grey — the whole pending state read as inert.
- *
- * This variant uses Payload's own `--theme-warning-*` ramp (defined in its
- * `colors.scss`, just unused by Banner), so it tracks light/dark and project
- * theming like every other banner. Crucially it does NOT restyle the icon:
- * `.banner--type-error` repaints every nested svg with
- * `color-svg(--theme-error-600)`, which is what previously turned the amber
- * WarningIcon red and made a warning indistinguishable from a failure.
- *
- * There is deliberately no `info` variant — Payload defines no info ramp, and
- * the informational states (screening, rejected) are genuinely neutral.
- */
-.event-submission-status--warning {
-  background: var(--theme-warning-100);
-  color: var(--theme-warning-750);
-}
 
 /* The state, named. Inherits the banner's colour so it can't drift from it. */
 .event-submission-status__title {
