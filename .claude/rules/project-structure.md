@@ -73,8 +73,12 @@ No loose files at the root — every file lives in a named folder:
   than one endpoint's private helper — and unit-testable without booting it.
 - domain folders shared across 2+ owners: `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
-  `pageTags/`, `cascadeDeletion/`, `eventTitle/` (the pure auto-title
-  composition — the Events title hook and the quality checks both recompose it),
+  `pageTags/`, `cascadeDeletion/`, `eventTitle/` (the auto-title composition,
+  split by purity: `compose.ts` is pure and re-composed by the quality checks;
+  `autoTitle.ts` resolves a title against the database — the templates global
+  and the region name — and is shared by the Events title hook and
+  EventSubmissions, which names a submission with the title its event would be
+  created with),
   `eventQuality/` (the listing-quality check registry + report builder, consumed
   by the Events collection, the admin panel and the ExpireEvents reminder emails.
   A check's `dependsOn` is read in **both** directions — the dependent is skipped

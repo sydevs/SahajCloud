@@ -90,7 +90,7 @@ Two mechanics worth knowing:
 
 - **Open the panel from a field component**, not a `ui` field:
   `setIsLivePreviewing(true)` from `useLivePreviewContext()` on mount, mounted
-  on the field whose value the preview consumes (see `EventPreviewMount`), so
+  on the field whose value the preview consumes (see `EventSubmissionPreview`), so
   the panel can't be opened on a document with nothing to show it.
 - A **virtual** field's value is computed on read, so it does not recompute as
   the user types. That's the right trade only when the document isn't editable —
