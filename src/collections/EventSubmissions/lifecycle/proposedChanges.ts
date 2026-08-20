@@ -272,19 +272,42 @@ function isInapplicable(
  * Empty leaves are dropped — a group listing ten `null`s buries the four values
  * that matter.
  */
+/** Rank of a name the field list doesn't declare — sorted last, order kept. */
+const UNRANKED = Number.MAX_SAFE_INTEGER
+
 /**
- * The group's keys in the order the collection declares them, with any key the
- * config doesn't know about appended in its own order rather than dropped —
- * an unrecognised key is exactly the kind of thing a reviewer should see.
+ * Where the collection declares each field, by name.
+ *
+ * `flattenedFields` is depth-first in declaration order, so this is the order a
+ * manager reads down the Events form — tabs, rows and collapsibles flattened
+ * away. Re-derived from the live config on every call, which is the whole
+ * point: moving a field in `Events.ts` moves it in the diff, with nothing here
+ * to keep in step.
  */
+function declarationRank(fields?: FlattenedField[]): Map<string, number> {
+  const rank = new Map<string, number>()
+  fields?.forEach((field, index) => {
+    if ('name' in field && !rank.has(field.name)) rank.set(field.name, index)
+  })
+  return rank
+}
+
+/**
+ * Sort by where the collection declares each name. A name the config doesn't
+ * know about sorts last in its own order rather than being dropped — an
+ * unrecognised key is exactly the kind of thing a reviewer should see.
+ */
+function byDeclaration<T>(items: T[], nameOf: (item: T) => string, rank: Map<string, number>): T[] {
+  // `sort` is stable, so equal ranks (two unknown names) keep their order.
+  return [...items].sort(
+    (a, b) => (rank.get(nameOf(a)) ?? UNRANKED) - (rank.get(nameOf(b)) ?? UNRANKED),
+  )
+}
+
+/** The group's keys in the order the collection declares them. */
 function orderedKeys(value: Record<string, unknown>, fields?: FlattenedField[]): string[] {
-  const own = Object.keys(value)
-  if (!fields) return own
-  const declared = fields
-    .map((field) => ('name' in field ? field.name : null))
-    .filter((name): name is string => typeof name === 'string' && name in value)
-  const seen = new Set(declared)
-  return [...declared, ...own.filter((key) => !seen.has(key))]
+  if (!fields) return Object.keys(value)
+  return byDeclaration(Object.keys(value), (key) => key, declarationRank(fields))
 }
 
 export function renderGroupYaml(
@@ -450,5 +473,13 @@ export function buildProposedChanges(args: {
     // those would tell a reviewer something changed when nothing they can see did.
     .filter((change) => change.before !== change.after)
 
-  return [...changes, ...scalars]
+  // Read in the order the Events form reads. Blocks were emitted before
+  // scalars and each set in whatever order microdiff walked them, so the same
+  // event's diff listed Languages, Address, Schedule, then the contact row —
+  // an order matching neither the form nor anything else the reviewer knows.
+  return byDeclaration(
+    [...changes, ...scalars],
+    (change) => change.path.split('.')[0]!,
+    declarationRank(args.fields),
+  )
 }

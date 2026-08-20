@@ -236,6 +236,57 @@ describe('buildProposedChanges', () => {
   })
 })
 
+describe('entry order', () => {
+  const PATCH = {
+    description: 'Free weekly meditation.',
+    contactPhone: '+44 700',
+    languages: ['en'],
+    address: { venueName: 'Riverside Hall' },
+  }
+
+  it('lists entries in the order the collection declares them', () => {
+    // Not the order microdiff walked the patch, and not blocks-before-scalars:
+    // the same event's diff read Languages, Address, Schedule, then the contact
+    // row — an order matching neither the form nor anything else a reviewer
+    // knows.
+    const changes = buildProposedChanges({ before: {}, after: PATCH, fields: EVENT_FIELDS })
+    expect(changes.map((change) => change.label)).toEqual([
+      'Contact Phone Number',
+      'Description',
+      'Address',
+      'Languages',
+    ])
+  })
+
+  it('follows the collection when its field order changes', () => {
+    // The ordering is read off the live config rather than restated here, so
+    // moving a field in Events.ts moves it in the diff. Deliberately a
+    // permutation that interleaves a group and a list with the scalars: the
+    // unsorted output groups them (blocks first, then scalars in the order
+    // microdiff walked the patch), so it cannot pass by coincidence.
+    const order = ['address', 'contactPhone', 'languages', 'description']
+    const reordered = order.map(
+      (name) => EVENT_FIELDS.find((entry) => 'name' in entry && entry.name === name)!,
+    )
+    const changes = buildProposedChanges({ before: {}, after: PATCH, fields: reordered })
+    expect(changes.map((change) => change.label)).toEqual([
+      'Address',
+      'Contact Phone Number',
+      'Languages',
+      'Description',
+    ])
+  })
+
+  it('puts a field the collection does not declare last', () => {
+    const changes = buildProposedChanges({
+      before: {},
+      after: { mysteryField: 'x', contactPhone: '+44 700' },
+      fields: EVENT_FIELDS,
+    })
+    expect(changes.map((change) => change.path)).toEqual(['contactPhone', 'mysteryField'])
+  })
+})
+
 describe('word-level segments', () => {
   const LONG_BEFORE =
     'Free weekly meditation. We meet in the main hall — enter via the front door on Mainzer Landstrasse.'
