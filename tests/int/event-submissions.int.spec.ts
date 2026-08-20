@@ -653,6 +653,49 @@ describe('Event submissions', () => {
       )
     })
 
+    it('accept with an assigned manager adopts and verifies the created event', async () => {
+      // The manager named on the *submission* — not the reviewer, who is
+      // `managerId` above and is deliberately not assigned to the event.
+      const owner = await testData.createManager(payload, { email: 'adopting@example.com' })
+      const created = await submit({
+        ...baseSubmission,
+        anchorRegion: cityId,
+        schedule: {
+          firstDate: '2026-09-01T17:30:00.000Z',
+          firstDate_tz: 'Europe/London',
+          recurrenceType: 'WEEKLY',
+          interval: 1,
+          weekdays: ['TU'],
+        },
+      })
+      await payload.update({
+        collection: 'event-submissions',
+        id: created.id,
+        data: { region: cityId, manager: owner.id, status: 'pending' },
+        overrideAccess: true,
+      })
+
+      const result = await applyReview({
+        payload,
+        submissionId: created.id,
+        action: 'accept',
+        managerId: regionManager.id,
+      })
+
+      const event = await payload.findByID({
+        collection: 'events',
+        id: result.eventId as number,
+        overrideAccess: true,
+        depth: 0,
+      })
+      expect(event.manager).toBe(owner.id)
+      expect(event.verificationStage).toBe('verified')
+      // The point of letting the verify hook run rather than stamping the
+      // stage ourselves: a verified event with no watermark would never come
+      // up for re-verification again.
+      expect(event.nextCheckAt).toBeTruthy()
+    })
+
     it('accept on an update proposal patches the event and re-verifies it', async () => {
       const eventManager = await testData.createManager(payload, {
         email: 'patched-manager@example.com',

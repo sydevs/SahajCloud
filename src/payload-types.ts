@@ -3558,9 +3558,13 @@ export interface EventSubmission {
     | boolean
     | null;
   /**
-   * The event this submission proposes changes to. Empty for a brand-new event; after acceptance it links the created event.
+   * The event this submission proposes changes to. After acceptance it links the created event.
    */
   event?: (number | null) | Event;
+  /**
+   * Optional. The manager who will look after this event. Assign one to publish it as verified; leave blank and it goes on the map as unverified until a manager takes it on.
+   */
+  manager?: (number | null) | Manager;
   /**
    * The city or venue this event belongs to. Resolved by screening — correct it here if it came back empty or wrong.
    */
@@ -4810,6 +4814,7 @@ export interface EventSubmissionsSelect<T extends boolean = true> {
   proposedChanges?: T;
   previewEvent?: T;
   event?: T;
+  manager?: T;
   region?: T;
   title?: T;
   proposed?: T;

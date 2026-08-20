@@ -39,8 +39,9 @@ const systemFieldAccess: { create: FieldAccess; update: FieldAccess } = {
  * no translation layer — and the review view renders that patch three ways: the
  * diff against the target (`proposedChanges`), the resulting listing
  * (`previewEvent`, via live preview), and Accept / Reject. The only editable
- * field is `region`, because screening can fail to resolve one and a reviewer
- * has to be able to fix it before accepting.
+ * fields are `region` — screening can fail to resolve one, and a reviewer has
+ * to be able to fix it before accepting — and `manager`, which adopts a
+ * created event in the same act. Both apply to new events only.
  *
  * `event` set ⇒ update proposal (and, after acceptance of a new-event
  * submission, the created event). `event` unset ⇒ new event.
@@ -161,14 +162,39 @@ export const EventSubmissions: CollectionConfig = {
       relationTo: 'events',
       admin: {
         readOnly: true,
+        // Hidden when empty. A read-only relationship with nothing in it says
+        // only "no event", which is already the whole message of the two
+        // fields below being shown instead — they and this are complementary,
+        // so the page always offers exactly one of the two.
+        condition: (data) => Boolean(data?.event),
         description:
-          'The event this submission proposes changes to. Empty for a brand-new event; after acceptance it links the created event.',
+          'The event this submission proposes changes to. After acceptance it links the created event.',
       },
     },
     {
-      // The one field a reviewer may change. Screening resolves it, but it can
-      // come back empty (an address that matched no city), and Accept refuses a
-      // new-event submission without one — so the fix has to be reachable here.
+      // Optional adoption, in the same act as accepting: a created event with a
+      // manager is verified on the spot (see `newEventDefaults`), and without
+      // one it goes on the map marked unverified until somebody takes it on.
+      //
+      // New events only — an update proposal's target already has whatever
+      // manager it has, and reassigning it is the Event's own business.
+      name: 'manager',
+      type: 'relationship',
+      relationTo: 'managers',
+      access: systemFieldAccess,
+      admin: {
+        condition: (data) => !data?.event,
+        description:
+          'Optional. The manager who will look after this event. Assign one to publish it as verified; leave blank and it goes on the map as unverified until a manager takes it on.',
+      },
+    },
+    {
+      // Screening resolves it, but it can come back empty (an address that
+      // matched no city), and Accept refuses a new-event submission without
+      // one — so the fix has to be reachable here.
+      //
+      // New events only, for the same reason as `manager`: an existing event
+      // already has its own region, and this column never applies to it.
       //
       // No `filterOptions`, deliberately: Payload validates it on save with a
       // find that forwards the caller's `req`, and a client `req` trips the
@@ -178,6 +204,7 @@ export const EventSubmissions: CollectionConfig = {
       relationTo: 'regions',
       access: systemFieldAccess,
       admin: {
+        condition: (data) => !data?.event,
         description:
           'The city or venue this event belongs to. Resolved by screening — correct it here if it came back empty or wrong.',
       },

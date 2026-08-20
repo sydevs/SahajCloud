@@ -1,3 +1,4 @@
+import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 
 /**
@@ -36,12 +37,26 @@ export type ProposedPatch = Record<string, unknown>
  * complete-looking diff and got an event that never appears on the map until
  * someone gives it a schedule.
  */
-export function newEventDefaults(proposed: ProposedPatch | null | undefined): ProposedPatch {
+export function newEventDefaults(
+  proposed: ProposedPatch | null | undefined,
+  /**
+   * The manager the reviewer assigned, if any — see the stage note below.
+   * An id or a populated doc, whichever the caller holds: the write path has
+   * the id, and a read at depth ≥ 1 already has the document, which is what
+   * lets the diff name the manager instead of printing their row number.
+   */
+  manager?: unknown,
+): ProposedPatch {
+  const managerId = relationId(manager)
   return {
     languages: ['en'],
     eventType: 'offline',
-    verificationStage: 'unverified',
-    manager: null,
+    // A manager means the listing is adopted the moment it is created, which
+    // is the same thing that happens when one is assigned to an unverified
+    // event in the admin — so it is created verified. Without one it goes on
+    // the map as unverified until somebody takes it on.
+    verificationStage: managerId != null ? 'verified' : 'unverified',
+    manager: managerId == null ? null : manager,
     inactive: (proposed ?? {}).schedule == null,
     _status: 'published',
   }
@@ -55,8 +70,10 @@ export function newEventDefaults(proposed: ProposedPatch | null | undefined): Pr
 export function mergeProposal(args: {
   proposed: ProposedPatch | null | undefined
   target?: Partial<Event> | null
+  /** New-event submissions only — an update proposal inherits its target's. */
+  manager?: unknown
 }): ProposedPatch {
-  const base: ProposedPatch = args.target ?? newEventDefaults(args.proposed)
+  const base: ProposedPatch = args.target ?? newEventDefaults(args.proposed, args.manager)
   return mergeInto(base, args.proposed ?? {})
 }
 

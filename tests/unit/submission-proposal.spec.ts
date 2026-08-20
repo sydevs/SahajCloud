@@ -121,6 +121,29 @@ describe('mergeProposal', () => {
     ).toBe(false)
   })
 
+  it('creates an unadopted listing unverified, and an adopted one verified', () => {
+    // Assigning a manager on the submission is adoption: the created event has
+    // someone responsible for it from the first moment, which is exactly the
+    // condition Events treats as verified. Without one it goes on the map
+    // unverified until somebody takes it on.
+    expect(mergeProposal({ proposed: {} })).toMatchObject({
+      manager: null,
+      verificationStage: 'unverified',
+    })
+    expect(mergeProposal({ proposed: {}, manager: 7 })).toMatchObject({
+      manager: 7,
+      verificationStage: 'verified',
+    })
+  })
+
+  it('ignores an assigned manager when the proposal targets an event', () => {
+    // An update proposal inherits its target's manager; reassigning one is the
+    // Event's own business, and the field is hidden for exactly that reason.
+    const target = { manager: 3, verificationStage: 'verified' } as unknown as Partial<Event>
+    const merged = mergeProposal({ proposed: {}, target, manager: 7 })
+    expect(merged.manager).toBe(3)
+  })
+
   it('replaces rich text wholesale rather than merging two node trees', () => {
     const target = {
       description: { root: { type: 'root', direction: 'ltr', children: [{ text: 'old' }] } },
@@ -408,6 +431,28 @@ describe('group blocks', () => {
     })
     expect(change.before).toBe('Repeats: Weekly')
     expect(change.after).toBe('Repeats: Monthly')
+  })
+})
+
+describe('reference fields', () => {
+  it('names a populated relationship instead of expanding its row', () => {
+    // A populated relationship is a plain object like any group, so it was
+    // block-rendered: a proposed manager came out as their entire row — id,
+    // roles, email, every notification preference — instead of one name.
+    const [change] = buildProposedChanges({
+      before: {},
+      after: {
+        manager: {
+          id: 496,
+          name: 'French Test',
+          email: 'french@example.com',
+          roles: ['meditations-editor'],
+        },
+      },
+      fields: EVENT_FIELDS,
+    })
+    expect(change).toMatchObject({ label: 'Manager', kind: 'added', after: 'French Test' })
+    expect(change.block).toBeUndefined()
   })
 })
 

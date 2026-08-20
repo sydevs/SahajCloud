@@ -212,6 +212,17 @@ function isBlockValue(value: unknown): value is Record<string, unknown> {
 }
 
 /**
+ * A relationship or upload value is a **reference to name**, never a group to
+ * expand. A populated one is a plain object like any group, so without this a
+ * proposed manager rendered as their entire row — id, roles, email, every
+ * notification preference — instead of `Manager: Jane Doe`. `formatValue`
+ * already knows how to name one.
+ */
+function isReference(field: FlattenedField | undefined): boolean {
+  return field?.type === 'relationship' || field?.type === 'upload'
+}
+
+/**
  * Values the system computes or the UI hides — noise inside a rendered group.
  * The schedule alone carries `icalRule`, `upcomingDates` and `lastDate`, all
  * derived from the dates beside them, plus the opaque Mapbox id behind the
@@ -418,17 +429,18 @@ export function buildProposedChanges(args: {
     const field = args.fields?.find((entry) => 'name' in entry && entry.name === key)
     const nested =
       field && 'flattenedFields' in field ? (field.flattenedFields as FlattenedField[]) : undefined
-    // A group renders as labelled lines; a list renders as one comma-joined
+    // A group renders as labelled lines; a list or a reference renders as one
     // value, which is already the shortest honest way to show it.
+    const expandable = !isReference(field)
     const render = (side: Record<string, unknown>) =>
-      isBlockValue(side[key])
+      expandable && isBlockValue(side[key])
         ? renderGroupYaml(side[key], nested, side) || null
         : formatValue(side[key], field)
     const before = render(args.before)
     const after = render(args.after)
     if (before === after) continue
 
-    const block = isBlockValue(args.before[key]) || isBlockValue(args.after[key])
+    const block = expandable && (isBlockValue(args.before[key]) || isBlockValue(args.after[key]))
     changes.push({
       path: key,
       label: labelForPath([key], args.fields),

@@ -65,9 +65,11 @@ export function buildReviewEmailLink(submissionId: number): string {
  *   plain `payload.update` — partial data merges field-wise, and the
  *   verify-on-save hook re-verifies a managed event exactly as any manager
  *   edit would (an unverified target stays unverified);
- * - new event → created **published + `unverified`** (no manager — accepting
- *   only vouches "not spam"; adoption is a separate act), attached to the
- *   screening-resolved `region` (falling back to the submitter's anchor).
+ * - new event → created **published**, attached to the screening-resolved
+ *   `region` (falling back to the submitter's anchor). `unverified` by
+ *   default — accepting only vouches "not spam" — unless the reviewer also
+ *   named a `manager` on the submission, which adopts and verifies it in the
+ *   same act.
  */
 export async function applyReview(args: {
   payload: Payload
@@ -162,6 +164,10 @@ export async function applyReview(args: {
     )
   }
 
+  // Optional, and only meaningful here: assigning one adopts the listing on
+  // creation instead of leaving it on the map as unverified.
+  const assignedManagerId = relationId(submission.manager)
+
   const created = await payload.create({
     collection: 'events',
     data: {
@@ -170,13 +176,18 @@ export async function applyReview(args: {
       // info the Events validation then requires) and `_status`. The preview
       // and the diff compose from the same function, so what a reviewer
       // approves is what gets written.
-      ...newEventDefaults(patch),
+      ...newEventDefaults(patch, assignedManagerId),
       ...patch,
       region: regionId,
       submitter: relationId(submission.submitter),
     } as never,
     overrideAccess: true,
-    context: { skipVerifyHook: true, skipWriteGuard: true },
+    // `skipVerifyHook` means "don't open a verification cycle", which is right
+    // for an unadopted listing and wrong for an adopted one: with a manager
+    // this save must take the same path as assigning a manager in the admin,
+    // or the event would be stamped `verified` with no `nextCheckAt` and never
+    // come up for re-verification again.
+    context: { skipVerifyHook: assignedManagerId == null, skipWriteGuard: true },
     req,
   })
 

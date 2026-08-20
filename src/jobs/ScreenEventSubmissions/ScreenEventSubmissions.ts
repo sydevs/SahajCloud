@@ -120,6 +120,8 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
     }
 
     const notes: string[] = []
+    /** Stored for triage, never rendered — see `ScreeningResult.diagnostic`. */
+    let diagnostic: string | undefined
 
     // --- Email verdict -----------------------------------------------------
     const listCheck = checkEmailAllowed(submitterEmail(submission))
@@ -129,11 +131,10 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
     } else {
       const mx = await hasMxRecords(submitterEmail(submission))
       if (mx === false) emailVerdict = 'no_mx_records'
-      if (mx === null) {
-        notes.push(
-          'The submitter’s email domain couldn’t be checked — the DNS lookup failed, so screening let it through. Worth a second look at the address.',
-        )
-      }
+      // A DNS failure used to add a note about the lookup. That is a fact
+      // about our infrastructure, not about the event, and it asked nothing of
+      // the reviewer — screening passed the submission either way.
+      if (mx === null) diagnostic = 'MX lookup inconclusive — passed open.'
     }
 
     if (emailVerdict !== 'ok') {
@@ -147,6 +148,7 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
             notes: [emailVerdictNote(emailVerdict), ...notes].filter(
               (note): note is string => note !== null,
             ),
+            ...(diagnostic ? { diagnostic } : {}),
             screenedAt: now.toISOString(),
           } satisfies ScreeningResult,
         },
@@ -197,9 +199,9 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
       resolvedRegionId = resolution.regionId
       const regionNote = regionOutcomeNote(resolution.outcome, resolution.cityName)
       if (regionNote) notes.push(regionNote)
-      if (resolution.warning) {
-        notes.push(`Looking up the address reported: ${resolution.warning}`)
-      }
+      // The lookup's own words — a Mapbox message or an error string. Kept,
+      // not shown: the note above already tells the reviewer what to do.
+      if (resolution.warning) diagnostic = resolution.warning
 
       const hint = (submission.regionHint ?? {}) as Record<string, unknown>
       const chainStartId = resolvedRegionId ?? relationId(hint.state) ?? relationId(hint.country)
@@ -217,9 +219,8 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
     if (!recipient) {
       // Last resort: the system contact reviews it.
       recipient = { email: CONTACT_EMAIL, name: null, managerId: null }
-      notes.push(
-        'No manager covers this region, so the review request went to the system contact instead.',
-      )
+      // Not a note: who received the email is our problem, and the person
+      // reading this banner is by definition the person reviewing it.
       Sentry.captureMessage('ScreenEventSubmissions: no manager to notify', {
         extra: { submissionId },
       })
@@ -239,6 +240,7 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
           emailVerdict,
           ...(regionOutcome ? { region: regionOutcome } : {}),
           notes,
+          ...(diagnostic ? { diagnostic } : {}),
           screenedAt: now.toISOString(),
         } satisfies ScreeningResult,
       },

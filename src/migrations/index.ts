@@ -44,6 +44,7 @@ import * as migration_20260819_002657_add_client_canonical from './20260819_0026
 import * as migration_20260819_002715_drop_client_legacy_config from './20260819_002715_drop_client_legacy_config';
 import * as migration_20260820_011749_submission_proposal_patch from './20260820_011749_submission_proposal_patch';
 import * as migration_20260820_151908_submission_title from './20260820_151908_submission_title';
+import * as migration_20260820_202018_submission_manager from './20260820_202018_submission_manager';
 
 export const migrations = [
   {
@@ -274,6 +275,11 @@ export const migrations = [
   {
     up: migration_20260820_151908_submission_title.up,
     down: migration_20260820_151908_submission_title.down,
-    name: '20260820_151908_submission_title'
+    name: '20260820_151908_submission_title',
+  },
+  {
+    up: migration_20260820_202018_submission_manager.up,
+    down: migration_20260820_202018_submission_manager.down,
+    name: '20260820_202018_submission_manager'
   },
 ];

@@ -55,13 +55,44 @@ function loadTargetEvent(req: PayloadRequest, targetId: number): Promise<Event |
   })
 }
 
+/**
+ * The assigned manager, at most once per request.
+ *
+ * `data.manager` is still a bare id inside a field `afterRead` — relationship
+ * population happens elsewhere in the read — and a diff line reading
+ * `Manager: 496` names nobody. Same no-`req` rule as the target event above:
+ * a read-only projection uses its own connection.
+ */
+function loadManager(req: PayloadRequest, managerId: number): Promise<unknown> {
+  return memoizeOnRequest(req, `submissionManager:${managerId}`, async () =>
+    req.payload
+      .findByID({
+        collection: 'managers',
+        id: managerId,
+        depth: 0,
+        overrideAccess: true,
+        disableErrors: true,
+      })
+      .catch(() => null),
+  )
+}
+
+/** The manager as something renderable, or the raw id if they've since gone. */
+async function resolveManager(req: PayloadRequest, value: unknown): Promise<unknown> {
+  const managerId = relationId(value)
+  if (managerId == null) return null
+  return (await loadManager(req, managerId)) ?? managerId
+}
+
 /** `previewEvent` — the merged event, for the live-preview iframe. */
 export const computePreviewEvent: FieldHook = async ({ data, findMany, req }) => {
   if (findMany) return null
 
   const proposed = data?.proposed as Record<string, unknown> | null | undefined
   const targetId = relationId(data?.event)
-  if (targetId == null) return mergeProposal({ proposed })
+  if (targetId == null) {
+    return mergeProposal({ proposed, manager: await resolveManager(req, data?.manager) })
+  }
 
   return mergeProposal({ proposed, target: await loadTargetEvent(req, targetId) })
 }
@@ -77,7 +108,17 @@ export const computeProposedChanges: FieldHook = async ({ data, findMany, req })
   // With no target, `before` is the new-event baseline, so every proposed field
   // reads as an addition — which is exactly what creating a listing is.
   const before = (target ?? mergeProposal({ proposed: null })) as Record<string, unknown>
-  const after = mergeProposal({ proposed, target })
+  // The manager rides on the submission, not the patch, so assigning one shows
+  // up here as what it is: the event gains a manager and is created verified.
+  // Resolved to the manager's own document, so the line reads as a name
+  // rather than `Manager: 496`.
+  // Virtual, so it refreshes on read rather than as the reviewer picks — the
+  // same trade every field on this page makes (see `.claude/rules/admin-ui.md`).
+  const after = mergeProposal({
+    proposed,
+    target,
+    manager: await resolveManager(req, data?.manager),
+  })
 
   return buildProposedChanges({
     before,
