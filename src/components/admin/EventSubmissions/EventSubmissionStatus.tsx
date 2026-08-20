@@ -14,17 +14,10 @@ import {
 } from '@payloadcms/ui'
 import React from 'react'
 
+import type { ScreeningResult } from '@/collections/EventSubmissions/screening'
 import type { SubmissionStatus } from '@/collections/EventSubmissions/statuses'
 
 import './styles.css'
-
-
-/** What the screening job recorded. Shape owned by `ScreenEventSubmissions`. */
-interface ScreeningResultShape {
-  emailVerdict?: unknown
-  region?: unknown
-  warnings?: unknown
-}
 
 /**
  * How loudly a status is drawn. There is deliberately no `warning`: the one
@@ -93,16 +86,25 @@ const BANNER_TYPE: Record<Severity, 'default' | 'error' | 'success'> = {
   success: 'success',
 }
 
-/** Screening notes are free text from the job; render only real strings. */
-function stringsOf(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string')
-    : []
+/**
+ * The stored value is JSON, so it can be anything a bad write left behind —
+ * render only real strings rather than trusting the column's declared type.
+ * A malformed row degrades to no notes instead of throwing the edit view.
+ */
+function notesOf(result: ScreeningResult | null | undefined): string[] {
+  const notes = result?.notes
+  return Array.isArray(notes) ? notes.filter((note): note is string => typeof note === 'string') : []
 }
 
 /**
- * Status banner atop an Event Submission: what state it's in, what Accept /
- * Reject will do, and the screening verdict when one was recorded.
+ * Status banner atop an Event Submission: what state it's in, what follows
+ * from it, and whatever screening found.
+ *
+ * The notes are rendered verbatim — screening composes them as complete
+ * sentences, because it is the party that knows *why* it decided what it did.
+ * This component used to assemble one from an enum (`Email verdict: disposable
+ * email`), which read like a debug dump and left the reviewer to infer the
+ * consequence.
  *
  * Mounted on `screeningResult` — the data it renders — rather than on a `ui`
  * field, so it reads its own value through `useField` instead of reaching
@@ -112,25 +114,13 @@ export const EventSubmissionStatus: FieldClientComponent = ({ field }) => {
   const { name, label } = field as JSONFieldClient
   const { id } = useDocumentInfo()
   const status = useFormFields(([fields]) => fields?.status?.value as SubmissionStatus | undefined)
-  const { value } = useField<ScreeningResultShape | null>()
+  const { value } = useField<ScreeningResult | null>()
 
   if (!id || !status || !COPY[status]) return null
 
   const { severity, title, message } = COPY[status]
   const Icon = ICONS[severity]
-  const screening = (value ?? {}) as ScreeningResultShape
-
-  const notes: string[] = []
-  // `emailVerdict` is a string enum (`ok` / `disposable_email` / …) — guard the
-  // type rather than assuming it, so a malformed row degrades to no note
-  // instead of throwing the whole edit view.
-  if (status === 'spam' && typeof screening.emailVerdict === 'string') {
-    notes.push(`Email verdict: ${screening.emailVerdict.replaceAll('_', ' ')}`)
-  }
-  if (screening.region === 'unresolved') {
-    notes.push('No city could be resolved — set the Region field before accepting.')
-  }
-  notes.push(...stringsOf(screening.warnings))
+  const notes = notesOf(value)
 
   return (
     <div className="field-type json read-only">

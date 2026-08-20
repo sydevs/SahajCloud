@@ -4,6 +4,11 @@ import * as Sentry from '@sentry/nextjs'
 
 import { formatValue, labelForPath } from '@/collections/EventSubmissions/lifecycle/proposedChanges'
 import { buildReviewEmailLink } from '@/collections/EventSubmissions/lifecycle/review'
+import {
+  emailVerdictNote,
+  regionOutcomeNote,
+  type ScreeningResult,
+} from '@/collections/EventSubmissions/screening'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { checkEmailAllowed } from '@/lib/endpoints/antiSpamGuard'
 import { findManagerForRegion } from '@/lib/notifications/recipients'
@@ -13,16 +18,6 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { EventSubmission } from '@/payload-types'
 
 import { hasMxRecords } from './emailChecks'
-
-/** What screening recorded — stored on the submission for admin triage. */
-interface ScreeningResult {
-  /** `ok`, or why the submission was classified spam. */
-  emailVerdict: 'ok' | 'disposable_email' | 'invalid_email' | 'no_mx_records'
-  /** Region-resolution outcome for new-event submissions. */
-  region?: 'anchor' | 'matched' | 'created' | 'unresolved'
-  warnings?: string[]
-  screenedAt: string
-}
 
 /**
  * Resolve the submission's target region (new-event submissions only):
@@ -37,6 +32,8 @@ async function resolveSubmissionRegion(
 ): Promise<{
   regionId: number | null
   outcome: NonNullable<ScreeningResult['region']>
+  /** The city screening matched or created — named in the reviewer's note. */
+  cityName?: string
   warning?: string
 }> {
   const hint = (submission.regionHint ?? {}) as Record<string, unknown>
@@ -65,6 +62,7 @@ async function resolveSubmissionRegion(
     return {
       regionId: result.regionId,
       outcome: result.created ? 'created' : 'matched',
+      cityName,
       warning: result.warning ?? undefined,
     }
   } catch (error) {
@@ -121,7 +119,7 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
       return { output: { status: submission.status } }
     }
 
-    const warnings: string[] = []
+    const notes: string[] = []
 
     // --- Email verdict -----------------------------------------------------
     const listCheck = checkEmailAllowed(submitterEmail(submission))
@@ -131,7 +129,11 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
     } else {
       const mx = await hasMxRecords(submitterEmail(submission))
       if (mx === false) emailVerdict = 'no_mx_records'
-      if (mx === null) warnings.push('MX lookup inconclusive — passed open')
+      if (mx === null) {
+        notes.push(
+          'The submitter’s email domain couldn’t be checked — the DNS lookup failed, so screening let it through. Worth a second look at the address.',
+        )
+      }
     }
 
     if (emailVerdict !== 'ok') {
@@ -142,7 +144,9 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
           status: 'spam',
           screeningResult: {
             emailVerdict,
-            warnings,
+            notes: [emailVerdictNote(emailVerdict), ...notes].filter(
+              (note): note is string => note !== null,
+            ),
             screenedAt: now.toISOString(),
           } satisfies ScreeningResult,
         },
@@ -191,7 +195,11 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
       const resolution = await resolveSubmissionRegion(payload, req, submission)
       regionOutcome = resolution.outcome
       resolvedRegionId = resolution.regionId
-      if (resolution.warning) warnings.push(resolution.warning)
+      const regionNote = regionOutcomeNote(resolution.outcome, resolution.cityName)
+      if (regionNote) notes.push(regionNote)
+      if (resolution.warning) {
+        notes.push(`Looking up the address reported: ${resolution.warning}`)
+      }
 
       const hint = (submission.regionHint ?? {}) as Record<string, unknown>
       const chainStartId = resolvedRegionId ?? relationId(hint.state) ?? relationId(hint.country)
@@ -209,7 +217,9 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
     if (!recipient) {
       // Last resort: the system contact reviews it.
       recipient = { email: CONTACT_EMAIL, name: null, managerId: null }
-      warnings.push('No responsible manager found — notified the system contact')
+      notes.push(
+        'No manager covers this region, so the review request went to the system contact instead.',
+      )
       Sentry.captureMessage('ScreenEventSubmissions: no manager to notify', {
         extra: { submissionId },
       })
@@ -228,7 +238,7 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
         screeningResult: {
           emailVerdict,
           ...(regionOutcome ? { region: regionOutcome } : {}),
-          warnings,
+          notes,
           screenedAt: now.toISOString(),
         } satisfies ScreeningResult,
       },
