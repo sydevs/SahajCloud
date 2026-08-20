@@ -7,8 +7,7 @@ import React from 'react'
 
 import type { ProposedChange } from '@/collections/EventSubmissions/lifecycle/proposedChanges'
 
-// The exact element type Payload's Table expects in `columns`.
-type ChangeColumn = NonNullable<React.ComponentProps<typeof Table>['columns']>[number]
+import { tableColumn } from '../tableColumn'
 
 const emptyStyle: React.CSSProperties = {
   color: 'var(--theme-elevation-500)',
@@ -40,15 +39,6 @@ function Value({ text, muted }: { text: string | null; muted?: boolean }) {
 }
 
 /**
- * Build a Payload `Table` column. The Table only reads
- * `accessor`/`active`/`Heading`/`renderedCells`; `field` is required by the
- * `Column` type but never used at runtime, so a stub satisfies it.
- */
-function column(accessor: string, heading: string, cells: React.ReactNode[]): ChangeColumn {
-  return { accessor, active: true, Heading: heading, renderedCells: cells, field: {} as never }
-}
-
-/**
  * The reviewer's whole job: what this submission would change about the event.
  *
  * Renders the `proposedChanges` virtual field — computed server-side, because
@@ -75,12 +65,12 @@ export const ProposedChangesField: FieldClientComponent = ({ field }) => {
             appearance="condensed"
             data={changes.map((change) => ({ id: change.path }))}
             columns={[
-              column(
+              tableColumn(
                 'field',
                 'Field',
                 changes.map((change) => change.label),
               ),
-              column(
+              tableColumn(
                 'kind',
                 '',
                 changes.map((change) => (
@@ -89,12 +79,12 @@ export const ProposedChangesField: FieldClientComponent = ({ field }) => {
                   </Pill>
                 )),
               ),
-              column(
+              tableColumn(
                 'before',
                 'Current',
                 changes.map((change) => <Value key={change.path} text={change.before} muted />),
               ),
-              column(
+              tableColumn(
                 'after',
                 'Proposed',
                 changes.map((change) => <Value key={change.path} text={change.after} />),

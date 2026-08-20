@@ -7,6 +7,7 @@ import React from 'react'
 
 import type { NotificationLogEntry } from '@/lib/eventVerification/log'
 
+import { tableColumn } from '../tableColumn'
 import {
   deliveryCell,
   eventLabel,
@@ -15,9 +16,6 @@ import {
   type DeliveryCell,
   type WhoCell,
 } from './format'
-
-// The exact element type Payload's Table expects in `columns`.
-type LogColumn = NonNullable<React.ComponentProps<typeof Table>['columns']>[number]
 
 /** Muted in-cell label (e.g. a reminder's channel, or the Who sub-line). */
 const labelStyle: React.CSSProperties = { color: 'var(--theme-elevation-500)' }
@@ -49,15 +47,6 @@ function DeliveryCellView({ cell }: { cell: DeliveryCell }) {
 }
 
 /**
- * Build a Payload `Table` column. The Table only reads
- * `accessor`/`active`/`Heading`/`renderedCells`; `field` is required by the
- * `Column` type but never used at runtime, so a stub satisfies it.
- */
-function column(accessor: string, heading: string, cells: React.ReactNode[]): LogColumn {
-  return { accessor, active: true, Heading: heading, renderedCells: cells, field: {} as never }
-}
-
-/**
  * Read-only renderer for an event's `notificationLog` (current verification
  * cycle). Uses Payload's own `Table` for native admin styling. Three columns:
  * When (date in words), Event (`Verified` / `Reminder · <stage>`), and a
@@ -79,22 +68,22 @@ export const NotificationLogField: FieldClientComponent = ({ field }) => {
             appearance="condensed"
             data={entries.map((_, index) => ({ id: index }))}
             columns={[
-              column(
+              tableColumn(
                 'when',
                 'When',
                 entries.map((entry) => formatLogDate(entry.at)),
               ),
-              column(
+              tableColumn(
                 'event',
                 'Event',
                 entries.map((entry) => eventLabel(entry)),
               ),
-              column(
+              tableColumn(
                 'who',
                 'Who',
                 entries.map((entry, index) => <WhoCellView key={index} cell={whoCell(entry)} />),
               ),
-              column(
+              tableColumn(
                 'delivery',
                 'Delivery',
                 entries.map((entry, index) => (
