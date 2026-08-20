@@ -38,16 +38,6 @@
   font-weight: 600;
   margin-bottom: calc(var(--base) * 0.15);
 }
-/*
- * The submitter card. Payload's `Banner` at its default type would be the
- * obvious neutral, but `--theme-elevation-*` is what `ProjectTheme` overrides
- * per project — under Sahaj Atlas the whole ramp is tinted blue, so "neutral"
- * came out coloured. Mixing the text colour into transparency gives a true
- * grey that still inverts correctly in dark mode.
- */
-.event-submission-submitter__card {
-  background: color-mix(in srgb, var(--theme-text) 7%, transparent);
-}
 
 .event-submission-submitter__identity {
   display: flex;

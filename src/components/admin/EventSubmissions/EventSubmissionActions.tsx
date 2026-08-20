@@ -1,6 +1,14 @@
 'use client'
 
-import { Button, SaveButton, toast, useDocumentInfo, useFormFields } from '@payloadcms/ui'
+import {
+  Button,
+  SaveButton,
+  toast,
+  useDocumentInfo,
+  useForm,
+  useFormFields,
+  useFormModified,
+} from '@payloadcms/ui'
 import { useRouter } from 'next/navigation'
 import React, { useCallback, useState } from 'react'
 
@@ -42,12 +50,12 @@ const DONE: Record<Action, (status?: string) => string> = {
  *   its purpose and the record is the manager's to discard; the event it
  *   created is untouched.
  *
- * The `region` Save button stays alongside while the submission is open,
- * because correcting an unresolved region is a prerequisite for Accept.
  */
 const EventSubmissionActions: React.FC = () => {
   const { id } = useDocumentInfo()
   const router = useRouter()
+  const { submit } = useForm()
+  const modified = useFormModified()
   const status = useFormFields(([fields]) => fields?.status?.value as SubmissionStatus | undefined)
   const [busy, setBusy] = useState<Action | null>(null)
 
@@ -58,6 +66,11 @@ const EventSubmissionActions: React.FC = () => {
       if (confirmation && !window.confirm(confirmation)) return
       setBusy(action)
       try {
+        // `region` is the one editable field, and correcting it only matters as
+        // part of accepting — so Accept persists it rather than a Save button
+        // asking the reviewer to do it in two steps. Nothing else on the page
+        // is editable, so a dirty form can only mean the region moved.
+        if (action === 'accept' && modified) await submit()
         const response =
           action === 'delete'
             ? await fetch(`/api/event-submissions/${id}`, {
@@ -88,7 +101,7 @@ const EventSubmissionActions: React.FC = () => {
         setBusy(null)
       }
     },
-    [id, busy, router],
+    [id, busy, router, submit, modified],
   )
 
   // An unsaved document has nothing to act on yet.
@@ -97,7 +110,6 @@ const EventSubmissionActions: React.FC = () => {
   if (OPEN_STATUSES.has(status)) {
     return (
       <div style={{ display: 'flex', gap: 'calc(var(--base) * 0.4)' }}>
-        <SaveButton />
         <Button onClick={() => run('reject')} buttonStyle="secondary" disabled={busy !== null}>
           {busy === 'reject' ? 'Rejecting…' : 'Reject'}
         </Button>

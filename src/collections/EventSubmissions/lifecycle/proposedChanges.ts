@@ -41,6 +41,12 @@ export interface ProposedChange {
    * already the clearest thing to read.
    */
   segments?: DiffSegment[]
+  /**
+   * This entry is a rendered group (`key: value` lines), not prose — so the
+   * renderer can emphasise the keys. Flagged here rather than sniffed from the
+   * text, which would mistake any multi-line description for a group.
+   */
+  block?: true
 }
 
 /**
@@ -246,6 +252,7 @@ export function buildProposedChanges(args: {
       kind: before === null ? 'added' : after === null ? 'removed' : 'changed',
       before,
       after,
+      block: true,
       // Always word-diffed: a block is exactly the case where showing both
       // copies in full defeats the purpose.
       ...(before !== null && after !== null ? { segments: wordSegments(before, after) } : {}),

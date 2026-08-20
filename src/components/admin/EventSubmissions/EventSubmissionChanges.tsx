@@ -5,7 +5,10 @@ import type { FieldClientComponent, JSONFieldClient } from 'payload'
 import { FieldLabel, useField } from '@payloadcms/ui'
 import React from 'react'
 
-import type { ProposedChange } from '@/collections/EventSubmissions/lifecycle/proposedChanges'
+import type {
+  DiffSegment,
+  ProposedChange,
+} from '@/collections/EventSubmissions/lifecycle/proposedChanges'
 
 import './styles.css'
 
@@ -27,24 +30,78 @@ function DiffLine({ kind, text }: { kind: 'removed' | 'added'; text: string | nu
 }
 
 /**
+ * Emphasise the `Key:` at the start of each line of a rendered group, so the
+ * block scans as a table rather than a paragraph.
+ *
+ * Walks the diff segments rather than the finished string, because a segment
+ * can begin mid-line — only a key that genuinely starts a line is a key, and
+ * "10:30" inside a value must not become one. `atLineStart` carries that
+ * across segment boundaries.
+ */
+function blockPieces(segments: DiffSegment[]): React.ReactNode[] {
+  const nodes: React.ReactNode[] = []
+  let atLineStart = true
+  let key = 0
+
+  for (const segment of segments) {
+    const className =
+      segment.kind === 'same' ? undefined : `event-submission-changes__word--${segment.kind}`
+
+    segment.text.split('\n').forEach((line, index) => {
+      if (index > 0) {
+        nodes.push(<br key={`br-${key++}`} />)
+        atLineStart = true
+      }
+      if (!line) return
+
+      const label = atLineStart ? /^(\s*)([^:]+)(:)/.exec(line) : null
+      if (label) {
+        nodes.push(
+          <span className={className} key={key++}>
+            {label[1]}
+            <strong>{label[2]}</strong>
+            {label[3]}
+            {line.slice(label[0].length)}
+          </span>,
+        )
+      } else {
+        nodes.push(
+          <span className={className} key={key++}>
+            {line}
+          </span>,
+        )
+      }
+      atLineStart = false
+    })
+  }
+
+  return nodes
+}
+
+/**
  * A long value rendered once, with only the edited words highlighted — the
  * whole point of the word-level diff. Showing a rewritten paragraph as two
  * full copies leaves the reader to spot the difference themselves.
  */
 function WordDiff({ change }: { change: ProposedChange }) {
+  const segments = change.segments ?? []
   return (
     <div className="event-submission-changes__line event-submission-changes__line--words">
       <span>
-        {change.segments?.map((segment, index) => (
-          <span
-            key={index}
-            className={
-              segment.kind === 'same' ? undefined : `event-submission-changes__word--${segment.kind}`
-            }
-          >
-            {segment.text}
-          </span>
-        ))}
+        {change.block
+          ? blockPieces(segments)
+          : segments.map((segment, index) => (
+              <span
+                key={index}
+                className={
+                  segment.kind === 'same'
+                    ? undefined
+                    : `event-submission-changes__word--${segment.kind}`
+                }
+              >
+                {segment.text}
+              </span>
+            ))}
       </span>
     </div>
   )

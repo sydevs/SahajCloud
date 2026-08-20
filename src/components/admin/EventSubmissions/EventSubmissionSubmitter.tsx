@@ -28,9 +28,9 @@ function text(value: unknown): string | null {
  * alternative and doesn't fit — it takes a `title` string and no children, so
  * there is nowhere to put the note.
  *
- * Its background is overridden to a true grey: Banner's default reads from
- * `--theme-elevation-*`, which `ProjectTheme` tints per project, so under
- * Sahaj Atlas the "neutral" card came out blue.
+ * Its background is Banner's own default, which reads from
+ * `--theme-elevation-*` — so it picks up the project's theme tint rather than
+ * being pinned to a fixed grey.
  *
  * The identity goes in the banner's first line and the note below it, labelled
  * "Message:" and **in quotation marks**, because it is a stranger's own words:
@@ -63,7 +63,7 @@ export const EventSubmissionSubmitter: FieldClientComponent = ({ field }) => {
         {!submitterName && !email && !note ? (
           <div className="event-submission-submitter__empty">No submitter details were recorded.</div>
         ) : (
-          <Banner className="event-submission-submitter__card" alignIcon="left">
+          <Banner alignIcon="left">
             <div className="event-submission-submitter__identity">
               {submitterName && <span className="event-submission-submitter__name">{submitterName}</span>}
               {email && (
