@@ -91,6 +91,9 @@ export function formatValue(value: unknown, field?: FlattenedField): string | nu
   if (value == null || value === '') return null
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
 
+  const option = optionLabel(field, value)
+  if (option !== null) return option
+
   // A stored instant is unreadable as `2026-09-03T16:30:00.000Z`, and diffing
   // it word by word produces nonsense like `2026-«-07»«+09»-«-18T16»«+03T16»`.
   // Formatted first, the diff lands on whole date parts a human can compare.
@@ -137,14 +140,36 @@ function formatInstant(value: string): string | null {
   }).format(date)} UTC`
 }
 
-function fieldLabel(field: FlattenedField | undefined, fallback: string): string {
-  const label = field && 'label' in field ? field.label : undefined
+/** A Payload `StaticLabel` is a string or a per-locale record; take either. */
+function labelText(label: unknown): string | null {
   if (typeof label === 'string') return label
   if (label && typeof label === 'object') {
-    const values = Object.values(label as Record<string, string>)
+    const values = Object.values(label as Record<string, unknown>)
     if (typeof values[0] === 'string') return values[0]
   }
-  return toWords(fallback)
+  return null
+}
+
+function fieldLabel(field: FlattenedField | undefined, fallback: string): string {
+  const label = field && 'label' in field ? field.label : undefined
+  return labelText(label) ?? toWords(fallback)
+}
+
+/**
+ * A select stores its option's *value*, which is rarely what the option is
+ * called: a schedule read `Repeats: WEEKLY / On Days: TH / Day: MO`, three
+ * different vocabularies for a reviewer to decode. The field already carries
+ * the wording the admin form shows — use it.
+ */
+function optionLabel(field: FlattenedField | undefined, value: unknown): string | null {
+  // `options` is guaranteed by Payload's own types but not by the shape of a
+  // hand-built field list, and a select with none simply has no label to give.
+  if (!field || field.type !== 'select' || !Array.isArray(field.options)) return null
+  const match = field.options.find((option) =>
+    typeof option === 'string' ? option === value : option.value === value,
+  )
+  if (match == null) return null
+  return typeof match === 'string' ? match : (labelText(match.label) ?? match.value)
 }
 
 /**
@@ -200,6 +225,42 @@ function isNoiseField(field: FlattenedField | undefined, key: string): boolean {
 }
 
 /**
+ * Does this field apply, given the values beside it?
+ *
+ * A schedule keeps every recurrence sub-field in one row of columns, so a
+ * weekly event still carries whatever was last typed into the monthly ones.
+ * Rendering all of them read as nine unrelated keys — `Repeats: Weekly` beside
+ * `Monthly Mode: By date`, `Week: 1st`, `Day: Monday` — describing state that
+ * has no effect on the event. The admin form already hides them; `admin.condition`
+ * is that rule, and it lives on the field, so the diff can ask the same question
+ * rather than hard-coding which keys pair with which.
+ *
+ * Only applied *inside* a rendered group, where an inapplicable key is noise
+ * within a block the reviewer can still see. A top-level field is never hidden
+ * this way — that would drop a proposed change from the diff entirely.
+ */
+function isInapplicable(
+  field: FlattenedField | undefined,
+  data: Record<string, unknown>,
+  siblingData: Record<string, unknown>,
+): boolean {
+  const condition = field?.admin?.condition
+  if (typeof condition !== 'function') return false
+  try {
+    return !condition(data, siblingData, {
+      blockData: {},
+      operation: 'update',
+      path: [],
+      user: null,
+    })
+  } catch {
+    // A condition wanting more context than a diff has (a signed-in user, a
+    // block's own data) is no reason to hide a value the reviewer may need.
+    return false
+  }
+}
+
+/**
  * Render a group as YAML-ish `label: value` lines.
  *
  * Hand-rolled rather than handed to a YAML library, because the point is *not*
@@ -229,7 +290,27 @@ function orderedKeys(value: Record<string, unknown>, fields?: FlattenedField[]):
 export function renderGroupYaml(
   value: unknown,
   fields?: FlattenedField[],
+  /** The whole document, for `admin.condition` — which reads both. */
+  data: Record<string, unknown> = {},
   depth = 0,
+): string {
+  const filtered = renderLines(value, fields, data, depth, true)
+  if (filtered) return filtered
+  // Every sub-field ruled out. Not every condition means "does not apply" —
+  // the address group's mean "don't reveal these until a place is picked", so
+  // a submission typed in by hand (no `mapboxId`) had its entire address
+  // filtered away and the reviewer saw no address at all. A condition is a
+  // hint for trimming noise; it is never a reason to show the reviewer
+  // nothing, so an emptied block falls back to the unfiltered one.
+  return renderLines(value, fields, data, depth, false)
+}
+
+function renderLines(
+  value: unknown,
+  fields: FlattenedField[] | undefined,
+  data: Record<string, unknown>,
+  depth: number,
+  respectConditions: boolean,
 ): string {
   if (!isBlockValue(value)) return formatValue(value) ?? ''
   const pad = '  '.repeat(depth)
@@ -244,12 +325,13 @@ export function renderGroupYaml(
     const child = value[key]
     const field = fields?.find((entry) => 'name' in entry && entry.name === key)
     if (isNoiseField(field, key)) continue
+    if (respectConditions && isInapplicable(field, data, value)) continue
     const label = fieldLabel(field, key)
     const nested =
       field && 'flattenedFields' in field ? (field.flattenedFields as FlattenedField[]) : undefined
 
     if (isBlockValue(child)) {
-      const block = renderGroupYaml(child, nested, depth + 1)
+      const block = renderLines(child, nested, data, depth + 1, respectConditions)
       if (block.trim()) lines.push(`${pad}${label}:`, block)
       continue
     }
@@ -291,44 +373,56 @@ export function buildProposedChanges(args: {
     (entry) => !OMITTED_ROOTS.has(String(entry.path[0])),
   )
 
-  // Group/json fields collapse to one entry each. Seven separate
-  // "Address › …" rows told a reviewer which keys moved but never what the
-  // address now reads as; one YAML block with every subfield, word-diffed,
-  // shows the change in the context that makes it judgeable.
-  const blockKeys = new Set<string>()
+  // Two kinds of root are judged whole rather than key by key.
+  //
+  // **Groups**: seven separate "Address › …" rows told a reviewer which keys
+  // moved but never what the address now reads as; one block with every
+  // subfield shows the change in the context that makes it judgeable.
+  //
+  // **Arrays**: microdiff reports a hasMany list per index, so adding one
+  // language surfaced as `Languages › #2` — a row number the reviewer has no
+  // way to relate to anything. The list is one value; diff it as one.
+  const wholeKeys = new Set<string>()
+  const isWhole = (value: unknown) => isBlockValue(value) || Array.isArray(value)
   for (const entry of entries) {
     const key = String(entry.path[0])
-    if (isBlockValue(args.before[key]) || isBlockValue(args.after[key])) blockKeys.add(key)
+    if (isWhole(args.before[key]) || isWhole(args.after[key])) wholeKeys.add(key)
   }
 
   const changes: ProposedChange[] = []
 
-  for (const key of blockKeys) {
+  for (const key of wholeKeys) {
     const field = args.fields?.find((entry) => 'name' in entry && entry.name === key)
     const nested =
       field && 'flattenedFields' in field ? (field.flattenedFields as FlattenedField[]) : undefined
-    const before = renderGroupYaml(args.before[key], nested) || null
-    const after = renderGroupYaml(args.after[key], nested) || null
+    // A group renders as labelled lines; a list renders as one comma-joined
+    // value, which is already the shortest honest way to show it.
+    const render = (side: Record<string, unknown>) =>
+      isBlockValue(side[key])
+        ? renderGroupYaml(side[key], nested, side) || null
+        : formatValue(side[key], field)
+    const before = render(args.before)
+    const after = render(args.after)
     if (before === after) continue
+
+    const block = isBlockValue(args.before[key]) || isBlockValue(args.after[key])
     changes.push({
       path: key,
       label: labelForPath([key], args.fields),
       kind: before === null ? 'added' : after === null ? 'removed' : 'changed',
       before,
       after,
-      block: true,
-      // Always segmented, including when one side is absent: the renderer
-      // bolds a group's keys off these, so a wholly-new group rendered as a
-      // plain line came out unbolded while an edited one didn't.
-      segments:
-        before !== null && after !== null
-          ? wordSegments(before, after)
-          : [{ text: (after ?? before) as string, kind: after !== null ? 'added' : 'removed' }],
+      ...(block ? { block: true as const } : {}),
+      // Only a two-sided edit is word-diffed. An addition or a removal is one
+      // whole `+`/`−` side with nothing to compare it against, and segmenting
+      // it just to carry the renderer's key emphasis made it look like a
+      // partial edit — the renderer bolds keys off `block` instead.
+      ...(before !== null && after !== null ? { segments: wordSegments(before, after) } : {}),
     })
   }
 
   const scalars = entries
-    .filter((entry) => !blockKeys.has(String(entry.path[0])))
+    .filter((entry) => !wholeKeys.has(String(entry.path[0])))
     .map((entry): ProposedChange => {
       const field = fieldAtPath(entry.path, args.fields)
       const before = 'oldValue' in entry ? formatValue(entry.oldValue, field) : null

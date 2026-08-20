@@ -19,12 +19,46 @@ import './styles.css'
  */
 const CHANGED_SUFFIX = ' — Changed'
 
+/**
+ * The `Key:` at the start of a line, bolded. `atLineStart` is the caller's
+ * business: a segment can begin mid-line, and "10:30" inside a value must not
+ * become a key.
+ */
+function boldKey(line: string, key: React.Key): React.ReactNode {
+  const match = /^(\s*)([^:]+)(:)/.exec(line)
+  if (!match) return <React.Fragment key={key}>{line}</React.Fragment>
+  return (
+    <React.Fragment key={key}>
+      {match[1]}
+      <strong>{match[2]}</strong>
+      {match[3]}
+      {line.slice(match[0].length)}
+    </React.Fragment>
+  )
+}
+
+/** Each line of a rendered group, keys emphasised, inside one `−`/`+` side. */
+function blockLines(text: string): React.ReactNode[] {
+  return text.split('\n').flatMap((line, index) => [
+    ...(index > 0 ? [<br key={`br-${index}`} />] : []),
+    boldKey(line, index),
+  ])
+}
+
 /** One `−`/`+` row. `null` renders the word "empty" rather than a blank line. */
-function DiffLine({ kind, text }: { kind: 'removed' | 'added'; text: string | null }) {
+function DiffLine({
+  kind,
+  text,
+  block,
+}: {
+  kind: 'removed' | 'added'
+  text: string | null
+  block?: boolean
+}) {
   return (
     <div className={`event-submission-changes__line event-submission-changes__line--${kind}`}>
       <span className="event-submission-changes__marker">{kind === 'removed' ? '−' : '+'}</span>
-      <span>{text ?? 'empty'}</span>
+      <span>{text === null ? 'empty' : block ? blockLines(text) : text}</span>
     </div>
   )
 }
@@ -54,23 +88,12 @@ function blockPieces(segments: DiffSegment[]): React.ReactNode[] {
       }
       if (!line) return
 
-      const label = atLineStart ? /^(\s*)([^:]+)(:)/.exec(line) : null
-      if (label) {
-        nodes.push(
-          <span className={className} key={key++}>
-            {label[1]}
-            <strong>{label[2]}</strong>
-            {label[3]}
-            {line.slice(label[0].length)}
-          </span>,
-        )
-      } else {
-        nodes.push(
-          <span className={className} key={key++}>
-            {line}
-          </span>,
-        )
-      }
+      nodes.push(
+        <span className={className} key={key}>
+          {atLineStart ? boldKey(line, key) : line}
+        </span>,
+      )
+      key++
       atLineStart = false
     })
   }
@@ -152,8 +175,12 @@ export const EventSubmissionChanges: FieldClientComponent = ({ field }) => {
                   {/* An addition has no "before" worth a struck-out `empty`
                       line, and a removal has no "after" — show only the side
                       that says something. */}
-                  {change.kind !== 'added' && <DiffLine kind="removed" text={change.before} />}
-                  {change.kind !== 'removed' && <DiffLine kind="added" text={change.after} />}
+                  {change.kind !== 'added' && (
+                    <DiffLine kind="removed" text={change.before} block={change.block} />
+                  )}
+                  {change.kind !== 'removed' && (
+                    <DiffLine kind="added" text={change.after} block={change.block} />
+                  )}
                 </>
               )}
             </div>

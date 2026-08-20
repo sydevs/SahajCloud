@@ -29,18 +29,50 @@ const EVENT_FIELDS = [
   {
     name: 'address',
     type: 'group',
-    flattenedFields: [{ name: 'venueName', type: 'text', label: 'Venue Name' }],
+    // The real address group reveals its fields once a Mapbox place is picked.
+    flattenedFields: [
+      {
+        name: 'venueName',
+        type: 'text',
+        label: 'Venue Name',
+        admin: {
+          condition: (_data: unknown, sibling: Record<string, unknown>) =>
+            Boolean(sibling?.mapboxId),
+        },
+      },
+    ],
   },
   { name: 'verificationStage', type: 'select', admin: { readOnly: true } },
   { name: 'manager', type: 'relationship' },
   { name: 'region', type: 'relationship' },
+  { name: 'languages', type: 'select', hasMany: true, options: ['en', 'cs', 'de'] },
   {
     name: 'schedule',
     type: 'group',
     flattenedFields: [
       { name: 'firstDate', type: 'date', label: 'First Date & Time' },
       { name: 'endTime', type: 'text', label: 'End Time' },
-      { name: 'recurrenceType', type: 'select', label: 'Repeats' },
+      {
+        name: 'recurrenceType',
+        type: 'select',
+        label: 'Repeats',
+        options: [
+          { label: 'Weekly', value: 'WEEKLY' },
+          { label: 'Monthly', value: 'MONTHLY' },
+        ],
+      },
+      // Mirrors the real schedule: the monthly controls stay in the row and
+      // keep whatever was last typed into them, hidden by a condition.
+      {
+        name: 'monthlyMode',
+        type: 'select',
+        label: 'Monthly Mode',
+        options: [{ label: 'By date', value: 'date' }],
+        admin: {
+          condition: (_data: unknown, sibling: Record<string, unknown>) =>
+            sibling?.recurrenceType === 'MONTHLY',
+        },
+      },
     ],
   },
 ] as unknown as FlattenedField[]
@@ -273,17 +305,86 @@ describe('group blocks', () => {
     expect(change.segments?.some((segment) => segment.text.includes('Jul'))).toBe(true)
   })
 
-  it('segments a wholly-new group too, so its keys can be emphasised', () => {
+  it('leaves a wholly-new group as one plain `+` side', () => {
+    // It was briefly segmented so the renderer could bold its keys off the
+    // segments — which made a pure addition look like a partial edit. The
+    // renderer bolds off `block` instead, and this side stays whole.
     const [change] = buildProposedChanges({
       before: {},
       after: { address: { venueName: 'Riverside Hall' } },
       fields: EVENT_FIELDS,
     })
-    expect(change.kind).toBe('added')
-    expect(change.block).toBe(true)
-    expect(change.segments).toEqual([
-      { text: 'Venue Name: Riverside Hall', kind: 'added' },
-    ])
+    expect(change).toMatchObject({
+      kind: 'added',
+      block: true,
+      before: null,
+      after: 'Venue Name: Riverside Hall',
+    })
+    expect(change.segments).toBeUndefined()
+  })
+
+  it('drops sub-fields the schedule\u2019s own conditions rule out', () => {
+    // A weekly schedule still carries whatever was last typed into the monthly
+    // controls. Rendering them read as unrelated keys describing state with no
+    // effect on the event, so the diff asks `admin.condition` the same question
+    // the admin form does.
+    const [change] = buildProposedChanges({
+      before: {},
+      after: { schedule: { recurrenceType: 'WEEKLY', monthlyMode: 'date' } },
+      fields: EVENT_FIELDS,
+    })
+    expect(change.after).toBe('Repeats: Weekly')
+  })
+
+  it('shows an unfiltered block rather than an empty one', () => {
+    // The address group's conditions mean "don't reveal these until a place is
+    // picked", not "these don't apply". Honouring them literally filtered away
+    // every line of a hand-typed address and the reviewer saw no address at
+    // all — so a block emptied by its own conditions falls back to unfiltered.
+    const [change] = buildProposedChanges({
+      before: {},
+      after: { address: { venueName: 'Riverside Hall' } }, // no mapboxId
+      fields: EVENT_FIELDS,
+    })
+    expect(change.after).toBe('Venue Name: Riverside Hall')
+  })
+
+  it('names a select by its option label, not its stored value', () => {
+    const [change] = buildProposedChanges({
+      before: { schedule: { recurrenceType: 'WEEKLY' } },
+      after: { schedule: { recurrenceType: 'MONTHLY' } },
+      fields: EVENT_FIELDS,
+    })
+    expect(change.before).toBe('Repeats: Weekly')
+    expect(change.after).toBe('Repeats: Monthly')
+  })
+})
+
+describe('list fields', () => {
+  it('diffs a hasMany list whole rather than by row number', () => {
+    // microdiff reports a list per index, so adding one language surfaced as
+    // `Languages \u203a #2` \u2014 a row number a reviewer can't relate to anything.
+    const [change] = buildProposedChanges({
+      before: { languages: ['en', 'cs'] },
+      after: { languages: ['en', 'cs', 'de'] },
+      fields: EVENT_FIELDS,
+    })
+    expect(change).toMatchObject({
+      path: 'languages',
+      label: 'Languages',
+      kind: 'changed',
+      before: 'en, cs',
+      after: 'en, cs, de',
+    })
+  })
+
+  it('reports a list cleared to empty as a removal', () => {
+    const [change] = buildProposedChanges({
+      before: { languages: ['en'] },
+      after: { languages: [] },
+      fields: EVENT_FIELDS,
+    })
+    expect(change).toMatchObject({ path: 'languages', kind: 'removed', after: null })
   })
 })
 
