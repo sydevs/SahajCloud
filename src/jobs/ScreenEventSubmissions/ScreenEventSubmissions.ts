@@ -2,8 +2,8 @@ import type { FlattenedField, Payload, PayloadRequest, TaskConfig } from 'payloa
 
 import * as Sentry from '@sentry/nextjs'
 
-import { buildReviewEmailLink } from '@/collections/EventSubmissions/lifecycle/review'
 import { formatValue, labelForPath } from '@/collections/EventSubmissions/lifecycle/proposedChanges'
+import { buildReviewEmailLink } from '@/collections/EventSubmissions/lifecycle/review'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { checkEmailAllowed } from '@/lib/endpoints/antiSpamGuard'
 import { findManagerForRegion } from '@/lib/notifications/recipients'

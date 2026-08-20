@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, SaveButton, toast, useDocumentInfo, useForm, useFormFields } from '@payloadcms/ui'
+import { Button, SaveButton, toast, useDocumentInfo, useFormFields } from '@payloadcms/ui'
 import { useRouter } from 'next/navigation'
 import React, { useCallback, useState } from 'react'
 
@@ -10,17 +10,16 @@ const OPEN_STATUSES = new Set(['screening', 'pending'])
  * Replaces the default Save button on an Event Submission's edit view with
  * **Accept** / **Reject** while the submission is still open:
  *
- * - Accept saves the form first (so a manager's corrections to the proposed
- *   fields land on the submission), then calls the review endpoint — creating
- *   the event or applying the update proposal.
- * - Reject calls the endpoint directly (nothing worth saving on a rejection).
+ * Both call the review endpoint directly. Neither saves the form first: the
+ * submission is a proposal to judge, not a document to edit — the only
+ * editable field is `region`, which a reviewer saves with the normal Save
+ * button before deciding.
  *
  * Terminal submissions (spam / created / updated / rejected) get the default
  * Save button back, so an admin can still correct record-keeping fields.
  */
 const EventSubmissionSaveButton: React.FC = () => {
   const { id } = useDocumentInfo()
-  const { submit } = useForm()
   const router = useRouter()
   const status = useFormFields(([fields]) => fields?.status?.value as string | undefined)
   const [busy, setBusy] = useState<null | 'accept' | 'reject'>(null)
@@ -31,10 +30,6 @@ const EventSubmissionSaveButton: React.FC = () => {
       if (action === 'reject' && !window.confirm('Reject this submission?')) return
       setBusy(action)
       try {
-        if (action === 'accept') {
-          // Persist the manager's edits first — Accept applies what's on screen.
-          await submit()
-        }
         const response = await fetch(`/api/event-submissions/${id}/review`, {
           method: 'POST',
           credentials: 'include',
@@ -63,7 +58,7 @@ const EventSubmissionSaveButton: React.FC = () => {
         setBusy(null)
       }
     },
-    [id, busy, submit, router],
+    [id, busy, router],
   )
 
   // New (unsaved) docs and terminal submissions keep the normal Save button.

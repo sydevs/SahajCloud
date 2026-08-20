@@ -1,8 +1,8 @@
-import type { Event } from '@/payload-types'
 import type { FieldHook, PayloadRequest } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
+import type { Event } from '@/payload-types'
 
 import { mergeProposal } from '../lifecycle/mergeProposal'
 import { buildProposedChanges } from '../lifecycle/proposedChanges'

@@ -1,0 +1,16 @@
+/*
+ * Payload's `.banner--has-icon` sets only `display: flex` — no alignment, no
+ * gap, and no `flex-shrink` on the icon. Beside a multi-line message the 26px
+ * icon stretches to the banner's full height and drifts out of line with the
+ * first row of text. These three declarations are the whole fix; everything
+ * else (colour, padding, radius) stays Payload's.
+ */
+.event-submission-notice {
+  align-items: flex-start;
+  gap: calc(var(--base) * 0.4);
+}
+
+.event-submission-notice > svg,
+.event-submission-notice > span:first-child > svg {
+  flex-shrink: 0;
+}
