@@ -118,12 +118,17 @@ export function buildProposedChanges(args: {
     diff(args.before, args.after)
       .filter((entry) => !OMITTED_ROOTS.has(String(entry.path[0])))
       .map((entry): ProposedChange => {
+        const before = 'oldValue' in entry ? formatValue(entry.oldValue) : null
+        const after = 'value' in entry ? formatValue(entry.value) : null
         return {
           path: entry.path.join('.'),
           label: labelForPath(entry.path, args.fields),
-          kind: entry.type === 'CREATE' ? 'added' : entry.type === 'REMOVE' ? 'removed' : 'changed',
-          before: 'oldValue' in entry ? formatValue(entry.oldValue) : null,
-          after: 'value' in entry ? formatValue(entry.value) : null,
+          // Classify by what the reviewer sees, not by microdiff's key-level
+          // verdict: a column that held `null` and now holds a value is a
+          // CHANGE to microdiff and plainly an addition to a human.
+          kind: before === null ? 'added' : after === null ? 'removed' : 'changed',
+          before,
+          after,
         }
       })
       // Formatting can collapse a raw difference to no visible difference at all

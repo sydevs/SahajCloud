@@ -43,12 +43,22 @@ describe('mergeProposal', () => {
     expect(merged).toEqual({ title: 'Morning Meditation', contactPhone: '+44 900' })
   })
 
-  it('replaces a group wholesale rather than merging into it', () => {
-    // A proposed schedule is a proposed schedule — half of the submitter's and
-    // half of the manager's would be a hybrid neither asked for.
+  it('merges into a group the way Payload does, keeping untouched sub-fields', () => {
+    // Verified against the running API: `payload.update` with a partial group
+    // changes the named sub-field and leaves its siblings alone. The diff and
+    // the preview must say the same, or they misrepresent what Accept writes.
     const target = { schedule: { firstDate: 'A', endTime: '20:00' } } as unknown as Partial<Event>
     const merged = mergeProposal({ proposed: { schedule: { firstDate: 'B' } }, target })
-    expect(merged.schedule).toEqual({ firstDate: 'B' })
+    expect(merged.schedule).toEqual({ firstDate: 'B', endTime: '20:00' })
+  })
+
+  it('replaces arrays and honours an explicit null', () => {
+    // Payload replaces arrays rather than appending, and a null in a patch is
+    // how a value gets cleared.
+    const target = { languages: ['en', 'cs'], website: 'https://a.test' } as unknown as Partial<Event>
+    const merged = mergeProposal({ proposed: { languages: ['de'], website: null }, target })
+    expect(merged.languages).toEqual(['de'])
+    expect(merged.website).toBeNull()
   })
 
   it('starts a new-event submission from the accept-time defaults', () => {

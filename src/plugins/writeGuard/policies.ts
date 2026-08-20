@@ -51,7 +51,9 @@ export const DEFAULT_WRITE_GUARD_POLICIES: Partial<Record<CollectionSlug, WriteG
       urlScanFields: [
         'proposed.description',
         'proposed.contactName',
-        'proposed.venueName',
+        // Inside the address group, not beside it — `addressFields` nests it.
+        'proposed.address.venueName',
+        'proposed.title',
         'submitterInfo.note',
         'submitterInfo.name',
       ],

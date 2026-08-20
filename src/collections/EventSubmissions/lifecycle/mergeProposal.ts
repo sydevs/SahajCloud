@@ -9,11 +9,17 @@ import type { Event } from '@/payload-types'
  * point: a diff that disagreed with what Accept actually wrote would be worse
  * than no diff at all.
  *
- * Shallow by design. `proposed` is an Events data *patch*, and Payload's own
- * update semantics are field-wise — a proposed `schedule` replaces the target's
- * schedule wholesale rather than merging into it, which is what "the submitter
- * is proposing this schedule" means. Deep-merging would invent a hybrid neither
- * party asked for.
+ * **Merges the way Payload merges**, which is recursive through groups: a
+ * `payload.update` given `{ address: { venueName } }` changes the venue name
+ * and leaves street/city/country/coordinates exactly as they were (verified
+ * against the running API, not assumed). An earlier version of this replaced a
+ * group wholesale, and the diff then told the reviewer that accepting a
+ * venue-name correction would erase the address — a diff that disagrees with
+ * what Accept actually writes is worse than no diff at all.
+ *
+ * Arrays are replaced, not merged, because Payload replaces them: a proposed
+ * `languages: ['de']` means those languages, not those plus the old ones. An
+ * explicit `null` also wins — it is how a patch clears a value.
  */
 
 /** An Events data patch: keys are Events field names, validated on the way in. */
@@ -41,5 +47,20 @@ export function mergeProposal(args: {
   target?: Partial<Event> | null
 }): ProposedPatch {
   const base: ProposedPatch = args.target ?? NEW_EVENT_DEFAULTS
-  return { ...base, ...(args.proposed ?? {}) }
+  return mergeInto(base, args.proposed ?? {})
+}
+
+/** A group value — merged into. Arrays and nulls are values, and replace. */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function mergeInto(base: ProposedPatch, patch: ProposedPatch): ProposedPatch {
+  const merged: ProposedPatch = { ...base }
+  for (const [key, value] of Object.entries(patch)) {
+    const existing = merged[key]
+    merged[key] =
+      isPlainObject(existing) && isPlainObject(value) ? mergeInto(existing, value) : value
+  }
+  return merged
 }
