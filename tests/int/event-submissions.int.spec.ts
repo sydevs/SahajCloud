@@ -37,6 +37,8 @@ vi.mock('@/lib/mapbox/geocoder', async (importOriginal) => ({
 const { ScreenEventSubmissions } =
   await import('@/jobs/ScreenEventSubmissions/ScreenEventSubmissions')
 const { applyReview } = await import('@/collections/EventSubmissions/lifecycle/review')
+const { proposableEventFields } =
+  await import('@/collections/EventSubmissions/hooks/validateProposal')
 
 describe('Event submissions', () => {
   let payload: Payload
@@ -374,9 +376,41 @@ describe('Event submissions', () => {
         { manager: 1 },
         { region: cityId },
         { _status: 'published' },
+        // Registration is the event's data-collection surface: this one would
+        // forward every registrant's name, email and answers to an inbox of
+        // the submitter's choosing, from the moment a manager accepted.
+        { registrationNotificationEmail: 'attacker@evil.test' },
+        // And this one would send every would-be registrant off-site.
+        { registrationMode: 'external', externalRegistrationUrl: 'https://evil.test' },
+        // Forged history.
+        { createdAt: '2020-01-01T00:00:00.000Z' },
       ]) {
         await expect(forge(forged)).rejects.toMatchObject({ status: 400 })
       }
+    })
+
+    it('pins the exact set of proposable Events fields', () => {
+      // A snapshot of the intake's whole attack surface, against the real
+      // Events config. Adding a field to Events fails this test until someone
+      // decides, explicitly, whether an anonymous submitter may propose it —
+      // which is the only way a privileged field can't be forgotten.
+      const allowed = [
+        ...proposableEventFields(payload.collections.events.config.flattenedFields),
+      ].sort()
+      expect(allowed).toEqual([
+        'address',
+        'contactEmail',
+        'contactName',
+        'contactPhone',
+        'description',
+        'eventType',
+        'inactive',
+        'languages',
+        'onlineUrl',
+        'schedule',
+        'title',
+        'website',
+      ])
     })
 
     it('stores an accepted patch verbatim, keyed by Events field names', async () => {
