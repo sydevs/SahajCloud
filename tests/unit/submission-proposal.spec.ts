@@ -167,6 +167,49 @@ describe('buildProposedChanges', () => {
   })
 })
 
+describe('word-level segments', () => {
+  const LONG_BEFORE =
+    'Free weekly meditation. We meet in the main hall — enter via the front door on Mainzer Landstrasse.'
+  const LONG_AFTER =
+    'Free weekly meditation. We now meet in the annexe building — enter via the side door on Hanauer Landstrasse.'
+
+  it('highlights only the edited words in a long value', () => {
+    const [change] = buildProposedChanges({
+      before: { description: LONG_BEFORE },
+      after: { description: LONG_AFTER },
+      fields: EVENT_FIELDS,
+    })
+    const segments = change.segments ?? []
+    expect(segments.length).toBeGreaterThan(1)
+    // The unchanged opening survives as one run rather than being shredded
+    // into characters, which is why this uses a word differ and not a
+    // character one.
+    expect(segments[0]).toMatchObject({ kind: 'same' })
+    expect(segments[0]?.text).toContain('Free weekly meditation.')
+    expect(segments.filter((s) => s.kind === 'removed').map((s) => s.text)).toContain('main hall')
+    expect(segments.filter((s) => s.kind === 'added').map((s) => s.text)).toContain(
+      'annexe building',
+    )
+    // Reassembling the non-removed runs reproduces the proposed text exactly.
+    expect(
+      segments
+        .filter((s) => s.kind !== 'removed')
+        .map((s) => s.text)
+        .join(''),
+    ).toBe(LONG_AFTER)
+  })
+
+  it('leaves short values as a plain two-line diff', () => {
+    // A phone number is quicker to compare whole than word by word.
+    const [change] = buildProposedChanges({
+      before: { contactPhone: '017631587871' },
+      after: { contactPhone: '+49 176 3158 9999' },
+      fields: EVENT_FIELDS,
+    })
+    expect(change.segments).toBeUndefined()
+  })
+})
+
 describe('proposableEventFields', () => {
   it('allows ordinary editable event fields', () => {
     const allowed = proposableEventFields(EVENT_FIELDS)

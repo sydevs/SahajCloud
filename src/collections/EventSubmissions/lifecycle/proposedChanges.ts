@@ -1,5 +1,6 @@
 import type { FlattenedField } from 'payload'
 
+import { diffWords } from 'diff'
 import diff from 'microdiff'
 import { toWords } from 'payload/shared'
 
@@ -19,6 +20,12 @@ import { lexicalPlainText } from '@/lib/eventQuality'
  * browser has the proposal but not the event it would land on.
  */
 
+/** A run of text within a word-level diff of one long value. */
+export interface DiffSegment {
+  text: string
+  kind: 'same' | 'added' | 'removed'
+}
+
 /** One field's before/after, already formatted for display. */
 export interface ProposedChange {
   /** Dotted path, e.g. `schedule.firstDate`. Stable key for React. */
@@ -28,6 +35,35 @@ export interface ProposedChange {
   kind: 'added' | 'changed' | 'removed'
   before: string | null
   after: string | null
+  /**
+   * Word-level diff of `before` → `after`, for values long enough that showing
+   * both in full buries the edit. Absent for short values, where two lines are
+   * already the clearest thing to read.
+   */
+  segments?: DiffSegment[]
+}
+
+/**
+ * Values at least this long get a word-level diff instead of two whole lines.
+ * A phone number or a venue name is quicker to compare side by side; a
+ * paragraph of description is not.
+ */
+const WORD_DIFF_MIN_LENGTH = 60
+
+/**
+ * Word-level diff of two long values.
+ *
+ * `diffWords` from `diff` (jsdiff) rather than a character-level differ:
+ * character diffs shred prose into single letters — an edit from "main hall"
+ * to "annexe building" came back as `m`/`a`/`i`/`n`/`n`/`exe`, which is
+ * unreadable. This runs server-side, in the `proposedChanges` afterRead, so
+ * the package never reaches the admin bundle.
+ */
+function wordSegments(before: string, after: string): DiffSegment[] {
+  return diffWords(before, after).map((part) => ({
+    text: part.value,
+    kind: part.added ? 'added' : part.removed ? 'removed' : 'same',
+  }))
 }
 
 /**
@@ -120,9 +156,15 @@ export function buildProposedChanges(args: {
       .map((entry): ProposedChange => {
         const before = 'oldValue' in entry ? formatValue(entry.oldValue) : null
         const after = 'value' in entry ? formatValue(entry.value) : null
+        const longEdit =
+          before !== null &&
+          after !== null &&
+          (before.length >= WORD_DIFF_MIN_LENGTH || after.length >= WORD_DIFF_MIN_LENGTH)
+
         return {
           path: entry.path.join('.'),
           label: labelForPath(entry.path, args.fields),
+          ...(longEdit ? { segments: wordSegments(before, after) } : {}),
           // Classify by what the reviewer sees, not by microdiff's key-level
           // verdict: a column that held `null` and now holds a value is a
           // CHANGE to microdiff and plainly an addition to a human.

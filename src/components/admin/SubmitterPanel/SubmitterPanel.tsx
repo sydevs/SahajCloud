@@ -2,7 +2,7 @@
 
 import type { FieldClientComponent, JSONFieldClient } from 'payload'
 
-import { FieldLabel, useField } from '@payloadcms/ui'
+import { Banner, FieldLabel, useField } from '@payloadcms/ui'
 import React from 'react'
 
 import './styles.css'
@@ -23,10 +23,16 @@ function text(value: unknown): string | null {
  * read-only: the reviewer is judging a submission, not correcting the
  * submitter's details.
  *
- * The note renders as a **quotation** — indented behind a rule, italic, and
- * attributed — because it is a stranger's own words, and a reviewer weighing
- * whether a submission is plausible needs to see that at a glance. Rendered
- * as a plain line it read as the CMS talking.
+ * Built on Payload's `Banner` with its default (neutral) type rather than
+ * hand-rolled markup, so the card's background, padding and radius come from
+ * the admin theme. `Card` would be the obvious alternative and doesn't fit —
+ * it takes a `title` string and no children, so there is nowhere to put the
+ * note.
+ *
+ * The identity goes in the banner's first line and the note below it **in
+ * quotation marks**, because it is a stranger's own words: a reviewer weighing
+ * whether a submission is plausible needs to see which text is theirs and
+ * which is ours.
  *
  * The resolved `submitter` user record is a relationship in the System drawer;
  * this shows the raw strings as typed, which is what matters when deciding
@@ -48,7 +54,7 @@ export const SubmitterPanel: FieldClientComponent = ({ field }) => {
         {!submitterName && !email && !note ? (
           <div className="submitter-panel__empty">No submitter details were recorded.</div>
         ) : (
-          <>
+          <Banner alignIcon="left">
             <div className="submitter-panel__identity">
               {submitterName && <span className="submitter-panel__name">{submitterName}</span>}
               {email && (
@@ -57,15 +63,8 @@ export const SubmitterPanel: FieldClientComponent = ({ field }) => {
                 </a>
               )}
             </div>
-            {note && (
-              <blockquote className="submitter-panel__note">
-                {note}
-                {submitterName && (
-                  <cite className="submitter-panel__attribution">— {submitterName}</cite>
-                )}
-              </blockquote>
-            )}
-          </>
+            {note && <q className="submitter-panel__note">{note}</q>}
+          </Banner>
         )}
       </div>
     </div>

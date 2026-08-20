@@ -1,16 +1,13 @@
 /*
- * The submitter's own words, styled as a quotation.
- *
- * It previously rendered as a plain line with typographic quote marks, which
- * read as the CMS's copy rather than as something a stranger typed — exactly
- * the distinction a reviewer is judging.
+ * Layout only — the card itself is Payload's `Banner` (neutral type), so
+ * background, padding and radius all come from the admin theme.
  */
 
 .submitter-panel__identity {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: calc(var(--base) * 0.3);
+  gap: calc(var(--base) * 0.35);
 }
 
 .submitter-panel__name {
@@ -22,23 +19,18 @@
   font-size: 13px;
 }
 
+/*
+ * `<q>` supplies the quotation marks itself, and locale-correctly — the point
+ * being that a reviewer can tell the submitter's words from the CMS's.
+ */
 .submitter-panel__note {
-  margin: calc(var(--base) * 0.4) 0 0;
-  padding: calc(var(--base) * 0.35) 0 calc(var(--base) * 0.35) calc(var(--base) * 0.6);
-  border-left: 2px solid var(--theme-elevation-250);
+  display: block;
+  margin-top: calc(var(--base) * 0.3);
   color: var(--theme-elevation-700);
   font-style: italic;
-  /* The note is free text a stranger typed — keep their line breaks. */
+  /* Free text a stranger typed — keep their line breaks. */
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-.submitter-panel__attribution {
-  display: block;
-  margin-top: calc(var(--base) * 0.25);
-  font-style: normal;
-  font-size: 12px;
-  color: var(--theme-elevation-500);
 }
 
 .submitter-panel__empty {
