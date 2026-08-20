@@ -29,6 +29,13 @@ import { buildProposedChanges } from '../lifecycle/proposedChanges'
  * Load the proposal's target event at most once per request. Both hooks below
  * need it, and Payload runs them separately; without this the same row is
  * fetched twice on every read of a submission.
+ *
+ * Deliberately does **not** forward the caller's `req`. These hooks run during
+ * the `afterRead` of a create, so the caller's request is mid-transaction —
+ * joining it for a read-only projection aborted the write outright (the
+ * submission came back with an id and no row behind it). The projection only
+ * needs the event's committed state, so its own connection is the correct one.
+ * `req` is still the memo key: one load per request either way.
  */
 function loadTargetEvent(req: PayloadRequest, targetId: number): Promise<Event | null> {
   return memoizeOnRequest(req, `submissionTargetEvent:${targetId}`, async () => {
@@ -43,7 +50,6 @@ function loadTargetEvent(req: PayloadRequest, targetId: number): Promise<Event |
         trash: true,
         overrideAccess: true,
         disableErrors: true,
-        req,
       })
       .catch(() => null)) as Event | null
   })

@@ -42,8 +42,19 @@ export const DEFAULT_WRITE_GUARD_POLICIES: Partial<Record<CollectionSlug, WriteG
   'event-submissions': {
     create: {
       turnstile: true,
-      emailFields: ['submitterEmail', 'contactEmail'],
-      urlScanFields: ['description', 'submitterNote', 'submitterName', 'contactName'],
+      // The submission carries one `proposed` Events patch plus its intake
+      // metadata, so the free text a spammer would use sits one level down.
+      // These are paths, not field names — `valueAtPath` walks them, and
+      // `stringLeaves` covers the nested address/contact values under
+      // `proposed` without each having to be listed.
+      emailFields: ['submitterInfo.email', 'proposed.contactEmail'],
+      urlScanFields: [
+        'proposed.description',
+        'proposed.contactName',
+        'proposed.venueName',
+        'submitterInfo.note',
+        'submitterInfo.name',
+      ],
     },
   },
   users: {
