@@ -122,7 +122,9 @@ export const EventSubmissions: CollectionConfig = {
       // NotificationLogTable does on Events). First field ⇒ renders on top.
       name: 'screeningResult',
       type: 'json',
-      label: false,
+      // The banner IS this submission's status, so the field is labelled for
+      // what a reviewer reads rather than for the column it happens to store.
+      label: 'Status',
       access: systemFieldAccess,
       admin: {
         readOnly: true,
@@ -134,10 +136,10 @@ export const EventSubmissions: CollectionConfig = {
       // a proposal, not correcting the submitter's details.
       name: 'submitterInfo',
       type: 'json',
-      label: false,
+      label: 'Submitted By',
       admin: {
         readOnly: true,
-        components: { Field: '@/components/admin/SubmitterPanel' },
+        components: { Field: '@/components/admin/EventSubmitterPanel' },
       },
     },
     {
@@ -147,10 +149,10 @@ export const EventSubmissions: CollectionConfig = {
       name: 'proposedChanges',
       type: 'json',
       virtual: true,
-      label: false,
+      label: 'Proposed Changes',
       admin: {
         readOnly: true,
-        components: { Field: '@/components/admin/ProposedChangesField' },
+        components: { Field: '@/components/admin/EventSubmissionChanges' },
       },
       hooks: { afterRead: [computeProposedChanges] },
     },
@@ -160,10 +162,13 @@ export const EventSubmissions: CollectionConfig = {
       name: 'previewEvent',
       type: 'json',
       virtual: true,
+      // The one field that keeps `label: false`: its component renders
+      // nothing (it opens the preview panel), so a label would sit on the
+      // page with empty space under it.
       label: false,
       admin: {
         readOnly: true,
-        components: { Field: '@/components/admin/EventPreviewMount' },
+        components: { Field: '@/components/admin/EventSubmissionPreview' },
       },
       hooks: { afterRead: [computePreviewEvent] },
     },

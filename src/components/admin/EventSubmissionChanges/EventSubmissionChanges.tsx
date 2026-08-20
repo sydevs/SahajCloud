@@ -10,14 +10,11 @@ import type { ProposedChange } from '@/collections/EventSubmissions/lifecycle/pr
 import './styles.css'
 
 /**
- * The transition is already legible from the red/green lines, so the label
- * only names it — no pill competing with the field name for attention.
+ * Only a *changed* field is named as such. An addition shows a single green
+ * line and a removal a single red one — saying so again beside the field name
+ * is noise on the states that were never ambiguous.
  */
-const KIND_SUFFIX: Record<ProposedChange['kind'], string> = {
-  added: 'Added',
-  changed: 'Changed',
-  removed: 'Removed',
-}
+const CHANGED_SUFFIX = ' — Changed'
 
 /** One `−`/`+` row. `null` renders the word "empty" rather than a blank line. */
 function DiffLine({ kind, text }: { kind: 'removed' | 'added'; text: string | null }) {
@@ -69,14 +66,14 @@ function WordDiff({ change }: { change: ProposedChange }) {
  * `computeReviewFields.ts`). Keeping the diffing there leaves this component
  * free of logic and unit-testable without a DOM.
  */
-export const ProposedChangesField: FieldClientComponent = ({ field }) => {
+export const EventSubmissionChanges: FieldClientComponent = ({ field }) => {
   const { name, label } = field as JSONFieldClient
   const { value } = useField<ProposedChange[]>()
   const changes = Array.isArray(value) ? value : []
 
   return (
     <div className="field-type json read-only">
-      <FieldLabel label={label || 'Proposed changes'} path={name} />
+      <FieldLabel label={label} path={name} />
       <div className="field-type__wrap">
         {changes.length === 0 ? (
           <div className="proposed-changes__empty">
@@ -87,10 +84,9 @@ export const ProposedChangesField: FieldClientComponent = ({ field }) => {
             <div className="proposed-changes__entry" key={change.path}>
               <div className="proposed-changes__label">
                 {change.label}
-                <span className={`proposed-changes__kind proposed-changes__kind--${change.kind}`}>
-                  {' — '}
-                  {KIND_SUFFIX[change.kind]}
-                </span>
+                {change.kind === 'changed' && (
+                  <span className="proposed-changes__kind">{CHANGED_SUFFIX}</span>
+                )}
               </div>
               {change.segments ? (
                 <WordDiff change={change} />
@@ -111,4 +107,4 @@ export const ProposedChangesField: FieldClientComponent = ({ field }) => {
   )
 }
 
-export default ProposedChangesField
+export default EventSubmissionChanges

@@ -1,10 +1,11 @@
 'use client'
 
-import type { FieldClientComponent } from 'payload'
+import type { FieldClientComponent, JSONFieldClient } from 'payload'
 
 import {
   Banner,
   ErrorIcon,
+  FieldLabel,
   InfoIcon,
   SuccessIcon,
   useDocumentInfo,
@@ -66,14 +67,14 @@ const ICONS: Record<Severity, React.FC> = {
 }
 
 /**
- * Banner's own `type` — the built-in property, used as-is.
+ * Banner's own `type` — the built-in property, used wherever it has a variant.
  *
- * It ships styles for `default | error | success` only (`info` is accepted by
- * the type but has no variant, so it renders as `default`). `warning`
- * deliberately maps to `default` rather than `error`: `.banner--type-error`
- * applies `color-svg(var(--theme-error-600))` to every svg inside it, which
- * would repaint WarningIcon's own amber fill red and make a "needs a look"
- * notice indistinguishable from a failure.
+ * It ships `default | error | success` only. `warning` maps to `default` here
+ * and gets its colour from `.event-submission-notice--warning` instead
+ * (Payload's own `--theme-warning-*` ramp): mapping it to `error` is what
+ * previously repainted the amber WarningIcon red — `.banner--type-error`
+ * applies `color-svg(var(--theme-error-600))` to every nested svg — making a
+ * "needs a look" notice look like a failure.
  */
 const BANNER_TYPE: Record<Severity, 'default' | 'error' | 'success'> = {
   info: 'default',
@@ -97,7 +98,8 @@ function stringsOf(value: unknown): string[] {
  * field, so it reads its own value through `useField` instead of reaching
  * across form state for it.
  */
-export const EventSubmissionNotice: FieldClientComponent = () => {
+export const EventSubmissionNotice: FieldClientComponent = ({ field }) => {
+  const { name, label } = field as JSONFieldClient
   const { id } = useDocumentInfo()
   const status = useFormFields(([fields]) => fields?.status?.value as SubmissionStatus | undefined)
   const { value } = useField<ScreeningResultShape | null>()
@@ -121,23 +123,26 @@ export const EventSubmissionNotice: FieldClientComponent = () => {
   notes.push(...stringsOf(screening.warnings))
 
   return (
-    <Banner
-      className="event-submission-notice"
-      type={BANNER_TYPE[severity]}
-      icon={<Icon />}
-      alignIcon="left"
-    >
-      <div>
-        {message}
-        {notes.length > 0 && (
-          <ul style={{ margin: 'calc(var(--base) * 0.4) 0 0', paddingLeft: '1.2em' }}>
-            {notes.map((note) => (
-              <li key={note}>{note}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </Banner>
+    <div className="field-type json read-only">
+      <FieldLabel label={label} path={name} />
+      <Banner
+        className={`event-submission-notice event-submission-notice--${severity}`}
+        type={BANNER_TYPE[severity]}
+        icon={<Icon />}
+        alignIcon="left"
+      >
+        <div>
+          {message}
+          {notes.length > 0 && (
+            <ul style={{ margin: 'calc(var(--base) * 0.4) 0 0', paddingLeft: '1.2em' }}>
+              {notes.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Banner>
+    </div>
   )
 }
 

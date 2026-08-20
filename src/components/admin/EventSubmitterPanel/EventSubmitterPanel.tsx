@@ -29,16 +29,22 @@ function text(value: unknown): string | null {
  * it takes a `title` string and no children, so there is nowhere to put the
  * note.
  *
- * The identity goes in the banner's first line and the note below it **in
- * quotation marks**, because it is a stranger's own words: a reviewer weighing
- * whether a submission is plausible needs to see which text is theirs and
- * which is ours.
+ * The identity goes in the banner's first line and the note below it, labelled
+ * "Message:" and **in quotation marks**, because it is a stranger's own words:
+ * a reviewer weighing whether a submission is plausible needs to see which
+ * text is theirs and which is ours.
+ *
+ * The heading is Payload's own `FieldLabel`, fed straight from the field's
+ * `label` in the collection — a custom `Field` component replaces the whole
+ * field render, label included, so Payload draws no title of its own and this
+ * is what "the built-in field title" means here. No fallback string: the
+ * collection is the only place the wording lives.
  *
  * The resolved `submitter` user record is a relationship in the System drawer;
  * this shows the raw strings as typed, which is what matters when deciding
  * whether a submission is genuine.
  */
-export const SubmitterPanel: FieldClientComponent = ({ field }) => {
+export const EventSubmitterPanel: FieldClientComponent = ({ field }) => {
   const { name, label } = field as JSONFieldClient
   const { value } = useField<SubmitterInfo | null>()
   const info = (value ?? {}) as SubmitterInfo
@@ -49,7 +55,7 @@ export const SubmitterPanel: FieldClientComponent = ({ field }) => {
 
   return (
     <div className="field-type json read-only">
-      <FieldLabel label={label || 'Submitted by'} path={name} />
+      <FieldLabel label={label} path={name} />
       <div className="field-type__wrap">
         {!submitterName && !email && !note ? (
           <div className="submitter-panel__empty">No submitter details were recorded.</div>
@@ -63,7 +69,12 @@ export const SubmitterPanel: FieldClientComponent = ({ field }) => {
                 </a>
               )}
             </div>
-            {note && <q className="submitter-panel__note">{note}</q>}
+            {note && (
+              <div className="submitter-panel__note">
+                <span className="submitter-panel__note-label">Message:</span>{' '}
+                <q>{note}</q>
+              </div>
+            )}
           </Banner>
         )}
       </div>
@@ -71,4 +82,4 @@ export const SubmitterPanel: FieldClientComponent = ({ field }) => {
   )
 }
 
-export default SubmitterPanel
+export default EventSubmitterPanel

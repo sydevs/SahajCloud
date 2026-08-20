@@ -21,8 +21,15 @@
 
 /*
  * `<q>` supplies the quotation marks itself, and locale-correctly — the point
- * being that a reviewer can tell the submitter's words from the CMS's.
+ * being that a reviewer can tell the submitter's words from the CMS's. The
+ * "Message:" label stays upright so the italics mark only their text.
  */
+.submitter-panel__note-label {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--theme-elevation-600);
+}
+
 .submitter-panel__note {
   display: block;
   margin-top: calc(var(--base) * 0.3);

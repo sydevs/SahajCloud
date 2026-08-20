@@ -22,23 +22,13 @@
 }
 
 /*
- * The transition, named. It replaces a pill: at this width a pill pushed the
- * field name onto its own line and drew the eye before the name did, when the
- * name is what a reviewer scans for.
+ * "— Changed", named only where the transition isn't already obvious. It
+ * replaces a pill: at this width a pill pushed the field name onto its own
+ * line and drew the eye before the name did, when the name is what a reviewer
+ * scans for.
  */
 .proposed-changes__kind {
   font-weight: 600;
-}
-
-.proposed-changes__kind--added {
-  color: var(--theme-success-500);
-}
-
-.proposed-changes__kind--removed {
-  color: var(--theme-error-500);
-}
-
-.proposed-changes__kind--changed {
   color: var(--theme-warning-500);
 }
 

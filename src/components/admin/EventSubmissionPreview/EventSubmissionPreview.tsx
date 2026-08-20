@@ -20,7 +20,7 @@ import { useEffect } from 'react'
  * default rather than a click away. `isLivePreviewEnabled` guards the case
  * where a document has no preview URL yet (an unsaved submission).
  */
-export const EventPreviewMount: FieldClientComponent = () => {
+export const EventSubmissionPreview: FieldClientComponent = () => {
   const { isLivePreviewEnabled, isLivePreviewing, setIsLivePreviewing } = useLivePreviewContext()
 
   useEffect(() => {
@@ -33,4 +33,4 @@ export const EventPreviewMount: FieldClientComponent = () => {
   return null
 }
 
-export default EventPreviewMount
+export default EventSubmissionPreview
