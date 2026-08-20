@@ -16,7 +16,15 @@ import { NEW_EVENT_DEFAULTS, type ProposedPatch } from './mergeProposal'
  * instance.
  */
 
-export type ReviewAction = 'accept' | 'reject'
+export type ReviewAction = 'accept' | 'reject' | 'reopen'
+
+/**
+ * Statuses `reopen` can rescue. Deliberately not `created` / `updated`: those
+ * already wrote to an event, and reopening one would invite a second Accept
+ * that created a duplicate listing or re-applied a patch a manager has since
+ * edited away.
+ */
+export const REOPENABLE_STATUSES: readonly SubmissionStatus[] = ['spam', 'rejected']
 
 export interface ReviewResult {
   /** The submission's terminal status after the review. */
@@ -82,6 +90,28 @@ export async function applyReview(args: {
     overrideAccess: true,
     req,
   })) as EventSubmission
+
+  if (action === 'reopen') {
+    // A screening false positive, or a rejection a manager wants back. Clears
+    // the review stamp so the submission reads as genuinely pending again.
+    if (!REOPENABLE_STATUSES.includes(submission.status)) {
+      throw new APIError(
+        `A ${submission.status} submission cannot be reopened.`,
+        409,
+        { code: 'not_reopenable' },
+        true,
+      )
+    }
+    const reopened = (await payload.update({
+      collection: 'event-submissions',
+      id: submissionId,
+      data: { status: 'pending', reviewedBy: null, reviewedAt: null },
+      overrideAccess: true,
+      context: { skipWriteGuard: true },
+      req,
+    })) as EventSubmission
+    return { status: 'pending', submission: reopened }
+  }
 
   if (!OPEN_SUBMISSION_STATUSES.includes(submission.status)) {
     return { status: submission.status, submission }

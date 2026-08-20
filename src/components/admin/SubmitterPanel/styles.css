@@ -1,0 +1,48 @@
+/*
+ * The submitter's own words, styled as a quotation.
+ *
+ * It previously rendered as a plain line with typographic quote marks, which
+ * read as the CMS's copy rather than as something a stranger typed — exactly
+ * the distinction a reviewer is judging.
+ */
+
+.submitter-panel__identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--base) * 0.3);
+}
+
+.submitter-panel__name {
+  font-weight: 600;
+}
+
+.submitter-panel__email {
+  color: var(--theme-elevation-600);
+  font-size: 13px;
+}
+
+.submitter-panel__note {
+  margin: calc(var(--base) * 0.4) 0 0;
+  padding: calc(var(--base) * 0.35) 0 calc(var(--base) * 0.35) calc(var(--base) * 0.6);
+  border-left: 2px solid var(--theme-elevation-250);
+  color: var(--theme-elevation-700);
+  font-style: italic;
+  /* The note is free text a stranger typed — keep their line breaks. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.submitter-panel__attribution {
+  display: block;
+  margin-top: calc(var(--base) * 0.25);
+  font-style: normal;
+  font-size: 12px;
+  color: var(--theme-elevation-500);
+}
+
+.submitter-panel__empty {
+  color: var(--theme-elevation-500);
+  font-style: italic;
+  font-size: 13px;
+}

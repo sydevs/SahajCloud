@@ -1,0 +1,62 @@
+/*
+ * Unified diff — one column, because the live-preview panel leaves this field
+ * roughly a third of the window. A side-by-side "current / proposed" table
+ * wrapped every value onto three lines at that width and became unreadable.
+ *
+ * Colours are Payload's own error/success ramps, so the rows track the theme
+ * rather than pinning their own light-mode greens and reds.
+ */
+
+.proposed-changes__entry {
+  margin-bottom: calc(var(--base) * 0.6);
+}
+
+.proposed-changes__entry:last-child {
+  margin-bottom: 0;
+}
+
+.proposed-changes__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(var(--base) * 0.3);
+  font-size: 12px;
+  color: var(--theme-elevation-600);
+  margin-bottom: calc(var(--base) * 0.15);
+}
+
+.proposed-changes__line {
+  display: flex;
+  gap: calc(var(--base) * 0.35);
+  padding: calc(var(--base) * 0.18) calc(var(--base) * 0.35);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+  border-radius: var(--style-radius-s);
+  /* A long address or description must wrap, not scroll the page sideways. */
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* The marker keeps the diff readable without relying on colour alone. */
+.proposed-changes__marker {
+  flex-shrink: 0;
+  user-select: none;
+  opacity: 0.7;
+}
+
+.proposed-changes__line--removed {
+  background: var(--theme-error-100);
+  color: var(--theme-error-600);
+}
+
+.proposed-changes__line--added {
+  background: var(--theme-success-100);
+  color: var(--theme-success-600);
+}
+
+.proposed-changes__empty {
+  color: var(--theme-elevation-500);
+  font-style: italic;
+  font-size: 13px;
+}

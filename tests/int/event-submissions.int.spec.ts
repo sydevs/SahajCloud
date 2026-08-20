@@ -470,6 +470,57 @@ describe('Event submissions', () => {
     })
   })
 
+  describe('reopen', () => {
+    const shelve = async (status: 'spam' | 'rejected') => {
+      const created = await submit({ ...baseSubmission, country: countryId })
+      await payload.update({
+        collection: 'event-submissions',
+        id: created.id,
+        data: { status, reviewedBy: regionManager.id, reviewedAt: new Date().toISOString() },
+        overrideAccess: true,
+      })
+      return created.id
+    }
+
+    it('returns a shelved submission to pending and clears the review stamp', async () => {
+      for (const status of ['spam', 'rejected'] as const) {
+        const id = await shelve(status)
+        const result = await applyReview({
+          payload,
+          submissionId: id,
+          action: 'reopen',
+          managerId: regionManager.id,
+        })
+        expect(result.status).toBe('pending')
+        const fresh = await reload(id)
+        // Cleared, not overwritten with the reopening manager — the submission
+        // is genuinely awaiting a decision again.
+        expect(fresh.reviewedBy).toBeNull()
+        expect(fresh.reviewedAt).toBeNull()
+      }
+    })
+
+    it('refuses to reopen a submission that already wrote to an event', async () => {
+      // Reopening `created` would invite a second Accept, and a duplicate
+      // listing with it.
+      const created = await submit({ ...baseSubmission, country: countryId })
+      await payload.update({
+        collection: 'event-submissions',
+        id: created.id,
+        data: { status: 'created' },
+        overrideAccess: true,
+      })
+      await expect(
+        applyReview({
+          payload,
+          submissionId: created.id,
+          action: 'reopen',
+          managerId: regionManager.id,
+        }),
+      ).rejects.toMatchObject({ status: 409, data: { code: 'not_reopenable' } })
+    })
+  })
+
   describe('applyReview', () => {
     it('accept on a new-event submission creates a published unverified event', async () => {
       const created = await submit({

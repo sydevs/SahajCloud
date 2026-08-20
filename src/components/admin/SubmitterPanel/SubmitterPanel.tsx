@@ -5,6 +5,8 @@ import type { FieldClientComponent, JSONFieldClient } from 'payload'
 import { FieldLabel, useField } from '@payloadcms/ui'
 import React from 'react'
 
+import './styles.css'
+
 /** What the widget collected from the person sending the proposal in. */
 interface SubmitterInfo {
   name?: string | null
@@ -12,37 +14,8 @@ interface SubmitterInfo {
   note?: string | null
 }
 
-const rowStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: 'calc(var(--base) * 0.4)',
-  alignItems: 'baseline',
-}
-
-const labelStyle: React.CSSProperties = {
-  color: 'var(--theme-elevation-500)',
-  fontSize: '12px',
-  minWidth: '4.5rem',
-}
-
-const noteStyle: React.CSSProperties = {
-  whiteSpace: 'pre-wrap',
-  marginTop: 'calc(var(--base) * 0.3)',
-  color: 'var(--theme-elevation-800)',
-}
-
-const emptyStyle: React.CSSProperties = {
-  color: 'var(--theme-elevation-500)',
-  fontStyle: 'italic',
-  fontSize: '13px',
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={rowStyle}>
-      <span style={labelStyle}>{label}</span>
-      <span>{value}</span>
-    </div>
-  )
+function text(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null
 }
 
 /**
@@ -50,29 +23,49 @@ function Row({ label, value }: { label: string; value: string }) {
  * read-only: the reviewer is judging a submission, not correcting the
  * submitter's details.
  *
+ * The note renders as a **quotation** — indented behind a rule, italic, and
+ * attributed — because it is a stranger's own words, and a reviewer weighing
+ * whether a submission is plausible needs to see that at a glance. Rendered
+ * as a plain line it read as the CMS talking.
+ *
  * The resolved `submitter` user record is a relationship in the System drawer;
- * this renders the raw strings as typed, which is what matters when deciding
- * whether a submission is plausible.
+ * this shows the raw strings as typed, which is what matters when deciding
+ * whether a submission is genuine.
  */
 export const SubmitterPanel: FieldClientComponent = ({ field }) => {
   const { name, label } = field as JSONFieldClient
   const { value } = useField<SubmitterInfo | null>()
   const info = (value ?? {}) as SubmitterInfo
 
-  const contact = [info.name, info.email].filter(Boolean).length > 0
+  const submitterName = text(info.name)
+  const email = text(info.email)
+  const note = text(info.note)
 
   return (
     <div className="field-type json read-only">
       <FieldLabel label={label || 'Submitted by'} path={name} />
       <div className="field-type__wrap">
-        {!contact && !info.note ? (
-          <div style={emptyStyle}>No submitter details were recorded.</div>
+        {!submitterName && !email && !note ? (
+          <div className="submitter-panel__empty">No submitter details were recorded.</div>
         ) : (
-          <div>
-            {info.name ? <Row label="Name" value={info.name} /> : null}
-            {info.email ? <Row label="Email" value={info.email} /> : null}
-            {info.note ? <div style={noteStyle}>“{info.note}”</div> : null}
-          </div>
+          <>
+            <div className="submitter-panel__identity">
+              {submitterName && <span className="submitter-panel__name">{submitterName}</span>}
+              {email && (
+                <a className="submitter-panel__email" href={`mailto:${email}`}>
+                  {email}
+                </a>
+              )}
+            </div>
+            {note && (
+              <blockquote className="submitter-panel__note">
+                {note}
+                {submitterName && (
+                  <cite className="submitter-panel__attribution">— {submitterName}</cite>
+                )}
+              </blockquote>
+            )}
+          </>
         )}
       </div>
     </div>
