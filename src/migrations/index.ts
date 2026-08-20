@@ -42,6 +42,7 @@ import * as migration_20260812_022527_add_unverified_denied_stages from './20260
 import * as migration_20260812_032435_add_event_submissions from './20260812_032435_add_event_submissions';
 import * as migration_20260819_002657_add_client_canonical from './20260819_002657_add_client_canonical';
 import * as migration_20260819_002715_drop_client_legacy_config from './20260819_002715_drop_client_legacy_config';
+import * as migration_20260820_011749_submission_proposal_patch from './20260820_011749_submission_proposal_patch';
 
 export const migrations = [
   {
@@ -262,6 +263,11 @@ export const migrations = [
   {
     up: migration_20260819_002715_drop_client_legacy_config.up,
     down: migration_20260819_002715_drop_client_legacy_config.down,
-    name: '20260819_002715_drop_client_legacy_config'
+    name: '20260819_002715_drop_client_legacy_config',
+  },
+  {
+    up: migration_20260820_011749_submission_proposal_patch.up,
+    down: migration_20260820_011749_submission_proposal_patch.down,
+    name: '20260820_011749_submission_proposal_patch'
   },
 ];
