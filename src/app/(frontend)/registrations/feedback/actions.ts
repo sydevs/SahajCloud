@@ -8,17 +8,27 @@ import { verifyFeedbackToken } from '@/lib/registrations/feedbackLinks'
 
 import config from '@payload-config'
 
+/** A recorded vote, so the page can offer to flip it if they misclicked. */
+export interface FeedbackOutcome extends VerifyOutcome {
+  recorded?: 'confirmed' | 'denied'
+}
+
 /**
  * Server Action backing the feedback page's Confirmed / Denied buttons.
  * Re-validates the token (never trust the client) and writes the vote through
  * the normal Registrations update path, so the eventFeedback gate (event still
  * published + unverified) and the community-feedback sync hook both apply.
- * The mutation lives only here (POST) — opening the emailed link never votes.
+ *
+ * **The mutation lives only here, behind a POST.** Opening the emailed link
+ * never votes on its own — mail scanners and link prefetchers issue GETs, and
+ * a vote nobody cast is worse than a vote nobody casts: the community verdict
+ * is the whole point. The page auto-submits the emailed choice with JS so a
+ * real reader still only clicks once (see `FeedbackForm`).
  */
 export async function submitFeedbackAction(
-  _prev: VerifyOutcome | null,
+  _prev: FeedbackOutcome | null,
   formData: FormData,
-): Promise<VerifyOutcome> {
+): Promise<FeedbackOutcome> {
   const token = typeof formData.get('token') === 'string' ? (formData.get('token') as string) : ''
   const vote = formData.get('vote') === 'confirmed' ? 'confirmed' : 'denied'
   const payload = await getPayload({ config })
@@ -48,6 +58,7 @@ export async function submitFeedbackAction(
           ? 'Your confirmation helps keep the map accurate — thank you for letting us know the class is real.'
           : 'Thanks for letting us know. If enough attendees report the same, the listing will be taken down.',
       actions: [],
+      recorded: vote,
     }
   } catch (error) {
     if (error instanceof APIError && error.status === 409) {

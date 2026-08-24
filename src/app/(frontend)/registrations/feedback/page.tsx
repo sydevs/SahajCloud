@@ -62,18 +62,6 @@ export default async function RegistrationFeedbackPage({
     .catch(() => null)) as Registration | null
   if (!registration) notFound()
 
-  if (registration.eventFeedback) {
-    return (
-      <VerificationCard
-        brand={brand}
-        iconSrc={iconSrc}
-        tone="success"
-        title="Already recorded"
-        message="You’ve already answered for this event — thank you!"
-      />
-    )
-  }
-
   const event = registration.event as Event | number
   const eventTitle =
     typeof event === 'object' && typeof event.title === 'string' ? event.title : 'this class'
@@ -93,6 +81,15 @@ export default async function RegistrationFeedbackPage({
     )
   }
 
+  // An answer already on file is *not* a dead end — the form shows what was
+  // recorded and offers to flip it. Reloading the emailed link used to land on
+  // "Already recorded", which is the least useful moment to take the choice
+  // away: realising you misclicked is exactly why you'd come back.
+  const existingVote =
+    registration.eventFeedback === 'confirmed' || registration.eventFeedback === 'denied'
+      ? registration.eventFeedback
+      : null
+
   return (
     <FeedbackForm
       brand={brand}
@@ -100,6 +97,7 @@ export default async function RegistrationFeedbackPage({
       token={token}
       eventTitle={eventTitle}
       initialVote={vote === 'confirmed' || vote === 'denied' ? vote : null}
+      existingVote={existingVote}
     />
   )
 }
