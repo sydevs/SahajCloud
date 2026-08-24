@@ -1,7 +1,5 @@
 import type { JSONSchema4 } from 'json-schema'
 
-import wilson from 'wilson-score-interval'
-
 /**
  * The `communityFeedback` namespace inside an Event's `systemMeta` JSON —
  * registrant confirm/deny vote tallies for an unverified listing. Written by
@@ -70,12 +68,35 @@ export function computeCommunityVerdict(args: {
   const { confirmations, denials } = args
   const total = confirmations + denials
   if (total <= 0) return { score: null, upperBound: null, denied: false }
-  const { left, right } = wilson(confirmations, total)
+  const { left, right } = wilsonInterval(confirmations, total)
   return {
     score: left,
     upperBound: right,
     denied: denials >= DENIAL_MINIMUM && right < WILSON_UPPER_BOUND_THRESHOLD,
   }
+}
+
+/** 1 − α/2 percentile of the standard normal for α = 5%. */
+const Z = 1.96
+
+/**
+ * The Wilson score interval for `up` successes in `total` trials, at 95%
+ * confidence. Closed-form: https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval#Wilson_score_interval
+ *
+ * Inlined rather than taken from `wilson-score-interval`, which was six lines
+ * of the same arithmetic shipping no types — so it also obliged us to
+ * hand-write an ambient module declaration, a contract that could silently
+ * disagree with the package it described. The repo prefers a dependency over
+ * hand-rolled code where the dependency absorbs edge cases; a closed-form
+ * formula with a unit test pinning its values has none to absorb.
+ */
+function wilsonInterval(up: number, total: number): { left: number; right: number } {
+  if (total === 0) return { left: 0, right: 0 }
+  const phat = up / total
+  const a = phat + (Z * Z) / (2 * total)
+  const b = Z * Math.sqrt((phat * (1 - phat) + (Z * Z) / (4 * total)) / total)
+  const c = 1 + (Z * Z) / total
+  return { left: (a - b) / c, right: (a + b) / c }
 }
 
 /**

@@ -15,12 +15,22 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 export interface SignedTokenOptions {
   /** Discriminates link types; verification requires an exact match. */
   kind: string
-  ttlMs: number
+  /**
+   * Lifetime, or `null` for a token that never expires.
+   *
+   * Never-expiring is right for a narrow, idempotent action whose link may be
+   * clicked arbitrarily late — the reminder unsubscribe link is the case: it
+   * can only ever unsubscribe the one registration named in its signed claims,
+   * doing so twice is a no-op, and an expiry would break legitimate links
+   * months into a course while preventing nothing.
+   */
+  ttlMs: number | null
 }
 
 interface Envelope {
   kind: string
-  exp: number
+  /** Absent on a never-expiring token. */
+  exp?: number
   claims: Record<string, unknown>
 }
 
@@ -37,7 +47,7 @@ export function signToken(
 ): string {
   const envelope: Envelope = {
     kind: options.kind,
-    exp: now.getTime() + options.ttlMs,
+    ...(options.ttlMs === null ? {} : { exp: now.getTime() + options.ttlMs }),
     claims,
   }
   const payloadB64 = Buffer.from(JSON.stringify(envelope)).toString('base64url')
@@ -80,7 +90,13 @@ export function verifyToken<T = Record<string, unknown>>(
   } catch {
     return { status: 'invalid' }
   }
-  if (envelope.kind !== kind || typeof envelope.exp !== 'number') return { status: 'invalid' }
-  if (envelope.exp <= now.getTime()) return { status: 'expired' }
+  if (envelope.kind !== kind) return { status: 'invalid' }
+  // No `exp` means the kind was signed as never-expiring. A tampered token
+  // can't reach here — the signature is checked above — so a missing `exp` is
+  // an authentic choice, not something to treat as suspicious.
+  if (envelope.exp !== undefined) {
+    if (typeof envelope.exp !== 'number') return { status: 'invalid' }
+    if (envelope.exp <= now.getTime()) return { status: 'expired' }
+  }
   return { status: 'valid', claims: envelope.claims as T }
 }
