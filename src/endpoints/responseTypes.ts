@@ -42,15 +42,19 @@ export type ContactAdminResponse = {
 
 /**
  * Machine-readable reason a contact message was refused, so a caller can react
- * rather than parse prose. Currently one code:
+ * rather than parse prose:
  *
  * - `captcha_failed` — the Turnstile token was invalid, expired, or already
  *   redeemed (tokens are single-use). The caller should reset its captcha widget
- *   and let the sender retry.
- *
- * Sent on the 403 captcha refusal only; the auth 403 carries no `code`.
+ *   and let the sender retry. Sent on the 403 captcha refusal only; the auth
+ *   403 carries no `code`, and the 500 (captcha unavailable on our side)
+ *   deliberately carries none either.
+ * - `disposable_email` — the reply-to address is from a throwaway-email
+ *   provider; ask the sender for a real address.
+ * - `urls_not_allowed` — the message contains a link; links are refused in
+ *   free text (spam vector). 400.
  */
-export type ContactAdminErrorCode = 'captcha_failed'
+export type ContactAdminErrorCode = 'captcha_failed' | 'disposable_email' | 'urls_not_allowed'
 
 /**
  * Error body for a refused contact message — the standard

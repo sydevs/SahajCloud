@@ -1,0 +1,294 @@
+import type { Payload, PayloadRequest, TaskConfig } from 'payload'
+
+import * as Sentry from '@sentry/nextjs'
+
+import {
+  buildReviewEmailLink,
+  signReviewToken,
+} from '@/collections/EventSubmissions/lifecycle/review'
+import { CONTACT_EMAIL } from '@/lib/contact'
+import { checkEmailAllowed } from '@/lib/endpoints/antiSpamGuard'
+import { findManagerForRegion } from '@/lib/notifications/recipients'
+import { sendSubmissionReview } from '@/lib/notifications/sendSubmissionReview'
+import { findOrCreateCity } from '@/lib/regions/findOrCreateCity'
+import { relationId } from '@/lib/utilities/relationId'
+import type { EventSubmission } from '@/payload-types'
+
+import { hasMxRecords } from './emailChecks'
+
+/** What screening recorded — stored on the submission for admin triage. */
+interface ScreeningResult {
+  /** `ok`, or why the submission was classified spam. */
+  emailVerdict: 'ok' | 'disposable_email' | 'invalid_email' | 'no_mx_records'
+  /** Region-resolution outcome for new-event submissions. */
+  region?: 'anchor' | 'matched' | 'created' | 'unresolved'
+  warnings?: string[]
+  screenedAt: string
+}
+
+/**
+ * Resolve the submission's target region (new-event submissions only):
+ * the submitter's anchor wins; else find-or-create the city named in the
+ * address under the chosen country/state. Never creates countries, states,
+ * or venues — the controlled-rollout policy.
+ */
+async function resolveSubmissionRegion(
+  payload: Payload,
+  req: PayloadRequest,
+  submission: EventSubmission,
+): Promise<{
+  regionId: number | null
+  outcome: NonNullable<ScreeningResult['region']>
+  warning?: string
+}> {
+  const anchorId = relationId(submission.anchorRegion)
+  if (anchorId != null) return { regionId: anchorId, outcome: 'anchor' }
+
+  const countryId = relationId(submission.country)
+  const cityName = submission.address?.city?.trim()
+  if (countryId == null || !cityName) {
+    return { regionId: null, outcome: 'unresolved' }
+  }
+
+  try {
+    const result = await findOrCreateCity({
+      payload,
+      req,
+      cityName,
+      countryId,
+      stateId: relationId(submission.state),
+      latitude: submission.address?.latitude,
+      longitude: submission.address?.longitude,
+    })
+    if (!result) return { regionId: null, outcome: 'unresolved' }
+    return {
+      regionId: result.regionId,
+      outcome: result.created ? 'created' : 'matched',
+      warning: result.warning ?? undefined,
+    }
+  } catch (error) {
+    // Mapbox down or a write conflict — keep the submission reviewable; the
+    // manager can set an anchor by hand.
+    return {
+      regionId: null,
+      outcome: 'unresolved',
+      warning: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+/**
+ * Async screening for a fresh event submission — the deep checks that don't
+ * belong in the request path: a disposable-list re-check plus an MX-record
+ * lookup on the submitter's email (fail-open on DNS trouble), then region
+ * resolution and the review notification.
+ *
+ * Outcomes:
+ * - **spam** — undeliverable/throwaway email: recorded and kept (abuse
+ *   tracking), nobody is notified;
+ * - **pending** — region resolved (or flagged for triage) and the responsible
+ *   manager emailed: an update proposal goes to the target event's manager
+ *   (falling back up its region chain for unverified targets); a new event
+ *   goes to the nearest manager up the resolved region's chain; the system
+ *   contact is the last resort.
+ *
+ * Queued per-submission by the EventSubmissions afterChange hook; the
+ * `screening` queue's 15-minute autoRun retries anything a crash dropped.
+ */
+export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
+  slug: 'screenEventSubmission',
+  label: 'Screen Event Submission',
+  retries: 2,
+  inputSchema: [{ name: 'submissionId', type: 'number', required: true }],
+  outputSchema: [{ name: 'status', type: 'text', required: true }],
+  handler: async ({ input, req }) => {
+    const payload = req.payload
+    const now = new Date()
+    const submissionId = Number(input.submissionId)
+
+    const submission = (await payload.findByID({
+      collection: 'event-submissions',
+      id: submissionId,
+      depth: 0,
+      overrideAccess: true,
+      req,
+    })) as EventSubmission
+
+    // Already screened (a retried job after a mid-run crash, or a manager got
+    // there first) — nothing to do.
+    if (submission.status !== 'screening') {
+      return { output: { status: submission.status } }
+    }
+
+    const warnings: string[] = []
+
+    // --- Email verdict -----------------------------------------------------
+    const listCheck = checkEmailAllowed(submission.submitterEmail)
+    let emailVerdict: ScreeningResult['emailVerdict'] = 'ok'
+    if (!listCheck.ok) {
+      emailVerdict = listCheck.code === 'disposable_email' ? 'disposable_email' : 'invalid_email'
+    } else {
+      const mx = await hasMxRecords(submission.submitterEmail)
+      if (mx === false) emailVerdict = 'no_mx_records'
+      if (mx === null) warnings.push('MX lookup inconclusive — passed open')
+    }
+
+    if (emailVerdict !== 'ok') {
+      await payload.update({
+        collection: 'event-submissions',
+        id: submissionId,
+        data: {
+          status: 'spam',
+          screeningResult: {
+            emailVerdict,
+            warnings,
+            screenedAt: now.toISOString(),
+          } satisfies ScreeningResult,
+        },
+        overrideAccess: true,
+        context: { skipWriteGuard: true },
+        req,
+      })
+      return { output: { status: 'spam' } }
+    }
+
+    // --- Region + recipient ------------------------------------------------
+    const targetEventId = relationId(submission.event)
+    let regionOutcome: ScreeningResult['region']
+    let resolvedRegionId: number | null = null
+    let recipient: { email: string; name?: string | null; managerId: number | null } | null = null
+    let eventTitle: string | null = null
+
+    if (targetEventId != null) {
+      // Update proposal: the event's own manager reviews; a managerless
+      // (unverified) target escalates up its region chain.
+      const event = await payload.findByID({
+        collection: 'events',
+        id: targetEventId,
+        depth: 1,
+        select: { title: true, manager: true, region: true },
+        overrideAccess: true,
+        req,
+      })
+      eventTitle = typeof event.title === 'string' ? event.title : null
+      const manager = typeof event.manager === 'object' ? event.manager : null
+      if (manager?.email) {
+        recipient = { email: manager.email, name: manager.name, managerId: manager.id }
+      } else {
+        const regionId = relationId(event.region)
+        const regionManager =
+          regionId != null ? await findManagerForRegion(payload, regionId, { req }) : null
+        if (regionManager?.manager.email) {
+          recipient = {
+            email: regionManager.manager.email,
+            name: regionManager.manager.name,
+            managerId: regionManager.manager.id,
+          }
+        }
+      }
+    } else {
+      const resolution = await resolveSubmissionRegion(payload, req, submission)
+      regionOutcome = resolution.outcome
+      resolvedRegionId = resolution.regionId
+      if (resolution.warning) warnings.push(resolution.warning)
+
+      const chainStartId =
+        resolvedRegionId ?? relationId(submission.state) ?? relationId(submission.country)
+      const regionManager =
+        chainStartId != null ? await findManagerForRegion(payload, chainStartId, { req }) : null
+      if (regionManager?.manager.email) {
+        recipient = {
+          email: regionManager.manager.email,
+          name: regionManager.manager.name,
+          managerId: regionManager.manager.id,
+        }
+      }
+    }
+
+    if (!recipient) {
+      // Last resort: the system contact reviews it.
+      recipient = { email: CONTACT_EMAIL, name: null, managerId: null }
+      warnings.push('No responsible manager found — notified the system contact')
+      Sentry.captureMessage('ScreenEventSubmissions: no manager to notify', {
+        extra: { submissionId },
+      })
+    }
+
+    // --- Persist BEFORE sending -------------------------------------------
+    // The status flip is the exactly-once marker: if the send below fails the
+    // task retries from `screening`… so flip status only after a successful
+    // send, but stamp region/screening first so a crashed send retains the
+    // resolution work.
+    await payload.update({
+      collection: 'event-submissions',
+      id: submissionId,
+      data: {
+        ...(resolvedRegionId != null ? { region: resolvedRegionId } : {}),
+        screeningResult: {
+          emailVerdict,
+          ...(regionOutcome ? { region: regionOutcome } : {}),
+          warnings,
+          screenedAt: now.toISOString(),
+        } satisfies ScreeningResult,
+      },
+      overrideAccess: true,
+      context: { skipWriteGuard: true },
+      req,
+    })
+
+    const token = signReviewToken(
+      { submissionId, managerId: recipient.managerId },
+      payload.secret,
+      now,
+    )
+    await sendSubmissionReview({
+      payload,
+      to: recipient.email,
+      recipientName: recipient.name,
+      kind: targetEventId != null ? 'event-update' : 'new-event',
+      eventTitle,
+      submitterName: submission.submitterName,
+      submitterNote: submission.submitterNote,
+      details: buildDetails(submission, eventTitle),
+      acceptUrl: buildReviewEmailLink(token, 'accept'),
+      rejectUrl: buildReviewEmailLink(token, 'reject'),
+    })
+
+    await payload.update({
+      collection: 'event-submissions',
+      id: submissionId,
+      data: { status: 'pending' },
+      overrideAccess: true,
+      context: { skipWriteGuard: true },
+      req,
+    })
+
+    return { output: { status: 'pending' } }
+  },
+}
+
+/** Human-readable summary rows for the review email. */
+function buildDetails(
+  submission: EventSubmission,
+  eventTitle: string | null,
+): { label: string; value: string }[] {
+  const rows: [string, string | null | undefined][] = [
+    ['Event', eventTitle],
+    ['Type', submission.eventType],
+    ['City', submission.address?.city],
+    ['Street', submission.address?.street],
+    ['Online URL', submission.onlineUrl],
+    ['Languages', submission.languages?.join(', ')],
+    [
+      'Schedule',
+      submission.schedule?.startDate
+        ? `${submission.schedule.scheduleType ?? 'one-off'} from ${submission.schedule.startDate.slice(0, 10)}${submission.schedule.startTime ? ` at ${submission.schedule.startTime}` : ''}`
+        : null,
+    ],
+    ['Contact', submission.contactEmail || submission.contactPhone],
+    ['Submitted by', `${submission.submitterName} <${submission.submitterEmail}>`],
+  ]
+  return rows
+    .filter((row): row is [string, string] => typeof row[1] === 'string' && row[1].trim() !== '')
+    .map(([label, value]) => ({ label, value }))
+}

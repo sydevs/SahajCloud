@@ -4,6 +4,7 @@ import { Audiences } from './Audiences/Audiences'
 import { Authors } from './Authors/Authors'
 import { Clients } from './Clients/Clients'
 import { Events } from './Events/Events'
+import { EventSubmissions } from './EventSubmissions/EventSubmissions'
 import { Files } from './Files/Files'
 import { Frames } from './Frames/Frames'
 import { Images } from './Images/Images'
@@ -51,6 +52,7 @@ export const collections = [
   // Sahaj Atlas
   Regions,
   Events,
+  EventSubmissions,
   Registrations,
   Users,
 ]
@@ -66,6 +68,7 @@ export {
   // Classes
   Regions,
   Events,
+  EventSubmissions,
   Registrations,
   // Resources
   Lectures,

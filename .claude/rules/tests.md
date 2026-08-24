@@ -101,7 +101,9 @@ that no case matched. Vitest reports a syntax error in a spec as an empty file,
 so it looks like a config or lane problem. Re-run without piping through `grep`
 to see the real error, or `pnpm exec tsc --noEmit -p tsconfig.test.json`. (The
 one that caused this: an unescaped apostrophe inside a single-quoted test name —
-`it('renders keys in the collection's order', …)`.) Reserve the full `pnpm test:int` / `pnpm build` for reproducing a red CI check. See `.claude/rules/testing-reqs.md` for the local-vs-CI split.
+`it('renders keys in the collection's order', …)`.)
+
+Reserve the full `pnpm test:int` / `pnpm build` for reproducing a red CI check. See `.claude/rules/testing-reqs.md` for the local-vs-CI split.
 
 ## Verifying "coverage gap" claims
 
