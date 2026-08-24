@@ -15,7 +15,6 @@ import {
   unpublishDate,
 } from '@/lib/eventVerification/stages'
 import { signVerifyToken } from '@/lib/eventVerification/token'
-import { buildVerifyEmailLink } from '@/lib/eventVerification/verifyUrl'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import {
   buildEventEmailDetails,
@@ -29,6 +28,8 @@ import {
 } from '@/lib/notifications'
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import type { Event } from '@/payload-types'
+
+import { buildVerifyEmailLink } from './verifyUrl'
 
 
 interface ExpireResult {

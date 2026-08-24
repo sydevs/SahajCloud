@@ -281,7 +281,7 @@ async function main() {
   const { EventVerificationEmail } = await import('@/emails/EventVerificationEmail')
   const { renderEmail } = await import('@/plugins/email')
   const { signVerifyToken } = await import('@/lib/eventVerification/token')
-  const { buildVerifyEmailLink } = await import('@/lib/eventVerification/verifyUrl')
+  const { buildVerifyEmailLink } = await import('@/jobs/ExpireEvents/verifyUrl')
   const { formatLongDate } = await import('@/lib/notifications')
   const { EVENT_QUALITY_CHECK_METADATA } = await import('@/lib/eventQuality')
 

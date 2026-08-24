@@ -4,7 +4,6 @@ import * as Sentry from '@sentry/nextjs'
 
 import type { LocaleCode } from '@/lib/locales'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
-import { sendSessionReminder } from '@/lib/notifications/sendSessionReminder'
 import type { ScheduleSubFields } from '@/lib/schedule/scheduleHooks'
 import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
 import { relationId } from '@/lib/utilities/relationId'
@@ -12,6 +11,7 @@ import type { Event } from '@/payload-types'
 
 import { loadUsers } from './loadUsers'
 import { asReminderLog, hasReminderFor, type ReminderLogEntry } from './reminderLedger'
+import { sendSessionReminder } from './sendSessionReminder'
 
 const PAGINATION_LIMIT = 200
 /** 24 hours — how far ahead a run reminds. */
