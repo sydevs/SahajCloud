@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { feedbackDestination } from '@/lib/registrations/feedbackLinks'
+import { feedbackDestination } from '@/app/(frontend)/registrations/feedback/destination'
 
 /**
  * Where a post-event answer sends the reader (sydevs/SahajAtlasWeb#164). The

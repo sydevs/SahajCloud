@@ -5,10 +5,12 @@ import type { VerifyOutcome } from '../../events/verify/VerificationCard'
 import { redirect } from 'next/navigation'
 import { APIError, getPayload, type Payload } from 'payload'
 
-import { feedbackDestination, verifyFeedbackToken } from '@/lib/registrations/feedbackLinks'
+import { verifyFeedbackToken } from '@/lib/registrations/feedbackLinks'
 import type { Event } from '@/payload-types'
 
 import config from '@payload-config'
+
+import { feedbackDestination } from './destination'
 
 /**
  * Load just enough of the registration to decide where to send the reader.

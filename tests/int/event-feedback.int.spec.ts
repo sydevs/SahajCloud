@@ -175,6 +175,25 @@ describe('Event feedback (registrant voting)', () => {
         data: { code: 'feedback_closed' },
       })
     })
+
+    it('refuses a vote once the event is trashed', async () => {
+      // A trashed event is invisible to the gate's lookup, so it refuses like
+      // any closed listing. Previously untested, and worth pinning: withdrawing
+      // a listing has to stop the votes that decide whether it stays down.
+      const event = await createUnverifiedEvent()
+      const registration = await createRegistration(event.id)
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { deletedAt: new Date().toISOString() },
+        overrideAccess: true,
+      })
+
+      await expect(voteAsClient(registration, 'confirmed')).rejects.toMatchObject({
+        status: 409,
+        data: { code: 'feedback_closed' },
+      })
+    })
   })
 
   describe('community-feedback sync', () => {

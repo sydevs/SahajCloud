@@ -9,7 +9,7 @@ import { APIError } from 'payload'
 import { computeCommunityVerdict } from '@/lib/eventVerification/communityFeedback'
 import { isRecord } from '@/lib/utilities/isRecord'
 import { relationId } from '@/lib/utilities/relationId'
-import { asTrustedReq } from '@/plugins/usage/hooks'
+import { asSystemReq, asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
  * Registrant confirm/deny voting on unverified events, carried on the
@@ -58,26 +58,28 @@ export const gateEventFeedback: CollectionBeforeChangeHook = async ({ data, orig
   const incoming = data?.eventFeedback
   if (incoming === undefined || incoming === originalDoc?.eventFeedback) return data
 
+  // One lookup, one condition. The previous shape nested the checks inside
+  // `if (eventId != null)`, so an absent relationship skipped the gate and the
+  // vote was accepted — unreachable in practice, since `event` is required, but
+  // it made the gate read as though a missing event were a tolerated case.
+  // A *failed lookup* was always refused; that part is unchanged.
   const eventId = relationId(data?.event ?? originalDoc?.event)
-  if (eventId != null) {
-    const event = await req.payload
-      .findByID({
-        collection: 'events',
-        id: eventId,
-        depth: 0,
-        select: { verificationStage: true, _status: true },
-        overrideAccess: true,
-        req: asTrustedReq(req),
-      })
-      .catch(() => null)
-    if (!event || event._status !== 'published' || event.verificationStage !== 'unverified') {
-      throw new APIError(
-        'Feedback is closed for this event.',
-        409,
-        { code: 'feedback_closed' },
-        true,
-      )
-    }
+  const event =
+    eventId == null
+      ? null
+      : await req.payload
+          .findByID({
+            collection: 'events',
+            id: eventId,
+            depth: 0,
+            select: { verificationStage: true, _status: true },
+            overrideAccess: true,
+            req: asTrustedReq(req),
+          })
+          .catch(() => null)
+
+  if (!event || event._status !== 'published' || event.verificationStage !== 'unverified') {
+    throw new APIError('Feedback is closed for this event.', 409, { code: 'feedback_closed' }, true)
   }
 
   return { ...data, eventFeedbackAt: new Date().toISOString() }
@@ -140,10 +142,9 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
     },
     overrideAccess: true,
     context: { skipVerifyHook: true, skipWriteGuard: true },
-    // A user-stripped copy (same transaction): this is a SYSTEM write, and
-    // Payload validates the events `region` filterOptions against `req.user`
-    // — a client user would flunk the owned-region filter and 400 the vote.
-    req: { ...req, user: null } as typeof req,
+    // A SYSTEM write in the caller's transaction — see `asSystemReq` for why
+    // `overrideAccess` alone isn't enough (filterOptions still sees `req.user`).
+    req: asSystemReq(req),
   })
 
   return doc
