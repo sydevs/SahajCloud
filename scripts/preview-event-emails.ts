@@ -374,7 +374,7 @@ async function main() {
 
   const previews: { label: string; url: string | false }[] = []
   for (const { level, audience } of combos) {
-    const token = signVerifyToken({ eventId: sample.eventId, managerId: sample.managerId }, secret)
+    const token = await signVerifyToken({ eventId: sample.eventId, managerId: sample.managerId }, secret)
     const html = await renderEmail(
       createElement(EventVerificationEmail, {
         name: audience === 'region' ? 'Rohan Patil' : sample.managerName,

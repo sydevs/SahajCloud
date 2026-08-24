@@ -37,7 +37,7 @@ export default async function RegistrationFeedbackPage({
   const brand = getEmailBrand(BRAND)
   const iconSrc = getProjectEmailIcon(BRAND)
 
-  const result = verifyFeedbackToken(token, payload.secret)
+  const result = await verifyFeedbackToken(token, payload.secret)
   if (result.status === 'invalid') notFound()
 
   if (result.status === 'expired') {

@@ -56,7 +56,7 @@ export async function sendSessionReminder(args: {
   const strings = await resolveEmailStrings({ payload, locale, req })
   const details = buildReminderEmailDetails(event, occurrenceIso)
   const unsubscribeUrl = buildUnsubscribeEmailLink(
-    signUnsubscribeToken({ registrationId }, payload.secret),
+    await signUnsubscribeToken({ registrationId }, payload.secret),
   )
 
   const templateProps = { name: registrantName, brand, strings, details, unsubscribeUrl }

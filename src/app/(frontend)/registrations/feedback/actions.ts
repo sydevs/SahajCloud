@@ -63,7 +63,7 @@ export async function submitFeedbackAction(
   const vote = formData.get('vote') === 'confirmed' ? 'confirmed' : 'denied'
   const payload = await getPayload({ config })
 
-  const claims = verifyFeedbackToken(token, payload.secret)
+  const claims = await verifyFeedbackToken(token, payload.secret)
   if (claims.status !== 'valid') {
     return {
       tone: 'warning',

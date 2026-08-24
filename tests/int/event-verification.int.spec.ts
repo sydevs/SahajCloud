@@ -774,7 +774,7 @@ describe('Event verification lifecycle', () => {
     await makeDue(payload, event.id)
     await runJob(payload) // → reminded
 
-    const token = signVerifyToken({ eventId: event.id, managerId: eventManager.id }, payload.secret)
+    const token = await signVerifyToken({ eventId: event.id, managerId: eventManager.id }, payload.secret)
     const verified = await verifyEventFromToken({ payload, token })
 
     expect(verified).not.toBeNull()

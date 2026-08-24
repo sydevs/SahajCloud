@@ -59,7 +59,7 @@ export async function verifyEventAction(
   } catch (error) {
     const occurredAt = new Date().toISOString()
     const detail = error instanceof Error ? error.message : String(error)
-    const claims = readVerifyToken(token, payload.secret)
+    const claims = await readVerifyToken(token, payload.secret)
     const eventId = claims.status === 'valid' ? claims.claims.eventId : 'unknown'
     const managerId = claims.status === 'valid' ? claims.claims.managerId : 'unknown'
     payload.logger.warn({

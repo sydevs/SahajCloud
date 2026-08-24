@@ -149,7 +149,7 @@ export async function verifyEventFromToken(args: {
 }): Promise<Event | null> {
   const { payload, token, now = new Date() } = args
 
-  const claims = verifyVerifyToken(token, payload.secret, now)
+  const claims = await verifyVerifyToken(token, payload.secret, now)
   if (!claims) return null
 
   // Resolve the manager's display name for the log's `by` entry.

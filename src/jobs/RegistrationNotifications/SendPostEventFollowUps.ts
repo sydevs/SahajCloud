@@ -55,7 +55,7 @@ async function sendFollowUp(
   // still reach these registrations.
   const sections: FollowUpSection[] = []
   if (event.verificationStage === 'unverified' && event._status === 'published') {
-    const token = signFeedbackToken({ registrationId: registration.id }, payload.secret, now)
+    const token = await signFeedbackToken({ registrationId: registration.id }, payload.secret, now)
     sections.push({
       type: 'feedback-ask',
       confirmUrl: buildFeedbackEmailLink(token, 'confirmed'),

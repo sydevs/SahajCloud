@@ -214,7 +214,7 @@ async function processEvent(args: {
   for (const recipient of recipients) {
     if (hasReminderForStage(log, stage, recipient.manager.id)) continue
 
-    const token = signVerifyToken(
+    const token = await signVerifyToken(
       { eventId: event.id, managerId: recipient.manager.id },
       payload.secret,
       now,

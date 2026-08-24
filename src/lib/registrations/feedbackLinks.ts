@@ -21,7 +21,7 @@ export function signFeedbackToken(
   claims: FeedbackTokenClaims,
   secret: string,
   now: Date = new Date(),
-): string {
+): Promise<string> {
   return signToken(
     { ...claims },
     { kind: FEEDBACK_TOKEN_KIND, ttlMs: FEEDBACK_TOKEN_TTL_MS },
@@ -34,7 +34,7 @@ export function verifyFeedbackToken(
   token: string | null | undefined,
   secret: string,
   now: Date = new Date(),
-): SignedTokenResult<FeedbackTokenClaims> {
+): Promise<SignedTokenResult<FeedbackTokenClaims>> {
   return verifyToken<FeedbackTokenClaims>(token, FEEDBACK_TOKEN_KIND, secret, now)
 }
 
