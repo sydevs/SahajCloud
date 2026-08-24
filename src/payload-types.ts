@@ -3521,252 +3521,76 @@ export interface Frame {
  */
 export interface EventSubmission {
   id: number;
+  screeningResult?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  submitterInfo?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  proposedChanges?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  previewEvent?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   /**
-   * The event this submission proposes changes to. Leave empty for a brand-new event; after acceptance it links the created event.
+   * The event this submission proposes changes to. After acceptance it links the created event.
    */
   event?: (number | null) | Event;
-  submitterName: string;
-  submitterEmail: string;
   /**
-   * Anything the submitter wanted to tell the reviewing manager.
+   * Optional. The manager who will look after this event. Assign one to publish it as verified; leave blank and it goes on the map as unverified until a manager takes it on.
    */
-  submitterNote?: string | null;
-  languages?:
-    | (
-        | 'ab'
-        | 'aa'
-        | 'af'
-        | 'ak'
-        | 'sq'
-        | 'am'
-        | 'ar'
-        | 'an'
-        | 'hy'
-        | 'as'
-        | 'av'
-        | 'ae'
-        | 'ay'
-        | 'az'
-        | 'bm'
-        | 'ba'
-        | 'eu'
-        | 'be'
-        | 'bn'
-        | 'bi'
-        | 'bs'
-        | 'br'
-        | 'bg'
-        | 'my'
-        | 'ca'
-        | 'ch'
-        | 'ce'
-        | 'ny'
-        | 'zh'
-        | 'cv'
-        | 'kw'
-        | 'co'
-        | 'cr'
-        | 'hr'
-        | 'cs'
-        | 'da'
-        | 'dv'
-        | 'nl'
-        | 'dz'
-        | 'en'
-        | 'eo'
-        | 'et'
-        | 'ee'
-        | 'fo'
-        | 'fj'
-        | 'fi'
-        | 'fr'
-        | 'ff'
-        | 'gl'
-        | 'lg'
-        | 'ka'
-        | 'de'
-        | 'el'
-        | 'gn'
-        | 'gu'
-        | 'ht'
-        | 'ha'
-        | 'he'
-        | 'hz'
-        | 'hi'
-        | 'ho'
-        | 'hu'
-        | 'is'
-        | 'io'
-        | 'ig'
-        | 'id'
-        | 'ia'
-        | 'ie'
-        | 'iu'
-        | 'ik'
-        | 'ga'
-        | 'it'
-        | 'ja'
-        | 'jv'
-        | 'kl'
-        | 'kn'
-        | 'kr'
-        | 'ks'
-        | 'kk'
-        | 'km'
-        | 'ki'
-        | 'rw'
-        | 'rn'
-        | 'kv'
-        | 'kg'
-        | 'ko'
-        | 'ku'
-        | 'kj'
-        | 'ky'
-        | 'lo'
-        | 'la'
-        | 'lv'
-        | 'li'
-        | 'ln'
-        | 'lt'
-        | 'lu'
-        | 'lb'
-        | 'mk'
-        | 'mg'
-        | 'ms'
-        | 'ml'
-        | 'mt'
-        | 'gv'
-        | 'mi'
-        | 'mr'
-        | 'mh'
-        | 'mn'
-        | 'na'
-        | 'nv'
-        | 'ng'
-        | 'ne'
-        | 'nd'
-        | 'se'
-        | 'no'
-        | 'nb'
-        | 'nn'
-        | 'ii'
-        | 'oc'
-        | 'oj'
-        | 'cu'
-        | 'or'
-        | 'om'
-        | 'os'
-        | 'pi'
-        | 'pa'
-        | 'ps'
-        | 'fa'
-        | 'pl'
-        | 'pt'
-        | 'qu'
-        | 'ro'
-        | 'rm'
-        | 'ru'
-        | 'sm'
-        | 'sg'
-        | 'sa'
-        | 'sc'
-        | 'gd'
-        | 'sr'
-        | 'sn'
-        | 'sd'
-        | 'si'
-        | 'sk'
-        | 'sl'
-        | 'so'
-        | 'nr'
-        | 'st'
-        | 'es'
-        | 'su'
-        | 'sw'
-        | 'ss'
-        | 'sv'
-        | 'tl'
-        | 'ty'
-        | 'tg'
-        | 'ta'
-        | 'tt'
-        | 'te'
-        | 'th'
-        | 'bo'
-        | 'ti'
-        | 'to'
-        | 'ts'
-        | 'tn'
-        | 'tr'
-        | 'tk'
-        | 'tw'
-        | 'uk'
-        | 'ur'
-        | 'ug'
-        | 'uz'
-        | 've'
-        | 'vi'
-        | 'vo'
-        | 'wa'
-        | 'cy'
-        | 'fy'
-        | 'wo'
-        | 'xh'
-        | 'yi'
-        | 'yo'
-        | 'za'
-        | 'zu'
-      )[]
-    | null;
-  eventType?: ('offline' | 'online') | null;
-  onlineUrl?: string | null;
-  address?: {
-    mapboxId?: string | null;
-    /**
-     * The building's own name, where it has one. Shown in place of the street when a listing has no title of its own.
-     */
-    venueName?: string | null;
-    street?: string | null;
-    room?: string | null;
-    postCode?: string | null;
-    country?: string | null;
-    region?: string | null;
-    city?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
-  };
-  contactName?: string | null;
-  contactEmail?: string | null;
-  contactPhone?: string | null;
-  description?: string | null;
-  schedule?: {
-    scheduleType?: ('one-off' | 'weekly') | null;
-    startDate?: string | null;
-    endDate?: string | null;
-    startTime?: string | null;
-    endTime?: string | null;
-    weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
-    timezone?: string | null;
-  };
+  manager?: (number | null) | Manager;
   /**
-   * Existing country the event belongs to (required for new events; must be a country-level region).
-   */
-  country?: (number | null) | Region;
-  /**
-   * Existing state/region, when known.
-   */
-  state?: (number | null) | Region;
-  /**
-   * Existing city or venue the submitter was browsing, when the widget knows it.
-   */
-  anchorRegion?: (number | null) | Region;
-  /**
-   * Resolved city/venue (set by screening).
+   * The city or venue this event belongs to. Resolved by screening — correct it here if it came back empty or wrong.
    */
   region?: (number | null) | Region;
-  submitter?: (number | null) | User;
+  /**
+   * Generated from the proposal when the submission arrives.
+   */
+  title?: string | null;
+  /**
+   * The proposed Events field patch, exactly as submitted.
+   */
+  proposed?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   status: 'screening' | 'pending' | 'spam' | 'created' | 'updated' | 'rejected';
-  screeningResult?:
+  submitter?: (number | null) | User;
+  /**
+   * Region targeting as submitted (country / state / anchor).
+   */
+  regionHint?:
     | {
         [k: string]: unknown;
       }
@@ -4985,49 +4809,18 @@ export interface EventsSelect<T extends boolean = true> {
  * via the `definition` "event-submissions_select".
  */
 export interface EventSubmissionsSelect<T extends boolean = true> {
-  event?: T;
-  submitterName?: T;
-  submitterEmail?: T;
-  submitterNote?: T;
-  languages?: T;
-  eventType?: T;
-  onlineUrl?: T;
-  address?:
-    | T
-    | {
-        mapboxId?: T;
-        venueName?: T;
-        street?: T;
-        room?: T;
-        postCode?: T;
-        country?: T;
-        region?: T;
-        city?: T;
-        latitude?: T;
-        longitude?: T;
-      };
-  contactName?: T;
-  contactEmail?: T;
-  contactPhone?: T;
-  description?: T;
-  schedule?:
-    | T
-    | {
-        scheduleType?: T;
-        startDate?: T;
-        endDate?: T;
-        startTime?: T;
-        endTime?: T;
-        weekdays?: T;
-        timezone?: T;
-      };
-  country?: T;
-  state?: T;
-  anchorRegion?: T;
-  region?: T;
-  submitter?: T;
-  status?: T;
   screeningResult?: T;
+  submitterInfo?: T;
+  proposedChanges?: T;
+  previewEvent?: T;
+  event?: T;
+  manager?: T;
+  region?: T;
+  title?: T;
+  proposed?: T;
+  status?: T;
+  submitter?: T;
+  regionHint?: T;
   reviewedBy?: T;
   reviewedAt?: T;
   updatedAt?: T;

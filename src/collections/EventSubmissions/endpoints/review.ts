@@ -15,7 +15,10 @@ import { applyReview, type ReviewAction } from '../lifecycle/review'
  * `requireActiveClient` and is not published in the OpenAPI spec (same stance
  * as the events verify action).
  *
- * Body: `{ action: 'accept' | 'reject' }`. Response: `{ ok, status, eventId? }`.
+ * Body: `{ action: 'accept' | 'reject' | 'reopen' }`. Response:
+ * `{ ok, status, eventId? }`. `reopen` returns a spam/rejected submission to
+ * `pending` — every status transition stays in `applyReview` rather than
+ * letting the admin form PATCH `status` directly.
  */
 export const reviewSubmission: Endpoint = {
   path: '/:id/review',
@@ -38,9 +41,9 @@ export const reviewSubmission: Endpoint = {
 
     const body = req.json ? await req.json().catch(() => null) : null
     const action = (body as { action?: string } | null)?.action
-    if (action !== 'accept' && action !== 'reject') {
+    if (action !== 'accept' && action !== 'reject' && action !== 'reopen') {
       return Response.json(
-        { errors: [{ message: 'action must be "accept" or "reject".' }] },
+        { errors: [{ message: 'action must be "accept", "reject" or "reopen".' }] },
         { status: 400 },
       )
     }

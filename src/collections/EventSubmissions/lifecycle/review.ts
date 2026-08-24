@@ -4,20 +4,24 @@ import { APIError } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
-import { signToken, verifyToken, type SignedTokenResult } from '@/lib/utilities/signedToken'
 import type { EventSubmission } from '@/payload-types'
 
-import { OPEN_SUBMISSION_STATUSES, type SubmissionStatus } from '../EventSubmissions'
-import { submissionEventPatch } from './mapToEvent'
+import {
+  OPEN_SUBMISSION_STATUSES,
+  REOPENABLE_STATUSES,
+  type SubmissionStatus,
+} from '../statuses'
+import { newEventDefaults, type ProposedPatch } from './mergeProposal'
 
 /**
  * Shared review semantics for an event submission — the one place Accept and
- * Reject actually happen, called by the admin Accept/Reject buttons' endpoint
- * and by the tokenized email-link page. Kept off the route/component layer so
- * it's testable with a plain `payload` instance.
+ * Reject actually happen, called by the admin Accept/Reject buttons' endpoint.
+ * Kept off the route/component layer so it's testable with a plain `payload`
+ * instance.
  */
 
-export type ReviewAction = 'accept' | 'reject'
+export type ReviewAction = 'accept' | 'reject' | 'reopen'
+
 
 export interface ReviewResult {
   /** The submission's terminal status after the review. */
@@ -28,51 +32,22 @@ export interface ReviewResult {
 }
 
 // ---------------------------------------------------------------------------
-// Tokenized email link
+// Email link
 // ---------------------------------------------------------------------------
 
-const REVIEW_TOKEN_KIND = 'event-submission-review'
-
-/** 30 days: a review email may sit in an inbox a while; the page re-checks status anyway. */
-export const REVIEW_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000
-
-export interface ReviewTokenClaims {
-  submissionId: number
-  /** Null when the review email fell back to the system contact. */
-  managerId: number | null
-}
-
-export function signReviewToken(
-  claims: ReviewTokenClaims,
-  secret: string,
-  now: Date = new Date(),
-): string {
-  return signToken(
-    { ...claims },
-    { kind: REVIEW_TOKEN_KIND, ttlMs: REVIEW_TOKEN_TTL_MS },
-    secret,
-    now,
-  )
-}
-
-export function verifyReviewToken(
-  token: string | null | undefined,
-  secret: string,
-  now: Date = new Date(),
-): SignedTokenResult<ReviewTokenClaims> {
-  return verifyToken<ReviewTokenClaims>(token, REVIEW_TOKEN_KIND, secret, now)
-}
-
 /**
- * Absolute URL of the SahajCloud-hosted review page (mirrors the
- * `/events/verify` pattern: the email link opens a confirmation page; the
- * mutation runs on that page's explicit button, never on the GET — mail
- * scanners prefetch links).
+ * Where the notification email sends the manager: the submission's own admin
+ * edit view, which is now the only review surface.
+ *
+ * There is no token here by design. The standalone `/submissions/review` page
+ * existed so a manager could act while logged out, at the cost of a second
+ * implementation of Accept/Reject and a second rendering of the submission.
+ * With the review collapsed onto the admin view — where the diff and the live
+ * preview are — a signed link would only reach a page that already requires a
+ * session.
  */
-export function buildReviewEmailLink(token: string, action?: ReviewAction): string {
-  const params = new URLSearchParams({ token })
-  if (action) params.set('action', action)
-  return `${getServerUrl()}/submissions/review?${params.toString()}`
+export function buildReviewEmailLink(submissionId: number): string {
+  return `${getServerUrl()}/admin/collections/event-submissions/${submissionId}`
 }
 
 // ---------------------------------------------------------------------------
@@ -90,9 +65,11 @@ export function buildReviewEmailLink(token: string, action?: ReviewAction): stri
  *   plain `payload.update` — partial data merges field-wise, and the
  *   verify-on-save hook re-verifies a managed event exactly as any manager
  *   edit would (an unverified target stays unverified);
- * - new event → created **published + `unverified`** (no manager — accepting
- *   only vouches "not spam"; adoption is a separate act), attached to the
- *   screening-resolved `region` (falling back to the submitter's anchor).
+ * - new event → created **published**, attached to the screening-resolved
+ *   `region` (falling back to the submitter's anchor). `unverified` by
+ *   default — accepting only vouches "not spam" — unless the reviewer also
+ *   named a `manager` on the submission, which adopts and verifies it in the
+ *   same act.
  */
 export async function applyReview(args: {
   payload: Payload
@@ -112,6 +89,28 @@ export async function applyReview(args: {
     overrideAccess: true,
     req,
   })) as EventSubmission
+
+  if (action === 'reopen') {
+    // A screening false positive, or a rejection a manager wants back. Clears
+    // the review stamp so the submission reads as genuinely pending again.
+    if (!REOPENABLE_STATUSES.includes(submission.status)) {
+      throw new APIError(
+        `A ${submission.status} submission cannot be reopened.`,
+        409,
+        { code: 'not_reopenable' },
+        true,
+      )
+    }
+    const reopened = (await payload.update({
+      collection: 'event-submissions',
+      id: submissionId,
+      data: { status: 'pending', reviewedBy: null, reviewedAt: null },
+      overrideAccess: true,
+      context: { skipWriteGuard: true },
+      req,
+    })) as EventSubmission
+    return { status: 'pending', submission: reopened }
+  }
 
   if (!OPEN_SUBMISSION_STATUSES.includes(submission.status)) {
     return { status: submission.status, submission }
@@ -138,7 +137,7 @@ export async function applyReview(args: {
   }
 
   const targetEventId = relationId(submission.event)
-  const patch = submissionEventPatch(submission)
+  const patch = (submission.proposed ?? {}) as ProposedPatch
 
   if (targetEventId != null) {
     // Update proposal: apply the patch as a normal save (verifyOnSave runs).
@@ -154,33 +153,41 @@ export async function applyReview(args: {
     return { status: 'updated', submission: updated, eventId: targetEventId }
   }
 
-  const regionId = relationId(submission.region) ?? relationId(submission.anchorRegion)
+  const hint = (submission.regionHint ?? {}) as Record<string, unknown>
+  const regionId = relationId(submission.region) ?? relationId(hint.anchorRegion)
   if (regionId == null) {
     throw new APIError(
-      'This submission has no resolved city/venue yet — set an anchor region (or wait for screening) before accepting.',
+      'This submission has no resolved city/venue yet — set the Region field (or wait for screening) before accepting.',
       409,
       { code: 'region_unresolved' },
       true,
     )
   }
 
+  // Optional, and only meaningful here: assigning one adopts the listing on
+  // creation instead of leaving it on the map as unverified.
+  const assignedManagerId = relationId(submission.manager)
+
   const created = await payload.create({
     collection: 'events',
     data: {
-      languages: ['en'],
+      // `newEventDefaults` is the whole contract — including the derived
+      // `inactive` (no schedule proposed → a dormant listing, whose contact
+      // info the Events validation then requires) and `_status`. The preview
+      // and the diff compose from the same function, so what a reviewer
+      // approves is what gets written.
+      ...newEventDefaults(patch, assignedManagerId),
       ...patch,
       region: regionId,
       submitter: relationId(submission.submitter),
-      verificationStage: 'unverified',
-      manager: null,
-      // No schedule proposed → a dormant listing (its contact info is then
-      // required by the Events validation — a failure here surfaces to the
-      // reviewing manager, who can fill the gap on the submission and retry).
-      inactive: patch.schedule == null,
-      _status: 'published',
     } as never,
     overrideAccess: true,
-    context: { skipVerifyHook: true, skipWriteGuard: true },
+    // `skipVerifyHook` means "don't open a verification cycle", which is right
+    // for an unadopted listing and wrong for an adopted one: with a manager
+    // this save must take the same path as assigning a manager in the admin,
+    // or the event would be stamped `verified` with no `nextCheckAt` and never
+    // come up for re-verification again.
+    context: { skipVerifyHook: assignedManagerId == null, skipWriteGuard: true },
     req,
   })
 

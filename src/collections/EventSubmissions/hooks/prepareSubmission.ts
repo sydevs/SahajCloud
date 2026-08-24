@@ -30,6 +30,11 @@ import { relationId } from '@/lib/utilities/relationId'
 export const prepareSubmission: CollectionBeforeChangeHook = async ({ data, operation, req }) => {
   if (operation !== 'create') return data
 
+  // Both arrive as JSON blobs from the widget; read them once, defensively —
+  // shape is the write-guard's and `validateProposal`'s business, not ours.
+  const regionHint = (data.regionHint ?? {}) as Record<string, unknown>
+  const submitterInfo = (data.submitterInfo ?? {}) as Record<string, unknown>
+
   const eventId = relationId(data.event)
   if (eventId != null) {
     // `draft: true` so a never-published draft is found (and then refused with
@@ -58,7 +63,10 @@ export const prepareSubmission: CollectionBeforeChangeHook = async ({ data, oper
         true,
       )
     }
-  } else if (relationId(data.country) == null && relationId(data.anchorRegion) == null) {
+  } else if (
+    relationId(regionHint.country) == null &&
+    relationId(regionHint.anchorRegion) == null
+  ) {
     throw new APIError(
       'A new event needs a country, or an existing city/venue to attach to.',
       400,
@@ -69,10 +77,10 @@ export const prepareSubmission: CollectionBeforeChangeHook = async ({ data, oper
 
   // Level checks for whichever region targets were provided.
   const levelExpectations: [number | null, string[], string][] = [
-    [relationId(data.country), ['country'], 'country must be a country-level region.'],
-    [relationId(data.state), ['region'], 'state must be a state/region-level region.'],
+    [relationId(regionHint.country), ['country'], 'country must be a country-level region.'],
+    [relationId(regionHint.state), ['region'], 'state must be a state/region-level region.'],
     [
-      relationId(data.anchorRegion),
+      relationId(regionHint.anchorRegion),
       ['city', 'venue'],
       'anchorRegion must be an existing city or venue.',
     ],
@@ -95,8 +103,8 @@ export const prepareSubmission: CollectionBeforeChangeHook = async ({ data, oper
   }
 
   const submitter =
-    typeof data.submitterEmail === 'string' && typeof data.submitterName === 'string'
-      ? await upsertUserByEmail({ req, name: data.submitterName, email: data.submitterEmail })
+    typeof submitterInfo.email === 'string' && typeof submitterInfo.name === 'string'
+      ? await upsertUserByEmail({ req, name: submitterInfo.name, email: submitterInfo.email })
       : null
 
   return {

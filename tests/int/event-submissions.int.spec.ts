@@ -37,6 +37,8 @@ vi.mock('@/lib/mapbox/geocoder', async (importOriginal) => ({
 const { ScreenEventSubmissions } =
   await import('@/jobs/ScreenEventSubmissions/ScreenEventSubmissions')
 const { applyReview } = await import('@/collections/EventSubmissions/lifecycle/review')
+const { proposableEventFields } =
+  await import('@/collections/EventSubmissions/hooks/validateProposal')
 
 describe('Event submissions', () => {
   let payload: Payload
@@ -63,6 +65,37 @@ describe('Event submissions', () => {
     address: { city: 'Novo Selo', street: '1 Main St' },
   }
 
+  /**
+   * Assemble the body the Atlas widget actually POSTs from a flat description.
+   *
+   * The submission stores one `proposed` Events patch plus `submitterInfo` /
+   * `regionHint`; these specs describe a submission flatly because that reads
+   * better, and the mapping lives here so it is stated once. Anything not
+   * recognised as intake metadata is an Events field and goes into `proposed`.
+   */
+  const toBody = (flat: Record<string, unknown>) => {
+    const {
+      submitterName,
+      submitterEmail,
+      submitterNote,
+      country,
+      state,
+      anchorRegion,
+      event,
+      status,
+      region,
+      ...proposed
+    } = flat
+    return {
+      ...(event !== undefined ? { event } : {}),
+      ...(status !== undefined ? { status } : {}),
+      ...(region !== undefined ? { region } : {}),
+      submitterInfo: { name: submitterName, email: submitterEmail, note: submitterNote },
+      regionHint: { country, state, anchorRegion },
+      proposed,
+    }
+  }
+
   /** Create a submission as the client (guard + prepare hooks run). */
   const submit = (
     data: Record<string, unknown>,
@@ -70,7 +103,7 @@ describe('Event submissions', () => {
   ) =>
     payload.create({
       collection: 'event-submissions',
-      data: data as never,
+      data: toBody(data) as never,
       overrideAccess: true,
       req: clientReq(headers),
     })
@@ -156,7 +189,7 @@ describe('Event submissions', () => {
       verifyMock.mockResolvedValue({ success: false, reason: 'rejected', errorCodes: [] })
       const created = await payload.create({
         collection: 'event-submissions',
-        data: { ...baseSubmission, country: countryId, status: 'pending' } as never,
+        data: toBody({ ...baseSubmission, country: countryId, status: 'pending' }) as never,
         overrideAccess: true,
       })
       expect(created.status).toBe('pending')
@@ -241,7 +274,9 @@ describe('Event submissions', () => {
       expect(sendEmail).toHaveBeenCalledTimes(1)
       const message = sendEmail.mock.calls[0][0] as { to: string; html: string }
       expect(message.to).toBe('region-reviewer@example.com')
-      expect(message.html).toContain('/submissions/review?token=')
+      // The email now links to the submission's admin edit view — the only
+      // review surface, where the diff and live preview are.
+      expect(message.html).toContain('/admin/collections/event-submissions/')
     })
 
     it('auto-creates the city under the chosen country via the geocoder', async () => {
@@ -311,18 +346,276 @@ describe('Event submissions', () => {
     })
   })
 
+  describe('proposed patch validation', () => {
+    it('rejects a key that is not an Events field, naming it', async () => {
+      await expect(
+        submit({ ...baseSubmission, country: countryId, notAnEventField: 'x' }),
+      ).rejects.toMatchObject({ status: 400 })
+    })
+
+    it('refuses to let a submitter set a system-managed or privileged field', async () => {
+      // The whole reason the gate exists: `proposed` is applied to Events
+      // verbatim on Accept, so an anonymous POST that could set these would
+      // mint a verified, adopted listing. Posted as the literal wire body —
+      // going through `toBody` would hoist `region` out of the patch and
+      // quietly test nothing.
+      const forge = (proposed: Record<string, unknown>) =>
+        payload.create({
+          collection: 'event-submissions',
+          data: {
+            submitterInfo: { name: 'Forger', email: 'forger@example.com' },
+            regionHint: { country: countryId },
+            proposed: { eventType: 'offline', ...proposed },
+          } as never,
+          overrideAccess: true,
+          req: clientReq(VALID_TURNSTILE),
+        })
+
+      for (const forged of [
+        { verificationStage: 'verified' },
+        { manager: 1 },
+        { region: cityId },
+        { _status: 'published' },
+        // Registration is the event's data-collection surface: this one would
+        // forward every registrant's name, email and answers to an inbox of
+        // the submitter's choosing, from the moment a manager accepted.
+        { registrationNotificationEmail: 'attacker@evil.test' },
+        // And this one would send every would-be registrant off-site.
+        { registrationMode: 'external', externalRegistrationUrl: 'https://evil.test' },
+        // Forged history.
+        { createdAt: '2020-01-01T00:00:00.000Z' },
+      ]) {
+        await expect(forge(forged)).rejects.toMatchObject({ status: 400 })
+      }
+    })
+
+    it('pins the exact set of proposable Events fields', () => {
+      // A snapshot of the intake's whole attack surface, against the real
+      // Events config. Adding a field to Events fails this test until someone
+      // decides, explicitly, whether an anonymous submitter may propose it —
+      // which is the only way a privileged field can't be forgotten.
+      const allowed = [
+        ...proposableEventFields(payload.collections.events.config.flattenedFields),
+      ].sort()
+      expect(allowed).toEqual([
+        'address',
+        'contactEmail',
+        'contactName',
+        'contactPhone',
+        'description',
+        'eventType',
+        'inactive',
+        'languages',
+        'onlineUrl',
+        'schedule',
+        'title',
+        'website',
+      ])
+    })
+
+    it('does not carry an unknown nested key through to the event', async () => {
+      // Validation is top-level only: a group's subfields aren't individually
+      // checked. Payload drops unknown keys on the way into Events, but that
+      // is its behaviour, not ours — pin it, so a future change that starts
+      // honouring nested keys can't quietly widen the intake.
+      const created = await submit({
+        ...baseSubmission,
+        country: countryId,
+        region: cityId,
+        address: { city: 'Novo Selo', street: '1 Main St', smuggled: 'nope' },
+        // No schedule ⇒ Accept creates a dormant listing, and Events requires
+        // a contact route on one. See `newEventDefaults`.
+        contactPhone: '+44 20 7000 0000',
+      })
+      await payload.update({
+        collection: 'event-submissions',
+        id: created.id,
+        data: { status: 'pending' },
+        overrideAccess: true,
+      })
+      const result = await applyReview({
+        payload,
+        submissionId: created.id,
+        action: 'accept',
+        managerId: regionManager.id,
+      })
+      const event = await payload.findByID({
+        collection: 'events',
+        id: result.eventId as number,
+        overrideAccess: true,
+      })
+      expect((event.address as Record<string, unknown>).smuggled).toBeUndefined()
+      expect((event.address as Record<string, unknown>).street).toBe('1 Main St')
+    })
+
+    it('stores an accepted patch verbatim, keyed by Events field names', async () => {
+      const created = await submit({
+        ...baseSubmission,
+        country: countryId,
+        contactPhone: '+44 20 7777 0000',
+      })
+      const fresh = await reload(created.id)
+      expect(fresh.proposed).toMatchObject({
+        eventType: 'offline',
+        contactPhone: '+44 20 7777 0000',
+      })
+    })
+  })
+
+  describe('review projections', () => {
+    it('diffs the proposal against its target and previews the result', async () => {
+      const target = await testData.createEvent(payload, {
+        contactPhone: '+44 20 0000 1111',
+        _status: 'published',
+      })
+      const { address: _a, ...noAddress } = baseSubmission
+      const created = await submit({
+        ...noAddress,
+        event: target.id,
+        contactPhone: '+44 20 2222 3333',
+      })
+
+      const fresh = await reload(created.id)
+      const changes = fresh.proposedChanges as {
+        label: string
+        before: string | null
+        after: string | null
+      }[]
+      const phone = changes.find((change) => change.label === 'Contact Phone Number')
+      expect(phone).toMatchObject({ before: '+44 20 0000 1111', after: '+44 20 2222 3333' })
+
+      // The preview is the merged event — the target's title survives, the
+      // proposal's phone number wins.
+      const preview = fresh.previewEvent as Record<string, unknown>
+      expect(preview.title).toBe(target.title)
+      expect(preview.contactPhone).toBe('+44 20 2222 3333')
+    })
+
+    it('skips both projections on a list read', async () => {
+      // 25 rows would otherwise mean 25 event lookups for values no list
+      // column renders.
+      await submit({ ...baseSubmission, country: countryId })
+      const list = await payload.find({
+        collection: 'event-submissions',
+        limit: 1,
+        overrideAccess: true,
+      })
+      expect(list.docs[0]?.proposedChanges).toBeNull()
+      expect(list.docs[0]?.previewEvent).toBeNull()
+    })
+  })
+
+  describe('submission title', () => {
+    it('names a new-event submission with the title the event would be given', async () => {
+      // Composed through `autoEventTitle` — the same path the Events title hook
+      // runs — so the label a reviewer approves is the title they end up with.
+      const created = await submit({
+        ...baseSubmission,
+        country: countryId,
+        address: { city: 'Novo Selo', street: '1 Main St', venueName: 'Riverside Hall' },
+      })
+      expect(created.title).toBe('New Event: Meditation at Riverside Hall')
+    })
+
+    it('prefers a title the submitter supplied, as Events would', async () => {
+      const created = await submit({
+        ...baseSubmission,
+        country: countryId,
+        title: 'Sunrise Meditation Circle',
+      })
+      expect(created.title).toBe('New Event: Sunrise Meditation Circle')
+    })
+
+    it('names an update proposal after its target event', async () => {
+      const target = await testData.createEvent(payload, {
+        title: 'Morning Meditation at World Tree',
+        _status: 'published',
+      })
+      const { address: _a, ...noAddress } = baseSubmission
+      const created = await submit({ ...noAddress, event: target.id })
+      expect(created.title).toBe('Update Event: Morning Meditation at World Tree')
+    })
+
+    it('degrades to the bare prefix rather than guessing', async () => {
+      // An online submission with no address and no anchor has nothing to name
+      // the event after; screening resolves a region only afterwards.
+      const { address: _a, ...noAddress } = baseSubmission
+      const created = await submit({
+        ...noAddress,
+        country: countryId,
+        eventType: 'online',
+        onlineUrl: 'https://meet.example.test/abc',
+      })
+      expect(created.title).toBe('New Event')
+    })
+  })
+
+  describe('reopen', () => {
+    const shelve = async (status: 'spam' | 'rejected') => {
+      const created = await submit({ ...baseSubmission, country: countryId })
+      await payload.update({
+        collection: 'event-submissions',
+        id: created.id,
+        data: { status, reviewedBy: regionManager.id, reviewedAt: new Date().toISOString() },
+        overrideAccess: true,
+      })
+      return created.id
+    }
+
+    it('returns a shelved submission to pending and clears the review stamp', async () => {
+      for (const status of ['spam', 'rejected'] as const) {
+        const id = await shelve(status)
+        const result = await applyReview({
+          payload,
+          submissionId: id,
+          action: 'reopen',
+          managerId: regionManager.id,
+        })
+        expect(result.status).toBe('pending')
+        const fresh = await reload(id)
+        // Cleared, not overwritten with the reopening manager — the submission
+        // is genuinely awaiting a decision again.
+        expect(fresh.reviewedBy).toBeNull()
+        expect(fresh.reviewedAt).toBeNull()
+      }
+    })
+
+    it('refuses to reopen a submission that already wrote to an event', async () => {
+      // Reopening `created` would invite a second Accept, and a duplicate
+      // listing with it.
+      const created = await submit({ ...baseSubmission, country: countryId })
+      await payload.update({
+        collection: 'event-submissions',
+        id: created.id,
+        data: { status: 'created' },
+        overrideAccess: true,
+      })
+      await expect(
+        applyReview({
+          payload,
+          submissionId: created.id,
+          action: 'reopen',
+          managerId: regionManager.id,
+        }),
+      ).rejects.toMatchObject({ status: 409, data: { code: 'not_reopenable' } })
+    })
+  })
+
   describe('applyReview', () => {
     it('accept on a new-event submission creates a published unverified event', async () => {
       const created = await submit({
         ...baseSubmission,
         anchorRegion: cityId,
         description: 'A weekly meditation class.\nAll welcome.',
+        // The real `scheduleFields` shape. The widget now sends this directly —
+        // there is no simplified one-off/weekly vocabulary to translate, so
+        // whatever arrives here is what Events validates on Accept.
         schedule: {
-          scheduleType: 'weekly',
-          startDate: '2026-09-01T00:00:00.000Z',
-          startTime: '18:30',
+          firstDate: '2026-09-01T17:30:00.000Z',
+          firstDate_tz: 'Europe/London',
+          recurrenceType: 'WEEKLY',
+          interval: 1,
           weekdays: ['TU'],
-          timezone: 'Europe/London',
         },
       })
       await payload.update({
@@ -358,6 +651,49 @@ describe('Event submissions', () => {
       expect(typeof after.reviewedBy === 'object' ? after.reviewedBy?.id : after.reviewedBy).toBe(
         regionManager.id,
       )
+    })
+
+    it('accept with an assigned manager adopts and verifies the created event', async () => {
+      // The manager named on the *submission* — not the reviewer, who is
+      // `managerId` above and is deliberately not assigned to the event.
+      const owner = await testData.createManager(payload, { email: 'adopting@example.com' })
+      const created = await submit({
+        ...baseSubmission,
+        anchorRegion: cityId,
+        schedule: {
+          firstDate: '2026-09-01T17:30:00.000Z',
+          firstDate_tz: 'Europe/London',
+          recurrenceType: 'WEEKLY',
+          interval: 1,
+          weekdays: ['TU'],
+        },
+      })
+      await payload.update({
+        collection: 'event-submissions',
+        id: created.id,
+        data: { region: cityId, manager: owner.id, status: 'pending' },
+        overrideAccess: true,
+      })
+
+      const result = await applyReview({
+        payload,
+        submissionId: created.id,
+        action: 'accept',
+        managerId: regionManager.id,
+      })
+
+      const event = await payload.findByID({
+        collection: 'events',
+        id: result.eventId as number,
+        overrideAccess: true,
+        depth: 0,
+      })
+      expect(event.manager).toBe(owner.id)
+      expect(event.verificationStage).toBe('verified')
+      // The point of letting the verify hook run rather than stamping the
+      // stage ourselves: a verified event with no watermark would never come
+      // up for re-verification again.
+      expect(event.nextCheckAt).toBeTruthy()
     })
 
     it('accept on an update proposal patches the event and re-verifies it', async () => {
