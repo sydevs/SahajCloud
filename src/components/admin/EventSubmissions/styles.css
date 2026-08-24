@@ -1,0 +1,157 @@
+/*
+ * Payload's `.banner--has-icon` sets only `display: flex` — no alignment, no
+ * gap, and no `flex-shrink` on the icon. Beside a multi-line message the 26px
+ * icon stretches to the banner's full height and drifts out of line with the
+ * first row of text.
+ */
+.event-submission-status {
+  align-items: flex-start;
+  gap: calc(var(--base) * 0.4);
+}
+
+.event-submission-status > svg {
+  flex-shrink: 0;
+}
+
+
+/* The state, named. Inherits the banner's colour so it can't drift from it. */
+.event-submission-status__title {
+  display: block;
+  font-weight: 600;
+  margin-bottom: calc(var(--base) * 0.15);
+}
+
+.event-submission-submitter__identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--base) * 0.35);
+}
+
+.event-submission-submitter__name {
+  font-weight: 600;
+}
+
+.event-submission-submitter__email {
+  color: var(--theme-elevation-600);
+  font-size: 13px;
+}
+
+/*
+ * `<q>` supplies the quotation marks itself, and locale-correctly — the point
+ * being that a reviewer can tell the submitter's words from the CMS's. The
+ * "Message:" label stays upright so the italics mark only their text.
+ */
+.event-submission-submitter__note-label {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--theme-elevation-600);
+}
+
+.event-submission-submitter__note {
+  display: block;
+  margin-top: calc(var(--base) * 0.3);
+  color: var(--theme-elevation-700);
+  font-style: italic;
+  /* Free text a stranger typed — keep their line breaks. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.event-submission-submitter__empty {
+  color: var(--theme-elevation-500);
+  font-style: italic;
+  font-size: 13px;
+}
+/*
+ * Unified diff — one column, because the live-preview panel leaves this field
+ * roughly a third of the window. A side-by-side "current / proposed" table
+ * wrapped every value onto three lines at that width and became unreadable.
+ *
+ * Colours are Payload's own error/success/warning ramps, so the rows track the
+ * theme rather than pinning their own light-mode greens and reds.
+ */
+
+.event-submission-changes__entry {
+  margin-bottom: calc(var(--base) * 0.6);
+}
+
+.event-submission-changes__entry:last-child {
+  margin-bottom: 0;
+}
+
+.event-submission-changes__label {
+  font-size: 12px;
+  color: var(--theme-elevation-600);
+  margin-bottom: calc(var(--base) * 0.15);
+}
+
+/*
+ * "— Changed", named only where the transition isn't already obvious. It
+ * replaces a pill: at this width a pill pushed the field name onto its own
+ * line and drew the eye before the name did, when the name is what a reviewer
+ * scans for.
+ */
+.event-submission-changes__kind {
+  font-weight: 600;
+  color: var(--theme-warning-500);
+}
+
+.event-submission-changes__line {
+  display: flex;
+  gap: calc(var(--base) * 0.35);
+  padding: calc(var(--base) * 0.18) calc(var(--base) * 0.35);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+  border-radius: var(--style-radius-s);
+  /* A long address or description must wrap, not scroll the page sideways. */
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* The marker keeps the diff readable without relying on colour alone. */
+.event-submission-changes__marker {
+  flex-shrink: 0;
+  user-select: none;
+  opacity: 0.7;
+}
+
+.event-submission-changes__line--removed {
+  background: var(--theme-error-100);
+  color: var(--theme-error-600);
+}
+
+.event-submission-changes__line--added {
+  background: var(--theme-success-100);
+  color: var(--theme-success-600);
+}
+
+/* Word-level: one neutral block, with only the edits carrying colour. */
+.event-submission-changes__line--words {
+  background: var(--theme-elevation-50);
+  color: var(--theme-elevation-800);
+}
+
+.event-submission-changes__word--removed {
+  background: var(--theme-error-100);
+  color: var(--theme-error-600);
+  text-decoration: line-through;
+}
+
+.event-submission-changes__word--added {
+  background: var(--theme-success-100);
+  color: var(--theme-success-600);
+}
+
+.event-submission-changes__empty {
+  color: var(--theme-elevation-500);
+  font-style: italic;
+  font-size: 13px;
+}
+
+/* Screening's verdict + warnings, under the message. */
+.event-submission-status__notes {
+  margin: calc(var(--base) * 0.4) 0 0;
+  padding-left: 1.2em;
+}

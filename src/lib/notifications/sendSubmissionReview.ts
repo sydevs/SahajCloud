@@ -22,8 +22,8 @@ export async function sendSubmissionReview(args: {
   submitterName: string
   submitterNote?: string | null
   details: SubmissionReviewDetail[]
-  acceptUrl: string
-  rejectUrl: string
+  /** The submission's admin edit view — now the only review surface. */
+  reviewUrl: string
 }): Promise<void> {
   const { payload, to, ...props } = args
   const brand = getEmailBrand('sahaj-atlas')

@@ -58,6 +58,54 @@ For non-admin (public) React, Payload's components don't apply — use
 `lucide-react` (see `.claude/rules/code-style.md`). Emails never use either
 (no SVG) — see `.claude/rules/email.md`.
 
+## Live preview pushes the document — the frontend needn't fetch it
+
+Payload posts the edited document's **form state** into the preview iframe on
+every change (`@payloadcms/ui/dist/elements/LivePreview/Window/index.js`):
+
+```js
+const values = reduceFieldsToValues(formState, true)
+iframeRef.current.contentWindow?.postMessage(
+  { type: 'payload-live-preview', collectionSlug, data: values }, url,
+)
+```
+
+Most of this repo's preview routes ignore that and re-fetch by
+`?collection=…&id=…` instead, which is fine for Events/Regions/Pages — but it
+is a *choice*, not a requirement, and it costs you preview on anything the
+frontend can't read:
+
+- a **restricted** collection (API clients hold create-only on
+  `event-submissions`, and the preview secret only unlocks drafts for
+  collections a client can already read);
+- a document with **no id to fetch** — a submission proposing a brand-new event.
+
+For those, carry the render-ready shape in a field and let postMessage deliver
+it: `EventSubmissions.previewEvent` is a virtual JSON field holding the merged
+event, and the widget renders from the message. No access change, no preview
+endpoint. Relationship hydration still fetches by id, so referenced docs must
+stay readable by the client.
+
+Two mechanics worth knowing:
+
+- **Open the panel with `livePreview.openByDefault: true`** (Payload 3.86+), not
+  a mount effect. It is applied server-side when building the document view, and
+  only until the user toggles the panel themselves — after that their stored
+  `editViewType` preference wins (`@payloadcms/next/dist/views/Document/index.js`).
+  A `setIsLivePreviewing(true)` effect can't honour that, and re-opened the panel
+  every time a reviewer closed it and navigated back. `EventSubmissions` was
+  ported off exactly such a component; `FrameEditor` still uses the effect
+  because it arms the preview on a *tab*, not on the document.
+- **A field that exists only to carry data to the iframe** wants
+  `admin.hidden: true`, not a Field component rendering `null`. Payload renders
+  it as a `HiddenField`, so the value still sits in form state — which is what
+  `reduceFieldsToValues` posts — while nothing takes up space on the page. (The
+  DOM attribute reads `[object Object]` for a JSON value; that's cosmetic, the
+  form-state value is the real object.)
+- A **virtual** field's value is computed on read, so it does not recompute as
+  the user types. That's the right trade only when the document isn't editable —
+  which is exactly the submission-review case.
+
 ## Styling — PayloadCMS CSS variables
 
 **Always use PayloadCMS CSS variables** for theme compatibility (dark/light

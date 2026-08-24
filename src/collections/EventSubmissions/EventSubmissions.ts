@@ -1,42 +1,20 @@
 import type { CollectionConfig, FieldAccess } from 'payload'
 
-import { addressFields, urlField } from '@/fields'
-import { getLanguageOptions } from '@/lib/locales'
+import { serverEnv } from '@/lib/env/server'
 
 import { reviewSubmission } from './endpoints/review'
+import { computePreviewEvent, computeProposedChanges } from './hooks/computeReviewFields'
 import { enqueueScreening } from './hooks/enqueueScreening'
 import { prepareSubmission } from './hooks/prepareSubmission'
+import { submissionTitle } from './hooks/submissionTitle'
+import { validateProposal } from './hooks/validateProposal'
+import { STATUS_LABELS, SUBMISSION_STATUSES } from './statuses'
 
-/**
- * Workflow states. `screening` → the async ScreenEventSubmissions job is (or
- * will be) checking the submitter's email + resolving the region; `pending` →
- * awaiting a manager's review; the rest are terminal and double as the outcome
- * record: `spam` (kept for abuse tracking, never notified), `created` (a new
- * Event was created — `event` points at it), `updated` (the proposal was
- * applied to the existing `event`), `rejected`.
- */
-export const SUBMISSION_STATUSES = [
-  'screening',
-  'pending',
-  'spam',
-  'created',
-  'updated',
-  'rejected',
-] as const
-
-export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number]
-
-/** Statuses a submission can still be acted on from (Accept / Reject shown). */
-export const OPEN_SUBMISSION_STATUSES: readonly SubmissionStatus[] = ['screening', 'pending']
-
-const STATUS_LABELS: Record<SubmissionStatus, string> = {
-  screening: 'Screening',
-  pending: 'Pending Review',
-  spam: 'Spam',
-  created: 'Accepted — Event Created',
-  updated: 'Accepted — Event Updated',
-  rejected: 'Rejected',
-}
+export {
+  OPEN_SUBMISSION_STATUSES,
+  SUBMISSION_STATUSES,
+  type SubmissionStatus,
+} from './statuses'
 
 /**
  * System/workflow fields must never be set by the submitting client — the
@@ -51,55 +29,131 @@ const systemFieldAccess: { create: FieldAccess; update: FieldAccess } = {
 }
 
 /**
- * EventSubmissions — the intake for community contributions to the Atlas map
- * (#624 follow-on): anonymous visitors submit **new events** or **update
- * proposals for an existing event** through the Atlas widget, which POSTs the
- * built-in create endpoint with its client key. Nothing here mutates a live
- * listing: a submission is data *about* a change, reviewed by a manager whose
- * Accept applies it (creates the Event as published+unverified, or patches the
- * target event) and whose Reject shelves it.
+ * EventSubmissions — the intake for community contributions to the Atlas map:
+ * anonymous visitors submit **new events** or **update proposals for an
+ * existing event** through the Atlas widget, which POSTs the built-in create
+ * endpoint with its client key.
+ *
+ * A submission is a **proposal to judge, not a document to edit**. It carries
+ * one `proposed` patch keyed by real Events field names — no mirrored schema,
+ * no translation layer — and the review view renders that patch three ways: the
+ * diff against the target (`proposedChanges`), the resulting listing
+ * (`previewEvent`, via live preview), and Accept / Reject. The only editable
+ * fields are `region` — screening can fail to resolve one, and a reviewer has
+ * to be able to fix it before accepting — and `manager`, which adopts a
+ * created event in the same act. Both apply to new events only.
  *
  * `event` set ⇒ update proposal (and, after acceptance of a new-event
  * submission, the created event). `event` unset ⇒ new event.
  *
  * Guard rails around the public intake:
  * - the write-guard plugin (Turnstile header, URL scan, disposable-email list)
- *   runs beforeValidate on client creates;
+ *   runs beforeValidate on client creates, and `validateProposal` rejects any
+ *   `proposed` key that isn't a proposable Events field;
  * - clients hold **create only** — the collection is RESTRICTED (see
  *   `@/plugins/access/config/projects.ts`), so no implicit read ever exposes
  *   submitter emails through the public client key;
  * - the async ScreenEventSubmissions job then classifies spam (MX lookup +
  *   list re-check), resolves the region, and notifies the responsible manager.
- *
- * There is deliberately no `title` field: an accepted event keeps the target's
- * title or lets the Events auto-title hook name it from the venue.
  */
 export const EventSubmissions: CollectionConfig = {
   slug: 'event-submissions',
   labels: { singular: 'Event Submission', plural: 'Event Submissions' },
   admin: {
     group: 'Classes',
-    useAsTitle: 'submitterName',
-    defaultColumns: ['submitterName', 'status', 'event', 'createdAt'],
+    useAsTitle: 'title',
+    defaultColumns: ['title', 'status', 'createdAt'],
     components: {
       edit: {
-        // Accept / Reject replace Save while the submission is open — Accept
-        // saves the form first, then applies the review (see the component).
-        SaveButton: '@/components/admin/EventSubmissionSaveButton',
+        // Accept / Reject replace Save while the submission is open — nothing
+        // on the page is editable except `region`, so there is no form to save
+        // first (see the component).
+        SaveButton: '@/components/admin/EventSubmissions/EventSubmissionActions',
       },
+    },
+    // Live Preview renders the event **as this submission would leave it**.
+    // Unlike the Events preview, the widget cannot fetch the document back —
+    // `event-submissions` is restricted to create-only for API clients, and a
+    // new-event submission has no Event id to fetch. It doesn't need to:
+    // Payload posts the document's form state into the iframe
+    // (`payload-live-preview`), and `previewEvent` carries the merged event in
+    // that payload. See `computeReviewFields.ts`.
+    livePreview: {
+      url: ({ data, locale }) =>
+        data.id
+          ? `${serverEnv.SAHAJATLAS_URL}/preview?collection=event-submissions&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`
+          : null,
+      breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
+      // A reviewer is here to judge how a listing would look, so the panel is
+      // open on arrival rather than a click away. Payload's own option (3.86):
+      // it applies only until the reviewer toggles the panel themselves, after
+      // which their stored preference wins — which a mount effect could not do.
+      openByDefault: true,
     },
   },
   hooks: {
-    beforeChange: [prepareSubmission],
+    beforeValidate: [validateProposal],
+    // `submissionTitle` after `prepareSubmission`: it names the submission from
+    // the same `proposed` / `regionHint` data that hook has just validated.
+    beforeChange: [prepareSubmission, submissionTitle],
     afterChange: [enqueueScreening],
   },
   endpoints: [reviewSubmission],
   fields: [
     {
-      // Status banner + Accept/Reject context, rendered above the fields.
-      name: 'eventSubmissionNotice',
-      type: 'ui',
-      admin: { components: { Field: '@/components/admin/EventSubmissionNotice' } },
+      // Status banner + screening verdict. Mounted on the data it renders
+      // rather than on a `ui` field, so the component reads its own value
+      // instead of reaching across form state (as `notificationLog` →
+      // NotificationLogTable does on Events). First field ⇒ renders on top.
+      name: 'screeningResult',
+      type: 'json',
+      // The banner IS this submission's status, so the field is labelled for
+      // what a reviewer reads rather than for the column it happens to store.
+      label: 'Status',
+      access: systemFieldAccess,
+      admin: {
+        readOnly: true,
+        components: { Field: '@/components/admin/EventSubmissions/EventSubmissionStatus' },
+      },
+    },
+    {
+      // Who sent this in, as they typed it. Read-only: the reviewer is judging
+      // a proposal, not correcting the submitter's details.
+      name: 'submitterInfo',
+      type: 'json',
+      label: 'Submitted By',
+      admin: {
+        readOnly: true,
+        components: { Field: '@/components/admin/EventSubmissions/EventSubmissionSubmitter' },
+      },
+    },
+    {
+      // The whole review: what would change, field by field. Virtual — it is a
+      // projection of `proposed` over a target event that can move underneath
+      // the submission.
+      name: 'proposedChanges',
+      type: 'json',
+      virtual: true,
+      label: 'Proposed Changes',
+      admin: {
+        readOnly: true,
+        components: { Field: '@/components/admin/EventSubmissions/EventSubmissionChanges' },
+      },
+      hooks: { afterRead: [computeProposedChanges] },
+    },
+    {
+      // The merged event, carried into the live-preview iframe via form state —
+      // which is the whole of its job, so it renders as nothing at all.
+      // `admin.hidden` puts it in the form without putting it on the page (a
+      // `HiddenField`), so the value still reaches the iframe.
+      name: 'previewEvent',
+      type: 'json',
+      virtual: true,
+      admin: {
+        readOnly: true,
+        hidden: true,
+      },
+      hooks: { afterRead: [computePreviewEvent] },
     },
     {
       // Set ⇒ this is an update proposal for that event (and the target of an
@@ -110,224 +164,136 @@ export const EventSubmissions: CollectionConfig = {
       type: 'relationship',
       relationTo: 'events',
       admin: {
+        readOnly: true,
+        // Hidden when empty. A read-only relationship with nothing in it says
+        // only "no event", which is already the whole message of the two
+        // fields below being shown instead — they and this are complementary,
+        // so the page always offers exactly one of the two.
+        condition: (data) => Boolean(data?.event),
         description:
-          'The event this submission proposes changes to. Leave empty for a brand-new event; after acceptance it links the created event.',
+          'The event this submission proposes changes to. After acceptance it links the created event.',
       },
     },
     {
-      type: 'row',
-      fields: [
-        {
-          name: 'submitterName',
-          type: 'text',
-          required: true,
-          maxLength: 200,
-        },
-        {
-          name: 'submitterEmail',
-          type: 'email',
-          required: true,
-        },
-      ],
-    },
-    {
-      name: 'submitterNote',
-      type: 'textarea',
-      maxLength: 1000,
-      admin: {
-        description: 'Anything the submitter wanted to tell the reviewing manager.',
-      },
-    },
-    {
-      name: 'languages',
-      type: 'select',
-      hasMany: true,
-      options: getLanguageOptions(),
-    },
-    {
-      name: 'eventType',
-      type: 'select',
-      // Mirrors the Events `eventType` enum — the accept op copies the value
-      // across verbatim, so the two option sets must stay aligned.
-      options: [
-        { label: 'Offline', value: 'offline' },
-        { label: 'Online', value: 'online' },
-      ],
-      enumName: 'enum_event_submissions_event_type',
-    },
-    urlField({
-      name: 'onlineUrl',
-      label: 'Online URL',
-      maxLength: 500,
-      admin: { condition: (data) => data?.eventType === 'online' },
-    }),
-    addressFields({
-      label: false,
-      hasVenueName: true,
-      admin: { condition: (data) => data?.eventType !== 'online' },
-    }),
-    {
-      type: 'row',
-      fields: [
-        { name: 'contactName', type: 'text', maxLength: 200 },
-        { name: 'contactEmail', type: 'email' },
-        { name: 'contactPhone', type: 'text', maxLength: 50 },
-      ],
-    },
-    {
-      // Plain text, NOT the Events lexical editor: this is a public form
-      // field. The accept op wraps it into a minimal lexical tree.
-      name: 'description',
-      type: 'textarea',
-      maxLength: 2000,
-    },
-    {
-      // A deliberately simple schedule vocabulary for the public form —
-      // one-off or simple weekly — mapped onto the real `scheduleFields`
-      // group by the accept op. Bounds mirror the Events schedule sub-fields.
-      name: 'schedule',
-      type: 'group',
-      fields: [
-        {
-          type: 'row',
-          fields: [
-            {
-              name: 'scheduleType',
-              type: 'select',
-              options: [
-                { label: 'One-off', value: 'one-off' },
-                { label: 'Weekly', value: 'weekly' },
-              ],
-              enumName: 'enum_event_submissions_schedule_type',
-            },
-            { name: 'startDate', type: 'date' },
-            { name: 'endDate', type: 'date' },
-          ],
-        },
-        {
-          type: 'row',
-          fields: [
-            {
-              name: 'startTime',
-              type: 'text',
-              validate: (value: string | null | undefined) =>
-                !value || /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/.test(value)
-                  ? true
-                  : 'Enter time in HH:MM format (e.g., 09:00 or 14:30)',
-            },
-            {
-              name: 'endTime',
-              type: 'text',
-              validate: (value: string | null | undefined) =>
-                !value || /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/.test(value)
-                  ? true
-                  : 'Enter time in HH:MM format (e.g., 09:00 or 14:30)',
-            },
-            {
-              name: 'weekdays',
-              type: 'select',
-              hasMany: true,
-              options: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'],
-              admin: { condition: (data) => data?.schedule?.scheduleType === 'weekly' },
-            },
-            { name: 'timezone', type: 'text', maxLength: 50 },
-          ],
-        },
-      ],
-    },
-    {
-      // Controlled region rollout: the client picks an EXISTING country (and
-      // optionally state/region), or anchors to an existing city/venue it was
-      // browsing. Only cities are ever auto-created (by the screening job,
-      // canonicalized through Mapbox) — never countries, states, or venues.
+      // Optional adoption, in the same act as accepting: a created event with a
+      // manager is verified on the spot (see `newEventDefaults`), and without
+      // one it goes on the map marked unverified until somebody takes it on.
       //
-      // The level constraints are enforced in `prepareSubmission`, NOT via
-      // `filterOptions`: Payload validates filterOptions on save with a find
-      // that forwards the caller's `req`, and a client `req` trips the
-      // select-required client-query gate — every public create would 400.
-      type: 'row',
-      fields: [
-        {
-          name: 'country',
-          type: 'relationship',
-          relationTo: 'regions',
-          admin: {
-            description:
-              'Existing country the event belongs to (required for new events; must be a country-level region).',
-          },
-        },
-        {
-          name: 'state',
-          type: 'relationship',
-          relationTo: 'regions',
-          admin: { description: 'Existing state/region, when known.' },
-        },
-        {
-          name: 'anchorRegion',
-          type: 'relationship',
-          relationTo: 'regions',
-          admin: {
-            description:
-              'Existing city or venue the submitter was browsing, when the widget knows it.',
-          },
-        },
-      ],
+      // New events only — an update proposal's target already has whatever
+      // manager it has, and reassigning it is the Event's own business.
+      name: 'manager',
+      type: 'relationship',
+      relationTo: 'managers',
+      access: systemFieldAccess,
+      admin: {
+        condition: (data) => !data?.event,
+        description:
+          'Optional. The manager who will look after this event. Assign one to publish it as verified; leave blank and it goes on the map as unverified until a manager takes it on.',
+      },
     },
     {
-      // Resolved by the screening job: the anchor when given, else the
-      // matched-or-created city under `country`/`state`. What the accept op
-      // attaches the event to.
+      // Screening resolves it, but it can come back empty (an address that
+      // matched no city), and Accept refuses a new-event submission without
+      // one — so the fix has to be reachable here.
+      //
+      // New events only, for the same reason as `manager`: an existing event
+      // already has its own region, and this column never applies to it.
+      //
+      // No `filterOptions`, deliberately: Payload validates it on save with a
+      // find that forwards the caller's `req`, and a client `req` trips the
+      // select-required client-query gate — every public create would 400.
       name: 'region',
       type: 'relationship',
       relationTo: 'regions',
       access: systemFieldAccess,
       admin: {
-        readOnly: true,
-        description: 'Resolved city/venue (set by screening).',
+        condition: (data) => !data?.event,
+        description:
+          'The city or venue this event belongs to. Resolved by screening — correct it here if it came back empty or wrong.',
       },
     },
     {
-      // The registrant row upserted from submitterName/Email — abuse tracking
-      // and (later) submitter notifications. Grants nothing.
-      name: 'submitter',
-      type: 'relationship',
-      relationTo: 'users',
-      access: systemFieldAccess,
-      admin: { readOnly: true, position: 'sidebar' },
-    },
-    {
-      name: 'status',
-      type: 'select',
-      required: true,
-      defaultValue: 'screening',
-      options: SUBMISSION_STATUSES.map((value) => ({ label: STATUS_LABELS[value], value })),
-      enumName: 'enum_event_submissions_status',
-      access: systemFieldAccess,
-      admin: { readOnly: true, position: 'sidebar' },
-    },
-    {
-      // What the screening job found (email verdicts, region resolution
-      // warnings) — rendered inside the notice, kept for triage.
-      name: 'screeningResult',
-      type: 'json',
-      access: systemFieldAccess,
-      admin: { hidden: true },
-    },
-    {
-      type: 'row',
+      label: 'System',
+      type: 'collapsible',
+      admin: { initCollapsed: true },
       fields: [
         {
-          name: 'reviewedBy',
-          type: 'relationship',
-          relationTo: 'managers',
+          // What this submission is about, stamped on create by `submissionTitle`:
+          // "New Event: <the title the event would be created with>" or
+          // "Update Event: <the target's title>". `useAsTitle`, so it names the
+          // row, the breadcrumb and the browser tab.
+          //
+          // Not client-writable: it is derived, and a submitter naming their own
+          // submission would put unreviewed text in the admin's list view.
+          name: 'title',
+          type: 'text',
+          access: systemFieldAccess,
+          admin: {
+            readOnly: true,
+            description: 'Generated from the proposal when the submission arrives.',
+          },
+        },
+        {
+          // The raw patch behind the diff above. Kept visible (read-only) so a
+          // reviewer triaging an odd diff can see exactly what was submitted.
+          name: 'proposed',
+          type: 'json',
+          admin: {
+            readOnly: true,
+            description: 'The proposed Events field patch, exactly as submitted.',
+          },
+        },
+        {
+          name: 'status',
+          type: 'select',
+          required: true,
+          defaultValue: 'screening',
+          options: SUBMISSION_STATUSES.map((value) => ({ label: STATUS_LABELS[value], value })),
+          enumName: 'enum_event_submissions_status',
           access: systemFieldAccess,
           admin: { readOnly: true },
         },
         {
-          name: 'reviewedAt',
-          type: 'date',
+          // The registrant row upserted from `submitterInfo` — abuse tracking
+          // and (later) submitter notifications. Grants nothing.
+          //
+          // A real relationship, not a key inside `submitterInfo`: it is the
+          // link `upsertUserByEmail` writes, and a Users join can only target a
+          // relationship column (cf. `Users.submittedEvents` on `events.submitter`).
+          name: 'submitter',
+          type: 'relationship',
+          relationTo: 'users',
           access: systemFieldAccess,
           admin: { readOnly: true },
+        },
+        {
+          // Where the submitter said the event belongs, before screening
+          // resolved it: `{ country, state, anchorRegion }`. Inputs to
+          // `resolveSubmissionRegion`, kept for triage afterwards.
+          name: 'regionHint',
+          type: 'json',
+          admin: {
+            readOnly: true,
+            description: 'Region targeting as submitted (country / state / anchor).',
+          },
+        },
+        {
+          type: 'row',
+          fields: [
+            {
+              name: 'reviewedBy',
+              type: 'relationship',
+              relationTo: 'managers',
+              access: systemFieldAccess,
+              admin: { readOnly: true },
+            },
+            {
+              name: 'reviewedAt',
+              type: 'date',
+              access: systemFieldAccess,
+              admin: { readOnly: true },
+            },
+          ],
         },
       ],
     },

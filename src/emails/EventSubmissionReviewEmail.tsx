@@ -19,17 +19,17 @@ interface EventSubmissionReviewEmailProps {
   /** The submitter's free-text note, verbatim (pre-wrapped). */
   submitterNote?: string | null
   details: SubmissionReviewDetail[]
-  /** The SahajCloud review page, action preselected. */
-  acceptUrl: string
-  rejectUrl: string
+  /** The submission's admin edit view, where the diff and preview live. */
+  reviewUrl: string
 }
 
 /**
  * "A community member submitted an event — is it real?" — sent to the nearest
  * region manager (or the system contact) once a submission clears screening.
- * The buttons open the SahajCloud review page with the action preselected; the
- * mutation runs on that page's confirm button, never on this link (mail
- * scanners prefetch URLs).
+ * The button opens the submission's admin edit view — the diff, the live
+ * preview of the resulting listing, and Accept / Reject are all there. Nothing
+ * mutates on this link (mail scanners prefetch URLs); the manager decides on
+ * the page.
  */
 export function EventSubmissionReviewEmail({
   brand,
@@ -38,8 +38,7 @@ export function EventSubmissionReviewEmail({
   submitterName,
   submitterNote,
   details,
-  acceptUrl,
-  rejectUrl,
+  reviewUrl,
 }: EventSubmissionReviewEmailProps) {
   const heading = kind === 'new-event' ? 'New event submitted for review' : 'Event update proposed'
 
@@ -80,8 +79,7 @@ export function EventSubmissionReviewEmail({
       <BrandButtonRow
         brand={brand}
         buttons={[
-          { label: 'Review & accept', href: acceptUrl },
-          { label: 'Reject', href: rejectUrl, variant: 'secondary' },
+          { label: 'Review submission', href: reviewUrl },
         ]}
       />
     </EmailLayout>

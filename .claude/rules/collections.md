@@ -227,6 +227,71 @@ memoization, the transaction and access control are unaffected — only
 `locale`/`fallbackLocale` become the copy's own. Not needed when the nested call
 uses the caller's own locale.
 
+### A virtual field's `afterRead` must not join the caller's transaction
+
+The sibling trap, and a nastier one: **`afterRead` also runs on the response of
+a `create`/`update`**, while that write's transaction is still open. A nested
+read that forwards `req` joins it — and if that read goes wrong, it takes the
+*write* down with it:
+
+```typescript
+// ❌ inside a virtual field's afterRead — aborts the create it is decorating
+const target = await req.payload.findByID({ collection: 'events', id, req })
+```
+
+The failure is silent and looks impossible: `payload.create` **returns a
+document with an id**, and no row exists afterwards. `disableErrors: true` does
+not save you — the read resolving to `null` is not the problem, the shared
+transaction is. In #641 this rolled back every event-submission create that
+named a target event, and only those, because only they took the branch that
+issued the nested read.
+
+Drop `req` from the nested call. A virtual field is a **projection of committed
+state**, so its own connection is the correct one:
+
+```typescript
+// ✅ its own connection; `req` still keys the per-request memo
+return memoizeOnRequest(req, `target:${id}`, () =>
+  req.payload.findByID({ collection: 'events', id, depth: 0, overrideAccess: true }),
+)
+```
+
+Keep passing `req` when the nested call genuinely must see the caller's
+uncommitted writes — a `beforeChange` hook reading a row the same operation just
+wrote. A read-only projection never does.
+
+### A field hook's relationship values are bare ids, at any depth
+
+Relationship population happens elsewhere in the read, so inside a field hook
+`data.<rel>` is the raw id **regardless of the `depth` the caller asked for**.
+Rendering one straight into a user-facing projection prints a row number:
+`proposedChanges` showed `Manager: 496` because the value looked populated at
+`depth: 1` from the outside.
+
+Resolve it explicitly, memoized, and — per the section above — **without**
+forwarding `req`:
+
+```typescript
+function loadManager(req: PayloadRequest, managerId: number) {
+  return memoizeOnRequest(req, `submissionManager:${managerId}`, () =>
+    req.payload.findByID({ collection: 'managers', id: managerId, depth: 0,
+      overrideAccess: true, disableErrors: true }),
+  )
+}
+```
+
+`memoizeOnRequest` (`@/lib/utilities/requestMemo`) matters when two hooks on the
+same document need the same doc — `computePreviewEvent` and
+`computeProposedChanges` share one load this way. Fall back to the raw id if the
+row is gone, so a deleted manager degrades to `#496` rather than blanking the
+line.
+
+The neighbouring trap: a **populated** relationship is a plain object, so any
+code that treats "plain object ⇒ a group to expand" will render the whole row.
+`proposedChanges` had to special-case `relationship`/`upload` as references to
+*name*, or a proposed manager came out as their id, roles, email and every
+notification preference.
+
 ## Plugins
 
 ### SEO (`@payloadcms/plugin-seo`)

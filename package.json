@@ -50,6 +50,7 @@
     "@types/styled-components": "^5.1.35",
     "@vvo/tzdb": "^6.198.0",
     "country-region-data": "^4.1.0",
+    "diff": "^9.0.0",
     "dotenv": "16.4.7",
     "ical-generator": "^11.0.0",
     "image-size": "^2.0.2",
