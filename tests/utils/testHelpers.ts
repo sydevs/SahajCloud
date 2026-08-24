@@ -15,6 +15,7 @@ import { buildConfig } from 'payload'
 
 // Project imports
 
+import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { accessPlugin, bypassPermissions } from '@/plugins/access'
 import { usagePlugin } from '@/plugins/usage'
@@ -125,11 +126,7 @@ function createBaseTestConfig(emailConfig: any, schemaName: string) {
       writeGuardPlugin(),
       // Nested docs: injects parent + breadcrumbs into Regions (mirrors the
       // real payload.config.ts so collection hooks relying on them are tested).
-      nestedDocsPlugin({
-        collections: ['regions'],
-        parentFieldSlug: 'parent',
-        generateLabel: (_docs, currentDoc) => String(currentDoc?.name ?? ''),
-      }),
+      nestedDocsPlugin(REGION_NESTED_DOCS_CONFIG),
       // Access Plugin must be LAST to process plugin-created collections
       accessPlugin({ enabled: true, bypassPermissions }),
     ],

@@ -17,8 +17,222 @@ access is REST-only.
 - Managers can regenerate keys and manage settings.
 - Virtual `highUsageAlert` field surfaces when daily limits are exceeded.
 - `usage` group: `dailyRequests`, `peakDailyRequests`, `lastRequestAt`.
-- Custom hook in `src/collections/Clients/hooks/validateClientData.ts`:
+- Custom hooks in `src/collections/Clients/hooks/`:
   - `validateClientData` — ensures `primaryContact` is in the managers list.
+  - `validateCanonicalOwnership` — the canonical-ownership rule, below.
+
+## Canonical ownership + observed embeds (#633)
+
+Two Atlas white-label fields, split across the **Config** and **SEO** tabs.
+`canonical.enabled` defaults false, so a client owns nothing until someone opts
+it in — but once opted in **and verified**, these fields do resolve: they are
+what `webUrl` is built from, per region (#634, below).
+
+### `canonical` — who owns a region's canonical URLs
+
+`client.region` alone cannot identify an owner: three published clients map to
+Czechia, two to Finland, two to Australia. So ownership is an explicit opt-in
+with a uniqueness rule.
+
+| Field | Notes |
+| --- | --- |
+| `canonical.enabled` | checkbox, **default false**. The master switch — every other canonical field is `admin.condition`-gated on it |
+| `canonical.embed` | **required when enabled.** Which reported mount owns the canonical URLs, chosen from a picker, never typed. Host, mount and routing all follow from it |
+| `canonical.verification` | json, admin-readonly. **Written only by the CMS**, from what it observed loading the page: the verified snapshot, a consecutive-failure count, and a bounded attempt log |
+| `canonical.nextVerifyAt` | date, indexed, hidden. The verification job's watermark — a real column so it stays a cheap predicate |
+
+`validateCanonicalOwnership` (beforeChange) enforces the rule: enabling requires
+`region` **and** `canonical.embed`, and a second enabled client on a region is
+rejected with the incumbent named. It watches `region` as well as `canonical`,
+so moving an already-enabled client onto an owned region can't walk around it,
+and it skips when nothing the rules read has actually moved — which also stops
+an unrelated edit being *refused* because two services were left enabled on one
+region. Uniqueness is checked against **committed** state, so a conflicting
+draft is caught on publish.
+
+**`required` + a condition is the mechanism, not a hazard.** Payload skips both
+`required` and any custom `validate` while `admin.condition` is false and runs
+them normally when it is true, so `required` on `embed` reads as exactly
+"required when canonical ownership is on" — the same shape as `primaryContact`.
+Verified for **non-admin writes** too by an integration test that saves a
+canonical-disabled service with no embed through a plain API write; the whole
+gating design rests on it, so that test is load-bearing.
+
+### Verification — how a nomination becomes a canonical URL
+
+`canonical.embed` is only a nomination. What a canonical URL is built from is
+`canonical.verification.verified`, written **solely** by the CMS after it loads
+the page itself.
+
+- **`src/lib/embedVerification/`** — a Cloudflare Browser Rendering client, the
+  readiness-marker parser, and the routine that turns a render into a result. A
+  real browser is required: the widget is JavaScript, so fetching HTML would only
+  prove a `<script>` tag exists and would false-FAIL every client-rendered site.
+- **The marker** is `data-sahaj-atlas-ready` on `<html>`, carrying
+  `{ v, routing, topLevel, urlWritable }` — the cross-repo contract from
+  sydevs/SahajAtlasWeb#153, shipped in #159. Reading `routing` off the rendered
+  page is what makes it server-attested rather than self-reported.
+- **`src/jobs/VerifyEmbeds`** — nightly (`0 3 * * *`), watermarked on
+  `canonical.nextVerifyAt`, bounded to enabled services. Three consecutive
+  definitive failures switch ownership off and notify the `primaryContact`.
+  Writes go through the atomic-SQL seam, not `payload.update`.
+- **`POST /api/clients/:id/verify-embed`** — manager-authenticated, the same
+  routine on demand so setup isn't gated on the cron. It never disables.
+
+**`failed` vs `inconclusive` is the load-bearing distinction.** `failed` is
+evidence about the customer's embed and counts toward the budget.
+`inconclusive` — provider error, exhausted quota, bot challenge, missing
+credentials — means we could not look, and changes nothing. Cloudflare reports
+both through one error channel, so `classifyRenderError` biases every
+unrecognised message to inconclusive, and matches quota *before* timeout (a
+"quota exceeded" message matches both, and reading our own exhausted allowance
+as their embed timing out would count a strike against them).
+
+**Exercising it for real.** Every test stubs the render, so the integration itself — request
+shape, auth, and how Cloudflare's errors map onto our vocabulary — is proven by
+`pnpm tsx scripts/verify-embed-live.ts --self-test`, which drives all four outcomes against the
+live API. The error codes it classifies on (`6002` selector timeout, `5006` network/DNS, `10000`
+auth) were captured from real responses and are pinned in
+`tests/unit/embed-verification.spec.ts`; prose matching is only the fallback, because the messages
+are generic enough to be dangerous (`Network connection closed.` is what a dead customer domain
+returns).
+
+**What the marker proves, precisely.** It detects an embed that is installed and
+*not working* — the case a report can never reveal, since the report is sent by
+the same widget whose health is in question. It does **not** prove the page is
+honest: the attribute carries no nonce, and any host that can run our script can
+hand-write it. The trust boundary stays `allowedDomains`. What it buys against a
+third party holding a stolen key is real though — they can claim a mount on the
+client's domain in a report, but cannot make that domain serve a marker they
+control.
+
+Vocabulary lives in `src/lib/clients/canonical.ts` and the verification contract
+in `src/lib/clients/verification.ts` (there, not in the collection folder,
+because the job and the verifier both need them — see
+`.claude/rules/project-structure.md` rule 4). `legacyConfig` was **removed**
+rather than promoted, and nothing backfills from it any more: canonical
+ownership now requires a *verified reported* embed, which legacy Atlas config can
+never produce.
+
+### `embedMetadata` — what the widget observed
+
+Admin-readonly JSON, keyed by **origin + pathname**, one record per mount
+(`mode`, `topLevel`, `urlWritable`, `paramPersisted`, `routing`, `lastSeen`). A
+JSON column because nothing queries it — the ownership resolver loads every
+client with `pagination: false` (~31 rows) and filters in memory. ⚠ Revisit if
+the client count grows by an order of magnitude. The field carries a
+`jsonSchema`, so Payload both generates the type and rejects a malformed write.
+
+Observed, never configured: the hand-maintained legacy `embed_type` was wrong in
+the field (`sahajayoga.at` is recorded as `script` and in fact serves an
+`<iframe>`).
+
+**Canonical viability is automatic; canonical *identity* is not.** A human
+designates which discovered mount is canonical; the reported metadata only
+decides whether that mount currently qualifies, in both directions. That stops a
+canonical flip-flopping between two embeds on one site, and bounds the tampering
+surface — a forged report can only assert viability for a mount someone already
+chose, and cannot make the *verifier* see something that is not there.
+
+**The body is `origin` + `pathname`, two fields**, matching what the widget
+sends (sydevs/SahajAtlasWeb#159). The split is not cosmetic: the endpoint refuses
+a path carrying a query string, and can only enforce that if the path arrives on
+its own. The single exception is a WordPress default permalink, `?p=<digits>` —
+discarding the query would collapse such a site onto one mount and leave the page
+an operator must name as canonical unnameable, for exactly this feature's
+audience. Every other query string is still refused, `?p=123&utm_source=…`
+included.
+
+**The write is raw SQL, and has to be.** `payload.update` deadlocks here: the
+usage plugin increments `usage_daily_requests` on the caller's own row, on its
+own connection, for the very request being served, while `payload.update` holds
+that row inside the request transaction — both sides then sit on
+`Lock: transactionid` and the request never returns. A single autocommit
+`jsonb ||` merge has no transaction to overlap with, and closes the
+read-modify-write window as a side effect.
+
+### `POST /api/clients/report`
+
+The write path (`src/collections/Clients/endpoints/report.ts`). Merges into the
+keyed object; never replaces it.
+
+- **`clients` is excluded from the usage plugin** (`usagePlugin.ts`), so **no**
+  `beforeOperation` hook fires on this route. The handler calls
+  `assertClientOriginAllowed(req)` itself, right after `requireActiveClient` —
+  the same compensation a root endpoint makes. Usage tracking likewise does not
+  apply.
+- **Two origin checks.** The request's `Origin`/`Referer` must be in
+  `allowedDomains`, *and* so must the reported `url`'s host — a client can only
+  describe pages on domains it owns, whether or not a browser sent an `Origin`.
+- **`url` is origin + pathname only.** A query string or fragment is rejected
+  (`400`, `errors[0].code: query_or_fragment`), not stripped: the widget already
+  strips them (as `hostPageUrl()` does for Sentry), so a payload carrying either
+  means the widget is misbehaving and cleaning it up quietly would hide that.
+- **Rate limiting is Cloudflare's**, at the edge, as for every other client
+  route (this app's `rateLimitHook` is a no-op on Railway). On top of that the
+  handler is free when there's nothing new to say — the widget only POSTs on a
+  *change*, so a repeat of a recent identical observation is answered
+  `updated: false` with **no read and no write** — and `MAX_EMBED_MOUNTS` caps
+  what a forger can accumulate, evicting least-recently-seen first.
+- It is registered in the OpenAPI shim but stays `x-internal`; see
+  `.claude/rules/openapi.md`.
+
+Tests: `tests/unit/client-embed-metadata.spec.ts` (mount keys incl. the `?p=`
+carve-out, and the merge), `tests/unit/embed-verification.spec.ts` (marker
+parsing, error classification, and the failed/inconclusive split),
+`tests/unit/canonical-embed-picker.spec.ts` (canonical-URL building incl. the `&`
+join, the three-strikes ladder, picker option derivation), and
+`tests/int/client-canonical.int.spec.ts` (the hook, the endpoint, the job ladder,
+and that enabling ownership re-roots an event's `webUrl` while leaving `webPath`
+byte-identical).
+
+## Per-region canonical `webUrl` (#634)
+
+`webUrl` is **not** one global base. It resolves to the client that owns the
+document's region — or the nearest owning ancestor — and falls back to the We
+Meditate surface when nothing in the ancestry is owned. `SAHAJATLAS_URL` is no
+longer a canonical base anywhere; it survives only in the two live-preview URLs.
+
+| Piece | Where |
+| --- | --- |
+| The two URL shapes (`path` / `query`), and the cross-repo fixture | `src/lib/atlas/canonicalUrl.ts`, `atlas-url-contract.json` |
+| Region tree + ancestor chains, one query per request | `src/lib/atlas/regionTree.ts` |
+| Ownership: the `clients` read + nearest-ancestor walk | `src/lib/atlas/regionOwners.ts` |
+
+```
+path :  https://{domain}{mount}{webPath}   → https://wemeditate.com/map/nl/amsterdam/1204
+query:  https://{domain}{mount}{?|&}atlas={webPath}
+                                           → https://sahajayoga.nl/locatelessons/?atlas=/nl/amsterdam/1204
+                                           → https://host.example/?p=42&atlas=/nl/amsterdam/1204
+```
+
+Things worth knowing before touching it:
+
+- **`webPath` is unchanged by any of this** — still the bare ancestor slug chain,
+  no base, no owner. Ownership only decides what it is joined to.
+- **Two extra queries per request, total** — one `regions`, one `clients`, both
+  memoized on the `PayloadRequest`, independent of how many documents resolve.
+  Ownership loads **lazily**: a `webPath`-only read (the widget's geojson feed)
+  still issues one query and never looks at ownership. Asserted by counting
+  `payload.find` calls in `tests/int/region-canonical-url.int.spec.ts`.
+- **Never a fragment.** Hash routing is gone from the widget with no
+  back-compat, so nothing may emit `#!`.
+- **The verified host is re-checked at read time, not trusted.** VerifyEmbeds
+  writes `canonical.verification` with a raw `pool.query`, so the JSON schema's
+  `CANONICAL_DOMAIN_PATTERN` never runs on the write that fills it — and
+  `splitMountKey` records `url.host`, which keeps a port that `allowedDomains`
+  (port-stripped) would let through. `loadDirectOwners` re-validates, *before*
+  the ancestor walk, so an unusable client is skipped and the next ancestor up
+  wins rather than its whole subtree collapsing to the fallback.
+- **The path is emitted raw**, not percent-encoded — a no-op only because region
+  slugs are transliterated to `[a-z0-9-]` and event ids are numeric. That
+  assumption is asserted in `tests/unit/atlas-canonical-url.spec.ts`; widening
+  the slug charset fails there.
+- **Region paths are queryable** now that the nested-docs plugin has a
+  `generateURL`: `where[breadcrumbs.url][equals]='/nl/amsterdam'`. Note it
+  matches **descendants too** (their trail contains the ancestor's URL) — add
+  `slug` to the `where` to resolve exactly one region. Existing rows need
+  `pnpm tsx scripts/backfill-region-breadcrumb-urls.ts` once.
 
 ## Usage plugin (`src/plugins/usage/`)
 

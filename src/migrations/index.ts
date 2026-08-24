@@ -40,6 +40,8 @@ import * as migration_20260805_015327_drop_event_title_localization from './2026
 import * as migration_20260805_184012_replace_registration_questions from './20260805_184012_replace_registration_questions';
 import * as migration_20260812_022527_add_unverified_denied_stages from './20260812_022527_add_unverified_denied_stages';
 import * as migration_20260812_032435_add_event_submissions from './20260812_032435_add_event_submissions';
+import * as migration_20260819_002657_add_client_canonical from './20260819_002657_add_client_canonical';
+import * as migration_20260819_002715_drop_client_legacy_config from './20260819_002715_drop_client_legacy_config';
 
 export const migrations = [
   {
@@ -250,6 +252,16 @@ export const migrations = [
   {
     up: migration_20260812_032435_add_event_submissions.up,
     down: migration_20260812_032435_add_event_submissions.down,
-    name: '20260812_032435_add_event_submissions'
+    name: '20260812_032435_add_event_submissions',
+  },
+  {
+    up: migration_20260819_002657_add_client_canonical.up,
+    down: migration_20260819_002657_add_client_canonical.down,
+    name: '20260819_002657_add_client_canonical',
+  },
+  {
+    up: migration_20260819_002715_drop_client_legacy_config.up,
+    down: migration_20260819_002715_drop_client_legacy_config.down,
+    name: '20260819_002715_drop_client_legacy_config'
   },
 ];

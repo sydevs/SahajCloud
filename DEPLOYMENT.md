@@ -319,7 +319,25 @@ SENTRY_AUTH_TOKEN=<token>
 **Frontend URLs**:
 
 - `WEMEDITATE_WEB_URL` - We Meditate Web frontend URL
-- `SAHAJATLAS_URL` - Sahaj Atlas frontend URL
+- `SAHAJATLAS_URL` - Sahaj Atlas frontend URL. Live preview, CSP `frame-src` and
+  the `csrf` allowlist only — **not** a canonical base, since the Atlas host is
+  `noindex` on three layers (#634).
+- `WEMEDITATE_ATLAS_BASE_PATH` - Path the Atlas widget is mounted at on We
+  Meditate (optional, default `/map`). Every region **no client owns** resolves
+  its canonical `webUrl` to `WEMEDITATE_WEB_URL + WEMEDITATE_ATLAS_BASE_PATH +
+  webPath`, so this names a page that has to exist. ⚠️ We Meditate does not
+  serve that page yet — until it does, those canonical URLs point at a 404. That
+  is the intended end state (#634); the alternative was leaving them on a host
+  we tell search engines to ignore.
+
+**Post-deploy step for #634** — region paths only become queryable
+(`where[breadcrumbs.url][equals]=…`) once the existing rows are re-saved, since
+breadcrumbs populate on write:
+
+```bash
+pnpm tsx scripts/backfill-region-breadcrumb-urls.ts          # dry run
+pnpm tsx scripts/backfill-region-breadcrumb-urls.ts --force  # apply
+```
 
 ---
 

@@ -1,7 +1,17 @@
 import type { Field, FieldHook, PayloadRequest, TextField } from 'payload'
 
-/** A base URL — a literal, or a resolver (e.g. reading an env var per request). */
-type UrlBase = string | (() => string | null | undefined)
+/**
+ * A base URL — a literal, or a resolver.
+ *
+ * The resolver is handed the same {@link PublicUrlFieldContext} as `buildPath`,
+ * so a base can vary per document (e.g. resolving the client that owns the
+ * canonical URLs for an event's region). It stays **optional-arity**: a zero-arg
+ * thunk reading an env var is still assignable, since a function that ignores
+ * its parameter satisfies one that receives it.
+ */
+type UrlBase =
+  | string
+  | ((ctx: PublicUrlFieldContext) => string | null | undefined | Promise<string | null | undefined>)
 
 /** Which platform a URL is being built for. */
 export type PublicUrlPlatform = 'web' | 'app'
@@ -82,7 +92,10 @@ function computeHook(
     if (path == null) return null
     if (isPath) return path
 
-    const resolved = typeof base === 'function' ? base() : base
+    // Resolved after the path, and with the same context, so a per-document
+    // base (the client owning this region's canonical URLs) can read `data` /
+    // `req` — and pays nothing on a document whose path didn't resolve.
+    const resolved = typeof base === 'function' ? await base(ctx) : base
     return resolved ? `${resolved}${path}` : null
   }
 }

@@ -94,7 +94,16 @@ pnpm exec vitest run tests/int/albums.int.spec.ts -t "creates an album"         
 pnpm exec vitest run tests/unit/convert-vimeo.spec.ts --config ./vitest.config.mts  # one unit file
 ```
 
-The `--config ./vitest.config.mts` flag is required — the config defines the `unit`/`int` projects and injects test env vars. Reserve the full `pnpm test:int` / `pnpm build` for reproducing a red CI check. See `.claude/rules/testing-reqs.md` for the local-vs-CI split.
+The `--config ./vitest.config.mts` flag is required — the config defines the `unit`/`int` projects and injects test env vars.
+
+**`Tests  no tests` on a file you just edited means the spec doesn't parse** — not
+that no case matched. Vitest reports a syntax error in a spec as an empty file,
+so it looks like a config or lane problem. Re-run without piping through `grep`
+to see the real error, or `pnpm exec tsc --noEmit -p tsconfig.test.json`. (The
+one that caused this: an unescaped apostrophe inside a single-quoted test name —
+`it('renders keys in the collection's order', …)`.)
+
+Reserve the full `pnpm test:int` / `pnpm build` for reproducing a red CI check. See `.claude/rules/testing-reqs.md` for the local-vs-CI split.
 
 ## Verifying "coverage gap" claims
 
@@ -340,6 +349,18 @@ const result = await payload.find({
 
 The Tier-3 **smoke specs** are Playwright tests that exercise the REST API of a
 **deployed** environment — they do **not** boot a local app or own a database.
+
+> **They need no browser, and CI must not install one.** Every spec uses only the
+> `request` fixture (`APIRequestContext`), which is plain Node HTTP — nothing
+> launches Chromium, despite the `chromium` project name in
+> `playwright.config.ts`. CI used to run `playwright install --with-deps
+> chromium`; it took **18 minutes**, blew the job's `timeout-minutes`, and the
+> job reported as *cancelled* rather than failed, which reads as unexplained.
+> Verified by running the whole suite with `PLAYWRIGHT_BROWSERS_PATH` pointed at
+> an empty directory: all six specs issued real requests. If a future spec does
+> need a page, install the browser in that spec's own job rather than the shared
+> one.
+
 CI points `PREVIEW_URL` at the per-PR **Railway preview** (URL discovered via the
 Railway API) and runs `pnpm test:smoke`; locally it falls back to
 `http://localhost:3000` (the dev-server skill). Config: `playwright.config.ts`
@@ -353,8 +374,17 @@ Railway API) and runs `pnpm test:smoke`; locally it falls back to
 | `tests/files/`                  | Sample audio/image files used by upload specs                                    |
 
 Specs **skip gracefully** when the preview DB has no seeded content (e.g. no
-narrator/image/frame), so they never fail a fresh preview. Records are namespaced
-by `runId()` (`SMOKE_RUN_ID` in CI) since runs share the preview's cloned-prod data.
+narrator/image/frame), so they never fail a fresh preview.
+
+**A skipped smoke lane is not a passing one.** When `get-railway-preview-url.ts`
+finds no preview it exits cleanly and both smoke steps are skipped, leaving the
+job green — so "Lint, Test & Smoke: pass" can mean smoke never ran. CI now emits
+a `::warning` in that case; read it before trusting the check. Discovery itself
+budgets up to 12 min for the deploy plus 5 min for health, so a slow Railway
+build can consume most of the job on its own.
+
+Records are namespaced by `runId()` (`SMOKE_RUN_ID` in CI) since runs share the
+preview's cloned-prod data.
 
 ### Commands
 

@@ -33,4 +33,7 @@ one-time backfills, deployment helpers, etc.
 | `repair-r2-meditation-filenames.ts` | Backfill / fix R2 filenames on existing meditations |
 | `create-sample-page.ts` | Generate a sample Pages document |
 | `backfill-schedule-last-date.ts` | Recompute the derived `schedule.lastDate` column on existing `events` + `app-cards` rows (#603). Dry run by default, `--force` to write, re-runnable. Routine lives in `src/lib/schedule/backfillLastDate.ts` |
+| `verify-embed-live.ts` | Exercise the Cloudflare Browser Rendering integration against real pages (#633). `--self-test` proves all four outcomes without a live site; pass URLs to diagnose why a service's canonical was disabled. Calls the same `verifyEmbed()` the nightly job does, so a green run is evidence about production. Costs one Browser Rendering call per URL |
+| `backfill-region-breadcrumb-urls.ts` | Repopulate `breadcrumbs[].url` on existing regions after `generateURL` was enabled (#634), which is what makes `where[breadcrumbs.url][equals]=…` resolve. Dry run by default, `--force` to write, re-runnable. Re-saves **roots only** — the nested-docs cascade visits each subtree once, so re-saving every region would repeat the work per ancestor. Routine lives in `src/lib/atlas/backfillBreadcrumbUrls.ts` |
+| `audit-region-slugs.ts` | Report regions with a blank slug, plus the descendants that inherit the gap and resolve no canonical URL (#634). **Read-only, no `--force`** — the right name for each row is a human decision, not something derivable from the data |
 | `postinstall.cjs` | Run after `pnpm install` |

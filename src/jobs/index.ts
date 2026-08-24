@@ -4,6 +4,7 @@ import { SendRegistrationDigests } from './RegistrationNotifications/SendRegistr
 import { SendSessionReminders } from './RegistrationNotifications/SendSessionReminders'
 import { ScreenEventSubmissions } from './ScreenEventSubmissions/ScreenEventSubmissions'
 import { SyncLectureMetadata } from './SyncLectureMetadata/SyncLectureMetadata'
+import { VerifyEmbeds } from './VerifyEmbeds/VerifyEmbeds'
 
 // Export all tasks as an array
 // Note: TrackUsage and ResetUsage tasks are auto-registered by the usagePlugin
@@ -14,4 +15,5 @@ export const tasks = [
   SendRegistrationDigests,
   SendSessionReminders,
   SyncLectureMetadata,
+  VerifyEmbeds,
 ]

@@ -10,7 +10,7 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 
 | Slug                  | Custom logic                                                                                                                              | Covered by                                                     |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `clients`             | `validateClientData` beforeChange, query-validation beforeOperation (security gate), usage stats lifecycle, document-level access         | `client-hooks`, `client-query-validation`, `role-based-access` |
+| `clients`             | `validateClientData` beforeChange, query-validation beforeOperation (security gate), usage stats lifecycle, document-level access; `validateCanonicalOwnership` (region + domain required when enabled, one enabled client per region incl. a region *change*), `POST /api/clients/report` (both origin gates, query/fragment refusal, keyed merge, no-write on a repeat), `embedMetadata` JSON-Schema validation, and the `legacyData` → `canonical.*` backfill | `client-hooks`, `client-query-validation`, `role-based-access`, `client-canonical` |
 | `managers`            | `bypassPermissions`, locale-role inheritance, project-scoped visibility                                                                   | `role-based-access`, `project-visibility`, `client-hooks`      |
 | `albums`              | Cascade delete (album → songs); soft-delete does NOT cascade                                                                              | `albums`                                                       |
 | `app-cards`           | Audience targeting / OR-match / AND-gate / cache headers (in the endpoint)                                                                | `app-cards-for-audience`, `collections-smoke` (reachability)   |
@@ -27,6 +27,7 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 | `files`               | Reachability only                                                                                                                         | `collections-smoke`                                            |
 | `frames`              | `cascadeFrameNodeChange` afterChange; meditation-frame validation / rounding / sorting / enrichment hooks                                 | `meditationFrames`                                             |
 | `audiences`           | Range validator (max > min), reverse joins, audience-resolution helpers                                                                   | `audiences`, `audiencesResolve`, `audiences-for-user`          |
+| `regions`             | Recursive child joins on `breadcrumbs.doc`, canonical `webPath` (ancestor slug chain, locale-stable), per-region `webUrl` ownership resolution + nearest-ancestor precedence + We Meditate fallback, `breadcrumbs.url` path lookup, and the non-empty-slug invariant (rejects a *new* blank, grandfathers a pre-existing one) | `regions`, `region-canonical-url`, `atlas-collections`, unit: `region-non-empty-slug.spec.ts` |
 | `song-tags`           | Reachability only                                                                                                                         | `collections-smoke`                                            |
 | `subtle-system-nodes` | Reachability only                                                                                                                         | `collections-smoke`                                            |
 | `user-choices`        | Parent-child nesting hooks, `isParent` maintenance, localized timing-based meditation joins                                               | `user-choices`, `user-choices-by-timing`                       |
@@ -73,6 +74,11 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 | Finished-event definition — `shouldFinish` (in-memory) pinned to agree with `notFinishedWhere` (SQL)           | unit: `schedule-status.spec.ts` |
 | Content-Index block API endpoint generation (`computeApiEndpoint` virtual)                                     | `content-index-block`       |
 | Project-based admin visibility (`createHidden` from accessPlugin)                                              | `project-visibility`        |
+| Canonical Atlas URL shapes (`path` / `query`, `?` vs `&`, never a fragment), pinned to the cross-repo `atlas-url-contract.json` fixture | unit: `atlas-canonical-url.spec.ts` |
+| Canonical ownership precedence (nearest owning ancestor wins; disabled/draft client owns nothing; We Meditate fallback) | unit: `atlas-region-owners.spec.ts`, `region-canonical-url` |
+| Canonical resolution cost — a `webUrl` read costs exactly two extra queries regardless of N, and a `webPath`-only read costs one | `region-canonical-url` |
+| `breadcrumbs[].url` backfill — roots-only resave repopulates the whole tree via the nested-docs cascade, and is re-runnable | `region-breadcrumb-url-backfill` |
+| A pre-existing blank region slug survives the nested-docs cascade (its ancestors stay saveable), while a deliberate blank is still refused | `region-blank-slug-cascade` |
 | RBAC (`hasPermission`, `hasAnyPermission`, document-level manager access, locale roles, translator scopes)     | `role-based-access`         |
 
 ## Gaps
