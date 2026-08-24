@@ -4,7 +4,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import * as Sentry from '@sentry/nextjs'
 
 import { relationId } from '@/lib/utilities/relationId'
-import type { Event, Manager } from '@/payload-types'
+import type { Event, Manager, Region } from '@/payload-types'
 
 const PLATFORM_LABELS: Record<string, string> = {
   whatsapp: 'WhatsApp',
@@ -77,15 +77,45 @@ async function findRegionRecipient(
 
   // Reuse the already-populated region's breadcrumbs (the job loads events at
   // depth 1); fetch only when region arrived as a bare id.
-  const eventRegion =
+  const populatedRegion =
     typeof event.region === 'object' && event.region && Array.isArray(event.region.breadcrumbs)
       ? event.region
-      : await payload
-          .findByID({ collection: 'regions', id: regionId, depth: 0, overrideAccess: true, req })
-          .catch(() => null)
+      : null
 
-  const breadcrumbIds = Array.isArray(eventRegion?.breadcrumbs)
-    ? eventRegion.breadcrumbs
+  return findManagerForRegion(payload, regionId, {
+    excludeManagerId: eventManagerId,
+    breadcrumbs: populatedRegion?.breadcrumbs ?? null,
+    req,
+  })
+}
+
+/**
+ * Walk a region's parent chain (nearest first, up to the country) and return
+ * the first manager who isn't `excludeManagerId`, plus the name of the region
+ * that links them. The reusable core behind reminder escalation — and the
+ * "who reviews this event submission?" lookup, which starts from a bare
+ * region id rather than an event.
+ */
+export async function findManagerForRegion(
+  payload: Payload,
+  regionId: number,
+  options: {
+    excludeManagerId?: number | null
+    /** Already-loaded breadcrumbs for `regionId`, when the caller has them. */
+    breadcrumbs?: Region['breadcrumbs'] | null
+    req?: PayloadRequest
+  } = {},
+): Promise<{ manager: Manager; regionName: string } | null> {
+  const { excludeManagerId = null, req } = options
+
+  const region = options.breadcrumbs
+    ? { breadcrumbs: options.breadcrumbs }
+    : await payload
+        .findByID({ collection: 'regions', id: regionId, depth: 0, overrideAccess: true, req })
+        .catch(() => null)
+
+  const breadcrumbIds = Array.isArray(region?.breadcrumbs)
+    ? region.breadcrumbs
         .map((crumb) => relationId(crumb?.doc))
         .filter((id): id is number => id !== null)
     : []
@@ -106,7 +136,7 @@ async function findRegionRecipient(
     const region = byId.get(id)
     if (!region) continue
     for (const manager of region.managers ?? []) {
-      if (typeof manager === 'object' && manager && manager.id !== eventManagerId) {
+      if (typeof manager === 'object' && manager && manager.id !== excludeManagerId) {
         // `name` is only set once a location is chosen (it's conditional on
         // mapboxId), so fall back to a stable id label for the rare unnamed node.
         return { manager, regionName: region.name || `#${region.id}` }

@@ -70,9 +70,16 @@ const ROLES = {
     // grants are *scoped to the manager's owned-region subtree* in the access
     // layer (regionSubtreeAccess.ts) — they are NOT collection-wide despite
     // appearing here. Regions get create+update; events also get delete (trash).
+    //
+    // `users` and `event-submissions` are RESTRICTED collections (no shared
+    // implicit read — they carry personal data), so the reads managers need
+    // are granted explicitly: registrants show up inside registrations, and
+    // submissions are what a manager reviews/accepts.
     permissions: {
       regions: ['create', 'update'] as PermissionLevel[],
       events: ['create', 'update', 'delete'] as PermissionLevel[],
+      users: ['read'] as PermissionLevel[],
+      'event-submissions': ['read', 'update'] as PermissionLevel[],
     },
   },
 
@@ -99,9 +106,14 @@ const ROLES = {
     label: 'Sahaj Atlas',
     description: 'Access for Sahaj Atlas application',
     project: 'sahaj-atlas' as const,
-    // All collections/globals get implicit read via project parameter
-    // No explicit permissions needed
-    permissions: {},
+    // All collections/globals get implicit read via project parameter.
+    // `event-submissions` is create-ONLY: the widget submits new events and
+    // update proposals through the built-in create endpoint (guarded by the
+    // write-guard plugin), but must never read submissions back — the
+    // collection is restricted (submitter emails).
+    permissions: {
+      'event-submissions': ['create'] as PermissionLevel[],
+    },
   },
 } as const
 

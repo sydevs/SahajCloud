@@ -25,6 +25,7 @@ import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
 import { sentryPlugin } from '@/plugins/sentry'
 import { storagePlugin } from '@/plugins/storage'
 import { usagePlugin } from '@/plugins/usage'
+import { writeGuardPlugin } from '@/plugins/writeGuard'
 
 import { collections, Managers } from './collections'
 import { contactAdmin } from './endpoints/contactAdmin'
@@ -183,6 +184,13 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           cron: '0 * * * *', // Runs every hour
           queue: 'nightly',
         },
+        {
+          // Safety net for the per-submission screening kick (see
+          // EventSubmissions/hooks/enqueueScreening): a submission whose
+          // immediate run was lost to a crash waits at most 15 minutes.
+          cron: '*/15 * * * *',
+          queue: 'screening',
+        },
       ],
     },
     // Email configuration
@@ -262,6 +270,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // Usage Plugin: Rate limiting and usage tracking (disabled in E2E tests)
       // Note: 'clients' is auto-excluded as a consumer collection; 'managers' excluded to skip admin users
       usagePlugin({ enabled: !isE2ETest, exclude: ['managers'] }),
+      // Write Guard: anti-spam checks (Turnstile header, URL scan, disposable
+      // email) on client-originated writes, per the policy map in
+      // src/plugins/writeGuard/policies.ts. Root endpoints (contact-admin)
+      // call the same helpers by hand.
+      writeGuardPlugin(),
       // Nested docs: adds breadcrumbs + uses the region tree's `parent` field
       // (Country → Region → Area → Center). Registered before accessPlugin so
       // the latter sees the injected fields. `parentFieldSlug: 'parent'` tells

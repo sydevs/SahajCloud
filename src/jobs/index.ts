@@ -2,6 +2,7 @@ import { CleanupOrphanedMedia } from './CleanupOrphanedMedia/CleanupOrphanedMedi
 import { ExpireEvents } from './ExpireEvents/ExpireEvents'
 import { SendRegistrationDigests } from './RegistrationNotifications/SendRegistrationDigests'
 import { SendSessionReminders } from './RegistrationNotifications/SendSessionReminders'
+import { ScreenEventSubmissions } from './ScreenEventSubmissions/ScreenEventSubmissions'
 import { SyncLectureMetadata } from './SyncLectureMetadata/SyncLectureMetadata'
 import { VerifyEmbeds } from './VerifyEmbeds/VerifyEmbeds'
 
@@ -10,6 +11,7 @@ import { VerifyEmbeds } from './VerifyEmbeds/VerifyEmbeds'
 export const tasks = [
   CleanupOrphanedMedia,
   ExpireEvents,
+  ScreenEventSubmissions,
   SendRegistrationDigests,
   SendSessionReminders,
   SyncLectureMetadata,

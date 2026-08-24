@@ -15,6 +15,7 @@ import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrati
 import { evaluateRegistrationGate } from '@/lib/registrations/gating'
 import { buildRegistrationAnswers } from '@/lib/registrations/questions'
 import { resolveEmailStrings } from '@/lib/translations/emailStrings'
+import { upsertUserByEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
@@ -175,42 +176,10 @@ export const registerForEvent: Endpoint = {
         return Response.json(body, { status: rejection.status })
       }
 
-      // Upsert the registrant by normalized email. `users` is admin-only, so the
-      // client can't touch it directly — elevate via overrideAccess.
+      // Upsert the registrant by normalized email (shared, race-safe helper —
+      // also used by the event-submission flow).
       const normalizedEmail = email.toLowerCase()
-      const { docs: userDocs } = await req.payload.find({
-        collection: 'users',
-        where: { email: { equals: normalizedEmail } },
-        limit: 1,
-        depth: 0,
-        overrideAccess: true,
-        req: asTrustedReq(req),
-      })
-      let userId = userDocs[0]?.id
-      if (userId == null) {
-        try {
-          const created = await req.payload.create({
-            collection: 'users',
-            data: { name, email: normalizedEmail },
-            overrideAccess: true,
-            req,
-          })
-          userId = created.id
-        } catch (createError) {
-          // A concurrent registration with the same email can create the user
-          // between our find and create (email is unique) — re-find rather than 500.
-          const { docs: raced } = await req.payload.find({
-            collection: 'users',
-            where: { email: { equals: normalizedEmail } },
-            limit: 1,
-            depth: 0,
-            overrideAccess: true,
-            req: asTrustedReq(req),
-          })
-          if (raced[0]?.id == null) throw createError
-          userId = raced[0].id
-        }
-      }
+      const userId = await upsertUserByEmail({ req, name, email })
 
       const clientId = typeof req.user?.id === 'number' ? req.user.id : undefined
 
@@ -316,11 +285,18 @@ export const registerForEvent: Endpoint = {
       }
       return Response.json(body, { status: 201 })
     } catch (error) {
-      // validateClientOriginHook throws APIError(403) for a disallowed origin (and
-      // query validation could throw 400) from the reads above — surface its
-      // status + message verbatim rather than masking it as a 500.
+      // validateClientOriginHook throws APIError(403) for a disallowed origin
+      // (and query validation could throw 400) from the reads above, and the
+      // write-guard plugin throws 400s (urls_not_allowed / disposable_email)
+      // from the user/registration writes — surface status + message verbatim
+      // rather than masking them as a 500, plus the machine code when one is
+      // attached so the widget can show targeted copy.
       if (error instanceof APIError) {
-        return Response.json({ errors: [{ message: error.message }] }, { status: error.status })
+        const code = (error.data as { code?: string } | undefined)?.code
+        return Response.json(
+          { errors: [{ message: error.message, ...(code ? { code } : {}) }] },
+          { status: error.status },
+        )
       }
       req.payload.logger.error({
         msg: 'registerForEvent: registration failed',
