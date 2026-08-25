@@ -47,10 +47,10 @@ import './styles.css'
  * `Drawer` handles the overlay, focus trap and dismissal.
  *
  * `Table` takes only `columns` and `data` — it exposes nothing per row, so the
- * click is **one delegated listener** on the wrapper, which resolves the row
- * with `closest('tr[data-id]')`. Payload writes our own array index into
- * `data-id`, so the row is identifiable without owning the `<tr>`; the cursor
- * is the one thing that has to be a stylesheet rule, for the same reason.
+ * click is **one delegated listener** on the wrapper, which resolves the row by
+ * its position in `<tbody>` — no dependency on Payload's markup beyond the
+ * table being a table. The cursor is the one thing that has to be a stylesheet
+ * rule, since it belongs on a `<tr>` we don't render.
  */
 export const LogTable: FieldClientComponent = ({ field }) => {
   const { name, label, admin } = field as JSONFieldClient
@@ -67,12 +67,21 @@ export const LogTable: FieldClientComponent = ({ field }) => {
   const drawerSlug = useDrawerSlug('log-entry')
   const { openModal } = useModal()
 
-  /** Resolve the clicked row and open its entry. */
+  /**
+   * Resolve the clicked row and open its entry.
+   *
+   * By position within `<tbody>`, which also excludes the header row. An
+   * earlier version read Payload's `data-id` attribute — correct today, but a
+   * silent no-op the day that attribute is renamed, since a click would simply
+   * find nothing. Row order is inherent to a table; the attribute is Payload's
+   * to change.
+   */
   const openRow = (target: EventTarget | null) => {
-    const row = (target as HTMLElement | null)?.closest?.('tr[data-id]')
-    if (!(row instanceof HTMLElement)) return
-    const index = Number(row.dataset.id)
-    if (!Number.isInteger(index)) return
+    const row = (target as HTMLElement | null)?.closest?.('tr')
+    const body = row?.parentElement
+    if (!row || body?.tagName !== 'TBODY') return
+    const index = Array.prototype.indexOf.call(body.children, row)
+    if (index < 0 || index >= entries.length) return
     setSelected(index)
     openModal(drawerSlug)
   }
