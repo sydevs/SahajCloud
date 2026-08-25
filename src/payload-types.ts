@@ -1948,7 +1948,6 @@ export interface Registration {
    * Registrant’s verdict on an unverified event.
    */
   eventFeedback?: ('confirmed' | 'denied') | null;
-  eventFeedbackAt?: string | null;
   followUpSentAt?: string | null;
   legacyId?: number | null;
   legacyData?:
@@ -4852,7 +4851,6 @@ export interface RegistrationsSelect<T extends boolean = true> {
   remindersUnsubscribedAt?: T;
   reminderLog?: T;
   eventFeedback?: T;
-  eventFeedbackAt?: T;
   followUpSentAt?: T;
   legacyId?: T;
   legacyData?: T;

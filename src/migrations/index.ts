@@ -46,6 +46,7 @@ import * as migration_20260819_002715_drop_client_legacy_config from './20260819
 import * as migration_20260820_011749_submission_proposal_patch from './20260820_011749_submission_proposal_patch';
 import * as migration_20260820_151908_submission_title from './20260820_151908_submission_title';
 import * as migration_20260820_202018_submission_manager from './20260820_202018_submission_manager';
+import * as migration_20260825_005719_drop_event_feedback_at from './20260825_005719_drop_event_feedback_at';
 
 export const migrations = [
   {
@@ -286,6 +287,11 @@ export const migrations = [
   {
     up: migration_20260820_202018_submission_manager.up,
     down: migration_20260820_202018_submission_manager.down,
-    name: '20260820_202018_submission_manager'
+    name: '20260820_202018_submission_manager',
+  },
+  {
+    up: migration_20260825_005719_drop_event_feedback_at.up,
+    down: migration_20260825_005719_drop_event_feedback_at.down,
+    name: '20260825_005719_drop_event_feedback_at'
   },
 ];

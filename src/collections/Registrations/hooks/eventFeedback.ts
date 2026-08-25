@@ -82,7 +82,7 @@ export const gateEventFeedback: CollectionBeforeChangeHook = async ({ data, orig
     throw new APIError('Feedback is closed for this event.', 409, { code: 'feedback_closed' }, true)
   }
 
-  return { ...data, eventFeedbackAt: new Date().toISOString() }
+  return data
 }
 
 /**

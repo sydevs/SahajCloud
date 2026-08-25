@@ -115,7 +115,6 @@ describe('Event feedback (registrant voting)', () => {
 
       const updated = await voteAsClient(registration, 'confirmed')
       expect(updated.eventFeedback).toBe('confirmed')
-      expect(updated.eventFeedbackAt).toBeTruthy()
     })
 
     it('refuses a vote with a wrong or missing uuid', async () => {

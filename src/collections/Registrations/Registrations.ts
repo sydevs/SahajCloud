@@ -159,11 +159,6 @@ export const Registrations: CollectionConfig = {
           admin: { description: 'Registrant’s verdict on an unverified event.' },
         },
         {
-          name: 'eventFeedbackAt',
-          type: 'date',
-          admin: { hidden: true },
-        },
-        {
           // Ledger for the post-event follow-up email (generic watermark: the
           // feedback ask today, future follow-up content later) — the
           // SendPostEventFollowUps job sends at most one per registration.
