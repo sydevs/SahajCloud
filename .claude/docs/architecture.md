@@ -300,8 +300,9 @@ hourly `nightly` queue with exclusive concurrency:
 - **`SendSessionReminders`** — hourly (`0 * * * *`). Reminds each subscribed
   registrant ~24h before a session. Enumerates occurrences from the schedule via
   `buildRRuleTemporal` (exclusions applied), sends the client-branded
-  `SessionReminderEmail`, and dedupes exactly-once via a per-registration
-  `reminderLog` ledger. Hourly cadence keeps the notice within 23–24h of the
+  `SessionReminderEmail`, and dedupes exactly-once via the registration's
+  `activityLog` (`hasLogEntry(log, 'session-reminder', occurrence)`), which
+  doubles as the manager-readable record of what was sent. Hourly cadence keeps the notice within 23–24h of the
   session (< 1h deviation). Skips unsubscribed (`remindersUnsubscribedAt`),
   unpublished/trashed, and non-registration events.
 - **`SendRegistrationDigests`** — daily 07:00 UTC (`0 7 * * *`); the Monday run
@@ -311,14 +312,16 @@ hourly `nightly` queue with exclusive concurrency:
   daily/weekly anchors.
 
 Registrants who unsubscribe do so via the logged-out, token-gated page at
-`src/app/(frontend)/registrations/unsubscribe/` (signed HMAC token in
-`src/lib/registrations/unsubscribeToken.ts`).
+`src/app/(frontend)/registrations/unsubscribe/` (signed token in
+`src/lib/registrations/unsubscribeToken.ts`, over the shared `jose` helper in
+`src/lib/utilities/signedToken.ts`).
 
 | File | Purpose |
 | --- | --- |
 | `src/jobs/RegistrationNotifications/SendSessionReminders.ts` | Reminder task |
 | `src/jobs/RegistrationNotifications/SendRegistrationDigests.ts` | Digest task |
-| `src/jobs/RegistrationNotifications/reminderLedger.ts` | Per-registration dedup ledger |
+| `src/jobs/RegistrationNotifications/SendPostEventFollowUps.ts` | Post-event follow-up task |
+| `src/fields/logField.ts` | The shared `activityLog` field + its dedup/append helpers |
 | `tests/int/session-reminders.int.spec.ts` / `registration-digests.int.spec.ts` | Integration tests |
 
 ### Usage tracking (`src/plugins/usage/tasks.ts`)

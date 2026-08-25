@@ -306,8 +306,8 @@ logField({ description: 'Everything recorded about this registration.' })
 ```
 
 `name` and `label` default to `activityLog` / "Activity Log" and are overridable
-for a document that needs a second log (Events keeps `notificationLog`, which is
-reset per verification cycle rather than accumulating).
+for a document that needs a second log. Both current consumers use the default:
+Events resets its log on every verification, Registrations accumulates.
 
 ### Columns are declared on the field
 
