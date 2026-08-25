@@ -7,6 +7,11 @@
   cursor: zoom-in;
 }
 
+/*
+ * Payload stripes odd rows with `--theme-elevation-50`, so hovering at that
+ * value left every other row looking unchanged. A larger step reads as hover
+ * against both the striped and unstriped rows.
+ */
 .log-table tbody tr:hover {
-  background: var(--theme-elevation-50);
+  background: var(--theme-elevation-150);
 }

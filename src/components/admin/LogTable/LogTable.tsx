@@ -119,11 +119,20 @@ export const LogTable: FieldClientComponent = ({ field }) => {
                 ),
               ]}
             />
-            {selected !== null ? (
-              <Drawer slug={drawerSlug} title="Activity entry">
+            {/*
+              Mounted unconditionally, which is what makes it *slide*. The
+              Drawer seeds its own `animateIn` from `modalState[slug].isOpen`
+              at mount and only adds `drawer--is-open` in a layout effect — so
+              a Drawer mounted while already open has the class on its first
+              paint and appears in place, with no transition to play. Rendering
+              it always means it mounts closed and animates on open. It returns
+              null until then, so this costs nothing.
+            */}
+            <Drawer slug={drawerSlug} title="Activity entry">
+              {selected === null ? null : (
                 <pre style={jsonStyle}>{JSON.stringify(entries[selected], null, 2)}</pre>
-              </Drawer>
-            ) : null}
+              )}
+            </Drawer>
           </div>
         )}
       </div>
