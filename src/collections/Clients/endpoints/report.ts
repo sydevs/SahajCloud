@@ -170,9 +170,7 @@ export const clientEmbedReport: Endpoint = {
       key: mount.key,
       observation,
       at: new Date().toISOString(),
-      // The designated canonical outranks recency: it is one page competing with
-      // however many the site's traffic touches, and it is the key the picker and
-      // the verification job both resolve through.
+      // Spared by the cap whatever its `lastSeen` — see `pinned`.
       pinned: client.canonical?.embed,
     })
 
