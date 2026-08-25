@@ -55,8 +55,35 @@ pages, required), `featuredPages` (hasMany 2–3), `featuredArticles`
 `vibeCheckTracks` (localized array; each item has `identifier` select with
 predefined codes plus required `audio` / `subtitles` uploads to files).
 
-**Sahaj Atlas** (admin group: System) — `defaultMapCenter` group with
+**Sahaj Atlas** (admin group: System) — `languages` (required array, min 1, one
+`code` select per row from the CMS locales), `defaultMapCenter` group with
 required `latitude`/`longitude`, `defaultZoomLevel` (1–20).
+
+`languages` is the **source of truth for which languages the atlas is offered
+in** (#645): the SEO endpoint reads it for every page's `hreflang` cluster, and
+sydevs/SahajAtlasWeb#167 will drive the widget's own picker from it. It replaced
+a constant duplicated across the two repos. `ATLAS_DEFAULT_LOCALES`
+(`src/lib/atlas/defaultLocales.ts`) is both its `defaultValue` and the fallback
+for an unconfigured column — one definition so the two cannot drift, and the
+fallback is what keeps an existing installation unchanged, since a `defaultValue`
+does not backfill a global row that already exists.
+
+> ### ⚠ Never name a global's field `locales`
+>
+> A global's sub-table is named `<global_table>_<field>`, and Payload already
+> uses the `_locales` suffix for a **localized** document's value table. So a
+> field called `locales` on `sy-atlas-config` generates
+> `sy_atlas_config_locales`, collides with that convention, and makes **every
+> read of the global** fail in Drizzle's relation builder with
+> `Cannot read properties of undefined (reading 'referencedTable')` — a 500 on
+> `GET /api/globals/<slug>`, not a schema error at build time.
+>
+> Reproduced on payload 3.86.0 + db-postgres with `select` + `hasMany`, with an
+> array, and with the array localized, against both the dev database and a fresh
+> test schema. **Renaming the field is the fix** (`languages`); the field *shape*
+> is unrelated. The same trap applies to any suffix Payload reserves for a
+> generated table — prefer a field name that reads as the domain concept
+> (`languages`) over one that echoes a framework term (`locales`).
 
 ## Translation globals (per project)
 

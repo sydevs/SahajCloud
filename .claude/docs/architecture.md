@@ -98,6 +98,13 @@ that are easy to get wrong from outside:
   canonical is locale-free and shared by every locale, `alternates` differ only
   by the widget's `?locale=` UI language, and this endpoint composes no prose —
   a sentence written here would be English in a national site's `<head>`.
+- **The `alternates` language set is operator-owned**, on `sy-atlas-config`'s
+  `languages` field — not a constant, and not the CMS's full locale list. It is
+  read per request (memoized), so turning a language off stops us advertising it
+  to crawlers without a deploy. The OpenAPI enum stays the CMS superset, because
+  the spec is built statically and this is runtime data. See
+  `.claude/rules/globals.md` for the field, **including why it must not be named
+  `locales`**.
 
 ## OpenAPI / Scalar API Docs
 
