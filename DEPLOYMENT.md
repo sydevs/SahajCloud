@@ -96,14 +96,16 @@ preview reads, and non-cacheable collections (`clients`, `managers`, `users`, �
 
 > **⚠️ A root endpoint's path names no collection, so the slug list does not reach it.**
 > `GET /api/atlas/seo` (#645) emits `Cache-Control: public, s-maxage=300` like any other client
-> read, but `atlas` is not a collection slug — so under the rule as written it stays
-> `cf-cache-status: DYNAMIC` and every SSR page render reaches the origin. Nothing breaks; the
-> caching simply never activates, which is the same fail-safe as an absent rule. **To turn it on,
-> add `/api/atlas/seo` to the path predicate** (an `eq`, alongside the `starts_with` slug terms).
-> Worth doing: this endpoint is called once per host page render by WeMeditateWeb's SSR routes and
-> by the WordPress plugin, and its inputs (regions + events) are the two slowest-churning things it
-> reads. The one root endpoint that predates it, `POST /api/contact-admin`, is a write and was
-> never cacheable, which is why this gap had not come up before.
+> read, but `atlas` is not a collection slug, so the `/api/<slug>` terms above never matched it —
+> it stayed `cf-cache-status: DYNAMIC` and every SSR page render reached the origin. Nothing broke;
+> the caching simply never activated, which is the same fail-safe as an absent rule.
+>
+> **Fixed 2026-08-25: `http.request.uri.path eq "/api/atlas/seo"` was added to the path group of
+> the existing rule** (ruleset v8 → v9). It had to go *inside* that rule rather than into a new
+> one, because a separate rule would not carry the `any(http.request.headers["authorization"][*]
+> != "")` conjunct — and without it an unauthenticated request becomes cache-eligible and is served
+> the cached authed body (`Vary: Authorization` does not isolate the absent-header case). **Any
+> future root endpoint needs the same treatment: one more `eq` term here, never a second rule.**
 
 **Purge-on-write** (optional): set `CLOUDFLARE_ZONE_ID` + `CLOUDFLARE_CACHE_PURGE_TOKEN` to enable
 best-effort `Cache-Tag` purge when a cached collection is written (Cloudflare Enterprise tag-purge;
