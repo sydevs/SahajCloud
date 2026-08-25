@@ -14,25 +14,35 @@ import { MAX_ATLAS_ROUTE_LENGTH, parseAtlasRoute } from '../../src/endpoints/atl
 describe('parseAtlasRoute', () => {
   describe('region routes', () => {
     it.each([
-      ['/gb', '/gb'],
-      ['/gb/london', '/gb/london'],
-      ['/belgium/flanders/antwerp/downtown-hall', '/belgium/flanders/antwerp/downtown-hall'],
+      ['/gb', 'gb'],
+      ['/gb/london', 'london'],
+      ['/belgium/flanders/antwerp/downtown-hall', 'downtown-hall'],
       // Extra and trailing slashes are the caller's formatting, not structure.
-      ['/gb/london/', '/gb/london'],
-      ['//gb//london', '/gb/london'],
-      ['gb/london', '/gb/london'],
-    ])('resolves %s to the region path %s', (route, path) => {
-      expect(parseAtlasRoute(route)).toEqual({ kind: 'region', path })
+      ['/gb/london/', 'london'],
+      ['//gb//london', 'london'],
+      ['gb/london', 'london'],
+    ])('resolves %s to the region slug %s', (route, slug) => {
+      expect(parseAtlasRoute(route)).toEqual({ kind: 'region', slug })
+    })
+
+    // Ancestry is exactly the part of a URL that goes stale — a region moved in
+    // the tree, or a country re-slugged to its ISO code (#556). Ignoring it
+    // keeps an old inbound link resolving; the answer's canonical corrects it.
+    it('keys on the terminal slug alone, whatever ancestry precedes it', () => {
+      expect(parseAtlasRoute('/wrong/legacy/chain/london')).toEqual({
+        kind: 'region',
+        slug: 'london',
+      })
     })
 
     it('decodes percent-encoded segments, because an address bar stores them encoded', () => {
-      // `webPath` / `breadcrumbs.url` hold the decoded slug, so a route arriving
-      // from a URL bar has to be decoded before it can match.
-      expect(parseAtlasRoute('/be/li%C3%A8ge')).toEqual({ kind: 'region', path: '/be/liège' })
+      // The stored `slug` holds the decoded value, so a route arriving from a
+      // URL bar has to be decoded before it can match.
+      expect(parseAtlasRoute('/be/li%C3%A8ge')).toEqual({ kind: 'region', slug: 'liège' })
     })
 
     it('leaves a malformed escape alone rather than throwing', () => {
-      expect(parseAtlasRoute('/gb/100%')).toEqual({ kind: 'region', path: '/gb/100%' })
+      expect(parseAtlasRoute('/gb/100%')).toEqual({ kind: 'region', slug: '100%' })
     })
   })
 
@@ -58,19 +68,19 @@ describe('parseAtlasRoute', () => {
     it.each([
       ['/gb/london/1204/register', { kind: 'event', id: 1204 }],
       ['/gb/london/1204/share', { kind: 'event', id: 1204 }],
-      ['/gb/london/online', { kind: 'region', path: '/gb/london' }],
-      ['/gb/london/calendar', { kind: 'region', path: '/gb/london' }],
+      ['/gb/london/online', { kind: 'region', slug: 'london' }],
+      ['/gb/london/calendar', { kind: 'region', slug: 'london' }],
       // Case-insensitive, matching the widget's own lowercased comparison.
-      ['/gb/london/REGISTER', { kind: 'region', path: '/gb/london' }],
+      ['/gb/london/REGISTER', { kind: 'region', slug: 'london' }],
     ])('drops the view segment in %s', (route, expected) => {
       expect(parseAtlasRoute(route)).toEqual(expected)
     })
 
     it.each([
       ['/events/507', { kind: 'event', id: 507 }],
-      ['/regions/gb/london', { kind: 'region', path: '/gb/london' }],
-      ['/areas/gb', { kind: 'region', path: '/gb' }],
-      ['/venues/gb/london', { kind: 'region', path: '/gb/london' }],
+      ['/regions/gb/london', { kind: 'region', slug: 'london' }],
+      ['/areas/gb', { kind: 'region', slug: 'gb' }],
+      ['/venues/gb/london', { kind: 'region', slug: 'london' }],
     ])('drops the legacy Atlas prefix in %s', (route, expected) => {
       expect(parseAtlasRoute(route)).toEqual(expected)
     })

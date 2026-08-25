@@ -5,7 +5,6 @@ import type { Endpoint, PayloadRequest, SelectType } from 'payload'
 import { APIError } from 'payload'
 import { z } from 'zod'
 
-
 import { getCanonicalUrlForRegion } from '@/lib/atlas/regionOwners'
 import { descendantRegionIds, getRegionTree } from '@/lib/atlas/regionTree'
 import { parseQuery, requireActiveClient } from '@/lib/endpoints'
@@ -120,11 +119,19 @@ async function regionSeo(
   target: Extract<AtlasRouteTarget, { kind: 'region' }>,
   locale: LocaleCode,
 ): Promise<AtlasSeoResponse | null> {
-  // One query, thanks to the nested-docs `generateURL` that populates
-  // `breadcrumbs.url` with the same path builder `webPath` reads (#640).
+  // Keyed on the globally-unique slug, which is one indexed equality.
+  //
+  // ⚠ **Not** `where['breadcrumbs.url'][equals]`, despite #640 having shipped
+  // `generateURL` to enable exactly that. `breadcrumbs` is an *array*, and
+  // Payload's `equals` on an array sub-field matches when **any** element
+  // matches — so `/gb/london` matches every descendant of London as well as
+  // London itself, and the row you get back is whichever the database returned
+  // first. `tests/int/atlas-seo.int.spec.ts` caught this resolving a city route
+  // to a venue two levels down. The stored `breadcrumbs.url` is still the right
+  // denormalization; it is just not a unique key, and the slug already is.
   const { docs } = await req.payload.find({
     collection: 'regions',
-    where: { 'breadcrumbs.url': { equals: target.path } },
+    where: { slug: { equals: target.slug } },
     limit: 1,
     depth: 0,
     select: REGION_SELECT,
@@ -174,7 +181,7 @@ async function regionSeo(
     level: region.level,
     // The document's own path, not the caller's string: a legacy or stale
     // prefix resolves here and is answered with the route it should have used.
-    route: region.webPath ?? target.path,
+    route: region.webPath ?? `/${target.slug}`,
     canonical: region.webUrl ?? null,
     breadcrumbs,
     events,
@@ -238,9 +245,15 @@ async function eventSeo(
  * path → id first — two round trips per page render, and the same resolution
  * logic written once in PHP and once in TypeScript, which is precisely what
  * "generated once, served as data" exists to avoid. The route is parsed with the
- * **same rule the widget applies to the same string** (`@/lib/atlas/atlasRoute`),
- * so the server-rendered page and the widget that upgrades over it can never
+ * **same rule the widget applies to the same string** (see `./atlasRoute`), so
+ * the server-rendered page and the widget that upgrades over it can never
  * disagree about which document a URL names.
+ *
+ * **A route is keyed by its terminal segment**, so ancestry that has gone stale
+ * — a region moved in the tree, a country re-slugged to its ISO code (#556) —
+ * still resolves, and the `route` and `canonical` in the answer name the URL the
+ * host should redirect to. The alternative would 404 every inbound link into a
+ * restructured subtree, which is the opposite of what an SEO endpoint is for.
  *
  * **Why it lives in SahajCloud rather than a shared package.** Only this service
  * can walk region ownership to the client that owns a region's canonical URLs

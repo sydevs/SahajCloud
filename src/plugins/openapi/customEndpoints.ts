@@ -538,9 +538,12 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'one call. Pass the `?atlas=` route your page already holds — ' +
         '`/gb/london` for a region, `/gb/london/1204` for a class — and this works ' +
         'out which it names, using the same rule the widget applies to the same ' +
-        'string. View segments (`/register`, `/share`, `/calendar`, …) and legacy ' +
-        'prefixes (`/events/…`) are dropped, so an old inbound link resolves to the ' +
-        'document its modern route names. **Things not to guess at:** `canonical` ' +
+        'string. A route is keyed by its **terminal segment** — a region slug is ' +
+        'globally unique and an event id needs no ancestry — so view segments ' +
+        '(`/register`, `/share`, `/calendar`, …), legacy prefixes (`/events/…`) ' +
+        'and stale ancestry all still resolve, and the `route` and `canonical` in ' +
+        'the answer name the URL you should redirect to. **Things not to guess ' +
+        'at:** `canonical` ' +
         'is the document’s own `webUrl`, read rather than recomputed, so it is ' +
         'byte-identical to every other surface — and it is **locale-free**, as is ' +
         'the `x-default` alternate, because nothing in the atlas is translated per ' +

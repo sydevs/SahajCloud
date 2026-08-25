@@ -58,10 +58,19 @@ const MAX_EVENT_ID = 2147483647
 
 /**
  * What a route names. A discriminated union rather than a struct with two
- * nullable ids, so the endpoint's two read paths narrow exhaustively and a
+ * nullable keys, so the endpoint's two read paths narrow exhaustively and a
  * region can never be handed an event's lookup.
+ *
+ * **Both variants are keyed by the terminal segment alone**, which is the
+ * widget's own rule (`resolvePath`): a region slug is globally unique, and an
+ * event id needs no ancestry. Everything before the terminal segment is
+ * *ancestry*, and ancestry is exactly the part of a URL that goes stale — a
+ * region moved in the tree, or a country re-slugged to its ISO code (#556).
+ * Ignoring it means an old inbound link still resolves, and the `route` and
+ * `canonical` in the answer tell the host the URL it should redirect to.
+ * Refusing it would 404 every link into a restructured subtree instead.
  */
-export type AtlasRouteTarget = { kind: 'region'; path: string } | { kind: 'event'; id: number }
+export type AtlasRouteTarget = { kind: 'region'; slug: string } | { kind: 'event'; id: number }
 
 /** Decode one segment, tolerating a malformed `%` escape (returns it unchanged). */
 function safeDecode(segment: string): string {
@@ -97,14 +106,13 @@ export function parseAtlasRoute(route: string): AtlasRouteTarget | null {
   const terminal = segments[segments.length - 1]
   if (/^\d+$/.test(terminal)) {
     const id = Number(terminal)
-    // A region prefix is ancestry only — an event resolves by id alone, exactly
-    // as the widget resolves it, so a stale or legacy prefix still lands on the
-    // right event and the canonical it answers with corrects the URL.
     return id > 0 && id <= MAX_EVENT_ID ? { kind: 'event', id } : null
   }
 
-  // `breadcrumbs.url` stores the ancestor slug chain joined with `/` and no
-  // trailing slash (`generateURL` in ./regionTree), so the lookup key is the
-  // normalized segments rejoined the same way — never the caller's raw string.
-  return { kind: 'region', path: `/${segments.join('/')}` }
+  // Region slugs are globally unique (`slugField` makes the column unique and
+  // indexed, and the Atlas importer disambiguates the handful of colliding
+  // names — Georgia the country vs. the US state). So the terminal segment is
+  // the whole key, and the segments before it are ancestry we deliberately
+  // ignore. See {@link AtlasRouteTarget}.
+  return { kind: 'region', slug: terminal }
 }
