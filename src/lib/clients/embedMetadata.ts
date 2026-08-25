@@ -243,11 +243,11 @@ function isRecentlySeen(lastSeen: string, at: string): boolean {
  * Drop least-recently-seen mounts until at most {@link MAX_EMBED_MOUNTS}
  * remain. Keys in `protectedKeys` are never evicted, whatever their `lastSeen`
  * — see {@link MergeEmbedReportArgs.pinned} for who is in that set and why.
+ * Protection removes candidates rather than raising the cap, so a protected
+ * mount costs an ordinary one its place.
  *
- * When protection leaves too few candidates, this evicts fewer than the
- * overflow and the record sits a mount or two above the cap. That is the
- * intended trade: the cap bounds storage, and storage is not worth deleting
- * the mount a live canonical URL is built from.
+ * Evicts the whole overflow, not one mount: a record written before the cap
+ * existed — or before a mount was pinned — can start out above it.
  *
  * The comparator can't see a NaN: every record here has been through
  * {@link sanitizeEmbedMetadata}, which rejects an unparseable `lastSeen`, and
