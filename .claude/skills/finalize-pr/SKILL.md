@@ -53,6 +53,11 @@ pass for reuse / simplification / efficiency / altitude — it does **not** hunt
 - Let it apply fixes; review them and revert anything undesirable.
 - If it changed anything, re-run the lean gate (step 4) and commit
   (`refactor: simplify per /simplify pass`). If it made no changes, continue.
+- **`/simplify` edits the working tree, and it fans out** — fixes can land minutes after dispatch,
+  well after its first message. **Don't edit the same files while it runs.** Wait for its report,
+  then review `git diff` as one unit. Editing in parallel makes a patch fail an assertion or a file
+  read back unexpectedly, and the first suspicion is a corrupted edit rather than a second writer.
+  If you must work in parallel, pick disjoint files.
 
 ### 2. Code review (`/code-review`) — single pass
 
@@ -67,6 +72,14 @@ to keep working ("I'll wait for the finder agents…"), or a pointer to a file i
 sub-agents haven't finished, it reports what it has and names what's missing. Without this, a
 fan-out reviewer can return a progress note instead of findings, costing a `SendMessage` round trip
 to retrieve the actual review.
+
+**A "no findings" report must carry its evidence.** Require the reviewer to name the files and code
+paths it actually read to reach that conclusion, and treat a clean report that shows little or no
+reading as **not yet reviewed** — re-dispatch citing the gap, or read the highest-risk paths
+yourself. This has already cost a real bug: a reviewer returned "no correctness bugs… production
+ready" after a *single tool call* over a ~2,800-line diff, and a manual re-read then found that a
+relationship's stored order was being silently dropped, so `og:image` unfurled the wrong photo. An
+empty result is harder to notice than a wrong one — nothing about it looks like a failure.
 
 - **Blocking**: triage every finding. Fix the valid ones (each as its own commit), then re-run the
   lean gate. Note any finding you dismiss with a one-line reason for the report.
