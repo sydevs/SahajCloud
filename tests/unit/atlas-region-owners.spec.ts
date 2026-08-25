@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { CanonicalOwner } from '@/lib/atlas/regionOwners'
 import { canonicalTargetFor, resolveOwnersByRegion } from '@/lib/atlas/regionOwners'
-import { buildRegionPath } from '@/lib/atlas/regionTree'
+import { buildRegionPath, descendantRegionIds } from '@/lib/atlas/regionTree'
 
 /**
  *   1 united-kingdom
@@ -127,5 +127,27 @@ describe('buildRegionPath', () => {
     ['an empty chain', []],
   ])('refuses %s rather than emitting //', (_name, slugs) => {
     expect(buildRegionPath(slugs as Array<string | null | undefined>)).toBeNull()
+  })
+})
+
+describe('descendantRegionIds', () => {
+  // A city's page has to list classes held at its shared venues, which attach to
+  // the venue and not to the city. Containment in the chain is what expresses
+  // "beneath", and it comes off a map the request has already loaded.
+  it('returns the region first, then everything beneath it at any depth', () => {
+    expect(descendantRegionIds(CHAINS, 2)).toEqual([2, 3, 4, 5])
+  })
+
+  it('returns a leaf alone', () => {
+    expect(descendantRegionIds(CHAINS, 4)).toEqual([4])
+  })
+
+  it('never crosses into a sibling root', () => {
+    expect(descendantRegionIds(CHAINS, 6)).toEqual([6])
+    expect(descendantRegionIds(CHAINS, 1)).not.toContain(6)
+  })
+
+  it('still names the region itself when the tree has no entry for it', () => {
+    expect(descendantRegionIds(new Map(), 99)).toEqual([99])
   })
 })
