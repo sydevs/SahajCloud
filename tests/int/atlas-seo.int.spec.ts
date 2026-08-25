@@ -1,6 +1,6 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { atlasSeo } from '@/endpoints/atlasSeo'
 import type { AtlasSeoResponse } from '@/endpoints/responseTypes'
@@ -461,6 +461,63 @@ describe('atlasSeo endpoint', () => {
     it('sets the public read cache headers', async () => {
       const { headers } = await callSeo({ route: '/united-kingdom' })
       expect(headers.get('Cache-Control')).toContain('s-maxage=300')
+    })
+  })
+
+  // A count assertion rather than a timing one: the whole endpoint leans on the
+  // per-request memoization in regionTree/regionOwners, and losing it would show
+  // up as one extra `clients` read per breadcrumb rung — slower, still correct,
+  // and invisible to every other test here.
+  describe('query budget', () => {
+    const countFinds = async <T>(operation: () => Promise<T>): Promise<Record<string, number>> => {
+      const counts: Record<string, number> = {}
+      const original = payload.find.bind(payload)
+      const spy = vi.spyOn(payload, 'find').mockImplementation(((args: never) => {
+        const slug = String((args as { collection: string }).collection)
+        counts[slug] = (counts[slug] ?? 0) + 1
+        return original(args)
+      }) as typeof payload.find)
+      try {
+        await operation()
+      } finally {
+        spy.mockRestore()
+      }
+      return counts
+    }
+
+    it('costs one regions read and one clients read for an event route', async () => {
+      const doc = await readEvent(event.venue)
+      // A venue's trail is three rungs deep, so an unmemoized ownership walk
+      // would be three `clients` reads rather than one — and a `depth: 1` event
+      // read would add a second `regions` read to populate a relationship this
+      // handler reduces to an id.
+      expect(doc.webPath!.split('/').filter(Boolean)).toHaveLength(4)
+      const counts = await countFinds(() => callSeo({ route: doc.webPath! }))
+      expect(counts).toEqual({ regions: 1, clients: 1 })
+    })
+
+    // The common case: most classes have no photos, so they should pay nothing
+    // for the images the endpoint is willing to serve.
+    it('reads images only when the class actually has some', async () => {
+      const image = await testData.createMediaImage(payload, { alt: 'Hall' })
+      const withPhoto = await createEvent({
+        title: 'Photographed Meditation',
+        region: region.sandbox,
+        images: [image.id],
+      })
+      const without = await readEvent(event.city)
+
+      expect(await countFinds(() => callSeo({ route: without.webPath! }))).not.toHaveProperty(
+        'images',
+      )
+      expect(await countFinds(() => callSeo({ route: `/${withPhoto}` }))).toMatchObject({
+        images: 1,
+      })
+    })
+
+    it('adds exactly one events read for a region route', async () => {
+      const counts = await countFinds(() => callSeo({ route: '/united-kingdom' }))
+      expect(counts).toEqual({ regions: 2, clients: 1, events: 1 })
     })
   })
 

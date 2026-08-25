@@ -37,7 +37,6 @@ import type {
 
 import { convertLexicalToPlaintext } from '@payloadcms/richtext-lexical/plaintext'
 
-
 import { ATLAS_WIDGET_LOCALES } from '@/lib/atlas/widgetLocales'
 import { addressOneLine, scheduleOneLine } from '@/lib/notifications/eventDetails'
 import { getLocalTimeHHMM } from '@/lib/schedule/scheduleHooks'
@@ -224,14 +223,23 @@ function scheduleOf(event: Pick<Event, 'schedule' | 'inactive'>): AtlasSeoSchedu
   }
 }
 
-/** Populated upload docs → renderable images. Unpopulated ids are skipped. */
-function imagesOf(event: Pick<Event, 'images'>): AtlasSeoImage[] {
-  return (event.images ?? [])
-    .map((image): AtlasSeoImage | null =>
-      image && typeof image === 'object' && typeof image.url === 'string' && image.url
-        ? { url: image.url, alt: image.alt ?? null }
-        : null,
-    )
+/**
+ * Image docs → renderable images, dropping any whose `url` didn't resolve.
+ *
+ * Exported because the endpoint reads these itself (see
+ * {@link EventSeoInput.images}). `url` is a virtual field over `filename`, so a
+ * read that didn't co-select `filename` yields `null` here — the drop is what
+ * keeps a half-resolved image out of `og:image` rather than emitting a broken
+ * one.
+ */
+export function seoImages(docs: readonly unknown[]): AtlasSeoImage[] {
+  return docs
+    .map((doc): AtlasSeoImage | null => {
+      const image = doc as { url?: unknown; alt?: unknown } | null
+      return image && typeof image === 'object' && typeof image.url === 'string' && image.url
+        ? { url: image.url, alt: typeof image.alt === 'string' ? image.alt : null }
+        : null
+    })
     .filter((image): image is AtlasSeoImage => image !== null)
 }
 
@@ -265,6 +273,13 @@ export interface EventSeoInput {
   canonical: string | null
   /** Region ancestry, root first, with the event itself as the last rung. */
   breadcrumbs: AtlasSeoBreadcrumb[]
+  /**
+   * The class's photos, resolved by the endpoint. Passed in rather than read off
+   * `event.images` so the event itself can be fetched at `depth: 0` — a
+   * `depth: 1` read populates the event's *region* too, which is a whole extra
+   * query for a document reduced to an id moments later.
+   */
+  images: AtlasSeoImage[]
   locale: string
 }
 
@@ -283,6 +298,40 @@ export interface RegionSeoInput {
   events: AtlasSeoEventCard[]
   eventCount: number
   locale: string
+}
+
+/**
+ * The schema.org `location` for a class: a `VirtualLocation` for an online one,
+ * a `Place` for an offline one, and `undefined` when neither is expressible —
+ * an offline class with no address on file says nothing rather than claiming an
+ * empty one.
+ */
+function locationNode(
+  eventType: Event['eventType'],
+  address: AtlasSeoAddress | null,
+  onlineUrl: string | null,
+): JsonLdNode | undefined {
+  if (eventType === 'online') {
+    return compactNode({ '@type': 'VirtualLocation', url: onlineUrl ?? undefined })
+  }
+  if (!address) return undefined
+
+  return compactNode({
+    '@type': 'Place',
+    name: address.venueName ?? undefined,
+    address: compactNode({
+      '@type': 'PostalAddress',
+      streetAddress: [address.street, address.room].filter(Boolean).join(', '),
+      addressLocality: address.city ?? undefined,
+      addressRegion: address.region ?? undefined,
+      postalCode: address.postCode ?? undefined,
+      addressCountry: address.country ?? undefined,
+    }),
+    geo:
+      address.latitude !== null && address.longitude !== null
+        ? { '@type': 'GeoCoordinates', latitude: address.latitude, longitude: address.longitude }
+        : undefined,
+  })
 }
 
 /** The schema.org `Event` node, plus its `Schedule` when the class recurs. */
@@ -311,31 +360,7 @@ function eventNode(input: EventSeoInput, content: AtlasSeoEventContent): JsonLdN
     startDate: schedule.startDate ?? undefined,
     endDate: schedule.endDate ?? undefined,
     image: content.images.map((image) => image.url),
-    location:
-      event.eventType === 'online'
-        ? compactNode({ '@type': 'VirtualLocation', url: content.onlineUrl ?? undefined })
-        : address
-          ? compactNode({
-              '@type': 'Place',
-              name: address.venueName ?? undefined,
-              address: compactNode({
-                '@type': 'PostalAddress',
-                streetAddress: [address.street, address.room].filter(Boolean).join(', '),
-                addressLocality: address.city ?? undefined,
-                addressRegion: address.region ?? undefined,
-                postalCode: address.postCode ?? undefined,
-                addressCountry: address.country ?? undefined,
-              }),
-              geo:
-                address.latitude !== null && address.longitude !== null
-                  ? {
-                      '@type': 'GeoCoordinates',
-                      latitude: address.latitude,
-                      longitude: address.longitude,
-                    }
-                  : undefined,
-            })
-          : undefined,
+    location: locationNode(event.eventType, address, content.onlineUrl),
     eventSchedule: unit
       ? compactNode({
           '@type': 'Schedule',
@@ -353,7 +378,7 @@ function eventNode(input: EventSeoInput, content: AtlasSeoEventContent): JsonLdN
 
 /** The SEO answer for an event route. */
 export function buildEventSeo(input: EventSeoInput): AtlasSeoResponse {
-  const { event, route, canonical, breadcrumbs, locale } = input
+  const { event, route, canonical, breadcrumbs, images, locale } = input
   const paragraphs = lexicalToParagraphs(event.description)
   const content: AtlasSeoEventContent = {
     title: event.title,
@@ -363,7 +388,7 @@ export function buildEventSeo(input: EventSeoInput): AtlasSeoResponse {
     onlineUrl: event.eventType === 'online' ? (event.onlineUrl ?? null) : null,
     website: event.website ?? null,
     paragraphs,
-    images: imagesOf(event),
+    images,
   }
 
   // With no description of its own, an event still has facts worth showing in a

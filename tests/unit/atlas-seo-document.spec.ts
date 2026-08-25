@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 
-
 import { breadcrumbList, compactNode, jsonLdEscape, jsonLdGraph } from '@/endpoints/atlasSeo/jsonLd'
 import {
   buildEventSeo,
@@ -213,6 +212,8 @@ describe('buildEventSeo', () => {
     route: '/gb/london/1204',
     canonical: PATH_CANONICAL,
     breadcrumbs,
+    // Resolved by the endpoint, not read off the event — see `EventSeoInput`.
+    images: [],
     locale: 'en' as const,
   }
 

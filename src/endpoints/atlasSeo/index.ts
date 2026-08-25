@@ -16,7 +16,7 @@ import { publicReadCacheHeaders } from '@/plugins/cache'
 import { assertClientOriginAllowed } from '@/plugins/usage'
 
 import { MAX_ATLAS_ROUTE_LENGTH, parseAtlasRoute } from './atlasRoute'
-import { buildEventSeo, buildRegionSeo, eventCard } from './seoDocument'
+import { buildEventSeo, buildRegionSeo, eventCard, seoImages } from './seoDocument'
 
 /**
  * How many classes a region's listing carries.
@@ -61,6 +61,18 @@ const EVENT_SELECT: SelectType = {
   webPath: true,
   webUrl: true,
 }
+
+/**
+ * Fields an image needs to render as `og:image` or an `<img>`.
+ *
+ * `filename` is co-selected because `url` is virtual and reads it — a select
+ * naming `url` alone yields `null` and the image silently disappears rather
+ * than erroring (see the co-select rule in `.claude/rules/endpoints.md`).
+ */
+const IMAGE_SELECT: SelectType = { url: true, alt: true, filename: true }
+
+/** Photos on a class, at most this many, matching the field's own `maxRows`. */
+const EVENT_IMAGE_LIMIT = 7
 
 /** The subset of the above a listing card needs — no description, no images. */
 const EVENT_CARD_SELECT: SelectType = {
@@ -198,14 +210,17 @@ async function eventSeo(
 ): Promise<AtlasSeoResponse | null> {
   let event: Event
   try {
-    // `depth: 1` populates `images` so `og:image` and the rendered children can
-    // name a real file. `findByID` is exempt from the finished-event list
-    // filter, so an old inbound link to a finished class still resolves — the
-    // same contract `GET /api/events/{id}` keeps (#603).
+    // `depth: 0`, so `images` and `region` come back as ids. Letting Payload
+    // populate them costs a whole extra `regions` read for a document reduced
+    // to an id one line later, and an `images` read for the majority of classes
+    // that have no photos — the images are fetched below, only when there are
+    // any. `findByID` is exempt from the finished-event list filter, so an old
+    // inbound link to a finished class still resolves: the same contract
+    // `GET /api/events/{id}` keeps (#603).
     event = (await req.payload.findByID({
       collection: 'events',
       id: target.id,
-      depth: 1,
+      depth: 0,
       select: EVENT_SELECT,
       locale,
       overrideAccess: false,
@@ -218,6 +233,27 @@ async function eventSeo(
     throw error
   }
 
+  const imageIds = (event.images ?? [])
+    .map((image) => relationId(image))
+    .filter((id): id is number => id !== null)
+    .slice(0, EVENT_IMAGE_LIMIT)
+  const images =
+    imageIds.length === 0
+      ? []
+      : seoImages(
+          (
+            await req.payload.find({
+              collection: 'images',
+              where: { id: { in: imageIds } },
+              limit: EVENT_IMAGE_LIMIT,
+              depth: 0,
+              select: IMAGE_SELECT,
+              overrideAccess: false,
+              req,
+            })
+          ).docs,
+        )
+
   const regionId = relationId(event.region)
   const route = event.webPath ?? `/${event.id}`
   const breadcrumbs = regionId === null ? [] : await regionBreadcrumbs(req, regionId)
@@ -229,6 +265,7 @@ async function eventSeo(
     // The event is the last rung of its own trail; the rungs above it are its
     // region's ancestry.
     breadcrumbs: [...breadcrumbs, { name: event.title, route, url: event.webUrl ?? null }],
+    images,
     locale,
   })
 }
