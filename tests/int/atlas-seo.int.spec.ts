@@ -399,6 +399,41 @@ describe('atlasSeo endpoint', () => {
       expect(body.openGraph['og:image:alt']).toBe('Meditation hall')
     })
 
+    // The lead photo is what a social card unfurls, and `images` is an ordered
+    // field — so the editor's order has to survive the read. It is not free:
+    // the images are fetched with `id in (…)`, which returns rows in database
+    // order, and only Payload's own `depth: 1` populate preserves the field's.
+    //
+    // **Both directions are asserted deliberately.** Whatever the database
+    // happens to order by, one of the two cases must disagree with it — so this
+    // can't pass vacuously the way a single fixed ordering can. The first
+    // version of this test did exactly that: it stayed green with the
+    // reordering deleted.
+    it.each([
+      ['ascending', (low: number, high: number) => [low, high]],
+      ['descending', (low: number, high: number) => [high, low]],
+    ])(
+      'keeps the editor’s image order (%s), so og:image is the lead photo',
+      async (label, order) => {
+        const alpha = await testData.createMediaImage(payload, { alt: `Alpha ${label}` })
+        const beta = await testData.createMediaImage(payload, { alt: `Beta ${label}` })
+        expect(beta.id).toBeGreaterThan(alpha.id)
+
+        const chosen = order(alpha.id, beta.id)
+        const id = await createEvent({
+          title: `Two-Photo Meditation ${label}`,
+          region: region.sandbox,
+          images: chosen,
+        })
+
+        const { body } = await callSeo({ route: `/${id}` })
+        if (body.type !== 'event') throw new Error('expected an event')
+        const expected = chosen.map((imageId) => (imageId === alpha.id ? alpha.url : beta.url))
+        expect(body.content.images.map((image) => image.url)).toEqual(expected)
+        expect(body.openGraph['og:image']).toBe(expected[0])
+      },
+    )
+
     it('closes the breadcrumb trail with the event itself', async () => {
       const doc = await readEvent(event.city)
       const { body } = await callSeo({ route: doc.webPath! })

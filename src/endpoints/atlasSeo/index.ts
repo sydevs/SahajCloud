@@ -202,6 +202,34 @@ async function regionSeo(
   })
 }
 
+/**
+ * A class's photos, **in the order the editor arranged them**.
+ *
+ * `images` is an ordered `hasMany` upload field, and the first entry is the lead
+ * photo — it becomes `og:image`, which is the one a social card unfurls. A
+ * `where: { id: { in: [...] } }` read returns rows in *database* order, so the
+ * ids have to be re-applied afterwards; without this an event whose editor put
+ * image 42 first would unfurl image 7 simply because 7 sorts lower. (Payload's
+ * own `depth: 1` populate preserves the order, which is why reading the images
+ * separately — cheaper for the many classes that have none — has to restore it.)
+ *
+ * Ids with no surviving row (deleted, or not readable by this client) drop out
+ * rather than leaving a hole.
+ */
+async function readImages(req: PayloadRequest, imageIds: number[]): Promise<unknown[]> {
+  const { docs } = await req.payload.find({
+    collection: 'images',
+    where: { id: { in: imageIds } },
+    limit: EVENT_IMAGE_LIMIT,
+    depth: 0,
+    select: IMAGE_SELECT,
+    overrideAccess: false,
+    req,
+  })
+  const byId = new Map(docs.map((doc) => [doc.id, doc as unknown]))
+  return imageIds.map((id) => byId.get(id)).filter((doc) => doc !== undefined)
+}
+
 /** Answer a route that named an event. */
 async function eventSeo(
   req: PayloadRequest,
@@ -237,22 +265,7 @@ async function eventSeo(
     .map((image) => relationId(image))
     .filter((id): id is number => id !== null)
     .slice(0, EVENT_IMAGE_LIMIT)
-  const images =
-    imageIds.length === 0
-      ? []
-      : seoImages(
-          (
-            await req.payload.find({
-              collection: 'images',
-              where: { id: { in: imageIds } },
-              limit: EVENT_IMAGE_LIMIT,
-              depth: 0,
-              select: IMAGE_SELECT,
-              overrideAccess: false,
-              req,
-            })
-          ).docs,
-        )
+  const images = imageIds.length === 0 ? [] : seoImages(await readImages(req, imageIds))
 
   const regionId = relationId(event.region)
   const route = event.webPath ?? `/${event.id}`
