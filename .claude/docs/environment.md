@@ -65,6 +65,33 @@ Copy from `.env.example` and configure:
 1. Go to Cloudflare Dashboard → R2 → Buckets
 2. Note bucket name and create API token with R2 write scope
 
+### Claude-usable credentials (`.env.claude.local`)
+
+Separate from `.env`, gitignored via `.env*.local`, and **never committed**. It
+holds credentials provisioned so an agent can operate infrastructure directly
+rather than handing the steps back:
+
+| Key                     | What it opens                                                                          |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_CLAUDE_KEY` | Cloudflare API token — Cache Rules / rulesets on the `sydevelopers.com` zone            |
+| `ADMIN_PASSWORD`        | `contact@sydevelopers.com` on **production** (`cloud.sydevelopers.com`), via `POST /api/managers/login` |
+
+```bash
+set -a; . ./.env.claude.local; set +a     # then use "$CLOUDFLARE_CLAUDE_KEY"
+```
+
+Never echo the values — redact when printing anything derived from this file,
+and delete any token/JWT written to a scratch file when you're done.
+
+> **Check here before reporting that a credential is unavailable.** The
+> `CLOUDFLARE_*` variables in `.env` are the app's runtime config (Images,
+> Stream, R2, and the purge token) — none of them can edit a Cache Rule, and
+> the Railway CLI is not authenticated on this machine. It's easy to conclude
+> from those three facts that no usable token exists, which is wrong.
+
+The credentials in `AGENTS.md` under "Admin Access" are the **local** dev admin
+(`localhost:{PORT}/admin`) and are unrelated to the production password above.
+
 ### Live Preview URLs
 
 - `WEMEDITATE_WEB_URL` - Preview URL for We Meditate Web frontend (required) — Pages/Meditations live preview + CSP `frame-src`
