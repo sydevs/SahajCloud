@@ -26,4 +26,3 @@ export {
 export type { VerificationStage } from './stages'
 export { readVerifyToken, signVerifyToken, VERIFY_TOKEN_TTL_MS, verifyVerifyToken } from './token'
 export type { VerifyTokenClaims, VerifyTokenResult } from './token'
-export { buildVerifyEmailLink } from './verifyUrl'

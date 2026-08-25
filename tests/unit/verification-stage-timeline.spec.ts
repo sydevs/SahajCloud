@@ -5,28 +5,30 @@ import {
   formatStageDate,
 } from '@/components/admin/VerificationStageField/timeline'
 import type { NotificationLogEntry } from '@/lib/eventVerification/log'
+import { buildReminderEntry, buildVerificationEntry } from '@/lib/eventVerification/log'
+import type { VerificationStage } from '@/lib/eventVerification/stages'
 
 const T0 = '2026-06-06T00:00:00.000Z' // verified (cycle open)
 const T1 = '2026-06-13T00:00:00.000Z' // advanced verified → reminded
 const T2 = '2026-06-20T00:00:00.000Z' // advanced reminded → escalated
 
-const verification: NotificationLogEntry = {
-  kind: 'verification',
-  at: T0,
-  by: { id: 1, name: 'Priya' },
-  method: 're-save',
-}
+// Built by the real builders rather than hand-shaped: entries now carry
+// display cells alongside their machine fields, and a literal here would drift
+// from what the job actually writes.
+const MANAGER = { id: 1, name: 'Priya' }
+
+const verification: NotificationLogEntry = buildVerificationEntry('re-save', MANAGER, T0)
+
 const reminderAt = (stage: string, at: string): NotificationLogEntry =>
-  ({
-    kind: 'reminder',
-    stage,
+  buildReminderEntry({
+    stage: stage as VerificationStage,
     level: 'due',
     role: 'manager',
     at,
-    manager: { id: 1, name: 'Priya' },
+    manager: MANAGER,
     channel: 'email',
     destination: 'p@x.com',
-  }) as NotificationLogEntry
+  })
 
 const byKey = (steps: ReturnType<typeof buildStageTracker>['steps']) =>
   Object.fromEntries(steps.map((s) => [s.key, s]))

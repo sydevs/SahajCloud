@@ -46,6 +46,26 @@ function isActiveNonAdminManager(user: PayloadRequest['user']): boolean {
 }
 
 /**
+ * The registration uuid a client's vote request proves possession of —
+ * `?registrationUuid=` (REST query) with a `req.query` fallback for
+ * handler-forwarded requests.
+ */
+/**
+ * The `?registrationUuid=` a registrant proves possession of to vote.
+ *
+ * `req.query` only — that *is* Payload's parsed query: `createPayloadRequest`
+ * runs the search string through `qs-esm` and sets `query` alongside
+ * `searchParams` on every REST request, so a second read of `searchParams`
+ * could never see anything `query` had missed. It was here anyway, and the
+ * spec's hand-built request couldn't tell: it set `query` and no
+ * `searchParams`, so it only ever exercised the branch that survives.
+ */
+function extractRegistrationUuid(req: PayloadRequest): string | null {
+  const uuid = (req.query as Record<string, unknown> | undefined)?.registrationUuid
+  return typeof uuid === 'string' && uuid ? uuid : null
+}
+
+/**
  * Create unified access config for collections and globals
  *
  * @param collection - Collection slug
@@ -92,6 +112,22 @@ export function createAccessConfig(
           isRegionSubtreeCollection(collection)
         ) {
           return scopeRegionSubtreeWrite({ req, collection, operation, id, data })
+        }
+
+        // A client's registrations `update` grant (the confirm/deny vote) is
+        // scoped to the one registration whose unguessable `uuid` the caller
+        // proves it holds — `?registrationUuid=` on the request. No param, no
+        // access; a mismatched uuid resolves to Not Found. The uuid is the
+        // credential (it's only ever revealed in the register response), so no
+        // login is needed. See registrations' eventFeedback hooks for the
+        // field whitelist + vote gate this composes with.
+        if (
+          operation === 'update' &&
+          req.user?.collection === 'clients' &&
+          collection === 'registrations'
+        ) {
+          const uuid = extractRegistrationUuid(req)
+          return uuid ? { uuid: { equals: uuid } } : false
         }
 
         return true

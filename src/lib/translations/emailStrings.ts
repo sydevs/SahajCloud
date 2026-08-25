@@ -54,6 +54,15 @@ export const EMAIL_STRING_DEFAULTS = {
   reminder_heading: 'Your class is tomorrow',
   reminder_intro: 'Hi %{name}, a quick reminder about your upcoming class.',
   reminder_footer_reason: 'You received this reminder because you registered for this class.',
+  // Post-event follow-up (sent once, after the registered occurrence passed).
+  followup_subject: 'Did %{event} take place?',
+  followup_heading: 'How was %{event}?',
+  followup_intro: 'Hi %{name}, you recently registered for %{event}.',
+  followup_ask:
+    'This listing hasn’t been verified by a local coordinator yet, so your answer really helps: did this class actually take place?',
+  followup_confirm_cta: 'Yes, it took place',
+  followup_deny_cta: 'No — I couldn’t find it',
+  followup_footer_reason: 'You received this because you registered for this class.',
   unsubscribe_cta: 'Unsubscribe from these reminders',
   // Unsubscribe landing page, rendered in the registration's stored locale.
   unsubscribe_heading: 'Unsubscribe from reminders',

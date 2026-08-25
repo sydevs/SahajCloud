@@ -28,6 +28,24 @@ export function asTrustedReq(req: PayloadRequest): PayloadRequest {
 }
 
 /**
+ * The same request with **no user** — a system write, performed in the caller's
+ * transaction but not on the caller's authority.
+ *
+ * `overrideAccess: true` skips collection access, but it does not skip
+ * `filterOptions`, which Payload validates against `req.user`. So a write
+ * triggered by an API client that touches a field with an owner-scoped filter
+ * (the events `region` picker) is refused for a caller who would never pass
+ * that filter — a 400 on an operation the client was entitled to trigger but
+ * not to perform itself. Stripping the user is what says "this part is ours".
+ *
+ * `context`, `transactionID` and `payload` still travel by reference, so the
+ * transaction and any per-request memoization are unaffected.
+ */
+export function asSystemReq(req: PayloadRequest): PayloadRequest {
+  return { ...req, user: null } as PayloadRequest
+}
+
+/**
  * Whether a request was wrapped by {@link asTrustedReq} — i.e. it's an endpoint's
  * own internal read, forwarding the client's `req` rather than serving the
  * client's query directly.

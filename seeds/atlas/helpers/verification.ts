@@ -71,7 +71,7 @@ export function importDeletedAt(
 export interface ImportVerificationFields {
   verificationStage: ImportVerificationStage
   nextCheckAt?: string
-  notificationLog: VerificationLogEntry[]
+  activityLog: VerificationLogEntry[]
 }
 
 /**
@@ -132,7 +132,7 @@ export function buildImportVerification(args: {
       nextCheckAt:
         resolveNextCheckAt({ stage: 'finished', schedule, inactive, now: args.now }) ??
         undefined,
-      notificationLog: [entry],
+      activityLog: [entry],
     }
   }
   return {
@@ -145,6 +145,6 @@ export function buildImportVerification(args: {
         inactive,
         now: args.now,
       }) ?? undefined,
-    notificationLog: [entry],
+    activityLog: [entry],
   }
 }

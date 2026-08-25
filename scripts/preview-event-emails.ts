@@ -205,7 +205,7 @@ async function persistSampleEvent(): Promise<SampleData> {
     data: {
       verificationStage: 'escalated',
       nextCheckAt: iso(13),
-      notificationLog: [
+      activityLog: [
         buildVerificationEntry('import', ref(eventManager.id, eventManager.name!), iso(-35)),
         buildReminderEntry({
           stage: 'verified',
@@ -281,7 +281,7 @@ async function main() {
   const { EventVerificationEmail } = await import('@/emails/EventVerificationEmail')
   const { renderEmail } = await import('@/plugins/email')
   const { signVerifyToken } = await import('@/lib/eventVerification/token')
-  const { buildVerifyEmailLink } = await import('@/lib/eventVerification/verifyUrl')
+  const { buildVerifyEmailLink } = await import('@/jobs/ExpireEvents/verifyUrl')
   const { formatLongDate } = await import('@/lib/notifications')
   const { EVENT_QUALITY_CHECK_METADATA } = await import('@/lib/eventQuality')
 
@@ -374,7 +374,7 @@ async function main() {
 
   const previews: { label: string; url: string | false }[] = []
   for (const { level, audience } of combos) {
-    const token = signVerifyToken({ eventId: sample.eventId, managerId: sample.managerId }, secret)
+    const token = await signVerifyToken({ eventId: sample.eventId, managerId: sample.managerId }, secret)
     const html = await renderEmail(
       createElement(EventVerificationEmail, {
         name: audience === 'region' ? 'Rohan Patil' : sample.managerName,

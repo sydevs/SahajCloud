@@ -1,9 +1,14 @@
 import type { CollectionConfig } from 'payload'
 
-import { legacyMigrationFields } from '@/fields'
+import { legacyMigrationFields, logField } from '@/fields'
 import { DEFAULT_LOCALE, getLocaleOptions } from '@/lib/locales'
 import { registrationQuestionsJsonSchema } from '@/lib/registrations/questions'
 
+import {
+  gateEventFeedback,
+  restrictClientRegistrationUpdate,
+  syncCommunityFeedback,
+} from './hooks/eventFeedback'
 import { syncFullnessAfterChange, syncFullnessAfterDelete } from './hooks/syncFullness'
 
 /**
@@ -19,9 +24,14 @@ export const Registrations: CollectionConfig = {
     hidden: true,
   },
   // Keep the owning event's denormalized `registrationsFull` flag in step as
-  // registrations come and go (see the event's registrationsFull field).
+  // registrations come and go (see the event's registrationsFull field), and
+  // roll confirm/deny votes up onto the event (`syncCommunityFeedback`). A
+  // client update is whitelisted to the `eventFeedback` field and gated on the
+  // event still being published + unverified.
   hooks: {
-    afterChange: [syncFullnessAfterChange],
+    beforeValidate: [restrictClientRegistrationUpdate],
+    beforeChange: [gateEventFeedback],
+    afterChange: [syncFullnessAfterChange, syncCommunityFeedback],
     afterDelete: [syncFullnessAfterDelete],
   },
   fields: [
@@ -119,15 +129,51 @@ export const Registrations: CollectionConfig = {
       type: 'date',
       admin: { readOnly: true },
     },
+    logField({
+      // Everything recorded about this registration — the reminders and the
+      // post-event follow-up today, and whatever else earns a line later
+      // (created, cancelled). It was `reminderLog`: reminders only, and
+      // `admin.readOnly` json with no renderer, so the one question it could
+      // answer ("did that go out?") needed a database query to ask.
+      //
+      // Doubles as the exactly-once guard: each job checks `hasLogEntry`
+      // before sending and appends immediately after, so a task retry or an
+      // overlapping run never double-sends.
+      description: 'Everything recorded about this registration, newest first.',
+      columns: [
+        { key: 'activity', label: 'Event' },
+        { key: 'sentTo', label: 'Sent to' },
+      ],
+    }),
     {
-      // Exactly-once ledger for session reminders: one entry per occurrence
-      // this registration has already been reminded for. The reminder job
-      // checks membership before sending and appends immediately after, so a
-      // task retry or an overlapping run never double-sends. Mirrors the Events
-      // `notificationLog` pattern.
-      name: 'reminderLog',
-      type: 'json',
-      admin: { readOnly: true },
+      type: 'row',
+      fields: [
+        {
+          // The registrant's community verdict on an UNVERIFIED event — "did
+          // this class actually take place?". One vote per registration
+          // (that's the dedup), re-votable while the event stays unverified;
+          // the write is authenticated by possession of the registration
+          // `uuid` (see registrationFeedbackAccess). The vote-sync hook rolls
+          // tallies up onto the event.
+          name: 'eventFeedback',
+          type: 'select',
+          options: [
+            { label: 'Confirmed', value: 'confirmed' },
+            { label: 'Denied', value: 'denied' },
+          ],
+          enumName: 'enum_registrations_event_feedback',
+          admin: { description: 'Registrant’s verdict on an unverified event.' },
+        },
+        {
+          // The follow-up sweep's query filter — `activityLog` records *that* it
+          // was sent, but nothing can `where` on a JSON column cheaply, so the
+          // scan still needs a real dated column to select on. Record and
+          // filter are different jobs; see `logField`.
+          name: 'followUpSentAt',
+          type: 'date',
+          admin: { hidden: true },
+        },
+      ],
     },
     ...legacyMigrationFields(),
   ],

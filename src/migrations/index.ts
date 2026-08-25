@@ -40,11 +40,15 @@ import * as migration_20260805_015327_drop_event_title_localization from './2026
 import * as migration_20260805_184012_replace_registration_questions from './20260805_184012_replace_registration_questions';
 import * as migration_20260812_022527_add_unverified_denied_stages from './20260812_022527_add_unverified_denied_stages';
 import * as migration_20260812_032435_add_event_submissions from './20260812_032435_add_event_submissions';
+import * as migration_20260812_034732_add_registration_event_feedback from './20260812_034732_add_registration_event_feedback';
 import * as migration_20260819_002657_add_client_canonical from './20260819_002657_add_client_canonical';
 import * as migration_20260819_002715_drop_client_legacy_config from './20260819_002715_drop_client_legacy_config';
 import * as migration_20260820_011749_submission_proposal_patch from './20260820_011749_submission_proposal_patch';
 import * as migration_20260820_151908_submission_title from './20260820_151908_submission_title';
 import * as migration_20260820_202018_submission_manager from './20260820_202018_submission_manager';
+import * as migration_20260825_005719_drop_event_feedback_at from './20260825_005719_drop_event_feedback_at';
+import * as migration_20260825_041552_activity_log from './20260825_041552_activity_log';
+import * as migration_20260825_150733_events_activity_log from './20260825_150733_events_activity_log';
 
 export const migrations = [
   {
@@ -258,6 +262,11 @@ export const migrations = [
     name: '20260812_032435_add_event_submissions',
   },
   {
+    up: migration_20260812_034732_add_registration_event_feedback.up,
+    down: migration_20260812_034732_add_registration_event_feedback.down,
+    name: '20260812_034732_add_registration_event_feedback',
+  },
+  {
     up: migration_20260819_002657_add_client_canonical.up,
     down: migration_20260819_002657_add_client_canonical.down,
     name: '20260819_002657_add_client_canonical',
@@ -280,6 +289,21 @@ export const migrations = [
   {
     up: migration_20260820_202018_submission_manager.up,
     down: migration_20260820_202018_submission_manager.down,
-    name: '20260820_202018_submission_manager'
+    name: '20260820_202018_submission_manager',
+  },
+  {
+    up: migration_20260825_005719_drop_event_feedback_at.up,
+    down: migration_20260825_005719_drop_event_feedback_at.down,
+    name: '20260825_005719_drop_event_feedback_at',
+  },
+  {
+    up: migration_20260825_041552_activity_log.up,
+    down: migration_20260825_041552_activity_log.down,
+    name: '20260825_041552_activity_log',
+  },
+  {
+    up: migration_20260825_150733_events_activity_log.up,
+    down: migration_20260825_150733_events_activity_log.down,
+    name: '20260825_150733_events_activity_log'
   },
 ];

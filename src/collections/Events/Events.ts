@@ -17,6 +17,7 @@ import {
   addressFields,
   hideUntilCreated,
   legacyMigrationFields,
+  logField,
   publicUrlFields,
   scheduleFields,
   systemMetaField,
@@ -553,20 +554,25 @@ export const Events: CollectionConfig = {
                 components: { Field: '@/components/admin/VerificationStageField' },
               },
             },
-            {
-              // Current cycle's ledger: the verification that opened it plus a
-              // reminder entry per send. Reset on every verification, and the
-              // job's exactly-once marker (skip recipients already logged this
-              // stage). Read-only, rendered by NotificationLogTable.
-              name: 'notificationLog',
-              type: 'json',
-              admin: {
-                readOnly: true,
-                description:
-                  'Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.',
-                components: { Field: '@/components/admin/NotificationLogTable' },
-              },
-            },
+            logField({
+              // The verification cycle today — the verification that opened it
+              // plus a reminder entry per send — but named generically, because
+              // an event's history will grow past verification. Reset on every
+              // verification, which is why it stays its own field rather than
+              // accumulating like a registration's.
+              //
+              // Also the job's exactly-once marker (skip recipients already
+              // logged this stage), which reads entries as data: the builders
+              // emit these cells *alongside* `stage` / `level` / `manager`, and
+              // the row's ⋯ shows the rest.
+              description:
+                'Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.',
+              columns: [
+                { key: 'activity', label: 'Event' },
+                { key: 'who', label: 'Who' },
+                { key: 'delivery', label: 'Delivery' },
+              ],
+            }),
             {
               // Wilson lower bound of registrant confirm/deny votes, in [0, 1];
               // null until the first vote. A real, indexed column — unlike the

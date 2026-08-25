@@ -89,6 +89,26 @@ package (v6 unified them — the older `@react-email/components` and
 | `EventRegistrationEmail.tsx` | Manager-facing notice that a seeker registered — Sahaj Atlas project brand; event/registrant/start-date `DetailRow`s, the registrant's forwarded question answers (resolved via `buildRegistrationAnswers`), and a `BrandButtonRow` of Reply (a `mailto:` pre-filled with a quoted recap) + View event. Also exports `buildReplyBody`. Informational (no alert callout). |
 | `ContactAdminEmail.tsx` | Admin-facing message sent on a viewer's behalf via `POST /api/contact-admin` (#602) — the informational shape (no callout, no CTA: replying *is* the action, and `Reply-To` is already the sender). Deliberately caller-agnostic: the message, then a `DetailRow` block built by the exported `buildContactDetails` from whatever context the caller sent, each row omitted when its value is absent. |
 | `RegistrationDigestEmail.tsx` | Manager-facing digest (#589) — Sahaj Atlas project brand; new registrations grouped by event, one email per recipient per period. Each registration is a card: an inline identity line (name · email · "Attending" session) plus the registrant's question answers; a compact `formatShortDate` is used for the session. Also exports `registrationDigestText`. Sent by the `SendRegistrationDigests` job. |
+| `PostEventFollowUpEmail.tsx` | Registrant follow-up after a session they attended (#626) — client-branded, localized, plain-text alternative via `postEventFollowUpText`. Built from composable `sections` rather than a fixed body, so later follow-up kinds (feedback forms, event promotion) can be added without another template. Today's only section is the **feedback ask** — "did this class take place?" with confirm/deny buttons — emitted only for an event still published and `unverified`; with no sections the job sends nothing and leaves its watermark unstamped, so those registrations stay eligible for a future follow-up type. Sent by the `SendPostEventFollowUps` job. |
+
+### Registrant mail: the six things, every time
+
+Registrant-facing mail is the shape most easily got half-right — the follow-up
+email shipped sharing the layout components but missing four of these, which is
+what prompted writing them down. A new registrant template and its sender do
+**all six**:
+
+| # | What | Why it isn't optional |
+| --- | --- | --- |
+| 1 | `brand = client ? getClientEmailBrand(client) : getEmailBrand('sahaj-atlas')` | Registrant mail is branded per **client service**, not per project. The project brand is a fallback, not the default. |
+| 2 | `strings = await resolveEmailStrings({ payload, locale, req })` | The registration stores a `locale` for exactly this. Hardcoded English in JSX silently ships English to every locale. |
+| 3 | `from: headerDisplayName(brand.productName) <CONTACT_EMAIL>` | Resend verifies senders per domain, so we can't send *as* the client; the display name carries the branding, and `headerDisplayName` strips what would break the header. |
+| 4 | `replyTo: client.supportEmail` when set | Otherwise replies reach nobody who can answer. |
+| 5 | `subject: stripNewlines(...)` | Event titles are manager-authored free text; a CR/LF starts a second header. |
+| 6 | `text: <template>Text(props)` | A message with no plain-text part scores worse with spam filters and renders as nothing in a text-only client. Every registrant template exports one. |
+
+`sendSessionReminder` is the reference implementation; copy its shape rather
+than a template's.
 
 ### Manager mail vs registrant mail
 

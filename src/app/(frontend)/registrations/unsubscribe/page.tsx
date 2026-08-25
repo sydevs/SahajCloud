@@ -41,7 +41,7 @@ export default async function UnsubscribePage({
   const brand = getEmailBrand(BRAND)
   const iconSrc = getProjectEmailIcon(BRAND)
 
-  const result = readUnsubscribeToken(token, payload.secret)
+  const result = await readUnsubscribeToken(token, payload.secret)
 
   // Missing / malformed / tampered → the page does not exist.
   if (result.status !== 'valid') notFound()

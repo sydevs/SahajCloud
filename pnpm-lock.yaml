@@ -101,6 +101,9 @@ importers:
       iso-639-1:
         specifier: ^3.1.5
         version: 3.1.5
+      jose:
+        specifier: 5.10.0
+        version: 5.10.0
       lexical:
         specifier: 0.41.0
         version: 0.41.0

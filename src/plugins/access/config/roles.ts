@@ -111,8 +111,12 @@ const ROLES = {
     // update proposals through the built-in create endpoint (guarded by the
     // write-guard plugin), but must never read submissions back — the
     // collection is restricted (submitter emails).
+    // `registrations: update` is the confirm/deny vote — scoped in
+    // accessConfigs to the one registration whose uuid the request proves
+    // possession of, and whitelisted to the `eventFeedback` field.
     permissions: {
       'event-submissions': ['create'] as PermissionLevel[],
+      registrations: ['update'] as PermissionLevel[],
     },
   },
 } as const

@@ -26,3 +26,92 @@ export const communityFeedbackJsonSchema: JSONSchema4 = {
     updatedAt: { type: 'string', description: 'ISO timestamp of the last vote applied.' },
   },
 }
+
+export interface CommunityFeedback {
+  /** Registrants who confirmed the event exists. */
+  confirmations: number
+  /** Registrants who denied it. */
+  denials: number
+  /** ISO timestamp of the last vote applied. */
+  updatedAt: string
+}
+
+/** Denials required before the community verdict can unpublish a listing. */
+export const DENIAL_MINIMUM = 5
+
+/**
+ * Wilson upper bound below which a listing counts as community-rejected: even
+ * the most optimistic read of the votes says under half the registrants
+ * confirm it exists.
+ */
+export const WILSON_UPPER_BOUND_THRESHOLD = 0.5
+
+export interface CommunityVerdict {
+  /** Wilson lower bound (the ranking score), null until the first vote. */
+  score: number | null
+  /** Wilson upper bound, null until the first vote. */
+  upperBound: number | null
+  /** Whether the denial threshold is met (≥5 denials AND upper bound < 0.5). */
+  denied: boolean
+}
+
+/**
+ * The community verdict for a vote tally — pure, so the thresholds are
+ * unit-testable without Payload. Uses the Wilson score interval (95%): the
+ * lower bound ranks listings conservatively (few votes ⇒ low confidence), the
+ * upper bound drives the unpublish rule.
+ */
+export function computeCommunityVerdict(args: {
+  confirmations: number
+  denials: number
+}): CommunityVerdict {
+  const { confirmations, denials } = args
+  const total = confirmations + denials
+  if (total <= 0) return { score: null, upperBound: null, denied: false }
+  const { left, right } = wilsonInterval(confirmations, total)
+  return {
+    score: left,
+    upperBound: right,
+    denied: denials >= DENIAL_MINIMUM && right < WILSON_UPPER_BOUND_THRESHOLD,
+  }
+}
+
+/** 1 − α/2 percentile of the standard normal for α = 5%. */
+const Z = 1.96
+
+/**
+ * The Wilson score interval for `up` successes in `total` trials, at 95%
+ * confidence. Closed-form: https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval#Wilson_score_interval
+ *
+ * Inlined rather than taken from `wilson-score-interval`, which was six lines
+ * of the same arithmetic shipping no types — so it also obliged us to
+ * hand-write an ambient module declaration, a contract that could silently
+ * disagree with the package it described. The repo prefers a dependency over
+ * hand-rolled code where the dependency absorbs edge cases; a closed-form
+ * formula with a unit test pinning its values has none to absorb.
+ */
+function wilsonInterval(up: number, total: number): { left: number; right: number } {
+  if (total === 0) return { left: 0, right: 0 }
+  const phat = up / total
+  const a = phat + (Z * Z) / (2 * total)
+  const b = Z * Math.sqrt((phat * (1 - phat) + (Z * Z) / (4 * total)) / total)
+  const c = 1 + (Z * Z) / total
+  return { left: (a - b) / c, right: (a + b) / c }
+}
+
+/**
+ * Safely read `communityFeedback` off a raw `systemMeta` value (a JSON field —
+ * anything at runtime). Returns null when absent or malformed.
+ */
+export function readCommunityFeedback(systemMeta: unknown): CommunityFeedback | null {
+  if (!systemMeta || typeof systemMeta !== 'object') return null
+  const feedback = (systemMeta as { communityFeedback?: unknown }).communityFeedback
+  if (!feedback || typeof feedback !== 'object') return null
+  const { confirmations, denials, updatedAt } = feedback as Record<string, unknown>
+  if (typeof confirmations !== 'number' || typeof denials !== 'number') return null
+  return {
+    confirmations,
+    denials,
+    updatedAt: typeof updatedAt === 'string' ? updatedAt : '',
+  }
+}
