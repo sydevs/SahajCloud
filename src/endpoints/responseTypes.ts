@@ -88,8 +88,13 @@ export type AtlasSeoOpenGraph = Record<string, string>
 /** One rung of the region ancestry, root first, ending at the page itself. */
 export type AtlasSeoBreadcrumb = {
   name: string
-  /** Atlas route, e.g. `/gb/london`. Always present. */
-  route: string
+  /**
+   * Atlas route, e.g. `/gb/london` — or `null` when no path can be built for
+   * that rung, which happens when a region in the chain has a blank slug. It
+   * goes `null` in exactly the cases `url` does, rather than an empty string
+   * that would render as a link back to the current page.
+   */
+  route: string | null
   /** Canonical URL for that route, or `null` when one can't be published. */
   url: string | null
 }

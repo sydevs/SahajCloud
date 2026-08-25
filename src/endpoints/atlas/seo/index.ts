@@ -87,6 +87,9 @@ const EVENT_CARD_SELECT: SelectType = {
   webUrl: true,
 }
 
+/** Pre-computed for the schema validation message (static, immutable). */
+const VALID_LOCALES_LIST = LOCALES.map((locale) => locale.code).join(', ')
+
 const querySchema = z.object({
   route: z.string().min(1).max(MAX_ATLAS_ROUTE_LENGTH),
   locale: z
@@ -94,7 +97,7 @@ const querySchema = z.object({
     .max(20)
     .optional()
     .refine((value) => value === undefined || isValidLocale(value), {
-      message: `Unknown locale. Expected one of: ${LOCALES.map((locale) => locale.code).join(', ')}.`,
+      message: `Unknown locale. Expected one of: ${VALID_LOCALES_LIST}.`,
     }),
 })
 
@@ -120,7 +123,10 @@ async function regionBreadcrumbs(
   return Promise.all(
     chain.map(async (ancestorId) => ({
       name: nameById.get(ancestorId) ?? '',
-      route: pathById.get(ancestorId) ?? '',
+      // `null`, not `''`, when the chain has a blank slug and no path can be
+      // built — an empty string would render as a link back to the current
+      // page. It goes null in exactly the cases `url` does.
+      route: pathById.get(ancestorId) ?? null,
       url: await getCanonicalUrlForRegion(req, ancestorId),
     })),
   )
@@ -161,7 +167,7 @@ async function regionSeo(
   // would be invisible on the page a seeker actually lands on.
   const regionIds = descendantRegionIds(chainById, region.id)
 
-  const [breadcrumbs, listing] = await Promise.all([
+  const [breadcrumbs, listing, locales] = await Promise.all([
     regionBreadcrumbs(req, region.id),
     req.payload.find({
       collection: 'events',
@@ -176,11 +182,16 @@ async function regionSeo(
       overrideAccess: false,
       req,
     }),
-    // Finished events drop out here without being asked for: the
-    // `excludeFinishedEvents` beforeOperation hook ANDs its predicate onto this
+    // ^ Finished events drop out of that read without being asked for: the
+    // `excludeFinishedEvents` beforeOperation hook ANDs its predicate onto the
     // list read, exactly as it does for `GET /api/events`. A region page
     // listing classes that have already ended would be the one surface
     // contradicting the feed.
+    //
+    // The enabled languages ride along rather than being awaited afterwards —
+    // one more independent read, and the first caller in a request pays a real
+    // round trip for it.
+    getAtlasLocales(req),
   ])
 
   const events: AtlasSeoEventCard[] = (listing.docs as Event[]).map((doc) =>
@@ -188,7 +199,7 @@ async function regionSeo(
   )
 
   return buildRegionSeo({
-    locales: await getAtlasLocales(req),
+    locales,
     id: region.id,
     name: region.name ?? '',
     subtitle: region.subtitle ?? null,
@@ -267,14 +278,23 @@ async function eventSeo(
     .map((image) => relationId(image))
     .filter((id): id is number => id !== null)
     .slice(0, EVENT_IMAGE_LIMIT)
-  const images = imageIds.length === 0 ? [] : seoImages(await readImages(req, imageIds))
 
   const regionId = relationId(event.region)
   const route = event.webPath ?? `/${event.id}`
-  const breadcrumbs = regionId === null ? [] : await regionBreadcrumbs(req, regionId)
+
+  // Parallelize independent reads: images, breadcrumbs, and locales.
+  // Independent reads, so they overlap. Each is skipped entirely when there is
+  // nothing to fetch — most classes have no photos, and only a region-less
+  // event has no ancestry.
+  const [rawImages, breadcrumbs, locales] = await Promise.all([
+    imageIds.length === 0 ? Promise.resolve([]) : readImages(req, imageIds),
+    regionId === null ? Promise.resolve([]) : regionBreadcrumbs(req, regionId),
+    getAtlasLocales(req),
+  ])
+  const images = seoImages(rawImages)
 
   return buildEventSeo({
-    locales: await getAtlasLocales(req),
+    locales,
     event,
     route,
     canonical: event.webUrl ?? null,
@@ -365,9 +385,7 @@ export const atlasSeo: Endpoint = {
     if (!parsed.ok) return parsed.response
     // The schema already refused anything else; this narrows `string` to the
     // locale union the reads take, without a cast.
-    const requested = parsed.data.locale
-    const locale: LocaleCode =
-      requested !== undefined && isValidLocale(requested) ? requested : DEFAULT_LOCALE
+    const locale: LocaleCode = parsed.data.locale ?? DEFAULT_LOCALE
 
     const target = parseAtlasRoute(parsed.data.route)
     if (!target) return errorResponse('That route does not name a region or an event.', 404)

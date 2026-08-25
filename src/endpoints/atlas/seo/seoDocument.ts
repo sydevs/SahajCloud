@@ -348,8 +348,7 @@ function locationNode(
 function eventNode(input: EventSeoInput, content: AtlasSeoEventContent): JsonLdNode {
   const { event, canonical } = input
   const { schedule, address } = content
-  const interval =
-    event.schedule?.interval && event.schedule.interval > 1 ? event.schedule.interval : 1
+  const interval = Math.max(event.schedule?.interval ?? 0, 1)
   const unit = schedule.recurrence ? REPEAT_UNIT[schedule.recurrence] : undefined
   const startTime =
     schedule.startDate && schedule.timezone
@@ -432,8 +431,19 @@ export function buildEventSeo(input: EventSeoInput): AtlasSeoResponse {
 
 /** The SEO answer for a region route. */
 export function buildRegionSeo(input: RegionSeoInput): AtlasSeoResponse {
-  const { id, name, subtitle, level, route, canonical, breadcrumbs, events, eventCount, locale, locales } =
-    input
+  const {
+    id,
+    name,
+    subtitle,
+    level,
+    route,
+    canonical,
+    breadcrumbs,
+    events,
+    eventCount,
+    locale,
+    locales,
+  } = input
 
   const content: AtlasSeoRegionContent = {
     name,
