@@ -1,0 +1,12 @@
+/*
+ * Rows open their full entry in a drawer, so they need to look clickable —
+ * `cursor` is the only part of that the inline styles can't express, since it
+ * belongs on Payload's own `<tr>`.
+ */
+.log-table tbody tr {
+  cursor: zoom-in;
+}
+
+.log-table tbody tr:hover {
+  background: var(--theme-elevation-50);
+}

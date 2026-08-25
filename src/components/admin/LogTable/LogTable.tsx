@@ -2,7 +2,15 @@
 
 import type { FieldClientComponent, JSONFieldClient } from 'payload'
 
-import { FieldDescription, FieldLabel, Table, useField } from '@payloadcms/ui'
+import {
+  Drawer,
+  FieldDescription,
+  FieldLabel,
+  Table,
+  useDrawerSlug,
+  useField,
+  useModal,
+} from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
 import React, { useState } from 'react'
 
@@ -11,12 +19,7 @@ import { asLog } from '@/fields/logField'
 
 import { tableColumn } from '../tableColumn'
 
-/** Which row's details are open, and where to hang the panel. */
-interface ActiveRow {
-  index: number
-  /** Pixels from the top of the wrapper — just below the row. */
-  top: number
-}
+import './styles.css'
 
 /**
  * The renderer for every {@link logField} — what happened to this document,
@@ -33,24 +36,21 @@ interface ActiveRow {
  * Only `cells` renders as columns. The rest of an entry is machine data a job
  * reads back (a reminder carries its stage, level, role and recipient id), and
  * rendering those turned the verification log into fourteen columns of raw enum
- * values. It isn't lost: **hovering anywhere on a row** opens the whole entry as
- * JSON, which answers "why did that go there?" when no column says.
+ * values. It isn't lost: **clicking a row** opens the whole entry as JSON in a
+ * `Drawer`, which answers "why did that go there?" when no column says.
  *
- * That replaced a trailing ⋯ column, which on a narrow window sat off the right
- * edge of the table's scroll area — the details were present and unreachable.
- * The panel is pinned to both edges of the table instead of to the row, so it
- * cannot repeat that trick at any width.
+ * Two earlier shapes are worth not repeating. A trailing ⋯ column sat at the
+ * far right of the table's horizontal scroll area, so on a narrow window the
+ * details were present and unreachable. A hover panel reached them at any
+ * width, but opened and closed as the pointer crossed the table — motion
+ * nobody asked for while reading. A click is deliberate, and Payload's own
+ * `Drawer` handles the overlay, focus trap and dismissal.
  *
- * `@payloadcms/ui`'s `Table` takes only `columns` and `data` — it exposes
- * nothing per row, so hover is handled by **one delegated listener** on the
- * wrapper, which resolves the row with `closest('tr')`. Wrapping each cell
- * instead was the first attempt and left the cell *padding* dead: the pointer
- * crossing the gap between two values dismissed the panel. Delegation covers
- * the whole row including its padding, needs no per-cell markup, and still
- * leaves Payload's table to render itself.
- *
- * Payload writes our own array index into `data-id`, which is what makes a row
- * identifiable from the event target without owning the `<tr>`.
+ * `Table` takes only `columns` and `data` — it exposes nothing per row, so the
+ * click is **one delegated listener** on the wrapper, which resolves the row
+ * with `closest('tr[data-id]')`. Payload writes our own array index into
+ * `data-id`, so the row is identifiable without owning the `<tr>`; the cursor
+ * is the one thing that has to be a stylesheet rule, for the same reason.
  */
 export const LogTable: FieldClientComponent = ({ field }) => {
   const { name, label, admin } = field as JSONFieldClient
@@ -63,15 +63,18 @@ export const LogTable: FieldClientComponent = ({ field }) => {
   const declared = admin?.custom?.columns as LogColumn[] | undefined
   const columns = declared?.length ? declared : derivedColumns(entries)
 
-  const [active, setActive] = useState<ActiveRow | null>(null)
+  const [selected, setSelected] = useState<number | null>(null)
+  const drawerSlug = useDrawerSlug('log-entry')
+  const { openModal } = useModal()
 
-  /** Resolve the row under the pointer (or focus) and open its details. */
+  /** Resolve the clicked row and open its entry. */
   const openRow = (target: EventTarget | null) => {
     const row = (target as HTMLElement | null)?.closest?.('tr[data-id]')
     if (!(row instanceof HTMLElement)) return
     const index = Number(row.dataset.id)
     if (!Number.isInteger(index)) return
-    setActive({ index, top: row.offsetTop + row.offsetHeight })
+    setSelected(index)
+    openModal(drawerSlug)
   }
 
   return (
@@ -82,18 +85,14 @@ export const LogTable: FieldClientComponent = ({ field }) => {
           <div style={emptyStyle}>Nothing recorded yet.</div>
         ) : (
           <div
-            style={wrapperStyle}
-            // `mouseOver` rather than `mouseEnter`: it bubbles, so one listener
-            // covers every row and every pixel of it.
-            onMouseOver={(event) => openRow(event.target)}
-            // Focus bubbles too (focusin), so the same listener serves the
-            // keyboard — hover alone is unreachable, and this panel is the only
-            // route to an entry's machine fields.
-            onFocus={(event) => openRow(event.target)}
-            // Closing on the wrapper rather than per row keeps the panel open
-            // while the pointer travels across the row, and over the panel
-            // itself — otherwise its JSON would be unselectable.
-            onMouseLeave={() => setActive(null)}
+            className="log-table"
+            // One delegated listener rather than per-cell handlers: it covers
+            // the whole row including its padding, and needs no extra markup
+            // inside Payload's cells.
+            onClick={(event) => openRow(event.target)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') openRow(event.target)
+            }}
           >
             <Table
               appearance="condensed"
@@ -120,10 +119,10 @@ export const LogTable: FieldClientComponent = ({ field }) => {
                 ),
               ]}
             />
-            {active ? (
-              <div style={{ ...panelStyle, top: active.top }}>
-                <pre style={jsonStyle}>{JSON.stringify(entries[active.index], null, 2)}</pre>
-              </div>
+            {selected !== null ? (
+              <Drawer slug={drawerSlug} title="Activity entry">
+                <pre style={jsonStyle}>{JSON.stringify(entries[selected], null, 2)}</pre>
+              </Drawer>
             ) : null}
           </div>
         )}
@@ -176,32 +175,19 @@ function formatLogDate(iso: string): string {
   return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }
 
-const wrapperStyle: React.CSSProperties = { position: 'relative' }
 /** The keyboard entry point; the focus ring is the browser's own. */
 const focusableStyle: React.CSSProperties = { display: 'inline-block' }
-const panelStyle: React.CSSProperties = {
-  position: 'absolute',
-  left: 0,
-  right: 0,
-  zIndex: 10,
-  background: 'var(--theme-input-bg)',
-  border: '1px solid var(--theme-elevation-150)',
-  borderRadius: 'var(--style-radius-m)',
-  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
-}
 /**
- * The **only** scrolling box here. The previous version nested this inside
- * Payload's `Popup`, which scrolls too — two scrollbars on one panel, and a
- * wheel gesture that moved whichever the pointer happened to be over.
+ * The drawer scrolls itself, so this must not: nesting a scrolling `<pre>`
+ * inside a scrolling container gave two scrollbars on one panel, and a wheel
+ * gesture that moved whichever the pointer happened to be over.
  */
 const jsonStyle: React.CSSProperties = {
   margin: 0,
-  padding: 'calc(var(--base) * 0.5)',
-  fontSize: '11px',
-  lineHeight: 1.5,
-  maxHeight: '320px',
-  overflow: 'auto',
-  whiteSpace: 'pre',
+  fontSize: '12px',
+  lineHeight: 1.6,
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
   color: 'var(--theme-elevation-800)',
 }
 const mutedStyle: React.CSSProperties = { color: 'var(--theme-elevation-500)' }
