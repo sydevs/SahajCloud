@@ -63,13 +63,14 @@ export type EmbedMetadata = Record<string, EmbedMountRecord>
 /**
  * Upper bound on stored mounts per client. A forged report can only ever assert
  * viability for a mount someone already designated canonical, but it can still
- * invent keys — this caps what that costs us, evicting least-recently-seen
- * mounts first. Far above any real site's embed count.
+ * invent keys — this caps what that costs us. Far above any real site's embed
+ * count.
  *
- * A bound on *storage*, never on which mounts are knowable: a client at the cap
- * still reports a new mount, so which 50 are held reflects what is currently
- * live rather than what arrived first (#639). The one mount the cap will not
- * spend is the designated canonical — see {@link MergeEmbedReportArgs.pinned}.
+ * A bound on *storage*, never on which mounts are knowable (#639): a client at
+ * the cap still reports a new mount, evicting the least-recently-seen to make
+ * room, so which 50 are held reflects what is currently live rather than what
+ * arrived first. The one mount it will not spend is the designated canonical —
+ * see {@link MergeEmbedReportArgs.pinned}.
  */
 export const MAX_EMBED_MOUNTS = 50
 
@@ -325,7 +326,6 @@ export function mergeEmbedReport(args: MergeEmbedReportArgs): MergeEmbedReportRe
   }
 
   const metadata: EmbedMetadata = { ...current, [key]: { ...observation, lastSeen: at } }
-  const protectedKeys = new Set([key])
-  if (pinned) protectedKeys.add(pinned)
+  const protectedKeys = new Set(pinned ? [key, pinned] : [key])
   return { metadata, changed: true, evicted: evictOldest(metadata, protectedKeys) }
 }
