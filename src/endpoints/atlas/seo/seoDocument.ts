@@ -37,7 +37,6 @@ import type {
 
 import { convertLexicalToPlaintext } from '@payloadcms/richtext-lexical/plaintext'
 
-import { ATLAS_WIDGET_LOCALES } from '@/lib/atlas/widgetLocales'
 import { addressOneLine, scheduleOneLine } from '@/lib/notifications/eventDetails'
 import { getLocalTimeHHMM } from '@/lib/schedule/scheduleHooks'
 import type { Event } from '@/payload-types'
@@ -123,8 +122,12 @@ export function truncateAtWord(text: string, max: number): string {
 }
 
 /**
- * Every `<link rel="alternate">` row for a canonical URL: one per widget
+ * Every `<link rel="alternate">` row for a canonical URL: one per enabled
  * locale, plus `x-default` pointing at the bare canonical.
+ *
+ * `locales` comes from the `sy-atlas-config` global (see `./atlasLocales`), not
+ * from a constant — an operator turning a language off has to stop us telling
+ * crawlers that language still has a page.
  *
  * `x-default` is the canonical *unchanged* because that URL genuinely serves
  * every visitor — the widget picks a language from the page, the browser or its
@@ -134,11 +137,14 @@ export function truncateAtWord(text: string, max: number): string {
  * Returns `[]` with no canonical: an hreflang cluster whose members are guesses
  * is worse than none.
  */
-export function hreflangAlternates(canonical: string | null): AtlasSeoAlternate[] {
-  if (!canonical) return []
+export function hreflangAlternates(
+  canonical: string | null,
+  locales: readonly string[],
+): AtlasSeoAlternate[] {
+  if (!canonical || locales.length === 0) return []
   const separator = canonical.includes('?') ? '&' : '?'
   return [
-    ...ATLAS_WIDGET_LOCALES.map((code) => ({
+    ...locales.map((code) => ({
       hreflang: code,
       href: `${canonical}${separator}${LOCALE_QUERY_PARAM}=${code}`,
     })),
@@ -281,6 +287,8 @@ export interface EventSeoInput {
    */
   images: AtlasSeoImage[]
   locale: string
+  /** Enabled atlas locales, for the hreflang cluster. */
+  locales: readonly string[]
 }
 
 /** Everything the endpoint resolved for a region route. */
@@ -298,6 +306,8 @@ export interface RegionSeoInput {
   events: AtlasSeoEventCard[]
   eventCount: number
   locale: string
+  /** Enabled atlas locales, for the hreflang cluster. */
+  locales: readonly string[]
 }
 
 /**
@@ -378,7 +388,7 @@ function eventNode(input: EventSeoInput, content: AtlasSeoEventContent): JsonLdN
 
 /** The SEO answer for an event route. */
 export function buildEventSeo(input: EventSeoInput): AtlasSeoResponse {
-  const { event, route, canonical, breadcrumbs, images, locale } = input
+  const { event, route, canonical, breadcrumbs, images, locale, locales } = input
   const paragraphs = lexicalToParagraphs(event.description)
   const content: AtlasSeoEventContent = {
     title: event.title,
@@ -406,7 +416,7 @@ export function buildEventSeo(input: EventSeoInput): AtlasSeoResponse {
     title: event.title,
     description,
     canonical,
-    alternates: hreflangAlternates(canonical),
+    alternates: hreflangAlternates(canonical, locales),
     openGraph: openGraph({
       title: event.title,
       description,
@@ -422,7 +432,7 @@ export function buildEventSeo(input: EventSeoInput): AtlasSeoResponse {
 
 /** The SEO answer for a region route. */
 export function buildRegionSeo(input: RegionSeoInput): AtlasSeoResponse {
-  const { id, name, subtitle, level, route, canonical, breadcrumbs, events, eventCount, locale } =
+  const { id, name, subtitle, level, route, canonical, breadcrumbs, events, eventCount, locale, locales } =
     input
 
   const content: AtlasSeoRegionContent = {
@@ -452,7 +462,7 @@ export function buildRegionSeo(input: RegionSeoInput): AtlasSeoResponse {
     // and let the host write its own — it knows its language, we don't.
     description: null,
     canonical,
-    alternates: hreflangAlternates(canonical),
+    alternates: hreflangAlternates(canonical, locales),
     openGraph: openGraph({ title, description: null, canonical, locale, image: null }),
     jsonLd: jsonLdEscape(
       jsonLdGraph([

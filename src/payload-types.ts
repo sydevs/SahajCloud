@@ -6206,6 +6206,32 @@ export interface WmAppStatus {
  */
 export interface SyAtlasConfig {
   id: number;
+  /**
+   * Languages the atlas is offered in. Drives the widget’s language picker and the hreflang links on every atlas page, so removing one tells search engines that language is gone. Adding one needs a matching translation bundle in the widget — check with a developer first.
+   */
+  languages: {
+    code:
+      | 'en'
+      | 'es'
+      | 'de'
+      | 'it'
+      | 'fr'
+      | 'ru'
+      | 'ro'
+      | 'cs'
+      | 'uk'
+      | 'el'
+      | 'hy'
+      | 'pl'
+      | 'pt-BR'
+      | 'fa'
+      | 'bg'
+      | 'tr'
+      | 'en-AU'
+      | 'hu'
+      | 'nl';
+    id?: string | null;
+  }[];
   defaultMapCenter: {
     latitude: number;
     longitude: number;
@@ -6534,6 +6560,12 @@ export interface WmAppStatusSelect<T extends boolean = true> {
  * via the `definition` "sy-atlas-config_select".
  */
 export interface SyAtlasConfigSelect<T extends boolean = true> {
+  languages?:
+    | T
+    | {
+        code?: T;
+        id?: T;
+      };
   defaultMapCenter?:
     | T
     | {

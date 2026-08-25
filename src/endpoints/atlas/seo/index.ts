@@ -15,6 +15,7 @@ import type { Event, Region } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 import { assertClientOriginAllowed } from '@/plugins/usage'
 
+import { getAtlasLocales } from './atlasLocales'
 import { MAX_ATLAS_ROUTE_LENGTH, parseAtlasRoute } from './atlasRoute'
 import { buildEventSeo, buildRegionSeo, eventCard, seoImages } from './seoDocument'
 
@@ -187,6 +188,7 @@ async function regionSeo(
   )
 
   return buildRegionSeo({
+    locales: await getAtlasLocales(req),
     id: region.id,
     name: region.name ?? '',
     subtitle: region.subtitle ?? null,
@@ -272,6 +274,7 @@ async function eventSeo(
   const breadcrumbs = regionId === null ? [] : await regionBreadcrumbs(req, regionId)
 
   return buildEventSeo({
+    locales: await getAtlasLocales(req),
     event,
     route,
     canonical: event.webUrl ?? null,

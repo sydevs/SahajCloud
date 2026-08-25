@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { ATLAS_WIDGET_LOCALES } from '../../src/lib/atlas/widgetLocales'
 import { ROUTING_MODES } from '../../src/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '../../src/lib/clients/embedMetadata'
+import { LOCALES } from '../../src/lib/locales'
 import { depthParameter } from '../../src/plugins/openapi/clientReadParametersDocs'
 import {
   CUSTOM_ENDPOINT_PATHS,
@@ -368,7 +368,11 @@ describe('atlas SEO root endpoint (OpenAPI)', () => {
       properties?: { hreflang?: { enum?: string[] } }
     }
     expect(alternate.properties?.hreflang?.enum).toContain('x-default')
-    expect(alternate.properties?.hreflang?.enum).toHaveLength(ATLAS_WIDGET_LOCALES.length + 1)
+    // The superset, not the enabled set: the effective list lives on the
+    // `sy-atlas-config` global and can change without a deploy, so a statically
+    // built spec can only name what it is drawn from.
+    expect(alternate.properties?.hreflang?.enum).toHaveLength(LOCALES.length + 1)
+    expect(get?.description).toContain('operator')
   })
 
   const build = () =>

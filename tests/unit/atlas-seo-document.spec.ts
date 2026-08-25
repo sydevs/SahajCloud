@@ -9,8 +9,6 @@ import {
   truncateAtWord,
 } from '@/endpoints/atlas/seo/seoDocument'
 import type { AtlasSeoBreadcrumb, AtlasSeoEventCard } from '@/endpoints/responseTypes'
-import { ATLAS_WIDGET_LOCALES } from '@/lib/atlas/widgetLocales'
-import { LOCALES } from '@/lib/locales'
 import { plainTextToLexical } from '@/lib/richEditor/plainTextToLexical'
 import type { Event } from '@/payload-types'
 
@@ -26,6 +24,13 @@ const QUERY_CANONICAL = 'https://sahajayoga.nl/locatelessons/?atlas=/nl/amsterda
 
 /** 9:26 AM in Asia/Calcutta (UTC+5:30). */
 const FIRST_DATE = '2026-06-13T03:56:00.000Z'
+
+/**
+ * A representative enabled set. It is a *fixture*, not the product's list —
+ * that lives on the `sy-atlas-config` global now, so a test asserting a
+ * specific ten would be asserting a default nobody has to keep.
+ */
+const ENABLED = ['cs', 'de', 'en', 'fr', 'nl'] as const
 
 const breadcrumbs: AtlasSeoBreadcrumb[] = [
   { name: 'United Kingdom', route: '/gb', url: 'https://wemeditate.com/map/gb' },
@@ -146,23 +151,10 @@ describe('jsonLdGraph', () => {
   })
 })
 
-describe('ATLAS_WIDGET_LOCALES', () => {
-  // A code with no CMS locale behind it would advertise an hreflang alternate
-  // whose page serves nothing.
-  it('is a subset of the locales the CMS is translated into', () => {
-    const cmsLocales = LOCALES.map((locale) => locale.code) as string[]
-    for (const code of ATLAS_WIDGET_LOCALES) expect(cmsLocales).toContain(code)
-  })
-
-  it('is the widget’s ten', () => {
-    expect(ATLAS_WIDGET_LOCALES).toHaveLength(10)
-  })
-})
-
 describe('hreflangAlternates', () => {
   it('emits one row per widget locale plus x-default', () => {
-    const alternates = hreflangAlternates(PATH_CANONICAL)
-    expect(alternates).toHaveLength(ATLAS_WIDGET_LOCALES.length + 1)
+    const alternates = hreflangAlternates(PATH_CANONICAL, ENABLED)
+    expect(alternates).toHaveLength(ENABLED.length + 1)
     expect(alternates.at(-1)).toEqual({ hreflang: 'x-default', href: PATH_CANONICAL })
   })
 
@@ -170,21 +162,34 @@ describe('hreflangAlternates', () => {
   // does serve every visitor — the widget picks a language from the page, the
   // browser, or its own `?locale`.
   it('points x-default at the unmodified canonical, not at the `en` row', () => {
-    const alternates = hreflangAlternates(PATH_CANONICAL)
+    const alternates = hreflangAlternates(PATH_CANONICAL, ENABLED)
     const english = alternates.find((row) => row.hreflang === 'en')
     expect(english?.href).toBe(`${PATH_CANONICAL}?locale=en`)
     expect(alternates.at(-1)?.href).toBe(PATH_CANONICAL)
   })
 
   it('joins with `&` when the canonical already carries a query — the `query` routing shape', () => {
-    const alternates = hreflangAlternates(QUERY_CANONICAL)
+    const alternates = hreflangAlternates(QUERY_CANONICAL, ENABLED)
     expect(alternates.find((row) => row.hreflang === 'fr')?.href).toBe(
       `${QUERY_CANONICAL}&locale=fr`,
     )
   })
 
   it('emits nothing without a canonical — a cluster of guesses is worse than none', () => {
-    expect(hreflangAlternates(null)).toEqual([])
+    expect(hreflangAlternates(null, ENABLED)).toEqual([])
+  })
+
+  // The point of moving this to the global: turning a language off has to stop
+  // us telling crawlers that language still has a page.
+  it('emits exactly the locales it is given, in order', () => {
+    const alternates = hreflangAlternates(PATH_CANONICAL, ['fr', 'nl'])
+    expect(alternates.map((row) => row.hreflang)).toEqual(['fr', 'nl', 'x-default'])
+  })
+
+  it('emits nothing when no locale is enabled, rather than a lone x-default', () => {
+    // An x-default with no alternates is a cluster of one, which says nothing a
+    // canonical does not already say.
+    expect(hreflangAlternates(PATH_CANONICAL, [])).toEqual([])
   })
 })
 
@@ -215,6 +220,7 @@ describe('buildEventSeo', () => {
     // Resolved by the endpoint, not read off the event — see `EventSeoInput`.
     images: [],
     locale: 'en' as const,
+    locales: ENABLED,
   }
 
   it('passes the canonical through verbatim rather than composing one', () => {
@@ -336,6 +342,7 @@ describe('buildRegionSeo', () => {
     events: [card],
     eventCount: 1,
     locale: 'en' as const,
+    locales: ENABLED,
   }
 
   // Region names collide across the tree — Georgia the country and Georgia the

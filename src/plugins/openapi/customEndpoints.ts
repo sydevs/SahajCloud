@@ -17,7 +17,6 @@
  * module and the merge block in the route handler.
  */
 
-import { ATLAS_WIDGET_LOCALES } from '@/lib/atlas/widgetLocales'
 import { ROUTING_MODES } from '@/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '@/lib/clients/embedMetadata'
 import { LOCALES } from '@/lib/locales'
@@ -543,7 +542,9 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         '(`/register`, `/share`, `/calendar`, …), legacy prefixes (`/events/…`) ' +
         'and stale ancestry all still resolve, and the `route` and `canonical` in ' +
         'the answer name the URL you should redirect to. **Things not to guess ' +
-        'at:** `canonical` ' +
+        'at:** the `alternates` locale set is **configured by an operator** on the ' +
+        'Sahaj Atlas configuration global, so it can change without a deploy — ' +
+        'read it from the response rather than hardcoding a list. `canonical` ' +
         'is the document’s own `webUrl`, read rather than recomputed, so it is ' +
         'byte-identical to every other surface — and it is **locale-free**, as is ' +
         'the `x-default` alternate, because nothing in the atlas is translated per ' +
@@ -1291,10 +1292,16 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
     properties: {
       hreflang: {
         type: 'string',
-        enum: [...ATLAS_WIDGET_LOCALES, 'x-default'],
+        // The CMS locale set, which is the *superset* this can draw from. The
+        // effective list is operator-configured on the `sy-atlas-config`
+        // global, so it is runtime data and this statically-built spec cannot
+        // name it — read `alternates` to see what a given page actually offers.
+        enum: [...LOCALES.map((l) => l.code), 'x-default'],
         description:
-          'A widget locale, or `x-default` — which points at the bare, ' +
-          'locale-free canonical rather than at English.',
+          'An enabled atlas locale, or `x-default` — which points at the bare, ' +
+          'locale-free canonical rather than at English. The enabled set is ' +
+          'configured by an operator and can change without a deploy; this enum ' +
+          'is the superset it is drawn from.',
       },
       href: { type: 'string', format: 'uri' },
     },

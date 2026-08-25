@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { atlasSeo } from '@/endpoints/atlas/seo'
 import type { AtlasSeoResponse } from '@/endpoints/responseTypes'
+import { ATLAS_DEFAULT_LOCALES } from '@/lib/atlas/defaultLocales'
 import { serverEnv } from '@/lib/env'
 import type { Event } from '@/payload-types'
 
@@ -473,6 +474,49 @@ describe('atlasSeo endpoint', () => {
       expect(body.alternates.find((row) => row.hreflang === 'fr')?.href).toBe(
         `${body.canonical}?locale=fr`,
       )
+    })
+
+    // Isolated: these mutate a global every other case reads, so the set is
+    // restored afterwards rather than left for whatever runs next to inherit.
+    describe('operator-configured locales', () => {
+      // The field stores `{ code }` rows, not bare strings — see the global's
+      // own comment for why it is an array, and why it is named `languages`.
+      //
+      // Only non-empty sets are writable here: the field is `required` with
+      // `minRows: 1`, so Payload rejects `[]` with a ValidationError. The
+      // unconfigured-column fallback is therefore covered in
+      // `tests/unit/atlas-locales.spec.ts`, against the pure normalizer.
+      const setLocales = (locales: string[]) =>
+        payload.updateGlobal({
+          slug: 'sy-atlas-config',
+          data: { languages: locales.map((code) => ({ code })) } as never,
+          overrideAccess: true,
+        })
+
+      afterAll(async () => {
+        await setLocales([...ATLAS_DEFAULT_LOCALES])
+      })
+
+      // The whole point of moving the list onto the global: an operator turning a
+      // language off has to stop us telling crawlers that language has a page.
+      it('takes its hreflang set from the sy-atlas-config global, live', async () => {
+        await setLocales(['fr', 'nl'])
+        const narrowed = await callSeo({ route: '/united-kingdom' })
+        expect(narrowed.body.alternates.map((row) => row.hreflang)).toEqual([
+          'fr',
+          'nl',
+          'x-default',
+        ])
+
+        await setLocales(['fr', 'nl', 'de'])
+        const widened = await callSeo({ route: '/united-kingdom' })
+        expect(widened.body.alternates.map((row) => row.hreflang)).toEqual([
+          'fr',
+          'nl',
+          'de',
+          'x-default',
+        ])
+      })
     })
 
     it('keeps the canonical locale-free whatever locale was asked for', async () => {
