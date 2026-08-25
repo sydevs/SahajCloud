@@ -219,3 +219,29 @@ export async function getCanonicalUrlBase(
   const owner = regionId == null ? undefined : (await getRegionOwners(req)).get(regionId)
   return canonicalUrlBase(canonicalTargetFor(owner))
 }
+
+/**
+ * A region's full canonical URL — its owner's base plus its own web path — or
+ * `null` when either half is missing.
+ *
+ * The same composition {@link getCanonicalUrlBase}'s callers perform inside
+ * `publicUrlFields`, hoisted here so a caller that needs the URL of a region it
+ * did **not** read (an ancestor named only by id, e.g. a breadcrumb rung)
+ * doesn't re-derive it. Resolving per region rather than reusing the terminal
+ * document's base is the whole point: ownership is per-subtree, so `/gb` and
+ * `/gb/greater-london` legitimately live on different domains, and a breadcrumb
+ * that assumed one base would link the ancestor to a page that does not exist.
+ *
+ * Costs no extra query — both halves are per-request memoized maps.
+ */
+export async function getCanonicalUrlForRegion(
+  req: PayloadRequest,
+  regionId: number,
+): Promise<string | null> {
+  const [base, { pathById }] = await Promise.all([
+    getCanonicalUrlBase(req, regionId),
+    getRegionTree(req),
+  ])
+  const path = pathById.get(regionId)
+  return base === null || path === undefined ? null : `${base}${path}`
+}

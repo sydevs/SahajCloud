@@ -28,6 +28,7 @@ import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
 import { collections, Managers } from './collections'
+import { atlasSeo } from './endpoints/atlasSeo'
 import { contactAdmin } from './endpoints/contactAdmin'
 import { globals } from './globals'
 import { tasks } from './jobs'
@@ -138,7 +139,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // `.claude/rules/endpoints.md`. The OpenAPI spec derives its root-path
     // exemption from this array (`rootEndpointPathsFrom`), so registering here
     // is all it takes to keep `/api/docs` honest.
-    endpoints: [contactAdmin],
+    endpoints: [atlasSeo, contactAdmin],
     editor: lexicalEditor(),
     // GraphQL is disabled — this project exposes a REST-only API (see
     // src/app/(payload)/api/[[...slug]]/route.ts for the REST handler).
