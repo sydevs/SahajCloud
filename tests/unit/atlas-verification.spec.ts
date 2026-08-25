@@ -134,9 +134,15 @@ describe('buildImportVerification', () => {
     const fields = buildImportVerification({ status: 0, cadence: 'Monthly', legacyId: 30, now })
     expect(fields.verificationStage).toBe('verified')
     expect(fields.nextCheckAt).toBe('2026-07-15T00:00:00.000Z')
-    expect(fields.notificationLog).toEqual([
-      { kind: 'verification', at: now.toISOString(), by: null, method: 'import' },
-    ])
+    // The machine fields this seeding is about — not the whole entry, which
+    // also carries display cells composed by `buildVerificationEntry`.
+    expect(fields.activityLog).toHaveLength(1)
+    expect(fields.activityLog?.[0]).toMatchObject({
+      kind: 'verification',
+      at: now.toISOString(),
+      by: null,
+      method: 'import',
+    })
   })
 
   it('falls back to the default period for an unknown cadence', () => {
@@ -167,7 +173,7 @@ describe('buildImportVerification', () => {
     expect(fields.verificationStage).toBe('finished')
     // 6 months after the end of the single occurrence's local day.
     expect(fields.nextCheckAt?.slice(0, 7)).toBe('2026-08')
-    expect(fields.notificationLog[0]).toMatchObject({ kind: 'verification', method: 'import' })
+    expect(fields.activityLog[0]).toMatchObject({ kind: 'verification', method: 'import' })
   })
 
   it('still arms a finished event with no schedule end, measured from the import', () => {
@@ -188,6 +194,6 @@ describe('buildImportVerification', () => {
       now,
       actor: { id: 7, name: 'Priya' },
     })
-    expect(fields.notificationLog[0].by).toEqual({ id: 7, name: 'Priya' })
+    expect(fields.activityLog[0].by).toEqual({ id: 7, name: 'Priya' })
   })
 })

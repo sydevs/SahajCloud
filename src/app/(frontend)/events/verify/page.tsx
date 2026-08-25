@@ -40,7 +40,7 @@ export default async function VerifyEventPage({
   const iconSrc = getProjectEmailIcon(BRAND)
   const atlasHome = serverEnv.WEMEDITATE_WEB_URL ? `${serverEnv.WEMEDITATE_WEB_URL}/map` : null
 
-  const result = readVerifyToken(token, payload.secret)
+  const result = await readVerifyToken(token, payload.secret)
 
   // Missing / malformed / tampered → the page does not exist.
   if (result.status === 'invalid') notFound()

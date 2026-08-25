@@ -11,7 +11,7 @@ import type { EventScheduleInput } from '@/types/schedule'
 /**
  * Shared "verify" semantics used by both verify paths (the save hook and the
  * explicit endpoint). Opening a fresh cycle means: stage → `verified`,
- * `nextCheckAt` = now + the manager's cadence, and `notificationLog` reset to a
+ * `nextCheckAt` = now + the manager's cadence, and `activityLog` reset to a
  * single `verification` first entry recording who verified and how.
  *
  * Re-publishing (`_status: 'published'`) is NOT part of this patch: the save
@@ -30,7 +30,7 @@ export interface VerifyFields {
    * stages legitimately return null.
    */
   nextCheckAt: string | null
-  notificationLog: ReturnType<typeof buildVerificationEntry>[]
+  activityLog: ReturnType<typeof buildVerificationEntry>[]
 }
 
 /** Pull the `event_verification` cadence off a (possibly unpopulated) manager. */
@@ -77,7 +77,7 @@ export function computeVerifyFields(args: {
       schedule,
       inactive,
     }),
-    notificationLog: [buildVerificationEntry(method, by, now.toISOString())],
+    activityLog: [buildVerificationEntry(method, by, now.toISOString())],
   }
 }
 
@@ -149,7 +149,7 @@ export async function verifyEventFromToken(args: {
 }): Promise<Event | null> {
   const { payload, token, now = new Date() } = args
 
-  const claims = verifyVerifyToken(token, payload.secret, now)
+  const claims = await verifyVerifyToken(token, payload.secret, now)
   if (!claims) return null
 
   // Resolve the manager's display name for the log's `by` entry.

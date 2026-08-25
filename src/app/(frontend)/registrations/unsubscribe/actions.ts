@@ -28,7 +28,7 @@ export async function unsubscribeAction(
   const token = typeof formData.get('token') === 'string' ? (formData.get('token') as string) : ''
   const payload = await getPayload({ config })
 
-  const result = readUnsubscribeToken(token, payload.secret)
+  const result = await readUnsubscribeToken(token, payload.secret)
   if (result.status !== 'valid') {
     // A tampered/forged submission — no registration to localize against.
     return {

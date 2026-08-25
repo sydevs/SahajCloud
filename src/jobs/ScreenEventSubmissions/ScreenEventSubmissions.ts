@@ -12,12 +12,12 @@ import {
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { checkEmailAllowed } from '@/lib/endpoints/antiSpamGuard'
 import { findManagerForRegion } from '@/lib/notifications/recipients'
-import { sendSubmissionReview } from '@/lib/notifications/sendSubmissionReview'
-import { findOrCreateCity } from '@/lib/regions/findOrCreateCity'
 import { relationId } from '@/lib/utilities/relationId'
 import type { EventSubmission } from '@/payload-types'
 
 import { hasMxRecords } from './emailChecks'
+import { findOrCreateCity } from './findOrCreateCity'
+import { sendSubmissionReview } from './sendSubmissionReview'
 
 /**
  * Resolve the submission's target region (new-event submissions only):

@@ -6,7 +6,6 @@ import type { NotificationPreferencesValue } from '@/components/admin/Notificati
 import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
 import type { RegistrationRecipient } from '@/lib/notifications'
 import { formatShortDate, resolveRegistrationRecipient } from '@/lib/notifications'
-import { sendRegistrationDigest } from '@/lib/notifications/sendRegistrationDigest'
 import type { RegistrationAnswer } from '@/lib/registrations/questions'
 import { buildRegistrationAnswers } from '@/lib/registrations/questions'
 import { relationId } from '@/lib/utilities/relationId'
@@ -14,6 +13,7 @@ import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Event, Manager } from '@/payload-types'
 
 import { loadUsers } from './loadUsers'
+import { sendRegistrationDigest } from './sendRegistrationDigest'
 
 const PAGINATION_LIMIT = 200
 const DAY_MS = 24 * 60 * 60 * 1000

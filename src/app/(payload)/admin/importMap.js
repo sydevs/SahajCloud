@@ -53,7 +53,7 @@ import { default as default_ed3b039830992dc45486e37aaf03df7c } from '@/component
 import { default as default_1dd99abed7767ee797cacf1ad150de88 } from '@/components/admin/StringSelectField'
 import { default as default_d749fd4cc4f11cb94ed2d6b537f6015d } from '@/components/admin/InfoBanner'
 import { default as default_d73215fe105de40829b40e0975052656 } from '@/components/admin/VerificationStageField'
-import { default as default_e9940a7953b8550d5f74ed2aed219091 } from '@/components/admin/NotificationLogTable'
+import { default as default_3db810cf95b8f600a49837ee6d29b565 } from '@/components/admin/LogTable'
 import { default as default_42fbdbfc3b16bbe7c43aa9f07c715c1c } from '@/components/admin/EventQualityPanel'
 import { default as default_8b69e6ea88d83799ec84e5cf9e71c246 } from '@/components/admin/EventSubmissions/EventSubmissionStatus'
 import { default as default_93de032a2c439140bbcbc60bbf0ac5c7 } from '@/components/admin/EventSubmissions/EventSubmissionSubmitter'
@@ -141,7 +141,7 @@ export const importMap = {
   "@/components/admin/StringSelectField#default": default_1dd99abed7767ee797cacf1ad150de88,
   "@/components/admin/InfoBanner#default": default_d749fd4cc4f11cb94ed2d6b537f6015d,
   "@/components/admin/VerificationStageField#default": default_d73215fe105de40829b40e0975052656,
-  "@/components/admin/NotificationLogTable#default": default_e9940a7953b8550d5f74ed2aed219091,
+  "@/components/admin/LogTable#default": default_3db810cf95b8f600a49837ee6d29b565,
   "@/components/admin/EventQualityPanel#default": default_42fbdbfc3b16bbe7c43aa9f07c715c1c,
   "@/components/admin/EventSubmissions/EventSubmissionStatus#default": default_8b69e6ea88d83799ec84e5cf9e71c246,
   "@/components/admin/EventSubmissions/EventSubmissionSubmitter#default": default_93de032a2c439140bbcbc60bbf0ac5c7,

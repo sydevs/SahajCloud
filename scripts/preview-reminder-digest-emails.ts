@@ -326,8 +326,8 @@ type Preview = { label: string; note: string; url: string | false }
 
 async function main() {
   const nodemailer = (await import('nodemailer')).default
-  const { sendSessionReminder } = await import('@/lib/notifications/sendSessionReminder')
-  const { sendRegistrationDigest } = await import('@/lib/notifications/sendRegistrationDigest')
+  const { sendSessionReminder } = await import('@/jobs/RegistrationNotifications/sendSessionReminder')
+  const { sendRegistrationDigest } = await import('@/jobs/RegistrationNotifications/sendRegistrationDigest')
 
   const account = await nodemailer.createTestAccount()
   const transport = nodemailer.createTransport({

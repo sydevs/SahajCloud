@@ -435,6 +435,36 @@
           "type": "string",
           "description": "Footer line explaining why the registrant received the reminder."
         },
+        "followup_subject": {
+          "type": "string",
+          "description": "Subject line of the post-event follow-up email. `%{event}` = event title."
+        },
+        "followup_heading": {
+          "type": "string",
+          "description": "Main heading inside the follow-up email. `%{event}` = event title."
+        },
+        "followup_intro": {
+          "type": "string",
+          "description": "Opening line of the follow-up email. `%{name}` = registrant, `%{event}` = event title."
+        },
+        "followup_ask": {
+          "type": "string",
+          "description": "The confirm/deny question: why the registrant's answer matters for an unverified listing."
+        },
+        "followup_confirm_cta": {
+          "type": "string",
+          "description": "Button label confirming the class took place.",
+          "maxLength": 40
+        },
+        "followup_deny_cta": {
+          "type": "string",
+          "description": "Button label reporting that the class could not be found.",
+          "maxLength": 40
+        },
+        "followup_footer_reason": {
+          "type": "string",
+          "description": "Footer line explaining why the registrant received the follow-up."
+        },
         "unsubscribe_cta": {
           "type": "string",
           "description": "Footer link label in the reminder email that opens the unsubscribe page.",

@@ -292,6 +292,94 @@ code that treats "plain object ⇒ a group to expand" will render the whole row.
 *name*, or a proposed manager came out as their id, roles, email and every
 notification preference.
 
+## Activity logs (`logField`)
+
+"What happened to this document, and when?" is a question managers ask —
+emails sent about it, but also a registration created or cancelled, a listing
+verified. Answering it from application logs or the database is not an answer.
+
+```typescript
+import { logField } from '@/fields'
+
+logField({ description: 'Everything recorded about this registration.' })
+// → an `activityLog` field, "Activity Log", read-only, rendered
+```
+
+`name` and `label` default to `activityLog` / "Activity Log" and are overridable
+for a document that needs a second log. Both current consumers use the default:
+Events resets its log on every verification, Registrations accumulates.
+
+### Columns are declared on the field
+
+`logField({ columns: [{ key: 'activity', label: 'Event' }, …] })` — they travel
+to the renderer in `admin.custom`, the same way `SelectDescription` and
+`EventQualityPanel` get theirs. Declaring them fixes order and headings even
+before any entry carries the cell; omit `columns` and the table derives them
+from the union of the entries' `cells`, which keeps a new log zero-config.
+
+A column reads the matching key from an entry's **`cells`**.
+
+Everything outside `cells` is machine data and never renders — `at`, `type`
+(the slug jobs match on, never a label), `key` (the exactly-once key), plus
+whatever the writer needs to read back. That default matters: a verification
+entry carries ten such fields, and with the rule the other way round that log
+rendered a fourteen-column table of raw enum values.
+
+| Key | Meaning |
+| --- | --- |
+| `at` | ISO timestamp. Always the first column, and what the log sorts by. |
+| `type` | Stable slug (`session-reminder`, `verification`) — matched, not shown. |
+| `key` | Exactly-once key, scoped to `type`. |
+| `cells` | What the columns read. Everything else is data. |
+
+Nothing is hidden by not having a column: every row's trailing **⋯** opens the
+whole entry as JSON in a popover, which is where a reminder's stage, level and
+recipient live.
+
+A cell is a string, or `{ label?, text, sub? }` — `label` renders muted inline
+before the text (`email: a@b.test`), `sub` as a muted line beneath it (a
+recipient's role and region under their name). Those two options are what
+replaced the verification log's hand-written cell components.
+
+Columns come from the **union** of entries, not the newest: a log whose latest
+entry is a cancellation would otherwise drop the recipient column and hide what
+it holds for every email above it.
+
+### Writing entries
+
+```typescript
+import { appendLogEntry, asLog, hasLogEntry } from '@/fields'
+
+const log = asLog(registration.activityLog)
+if (hasLogEntry(log, 'session-reminder', occurrenceIso)) continue  // exactly-once guard
+// …send…
+data: { activityLog: appendLogEntry(log, {
+  at, type: 'session-reminder', key: occurrenceIso,
+  cells: {
+    activity: `Session reminder for ${date}`,
+    sentTo: { label: 'email', text: address },
+  },
+}) }
+```
+
+Three things worth knowing:
+
+- **`appendLogEntry` caps the log** (`DEFAULT_LOG_LIMIT`, oldest dropped). Use it
+  rather than `[...log, entry]`: a reminder log on a weekly class gains an entry
+  per occurrence, read and rewritten on every send, and nothing bounded it
+  before this existed.
+- **Match on `type` *and* `key`.** One log holds several kinds of entry, so a
+  bare key collides — registration 42's follow-up must not read as its reminder.
+- **Display is additive, never a replacement.** Entries are read back as *data*:
+  `hasReminderForStage` decides whether to send by reading an entry's `stage` and
+  `manager.id`. An entry builder adds a `cells` block beside those fields — see
+  `buildReminderEntry`, which is where that log's wording lives precisely
+  because it is the code that knows the domain.
+- **A log is a record, not a query filter.** Nothing can `where` on a JSON column
+  cheaply, so a sweep that needs to *find* documents still wants a real dated
+  column beside the log. `Registrations.followUpSentAt` is exactly that: the log
+  says what happened, the column is what the query selects on.
+
 ## Plugins
 
 ### SEO (`@payloadcms/plugin-seo`)

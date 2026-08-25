@@ -43,7 +43,11 @@ list; for the full set see `node_modules/@payloadcms/ui/dist/exports/client/inde
 Column[]`, where each column carries pre-rendered `renderedCells` (one node per
 row), `accessor`, and `active: true`. The `Column` type also requires a `field`
 that the component never reads at runtime — stub it (`field: {} as never`). See
-`src/components/admin/NotificationLogTable/` for the working pattern.
+`src/components/admin/LogTable/` for the working pattern — and note what it
+had to hand-roll, because `Table` exposes nothing per row: opening a row's
+detail needs a delegated `closest('tr[data-id]')` listener on a wrapper
+(Payload writes the row's `id` there), and `cursor` has to be a stylesheet rule
+because it belongs on Payload's own `<tr>`.
 
 **Building a custom field component?** Compose Payload's field primitives instead
 of bespoke markup (see "Custom field components" below): `FieldLabel`,

@@ -47,7 +47,7 @@ async function getEvent(payload: Payload, id: number, trash = false): Promise<Ev
 }
 
 function reminders(
-  log: Event['notificationLog'],
+  log: Event['activityLog'],
 ): Extract<NotificationLogEntry, { kind: 'reminder' }>[] {
   const entries = Array.isArray(log) ? (log as NotificationLogEntry[]) : []
   return entries.filter(
@@ -132,8 +132,8 @@ describe('Event verification lifecycle', () => {
     expect(event.verificationStage).toBe('verified')
     expect(event._status).toBe('published')
     expect(event.nextCheckAt).toBeTruthy()
-    const log = Array.isArray(event.notificationLog)
-      ? (event.notificationLog as NotificationLogEntry[])
+    const log = Array.isArray(event.activityLog)
+      ? (event.activityLog as NotificationLogEntry[])
       : []
     expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
   })
@@ -173,7 +173,7 @@ describe('Event verification lifecycle', () => {
     let fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('reminded')
     expect(fresh._status).toBe('published')
-    const firstReminders = reminders(fresh.notificationLog)
+    const firstReminders = reminders(fresh.activityLog)
     expect(firstReminders).toHaveLength(1)
     expect(firstReminders[0]).toMatchObject({
       stage: 'verified',
@@ -188,7 +188,7 @@ describe('Event verification lifecycle', () => {
     fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('escalated')
     expect(fresh._status).toBe('published')
-    const escalatedDestinations = reminders(fresh.notificationLog)
+    const escalatedDestinations = reminders(fresh.activityLog)
       .filter((e) => e.stage === 'reminded')
       .map((e) => e.destination)
       .sort()
@@ -197,11 +197,11 @@ describe('Event verification lifecycle', () => {
       'region-manager@example.com',
     ])
     // The job records the escalation level + recipient tier (+ linking region).
-    const regionEntry = reminders(fresh.notificationLog).find(
+    const regionEntry = reminders(fresh.activityLog).find(
       (e) => e.stage === 'reminded' && e.destination === 'region-manager@example.com',
     )
     expect(regionEntry).toMatchObject({ level: 'escalated', role: 'region', region: 'City LC' })
-    const managerEntry = reminders(fresh.notificationLog).find(
+    const managerEntry = reminders(fresh.activityLog).find(
       (e) => e.stage === 'reminded' && e.destination === 'event-manager@example.com',
     )
     expect(managerEntry).toMatchObject({ level: 'escalated', role: 'manager' })
@@ -336,7 +336,7 @@ describe('Event verification lifecycle', () => {
     expect(r).toMatchObject({ advanced: 1, remindersSent: 2 })
     const fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('escalated')
-    const escalatedDestinations = reminders(fresh.notificationLog)
+    const escalatedDestinations = reminders(fresh.activityLog)
       .filter((e) => e.stage === 'reminded')
       .map((e) => e.destination)
       .sort()
@@ -359,7 +359,7 @@ describe('Event verification lifecycle', () => {
     expect(second.remindersSent).toBe(0)
     expect(second.advanced).toBe(0)
     expect(after.verificationStage).toBe(before.verificationStage)
-    expect(reminders(after.notificationLog)).toHaveLength(reminders(before.notificationLog).length)
+    expect(reminders(after.activityLog)).toHaveLength(reminders(before.activityLog).length)
   })
 
   describe('listing progress in the reminder email (#611)', () => {
@@ -487,7 +487,7 @@ describe('Event verification lifecycle', () => {
 
     it('still sends exactly one reminder per recipient when the job runs twice', async () => {
       // The trap this ticket had to avoid: dedup is keyed on stage + manager id
-      // via `notificationLog`. If the progress section had perturbed that key, every
+      // via `activityLog`. If the progress section had perturbed that key, every
       // manager would be re-sent every reminder they'd already had.
       const event = await createEvent({ title: 'Dedup Listing' })
       await remindOnce(event.id, 'Dedup Listing')
@@ -508,7 +508,7 @@ describe('Event verification lifecycle', () => {
       expect(mailTo('event-manager@example.com')).toHaveLength(1)
 
       const fresh = await getEvent(payload, event.id)
-      expect(reminders(fresh.notificationLog).filter((e) => e.stage === 'verified')).toHaveLength(1)
+      expect(reminders(fresh.activityLog).filter((e) => e.stage === 'verified')).toHaveLength(1)
     })
   })
 
@@ -550,7 +550,7 @@ describe('Event verification lifecycle', () => {
       data: {
         verificationStage: 'escalated',
         nextCheckAt: daysAgo(1),
-        notificationLog: [
+        activityLog: [
           { kind: 'verification', at: daysAgo(40), by: null, method: 'import' },
           {
             kind: 'reminder',
@@ -569,7 +569,7 @@ describe('Event verification lifecycle', () => {
     expect(result.remindersSent).toBe(1)
     const fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('urgent')
-    const escalatedDestinations = reminders(fresh.notificationLog)
+    const escalatedDestinations = reminders(fresh.activityLog)
       .filter((e) => e.stage === 'escalated')
       .map((e) => e.destination)
       .sort()
@@ -594,8 +594,8 @@ describe('Event verification lifecycle', () => {
     })
     const fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('verified')
-    expect(reminders(fresh.notificationLog)).toHaveLength(0)
-    const log = fresh.notificationLog as NotificationLogEntry[]
+    expect(reminders(fresh.activityLog)).toHaveLength(0)
+    const log = fresh.activityLog as NotificationLogEntry[]
     expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
   })
 
@@ -697,7 +697,7 @@ describe('Event verification lifecycle', () => {
       const after = await getEvent(payload, event.id)
       expect(after.verificationStage).toBe('verified')
       expect(after.nextCheckAt).toBeTruthy()
-      const log = after.notificationLog as NotificationLogEntry[]
+      const log = after.activityLog as NotificationLogEntry[]
       expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
     })
 
@@ -765,7 +765,7 @@ describe('Event verification lifecycle', () => {
     const fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('verified')
     expect(fresh._status).toBe('published')
-    const log = fresh.notificationLog as NotificationLogEntry[]
+    const log = fresh.activityLog as NotificationLogEntry[]
     expect(log[0]).toMatchObject({ kind: 'verification', method: 'verify-action' })
   })
 
@@ -774,13 +774,13 @@ describe('Event verification lifecycle', () => {
     await makeDue(payload, event.id)
     await runJob(payload) // → reminded
 
-    const token = signVerifyToken({ eventId: event.id, managerId: eventManager.id }, payload.secret)
+    const token = await signVerifyToken({ eventId: event.id, managerId: eventManager.id }, payload.secret)
     const verified = await verifyEventFromToken({ payload, token })
 
     expect(verified).not.toBeNull()
     expect(verified?.verificationStage).toBe('verified')
     expect(verified?._status).toBe('published')
-    const log = (verified as Event).notificationLog as NotificationLogEntry[]
+    const log = (verified as Event).activityLog as NotificationLogEntry[]
     expect(log[0]).toMatchObject({ kind: 'verification', method: 'email-link' })
     expect((log[0] as Extract<NotificationLogEntry, { kind: 'verification' }>).by?.id).toBe(
       eventManager.id,

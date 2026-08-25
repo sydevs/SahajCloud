@@ -2,16 +2,28 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
+import { appendLogEntry, asLog, hasLogEntry, type LogEntry } from '@/fields'
 import type { LocaleCode } from '@/lib/locales'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
-import { sendSessionReminder } from '@/lib/notifications/sendSessionReminder'
 import type { ScheduleSubFields } from '@/lib/schedule/scheduleHooks'
 import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 
 import { loadUsers } from './loadUsers'
-import { asReminderLog, hasReminderFor, type ReminderLogEntry } from './reminderLedger'
+import { sendSessionReminder } from './sendSessionReminder'
+
+/** `type` slug for reminder entries in the registration's `activityLog`. */
+export const REMINDER_LOG_EVENT = 'session-reminder'
+
+/** Short, unambiguous date for the log's one-line summary. */
+function formatOccurrenceLabel(occurrenceIso: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(occurrenceIso))
+}
 
 const PAGINATION_LIMIT = 200
 /** 24 hours — how far ahead a run reminds. */
@@ -112,7 +124,7 @@ interface DueRegistration {
   userId: number | null
   clientId: number | null
   locale: LocaleCode | null
-  log: ReminderLogEntry[]
+  log: LogEntry[]
   /** Occurrences due (in window, matching startingAt, not already reminded). */
   due: string[]
 }
@@ -147,15 +159,15 @@ async function remindForEvent(args: {
       depth: 0,
       limit: PAGINATION_LIMIT,
       page,
-      select: { user: true, client: true, startingAt: true, locale: true, reminderLog: true },
+      select: { user: true, client: true, startingAt: true, locale: true, activityLog: true },
       overrideAccess: true,
       req,
     })
 
     for (const registration of batch.docs) {
-      const log = asReminderLog(registration.reminderLog)
+      const log = asLog(registration.activityLog)
       const due = occurrencesForRegistration(occurrences, registration.startingAt).filter(
-        (occurrence) => !hasReminderFor(log, occurrence),
+        (occurrence) => !hasLogEntry(log, REMINDER_LOG_EVENT, occurrence),
       )
       if (due.length === 0) continue
       pending.push({
@@ -209,11 +221,19 @@ async function remindForEvent(args: {
 
       // Persist the ledger entry immediately — it's the exactly-once marker, so
       // a crash mid-run resumes without re-sending what already went out.
-      log = [...log, { occurrence, sentAt: now.toISOString() }]
+      log = appendLogEntry(log, {
+        at: now.toISOString(),
+        type: REMINDER_LOG_EVENT,
+        key: occurrence,
+        cells: {
+          activity: `Session reminder for ${formatOccurrenceLabel(occurrence)}`,
+          sentTo: { label: 'email', text: registrantEmail },
+        },
+      })
       await payload.update({
         collection: 'registrations',
         id: item.registrationId,
-        data: { reminderLog: log },
+        data: { activityLog: log },
         overrideAccess: true,
         req,
       })
@@ -233,7 +253,7 @@ async function remindForEvent(args: {
  * one hour. A missed run (server down) is caught by the next one as long as the
  * occurrence hasn't started; occurrences already past are never reminded.
  *
- * Exactly-once: a per-registration `reminderLog` ledger keyed on occurrence
+ * Exactly-once: a per-registration `activityLog` ledger keyed on occurrence
  * start, persisted immediately after each send. A task retry or an overlapping
  * run re-sends nothing, and exclusive concurrency keeps a single run at a time.
  *

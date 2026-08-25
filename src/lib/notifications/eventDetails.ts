@@ -194,7 +194,7 @@ export async function buildEventEmailDetails(args: {
     .filter(Boolean)
     .join(' · ')
   const breaks = formatBreaks(event.schedule)
-  const verifiedAt = asNotificationLog(event.notificationLog).find(
+  const verifiedAt = asNotificationLog(event.activityLog).find(
     (entry) => entry.kind === 'verification',
   )?.at
 

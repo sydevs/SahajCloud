@@ -1,47 +1,43 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { errors, jwtVerify, SignJWT } from 'jose'
 
 /**
- * Generic HMAC-signed, self-contained token for logged-out email links —
- * `<base64url(json claims + exp)>.<base64url(hmac-sha256)>`, signed with the
- * Payload `secret`, no server-side store. The same construction as the event
- * verify-link token (`@/lib/eventVerification/token`), generalized so new
- * link kinds (submission review, registration feedback) don't each hand-roll
- * crypto. A `kind` discriminator is baked into the claims so a token signed
- * for one link type can never be replayed against another.
+ * Signed, self-contained tokens for logged-out email links — a JWT (HS256)
+ * over the Payload `secret`, with no server-side store.
  *
- * Pure (clock injected) — unit-testable without env or Payload.
+ * **The crypto is `jose`'s, not ours.** This module used to hand-roll HMAC,
+ * base64url and a timing-safe compare, and by the time three link types wanted
+ * one there were three copies of it. `jose` is already in the tree as Payload's
+ * own dependency — it signs the auth JWTs — so this is the primitive the
+ * framework already trusts, and pinning to the same version keeps one copy in
+ * the install.
+ *
+ * What that buys beyond deleting code: the algorithm is pinned on verify, so a
+ * token can't talk us into `none` or into an asymmetric alg; `exp` is checked
+ * by the library against an injectable clock; and an authentic-but-aged token
+ * raises a distinct error, which is what lets a caller say "this link expired"
+ * rather than "this link is wrong".
+ *
+ * `kind` is carried as the JWT **audience**, which `jwtVerify` checks natively.
+ * A token minted for one link type therefore cannot be replayed against
+ * another — the verification fails before any claim is read.
  */
 
+/** The only algorithm signed or accepted. Pinned on both sides. */
+const ALGORITHM = 'HS256'
+
 export interface SignedTokenOptions {
-  /** Discriminates link types; verification requires an exact match. */
+  /** Discriminates link types (the JWT audience); verification requires a match. */
   kind: string
-  ttlMs: number
-}
-
-interface Envelope {
-  kind: string
-  exp: number
-  claims: Record<string, unknown>
-}
-
-function hmac(payloadB64: string, secret: string): string {
-  return createHmac('sha256', secret).update(payloadB64).digest('base64url')
-}
-
-/** Sign claims into a token. `now` is injectable for deterministic tests. */
-export function signToken(
-  claims: Record<string, unknown>,
-  options: SignedTokenOptions,
-  secret: string,
-  now: Date = new Date(),
-): string {
-  const envelope: Envelope = {
-    kind: options.kind,
-    exp: now.getTime() + options.ttlMs,
-    claims,
-  }
-  const payloadB64 = Buffer.from(JSON.stringify(envelope)).toString('base64url')
-  return `${payloadB64}.${hmac(payloadB64, secret)}`
+  /**
+   * Lifetime, or `null` for a token that never expires.
+   *
+   * Never-expiring is right for a narrow, idempotent action whose link may be
+   * clicked arbitrarily late — the reminder unsubscribe link is the case: it
+   * can only ever unsubscribe the one registration named in its signed claims,
+   * doing so twice is a no-op, and an expiry would break legitimate links
+   * months into a course while preventing nothing.
+   */
+  ttlMs: number | null
 }
 
 export type SignedTokenResult<T> =
@@ -49,38 +45,58 @@ export type SignedTokenResult<T> =
   | { status: 'expired' }
   | { status: 'invalid' }
 
+function key(secret: string): Uint8Array {
+  return new TextEncoder().encode(secret)
+}
+
+/** Sign claims into a token. `now` is injectable for deterministic tests. */
+export async function signToken(
+  claims: Record<string, unknown>,
+  options: SignedTokenOptions,
+  secret: string,
+  now: Date = new Date(),
+): Promise<string> {
+  const token = new SignJWT(claims)
+    .setProtectedHeader({ alg: ALGORITHM })
+    .setAudience(options.kind)
+    .setIssuedAt(now)
+
+  if (options.ttlMs !== null) {
+    token.setExpirationTime(new Date(now.getTime() + options.ttlMs))
+  }
+
+  return token.sign(key(secret))
+}
+
 /**
- * Verify a token's signature, kind, and expiry. The claims are returned
- * as-parsed — the caller narrows them (they were self-signed, so shape is
+ * Verify a token's signature, audience and expiry. The claims are returned
+ * as-parsed — the caller narrows them (they were self-signed, so the shape is
  * trusted once the signature checks out).
+ *
+ * Every failure but expiry collapses to `invalid` on purpose: a tampered
+ * signature, a wrong audience and a malformed token are the same event to a
+ * reader, and distinguishing them in a response would describe our checks to
+ * whoever is probing them.
  */
-export function verifyToken<T = Record<string, unknown>>(
+export async function verifyToken<T = Record<string, unknown>>(
   token: string | null | undefined,
   kind: string,
   secret: string,
   now: Date = new Date(),
-): SignedTokenResult<T> {
+): Promise<SignedTokenResult<T>> {
   if (!token) return { status: 'invalid' }
-  const [payloadB64, signature] = token.split('.')
-  if (!payloadB64 || !signature) return { status: 'invalid' }
 
-  const expected = hmac(payloadB64, secret)
-  const expectedBuffer = Buffer.from(expected)
-  const actualBuffer = Buffer.from(signature)
-  if (
-    expectedBuffer.length !== actualBuffer.length ||
-    !timingSafeEqual(expectedBuffer, actualBuffer)
-  ) {
-    return { status: 'invalid' }
-  }
-
-  let envelope: Envelope
   try {
-    envelope = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8')) as Envelope
-  } catch {
+    const { payload } = await jwtVerify(token, key(secret), {
+      algorithms: [ALGORITHM],
+      audience: kind,
+      currentDate: now,
+    })
+    return { status: 'valid', claims: payload as T }
+  } catch (error) {
+    // Authentic but aged — the signature and audience passed, only the clock
+    // didn't. Callers show a "this link expired" card rather than a 404.
+    if (error instanceof errors.JWTExpired) return { status: 'expired' }
     return { status: 'invalid' }
   }
-  if (envelope.kind !== kind || typeof envelope.exp !== 'number') return { status: 'invalid' }
-  if (envelope.exp <= now.getTime()) return { status: 'expired' }
-  return { status: 'valid', claims: envelope.claims as T }
 }

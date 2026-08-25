@@ -350,7 +350,7 @@ function endOfLocalDay(zdt: Temporal.ZonedDateTime): string {
  * `siblingData` alone. Field `beforeChange` hooks only receive the incoming
  * patch, and Payload materialises an empty `{}` for a group the patch omits — so
  * reading `siblingData` alone would NULL `lastDate` on every unrelated write
- * (e.g. the ExpireEvents job's `notificationLog` patch). Merging over the
+ * (e.g. the ExpireEvents job's `activityLog` patch). Merging over the
  * previous doc makes a partial schedule patch recompute correctly and an
  * unrelated patch a no-op — which also means any event write back-fills a NULL
  * `lastDate` for free. Spread, not deep merge: an explicit `null` in the patch

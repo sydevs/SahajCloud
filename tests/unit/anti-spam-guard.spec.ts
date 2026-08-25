@@ -35,7 +35,7 @@ describe('checkNoUrls', () => {
     expect(checkNoUrls({ description: text }).ok).toBe(true)
   })
 
-  it('ignores non-string values and names the offending field', () => {
+  it('ignores non-string values and names the offending field', async () => {
     const result = checkNoUrls({ count: 3, note: 'see www.spam.biz', other: null })
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.field).toBe('note')
@@ -43,20 +43,20 @@ describe('checkNoUrls', () => {
 })
 
 describe('checkEmailAllowed', () => {
-  it('passes a real address and a nullish one (optional fields stay optional)', () => {
+  it('passes a real address and a nullish one (optional fields stay optional)', async () => {
     expect(checkEmailAllowed('person@gmail.com').ok).toBe(true)
     expect(checkEmailAllowed(null).ok).toBe(true)
     expect(checkEmailAllowed(undefined).ok).toBe(true)
     expect(checkEmailAllowed('').ok).toBe(true)
   })
 
-  it('rejects a malformed address as invalid_email', () => {
+  it('rejects a malformed address as invalid_email', async () => {
     const result = checkEmailAllowed('not-an-email')
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.code).toBe('invalid_email')
   })
 
-  it('rejects a disposable-domain address as disposable_email', () => {
+  it('rejects a disposable-domain address as disposable_email', async () => {
     const result = checkEmailAllowed('throwaway@mailinator.com')
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.code).toBe('disposable_email')
@@ -93,28 +93,28 @@ describe('signedToken', () => {
   const SECRET = 'test-secret'
   const OPTIONS = { kind: 'unit-test', ttlMs: 1000 * 60 }
 
-  it('round-trips claims within the TTL', () => {
-    const token = signToken({ submissionId: 7, managerId: null }, OPTIONS, SECRET, NOW)
-    const result = verifyToken<{ submissionId: number }>(token, 'unit-test', SECRET, NOW)
+  it('round-trips claims within the TTL', async () => {
+    const token = await signToken({ submissionId: 7, managerId: null }, OPTIONS, SECRET, NOW)
+    const result = await verifyToken<{ submissionId: number }>(token, 'unit-test', SECRET, NOW)
     expect(result.status).toBe('valid')
     if (result.status === 'valid') expect(result.claims.submissionId).toBe(7)
   })
 
-  it('reports an authentic-but-aged token as expired', () => {
-    const token = signToken({ id: 1 }, OPTIONS, SECRET, NOW)
+  it('reports an authentic-but-aged token as expired', async () => {
+    const token = await signToken({ id: 1 }, OPTIONS, SECRET, NOW)
     const later = new Date(NOW.getTime() + OPTIONS.ttlMs + 1)
-    expect(verifyToken(token, 'unit-test', SECRET, later).status).toBe('expired')
+    expect((await verifyToken(token, 'unit-test', SECRET, later)).status).toBe('expired')
   })
 
-  it('rejects a kind mismatch — one link type can never replay as another', () => {
-    const token = signToken({ id: 1 }, OPTIONS, SECRET, NOW)
-    expect(verifyToken(token, 'other-kind', SECRET, NOW).status).toBe('invalid')
+  it('rejects a kind mismatch — one link type can never replay as another', async () => {
+    const token = await signToken({ id: 1 }, OPTIONS, SECRET, NOW)
+    expect((await verifyToken(token, 'other-kind', SECRET, NOW)).status).toBe('invalid')
   })
 
-  it('rejects tampered and malformed tokens', () => {
-    const token = signToken({ id: 1 }, OPTIONS, SECRET, NOW)
-    expect(verifyToken(`${token}x`, 'unit-test', SECRET, NOW).status).toBe('invalid')
-    expect(verifyToken('garbage', 'unit-test', SECRET, NOW).status).toBe('invalid')
-    expect(verifyToken(null, 'unit-test', SECRET, NOW).status).toBe('invalid')
+  it('rejects tampered and malformed tokens', async () => {
+    const token = await signToken({ id: 1 }, OPTIONS, SECRET, NOW)
+    expect((await verifyToken(`${token}x`, 'unit-test', SECRET, NOW)).status).toBe('invalid')
+    expect((await verifyToken('garbage', 'unit-test', SECRET, NOW)).status).toBe('invalid')
+    expect((await verifyToken(null, 'unit-test', SECRET, NOW)).status).toBe('invalid')
   })
 })

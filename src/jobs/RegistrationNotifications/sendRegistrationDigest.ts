@@ -9,7 +9,6 @@
  * watermark, not here.
  */
 
-import type { RegistrationRecipient } from './registrationRecipient'
 import type { Payload } from 'payload'
 
 import { createElement } from 'react'
@@ -17,6 +16,7 @@ import { createElement } from 'react'
 import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
 import { RegistrationDigestEmail, registrationDigestText } from '@/emails/RegistrationDigestEmail'
 import { CONTACT_EMAIL } from '@/lib/contact'
+import type { RegistrationRecipient } from '@/lib/notifications/registrationRecipient'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 

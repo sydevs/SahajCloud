@@ -827,6 +827,7 @@ export interface Config {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       expireEvents: TaskExpireEvents;
       screenEventSubmission: TaskScreenEventSubmission;
+      sendPostEventFollowUps: TaskSendPostEventFollowUps;
       sendRegistrationDigests: TaskSendRegistrationDigests;
       sendSessionReminders: TaskSendSessionReminders;
       syncLectureMetadata: TaskSyncLectureMetadata;
@@ -1807,9 +1808,9 @@ export interface Event {
     | 'expired'
     | 'finished';
   /**
-   * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.
+   * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification. Keeps the most recent 50 entries.
    */
-  notificationLog?:
+  activityLog?:
     | {
         [k: string]: unknown;
       }
@@ -1934,7 +1935,10 @@ export interface Registration {
   uuid: string;
   mailingListSubscribedAt?: string | null;
   remindersUnsubscribedAt?: string | null;
-  reminderLog?:
+  /**
+   * Everything recorded about this registration, newest first. Keeps the most recent 50 entries.
+   */
+  activityLog?:
     | {
         [k: string]: unknown;
       }
@@ -1943,6 +1947,11 @@ export interface Registration {
     | number
     | boolean
     | null;
+  /**
+   * Registrant’s verdict on an unverified event.
+   */
+  eventFeedback?: ('confirmed' | 'denied') | null;
+  followUpSentAt?: string | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -3860,6 +3869,7 @@ export interface PayloadJob {
           | 'cleanupOrphanedMedia'
           | 'expireEvents'
           | 'screenEventSubmission'
+          | 'sendPostEventFollowUps'
           | 'sendRegistrationDigests'
           | 'sendSessionReminders'
           | 'syncLectureMetadata'
@@ -3904,6 +3914,7 @@ export interface PayloadJob {
         | 'cleanupOrphanedMedia'
         | 'expireEvents'
         | 'screenEventSubmission'
+        | 'sendPostEventFollowUps'
         | 'sendRegistrationDigests'
         | 'sendSessionReminders'
         | 'syncLectureMetadata'
@@ -4788,7 +4799,7 @@ export interface EventsSelect<T extends boolean = true> {
   registrations?: T;
   manager?: T;
   verificationStage?: T;
-  notificationLog?: T;
+  activityLog?: T;
   confidenceScore?: T;
   qualityReport?: T;
   submitter?: T;
@@ -4841,7 +4852,9 @@ export interface RegistrationsSelect<T extends boolean = true> {
   uuid?: T;
   mailingListSubscribedAt?: T;
   remindersUnsubscribedAt?: T;
-  reminderLog?: T;
+  activityLog?: T;
+  eventFeedback?: T;
+  followUpSentAt?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;
@@ -6637,6 +6650,18 @@ export interface TaskScreenEventSubmission {
   };
   output: {
     status: string;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSendPostEventFollowUps".
+ */
+export interface TaskSendPostEventFollowUps {
+  input?: unknown;
+  output: {
+    scanned: number;
+    sent: number;
+    failed: number;
   };
 }
 /**

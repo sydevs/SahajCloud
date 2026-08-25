@@ -357,6 +357,25 @@ into a confusing one (`excludeFinishedEvents` exempts trusted reqs so
 `POST /api/events/{id}/register` can answer 409 instead of 404). Do **not**
 honour it in security gates — see `validateClientOriginHook` below.
 
+### System writes: `asSystemReq`, and why `overrideAccess` isn't enough
+
+A third helper sits beside those two: `asSystemReq(req)` returns the same
+request with **no user**. Reach for it when a client-triggered operation
+performs a write that isn't on the caller's authority — the registration
+vote-sync hook updating the *event*, for instance.
+
+`overrideAccess: true` is not sufficient on its own, which is the trap. It
+skips collection access but **not** `filterOptions`, which Payload validates
+against `req.user`: a write touching the events `region` picker (owner-scoped
+for atlas managers) is refused for a caller who could never pass that filter,
+400ing an operation the client was entitled to trigger but not to perform
+itself.
+
+`context`, `transactionID` and `payload` still travel by reference, so the
+transaction and per-request memoization are unaffected — only the authority
+changes. Distinct from `asTrustedReq`, which keeps the user and relaxes the
+query-shape gate; the two compose.
+
 ### Live preview bypass
 
 Admin live preview loads the external We Meditate Web frontend, which fetches

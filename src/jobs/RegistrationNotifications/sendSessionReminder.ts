@@ -9,7 +9,6 @@
  * site, matching `sendRegistrationConfirmation`.
  */
 
-import type { EmailClient } from './sendRegistrationConfirmation'
 import type { Payload, PayloadRequest } from 'payload'
 
 import { createElement } from 'react'
@@ -17,14 +16,15 @@ import { createElement } from 'react'
 import { SessionReminderEmail, sessionReminderText } from '@/emails/SessionReminderEmail'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import type { LocaleCode } from '@/lib/locales'
+import { buildReminderEmailDetails } from '@/lib/notifications/registrationDetails'
+import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
 import { signUnsubscribeToken } from '@/lib/registrations/unsubscribeToken'
-import { buildUnsubscribeEmailLink } from '@/lib/registrations/unsubscribeUrl'
 import { interpolate, resolveEmailStrings } from '@/lib/translations/emailStrings'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import type { Event } from '@/payload-types'
 import { getClientEmailBrand, getEmailBrand, renderEmail } from '@/plugins/email'
 
-import { buildReminderEmailDetails } from './registrationDetails'
+import { buildUnsubscribeEmailLink } from './unsubscribeUrl'
 
 export async function sendSessionReminder(args: {
   payload: Payload
@@ -56,7 +56,7 @@ export async function sendSessionReminder(args: {
   const strings = await resolveEmailStrings({ payload, locale, req })
   const details = buildReminderEmailDetails(event, occurrenceIso)
   const unsubscribeUrl = buildUnsubscribeEmailLink(
-    signUnsubscribeToken({ registrationId }, payload.secret),
+    await signUnsubscribeToken({ registrationId }, payload.secret),
   )
 
   const templateProps = { name: registrantName, brand, strings, details, unsubscribeUrl }

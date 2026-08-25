@@ -24,7 +24,7 @@ const SERVER_ONLY = [
   { spec: '@/plugins/usage', reason: 're-exports the pg pool (getPgPool/quotedDbSchema)' },
   { spec: '@/plugins/usage/db', reason: 'imports pg directly' },
   { spec: '@/lib/env/server', reason: 'validates and holds server secrets' },
-  { spec: '@/lib/embedVerification/browserRendering', reason: 'holds Cloudflare credentials' },
+  { spec: '@/jobs/VerifyEmbeds/browserRendering', reason: 'holds Cloudflare credentials' },
 ]
 
 /** Resolve an `@/…` or relative specifier to a file under src/, or null. */

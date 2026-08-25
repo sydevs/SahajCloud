@@ -71,7 +71,8 @@ No loose files at the root — every file lives in a named folder:
 - external-service clients, alongside `mapbox/`: `turnstile/` (Cloudflare
   captcha siteverify). Single-consumer today, but an integration seam rather
   than one endpoint's private helper — and unit-testable without booting it.
-- domain folders shared across 2+ owners: `audiences/`, `meditations/`,
+- domain folders shared across 2+ owners (**2+ is enforced** — see "One consumer
+  ⇒ it isn't shared" below): `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
   `pageTags/`, `cascadeDeletion/`, `eventTitle/` (the auto-title composition,
   split by purity: `compose.ts` is pure and re-composed by the quality checks;
@@ -139,3 +140,41 @@ from each admin client component. Add new client entry points to its list.
 5. **Exception path** (inherited from #442): if you believe a function must be
    exported from an owner folder or a plugin's internals, raise it before
    merging; the likely resolution is generalizing it into `src/lib/`.
+
+### One consumer ⇒ it isn't shared — enforced by a test
+
+Rule 4 is checked by `tests/unit/lib-boundary.spec.ts`: a module under
+`src/lib/` whose only consumer lives outside `src/lib` **fails the unit lane**.
+Such a module isn't shared code — it's one owner's private helper sitting in the
+commons, importable by anything and read by the next person as though it were
+general-purpose.
+
+This is why a job's supporting code lives in the job folder. `SendSessionReminders`
+owns `sendSessionReminder.ts` and `unsubscribeUrl.ts`; `ScreenEventSubmissions`
+owns `findOrCreateCity.ts`, `recipients` stays in `src/lib/notifications` because
+`ExpireEvents` and `registrationRecipient` also use it. The **view layer is
+untouched** — email templates stay in `src/emails/`, and a job's sender imports
+its template from there.
+
+**Counting consumers has three traps**, each of which gave a wrong answer while
+this was written, so let the test do it rather than grepping:
+
+| Trap | Example |
+| --- | --- |
+| Barrel re-exports | `recipients.ts` looked single-consumer by direct import; it has three, two via `lib/notifications/index.ts` |
+| Sibling relative imports | `browserRendering.ts` is imported as `./browserRendering` by `verifyEmbed.ts` next door — invisible to a `@/lib/…` search |
+| `scripts/` | The email preview scripts import senders directly |
+
+Two exemptions are built in:
+
+- **Consumed only from inside `src/lib`** — a shared module decomposed into
+  parts (a barrel and its members; an integration seam like `turnstile/` kept
+  separate so it unit-tests without booting its caller). The folder is the unit;
+  whether it's shared is answered by its entry point.
+- **Consumed only by `scripts/`** — operator scripts are thin CLI wrappers whose
+  routine lives in lib precisely so it can be unit-tested without running the
+  script (see `.claude/rules/scripts.md`).
+
+`KNOWN_SINGLE_CONSUMER` in that spec records what already had one consumer when
+the check landed. It's a backlog, not an approval, and should only shrink — a
+new entry needs a reason that outlives the next reader.

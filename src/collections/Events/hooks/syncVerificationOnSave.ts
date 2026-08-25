@@ -21,7 +21,7 @@ import { actorFromUser, computeVerifyFields, managerCadence } from '../lifecycle
  *   manager, so it takes the branch below.
  * - **Managed** — any meaningful manager edit re-opens the verification cycle
  *   (Atlas re-verified on every save): stage → `verified`, fresh `nextCheckAt`,
- *   `notificationLog` reset with a `re-save` first entry. `_status` is left to
+ *   `activityLog` reset with a `re-save` first entry. `_status` is left to
  *   the manager's save choice (publish vs draft); the explicit verify endpoints
  *   are what re-publish an unpublished event.
  *

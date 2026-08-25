@@ -34,7 +34,7 @@ export const VerificationStageField: FieldClientComponent = ({ field }) => {
   const stage = useFormFields(
     ([fields]) => fields?.verificationStage?.value as VerificationStage | undefined,
   )
-  const log = useFormFields(([fields]) => fields?.notificationLog?.value)
+  const log = useFormFields(([fields]) => fields?.activityLog?.value)
   const nextCheckAt = useFormFields(([fields]) => fields?.nextCheckAt?.value as string | undefined)
   const updatedAt = useFormFields(([fields]) => fields?.updatedAt?.value as string | undefined)
   // The derived end of the final occurrence — tells a capped watermark (the

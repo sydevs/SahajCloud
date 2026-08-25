@@ -2,6 +2,7 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
+import { DEFAULT_LOG_LIMIT } from '@/fields'
 import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
 import {
   asNotificationLog,
@@ -15,7 +16,6 @@ import {
   unpublishDate,
 } from '@/lib/eventVerification/stages'
 import { signVerifyToken } from '@/lib/eventVerification/token'
-import { buildVerifyEmailLink } from '@/lib/eventVerification/verifyUrl'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import {
   buildEventEmailDetails,
@@ -30,6 +30,18 @@ import {
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import type { Event } from '@/payload-types'
 
+import { buildVerifyEmailLink } from './verifyUrl'
+
+
+/**
+ * Cap the verification log the same way `appendLogEntry` caps a delivery log.
+ * Not that helper directly: these entries are the richer `NotificationLogEntry`
+ * union rather than the shared `LogEntry` shape. A cycle reset usually keeps
+ * this short, but a long escalation across many region managers can pile up.
+ */
+function capLog<T>(log: T[]): T[] {
+  return log.length > DEFAULT_LOG_LIMIT ? log.slice(log.length - DEFAULT_LOG_LIMIT) : log
+}
 
 interface ExpireResult {
   /** Due events examined. */
@@ -180,7 +192,7 @@ async function processEvent(args: {
   // dedup below. `null` when the listing wasn't checked at all.
   const listingProgress = (await buildEventListingProgress({ event, req, now })) ?? undefined
 
-  let log = asNotificationLog(event.notificationLog)
+  let log = asNotificationLog(event.activityLog)
 
   // Shared across recipients: the absolute date this event is (or was)
   // unpublished — every reminder shows the same date; how long it's gone
@@ -213,7 +225,7 @@ async function processEvent(args: {
   for (const recipient of recipients) {
     if (hasReminderForStage(log, stage, recipient.manager.id)) continue
 
-    const token = signVerifyToken(
+    const token = await signVerifyToken(
       { eventId: event.id, managerId: recipient.manager.id },
       payload.secret,
       now,
@@ -240,7 +252,7 @@ async function processEvent(args: {
 
     // Persist the log entry immediately — it's the exactly-once marker, so a
     // crash mid-fan-out resumes by sending only the still-missing recipients.
-    log = [
+    log = capLog([
       ...log,
       buildReminderEntry({
         stage,
@@ -255,11 +267,11 @@ async function processEvent(args: {
         destination: recipient.destination,
         at: now.toISOString(),
       }),
-    ]
+    ])
     await payload.update({
       collection: 'events',
       id: event.id,
-      data: { notificationLog: log },
+      data: { activityLog: log },
       context: { skipVerifyHook: true },
       overrideAccess: true,
       req,
