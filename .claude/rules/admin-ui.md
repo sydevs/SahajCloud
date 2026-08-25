@@ -49,6 +49,41 @@ detail needs a delegated `closest('tr[data-id]')` listener on a wrapper
 (Payload writes the row's `id` there), and `cursor` has to be a stylesheet rule
 because it belongs on Payload's own `<tr>`.
 
+### `Drawer` must be mounted unconditionally, or it won't animate
+
+`Drawer` seeds its `animateIn` state from `modalState[slug].isOpen` with
+`useState` — read **once, at mount** — and only adds `drawer--is-open` in a
+layout effect. So a drawer rendered behind a condition that becomes true in the
+same tick as `openModal` mounts *already open*: the class is on its first paint
+and there is no transition left to play. It appears in place, which reads as a
+styling problem rather than a mounting one.
+
+```tsx
+// ❌ mounts already-open; no slide
+{selected !== null && <Drawer slug={slug}>{body}</Drawer>}
+
+// ✅ mounts closed, animates on open — and returns null while closed, so it costs nothing
+<Drawer slug={slug}>{selected === null ? null : body}</Drawer>
+```
+
+There is **no width prop**: `Drawer` sets `width: calc(100% - (drawerDepth *
+var(--gutter-h)))` in JS, narrowing one gutter per nesting level, and its SCSS
+says so explicitly. A narrower drawer means a `className` and a CSS rule.
+
+### A hidden collection is still reachable through a `join`
+
+`admin.hidden: true` removes a collection from the nav **and** unregisters its
+routes — `/admin/collections/<slug>/<id>` 404s. It does *not* make its
+documents unreachable: a `join` field on another collection still renders its
+rows and opens each one in a document drawer, which never touches the route.
+Nested drawers work from there too.
+
+That combination is often the arrangement you want — reachable in the context
+that explains it, absent from the sidebar. `Registrations` is hidden for
+exactly that reason and is opened from an Event's Registration tab. So a 404 on
+the route is not evidence that a field needs to be surfaced somewhere else; try
+the surfaces that already embed the document first.
+
 **Building a custom field component?** Compose Payload's field primitives instead
 of bespoke markup (see "Custom field components" below): `FieldLabel`,
 `FieldError`, `FieldDescription`, plus the input fields `TextField`,
