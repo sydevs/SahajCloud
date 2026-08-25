@@ -103,7 +103,7 @@ export const EventSubmissions: CollectionConfig = {
     {
       // Status banner + screening verdict. Mounted on the data it renders
       // rather than on a `ui` field, so the component reads its own value
-      // instead of reaching across form state (as `notificationLog` →
+      // instead of reaching across form state (as `activityLog` →
       // LogTable does for the Events verification log). First field ⇒ renders on top.
       name: 'screeningResult',
       type: 'json',

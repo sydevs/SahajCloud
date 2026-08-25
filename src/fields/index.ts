@@ -39,7 +39,7 @@ export {
   hasLogEntry,
   logField,
 } from './logField'
-export type { LogCell, LogEntry, LogFieldOptions } from './logField'
+export type { LogCell, LogColumn, LogEntry, LogFieldOptions } from './logField'
 
 export { scheduleFields } from './scheduleFields'
 export { systemMetaField } from './systemMetaField'

@@ -1393,7 +1393,7 @@ describe('Schedule Field Hooks', () => {
     })
 
     it('is a no-op for an unrelated partial update (empty group patch)', () => {
-      // e.g. the ExpireEvents job patching only `notificationLog`
+      // e.g. the ExpireEvents job patching only `activityLog`
       expect(callLastDateHook({ ...COURSE, lastDate: '2025-03-17T23:59:59.999Z' }, {})).toBe(
         '2025-03-17T23:59:59.999Z',
       )

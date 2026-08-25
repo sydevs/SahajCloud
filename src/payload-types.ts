@@ -1810,7 +1810,7 @@ export interface Event {
   /**
    * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification. Keeps the most recent 50 entries.
    */
-  notificationLog?:
+  activityLog?:
     | {
         [k: string]: unknown;
       }
@@ -4799,7 +4799,7 @@ export interface EventsSelect<T extends boolean = true> {
   registrations?: T;
   manager?: T;
   verificationStage?: T;
-  notificationLog?: T;
+  activityLog?: T;
   confidenceScore?: T;
   qualityReport?: T;
   submitter?: T;

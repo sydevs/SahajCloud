@@ -7,7 +7,7 @@ import type { ReminderAudience, ReminderLevel } from '@/lib/notifications'
 
 
 /**
- * The on-document `notificationLog` — the **current verification cycle**.
+ * The on-document `activityLog` — the **current verification cycle**.
  *
  * Reset on every verification, where the first entry records the verification
  * itself; each reminder the job sends appends one entry. The log is both the

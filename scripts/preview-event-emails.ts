@@ -205,7 +205,7 @@ async function persistSampleEvent(): Promise<SampleData> {
     data: {
       verificationStage: 'escalated',
       nextCheckAt: iso(13),
-      notificationLog: [
+      activityLog: [
         buildVerificationEntry('import', ref(eventManager.id, eventManager.name!), iso(-35)),
         buildReminderEntry({
           stage: 'verified',

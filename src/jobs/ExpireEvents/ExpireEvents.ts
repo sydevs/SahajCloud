@@ -192,7 +192,7 @@ async function processEvent(args: {
   // dedup below. `null` when the listing wasn't checked at all.
   const listingProgress = (await buildEventListingProgress({ event, req, now })) ?? undefined
 
-  let log = asNotificationLog(event.notificationLog)
+  let log = asNotificationLog(event.activityLog)
 
   // Shared across recipients: the absolute date this event is (or was)
   // unpublished — every reminder shows the same date; how long it's gone
@@ -271,7 +271,7 @@ async function processEvent(args: {
     await payload.update({
       collection: 'events',
       id: event.id,
-      data: { notificationLog: log },
+      data: { activityLog: log },
       context: { skipVerifyHook: true },
       overrideAccess: true,
       req,

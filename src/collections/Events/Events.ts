@@ -555,19 +555,23 @@ export const Events: CollectionConfig = {
               },
             },
             logField({
-              // Current cycle's ledger: the verification that opened it plus a
-              // reminder entry per send. Reset on every verification, and the
-              // job's exactly-once marker (skip recipients already logged this
-              // stage).
+              // The verification cycle today — the verification that opened it
+              // plus a reminder entry per send — but named generically, because
+              // an event's history will grow past verification. Reset on every
+              // verification, which is why it stays its own field rather than
+              // accumulating like a registration's.
               //
-              // Rendered by the shared table like every other log: the entry
-              // builders emit `activity` / `who` / `delivery` cells, so the
-              // columns a manager reads to see *why* a reminder went where it
-              // did survive without a second component.
-              name: 'notificationLog',
-              label: 'Verification Log',
+              // Also the job's exactly-once marker (skip recipients already
+              // logged this stage), which reads entries as data: the builders
+              // emit these cells *alongside* `stage` / `level` / `manager`, and
+              // the row's ⋯ shows the rest.
               description:
                 'Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.',
+              columns: [
+                { key: 'activity', label: 'Event' },
+                { key: 'who', label: 'Who' },
+                { key: 'delivery', label: 'Delivery' },
+              ],
             }),
             {
               // Wilson lower bound of registrant confirm/deny votes, in [0, 1];

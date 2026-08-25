@@ -2,11 +2,11 @@
 
 import type { FieldClientComponent, JSONFieldClient } from 'payload'
 
-import { FieldDescription, FieldLabel, Table, useField } from '@payloadcms/ui'
+import { FieldDescription, FieldLabel, Popup, Table, useField } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
 import React from 'react'
 
-import type { LogCell, LogEntry } from '@/fields/logField'
+import type { LogCell, LogColumn, LogEntry } from '@/fields/logField'
 import { asLog } from '@/fields/logField'
 
 import { tableColumn } from '../tableColumn'
@@ -15,20 +15,21 @@ import { tableColumn } from '../tableColumn'
  * The renderer for every {@link logField} — what happened to this document,
  * when, and whatever else the entry chose to say.
  *
- * **The entries decide the columns**, through their `cells`. That is what lets
- * one component serve a verification cycle (Activity / Who / Delivery) and a
- * registrant's mail (Activity / Sent to) without either being flattened into
- * the other's shape — and lets a new kind of entry bring a new column with it,
- * without touching this file.
+ * **The columns are the field's**, declared by `logField` and delivered in
+ * `admin.custom`. That is what lets one component serve a verification cycle
+ * (Activity / Who / Delivery) and a registrant's mail (Activity / Sent to)
+ * without either being flattened into the other's shape.
  *
- * Only `cells` renders. The rest of an entry is machine data a job reads back
- * (a reminder carries its stage, level, role and recipient id), and rendering
- * those turned the verification log into fourteen columns of raw enum values.
+ * With none declared it falls back to the **union** of the entries' `cells` —
+ * the union rather than the newest entry, because a log whose latest entry is a
+ * cancellation would otherwise drop the recipient column and hide what it holds
+ * for every email above it.
  *
- * Columns come from the **union** of entries, not the newest one: a log whose
- * latest entry is a cancellation would otherwise drop the recipient column and
- * hide what it holds for every email above it. Order is first-seen scanning
- * newest-first, so the current shape leads and older extras trail it.
+ * Only `cells` renders as columns. The rest of an entry is machine data a job
+ * reads back (a reminder carries its stage, level, role and recipient id), and
+ * rendering those turned the verification log into fourteen columns of raw enum
+ * values. It isn't lost, though — the row's ⋯ opens the whole entry as JSON,
+ * which is the answer to "why did that go there?" when no column says.
  */
 export const LogTable: FieldClientComponent = ({ field }) => {
   const { name, label, admin } = field as JSONFieldClient
@@ -38,7 +39,8 @@ export const LogTable: FieldClientComponent = ({ field }) => {
   // that happened. The stored order stays chronological — that's the end the
   // cap trims from.
   const entries = [...asLog(value)].sort((a, b) => b.at.localeCompare(a.at))
-  const labels = (admin?.custom?.columnLabels ?? {}) as Record<string, string>
+  const declared = admin?.custom?.columns as LogColumn[] | undefined
+  const columns = declared?.length ? declared : derivedColumns(entries)
 
   return (
     <div className="field-type json read-only">
@@ -56,14 +58,19 @@ export const LogTable: FieldClientComponent = ({ field }) => {
                 'When',
                 entries.map((entry) => formatLogDate(entry.at)),
               ),
-              ...columnKeys(entries).map((key) =>
+              ...columns.map((column) =>
                 tableColumn(
-                  key,
-                  labels[key] ?? toWords(key),
+                  column.key,
+                  column.label ?? toWords(column.key),
                   entries.map((entry, index) => (
-                    <CellView key={index} cell={entry.cells?.[key]} />
+                    <CellView key={index} cell={entry.cells?.[column.key]} />
                   )),
                 ),
+              ),
+              tableColumn(
+                'details',
+                '',
+                entries.map((entry, index) => <EntryDetails key={index} entry={entry} />),
               ),
             ]}
           />
@@ -74,8 +81,8 @@ export const LogTable: FieldClientComponent = ({ field }) => {
   )
 }
 
-/** Cell keys across every entry, in the order they first appear. */
-function columnKeys(entries: LogEntry[]): string[] {
+/** Fallback when the field declares none: every cell key, first-seen order. */
+function derivedColumns(entries: LogEntry[]): LogColumn[] {
   const keys: string[] = []
   for (const entry of entries) {
     for (const [key, cell] of Object.entries(entry.cells ?? {})) {
@@ -83,7 +90,28 @@ function columnKeys(entries: LogEntry[]): string[] {
       if (!keys.includes(key)) keys.push(key)
     }
   }
-  return keys
+  return keys.map((key) => ({ key }))
+}
+
+/**
+ * The whole entry as JSON, behind a ⋯ in the last column.
+ *
+ * Columns show what a manager usually needs; this is the escape hatch for the
+ * rest — a reminder's escalation level and recipient tier, the stage it was
+ * sent for, the exactly-once key. Payload's `Popup` renders into a portal, so
+ * a wide JSON block can't stretch the table it hangs off.
+ */
+function EntryDetails({ entry }: { entry: LogEntry }) {
+  return (
+    <Popup
+      button={<span style={detailsTriggerStyle} aria-label="Show full entry">⋯</span>}
+      buttonType="custom"
+      horizontalAlign="right"
+      render={() => <pre style={jsonStyle}>{JSON.stringify(entry, null, 2)}</pre>}
+      showScrollbar
+      size="fit-content"
+    />
+  )
 }
 
 /**
@@ -120,6 +148,23 @@ function formatLogDate(iso: string): string {
 const mutedStyle: React.CSSProperties = { color: 'var(--theme-elevation-500)' }
 const subStyle: React.CSSProperties = { ...mutedStyle, fontSize: '12px' }
 const stackStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column' }
+const detailsTriggerStyle: React.CSSProperties = {
+  cursor: 'pointer',
+  color: 'var(--theme-elevation-500)',
+  padding: '0 4px',
+  letterSpacing: '1px',
+}
+const jsonStyle: React.CSSProperties = {
+  margin: 0,
+  padding: 'calc(var(--base) * 0.5)',
+  fontSize: '11px',
+  lineHeight: 1.5,
+  maxHeight: '360px',
+  maxWidth: '460px',
+  overflow: 'auto',
+  whiteSpace: 'pre',
+  color: 'var(--theme-elevation-800)',
+}
 const emptyStyle: React.CSSProperties = {
   color: 'var(--theme-elevation-500)',
   fontStyle: 'italic',

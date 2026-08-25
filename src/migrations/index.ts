@@ -48,6 +48,7 @@ import * as migration_20260820_151908_submission_title from './20260820_151908_s
 import * as migration_20260820_202018_submission_manager from './20260820_202018_submission_manager';
 import * as migration_20260825_005719_drop_event_feedback_at from './20260825_005719_drop_event_feedback_at';
 import * as migration_20260825_041552_activity_log from './20260825_041552_activity_log';
+import * as migration_20260825_150733_events_activity_log from './20260825_150733_events_activity_log';
 
 export const migrations = [
   {
@@ -298,6 +299,11 @@ export const migrations = [
   {
     up: migration_20260825_041552_activity_log.up,
     down: migration_20260825_041552_activity_log.down,
-    name: '20260825_041552_activity_log'
+    name: '20260825_041552_activity_log',
+  },
+  {
+    up: migration_20260825_150733_events_activity_log.up,
+    down: migration_20260825_150733_events_activity_log.down,
+    name: '20260825_150733_events_activity_log'
   },
 ];

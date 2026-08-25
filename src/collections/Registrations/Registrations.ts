@@ -140,6 +140,10 @@ export const Registrations: CollectionConfig = {
       // before sending and appends immediately after, so a task retry or an
       // overlapping run never double-sends.
       description: 'Everything recorded about this registration, newest first.',
+      columns: [
+        { key: 'activity', label: 'Event' },
+        { key: 'sentTo', label: 'Sent to' },
+      ],
     }),
     {
       type: 'row',

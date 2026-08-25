@@ -309,10 +309,15 @@ logField({ description: 'Everything recorded about this registration.' })
 for a document that needs a second log (Events keeps `notificationLog`, which is
 reset per verification cycle rather than accumulating).
 
-### The entry decides the columns
+### Columns are declared on the field
 
-Each key in an entry's **`cells`** becomes a column, headed by its name in
-words. A consumer adds a column by writing one; no component changes.
+`logField({ columns: [{ key: 'activity', label: 'Event' }, …] })` — they travel
+to the renderer in `admin.custom`, the same way `SelectDescription` and
+`EventQualityPanel` get theirs. Declaring them fixes order and headings even
+before any entry carries the cell; omit `columns` and the table derives them
+from the union of the entries' `cells`, which keeps a new log zero-config.
+
+A column reads the matching key from an entry's **`cells`**.
 
 Everything outside `cells` is machine data and never renders — `at`, `type`
 (the slug jobs match on, never a label), `key` (the exactly-once key), plus
@@ -325,7 +330,11 @@ rendered a fourteen-column table of raw enum values.
 | `at` | ISO timestamp. Always the first column, and what the log sorts by. |
 | `type` | Stable slug (`session-reminder`, `verification`) — matched, not shown. |
 | `key` | Exactly-once key, scoped to `type`. |
-| `cells` | The columns. Everything else is data. |
+| `cells` | What the columns read. Everything else is data. |
+
+Nothing is hidden by not having a column: every row's trailing **⋯** opens the
+whole entry as JSON in a popover, which is where a reminder's stage, level and
+recipient live.
 
 A cell is a string, or `{ label?, text, sub? }` — `label` renders muted inline
 before the text (`email: a@b.test`), `sub` as a muted line beneath it (a

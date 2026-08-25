@@ -10,10 +10,16 @@ import type { JSONField } from 'payload'
  * invisible; one reset per cycle, one grew forever uncapped; each had its own
  * coercion and membership helper.
  *
- * **The entry decides the columns**, through its `cells`. Each key in there
- * becomes a column headed by its name in words, so a consumer adds a column by
- * writing one and no component changes — which is what lets one table serve a
- * verification cycle and a registrant's mail without either being flattened.
+ * **Columns are declared here**, on the field, and travel to the renderer in
+ * `admin.custom` — the same way `SelectDescription` and `EventQualityPanel` get
+ * their config. One table serves a verification cycle and a registrant's mail
+ * without either being flattened, because each declares what it shows.
+ *
+ * Declaring them (rather than deriving them from whatever the entries happen to
+ * carry) fixes the order and the headings even when a column is absent from
+ * every entry so far — a log that has only ever recorded one kind of event
+ * still shows the shape it will grow into. With `columns` omitted the table
+ * falls back to deriving them, which keeps a new consumer zero-config.
  *
  * Display is **opt-in, inside `cells`**, and everything else on the entry is
  * machine data. That default is the important one: entries are read back as
@@ -38,6 +44,14 @@ export const DEFAULT_LOG_LIMIT = 50
  * beneath it (a recipient's role and region under their name).
  */
 export type LogCell = string | { label?: string; text: string; sub?: string }
+
+/** A declared column: which cell it reads, and what to head it. */
+export interface LogColumn {
+  /** Key within an entry's `cells`. */
+  key: string
+  /** Heading. Defaults to the key in words (`sentTo` → "Sent To"). */
+  label?: string
+}
 
 export interface LogEntry {
   /** When it happened (ISO 8601). Always the first column, and the sort key. */
@@ -102,10 +116,11 @@ export interface LogFieldOptions {
   /** Cap, for the description only; `appendLogEntry` is what enforces it. */
   limit?: number
   /**
-   * Column headings, keyed by entry key. Anything unlisted is headed by its
-   * key in words (`sentTo` → "Sent To"), which is usually right.
+   * The columns, in order. Omit to derive them from whatever the entries
+   * carry — fine for a new log, but declared columns keep the order and
+   * headings stable before the data does.
    */
-  columnLabels?: Record<string, string>
+  columns?: LogColumn[]
   admin?: Omit<NonNullable<JSONField['admin']>, 'components' | 'description' | 'readOnly'>
 }
 
@@ -118,7 +133,7 @@ export function logField({
   label = 'Activity Log',
   description,
   limit = DEFAULT_LOG_LIMIT,
-  columnLabels,
+  columns,
   admin = {},
 }: LogFieldOptions): JSONField {
   return {
@@ -130,7 +145,7 @@ export function logField({
       readOnly: true,
       description: `${description} Keeps the most recent ${limit} entries.`,
       components: { Field: '@/components/admin/LogTable' },
-      custom: { ...admin.custom, columnLabels },
+      custom: { ...admin.custom, columns },
     },
   }
 }
