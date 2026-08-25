@@ -3,11 +3,15 @@ import type { Payload, PayloadRequest, TaskConfig, Where } from 'payload'
 import { createElement } from 'react'
 
 import type { FollowUpSection } from '@/emails/PostEventFollowUpEmail'
-import { PostEventFollowUpEmail } from '@/emails/PostEventFollowUpEmail'
+import { PostEventFollowUpEmail, postEventFollowUpText } from '@/emails/PostEventFollowUpEmail'
+import { appendLogEntry, asLog } from '@/fields'
 import { CONTACT_EMAIL } from '@/lib/contact'
+import type { LocaleCode } from '@/lib/locales'
 import { buildFeedbackEmailLink, signFeedbackToken } from '@/lib/registrations/feedbackLinks'
+import { interpolate, resolveEmailStrings } from '@/lib/translations/emailStrings'
+import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import type { Event, Registration, User } from '@/payload-types'
-import { getEmailBrand, renderEmail } from '@/plugins/email'
+import { getClientEmailBrand, getEmailBrand, renderEmail } from '@/plugins/email'
 
 const PAGINATION_LIMIT = 200
 
@@ -16,6 +20,9 @@ const PAGINATION_LIMIT = 200
  * scan (rows outside the window are never revisited) and keeps the ask timely:
  * a "did it take place?" three months late is noise.
  */
+/** `event` slug for follow-up entries in the registration's `emailLog`. */
+export const FOLLOW_UP_LOG_EVENT = 'post-event-follow-up'
+
 const FOLLOW_UP_WINDOW_DAYS = 30
 
 interface FollowUpResult {
@@ -64,25 +71,54 @@ async function sendFollowUp(
   }
   if (sections.length === 0) return false
 
-  const brand = getEmailBrand('sahaj-atlas')
+  // Registrant mail: the client service's brand, the registrant's own locale,
+  // replies routed to the service. Same shape as the confirmation and reminder
+  // — see the checklist in `.claude/rules/email.md`.
+  const client = typeof registration.client === 'object' ? registration.client : null
+  const brand = client ? getClientEmailBrand(client) : getEmailBrand('sahaj-atlas')
+  const strings = await resolveEmailStrings({
+    payload,
+    locale: (registration.locale as LocaleCode | null) ?? null,
+    req,
+  })
+
+  const templateProps = {
+    brand,
+    strings,
+    registrantName: user.name || 'there',
+    eventTitle: typeof event.title === 'string' ? event.title : 'your class',
+    sections,
+  }
+
   await payload.sendEmail({
     to: user.email,
-    from: `${brand.productName} <${CONTACT_EMAIL}>`,
-    subject: `Did “${typeof event.title === 'string' ? event.title : 'your class'}” take place?`,
-    html: await renderEmail(
-      createElement(PostEventFollowUpEmail, {
-        brand,
-        registrantName: user.name || 'there',
-        eventTitle: typeof event.title === 'string' ? event.title : 'your class',
-        sections,
-      }),
-    ),
+    // `From` stays CONTACT_EMAIL — Resend verifies senders per domain, so we
+    // can't send as the client; the display name carries the branding.
+    from: `${headerDisplayName(brand.productName)} <${CONTACT_EMAIL}>`,
+    ...(client?.supportEmail && { replyTo: client.supportEmail }),
+    // The event title is manager-authored free text; strip line breaks so it
+    // can't inject a second header off the Subject line.
+    subject: stripNewlines(interpolate(strings.followup_subject, { event: templateProps.eventTitle })),
+    html: await renderEmail(createElement(PostEventFollowUpEmail, templateProps)),
+    text: postEventFollowUpText(templateProps),
   })
 
   await payload.update({
     collection: 'registrations',
     id: registration.id,
-    data: { followUpSentAt: now.toISOString() },
+    data: {
+      // The watermark the sweep filters on, and the manager-readable record of
+      // the same send. A JSON column can't be `where`d cheaply, so both.
+      followUpSentAt: now.toISOString(),
+      emailLog: appendLogEntry(asLog(registration.emailLog), {
+        at: now.toISOString(),
+        event: FOLLOW_UP_LOG_EVENT,
+        summary: `Post-event follow-up for “${templateProps.eventTitle}”`,
+        channel: 'email',
+        destination: user.email,
+        key: String(registration.id),
+      }),
+    },
     overrideAccess: true,
     context: { skipWriteGuard: true },
     req,

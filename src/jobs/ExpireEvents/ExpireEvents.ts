@@ -2,6 +2,7 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
+import { DEFAULT_LOG_LIMIT } from '@/fields'
 import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
 import {
   asNotificationLog,
@@ -31,6 +32,16 @@ import type { Event } from '@/payload-types'
 
 import { buildVerifyEmailLink } from './verifyUrl'
 
+
+/**
+ * Cap the verification log the same way `appendLogEntry` caps a delivery log.
+ * Not that helper directly: these entries are the richer `NotificationLogEntry`
+ * union rather than the shared `LogEntry` shape. A cycle reset usually keeps
+ * this short, but a long escalation across many region managers can pile up.
+ */
+function capLog<T>(log: T[]): T[] {
+  return log.length > DEFAULT_LOG_LIMIT ? log.slice(log.length - DEFAULT_LOG_LIMIT) : log
+}
 
 interface ExpireResult {
   /** Due events examined. */
@@ -241,7 +252,7 @@ async function processEvent(args: {
 
     // Persist the log entry immediately — it's the exactly-once marker, so a
     // crash mid-fan-out resumes by sending only the still-missing recipients.
-    log = [
+    log = capLog([
       ...log,
       buildReminderEntry({
         stage,
@@ -256,7 +267,7 @@ async function processEvent(args: {
         destination: recipient.destination,
         at: now.toISOString(),
       }),
-    ]
+    ])
     await payload.update({
       collection: 'events',
       id: event.id,

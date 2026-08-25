@@ -31,6 +31,10 @@ export { buildTranslationTabs } from './translationsField'
 export type { SchemaEntry, TranslationsSchema } from './translationsField'
 
 // Schedule fields - group of datetime, timezone, and RRULE sub-fields
+// Delivery log — "did that email actually go out?", rendered for managers.
+export { appendLogEntry, asLog, DEFAULT_LOG_LIMIT, hasLogEntry, logField } from './logField'
+export type { LogEntry, LogFieldOptions } from './logField'
+
 export { scheduleFields } from './scheduleFields'
 export { systemMetaField } from './systemMetaField'
 export type { ScheduleFieldsOptions } from './scheduleFields'

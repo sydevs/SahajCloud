@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { legacyMigrationFields } from '@/fields'
+import { legacyMigrationFields, logField } from '@/fields'
 import { DEFAULT_LOCALE, getLocaleOptions } from '@/lib/locales'
 import { registrationQuestionsJsonSchema } from '@/lib/registrations/questions'
 
@@ -129,16 +129,20 @@ export const Registrations: CollectionConfig = {
       type: 'date',
       admin: { readOnly: true },
     },
-    {
-      // Exactly-once ledger for session reminders: one entry per occurrence
-      // this registration has already been reminded for. The reminder job
-      // checks membership before sending and appends immediately after, so a
-      // task retry or an overlapping run never double-sends. Mirrors the Events
-      // `notificationLog` pattern.
-      name: 'reminderLog',
-      type: 'json',
-      admin: { readOnly: true },
-    },
+    logField({
+      // Every message sent about this registration — reminders and the
+      // post-event follow-up — in one place a manager can read. It was
+      // `reminderLog`: reminders only, and `admin.readOnly` json with no
+      // renderer, so the one question it could answer ("did that go out?")
+      // needed a database query to ask.
+      //
+      // Doubles as the exactly-once guard: each job checks `hasLogEntry`
+      // before sending and appends immediately after, so a task retry or an
+      // overlapping run never double-sends.
+      name: 'emailLog',
+      label: 'Emails Sent',
+      description: 'Messages sent to this registrant, newest first.',
+    }),
     {
       type: 'row',
       fields: [
@@ -159,9 +163,10 @@ export const Registrations: CollectionConfig = {
           admin: { description: 'Registrant’s verdict on an unverified event.' },
         },
         {
-          // Ledger for the post-event follow-up email (generic watermark: the
-          // feedback ask today, future follow-up content later) — the
-          // SendPostEventFollowUps job sends at most one per registration.
+          // The follow-up sweep's query filter — `emailLog` records *that* it
+          // was sent, but nothing can `where` on a JSON column cheaply, so the
+          // scan still needs a real dated column to select on. Record and
+          // filter are different jobs; see `logField`.
           name: 'followUpSentAt',
           type: 'date',
           admin: { hidden: true },

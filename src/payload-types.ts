@@ -1808,7 +1808,7 @@ export interface Event {
     | 'expired'
     | 'finished';
   /**
-   * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.
+   * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification. Keeps the most recent 50 entries.
    */
   notificationLog?:
     | {
@@ -1935,7 +1935,10 @@ export interface Registration {
   uuid: string;
   mailingListSubscribedAt?: string | null;
   remindersUnsubscribedAt?: string | null;
-  reminderLog?:
+  /**
+   * Messages sent to this registrant, newest first. Keeps the most recent 50 entries.
+   */
+  emailLog?:
     | {
         [k: string]: unknown;
       }
@@ -4849,7 +4852,7 @@ export interface RegistrationsSelect<T extends boolean = true> {
   uuid?: T;
   mailingListSubscribedAt?: T;
   remindersUnsubscribedAt?: T;
-  reminderLog?: T;
+  emailLog?: T;
   eventFeedback?: T;
   followUpSentAt?: T;
   legacyId?: T;

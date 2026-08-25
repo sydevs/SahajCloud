@@ -17,6 +17,7 @@ import {
   addressFields,
   hideUntilCreated,
   legacyMigrationFields,
+  logField,
   publicUrlFields,
   scheduleFields,
   systemMetaField,
@@ -553,20 +554,22 @@ export const Events: CollectionConfig = {
                 components: { Field: '@/components/admin/VerificationStageField' },
               },
             },
-            {
+            logField({
               // Current cycle's ledger: the verification that opened it plus a
               // reminder entry per send. Reset on every verification, and the
               // job's exactly-once marker (skip recipients already logged this
-              // stage). Read-only, rendered by NotificationLogTable.
+              // stage).
+              //
+              // Keeps its own renderer rather than the shared table: these
+              // entries carry escalation level, recipient tier and the ancestor
+              // region that linked a region manager to the event — the columns
+              // a manager reads to understand *why* a reminder went where it
+              // did. That override is the factory's extension point.
               name: 'notificationLog',
-              type: 'json',
-              admin: {
-                readOnly: true,
-                description:
-                  'Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.',
-                components: { Field: '@/components/admin/NotificationLogTable' },
-              },
-            },
+              description:
+                'Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.',
+              component: '@/components/admin/NotificationLogTable',
+            }),
             {
               // Wilson lower bound of registrant confirm/deny votes, in [0, 1];
               // null until the first vote. A real, indexed column — unlike the

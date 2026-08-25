@@ -292,6 +292,53 @@ code that treats "plain object ⇒ a group to expand" will render the whole row.
 *name*, or a proposed manager came out as their id, roles, email and every
 notification preference.
 
+## Delivery logs (`logField`)
+
+"Did that email actually go out, and to whom?" is a question managers ask, and
+answering it from application logs or the database is not an answer. Any
+collection whose documents get messages sent about them gets a log field:
+
+```typescript
+import { logField } from '@/fields'
+
+logField({
+  name: 'emailLog',
+  label: 'Emails Sent',
+  description: 'Messages sent to this registrant, newest first.',
+})
+```
+
+Read-only, rendered by a shared table (When / What / Sent to), newest first.
+Jobs write it with the helpers from the same module:
+
+```typescript
+import { appendLogEntry, asLog, hasLogEntry } from '@/fields'
+
+const log = asLog(registration.emailLog)
+if (hasLogEntry(log, 'session-reminder', occurrenceIso)) continue  // exactly-once guard
+// …send…
+data: { emailLog: appendLogEntry(log, { at, event: 'session-reminder', summary, channel, destination, key: occurrenceIso }) }
+```
+
+Three things worth knowing:
+
+- **`appendLogEntry` caps the log** (`DEFAULT_LOG_LIMIT`, oldest dropped). Use it
+  rather than `[...log, entry]`: a reminder log on a weekly class gains an entry
+  per occurrence, read and rewritten on every send, and nothing was bounding it
+  before this existed.
+- **Match on `event` *and* `key`.** One log holds several kinds of message now,
+  so a bare key collides across them — registration 42's follow-up must not read
+  as its reminder.
+- **A log is a record, not a query filter.** Nothing can `where` on a JSON column
+  cheaply, so a sweep that needs to *find* documents still wants a real dated
+  column beside the log. `Registrations.followUpSentAt` is exactly that: the log
+  says what happened, the column is what the query selects on.
+
+**Entries may carry extra properties**, and a log with domain detail worth its
+own columns passes its own renderer instead of bending the shared one — the
+Events verification log does, because its escalation level, recipient tier and
+linking region are what tell a manager *why* a reminder went where it did.
+
 ## Plugins
 
 ### SEO (`@payloadcms/plugin-seo`)

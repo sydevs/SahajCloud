@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 
 import { Section, Text } from 'react-email'
 
+import type { EmailStrings } from '@/lib/translations/emailStrings'
+import { interpolate } from '@/lib/translations/emailStrings'
 import type { EmailBrand } from '@/plugins/email'
 
 import { BrandButtonRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
@@ -25,27 +27,35 @@ export type FollowUpSection =
       body: string
     }
 
-interface PostEventFollowUpEmailProps {
+export interface PostEventFollowUpEmailProps {
   brand: EmailBrand
+  /** Resolved in the registrant's locale by the sender — never queried here. */
+  strings: EmailStrings
   registrantName: string
   eventTitle: string
   sections: FollowUpSection[]
 }
 
-function renderSection(brand: EmailBrand, section: FollowUpSection, index: number): ReactNode {
+function renderSection(
+  brand: EmailBrand,
+  strings: EmailStrings,
+  section: FollowUpSection,
+  index: number,
+): ReactNode {
   switch (section.type) {
     case 'feedback-ask':
       return (
         <Section key={index}>
-          <Text style={styles.paragraph}>
-            This listing hasn’t been verified by a local coordinator yet, so your answer really
-            helps: did this class actually take place?
-          </Text>
+          <Text style={styles.paragraph}>{strings.followup_ask}</Text>
           <BrandButtonRow
             brand={brand}
             buttons={[
-              { label: 'Yes, it took place', href: section.confirmUrl },
-              { label: 'No — I couldn’t find it', href: section.denyUrl, variant: 'secondary' },
+              { label: strings.followup_confirm_cta, href: section.confirmUrl },
+              {
+                label: strings.followup_deny_cta,
+                href: section.denyUrl,
+                variant: 'secondary',
+              },
             ]}
           />
         </Section>
@@ -62,28 +72,67 @@ function renderSection(brand: EmailBrand, section: FollowUpSection, index: numbe
 
 /**
  * Post-event follow-up to a registrant — sent once per registration (the
- * `followUpSentAt` ledger) after the occurrence they registered for has
+ * `followUpSentAt` watermark) after the occurrence they registered for has
  * passed. Today it carries the confirm/deny ask for unverified events; the
  * sections prop is the extension point for future follow-up content.
+ *
+ * Registrant mail, so it follows that shape: no callout, the **client
+ * service's** brand rather than the project's, and every string resolved in
+ * the registrant's own locale by the sender (see `.claude/rules/email.md`).
  */
 export function PostEventFollowUpEmail({
   brand,
+  strings,
   registrantName,
   eventTitle,
   sections,
 }: PostEventFollowUpEmailProps) {
+  const heading = interpolate(strings.followup_heading, { event: eventTitle })
   return (
-    <EmailLayout
-      brand={brand}
-      heading={`How was “${eventTitle}”?`}
-      previewText={`A quick question about ${eventTitle}`}
-    >
+    <EmailLayout brand={brand} heading={heading} previewText={heading}>
       <Text style={styles.paragraph}>
-        Hi {registrantName}, you recently registered for “{eventTitle}”.
+        {interpolate(strings.followup_intro, { name: registrantName, event: eventTitle })}
       </Text>
-      {sections.map((section, index) => renderSection(brand, section, index))}
+      {sections.map((section, index) => renderSection(brand, strings, section, index))}
+      <Text style={styles.hint}>{strings.followup_footer_reason}</Text>
     </EmailLayout>
   )
+}
+
+/**
+ * Plain-text alternative. Every registrant template ships one: a message with
+ * no text part scores worse with spam filters and renders as nothing at all in
+ * a text-only client.
+ */
+export function postEventFollowUpText({
+  strings,
+  registrantName,
+  eventTitle,
+  sections,
+}: PostEventFollowUpEmailProps): string {
+  const lines: string[] = [
+    interpolate(strings.followup_heading, { event: eventTitle }),
+    '',
+    interpolate(strings.followup_intro, { name: registrantName, event: eventTitle }),
+  ]
+
+  for (const section of sections) {
+    lines.push('')
+    if (section.type === 'feedback-ask') {
+      lines.push(
+        strings.followup_ask,
+        '',
+        `${strings.followup_confirm_cta}: ${section.confirmUrl}`,
+        `${strings.followup_deny_cta}: ${section.denyUrl}`,
+      )
+    } else {
+      if (section.heading) lines.push(section.heading)
+      lines.push(section.body)
+    }
+  }
+
+  lines.push('', strings.followup_footer_reason)
+  return lines.join('\n')
 }
 
 export default PostEventFollowUpEmail

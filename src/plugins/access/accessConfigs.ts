@@ -50,12 +50,19 @@ function isActiveNonAdminManager(user: PayloadRequest['user']): boolean {
  * `?registrationUuid=` (REST query) with a `req.query` fallback for
  * handler-forwarded requests.
  */
+/**
+ * The `?registrationUuid=` a registrant proves possession of to vote.
+ *
+ * `req.query` only — that *is* Payload's parsed query: `createPayloadRequest`
+ * runs the search string through `qs-esm` and sets `query` alongside
+ * `searchParams` on every REST request, so a second read of `searchParams`
+ * could never see anything `query` had missed. It was here anyway, and the
+ * spec's hand-built request couldn't tell: it set `query` and no
+ * `searchParams`, so it only ever exercised the branch that survives.
+ */
 function extractRegistrationUuid(req: PayloadRequest): string | null {
-  const fromQuery = (req.query as Record<string, unknown> | undefined)?.registrationUuid
-  if (typeof fromQuery === 'string' && fromQuery) return fromQuery
-  const fromSearch =
-    typeof req.searchParams?.get === 'function' ? req.searchParams.get('registrationUuid') : null
-  return fromSearch || null
+  const uuid = (req.query as Record<string, unknown> | undefined)?.registrationUuid
+  return typeof uuid === 'string' && uuid ? uuid : null
 }
 
 /**
