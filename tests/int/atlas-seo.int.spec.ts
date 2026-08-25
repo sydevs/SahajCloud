@@ -22,10 +22,13 @@ import { createTestEnvironment } from '../utils/testHelpers'
  *   └─ greater-london       + one event
  *       └─ meeting-hall     + one event   ← a shared venue under the city
  *   france              ← unowned, so it falls back to the We Meditate surface
+ *   └─ sandbox-city         ← where cases that create their own class put it
  *
- * Two levels of ownership and a venue under a city are both load-bearing: the
- * first proves the canonical is read per document rather than composed from one
- * base, and the second proves a city's page lists classes held at its venues.
+ * Ownership at the country level and a venue under a city are both
+ * load-bearing: the first proves the canonical is read per document rather than
+ * composed from one base, and the second proves a city's page lists classes
+ * held at its venues. `sandbox-city` keeps the UK listing counts independent of
+ * which cases have run, so nothing here depends on declaration order.
  */
 
 type TestUser = {
@@ -154,6 +157,15 @@ describe('atlasSeo endpoint', () => {
       parent: region.london,
     })
     region.france = await createRegion({ name: 'France', slug: 'france', level: 'country' })
+    // Somewhere for the cases that create their own class to put it. The
+    // region-listing assertions below count what is under `united-kingdom`, so
+    // a case adding a class there would couple those assertions to file order.
+    region.sandbox = await createRegion({
+      name: 'Sandbox City',
+      slug: 'sandbox-city',
+      level: 'city',
+      parent: region.france,
+    })
 
     // The host/mount/routing a canonical is built from live in
     // `canonical.verification.verified` — job-written from what the CMS observed
@@ -367,6 +379,26 @@ describe('atlasSeo endpoint', () => {
       expect(body.id).toBe(event.city)
     })
 
+    // `images` is a relationship whose `url` is itself a virtual field, and the
+    // read that populates it runs under the caller's own access — so "og:image
+    // is absent" would be a silent failure rather than an error. Assert the
+    // whole chain once.
+    it('populates og:image from the class’s first image', async () => {
+      const image = await testData.createMediaImage(payload, { alt: 'Meditation hall' })
+      const id = await createEvent({
+        title: 'Illustrated Meditation',
+        region: region.sandbox,
+        images: [image.id],
+      })
+      const { body } = await callSeo({ route: `/${id}` })
+      if (body.type !== 'event') throw new Error('expected an event')
+
+      expect(body.content.images).toHaveLength(1)
+      expect(body.content.images[0].url).toBe(image.url)
+      expect(body.openGraph['og:image']).toBe(image.url)
+      expect(body.openGraph['og:image:alt']).toBe('Meditation hall')
+    })
+
     it('closes the breadcrumb trail with the event itself', async () => {
       const doc = await readEvent(event.city)
       const { body } = await callSeo({ route: doc.webPath! })
@@ -439,7 +471,7 @@ describe('atlasSeo endpoint', () => {
     it('leaves no `</script` in the JSON-LD for a class titled with one', async () => {
       const id = await createEvent({
         title: 'Meditation </script><script>alert(1)</script>',
-        region: region.london,
+        region: region.sandbox,
       })
       const { status, body } = await callSeo({ route: `/${id}` })
 
