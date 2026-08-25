@@ -54,13 +54,38 @@ Almost every endpoint here belongs to a collection and lives in its
 // src/payload.config.ts
 import { contactAdmin } from './endpoints/contactAdmin'
 
-endpoints: [contactAdmin],
+endpoints: [atlasSeo, contactAdmin],
 ```
 
-Currently one such endpoint exists: `POST /api/contact-admin` — a contact
-message is stored nowhere and owned by nothing. Prefer a collection endpoint
-whenever a collection plausibly owns the resource; reach for the root only when
-none does.
+Two such endpoints exist, each for a different reason:
+
+- `POST /api/contact-admin` — a contact message is stored nowhere and owned by
+  nothing.
+- `GET /api/atlas/seo` — the caller passes a **route**, which may name a region
+  *or* an event, so no single collection owns the resource. (Putting it under
+  `regions` would have been a lie half the time, and keying it by id instead
+  would have pushed path→id resolution into every consumer.)
+
+Prefer a collection endpoint whenever a collection plausibly owns the resource;
+reach for the root only when none does.
+
+**The folder path mirrors the URL.** A single-file endpoint sits at
+`src/endpoints/<name>.ts` (`contactAdmin.ts` → `/api/contact-admin`); one that
+needs supporting modules gets a folder whose path *is* the URL path, with the
+handler in `index.ts`:
+
+```
+src/endpoints/atlas/seo/        →  GET /api/atlas/seo
+├── index.ts                       the Endpoint (exports `atlasSeo`)
+├── atlasRoute.ts                  route parsing
+├── jsonLd.ts                      JSON-LD builders + escaping
+└── seoDocument.ts                 the response shaper
+```
+
+Those supporting modules are **single-owner code and belong here, not in
+`src/lib/`** — `tests/unit/lib-boundary.spec.ts` fails a lib module with one
+consumer outside lib. `responseTypes.ts` stays at `src/endpoints/` because both
+endpoints share it.
 
 **Two things you lose by leaving the collection seam** — both are the usage
 plugin's `beforeOperation` hooks, which only run on collection operations, so a

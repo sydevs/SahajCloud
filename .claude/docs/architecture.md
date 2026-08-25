@@ -36,7 +36,7 @@ Three places to add HTTP endpoints, chosen by scope:
 | Use case                                                                                                                                                       | Where                                                                      |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | URL belongs under a collection (e.g. `/api/frames/by-narrator/:narratorId`); single-collection ops; want automatic Payload auth/access integration             | `src/collections/<Name>/endpoints/*.ts` — see `.claude/rules/endpoints.md` |
-| A Payload endpoint for a resource **no** collection owns (`/api/contact-admin`); registered on `config.endpoints`. Rare — it forgoes the usage plugin's beforeOperation hooks, so origin enforcement must be called by hand | `src/endpoints/*.ts` — see `.claude/rules/endpoints.md`                    |
+| A Payload endpoint for a resource **no** collection owns (`/api/contact-admin`, `/api/atlas/seo`); registered on `config.endpoints`. Rare — it forgoes the usage plugin's beforeOperation hooks, so origin enforcement must be called by hand | `src/endpoints/*.ts` — see `.claude/rules/endpoints.md`                    |
 | Webhooks, health checks, OpenAPI spec generation, seed triggers, multi-collection operations; need raw request body or Next.js features (streaming, redirects) | `src/app/(payload)/api/**/route.ts` — see `.claude/rules/routes.md`        |
 
 | Custom Payload endpoints | Path                                    | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -46,6 +46,7 @@ Three places to add HTTP endpoints, chosen by scope:
 | `lecturesForAudience`    | `/api/lectures/for-audience`            | uniform-random lecture feed filtered to lectures whose `audiences` overlap the supplied `audiences` ID list (OR semantics). `Cache-Control: public, max-age=600, s-maxage=600`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `appCardsForAudience`    | `/api/app-cards/for-audience`           | published app cards for a `targetSection`, filtered to cards whose `audiences` overlap the supplied `audiences` list (OR semantics) and weighted-random sampled. `Cache-Control: public, max-age=600, s-maxage=600`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `meditationLectures`     | `/api/meditations/:id/related-lectures` | lectures ranked by topical overlap between the meditation's frames and each lecture's own `subtleSystemNodes` (zero-overlap lectures dropped). Optional `userChoice` query expands candidates to lectures that either carry that user-choice tag **or** have positive subtle-system-node overlap (OR semantics). userChoice-tagged lectures are returned as a group first (weight DESC, including zero-overlap ones), followed by non-userChoice lectures with positive overlap (also weight DESC). Node IDs are resolved via a single bounded lookup (max 12 rows). Audience filtering uses the same `audiences` ID list contract as the other data endpoints. When relevance matches nothing, the response falls back to the generic audience feed (same selection as `/api/lectures/for-audience`); the `{ docs, source, relevanceCount }` envelope reports `source: 'relevance'` vs `'audience-fallback'`, and `excludedLectureIds` are relaxed only if they would otherwise empty the feed. `Cache-Control: public, max-age=600, s-maxage=600`. |
+| `atlasSeo`               | `/api/atlas/seo?route=…&locale=…`       | **Root-level** (`config.endpoints`, not a collection — the route may name a region *or* an event): everything a host page needs to render one atlas route, in one call (#645, stage C3 of the white-label & SEO programme). Title, meta description, canonical, hreflang, Open Graph, escaped JSON-LD, plus the body content the host renders as children of `<sahaj-atlas>`. Keyed by the route's **terminal segment** — a region slug is globally unique, an event id needs no ancestry — so view segments, legacy prefixes and stale ancestry all still resolve, and the answer's `route`/`canonical` name the URL to redirect to. `canonical` is the document's own `webUrl`, **read not recomputed**, and locale-free. `jsonLd` is pre-escaped for a `<script type="application/ld+json">`; **no HTML crosses the wire** (a description arrives as plain-text paragraphs), because C5's WordPress plugin echoes it into a template that never passes through `wp_kses`. A region gets `description: null` — it has none in the CMS, and an invented English sentence would land in a national site's `<head>`. Runs no usage-plugin hook for the handler itself, so it calls `assertClientOriginAllowed` directly. `Cache-Control: public, max-age=300, s-maxage=300`. |
 | `contactAdmin`           | `/api/contact-admin`                    | **Root-level** (`config.endpoints`, not a collection): a shared channel for client apps to send us a message on a viewer's behalf (#602). Published client key + Cloudflare Turnstile, verified server-side before any email work; the token is single-use, so a replay 403s with `errors[0].code: "captcha_failed"`. Email only — nothing is persisted, so a delivery failure is a **502**, never a false 200. `Reply-To` is the sender's address when supplied. `subject` + a free `context` bag keep it caller-agnostic (Atlas today, WeMeditateWeb next). Runs no usage-plugin hook, so it calls `assertClientOriginAllowed` itself and is not counted against the client's usage quota. |
 
 | Next.js app-router routes             | Path                              | Purpose                           |
@@ -73,6 +74,37 @@ widget. Two behaviours it depends on:
   and a denormalized `registrationsFull` boolean on the event lets the widget
   render the "Full" state at read time (O(1), no raw counts). The gate + fullness
   logic live in `src/lib/registrations/`.
+
+### Atlas SEO contract (`GET /api/atlas/seo`)
+
+`GET /api/atlas/seo?route=/gb/london` serves one atlas route's metadata **and**
+body content as data, so a host page can render it server-side and emit the
+`<head>` itself (#645). Consumers: WeMeditateWeb's SSR `/map` routes, and the
+WordPress plugin that covers 13 of the 29 known client domains. Three things
+that are easy to get wrong from outside:
+
+- **A route is keyed by its terminal segment, not by its whole path.** A region
+  slug is globally unique and an event id needs no ancestry, which is also the
+  widget's own rule (`resolvePath` in SahajAtlasWeb). So stale ancestry still
+  resolves and the answer names the URL to redirect to — a restructured subtree
+  doesn't 404 every inbound link.
+- **`where['breadcrumbs.url'][equals]` is not a unique key**, despite reading
+  like a path match. `breadcrumbs` is an array and Payload's `equals` matches on
+  *any* element, so `/gb/london` matches every descendant of London too. #640
+  shipped `generateURL` to enable that lookup; use the `slug` column instead
+  when you need exactly one region.
+- **Nothing in the atlas is localized.** Event titles, region names and
+  descriptions are single values the widget translates client-side. So the
+  canonical is locale-free and shared by every locale, `alternates` differ only
+  by the widget's `?locale=` UI language, and this endpoint composes no prose —
+  a sentence written here would be English in a national site's `<head>`.
+- **The `alternates` language set is operator-owned**, on `sy-atlas-config`'s
+  `languages` field — not a constant, and not the CMS's full locale list. It is
+  read per request (memoized), so turning a language off stops us advertising it
+  to crawlers without a deploy. The OpenAPI enum stays the CMS superset, because
+  the spec is built statically and this is runtime data. See
+  `.claude/rules/globals.md` for the field, **including why it must not be named
+  `locales`**.
 
 ## OpenAPI / Scalar API Docs
 

@@ -60,6 +60,7 @@ export const REGION_NESTED_DOCS_CONFIG = {
 interface RegionRow {
   id: number
   slug?: string | null
+  name?: string | null
   breadcrumbs?: Array<{ doc?: unknown }> | null
 }
 
@@ -69,6 +70,16 @@ export interface RegionTree {
   pathById: Map<number, string>
   /** Ordered ancestor ids, root → self. Always terminal-inclusive. */
   chainById: Map<number, number[]>
+  /**
+   * Display name, for labelling an ancestor a caller resolved by id.
+   *
+   * Read from the same query as the chain rather than from the nested-docs
+   * `breadcrumbs[].label`, which is only refreshed when a document is re-saved:
+   * a renamed ancestor would keep its old label in every descendant's trail
+   * until the cascade caught up, the same staleness `pathById` avoids by
+   * reading slugs fresh.
+   */
+  nameById: Map<number, string>
 }
 
 /** `req.context` key for the per-request tree memo. */
@@ -114,13 +125,14 @@ async function loadRegionTree(req: PayloadRequest): Promise<RegionTree> {
     depth: 0,
     pagination: false,
     overrideAccess: true,
-    // Only the slug (each segment) and the breadcrumb chain (the ordering) are
-    // read. Excluding every other field also skips their afterRead hooks — this
-    // resolver's own webPath/webUrl among them — so this query can't recurse
-    // back into the resolver (see stripUnselectedFields: an unselected field
-    // returns before its hook runs). Anything added here must be checked
-    // against that same rule.
-    select: { slug: true, breadcrumbs: true },
+    // Only the slug (each segment), the display name (breadcrumb labelling) and
+    // the breadcrumb chain (the ordering) are read. Excluding every other field
+    // also skips their afterRead hooks — this resolver's own webPath/webUrl
+    // among them — so this query can't recurse back into the resolver (see
+    // stripUnselectedFields: an unselected field returns before its hook runs).
+    // Anything added here must be checked against that same rule; `name` is a
+    // plain text column with no hooks, so it adds a column and nothing else.
+    select: { slug: true, name: true, breadcrumbs: true },
     req,
   })
   const rows = docs as RegionRow[]
@@ -128,8 +140,10 @@ async function loadRegionTree(req: PayloadRequest): Promise<RegionTree> {
   // Two passes: collect every slug first — a region's chain references ancestor
   // ids that may sort after it in `rows` — then resolve each chain to a path.
   const slugById = new Map<number, string>()
+  const nameById = new Map<number, string>()
   for (const row of rows) {
     if (typeof row.slug === 'string' && row.slug) slugById.set(row.id, row.slug)
+    if (typeof row.name === 'string' && row.name) nameById.set(row.id, row.name)
   }
 
   const pathById = new Map<number, string>()
@@ -140,7 +154,7 @@ async function loadRegionTree(req: PayloadRequest): Promise<RegionTree> {
     const path = buildRegionPath(chain.map((crumbId) => slugById.get(crumbId)))
     if (path !== null) pathById.set(row.id, path)
   }
-  return { pathById, chainById }
+  return { pathById, chainById, nameById }
 }
 
 /**
@@ -164,4 +178,29 @@ export function getRegionTree(req: PayloadRequest): Promise<RegionTree> {
  */
 export async function getRegionWebPaths(req: PayloadRequest): Promise<Map<number, string>> {
   return (await getRegionTree(req)).pathById
+}
+
+/**
+ * A region and every region beneath it, as ids — the region's own id first,
+ * then its descendants at any depth.
+ *
+ * The tree is denormalized as ancestor *chains*, so "descendants of R" is
+ * exactly "every region whose chain contains R", read off the map that is
+ * already loaded. That makes a subtree query one `region: { in: [...] }`
+ * predicate rather than a recursive walk, which is what a city's page needs:
+ * events attach to a city **or** to a venue under it, so listing only
+ * `region: { equals: cityId }` would silently hide every class held at a
+ * shared venue.
+ *
+ * Pure, and separate from the loader, so the containment rule is unit-testable
+ * without a database. Order is the map's insertion order with `regionId`
+ * hoisted to the front, so a caller applying a limit keeps the region's own
+ * events first.
+ */
+export function descendantRegionIds(chainById: Map<number, number[]>, regionId: number): number[] {
+  const ids = [regionId]
+  for (const [candidateId, chain] of chainById) {
+    if (candidateId !== regionId && chain.includes(regionId)) ids.push(candidateId)
+  }
+  return ids
 }

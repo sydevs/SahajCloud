@@ -527,6 +527,90 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
     },
   },
 
+  '/api/atlas/seo': {
+    get: {
+      tags: ['Atlas'],
+      summary: 'SEO metadata and page content for one atlas route',
+      description:
+        'Everything a host page needs to render a single atlas route: its `<head>` ' +
+        'metadata **and** the content it renders as children of `<sahaj-atlas>`, in ' +
+        'one call. Pass the `?atlas=` route your page already holds — ' +
+        '`/gb/london` for a region, `/gb/london/1204` for a class — and this works ' +
+        'out which it names, using the same rule the widget applies to the same ' +
+        'string. A route is keyed by its **terminal segment** — a region slug is ' +
+        'globally unique and an event id needs no ancestry — so view segments ' +
+        '(`/register`, `/share`, `/calendar`, …), legacy prefixes (`/events/…`) ' +
+        'and stale ancestry all still resolve, and the `route` and `canonical` in ' +
+        'the answer name the URL you should redirect to. **Things not to guess ' +
+        'at:** the `alternates` locale set is **configured by an operator** on the ' +
+        'Sahaj Atlas configuration global, so it can change without a deploy — ' +
+        'read it from the response rather than hardcoding a list. `canonical` ' +
+        'is the document’s own `webUrl`, read rather than recomputed, so it is ' +
+        'byte-identical to every other surface — and it is **locale-free**, as is ' +
+        'the `x-default` alternate, because nothing in the atlas is translated per ' +
+        'locale (locales differ only in the widget’s own UI language, which the ' +
+        '`alternates` carry as `?locale=`). `jsonLd` is **already serialized and ' +
+        'escaped** for a `<script type="application/ld+json">` — emit it verbatim, ' +
+        'do not re-serialize it and do not HTML-escape it again. **No HTML crosses ' +
+        'this wire**: a description arrives as `content.paragraphs`, plain text, ' +
+        'one entry per block. A **region has no description** in the CMS, so ' +
+        '`description` is `null` and `og:description` is absent on a region route — ' +
+        'write that line yourself, in your own language. `og:site_name` is ' +
+        'deliberately absent for the same reason. A region’s `content.events` ' +
+        'covers the region **and every region beneath it** (so a city page includes ' +
+        'classes at its shared venues), capped at 50 with the true total in ' +
+        '`content.eventCount`; finished classes are excluded, as they are from ' +
+        '`GET /api/events/geojson`. A route naming neither a region nor an event — ' +
+        'the atlas root, or a bare `/search` — is a `404`: you own your landing ' +
+        'page’s metadata, and there is no document here to describe it with. ' +
+        'Sets `Cache-Control: public, max-age=300, s-maxage=300`.',
+      operationId: 'atlasSeo',
+      parameters: [
+        {
+          name: 'route',
+          in: 'query',
+          required: true,
+          description:
+            'The atlas route to describe, e.g. `/gb/london` or `/gb/london/1204` — ' +
+            'the value of your page’s `?atlas=` parameter. Must not carry a query ' +
+            'string or fragment of its own.',
+          schema: { type: 'string', minLength: 1, maxLength: 512 },
+        },
+        {
+          name: 'locale',
+          in: 'query',
+          required: false,
+          description:
+            'Locale to render for. Defaults to `en`. Affects `og:locale` and the ' +
+            'echoed `locale`; it does **not** change `canonical`, which is ' +
+            'locale-free by design.',
+          schema: { type: 'string', enum: LOCALES.map((l) => l.code) },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Metadata and content for the resolved region or event.',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/AtlasSeoResponse' },
+            },
+          },
+        },
+        '400': errorResponse('`route` is missing/too long, or `locale` is not a known locale.'),
+        '403': errorResponse(
+          'Caller is not a published API client, or its `Origin`/`Referer` is not in ' +
+            'the client’s `allowedDomains`.',
+        ),
+        '404': errorResponse(
+          'The route names no region or event — an unknown slug, an unpublished or ' +
+            'missing event, or a route that resolves to neither (the atlas root, a ' +
+            'bare view route).',
+        ),
+        '500': errorResponse('The metadata could not be built.'),
+      },
+    },
+  },
+
   '/api/audiences/for-user': {
     get: {
       tags: ['Audiences'],
@@ -1198,6 +1282,291 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
     required: ['ok'],
     properties: {
       ok: { type: 'boolean', enum: [true] },
+    },
+  },
+  /** One `<link rel="alternate">` row from `GET /api/atlas/seo`. */
+  AtlasSeoAlternate: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['hreflang', 'href'],
+    properties: {
+      hreflang: {
+        type: 'string',
+        // The CMS locale set, which is the *superset* this can draw from. The
+        // effective list is operator-configured on the `sy-atlas-config`
+        // global, so it is runtime data and this statically-built spec cannot
+        // name it — read `alternates` to see what a given page actually offers.
+        enum: [...LOCALES.map((l) => l.code), 'x-default'],
+        description:
+          'An enabled atlas locale, or `x-default` — which points at the bare, ' +
+          'locale-free canonical rather than at English. The enabled set is ' +
+          'configured by an operator and can change without a deploy; this enum ' +
+          'is the superset it is drawn from.',
+      },
+      href: { type: 'string', format: 'uri' },
+    },
+  },
+  /** One rung of the region ancestry, root first. */
+  AtlasSeoBreadcrumb: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['name', 'route', 'url'],
+    properties: {
+      name: { type: 'string' },
+      route: { type: 'string', description: 'Atlas route for that rung, e.g. `/gb/london`.' },
+      url: {
+        type: ['string', 'null'],
+        description:
+          'Canonical URL for that rung. Resolved per rung, because ownership is ' +
+          'per-subtree — `/gb` and `/gb/greater-london` can be different domains. ' +
+          '`null` when no owner can publish one.',
+      },
+    },
+  },
+  /** A postal address, plus the one-line rendering most hosts display. */
+  AtlasSeoAddress: {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'venueName',
+      'street',
+      'room',
+      'city',
+      'region',
+      'postCode',
+      'country',
+      'latitude',
+      'longitude',
+      'oneLine',
+    ],
+    properties: {
+      venueName: { type: ['string', 'null'] },
+      street: { type: ['string', 'null'] },
+      room: { type: ['string', 'null'] },
+      city: { type: ['string', 'null'] },
+      region: { type: ['string', 'null'] },
+      postCode: { type: ['string', 'null'] },
+      country: { type: ['string', 'null'] },
+      latitude: { type: ['number', 'null'] },
+      longitude: { type: ['number', 'null'] },
+      oneLine: {
+        type: 'string',
+        description: '`street, room, city, region, country postCode` — blank parts dropped.',
+      },
+    },
+  },
+  /** When a class happens, in renderable and machine-readable form. */
+  AtlasSeoSchedule: {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'oneLine',
+      'startDate',
+      'endDate',
+      'timezone',
+      'recurrence',
+      'weekdays',
+      'endTime',
+      'inactive',
+    ],
+    properties: {
+      oneLine: {
+        type: 'string',
+        description:
+          'e.g. `Every week on Saturday at 9:26 AM`. Empty for a dormant class, ' +
+          'which by definition has no active schedule.',
+      },
+      startDate: { type: ['string', 'null'], format: 'date-time' },
+      endDate: {
+        type: ['string', 'null'],
+        format: 'date-time',
+        description: 'End of the final occurrence; `null` for an open-ended recurrence.',
+      },
+      timezone: { type: ['string', 'null'], description: 'IANA zone for the wall-clock times.' },
+      recurrence: { type: ['string', 'null'], enum: ['DAILY', 'WEEKLY', 'MONTHLY', null] },
+      weekdays: {
+        type: 'array',
+        items: { type: 'string', enum: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] },
+        description: 'Empty unless the class recurs weekly.',
+      },
+      endTime: { type: ['string', 'null'], description: '`HH:MM` local end time, when declared.' },
+      inactive: { type: 'boolean', description: 'True for a dormant class.' },
+    },
+  },
+  /** An image, ready for `og:image` or an `<img>` in the rendered children. */
+  AtlasSeoImage: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['url', 'alt'],
+    properties: {
+      url: { type: 'string', format: 'uri' },
+      alt: { type: ['string', 'null'] },
+    },
+  },
+  /** One class in a region's listing. */
+  AtlasSeoEventCard: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id', 'route', 'url', 'title', 'schedule', 'address', 'online'],
+    properties: {
+      id: { type: 'integer' },
+      route: { type: ['string', 'null'], description: 'e.g. `/gb/london/1204`.' },
+      url: { type: ['string', 'null'], description: 'Canonical URL for that route.' },
+      title: { type: 'string' },
+      schedule: { type: 'string', description: 'One-line schedule.' },
+      address: { type: 'string', description: 'One-line address; empty for an online class.' },
+      online: { type: 'boolean' },
+    },
+  },
+  /** Body content for an event route. */
+  AtlasSeoEventContent: {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'title',
+      'languages',
+      'schedule',
+      'address',
+      'onlineUrl',
+      'website',
+      'paragraphs',
+      'images',
+    ],
+    properties: {
+      title: { type: 'string' },
+      languages: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'ISO 639-1 codes the class is conducted in.',
+      },
+      schedule: { $ref: '#/components/schemas/AtlasSeoSchedule' },
+      address: {
+        oneOf: [{ $ref: '#/components/schemas/AtlasSeoAddress' }, { type: 'null' }],
+        description: '`null` for an online class.',
+      },
+      onlineUrl: { type: ['string', 'null'] },
+      website: { type: ['string', 'null'] },
+      paragraphs: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'The description as plain text, one entry per block, ready to wrap in ' +
+          'your own markup. **No HTML is emitted** — a consumer that echoes this ' +
+          'into a template without a sanitizer is safe by construction.',
+      },
+      images: { type: 'array', items: { $ref: '#/components/schemas/AtlasSeoImage' } },
+    },
+  },
+  /** Body content for a region route. */
+  AtlasSeoRegionContent: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['name', 'subtitle', 'level', 'events', 'eventCount'],
+    properties: {
+      name: { type: 'string' },
+      subtitle: { type: ['string', 'null'] },
+      level: { type: 'string', enum: ['country', 'region', 'city', 'venue'] },
+      events: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/AtlasSeoEventCard' },
+        description:
+          'Classes in this region **and every region beneath it**, so a city page ' +
+          'includes classes at its shared venues. Capped at 50.',
+      },
+      eventCount: {
+        type: 'integer',
+        description: 'The true total, which `events` may be capped below.',
+      },
+    },
+  },
+  /**
+   * `GET /api/atlas/seo` success body. Keep in lockstep with `AtlasSeoResponse`
+   * in `src/endpoints/responseTypes.ts` — a discriminated union on `type`, so a
+   * consumer narrows once and gets that variant's content shape rather than a
+   * flat object half of whose fields are null on any given route.
+   */
+  AtlasSeoResponse: {
+    type: 'object',
+    required: [
+      'type',
+      'id',
+      'route',
+      'locale',
+      'title',
+      'description',
+      'canonical',
+      'alternates',
+      'openGraph',
+      'jsonLd',
+      'breadcrumbs',
+      'content',
+    ],
+    properties: {
+      type: { type: 'string', enum: ['region', 'event'] },
+      id: { type: 'integer' },
+      route: {
+        type: 'string',
+        description:
+          'The normalized route this answer describes — the document’s own path, ' +
+          'so a legacy or stale prefix is answered with the route it should use.',
+      },
+      locale: { type: 'string' },
+      title: {
+        type: 'string',
+        description:
+          'The document’s own name — a region’s is qualified by its country, since ' +
+          'region names collide across the tree. Append your own site name; we ' +
+          'compose no prose, because nothing here is translated and an invented ' +
+          'sentence would be English in somebody else’s `<head>`.',
+      },
+      description: {
+        type: ['string', 'null'],
+        description:
+          'Plain-text meta description, bounded to ~160 characters. `null` on a ' +
+          'region route — a region carries no description in the CMS. For an event ' +
+          'with no description of its own, this falls back to its schedule and ' +
+          'address, which are data rather than prose.',
+      },
+      canonical: {
+        type: ['string', 'null'],
+        description:
+          'The document’s own `webUrl`, read and never recomputed, and locale-free. ' +
+          '`null` when no owning client can publish one.',
+      },
+      alternates: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/AtlasSeoAlternate' },
+        description: 'The widget’s locales plus `x-default`. Empty when there is no canonical.',
+      },
+      openGraph: {
+        type: 'object',
+        additionalProperties: { type: 'string' },
+        description:
+          'Open Graph properties keyed by their `property` attribute, so you can ' +
+          'emit them in a loop. `og:site_name` is absent — you know what site you ' +
+          'are, and we don’t.',
+      },
+      jsonLd: {
+        type: 'string',
+        description:
+          'A complete JSON-LD document, already serialized and escaped for direct ' +
+          'embedding in `<script type="application/ld+json">`. `<`, `>`, `&` and ' +
+          'the two Unicode line separators are escaped here, once, so a ' +
+          'CMS-authored string containing `</script>` or `<!--` cannot break out. ' +
+          'Emit it verbatim.',
+      },
+      breadcrumbs: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/AtlasSeoBreadcrumb' },
+        description: 'Region ancestry, root first, ending at this page.',
+      },
+      content: {
+        oneOf: [
+          { $ref: '#/components/schemas/AtlasSeoRegionContent' },
+          { $ref: '#/components/schemas/AtlasSeoEventContent' },
+        ],
+        description: 'Keyed by `type`: a region’s listing, or an event’s facts.',
+      },
     },
   },
   /**

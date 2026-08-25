@@ -44,8 +44,14 @@ the task definitions for `payload.config.ts`'s `jobs.tasks`.
 Custom endpoints registered on the **config root** (`config.endpoints`) rather
 than on a collection — for a resource no collection owns. One handler per file,
 plus a self-contained `responseTypes.ts` that client repos sync by raw GitHub URL
-(same shape as `Events/endpoints/responseTypes.ts`). Currently just
-`contactAdmin.ts` (`POST /api/contact-admin`, #602).
+(same shape as `Events/endpoints/responseTypes.ts`).
+
+**The layout mirrors the URL**: a single-file endpoint is
+`src/endpoints/<name>.ts` (`contactAdmin.ts` → `POST /api/contact-admin`, #602);
+one with supporting modules is a folder whose path *is* the URL path, handler in
+`index.ts` (`src/endpoints/atlas/seo/` → `GET /api/atlas/seo`, #645). Those
+supporting modules are single-owner code and stay in the folder — putting them in
+`src/lib/` fails the one-consumer check below.
 
 This folder is the **exception, not a second home for endpoints** — anything a
 collection plausibly owns stays colocated under `src/collections/<Name>/endpoints/`.

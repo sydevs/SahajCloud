@@ -94,6 +94,19 @@ Because only `Authorization`-bearing, cacheable-slug GETs match, everything else
 `cf-cache-status: DYNAMIC` at the origin: writes, unauthenticated / invalid-key reads (→ `403`),
 preview reads, and non-cacheable collections (`clients`, `managers`, `users`, …).
 
+> **⚠️ A root endpoint's path names no collection, so the slug list does not reach it.**
+> `GET /api/atlas/seo` (#645) emits `Cache-Control: public, s-maxage=300` like any other client
+> read, but `atlas` is not a collection slug, so the `/api/<slug>` terms above never matched it —
+> it stayed `cf-cache-status: DYNAMIC` and every SSR page render reached the origin. Nothing broke;
+> the caching simply never activated, which is the same fail-safe as an absent rule.
+>
+> **Fixed 2026-08-25: `http.request.uri.path eq "/api/atlas/seo"` was added to the path group of
+> the existing rule** (ruleset v8 → v9). It had to go *inside* that rule rather than into a new
+> one, because a separate rule would not carry the `any(http.request.headers["authorization"][*]
+> != "")` conjunct — and without it an unauthenticated request becomes cache-eligible and is served
+> the cached authed body (`Vary: Authorization` does not isolate the absent-header case). **Any
+> future root endpoint needs the same treatment: one more `eq` term here, never a second rule.**
+
 **Purge-on-write** (optional): set `CLOUDFLARE_ZONE_ID` + `CLOUDFLARE_CACHE_PURGE_TOKEN` to enable
 best-effort `Cache-Tag` purge when a cached collection is written (Cloudflare Enterprise tag-purge;
 on the Free plan the per-collection `s-maxage` TTL is the invalidation path). Unset → purge is a
