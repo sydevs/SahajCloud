@@ -23,7 +23,7 @@ export function signFeedbackToken(
   now: Date = new Date(),
 ): Promise<string> {
   return signToken(
-    { ...claims },
+    { registrationId: claims.registrationId },
     { kind: FEEDBACK_TOKEN_KIND, ttlMs: FEEDBACK_TOKEN_TTL_MS },
     secret,
     now,

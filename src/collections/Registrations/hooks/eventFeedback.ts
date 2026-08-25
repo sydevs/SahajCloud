@@ -113,19 +113,23 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
       overrideAccess: true,
       req: trustedReq,
     })
-  const [confirmed, denied] = await Promise.all([countVotes('confirmed'), countVotes('denied')])
+  // All three are independent reads — the event's current state doesn't depend
+  // on the tallies — so one round trip instead of two in an afterChange hook.
+  const [confirmed, denied, event] = await Promise.all([
+    countVotes('confirmed'),
+    countVotes('denied'),
+    req.payload.findByID({
+      collection: 'events',
+      id: eventId,
+      depth: 0,
+      select: { systemMeta: true, verificationStage: true },
+      overrideAccess: true,
+      req: trustedReq,
+    }),
+  ])
   const confirmations = confirmed.totalDocs
   const denials = denied.totalDocs
   const verdict = computeCommunityVerdict({ confirmations, denials })
-
-  const event = await req.payload.findByID({
-    collection: 'events',
-    id: eventId,
-    depth: 0,
-    select: { systemMeta: true, verificationStage: true },
-    overrideAccess: true,
-    req: trustedReq,
-  })
 
   await req.payload.update({
     collection: 'events',

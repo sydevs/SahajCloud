@@ -57,46 +57,48 @@ function libModules(): string[] {
 }
 
 /**
- * Every candidate importer, read once. The first version re-read the tree for
- * each of ~150 lib modules and blew the unit lane's 5s budget; sources are
- * small, so one pass into memory keeps this well under a second.
+ * Every import in the tree, resolved, as `target module → files importing it`.
+ *
+ * Built in **one pass over the files**, not one pass per lib module. The first
+ * version scanned every source for each of ~150 modules; it ran in 1.4s alone
+ * and then timed out at 8s inside the parallel unit lane, which is the only
+ * place it actually runs. Inverting it is ~50ms.
+ *
+ * Both import forms resolve to the same key — an absolute path without
+ * extension — so `@/lib/notifications/recipients`, a barrel's `./recipients`
+ * and a sibling's `./recipients` all land together.
  */
-function readAll(dirs: string[]): Map<string, string> {
-  const sources = new Map<string, string>()
+function buildImportGraph(dirs: string[]): Map<string, Set<string>> {
+  const graph = new Map<string, Set<string>>()
+
   for (const dir of dirs) {
     for (const file of sourceFiles(dir)) {
-      sources.set(relative(ROOT, file), readFileSync(file, 'utf8'))
-    }
-  }
-  return sources
-}
-
-/**
- * Files importing `specifier`, by any route: the `@/lib/...` path, or a
- * relative path from a sibling or barrel that resolves to the same file.
- */
-function consumersOf(specifier: string, sources: Map<string, string>): string[] {
-  const modulePath = specifier.replace('@/lib/', '')
-  const target = join(LIB, modulePath)
-  const consumers: string[] = []
-
-  for (const [rel, source] of sources) {
-    if (rel === `src/lib/${modulePath}.ts` || rel === `src/lib/${modulePath}.tsx`) continue
-    if (source.includes(`'${specifier}'`)) {
-      consumers.push(rel)
-      continue
-    }
-    // Relative imports: resolve each against this file's directory and see if
-    // it lands on the module. Catches both `./sibling` and a barrel's re-export.
-    const dir = join(ROOT, rel, '..')
-    for (const match of source.matchAll(/from '(\.[^']*)'/g)) {
-      if (resolve(dir, match[1]!) === target) {
-        consumers.push(rel)
-        break
+      const rel = relative(ROOT, file)
+      const source = readFileSync(file, 'utf8')
+      for (const [, specifier] of source.matchAll(/from '([^']+)'/g)) {
+        const target = specifier!.startsWith('@/lib/')
+          ? join(LIB, specifier!.slice('@/lib/'.length))
+          : specifier!.startsWith('.')
+            ? resolve(file, '..', specifier!)
+            : null
+        if (!target) continue
+        const importers = graph.get(target) ?? new Set<string>()
+        importers.add(rel)
+        graph.set(target, importers)
       }
     }
   }
-  return consumers
+  return graph
+}
+
+/** Files importing the module at `@/lib/<modulePath>`, however they spell it. */
+function consumersOf(specifier: string, graph: Map<string, Set<string>>): string[] {
+  const modulePath = specifier.replace('@/lib/', '')
+  const importers = graph.get(join(LIB, modulePath)) ?? new Set<string>()
+  // A module never counts as its own consumer.
+  return [...importers].filter(
+    (rel) => rel !== `src/lib/${modulePath}.ts` && rel !== `src/lib/${modulePath}.tsx`,
+  )
 }
 
 /**
@@ -123,18 +125,19 @@ const KNOWN_SINGLE_CONSUMER = new Set<string>([
   '@/lib/meditations/framesBeyondDuration',
   '@/lib/meditations/meditationShape',
   '@/lib/notifications/sendContactAdmin',
+  '@/lib/notifications/sendRegistrationNotification',
   '@/lib/registrations/gating',
   '@/lib/utilities/weightedSample',
 ])
 
 describe('src/lib holds shared code only', () => {
-  const sources = readAll([join(ROOT, 'src'), join(ROOT, 'scripts')])
+  const graph = buildImportGraph([join(ROOT, 'src'), join(ROOT, 'scripts')])
 
   it('has no module with exactly one consumer', () => {
     const offenders: string[] = []
     for (const specifier of libModules()) {
       if (KNOWN_SINGLE_CONSUMER.has(specifier)) continue
-      const consumers = consumersOf(specifier, sources)
+      const consumers = consumersOf(specifier, graph)
       if (consumers.length !== 1) continue
       const [only] = consumers
       // Consumed only from inside `src/lib` — that's a shared module split into
