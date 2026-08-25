@@ -32,16 +32,22 @@ import {
  * `||` also merges server-side, which closes the read-modify-write window: two mounts of one site
  * reporting at the same instant both land instead of one overwriting the other.
  *
+ * **`- $2::text[]` is what makes the cap real.** `||` is a merge, so a key present in the column but
+ * absent from the payload *survives* it — passing the post-eviction record alone would recompute and
+ * re-drop the same mounts on every report while the column grew without bound. Naming the evicted
+ * keys deletes them in the same statement, which keeps the concurrent-merge property that made `||`
+ * the right operator: a whole-column overwrite would reintroduce the read-modify-write window on the
+ * one path where the record is largest. An empty array is a no-op.
+ *
  * Same trade-off the usage counters already accept — this writes the published `clients` row and
  * not `_clients_v`, and skips the column's JSON Schema validator. Safe because the entry is built
  * here from a Zod-validated body; no caller-supplied shape reaches the column.
  */
 const embedMergeSql = (quotedSchema: string) => `
   UPDATE ${quotedSchema}.clients
-  SET embed_metadata = COALESCE(embed_metadata, '{}'::jsonb) || $1::jsonb
-  WHERE id = $2
+  SET embed_metadata = (COALESCE(embed_metadata, '{}'::jsonb) || $1::jsonb) - $2::text[]
+  WHERE id = $3
 `
-
 
 /** Response body of a successful `POST /api/clients/report`. */
 export interface ClientEmbedReportResponse {
@@ -161,6 +167,10 @@ export const clientEmbedReport: Endpoint = {
       key: mount.key,
       observation,
       at: new Date().toISOString(),
+      // The designated canonical outranks recency: it is one page competing with
+      // however many the site's traffic touches, and it is the key the picker and
+      // the verification job both resolve through.
+      pinned: client.canonical?.embed,
     })
 
     if (changed) {
@@ -183,10 +193,11 @@ export const clientEmbedReport: Endpoint = {
         )
       }
 
-      // Only the merged record goes over the wire; eviction is already applied
-      // to it, so this is a whole-column write only when a mount was evicted.
+      // The merged record and the keys it dropped, as separate arguments: the
+      // record can only add or overwrite keys, so eviction has to be named.
       await pool.query(embedMergeSql(quotedDbSchema(req)), [
         JSON.stringify(metadata),
+        evicted,
         client.id,
       ])
     }
