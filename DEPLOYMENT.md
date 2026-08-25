@@ -94,6 +94,17 @@ Because only `Authorization`-bearing, cacheable-slug GETs match, everything else
 `cf-cache-status: DYNAMIC` at the origin: writes, unauthenticated / invalid-key reads (→ `403`),
 preview reads, and non-cacheable collections (`clients`, `managers`, `users`, …).
 
+> **⚠️ A root endpoint's path names no collection, so the slug list does not reach it.**
+> `GET /api/atlas/seo` (#645) emits `Cache-Control: public, s-maxage=300` like any other client
+> read, but `atlas` is not a collection slug — so under the rule as written it stays
+> `cf-cache-status: DYNAMIC` and every SSR page render reaches the origin. Nothing breaks; the
+> caching simply never activates, which is the same fail-safe as an absent rule. **To turn it on,
+> add `/api/atlas/seo` to the path predicate** (an `eq`, alongside the `starts_with` slug terms).
+> Worth doing: this endpoint is called once per host page render by WeMeditateWeb's SSR routes and
+> by the WordPress plugin, and its inputs (regions + events) are the two slowest-churning things it
+> reads. The one root endpoint that predates it, `POST /api/contact-admin`, is a write and was
+> never cacheable, which is why this gap had not come up before.
+
 **Purge-on-write** (optional): set `CLOUDFLARE_ZONE_ID` + `CLOUDFLARE_CACHE_PURGE_TOKEN` to enable
 best-effort `Cache-Tag` purge when a cached collection is written (Cloudflare Enterprise tag-purge;
 on the Free plan the per-collection `s-maxage` TTL is the invalidation path). Unset → purge is a
