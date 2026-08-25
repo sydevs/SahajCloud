@@ -1,5 +1,8 @@
 import type { VerificationStage } from './stages'
 
+import { toWords } from 'payload/shared'
+
+import type { LogCell } from '@/fields'
 import type { ReminderAudience, ReminderLevel } from '@/lib/notifications'
 
 
@@ -24,7 +27,19 @@ export interface ActorRef {
 }
 
 /** First entry of every cycle — records the verification that opened it. */
-export interface VerificationLogEntry {
+/**
+ * Display cells every entry carries alongside its machine fields, so the shared
+ * `LogTable` can render this log without knowing anything about verification.
+ * Additive by construction — see `logField`.
+ */
+interface LogDisplayCells {
+  /** Shared discriminator the log helpers match on. */
+  type: string
+  /** Rendered columns. Everything else on the entry is data, not display. */
+  cells: { activity: string; who: LogCell; delivery: LogCell }
+}
+
+export interface VerificationLogEntry extends LogDisplayCells {
   kind: 'verification'
   at: string // ISO 8601
   by: ActorRef | null
@@ -32,7 +47,7 @@ export interface VerificationLogEntry {
 }
 
 /** One reminder delivery (appended per recipient, per stage). */
-export interface ReminderLogEntry {
+export interface ReminderLogEntry extends LogDisplayCells {
   kind: 'reminder'
   /** Internal dedup key — the from-stage. Not shown in the admin table. */
   stage: VerificationStage
@@ -53,12 +68,55 @@ export interface ReminderLogEntry {
 export type NotificationLogEntry = VerificationLogEntry | ReminderLogEntry
 
 /** Build the cycle-opening verification entry. */
+/** Friendly labels for how a verification was triggered. */
+const METHOD_LABELS: Record<VerificationMethod, string> = {
+  're-save': 'Saved',
+  'verify-action': 'Verify button',
+  'email-link': 'Email link',
+  import: 'Import',
+}
+
+/** Escalation level → plain-English "what happened / why". */
+const LEVEL_LABELS: Record<ReminderLevel, string> = {
+  due: 'Reminder',
+  escalated: 'Escalation',
+  urgent: 'Final reminder',
+  expired: 'Unpublished notice',
+}
+
+/** Recipient tier → label. */
+const ROLE_LABELS: Record<ReminderAudience, string> = {
+  manager: 'Event manager',
+  region: 'Region manager',
+}
+
+/** An actor reference → display name, falling back to `#id`. */
+function actorName(actor: ActorRef | null | undefined): string {
+  if (!actor) return 'Unknown'
+  if (actor.name) return actor.name
+  return actor.id != null ? `#${actor.id}` : 'Unknown'
+}
+
 export function buildVerificationEntry(
   method: VerificationMethod,
   by: ActorRef | null,
   at: string,
 ): VerificationLogEntry {
-  return { kind: 'verification', at, by, method }
+  return {
+    kind: 'verification',
+    type: 'verification',
+    at,
+    by,
+    method,
+    // Display alongside the machine fields, never instead of them —
+    // `hasReminderForStage` reads `kind`/`stage`/`manager.id` back as data.
+    cells: {
+      activity: 'Verified',
+      // The Atlas seed importer verifies with no acting manager.
+      who: method === 'import' ? 'Sahaj Atlas Import' : actorName(by),
+      delivery: METHOD_LABELS[method] ?? toWords(method),
+    },
+  }
 }
 
 /** Build a reminder entry for one successful send. */
@@ -74,8 +132,10 @@ export function buildReminderEntry(args: {
   at: string
 }): ReminderLogEntry {
   const { stage, level, role, region, manager, channel, destination, at } = args
+  const roleLabel = ROLE_LABELS[role]
   return {
     kind: 'reminder',
+    type: 'reminder',
     stage,
     level,
     role,
@@ -84,6 +144,12 @@ export function buildReminderEntry(args: {
     manager,
     channel,
     destination,
+    // Display alongside the machine fields, never instead of them.
+    cells: {
+      activity: LEVEL_LABELS[level],
+      who: { text: actorName(manager), sub: region ? `${roleLabel} · ${region}` : roleLabel },
+      delivery: { label: channel, text: destination },
+    },
   }
 }
 

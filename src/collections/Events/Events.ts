@@ -560,15 +560,14 @@ export const Events: CollectionConfig = {
               // job's exactly-once marker (skip recipients already logged this
               // stage).
               //
-              // Keeps its own renderer rather than the shared table: these
-              // entries carry escalation level, recipient tier and the ancestor
-              // region that linked a region manager to the event — the columns
-              // a manager reads to understand *why* a reminder went where it
-              // did. That override is the factory's extension point.
+              // Rendered by the shared table like every other log: the entry
+              // builders emit `activity` / `who` / `delivery` cells, so the
+              // columns a manager reads to see *why* a reminder went where it
+              // did survive without a second component.
               name: 'notificationLog',
+              label: 'Verification Log',
               description:
                 'Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.',
-              component: '@/components/admin/NotificationLogTable',
             }),
             {
               // Wilson lower bound of registrant confirm/deny votes, in [0, 1];

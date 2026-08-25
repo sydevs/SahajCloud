@@ -14274,8 +14274,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "email_log": {
-          "name": "email_log",
+        "activity_log": {
+          "name": "activity_log",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -27851,6 +27851,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "d2530d1b-b333-44cc-afda-1442d24a9d25",
+  "id": "f32925a2-0752-4dd7-a643-e3c236967168",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

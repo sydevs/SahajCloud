@@ -130,18 +130,16 @@ export const Registrations: CollectionConfig = {
       admin: { readOnly: true },
     },
     logField({
-      // Every message sent about this registration — reminders and the
-      // post-event follow-up — in one place a manager can read. It was
-      // `reminderLog`: reminders only, and `admin.readOnly` json with no
-      // renderer, so the one question it could answer ("did that go out?")
-      // needed a database query to ask.
+      // Everything recorded about this registration — the reminders and the
+      // post-event follow-up today, and whatever else earns a line later
+      // (created, cancelled). It was `reminderLog`: reminders only, and
+      // `admin.readOnly` json with no renderer, so the one question it could
+      // answer ("did that go out?") needed a database query to ask.
       //
       // Doubles as the exactly-once guard: each job checks `hasLogEntry`
       // before sending and appends immediately after, so a task retry or an
       // overlapping run never double-sends.
-      name: 'emailLog',
-      label: 'Emails Sent',
-      description: 'Messages sent to this registrant, newest first.',
+      description: 'Everything recorded about this registration, newest first.',
     }),
     {
       type: 'row',
@@ -163,7 +161,7 @@ export const Registrations: CollectionConfig = {
           admin: { description: 'Registrant’s verdict on an unverified event.' },
         },
         {
-          // The follow-up sweep's query filter — `emailLog` records *that* it
+          // The follow-up sweep's query filter — `activityLog` records *that* it
           // was sent, but nothing can `where` on a JSON column cheaply, so the
           // scan still needs a real dated column to select on. Record and
           // filter are different jobs; see `logField`.

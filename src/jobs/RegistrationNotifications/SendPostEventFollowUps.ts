@@ -20,7 +20,7 @@ const PAGINATION_LIMIT = 200
  * scan (rows outside the window are never revisited) and keeps the ask timely:
  * a "did it take place?" three months late is noise.
  */
-/** `event` slug for follow-up entries in the registration's `emailLog`. */
+/** `type` slug for follow-up entries in the registration's `activityLog`. */
 export const FOLLOW_UP_LOG_EVENT = 'post-event-follow-up'
 
 const FOLLOW_UP_WINDOW_DAYS = 30
@@ -110,13 +110,14 @@ async function sendFollowUp(
       // The watermark the sweep filters on, and the manager-readable record of
       // the same send. A JSON column can't be `where`d cheaply, so both.
       followUpSentAt: now.toISOString(),
-      emailLog: appendLogEntry(asLog(registration.emailLog), {
+      activityLog: appendLogEntry(asLog(registration.activityLog), {
         at: now.toISOString(),
-        event: FOLLOW_UP_LOG_EVENT,
-        summary: `Post-event follow-up for “${templateProps.eventTitle}”`,
-        channel: 'email',
-        destination: user.email,
+        type: FOLLOW_UP_LOG_EVENT,
         key: String(registration.id),
+        cells: {
+          activity: `Post-event follow-up for “${templateProps.eventTitle}”`,
+          sentTo: { label: 'email', text: user.email },
+        },
       }),
     },
     overrideAccess: true,

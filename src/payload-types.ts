@@ -1936,9 +1936,9 @@ export interface Registration {
   mailingListSubscribedAt?: string | null;
   remindersUnsubscribedAt?: string | null;
   /**
-   * Messages sent to this registrant, newest first. Keeps the most recent 50 entries.
+   * Everything recorded about this registration, newest first. Keeps the most recent 50 entries.
    */
-  emailLog?:
+  activityLog?:
     | {
         [k: string]: unknown;
       }
@@ -4852,7 +4852,7 @@ export interface RegistrationsSelect<T extends boolean = true> {
   uuid?: T;
   mailingListSubscribedAt?: T;
   remindersUnsubscribedAt?: T;
-  emailLog?: T;
+  activityLog?: T;
   eventFeedback?: T;
   followUpSentAt?: T;
   legacyId?: T;

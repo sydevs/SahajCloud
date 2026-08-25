@@ -13,7 +13,7 @@ import type { Event } from '@/payload-types'
 import { loadUsers } from './loadUsers'
 import { sendSessionReminder } from './sendSessionReminder'
 
-/** `event` slug for reminder entries in the registration's `emailLog`. */
+/** `type` slug for reminder entries in the registration's `activityLog`. */
 export const REMINDER_LOG_EVENT = 'session-reminder'
 
 /** Short, unambiguous date for the log's one-line summary. */
@@ -159,13 +159,13 @@ async function remindForEvent(args: {
       depth: 0,
       limit: PAGINATION_LIMIT,
       page,
-      select: { user: true, client: true, startingAt: true, locale: true, emailLog: true },
+      select: { user: true, client: true, startingAt: true, locale: true, activityLog: true },
       overrideAccess: true,
       req,
     })
 
     for (const registration of batch.docs) {
-      const log = asLog(registration.emailLog)
+      const log = asLog(registration.activityLog)
       const due = occurrencesForRegistration(occurrences, registration.startingAt).filter(
         (occurrence) => !hasLogEntry(log, REMINDER_LOG_EVENT, occurrence),
       )
@@ -223,16 +223,17 @@ async function remindForEvent(args: {
       // a crash mid-run resumes without re-sending what already went out.
       log = appendLogEntry(log, {
         at: now.toISOString(),
-        event: REMINDER_LOG_EVENT,
-        summary: `Session reminder for ${formatOccurrenceLabel(occurrence)}`,
-        channel: 'email',
-        destination: registrantEmail,
+        type: REMINDER_LOG_EVENT,
         key: occurrence,
+        cells: {
+          activity: `Session reminder for ${formatOccurrenceLabel(occurrence)}`,
+          sentTo: { label: 'email', text: registrantEmail },
+        },
       })
       await payload.update({
         collection: 'registrations',
         id: item.registrationId,
-        data: { emailLog: log },
+        data: { activityLog: log },
         overrideAccess: true,
         req,
       })
@@ -252,7 +253,7 @@ async function remindForEvent(args: {
  * one hour. A missed run (server down) is caught by the next one as long as the
  * occurrence hasn't started; occurrences already past are never reminded.
  *
- * Exactly-once: a per-registration `emailLog` ledger keyed on occurrence
+ * Exactly-once: a per-registration `activityLog` ledger keyed on occurrence
  * start, persisted immediately after each send. A task retry or an overlapping
  * run re-sends nothing, and exclusive concurrency keeps a single run at a time.
  *

@@ -11,8 +11,8 @@ import { appendLogEntry, asLog, DEFAULT_LOG_LIMIT, hasLogEntry, type LogEntry } 
 
 const entry = (overrides: Partial<LogEntry> = {}): LogEntry => ({
   at: '2026-07-20T10:00:00.000Z',
-  event: 'session-reminder',
-  summary: 'Session reminder',
+  type: 'session-reminder',
+  cells: { activity: 'Session reminder' },
   ...overrides,
 })
 
@@ -26,7 +26,7 @@ describe('asLog', () => {
 
   it('keeps well-formed entries and drops malformed ones', () => {
     const good = entry()
-    expect(asLog([good, { summary: 'no at/event' }, 42, null])).toEqual([good])
+    expect(asLog([good, { cells: { activity: 'no at/type' } }, 42, null])).toEqual([good])
   })
 
   it('preserves extra properties a consumer carries', () => {
@@ -68,8 +68,8 @@ describe('appendLogEntry', () => {
 
 describe('hasLogEntry', () => {
   const log = [
-    entry({ event: 'session-reminder', key: '2026-07-21T10:00:00.000Z' }),
-    entry({ event: 'post-event-follow-up', key: '42' }),
+    entry({ type: 'session-reminder', key: '2026-07-21T10:00:00.000Z' }),
+    entry({ type: 'post-event-follow-up', key: '42' }),
   ]
 
   it('is true only for a logged event + key pair', () => {

@@ -134,9 +134,15 @@ describe('buildImportVerification', () => {
     const fields = buildImportVerification({ status: 0, cadence: 'Monthly', legacyId: 30, now })
     expect(fields.verificationStage).toBe('verified')
     expect(fields.nextCheckAt).toBe('2026-07-15T00:00:00.000Z')
-    expect(fields.notificationLog).toEqual([
-      { kind: 'verification', at: now.toISOString(), by: null, method: 'import' },
-    ])
+    // The machine fields this seeding is about — not the whole entry, which
+    // also carries display cells composed by `buildVerificationEntry`.
+    expect(fields.notificationLog).toHaveLength(1)
+    expect(fields.notificationLog?.[0]).toMatchObject({
+      kind: 'verification',
+      at: now.toISOString(),
+      by: null,
+      method: 'import',
+    })
   })
 
   it('falls back to the default period for an unknown cadence', () => {

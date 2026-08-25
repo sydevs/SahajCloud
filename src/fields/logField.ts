@@ -1,30 +1,27 @@
 import type { JSONField } from 'payload'
 
 /**
- * A **delivery log**: the record of messages a system sent about one document,
- * so a manager can answer "did that actually go out, and to whom?" without
- * reading application logs or the database.
+ * An **activity log**: what happened to a document and when, in a table a
+ * manager can read. Emails sent about it, but also anything else worth a
+ * record — a registration created, a listing verified, a booking cancelled.
  *
- * That question is the whole point, and it's why this is a field factory rather
- * than a convention. Two logs already existed — the Events verification
- * `notificationLog` and the Registrations reminder ledger — written months
- * apart, and they agreed on nothing: one was rendered, one was invisible; one
- * reset per cycle, one grew forever with no cap; each had its own coercion and
- * membership helper. A third was about to be added for post-event follow-ups.
+ * Two logs existed before this and agreed on nothing: the Events verification
+ * log was rendered by its own component, the Registrations reminder ledger was
+ * invisible; one reset per cycle, one grew forever uncapped; each had its own
+ * coercion and membership helper.
  *
- * What every log genuinely shares, and therefore what lives here:
+ * **The entry decides the columns**, through its `cells`. Each key in there
+ * becomes a column headed by its name in words, so a consumer adds a column by
+ * writing one and no component changes — which is what lets one table serve a
+ * verification cycle and a registrant's mail without either being flattened.
  *
- * - the field config (json, read-only, a renderer, a description);
- * - the entry shape a reader needs — **when**, **what**, **to whom**;
- * - coercion from a loosely-typed JSON column into typed entries;
- * - append-with-a-cap, so a log on a long-lived document can't grow unbounded;
- * - the exactly-once membership check jobs use before sending.
- *
- * What deliberately does *not* live here: the dedup key's meaning, and any
- * domain detail a particular log wants to show. Entries carry an opaque `key`
- * for the former and tolerate extra properties for the latter, so a consumer
- * with a richer story to tell (the verification log's escalation level and
- * recipient tier) keeps its own renderer without being flattened into this one.
+ * Display is **opt-in, inside `cells`**, and everything else on the entry is
+ * machine data. That default is the important one: entries are read back as
+ * data — `hasReminderForStage` decides whether to send by reading an entry's
+ * stage and recipient — and a verification entry carries ten such fields. With
+ * the rule the other way round (every unreserved key is a column) that log
+ * rendered a fourteen-column table of raw enum values, which is how this shape
+ * was arrived at.
  *
  * **A log is a record, not a query filter.** Nothing can `where` on a JSON
  * column cheaply, so a job that needs to *find* documents still wants a real
@@ -36,28 +33,23 @@ import type { JSONField } from 'payload'
 export const DEFAULT_LOG_LIMIT = 50
 
 /**
- * One line in a delivery log. Extra properties are allowed — a consumer with a
- * custom renderer may carry its own fields — but these are what any reader,
- * and the shared table, can rely on.
+ * One cell. A bare string is the common case; the object form adds a muted
+ * `label` inline before the text (`email: a@b.test`) and/or a muted `sub` line
+ * beneath it (a recipient's role and region under their name).
  */
+export type LogCell = string | { label?: string; text: string; sub?: string }
+
 export interface LogEntry {
-  /** When it happened (ISO 8601). Sorted and displayed by this. */
+  /** When it happened (ISO 8601). Always the first column, and the sort key. */
   at: string
-  /** What happened, as a stable slug: `reminder`, `follow-up`, `verification`. */
-  event: string
-  /** One-line human summary — this is what the manager actually reads. */
-  summary: string
-  /** Delivery channel, when the entry records a message (`email`, `whatsapp`). */
-  channel?: string
-  /** Address or handle it went to. */
-  destination?: string
-  /**
-   * Opaque exactly-once key, scoped to `event` — the occurrence a reminder
-   * covered, the stage a notice was sent for. Never rendered; its meaning
-   * belongs to the job that writes it.
-   */
+  /** Stable slug identifying what kind of entry this is — matched, not shown. */
+  type: string
+  /** Exactly-once key, scoped to `type`. Its meaning belongs to the writer. */
   key?: string
-  [extra: string]: unknown
+  /** What a reader sees: one column per key, in the order first seen. */
+  cells: Record<string, LogCell>
+  /** Anything else a writer needs to read back later. Never rendered. */
+  [machine: string]: unknown
 }
 
 /** Coerce a loosely-typed JSON column into entries, dropping anything malformed. */
@@ -68,7 +60,9 @@ export function asLog(value: unknown): LogEntry[] {
       typeof entry === 'object' &&
       entry !== null &&
       typeof (entry as LogEntry).at === 'string' &&
-      typeof (entry as LogEntry).event === 'string',
+      typeof (entry as LogEntry).type === 'string' &&
+      typeof (entry as LogEntry).cells === 'object' &&
+      (entry as LogEntry).cells !== null,
   )
 }
 
@@ -92,52 +86,51 @@ export function appendLogEntry(
  * Has this exact thing already been logged? The guard a job checks before
  * sending, so a task retry or an overlapping run never double-sends.
  *
- * Matching on `event` **and** `key` together is deliberate: one log now holds
- * several kinds of message, and a bare key could collide across them.
+ * Matching on `type` **and** `key` together is deliberate: one log holds
+ * several kinds of entry, and a bare key would collide across them.
  */
-export function hasLogEntry(log: LogEntry[], event: string, key: string): boolean {
-  return log.some((entry) => entry.event === event && entry.key === key)
+export function hasLogEntry(log: LogEntry[], type: string, key: string): boolean {
+  return log.some((entry) => entry.type === type && entry.key === key)
 }
 
 export interface LogFieldOptions {
-  name: string
+  /** Defaults to `activityLog`; override only when a document needs two logs. */
+  name?: string
   label?: JSONField['label']
   /** Shown under the table — say what this log records and when it's written. */
   description: string
   /** Cap, for the description only; `appendLogEntry` is what enforces it. */
   limit?: number
   /**
-   * Renderer override. Defaults to the shared table, which reads `at` /
-   * `summary` / `channel` / `destination`. Override only when the log carries
-   * domain detail worth its own columns.
+   * Column headings, keyed by entry key. Anything unlisted is headed by its
+   * key in words (`sentTo` → "Sent To"), which is usually right.
    */
-  component?: string
+  columnLabels?: Record<string, string>
   admin?: Omit<NonNullable<JSONField['admin']>, 'components' | 'description' | 'readOnly'>
 }
 
-const SHARED_LOG_TABLE = '@/components/admin/LogTable'
-
 /**
- * A read-only delivery log field. Never writable through the API — like
+ * A read-only activity log field. Never writable through the API — like
  * `systemMetaField`, the writers are jobs and hooks passing `overrideAccess`.
  */
 export function logField({
-  name,
-  label,
+  name = 'activityLog',
+  label = 'Activity Log',
   description,
   limit = DEFAULT_LOG_LIMIT,
-  component = SHARED_LOG_TABLE,
+  columnLabels,
   admin = {},
 }: LogFieldOptions): JSONField {
   return {
     name,
     type: 'json',
-    ...(label !== undefined ? { label } : {}),
+    label,
     admin: {
       ...admin,
       readOnly: true,
       description: `${description} Keeps the most recent ${limit} entries.`,
-      components: { Field: component },
+      components: { Field: '@/components/admin/LogTable' },
+      custom: { ...admin.custom, columnLabels },
     },
   }
 }
