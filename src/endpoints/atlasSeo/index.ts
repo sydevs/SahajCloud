@@ -1,14 +1,13 @@
-import type { AtlasSeoBreadcrumb, AtlasSeoEventCard, AtlasSeoResponse } from './responseTypes'
+import type { AtlasSeoBreadcrumb, AtlasSeoEventCard, AtlasSeoResponse } from '../responseTypes'
+import type { AtlasRouteTarget } from './atlasRoute'
 import type { Endpoint, PayloadRequest, SelectType } from 'payload'
 
 import { APIError } from 'payload'
 import { z } from 'zod'
 
-import type { AtlasRouteTarget } from '@/lib/atlas/atlasRoute'
-import { MAX_ATLAS_ROUTE_LENGTH, parseAtlasRoute } from '@/lib/atlas/atlasRoute'
+
 import { getCanonicalUrlForRegion } from '@/lib/atlas/regionOwners'
 import { descendantRegionIds, getRegionTree } from '@/lib/atlas/regionTree'
-import { buildEventSeo, buildRegionSeo, eventCard } from '@/lib/atlas/seoDocument'
 import { parseQuery, requireActiveClient } from '@/lib/endpoints'
 import type { LocaleCode } from '@/lib/locales'
 import { DEFAULT_LOCALE, isValidLocale, LOCALES } from '@/lib/locales'
@@ -16,6 +15,9 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Region } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 import { assertClientOriginAllowed } from '@/plugins/usage'
+
+import { MAX_ATLAS_ROUTE_LENGTH, parseAtlasRoute } from './atlasRoute'
+import { buildEventSeo, buildRegionSeo, eventCard } from './seoDocument'
 
 /**
  * How many classes a region's listing carries.

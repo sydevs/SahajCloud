@@ -54,13 +54,20 @@ Almost every endpoint here belongs to a collection and lives in its
 // src/payload.config.ts
 import { contactAdmin } from './endpoints/contactAdmin'
 
-endpoints: [contactAdmin],
+endpoints: [atlasSeo, contactAdmin],
 ```
 
-Currently one such endpoint exists: `POST /api/contact-admin` — a contact
-message is stored nowhere and owned by nothing. Prefer a collection endpoint
-whenever a collection plausibly owns the resource; reach for the root only when
-none does.
+Two such endpoints exist, each for a different reason:
+
+- `POST /api/contact-admin` — a contact message is stored nowhere and owned by
+  nothing.
+- `GET /api/atlas/seo` — the caller passes a **route**, which may name a region
+  *or* an event, so no single collection owns the resource. (Putting it under
+  `regions` would have been a lie half the time, and keying it by id instead
+  would have pushed path→id resolution into every consumer.)
+
+Prefer a collection endpoint whenever a collection plausibly owns the resource;
+reach for the root only when none does.
 
 **Two things you lose by leaving the collection seam** — both are the usage
 plugin's `beforeOperation` hooks, which only run on collection operations, so a

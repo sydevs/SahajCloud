@@ -22,9 +22,8 @@
  */
 
 import type { JsonLdNode } from './jsonLd'
-
+import type { AtlasSeoAddress } from '../responseTypes'
 import type {
-  AtlasSeoAddress,
   AtlasSeoAlternate,
   AtlasSeoBreadcrumb,
   AtlasSeoEventCard,
@@ -34,41 +33,44 @@ import type {
   AtlasSeoRegionContent,
   AtlasSeoResponse,
   AtlasSeoSchedule,
-} from '@/endpoints/responseTypes'
+} from '../responseTypes'
+
+import { convertLexicalToPlaintext } from '@payloadcms/richtext-lexical/plaintext'
+
+
+import { ATLAS_WIDGET_LOCALES } from '@/lib/atlas/widgetLocales'
 import { addressOneLine, scheduleOneLine } from '@/lib/notifications/eventDetails'
-import { lexicalToParagraphs } from '@/lib/richEditor/lexicalToParagraphs'
 import { getLocalTimeHHMM } from '@/lib/schedule/scheduleHooks'
 import type { Event } from '@/payload-types'
-
 
 import { breadcrumbList, compactNode, jsonLdEscape, jsonLdGraph } from './jsonLd'
 
 /**
- * The locales the atlas widget ships UI bundles for — the hreflang set.
+ * A rich-text value as plain-text paragraphs; `[]` when it is empty, absent or
+ * malformed.
  *
- * **This list is `supportedLanguages` in sydevs/SahajAtlasWeb
- * `src/config/i18n-options.ts`**, which is in turn its `public/locales/`
- * directory. It is a strict subset of the CMS's own locales
- * (`@/lib/locales`), and `tests/unit/atlas-seo-document.spec.ts` fails if an
- * entry here stops being one — a code with no CMS locale behind it would put a
- * page into an hreflang cluster that serves nothing.
+ * `convertLexicalToPlaintext` renders each paragraph, heading and list item as
+ * text and separates blocks with a blank line, keeping a soft break as a single
+ * newline — so splitting on the blank line recovers exactly the block structure
+ * the editor stored, and a soft break stays inside its paragraph. The inverse of
+ * `@/lib/richEditor/plainTextToLexical`, which the Atlas importer uses to get
+ * these values in.
  *
- * It is duplicated rather than derived because the two lists answer different
- * questions: the CMS is *translated into* 19 locales, the widget *renders in*
- * 10, and an hreflang cluster must name pages a visitor can actually read.
+ * Malformed editor state resolves to `[]` rather than throwing: this feeds a
+ * public read on somebody else's page render, where one bad document must not
+ * take the response down.
  */
-export const ATLAS_WIDGET_LOCALES = [
-  'cs',
-  'de',
-  'en',
-  'es',
-  'fr',
-  'hu',
-  'nl',
-  'pt-BR',
-  'ru',
-  'uk',
-] as const
+export function lexicalToParagraphs(value: unknown): string[] {
+  if (!value || typeof value !== 'object') return []
+  try {
+    return convertLexicalToPlaintext({ data: value as never })
+      .split(/\n{2,}/)
+      .map((paragraph) => paragraph.trim())
+      .filter(Boolean)
+  } catch {
+    return []
+  }
+}
 
 /**
  * The query parameter the widget reads its UI language from

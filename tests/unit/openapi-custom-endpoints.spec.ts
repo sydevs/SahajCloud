@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { ATLAS_WIDGET_LOCALES } from '../../src/lib/atlas/widgetLocales'
 import { ROUTING_MODES } from '../../src/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '../../src/lib/clients/embedMetadata'
 import { depthParameter } from '../../src/plugins/openapi/clientReadParametersDocs'
@@ -307,6 +308,99 @@ describe('contact-admin root endpoint (OpenAPI)', () => {
     // this project" and hides a live endpoint from every /docs page.
     const filtered = filterSpec(build(), { project: 'sahaj-atlas' })
     expect(contactAdminOp(filtered)['x-internal']).toBe(true)
+  })
+})
+
+describe('atlas SEO root endpoint (OpenAPI)', () => {
+  const get = CUSTOM_ENDPOINT_PATHS['/api/atlas/seo']?.get as
+    | {
+        description?: string
+        parameters?: { name: string; required?: boolean }[]
+        responses?: Record<string, unknown>
+      }
+    | undefined
+
+  it('registers the GET path and every hand-authored schema it references', () => {
+    expect(get).toBeDefined()
+    for (const schema of [
+      'AtlasSeoResponse',
+      'AtlasSeoAlternate',
+      'AtlasSeoBreadcrumb',
+      'AtlasSeoAddress',
+      'AtlasSeoSchedule',
+      'AtlasSeoImage',
+      'AtlasSeoEventCard',
+      'AtlasSeoEventContent',
+      'AtlasSeoRegionContent',
+    ]) {
+      expect(CUSTOM_ENDPOINT_SCHEMAS[schema], `${schema} is not registered`).toBeDefined()
+    }
+  })
+
+  it('takes a required `route` and an optional `locale`, and nothing else', () => {
+    expect(get?.parameters?.map((parameter) => parameter.name)).toEqual(['route', 'locale'])
+    expect(get?.parameters?.find((p) => p.name === 'route')?.required).toBe(true)
+    expect(get?.parameters?.find((p) => p.name === 'locale')?.required).toBeFalsy()
+  })
+
+  // A shaped endpoint publishes a fixed structure; `select`/`populate` are
+  // meaningless over it, and offering them would invite a caller to try.
+  it('exposes no select/populate/depth passthrough', () => {
+    const names = get?.parameters?.map((parameter) => parameter.name) ?? []
+    for (const forbidden of ['select', 'populate', 'depth', 'where']) {
+      expect(names).not.toContain(forbidden)
+    }
+  })
+
+  // Each of these is a decision a consumer would otherwise have to guess at, and
+  // guessing wrong is silent — a double-escaped JSON-LD block, a locale-suffixed
+  // canonical, or a region page rendered as if its capped list were complete.
+  it('documents the contract choices a consumer cannot infer', () => {
+    expect(get?.description).toContain('locale-free')
+    expect(get?.description).toContain('already serialized and escaped')
+    expect(get?.description).toContain('No HTML crosses')
+    expect(get?.description).toContain('eventCount')
+    expect(get?.description).toContain('404')
+  })
+
+  it('advertises x-default alongside the widget locales', () => {
+    const alternate = CUSTOM_ENDPOINT_SCHEMAS['AtlasSeoAlternate'] as {
+      properties?: { hreflang?: { enum?: string[] } }
+    }
+    expect(alternate.properties?.hreflang?.enum).toContain('x-default')
+    expect(alternate.properties?.hreflang?.enum).toHaveLength(ATLAS_WIDGET_LOCALES.length + 1)
+  })
+
+  const build = () =>
+    JSON.parse(
+      JSON.stringify({
+        openapi: '3.1.0',
+        info: { title: 't', version: '1' },
+        paths: { ...CUSTOM_ENDPOINT_PATHS },
+        components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
+      }),
+    ) as unknown as OpenAPISpec
+
+  const atlasSeoOp = (spec: OpenAPISpec): Record<string, unknown> => {
+    const operation = (
+      spec.paths?.['/api/atlas/seo'] as Record<string, Record<string, unknown>> | undefined
+    )?.get
+    expect(operation, 'GET /api/atlas/seo is missing from the filtered spec').toBeDefined()
+    return operation!
+  }
+
+  it('stays visible in every project spec despite owning no collection', () => {
+    // `atlas` names no collection, so without the root-path exemption the
+    // project tier reads this as "not in this project" and hides it everywhere.
+    const rootEndpointPaths = rootEndpointPathsFrom([{ path: '/atlas/seo' }])
+    for (const project of ['sahaj-atlas', 'wemeditate-web', 'wemeditate-app'] as const) {
+      const filtered = filterSpec(build(), { project, rootEndpointPaths })
+      expect(atlasSeoOp(filtered)['x-internal'], `hidden for ${project}`).toBeFalsy()
+    }
+  })
+
+  it('is hidden when the caller does not declare it as a root path', () => {
+    expect(atlasSeoOp(filterSpec(build(), { project: 'sahaj-atlas' }))['x-internal']).toBe(true)
   })
 })
 
