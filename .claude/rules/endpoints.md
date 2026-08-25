@@ -69,6 +69,24 @@ Two such endpoints exist, each for a different reason:
 Prefer a collection endpoint whenever a collection plausibly owns the resource;
 reach for the root only when none does.
 
+**The folder path mirrors the URL.** A single-file endpoint sits at
+`src/endpoints/<name>.ts` (`contactAdmin.ts` → `/api/contact-admin`); one that
+needs supporting modules gets a folder whose path *is* the URL path, with the
+handler in `index.ts`:
+
+```
+src/endpoints/atlas/seo/        →  GET /api/atlas/seo
+├── index.ts                       the Endpoint (exports `atlasSeo`)
+├── atlasRoute.ts                  route parsing
+├── jsonLd.ts                      JSON-LD builders + escaping
+└── seoDocument.ts                 the response shaper
+```
+
+Those supporting modules are **single-owner code and belong here, not in
+`src/lib/`** — `tests/unit/lib-boundary.spec.ts` fails a lib module with one
+consumer outside lib. `responseTypes.ts` stays at `src/endpoints/` because both
+endpoints share it.
+
 **Two things you lose by leaving the collection seam** — both are the usage
 plugin's `beforeOperation` hooks, which only run on collection operations, so a
 root handler that touches no collection runs neither:

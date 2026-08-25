@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { MAX_ATLAS_ROUTE_LENGTH, parseAtlasRoute } from '../../src/endpoints/atlasSeo/atlasRoute'
+import { MAX_ATLAS_ROUTE_LENGTH, parseAtlasRoute } from '../../src/endpoints/atlas/seo/atlasRoute'
 
 /**
  * Route parsing for `GET /api/atlas/seo` (#645).

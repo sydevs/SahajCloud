@@ -22,7 +22,7 @@
  */
 
 import type { JsonLdNode } from './jsonLd'
-import type { AtlasSeoAddress } from '../responseTypes'
+import type { AtlasSeoAddress } from '../../responseTypes'
 import type {
   AtlasSeoAlternate,
   AtlasSeoBreadcrumb,
@@ -33,7 +33,7 @@ import type {
   AtlasSeoRegionContent,
   AtlasSeoResponse,
   AtlasSeoSchedule,
-} from '../responseTypes'
+} from '../../responseTypes'
 
 import { convertLexicalToPlaintext } from '@payloadcms/richtext-lexical/plaintext'
 

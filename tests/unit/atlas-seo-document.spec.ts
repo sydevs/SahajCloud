@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { breadcrumbList, compactNode, jsonLdEscape, jsonLdGraph } from '@/endpoints/atlasSeo/jsonLd'
+import { breadcrumbList, compactNode, jsonLdEscape, jsonLdGraph } from '@/endpoints/atlas/seo/jsonLd'
 import {
   buildEventSeo,
   buildRegionSeo,
   eventCard,
   hreflangAlternates,
   truncateAtWord,
-} from '@/endpoints/atlasSeo/seoDocument'
+} from '@/endpoints/atlas/seo/seoDocument'
 import type { AtlasSeoBreadcrumb, AtlasSeoEventCard } from '@/endpoints/responseTypes'
 import { ATLAS_WIDGET_LOCALES } from '@/lib/atlas/widgetLocales'
 import { LOCALES } from '@/lib/locales'

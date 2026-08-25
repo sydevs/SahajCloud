@@ -2,7 +2,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { atlasSeo } from '@/endpoints/atlasSeo'
+import { atlasSeo } from '@/endpoints/atlas/seo'
 import type { AtlasSeoResponse } from '@/endpoints/responseTypes'
 import { serverEnv } from '@/lib/env'
 import type { Event } from '@/payload-types'

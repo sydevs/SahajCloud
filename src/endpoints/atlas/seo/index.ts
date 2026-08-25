@@ -1,5 +1,5 @@
-import type { AtlasSeoBreadcrumb, AtlasSeoEventCard, AtlasSeoResponse } from '../responseTypes'
 import type { AtlasRouteTarget } from './atlasRoute'
+import type { AtlasSeoBreadcrumb, AtlasSeoEventCard, AtlasSeoResponse } from '../../responseTypes'
 import type { Endpoint, PayloadRequest, SelectType } from 'payload'
 
 import { APIError } from 'payload'

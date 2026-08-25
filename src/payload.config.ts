@@ -28,7 +28,7 @@ import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
 import { collections, Managers } from './collections'
-import { atlasSeo } from './endpoints/atlasSeo'
+import { atlasSeo } from './endpoints/atlas/seo'
 import { contactAdmin } from './endpoints/contactAdmin'
 import { globals } from './globals'
 import { tasks } from './jobs'
