@@ -112,10 +112,13 @@ const MOUNT_KEY_MESSAGES = {
  *
  * Rate limiting is Cloudflare's at the edge (500/min per client+IP), as for
  * every other client route — this app's `rateLimitHook` is a no-op on Railway.
- * On top of that the handler is free when there is nothing new to say: the
- * widget only POSTs on a *change*, so a repeat of a recent identical
- * observation is answered `updated: false` without a read or a write, and the
- * per-client mount cap bounds what a forger can accumulate.
+ * On top of that the handler is free when there is nothing new to say: a repeat
+ * of a recent identical observation is answered `updated: false` without a read
+ * or a write. That is the path most requests take — since
+ * sydevs/SahajAtlasWeb#153 the widget reports on every page load rather than
+ * only on a change, which is also why the mount cap evicts rather than refuses
+ * (#639): ordinary traffic reaches it, so refusing growth would make the page an
+ * operator wants to nominate unreportable and therefore unpickable.
  */
 export const clientEmbedReport: Endpoint = {
   path: '/report',

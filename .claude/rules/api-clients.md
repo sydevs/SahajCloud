@@ -170,10 +170,35 @@ keyed object; never replaces it.
   means the widget is misbehaving and cleaning it up quietly would hide that.
 - **Rate limiting is Cloudflare's**, at the edge, as for every other client
   route (this app's `rateLimitHook` is a no-op on Railway). On top of that the
-  handler is free when there's nothing new to say — the widget only POSTs on a
-  *change*, so a repeat of a recent identical observation is answered
-  `updated: false` with **no read and no write** — and `MAX_EMBED_MOUNTS` caps
-  what a forger can accumulate, evicting least-recently-seen first.
+  handler is free when there's nothing new to say: a repeat of a recent
+  identical observation is answered `updated: false` with **no read and no
+  write**. That path carries the traffic — since sydevs/SahajAtlasWeb#153 the
+  widget reports on **every page load**, not only when something changed.
+- **The cap bounds storage, never which mounts are knowable** (#639).
+  `MAX_EMBED_MOUNTS` (50) caps what a forger can accumulate, but a client at the
+  cap still reports a **new** mount: the least-recently-seen entry is evicted to
+  make room, so which 50 are held reflects what is currently live rather than
+  what arrived first. **There is no 429** — refusing growth was first-50-wins,
+  and once ordinary traffic could fill the budget (see the bullet above) it meant
+  the page an operator wanted to nominate could never be reported and so never
+  appeared in the picker.
+
+  Two things the rule will not spend:
+
+  - **The designated `canonical.embed` is never evicted**, whatever its
+    `lastSeen`. It is one page competing with however many the site's traffic
+    touches, and the picker's selection and the verification job's subject both
+    resolve through that key — evicting it would cost a live canonical URL the
+    mount it is built from.
+  - **The mount just reported**, so a clock running behind can't delete the very
+    write the request came to make.
+
+  The decision is pure (`mergeEmbedReport` in `src/lib/clients/embedMetadata.ts`)
+  and the endpoint applies it in one statement: `|| $1::jsonb` merges the record
+  and `- $2::text[]` deletes the evicted keys. **Both halves are load-bearing** —
+  `||` cannot delete, so merging the post-eviction record alone would re-compute
+  and re-drop the same mounts on every report while the column grew without
+  bound, leaving the cap inert.
 - It is registered in the OpenAPI shim but stays `x-internal`; see
   `.claude/rules/openapi.md`.
 
@@ -183,8 +208,8 @@ parsing, error classification, and the failed/inconclusive split),
 `tests/unit/canonical-embed-picker.spec.ts` (canonical-URL building incl. the `&`
 join, the three-strikes ladder, picker option derivation), and
 `tests/int/client-canonical.int.spec.ts` (the hook, the endpoint, the job ladder,
-and that enabling ownership re-roots an event's `webUrl` while leaving `webPath`
-byte-identical).
+reaching the cap and reporting past it, and that enabling ownership re-roots an
+event's `webUrl` while leaving `webPath` byte-identical).
 
 ## Per-region canonical `webUrl` (#634)
 
