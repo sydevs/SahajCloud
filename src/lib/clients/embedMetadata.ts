@@ -75,9 +75,10 @@ export const MAX_EMBED_MOUNTS = 50
 
 /**
  * How long a mount record is considered fresh. A report that repeats an
- * identical observation inside this window is answered without a write — the
- * widget only POSTs on a *change*, so a repeat is either a page reload or
- * abuse, and neither should cost a row update.
+ * identical observation inside this window is answered without a write, which
+ * is what keeps the write path quiet: the widget reports on every page load
+ * (sydevs/SahajAtlasWeb#153), so a repeat is the ordinary case rather than the
+ * exception, and a page's traffic should not cost a row update per visit.
  */
 export const EMBED_REPORT_REFRESH_MS = 6 * 60 * 60 * 1000
 
