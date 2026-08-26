@@ -85,9 +85,9 @@ describe('sitemapUrls', () => {
     expect(sitemapUrls([{ ...region, webPath: null }])).toEqual([])
   })
 
-  // The body is edge-cached, so identical ownership has to serialize identically
+  // The list is edge-cached, so identical ownership has to serialize identically
   // — including across instances, which rules out a locale-sensitive sort.
-  it('sorts by route so the same ownership yields a byte-stable body', () => {
+  it('sorts by route so unchanged ownership yields an unchanged list', () => {
     const at = { updatedAt: region.updatedAt }
     const rows = sitemapUrls([
       { ...at, webPath: '/nl/amsterdam/1204', webUrl: 'https://h.test/nl/amsterdam/1204' },

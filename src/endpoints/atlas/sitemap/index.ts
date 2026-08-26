@@ -47,6 +47,16 @@ function errorResponse(message: string, status: number): Response {
  * page's listing. A finished class stays reachable by direct link, but a sitemap
  * is a list of pages we are asking a crawler to index, and a class that no
  * longer happens is not one of them.
+ *
+ * ⚠ **The `regions` read is not redundant with the region tree**, though it
+ * looks it: resolving ownership has already loaded every region's `pathById`,
+ * so a future optimization is bound to notice that the paths are in memory and
+ * try to build `loc` as `canonicalUrlBase(owner) + path`. That would make this
+ * endpoint the *second* implementation of the URL rule — the exact thing #650
+ * exists to prevent — and the byte-identity case in
+ * `tests/int/atlas-sitemap.int.spec.ts` is what would catch it. Reading the
+ * document's own `webUrl` is the point, and it is also where `updatedAt` (the
+ * `lastmod` a consumer cannot derive) comes from.
  */
 async function ownedDocuments(
   req: PayloadRequest,

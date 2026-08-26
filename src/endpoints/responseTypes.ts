@@ -259,8 +259,11 @@ export type AtlasSitemapUrl = {
  * easier to add later than to remove.
  */
 export type AtlasSitemapResponse = {
-  /** ISO 8601 instant this answer was built. */
+  /**
+   * ISO 8601 instant this answer was built — and the one field that moves
+   * between two otherwise identical answers, so diff `urls`, not the body.
+   */
   generated: string
-  /** Ascending by `route`, so the same ownership yields a byte-stable body. */
+  /** Ascending by `route`, so unchanged ownership yields an unchanged list. */
   urls: AtlasSitemapUrl[]
 }

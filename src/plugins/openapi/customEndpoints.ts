@@ -639,8 +639,10 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'pagination**: a client owns a subtree of a corpus in the low thousands, and a ' +
         'truncated sitemap that did not say so would be worse than a slow one. ' +
         '`lastmod` is the document’s `updatedAt` — the one field you genuinely cannot ' +
-        'derive. Entries are sorted by `route`, so identical ownership yields a ' +
-        'byte-stable body. Unlike `/api/atlas/seo`, **this answer is per-client**; it ' +
+        'derive. Entries are sorted by `route`, so unchanged ownership yields an ' +
+        'unchanged list; `generated` is the one field that moves between two otherwise ' +
+        'identical answers, so diff `urls` rather than the whole body. Unlike ' +
+        '`/api/atlas/seo`, **this answer is per-client**; it ' +
         'is cached on `Vary: Authorization`, so each API key gets its own variant. ' +
         'Sets `Cache-Control: public, max-age=300, s-maxage=300`.',
       operationId: 'atlasSitemap',
