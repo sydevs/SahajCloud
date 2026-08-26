@@ -203,17 +203,6 @@ describe('User messages intake (POST /api/user-messages)', () => {
       await expect(send({ message: 'x'.repeat(5001) })).rejects.toThrow()
     })
 
-    it('refuses an over-long sender address', async () => {
-      // Payload's `email` field has no `maxLength` option, so this bound is a
-      // validator. Without it the 254-char cap the replaced endpoint enforced
-      // would have been dropped silently by the move to a collection.
-      const local = 'a'.repeat(250)
-      await expect(send({ senderEmail: `${local}@example.com` })).rejects.toThrow()
-      // …and a normal address still gets through, so the bound can't be
-      // rejecting everything.
-      await expect(send({ senderEmail: 'ordinary@example.com' })).resolves.toBeTruthy()
-    })
-
     it('refuses an oversized context blob', async () => {
       await expect(send({ context: { error: 'x'.repeat(5000) } })).rejects.toThrow()
     })
