@@ -91,6 +91,11 @@ describe('admin client components stay out of the server bundle', () => {
     'components/admin/CanonicalEmbedPicker/CanonicalEmbedPicker.tsx',
     'components/admin/CanonicalEmbedPicker/Description.tsx',
     'components/admin/CanonicalEmbedPicker/model.ts',
+    // Reaches into `@/collections/UserMessages/*` for its status vocabulary and
+    // verdict shape. Those are leaf modules precisely so this import can't drag
+    // the collection — and with it the hooks, the mailer and `node:crypto` —
+    // into the admin bundle.
+    'components/admin/UserMessages/UserMessageStatus.tsx',
   ]
 
   it.each(entries)('%s imports nothing server-only', (relative) => {
