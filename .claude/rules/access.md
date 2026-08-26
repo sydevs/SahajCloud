@@ -190,12 +190,36 @@ and a stray `managers` field elsewhere can't silently widen access.
 Users can always read and update their own document in their auth
 collection. Implemented in the bypass function.
 
-### Restricted collections (implicit)
+### Restricted collections — "in no project" is NOT restrictive
 
-Access collections (`managers`, `clients`) and Payload system collections
-(`payload-jobs`, `payload-kv`, …) are not listed in any project. Only
-explicit-permission users (or admin bypass) reach them. No hardcoded
-restrictions needed.
+Read this together with step 5 above, because the two pull in opposite
+directions and the obvious reading is the wrong one. Access collections
+(`managers`, `clients`) and Payload system collections (`payload-jobs`,
+`payload-kv`, …) are in no project and are reachable only by
+explicit-permission users or the admin bypass — but that is because they carry
+**no write permission for anyone**, not because "no project" restricts them.
+
+Step 5 says the opposite for read: implicit read covers a role's project
+**plus every collection in no project**. So a collection left out of `PROJECTS`
+is *shared*, i.e. readable by every role — which is the trap.
+
+**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the escape, and the only
+one: a collection named there is skipped by implicit read entirely, so only an
+explicit `read` grant in a role or the admin bypass reaches it. It holds
+`users`, `event-submissions`, and `user-messages` — everything carrying personal
+data.
+
+The two knobs compose, and a collection that must be admin-only needs both:
+
+| Want | Do |
+| --- | --- |
+| Nobody reads it implicitly | Add to `RESTRICTED_COLLECTIONS` |
+| A client may still create it | Grant `['create']` in that client's role |
+| **No manager role may read it** | Grant it in **no** role — `user-messages` is the example |
+| Visible in `/api/docs` | Add to a project's `collections` (see `.claude/rules/openapi.md`) |
+
+The last row is why both public intakes' POSTs are `x-internal`: neither is in a
+project, deliberately.
 
 ## Adding a new role
 
