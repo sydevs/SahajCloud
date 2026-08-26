@@ -248,6 +248,28 @@ describe('User message screening', () => {
       expect((await reload(message.id)).deliveredAt).toBeTruthy()
     })
 
+    it('re-screens rather than trusting a stored verdict it did not write', async () => {
+      // `screeningResult` is a JSON column, so a bad write (or an older shape)
+      // can leave a value outside the verdict union there. The guard asserts a
+      // TYPE, so accepting anything string-shaped would propagate a lie; a row
+      // we cannot read falls through to a fresh screening instead.
+      const message = await seed({ senderEmail: 'throwaway@mailinator.com' })
+      await payload.update({
+        collection: 'user-messages',
+        id: message.id,
+        data: {
+          status: 'failed',
+          screeningResult: { verdict: 'something-we-never-wrote', screenedAt: 'whenever' },
+        },
+        overrideAccess: true,
+        req: { payload, context: { skipWriteGuard: true } } as unknown as PayloadRequest,
+      })
+
+      // Re-screened from scratch, so the disposable address is caught.
+      expect((await screen(message.id)).status).toBe('spam')
+      expect(verdictOf(await reload(message.id))).toBe('disposable_email')
+    })
+
     it('does not re-screen on retry — a transport failure cannot turn a message into spam', async () => {
       // The trap this guards: history has moved on by the time the retry runs.
       // Re-screening would count the *new* rows and could reach a different
