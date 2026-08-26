@@ -1,12 +1,11 @@
 import type {
   CollectionConfig,
-  EmailFieldValidation,
   FieldAccess,
   JSONFieldValidation,
   TextareaFieldValidation,
 } from 'payload'
 
-import { email as validateEmailFormat, textarea as validateTextarea } from 'payload/shared'
+import { textarea as validateTextarea } from 'payload/shared'
 
 import { enqueueUserMessageScreening } from './hooks/enqueueUserMessageScreening'
 import { prepareUserMessage } from './hooks/prepareUserMessage'
@@ -40,8 +39,6 @@ const MESSAGE_MIN = 10
  * freezing the shape.
  */
 const CONTEXT_MAX_SERIALIZED = 4000
-/** RFC 5321's cap on a whole address. */
-const EMAIL_MAX = 254
 
 /**
  * Supplying `validate` **replaces** Payload's default, which is what enforces
@@ -54,22 +51,6 @@ const validateMessage: TextareaFieldValidation = (value, options) => {
   if (builtIn !== true) return builtIn
   if (typeof value === 'string' && value.trim().length < MESSAGE_MIN) {
     return `Tell us a little more — at least ${MESSAGE_MIN} characters.`
-  }
-  return true
-}
-
-/**
- * Payload's `email` field takes no `maxLength` — the option does not exist on
- * `EmailField`, only on text-shaped ones — so the length bound has to be a
- * validator. It is not decoration: this is a public write path, and the
- * endpoint this collection replaces bounded the address at 254 (its OpenAPI
- * schema said so), which would otherwise be silently dropped in the move.
- */
-const validateSenderEmail: EmailFieldValidation = (value, options) => {
-  const builtIn = validateEmailFormat(value, options)
-  if (builtIn !== true) return builtIn
-  if (typeof value === 'string' && value.length > EMAIL_MAX) {
-    return `Enter an email address of ${EMAIL_MAX} characters or fewer.`
   }
   return true
 }
@@ -169,7 +150,6 @@ export const UserMessages: CollectionConfig = {
       name: 'senderEmail',
       type: 'email',
       index: true,
-      validate: validateSenderEmail,
       admin: {
         readOnly: true,
         description: 'Optional. Becomes the Reply-To of the message we email out.',
