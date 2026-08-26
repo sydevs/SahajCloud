@@ -68,4 +68,15 @@ export const DEFAULT_WRITE_GUARD_POLICIES: Partial<Record<CollectionSlug, WriteG
   registrations: {
     create: { urlScanFields: ['questions'] },
   },
+  'user-messages': {
+    create: {
+      turnstile: true,
+      emailFields: ['senderEmail'],
+      // The message body and the caller's subject label are the only free text
+      // a spammer controls. `context` is deliberately NOT scanned: a crash
+      // report legitimately carries a URL (the page it happened on), which is
+      // the exemption the old endpoint spelled out by scanning only `message`.
+      urlScanFields: ['message', 'subject'],
+    },
+  },
 }

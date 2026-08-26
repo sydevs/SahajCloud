@@ -4,6 +4,7 @@ import { SendPostEventFollowUps } from './RegistrationNotifications/SendPostEven
 import { SendRegistrationDigests } from './RegistrationNotifications/SendRegistrationDigests'
 import { SendSessionReminders } from './RegistrationNotifications/SendSessionReminders'
 import { ScreenEventSubmissions } from './ScreenEventSubmissions/ScreenEventSubmissions'
+import { ScreenUserMessages } from './ScreenUserMessages/ScreenUserMessages'
 import { SyncLectureMetadata } from './SyncLectureMetadata/SyncLectureMetadata'
 import { VerifyEmbeds } from './VerifyEmbeds/VerifyEmbeds'
 
@@ -13,6 +14,7 @@ export const tasks = [
   CleanupOrphanedMedia,
   ExpireEvents,
   ScreenEventSubmissions,
+  ScreenUserMessages,
   SendPostEventFollowUps,
   SendRegistrationDigests,
   SendSessionReminders,
