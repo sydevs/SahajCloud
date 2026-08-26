@@ -254,6 +254,85 @@ describe('mergeEmbedReport', () => {
       expect(result.evicted).toEqual([])
       expect(Object.keys(result.metadata)).toHaveLength(MAX_EMBED_MOUNTS)
     })
+
+    it('never evicts the designated canonical, even as least-recently-seen', () => {
+      // `p0` is both the canonical embed and the oldest record — the exact case
+      // the unpinned rule got wrong. Losing it would cost the live canonical URL
+      // the mount it is built from.
+      const result = mergeEmbedReport({
+        stored: fill(MAX_EMBED_MOUNTS),
+        key: 'https://a.org/new',
+        observation: OBSERVATION,
+        at: shift(10_000_000),
+        pinned: 'https://a.org/p0',
+      })
+
+      expect(result.metadata['https://a.org/p0']).toBeDefined()
+      expect(result.evicted).toEqual(['https://a.org/p1'])
+      expect(Object.keys(result.metadata)).toHaveLength(MAX_EMBED_MOUNTS)
+    })
+
+    it('evicts normally when the canonical is not the oldest', () => {
+      const result = mergeEmbedReport({
+        stored: fill(MAX_EMBED_MOUNTS),
+        key: 'https://a.org/new',
+        observation: OBSERVATION,
+        at: shift(10_000_000),
+        pinned: 'https://a.org/p7',
+      })
+      expect(result.evicted).toEqual(['https://a.org/p0'])
+      expect(result.metadata['https://a.org/p7']).toBeDefined()
+    })
+
+    it('keeps a canonical that is also the mount being reported', () => {
+      // Both protections name the same key; it must be pinned once, not
+      // protected twice at the cost of a second eviction.
+      const result = mergeEmbedReport({
+        stored: fill(MAX_EMBED_MOUNTS),
+        key: 'https://a.org/new',
+        observation: OBSERVATION,
+        at: shift(10_000_000),
+        pinned: 'https://a.org/new',
+      })
+      expect(result.evicted).toEqual(['https://a.org/p0'])
+      expect(Object.keys(result.metadata)).toHaveLength(MAX_EMBED_MOUNTS)
+    })
+
+    it('ignores a canonical the record does not hold', () => {
+      // An operator's designated mount that has not been reported back yet —
+      // pinning a key that isn't there must not consume an eviction slot.
+      const result = mergeEmbedReport({
+        stored: fill(MAX_EMBED_MOUNTS),
+        key: 'https://a.org/new',
+        observation: OBSERVATION,
+        at: shift(10_000_000),
+        pinned: 'https://elsewhere.example/gone',
+      })
+      expect(result.evicted).toEqual(['https://a.org/p0'])
+      expect(Object.keys(result.metadata)).toHaveLength(MAX_EMBED_MOUNTS)
+    })
+
+    it('evicts past a record that overflowed the cap while unpinned', () => {
+      // Records written before this rule can sit above the cap, so eviction has
+      // to catch up rather than drop exactly one — and still spare the canonical.
+      const result = mergeEmbedReport({
+        stored: fill(MAX_EMBED_MOUNTS + 4),
+        key: 'https://a.org/new',
+        observation: OBSERVATION,
+        at: shift(10_000_000),
+        pinned: 'https://a.org/p0',
+      })
+
+      expect(result.evicted).toEqual([
+        'https://a.org/p1',
+        'https://a.org/p2',
+        'https://a.org/p3',
+        'https://a.org/p4',
+        'https://a.org/p5',
+      ])
+      expect(result.metadata['https://a.org/p0']).toBeDefined()
+      expect(Object.keys(result.metadata)).toHaveLength(MAX_EMBED_MOUNTS)
+    })
   })
 })
 
