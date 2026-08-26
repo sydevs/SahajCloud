@@ -29,7 +29,6 @@ import { writeGuardPlugin } from '@/plugins/writeGuard'
 
 import { collections, Managers } from './collections'
 import { atlasSeo } from './endpoints/atlas/seo'
-import { contactAdmin } from './endpoints/contactAdmin'
 import { globals } from './globals'
 import { tasks } from './jobs'
 import { migrations } from './migrations'
@@ -139,7 +138,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // `.claude/rules/endpoints.md`. The OpenAPI spec derives its root-path
     // exemption from this array (`rootEndpointPathsFrom`), so registering here
     // is all it takes to keep `/api/docs` honest.
-    endpoints: [atlasSeo, contactAdmin],
+    endpoints: [atlasSeo],
     editor: lexicalEditor(),
     // GraphQL is disabled — this project exposes a REST-only API (see
     // src/app/(payload)/api/[[...slug]]/route.ts for the REST handler).
@@ -273,8 +272,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       usagePlugin({ enabled: !isE2ETest, exclude: ['managers'] }),
       // Write Guard: anti-spam checks (Turnstile header, URL scan, disposable
       // email) on client-originated writes, per the policy map in
-      // src/plugins/writeGuard/policies.ts. Root endpoints (contact-admin)
-      // call the same helpers by hand.
+      // src/plugins/writeGuard/policies.ts. It now covers the whole public
+      // write surface — the one root endpoint that used to call these helpers
+      // by hand became the `user-messages` collection (#632).
       writeGuardPlugin(),
       // Nested docs: adds breadcrumbs + uses the region tree's `parent` field
       // (Country → Region → Area → Center). Registered before accessPlugin so

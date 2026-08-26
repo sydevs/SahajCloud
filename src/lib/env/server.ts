@@ -81,14 +81,15 @@ const ServerEnvSchema = ClientEnvSchema.extend({
     .optional(),
 
   /**
-   * Cloudflare Turnstile secret key, used by `POST /api/contact-admin` to verify
-   * the captcha token server-side (`src/lib/turnstile/verifyTurnstile.ts`).
+   * Cloudflare Turnstile secret key, used by the write-guard plugin to verify
+   * the captcha token server-side on public collection writes
+   * (`src/lib/turnstile/verifyTurnstile.ts`).
    *
    * Required in production, but — like `NIRMALA_VIDYA_API_KEY` — validated at
    * **point of use** rather than at startup, so a missing key can't take the
    * whole app down (including the per-PR Railway preview). The verifier fails
-   * closed when it's unset: the endpoint returns a 500 and logs, never a silent
-   * pass. In development, point it at Cloudflare's always-passes test key
+   * closed when it's unset: the write is refused with a 500 and logged, never a
+   * silent pass. In development, point it at Cloudflare's always-passes test key
    * `1x0000000000000000000000000000000AA` (see `.env.example`).
    */
   TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
