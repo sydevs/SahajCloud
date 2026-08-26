@@ -57,14 +57,13 @@ import { atlasSeo } from './endpoints/atlas/seo'
 endpoints: [atlasSeo],
 ```
 
-**Exactly one such endpoint exists**, and the bar is high:
+The bar is high. `GET /api/atlas/seo` clears it: the caller passes a **route**,
+which may name a region *or* an event, so no single collection owns the
+resource. (Putting it under `regions` would have been a lie half the time, and
+keying it by id instead would have pushed path→id resolution into every
+consumer.)
 
-- `GET /api/atlas/seo` — the caller passes a **route**, which may name a region
-  *or* an event, so no single collection owns the resource. (Putting it under
-  `regions` would have been a lie half the time, and keying it by id instead
-  would have pushed path→id resolution into every consumer.)
-
-There was a second, `POST /api/contact-admin`, on the reasoning that a contact
+There was another, `POST /api/contact-admin`, on the reasoning that a contact
 message was "stored nowhere and owned by nothing". **That reasoning is the trap
 to learn from**: it was true only because the endpoint chose not to store
 anything, and the moment the feature needed async spam screening it needed a
