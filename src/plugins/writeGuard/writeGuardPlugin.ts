@@ -3,12 +3,12 @@ import type { CollectionBeforeValidateHook, CollectionSlug, Config, PayloadReque
 
 import { APIError } from 'payload'
 
-import type { AntiSpamFailure } from '@/lib/endpoints/antiSpamGuard'
+import type { AntiSpamFailure } from '@/lib/antiSpam/antiSpamGuard'
 import {
   checkEmailAllowed,
   checkNoUrls,
   verifyTurnstileOrFail,
-} from '@/lib/endpoints/antiSpamGuard'
+} from '@/lib/antiSpam/antiSpamGuard'
 
 
 import { DEFAULT_WRITE_GUARD_POLICIES } from './policies'

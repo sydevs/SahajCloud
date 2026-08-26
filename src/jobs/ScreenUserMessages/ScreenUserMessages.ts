@@ -7,7 +7,7 @@ import {
 } from '@/collections/UserMessages/screening'
 import { SCREENABLE_STATUSES, type MessageStatus } from '@/collections/UserMessages/statuses'
 import type { UserMessageContext } from '@/collections/UserMessages/types'
-import { checkEmailAllowed } from '@/lib/endpoints/antiSpamGuard'
+import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
 import { sendUserMessage } from '@/lib/notifications/sendUserMessage'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserMessage } from '@/payload-types'
