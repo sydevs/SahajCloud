@@ -50,6 +50,7 @@ import * as migration_20260825_005719_drop_event_feedback_at from './20260825_00
 import * as migration_20260825_041552_activity_log from './20260825_041552_activity_log';
 import * as migration_20260825_150733_events_activity_log from './20260825_150733_events_activity_log';
 import * as migration_20260825_212133_atlas_config_languages from './20260825_212133_atlas_config_languages';
+import * as migration_20260826_214829_add_user_messages from './20260826_214829_add_user_messages';
 
 export const migrations = [
   {
@@ -310,6 +311,11 @@ export const migrations = [
   {
     up: migration_20260825_212133_atlas_config_languages.up,
     down: migration_20260825_212133_atlas_config_languages.down,
-    name: '20260825_212133_atlas_config_languages'
+    name: '20260825_212133_atlas_config_languages',
+  },
+  {
+    up: migration_20260826_214829_add_user_messages.up,
+    down: migration_20260826_214829_add_user_messages.down,
+    name: '20260826_214829_add_user_messages'
   },
 ];
