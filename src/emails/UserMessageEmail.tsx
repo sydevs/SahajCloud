@@ -2,13 +2,13 @@ import type { CSSProperties } from 'react'
 
 import { Hr, Link, Section, Text } from 'react-email'
 
-import type { ContactAdminContext } from '@/endpoints/responseTypes'
+import type { UserMessageContext } from '@/collections/UserMessages/types'
 import type { EmailBrand } from '@/plugins/email'
 
 import { DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
 
 /** One label/value row in the details block. */
-export interface ContactAdminDetail {
+export interface UserMessageDetail {
   label: string
   value: string
 }
@@ -16,19 +16,19 @@ export interface ContactAdminDetail {
 /**
  * Assemble the details block from the caller-supplied context.
  *
- * Deliberately generic: the endpoint is shared by every client app, so a caller
- * sending only `{ message, turnstileToken }` must not produce a table of empty
- * rows. A row appears only when its value is a non-blank string — which is also
- * why this is a pure function rather than inline JSX conditionals: the omission
- * rule is the contract, and it's unit-tested.
+ * Deliberately generic: the intake is shared by every client app, so a caller
+ * sending only a message must not produce a table of empty rows. A row appears
+ * only when its value is a non-blank string — which is also why this is a pure
+ * function rather than inline JSX conditionals: the omission rule is the
+ * contract, and it's unit-tested.
  */
-export function buildContactDetails(args: {
+export function buildUserMessageDetails(args: {
   /** Name of the API client service the message came through. */
   clientName: string
   /** When the message was received (ISO 8601). */
   receivedAt: string
-  context?: ContactAdminContext
-}): ContactAdminDetail[] {
+  context?: UserMessageContext
+}): UserMessageDetail[] {
   const { clientName, receivedAt, context } = args
 
   const rows: [string, string | undefined][] = [
@@ -46,15 +46,15 @@ export function buildContactDetails(args: {
     .map(([label, value]) => ({ label, value }))
 }
 
-interface ContactAdminEmailProps {
+interface UserMessageEmailProps {
   /** The sender's message, verbatim. Rendered pre-wrapped, so line breaks survive. */
   message: string
   /** The sender's address, when they supplied one. Also the message's `Reply-To`. */
   senderEmail?: string | null
   /** The caller's label for this channel, e.g. `"Issue report"`. */
   subject: string
-  /** Pre-filtered label/value rows — see {@link buildContactDetails}. */
-  details: ContactAdminDetail[]
+  /** Pre-filtered label/value rows — see {@link buildUserMessageDetails}. */
+  details: UserMessageDetail[]
   /**
    * Resolved brand, passed in rather than looked up here (the
    * `SessionReminderEmail` / `RegistrationDigestEmail` shape). The sender also
@@ -65,7 +65,8 @@ interface ContactAdminEmailProps {
 }
 
 /**
- * Admin-facing message sent on a viewer's behalf via `POST /api/contact-admin`.
+ * Admin-facing message sent on a viewer's behalf, delivered by the
+ * `screenUserMessage` job once a `user-messages` row passes screening (#632).
  *
  * Informational, not an alert — the same shape as `EventRegistrationEmail`: no
  * callout or deadline, a `DetailRow` fact table, and the shared `EmailLayout`
@@ -76,13 +77,13 @@ interface ContactAdminEmailProps {
  * There is no CTA button — replying to the email *is* the action, and the
  * message's `Reply-To` is already the sender's address.
  */
-export function ContactAdminEmail({
+export function UserMessageEmail({
   message,
   senderEmail,
   subject,
   details,
   brand,
-}: ContactAdminEmailProps) {
+}: UserMessageEmailProps) {
   return (
     <EmailLayout brand={brand} heading={subject} previewText={message.slice(0, 120)}>
       <Text style={styles.paragraph}>
@@ -119,9 +120,16 @@ export function ContactAdminEmail({
       ) : null}
 
       <Hr style={styles.hr} />
+      {/*
+        The old footer promised "nothing about this message is stored; this email
+        is the only record" — true under #602, and a lie since #632. Messages are
+        now kept for screening and triage, and a delivered one is purged on a
+        short window rather than never written. Saying so is not bookkeeping
+        trivia: it is what the sender was told about their own data.
+      */}
       <Text style={styles.footer}>
-        Sent via {brand.productName} — nothing about this message is stored; this email is the only
-        record.
+        Sent via {brand.productName}. A copy is kept in the admin panel for a short period so it can
+        be checked and followed up, then deleted.
       </Text>
     </EmailLayout>
   )

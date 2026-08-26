@@ -124,8 +124,8 @@ const KNOWN_SINGLE_CONSUMER = new Set<string>([
   '@/lib/logger/clientLogger',
   '@/lib/meditations/framesBeyondDuration',
   '@/lib/meditations/meditationShape',
-  '@/lib/notifications/sendContactAdmin',
   '@/lib/notifications/sendRegistrationNotification',
+  '@/lib/notifications/sendUserMessage',
   '@/lib/registrations/gating',
   '@/lib/utilities/weightedSample',
 ])
