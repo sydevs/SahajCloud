@@ -828,6 +828,7 @@ export interface Config {
     tasks: {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       expireEvents: TaskExpireEvents;
+      purgeUserMessages: TaskPurgeUserMessages;
       screenEventSubmission: TaskScreenEventSubmission;
       screenUserMessage: TaskScreenUserMessage;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
@@ -3909,6 +3910,7 @@ export interface PayloadJob {
           | 'inline'
           | 'cleanupOrphanedMedia'
           | 'expireEvents'
+          | 'purgeUserMessages'
           | 'screenEventSubmission'
           | 'screenUserMessage'
           | 'sendPostEventFollowUps'
@@ -3955,6 +3957,7 @@ export interface PayloadJob {
         | 'inline'
         | 'cleanupOrphanedMedia'
         | 'expireEvents'
+        | 'purgeUserMessages'
         | 'screenEventSubmission'
         | 'screenUserMessage'
         | 'sendPostEventFollowUps'
@@ -6735,6 +6738,19 @@ export interface TaskExpireEvents {
     trashed: number;
     remindersSent: number;
     failed: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskPurgeUserMessages".
+ */
+export interface TaskPurgeUserMessages {
+  input: {
+    now?: string | null;
+  };
+  output: {
+    deletedDelivered: number;
+    deletedSpam: number;
   };
 }
 /**
