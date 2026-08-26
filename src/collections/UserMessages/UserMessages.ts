@@ -1,4 +1,9 @@
-import type { CollectionConfig, FieldAccess, TextareaFieldValidation } from 'payload'
+import type {
+  CollectionConfig,
+  FieldAccess,
+  JSONFieldValidation,
+  TextareaFieldValidation,
+} from 'payload'
 
 import { textarea as validateTextarea } from 'payload/shared'
 
@@ -46,6 +51,20 @@ const validateMessage: TextareaFieldValidation = (value, options) => {
   if (builtIn !== true) return builtIn
   if (typeof value === 'string' && value.trim().length < MESSAGE_MIN) {
     return `Tell us a little more — at least ${MESSAGE_MIN} characters.`
+  }
+  return true
+}
+
+/**
+ * A JSON field accepts anything by default, which on a public write path means
+ * unbounded input. Bounds the blob rather than enumerating its keys — see
+ * {@link CONTEXT_MAX_SERIALIZED} for why the shape stays open.
+ */
+const validateContext: JSONFieldValidation = (value) => {
+  if (value == null) return true
+  if (typeof value !== 'object' || Array.isArray(value)) return 'Context must be an object.'
+  if (JSON.stringify(value).length > CONTEXT_MAX_SERIALIZED) {
+    return `Context is too large (max ${CONTEXT_MAX_SERIALIZED} characters).`
   }
   return true
 }
@@ -142,16 +161,7 @@ export const UserMessages: CollectionConfig = {
       // block, each row omitted when its value is absent.
       name: 'context',
       type: 'json',
-      validate: (value: unknown) => {
-        if (value == null) return true
-        if (typeof value !== 'object' || Array.isArray(value)) {
-          return 'Context must be an object.'
-        }
-        if (JSON.stringify(value).length > CONTEXT_MAX_SERIALIZED) {
-          return `Context is too large (max ${CONTEXT_MAX_SERIALIZED} characters).`
-        }
-        return true
-      },
+      validate: validateContext,
       admin: { readOnly: true },
     },
     {
