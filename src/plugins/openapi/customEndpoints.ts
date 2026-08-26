@@ -632,7 +632,11 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'gets `{ "urls": [] }` and a `200`, **not a 404** — owning nothing is a state, ' +
         'not an error, and the count is your signal. A document whose canonical cannot ' +
         'be published (nothing in its ancestry owns it, or a blank slug in the chain) ' +
-        'is **omitted**, never sent as `null`. **Finished classes are excluded**, as ' +
+        'is **omitted**, never sent as `null`. A region with **no classes anywhere ' +
+        'beneath it is still published** — regions are curated by hand rather than ' +
+        'generated from a geography feed, so an empty one is a place expecting classes ' +
+        'shortly, and a stable URL tells a crawler more than one that flickers in and ' +
+        'out as the last class expires. **Finished classes are excluded**, as ' +
         'they are from `GET /api/events/geojson` and from a region page’s listing — ' +
         'they stay reachable by direct link, but a sitemap asks a crawler to index a ' +
         'page, and a class that no longer happens is not one to index. There is **no ' +

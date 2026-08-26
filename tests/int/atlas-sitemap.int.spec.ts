@@ -22,17 +22,19 @@ import { createTestEnvironment } from '../utils/testHelpers'
  *   netherlands          ← owned by the NL client (path routing, mount `/find-a-class`)
  *   ├─ amsterdam             + a class, a draft class, and a finished class
  *   │   └─ community-hall    + a class   ← a shared venue under the city
- *   └─ utrecht           ← owned by a NEARER client (query routing) — carved out of NL's
- *       └─ + a class
+ *   ├─ utrecht           ← owned by a NEARER client (query routing) — carved out of NL's
+ *   │   └─ + a class
+ *   └─ groningen         ← owned by NL, and empty: no class at it or beneath it
  *   france               ← unowned, so it falls back to the We Meditate surface
  *   └─ lyon                  + a class
  *
- * Three things are load-bearing. `utrecht` proves the nearest-ancestor rule
+ * Four things are load-bearing. `utrecht` proves the nearest-ancestor rule
  * applies in this direction too — a country-level client must not publish a city
  * another client owns. `france` proves an unowned subtree belongs to nobody's
- * sitemap rather than defaulting into the caller's. And the two clients route
- * differently (`path` vs `query`), so the byte-identity assertion covers both
- * URL shapes rather than the one the builder happens to be simplest at.
+ * sitemap rather than defaulting into the caller's. `groningen` pins the
+ * decision to publish an empty region rather than filter it. And the two clients
+ * route differently (`path` vs `query`), so the byte-identity assertion covers
+ * both URL shapes rather than the one the builder happens to be simplest at.
  */
 
 type TestUser = {
@@ -214,6 +216,14 @@ describe('atlasSitemap endpoint', () => {
       level: 'city',
       parent: region.netherlands,
     })
+    // Owned, and empty — no class at it or beneath it, ever. Deliberately
+    // published anyway; see the case that pins it.
+    region.groningen = await createRegion({
+      name: 'Groningen',
+      slug: 'groningen',
+      level: 'city',
+      parent: region.netherlands,
+    })
     region.france = await createRegion({ name: 'France', slug: 'france', level: 'country' })
     region.lyon = await createRegion({
       name: 'Lyon',
@@ -295,7 +305,26 @@ describe('atlasSitemap endpoint', () => {
         `/netherlands/amsterdam/${event.city}`,
         '/netherlands/amsterdam/community-hall',
         `/netherlands/amsterdam/community-hall/${event.venue}`,
+        '/netherlands/groningen',
       ])
+    })
+
+    // A deliberate decision, not an oversight, and pinned so it stays one.
+    //
+    // A region with no classes anywhere beneath it is still published. Regions
+    // are curated by hand rather than generated from a geography feed, so an
+    // empty one is a place we expect classes in shortly — not filler. That is
+    // what separates this from the thin-content/doorway pattern Google
+    // penalises, where the pages are mass-generated and stay empty.
+    //
+    // Excluding them would also make a region flicker in and out of the sitemap
+    // as its last class expires and a new one is added, which tells a crawler
+    // less than a stable URL with an honest `lastmod`.
+    it('publishes an owned region with no classes anywhere beneath it', async () => {
+      const routes = await routesFor(nlClient)
+      expect(routes).toContain('/netherlands/groningen')
+      // …and nothing beneath it, because there is nothing beneath it.
+      expect(routes.filter((route) => route.startsWith('/netherlands/groningen/'))).toEqual([])
     })
 
     // The rule that makes this endpoint safe to hand to a country-level client:
