@@ -174,8 +174,14 @@ async function loadRegionOwners(req: PayloadRequest): Promise<Map<number, Canoni
  * read issues every document's afterRead concurrently, and a resolved-value
  * cache stampedes under that. It also evicts a failed load so a later read in
  * the same request can retry.
+ *
+ * Exported because ownership is also read in the **other direction**: the
+ * sitemap endpoint (#650) asks which regions one client owns, rather than which
+ * client owns one region. Answering that from this map — rather than from a
+ * client's own `canonical.region` — is what makes a nearer client's subtree drop
+ * out of the ancestor's sitemap, exactly as it drops out of its canonical URLs.
  */
-function getRegionOwners(req: PayloadRequest): Promise<Map<number, CanonicalOwner>> {
+export function getRegionOwners(req: PayloadRequest): Promise<Map<number, CanonicalOwner>> {
   return memoizeOnRequest(req, OWNERS_MEMO_KEY, () => loadRegionOwners(req))
 }
 

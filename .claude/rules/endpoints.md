@@ -57,7 +57,7 @@ import { contactAdmin } from './endpoints/contactAdmin'
 endpoints: [atlasSeo, contactAdmin],
 ```
 
-Two such endpoints exist, each for a different reason:
+Three such endpoints exist, each for a different reason:
 
 - `POST /api/contact-admin` — a contact message is stored nowhere and owned by
   nothing.
@@ -65,6 +65,9 @@ Two such endpoints exist, each for a different reason:
   *or* an event, so no single collection owns the resource. (Putting it under
   `regions` would have been a lie half the time, and keying it by id instead
   would have pushed path→id resolution into every consumer.)
+- `GET /api/atlas/sitemap` — the answer spans regions **and** events for the
+  same reason, and its unit is the *client's ownership*, which is a `clients`
+  fact rather than either collection's.
 
 Prefer a collection endpoint whenever a collection plausibly owns the resource;
 reach for the root only when none does.
@@ -80,12 +83,16 @@ src/endpoints/atlas/seo/        →  GET /api/atlas/seo
 ├── atlasRoute.ts                  route parsing
 ├── jsonLd.ts                      JSON-LD builders + escaping
 └── seoDocument.ts                 the response shaper
+
+src/endpoints/atlas/sitemap/    →  GET /api/atlas/sitemap
+├── index.ts                       the Endpoint (exports `atlasSitemap`)
+└── sitemapUrls.ts                 ownership filter + row shaping (pure)
 ```
 
 Those supporting modules are **single-owner code and belong here, not in
 `src/lib/`** — `tests/unit/lib-boundary.spec.ts` fails a lib module with one
-consumer outside lib. `responseTypes.ts` stays at `src/endpoints/` because both
-endpoints share it.
+consumer outside lib. `responseTypes.ts` stays at `src/endpoints/` because all
+three endpoints share it.
 
 **Two things you lose by leaving the collection seam** — both are the usage
 plugin's `beforeOperation` hooks, which only run on collection operations, so a

@@ -428,6 +428,7 @@ clients:
 | `GET /api/events/geojson`  | **always excluded** — no opt-out; a caller's `where` can only narrow   |
 | `GET /api/events/{id}`     | returned normally, with non-null `webPath` / `webUrl`                  |
 | `GET /api/atlas/seo`       | a **region** route's listing excludes them (its internal list read runs the same hook); an **event** route returns one normally, since it is a single-doc read |
+| `GET /api/atlas/sitemap`   | **excluded** (its list read runs the same hook) — the page still resolves, but a sitemap asks a crawler to index it |
 | Admin / manager / job reads | unaffected (the Atlas sidebar buckets on `verificationStage`)          |
 
 "Finished" = `schedule.lastDate` (end of the final occurrence's **local** day) is
@@ -464,12 +465,12 @@ plugin means it covers standard client reads **and** the custom Atlas endpoints
 The rule itself lives in **`assertClientOriginAllowed(req)`**; the hook is a thin
 wrapper adding the `currentDepth` exemption. An endpoint whose **handler** touches
 no collection runs no beforeOperation hook of its own, so it must call the
-assertion itself — both root endpoints do, right after `requireActiveClient`:
-`POST /api/contact-admin` (which reads nothing at all) and `GET /api/atlas/seo`
-(whose own forwarded reads *would* fire the hook, but only after the handler has
-already begun work). Don't lean on an incidental collection read to trigger the
-hook instead: `clients` is excluded from the plugin, so re-reading the caller's
-own record wouldn't fire it either.
+assertion itself — all three root endpoints do, right after `requireActiveClient`:
+`POST /api/contact-admin` (which reads nothing at all), `GET /api/atlas/seo` and
+`GET /api/atlas/sitemap` (whose own forwarded reads *would* fire the hook, but
+only after the handler has already begun work). Don't lean on an incidental
+collection read to trigger the hook instead: `clients` is excluded from the
+plugin, so re-reading the caller's own record wouldn't fire it either.
 
 ### Rule
 
