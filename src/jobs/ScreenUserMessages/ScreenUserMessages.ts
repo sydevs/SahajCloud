@@ -83,7 +83,7 @@ export const ScreenUserMessages: TaskConfig<'screenUserMessage'> = {
     if (status === 'failed' && isScreeningResult(message.screeningResult)) {
       result = message.screeningResult
     } else {
-      const verdict = await screen({ req, message, messageId, now })
+      const verdict = await screen({ req, message, now })
       result = {
         verdict: verdict.verdict,
         notes: [messageVerdictNote(verdict.verdict)].filter(
@@ -175,25 +175,33 @@ export const ScreenUserMessages: TaskConfig<'screenUserMessage'> = {
 async function screen(args: {
   req: PayloadRequest
   message: UserMessage
-  messageId: number
   now: Date
 }): Promise<{ verdict: MessageVerdict; diagnostic?: string }> {
-  const { req, message, messageId, now } = args
+  const { req, message, now } = args
+  const messageId = message.id
   const senderEmail = message.senderEmail?.trim() ?? ''
   let diagnostic: string | undefined
+
+  /**
+   * Every exit goes through here, so the diagnostic rides along wherever it has
+   * been set by the time a verdict is reached — rather than each `return`
+   * remembering to carry it, which is the shape that quietly drops one.
+   */
+  const settle = (verdict: MessageVerdict) => ({
+    verdict,
+    ...(diagnostic ? { diagnostic } : {}),
+  })
 
   // An anonymous message is allowed — `senderEmail` is optional — so absence
   // skips these rather than failing them.
   if (senderEmail) {
     const listCheck = checkEmailAllowed(senderEmail)
     if (!listCheck.ok) {
-      return {
-        verdict: listCheck.code === 'disposable_email' ? 'disposable_email' : 'invalid_email',
-      }
+      return settle(listCheck.code === 'disposable_email' ? 'disposable_email' : 'invalid_email')
     }
 
     const mx = await hasMxRecords(senderEmail)
-    if (mx === false) return { verdict: 'no_mx_records' }
+    if (mx === false) return settle('no_mx_records')
     // A DNS failure is a fact about our infrastructure, not about the sender,
     // and asks nothing of the admin — so it is kept for triage, not rendered.
     if (mx === null) diagnostic = 'MX lookup inconclusive — passed open.'
@@ -204,9 +212,7 @@ async function screen(args: {
   const userId = relationId(message.user)
   if (userId != null) {
     const recent = await countRecentFromSender({ req, messageId, since, userId })
-    if (recent > REPEAT_SENDER_MAX) {
-      return { verdict: 'repeat_sender', ...(diagnostic ? { diagnostic } : {}) }
-    }
+    if (recent > REPEAT_SENDER_MAX) return settle('repeat_sender')
   }
 
   if (message.bodyHash) {
@@ -216,12 +222,10 @@ async function screen(args: {
       since,
       bodyHash: message.bodyHash,
     })
-    if (duplicates > 0) {
-      return { verdict: 'duplicate_body', ...(diagnostic ? { diagnostic } : {}) }
-    }
+    if (duplicates > 0) return settle('duplicate_body')
   }
 
-  return { verdict: 'ok', ...(diagnostic ? { diagnostic } : {}) }
+  return settle('ok')
 }
 
 /**
