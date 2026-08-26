@@ -63,16 +63,23 @@ export type EmbedMetadata = Record<string, EmbedMountRecord>
 /**
  * Upper bound on stored mounts per client. A forged report can only ever assert
  * viability for a mount someone already designated canonical, but it can still
- * invent keys — this caps what that costs us, evicting least-recently-seen
- * mounts first. Far above any real site's embed count.
+ * invent keys — this caps what that costs us. Far above any real site's embed
+ * count.
+ *
+ * A bound on *storage*, never on which mounts are knowable (#639): a client at
+ * the cap still reports a new mount, evicting the least-recently-seen to make
+ * room, so which 50 are held reflects what is currently live rather than what
+ * arrived first. The one mount it will not spend is the designated canonical —
+ * see {@link MergeEmbedReportArgs.pinned}.
  */
 export const MAX_EMBED_MOUNTS = 50
 
 /**
  * How long a mount record is considered fresh. A report that repeats an
- * identical observation inside this window is answered without a write — the
- * widget only POSTs on a *change*, so a repeat is either a page reload or
- * abuse, and neither should cost a row update.
+ * identical observation inside this window is answered without a write, which
+ * is what keeps the write path quiet: the widget reports on every page load
+ * (sydevs/SahajAtlasWeb#153), so a repeat is the ordinary case rather than the
+ * exception, and a page's traffic should not cost a row update per visit.
  */
 export const EMBED_REPORT_REFRESH_MS = 6 * 60 * 60 * 1000
 
@@ -236,19 +243,24 @@ function isRecentlySeen(lastSeen: string, at: string): boolean {
 
 /**
  * Drop least-recently-seen mounts until at most {@link MAX_EMBED_MOUNTS}
- * remain. `keep` is never evicted — it is the mount just reported, so a clock
- * skew that makes its stamp look old must not delete the write we came to make.
+ * remain. Keys in `protectedKeys` are never evicted, whatever their `lastSeen`
+ * — see {@link MergeEmbedReportArgs.pinned} for who is in that set and why.
+ * Protection removes candidates rather than raising the cap, so a protected
+ * mount costs an ordinary one its place.
+ *
+ * Evicts the whole overflow, not one mount: a record written before the cap
+ * existed — or before a mount was pinned — can start out above it.
  *
  * The comparator can't see a NaN: every record here has been through
  * {@link sanitizeEmbedMetadata}, which rejects an unparseable `lastSeen`, and
  * the one record this pass added was stamped from the caller's clock.
  */
-function evictOldest(metadata: EmbedMetadata, keep: string): string[] {
+function evictOldest(metadata: EmbedMetadata, protectedKeys: Set<string>): string[] {
   const keys = Object.keys(metadata)
   if (keys.length <= MAX_EMBED_MOUNTS) return []
 
   const evicted = keys
-    .filter((key) => key !== keep)
+    .filter((key) => !protectedKeys.has(key))
     .sort((a, b) => Date.parse(metadata[a].lastSeen) - Date.parse(metadata[b].lastSeen))
     .slice(0, keys.length - MAX_EMBED_MOUNTS)
 
@@ -264,6 +276,23 @@ export interface MergeEmbedReportArgs {
   observation: EmbedMountObservation
   /** ISO timestamp to stamp as `lastSeen`. */
   at: string
+  /**
+   * A mount that must survive eviction whatever its `lastSeen` — in practice
+   * the client's `canonical.embed`, the one an operator designated.
+   *
+   * Eviction is keyed on recency, and recency is a proxy for "still live" that
+   * a canonical page can fail: it is one page competing with however many the
+   * site's traffic touches, and a quiet week of it against fifty churning
+   * soft-404s would drop it. Losing it doesn't just cost the record — the
+   * picker's selected option and the verification job's subject both resolve
+   * through this key, so the live canonical URL would lose the mount it is
+   * built from.
+   *
+   * The mount just reported is protected too, for a different reason: a clock
+   * running behind would otherwise make the new record look oldest and delete
+   * the very write we came to make.
+   */
+  pinned?: string | null
 }
 
 export interface MergeEmbedReportResult {
@@ -282,7 +311,7 @@ export interface MergeEmbedReportResult {
  * reports from different pages of one site produce two keys.
  */
 export function mergeEmbedReport(args: MergeEmbedReportArgs): MergeEmbedReportResult {
-  const { stored, key, observation, at } = args
+  const { stored, key, observation, at, pinned } = args
   const { metadata: current, dropped } = sanitizeEmbedMetadata(stored)
   const existing = current[key]
 
@@ -297,5 +326,6 @@ export function mergeEmbedReport(args: MergeEmbedReportArgs): MergeEmbedReportRe
   }
 
   const metadata: EmbedMetadata = { ...current, [key]: { ...observation, lastSeen: at } }
-  return { metadata, changed: true, evicted: evictOldest(metadata, key) }
+  const protectedKeys = new Set(pinned ? [key, pinned] : [key])
+  return { metadata, changed: true, evicted: evictOldest(metadata, protectedKeys) }
 }

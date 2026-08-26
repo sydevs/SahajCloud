@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Clients } from '@/collections/Clients/Clients'
 import { clientEmbedReport } from '@/collections/Clients/endpoints/report'
 import { runVerifyEmbeds } from '@/jobs/VerifyEmbeds/VerifyEmbeds'
+import { MAX_EMBED_MOUNTS } from '@/lib/clients/embedMetadata'
 import type { VerificationResult } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
@@ -387,6 +388,7 @@ describe('client canonical ownership + embed metadata', () => {
       clientId: number
       allowedDomains?: string | null
       embedMetadata?: unknown
+      canonical?: Client['canonical']
       origin?: string
       body?: unknown
       status?: string
@@ -398,6 +400,11 @@ describe('client canonical ownership + embed metadata', () => {
         headers,
         routeParams: {},
         json: async () => opts.body,
+        // The whole client doc, as `APIKeyAuthentication` hands it over — it
+        // finds the row with no `select`, so every field the handler reads off
+        // `req.user` is present. `canonical` is one of them (the mount cap
+        // spares the designated embed), and a fixture that omitted it would
+        // report a pass for a pin that never applied.
         user: {
           id: opts.clientId,
           collection: 'clients',
@@ -405,6 +412,7 @@ describe('client canonical ownership + embed metadata', () => {
           roles: ['sahaj-atlas-client'],
           allowedDomains: opts.allowedDomains ?? null,
           embedMetadata: opts.embedMetadata,
+          canonical: opts.canonical,
         },
       } as unknown as PayloadRequest
     }
@@ -589,6 +597,107 @@ describe('client canonical ownership + embed metadata', () => {
           overrideAccess: true,
         }),
       ).rejects.toThrow()
+    })
+
+    // ── The mount cap (#639) ────────────────────────────────────────────────
+
+    describe('mount cap', () => {
+      /** `count` well-formed mounts, `p0` oldest, one second apart. */
+      const fillMounts = (count: number) =>
+        Object.fromEntries(
+          Array.from({ length: count }, (_, i) => [
+            `https://sahajayoga.nl/p${i}`,
+            { ...OBSERVATION, lastSeen: new Date(Date.UTC(2026, 0, 1) + i * 1000).toISOString() },
+          ]),
+        ) as Client['embedMetadata']
+
+      /**
+       * A client whose row really holds a full record. Seeding the row matters:
+       * the handler writes with raw SQL against it, so a fixture that only
+       * populated `req.user` would exercise the merge and never the write.
+       */
+      const seedAtCap = async (name: string) => {
+        const client = await createClient(name, { allowedDomains: 'sahajayoga.nl' })
+        await payload.update({
+          collection: 'clients',
+          id: client.id,
+          data: { embedMetadata: fillMounts(MAX_EMBED_MOUNTS) },
+          overrideAccess: true,
+        })
+        return client
+      }
+
+      const report = async (clientId: number, pathname: string) => {
+        // Re-read the whole row, the way the API-key strategy would on the next
+        // request — the cap reads `canonical` as well as `embedMetadata`.
+        const doc = await payload.findByID({
+          collection: 'clients',
+          id: clientId,
+          overrideAccess: true,
+        })
+        return clientEmbedReport.handler(
+          reportReq({
+            clientId,
+            allowedDomains: 'sahajayoga.nl',
+            origin: 'https://sahajayoga.nl',
+            embedMetadata: doc.embedMetadata,
+            canonical: doc.canonical,
+            body: { origin: 'https://sahajayoga.nl', pathname, ...OBSERVATION },
+          }),
+        )
+      }
+
+      it('accepts a new mount at the cap and drops the evicted one from the column', async () => {
+        const client = await seedAtCap('Capped Reporter')
+
+        const res = await report(client.id, '/newly-added')
+        expect(res.status).toBe(200)
+        expect(await res.json()).toMatchObject({
+          ok: true,
+          mounts: MAX_EMBED_MOUNTS,
+          updated: true,
+        })
+
+        // `jsonb ||` cannot delete, so a write that only merged the post-eviction
+        // record would leave `p0` behind — the cap would compute an eviction,
+        // log it, and never apply it.
+        const stored = (await storedMetadata(client.id)) as Record<string, unknown>
+        expect(Object.keys(stored)).toHaveLength(MAX_EMBED_MOUNTS)
+        expect(stored['https://sahajayoga.nl/newly-added']).toBeDefined()
+        expect(stored['https://sahajayoga.nl/p0']).toBeUndefined()
+      })
+
+      it('stays bounded across repeated reports past the cap', async () => {
+        // The failure this guards is cumulative: a merge that can't delete grows
+        // the record by one on every report, so one round looks nearly right.
+        const client = await seedAtCap('Repeatedly Capped Reporter')
+
+        for (const pathname of ['/one', '/two', '/three']) {
+          expect((await report(client.id, pathname)).status).toBe(200)
+        }
+
+        const stored = (await storedMetadata(client.id)) as Record<string, unknown>
+        expect(Object.keys(stored)).toHaveLength(MAX_EMBED_MOUNTS)
+        expect(stored['https://sahajayoga.nl/three']).toBeDefined()
+      })
+
+      it('never evicts the designated canonical, whatever its lastSeen', async () => {
+        const client = await seedAtCap('Canonical Capped Reporter')
+        // `p0` is both the oldest mount and the one an operator nominated.
+        await payload.update({
+          collection: 'clients',
+          id: client.id,
+          data: { canonical: { embed: 'https://sahajayoga.nl/p0' } },
+          overrideAccess: true,
+        })
+
+        await report(client.id, '/newly-added')
+
+        const stored = (await storedMetadata(client.id)) as Record<string, unknown>
+        expect(Object.keys(stored)).toHaveLength(MAX_EMBED_MOUNTS)
+        expect(stored['https://sahajayoga.nl/p0']).toBeDefined()
+        expect(stored['https://sahajayoga.nl/p1']).toBeUndefined()
+      })
     })
   })
 
