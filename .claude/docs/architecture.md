@@ -36,7 +36,7 @@ Three places to add HTTP endpoints, chosen by scope:
 | Use case                                                                                                                                                       | Where                                                                      |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | URL belongs under a collection (e.g. `/api/frames/by-narrator/:narratorId`); single-collection ops; want automatic Payload auth/access integration             | `src/collections/<Name>/endpoints/*.ts` — see `.claude/rules/endpoints.md` |
-| A Payload endpoint for a resource **no** collection owns (`/api/contact-admin`, `/api/atlas/seo`); registered on `config.endpoints`. Rare — it forgoes the usage plugin's beforeOperation hooks, so origin enforcement must be called by hand | `src/endpoints/*.ts` — see `.claude/rules/endpoints.md`                    |
+| A Payload endpoint for a resource **no** collection owns (`/api/atlas/seo` — the only one); registered on `config.endpoints`. Rare — it forgoes the usage plugin's beforeOperation hooks, so origin enforcement must be called by hand. "Unpersisted" is not the same as "ownerless": #632 deleted the other root endpoint once its resource needed storing | `src/endpoints/*.ts` — see `.claude/rules/endpoints.md`                    |
 | Webhooks, health checks, OpenAPI spec generation, seed triggers, multi-collection operations; need raw request body or Next.js features (streaming, redirects) | `src/app/(payload)/api/**/route.ts` — see `.claude/rules/routes.md`        |
 
 | Custom Payload endpoints | Path                                    | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -47,7 +47,6 @@ Three places to add HTTP endpoints, chosen by scope:
 | `appCardsForAudience`    | `/api/app-cards/for-audience`           | published app cards for a `targetSection`, filtered to cards whose `audiences` overlap the supplied `audiences` list (OR semantics) and weighted-random sampled. `Cache-Control: public, max-age=600, s-maxage=600`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `meditationLectures`     | `/api/meditations/:id/related-lectures` | lectures ranked by topical overlap between the meditation's frames and each lecture's own `subtleSystemNodes` (zero-overlap lectures dropped). Optional `userChoice` query expands candidates to lectures that either carry that user-choice tag **or** have positive subtle-system-node overlap (OR semantics). userChoice-tagged lectures are returned as a group first (weight DESC, including zero-overlap ones), followed by non-userChoice lectures with positive overlap (also weight DESC). Node IDs are resolved via a single bounded lookup (max 12 rows). Audience filtering uses the same `audiences` ID list contract as the other data endpoints. When relevance matches nothing, the response falls back to the generic audience feed (same selection as `/api/lectures/for-audience`); the `{ docs, source, relevanceCount }` envelope reports `source: 'relevance'` vs `'audience-fallback'`, and `excludedLectureIds` are relaxed only if they would otherwise empty the feed. `Cache-Control: public, max-age=600, s-maxage=600`. |
 | `atlasSeo`               | `/api/atlas/seo?route=…&locale=…`       | **Root-level** (`config.endpoints`, not a collection — the route may name a region *or* an event): everything a host page needs to render one atlas route, in one call (#645, stage C3 of the white-label & SEO programme). Title, meta description, canonical, hreflang, Open Graph, escaped JSON-LD, plus the body content the host renders as children of `<sahaj-atlas>`. Keyed by the route's **terminal segment** — a region slug is globally unique, an event id needs no ancestry — so view segments, legacy prefixes and stale ancestry all still resolve, and the answer's `route`/`canonical` name the URL to redirect to. `canonical` is the document's own `webUrl`, **read not recomputed**, and locale-free. `jsonLd` is pre-escaped for a `<script type="application/ld+json">`; **no HTML crosses the wire** (a description arrives as plain-text paragraphs), because C5's WordPress plugin echoes it into a template that never passes through `wp_kses`. A region gets `description: null` — it has none in the CMS, and an invented English sentence would land in a national site's `<head>`. Runs no usage-plugin hook for the handler itself, so it calls `assertClientOriginAllowed` directly. `Cache-Control: public, max-age=300, s-maxage=300`. |
-| `contactAdmin`           | `/api/contact-admin`                    | **Root-level** (`config.endpoints`, not a collection): a shared channel for client apps to send us a message on a viewer's behalf (#602). Published client key + Cloudflare Turnstile, verified server-side before any email work; the token is single-use, so a replay 403s with `errors[0].code: "captcha_failed"`. Email only — nothing is persisted, so a delivery failure is a **502**, never a false 200. `Reply-To` is the sender's address when supplied. `subject` + a free `context` bag keep it caller-agnostic (Atlas today, WeMeditateWeb next). Runs no usage-plugin hook, so it calls `assertClientOriginAllowed` itself and is not counted against the client's usage quota. |
 
 | Next.js app-router routes             | Path                              | Purpose                           |
 | ------------------------------------- | --------------------------------- | --------------------------------- |
@@ -355,6 +354,38 @@ Registrants who unsubscribe do so via the logged-out, token-gated page at
 | `src/jobs/RegistrationNotifications/SendPostEventFollowUps.ts` | Post-event follow-up task |
 | `src/fields/logField.ts` | The shared `activityLog` field + its dedup/append helpers |
 | `tests/int/session-reminders.int.spec.ts` / `registration-digests.int.spec.ts` | Integration tests |
+
+### User-message screening + retention (`src/jobs/ScreenUserMessages/`, `src/jobs/PurgeUserMessages/`)
+
+The `user-messages` intake (#632) is asynchronous: `POST /api/user-messages`
+persists and returns, and two tasks do the rest.
+
+- **`screenUserMessage`** — per-message, queued by the collection's `afterChange`
+  hook onto the **`screening`** queue (shared with event submissions; 15-minute
+  autoRun is the safety net for a kick lost to a crash). Runs the checks the
+  request path can't afford — an MX lookup on the sender's address (fail-open), a
+  disposable-list re-check, how many messages that person sent in the last 24h,
+  and whether the identical body arrived before — then either files the message
+  as `spam` or emails it out and marks it `delivered`.
+
+  A failed send marks the row **`failed` before rethrowing**. The job runner
+  gives each task an isolated `transactionID`, so that write commits even though
+  the throw follows, which is what makes an undelivered message visible to an
+  admin immediately while the throw still earns a retry.
+
+- **`purgeUserMessages`** — daily 04:00 UTC on the `nightly` queue. Deletes
+  delivered messages after 7 days and spam after 90; `failed` is never swept.
+  The 7-day floor is load-bearing: shorten it below the 24-hour screening windows
+  and the repeat-sender and duplicate-body checks would have no history left to
+  count against, and would silently pass everything.
+
+| File | Purpose |
+| --- | --- |
+| `src/jobs/ScreenUserMessages/ScreenUserMessages.ts` | Screening + delivery |
+| `src/jobs/ScreenUserMessages/senderHistory.ts` | The two window counts + their thresholds |
+| `src/jobs/ScreenUserMessages/emailChecks.ts` | `hasMxRecords` — a deliberate copy of the event-submission one; see the file |
+| `src/jobs/PurgeUserMessages/PurgeUserMessages.ts` | Retention sweep |
+| `tests/int/user-message-screening.int.spec.ts` / `user-message-retention.int.spec.ts` | Integration tests |
 
 ### Usage tracking (`src/plugins/usage/tasks.ts`)
 

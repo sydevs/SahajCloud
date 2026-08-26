@@ -8,11 +8,16 @@ import { verifyTurnstileToken } from '@/lib/turnstile/verifyTurnstile'
 /**
  * Shared anti-spam checks for the public write surface.
  *
- * Pure result-object helpers, deliberately transport-agnostic: the write-guard
- * plugin (`@/plugins/writeGuard`) maps failures to thrown Payload errors on
- * collection writes, and the root `contactAdmin` endpoint (which no plugin
- * covers) maps them to `Response`s. Both surfaces therefore reject with the
- * same machine codes, which the client apps rely on for their error copy.
+ * Pure result-object helpers, deliberately transport-agnostic. The write-guard
+ * plugin (`@/plugins/writeGuard`) maps a failure to a thrown Payload error on
+ * a collection write, and the screening jobs read the same verdicts to classify
+ * an already-accepted document. Keeping them as values rather than responses is
+ * what lets one definition serve a request gate and a background job.
+ *
+ * There used to be a third consumer — the `contactAdmin` root endpoint mapped
+ * failures to `Response`s via an `antiSpamErrorResponse` helper. That endpoint
+ * became the `user-messages` collection (#632), so the whole public write
+ * surface now goes through the plugin and the helper went with it.
  *
  * Kept synchronous-cheap: Turnstile is one bounded HTTPS call (fail-closed,
  * see `@/lib/turnstile`), the email checks are an in-memory list, and the URL
@@ -44,8 +49,7 @@ export type AntiSpamResult = { ok: true } | AntiSpamFailure
 const emailSchema = z.string().email()
 
 /**
- * Verify a Turnstile token, logging like the original contactAdmin gate:
- * Cloudflare's verdict (forged / expired / replayed) is a 403 the sender can
+ * Verify a Turnstile token. Cloudflare's verdict (forged / expired / replayed) is a 403 the sender can
  * retry; our own failure (unset secret, unreachable Cloudflare) is a 500 and
  * never a pass — a captcha gate that silently disables itself is worse than
  * no gate.
@@ -151,18 +155,4 @@ export function checkNoUrls(fields: Record<string, unknown>): AntiSpamResult {
     }
   }
   return { ok: true }
-}
-
-/**
- * Map a failure to the standard error envelope `Response` (for root endpoints).
- * `captcha_unavailable` (our own 500) deliberately ships no `code`: a public
- * caller must not learn whether the secret is unset or Cloudflare is down —
- * the pinned contract from the original contactAdmin gate.
- */
-export function antiSpamErrorResponse(failure: AntiSpamFailure): Response {
-  const body =
-    failure.code === 'captcha_unavailable'
-      ? { errors: [{ message: failure.message }] }
-      : { errors: [{ message: failure.message, code: failure.code }] }
-  return Response.json(body, { status: failure.status })
 }

@@ -474,59 +474,6 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
     },
   },
 
-  '/api/contact-admin': {
-    post: {
-      tags: ['Contact'],
-      summary: 'Send a message to the Sahaj Cloud admins',
-      description:
-        'A shared channel for a client app to send us a message on a viewer’s behalf — ' +
-        'a bug report, stale venue data, or any free-text note. Requires a published ' +
-        'client key and a valid Cloudflare Turnstile token; the token is verified ' +
-        'server-side before any other work, and is single-use (replaying one fails). ' +
-        '**Email only** — nothing is persisted and there is no admin UI, so the send ' +
-        'is the entire deliverable: a delivery failure returns `502`, never a false ' +
-        '`200`. When `email` is supplied it becomes the message’s `Reply-To`, so a ' +
-        'reply reaches the sender directly; without it the message is anonymous and ' +
-        'unanswerable. `subject` is your label for the channel (e.g. `Issue report`) ' +
-        'and becomes the email subject as `[<client name>] <subject>`; `context` is a ' +
-        'free bag of optional keys rendered into the email’s details block, each row ' +
-        'omitted when you don’t send it. Both exist so a second client app can reuse ' +
-        'this endpoint with its own framing and no schema change.',
-      operationId: 'contactAdmin',
-      requestBody: {
-        required: true,
-        content: {
-          'application/json': {
-            schema: { $ref: '#/components/schemas/ContactAdminRequest' },
-          },
-        },
-      },
-      responses: {
-        '200': {
-          description: 'Message accepted and emailed.',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/ContactAdminResponse' },
-            },
-          },
-        },
-        '400': errorResponse('Request body failed validation.'),
-        '403': errorResponse(
-          'Caller is not a published API client, its `Origin`/`Referer` is not in the ' +
-            'client’s `allowedDomains`, or the Turnstile token was invalid, expired, or ' +
-            'already redeemed. The captcha case — and only that case — carries ' +
-            '`errors[0].code: "captcha_failed"`, so a caller can reset its widget and ' +
-            'let the sender retry rather than treating the refusal as fatal.',
-        ),
-        '500': errorResponse('The captcha could not be verified (server-side failure).'),
-        '502': errorResponse(
-          'The message was accepted but the email could not be delivered. Nothing was ' +
-            'stored, so the message is lost — tell the sender it did not go through.',
-        ),
-      },
-    },
-  },
-
   '/api/atlas/seo': {
     get: {
       tags: ['Atlas'],
@@ -1211,77 +1158,6 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
         type: 'boolean',
         description: 'False when the report repeated a recent, identical observation.',
       },
-    },
-  },
-  /**
-   * `POST /api/contact-admin` request body. Keep in lockstep with
-   * `ContactAdminRequest` in `src/endpoints/responseTypes.ts` and the Zod schema
-   * in `src/endpoints/contactAdmin.ts` — the bounds are the contract, since a
-   * public caller can otherwise post unbounded JSON.
-   */
-  ContactAdminRequest: {
-    // No `additionalProperties: false` — unknown keys are *stripped*, not
-    // rejected, so a newer caller sending a key this server doesn't know yet
-    // still gets its message through.
-    type: 'object',
-    required: ['message', 'turnstileToken'],
-    properties: {
-      message: {
-        type: 'string',
-        minLength: 10,
-        maxLength: 5000,
-        description: 'The sender’s message. Trimmed; whitespace-only bodies are rejected.',
-      },
-      turnstileToken: {
-        type: 'string',
-        maxLength: 2048,
-        description: 'Cloudflare Turnstile token from your captcha widget. Single-use.',
-      },
-      email: {
-        type: 'string',
-        format: 'email',
-        maxLength: 254,
-        description:
-          'The sender’s address. Becomes the email’s `Reply-To`; omit for an anonymous ' +
-          'message, which cannot be replied to.',
-      },
-      subject: {
-        type: 'string',
-        maxLength: 200,
-        description:
-          'Your label for this channel, e.g. `Issue report`. The email subject is ' +
-          '`[<client name>] <subject>`; defaults to `Message`.',
-      },
-      context: {
-        type: 'object',
-        description:
-          'Optional context rendered into the email’s details block. Every key is ' +
-          'optional and each row is omitted when its value is absent.',
-        properties: {
-          path: { type: 'string', maxLength: 500, description: 'Route the sender was on.' },
-          hostUrl: {
-            type: 'string',
-            maxLength: 500,
-            description: 'Absolute URL of the host page.',
-          },
-          locale: { type: 'string', maxLength: 20, description: 'Locale the sender was using.' },
-          error: {
-            type: 'string',
-            maxLength: 2000,
-            description: 'Error text/stack being reported.',
-          },
-          userAgent: { type: 'string', maxLength: 500, description: 'The sender’s user agent.' },
-        },
-      },
-    },
-  },
-  /** `POST /api/contact-admin` success body. Nothing is persisted, so there's nothing to return. */
-  ContactAdminResponse: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['ok'],
-    properties: {
-      ok: { type: 'boolean', enum: [true] },
     },
   },
   /** One `<link rel="alternate">` row from `GET /api/atlas/seo`. */

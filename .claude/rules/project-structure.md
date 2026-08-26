@@ -47,9 +47,10 @@ plus a self-contained `responseTypes.ts` that client repos sync by raw GitHub UR
 (same shape as `Events/endpoints/responseTypes.ts`).
 
 **The layout mirrors the URL**: a single-file endpoint is
-`src/endpoints/<name>.ts` (`contactAdmin.ts` → `POST /api/contact-admin`, #602);
-one with supporting modules is a folder whose path *is* the URL path, handler in
-`index.ts` (`src/endpoints/atlas/seo/` → `GET /api/atlas/seo`, #645). Those
+`src/endpoints/<name>.ts`; one with supporting modules is a folder whose path
+*is* the URL path, handler in `index.ts` (`src/endpoints/atlas/seo/` →
+`GET /api/atlas/seo`, #645 — the only root endpoint, since #632 turned the other
+one into the `user-messages` collection). Those
 supporting modules are single-owner code and stay in the folder — putting them in
 `src/lib/` fails the one-consumer check below.
 

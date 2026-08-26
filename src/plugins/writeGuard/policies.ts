@@ -29,10 +29,11 @@ export interface WriteGuardPolicy {
 /**
  * Which collections get which checks on **client-originated** writes. This is
  * the whole public write surface: API clients can only ever write
- * event-submissions (built-in create), and users + registrations through the
- * register endpoint's internal upserts (which forward the client `req`, so
- * they land here too). Root endpoints (`contactAdmin`) sit outside collections
- * and call the same helpers by hand.
+ * event-submissions and user-messages (built-in create), and users +
+ * registrations through the register endpoint's internal upserts (which forward
+ * the client `req`, so they land here too). Nothing sits outside it any more —
+ * the `contactAdmin` root endpoint that used to call these helpers by hand
+ * became the `user-messages` collection (#632).
  *
  * Registrations deliberately carry no `turnstile` yet — adding the widget to
  * the Atlas registration form is a tracked follow-up; flipping it on here is
