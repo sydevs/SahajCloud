@@ -144,9 +144,24 @@ export const atlasSitemap: Endpoint = {
       throw error
     }
 
-    // `requireActiveClient` has established a `clients` user, whose id is
-    // numeric in this database.
-    const clientId = req.user?.id as number
+    // `requireActiveClient` has established a published `clients` user. Payload
+    // types `id` as `string | number` (its Mongo adapter uses strings) while
+    // this database is Postgres, so this converts rather than asserting:
+    // `CanonicalOwner.clientId` is a number, and `'7' === 7` is false, so a
+    // string id would match no owner and answer "you own nothing".
+    //
+    // That answer is **indistinguishable from the legitimate empty one** — a
+    // client that owns no subtree gets `urls: []` by design — so an unusable id
+    // has to fail loudly. A consumer told it owns nothing publishes an empty
+    // sitemap, which is how a site asks to be de-indexed.
+    const clientId = Number(req.user?.id)
+    if (!Number.isInteger(clientId)) {
+      req.payload.logger.error({
+        msg: 'atlasSitemap: client id is not an integer',
+        clientId: req.user?.id,
+      })
+      return errorResponse('Failed to build the sitemap for this client.', 500)
+    }
 
     try {
       const regionIds = ownedRegionIds(await getRegionOwners(req), clientId)

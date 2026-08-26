@@ -328,6 +328,22 @@ describe('atlasSitemap endpoint', () => {
       expect(body.urls).toEqual([])
       expect(body.generated).toEqual(expect.any(String))
     })
+
+    // The flip side of the case above, and the reason it needs its own guard:
+    // "owns nothing" is a legitimate 200, so an id that matches no owner
+    // *because it is unusable* would be indistinguishable from it — and a
+    // consumer told it owns nothing publishes an empty sitemap, which is how a
+    // site asks to be de-indexed. Fail loudly instead.
+    it('refuses an unusable client id rather than reporting an empty sitemap', async () => {
+      const { status, body } = await callSitemap({
+        id: 'not-an-integer',
+        collection: 'clients',
+        _status: 'published',
+        roles: ['sahaj-atlas-client'],
+      })
+      expect(status).toBe(500)
+      expect(body.urls).toBeUndefined()
+    })
   })
 
   describe('what is publishable', () => {
