@@ -611,6 +611,59 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
     },
   },
 
+  '/api/atlas/sitemap': {
+    get: {
+      tags: ['Atlas'],
+      summary: 'Every atlas URL this client owns, for a sitemap',
+      description:
+        'Enumerates the atlas routes **your client owns** as the canonical URLs you ' +
+        'would publish for them, so you can build a sitemap without composing atlas ' +
+        'URLs yourself. Each `loc` is the document’s own `webUrl` — the identical ' +
+        'value `GET /api/atlas/seo` returns as `canonical` for the `route` beside it, ' +
+        'read from the identical place, so a sitemap and a page’s ' +
+        '`<link rel="canonical">` can never disagree. **Do not derive this from ' +
+        '`/api/regions` + `/api/events/geojson`**: that would be a second ' +
+        'implementation of the URL rule, free to disagree about mount joining, ' +
+        'trailing slashes and query-vs-path routing — and a sitemap that disagrees is ' +
+        'a set of 404s submitted to a crawler on purpose. **Things not to guess at:** ' +
+        'ownership is per-subtree with the **nearest** declaring client winning, so a ' +
+        'country-level client’s answer excludes a city another client owns — those ' +
+        'pages are canonically that client’s, not yours. A client that owns no subtree ' +
+        'gets `{ "urls": [] }` and a `200`, **not a 404** — owning nothing is a state, ' +
+        'not an error, and the count is your signal. A document whose canonical cannot ' +
+        'be published (nothing in its ancestry owns it, or a blank slug in the chain) ' +
+        'is **omitted**, never sent as `null`. **Finished classes are excluded**, as ' +
+        'they are from `GET /api/events/geojson` and from a region page’s listing — ' +
+        'they stay reachable by direct link, but a sitemap asks a crawler to index a ' +
+        'page, and a class that no longer happens is not one to index. There is **no ' +
+        'pagination**: a client owns a subtree of a corpus in the low thousands, and a ' +
+        'truncated sitemap that did not say so would be worse than a slow one. ' +
+        '`lastmod` is the document’s `updatedAt` — the one field you genuinely cannot ' +
+        'derive. Entries are sorted by `route`, so identical ownership yields a ' +
+        'byte-stable body. Unlike `/api/atlas/seo`, **this answer is per-client**; it ' +
+        'is cached on `Vary: Authorization`, so each API key gets its own variant. ' +
+        'Sets `Cache-Control: public, max-age=300, s-maxage=300`.',
+      operationId: 'atlasSitemap',
+      parameters: [],
+      responses: {
+        '200': {
+          description:
+            'Every canonical URL this client owns. Empty `urls` when it owns no subtree.',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/AtlasSitemapResponse' },
+            },
+          },
+        },
+        '403': errorResponse(
+          'Caller is not a published API client, or its `Origin`/`Referer` is not in ' +
+            'the client’s `allowedDomains`.',
+        ),
+        '500': errorResponse('The sitemap could not be built.'),
+      },
+    },
+  },
+
   '/api/audiences/for-user': {
     get: {
       tags: ['Audiences'],
@@ -1566,6 +1619,53 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
           { $ref: '#/components/schemas/AtlasSeoEventContent' },
         ],
         description: 'Keyed by `type`: a region’s listing, or an event’s facts.',
+      },
+    },
+  },
+  /** One `<url>` element from `GET /api/atlas/sitemap`. */
+  AtlasSitemapUrl: {
+    type: 'object',
+    required: ['loc', 'lastmod', 'route'],
+    properties: {
+      loc: {
+        type: 'string',
+        description:
+          'The canonical URL to publish — byte-identical to the `canonical` that ' +
+          '`GET /api/atlas/seo` returns for the `route` beside it, because both are ' +
+          'the document’s own `webUrl`, read rather than recomputed.',
+      },
+      lastmod: {
+        type: 'string',
+        format: 'date-time',
+        description: 'When the document was last edited — its `updatedAt`.',
+      },
+      route: {
+        type: 'string',
+        description:
+          'The atlas route this URL is of, e.g. `/nl/amsterdam` — the `?atlas=` value ' +
+          'to pass back to `GET /api/atlas/seo`.',
+      },
+    },
+  },
+  /**
+   * `GET /api/atlas/sitemap` success body. Keep in lockstep with
+   * `AtlasSitemapResponse` in `src/endpoints/responseTypes.ts`.
+   */
+  AtlasSitemapResponse: {
+    type: 'object',
+    required: ['generated', 'urls'],
+    properties: {
+      generated: {
+        type: 'string',
+        format: 'date-time',
+        description: 'When this answer was built.',
+      },
+      urls: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/AtlasSitemapUrl' },
+        description:
+          'Every URL this client owns, ascending by `route`. Empty — not a 404 — when ' +
+          'the client owns no region subtree. Unpaginated.',
       },
     },
   },
