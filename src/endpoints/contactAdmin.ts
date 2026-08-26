@@ -11,7 +11,7 @@ import {
   checkNoUrls,
   verifyTurnstileOrFail,
 } from '@/lib/endpoints/antiSpamGuard'
-import { sendContactAdmin } from '@/lib/notifications/sendContactAdmin'
+import { sendUserMessage } from '@/lib/notifications/sendUserMessage'
 import { assertClientOriginAllowed } from '@/plugins/usage'
 
 /**
@@ -107,7 +107,7 @@ export const contactAdmin: Endpoint = {
     if (!verification.ok) return antiSpamErrorResponse(verification)
 
     try {
-      await sendContactAdmin({
+      await sendUserMessage({
         payload: req.payload,
         clientName: typeof req.user?.name === 'string' ? req.user.name : 'Unknown service',
         message,
