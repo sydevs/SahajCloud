@@ -19,14 +19,24 @@
  * about the domain.
  */
 
-/** Why a message was refused, or `ok`. One reason — the first check that hit. */
-export type MessageVerdict =
-  | 'ok'
-  | 'disposable_email'
-  | 'invalid_email'
-  | 'no_mx_records'
-  | 'repeat_sender'
-  | 'duplicate_body'
+/**
+ * Why a message was refused, or `ok`. One reason — the first check that hit.
+ *
+ * A runtime list as well as a type, because the verdict is read back out of a
+ * JSON column: `ScreenUserMessages` restores a stored result on a retry, and a
+ * value that isn't one of these means the column holds something this code did
+ * not write.
+ */
+export const MESSAGE_VERDICTS = [
+  'ok',
+  'disposable_email',
+  'invalid_email',
+  'no_mx_records',
+  'repeat_sender',
+  'duplicate_body',
+] as const
+
+export type MessageVerdict = (typeof MESSAGE_VERDICTS)[number]
 
 /**
  * A `type` alias rather than an `interface`, deliberately: TypeScript gives

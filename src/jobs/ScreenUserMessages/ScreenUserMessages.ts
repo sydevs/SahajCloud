@@ -1,6 +1,7 @@
 import type { PayloadRequest, TaskConfig } from 'payload'
 
 import {
+  MESSAGE_VERDICTS,
   messageVerdictNote,
   type MessageVerdict,
   type UserMessageScreeningResult,
@@ -254,11 +255,17 @@ async function clientNameFor(req: PayloadRequest, clientId: number | null): Prom
 /**
  * The column is JSON, so a bad write could have left anything there. A retry
  * that can't read the stored verdict re-screens rather than trusting it.
+ *
+ * The verdict is checked against the real set, not merely for being a string:
+ * this function asserts a type, and an assertion that accepts values outside
+ * the union is a lie the compiler then propagates. Falling through to a fresh
+ * screening is the safe answer for a row we didn't write.
  */
 function isScreeningResult(value: unknown): value is UserMessageScreeningResult {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as UserMessageScreeningResult).verdict === 'string'
-  )
+  if (typeof value !== 'object' || value === null) return false
+  // Read as `unknown` rather than through a cast: casting to the result type
+  // first would hand `includes` an already-narrowed value and let TypeScript
+  // agree with an assumption nothing has checked yet.
+  const { verdict } = value as { verdict?: unknown }
+  return typeof verdict === 'string' && (MESSAGE_VERDICTS as readonly string[]).includes(verdict)
 }
