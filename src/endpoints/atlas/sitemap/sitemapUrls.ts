@@ -1,4 +1,5 @@
 import type { AtlasSitemapUrl } from '../../responseTypes'
+
 import type { CanonicalOwner } from '@/lib/atlas/regionOwners'
 
 /**
