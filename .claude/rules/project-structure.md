@@ -74,7 +74,13 @@ No loose files at the root — every file lives in a named folder:
 - `richEditor/` — Lexical editor presets + `blocks/` (the editor's block set) +
   `lexicalHooks`
 - `endpoints/` — shared client-endpoint helpers (`requireActiveClient`,
-  `parseQuery`, `emptyPaginatedResponse`)
+  `parseQuery`, `emptyPaginatedResponse`). `antiSpamGuard` used to live here for
+  the `contactAdmin` endpoint; once that became a collection (#632) its consumers
+  were the write-guard plugin and two jobs — no endpoint at all — so it moved to
+  `antiSpam/` rather than leaving the folder name lying
+- `antiSpam/` — the transport-agnostic public-write checks (`checkNoUrls`,
+  `checkEmailAllowed`, `verifyTurnstileOrFail`), shared by the write-guard plugin
+  and both screening jobs
 - external-service clients, alongside `mapbox/`: `turnstile/` (Cloudflare
   captcha siteverify). Single-consumer today, but an integration seam rather
   than one endpoint's private helper — and unit-testable without booting it.

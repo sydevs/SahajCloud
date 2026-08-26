@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 
-import { checkEmailAllowed, checkNoUrls } from '@/lib/endpoints/antiSpamGuard'
+import { checkEmailAllowed, checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
 import { signToken, verifyToken } from '@/lib/utilities/signedToken'
 
 const NOW = new Date('2026-08-11T12:00:00.000Z')

@@ -9,8 +9,8 @@ import {
   regionOutcomeNote,
   type ScreeningResult,
 } from '@/collections/EventSubmissions/screening'
+import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
 import { CONTACT_EMAIL } from '@/lib/contact'
-import { checkEmailAllowed } from '@/lib/endpoints/antiSpamGuard'
 import { findManagerForRegion } from '@/lib/notifications/recipients'
 import { relationId } from '@/lib/utilities/relationId'
 import type { EventSubmission } from '@/payload-types'
