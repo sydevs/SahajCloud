@@ -11,16 +11,18 @@ import type { MessageStatus } from '@/collections/UserMessages/statuses'
  *
  * **Lower bound**: this must stay comfortably above `HISTORY_WINDOW_HOURS`, or
  * the repeat-sender and duplicate-body checks would be counting against rows
- * that had already been deleted — they would silently pass everything.
+ * that had already been deleted — they would silently pass everything, with no
+ * error anywhere. Exported so `tests/unit/user-message-screening.spec.ts` can
+ * pin that relationship; nothing else reads it.
  */
-const DELIVERED_RETENTION_DAYS = 7
+export const DELIVERED_RETENTION_DAYS = 7
 
 /**
  * How long **spam** is kept. Longer, because it is evidence: a sender's history
  * is what makes a pattern visible. Not forever, though — abuse tracking has a
  * shelf life, and bounding it is the entire point of having a retention policy.
  */
-const SPAM_RETENTION_DAYS = 90
+export const SPAM_RETENTION_DAYS = 90
 
 /**
  * `failed` is deliberately absent. It means we accepted a message, told the

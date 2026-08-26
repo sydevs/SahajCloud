@@ -105,6 +105,13 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
             get: { operationId: 'eventsList' },
             post: { operationId: 'eventsCreate' },
           },
+          '/api/user-messages': {
+            get: { operationId: 'userMessagesList' },
+            post: { operationId: 'userMessagesCreate' },
+          },
+          '/api/event-submissions': {
+            post: { operationId: 'eventSubmissionsCreate' },
+          },
           ...CUSTOM_ENDPOINT_PATHS,
         },
         components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
@@ -137,6 +144,22 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
     it('keeps the geojson GET and the standard events list GET visible', () => {
       expect(op('/api/events/geojson', 'get')['x-internal']).toBeFalsy()
       expect(op('/api/events', 'get')['x-internal']).toBeFalsy()
+    })
+
+    it('hides the user-messages POST — ALLOW_POST_FOR is necessary but not sufficient', () => {
+      // Two independent tiers can hide a POST, and `user-messages` clears only
+      // one of them. `ALLOW_POST_FOR` stops the create-specific rule from
+      // hiding it, but tier 2 hides every path whose collection is in no
+      // project — and `user-messages` is deliberately in none, because project
+      // membership is what grants implicit read to a project's roles.
+      //
+      // So the public intake is discoverable from the generated types (which is
+      // how the Atlas SDK consumes it) rather than from /api/docs. This is the
+      // same position `event-submissions` has been in since #625 — asserted
+      // below so the two can't silently diverge, and so anyone who wants this
+      // POST documented knows the change is project membership, not this list.
+      expect(op('/api/user-messages', 'post')['x-internal']).toBe(true)
+      expect(op('/api/event-submissions', 'post')['x-internal']).toBe(true)
     })
   })
 })
