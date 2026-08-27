@@ -1,12 +1,8 @@
 {
   "mcpServers": {
     "cloudflare-docs": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "https://docs.mcp.cloudflare.com/mcp"
-      ]
+      "type": "http",
+      "url": "https://docs.mcp.cloudflare.com/mcp"
     },
     "puppeteer": {
       "command": "npx",
@@ -30,6 +26,21 @@
         "mcp"
       ],
       "env": {}
+    },
+    "payloadcms-docs": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "mcpdoc",
+        "--with",
+        "mcp<2",
+        "mcpdoc",
+        "--urls",
+        "PayloadCMS:https://payloadcms.com/llms.txt",
+        "--transport",
+        "stdio"
+      ]
     }
   }
 }
