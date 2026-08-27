@@ -151,6 +151,7 @@ collection slug.
 | `GET /api/events/geojson`                    | `src/collections/Events/endpoints/geojson.ts`       | `#/components/schemas/EventFeatureCollection` (hand-authored) |
 | `POST /api/events/{id}/register`             | `src/collections/Events/endpoints/registerForEvent.ts` | `#/components/schemas/EventRegistrationResponse` (hand-authored) |
 | `GET /api/atlas/seo`                         | `src/endpoints/atlas/seo/` (root endpoint)         | `#/components/schemas/AtlasSeoResponse` (hand-authored) |
+| `GET /api/atlas/sitemap`                     | `src/endpoints/atlas/sitemap/` (root endpoint)     | `#/components/schemas/AtlasSitemapResponse` (hand-authored) |
 | `POST /api/clients/report`                   | `src/collections/Clients/endpoints/report.ts`       | `#/components/schemas/ClientEmbedReportResponse` (hand-authored) — **`x-internal`**, see below |
 
 `POST /api/clients/report` is the one registered custom endpoint that is

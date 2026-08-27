@@ -53,17 +53,22 @@ Almost every endpoint here belongs to a collection and lives in its
 ```typescript
 // src/payload.config.ts
 import { atlasSeo } from './endpoints/atlas/seo'
+import { atlasSitemap } from './endpoints/atlas/sitemap'
 
-endpoints: [atlasSeo],
+endpoints: [atlasSeo, atlasSitemap],
 ```
 
-The bar is high. `GET /api/atlas/seo` clears it: the caller passes a **route**,
-which may name a region *or* an event, so no single collection owns the
-resource. (Putting it under `regions` would have been a lie half the time, and
-keying it by id instead would have pushed path→id resolution into every
-consumer.)
+The bar is high. Two endpoints clear it, each for a different reason:
 
-There was another, `POST /api/contact-admin`, on the reasoning that a contact
+- `GET /api/atlas/seo` — the caller passes a **route**, which may name a region
+  *or* an event, so no single collection owns the resource. (Putting it under
+  `regions` would have been a lie half the time, and keying it by id instead
+  would have pushed path→id resolution into every consumer.)
+- `GET /api/atlas/sitemap` — the answer spans regions **and** events for the
+  same reason, and its unit is the *client's ownership*, which is a `clients`
+  fact rather than either collection's.
+
+There was a third, `POST /api/contact-admin`, on the reasoning that a contact
 message was "stored nowhere and owned by nothing". **That reasoning is the trap
 to learn from**: it was true only because the endpoint chose not to store
 anything, and the moment the feature needed async spam screening it needed a
@@ -85,13 +90,17 @@ src/endpoints/atlas/seo/        →  GET /api/atlas/seo
 ├── atlasRoute.ts                  route parsing
 ├── jsonLd.ts                      JSON-LD builders + escaping
 └── seoDocument.ts                 the response shaper
+
+src/endpoints/atlas/sitemap/    →  GET /api/atlas/sitemap
+├── index.ts                       the Endpoint (exports `atlasSitemap`)
+└── sitemapUrls.ts                 ownership filter + row shaping (pure)
 ```
 
 Those supporting modules are **single-owner code and belong here, not in
 `src/lib/`** — `tests/unit/lib-boundary.spec.ts` fails a lib module with one
-consumer outside lib. `responseTypes.ts` stays at `src/endpoints/` even though
-it now serves a single endpoint — client repos sync it by a stable raw GitHub
-URL, so moving it would break every one of them.
+consumer outside lib. `responseTypes.ts` stays at `src/endpoints/` because both
+endpoints share it — and it would stay there even for one, since client repos
+sync it by a stable raw GitHub URL and moving it would break every one of them.
 
 **Two things you lose by leaving the collection seam** — both are the usage
 plugin's `beforeOperation` hooks, which only run on collection operations, so a
