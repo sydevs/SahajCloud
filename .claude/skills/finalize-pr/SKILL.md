@@ -176,6 +176,19 @@ BODY_FILE=$(mktemp -t pr-body.XXXXXX).md
 
 ### 8. Watch CI and fix (capped)
 
+**First, confirm CI *can* run.** A conflicted PR has no computable merge commit, so GitHub
+schedules **zero** workflow runs for it — silently. `gh pr checks` shows only the non-Actions
+checks (Railway still deploys, since it builds the branch head), and `gh run list` is just empty.
+It reads as a stuck scheduler, and waiting is futile:
+
+```bash
+gh pr view <pr> --json mergeable,mergeStateStatus
+# CONFLICTING / DIRTY → merge origin/main, resolve, push. CI fires on that push.
+```
+
+Also check the last green run's `head_sha` against your branch head — a run that predates `main`
+moving is stale, and makes a conflicted PR look tested. See "Continuous Integration" in `AGENTS.md`.
+
 ```bash
 gh pr checks <pr-or-branch> --watch
 gh pr checks <pr-or-branch>            # confirm final state
