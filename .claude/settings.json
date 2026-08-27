@@ -1,7 +1,6 @@
 {
   "env": {
-    "MAX_THINKING_TOKENS": "10000",
-    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
+    "MAX_THINKING_TOKENS": "10000"
   },
   "permissions": {
     "allow": [
@@ -119,38 +118,10 @@
     "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/status-line.sh"
   },
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-generated-files.mjs"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-wrong-bash.mjs"
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
         "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/prettier-format.mjs"
-          },
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/eslint-fix.mjs"
-          },
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/payload-types-gen.mjs"
@@ -162,5 +133,16 @@
         ]
       }
     ]
+  },
+  "extraKnownMarketplaces": {
+    "sydevs": {
+      "source": {
+        "source": "github",
+        "repo": "sydevs/claude-workflow"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "workflow@sydevs": true
   }
 }
