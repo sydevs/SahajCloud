@@ -28,10 +28,19 @@ A **Next.js 15** application integrated with **Payload CMS 3.0** — a headless 
 
 ## Admin Access
 
-Username: contact@sydevelopers.com
-Password: evk1VTH5dxz_nhg-mzk
-
 Admin panel at `http://localhost:{PORT}/admin/login` once the dev server is running.
+
+**Local dev needs no password.** `src/payload.config.ts` enables Payload's `autoLogin` as
+`contact@sydevelopers.com` whenever the app is neither production nor an E2E run, so the login form
+is bypassed. If you land on it anyway, the local admin has been seeded without auto-login — re-seed
+rather than hunting for a password.
+
+Credentials for anything beyond local dev live outside the repo:
+
+| Environment | Where the credential lives |
+| ----------- | -------------------------- |
+| Railway PR preview | `PREVIEW_ADMIN_PASSWORD` — CI secret; the smoke lane passes it through (`.github/workflows/ci.yml`) |
+| Production | `ADMIN_PASSWORD` in `.env.claude.local` — see `.claude/docs/environment.md` |
 
 ## Essential Commands
 
@@ -118,7 +127,7 @@ Schema migrations live in `src/migrations/` — see `.claude/rules/migrations.md
 
 ### Git Commands
 
-- Prefer working-directory commands (`git status`, `git add`, ...) from the project root. Avoid `git -C <path>` for paths **inside** this project — the project root is already cwd. Sibling repos (`~/Documents/Projects/SahajAtlasWeb`, `WeMeditateWeb`) are exempt: `git -C <sibling>` and `cd <sibling> && git …` are allowed for cross-repo work such as `/sync-workflow`.
+- Prefer working-directory commands (`git status`, `git add`, ...) from the project root. Avoid `git -C <path>` for paths **inside** this project — the project root is already cwd. Sibling repos in the `~/Documents/WeMeditate` workspace are exempt: `git -C <sibling>` and `cd <sibling> && git …` are allowed for cross-repo work such as `/workflow:cross-repo-issue`.
 - Commit messages use [Conventional Commits](https://www.conventionalcommits.org/): `<type>(<scope>): <subject>`. Examples: `feat(lectures): split into Lectures + LectureClips`, `fix(e2e): reset SQLite DB at setup`. Common types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`. Match the style of recent `git log` when in doubt.
 
 ## PR workflow (3 phases)
@@ -129,11 +138,7 @@ PRs move through three phases. The point is to **batch CI runs** — don't push 
 2. **Adjust** — while iterating on an **open PR** (follow-up tweaks after `/implement-issue`, or any further work on a PR branch), **commit each change locally as you go, but do NOT push** — batching avoids re-running CI on every tweak. This is the one place that overrides the usual "commit/push only when asked" default: during the Adjust phase, commit follow-up changes locally without being asked; just never push (the user can still say "hold off" to pause committing).
 3. **Finalize** — `/finalize-pr` ships the batch: simplify → `/code-review` → conditional `/security-review` (only when risky paths changed) → lean test gate → docs sync → push → open/refresh the PR description → watch CI (with capped fixes). Run it when the PR is ready for review/merge.
 
-Skills: `.claude/skills/implement-issue/` (phase 1) and `.claude/skills/finalize-pr/` (phase 3, also reused by phase 1). The pipeline is kept consistent with SahajAtlasWeb and WeMeditateWeb via `.claude/docs/workflow-parity.md` (canonical spec, identical in all three repos) — audit/fix drift with `/sync-workflow`.
-
-### Merging without CI — docs-only changes only
-
-`/reflect-session` and `/sync-workflow` may open a PR and merge it immediately (`gh pr merge --squash --delete-branch`) **without waiting for CI**. This is allowed **only** when the diff is docs-only: `**/*.md`, `.claude/**` (rules, skills, docs, hooks, settings), and memory files — nothing under `src/`, `tests/`, `scripts/`, `seeds/`, or any config that affects the build or runtime. Verify with `git diff --name-only origin/main...HEAD` before merging; if a single file falls outside that set, hand it to `/finalize-pr` and wait for green CI instead.
+Skills come from the **`workflow` plugin** (`sydevs/claude-workflow`), enabled in `.claude/settings.json`: `/workflow:implement-issue` (phase 1) and `/workflow:finalize-pr` (phase 3, also reused by phase 1). Per-repo variation — lean gate, contract step, security-review trigger paths, the autonomy allowlist — lives in `.claude/workflow.json`. There is exactly one copy of each skill, so there is no parity spec to keep in sync.
 
 ## PR Requirements
 

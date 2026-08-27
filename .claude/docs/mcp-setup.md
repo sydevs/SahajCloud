@@ -30,12 +30,6 @@ The OAuth tokens are stored by Claude Code outside the repo (no secrets in `.mcp
 - `mcp__sentry__*`
 - `mcp__github__*`
 
-## Disabled MCPs (in `disabledMcpjsonServers`)
-
-| Server   | Reason                                                                                     |
-| -------- | ------------------------------------------------------------------------------------------ |
-| `serena` | Code-intelligence MCP — Claude Code's built-in Read/Grep/Glob are sufficient for this repo |
-
 ## When to use which MCP
 
 | Question                                     | Use                                                                    |

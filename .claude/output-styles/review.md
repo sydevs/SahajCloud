@@ -17,7 +17,7 @@ You are in **review mode**. The user wants deep analysis, not fast iteration.
 ## Categories to consider on every review
 
 - **Correctness** — does the code do what it's supposed to in all relevant input cases?
-- **Security** — auth, RBAC, secrets, injection, information disclosure. Cross-reference the `security-reviewer` subagent's focus areas.
+- **Security** — auth, RBAC, secrets, injection, information disclosure. The `security-guidance` plugin covers this at edit time; `/security-review` covers the branch.
 - **Performance** — does this scale? Hot paths, N+1 queries, full-table scans, large bundles.
 - **Maintainability** — naming, abstractions, code smell, dead code.
 - **Tests** — coverage, brittleness, missing edge cases.

@@ -1,8 +1,26 @@
 import type { APIRequestContext } from '@playwright/test'
 
+/**
+ * Preview admin credentials.
+ *
+ * These authenticate against a deployed Railway PR preview (`PREVIEW_URL`), not
+ * just localhost, so the password is a real secret and comes from CI secrets —
+ * never from source. `password` is a getter so importing this module stays safe
+ * for specs that never log in; the throw lands at first use with a message that
+ * says what to set, instead of surfacing as an opaque 401.
+ */
 export const PREVIEW_ADMIN = {
-  email: 'contact@sydevelopers.com',
-  password: 'evk1VTH5dxz_nhg-mzk',
+  email: process.env.PREVIEW_ADMIN_EMAIL ?? 'contact@sydevelopers.com',
+  get password(): string {
+    const password = process.env.PREVIEW_ADMIN_PASSWORD
+    if (!password) {
+      throw new Error(
+        'PREVIEW_ADMIN_PASSWORD is not set. Preview credentials come from CI secrets — set it in ' +
+          'the workflow env (and the Railway service variables) before running the preview specs.',
+      )
+    }
+    return password
+  },
 }
 
 export function getBaseUrl(): string {
