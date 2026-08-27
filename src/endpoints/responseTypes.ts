@@ -1,11 +1,12 @@
 /**
- * Response shapes for the root-level (non-collection) public endpoints. Just
- * one remains — `GET /api/atlas/seo` — since `POST /api/contact-admin` became
- * the `user-messages` collection and its built-in create endpoint (#632); the
- * file keeps its path regardless, because client repos sync it by raw GitHub
- * URL and moving it would break every one of them.
+ * Response shapes for the root-level (non-collection) public endpoints —
+ * `GET /api/atlas/seo` and `GET /api/atlas/sitemap`. `POST /api/contact-admin`
+ * was a third until it became the `user-messages` collection and its built-in
+ * create endpoint (#632).
  *
- * Kept in step with the OpenAPI schemas in
+ * Exported and committed so client repos (SahajAtlasWeb, WeMeditateWeb, the
+ * WordPress plugin) can sync them by raw GitHub URL, and kept in step with the
+ * OpenAPI schemas in
  * `src/plugins/openapi/customEndpoints.ts`. Deliberately self-contained — no
  * `@/` imports — so a cross-repo fetch of this single file resolves cleanly.
  */
@@ -171,3 +172,42 @@ type AtlasSeoBase = {
 export type AtlasSeoResponse =
   | (AtlasSeoBase & { type: 'region'; id: number; content: AtlasSeoRegionContent })
   | (AtlasSeoBase & { type: 'event'; id: number; content: AtlasSeoEventContent })
+
+// ── GET /api/atlas/sitemap ───────────────────────────────────────────────────
+
+/** One publishable URL — a `<url>` element, in the fields a sitemap needs. */
+export type AtlasSitemapUrl = {
+  /**
+   * The canonical URL to publish, **byte-identical** to the `canonical` that
+   * `GET /api/atlas/seo?route=…` returns for the `route` beside it. Both are the
+   * document's own `webUrl`, read rather than recomputed, so a sitemap and a
+   * page's `<link rel="canonical">` can never name different URLs.
+   */
+  loc: string
+  /** ISO 8601 instant the document was last edited — `<lastmod>`. */
+  lastmod: string
+  /**
+   * The atlas route this URL is of, e.g. `/nl/amsterdam` — the `?atlas=` value
+   * to pass back to `GET /api/atlas/seo`. Carried so a consumer can cross-check
+   * or pre-render without re-parsing `loc`.
+   */
+  route: string
+}
+
+/**
+ * `GET /api/atlas/sitemap` success body.
+ *
+ * Every entry is a URL **this client owns** — a client that owns no region
+ * subtree gets `urls: []`, which is an answer rather than an error. Unpaginated:
+ * a client owns a subtree of a corpus in the low thousands, and a cursor is
+ * easier to add later than to remove.
+ */
+export type AtlasSitemapResponse = {
+  /**
+   * ISO 8601 instant this answer was built — and the one field that moves
+   * between two otherwise identical answers, so diff `urls`, not the body.
+   */
+  generated: string
+  /** Ascending by `route`, so unchanged ownership yields an unchanged list. */
+  urls: AtlasSitemapUrl[]
+}

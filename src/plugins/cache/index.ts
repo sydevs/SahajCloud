@@ -14,7 +14,7 @@ import { purgeCloudflareCache } from './purge'
  *   - built-in REST reads (`GET /api/<collection>`) via the Next.js middleware
  *     (`./middleware`, wired through `src/middleware.ts`) — the generated
  *     `REST_GET` route stays thin;
- *   - the 7 custom endpoints via the in-handler `publicReadCacheHeaders`
+ *   - the 9 custom endpoints via the in-handler `publicReadCacheHeaders`
  *     decorator (`./cacheHeaders`).
  * - **Purge-on-write** — the Payload plugin below (folded in from the former
  *   `cachePurge` plugin), best-effort Cloudflare purge for the collections that

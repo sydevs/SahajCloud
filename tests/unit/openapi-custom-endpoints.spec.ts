@@ -358,6 +358,68 @@ describe('atlas SEO root endpoint (OpenAPI)', () => {
   })
 })
 
+describe('atlas sitemap root endpoint (OpenAPI)', () => {
+  const get = CUSTOM_ENDPOINT_PATHS['/api/atlas/sitemap']?.get as
+    | { description?: string; parameters?: { name: string }[]; responses?: Record<string, unknown> }
+    | undefined
+
+  it('registers the GET path and both hand-authored schemas it references', () => {
+    expect(get).toBeDefined()
+    for (const schema of ['AtlasSitemapResponse', 'AtlasSitemapUrl']) {
+      expect(CUSTOM_ENDPOINT_SCHEMAS[schema], `${schema} is not registered`).toBeDefined()
+    }
+  })
+
+  // The whole endpoint is "everything you own"; a parameter would imply the
+  // caller gets to choose, and the only correct answer is its own subtree.
+  it('takes no parameters at all', () => {
+    expect(get?.parameters).toEqual([])
+  })
+
+  // A client owning no subtree is the case a consumer is most likely to code
+  // defensively (and wrongly) against, so the contract has to say it outright.
+  it('documents the contract choices a consumer cannot infer', () => {
+    expect(get?.description).toContain('nearest')
+    expect(get?.description).toContain('not a 404')
+    expect(get?.description).toContain('Finished classes are excluded')
+    expect(get?.description).toContain('per-client')
+  })
+
+  // The point of the endpoint: one `loc` definition, not two. If the schema
+  // stops promising byte-identity, a consumer has no reason not to recompose.
+  it('promises `loc` is the same value /api/atlas/seo returns as `canonical`', () => {
+    const url = CUSTOM_ENDPOINT_SCHEMAS['AtlasSitemapUrl'] as {
+      required?: string[]
+      properties?: { loc?: { description?: string } }
+    }
+    expect(url.required).toEqual(['loc', 'lastmod', 'route'])
+    expect(url.properties?.loc?.description).toContain('byte-identical')
+  })
+
+  it('stays visible in every project spec despite owning no collection', () => {
+    const spec = () =>
+      JSON.parse(
+        JSON.stringify({
+          openapi: '3.1.0',
+          info: { title: 't', version: '1' },
+          paths: { ...CUSTOM_ENDPOINT_PATHS },
+          components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
+        }),
+      ) as unknown as OpenAPISpec
+    const rootEndpointPaths = rootEndpointPathsFrom([{ path: '/atlas/sitemap' }])
+    for (const project of ['sahaj-atlas', 'wemeditate-web', 'wemeditate-app'] as const) {
+      const filtered = filterSpec(spec(), { project, rootEndpointPaths })
+      const operation = (
+        filtered.paths?.['/api/atlas/sitemap'] as
+          | Record<string, Record<string, unknown>>
+          | undefined
+      )?.get
+      expect(operation, `GET /api/atlas/sitemap is missing for ${project}`).toBeDefined()
+      expect(operation!['x-internal'], `hidden for ${project}`).toBeFalsy()
+    }
+  })
+})
+
 describe('rootEndpointPathsFrom', () => {
   it('prefixes each root endpoint path with the API route', () => {
     expect(rootEndpointPathsFrom([{ path: '/atlas/seo' }, { path: '/og' }])).toEqual([
