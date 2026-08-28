@@ -70,7 +70,7 @@ For local development, `PAYLOAD_SECRET` and `DATABASE_URL` are required. The app
 defaults to:
 - Local Postgres, with the schema auto-synced by Drizzle `push` (migrations run in production only)
 - Local file storage (no Cloudflare credentials needed)
-- Ethereal Email for testing (captures outbound emails)
+- Mailpit for capturing outbound email in development and PR previews (7-day retention, shareable links)
 
 See `.env.example` for the full list of available environment variables and their validation requirements.
 

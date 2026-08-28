@@ -20,7 +20,7 @@ import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/plugins/access'
 import { cachePlugin } from '@/plugins/cache'
-import { resendAdapter } from '@/plugins/email'
+import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/plugins/email'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
 import { sentryPlugin } from '@/plugins/sentry'
 import { storagePlugin } from '@/plugins/storage'
@@ -196,19 +196,28 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       ],
     },
     // Email configuration
-    // - Test/Import/E2E: Disabled to avoid model conflicts and external service dependencies
-    // - Production: Resend API for transactional emails
-    // - Development: Ethereal Email for testing (automatic test email service)
+    // - Test/Import/E2E: disabled, to avoid model conflicts and external services.
+    // - Production: Resend.
+    // - Anywhere else: SMTP to Mailpit when SMTP_URL is set; otherwise disabled.
+    //
+    // There is deliberately no silent fallback transport. Ethereal used to fill
+    // that role, but it deletes messages after a few hours, so a preview link in
+    // a PR was dead before review — and because Railway previews run with
+    // NODE_ENV=production they took the Resend branch and sent *real* mail to
+    // real addresses. Mail now either goes to Resend (production), to Mailpit
+    // (SMTP_URL set), or nowhere at all with a warning.
     ...(isTestEnvironment || isSeedScript || isE2ETest
       ? {}
       : {
           email: isProduction
             ? resendAdapter()
-            : nodemailerAdapter({
-                defaultFromAddress: 'dev@wemeditate.com',
-                defaultFromName: 'We Meditate Admin (Dev)',
-                // No transportOptions - uses Ethereal Email in development
-              }),
+            : serverEnv.SMTP_URL
+              ? nodemailerAdapter({
+                  defaultFromAddress: 'dev@wemeditate.com',
+                  defaultFromName: 'We Meditate Admin (Dev)',
+                  transportOptions: buildSmtpTransportOptions(serverEnv.SMTP_URL),
+                })
+              : warnEmailDisabled(),
         }),
     // Plugins configuration
     // All plugins use `enabled` attribute for conditional loading based on environment

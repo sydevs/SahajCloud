@@ -10,7 +10,8 @@ The application uses different email providers based on environment:
 
 | Environment | Provider | Notes |
 |---|---|---|
-| Development | Ethereal Email (auto, via `@payloadcms/email-nodemailer`) | Captures outbound mail at https://ethereal.email — credentials printed to console. From `dev@wemeditate.com`. |
+| Development & PR previews | Mailpit, via `SMTP_URL` | Captures outbound mail; nothing is delivered. Messages kept **7 days** with a stable `/view/<id>` link, which is what makes them reviewable from a PR. `SMTP_URL` / `MAILPIT_URL` / `MAILPIT_UI_AUTH` live in `.env.claude.local`. From `dev@wemeditate.com`. |
+| Anywhere else (no `SMTP_URL`) | Disabled, with a warning | There is deliberately no silent fallback transport — see below. |
 | Production | Resend (transactional API) | Custom adapter at `src/plugins/email/resendAdapter.ts`. From `contact@sydevelopers.com`. Free tier 3,000 emails/month. |
 | Test | Disabled | Prevents Payload model conflicts during parallel test execution. Test email logic separately, without full Payload init. |
 
@@ -39,8 +40,26 @@ Currently mapped: `from`, `to`, `subject`, `html`, `text`, `replyTo`,
 - `replyTo` flattens nodemailer's `Address` objects to the plain strings Resend
   takes.
 
-The dev **nodemailer/Ethereal** adapter needs no equivalent work — it spreads
+The **nodemailer/Mailpit** adapter needs no equivalent work — it spreads
 `...message` straight into `transport.sendMail()`, so every field passes through.
+
+### Why there is no fallback transport
+
+This file used to say development used Ethereal, which was never configured:
+it was simply what `nodemailerAdapter` fell back to when given no
+`transportOptions`. That invisible default caused two problems, and both are the
+reason the current three-way branch in `src/payload.config.ts` is explicit.
+
+1. **Ethereal deletes messages after a few hours.** A preview link pasted into a
+   PR was dead before anyone reviewed it.
+2. **Railway PR previews run with `NODE_ENV=production`**, so they never reached
+   the fallback at all — they took the Resend branch and sent **real mail to real
+   addresses**. Storage has had preview isolation (`previewIsolation.ts`) for a
+   while; email had no equivalent.
+
+So: production → Resend; `SMTP_URL` set → Mailpit; otherwise → disabled loudly.
+A preview environment must have `SMTP_URL` set and **must not** have
+`RESEND_API_KEY`.
 
 ### Sanitize manager/client-authored text before it becomes a header or ICS line
 
@@ -179,7 +198,7 @@ in `src/emails/`.
 
   To see a real message in a real client — including the parts a render test
   can't show (subject, `From`, `Reply-To`, the plain-text part, attachments) —
-  use the Ethereal preview scripts, which drive the actual send path rather than
+  use the Mailpit preview scripts, which drive the actual send path rather than
   reimplementing it, so they can't drift from production:
 
   ```bash
