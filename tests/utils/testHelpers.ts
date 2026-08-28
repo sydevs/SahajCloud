@@ -137,7 +137,7 @@ function createBaseTestConfig(emailConfig: any, schemaName: string) {
         defaultFromName: 'Test Suite',
         skipVerify: true,
         transportOptions: {
-          // Use streamTransport to avoid Ethereal email logging
+          // streamTransport: compose fully, write to a buffer, never open a socket
           streamTransport: true,
           newline: 'unix',
         } as any,
