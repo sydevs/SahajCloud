@@ -24,6 +24,7 @@ import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/p
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
 import { sentryPlugin } from '@/plugins/sentry'
 import { storagePlugin } from '@/plugins/storage'
+import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
@@ -197,19 +198,25 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     },
     // Email configuration
     // - Test/Import/E2E: disabled, to avoid model conflicts and external services.
-    // - Production: Resend.
+    // - Canonical production: Resend.
     // - Anywhere else: SMTP to Mailpit when SMTP_URL is set; otherwise disabled.
+    //
+    // Production is detected with `isProductionDeployment()` (Railway's
+    // environment name), NOT `NODE_ENV`. This is the same distinction storage
+    // already makes, and for the same reason: **Railway PR previews also run
+    // NODE_ENV=production**, so a NODE_ENV check sent preview mail through
+    // Resend to real addresses. Previews inherit RESEND_API_KEY from production
+    // and are recreated per PR, so this has to hold in code — variable hygiene
+    // on individual preview environments would not survive the next PR.
     //
     // There is deliberately no silent fallback transport. Ethereal used to fill
     // that role, but it deletes messages after a few hours, so a preview link in
-    // a PR was dead before review — and because Railway previews run with
-    // NODE_ENV=production they took the Resend branch and sent *real* mail to
-    // real addresses. Mail now either goes to Resend (production), to Mailpit
-    // (SMTP_URL set), or nowhere at all with a warning.
+    // a PR was dead before review. Mail now goes to Resend (production only), to
+    // Mailpit (SMTP_URL set), or nowhere at all with a warning.
     ...(isTestEnvironment || isSeedScript || isE2ETest
       ? {}
       : {
-          email: isProduction
+          email: isProductionDeployment()
             ? resendAdapter()
             : serverEnv.SMTP_URL
               ? nodemailerAdapter({

@@ -57,9 +57,17 @@ reason the current three-way branch in `src/payload.config.ts` is explicit.
    addresses**. Storage has had preview isolation (`previewIsolation.ts`) for a
    while; email had no equivalent.
 
-So: production → Resend; `SMTP_URL` set → Mailpit; otherwise → disabled loudly.
-A preview environment must have `SMTP_URL` set and **must not** have
-`RESEND_API_KEY`.
+So: canonical production → Resend; `SMTP_URL` set → Mailpit; otherwise →
+disabled loudly.
+
+**Production is detected with `isProductionDeployment()`, not `NODE_ENV`** —
+reusing the helper storage already relies on, which reads Railway's environment
+name. This matters more than variable hygiene: preview environments inherit
+`RESEND_API_KEY` from production and are recreated for every PR, so "remember to
+unset the key on the preview" would fail on the next PR anyone opens. Gating in
+code means a preview *cannot* reach Resend regardless of what variables it
+inherits. Set `SMTP_URL` on preview environments so their mail is captured
+rather than dropped.
 
 ### Sanitize manager/client-authored text before it becomes a header or ICS line
 
