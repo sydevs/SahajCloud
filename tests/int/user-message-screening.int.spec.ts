@@ -14,7 +14,6 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { UserMessageScreeningResult } from '@/collections/UserMessages/screening'
 import type { Client, Manager, UserMessage } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
@@ -52,7 +51,11 @@ describe('User message screening', () => {
       // A DISTINCT body unless the case names one. Sharing a default would make
       // the duplicate-body check fire across unrelated cases — which is exactly
       // what happened while writing these, and is the check working correctly.
-      data: { message: `${MESSAGE} Case ${(seedCounter += 1)}.`, client: client.id, ...data } as never,
+      data: {
+        message: `${MESSAGE} Case ${(seedCounter += 1)}.`,
+        client: client.id,
+        ...data,
+      } as never,
       overrideAccess: true,
       req: { payload, context: { skipWriteGuard: true } } as unknown as PayloadRequest,
     }) as Promise<UserMessage>
@@ -68,8 +71,7 @@ describe('User message screening', () => {
       overrideAccess: true,
     }) as Promise<UserMessage>
 
-  const verdictOf = (message: UserMessage) =>
-    (message.screeningResult as UserMessageScreeningResult | null)?.verdict
+  const verdictOf = (message: UserMessage) => message.screeningResult?.verdict
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -125,10 +127,10 @@ describe('User message screening', () => {
       const message = await seed({ senderEmail: 'seeker@example.com' })
 
       expect((await screen(message.id)).status).toBe('delivered')
-      const screened = (await reload(message.id)).screeningResult as UserMessageScreeningResult
-      expect(screened.verdict).toBe('ok')
-      expect(screened.diagnostic).toContain('MX lookup')
-      expect(screened.notes ?? []).toHaveLength(0)
+      const screened = (await reload(message.id)).screeningResult
+      expect(screened?.verdict).toBe('ok')
+      expect(screened?.diagnostic).toContain('MX lookup')
+      expect(screened?.notes ?? []).toHaveLength(0)
     })
 
     it('skips the address checks entirely for an anonymous message', async () => {
@@ -232,9 +234,7 @@ describe('User message screening', () => {
       // untouched, and nobody would learn it never went.
       const stored = await reload(message.id)
       expect(stored.status).toBe('failed')
-      expect((stored.screeningResult as UserMessageScreeningResult).diagnostic).toContain(
-        'Resend 422',
-      )
+      expect(stored.screeningResult?.diagnostic).toContain('Resend 422')
       expect(stored.deliveredAt).toBeFalsy()
     })
 
@@ -248,24 +248,36 @@ describe('User message screening', () => {
       expect((await reload(message.id)).deliveredAt).toBeTruthy()
     })
 
-    it('re-screens rather than trusting a stored verdict it did not write', async () => {
-      // `screeningResult` is a JSON column, so a bad write (or an older shape)
-      // can leave a value outside the verdict union there. The guard asserts a
-      // TYPE, so accepting anything string-shaped would propagate a lie; a row
-      // we cannot read falls through to a fresh screening instead.
+    it('refuses to store a verdict outside the union', async () => {
+      // This used to assert the READ side: a bad value in the JSON column made
+      // `isScreeningResult` fall through to a fresh screening. The column now
+      // carries a `jsonSchema`, so Payload compiles it to a write-time validator
+      // and the bad value can no longer get in through the Local API at all —
+      // the invalid state is unrepresentable rather than merely survivable.
+      //
+      // The read-side guard is deliberately kept: it still covers a row written
+      // before this schema existed, or by a migration or raw SQL, neither of
+      // which passes through field validation.
       const message = await seed({ senderEmail: 'throwaway@mailinator.com' })
-      await payload.update({
-        collection: 'user-messages',
-        id: message.id,
-        data: {
-          status: 'failed',
-          screeningResult: { verdict: 'something-we-never-wrote', screenedAt: 'whenever' },
-        },
-        overrideAccess: true,
-        req: { payload, context: { skipWriteGuard: true } } as unknown as PayloadRequest,
-      })
+      await expect(
+        payload.update({
+          collection: 'user-messages',
+          id: message.id,
+          data: {
+            status: 'failed',
+            // Deliberately invalid — the point of the test is that it is refused.
+            screeningResult: {
+              verdict: 'something-we-never-wrote',
+              screenedAt: 'whenever',
+            } as never,
+          },
+          overrideAccess: true,
+          req: { payload, context: { skipWriteGuard: true } } as unknown as PayloadRequest,
+        }),
+      ).rejects.toThrow()
 
-      // Re-screened from scratch, so the disposable address is caught.
+      // The refusal left the row alone, so it is still screenable and the
+      // disposable address is still caught.
       expect((await screen(message.id)).status).toBe('spam')
       expect(verdictOf(await reload(message.id))).toBe('disposable_email')
     })

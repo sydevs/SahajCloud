@@ -1,14 +1,9 @@
-import type {
-  CollectionConfig,
-  FieldAccess,
-  JSONFieldValidation,
-  TextareaFieldValidation,
-} from 'payload'
-
-import { textarea as validateTextarea } from 'payload/shared'
+import type { JSONSchema4 } from 'json-schema'
+import type { CollectionConfig, FieldAccess } from 'payload'
 
 import { enqueueUserMessageScreening } from './hooks/enqueueUserMessageScreening'
 import { prepareUserMessage } from './hooks/prepareUserMessage'
+import { screeningResultJsonSchema } from './screening'
 import { STATUS_LABELS, USER_MESSAGE_STATUSES } from './statuses'
 
 export { USER_MESSAGE_STATUSES, type MessageStatus } from './statuses'
@@ -26,47 +21,63 @@ const systemFieldAccess: { create: FieldAccess; update: FieldAccess } = {
   update: ({ req }) => req.user?.collection !== 'clients',
 }
 
-/** Longest message we accept. A report, not a document. */
-const MESSAGE_MAX = 5000
-/** Shortest. A two-character "hi" is noise, not a report. */
-const MESSAGE_MIN = 10
 /**
- * Cap on the serialized `context` blob. The keys are deliberately **not**
- * enumerated here: the original contract stripped unknown keys rather than
- * rejecting them, so a newer client sending a field this server doesn't know
- * yet still gets its message through. One total bound gives the protection that
- * actually matters on a public write path — no unbounded JSON — without
- * freezing the shape.
+ * Caller-supplied context attached to a message — the page path, the host URL,
+ * a crash stack. Payload compiles this to a write-time validator **and**
+ * generates `UserMessage['context']` from it, so the shape has exactly one
+ * definition (`src/lib/registrations/questions.ts` is the same pattern).
+ *
+ * `additionalProperties` stays **open**: the contract accepts keys this server
+ * doesn't know, so a newer client sending a field an older CMS has never heard
+ * of still gets its message through. `false` would turn that into a 400.
+ *
+ * ⚠ It is `true` rather than `{ type: 'string' }`, and that is a TypeScript
+ * constraint rather than a preference. A typed `additionalProperties` generates
+ * an index signature — `[k: string]: string` — and TypeScript then requires
+ * every named property to be assignable to it. These are all optional, so
+ * `string | undefined` is not, and the generated file does not compile. `true`
+ * generates `[k: string]: unknown`, which optional members satisfy.
+ *
+ * The consequence, recorded rather than hidden: `maxProperties` bounds how many
+ * keys a caller may send and the named ones carry a `maxLength`, but an unknown
+ * key's value is unbounded. The serialized-length validator that used to cover
+ * that was dropped deliberately (review of #653) — the size cap is not worth a
+ * hand-written validator beside a schema.
  */
-const CONTEXT_MAX_SERIALIZED = 4000
-
-/**
- * Supplying `validate` **replaces** Payload's default, which is what enforces
- * `maxLength` — so the built-in is composed in rather than reimplemented
- * (`.claude/rules/collections.md`). This adds only the floor, which no built-in
- * option expresses.
- */
-const validateMessage: TextareaFieldValidation = (value, options) => {
-  const builtIn = validateTextarea(value, options)
-  if (builtIn !== true) return builtIn
-  if (typeof value === 'string' && value.trim().length < MESSAGE_MIN) {
-    return `Tell us a little more — at least ${MESSAGE_MIN} characters.`
-  }
-  return true
-}
-
-/**
- * A JSON field accepts anything by default, which on a public write path means
- * unbounded input. Bounds the blob rather than enumerating its keys — see
- * {@link CONTEXT_MAX_SERIALIZED} for why the shape stays open.
- */
-const validateContext: JSONFieldValidation = (value) => {
-  if (value == null) return true
-  if (typeof value !== 'object' || Array.isArray(value)) return 'Context must be an object.'
-  if (JSON.stringify(value).length > CONTEXT_MAX_SERIALIZED) {
-    return `Context is too large (max ${CONTEXT_MAX_SERIALIZED} characters).`
-  }
-  return true
+const contextJsonSchema: JSONSchema4 = {
+  type: 'object',
+  maxProperties: 20,
+  properties: {
+    // `description`, not a `//` comment: Payload renders these into the JSDoc on
+    // the generated type, which is what keeps the per-key documentation the
+    // hand-written `UserMessageContext` used to carry.
+    path: {
+      type: 'string',
+      maxLength: 2000,
+      description: 'Route the sender was on, e.g. `/events/london-meetup`.',
+    },
+    hostUrl: {
+      type: 'string',
+      maxLength: 2000,
+      description: 'Absolute URL of the host page embedding the widget.',
+    },
+    locale: {
+      type: 'string',
+      maxLength: 2000,
+      description: 'Locale the sender was browsing in.',
+    },
+    error: {
+      type: 'string',
+      maxLength: 2000,
+      description: 'Error text/stack the sender was reporting, when the message is a crash report.',
+    },
+    userAgent: {
+      type: 'string',
+      maxLength: 2000,
+      description: "The sender's user-agent string.",
+    },
+  },
+  additionalProperties: true,
 }
 
 /**
@@ -118,6 +129,15 @@ export const UserMessages: CollectionConfig = {
       // The banner IS this message's status, so the field is labelled for what
       // a reader reads rather than for the column it happens to store.
       label: 'Status',
+      // Closed, unlike `context`: only ScreenUserMessages writes this column, so
+      // an unknown key or a bad verdict is a bug in the job rather than an older
+      // server meeting a newer client. Generates the type the job and the admin
+      // banner both read.
+      jsonSchema: {
+        uri: 'https://sahajcloud.dev/schemas/user-message-screening-result.json',
+        fileMatch: ['https://sahajcloud.dev/schemas/user-message-screening-result.json'],
+        schema: screeningResultJsonSchema,
+      },
       access: systemFieldAccess,
       admin: {
         readOnly: true,
@@ -140,8 +160,11 @@ export const UserMessages: CollectionConfig = {
       name: 'message',
       type: 'textarea',
       required: true,
-      maxLength: MESSAGE_MAX,
-      validate: validateMessage,
+      // A report, not a document — and a two-character "hi" is noise. Both
+      // bounds are the built-in ones: a custom `validate` would REPLACE the
+      // default that enforces them (`.claude/rules/collections.md`).
+      maxLength: 5000,
+      minLength: 10,
       admin: { readOnly: true },
     },
     {
@@ -161,7 +184,11 @@ export const UserMessages: CollectionConfig = {
       // block, each row omitted when its value is absent.
       name: 'context',
       type: 'json',
-      validate: validateContext,
+      jsonSchema: {
+        uri: 'https://sahajcloud.dev/schemas/user-message-context.json',
+        fileMatch: ['https://sahajcloud.dev/schemas/user-message-context.json'],
+        schema: contextJsonSchema,
+      },
       admin: { readOnly: true },
     },
     {

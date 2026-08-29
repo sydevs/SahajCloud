@@ -5,8 +5,8 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { normalizedBodyHash } from '@/collections/UserMessages/bodyHash'
-import { messageVerdictNote, type MessageVerdict } from '@/collections/UserMessages/screening'
+import { normalizedBodyHash } from '@/collections/UserMessages/hooks/prepareUserMessage'
+import { MESSAGE_VERDICT_NOTES, type MessageVerdict } from '@/collections/UserMessages/screening'
 import { DELIVERED_RETENTION_DAYS } from '@/jobs/PurgeUserMessages/PurgeUserMessages'
 import { HISTORY_WINDOW_HOURS } from '@/jobs/ScreenUserMessages/senderHistory'
 
@@ -49,7 +49,7 @@ describe('retention outlives the screening window', () => {
   })
 })
 
-describe('messageVerdictNote', () => {
+describe('MESSAGE_VERDICT_NOTES', () => {
   const SPAM_VERDICTS: MessageVerdict[] = [
     'disposable_email',
     'invalid_email',
@@ -60,7 +60,7 @@ describe('messageVerdictNote', () => {
 
   it('gives every spam verdict a sentence an admin can act on', () => {
     for (const verdict of SPAM_VERDICTS) {
-      const note = messageVerdictNote(verdict)
+      const note = MESSAGE_VERDICT_NOTES[verdict]
       expect(note, `${verdict} has no note`).toBeTruthy()
       // A note is prose, not a label: it has to say what follows from the
       // finding, which is what the banner would otherwise leave the reader to
@@ -71,6 +71,6 @@ describe('messageVerdictNote', () => {
   })
 
   it('says nothing for a clean message', () => {
-    expect(messageVerdictNote('ok')).toBeNull()
+    expect(MESSAGE_VERDICT_NOTES.ok).toBeNull()
   })
 })
