@@ -1,3 +1,5 @@
+import type { JSONSchema4 } from 'json-schema'
+
 /**
  * What screening recorded about a user message, and how it reads.
  *
@@ -39,27 +41,41 @@ export const MESSAGE_VERDICTS = [
 export type MessageVerdict = (typeof MESSAGE_VERDICTS)[number]
 
 /**
- * A `type` alias rather than an `interface`, deliberately: TypeScript gives
- * implicit index signatures to type aliases of object types but not to
- * interfaces, and without one this shape is not assignable to a Payload JSON
- * field's value. The alternative was a cast at every write site.
+ * JSON Schema for the stored `screeningResult`, wired onto that field. Payload
+ * generates `UserMessage['screeningResult']` from it **and** compiles it to a
+ * write-time validator, so the shape has one definition instead of a hand-kept
+ * type alias beside a column that accepted anything.
+ *
+ * Closed (`additionalProperties: false`) because only `ScreenUserMessages`
+ * writes here — an unknown key is a bug in the job, not an older server meeting
+ * a newer client. `verdict` takes its enum from {@link MESSAGE_VERDICTS}, so the
+ * runtime list and the stored contract cannot drift.
  */
-export type UserMessageScreeningResult = {
-  /** `ok`, or why the message was classified spam. */
-  verdict: MessageVerdict
-  /**
-   * Everything an admin needs, as complete sentences. Each says what happened
-   * *and* what follows from it. A delivered message normally has none.
-   */
-  notes?: string[]
-  /**
-   * A technical detail kept for triage and **not rendered** — an MX lookup that
-   * came back inconclusive, or the mail transport's own error string. It reads
-   * like a machine talking, which is precisely what the notes must not; but
-   * discarding it would leave nothing to look at when delivery goes wrong.
-   */
-  diagnostic?: string
-  screenedAt: string
+export const screeningResultJsonSchema: JSONSchema4 = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['verdict', 'screenedAt'],
+  properties: {
+    // `description`, not a `//` comment: Payload renders these into the JSDoc on
+    // the generated type, so the field documentation survives the move off the
+    // hand-written alias.
+    verdict: {
+      enum: [...MESSAGE_VERDICTS],
+      description: '`ok`, or why the message was classified spam.',
+    },
+    notes: {
+      type: 'array',
+      items: { type: 'string' },
+      description:
+        'Everything an admin needs, as complete sentences. Each says what happened and what follows from it. A delivered message normally has none.',
+    },
+    diagnostic: {
+      type: 'string',
+      description:
+        'A technical detail kept for triage and NOT rendered — an MX lookup that came back inconclusive, or the mail transport’s own error string. Discarding it would leave nothing to look at when delivery goes wrong.',
+    },
+    screenedAt: { type: 'string', description: 'When screening reached this verdict (ISO 8601).' },
+  },
 }
 
 /**
@@ -71,19 +87,16 @@ export type UserMessageScreeningResult = {
  * reach this person. The consequences (kept, not delivered) are not repeated:
  * the banner already says Marked Spam.
  */
-export function messageVerdictNote(verdict: MessageVerdict): string | null {
-  switch (verdict) {
-    case 'disposable_email':
-      return 'The sender used a temporary throwaway email address, so a reply could never reach them.'
-    case 'invalid_email':
-      return 'The address the sender gave is not a real email address, so a reply could never reach them.'
-    case 'no_mx_records':
-      return 'The sender’s email address cannot receive mail, so a reply could never reach them.'
-    case 'repeat_sender':
-      return 'This sender has sent an unusual number of messages in a short time, which is how bulk mail behaves.'
-    case 'duplicate_body':
-      return 'The identical message was already sent to us recently, which is how bulk mail behaves.'
-    case 'ok':
-      return null
-  }
+export const MESSAGE_VERDICT_NOTES: Record<MessageVerdict, string | null> = {
+  ok: null,
+  disposable_email:
+    'The sender used a temporary throwaway email address, so a reply could never reach them.',
+  invalid_email:
+    'The address the sender gave is not a real email address, so a reply could never reach them.',
+  no_mx_records:
+    'The sender’s email address cannot receive mail, so a reply could never reach them.',
+  repeat_sender:
+    'This sender has sent an unusual number of messages in a short time, which is how bulk mail behaves.',
+  duplicate_body:
+    'The identical message was already sent to us recently, which is how bulk mail behaves.',
 }

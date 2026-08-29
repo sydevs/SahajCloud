@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react'
 
 import { Hr, Link, Section, Text } from 'react-email'
 
-import type { UserMessageContext } from '@/collections/UserMessages/types'
+import type { UserMessage } from '@/payload-types'
 import type { EmailBrand } from '@/plugins/email'
 
 import { DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
@@ -27,7 +27,7 @@ export function buildUserMessageDetails(args: {
   clientName: string
   /** When the message was received (ISO 8601). */
   receivedAt: string
-  context?: UserMessageContext
+  context?: NonNullable<UserMessage['context']>
 }): UserMessageDetail[] {
   const { clientName, receivedAt, context } = args
 

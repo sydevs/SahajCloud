@@ -14,13 +14,13 @@ import {
 } from '@payloadcms/ui'
 import React from 'react'
 
-import type { UserMessageScreeningResult } from '@/collections/UserMessages/screening'
 import { STATUS_LABELS, type MessageStatus } from '@/collections/UserMessages/statuses'
+import type { UserMessage } from '@/payload-types'
 
 import './styles.css'
 
-/** How loudly a status is drawn. */
-type Severity = 'info' | 'error' | 'success'
+/** The banner variant each status is drawn as — `Banner`'s own type, not a private alias for it. */
+type BannerType = 'default' | 'error' | 'success'
 
 /**
  * How loudly to draw each status, and what to do about it. The **heading** is
@@ -32,19 +32,19 @@ type Severity = 'info' | 'error' | 'success'
  * classified that way is a screening note, and a fixed line beside it would say
  * the same thing twice.
  */
-const COPY: Record<MessageStatus, { severity: Severity; message?: string }> = {
+const COPY: Record<MessageStatus, { type: BannerType; message?: string }> = {
   screening: {
-    severity: 'info',
+    type: 'default',
     message: 'Checking the sender’s details. This usually takes a few minutes.',
   },
   delivered: {
-    severity: 'success',
+    type: 'success',
     message:
       'This was emailed to the contact address. Reply there — replies go straight to the sender.',
   },
-  spam: { severity: 'error' },
+  spam: { type: 'error' },
   failed: {
-    severity: 'error',
+    type: 'error',
     message:
       'The message passed the checks but could not be emailed out. It is being retried; if it stays here, reply to the sender directly.',
   },
@@ -53,29 +53,10 @@ const COPY: Record<MessageStatus, { severity: Severity; message?: string }> = {
 /** Said when a message is spam but screening left no reason. */
 const SPAM_FALLBACK = 'The sender’s contact details could not be verified.'
 
-const ICONS: Record<Severity, React.FC> = {
-  info: InfoIcon,
+const ICONS: Record<BannerType, React.FC> = {
+  default: InfoIcon,
   error: ErrorIcon,
   success: SuccessIcon,
-}
-
-/** Banner's own `type` — every severity maps onto a variant it ships. */
-const BANNER_TYPE: Record<Severity, 'default' | 'error' | 'success'> = {
-  info: 'default',
-  error: 'error',
-  success: 'success',
-}
-
-/**
- * The stored value is JSON, so it can be anything a bad write left behind —
- * render only real strings rather than trusting the column's declared type. A
- * malformed row degrades to no notes instead of throwing the edit view.
- */
-function notesOf(result: UserMessageScreeningResult | null | undefined): string[] {
-  const notes = result?.notes
-  return Array.isArray(notes)
-    ? notes.filter((note): note is string => typeof note === 'string')
-    : []
 }
 
 /**
@@ -92,23 +73,20 @@ export const UserMessageStatus: FieldClientComponent = ({ field }) => {
   const { name, label } = field as JSONFieldClient
   const { id } = useDocumentInfo()
   const status = useFormFields(([fields]) => fields?.status?.value as MessageStatus | undefined)
-  const { value } = useField<UserMessageScreeningResult | null>()
+  const { value } = useField<UserMessage['screeningResult']>()
 
   if (!id || !status || !COPY[status]) return null
 
-  const { severity, message } = COPY[status]
-  const Icon = ICONS[severity]
-  const notes = notesOf(value)
+  const { type, message } = COPY[status]
+  const Icon = ICONS[type]
+  // The column's `jsonSchema` types `notes` and refuses anything else on write,
+  // so there is nothing left to filter out here.
+  const notes = value?.notes ?? []
 
   return (
     <div className="field-type json read-only">
       <FieldLabel label={label} path={name} />
-      <Banner
-        className={`user-message-status user-message-status--${severity}`}
-        type={BANNER_TYPE[severity]}
-        icon={<Icon />}
-        alignIcon="left"
-      >
+      <Banner className="user-message-status" type={type} icon={<Icon />} alignIcon="left">
         <div>
           <strong className="user-message-status__title">{STATUS_LABELS[status]}</strong>
           {message && <div>{message}</div>}
