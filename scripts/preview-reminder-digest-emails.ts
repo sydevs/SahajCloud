@@ -1,7 +1,7 @@
 /**
  * Operator script: send the #589 scheduled emails — the registrant **session
  * reminder** and the manager **registration digest** — in each meaningful state
- * to a throwaway Ethereal inbox for visual review. Prints a direct preview link
+ * to the Mailpit capture inbox for visual review. Prints a direct preview link
  * per scenario.
  *
  * Usage:
@@ -26,6 +26,7 @@ import type { Event } from '@/payload-types'
 
 import { Temporal } from '@js-temporal/polyfill'
 import dotenv from 'dotenv'
+import { createCaptureTransport } from './mailpit-transport'
 
 // Shell env wins, then .env.local, then .env (see seeds/env.ts).
 dotenv.config({ path: ['.env.local', '.env'] })
@@ -329,13 +330,7 @@ async function main() {
   const { sendSessionReminder } = await import('@/jobs/RegistrationNotifications/sendSessionReminder')
   const { sendRegistrationDigest } = await import('@/jobs/RegistrationNotifications/sendRegistrationDigest')
 
-  const account = await nodemailer.createTestAccount()
-  const transport = nodemailer.createTransport({
-    host: account.smtp.host,
-    port: account.smtp.port,
-    secure: account.smtp.secure,
-    auth: { user: account.user, pass: account.pass },
-  })
+  const { transport, messageUrl } = createCaptureTransport()
 
   const previews: Preview[] = []
 
@@ -350,7 +345,7 @@ async function main() {
           ...message,
           subject: `[${label}] ${String(message.subject)}`,
         } as never)
-        previews.push({ label, note: '', url: nodemailer.getTestMessageUrl(info) })
+        previews.push({ label, note: '', url: messageUrl(info) })
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }) as any
@@ -381,9 +376,8 @@ async function main() {
   }
 
   console.log('\n━━━ Session reminder + registration digest email previews (#589) ━━━\n')
-  console.log(`Ethereal inbox (all messages): https://ethereal.email/login`)
-  console.log(`  user: ${account.user}`)
-  console.log(`  pass: ${account.pass}`)
+  console.log(`Mailpit inbox (all messages): ${process.env.MAILPIT_URL ?? '(set MAILPIT_URL)'}`)
+  console.log('  credentials: MAILPIT_UI_AUTH in .env.claude.local — messages kept 7 days')
   console.log(`\nIcons + unsubscribe origin resolve against: ${process.env.SAHAJCLOUD_URL}`)
   console.log(`\nDirect preview links:\n`)
   for (const { label, note, url } of previews) {

@@ -1,7 +1,7 @@
 /**
  * Operator script: send the manager-facing registration-notification email
  * (`EventRegistrationEmail`, #588) in each of its meaningful states to a
- * throwaway Ethereal inbox for visual review. Prints a direct preview link per
+ * Mailpit capture inbox for visual review. Prints a direct preview link per
  * scenario.
  *
  * Usage:
@@ -22,12 +22,13 @@ import type { RegistrationRecipient } from '@/lib/notifications/registrationReci
 import type { Event } from '@/payload-types'
 
 import dotenv from 'dotenv'
+import { createCaptureTransport } from './mailpit-transport'
 
 // Shell env wins, then .env.local, then .env (see seeds/env.ts).
 dotenv.config({ path: ['.env.local', '.env'] })
 
 // Absolute icon + admin-link URLs must resolve for the reviewer, so default to
-// production rather than a localhost the Ethereal viewer can't reach.
+// production rather than a localhost the Mailpit viewer can't reach.
 process.env.SAHAJCLOUD_URL ||= 'https://cloud.sydevelopers.com'
 
 /** N days from now at 19:00 UTC as an ISO string — the session the registrant chose. */
@@ -125,13 +126,7 @@ async function main() {
   // Shape raw answers exactly as the endpoint does, so the preview can't drift.
   const { buildRegistrationAnswers } = await import('@/lib/registrations/questions')
 
-  const account = await nodemailer.createTestAccount()
-  const transport = nodemailer.createTransport({
-    host: account.smtp.host,
-    port: account.smtp.port,
-    secure: account.smtp.secure,
-    auth: { user: account.user, pass: account.pass },
-  })
+  const { transport, messageUrl } = createCaptureTransport()
 
   const previews: { label: string; note: string; url: string | false }[] = []
 
@@ -150,7 +145,7 @@ async function main() {
         previews.push({
           label: scenario.label,
           note: scenario.note,
-          url: nodemailer.getTestMessageUrl(info),
+          url: messageUrl(info),
         })
       },
     }
@@ -169,9 +164,11 @@ async function main() {
 
   console.log('\n━━━ Manager registration-notification email previews ━━━\n')
   console.log('Source: in-memory fixtures')
-  console.log(`\nEthereal inbox (all messages): https://ethereal.email/login`)
-  console.log(`  user: ${account.user}`)
-  console.log(`  pass: ${account.pass}`)
+  console.log(
+    `
+Mailpit inbox (all messages): ${process.env.MAILPIT_URL ?? '(set MAILPIT_URL)'}`,
+  )
+  console.log('  credentials: MAILPIT_UI_AUTH in .env.claude.local — messages kept 7 days')
   console.log(`\nIcons + "View event" link resolve against: ${process.env.SAHAJCLOUD_URL}`)
   console.log(`\nDirect preview links:\n`)
   for (const { label, note, url } of previews) {

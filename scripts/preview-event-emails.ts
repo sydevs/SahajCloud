@@ -1,6 +1,6 @@
 /**
  * Operator script: render the event verification reminder emails (due /
- * escalated / expired) and send them to a throwaway Ethereal inbox for visual
+ * escalated / expired) and send them to the Mailpit capture inbox for visual
  * review. Prints a direct preview link per level.
  *
  * Usage:
@@ -24,6 +24,7 @@ import type {
 import type { Event } from '@/payload-types'
 
 import dotenv from 'dotenv'
+import { createCaptureTransport } from './mailpit-transport'
 
 // Shell env wins, then .env.local, then .env (see seeds/env.ts).
 dotenv.config({ path: ['.env.local', '.env'] })
@@ -337,13 +338,7 @@ async function main() {
 
   const secret = process.env.PAYLOAD_SECRET || 'preview-secret'
 
-  const account = await nodemailer.createTestAccount()
-  const transport = nodemailer.createTransport({
-    host: account.smtp.host,
-    port: account.smtp.port,
-    secure: account.smtp.secure,
-    auth: { user: account.user, pass: account.pass },
-  })
+  const { transport, messageUrl } = createCaptureTransport()
 
   // Illustrative timing: a shared unpublish date in the future, "today" once
   // expired, and a sample "last verified" age + event-manager contact card.
@@ -401,7 +396,7 @@ async function main() {
       subject: `[${audience}/${level}] ${sample.eventTitle}`,
       html,
     })
-    previews.push({ label: `${audience} · ${level}`, url: nodemailer.getTestMessageUrl(info) })
+    previews.push({ label: `${audience} · ${level}`, url: messageUrl(info) })
   }
 
   console.log('\n━━━ Event verification reminder previews ━━━\n')
@@ -411,9 +406,11 @@ async function main() {
   if (sample.regionLine) console.log(`Region:   ${sample.regionLine}`)
   if (!process.env.PERSIST_EVENT)
     console.log('(render-only — no database written; set PERSIST_EVENT=1 to seed the event)')
-  console.log(`\nEthereal inbox (all messages): https://ethereal.email/login`)
-  console.log(`  user: ${account.user}`)
-  console.log(`  pass: ${account.pass}`)
+  console.log(
+    `
+Mailpit inbox (all messages): ${process.env.MAILPIT_URL ?? '(set MAILPIT_URL)'}`,
+  )
+  console.log('  credentials: MAILPIT_UI_AUTH in .env.claude.local — messages kept 7 days')
   console.log(`\nDirect preview links:`)
   for (const { label, url } of previews) console.log(`  ${label.padEnd(20)} ${url}`)
   console.log('')

@@ -38,7 +38,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
@@ -69,5 +69,6 @@ jobs:
         if: ${{ steps.preview.outputs.preview_url != '' }}
         env:
           PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
+          PREVIEW_ADMIN_PASSWORD: ${{ secrets.PREVIEW_ADMIN_PASSWORD }}
           SMOKE_RUN_ID: pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
         run: pnpm test:smoke

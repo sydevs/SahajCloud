@@ -204,7 +204,7 @@ Following Next.js best practices, environment variables are separated into two s
 
 - `PAYLOAD_SECRET` → Required (min 32 chars)
 - Cloudflare credentials → Optional (fallback to local file storage)
-- Email API → Optional (fallback to Ethereal Email)
+- Email API → Optional; set `SMTP_URL` to capture mail in Mailpit instead of delivering it
 - Sentry DSN → Optional (error tracking disabled)
 
 **Production (Railway)**:

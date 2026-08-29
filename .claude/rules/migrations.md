@@ -184,11 +184,14 @@ that as the truth. The next `migrate:create` then diffs against the gap and emit
 the initial schema — which throws `enum label … already exists` and aborts the
 in-process boot migration on deploy.
 
-This is tempting precisely when the CLI is otherwise unusable: dev email calls
-`nodemailer.createTestAccount()` on every config load, so an `ethereal.email`
-outage makes every Payload command die silently, and `E2E_TEST=true` skips the
-adapter. It is the wrong escape hatch — **it corrupts the artefact you are
-generating.** Wait the outage out, or use a flag that only touches email.
+This used to be tempting because the CLI could become unusable for an unrelated
+reason: dev email called `nodemailer.createTestAccount()` on every config load,
+so an `ethereal.email` outage made every Payload command die silently, and
+`E2E_TEST=true` was the quickest way past it. **That failure mode is gone** —
+email is now configured explicitly from `SMTP_URL` and no adapter reaches the
+network at config load. Should you ever be tempted again: it is the wrong escape
+hatch, because **it corrupts the artefact you are generating.** Use a flag that
+only touches email.
 
 Symptom to recognise: a generated migration adds an enum value you did not
 introduce. Cross-check the label against the whole chain before shipping it —

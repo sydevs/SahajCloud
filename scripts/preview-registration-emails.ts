@@ -1,6 +1,6 @@
 /**
  * Operator script: send the registrant confirmation email in each of its
- * meaningful states to a throwaway Ethereal inbox for visual review. Prints a
+ * meaningful states to the Mailpit capture inbox for visual review. Prints a
  * direct preview link per scenario.
  *
  * Usage:
@@ -20,7 +20,7 @@
  * `From`, `Reply-To`, HTML, plain-text part, and `.ics` attachment. Nothing is
  * reimplemented here, so this preview can't drift from production behaviour.
  *
- * The `.ics` attachment rides along on each message — download it from Ethereal
+ * The `.ics` attachment rides along on each message — download it from Mailpit
  * and open it in Google Calendar / Apple Calendar to check the recurrence,
  * timezone, and any excluded dates.
  *
@@ -36,12 +36,13 @@ import { Temporal } from '@js-temporal/polyfill'
 import dotenv from 'dotenv'
 
 import { isValidLocale } from '@/lib/locales'
+import { createCaptureTransport } from './mailpit-transport'
 
 // Shell env wins, then .env.local, then .env (see seeds/env.ts).
 dotenv.config({ path: ['.env.local', '.env'] })
 
 // Absolute icon URLs must resolve for the reviewer's mail client, so default to
-// production rather than a localhost the Ethereal viewer can't reach.
+// production rather than a localhost the Mailpit viewer can't reach.
 process.env.SAHAJCLOUD_URL ||= 'https://cloud.sydevelopers.com'
 
 /**
@@ -421,13 +422,7 @@ async function main() {
     realFindGlobal = (args) => real.findGlobal(args as never)
   }
 
-  const account = await nodemailer.createTestAccount()
-  const transport = nodemailer.createTransport({
-    host: account.smtp.host,
-    port: account.smtp.port,
-    secure: account.smtp.secure,
-    auth: { user: account.user, pass: account.pass },
-  })
+  const { transport, messageUrl } = createCaptureTransport()
 
   const previews: { label: string; note: string; url: string | false; ics: boolean }[] = []
 
@@ -451,7 +446,7 @@ async function main() {
         previews.push({
           label: scenario.label,
           note: scenario.note,
-          url: nodemailer.getTestMessageUrl(info),
+          url: messageUrl(info),
           ics: hadAttachment,
         })
       },
@@ -475,9 +470,11 @@ async function main() {
       ? 'Source: real services + events from the local database (read-only)'
       : 'Source: in-memory fixtures (set FROM_DB=1 for real data)',
   )
-  console.log(`\nEthereal inbox (all messages): https://ethereal.email/login`)
-  console.log(`  user: ${account.user}`)
-  console.log(`  pass: ${account.pass}`)
+  console.log(
+    `
+Mailpit inbox (all messages): ${process.env.MAILPIT_URL ?? '(set MAILPIT_URL)'}`,
+  )
+  console.log('  credentials: MAILPIT_UI_AUTH in .env.claude.local — messages kept 7 days')
   console.log(`\nIcons resolve against: ${process.env.SAHAJCLOUD_URL}`)
   console.log(`\nDirect preview links:\n`)
   for (const { label, note, url, ics } of previews) {

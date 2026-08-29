@@ -3,6 +3,20 @@ import type { Address } from 'nodemailer/lib/mailer'
 
 import nodemailer from 'nodemailer'
 
+/**
+ * In-memory email adapter for integration tests.
+ *
+ * This used to provision a real Ethereal inbox in `init()` via
+ * `nodemailer.createTestAccount()` — a live network call on every run of the two
+ * specs that use it, which made an ethereal.email outage look like a test
+ * failure in our own code. Nothing ever read the resulting inbox: assertions go
+ * through `getCapturedEmails()`.
+ *
+ * It now uses nodemailer's `streamTransport`, which composes the message exactly
+ * as a real transport would (so header/MIME bugs still surface) but writes it to
+ * a buffer instead of a socket. Same capture API, no network, no credentials.
+ */
+
 export interface CapturedEmail {
   to: string | string[]
   from: string
@@ -31,9 +45,9 @@ export class EmailTestAdapter {
   } {
     const instance = adapter || new EmailTestAdapter()
     return () => ({
-      defaultFromAddress: 'test@ethereal.email',
+      defaultFromAddress: 'no-reply@test.local',
       defaultFromName: 'Test Email Adapter',
-      name: 'ethereal',
+      name: 'in-memory',
       sendEmail: instance.sendEmail.bind(instance),
       adapter: instance // Keep reference to adapter for testing
     })
@@ -47,28 +61,16 @@ export class EmailTestAdapter {
     }
   }
 
+  /**
+   * Build the in-memory transport. Kept `async` because callers await it and
+   * because the previous implementation genuinely was.
+   */
   async init(): Promise<void> {
-    // Create Ethereal test account
-    const testAccount = await nodemailer.createTestAccount()
-    
-    this.account = {
-      user: testAccount.user,
-      pass: testAccount.pass,
-      web: 'https://ethereal.email',
-    }
-
-    // Create transporter with Ethereal credentials
     this.transporter = nodemailer.createTransport({
-      host: testAccount.smtp.host,
-      port: testAccount.smtp.port,
-      secure: testAccount.smtp.secure,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
+      streamTransport: true,
+      newline: 'unix',
+      buffer: true,
     })
-    
-    // Email adapter initialized with Ethereal test account
   }
 
   async sendEmail(options: { to?: string | Address | (string | Address)[]; from?: string | Address; subject?: string; html?: string | Buffer; text?: string | Buffer; }): Promise<any> {
@@ -79,7 +81,8 @@ export class EmailTestAdapter {
     }
 
     try {
-      // Send email through Ethereal first
+      // Compose through the real nodemailer path so MIME/header problems still
+      // surface; streamTransport buffers the result rather than sending it.
       const info = await this.transporter.sendMail({
         from,
         to: Array.isArray(to) ? to.join(', ') : to,
@@ -104,9 +107,6 @@ export class EmailTestAdapter {
         sentAt: new Date(),
       })
 
-      // Store preview URL for debugging if needed
-      // Preview URL: nodemailer.getTestMessageUrl(info)
-      
       return info
     } catch (error) {
       console.error('Error sending email:', error)
