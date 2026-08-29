@@ -32,7 +32,7 @@ function subjectFor(level: ReminderLevel, audience: ReminderAudience, title: str
 /**
  * Email channel — renders the reminder template (branded `sahaj-atlas`, via
  * #483's `renderEmail`) and sends through the configured adapter
- * (Resend in prod, Ethereal in dev).
+ * (Resend in production, Mailpit capture elsewhere).
  */
 export async function sendEmailReminder(
   client: Payload,

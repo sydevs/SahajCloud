@@ -188,11 +188,21 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   // ============================================
 
   /**
-   * Resend API key for transactional emails
-   * Required for production email sending
-   * Falls back to Ethereal Email in development if not set
+   * Resend API key for transactional emails.
+   * Production only. When unset in production, mail is logged and dropped.
    */
   RESEND_API_KEY: z.string().min(20).optional(),
+
+  /**
+   * SMTP endpoint for captured (non-delivered) mail — Mailpit.
+   * Used by local dev and by Railway PR previews, both of which must never
+   * deliver real mail. When set, it takes precedence over every other adapter
+   * choice outside production; when unset outside production, email is
+   * disabled with a warning rather than silently going somewhere.
+   *
+   * Shape: smtp://user:pass@host:port
+   */
+  SMTP_URL: z.url().optional(),
 
   // ============================================
   // APPLICATION URLS

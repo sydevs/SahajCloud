@@ -1,11 +1,14 @@
 # Sahaj Cloud CMS
 
-A headless content management system built with **Next.js 15** and **PayloadCMS 3.0**, deployed on Cloudflare Workers with D1 database and R2 storage.
+A headless content management system built with **Next.js 15** and **PayloadCMS 3.0**, deployed on
+**Railway** with **PostgreSQL** and Cloudflare R2 (S3 API) for storage, behind Cloudflare's edge
+services (Images, Stream, rate limiting, caching).
 
 ## Prerequisites
 
-- **Node.js**: `^18.20.2` or `>=20.9.0`
-- **pnpm**: `^9` or `^10`
+- **Node.js**: 22.17.0 (see `.node-version`)
+- **pnpm**: `^11` (see `packageManager` in `package.json`)
+- **PostgreSQL**: a local instance for development
 
 ## Quick Start
 
@@ -25,9 +28,10 @@ A headless content management system built with **Next.js 15** and **PayloadCMS 
    cp .env.example .env
    ```
 
-   Edit `.env` and set `PAYLOAD_SECRET` to a string of at least 32 characters:
+   Edit `.env` and set at minimum:
    ```
    PAYLOAD_SECRET=your-secret-key-here-at-least-32-chars
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/sahajcloud
    ```
 
 4. **Start development server**
@@ -37,7 +41,9 @@ A headless content management system built with **Next.js 15** and **PayloadCMS 
 
 5. **Access the admin panel**
 
-   Open http://localhost:3000/admin and follow the on-screen instructions to create your first admin user.
+   Open http://localhost:3000/admin. Outside production and E2E runs Payload auto-logs-in as
+   `contact@sydevelopers.com`, so there is no password to enter; on an empty database, follow the
+   on-screen prompt to create the first admin.
 
 ## Key Commands
 
@@ -48,20 +54,23 @@ A headless content management system built with **Next.js 15** and **PayloadCMS 
 | `pnpm build` | Production build |
 | `pnpm start` | Start production server |
 | `pnpm lint` | Run ESLint |
-| `pnpm test` | Run all tests |
-| `pnpm test:int` | Run integration tests (Vitest) |
-| `pnpm test:e2e` | Run E2E tests (Playwright) |
+| `pnpm typecheck` | Type-check `src/` (`tsc --noEmit`) |
+| `pnpm test` | Run unit + integration tests |
+| `pnpm test:unit` | Fast unit lane (no Payload bootstrap) |
+| `pnpm test:int` | Integration tests against Postgres (Vitest) |
+| `pnpm test:smoke` | Smoke specs against a deployed preview (Playwright) |
 | `pnpm generate:types` | Generate TypeScript types from Payload schema |
 | `pnpm generate:importmap` | Generate import map for admin components |
-| `pnpm payload migrate` | Run database migrations |
-| `pnpm deploy:prod` | Deploy to production (migrations + app) |
+| `pnpm db:migrate` | Apply pending database migrations |
+| `pnpm seed` | Seed local data |
 
 ## Environment Configuration
 
-For local development, only `PAYLOAD_SECRET` is required. The application automatically uses:
-- Local SQLite database
+For local development, `PAYLOAD_SECRET` and `DATABASE_URL` are required. The application otherwise
+defaults to:
+- Local Postgres, with the schema auto-synced by Drizzle `push` (migrations run in production only)
 - Local file storage (no Cloudflare credentials needed)
-- Ethereal Email for testing (captures outbound emails)
+- Mailpit for capturing outbound email in development and PR previews (7-day retention, shareable links)
 
 See `.env.example` for the full list of available environment variables and their validation requirements.
 
@@ -101,5 +110,6 @@ If symlinks don't work, AI agents will still function via the `@import` syntax.
 
 ## Further Documentation
 
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Cloudflare deployment configuration and troubleshooting
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Railway deployment configuration and troubleshooting
+- **[RAILWAY_RUNBOOK.md](RAILWAY_RUNBOOK.md)** - Operational runbook for the Railway service
 - **[AGENTS.md](AGENTS.md)** - Detailed architecture, patterns, and development guidelines (also accessible via `CLAUDE.md` symlink)
