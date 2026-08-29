@@ -39,7 +39,7 @@ Credentials for anything beyond local dev live outside the repo:
 
 | Environment | Where the credential lives |
 | ----------- | -------------------------- |
-| Railway PR preview | `PREVIEW_ADMIN_PASSWORD` — CI secret; the smoke lane passes it through (`.github/workflows/ci.yml`) |
+| Railway PR preview | `PREVIEW_ADMIN_PASSWORD` — CI secret; the smoke lane passes it through (`.github/workflows/ci.yml`). The first smoke run seeds the preview's admin with it and the preview database keeps that value, so rotating the secret orphans every preview already seeded — reset those databases when you rotate |
 | Production | `ADMIN_PASSWORD` in `.env.claude.local` — see `.claude/docs/environment.md` |
 
 ## Essential Commands
