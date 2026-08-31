@@ -8,9 +8,9 @@
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
-import { buildContactDetails, ContactAdminEmail } from '@/emails/ContactAdminEmail'
 import { buildReplyBody, EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
 import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
+import { buildUserMessageDetails, UserMessageEmail } from '@/emails/UserMessageEmail'
 import { VerifyEmail } from '@/emails/VerifyEmail'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
@@ -170,9 +170,9 @@ describe('buildReplyBody', () => {
   })
 })
 
-describe('buildContactDetails', () => {
+describe('buildUserMessageDetails', () => {
   it('renders every supplied context key, in a stable order', () => {
-    const details = buildContactDetails({
+    const details = buildUserMessageDetails({
       clientName: 'Atlas Widget',
       receivedAt: '2026-08-03T09:30:00.000Z',
       context: {
@@ -201,7 +201,7 @@ describe('buildContactDetails', () => {
     // The minimal `{ message, turnstileToken }` body — only what the server
     // itself knows survives. A caller sending fewer keys must not produce a
     // table of empty rows, which is the whole reason this is a filter.
-    const details = buildContactDetails({
+    const details = buildUserMessageDetails({
       clientName: 'Atlas Widget',
       receivedAt: '2026-08-03T09:30:00.000Z',
     })
@@ -210,7 +210,7 @@ describe('buildContactDetails', () => {
   })
 
   it('treats a blank or whitespace-only value as absent', () => {
-    const details = buildContactDetails({
+    const details = buildUserMessageDetails({
       clientName: 'Atlas Widget',
       receivedAt: '2026-08-03T09:30:00.000Z',
       context: { locale: '', path: '   ', hostUrl: 'https://atlas.example.org' },
@@ -220,7 +220,7 @@ describe('buildContactDetails', () => {
   })
 })
 
-describe('ContactAdminEmail', () => {
+describe('UserMessageEmail', () => {
   const details = [
     { label: 'Service', value: 'Atlas Widget' },
     { label: 'Path', value: '/events/berlin' },
@@ -231,7 +231,7 @@ describe('ContactAdminEmail', () => {
 
   it('renders the message, the sender address, and every detail row', async () => {
     const html = await renderEmail(
-      createElement(ContactAdminEmail, {
+      createElement(UserMessageEmail, {
         message: 'The venue for this class closed last month.',
         senderEmail: 'seeker@example.com',
         subject: 'Issue report',
@@ -250,7 +250,7 @@ describe('ContactAdminEmail', () => {
 
   it('says the message is unanswerable when no address was supplied', async () => {
     const html = await renderEmail(
-      createElement(ContactAdminEmail, {
+      createElement(UserMessageEmail, {
         message: 'Something went wrong on the map page.',
         subject: 'Issue report',
         details,
@@ -267,7 +267,7 @@ describe('ContactAdminEmail', () => {
 
   it('drops the details block entirely when there is nothing to show', async () => {
     const html = await renderEmail(
-      createElement(ContactAdminEmail, {
+      createElement(UserMessageEmail, {
         message: 'A message with no context at all.',
         subject: 'Message',
         details: [],
@@ -281,7 +281,7 @@ describe('ContactAdminEmail', () => {
 
   it('renders whatever brand it is handed', async () => {
     const html = await renderEmail(
-      createElement(ContactAdminEmail, {
+      createElement(UserMessageEmail, {
         message: 'Branding check message body.',
         subject: 'Message',
         details: [],

@@ -114,9 +114,14 @@ const ROLES = {
     // `registrations: update` is the confirm/deny vote — scoped in
     // accessConfigs to the one registration whose uuid the request proves
     // possession of, and whitelisted to the `eventFeedback` field.
+    // `user-messages` is create-ONLY for the same reason as event-submissions,
+    // and is the ONLY grant that collection has anywhere: no manager role names
+    // it, so reading one takes the admin bypass. They are unscreened messages
+    // from strangers, about anything at all (#632).
     permissions: {
       'event-submissions': ['create'] as PermissionLevel[],
       registrations: ['update'] as PermissionLevel[],
+      'user-messages': ['create'] as PermissionLevel[],
     },
   },
 } as const

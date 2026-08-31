@@ -29,10 +29,11 @@ export interface WriteGuardPolicy {
 /**
  * Which collections get which checks on **client-originated** writes. This is
  * the whole public write surface: API clients can only ever write
- * event-submissions (built-in create), and users + registrations through the
- * register endpoint's internal upserts (which forward the client `req`, so
- * they land here too). Root endpoints (`contactAdmin`) sit outside collections
- * and call the same helpers by hand.
+ * event-submissions and user-messages (built-in create), and users +
+ * registrations through the register endpoint's internal upserts (which forward
+ * the client `req`, so they land here too). Nothing sits outside it any more —
+ * the `contactAdmin` root endpoint that used to call these helpers by hand
+ * became the `user-messages` collection (#632).
  *
  * Registrations deliberately carry no `turnstile` yet — adding the widget to
  * the Atlas registration form is a tracked follow-up; flipping it on here is
@@ -67,5 +68,16 @@ export const DEFAULT_WRITE_GUARD_POLICIES: Partial<Record<CollectionSlug, WriteG
   },
   registrations: {
     create: { urlScanFields: ['questions'] },
+  },
+  'user-messages': {
+    create: {
+      turnstile: true,
+      emailFields: ['senderEmail'],
+      // The message body and the caller's subject label are the only free text
+      // a spammer controls. `context` is deliberately NOT scanned: a crash
+      // report legitimately carries a URL (the page it happened on), which is
+      // the exemption the old endpoint spelled out by scanning only `message`.
+      urlScanFields: ['message', 'subject'],
+    },
   },
 }

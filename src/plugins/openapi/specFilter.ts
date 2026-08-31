@@ -64,7 +64,11 @@ export const EXCLUDED_OPERATIONS = ['delete', 'patch'] as const
  * Collections allowed to have POST operations visible.
  * These are collections where API clients can create new documents.
  */
-export const ALLOW_POST_FOR: CollectionSlug[] = ['form-submissions', 'event-submissions']
+export const ALLOW_POST_FOR: CollectionSlug[] = [
+  'form-submissions',
+  'event-submissions',
+  'user-messages',
+]
 
 export interface FilterOptions {
   /** Project/client role to filter collections by (null = all client role collections) */
@@ -139,8 +143,8 @@ export interface OpenAPISpec {
  * names no collection, so the project-visibility tiers below can't judge it —
  * and would hide every one as "not in this project's collections". Passing the
  * result to {@link filterSpec} as `rootEndpointPaths` exempts them, which is
- * right: a root endpoint is project-agnostic by nature (`/api/contact-admin` is
- * shared by every client app).
+ * right: a root endpoint is project-agnostic by nature (`/api/atlas/seo`
+ * answers for any client app's route).
  *
  * Derived from the live config rather than a hand-kept list, so adding an
  * endpoint to `config.endpoints` is the only edit needed to keep `/api/docs`
@@ -159,7 +163,7 @@ export function rootEndpointPathsFrom(
  * @example '/api/pages' -> 'pages'
  * @example '/api/pages/{id}' -> 'pages'
  * @example '/api/globals/payload-job-stats' -> 'payload-job-stats'
- * @example '/api/contact-admin' -> null (when listed in `rootPaths`)
+ * @example '/api/atlas/seo' -> null (when listed in `rootPaths`)
  */
 function getCollectionFromPath(path: string, rootPaths: Set<string>): string | null {
   // Root-level endpoints belong to no collection — returning null keeps them

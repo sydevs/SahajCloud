@@ -20,6 +20,7 @@ import { Songs } from './Songs/Songs'
 import { SongTags } from './SongTags/SongTags'
 import { SubtleSystemNodes } from './SubtleSystemNodes/SubtleSystemNodes'
 import { UserChoices } from './UserChoices/UserChoices'
+import { UserMessages } from './UserMessages/UserMessages'
 import { Users } from './Users/Users'
 import { Videos } from './Videos/Videos'
 
@@ -55,6 +56,8 @@ export const collections = [
   EventSubmissions,
   Registrations,
   Users,
+  // System
+  UserMessages,
 ]
 
 export {
@@ -86,6 +89,8 @@ export {
   Managers,
   Clients,
   Users,
+  // System
+  UserMessages,
   // Project-specific
   AppCards,
 }

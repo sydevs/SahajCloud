@@ -316,10 +316,12 @@ SENTRY_AUTH_TOKEN=<token>
 **Captcha (Cloudflare Turnstile)**:
 
 - `TURNSTILE_SECRET_KEY` - **required in production**; server-side secret for the
-  captcha on `POST /api/contact-admin`. Validated at **point of use**, not at
-  boot, so a missing key can't take the app (or a PR preview) down — but the
-  verifier then fails closed: the endpoint returns `500` and logs
-  `contactAdmin: Turnstile verification could not be completed` with
+  captcha the write-guard plugin enforces on the public write surface —
+  `POST /api/user-messages` and `POST /api/event-submissions`, which read the
+  token from the `x-turnstile-token` header. Validated at **point of use**, not
+  at boot, so a missing key can't take the app (or a PR preview) down — but the
+  verifier then fails closed: the write is refused with `500` and logs
+  `antiSpamGuard: Turnstile verification could not be completed` with
   `reason: "not-configured"`, and **never** lets a message through unverified.
   Pair it with the matching **site key** in the client app's widget (a different
   value, held by SahajAtlasWeb / WeMeditateWeb — not needed here).

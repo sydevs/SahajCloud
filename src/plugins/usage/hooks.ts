@@ -234,7 +234,7 @@ function describeStringPreview(value: unknown): string | null {
  * Enforce a client's `Origin`/`Referer` allowlist, throwing `APIError(403)` when
  * the request host isn't on it. The single source of the rule; both
  * {@link validateClientOriginHook} (collection reads/writes) and endpoints that
- * touch no collection at all (`POST /api/contact-admin`) call it. Rules:
+ * touch no collection at all (`GET /api/atlas/seo`) call it. Rules:
  *
  * - Non-client requests (managers, admin UI, server tasks): untouched.
  * - Empty / unset `allowedDomains`: ALLOW any origin (backward-compatible default).

@@ -1,0 +1,27 @@
+/*
+ * Payload's `.banner--has-icon` sets only `display: flex` — no alignment, no
+ * gap, and no `flex-shrink` on the icon. Beside a multi-line message the 26px
+ * icon stretches to the banner's full height and drifts out of line with the
+ * first row of text. Same correction as the event-submission banner.
+ */
+.user-message-status {
+  align-items: flex-start;
+  gap: calc(var(--base) * 0.4);
+}
+
+.user-message-status > svg {
+  flex-shrink: 0;
+}
+
+/* The state, named. Inherits the banner's colour so it can't drift from it. */
+.user-message-status__title {
+  display: block;
+  font-weight: 600;
+  margin-bottom: calc(var(--base) * 0.15);
+}
+
+/* Screening's verdict, under the message. */
+.user-message-status__notes {
+  margin: calc(var(--base) * 0.4) 0 0;
+  padding-left: 1.2em;
+}
