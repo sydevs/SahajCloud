@@ -369,7 +369,7 @@ Railway API) and runs `pnpm test:smoke`; locally it falls back to
 | File                            | Purpose                                                                          |
 | ------------------------------- | -------------------------------------------------------------------------------- |
 | `tests/e2e/*.e2e.spec.ts`       | REST smoke flows: `auth`, `meditations`, `songs`, `lectures`                     |
-| `tests/e2e/_helpers/preview.ts` | `ensureAdmin` (login, or `first-register` on an empty preview DB) + auth headers |
+| `tests/e2e/_helpers/preview.ts` | `ensureAdmin` (a login — the deploy provisions the admin) + auth headers |
 | `tests/e2e/_helpers/runId.ts`   | Per-run record prefix so concurrent PR previews don't collide                    |
 | `tests/files/`                  | Sample audio/image files used by upload specs                                    |
 
