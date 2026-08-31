@@ -1,13 +1,11 @@
 import type { PayloadRequest, TaskConfig } from 'payload'
 
 import {
+  MESSAGE_VERDICT_NOTES,
   MESSAGE_VERDICTS,
-  messageVerdictNote,
   type MessageVerdict,
-  type UserMessageScreeningResult,
 } from '@/collections/UserMessages/screening'
 import { SCREENABLE_STATUSES, type MessageStatus } from '@/collections/UserMessages/statuses'
-import type { UserMessageContext } from '@/collections/UserMessages/types'
 import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
 import { sendUserMessage } from '@/lib/notifications/sendUserMessage'
 import { relationId } from '@/lib/utilities/relationId'
@@ -20,6 +18,15 @@ import {
   HISTORY_WINDOW_HOURS,
   REPEAT_SENDER_MAX,
 } from './senderHistory'
+
+/**
+ * Both shapes are generated from the `jsonSchema` on their columns, so the
+ * stored contract has one definition. Reached by indexed access rather than by
+ * the generated interface's URI-derived name, which is an implementation detail
+ * of how Payload names them (cf. `src/lib/clients/embedMetadata.ts`).
+ */
+type ScreeningResult = NonNullable<UserMessage['screeningResult']>
+type MessageContext = NonNullable<UserMessage['context']>
 
 /** Said in the notification subject when the relaying client can't be resolved. */
 const UNKNOWN_CLIENT = 'Unknown service'
@@ -80,14 +87,14 @@ export const ScreenUserMessages: TaskConfig<'screenUserMessage'> = {
     // re-run a DNS lookup and two counts to reach the same answer, and the
     // second count could even differ (more messages have arrived since), which
     // would let a transport failure turn a clean message into spam on retry.
-    let result: UserMessageScreeningResult
+    let result: ScreeningResult
     if (status === 'failed' && isScreeningResult(message.screeningResult)) {
       result = message.screeningResult
     } else {
       const verdict = await screen({ req, message, now })
       result = {
         verdict: verdict.verdict,
-        notes: [messageVerdictNote(verdict.verdict)].filter(
+        notes: [MESSAGE_VERDICT_NOTES[verdict.verdict]].filter(
           (note): note is string => note !== null,
         ),
         ...(verdict.diagnostic ? { diagnostic: verdict.diagnostic } : {}),
@@ -127,7 +134,7 @@ export const ScreenUserMessages: TaskConfig<'screenUserMessage'> = {
         message: message.message,
         subject: message.subject || 'Message',
         senderEmail: message.senderEmail ?? undefined,
-        context: (message.context ?? undefined) as UserMessageContext | undefined,
+        context: (message.context ?? undefined) as MessageContext | undefined,
         receivedAt: message.createdAt,
       })
     } catch (error) {
@@ -261,7 +268,7 @@ async function clientNameFor(req: PayloadRequest, clientId: number | null): Prom
  * the union is a lie the compiler then propagates. Falling through to a fresh
  * screening is the safe answer for a row we didn't write.
  */
-function isScreeningResult(value: unknown): value is UserMessageScreeningResult {
+function isScreeningResult(value: unknown): value is ScreeningResult {
   if (typeof value !== 'object' || value === null) return false
   // Read as `unknown` rather than through a cast: casting to the result type
   // first would hand `includes` an already-narrowed value and let TypeScript
