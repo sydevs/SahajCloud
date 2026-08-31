@@ -105,7 +105,7 @@ const MOUNT_KEY_MESSAGES = {
  * - **The request's** `Origin`/`Referer` must be in `allowedDomains`. `clients`
  *   is excluded from the usage plugin (`usagePlugin.ts`), so *no*
  *   `beforeOperation` hook fires on this route — the assertion is called by hand,
- *   the way the root `contactAdmin` endpoint does it.
+ *   the way the root `atlasSeo` endpoint does it.
  * - **The reported mount's host** must be in `allowedDomains` too. A client can
  *   only ever describe pages on domains it owns, whether or not a browser sent
  *   an `Origin` header.

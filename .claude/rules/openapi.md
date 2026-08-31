@@ -101,6 +101,20 @@ filterSpec(rawSpec, {
 **`ALLOW_POST_FOR`** — collections that may accept POST in the public spec:
 
 - `form-submissions`
+- `event-submissions`, `user-messages` — the two public intakes
+
+**`ALLOW_POST_FOR` is necessary but not sufficient**, and the gap has bitten
+twice. Two independent tiers can mark a POST `x-internal`, and clearing the
+create-specific one leaves tier 2 untouched: **any path whose collection is in
+no project is hidden**. Both public intakes are deliberately in no project —
+that is what stops project membership granting implicit read to a project's
+roles — so both POSTs are `x-internal` despite being in this list, and clients
+discover them through the generated types rather than `/api/docs`.
+
+If you want one of them documented, the change is **project membership plus
+`RESTRICTED_COLLECTIONS`** (the latter is what keeps implicit read off a
+collection that carries personal data), not another entry here. Both directions
+are pinned in `tests/unit/openapi-custom-endpoints.spec.ts`.
 
 **Project-based filtering** — when a project is specified, only its
 collections are shown; otherwise the union of all client-role collections
@@ -136,7 +150,6 @@ collection slug.
 | `GET /api/lectures/{id}/related-meditations` | `src/collections/Lectures/endpoints/relatedMeditations.ts` | `#/components/schemas/MeditationCardData` (hand-authored) |
 | `GET /api/events/geojson`                    | `src/collections/Events/endpoints/geojson.ts`       | `#/components/schemas/EventFeatureCollection` (hand-authored) |
 | `POST /api/events/{id}/register`             | `src/collections/Events/endpoints/registerForEvent.ts` | `#/components/schemas/EventRegistrationResponse` (hand-authored) |
-| `POST /api/contact-admin`                    | `src/endpoints/contactAdmin.ts` (root endpoint)     | `#/components/schemas/ContactAdminResponse` (hand-authored) |
 | `GET /api/atlas/seo`                         | `src/endpoints/atlas/seo/` (root endpoint)         | `#/components/schemas/AtlasSeoResponse` (hand-authored) |
 | `GET /api/atlas/sitemap`                     | `src/endpoints/atlas/sitemap/` (root endpoint)     | `#/components/schemas/AtlasSitemapResponse` (hand-authored) |
 | `POST /api/clients/report`                   | `src/collections/Clients/endpoints/report.ts`       | `#/components/schemas/ClientEmbedReportResponse` (hand-authored) — **`x-internal`**, see below |
@@ -162,8 +175,8 @@ collection, so every project tier reads it as "not in this project" and marks it
 The route handler closes that gap by passing `filterSpec` a `rootEndpointPaths`
 option, built by `rootEndpointPathsFrom(payload.config.endpoints)` — those paths
 are exempted from the tiers and stay visible in every project's spec, which is
-right since a root endpoint is project-agnostic by nature (`/api/contact-admin`
-is shared by Atlas and WeMeditateWeb).
+right since a root endpoint is project-agnostic by nature (`/api/atlas/seo`
+answers for any client app's route).
 
 **Derived from the live config, so there's no second list to keep in sync** —
 registering the endpoint in `payload.config.ts` is the only edit needed. The
@@ -220,7 +233,7 @@ Current guards (both **unit** — no Payload bootstrap):
 
 - `tests/unit/openapi-custom-endpoints.spec.ts` — the hand-authored custom paths
   + schemas stay registered (Atlas events, `/lectures/{id}/related-meditations`,
-  `/contact-admin`), shaped endpoints expose no `select`/`populate`, `filterSpec`
+  `/atlas/seo`), shaped endpoints expose no `select`/`populate`, `filterSpec`
   POST visibility (the auto-generated base-collection `POST /api/{collection}` is
   hidden unless the collection is in `ALLOW_POST_FOR`; hand-authored custom POST
   subpaths stay visible), and the root-path exemption in both directions —

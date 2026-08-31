@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 
-import {
-  antiSpamErrorResponse,
-  checkEmailAllowed,
-  checkNoUrls,
-} from '@/lib/endpoints/antiSpamGuard'
+import { checkEmailAllowed, checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
 import { signToken, verifyToken } from '@/lib/utilities/signedToken'
 
 const NOW = new Date('2026-08-11T12:00:00.000Z')
@@ -60,32 +56,6 @@ describe('checkEmailAllowed', () => {
     const result = checkEmailAllowed('throwaway@mailinator.com')
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.code).toBe('disposable_email')
-  })
-})
-
-describe('antiSpamErrorResponse', () => {
-  it('ships the machine code on client-actionable failures', async () => {
-    const response = antiSpamErrorResponse({
-      ok: false,
-      code: 'captcha_failed',
-      status: 403,
-      message: 'Captcha verification failed.',
-    })
-    expect(response.status).toBe(403)
-    const body = (await response.json()) as { errors: { code?: string }[] }
-    expect(body.errors[0].code).toBe('captcha_failed')
-  })
-
-  it('withholds the code on our own 500 (pinned contactAdmin contract)', async () => {
-    const response = antiSpamErrorResponse({
-      ok: false,
-      code: 'captcha_unavailable',
-      status: 500,
-      message: 'Could not verify the captcha.',
-    })
-    expect(response.status).toBe(500)
-    const body = (await response.json()) as { errors: { code?: string }[] }
-    expect(body.errors[0].code).toBeUndefined()
   })
 })
 

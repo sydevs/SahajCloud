@@ -1,24 +1,28 @@
 /**
- * Send an admin-facing contact message on a viewer's behalf (`POST /api/contact-admin`).
+ * Send an admin-facing user message on a viewer's behalf (`user-messages`, #632).
  *
- * Unlike the registration sends, this one is **not** best-effort: nothing is
- * persisted, so the email is the entire deliverable. A failure must reach the
- * caller (the endpoint answers 502), which is why this throws rather than
- * swallowing — the same "policy stays at the call site" split the registration
- * notification uses.
+ * **Throws on failure, deliberately.** Under #602 the reason was that nothing
+ * was persisted, so the email was the entire deliverable and the endpoint owed
+ * the caller a 502. The message is now stored, and the caller is long gone by
+ * the time this runs — but the throw still matters, because the *job* is now the
+ * party that reacts to it: `screenUserMessage` catches it, records the row as
+ * `failed` so an admin can see it, and rethrows to earn a retry. Swallowing here
+ * would turn a failed send into a silently "delivered" message.
+ *
+ * Same "policy stays at the call site" split as the registration notifications.
  */
 
 import type { Payload } from 'payload'
 
 import { createElement } from 'react'
 
-import { buildContactDetails, ContactAdminEmail } from '@/emails/ContactAdminEmail'
-import type { ContactAdminContext } from '@/endpoints/responseTypes'
+import { buildUserMessageDetails, UserMessageEmail } from '@/emails/UserMessageEmail'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
+import type { UserMessage } from '@/payload-types'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
-export interface SendContactAdminArgs {
+export interface SendUserMessageArgs {
   payload: Payload
   /** Name of the API client service the message came through — the subject prefix. */
   clientName: string
@@ -29,12 +33,12 @@ export interface SendContactAdminArgs {
   /** The sender's address; becomes `Reply-To` when present. */
   senderEmail?: string
   /** Caller-supplied context rendered into the details block. */
-  context?: ContactAdminContext
+  context?: NonNullable<UserMessage['context']>
   /** When the message was received (ISO 8601). */
   receivedAt: string
 }
 
-export async function sendContactAdmin(args: SendContactAdminArgs): Promise<void> {
+export async function sendUserMessage(args: SendUserMessageArgs): Promise<void> {
   const { payload, clientName, message, subject, senderEmail, context, receivedAt } = args
 
   const brand = getEmailBrand()
@@ -53,12 +57,12 @@ export async function sendContactAdmin(args: SendContactAdminArgs): Promise<void
     // neither can start a second header.
     subject: stripNewlines(`[${clientName}] ${subject}`),
     html: await renderEmail(
-      createElement(ContactAdminEmail, {
+      createElement(UserMessageEmail, {
         message,
         senderEmail,
         subject,
         brand,
-        details: buildContactDetails({ clientName, receivedAt, context }),
+        details: buildUserMessageDetails({ clientName, receivedAt, context }),
       }),
     ),
   })

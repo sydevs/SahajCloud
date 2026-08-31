@@ -47,12 +47,13 @@ plus a self-contained `responseTypes.ts` that client repos sync by raw GitHub UR
 (same shape as `Events/endpoints/responseTypes.ts`).
 
 **The layout mirrors the URL**: a single-file endpoint is
-`src/endpoints/<name>.ts` (`contactAdmin.ts` → `POST /api/contact-admin`, #602);
-one with supporting modules is a folder whose path *is* the URL path, handler in
-`index.ts` (`src/endpoints/atlas/seo/` → `GET /api/atlas/seo`, #645;
-`src/endpoints/atlas/sitemap/` → `GET /api/atlas/sitemap`, #650). Those
-supporting modules are single-owner code and stay in the folder — putting them in
-`src/lib/` fails the one-consumer check below.
+`src/endpoints/<name>.ts`; one with supporting modules is a folder whose path
+*is* the URL path, handler in `index.ts` (`src/endpoints/atlas/seo/` →
+`GET /api/atlas/seo`, #645; `src/endpoints/atlas/sitemap/` →
+`GET /api/atlas/sitemap`, #650). #632 turned another into the `user-messages`
+collection once its resource needed storing. Those supporting modules are
+single-owner code and stay in the folder — putting them in `src/lib/` fails the
+one-consumer check below.
 
 This folder is the **exception, not a second home for endpoints** — anything a
 collection plausibly owns stays colocated under `src/collections/<Name>/endpoints/`.
@@ -74,7 +75,13 @@ No loose files at the root — every file lives in a named folder:
 - `richEditor/` — Lexical editor presets + `blocks/` (the editor's block set) +
   `lexicalHooks`
 - `endpoints/` — shared client-endpoint helpers (`requireActiveClient`,
-  `parseQuery`, `emptyPaginatedResponse`)
+  `parseQuery`, `emptyPaginatedResponse`). `antiSpamGuard` used to live here for
+  the `contactAdmin` endpoint; once that became a collection (#632) its consumers
+  were the write-guard plugin and two jobs — no endpoint at all — so it moved to
+  `antiSpam/` rather than leaving the folder name lying
+- `antiSpam/` — the transport-agnostic public-write checks (`checkNoUrls`,
+  `checkEmailAllowed`, `verifyTurnstileOrFail`), shared by the write-guard plugin
+  and both screening jobs
 - external-service clients, alongside `mapbox/`: `turnstile/` (Cloudflare
   captcha siteverify). Single-consumer today, but an integration seam rather
   than one endpoint's private helper — and unit-testable without booting it.

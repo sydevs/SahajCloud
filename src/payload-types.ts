@@ -643,6 +643,7 @@ export interface Config {
     'event-submissions': EventSubmission;
     registrations: Registration;
     users: User;
+    'user-messages': UserMessage;
     forms: Form;
     'form-submissions': FormSubmission;
     'payload-kv': PayloadKv;
@@ -721,6 +722,7 @@ export interface Config {
     'event-submissions': EventSubmissionsSelect<false> | EventSubmissionsSelect<true>;
     registrations: RegistrationsSelect<false> | RegistrationsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
+    'user-messages': UserMessagesSelect<false> | UserMessagesSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -826,7 +828,9 @@ export interface Config {
     tasks: {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       expireEvents: TaskExpireEvents;
+      purgeUserMessages: TaskPurgeUserMessages;
       screenEventSubmission: TaskScreenEventSubmission;
+      screenUserMessage: TaskScreenUserMessage;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
       sendRegistrationDigests: TaskSendRegistrationDigests;
       sendSessionReminders: TaskSendSessionReminders;
@@ -3615,6 +3619,67 @@ export interface EventSubmission {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "user-messages".
+ */
+export interface UserMessage {
+  id: number;
+  screeningResult?: {
+    /**
+     * `ok`, or why the message was classified spam.
+     */
+    verdict: 'ok' | 'disposable_email' | 'invalid_email' | 'no_mx_records' | 'repeat_sender' | 'duplicate_body';
+    /**
+     * Everything an admin needs, as complete sentences. Each says what happened and what follows from it. A delivered message normally has none.
+     */
+    notes?: string[];
+    /**
+     * A technical detail kept for triage and NOT rendered — an MX lookup that came back inconclusive, or the mail transport’s own error string. Discarding it would leave nothing to look at when delivery goes wrong.
+     */
+    diagnostic?: string;
+    /**
+     * When screening reached this verdict (ISO 8601).
+     */
+    screenedAt: string;
+  };
+  subject?: string | null;
+  message: string;
+  /**
+   * Optional. Becomes the Reply-To of the message we email out.
+   */
+  senderEmail?: string | null;
+  context?: {
+    /**
+     * Route the sender was on, e.g. `/events/london-meetup`.
+     */
+    path?: string;
+    /**
+     * Absolute URL of the host page embedding the widget.
+     */
+    hostUrl?: string;
+    /**
+     * Locale the sender was browsing in.
+     */
+    locale?: string;
+    /**
+     * Error text/stack the sender was reporting, when the message is a crash report.
+     */
+    error?: string;
+    /**
+     * The sender's user-agent string.
+     */
+    userAgent?: string;
+    [k: string]: unknown;
+  };
+  client?: (number | null) | Client;
+  user?: (number | null) | User;
+  status: 'screening' | 'delivered' | 'spam' | 'failed';
+  bodyHash?: string | null;
+  deliveredAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "forms".
  */
 export interface Form {
@@ -3868,7 +3933,9 @@ export interface PayloadJob {
           | 'inline'
           | 'cleanupOrphanedMedia'
           | 'expireEvents'
+          | 'purgeUserMessages'
           | 'screenEventSubmission'
+          | 'screenUserMessage'
           | 'sendPostEventFollowUps'
           | 'sendRegistrationDigests'
           | 'sendSessionReminders'
@@ -3913,7 +3980,9 @@ export interface PayloadJob {
         | 'inline'
         | 'cleanupOrphanedMedia'
         | 'expireEvents'
+        | 'purgeUserMessages'
         | 'screenEventSubmission'
+        | 'screenUserMessage'
         | 'sendPostEventFollowUps'
         | 'sendRegistrationDigests'
         | 'sendSessionReminders'
@@ -4044,6 +4113,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'users';
         value: number | User;
+      } | null)
+    | ({
+        relationTo: 'user-messages';
+        value: number | UserMessage;
       } | null)
     | ({
         relationTo: 'forms';
@@ -4871,6 +4944,24 @@ export interface UsersSelect<T extends boolean = true> {
   submittedEvents?: T;
   legacyId?: T;
   legacyData?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "user-messages_select".
+ */
+export interface UserMessagesSelect<T extends boolean = true> {
+  screeningResult?: T;
+  subject?: T;
+  message?: T;
+  senderEmail?: T;
+  context?: T;
+  client?: T;
+  user?: T;
+  status?: T;
+  bodyHash?: T;
+  deliveredAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -6674,11 +6765,36 @@ export interface TaskExpireEvents {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskPurgeUserMessages".
+ */
+export interface TaskPurgeUserMessages {
+  input: {
+    now?: string | null;
+  };
+  output: {
+    deletedDelivered: number;
+    deletedSpam: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TaskScreenEventSubmission".
  */
 export interface TaskScreenEventSubmission {
   input: {
     submissionId: number;
+  };
+  output: {
+    status: string;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskScreenUserMessage".
+ */
+export interface TaskScreenUserMessage {
+  input: {
+    messageId: number;
   };
   output: {
     status: string;

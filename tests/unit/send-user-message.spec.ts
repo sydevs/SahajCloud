@@ -1,19 +1,19 @@
 /**
- * Unit tests for the contact-admin send helper — the message envelope, not the
- * endpoint. Pure: `payload.sendEmail` is a spy, so there's no Payload bootstrap,
- * no DB, and no SMTP.
+ * Unit tests for the user-message send helper — the message envelope, not the
+ * screening job that calls it. Pure: `payload.sendEmail` is a spy, so there's no
+ * Payload bootstrap, no DB, and no SMTP.
  *
  * These cover the parts an integration test can't see, because the shared
  * `EmailTestAdapter` captures only `to`/`from`/`subject`/`html` and drops
- * `replyTo` entirely — and `replyTo` is precisely what makes this endpoint
- * useful (a reply must reach the sender, and must be *absent* rather than empty
- * when there is nobody to reply to).
+ * `replyTo` entirely — and `replyTo` is precisely what makes this channel useful
+ * (a reply must reach the sender, and must be *absent* rather than empty when
+ * there is nobody to reply to).
  */
 import { describe, expect, it, vi } from 'vitest'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
-import type { SendContactAdminArgs } from '@/lib/notifications/sendContactAdmin'
-import { sendContactAdmin } from '@/lib/notifications/sendContactAdmin'
+import type { SendUserMessageArgs } from '@/lib/notifications/sendUserMessage'
+import { sendUserMessage } from '@/lib/notifications/sendUserMessage'
 
 type SentMessage = {
   to: string
@@ -36,13 +36,13 @@ const baseArgs = {
   receivedAt: '2026-08-03T09:30:00.000Z',
 }
 
-async function send(overrides: Partial<SendContactAdminArgs> = {}) {
+async function send(overrides: Partial<SendUserMessageArgs> = {}) {
   const { payload, sendEmail } = fakePayload()
-  await sendContactAdmin({ payload, ...baseArgs, ...overrides })
+  await sendUserMessage({ payload, ...baseArgs, ...overrides })
   return sendEmail.mock.calls[0][0]
 }
 
-describe('sendContactAdmin', () => {
+describe('sendUserMessage', () => {
   it('sends to the contact address with the client-prefixed subject', async () => {
     const message = await send()
 
@@ -115,14 +115,15 @@ describe('sendContactAdmin', () => {
   })
 
   it('propagates a send failure rather than swallowing it', async () => {
-    // The endpoint's 502 depends on this: nothing is persisted, so a failure that
-    // never reaches the call site becomes a silently dropped message.
+    // The screening job's `failed` status depends on this: a failure that never
+    // reaches the call site would leave the row marked `delivered` when nothing
+    // was delivered, and would earn no retry.
     const sendEmail = vi.fn(async () => {
       throw new Error('Resend 422')
     })
 
-    await expect(
-      sendContactAdmin({ payload: { sendEmail } as never, ...baseArgs }),
-    ).rejects.toThrow('Resend 422')
+    await expect(sendUserMessage({ payload: { sendEmail } as never, ...baseArgs })).rejects.toThrow(
+      'Resend 422',
+    )
   })
 })

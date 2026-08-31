@@ -162,8 +162,17 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   widget's public key.
  * - `event-submissions` — public event submissions (submitter emails + notes).
  *   Clients may create them (explicit grant) but never read them back.
+ * - `user-messages` — free-text messages from viewers (sender addresses + their
+ *   words, unscreened). Clients may create them but never read them back, and
+ *   unlike the two above **no manager role grants them either** — reading one is
+ *   an admin-bypass-only act. Being in no project would otherwise make them
+ *   "shared", i.e. readable by every role; this list is what prevents that.
  */
-const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set(['users', 'event-submissions'])
+const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
+  'users',
+  'event-submissions',
+  'user-messages',
+])
 
 /** Whether implicit (project/shared) read must never apply to this collection. */
 export function isRestrictedCollection(collection: ContentSlug): boolean {

@@ -39,7 +39,7 @@ Credentials for anything beyond local dev live outside the repo:
 
 | Environment | Where the credential lives |
 | ----------- | -------------------------- |
-| Railway PR preview | `PREVIEW_ADMIN_PASSWORD` — CI secret; the smoke lane passes it through (`.github/workflows/ci.yml`) |
+| Railway PR preview | `PREVIEW_ADMIN_PASSWORD` — CI secret; the smoke lane passes it through (`.github/workflows/ci.yml`). The first smoke run seeds the preview's admin with it and the preview database keeps that value, so rotating the secret orphans every preview already seeded — reset those databases when you rotate |
 | Production | `ADMIN_PASSWORD` in `.env.claude.local` — see `.claude/docs/environment.md` |
 
 ## Essential Commands
@@ -161,6 +161,25 @@ GitHub Actions runs on every pull request (`.github/workflows/ci.yml`) as one jo
 3. `pnpm test:smoke` — Playwright REST smoke specs against the per-PR **Railway preview** (its URL discovered via the Railway API; the step skips gracefully when there's no preview env or `RAILWAY_API_TOKEN`)
 
 GitHub Actions does **not** build the app — the Next.js build runs on Railway when it creates the PR preview deployment. PR-only triggers; `concurrency: cancel-in-progress` cancels superseded runs on the same branch. CI **reports** status but does not block merges unless a branch-protection rule on `main` requires the `Lint, Test & Smoke` check to pass.
+
+### A conflicted PR runs NO CI at all — and says nothing about why
+
+**If `main` moves and your branch conflicts with it, GitHub schedules zero workflow runs for that branch.** A `pull_request` workflow runs against the *merge commit* GitHub computes for the PR, and a conflicted PR has no such commit — so there is nothing to run. Nothing announces this: `gh pr checks` lists only the non-Actions checks (Railway keeps deploying happily, because it builds your branch head, not the merge), `gh run list --branch <branch>` is simply empty, and the PR page shows no failed job. It looks exactly like a slow or broken scheduler.
+
+**The diagnostic is one command** — reach for it before waiting on a run that will never come:
+
+```bash
+gh pr view <n> --json mergeable,mergeStateStatus
+# mergeable: CONFLICTING, mergeStateStatus: DIRTY  → resolve the conflict; CI cannot run
+# mergeable: MERGEABLE,   mergeStateStatus: CLEAN  → genuinely waiting on the scheduler
+```
+
+**The fix is to merge `origin/main` into the branch and resolve**, then push — the merge commit becomes computable and CI fires on the next push. Do not close/reopen the PR or push empty commits to "nudge" it; neither addresses the cause.
+
+Two things make this easy to misread, and both cost real time in #632/#653:
+
+- **A green run can be stale.** The last successful run was against the commit *before* `main` moved, so the PR looks tested when the conflict arose after that run. Always check the run's `head_sha` against your branch head.
+- **Docs conflict more than code.** Two PRs adding sibling features (a second root endpoint, a third collection) rarely touch the same functions, but they routinely edit the same paragraph of the same `.claude/rules/*.md` list — which is enough to stop CI on both. When your change edits a shared rule doc, prefer wording that states the *criterion* rather than a count or an enumeration, so a sibling PR neither conflicts nor makes your sentence false.
 
 ## Deployment
 

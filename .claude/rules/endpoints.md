@@ -52,15 +52,14 @@ Almost every endpoint here belongs to a collection and lives in its
 
 ```typescript
 // src/payload.config.ts
-import { contactAdmin } from './endpoints/contactAdmin'
+import { atlasSeo } from './endpoints/atlas/seo'
+import { atlasSitemap } from './endpoints/atlas/sitemap'
 
-endpoints: [atlasSeo, contactAdmin],
+endpoints: [atlasSeo, atlasSitemap],
 ```
 
-Three such endpoints exist, each for a different reason:
+The bar is high. Two endpoints clear it, each for a different reason:
 
-- `POST /api/contact-admin` — a contact message is stored nowhere and owned by
-  nothing.
 - `GET /api/atlas/seo` — the caller passes a **route**, which may name a region
   *or* an event, so no single collection owns the resource. (Putting it under
   `regions` would have been a lie half the time, and keying it by id instead
@@ -69,13 +68,21 @@ Three such endpoints exist, each for a different reason:
   same reason, and its unit is the *client's ownership*, which is a `clients`
   fact rather than either collection's.
 
+There was a third, `POST /api/contact-admin`, on the reasoning that a contact
+message was "stored nowhere and owned by nothing". **That reasoning is the trap
+to learn from**: it was true only because the endpoint chose not to store
+anything, and the moment the feature needed async spam screening it needed a
+collection — at which point the endpoint was deleted and the intake became the
+built-in create on `user-messages` (#632), recovering the origin enforcement and
+usage tracking it had been forfeiting all along. Before reaching for a root
+endpoint, ask whether the resource is genuinely ownerless or merely unpersisted.
+
 Prefer a collection endpoint whenever a collection plausibly owns the resource;
 reach for the root only when none does.
 
 **The folder path mirrors the URL.** A single-file endpoint sits at
-`src/endpoints/<name>.ts` (`contactAdmin.ts` → `/api/contact-admin`); one that
-needs supporting modules gets a folder whose path *is* the URL path, with the
-handler in `index.ts`:
+`src/endpoints/<name>.ts`; one that needs supporting modules gets a folder whose
+path *is* the URL path, with the handler in `index.ts`:
 
 ```
 src/endpoints/atlas/seo/        →  GET /api/atlas/seo
@@ -91,8 +98,9 @@ src/endpoints/atlas/sitemap/    →  GET /api/atlas/sitemap
 
 Those supporting modules are **single-owner code and belong here, not in
 `src/lib/`** — `tests/unit/lib-boundary.spec.ts` fails a lib module with one
-consumer outside lib. `responseTypes.ts` stays at `src/endpoints/` because all
-three endpoints share it.
+consumer outside lib. `responseTypes.ts` stays at `src/endpoints/` because both
+endpoints share it — and it would stay there even for one, since client repos
+sync it by a stable raw GitHub URL and moving it would break every one of them.
 
 **Two things you lose by leaving the collection seam** — both are the usage
 plugin's `beforeOperation` hooks, which only run on collection operations, so a

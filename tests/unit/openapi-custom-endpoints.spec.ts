@@ -105,6 +105,13 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
             get: { operationId: 'eventsList' },
             post: { operationId: 'eventsCreate' },
           },
+          '/api/user-messages': {
+            get: { operationId: 'userMessagesList' },
+            post: { operationId: 'userMessagesCreate' },
+          },
+          '/api/event-submissions': {
+            post: { operationId: 'eventSubmissionsCreate' },
+          },
           ...CUSTOM_ENDPOINT_PATHS,
         },
         components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
@@ -137,6 +144,22 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
     it('keeps the geojson GET and the standard events list GET visible', () => {
       expect(op('/api/events/geojson', 'get')['x-internal']).toBeFalsy()
       expect(op('/api/events', 'get')['x-internal']).toBeFalsy()
+    })
+
+    it('hides the user-messages POST — ALLOW_POST_FOR is necessary but not sufficient', () => {
+      // Two independent tiers can hide a POST, and `user-messages` clears only
+      // one of them. `ALLOW_POST_FOR` stops the create-specific rule from
+      // hiding it, but tier 2 hides every path whose collection is in no
+      // project — and `user-messages` is deliberately in none, because project
+      // membership is what grants implicit read to a project's roles.
+      //
+      // So the public intake is discoverable from the generated types (which is
+      // how the Atlas SDK consumes it) rather than from /api/docs. This is the
+      // same position `event-submissions` has been in since #625 — asserted
+      // below so the two can't silently diverge, and so anyone who wants this
+      // POST documented knows the change is project membership, not this list.
+      expect(op('/api/user-messages', 'post')['x-internal']).toBe(true)
+      expect(op('/api/event-submissions', 'post')['x-internal']).toBe(true)
     })
   })
 })
@@ -235,79 +258,6 @@ describe('clients embed-report custom endpoint (OpenAPI)', () => {
     )?.post
     expect(operation, 'POST /api/clients/report is missing from the filtered spec').toBeDefined()
     expect(operation['x-internal']).toBe(true)
-  })
-})
-
-describe('contact-admin root endpoint (OpenAPI)', () => {
-  const post = CUSTOM_ENDPOINT_PATHS['/api/contact-admin']?.post as
-    | { description?: string; responses?: Record<string, { description?: string }> }
-    | undefined
-
-  it('registers the POST path and both hand-authored schemas', () => {
-    expect(post).toBeDefined()
-    expect(CUSTOM_ENDPOINT_SCHEMAS['ContactAdminRequest']).toBeDefined()
-    expect(CUSTOM_ENDPOINT_SCHEMAS['ContactAdminResponse']).toBeDefined()
-  })
-
-  it('documents the bounds a public caller must respect', () => {
-    // The bounds are the contract — mirrors the Zod schema in the handler.
-    const schema = CUSTOM_ENDPOINT_SCHEMAS['ContactAdminRequest'] as {
-      required?: string[]
-      properties?: Record<string, { minLength?: number; maxLength?: number }>
-    }
-    expect(schema.required).toEqual(['message', 'turnstileToken'])
-    expect(schema.properties?.message).toMatchObject({ minLength: 10, maxLength: 5000 })
-    expect(schema.properties?.turnstileToken?.maxLength).toBe(2048)
-    // Optional by design: an anonymous message is allowed, it just can't be replied to.
-    expect(schema.required ?? []).not.toContain('email')
-  })
-
-  it('documents the distinguishable captcha code and the 502 delivery failure', () => {
-    // A caller resets its widget on `captcha_failed` rather than treating the
-    // 403 as fatal, so the code has to be discoverable from /api/docs.
-    expect(post?.responses?.['403']?.description).toContain('captcha_failed')
-    // And 502 means the message is gone — nothing was persisted to retry from.
-    expect(post?.responses?.['502']).toBeDefined()
-    expect(post?.description).toContain('502')
-  })
-
-  const build = () =>
-    JSON.parse(
-      JSON.stringify({
-        openapi: '3.1.0',
-        info: { title: 't', version: '1' },
-        paths: { ...CUSTOM_ENDPOINT_PATHS },
-        components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
-      }),
-    ) as unknown as OpenAPISpec
-
-  // Asserts presence first — a vanished path would otherwise read as falsy and
-  // pass the "stays visible" check without the endpoint being in the spec at all.
-  const contactAdminOp = (spec: OpenAPISpec): Record<string, unknown> => {
-    const operation = (
-      spec.paths?.['/api/contact-admin'] as Record<string, Record<string, unknown>> | undefined
-    )?.post
-    expect(operation, 'POST /api/contact-admin is missing from the filtered spec').toBeDefined()
-    return operation!
-  }
-
-  // What the route handler passes in production: derived from the live
-  // `config.endpoints`, so registering an endpoint is the only edit needed.
-  const rootEndpointPaths = rootEndpointPathsFrom([{ path: '/contact-admin' }])
-
-  it('stays visible in every project spec despite owning no collection', () => {
-    for (const project of ['sahaj-atlas', 'wemeditate-web', 'wemeditate-app'] as const) {
-      const filtered = filterSpec(build(), { project, rootEndpointPaths })
-      expect(contactAdminOp(filtered)['x-internal'], `hidden for ${project}`).toBeFalsy()
-    }
-  })
-
-  it('is hidden when the caller does not declare it as a root path', () => {
-    // The failure mode the exemption exists to prevent: `/api/contact-admin`'s
-    // first segment names no collection, so the project tier reads it as "not in
-    // this project" and hides a live endpoint from every /docs page.
-    const filtered = filterSpec(build(), { project: 'sahaj-atlas' })
-    expect(contactAdminOp(filtered)['x-internal']).toBe(true)
   })
 })
 
@@ -472,8 +422,8 @@ describe('atlas sitemap root endpoint (OpenAPI)', () => {
 
 describe('rootEndpointPathsFrom', () => {
   it('prefixes each root endpoint path with the API route', () => {
-    expect(rootEndpointPathsFrom([{ path: '/contact-admin' }, { path: '/og' }])).toEqual([
-      '/api/contact-admin',
+    expect(rootEndpointPathsFrom([{ path: '/atlas/seo' }, { path: '/og' }])).toEqual([
+      '/api/atlas/seo',
       '/api/og',
     ])
   })
