@@ -22,6 +22,7 @@ import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/plugi
 import { cachePlugin } from '@/plugins/cache'
 import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/plugins/email'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
+import { seedPreviewAdmin } from '@/plugins/previewAdmin'
 import { sentryPlugin } from '@/plugins/sentry'
 import { storagePlugin } from '@/plugins/storage'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
@@ -177,6 +178,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // NODE_ENV=production). Dev/test use Drizzle `push` above instead.
       prodMigrations: migrations,
     }),
+    // Reconcile the Railway preview's admin from PREVIEW_ADMIN_PASSWORD, after the
+    // migrations above have run. A no-op everywhere else — see the gate's docblock in
+    // `@/plugins/previewAdmin` for why each of its three conditions is there, and why
+    // production is detected by Railway's environment name rather than NODE_ENV.
+    onInit: seedPreviewAdmin,
     jobs: {
       tasks,
       deleteJobOnComplete: true,

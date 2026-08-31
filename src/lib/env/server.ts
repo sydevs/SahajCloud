@@ -253,6 +253,25 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   DOCS_PASSWORD: z.string().min(8, 'DOCS_PASSWORD must be at least 8 characters').optional(),
 
   /**
+   * Admin password for a Railway PR preview.
+   *
+   * Supplied by Railway to preview environments and by CI to the smoke lane. On boot,
+   * a preview reconciles its admin against this value (`@/plugins/previewAdmin`), so
+   * rotating it takes effect on the next deploy rather than orphaning the environment.
+   *
+   * Optional, and absent by design on production, local dev and the test lanes — the
+   * seeding gate reads Railway's environment name too, so the absence is not what keeps
+   * it from running there.
+   */
+  PREVIEW_ADMIN_PASSWORD: z.string().min(1).optional(),
+
+  /**
+   * Email the preview admin is provisioned under.
+   * Optional — defaults to `contact@sydevelopers.com`, matching the smoke lane.
+   */
+  PREVIEW_ADMIN_EMAIL: z.email().optional(),
+
+  /**
    * Server port number
    * @default 3000
    */
