@@ -110,6 +110,13 @@
       "Bash(npm view:*)",
       "Edit(.claude/docs/**)",
       "Write(.claude/docs/**)",
+      "Edit(.claude/rules/**)",
+      "Write(.claude/rules/**)",
+      "Edit(.claude/skills/**)",
+      "Write(.claude/skills/**)",
+      "Edit(CLAUDE.md)",
+      "Edit(AGENTS.md)",
+      "Write(AGENTS.md)",
       "Bash(pnpm test:unit *)"
     ]
   },
