@@ -3623,30 +3623,53 @@ export interface EventSubmission {
  */
 export interface UserMessage {
   id: number;
-  screeningResult?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  screeningResult?: {
+    /**
+     * `ok`, or why the message was classified spam.
+     */
+    verdict: 'ok' | 'disposable_email' | 'invalid_email' | 'no_mx_records' | 'repeat_sender' | 'duplicate_body';
+    /**
+     * Everything an admin needs, as complete sentences. Each says what happened and what follows from it. A delivered message normally has none.
+     */
+    notes?: string[];
+    /**
+     * A technical detail kept for triage and NOT rendered — an MX lookup that came back inconclusive, or the mail transport’s own error string. Discarding it would leave nothing to look at when delivery goes wrong.
+     */
+    diagnostic?: string;
+    /**
+     * When screening reached this verdict (ISO 8601).
+     */
+    screenedAt: string;
+  };
   subject?: string | null;
   message: string;
   /**
    * Optional. Becomes the Reply-To of the message we email out.
    */
   senderEmail?: string | null;
-  context?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  context?: {
+    /**
+     * Route the sender was on, e.g. `/events/london-meetup`.
+     */
+    path?: string;
+    /**
+     * Absolute URL of the host page embedding the widget.
+     */
+    hostUrl?: string;
+    /**
+     * Locale the sender was browsing in.
+     */
+    locale?: string;
+    /**
+     * Error text/stack the sender was reporting, when the message is a crash report.
+     */
+    error?: string;
+    /**
+     * The sender's user-agent string.
+     */
+    userAgent?: string;
+    [k: string]: unknown;
+  };
   client?: (number | null) | Client;
   user?: (number | null) | User;
   status: 'screening' | 'delivered' | 'spam' | 'failed';
