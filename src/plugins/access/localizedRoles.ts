@@ -19,7 +19,7 @@
  * a strategy-only fix is overwritten the moment the admin client calls `/me`.
  */
 
-import type { Payload } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 
 import type { LocaleCode } from '@/lib/locales'
 import { LOCALES } from '@/lib/locales'
@@ -62,12 +62,34 @@ export function normalizeLocalizedRoles(value: unknown): LocalizedRoles {
  * is being authenticated, so there is no authenticated user to check against yet,
  * and the local API defaults to overriding access for exactly that reason.
  *
+ * ⚠ **Pass `req` whenever the caller has one, and pass it through
+ * `localeIsolatedReq`.** Both halves of that matter, for opposite reasons:
+ *
+ * - **With no `req`, this takes its own pool connection.** The three auth-response
+ *   hooks run INSIDE an open transaction (`login.js` opens at :190, runs
+ *   `afterLogin` at :263, commits at :321; `refresh.js` likewise), so a
+ *   connection-less read there holds a second connection while the first is still
+ *   held. Under concurrency that exhausts the pool and the lane stops making
+ *   progress rather than failing.
+ * - **With the caller's own `req`, this would repoint their locale.**
+ *   `createLocalReq` assigns `req.locale` onto the object it is given, so
+ *   `locale: 'all'` would leak into every later step of that operation — the
+ *   defect `.claude/rules/collections.md` records as #609.
+ *
+ * `localeIsolatedReq` resolves both: `transactionID` carries by reference so the
+ * read joins the existing transaction, while `locale` becomes the copy's own.
+ *
+ * The auth STRATEGY is the one caller that correctly passes nothing — it runs in
+ * `executeAuthStrategies`, before any operation, so there is no transaction to
+ * join and no caller locale to protect.
+ *
  * Throws whatever the database throws. Callers must not let that fall through to
  * Payload's own JWT strategy — see `localizedRolesStrategy`.
  */
 export async function hydrateLocalizedRoles(
   payload: Payload,
   managerId: number | string,
+  req?: PayloadRequest,
 ): Promise<LocalizedRoles> {
   const doc = await payload.findByID({
     collection: 'managers',
@@ -75,6 +97,7 @@ export async function hydrateLocalizedRoles(
     id: managerId,
     locale: 'all',
     select: { roles: true },
+    ...(req ? { req } : {}),
   })
 
   return normalizeLocalizedRoles((doc as { roles?: unknown } | null)?.roles)
