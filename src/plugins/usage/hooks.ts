@@ -116,7 +116,7 @@ export const rateLimitHook: CollectionBeforeOperationHook = () => {
  * Bracket notation (`?select[field]=true`) is required because PayloadCMS REST
  * uses `qs-esm` to parse query strings into nested objects. Comma-separated
  * strings (`?select=field1,field2`) parse to a plain string and fail the
- * `typeof === 'object'` check below. See `src/plugins/usage/AGENTS.md` for the
+ * `typeof === 'object'` check below. See `docs/rules/api-clients.md` for the
  * full format contract and `tests/int/client-query-validation.int.spec.ts` for
  * REST-format coverage.
  *

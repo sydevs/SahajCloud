@@ -68,7 +68,7 @@ const EVENT_SELECT: SelectType = {
  *
  * `filename` is co-selected because `url` is virtual and reads it — a select
  * naming `url` alone yields `null` and the image silently disappears rather
- * than erroring (see the co-select rule in `src/endpoints/AGENTS.md`).
+ * than erroring (see the co-select rule in `docs/rules/endpoints.md`).
  */
 const IMAGE_SELECT: SelectType = { url: true, alt: true, filename: true }
 
@@ -361,7 +361,7 @@ async function eventSeo(
  * Registered at the config root rather than on a collection because the route
  * may name a region *or* an event, so no collection owns it — which means the
  * usage plugin's `beforeOperation` gates don't fire for the handler itself and
- * `assertClientOriginAllowed` is called directly (see `src/endpoints/AGENTS.md`).
+ * `assertClientOriginAllowed` is called directly (see `docs/rules/endpoints.md`).
  * The collection reads it forwards *do* run them, so published-only access,
  * project visibility and usage tracking all apply as usual.
  *

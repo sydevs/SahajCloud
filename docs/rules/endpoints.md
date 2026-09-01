@@ -1,3 +1,9 @@
+---
+paths:
+  - src/collections/*/endpoints/**/*.ts
+  - src/endpoints/**/*.ts
+---
+
 # Custom Endpoint Rules
 
 Rules for writing custom PayloadCMS collection endpoint handlers.
@@ -111,7 +117,7 @@ root handler that touches no collection runs neither:
 
 Everything else still applies unchanged: `requireActiveClient` as the first
 statement, and an OpenAPI entry — see the root-path note in
-`src/plugins/openapi/AGENTS.md`, since project visibility can't be derived from a path
+`docs/rules/openapi.md`, since project visibility can't be derived from a path
 segment that names no collection.
 
 ## Registration
@@ -179,9 +185,9 @@ endpoint you add:
   hand-authored response schema in lockstep with the handler's return type.
 - Add the path + schema to the guard in
   `tests/unit/openapi-custom-endpoints.spec.ts`.
-- Add a row to the custom-endpoint table in `src/plugins/openapi/AGENTS.md`.
+- Add a row to the custom-endpoint table in `docs/rules/openapi.md`.
 
-See `src/plugins/openapi/AGENTS.md` for the full shim contract.
+See `docs/rules/openapi.md` for the full shim contract.
 
 ### 3. select / populate — match the output model
 
@@ -250,7 +256,7 @@ paid ~16 extra queries per candidate (meditations `tagAssignments`, lectures
 `clips`) until each internal read was given a `select`.
 
 The client REST surface is already protected — `validateClientQueryParamsHook`
-rejects any API-client read without a `select` (see `src/plugins/usage/AGENTS.md`).
+rejects any API-client read without a `select` (see `docs/rules/api-clients.md`).
 The gap is **server-side reads that forward `asTrustedReq(req)`**, which bypass
 that gate. Those are exactly the reads you must bound by hand.
 
@@ -287,7 +293,7 @@ Rules of thumb:
 | Use case                                                                                                                                                                                                  | Where                                                               |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | URL belongs under a collection (e.g. `/api/frames/by-narrator/:narratorId`); operates on a single collection's docs; want automatic Payload auth/access integration                                       | `src/collections/<Name>/endpoints/*.ts` (this file)                                    |
-| Webhooks, health checks, OpenAPI spec generation, seed triggers, or operations spanning multiple collections; need raw request body (HMAC verification); need Next.js streaming / `NextResponse.redirect` | `src/app/(payload)/api/**/route.ts` (see `src/app/AGENTS.md`) |
+| Webhooks, health checks, OpenAPI spec generation, seed triggers, or operations spanning multiple collections; need raw request body (HMAC verification); need Next.js streaming / `NextResponse.redirect` | `src/app/(payload)/api/**/route.ts` (see `docs/rules/routes.md`) |
 
 ## Eliminating client-side race conditions
 

@@ -1,3 +1,9 @@
+---
+paths:
+  - src/plugins/usage/**/*.ts
+  - src/collections/Clients/Clients.ts
+---
+
 # API Client Authentication, Rate Limiting, Usage Tracking
 
 REST API authentication for third-party clients lives in the `Clients`
@@ -194,7 +200,7 @@ keyed object; never replaces it.
   and re-drop the same mounts on every report while the column grew without
   bound, leaving the cap inert.
 - It is registered in the OpenAPI shim but stays `x-internal`; see
-  `src/plugins/openapi/AGENTS.md`.
+  `docs/rules/openapi.md`.
 
 Tests: `tests/unit/client-embed-metadata.spec.ts` (mount keys incl. the `?p=`
 carve-out, and the merge), `tests/unit/embed-verification.spec.ts` (marker

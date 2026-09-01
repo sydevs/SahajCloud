@@ -11,7 +11,7 @@
  *
  * The descriptions emphasize PayloadCMS's bracket-notation requirement —
  * comma-separated strings get rejected by `validateClientQueryParamsHook` with
- * a 400. See `src/plugins/usage/AGENTS.md` for the format contract.
+ * a 400. See `docs/rules/api-clients.md` for the format contract.
  */
 
 const PARAMETER_BASE = {

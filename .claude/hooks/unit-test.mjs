@@ -11,7 +11,7 @@
  *   - src/{file}.ts / .tsx           (excluding src/payload-types.ts, src/migrations/**)
  *   - tests/unit/{file}.spec.ts      (the unit specs themselves)
  *
- * Tier 1 of the three-tier speed contract — see `tests/AGENTS.md`.
+ * Tier 1 of the three-tier speed contract — see `docs/rules/testing-reqs.md`.
  */
 
 import { execSync } from 'child_process'

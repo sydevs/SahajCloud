@@ -55,7 +55,7 @@ Before building or styling a UI component, check for an existing one and reuse
 it — fewer custom components means less maintenance and a consistent look.
 In the **admin panel**, prefer `@payloadcms/ui`'s built-ins (Banner, Pill,
 Table, Card, Tooltip, Drawer, Button, field primitives, icons, …); the catalog
-+ rule live in `src/components/admin/AGENTS.md`. Only hand-roll a custom-styled
++ rule live in `docs/rules/admin-ui.md`. Only hand-roll a custom-styled
 component when no built-in fits, and note what was missing.
 
 ## Prefer established dependencies over hand-rolled code
@@ -91,7 +91,7 @@ accessibility are controllable and rendering is consistent:
   [`lucide-react`](https://lucide.dev) (`<TriangleAlert size={20} color="…" />`).
   Payload's icons colour themselves from admin `--theme-*` variables that don't
   exist outside the admin, so they render wrong on public pages — use lucide there.
-- **Emails** (`src/emails/**`): the exception — see `src/plugins/email/AGENTS.md`.
+- **Emails** (`src/emails/**`): the exception — see `docs/rules/email.md`.
   Email clients don't render `<svg>`, so icon libraries (lucide / Payload) won't
   work; keep emoji or use a hosted PNG via react-email's `<Img>`.
 
@@ -137,7 +137,7 @@ Often faster than fetching external docs and catches behavior the docs
 don't describe — e.g. "the cloud-storage plugin only persists via return
 values, not mutation" — undocumented but unambiguous from three lines of
 source. (See the `handleUpload` return-value contract in
-`src/plugins/storage/AGENTS.md` for the canonical example.)
+`docs/rules/storage.md` for the canonical example.)
 
 **When external docs are better**: researching *new* features or APIs
 you haven't used yet, where you need the canonical contract before

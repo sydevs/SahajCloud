@@ -137,7 +137,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     globals,
     // Root-level custom endpoints — for resources that belong to no collection.
     // Everything else is colocated on its owning collection; see
-    // `src/endpoints/AGENTS.md`. The OpenAPI spec derives its root-path
+    // `docs/rules/endpoints.md`. The OpenAPI spec derives its root-path
     // exemption from this array (`rootEndpointPathsFrom`), so registering here
     // is all it takes to keep `/api/docs` honest.
     endpoints: [atlasSeo, atlasSitemap],

@@ -9,7 +9,7 @@ custom components add maintenance burden and drift from the CMS look & feel.
 
 - **Admin panel**: prefer `@payloadcms/ui`'s built-ins (Banner, Pill, Table,
   Card, Tooltip, Drawer, Button, field primitives, icons, …). See the catalog
-  in `src/components/admin/AGENTS.md` ("Prefer Payload's built-in components"). Only
+  in `docs/rules/admin-ui.md` ("Prefer Payload's built-in components"). Only
   write a custom-styled component when no built-in fits, and note why.
 - **Public frontend / non-admin**: use `lucide-react` for icons (see
   `docs/code-style.md`); Payload UI components don't apply there.

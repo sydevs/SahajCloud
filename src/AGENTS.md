@@ -53,7 +53,7 @@ This folder is the **exception, not a second home for endpoints** — anything a
 collection plausibly owns stays colocated under `src/collections/<Name>/endpoints/`.
 Leaving the collection seam costs you the usage plugin's beforeOperation hooks
 (origin enforcement, usage tracking), which a root handler has to compensate for
-by hand; see `src/endpoints/AGENTS.md`.
+by hand; see `docs/rules/endpoints.md`.
 
 ### `src/lib/`
 

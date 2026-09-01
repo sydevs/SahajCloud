@@ -1,3 +1,10 @@
+---
+paths:
+  - src/plugins/access/**/*.ts
+  - src/collections/Clients/**/*.ts
+  - src/collections/Managers/**/*.ts
+---
+
 # Role-Based Access Control
 
 The CMS uses a unified RBAC system via the `accessPlugin`. The plugin
@@ -209,7 +216,7 @@ The two knobs compose, and a collection that must be admin-only needs both:
 | Nobody reads it implicitly | Add to `RESTRICTED_COLLECTIONS` |
 | A client may still create it | Grant `['create']` in that client's role |
 | **No manager role may read it** | Grant it in **no** role — `user-messages` is the example |
-| Visible in `/api/docs` | Add to a project's `collections` (see `src/plugins/openapi/AGENTS.md`) |
+| Visible in `/api/docs` | Add to a project's `collections` (see `docs/rules/openapi.md`) |
 
 The last row is why both public intakes' POSTs are `x-internal`: neither is in a
 project, deliberately.

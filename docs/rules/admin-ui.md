@@ -1,3 +1,10 @@
+---
+paths:
+  - src/components/admin/**/*.tsx
+  - src/components/branding/**/*.tsx
+  - src/globals/**/*.ts
+---
+
 # Admin UI
 
 Rules for PayloadCMS admin-panel components — server vs client, field
@@ -88,7 +95,7 @@ and `RenderFields` (render a whole field set). Hooks: `useField`, `useForm`,
 
 For non-admin (public) React, Payload's components don't apply — use
 `lucide-react` (see `docs/code-style.md`). Emails never use either
-(no SVG) — see `src/plugins/email/AGENTS.md`.
+(no SVG) — see `docs/rules/email.md`.
 
 ## Live preview pushes the document — the frontend needn't fetch it
 
@@ -580,7 +587,7 @@ const [{ data, isLoading, isError }] = usePayloadAPI(
 )
 ```
 
-See `src/endpoints/AGENTS.md` for endpoint authoring patterns.
+See `docs/rules/endpoints.md` for endpoint authoring patterns.
 
 ## Label generation with `toWords`
 
@@ -672,8 +679,8 @@ to `DefaultNav` (imported from `@payloadcms/next/rsc` — not `@payloadcms/ui`).
   transforms (`sidebarModel.ts`) are unit-tested; `cache.ts` exposes
   `revalidateAtlasSidebar()` (Next 16 `revalidateTag(tag, 'max')`, best-effort
   outside a request scope), called from the Events/Regions `afterChange`/
-  `afterDelete` hooks and once at the end of the `ExpireEvents` job. Per the
-  rules in this guide the sidebar is a server component with direct
+  `afterDelete` hooks and once at the end of the `ExpireEvents` job. Per
+  `docs/rules/admin-ui.md` the sidebar is a server component with direct
   Payload access — no internal HTTP from the client.
 
 ## Project-aware dashboard

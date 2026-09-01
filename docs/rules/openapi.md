@@ -1,3 +1,9 @@
+---
+paths:
+  - src/plugins/openapi/**/*.ts
+  - src/app/(payload)/api/openapi.json/**/*.ts
+---
+
 # OpenAPI / Scalar API Docs
 
 Interactive REST API docs combine [`payload-oapi`](https://github.com/janbuchar/payload-oapi)

@@ -3,9 +3,6 @@
 Rules for PayloadCMS collections, custom fields, and the patterns
 specific to this codebase. This guide also covers `src/fields/`.
 
-Collection-owned endpoints (`src/collections/*/endpoints/`) follow the endpoint
-rules — see [`src/endpoints/AGENTS.md`](../endpoints/AGENTS.md).
-
 ## Access control is automatic
 
 `accessPlugin` applies access control, `admin.hidden`, and field-level
@@ -44,7 +41,7 @@ Behaviors worth knowing:
 - **Manager roles are per-locale** (uses `req.locale`).
 - **Client roles apply uniformly across all locales.**
 
-Full RBAC details: see `src/plugins/access/AGENTS.md` (loads when editing
+Full RBAC details: see `docs/rules/access.md` (loads when editing
 `src/plugins/access/`).
 
 ## Field factory naming
@@ -711,7 +708,7 @@ And one **stored** derived column, recomputed on every write (#603):
   field hook from the pure `lastOccurrenceEnd()`; the column is just that
   function's DB-queryable projection. A real column rather than a virtual field
   precisely so "has this schedule run out?" can appear in a `where` — the public
-  event feeds filter on it (see `src/plugins/usage/AGENTS.md`).
+  event feeds filter on it (see `docs/rules/api-clients.md`).
 
   Two things to know if you touch it:
 

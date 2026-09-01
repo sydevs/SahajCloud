@@ -8,7 +8,7 @@
  *
  * The webhook is account-scoped: only production subscribes to it. Dev
  * deployments have the route mounted but will 503 because the signing secret
- * is not set. See `src/plugins/storage/AGENTS.md`.
+ * is not set. See `docs/rules/storage.md`.
  *
  * The actual verification and processing logic lives in
  * `src/plugins/storage/cloudflareStreamWebhook.ts` (pure, testable). This file is

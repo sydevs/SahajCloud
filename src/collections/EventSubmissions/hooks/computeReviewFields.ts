@@ -113,7 +113,7 @@ export const computeProposedChanges: FieldHook = async ({ data, findMany, req })
   // Resolved to the manager's own document, so the line reads as a name
   // rather than `Manager: 496`.
   // Virtual, so it refreshes on read rather than as the reviewer picks — the
-  // same trade every field on this page makes (see `src/components/admin/AGENTS.md`).
+  // same trade every field on this page makes (see `docs/rules/admin-ui.md`).
   const after = mergeProposal({
     proposed,
     target,

@@ -1,0 +1,1 @@
+../../docs/rules/openapi.md

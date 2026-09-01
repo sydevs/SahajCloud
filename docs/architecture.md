@@ -2,7 +2,9 @@
 
 Top-level architecture for sy-devs-cms. Subsystem details (storage,
 RBAC, OpenAPI, individual collection schemas, admin components, etc.)
-live in the nested `AGENTS.md` guide inside each subsystem's directory.
+live in the nested `AGENTS.md` guide inside each subsystem's directory,
+or — where the subsystem is not one directory — in `docs/rules/`, which
+`.claude/rules/` symlinks so the rule loads by path glob.
 
 ## Storage
 
@@ -20,7 +22,7 @@ Hybrid approach: Cloudflare Images & Stream for media processing + CDN, R2 (S3 A
 
 Adapter routing, the R2 filename preassignment hook, the
 Cloudflare Stream webhook, and Zod-validated Cloudflare API responses
-are all documented in `src/plugins/storage/AGENTS.md` (auto-loads when
+are all documented in `docs/rules/storage.md` (auto-loads when
 editing `src/plugins/storage/`).
 
 ## Route Structure
@@ -35,9 +37,9 @@ Three places to add HTTP endpoints, chosen by scope:
 
 | Use case                                                                                                                                                       | Where                                                                      |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| URL belongs under a collection (e.g. `/api/frames/by-narrator/:narratorId`); single-collection ops; want automatic Payload auth/access integration             | `src/collections/<Name>/endpoints/*.ts` — see `src/endpoints/AGENTS.md` |
-| A Payload endpoint for a resource **no** collection owns (`/api/atlas/seo`, `/api/atlas/sitemap`); registered on `config.endpoints`. Rare — it forgoes the usage plugin's beforeOperation hooks, so origin enforcement must be called by hand. "Unpersisted" is not the same as "ownerless": #632 deleted a third once its resource needed storing | `src/endpoints/*.ts` — see `src/endpoints/AGENTS.md`                    |
-| Webhooks, health checks, OpenAPI spec generation, seed triggers, multi-collection operations; need raw request body or Next.js features (streaming, redirects) | `src/app/(payload)/api/**/route.ts` — see `src/app/AGENTS.md`        |
+| URL belongs under a collection (e.g. `/api/frames/by-narrator/:narratorId`); single-collection ops; want automatic Payload auth/access integration             | `src/collections/<Name>/endpoints/*.ts` — see `docs/rules/endpoints.md` |
+| A Payload endpoint for a resource **no** collection owns (`/api/atlas/seo`, `/api/atlas/sitemap`); registered on `config.endpoints`. Rare — it forgoes the usage plugin's beforeOperation hooks, so origin enforcement must be called by hand. "Unpersisted" is not the same as "ownerless": #632 deleted a third once its resource needed storing | `src/endpoints/*.ts` — see `docs/rules/endpoints.md`                    |
+| Webhooks, health checks, OpenAPI spec generation, seed triggers, multi-collection operations; need raw request body or Next.js features (streaming, redirects) | `src/app/(payload)/api/**/route.ts` — see `docs/rules/routes.md`        |
 
 | Custom Payload endpoints | Path                                    | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | ------------------------ | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -128,7 +130,7 @@ endpoint can feed its sitemap.
 
 REST API documentation built on `payload-oapi` + a custom Scalar plugin
 with We Meditate branding. Endpoints, project filtering, custom-endpoint
-shim, and the known-limitations list are in `src/plugins/openapi/AGENTS.md`
+shim, and the known-limitations list are in `docs/rules/openapi.md`
 (auto-loads when editing `src/plugins/openapi/` or the OpenAPI route handlers).
 
 ## Collections
@@ -188,7 +190,7 @@ coverage live in `src/collections/AGENTS.md` (auto-loads when editing
 
 Custom admin components, the project-aware dashboard, branding system,
 and the audio-synchronized frame editor are documented in
-`src/components/admin/AGENTS.md` (auto-loads when editing
+`docs/rules/admin-ui.md` (auto-loads when editing
 `src/components/admin/`, `src/components/branding/`, or `src/globals/`).
 
 ## Logging & Error Tracking
@@ -420,7 +422,7 @@ The usage plugin auto-registers two tasks:
 Uses a single atomic **Postgres path** in development and production (Railway Postgres 18).
 
 Configuration and rate-limiting details are in
-`src/plugins/usage/AGENTS.md` (auto-loads when editing `src/plugins/usage/`
+`docs/rules/api-clients.md` (auto-loads when editing `src/plugins/usage/`
 or `src/collections/Clients/Clients.ts`).
 
 ## Key Configuration Files

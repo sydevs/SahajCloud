@@ -73,7 +73,7 @@ async function sendFollowUp(
 
   // Registrant mail: the client service's brand, the registrant's own locale,
   // replies routed to the service. Same shape as the confirmation and reminder
-  // — see the checklist in `src/plugins/email/AGENTS.md`.
+  // — see the checklist in `docs/rules/email.md`.
   const client = typeof registration.client === 'object' ? registration.client : null
   const brand = client ? getClientEmailBrand(client) : getEmailBrand('sahaj-atlas')
   const strings = await resolveEmailStrings({

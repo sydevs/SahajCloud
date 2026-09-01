@@ -1,8 +1,5 @@
 # Globals
 
-Globals are edited through the Payload admin panel, so the admin-UI rules apply
-too — see [`src/components/admin/AGENTS.md`](../components/admin/AGENTS.md).
-
 PayloadCMS Global Configs hold centralized configuration per project. Each
 global lives in its own PascalCase folder under `src/globals/`, named after
 its TypeScript export — no per-project group folders. The master barrel
@@ -216,7 +213,7 @@ categories the edited locale uses (`Intl.PluralRules`) and sharing a single
 expanded ones, so the resolver side is unchanged.
 
 Selection at render time is **server-side** in the resolver via `pluralize()`
-(`Intl.PluralRules` — see `src/plugins/email/AGENTS.md`), not in the CMS.
+(`Intl.PluralRules` — see `docs/rules/email.md`), not in the CMS.
 `EMAIL_STRING_DEFAULTS` must define the same expanded family (English suffices —
 `few`/`many` fall back to `other`). The older convention-only
 `region.locations.description_one`/`_other` predates this and can adopt

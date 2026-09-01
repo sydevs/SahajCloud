@@ -1,3 +1,8 @@
+---
+paths:
+  - src/app/**/route.ts
+---
+
 # Next.js App Router Route Rules
 
 Rules for writing Next.js route handlers under `src/app/(payload)/api/`.
@@ -77,7 +82,7 @@ does not guarantee byte-identical output.
 
 ## When to use a route handler vs a Payload endpoint
 
-See `src/endpoints/AGENTS.md` ("When to use a Payload endpoint vs a
+See `docs/rules/endpoints.md` ("When to use a Payload endpoint vs a
 Next.js route") and `docs/architecture.md` → "Custom Endpoints"
 for the full decision matrix. Short version:
 

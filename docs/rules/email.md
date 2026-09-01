@@ -1,3 +1,9 @@
+---
+paths:
+  - src/plugins/email/**/*.ts
+  - src/emails/**/*.tsx
+---
+
 # Email Configuration
 
 The application uses different email providers based on environment:

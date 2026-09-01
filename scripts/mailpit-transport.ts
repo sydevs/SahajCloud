@@ -27,7 +27,7 @@ export function createCaptureTransport() {
     throw new Error(
       'SMTP_URL is not set, so there is nowhere to capture preview mail.\n' +
         'Load the shared credentials first:  set -a; . ./.env.claude.local; set +a\n' +
-        'See src/plugins/email/AGENTS.md for what SMTP_URL points at and why.',
+        'See docs/rules/email.md for what SMTP_URL points at and why.',
     )
   }
 

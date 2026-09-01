@@ -1,3 +1,9 @@
+---
+paths:
+  - src/plugins/storage/**/*.ts
+  - src/app/(payload)/api/webhooks/**/*.ts
+---
+
 # Storage architecture
 
 The application uses Cloudflare-native storage in production with automatic
@@ -79,7 +85,7 @@ that silently reaps nothing is worse than one that fails loudly.
 (Object Read & Write), `CLOUDFLARE_API_KEY` also carries **Browser Rendering**
 (Read & Write). That last one is not storage — it renders a third-party page so
 `VerifyEmbeds` can confirm a client's embed actually booted before its mount may
-yield a canonical URL (`src/lib/embedVerification/`, `src/plugins/usage/AGENTS.md`).
+yield a canonical URL (`src/lib/embedVerification/`, `docs/rules/api-clients.md`).
 It shares the token because it shares the account, and Browser Rendering needs a
 Workers Paid plan.
 
