@@ -7,7 +7,7 @@
  * It lives in `src/lib/` rather than a collection folder precisely because it is
  * used by more than one owner — colocating it in `Events/` would force a
  * cross-collection import from `Registrations/` (see
- * `.claude/rules/project-structure.md`).
+ * `src/AGENTS.md`).
  */
 
 import type { JSONSchema4 } from 'json-schema'

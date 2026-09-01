@@ -17,7 +17,7 @@
 // reached from the admin picker (a client component), and the barrel re-exports
 // the pg-pool seam — which drags `pg` into the browser bundle and fails the
 // Next.js build. `originEnforcement` is pure and type-only at its edges.
-// See the barrel note in `.claude/rules/project-structure.md`.
+// See the barrel note in `src/AGENTS.md`.
 import { normalizeHost } from '@/plugins/usage/originEnforcement'
 
 /**

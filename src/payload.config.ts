@@ -137,7 +137,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     globals,
     // Root-level custom endpoints — for resources that belong to no collection.
     // Everything else is colocated on its owning collection; see
-    // `.claude/rules/endpoints.md`. The OpenAPI spec derives its root-path
+    // `docs/rules/endpoints.md`. The OpenAPI spec derives its root-path
     // exemption from this array (`rootEndpointPathsFrom`), so registering here
     // is all it takes to keep `/api/docs` honest.
     endpoints: [atlasSeo, atlasSitemap],
@@ -162,7 +162,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         // whose per-doc queries the driver runs concurrently) can't exhaust the
         // Railway Postgres connection limit. Size to that limit divided across
         // running instances — see the pool-sizing notes in
-        // `.claude/docs/architecture.md`. Tune via DATABASE_POOL_MAX.
+        // `docs/architecture.md`. Tune via DATABASE_POOL_MAX.
         max: serverEnv.DATABASE_POOL_MAX,
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 10000,

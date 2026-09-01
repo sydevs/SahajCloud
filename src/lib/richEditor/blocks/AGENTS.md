@@ -1,8 +1,3 @@
----
-paths:
-  - src/lib/richEditor/blocks/**/*.ts
----
-
 # Custom Block Icons (Lexical Editor)
 
 Page blocks live in `src/lib/richEditor/blocks/`. Icons appear in the Lexical

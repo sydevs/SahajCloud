@@ -11,7 +11,7 @@
  * Separate from `EventSubmissions.ts` because the admin components need these
  * too, and that file imports `serverEnv`, every hook and the review endpoint —
  * importing it from a client component would pull all of that into the admin
- * bundle (the hazard `.claude/rules/project-structure.md` warns about for
+ * bundle (the hazard `src/AGENTS.md` warns about for
  * barrels). This module imports nothing, so both sides can share one
  * definition instead of restating the union as string literals.
  */

@@ -2,7 +2,7 @@
 
 Runtime baseline for the integration lane, so future changes to the test
 infrastructure are comparable. Complements `tests/COVERAGE.md` (what is tested)
-and `.claude/rules/tests.md` (how to test).
+and `tests/AGENTS.md` (how to test).
 
 Re-measure with the same command after any change to `vitest.config.mts`
 (parallelism, pool), `tests/utils/testHelpers.ts` (per-suite bootstrap), or the
@@ -50,7 +50,7 @@ connections (the local dev DB does).
 assertions per file, ~58–60s is essentially **bootstrap**: `buildConfig` +
 `getPayload` + the full-schema Drizzle `push` into a fresh Postgres schema (+
 `DROP SCHEMA … CASCADE` teardown). The "~8s bootstrap per file" figure in
-`.claude/rules/tests.md` predates the SQLite → Postgres migration (#486-era) and
+`tests/AGENTS.md` predates the SQLite → Postgres migration (#486-era) and
 is stale.
 
 ### What this tells us (the §2 lever)

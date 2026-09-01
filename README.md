@@ -99,7 +99,8 @@ tests/
 
 ## Windows Setup for Symlinks
 
-This project uses symlinks (`CLAUDE.md` → `AGENTS.md`) for AI coding agent compatibility.
+This project uses symlinks (`CLAUDE.md` → `AGENTS.md`) for AI coding agent compatibility —
+at the repository root and in every subdirectory that carries its own guide.
 Windows users need to enable symlink support:
 
 1. **Enable Developer Mode**: Settings → Privacy & Security → For developers
@@ -113,3 +114,5 @@ If symlinks don't work, AI agents will still function via the `@import` syntax.
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Railway deployment configuration and troubleshooting
 - **[RAILWAY_RUNBOOK.md](RAILWAY_RUNBOOK.md)** - Operational runbook for the Railway service
 - **[AGENTS.md](AGENTS.md)** - Detailed architecture, patterns, and development guidelines (also accessible via `CLAUDE.md` symlink)
+- **[docs/](docs/)** - Architecture overview, environment variables, code style, and MCP setup
+- **Nested `AGENTS.md` guides** - subsystem rules stored in the directory they govern (`src/collections/`, `src/plugins/storage/`, `tests/`, …); AI agents pick them up when reading files there. `find src tests scripts seeds -name AGENTS.md` lists them.

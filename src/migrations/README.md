@@ -21,4 +21,4 @@ pnpm db:migrations:create <name>   # writes the next src/migrations/<ts>_<name>.
 pnpm db:migrate                    # applies pending migrations to DATABASE_URL
 ```
 
-See `.claude/rules/migrations.md` for the full workflow.
+See `src/migrations/AGENTS.md` for the full workflow.

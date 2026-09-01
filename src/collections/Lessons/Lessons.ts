@@ -98,7 +98,7 @@ export const Lessons: CollectionConfig = {
               required: false,
               // Scope the type='lesson' filter to meditations only; videos are
               // unfiltered. Function form returns `true` (not `{}`) for the
-              // unfiltered branch — see .claude/rules/collections.md.
+              // unfiltered branch — see src/collections/AGENTS.md.
               filterOptions: ({ relationTo }) =>
                 relationTo === 'meditations' ? { type: { equals: 'lesson' } } : true,
               admin: {
