@@ -13,7 +13,7 @@ import {
   normalizeLocalizedRoles,
   rankLocalesByRoleCount,
   roleScopeFromLocale,
-  unionRoles,
+  rolesForAllLocales,
 } from '../../src/plugins/access/localizedRoles'
 
 describe('roleScopeFromLocale', () => {
@@ -92,10 +92,10 @@ describe('normalizeLocalizedRoles', () => {
   })
 })
 
-describe('unionRoles', () => {
+describe('rolesForAllLocales', () => {
   it('collects roles across every locale, de-duplicated', () => {
     expect(
-      unionRoles({
+      rolesForAllLocales({
         en: ['web-translator'],
         fr: ['web-translator', 'path-editor'],
         cs: ['meditations-editor'],
@@ -104,7 +104,7 @@ describe('unionRoles', () => {
   })
 
   it('is empty for a manager with no roles anywhere', () => {
-    expect(unionRoles({})).toEqual([])
+    expect(rolesForAllLocales({})).toEqual([])
   })
 })
 

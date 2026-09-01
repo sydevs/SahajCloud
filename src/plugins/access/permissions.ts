@@ -27,7 +27,7 @@ import {
   isCollectionVisibleInProject,
   isRestrictedCollection,
 } from './config'
-import { unionRoles } from './localizedRoles'
+import { rolesForAllLocales } from './localizedRoles'
 
 /**
  * Check if a user has permission for an operation
@@ -135,7 +135,7 @@ function extractRoles(
   if (!roles) return []
   if (Array.isArray(roles)) return roles
   if (!scope) return []
-  if (scope === 'union') return unionRoles(roles)
+  if (scope === 'union') return rolesForAllLocales(roles)
   return roles[scope] || []
 }
 
