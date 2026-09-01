@@ -15,6 +15,7 @@
 
 import type { CollectionConfig, PayloadRequest } from 'payload'
 
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { hydrateLocalizedRoles } from '@/plugins/access/localizedRoles'
 
 type AuthUserShape = { collection?: string; id?: number | string; roles?: unknown }
@@ -25,6 +26,15 @@ type AuthUserShape = { collection?: string; id?: number | string; roles?: unknow
  * Never throws: an auth response that 500s locks the manager out of the admin
  * entirely, which is far worse than the flat roles it would be correcting. A
  * failure leaves the response as Payload built it and is logged.
+ *
+ * ⚠ **`localeIsolatedReq(req)`, not `req` and not nothing.** All three of these
+ * hooks run inside an open transaction — `login.js` opens at :190 and commits at
+ * :321, with `afterLogin` at :263 — so the read has to JOIN that transaction
+ * rather than take a second pool connection, or a busy lane can hold two
+ * connections per login and stop making progress. Passing the caller's own `req`
+ * would join it but also repoint their `locale` to `'all'` for the rest of the
+ * operation (#609). The copy shares `transactionID` by reference and owns its
+ * `locale`, which is exactly the pair of properties needed here.
  */
 async function withLocalizedRoles<T extends AuthUserShape>(
   user: null | T | undefined,
@@ -33,7 +43,7 @@ async function withLocalizedRoles<T extends AuthUserShape>(
   if (!user?.id) return user
 
   try {
-    const roles = await hydrateLocalizedRoles(req.payload, user.id)
+    const roles = await hydrateLocalizedRoles(req.payload, user.id, localeIsolatedReq(req))
     return { ...user, roles }
   } catch (err) {
     req.payload.logger.error(
