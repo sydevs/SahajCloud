@@ -1,6 +1,12 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { verifyMock } = vi.hoisted(() => ({ verifyMock: vi.fn() }))
+
+vi.mock('@/lib/turnstile/verifyTurnstile', () => ({
+  verifyTurnstileToken: verifyMock,
+}))
 
 import { registerForEvent } from '@/collections/Events/endpoints/registerForEvent'
 
@@ -19,6 +25,13 @@ type RegisterBody = {
   registration?: { id: number; uuid: string }
   errors?: unknown
 }
+
+/**
+ * The registration create policy requires Turnstile (#629), so every call in
+ * this file carries a token and `verifyMock` is reset to "valid" before each
+ * case. The captcha cases below override one or the other deliberately.
+ */
+const VALID_TURNSTILE = { 'x-turnstile-token': 'tok-valid' }
 
 const SCHEDULE = {
   firstDate: '2025-01-06T10:00:00.000Z',
@@ -48,10 +61,11 @@ describe('registerForEvent endpoint', () => {
     id: number | string,
     body: unknown,
     user: TestUser = client,
+    headers: Record<string, string> = VALID_TURNSTILE,
   ): Promise<{ status: number; body: RegisterBody }> {
     const req = {
       payload,
-      headers: new Headers(),
+      headers: new Headers(headers),
       routeParams: { id: String(id) },
       user,
       json: async () => body,
@@ -104,8 +118,47 @@ describe('registerForEvent endpoint', () => {
     eventId = event.id
   })
 
+  beforeEach(() => {
+    verifyMock.mockReset()
+    verifyMock.mockResolvedValue({ success: true })
+  })
+
   afterAll(async () => {
     await cleanup()
+  })
+
+  describe('captcha gate (#629)', () => {
+    const body = { email: 'captcha@example.com', name: 'Cap Tcha' }
+
+    it('refuses a registration with no x-turnstile-token header', async () => {
+      const { status, body: res } = await callRegister(eventId, body, client, {})
+      expect(status).toBe(403)
+      expect(res.errors).toMatchObject([{ code: 'captcha_failed' }])
+    })
+
+    it('refuses a token Cloudflare rejects, and says it is retryable', async () => {
+      verifyMock.mockResolvedValue({
+        success: false,
+        reason: 'rejected',
+        errorCodes: ['timeout-or-duplicate'],
+      })
+      const { status, body: res } = await callRegister(eventId, body)
+      expect(status).toBe(403)
+      expect(res.errors).toMatchObject([{ code: 'captcha_failed' }])
+    })
+
+    it('fails closed with 500 when verification cannot be completed', async () => {
+      verifyMock.mockResolvedValue({ success: false, reason: 'not-configured' })
+      const { status, body: res } = await callRegister(eventId, body)
+      expect(status).toBe(500)
+      expect(res.errors).toMatchObject([{ code: 'captcha_unavailable' }])
+    })
+
+    it('creates no registrant when the captcha is refused', async () => {
+      verifyMock.mockResolvedValue({ success: false, reason: 'rejected' })
+      await callRegister(eventId, body)
+      expect(await userCountByEmail(payload, 'captcha@example.com')).toBe(0)
+    })
   })
 
   describe('auth gate', () => {
