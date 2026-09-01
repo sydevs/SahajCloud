@@ -58,7 +58,7 @@ export const DEFAULT_VERIFICATION_STAGE: VerificationStage = 'verified'
  * A discriminated union rather than one struct with mostly-null fields: the
  * three actions genuinely have different shapes, and keying on `kind` means a
  * caller narrows exhaustively instead of guessing which fields are meaningful
- * (see the discriminated-union preference in `.claude/rules/code-style.md`).
+ * (see the discriminated-union preference in `docs/code-style.md`).
  */
 export type StageAction =
   /** Send this stage's reminder, then advance to the next stage. */

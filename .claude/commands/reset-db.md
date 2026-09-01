@@ -43,7 +43,7 @@ See `seeds/AGENTS.md` for available scripts.
 
 If you modified `src/collections/`, `src/fields/`, `src/globals/`, or `src/payload.config.ts`:
 
-1. **Create migration** (attempt non-interactively first; hand to the user only on timeout — see `.claude/rules/migrations.md` for the outcome table):
+1. **Create migration** (attempt non-interactively first; hand to the user only on timeout — see `src/migrations/AGENTS.md` for the outcome table):
 
    ```bash
    timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null
@@ -58,7 +58,7 @@ If you modified `src/collections/`, `src/fields/`, `src/globals/`, or `src/paylo
 
 3. **Apply on next dev boot** — migrations auto-apply during server startup via Payload's `prodMigrations`.
 
-See `.claude/rules/migrations.md` for the full migration workflow.
+See `src/migrations/AGENTS.md` for the full migration workflow.
 
 ## Key Details
 

@@ -92,6 +92,6 @@ Worth knowing if you modify it — each one presented as an unexplained hang:
 
 ## Related
 
-- `.claude/rules/migrations.md` — the outcome table, and what to do with a
+- `src/migrations/AGENTS.md` — the outcome table, and what to do with a
   generated migration once you have one.
 - `.claude/skills/migration-validator/` — run it on the result before committing.

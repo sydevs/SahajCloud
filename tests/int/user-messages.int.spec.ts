@@ -199,7 +199,7 @@ describe('User messages intake (POST /api/user-messages)', () => {
       // rather than replacing it. Supplying `validate` replaces the default
       // that enforces `maxLength`, so without the composition this passes and
       // the collection silently accepts unbounded text
-      // (`.claude/rules/collections.md`).
+      // (`src/collections/AGENTS.md`).
       await expect(send({ message: 'x'.repeat(5001) })).rejects.toThrow()
     })
 

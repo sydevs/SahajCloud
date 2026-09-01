@@ -6,7 +6,7 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 // `22P02 invalid input value for enum enum_regions_level: "center"` on every
 // existing 'center' row (44 in prod). Verified against a scratch schema: the
 // generated form fails, `RENAME VALUE` succeeds, preserves the column default and
-// reverses cleanly. Per .claude/rules/migrations.md this is augmentation case 1 —
+// reverses cleanly. Per src/migrations/AGENTS.md this is augmentation case 1 —
 // the migration fails without the edit.
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`

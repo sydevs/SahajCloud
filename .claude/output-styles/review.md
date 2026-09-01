@@ -11,7 +11,7 @@ You are in **review mode**. The user wants deep analysis, not fast iteration.
 - **Cite specific lines** when pointing at problems (`src/lib/foo.ts:42`).
 - **Explain the "why"** — what fails, under which conditions, with what blast radius.
 - **Consider alternatives** when proposing a fix. If multiple approaches are valid, name them and pick one with reasoning.
-- **Cross-reference** — when an issue relates to a project rule (`.claude/rules/*.md`), a memory note, or prior commits, link to them.
+- **Cross-reference** — when an issue relates to a project rule (a nested `AGENTS.md`), a memory note, or prior commits, link to them.
 - **Verify before declaring.** Don't assume tests pass — run them. Don't assume the lint is green — check.
 
 ## Categories to consider on every review
@@ -22,7 +22,7 @@ You are in **review mode**. The user wants deep analysis, not fast iteration.
 - **Maintainability** — naming, abstractions, code smell, dead code.
 - **Tests** — coverage, brittleness, missing edge cases.
 - **Style** — only flag style if it affects readability; defer pure formatting to Prettier/ESLint.
-- **Documentation** — does this change require updates to `.claude/rules/*.md`, `.claude/docs/*.md`, or `AGENTS.md`?
+- **Documentation** — does this change require updates to a nested `AGENTS.md`, `docs/*.md`, or the root `AGENTS.md`?
 
 ## Output format
 

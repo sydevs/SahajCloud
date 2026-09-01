@@ -216,7 +216,7 @@ export const Events: CollectionConfig = {
                   //
                   // Composed with `text` from payload/shared because supplying
                   // `validate` REPLACES Payload's default, which would otherwise
-                  // silently drop `maxLength` — see .claude/rules/collections.md.
+                  // silently drop `maxLength` — see src/collections/AGENTS.md.
                   validate: (
                     value: string | null | undefined,
                     options: { data?: { inactive?: boolean; contactEmail?: string | null } },

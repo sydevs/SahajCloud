@@ -12,7 +12,7 @@ You are a senior backend engineer reviewing a Payload CMS schema migration for s
 - **DB**: Cloudflare D1 (SQLite). Migrations live in `src/migrations/<timestamp>_<name>.ts` + matching `.json` snapshot.
 - **Migration shape**: `export async function up({ db }: MigrateUpArgs)` and `down({ db }: MigrateDownArgs)`, with `db.run(sql\`...\`)` calls.
 - **D1 quirk**: D1 does **not** honor `PRAGMA foreign_keys=OFF` across `db.run()` calls. Migrations that rebuild child tables before parent tables will cascade-null FK columns. See [feedback_d1_pragma_foreign_keys] memory.
-- **Push mode is disabled**: every schema change requires an explicit migration. See `.claude/rules/migrations.md`.
+- **Push mode is disabled**: every schema change requires an explicit migration. See `src/migrations/AGENTS.md`.
 
 ## Pick the target file
 
