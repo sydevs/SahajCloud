@@ -17,6 +17,7 @@ import type { CollectionSlug, Config } from 'payload'
 import { createAccessConfig } from './accessConfigs'
 import { getProjectSlugs, getRoleSlugs, isTranslatableCollection } from './config'
 import { applyFieldAccessForTranslatableCollections } from './fieldAccess'
+import { withLocalizedRoleAuth } from './localizedRolesAuth'
 import { createHidden } from './visibility'
 
 // Re-export permission functions for public API
@@ -74,8 +75,12 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
       ...config,
 
       // Apply to collections
-      collections: config.collections?.map((collection) => {
-        const slug = collection.slug as CollectionSlug
+      collections: config.collections?.map((original) => {
+        const slug = original.slug as CollectionSlug
+        // An auth collection whose `roles` field is localized needs its roles
+        // re-read at every locale during authentication, or the per-locale model
+        // below is evaluating a flat, default-locale array (#665).
+        const collection = withLocalizedRoleAuth(original)
         return {
           ...collection,
           // Apply role-based access control (preserve existing overrides)

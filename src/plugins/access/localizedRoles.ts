@@ -19,11 +19,12 @@
  * a strategy-only fix is overwritten the moment the admin client calls `/me`.
  */
 
+import type { RoleScope } from './types'
 import type { Payload, PayloadRequest } from 'payload'
 
 import type { LocaleCode } from '@/lib/locales'
 import { LOCALES } from '@/lib/locales'
-import type { RoleSlug } from '@/payload-types'
+import type { Manager, RoleSlug } from '@/payload-types'
 
 
 /**
@@ -31,10 +32,44 @@ import type { RoleSlug } from '@/payload-types'
  *
  * Locales the manager holds no role in are absent rather than present-and-empty,
  * so `Object.keys` is directly the set of locales that grant them anything.
+ *
+ * The element type is taken from `payload-types.ts` rather than restated: only
+ * the per-locale KEYING is ours, because Payload generates `Manager['roles']`
+ * as the flat array a single-locale read returns and has no way to express what
+ * a `locale: 'all'` read produces. Deriving it means a role added to the schema
+ * arrives here with no edit.
  */
-export type LocalizedRoles = Partial<Record<LocaleCode, RoleSlug[]>>
+export type LocalizedRoles = Partial<Record<LocaleCode, NonNullable<Manager['roles']>>>
 
 const LOCALE_ORDER: readonly string[] = LOCALES.map((l) => l.code)
+
+/**
+ * The one translation from a request's `locale` to the scope a permission check
+ * evaluates — `PayloadRequest['locale']` is a `string | undefined` that also
+ * carries `'all'`, and {@link RoleScope} is not.
+ *
+ * It exists so the mapping is stated once instead of at every call site. It was
+ * written out four times before, and the fourth disagreed with the other three:
+ * `EventSubmissions` reviewed `?locale=all` under `'union'` (any role in any
+ * locale grants) while collection, global and `Frames` access denied it. Same
+ * request shape, opposite answer, decided by which file you happened to be in.
+ *
+ * **`'all'` denies.** A request for every locale at once names no locale to
+ * evaluate roles in, and granting it means "any role in any locale grants every
+ * locale" — the over-grant #665 exists to remove. `'union'` remains reachable,
+ * but only where a caller states it deliberately: admin-UI nav visibility, which
+ * Payload invokes with no locale at all.
+ *
+ * ⚠ **It returns a scope only for a CONFIGURED locale**, and that is a security
+ * property rather than tidiness. `req.locale` carries a request-supplied string,
+ * and `RoleScope` has one non-locale member — so a cast would let
+ * `?locale=union` name the privileged scope directly and hand a manager their
+ * roles from every locale at once. Nothing a request says may select `'union'`.
+ */
+export function roleScopeFromLocale(locale: string | undefined): RoleScope | undefined {
+  if (!locale || !LOCALE_ORDER.includes(locale)) return undefined
+  return locale as LocaleCode
+}
 
 /**
  * Coerce whatever a `locale: 'all'` read returned into a clean per-locale record.
@@ -50,7 +85,7 @@ export function normalizeLocalizedRoles(value: unknown): LocalizedRoles {
   for (const [locale, roles] of Object.entries(value as Record<string, unknown>)) {
     if (!LOCALE_ORDER.includes(locale)) continue
     if (!Array.isArray(roles) || roles.length === 0) continue
-    result[locale as LocaleCode] = roles as RoleSlug[]
+    result[locale as LocaleCode] = roles as NonNullable<Manager['roles']>
   }
   return result
 }
@@ -84,7 +119,7 @@ export function normalizeLocalizedRoles(value: unknown): LocalizedRoles {
  * join and no caller locale to protect.
  *
  * Throws whatever the database throws. Callers must not let that fall through to
- * Payload's own JWT strategy — see `localizedRolesStrategy`.
+ * Payload's own JWT strategy — see `localizedRolesAuth`.
  */
 export async function hydrateLocalizedRoles(
   payload: Payload,
@@ -114,7 +149,7 @@ export async function hydrateLocalizedRoles(
  * It is emphatically NOT the answer for a permission check on a request that has
  * a locale: that is the over-grant this ticket exists to remove.
  */
-export function unionRoles(roles: LocalizedRoles): RoleSlug[] {
+export function unionRoles(roles: Partial<Record<LocaleCode, readonly RoleSlug[]>>): RoleSlug[] {
   return [...new Set(Object.values(roles).flat())]
 }
 

@@ -2,7 +2,7 @@ import type { Endpoint } from 'payload'
 
 import { z } from 'zod'
 
-import { bypassPermissions, hasPermission } from '@/plugins/access'
+import { bypassPermissions, hasPermission, roleScopeFromLocale } from '@/plugins/access'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const paramsSchema = z.object({
@@ -36,7 +36,7 @@ export const framesByNarrator: Endpoint = {
         user: req.user,
         collection: 'frames',
         operation: 'read',
-        locale: req.locale === 'all' ? undefined : req.locale,
+        locale: roleScopeFromLocale(req.locale),
       },
       bypassPermissions,
     )

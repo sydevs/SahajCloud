@@ -37,6 +37,7 @@ export {
   hydrateLocalizedRoles,
   normalizeLocalizedRoles,
   rankLocalesByRoleCount,
+  roleScopeFromLocale,
   unionRoles,
 } from './localizedRoles'
 export type { LocalizedRoles } from './localizedRoles'
