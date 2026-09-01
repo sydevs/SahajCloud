@@ -1,9 +1,3 @@
----
-paths:
-  - src/migrations/**/*.ts
-  - src/migrations/**/*.json
----
-
 # Database Migrations
 
 **Development** uses Postgres with `push: true` (auto-schema-sync via Drizzle).

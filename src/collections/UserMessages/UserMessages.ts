@@ -162,7 +162,7 @@ export const UserMessages: CollectionConfig = {
       required: true,
       // A report, not a document — and a two-character "hi" is noise. Both
       // bounds are the built-in ones: a custom `validate` would REPLACE the
-      // default that enforces them (`.claude/rules/collections.md`).
+      // default that enforces them (`src/collections/AGENTS.md`).
       maxLength: 5000,
       minLength: 10,
       admin: { readOnly: true },

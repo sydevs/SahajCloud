@@ -1,8 +1,3 @@
----
-paths:
-  - tests/**/*.spec.ts
----
-
 # Testing
 
 Rules for writing and running tests in this codebase.
@@ -103,7 +98,7 @@ to see the real error, or `pnpm exec tsc --noEmit -p tsconfig.test.json`. (The
 one that caused this: an unescaped apostrophe inside a single-quoted test name —
 `it('renders keys in the collection's order', …)`.)
 
-Reserve the full `pnpm test:int` / `pnpm build` for reproducing a red CI check. See `.claude/rules/testing-reqs.md` for the local-vs-CI split.
+Reserve the full `pnpm test:int` / `pnpm build` for reproducing a red CI check. See `docs/rules/testing-reqs.md` for the local-vs-CI split.
 
 ## Verifying "coverage gap" claims
 

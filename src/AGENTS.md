@@ -1,9 +1,3 @@
----
-paths:
-  - src/**/*.ts
-  - src/**/*.tsx
----
-
 # Project Structure
 
 How `src/` is organized and where new code belongs. Established by #442 / PR
@@ -23,7 +17,7 @@ into `plugins/`, `jobs/`, and shared utilities).
 | `src/fields/`      | Reusable field factories (`camelCase`)                                     |
 | `src/components/`  | Admin-panel React components (`PascalCase`)                                |
 | `src/app/`         | Next.js routes (admin, REST API, frontend, webhooks)                       |
-| `src/migrations/`  | Payload schema migrations (see `.claude/rules/migrations.md`)              |
+| `src/migrations/`  | Payload schema migrations (see `src/migrations/AGENTS.md`)              |
 
 ### `src/plugins/`
 
@@ -59,7 +53,7 @@ This folder is the **exception, not a second home for endpoints** — anything a
 collection plausibly owns stays colocated under `src/collections/<Name>/endpoints/`.
 Leaving the collection seam costs you the usage plugin's beforeOperation hooks
 (origin enforcement, usage tracking), which a root handler has to compensate for
-by hand; see `.claude/rules/endpoints.md`.
+by hand; see `docs/rules/endpoints.md`.
 
 ### `src/lib/`
 
@@ -187,7 +181,7 @@ Two exemptions are built in:
   whether it's shared is answered by its entry point.
 - **Consumed only by `scripts/`** — operator scripts are thin CLI wrappers whose
   routine lives in lib precisely so it can be unit-tested without running the
-  script (see `.claude/rules/scripts.md`).
+  script (see `scripts/AGENTS.md`).
 
 `KNOWN_SINGLE_CONSUMER` in that spec records what already had one consumer when
 the check landed. It's a backlog, not an approval, and should only shrink — a

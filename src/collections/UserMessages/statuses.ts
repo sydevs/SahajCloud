@@ -12,7 +12,7 @@
  * Separate from `UserMessages.ts` because the admin status banner needs these
  * too, and that file imports the hooks and `serverEnv` — importing it from a
  * client component would pull all of that into the admin bundle (the hazard
- * `.claude/rules/project-structure.md` warns about). This module imports
+ * `src/AGENTS.md` warns about). This module imports
  * nothing, so both sides share one definition instead of restating the union as
  * string literals.
  */

@@ -1,6 +1,6 @@
 # MCP Setup
 
-Model Context Protocol servers configured for this project. Configuration lives in [`.mcp.json`](../../.mcp.json) (project root) and is checked into git so the team shares the same MCP topology.
+Model Context Protocol servers configured for this project. Configuration lives in [`.mcp.json`](../.mcp.json) (project root) and is checked into git so the team shares the same MCP topology.
 
 ## Active MCPs
 

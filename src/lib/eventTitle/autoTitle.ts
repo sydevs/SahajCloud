@@ -23,7 +23,7 @@ import {
  * Lifted out of the Events title hook when EventSubmissions needed the same
  * answer: a submission proposing a new event is labelled with the title that
  * event would be given on creation, and computing that a second way would let
- * the two drift. Per `.claude/rules/project-structure.md`, code two owners
+ * the two drift. Per `src/AGENTS.md`, code two owners
  * need lives in `src/lib/`, not in one owner's folder.
  */
 

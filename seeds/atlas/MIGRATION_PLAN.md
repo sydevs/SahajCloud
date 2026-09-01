@@ -32,7 +32,7 @@ Restore the dump into a scratch local Postgres, run a one-shot `tsx` extractor (
 - Fields remapped to Payload-native shapes: drafts (Events) replace Atlas's `published`; ToggleGroup for every Rails enum/bitmask; the project `scheduleFields` (Atlas `finishDate` maps into the schedule's ending, not a standalone field); ISO-639-1 language selects; timezone selects sourced from Payload's bundled `defaultTimezones` (deterministic across hosts — `Intl.supportedValuesOf` is ICU-version-dependent and would bake a host-specific enum into the migration).
 - **`legacyId`** (hidden, indexed) + **`legacyData`** (hidden json — full raw source record) on all four, populated by the Phase 3 importer and dropped in a future cleanup once the import is verified.
 - Project visibility: `events`, `registrations`, `regions` added to `sahaj-atlas`; **`users` is admin-only** (in no project).
-- One Payload migration (`pnpm db:migrations:create` — **maintainer runs it**; interactive, hangs when piped — see `.claude/rules/migrations.md`), then `pnpm generate:types`.
+- One Payload migration (`pnpm db:migrations:create` — **maintainer runs it**; interactive, hangs when piped — see `src/migrations/AGENTS.md`), then `pnpm generate:types`.
 
 **Implementation notes / deviations from the original sketch:**
 

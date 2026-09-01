@@ -108,8 +108,15 @@
       "mcp__puppeteer__puppeteer_click",
       "mcp__puppeteer__puppeteer_evaluate",
       "Bash(npm view:*)",
-      "Edit(.claude/docs/**)",
-      "Write(.claude/docs/**)",
+      "Edit(docs/**)",
+      "Write(docs/**)",
+      "Edit(**/AGENTS.md)",
+      "Write(**/AGENTS.md)",
+      "Edit(.claude/skills/**)",
+      "Write(.claude/skills/**)",
+      "Edit(CLAUDE.md)",
+      "Edit(AGENTS.md)",
+      "Write(AGENTS.md)",
       "Bash(pnpm test:unit *)"
     ]
   },

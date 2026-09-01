@@ -22,7 +22,7 @@ const MESSAGE =
  * default that enforces `required` — and that validator opens with
  * `if (!value) return true`. So an empty slug passes field validation entirely
  * today. (Same trap as the Events `title` case in
- * `.claude/rules/collections.md`.)
+ * `src/collections/AGENTS.md`.)
  *
  * ## Why this is a validator and not a hook
  *

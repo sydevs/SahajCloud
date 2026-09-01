@@ -286,4 +286,4 @@ In Railway, set environment variables via:
 - Variables injected during build (by Railpack) and runtime
 - **SAHAJCLOUD_URL** must equal the public production origin (https://cloud.sydevelopers.com) — it feeds CSP, CORS, and CSRF validation
 
-**See Also**: [DEPLOYMENT.md](../../DEPLOYMENT.md) for comprehensive deployment configuration and troubleshooting.
+**See Also**: [DEPLOYMENT.md](../DEPLOYMENT.md) for comprehensive deployment configuration and troubleshooting.

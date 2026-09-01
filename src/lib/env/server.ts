@@ -51,7 +51,7 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    * Max size of the Postgres connection pool (node-postgres `pool.max`).
    * Consumed by the Payload Postgres adapter in `src/payload.config.ts`.
    * Size to the Railway Postgres connection limit divided across running
-   * instances — see the pool-sizing notes in `.claude/docs/architecture.md`.
+   * instances — see the pool-sizing notes in `docs/architecture.md`.
    * Prod (2026-07): Postgres `max_connections=100` (97 usable), 1 app replica →
    * default 20 leaves ample headroom while doubling bulk-publish burst capacity.
    * @default 20
@@ -63,7 +63,7 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    * force-disabled in production — used to capture the query trail behind a
    * slow admin operation in dev/staging. Any truthy string (`true`/`1`) turns
    * it on. Pair with Railway Postgres `log_min_duration_statement` for
-   * server-side timings. See `.claude/docs/architecture.md`.
+   * server-side timings. See `docs/architecture.md`.
    * @default false
    */
   DB_QUERY_LOGGING: z

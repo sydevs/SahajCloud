@@ -4,14 +4,21 @@ This file provides guidance to AI coding agents when working with this repositor
 
 **Supported agents**: Claude Code, OpenAI Codex, Cursor, and other AGENTS.md-compatible tools.
 
-> `CLAUDE.md` is a symlink to this file for Claude Code compatibility.
-> Claude-specific features (rules, hooks, skills) remain in the `.claude/` folder.
+> `CLAUDE.md` is a symlink to this file for Claude Code compatibility — every nested
+> guide below is paired the same way.
+> Claude-specific features (hooks, skills, commands) remain in the `.claude/` folder.
 
 ## Documentation
 
-- **`.claude/rules/`** — path-scoped rules that auto-load when reading matching files (run `ls .claude/rules/` for the inventory; each file's frontmatter declares its globs)
-- **`@.claude/docs/environment.md`** — environment variables and Railway configuration
-- **`@.claude/docs/architecture.md`** — top-level architecture (collections, routes, logging, scheduled jobs)
+Subsystem guidance loads two ways, and which one a subsystem uses depends on
+whether its scope is a directory:
+
+- **Nested `AGENTS.md` guides** — for a subsystem that *is* one directory subtree. The guide lives in the directory it governs and is included when an agent reads files there (a `CLAUDE.md` symlink sits beside each one for Claude Code). Run `find src tests scripts seeds -name AGENTS.md` for the inventory; a guide's location *is* its scope, so it carries no globs.
+- **`docs/rules/*.md`, symlinked into `.claude/rules/`** — for a subsystem a directory cannot express: a filename pattern spread across many directories (`src/app/**/route.ts`), a wildcard middle segment (`src/collections/*/endpoints/**`), or two or three unrelated paths that move together. Each file keeps `paths:` frontmatter and loads when an agent reads a file matching one of its globs. Run `ls .claude/rules/` for the inventory.
+  > **The content lives in `docs/`, not `.claude/`, on purpose.** Writes under `.claude/` hit Claude Code's Protected Paths guard, which stalls an unattended run waiting for an approval nobody is there to give. `.claude/rules/` holds only symlinks (mode `120000`) pointing at `../../docs/rules/`, so the rule still loads by glob while the file an agent edits sits outside the guard. Don't "tidy" the content back into `.claude/` — that reintroduces the stall.
+- **`@docs/code-style.md`** — global code style: naming, import order, icons, and when to reach for a dependency (loads every session, unscoped)
+- **`@docs/environment.md`** — environment variables and Railway configuration
+- **`@docs/architecture.md`** — top-level architecture (collections, routes, logging, scheduled jobs)
 - **`.claude/skills/`** — local workflow skills (run `ls .claude/skills/` to discover; each has a `SKILL.md`)
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** — deployment documentation
 
@@ -40,7 +47,7 @@ Credentials for anything beyond local dev live outside the repo:
 | Environment | Where the credential lives |
 | ----------- | -------------------------- |
 | Railway PR preview | `PREVIEW_ADMIN_PASSWORD` — set on Railway's preview environments, and passed through to the smoke lane as a CI secret (`.github/workflows/ci.yml`). **Every preview deploy reconciles its admin against the current value** (`src/plugins/previewAdmin`, gated on Railway's environment name), so rotating the secret takes effect on the next deploy and no database needs resetting. Environments forked before 2026-08-27 never receive the variable and are out of scope — they keep the admin an old smoke run seeded |
-| Production | `ADMIN_PASSWORD` in `.env.claude.local` — see `.claude/docs/environment.md` |
+| Production | `ADMIN_PASSWORD` in `.env.claude.local` — see `docs/environment.md` |
 
 ## Essential Commands
 
@@ -73,7 +80,7 @@ If wrapping any of these in `timeout` (only when actually needed — most one-sh
 - `timeout 300 pnpm test:*` — full integration/E2E suites
 - `timeout 120 pnpm generate:*` — `generate:types` / `generate:importmap`
 
-CPU resource management for tests: see `.claude/rules/testing-reqs.md` (never run multiple test commands or test+build in parallel).
+CPU resource management for tests: see `docs/rules/testing-reqs.md` (never run multiple test commands or test+build in parallel).
 
 ## Code Editing
 
@@ -92,7 +99,7 @@ macOS is case-insensitive but TypeScript/Webpack builds are case-sensitive. Alwa
 | `src/types/`                 | camelCase  | `roles.ts`, `users.ts`                 |
 | `src/lib/richEditor/blocks/` | PascalCase | `TextBoxBlock.ts`, `GalleryBlock.ts`   |
 
-Type organization: see `.claude/rules/types.md` (auto-loaded for TypeScript files).
+Type organization: see `src/types/AGENTS.md` (auto-loaded for TypeScript files).
 
 ## Quick Reference
 
@@ -115,15 +122,15 @@ Configuration: `src/lib/richEditor/index.ts`.
 
 See [seeds/AGENTS.md](seeds/AGENTS.md). Available: Storyblok, WeMeditate, Meditations, Tags. Run via `pnpm seed <script>` or `pnpm seed:<script>`. All scripts support `--dry-run` and `--clear-cache`.
 
-Schema migrations live in `src/migrations/` — see `.claude/rules/migrations.md`. Operator scripts in `scripts/` — see `.claude/rules/scripts.md`.
+Schema migrations live in `src/migrations/` — see `src/migrations/AGENTS.md`. Operator scripts in `scripts/` — see `scripts/AGENTS.md`.
 
 ## Development Workflow
 
 1. **Schema changes**: `pnpm generate:types` after modifying collections.
-2. **Database**: PostgreSQL on Railway, managed by migrations in `src/migrations/`. Dev uses `push: true` (auto-schema-sync); prod applies migrations in-process on server boot via `prodMigrations`. See `.claude/rules/migrations.md` for details.
+2. **Database**: PostgreSQL on Railway, managed by migrations in `src/migrations/`. Dev uses `push: true` (auto-schema-sync); prod applies migrations in-process on server boot via `prodMigrations`. See `src/migrations/AGENTS.md` for details.
 3. **Admin Access**: `/admin`.
 4. **API Access**: REST API at `/api/*` (GraphQL disabled).
-5. **Migrations**: Create locally, commit, and they auto-apply on the next deploy. **Attempt creation automatically first**: `timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null` — `--skip-empty` suppresses the blank-migration prompt, and the timeout catches drizzle's rename-vs-create prompt (which hangs on non-TTY stdin). Hand the command to the user to run interactively **only** when it times out (exit 124). See `.claude/rules/migrations.md` for the full outcome table.
+5. **Migrations**: Create locally, commit, and they auto-apply on the next deploy. **Attempt creation automatically first**: `timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null` — `--skip-empty` suppresses the blank-migration prompt, and the timeout catches drizzle's rename-vs-create prompt (which hangs on non-TTY stdin). Hand the command to the user to run interactively **only** when it times out (exit 124). See `src/migrations/AGENTS.md` for the full outcome table.
 
 ### Git Commands
 
@@ -142,7 +149,7 @@ Skills come from the **`workflow` plugin** (`sydevs/claude-workflow`), enabled i
 
 ## PR Requirements
 
-The test suite runs in three tiers (see `.claude/rules/testing-reqs.md` for the full table):
+The test suite runs in three tiers (see `docs/rules/testing-reqs.md` for the full table):
 
 | Tier           | Command                                     | Fires when                                               |
 | -------------- | ------------------------------------------- | -------------------------------------------------------- |
@@ -179,7 +186,7 @@ gh pr view <n> --json mergeable,mergeStateStatus
 Two things make this easy to misread, and both cost real time in #632/#653:
 
 - **A green run can be stale.** The last successful run was against the commit *before* `main` moved, so the PR looks tested when the conflict arose after that run. Always check the run's `head_sha` against your branch head.
-- **Docs conflict more than code.** Two PRs adding sibling features (a second root endpoint, a third collection) rarely touch the same functions, but they routinely edit the same paragraph of the same `.claude/rules/*.md` list — which is enough to stop CI on both. When your change edits a shared rule doc, prefer wording that states the *criterion* rather than a count or an enumeration, so a sibling PR neither conflicts nor makes your sentence false.
+- **Docs conflict more than code.** Two PRs adding sibling features (a second root endpoint, a third collection) rarely touch the same functions, but they routinely edit the same paragraph of the same nested `AGENTS.md` list — which is enough to stop CI on both. When your change edits a shared rule doc, prefer wording that states the *criterion* rather than a count or an enumeration, so a sibling PR neither conflicts nor makes your sentence false.
 
 ## Deployment
 
@@ -193,4 +200,4 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive documentation.
 
 ## Project Structure
 
-Standard Next.js + Payload layout under `src/` (plugins, collections, components, globals, jobs, lib, types, fields, app routes, migrations). Tests live under `tests/{int,e2e,utils}/`. Path-scoped rules in `.claude/rules/` document the subsystems Claude is editing — see **`.claude/rules/project-structure.md`** for the `src/` layout and the rules governing where new code belongs (`plugins/` vs `jobs/` vs `lib/` vs an owner's folder).
+Standard Next.js + Payload layout under `src/` (plugins, collections, components, globals, jobs, lib, types, fields, app routes, migrations). Tests live under `tests/{int,e2e,utils}/`. Nested `AGENTS.md` guides and the path-scoped rules in `docs/rules/` document the subsystems Claude is editing — see **`src/AGENTS.md`** for the `src/` layout and the rules governing where new code belongs (`plugins/` vs `jobs/` vs `lib/` vs an owner's folder).
