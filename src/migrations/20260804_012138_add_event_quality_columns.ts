@@ -2,7 +2,7 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
 /**
  * Trimmed after generation — the out-of-order snapshot trap in
- * `.claude/rules/migrations.md`.
+ * `src/migrations/AGENTS.md`.
  *
  * `migrate:create` diffs against the newest-**by-filename** snapshot, which was
  * `20260803_221051_registrations_full_flag.json`. That one came off a branch

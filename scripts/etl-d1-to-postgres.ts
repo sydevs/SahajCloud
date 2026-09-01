@@ -6,7 +6,7 @@
  * Usage:
  *   DATABASE_URL=postgresql://... pnpm tsx scripts/etl-d1-to-postgres.ts [--dry-run] [--truncate]
  *
- * Env (read directly, per .claude/rules/scripts.md):
+ * Env (read directly, per scripts/AGENTS.md):
  *   CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_KEY  (D1 read) — from .env.local or shell
  *   DATABASE_URL                                — target Postgres (Railway public URL)
  *

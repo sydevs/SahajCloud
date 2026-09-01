@@ -21,7 +21,7 @@
  * production data plane" constraint — prod keeps its exact existing behaviour
  * (no prefix, no guard, no extra API calls).
  *
- * See `.claude/rules/storage.md` § "Preview / non-production isolation".
+ * See `docs/rules/storage.md` § "Preview / non-production isolation".
  */
 
 import { storageLogger } from './storageLogger'

@@ -78,7 +78,7 @@ function renderSection(
  *
  * Registrant mail, so it follows that shape: no callout, the **client
  * service's** brand rather than the project's, and every string resolved in
- * the registrant's own locale by the sender (see `.claude/rules/email.md`).
+ * the registrant's own locale by the sender (see `docs/rules/email.md`).
  */
 export function PostEventFollowUpEmail({
   brand,

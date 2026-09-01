@@ -1,8 +1,3 @@
----
-paths:
-  - src/types/**/*.ts
----
-
 # Type Organization Rules
 
 Rules for TypeScript type definitions and organization.
