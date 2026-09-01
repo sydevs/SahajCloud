@@ -3,8 +3,7 @@ import type { Endpoint } from 'payload'
 import { APIError } from 'payload'
 
 import { requireActiveManager } from '@/lib/endpoints'
-import type { LocaleCode } from '@/lib/locales'
-import { hasPermission } from '@/plugins/access'
+import { hasPermission, roleScopeFromLocale } from '@/plugins/access'
 
 import { applyReview, type ReviewAction } from '../lifecycle/review'
 
@@ -35,7 +34,7 @@ export const reviewSubmission: Endpoint = {
         user: req.user,
         collection: 'event-submissions',
         operation: 'update',
-        locale: req.locale === 'all' ? 'union' : (req.locale as LocaleCode | undefined),
+        locale: roleScopeFromLocale(req.locale),
       })
     ) {
       return Response.json(

@@ -12,8 +12,48 @@ import { describe, it, expect } from 'vitest'
 import {
   normalizeLocalizedRoles,
   rankLocalesByRoleCount,
+  roleScopeFromLocale,
   unionRoles,
 } from '../../src/plugins/access/localizedRoles'
+
+describe('roleScopeFromLocale', () => {
+  it('passes a real locale through as the scope', () => {
+    expect(roleScopeFromLocale('cs')).toBe('cs')
+  })
+
+  it('denies `all` rather than granting the union', () => {
+    // The whole point of the helper. `?locale=all` names no locale to evaluate
+    // roles in, so it resolves to no scope and `hasPermission` denies a manager.
+    // Returning `'union'` here would mean "a role in any locale grants every
+    // locale" — the over-grant #665 exists to remove. `EventSubmissions` did
+    // exactly that, disagreeing with the other three call sites.
+    expect(roleScopeFromLocale('all')).toBeUndefined()
+  })
+
+  it('denies an absent locale', () => {
+    expect(roleScopeFromLocale(undefined)).toBeUndefined()
+    expect(roleScopeFromLocale('')).toBeUndefined()
+  })
+
+  it('never returns `union`, whatever it is given', () => {
+    // `'union'` is reachable only where a caller states it deliberately —
+    // admin-UI nav visibility, which Payload invokes with no locale at all.
+    // A request must not be able to ask for it, including by sending the word:
+    // `RoleScope` has a non-locale member, so casting `req.locale` would let
+    // `?locale=union` name the privileged scope and grant a manager their roles
+    // from every locale at once.
+    for (const input of ['all', 'union', '', undefined, 'en']) {
+      expect(roleScopeFromLocale(input)).not.toBe('union')
+    }
+  })
+
+  it('denies a locale that is not configured', () => {
+    // The generalisation of the case above — anything outside `LOCALES` resolves
+    // to no scope rather than being cast into one.
+    expect(roleScopeFromLocale('zz')).toBeUndefined()
+    expect(roleScopeFromLocale('en-US')).toBeUndefined()
+  })
+})
 
 describe('normalizeLocalizedRoles', () => {
   it('keeps only locales that carry at least one role', () => {

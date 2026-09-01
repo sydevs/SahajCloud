@@ -16,12 +16,6 @@ import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugi
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
 import { setProject } from './endpoints/setProject'
-import {
-  afterLoginLocalizedRoles,
-  afterMeLocalizedRoles,
-  afterRefreshLocalizedRoles,
-} from './localizedRolesHooks'
-import { localizedRolesStrategy } from './localizedRolesStrategy'
 
 export const Managers: CollectionConfig = {
   slug: 'managers',
@@ -60,25 +54,16 @@ export const Managers: CollectionConfig = {
     },
     maxLoginAttempts: 5,
     lockTime: 600 * 1000, // 10 minutes
-    // `roles` is localized, and every ordinary read resolves it at ONE locale.
-    // This strategy re-reads it at `locale: 'all'` so access checks can evaluate
-    // the locale the request is actually for. Runs ahead of Payload's `local-jwt`,
-    // which it wraps rather than replaces. See #665.
-    strategies: [localizedRolesStrategy],
   },
   admin: {
     group: 'System',
     useAsTitle: 'name',
     defaultColumns: ['name', 'email', 'type', '_verified'],
   },
-  // The three auth responses re-read the manager themselves, at a single locale,
-  // so the strategy above is not enough on its own: the admin client calls `/me`
-  // on mount and would overwrite the per-locale record with a flat array. See #665.
-  hooks: {
-    afterLogin: [afterLoginLocalizedRoles],
-    afterMe: [afterMeLocalizedRoles],
-    afterRefresh: [afterRefreshLocalizedRoles],
-  },
+  // NOTE: `roles` below is `localized`, and this collection is an auth collection.
+  // accessPlugin detects that pair and attaches the auth strategy and the three
+  // auth-response hooks that keep a manager's roles resolved at every locale —
+  // see `src/plugins/access/localizedRolesAuth.ts` (#665). Nothing to wire here.
   fields: [
     {
       name: 'name',
