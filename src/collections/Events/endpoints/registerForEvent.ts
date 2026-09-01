@@ -47,7 +47,7 @@ const bodySchema = z.object({
  *
  * `req.user` is the authenticated client, but its `logo` is an unpopulated id —
  * the email needs the Image's `filename` to build a delivery URL, so this
- * re-reads at `depth: 1`. Bounded by a `select` per `.claude/rules/endpoints.md`,
+ * re-reads at `depth: 1`. Bounded by a `select` per `src/endpoints/AGENTS.md`,
  * and wrapped in `asTrustedReq` so the client-query gate doesn't reject an
  * internal read the caller never asked for.
  *

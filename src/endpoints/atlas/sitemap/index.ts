@@ -124,7 +124,7 @@ async function ownedDocuments(
  * Registered at the config root rather than on a collection because the answer
  * spans regions *and* events, so no collection owns it — which means the usage
  * plugin's `beforeOperation` gates don't fire for the handler itself and
- * `assertClientOriginAllowed` is called directly (see `.claude/rules/endpoints.md`).
+ * `assertClientOriginAllowed` is called directly (see `src/endpoints/AGENTS.md`).
  * The collection reads it forwards *do* run them, so published-only access,
  * project visibility and usage tracking all apply as usual.
  *

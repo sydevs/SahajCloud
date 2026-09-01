@@ -5,7 +5,7 @@
  * `./hooks.ts`. They reduce a request's browser origin and a client's
  * `allowedDomains` allowlist to comparable bare hosts and decide whether the
  * request is allowed. Matching is exact-host or `*.`-wildcard; see
- * `.claude/rules/api-clients.md` for the contract.
+ * `src/plugins/usage/AGENTS.md` for the contract.
  */
 import type { PayloadRequest } from 'payload'
 

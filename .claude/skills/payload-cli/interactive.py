@@ -28,7 +28,7 @@ Raw mode needs `\\r`, not `\\n`.
 
 The rename prompt's highlighted default is `+ create column`, which is a
 **drop+add**. That is right for a genuinely new column and destroys data for a
-real rename — see `.claude/rules/migrations.md` before accepting one on a
+real rename — see `src/migrations/AGENTS.md` before accepting one on a
 column that holds rows.
 """
 

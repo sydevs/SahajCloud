@@ -210,7 +210,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
 
         // Note: MP4 downloads are enabled asynchronously via a Cloudflare Stream webhook
         // once the video finishes transcoding. See src/app/(payload)/api/webhooks/cloudflare-stream/
-        // and .claude/rules/storage.md.
+        // and src/plugins/storage/AGENTS.md.
 
         const originalFilename = file.filename
         const existingMetadata =

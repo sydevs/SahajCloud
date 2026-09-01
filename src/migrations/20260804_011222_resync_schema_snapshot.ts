@@ -10,7 +10,7 @@
  * already-applied DDL. That DDL is dropped here — every change is applied by an
  * earlier migration in the chain — and only the regenerated, now-cumulative
  * .json snapshot is kept, so the next migrate:create diffs from the true current
- * schema. See the "out-of-order snapshot trap" in .claude/rules/migrations.md.
+ * schema. See the "out-of-order snapshot trap" in src/migrations/AGENTS.md.
  */
 export async function up(): Promise<void> {}
 

@@ -24,7 +24,7 @@ interface StringPropertySchema {
    * CLDR plural family for storage (`<key>_one`/`_few`/`_many`/`_other`), and
    * the admin renders one grouped row of per-category inputs sharing a single
    * length counter. The resolver (`pluralize`) reads the same expanded keys —
-   * see `.claude/rules/email.md`.
+   * see `src/plugins/email/AGENTS.md`.
    */
   plural?: boolean
 }

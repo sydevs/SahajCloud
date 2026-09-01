@@ -185,7 +185,7 @@ describe('Event listing quality', () => {
       // trash-enabled collection, so an update targeting a trashed row throws
       // `Not Found` unless it passes `trash: true`. Two archived Atlas events
       // failed on every seed run until `upsert` did — on *both* its paths, the
-      // preloaded one included. See .claude/rules/collections.md.
+      // preloaded one included. See src/collections/AGENTS.md.
       const event = await createPublished({ title: 'Archived Sitting' })
       await payload.update({
         collection: 'events',

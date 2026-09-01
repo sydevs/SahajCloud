@@ -74,7 +74,7 @@ export function warnEmailDisabled(): undefined {
   console.warn(
     '[email] No SMTP_URL set and not in production — email is DISABLED. ' +
       'Sends will be logged, not delivered. Set SMTP_URL to the Mailpit endpoint ' +
-      '(see .claude/rules/email.md) to capture mail and get shareable preview links.',
+      '(see src/plugins/email/AGENTS.md) to capture mail and get shareable preview links.',
   )
   return undefined
 }
