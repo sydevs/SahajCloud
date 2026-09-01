@@ -40,52 +40,39 @@ export async function loginAsAdmin(request: APIRequestContext): Promise<string> 
 }
 
 /**
- * Ensure an admin exists on the preview database and return a JWT.
+ * Log in to the preview as the admin and return a JWT.
  *
- * A per-PR Railway preview starts with an empty database (only the schema the
- * migrations apply on boot), so there's no admin to log in as. Try to log in;
- * if that fails, create the first admin via Payload's `first-register`
- * endpoint, then return its token.
+ * **This is a login and nothing more.** The admin is provisioned by the deploy itself —
+ * `onInit` reconciles it from `PREVIEW_ADMIN_PASSWORD` on every boot of a preview
+ * environment (`src/plugins/previewAdmin`, sydevs/SahajCloud#662) — so by the time any
+ * spec runs, an account matching the current secret already exists.
  *
- * `first-register` only succeeds while the auth collection is empty, so it
- * bootstraps a given preview exactly once. The admin it writes then outlives
- * every later deploy — a PR preview's Postgres volume persists for the life of
- * the environment, not the life of a deployment. That makes the seeded password
- * a property of the preview *database*, not of the current CI secret: rotate
- * `PREVIEW_ADMIN_PASSWORD` and an already-seeded preview is orphaned, because
- * login now fails on the new value while `first-register` stays Forbidden. That
- * case is reported for what it is rather than as a bare registration 403.
+ * It used to bootstrap the account itself via Payload's `first-register`, which succeeds
+ * only while the auth collection is empty. That made the credential a property of the
+ * preview *database* rather than of the current secret, and a preview's Postgres volume
+ * outlives its deploys: rotating the secret orphaned every already-seeded environment,
+ * because login then failed on the new value while `first-register` stayed Forbidden.
+ * Reconciling at deploy removes that whole class of failure, and with it the 403
+ * special-case this function used to carry.
+ *
+ * A failure here is therefore a real one — the deploy did not seed, or the secret this
+ * run holds is not the one the deploy used — so it is reported rather than worked around.
  */
 export async function ensureAdmin(request: APIRequestContext): Promise<string> {
   const login = await request.post('/api/managers/login', { data: PREVIEW_ADMIN })
-  if (login.ok()) {
-    const body = (await login.json()) as { token?: string }
-    if (body.token) return body.token
-  }
-  const register = await request.post('/api/managers/first-register', {
-    data: { ...PREVIEW_ADMIN, name: 'Preview Admin', type: 'admin' },
-  })
-  if (!register.ok()) {
-    // Payload returns Forbidden from `first-register` as soon as the auth
-    // collection holds any document, so a 403 here means the preview already
-    // has an admin that PREVIEW_ADMIN_PASSWORD does not open — registration
-    // itself is fine. Say so, because the raw 403 reads as the opposite.
-    if (register.status() === 403) {
-      throw new Error(
-        `ensureAdmin: ${PREVIEW_ADMIN.email} already exists on ${getBaseUrl()}, but ` +
-          `PREVIEW_ADMIN_PASSWORD does not authenticate it (login returned ${login.status()}). ` +
-          'A preview database outlives its deploys, so an admin seeded by an earlier smoke run ' +
-          'keeps the password that run used. Reset the preview database (or recreate the preview ' +
-          'environment) so this run can seed it again, then keep the secret stable for the life ' +
-          'of the PR.',
-      )
-    }
+  if (!login.ok()) {
     throw new Error(
-      `ensureAdmin: first-register failed: ${register.status()} ${await register.text()}`,
+      `ensureAdmin: ${PREVIEW_ADMIN.email} could not log in to ${getBaseUrl()} ` +
+        `(${login.status()}). The preview provisions its admin on every deploy from ` +
+        'PREVIEW_ADMIN_PASSWORD, so either that deploy step did not run — check the boot log ' +
+        'for a [previewAdmin] line — or this run holds a different value than the deploy did.',
     )
   }
-  const body = (await register.json()) as { token?: string }
-  return body.token ?? loginAsAdmin(request)
+  const body = (await login.json()) as { token?: string }
+  if (!body.token) {
+    throw new Error('ensureAdmin: login succeeded but the response carried no token')
+  }
+  return body.token
 }
 
 export function authHeaders(token: string): Record<string, string> {
