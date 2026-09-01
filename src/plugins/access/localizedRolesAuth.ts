@@ -36,11 +36,10 @@ import type {
   AuthStrategyFunctionArgs,
   AuthStrategyResult,
   CollectionConfig,
-  Field,
   PayloadRequest,
 } from 'payload'
 
-import { JWTAuthentication } from 'payload'
+import { flattenTopLevelFields, JWTAuthentication } from 'payload'
 
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 
@@ -222,11 +221,23 @@ const afterLoginLocalizedRoles: NonNullable<
  * roles would otherwise be broken in a way nothing announces — and because
  * `Clients`, whose `roles` is flat, is correctly skipped for a stated reason
  * rather than by omission.
+ *
+ * ⚠ **`flattenTopLevelFields`, not `collection.fields.some`.** `Managers.roles`
+ * lives inside a `tabs` field, which is presentational — the data path is still
+ * `manager.roles` — so a scan of the top-level array does not find it and the
+ * whole mechanism goes inert with nothing to announce it. That is not a
+ * hypothetical: the first version of this predicate did exactly that, and only
+ * the integration lane caught it.
+ *
+ * Payload's own utility is the right tool because it encodes the distinction
+ * that matters here: it flattens presentational containers (tabs, rows,
+ * collapsibles) while NOT descending into `group` or `array`, whose children sit
+ * at a different data path and are not the field `hydrateLocalizedRoles` reads.
  */
 function hasLocalizedRoles(collection: CollectionConfig): boolean {
   if (!collection.auth) return false
-  return (collection.fields ?? []).some(
-    (field: Field) =>
+  return flattenTopLevelFields(collection.fields ?? []).some(
+    (field) =>
       'name' in field && field.name === 'roles' && 'localized' in field && field.localized === true,
   )
 }

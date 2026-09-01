@@ -19,13 +19,32 @@ import { describe, it, expect } from 'vitest'
 
 import { withLocalizedRoleAuth } from '../../src/plugins/access/localizedRolesAuth'
 
-/** An auth collection with a localized `roles` field — the shape `Managers` has. */
+/**
+ * An auth collection with a localized `roles` field — the shape `Managers` has.
+ *
+ * ⚠ **`roles` is inside a `tabs` field, and that is the point.** The real
+ * `Managers` config nests it exactly this way, and the first version of this
+ * fixture put it at the top level instead — so the spec passed against a
+ * predicate that could not find the real field, and CI's integration lane was
+ * what caught it. A fixture that is easier to write than the real config is not
+ * covering the real config.
+ */
 const managersLike: CollectionConfig = {
   slug: 'managers',
   auth: { maxLoginAttempts: 5 },
   fields: [
     { name: 'name', type: 'text' },
-    { name: 'roles', type: 'select', hasMany: true, localized: true, options: ['a'] },
+    {
+      type: 'tabs',
+      tabs: [
+        {
+          label: 'Access',
+          fields: [
+            { name: 'roles', type: 'select', hasMany: true, localized: true, options: ['a'] },
+          ],
+        },
+      ],
+    },
   ],
 }
 
@@ -51,6 +70,37 @@ describe('withLocalizedRoleAuth', () => {
     // `Clients.roles` is deliberately flat, so there is nothing to hydrate and
     // the strategy would only add a pointless read to every client request.
     expect(withLocalizedRoleAuth(clientsLike)).toBe(clientsLike)
+  })
+
+  it('finds a top-level `roles` field too', () => {
+    // The nested case above is what `Managers` actually does; this pins that
+    // supporting the real shape did not cost the simple one.
+    const flat: CollectionConfig = {
+      slug: 'other-auth',
+      auth: true,
+      fields: [{ name: 'roles', type: 'select', hasMany: true, localized: true, options: ['a'] }],
+    }
+    expect(withLocalizedRoleAuth(flat)).not.toBe(flat)
+  })
+
+  it('does not descend into a group, whose `roles` is a different data path', () => {
+    // `group.roles` reads as `user.group.roles`, which is not the field
+    // `hydrateLocalizedRoles` selects. Attaching the strategy for it would
+    // hydrate the wrong thing, silently.
+    const grouped: CollectionConfig = {
+      slug: 'grouped-auth',
+      auth: true,
+      fields: [
+        {
+          name: 'group',
+          type: 'group',
+          fields: [
+            { name: 'roles', type: 'select', hasMany: true, localized: true, options: ['a'] },
+          ],
+        },
+      ],
+    }
+    expect(withLocalizedRoleAuth(grouped)).toBe(grouped)
   })
 
   it('leaves a non-auth collection untouched', () => {
