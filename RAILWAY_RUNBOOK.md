@@ -905,7 +905,7 @@ railway logs -s <app-service-name> --tail -n 200
 pnpm db:migrate
 
 # If the migration partially applied, you may need to manually rollback
-# (consult .claude/rules/migrations.md for migration rollback procedures)
+# (consult src/migrations/AGENTS.md for migration rollback procedures)
 
 # After fixing, commit and push
 git add src/migrations/

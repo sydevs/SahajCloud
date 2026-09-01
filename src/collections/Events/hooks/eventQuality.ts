@@ -44,7 +44,7 @@ export const computeEventQualityReport: FieldHook = async ({ data, req, findMany
  * Collection-level, not a field hook, on purpose: Payload materialises `{}` for
  * a group an incoming patch omits, so a field hook computing from its own
  * sibling data would NULL the column on every unrelated write — the trap
- * documented for `computeLastDate` in `.claude/rules/collections.md`. Computing
+ * documented for `computeLastDate` in `src/collections/AGENTS.md`. Computing
  * from `{ ...originalDoc, ...data }` means a partial patch recomputes against
  * the whole document, an unrelated patch is a no-op, and any write back-fills a
  * row that predates the column.

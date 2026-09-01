@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
  * `src/lib/` is for code shared across owners. A module in there with exactly
  * **one** consumer isn't shared — it's that consumer's private code sitting in
  * the commons, importable by anything, and read by anyone tracing the feature
- * as though it were general-purpose (`.claude/rules/project-structure.md`,
+ * as though it were general-purpose (`src/AGENTS.md`,
  * rule 4).
  *
  * The rule predates this test and had drifted anyway: five modules had a single
@@ -147,7 +147,7 @@ describe('src/lib holds shared code only', () => {
       if (only!.startsWith('src/lib/')) continue
       // Operator scripts are deliberately thin CLI wrappers with their routine
       // in lib, so it can be unit-tested without executing the script
-      // (`.claude/rules/scripts.md` records this per backfill). The script is
+      // (`scripts/AGENTS.md` records this per backfill). The script is
       // the wrapper, not the owner.
       if (only!.startsWith('scripts/')) continue
       offenders.push(`${specifier} → only ${only}`)

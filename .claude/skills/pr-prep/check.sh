@@ -3,7 +3,7 @@
 # Pre-PR validation.
 #
 # Implements Tier 2 (lean local gate) by default and Tier 3 (local CI parity,
-# minus smoke) under --full. See .claude/rules/testing-reqs.md for the full
+# minus smoke) under --full. See docs/rules/testing-reqs.md for the full
 # three-tier contract.
 #
 # Default — Tier 2: lint + typecheck + the fast unit suite. Run the targeted
@@ -58,7 +58,7 @@ if ! pnpm typecheck:tests; then
   echo
   echo "❌ Test-suite typecheck failed. Fix type errors before continuing."
   echo "  Scope is tsconfig.test.json (all of tests/**)."
-  echo "  Type fixtures with createData / FixtureOverrides — see .claude/rules/tests.md."
+  echo "  Type fixtures with createData / FixtureOverrides — see tests/AGENTS.md."
   exit 1
 fi
 echo "✓ Test-suite typecheck passed"

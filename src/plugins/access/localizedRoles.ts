@@ -11,7 +11,7 @@
  * roles are applied in all 19 locales (over-grant), while a manager with no
  * English roles gets an empty array and is locked out (under-grant). Nothing in
  * `src/` performed the `locale: 'all'` read that produces the record, so the
- * per-locale model documented in `.claude/rules/access.md` was inert at runtime.
+ * per-locale model documented in `docs/rules/access.md` was inert at runtime.
  *
  * `hydrateLocalizedRoles` is that read. It runs once per authenticated request,
  * in the auth strategy on `Managers`, and again on the three auth responses
@@ -109,7 +109,7 @@ export function normalizeLocalizedRoles(value: unknown): LocalizedRoles {
  * - **With the caller's own `req`, this would repoint their locale.**
  *   `createLocalReq` assigns `req.locale` onto the object it is given, so
  *   `locale: 'all'` would leak into every later step of that operation — the
- *   defect `.claude/rules/collections.md` records as #609.
+ *   defect `src/collections/AGENTS.md` records as #609.
  *
  * `localeIsolatedReq` resolves both: `transactionID` carries by reference so the
  * read joins the existing transaction, while `locale` becomes the copy's own.

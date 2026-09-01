@@ -66,7 +66,7 @@ describe('r2S3Endpoint', () => {
  * is indistinguishable from a genuinely bad token. A live dry run caught this:
  * the token worked for Images and Stream but the id lookup rejected it.
  *
- * `cfGet` is injected rather than stubbing global fetch, per `.claude/rules/tests.md`.
+ * `cfGet` is injected rather than stubbing global fetch, per `tests/AGENTS.md`.
  */
 describe('r2AccessKeyId', () => {
   const ACCOUNT = 'acct-1'

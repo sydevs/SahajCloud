@@ -34,7 +34,7 @@ const sharedTestEnv: Record<string, string> = {
 // Postgres, and each Payload instance opens a connection pool (node-pg default
 // max 10). So forks are capped to keep total connections well under Postgres'
 // default max_connections (100) and to leave the dev machine headroom locally
-// (the CPU-guard rule in .claude/rules/testing-reqs.md). CI gets a dedicated
+// (the CPU-guard rule in docs/rules/testing-reqs.md). CI gets a dedicated
 // service-container Postgres, so it can use the (smaller) runner fully. Override
 // with VITEST_INT_MAX_FORKS.
 // V8 coverage instruments the whole Payload module graph, which makes the
