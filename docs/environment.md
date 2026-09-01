@@ -232,6 +232,30 @@ The application is built and deployed on Railway, a containerized platform.
   - Migrations are applied automatically on server boot (via `prodMigrations` in Payload config)
 - **.env** — Local development environment (git-ignored, copy from .env.example)
 
+### Preview environments provision their own admin
+
+`PREVIEW_ADMIN_PASSWORD` is set on Railway's **preview** environments (and passed to the
+smoke lane as a CI secret). On every boot of a preview, `onInit` reconciles the admin
+account against the current value — `src/plugins/previewAdmin`, sydevs/SahajCloud#662 —
+so rotating the secret takes effect on the next deploy.
+
+Two things about that gate are worth knowing before touching it:
+
+- **Production is detected by Railway's environment name, never `NODE_ENV`.** Railway
+  previews run `NODE_ENV=production`, which is the same trap that once sent preview mail
+  through Resend to real addresses. It reads `isProductionDeployment()`, as the email
+  adapter and the storage guard already do.
+- **The gate also requires a Railway environment name at all**, which is what keeps
+  `onInit` inert in local dev, in CI and in both test lanes. CI genuinely does hold the
+  password as a secret, so a gate reading only that would write an admin into the
+  integration lane's database.
+
+`PREVIEW_ADMIN_EMAIL` overrides the account's address; it defaults to
+`contact@sydevelopers.com`, matching the smoke lane's own default.
+
+Environments forked before 2026-08-27 never receive the variable and are out of scope:
+they keep whatever admin an early smoke run seeded.
+
 ### Local Development Environment
 
 **File**: `.env` (git-ignored)
