@@ -10,8 +10,7 @@
 import type { TypedAuthUser } from './types'
 import type { Locale, PayloadRequest } from 'payload'
 
-import type { LocaleCode } from '@/lib/locales'
-import type { RoleSlug } from '@/payload-types'
+import { normalizeLocalizedRoles, rankLocalesByRoleCount } from './localizedRoles'
 
 type FilterAvailableLocalesArgs = {
   locales: Locale[]
@@ -24,7 +23,8 @@ type FilterAvailableLocalesArgs = {
  * - Unauthenticated requests: Return only English (for login page)
  * - Admin managers: See all locales
  * - API clients: Not filtered (return all locales)
- * - Regular managers: See English + locales where they have roles assigned
+ * - Regular managers: exactly the locales they hold a role in, most roles first
+ * - Managers with roles in no locale: English only
  * - Inactive managers: Return only English
  *
  * @param args - Arguments containing locales array and request
@@ -53,22 +53,25 @@ export const filterAvailableLocales = ({
   // Admin managers - return all locales
   if (authUser.type === 'admin') return locales
 
-  // Regular managers - English + locales with roles
-  const roles = authUser.roles
+  // Regular managers — exactly the locales they hold a role in, best first.
+  //
+  // English is NOT force-added. It used to be, which made the dropdown claim
+  // access the manager did not have and — because `localeCodes[0]` is also where
+  // Payload lands them — pinned every manager to a locale their roles might not
+  // cover. Dropping it is what activates `@payloadcms/next`'s own redirect to
+  // `localeCodes[0]` for a manager whose active locale grants them nothing.
+  const ranked = rankLocalesByRoleCount(normalizeLocalizedRoles(authUser.roles))
 
-  // If roles is not a localized object, return only English
-  if (!roles || typeof roles !== 'object' || Array.isArray(roles)) {
-    return [englishLocale]
-  }
+  // ⚠ Never return an empty array. `views/Root` redirects whenever `req.locale` is
+  // not in this list and sends the manager to `localeCodes[0]`; when that is
+  // `undefined`, `qs.stringify` drops the key and the route redirects to itself —
+  // an infinite loop. English is also what keeps the "No Projects Available"
+  // banner reachable, which is the correct outcome for a manager with no roles.
+  if (ranked.length === 0) return [englishLocale]
 
-  // Roles is a localized object
-  const localizedRoles = roles as Record<LocaleCode, RoleSlug[]>
-
-  // Find all locales where the manager has at least one role
-  const localesWithRoles = Object.keys(localizedRoles).filter(
-    (locale) => localizedRoles[locale as LocaleCode]?.length > 0,
-  )
-
-  // Return English (always) + locales where manager has roles
-  return locales.filter((l) => l.code === 'en' || localesWithRoles.includes(l.code))
+  // Ordered by the ranking, not by the config's locale order: the first entry is
+  // both the first dropdown item and the locale Payload lands them on.
+  return ranked
+    .map((code) => locales.find((l) => l.code === code))
+    .filter((l): l is Locale => Boolean(l))
 }

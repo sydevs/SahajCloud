@@ -33,6 +33,13 @@ export { bypassPermissions } from './bypassPermissions'
 // ============================================================================
 
 export { filterAvailableLocales } from './filterAvailableLocales'
+export {
+  hydrateLocalizedRoles,
+  normalizeLocalizedRoles,
+  rankLocalesByRoleCount,
+  unionRoles,
+} from './localizedRoles'
+export type { LocalizedRoles } from './localizedRoles'
 export { adminOnlyCondition, adminOnlyFieldAccess, isAdminManager } from './adminOnly'
 export { restrictUploadToAdmin } from './restrictUploadToAdmin'
 export { ownedRegionFilterOptions } from './regionSubtreeAccess'

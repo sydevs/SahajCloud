@@ -88,7 +88,7 @@ describe('filterAvailableLocales', () => {
   })
 
   describe('regular managers', () => {
-    it('returns English + locales with roles for regular managers', () => {
+    it('returns exactly the locales with roles, and does not add English', () => {
       const managerUser = testData.dummyUser('managers', {
         id: 1,
         type: 'manager',
@@ -97,9 +97,39 @@ describe('filterAvailableLocales', () => {
       const req = createMockRequest(managerUser)
       const result = filterAvailableLocales({ locales: allLocales, req })
 
-      // Should include English (always) + Czech + German
-      expect(result).toHaveLength(3)
-      expect(result.map((l) => l.code).sort()).toEqual(['cs', 'de', 'en'])
+      // Czech and German only. English is no longer force-added (#665): it made
+      // the dropdown claim access the manager does not have, and pinned them to
+      // a locale their roles need not cover.
+      expect(result.map((l) => l.code)).toEqual(['de', 'cs'])
+    })
+
+    it('offers only their own locale to a manager with no English roles', () => {
+      // The manager in #665's report: roles assigned in French alone. They used
+      // to get an English-only dropdown, which made French unreachable.
+      const managerUser = testData.dummyUser('managers', {
+        id: 1,
+        type: 'manager',
+        roles: { fr: ['web-translator'] },
+      })
+      const req = createMockRequest(managerUser)
+      const result = filterAvailableLocales({ locales: allLocales, req })
+
+      expect(result.map((l) => l.code)).toEqual(['fr'])
+    })
+
+    it('orders locales by role count, most first', () => {
+      const managerUser = testData.dummyUser('managers', {
+        id: 1,
+        type: 'manager',
+        roles: { en: ['path-editor'], fr: ['web-translator', 'meditations-editor'] },
+      })
+      const req = createMockRequest(managerUser)
+      const result = filterAvailableLocales({ locales: allLocales, req })
+
+      // French first: it carries two roles to English's one. The first entry is
+      // also where Payload lands the manager, so this ordering is the landing
+      // locale as well as the display order.
+      expect(result.map((l) => l.code)).toEqual(['fr', 'en'])
     })
 
     it('returns only English for managers with no roles', () => {
@@ -142,9 +172,9 @@ describe('filterAvailableLocales', () => {
       const req = createMockRequest(managerUser)
       const result = filterAvailableLocales({ locales: allLocales, req })
 
-      // Should include English + Czech + German + Farsi
-      expect(result).toHaveLength(4)
-      expect(result.map((l) => l.code).sort()).toEqual(['cs', 'de', 'en', 'fa'])
+      // All four carry one role, so the count cannot separate them and the
+      // tie-break falls to LOCALES order: en, de, cs, fa.
+      expect(result.map((l) => l.code)).toEqual(['en', 'de', 'cs', 'fa'])
     })
 
     it('returns only English when roles is undefined', () => {
@@ -182,19 +212,52 @@ describe('filterAvailableLocales', () => {
     })
   })
 
-  describe('locale filtering preserves order', () => {
-    it('maintains the original locale order in results', () => {
+  describe('ordering', () => {
+    it('breaks an equal role count on LOCALES order, not insertion order', () => {
       const managerUser = testData.dummyUser('managers', {
         id: 1,
         type: 'manager',
+        // Deliberately supplied fa-first: the result must not follow this.
         roles: { fa: ['web-translator'], de: ['meditations-editor'], en: ['path-editor'] },
       })
       const req = createMockRequest(managerUser)
       const result = filterAvailableLocales({ locales: allLocales, req })
 
-      // Order should match original allLocales order
-      const resultCodes = result.map((l) => l.code)
-      expect(resultCodes).toEqual(['en', 'de', 'fa']) // Original order: en, es, de, ..., fa, ...
+      expect(result.map((l) => l.code)).toEqual(['en', 'de', 'fa'])
+    })
+
+    it('puts role count ahead of LOCALES order', () => {
+      const managerUser = testData.dummyUser('managers', {
+        id: 1,
+        type: 'manager',
+        // `fa` sits last in LOCALES but carries the most roles, so it leads.
+        roles: {
+          en: ['path-editor'],
+          fa: ['web-translator', 'meditations-editor', 'path-editor'],
+        },
+      })
+      const req = createMockRequest(managerUser)
+      const result = filterAvailableLocales({ locales: allLocales, req })
+
+      expect(result.map((l) => l.code)).toEqual(['fa', 'en'])
+    })
+
+    it('never returns an empty array', () => {
+      // An empty `localeCodes` makes `views/Root` redirect to `undefined`, which
+      // `qs.stringify` drops — so the route redirects to itself, forever. Every
+      // shape that yields no role locale must still produce one entry.
+      for (const roles of [{}, { en: [] }, undefined, ['web-translator']]) {
+        const managerUser = testData.dummyUser('managers', { id: 1, type: 'manager' })
+        ;(managerUser as unknown as Record<string, unknown>).roles = roles
+
+        const result = filterAvailableLocales({
+          locales: allLocales,
+          req: createMockRequest(managerUser),
+        })
+
+        expect(result.length).toBeGreaterThan(0)
+        expect(result[0].code).toBe('en')
+      }
     })
   })
 })

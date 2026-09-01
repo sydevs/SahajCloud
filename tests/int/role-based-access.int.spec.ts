@@ -110,13 +110,13 @@ describe('Role-Based Access Control', () => {
       // Permissions are computed from roles, not explicitly set
       const translatorUser = testData.dummyUser('managers', {
         id: 3,
-        roles: ['web-translator'],
+        roles: { en: ['web-translator'] },
       })
 
       // Should have read access
       expect(
         hasPermission(
-          { user: translatorUser, collection: 'pages', operation: 'read' },
+          { user: translatorUser, locale: 'en', collection: 'pages', operation: 'read' },
           bypassPermissions,
         ),
       ).toBe(true)
@@ -126,6 +126,7 @@ describe('Role-Based Access Control', () => {
         hasPermission(
           {
             user: translatorUser,
+            locale: 'en',
             collection: 'pages',
             operation: 'update',
             field: { localized: true },
@@ -139,6 +140,7 @@ describe('Role-Based Access Control', () => {
         hasPermission(
           {
             user: translatorUser,
+            locale: 'en',
             collection: 'pages',
             operation: 'update',
             field: { localized: false },
@@ -153,6 +155,7 @@ describe('Role-Based Access Control', () => {
         hasPermission(
           {
             user: translatorUser,
+            locale: 'en',
             collection: 'pages',
             operation: 'update',
             field: {},
@@ -166,6 +169,7 @@ describe('Role-Based Access Control', () => {
         hasPermission(
           {
             user: translatorUser,
+            locale: 'en',
             collection: 'pages',
             operation: 'update',
             field: { localized: undefined },
@@ -177,7 +181,7 @@ describe('Role-Based Access Control', () => {
       // Should NOT have create permission
       expect(
         hasPermission(
-          { user: translatorUser, collection: 'pages', operation: 'create' },
+          { user: translatorUser, locale: 'en', collection: 'pages', operation: 'create' },
           bypassPermissions,
         ),
       ).toBe(false)
@@ -225,13 +229,13 @@ describe('Role-Based Access Control', () => {
       // Permissions are computed from roles, not explicitly set
       const managerUser = testData.dummyUser('managers', {
         id: 6,
-        roles: ['web-translator'],
+        roles: { en: ['web-translator'] },
       })
 
       // Should have implicit read access to non-restricted collections
       expect(
         hasPermission(
-          { user: managerUser, collection: 'narrators', operation: 'read' },
+          { user: managerUser, locale: 'en', collection: 'narrators', operation: 'read' },
           bypassPermissions,
         ),
       ).toBe(true)
@@ -754,13 +758,13 @@ describe('Role-Based Access Control', () => {
       // Permissions are computed from roles, not explicitly set
       const managerUser = testData.dummyUser('managers', {
         id: 10,
-        roles: ['web-translator'], // Has roles in current locale
+        roles: { en: ['web-translator'] }, // Has roles in current locale
       })
 
       // Should have implicit read access to narrators
       expect(
         hasPermission(
-          { user: managerUser, collection: 'narrators', operation: 'read' },
+          { user: managerUser, locale: 'en', collection: 'narrators', operation: 'read' },
           bypassPermissions,
         ),
       ).toBe(true)
@@ -770,16 +774,89 @@ describe('Role-Based Access Control', () => {
       // Empty roles = no permissions computed
       const managerUser = testData.dummyUser('managers', {
         id: 11,
-        roles: [], // No roles in current locale
+        roles: { en: [] }, // No roles in current locale
       })
 
       // Should NOT have implicit read access
       expect(
         hasPermission(
-          { user: managerUser, collection: 'narrators', operation: 'read' },
+          { user: managerUser, locale: 'en', collection: 'narrators', operation: 'read' },
           bypassPermissions,
         ),
       ).toBe(false)
+    })
+
+    /**
+     * The mock-only gap that hid #665 for as long as it existed.
+     *
+     * Every assertion above builds its user by hand, in the per-locale shape the
+     * access plugin expects — so they were all green while the shape a REAL
+     * authenticated request carried was a flat, default-locale array. These two
+     * authenticate for actual, through `payload.auth`, which runs the strategy
+     * chain the same way an HTTP request does.
+     */
+    describe('roles on a genuinely authenticated request', () => {
+      it('carries roles for every locale, not just the default one', async () => {
+        const manager = await testData.createManager(payload, {
+          type: 'manager',
+          // `Managers` configures `auth.verify`, so a login is refused until this
+          // is set explicitly — `create` does not imply it the way
+          // `first-register` does.
+          _verified: true,
+          roles: { fr: ['web-translator'], cs: ['meditations-editor', 'path-editor'] },
+        })
+
+        const { token } = await payload.login({
+          collection: 'managers',
+          data: { email: manager.email, password: 'password123' },
+        })
+
+        const headers = new Headers()
+        headers.set('Authorization', `JWT ${token}`)
+        const { user } = await payload.auth({ headers })
+
+        // A per-locale record, not a flat array. Before the fix this was
+        // `[]` — the manager holds nothing in English — which is exactly why
+        // they saw "No Projects Available" and an English-only dropdown.
+        expect(Array.isArray(user?.roles)).toBe(false)
+        expect(user?.roles).toEqual({
+          fr: ['web-translator'],
+          cs: ['meditations-editor', 'path-editor'],
+        })
+      })
+
+      it('grants that manager access in their own locale and not in others', async () => {
+        const manager = await testData.createManager(payload, {
+          type: 'manager',
+          _verified: true,
+          roles: { fr: ['web-translator'] },
+        })
+
+        const { token } = await payload.login({
+          collection: 'managers',
+          data: { email: manager.email, password: 'password123' },
+        })
+
+        const headers = new Headers()
+        headers.set('Authorization', `JWT ${token}`)
+        const { user } = await payload.auth({ headers })
+
+        const canTranslate = (locale: 'de' | 'fr') =>
+          hasPermission(
+            {
+              user,
+              locale,
+              collection: 'pages',
+              operation: 'update',
+              field: { localized: true },
+            },
+            bypassPermissions,
+          )
+
+        expect(canTranslate('fr')).toBe(true)
+        // The over-grant half: this was true in all 19 locales.
+        expect(canTranslate('de')).toBe(false)
+      })
     })
   })
 
@@ -789,7 +866,7 @@ describe('Role-Based Access Control', () => {
       // Translator role is in wemeditate-web project
       const managerUser = testData.dummyUser('managers', {
         id: 12,
-        roles: ['web-translator'],
+        roles: { en: ['web-translator'] },
       })
 
       // Should have implicit read to collections in wemeditate-web project
@@ -809,7 +886,7 @@ describe('Role-Based Access Control', () => {
 
       webProjectCollections.forEach((collection) => {
         expect(
-          hasPermission({ user: managerUser, collection, operation: 'read' }, bypassPermissions),
+          hasPermission({ user: managerUser, locale: 'en', collection, operation: 'read' }, bypassPermissions),
         ).toBe(true)
       })
 
@@ -818,13 +895,13 @@ describe('Role-Based Access Control', () => {
       // across wemeditate-web and wemeditate-app, so it IS readable here.
       expect(
         hasPermission(
-          { user: managerUser, collection: 'lessons', operation: 'read' },
+          { user: managerUser, locale: 'en', collection: 'lessons', operation: 'read' },
           bypassPermissions,
         ),
       ).toBe(false)
       expect(
         hasPermission(
-          { user: managerUser, collection: 'app-cards', operation: 'read' },
+          { user: managerUser, locale: 'en', collection: 'app-cards', operation: 'read' },
           bypassPermissions,
         ),
       ).toBe(false)
@@ -909,18 +986,19 @@ describe('Role-Based Access Control', () => {
       // Permissions are computed from roles dynamically
       const managerUser = testData.dummyUser('managers', {
         id: 17,
-        roles: ['meditations-editor', 'web-translator'],
+        roles: { en: ['meditations-editor', 'web-translator'] },
       })
 
       // Simulate concurrent permission checks
       const checks = [
         hasPermission(
-          { user: managerUser, collection: 'meditations', operation: 'create' },
+          { user: managerUser, locale: 'en', collection: 'meditations', operation: 'create' },
           bypassPermissions,
         ),
         hasPermission(
           {
             user: managerUser,
+            locale: 'en',
             collection: 'pages',
             operation: 'update',
             field: { localized: true },
@@ -930,6 +1008,7 @@ describe('Role-Based Access Control', () => {
         hasPermission(
           {
             user: managerUser,
+            locale: 'en',
             collection: 'songs',
             operation: 'update',
             field: { localized: true },
@@ -937,11 +1016,11 @@ describe('Role-Based Access Control', () => {
           bypassPermissions,
         ),
         hasPermission(
-          { user: managerUser, collection: 'images', operation: 'create' },
+          { user: managerUser, locale: 'en', collection: 'images', operation: 'create' },
           bypassPermissions,
         ),
         hasPermission(
-          { user: managerUser, collection: 'narrators', operation: 'read' },
+          { user: managerUser, locale: 'en', collection: 'narrators', operation: 'read' },
           bypassPermissions,
         ),
       ]
@@ -962,7 +1041,7 @@ describe('Role-Based Access Control', () => {
       // meditations-editor can create and update meditations, but not delete
       const editorUser = testData.dummyUser('managers', {
         id: 20,
-        roles: ['meditations-editor'],
+        roles: { en: ['meditations-editor'] },
       })
 
       // Should return true - has create permission
@@ -970,6 +1049,7 @@ describe('Role-Based Access Control', () => {
         hasAnyPermission(
           {
             user: editorUser,
+            locale: 'en',
             collection: 'meditations',
             operations: ['create', 'update', 'delete'],
           },
@@ -982,6 +1062,7 @@ describe('Role-Based Access Control', () => {
         hasAnyPermission(
           {
             user: editorUser,
+            locale: 'en',
             collection: 'meditations',
             operations: ['delete', 'update'],
           },
@@ -994,13 +1075,14 @@ describe('Role-Based Access Control', () => {
       // meditations-editor cannot create/update/delete pages
       const editorUser = testData.dummyUser('managers', {
         id: 21,
-        roles: ['meditations-editor'],
+        roles: { en: ['meditations-editor'] },
       })
 
       expect(
         hasAnyPermission(
           {
             user: editorUser,
+            locale: 'en',
             collection: 'pages',
             operations: ['create', 'update', 'delete'],
           },
@@ -1013,7 +1095,7 @@ describe('Role-Based Access Control', () => {
       // Translator can translate pages but not create/delete
       const translatorUser = testData.dummyUser('managers', {
         id: 22,
-        roles: ['web-translator'],
+        roles: { en: ['web-translator'] },
       })
 
       // Has translate permission which grants localized field update
@@ -1023,6 +1105,7 @@ describe('Role-Based Access Control', () => {
         hasAnyPermission(
           {
             user: translatorUser,
+            locale: 'en',
             collection: 'pages',
             operations: ['create', 'update', 'delete'],
           },
@@ -1033,13 +1116,14 @@ describe('Role-Based Access Control', () => {
       // Manager with no roles should have no write access
       const noRolesUser = testData.dummyUser('managers', {
         id: 23,
-        roles: [],
+        roles: { en: [] },
       })
 
       expect(
         hasAnyPermission(
           {
             user: noRolesUser,
+            locale: 'en',
             collection: 'pages',
             operations: ['create', 'update', 'delete'],
           },
@@ -1579,13 +1663,13 @@ describe('Role-Based Access Control', () => {
     it('grants meditations-editor update access but not create or delete on user-choices', () => {
       const editorUser = testData.dummyUser('managers', {
         id: 200,
-        roles: ['meditations-editor'],
+        roles: { en: ['meditations-editor'] },
       })
 
       // Implicit read via wemeditate-app project membership
       expect(
         hasPermission(
-          { user: editorUser, collection: 'user-choices', operation: 'read' },
+          { user: editorUser, locale: 'en', collection: 'user-choices', operation: 'read' },
           bypassPermissions,
         ),
       ).toBe(true)
@@ -1593,7 +1677,7 @@ describe('Role-Based Access Control', () => {
       // Explicit update
       expect(
         hasPermission(
-          { user: editorUser, collection: 'user-choices', operation: 'update' },
+          { user: editorUser, locale: 'en', collection: 'user-choices', operation: 'update' },
           bypassPermissions,
         ),
       ).toBe(true)
@@ -1601,13 +1685,13 @@ describe('Role-Based Access Control', () => {
       // No create or delete — editors can only edit existing tag assignments
       expect(
         hasPermission(
-          { user: editorUser, collection: 'user-choices', operation: 'create' },
+          { user: editorUser, locale: 'en', collection: 'user-choices', operation: 'create' },
           bypassPermissions,
         ),
       ).toBe(false)
       expect(
         hasPermission(
-          { user: editorUser, collection: 'user-choices', operation: 'delete' },
+          { user: editorUser, locale: 'en', collection: 'user-choices', operation: 'delete' },
           bypassPermissions,
         ),
       ).toBe(false)

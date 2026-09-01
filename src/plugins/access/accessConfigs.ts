@@ -12,6 +12,7 @@
 import type { BypassPermissionFunction, ContentSlug, FieldAccessConfig } from './types'
 import type { AccessArgs, CollectionConfig, CollectionSlug, PayloadRequest, Where } from 'payload'
 
+import type { LocaleCode } from '@/lib/locales'
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 
 import {
@@ -86,7 +87,16 @@ export function createAccessConfig(
         user: req.user,
         collection,
         operation,
-        locale: req.locale === 'all' ? undefined : req.locale,
+        // ⚠ `?locale=all` DENIES a manager, deliberately. A request for every
+        // locale at once names no locale to evaluate roles in, and granting it
+        // would mean "any role in any locale grants every locale" — the exact
+        // over-grant #665 removes. Before that fix the flat default-locale array
+        // leaked through here and granted access, so this is a real change:
+        // `GET /api/pages?locale=all` as a non-admin manager goes 200 → 403.
+        // The admin UI never sends it (publish-all-locales is a body flag), so
+        // this reaches hand-rolled API calls only. Clients are unaffected — their
+        // roles are a flat array. Switch `undefined` to `'union'` to allow it.
+        locale: req.locale === 'all' ? undefined : (req.locale as LocaleCode | undefined),
         ...(id && { docId: id }),
       }
 
@@ -182,7 +192,8 @@ export function createFieldAccessConfig(
         user: req.user,
         collection,
         operation,
-        locale: req.locale === 'all' ? undefined : req.locale,
+        // Same `?locale=all` deny as the collection-level config above (#665).
+        locale: req.locale === 'all' ? undefined : (req.locale as LocaleCode | undefined),
         ...(fieldContext && { field: fieldContext }),
       }
       return hasPermission(args, bypassFn)
