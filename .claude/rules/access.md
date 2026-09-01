@@ -65,10 +65,52 @@ Manager `type` field controls top-level access:
 | `atlas-manager`      | Sahaj Atlas: read project-wide; create/update events + regions, trash events — writes scoped to the manager's owned-region subtree (see below) |
 
 Manager roles are **per-locale** — different roles can be assigned for
-different languages. Access checks use `req.locale` only. A manager with
-`meditations-editor` in English and `web-translator` in Czech can edit a
-meditation when the admin UI is in English but only translate it when
-in Czech.
+different languages. A manager with `meditations-editor` in English and
+`web-translator` in Czech can edit a meditation when the admin UI is in English
+but only translate it when in Czech.
+
+### How per-locale roles reach `req.user` (#665)
+
+That model is only real because the authenticated user is loaded **twice**.
+`roles` is a `localized` field, and every ordinary read resolves a localized
+field at one locale — Payload's own `local-jwt` strategy passes no locale at
+all, so it resolves at the default. For a long time that was the only read, and
+the per-locale model was inert at runtime in both directions: every manager's
+English roles applied in all 19 locales, and a manager with no English roles was
+locked out of the admin entirely.
+
+Two pieces put it right, and **both** are needed:
+
+| Piece | Why it alone is not enough |
+| --- | --- |
+| `localizedRolesStrategy` (`src/collections/Managers/`) wraps `JWTAuthentication` and re-reads roles at `locale: 'all'` | Fixes `req.user`, but the admin client calls `/api/managers/me` on mount, which re-reads at one locale and overwrites it |
+| `afterMe` / `afterRefresh` / `afterLogin` hooks on `Managers` | Fix the responses, but every server-side access check reads `req.user` |
+
+`hydrateLocalizedRoles` is that read; `src/plugins/access/localizedRoles.ts`
+holds it alongside the helpers that collapse the record.
+
+⚠ **A manager read any other way still carries the flat, default-locale array.**
+That is correct for editing a manager document; it is wrong for deciding access.
+
+### What a check with no locale means
+
+`hasPermission`'s `locale` is a **`RoleScope`**, and each of its three values is
+a deliberate answer rather than a default:
+
+| Scope | Meaning | Used by |
+| --- | --- | --- |
+| a `LocaleCode` | roles assigned in that locale | every ordinary access check |
+| `'union'` | roles in **any** locale | admin nav visibility (`createHidden`), which Payload calls with no locale — scoping it otherwise empties the sidebar for every non-admin manager |
+| `undefined` | nothing resolvable, so deny | `?locale=all`, which names no locale to evaluate |
+
+`?locale=all` therefore **denies** a manager where it used to grant (the flat
+array leaked through). The admin UI never sends it, so this reaches hand-rolled
+API calls only. Clients are unaffected throughout — `Clients.roles` is not
+localized, so no scope applies to a flat array.
+
+⚠ **An endpoint calling `hasPermission` by hand must pass a locale**, or it
+denies every non-admin manager. `EventSubmissions/endpoints/review.ts` is the
+worked example.
 
 ## API client roles
 
