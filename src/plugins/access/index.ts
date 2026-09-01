@@ -38,7 +38,7 @@ export {
   normalizeLocalizedRoles,
   rankLocalesByRoleCount,
   roleScopeFromLocale,
-  unionRoles,
+  rolesForAllLocales,
 } from './localizedRoles'
 export type { LocalizedRoles } from './localizedRoles'
 export { adminOnlyCondition, adminOnlyFieldAccess, isAdminManager } from './adminOnly'

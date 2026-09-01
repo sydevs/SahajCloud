@@ -149,7 +149,9 @@ export async function hydrateLocalizedRoles(
  * It is emphatically NOT the answer for a permission check on a request that has
  * a locale: that is the over-grant this ticket exists to remove.
  */
-export function unionRoles(roles: Partial<Record<LocaleCode, readonly RoleSlug[]>>): RoleSlug[] {
+export function rolesForAllLocales(
+  roles: Partial<Record<LocaleCode, readonly RoleSlug[]>>,
+): RoleSlug[] {
   return [...new Set(Object.values(roles).flat())]
 }
 
