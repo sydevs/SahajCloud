@@ -747,7 +747,7 @@ export const testData = {
       })
     }
 
-    // `collection` last: the access-control mocks in `.claude/rules/tests.md`
+    // `collection` last: the access-control mocks in `tests/AGENTS.md`
     // require the discriminator, so it must not be spreadable-away.
     return { ...manager, collection: 'managers' as const }
   },

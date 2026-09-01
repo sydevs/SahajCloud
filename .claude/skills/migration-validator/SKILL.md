@@ -65,5 +65,5 @@ For semantic review, follow up with the `migration-reviewer` subagent (if availa
 
 ## References
 
-- `.claude/rules/migrations.md` — full migration workflow + push mode rationale
+- `src/migrations/AGENTS.md` — full migration workflow + push mode rationale
 - `src/migrations/` — existing migrations as examples

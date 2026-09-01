@@ -1,13 +1,7 @@
----
-paths:
-  - src/collections/**/*.ts
-  - src/fields/**/*.ts
----
-
 # Collections & Fields
 
 Rules for PayloadCMS collections, custom fields, and the patterns
-specific to this codebase.
+specific to this codebase. This guide also covers `src/fields/`.
 
 ## Access control is automatic
 
@@ -47,7 +41,7 @@ Behaviors worth knowing:
 - **Manager roles are per-locale** (uses `req.locale`).
 - **Client roles apply uniformly across all locales.**
 
-Full RBAC details: see `.claude/rules/access.md` (loads when editing
+Full RBAC details: see `docs/rules/access.md` (loads when editing
 `src/plugins/access/`).
 
 ## Field factory naming
@@ -450,7 +444,7 @@ English + Czech — not German/French/etc.
 sees French alone, and Payload lands them there — the forced English entry used
 to make their own locale unreachable. The first entry is both the top of the
 dropdown and the landing locale, so the ordering is a real behaviour, not
-cosmetics. See `.claude/rules/access.md` § "How per-locale roles reach `req.user`".
+cosmetics. See `docs/rules/access.md` § "How per-locale roles reach `req.user`".
 
 ### Field-level localization
 
@@ -511,7 +505,7 @@ Live preview integrates with the We Meditate Web frontend
 | `CatalogBlock` | `items` relationship hasMany, min 3 / max 6, supports meditations + pages |
 | `ContentIndexBlock` | `type` select (meditations/pages/songs/lectures), `limit` (1–100), per-type filter fields (only the active filter survives via `clearWhenTypeNot` hooks), virtual `apiEndpoint` (computed by `computeApiEndpoint` afterRead — `null` if `limit` invalid) |
 
-Custom block icons → see `.claude/rules/blocks.md`.
+Custom block icons → see `src/lib/richEditor/blocks/AGENTS.md`.
 
 ### Tests
 
@@ -721,7 +715,7 @@ And one **stored** derived column, recomputed on every write (#603):
   field hook from the pure `lastOccurrenceEnd()`; the column is just that
   function's DB-queryable projection. A real column rather than a virtual field
   precisely so "has this schedule run out?" can appear in a `where` — the public
-  event feeds filter on it (see `.claude/rules/api-clients.md`).
+  event feeds filter on it (see `docs/rules/api-clients.md`).
 
   Two things to know if you touch it:
 
