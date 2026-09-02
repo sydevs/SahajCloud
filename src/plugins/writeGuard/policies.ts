@@ -35,9 +35,10 @@ export interface WriteGuardPolicy {
  * the `contactAdmin` root endpoint that used to call these helpers by hand
  * became the `user-messages` collection (#632).
  *
- * Registrations deliberately carry no `turnstile` yet — adding the widget to
- * the Atlas registration form is a tracked follow-up; flipping it on here is
- * a one-line policy change.
+ * Every public write path now requires Turnstile. Registrations were the last
+ * one without it (#629); the Atlas widget began sending `x-turnstile-token` on
+ * registration in sydevs/SahajAtlasWeb#182, which is what made the flip safe —
+ * turning it on before that would have refused every real registration.
  */
 export const DEFAULT_WRITE_GUARD_POLICIES: Partial<Record<CollectionSlug, WriteGuardPolicy>> = {
   'event-submissions': {
@@ -67,7 +68,7 @@ export const DEFAULT_WRITE_GUARD_POLICIES: Partial<Record<CollectionSlug, WriteG
     update: { emailFields: ['email'], urlScanFields: ['name'] },
   },
   registrations: {
-    create: { urlScanFields: ['questions'] },
+    create: { turnstile: true, urlScanFields: ['questions'] },
   },
   'user-messages': {
     create: {

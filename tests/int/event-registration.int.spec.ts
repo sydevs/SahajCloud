@@ -1,6 +1,12 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { verifyMock } = vi.hoisted(() => ({ verifyMock: vi.fn() }))
+
+vi.mock('@/lib/turnstile/verifyTurnstile', () => ({
+  verifyTurnstileToken: verifyMock,
+}))
 
 import { registerForEvent } from '@/collections/Events/endpoints/registerForEvent'
 
@@ -20,6 +26,13 @@ type RegisterBody = {
   errors?: unknown
 }
 
+/**
+ * The registration create policy requires Turnstile (#629), so every call in
+ * this file carries a token and `verifyMock` is reset to "valid" before each
+ * case. The captcha cases below override one or the other deliberately.
+ */
+const VALID_TURNSTILE = { 'x-turnstile-token': 'tok-valid' }
+
 const SCHEDULE = {
   firstDate: '2025-01-06T10:00:00.000Z',
   firstDate_tz: 'Europe/London',
@@ -37,6 +50,16 @@ async function userCountByEmail(payload: Payload, email: string): Promise<number
   return totalDocs
 }
 
+async function registrationCountByEmail(payload: Payload, email: string): Promise<number> {
+  const { totalDocs } = await payload.find({
+    collection: 'registrations',
+    where: { 'user.email': { equals: email } },
+    overrideAccess: true,
+    limit: 0,
+  })
+  return totalDocs
+}
+
 describe('registerForEvent endpoint', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
@@ -48,10 +71,11 @@ describe('registerForEvent endpoint', () => {
     id: number | string,
     body: unknown,
     user: TestUser = client,
+    headers: Record<string, string> = VALID_TURNSTILE,
   ): Promise<{ status: number; body: RegisterBody }> {
     const req = {
       payload,
-      headers: new Headers(),
+      headers: new Headers(headers),
       routeParams: { id: String(id) },
       user,
       json: async () => body,
@@ -104,8 +128,75 @@ describe('registerForEvent endpoint', () => {
     eventId = event.id
   })
 
+  beforeEach(() => {
+    verifyMock.mockReset()
+    // Mirror Cloudflare rather than blanket-passing: siteverify answers
+    // `missing-input-response` for an empty token, so a stub that ignores its
+    // argument would let the "no header" case below pass for the wrong reason.
+    verifyMock.mockImplementation(async (token: string) =>
+      token
+        ? { success: true }
+        : { success: false, reason: 'rejected', errorCodes: ['missing-input-response'] },
+    )
+  })
+
   afterAll(async () => {
     await cleanup()
+  })
+
+  describe('captcha gate (#629)', () => {
+    const body = { email: 'captcha@example.com', name: 'Cap Tcha' }
+
+    it('refuses a registration with no x-turnstile-token header', async () => {
+      const { status, body: res } = await callRegister(eventId, body, client, {})
+      expect(status).toBe(403)
+      expect(res.errors).toMatchObject([{ code: 'captcha_failed' }])
+    })
+
+    it('refuses a token Cloudflare rejects, and says it is retryable', async () => {
+      verifyMock.mockResolvedValue({
+        success: false,
+        reason: 'rejected',
+        errorCodes: ['timeout-or-duplicate'],
+      })
+      const { status, body: res } = await callRegister(eventId, body)
+      expect(status).toBe(403)
+      expect(res.errors).toMatchObject([{ code: 'captcha_failed' }])
+    })
+
+    it('fails closed with 500 when verification cannot be completed', async () => {
+      verifyMock.mockResolvedValue({ success: false, reason: 'not-configured' })
+      const { status, body: res } = await callRegister(eventId, body)
+      expect(status).toBe(500)
+      expect(res.errors).toMatchObject([{ code: 'captcha_unavailable' }])
+    })
+
+    it('creates no REGISTRATION when the captcha is refused', async () => {
+      verifyMock.mockResolvedValue({ success: false, reason: 'rejected' })
+      const before = await registrationCountByEmail(payload, 'captcha@example.com')
+      await callRegister(eventId, body)
+      expect(await registrationCountByEmail(payload, 'captcha@example.com')).toBe(before)
+    })
+
+    /**
+     * ⚠ Documents a PRE-EXISTING gap this ticket does not close, rather than
+     * asserting the behaviour we want.
+     *
+     * `registerForEvent` upserts the registrant `users` row (line ~182) and
+     * *then* creates the registration (~186), with no transaction around the
+     * pair. The write guard fires on `registrations.create`, so a refused
+     * captcha stops the registration but leaves the user row behind.
+     *
+     * This is not caused by the captcha — any late failure already did it, the
+     * `questions` validation 400 above included. The fix is a transaction around
+     * both writes, which is a change to the endpoint's shape and does not belong
+     * in a policy flip. Flip this assertion the moment that lands.
+     */
+    it('still creates the registrant row — the two writes share no transaction', async () => {
+      verifyMock.mockResolvedValue({ success: false, reason: 'rejected' })
+      await callRegister(eventId, body)
+      expect(await userCountByEmail(payload, 'captcha@example.com')).toBe(1)
+    })
   })
 
   describe('auth gate', () => {

@@ -1,6 +1,16 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+
+const { verifyMock } = vi.hoisted(() => ({ verifyMock: vi.fn() }))
+
+// Registration requires Turnstile since #629. This spec is about origins, so it
+// holds the captcha permanently valid rather than exercising it — the gate's own
+// cases live in `event-registration.int.spec.ts`.
+vi.mock('@/lib/turnstile/verifyTurnstile', () => ({
+  verifyTurnstileToken: verifyMock,
+}))
+verifyMock.mockResolvedValue({ success: true })
 
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
 import { registerForEvent } from '@/collections/Events/endpoints/registerForEvent'
@@ -40,7 +50,7 @@ describe('client Origin/Referer enforcement', () => {
     origin?: string
     referer?: string
   }): PayloadRequest {
-    const headers = new Headers()
+    const headers = new Headers({ 'x-turnstile-token': 'tok-valid' })
     if (opts.origin) headers.set('origin', opts.origin)
     if (opts.referer) headers.set('referer', opts.referer)
     return {
