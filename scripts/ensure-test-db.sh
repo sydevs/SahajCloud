@@ -63,7 +63,13 @@ if [ "$(id -u)" != "0" ] || [ ! -d /usr/lib/postgresql ]; then
 fi
 
 id postgres >/dev/null 2>&1 || useradd -m postgres >/dev/null 2>&1
-install -d -o postgres -g postgres /var/run/postgresql "$(dirname "$PGDATA")" "$PGDATA" 2>/dev/null
+install -d -o postgres -g postgres /var/run/postgresql "$(dirname "$PGDATA")" 2>/dev/null
+# $PGDATA needs its own mode. `install -d` applies its default 0755 to every
+# directory it names, existing ones included, and PostgreSQL refuses to start
+# on a data directory that is not 0700 or 0750 — so the shared line above would
+# undo `initdb`'s 0700 on every warm-container run, before the start attempt.
+# Naming 0700 here is also the repair: `install -d -m` chmods what it finds.
+install -d -m 0700 -o postgres -g postgres "$PGDATA" 2>/dev/null
 
 # 3. Clear a stale socket left by a dead postmaster. A previous container's
 #    lock file survives in a warm sandbox and names a PID that no longer
@@ -79,7 +85,14 @@ su postgres -c "$PGBIN/pg_ctl -D $PGDATA -l /tmp/postgres.log start" >/dev/null 
 
 if ! "$PGBIN/pg_isready" -h "$PGHOST_CHECK" -p "$PGPORT" -t 30 -q 2>/dev/null; then
   echo "ensure-test-db: cluster did not come up — integration lane unavailable" >&2
-  tail -20 /tmp/postgres.log 2>/dev/null >&2
+  # Two things kept this quiet. The postmaster writes the log as `postgres`,
+  # mode 0600, so a bare `tail` reads nothing — hence the `su`. And the old
+  # redirect was `2>/dev/null >&2`, which is applied left to right: fd2 goes to
+  # /dev/null, then `>&2` points fd1 at it too, discarding the log itself. So
+  # suppress tail's own errors INSIDE the su, and route its output to stderr
+  # after. The log names the reason in two lines; finding it without them took
+  # a `bash -x` trace.
+  su postgres -c "tail -20 /tmp/postgres.log 2>/dev/null" >&2
   exit 0
 fi
 
