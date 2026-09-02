@@ -6323,6 +6323,10 @@ export interface SyAtlasConfig {
       | 'nl';
     id?: string | null;
   }[];
+  /**
+   * The client that owns every atlas page no other client claims — normally We Meditate. It must be published, have canonical ownership switched on, and have a verified embed; until all three hold, those pages keep the built-in We Meditate URLs and appear in no sitemap. Leave this empty to keep that built-in behaviour.
+   */
+  canonicalFallbackClient?: (number | null) | Client;
   defaultMapCenter: {
     latitude: number;
     longitude: number;
@@ -6657,6 +6661,7 @@ export interface SyAtlasConfigSelect<T extends boolean = true> {
         code?: T;
         id?: T;
       };
+  canonicalFallbackClient?: T;
   defaultMapCenter?:
     | T
     | {
