@@ -21,15 +21,38 @@ Rules for TypeScript type definitions and organization.
 **If a type has a single consumer, co-locate it in the consumer's file.** Don't maintain a separate file in `src/types/` for types used by only one module.
 
 ```typescript
-// ScheduleSubFields is only used by scheduleHooks.ts → define it there
-// src/hooks/scheduleHooks.ts
-interface ScheduleSubFields {
-  firstDate?: string
+// EventQualityInput is only used by the quality checks → define it there
+// src/lib/eventQuality/types.ts
+interface EventQualityInput {
+  title?: unknown
   // ...
 }
 ```
 
 When a second consumer needs the type, extract it to `src/types/`.
+
+## Never restate a shape `payload-types.ts` already generates
+
+**A type describing stored data derives from `@/payload-types`; it is never hand-written beside it.** A restatement does not merely duplicate — it drifts *wider* than the CMS, so it type-checks values the database then rejects. `ScheduleSubFields` declared `weekdays?: string[]` where the column enumerates `'MO' | … | 'SU'`, and `weekdays: ['Monday']` compiled for as long as it existed (#671).
+
+```typescript
+// ✅ Derive — a new CMS value becomes a compile error here
+export type ScheduleSubFields = NonNullable<Event['schedule']>
+export type ExclusionRange = NonNullable<ScheduleSubFields['exclusions']>[number]
+export type RegionLevel = Region['level']
+
+// ❌ Restate — silently accepts what the CMS refuses
+export type RegionLevel = 'country' | 'region' | 'city' | 'venue'
+```
+
+This covers the **JSON-schema columns** too: a `jsonSchema` field generates an interface (`HttpsSahajcloudDevSchemas…Json`), and the hand-written interfaces sitting next to the schema are the same restatement one level down.
+
+Two things that are **not** restatements, so don't "fix" them:
+
+- **A relationship.** `NotificationChannel` is the generated `platform` union *plus* `'email'` — deriving it reads worse than the literal.
+- **A deliberately loose input.** `EventQualityInput` is `unknown` for most fields because it is fed from three sources that share no generated type; narrowing it would break the fixtures for no gain.
+
+**Fix at the import site, not with a corrected re-export.** And when narrowing surfaces errors, fix them — a value that no longer type-checks is a value the CMS was already going to refuse. Where the boundary genuinely takes an arbitrary string (a seed reading a legacy dump), narrow it with a runtime membership test against the same list the Payload config installs, and use the *narrowed* value everywhere the raw one was used.
 
 ## Type File Organization
 
