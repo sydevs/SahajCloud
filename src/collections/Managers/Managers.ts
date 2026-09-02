@@ -31,7 +31,10 @@ export const Managers: CollectionConfig = {
         renderEmail(
           createElement(VerifyEmail, {
             name: user.name || user.email,
-            verifyUrl: `${getServerUrl()}/admin/verify/${token}`,
+            // The slug segment is required, and dropping it fails silently:
+            // `isPublicAdminRoute` waves any `/verify/` path past the auth gate,
+            // so `/admin/verify/:token` reaches the login form, not a 404 (#320).
+            verifyUrl: `${getServerUrl()}/admin/managers/verify/${token}`,
           }),
         ),
       generateEmailSubject: () => `Verify Your Email — ${getEmailBrand().productName}`,

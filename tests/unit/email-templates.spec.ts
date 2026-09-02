@@ -4,6 +4,12 @@
  * Pure render contract — no Payload bootstrap, no DB. Asserts each template
  * interpolates the recipient name + token URL and renders the expected CTA,
  * and that branding is configurable per project via the `project` prop.
+ *
+ * ⚠ The URLs below are INPUTS, so nothing here can tell you whether the shape
+ * is one Payload will route — a wrong URL round-trips just as happily as a
+ * right one, which is how #320 survived. Their shape is pinned in
+ * `manager-auth-urls.spec.ts`, against the config that builds them; they are
+ * written correctly here only so the fixtures do not teach the wrong URL.
  */
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
@@ -19,13 +25,13 @@ describe('VerifyEmail', () => {
     const html = await renderEmail(
       createElement(VerifyEmail, {
         name: 'Jo',
-        verifyUrl: 'https://cloud.test/admin/verify/TKN-123',
+        verifyUrl: 'https://cloud.test/admin/managers/verify/TKN-123',
       }),
     )
 
     expect(html).toBeTruthy()
     expect(html).toContain('Jo')
-    expect(html).toContain('https://cloud.test/admin/verify/TKN-123')
+    expect(html).toContain('https://cloud.test/admin/managers/verify/TKN-123')
     expect(html).toContain('Verify Email Address')
   })
 })
@@ -47,7 +53,7 @@ describe('ResetPasswordEmail', () => {
 })
 
 describe('brand configurability', () => {
-  const props = { name: 'Jo', verifyUrl: 'https://cloud.test/admin/verify/T' }
+  const props = { name: 'Jo', verifyUrl: 'https://cloud.test/admin/managers/verify/T' }
 
   it('renders a different product name + primary color per project', async () => {
     const web = await renderEmail(
