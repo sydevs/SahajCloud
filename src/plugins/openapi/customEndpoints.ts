@@ -377,7 +377,10 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         '(`:id`) must be one the client can read (published); an event the client ' +
         'can read but whose state is closed to registration is refused with a `409` ' +
         'and a machine-readable `errors[0].code` — `external_registration`, ' +
-        '`event_ended`, `registration_closed`, or `event_full`.',
+        '`event_ended`, `registration_closed`, or `event_full`.\n\n' +
+        'Requires a solved Cloudflare Turnstile token in the `x-turnstile-token` ' +
+        'header. The token is transport metadata rather than document data, which ' +
+        'is why it is a header and not a body field.',
       operationId: 'registerForEvent',
       parameters: [
         {
@@ -386,6 +389,16 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           required: true,
           description: 'ID of the event to register for.',
           schema: { type: 'integer' },
+        },
+        {
+          name: 'x-turnstile-token',
+          in: 'header',
+          required: true,
+          description:
+            'A solved Cloudflare Turnstile token. Tokens are single-use, so a retry ' +
+            'after any error needs a freshly solved one — a replayed token is ' +
+            'rejected exactly like a forged one.',
+          schema: { type: 'string' },
         },
       ],
       requestBody: {
@@ -406,13 +419,24 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           },
         },
         '400': errorResponse('Invalid event id, or request body failed validation.'),
-        '403': errorResponse('Caller is not a published API client.'),
+        '403': errorResponse(
+          'Caller is not a published API client, or the Turnstile token was missing, ' +
+            'forged, expired or already used — the latter carries ' +
+            '`errors[0].code: "captcha_failed"` and is retryable with a freshly ' +
+            'solved token.',
+        ),
         '404': errorResponse('Event not found or not open for registration.'),
         '409': errorResponse(
           'Registration refused because the event state conflicts with registering. ' +
             '`errors[0].code` is one of `external_registration`, `event_ended`, ' +
             '`registration_closed`, or `event_full`. Distinct from 404: the event exists ' +
             'and is readable (a finished event stays published), its state just conflicts.',
+        ),
+        '500': errorResponse(
+          'Turnstile verification could not be completed — the secret is unset or ' +
+            'Cloudflare was unreachable. `errors[0].code` is `captcha_unavailable`. ' +
+            'This is never a pass: a captcha gate that silently disables itself is ' +
+            'worse than no gate. Retry later.',
         ),
       },
     },

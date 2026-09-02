@@ -288,6 +288,37 @@ Things worth knowing before touching it:
 - **Encrypted keys** with `PAYLOAD_SECRET`.
 - **GraphQL disabled** — REST only.
 
+### Every public write path requires Turnstile
+
+`writeGuardPlugin` (`src/plugins/writeGuard/`) runs anti-spam checks on
+**client-originated** writes, and `turnstile: true` in
+`DEFAULT_WRITE_GUARD_POLICIES` requires a solved token in the
+**`x-turnstile-token` header** — transport metadata, so it stays out of the
+document shape on the built-in REST endpoints.
+
+Registrations were the last public write without it (#629). The gate could only
+be turned on once the Atlas widget was sending the header
+(sydevs/SahajAtlasWeb#182): flipping it first would have refused every real
+registration, which is why the two shipped in that order.
+
+The two refusals are deliberately different, and a client should treat them
+differently:
+
+| Outcome | Status | `errors[0].code` | What a client should do |
+| --- | --- | --- | --- |
+| Missing, forged, expired or **replayed** token | 403 | `captcha_failed` | Reset the challenge and retry with a freshly solved token |
+| Our secret unset, or Cloudflare unreachable | 500 | `captcha_unavailable` | Retry later — this is never a pass |
+
+⚠ **Tokens are single-use**, so `timeout-or-duplicate` (a replay) is refused
+exactly like a forgery. A client that retries with the *same* token after any
+error gets a second 403 and reads it as a persistent rejection.
+
+⚠ **The gate fails closed on our own misconfiguration**, and that is the point:
+a captcha that silently disables itself when its secret is missing is worse than
+no captcha, because nothing surfaces the misconfiguration. There is no
+dev/test bypass — point `TURNSTILE_SECRET_KEY` at Cloudflare's always-passes
+test key locally.
+
 ## Query Parameter Validation
 
 API client read requests must declare their data needs explicitly:
