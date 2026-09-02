@@ -105,7 +105,14 @@ const TIMEZONE_VALUES = new Set<string>(SUPPORTED_TIMEZONES.map(({ value }) => v
  * Falls back to `UTC` — as the caller already did for a missing zone — rather
  * than passing an unrecognised string through to a write the CMS refuses. The
  * set is the full tz database plus its aliases and the `Etc/GMT*` range, so a
- * zone `Temporal` accepts is essentially always in it.
+ * zone `Temporal` accepts is essentially always in it; the gap is a fixed-offset
+ * zone (`+05:30`) or an alias the pinned `@vvo/tzdb` does not group.
+ *
+ * ⚠ **`mapSchedule` resolves this ONCE and uses the result for both
+ * `firstDate` and `firstDate_tz`.** Narrowing only the column would compute the
+ * instant in the source zone and label it `UTC`, putting the event and its whole
+ * recurrence hours out — trading a write the CMS rejects for data that is
+ * silently wrong, which is the opposite of the point.
  */
 function supportedTimezone(timeZone: string | null | undefined): Timezone {
   const candidate = timeZone?.trim()
@@ -163,12 +170,16 @@ export function mapSchedule(
   const recurrenceType = FREQUENCY_TO_RECURRENCE[schedule.frequency]
   if (!recurrenceType) return null
 
-  const firstDate = toFirstDateUtc(schedule.startDate, schedule.startTime, timeZone || 'UTC')
+  // Resolved once: `firstDate` is an instant computed *in* this zone and
+  // `firstDate_tz` is the zone it is read back in. They must be the same string.
+  const resolvedTimeZone = supportedTimezone(timeZone)
+
+  const firstDate = toFirstDateUtc(schedule.startDate, schedule.startTime, resolvedTimeZone)
   if (!firstDate) return null
 
   const result: ScheduleInput = {
     firstDate,
-    firstDate_tz: supportedTimezone(timeZone),
+    firstDate_tz: resolvedTimeZone,
     recurrenceType,
     interval: schedule.interval && schedule.interval > 0 ? schedule.interval : 1,
   }

@@ -36,6 +36,16 @@ describe('mapSchedule', () => {
     expect(result?.firstDate_tz).toBe('UTC')
   })
 
+  it('resolves an unsupported timezone consistently across firstDate and firstDate_tz', () => {
+    // `+05:30` is a zone Temporal accepts and the `firstDate_tz` column does not.
+    // Both halves must fall back together: computing the instant at +05:30 and
+    // labelling the column `UTC` puts the whole recurrence 5.5 hours out, which
+    // no later read can detect.
+    const result = mapSchedule(base, '+05:30')
+    expect(result?.firstDate_tz).toBe('UTC')
+    expect(result?.firstDate).toBe('2021-07-27T19:00:00.000Z')
+  })
+
   it('maps a weekly schedule to recurrenceType + weekdays', () => {
     const result = mapSchedule(base, 'UTC')
     expect(result?.recurrenceType).toBe('WEEKLY')
