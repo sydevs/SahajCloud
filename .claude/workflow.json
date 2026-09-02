@@ -1,5 +1,5 @@
 {
-  "$comment": "Per-repo settings read by the sydevs `workflow` plugin. Replaces the 'Intentional per-repo deltas' table that used to live in three hand-synced copies of .claude/docs/workflow-parity.md.",
+  "$comment": "Per-repo values read by the sydevs `workflow` plugin and its skills. Values only — the rules that consume them live in the skills, the stories in docs/.",
   "packageManager": "pnpm",
   "leanGate": {
     "command": ".claude/skills/pr-prep/check.sh",
@@ -54,7 +54,5 @@
     "**/*.md",
     ".claude/**",
     "src/payload-types.ts"
-  ],
-  "prAllowlistNote": "Where a TICKETLESS PR may be opened without an `approved` issue: dependency bumps, lint/format sweeps, generated-type re-syncs, doc corrections. Ticket work is gated on the `approved` label instead, never on these globs.",
-  "worktreeSetupNote": "ensure-test-db.sh is idempotent and best-effort: silent when 5432 already answers, and it never fails its caller. It lives in the repo rather than the Claude routine environment because that environment's setup script is CACHED between containers, so an edit to it may simply not run — which is how a container ended up with the data directory present, a stale socket, and no postgres process."
+  ]
 }
