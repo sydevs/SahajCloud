@@ -697,43 +697,55 @@ export const testData = {
    * await createManager(payload, { type: 'manager' })
    * // Create inactive manager
    * await createManager(payload, { type: 'inactive' })
-   * // Create translator manager with array (auto-localized for English)
+   * // Create translator manager with array (stored against English)
    * await createManager(payload, { roles: ['translator'] })
-   * // Create translator manager with localized object
+   * // Create translator manager with roles in several locales — each is written
    * await createManager(payload, { roles: { en: ['translator'], cs: ['translator'] } })
+   * // Roles in a non-English locale ONLY — the manager in #665's report
+   * await createManager(payload, { roles: { fr: ['web-translator'] } })
    */
   async createManager(
     payload: Payload,
     overrides: FixtureOverrides<Omit<Manager, 'roles'>> & {
-      roles?: ManagerRole[] | { en?: string[]; cs?: string[] } | null
+      roles?: ManagerRole[] | Partial<Record<LocaleCode, ManagerRole[]>> | null
     } = {},
   ) {
     const testEmail = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`
 
-    // Handle roles field - when creating with locale='en', pass array directly
-    let rolesData: ManagerRole[] = [] // Default: empty roles array (will be localized by Payload)
-    if (overrides.roles) {
-      if (Array.isArray(overrides.roles)) {
-        // Simple array - Payload will localize it for the specified locale
-        rolesData = overrides.roles
-      } else {
-        // Localized object - extract English roles for locale='en' create
-        rolesData = (overrides.roles.en || []) as ManagerRole[]
-      }
-    }
+    // Roles are LOCALIZED, so a per-locale object has to be written one locale at
+    // a time — a single create only ever stores the locale it was created at.
+    // Writing just `roles.en` (which this helper used to do) makes the manager in
+    // #665's bug report — roles in a non-English locale only — unconstructible,
+    // so the suite could not reach the defect it was meant to cover.
+    const { roles, ...fields } = overrides
+    const rolesByLocale: Partial<Record<LocaleCode, ManagerRole[]>> = Array.isArray(roles)
+      ? { en: roles }
+      : (roles ?? {})
+
+    const [firstLocale, ...remainingLocales] = Object.keys(rolesByLocale) as LocaleCode[]
+    const createLocale: LocaleCode = firstLocale ?? 'en'
 
     const manager = await payload.create({
       collection: 'managers',
-      locale: 'en', // Create with English locale - roles will be auto-localized
+      locale: createLocale,
       data: createData<'managers'>({
         name: 'Test Manager',
         email: `${testEmail}@example.com`,
         password: 'password123',
         type: 'manager', // Default to 'manager' type
-        ...overrides,
-        roles: rolesData, // Pass array directly, Payload handles localization
+        ...fields,
+        roles: rolesByLocale[createLocale] ?? [],
       }),
     })
+
+    for (const locale of remainingLocales) {
+      await payload.update({
+        collection: 'managers',
+        id: manager.id,
+        locale,
+        data: { roles: rolesByLocale[locale] ?? [] },
+      })
+    }
 
     // `collection` last: the access-control mocks in `tests/AGENTS.md`
     // require the discriminator, so it must not be spreadable-away.

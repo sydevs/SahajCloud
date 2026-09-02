@@ -31,11 +31,18 @@ export function createHidden(slug: ContentSlug, bypassFn?: BypassPermissionFunct
     const user = args.user as TypedAuthUser | null
     if (!user) return true
 
-    // Check if user has any write permission
+    // Check if user has any write permission.
+    //
+    // ⚠ `locale: 'union'` is load-bearing. Payload calls `hidden({ user })` with no
+    // locale at all, and `getVisibleEntities` treats a throw as hidden — so scoping
+    // this to a single locale (or to none) would empty the nav of every collection
+    // and global for every non-admin manager. Nav visibility is not the access
+    // boundary; the per-locale check on the collection itself is (#665).
     const hasWrite = hasAnyPermission(
       {
         user,
         collection: slug,
+        locale: 'union',
         operations: ['create', 'update', 'delete'],
       },
       bypassFn,
