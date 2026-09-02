@@ -20,6 +20,7 @@ import {
   resolveManagedDocIds,
   userManagesDocument,
 } from './documentManagers'
+import { roleScopeFromLocale } from './localizedRoles'
 import { hasPermission } from './permissions'
 import { isRegionSubtreeCollection, scopeRegionSubtreeWrite } from './regionSubtreeAccess'
 
@@ -86,7 +87,7 @@ export function createAccessConfig(
         user: req.user,
         collection,
         operation,
-        locale: req.locale === 'all' ? undefined : req.locale,
+        locale: roleScopeFromLocale(req.locale),
         ...(id && { docId: id }),
       }
 
@@ -182,7 +183,7 @@ export function createFieldAccessConfig(
         user: req.user,
         collection,
         operation,
-        locale: req.locale === 'all' ? undefined : req.locale,
+        locale: roleScopeFromLocale(req.locale),
         ...(fieldContext && { field: fieldContext }),
       }
       return hasPermission(args, bypassFn)

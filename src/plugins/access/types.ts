@@ -63,7 +63,12 @@ export type BypassPermissionFunction = (
 export type TypedAuthUser = TypedUser & {
   /** Auth collection this user belongs to */
   collection: 'managers' | 'clients'
-  /** User's roles - can be flat array or localized object */
+  /**
+   * User's roles — a flat array for clients, a per-locale record for managers.
+   *
+   * The record is produced by `hydrateLocalizedRoles` during authentication; a
+   * manager read any other way carries the flat, default-locale array instead.
+   */
   roles?: RoleSlug[] | Record<LocaleCode, RoleSlug[]>
   /** Currently selected project (for managers) */
   currentProject?: ProjectSlug | null
@@ -78,6 +83,25 @@ export type TypedAuthUser = TypedUser & {
 // ============================================================================
 
 /**
+ * Which of a manager's per-locale role sets a permission check evaluates.
+ *
+ * A manager's roles are localized, so "which locale" is part of the question and
+ * every caller has to answer it. The three answers are deliberately distinct, and
+ * `undefined` is one of them rather than a default:
+ *
+ * - a `LocaleCode` — the roles assigned in that locale. The normal case.
+ * - `'union'` — roles in ANY locale. For checks that genuinely have no locale to
+ *   offer, which today is admin-UI nav visibility alone (`createHidden`).
+ * - `undefined` — no locale is resolvable, so a manager gets nothing. Clients are
+ *   unaffected; their roles are a flat array.
+ *
+ * Before #665 an absent locale silently resolved to the DEFAULT locale's roles,
+ * which granted every manager's English roles in all 19 locales. Making the
+ * scope explicit is what stops that returning by accident.
+ */
+export type RoleScope = LocaleCode | 'union'
+
+/**
  * Arguments for permission checking
  */
 export interface PermissionCheckArgs {
@@ -87,8 +111,8 @@ export interface PermissionCheckArgs {
   collection: ContentSlug
   /** Operation to check */
   operation: Operation
-  /** Current locale for manager role extraction */
-  locale?: LocaleCode
+  /** Which locale's manager roles to evaluate — see {@link RoleScope} */
+  locale?: RoleScope
   /** Document ID for document-level permissions */
   docId?: string | number
   /** Field metadata for field-level permissions (e.g., { localized: true }) */

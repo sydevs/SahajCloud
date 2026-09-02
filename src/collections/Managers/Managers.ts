@@ -60,6 +60,10 @@ export const Managers: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'email', 'type', '_verified'],
   },
+  // NOTE: `roles` below is `localized`, and this collection is an auth collection.
+  // accessPlugin detects that pair and attaches the auth strategy and the three
+  // auth-response hooks that keep a manager's roles resolved at every locale —
+  // see `src/plugins/access/localizedRolesAuth.ts` (#665). Nothing to wire here.
   fields: [
     {
       name: 'name',

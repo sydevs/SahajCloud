@@ -433,11 +433,18 @@ in the admin locale selector:
 | Unauthenticated | English only (login page) |
 | Admin managers | All 19 |
 | API clients | All (filter only applies to admin UI) |
-| Regular managers | English (always) + locales where they have ≥ 1 role |
+| Regular managers | exactly the locales where they have ≥ 1 role, most roles first |
+| Managers with roles in no locale | English only |
 | Inactive managers | English only |
 
 A manager with `{ en: ['translator'], cs: ['meditations-editor'] }` sees
 English + Czech — not German/French/etc.
+
+**English is not force-added** (#665). A manager holding roles only in French
+sees French alone, and Payload lands them there — the forced English entry used
+to make their own locale unreachable. The first entry is both the top of the
+dropdown and the landing locale, so the ordering is a real behaviour, not
+cosmetics. See `docs/rules/access.md` § "How per-locale roles reach `req.user`".
 
 ### Field-level localization
 
