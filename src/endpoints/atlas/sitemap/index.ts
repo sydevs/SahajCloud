@@ -4,12 +4,13 @@ import type { Endpoint, PayloadRequest, SelectType } from 'payload'
 
 import { APIError } from 'payload'
 
-import { getRegionOwners } from '@/lib/atlas/regionOwners'
+import { getCanonicalFallbackOwner, getRegionOwners } from '@/lib/atlas/regionOwners'
+import { getRegionTree } from '@/lib/atlas/regionTree'
 import { requireActiveClient } from '@/lib/endpoints'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 import { assertClientOriginAllowed } from '@/plugins/usage'
 
-import { ownedRegionIds, sitemapUrls } from './sitemapUrls'
+import { fallbackRegionIds, ownedRegionIds, sitemapUrls } from './sitemapUrls'
 
 /**
  * The fields one sitemap row is built from. `webPath` / `webUrl` are the same
@@ -112,6 +113,11 @@ async function ownedDocuments(
  *   city another client owns — those pages are canonically that client's.
  * - **A client that owns nothing gets `{ urls: [] }`, not a 404.** Owning no
  *   subtree is a state, not an error; the count is the signal.
+ * - **One client may additionally be the canonical *fallback*** (#652), named on
+ *   `sy-atlas-config`. Its answer is every route no other client owns — the
+ *   complement of the ownership map — so that the pages a region declares
+ *   nothing for are in somebody's sitemap rather than nobody's. Nothing about
+ *   the response shape changes, and no other client's answer is affected.
  * - **A document with no publishable canonical is omitted, not sent as `null`.**
  * - **Finished classes are excluded**, matching the map feed and region pages.
  * - **Unpaginated.** See {@link ownedDocuments}.
@@ -164,7 +170,22 @@ export const atlasSitemap: Endpoint = {
     }
 
     try {
-      const regionIds = ownedRegionIds(await getRegionOwners(req), clientId)
+      // Three memoized reads, and only the third is new: the region tree and
+      // the owners map are both already in flight for `webUrl`, and the
+      // fallback lookup is the one `sy-atlas-config` read #652 adds.
+      const [ownerById, fallbackOwner, { chainById }] = await Promise.all([
+        getRegionOwners(req),
+        getCanonicalFallbackOwner(req),
+        getRegionTree(req),
+      ])
+
+      // The one branch. For the fallback client the answer is the *complement*
+      // of the ownership map plus whatever it declares itself; for everyone
+      // else it is the lookup it always was.
+      const regionIds =
+        fallbackOwner?.clientId === clientId
+          ? fallbackRegionIds(chainById.keys(), ownerById, clientId)
+          : ownedRegionIds(ownerById, clientId)
       // Nothing owned means nothing to enumerate — and, more usefully, no reads
       // at all: `id: { in: [] }` would be two round trips to learn what the
       // ownership map already said.

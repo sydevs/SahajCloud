@@ -53,6 +53,30 @@ export const SahajAtlasConfig: GlobalConfig = {
       },
     },
     {
+      name: 'canonicalFallbackClient',
+      label: 'Canonical Fallback Client',
+      type: 'relationship',
+      relationTo: 'clients',
+      // An **override**, never a replacement (#652). A region with no owning
+      // ancestor falls back to the We Meditate surface, which is asserted by
+      // `WEMEDITATE_WEB_URL` + `WEMEDITATE_ATLAS_BASE_PATH` and is therefore the
+      // one canonical target nobody verifies. Naming a client here puts it
+      // through the same pipeline as every other owner — the URL comes from
+      // `canonical.verification.verified`, written by the verification job from
+      // what it observed on the live page — and, because ownership then covers
+      // the whole tree, gives those regions a sitemap to appear in.
+      //
+      // Unset, or naming a client that cannot publish a canonical, leaves the
+      // env-var fallback exactly as it was.
+      admin: {
+        description:
+          'The client that owns every atlas page no other client claims — normally We Meditate. ' +
+          'It must be published, have canonical ownership switched on, and have a verified ' +
+          'embed; until all three hold, those pages keep the built-in We Meditate URLs and ' +
+          'appear in no sitemap. Leave this empty to keep that built-in behaviour.',
+      },
+    },
+    {
       name: 'defaultMapCenter',
       label: 'Default Map Center',
       type: 'group',
