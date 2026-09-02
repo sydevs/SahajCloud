@@ -68,6 +68,20 @@ const OWNERS_MEMO_KEY = 'atlas:regionOwners'
 const FALLBACK_MEMO_KEY = 'atlas:canonicalFallbackOwner'
 
 /**
+ * Which clients may own a canonical, as `where` clauses.
+ *
+ * One definition, because both readers below apply it and a third condition
+ * added to only one of them would let the fallback keep the old rule silently.
+ * `_status` is explicit rather than left to the default `draft: false`: a
+ * draft-only client has not been signed off as canonical-viable, which is a
+ * correctness rule and not a read mode.
+ */
+const CANONICAL_ELIGIBLE = [
+  { 'canonical.enabled': { equals: true } },
+  { _status: { equals: 'published' } },
+] as const
+
+/**
  * The clients that directly own a region, keyed by that region's id.
  *
  * One extra query per request, ~31 rows, deliberately unoptimised: a
@@ -81,15 +95,7 @@ async function loadDirectOwners(req: PayloadRequest): Promise<Map<number, Canoni
     depth: 0,
     pagination: false,
     overrideAccess: true,
-    where: {
-      and: [
-        { 'canonical.enabled': { equals: true } },
-        // Clients have drafts, and a draft-only client has not been signed off
-        // as canonical-viable. Explicit rather than relying on the default
-        // `draft: false`, because this is a correctness rule, not a read mode.
-        { _status: { equals: 'published' } },
-      ],
-    },
+    where: { and: [...CANONICAL_ELIGIBLE] },
     select: { region: true, canonical: true },
     req,
   })
@@ -157,24 +163,16 @@ function canonicalOwnerFrom(row: ClientRow): CanonicalOwner | undefined {
  * enabled, or with no verified host, this answers `undefined` and every caller
  * keeps the behaviour it had before the field existed.
  *
- * ⚠ **The predicate is deliberately the identical one {@link loadDirectOwners}
- * applies, `canonical.enabled` included, and that clause is load-bearing rather
- * than symmetry.** `verified` is deliberately *not* cleared when verification
- * fails (see `buildVerificationState`) — it is the last thing we observed — and
- * the job switches `canonical.enabled` off after repeated failures. Reading
- * `verified` alone would therefore let a client the job has just given up on
- * keep speaking for every unclaimed page in the atlas, which is worse than the
- * env-var surface it replaced. So the fallback is an ordinary canonical owner
- * that additionally covers the remainder: it declares a region and holds a
- * verified embed like any other, and switching its ownership off reverts the
- * fallback to the env vars rather than freezing a stale host.
+ * ⚠ **Must apply `CANONICAL_ELIGIBLE`, not `verified` alone.** `verified` is not
+ * cleared when verification fails, so a client the job has given up on would
+ * otherwise keep speaking for every unclaimed page in the atlas.
  *
- * ⚠ **Read lazily, and only where the answer can change one.** `sy-atlas-config`
- * backs no other read on the `webUrl` path, so this genuinely adds queries where
- * there were none — memoized that is +2 per request, unmemoized it would be +2
- * per *document*, since `webUrl` resolves on the afterRead of every region and
- * every event. {@link getCanonicalUrlBase} therefore asks only when the region
- * has no owner of its own.
+ * ⚠ **Read lazily**, only where the answer can change one: `sy-atlas-config`
+ * backs no other read on the `webUrl` path, and `webUrl` resolves on the
+ * afterRead of every region and every event. {@link getCanonicalUrlBase} asks
+ * only when the region has no owner of its own.
+ *
+ * The reasoning behind both is in `docs/architecture.md`.
  */
 async function loadCanonicalFallbackOwner(
   req: PayloadRequest,
@@ -185,22 +183,12 @@ async function loadCanonicalFallbackOwner(
     overrideAccess: true,
     req,
   })
-  const clientId = relationId((config as { canonicalFallbackClient?: unknown })
-    .canonicalFallbackClient)
+  const clientId = relationId(config.canonicalFallbackClient)
   if (clientId == null) return undefined
 
   const { docs } = await req.payload.find({
     collection: 'clients',
-    where: {
-      and: [
-        { id: { equals: clientId } },
-        { 'canonical.enabled': { equals: true } },
-        // Explicit, matching `loadDirectOwners`: a draft-only client has not
-        // been signed off as canonical-viable, and this one would speak for
-        // every unclaimed page in the atlas.
-        { _status: { equals: 'published' } },
-      ],
-    },
+    where: { and: [{ id: { equals: clientId } }, ...CANONICAL_ELIGIBLE] },
     limit: 1,
     depth: 0,
     pagination: false,
@@ -281,34 +269,28 @@ export function getRegionOwners(req: PayloadRequest): Promise<Map<number, Canoni
 }
 
 /**
- * The canonical target for a region: its owner's, then the configured fallback
- * client's, then the env-var We Meditate surface.
+ * The canonical target for an owner — its own, or the env-var We Meditate
+ * surface when it has none it can publish.
  *
- * The last rung routes by `path` — We Meditate mounts the widget on a real page
+ * That last rung routes by `path`: We Meditate mounts the widget on a real page
  * of its own (`/map`) rather than embedding it in someone else's — and is the
- * reason `SAHAJATLAS_URL` is no longer a canonical base anywhere: the Atlas host
- * is `noindex` on three layers, so every canonical URL it backed named a page we
- * had told search engines to ignore.
+ * reason `SAHAJATLAS_URL` is no longer a canonical base anywhere, the Atlas host
+ * being `noindex` on three layers.
  *
- * `fallbackOwner` (#652) sits between the two so an installation that has named
- * one publishes an **observed** host for its unclaimed pages rather than a
- * declared one. It is the same `CanonicalOwner` shape a subtree owner has, and
- * is subject to the same host check, so the two cannot disagree about what a
- * publishable canonical looks like.
+ * **The #652 fallback client is passed here as the owner**, not alongside one.
+ * It is the same `CanonicalOwner` shape a subtree owner has and takes the same
+ * host check, so the two cannot disagree about what a publishable canonical
+ * looks like; precedence is the caller's business, and
+ * {@link getCanonicalUrlBase} settles it by not resolving the fallback at all
+ * when the region has an owner.
  */
-export function canonicalTargetFor(
-  owner: CanonicalOwner | undefined,
-  fallbackOwner?: CanonicalOwner | undefined,
-): CanonicalTarget {
+export function canonicalTargetFor(owner: CanonicalOwner | undefined): CanonicalTarget {
   // An owner whose verified host is not a bare host (a port survives
   // `allowedDomains`, which compares port-stripped hostnames) can't make a
   // canonical URL — see `canonicalTargetForHost`. Treat it as no owner rather
   // than publishing a host nobody chose.
   const owned = owner ? canonicalTargetForHost(owner) : null
   if (owned) return owned
-
-  const fallback = fallbackOwner ? canonicalTargetForHost(fallbackOwner) : null
-  if (fallback) return fallback
 
   return {
     origin: serverEnv.WEMEDITATE_WEB_URL,
@@ -337,7 +319,7 @@ export async function getCanonicalUrlBase(
   const owned = owner ? canonicalTargetForHost(owner) : null
   if (owned) return canonicalUrlBase(owned)
 
-  return canonicalUrlBase(canonicalTargetFor(undefined, await getCanonicalFallbackOwner(req)))
+  return canonicalUrlBase(canonicalTargetFor(await getCanonicalFallbackOwner(req)))
 }
 
 /**
