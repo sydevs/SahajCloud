@@ -30,6 +30,12 @@ cd "$PROJECT_DIR" || exit 1
 
 START_TIME=$(date +%s)
 
+# The integration lane needs a live PostgreSQL. Idempotent and best-effort:
+# silent when 5432 already answers, and it never fails this gate. Without it a
+# sandbox can present a data directory, a stale socket and no server process,
+# which reads as "no database" only after something tries to connect.
+[ -x scripts/ensure-test-db.sh ] && scripts/ensure-test-db.sh
+
 echo "=== Lint ==="
 if ! pnpm lint; then
   echo

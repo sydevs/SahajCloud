@@ -38,6 +38,24 @@ Tier-specific guidance:
 - **Tier 2 owns the local gate**. Add a targeted integration spec for the area you touched (one file via `pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts`). Don't run the full `pnpm test:int` locally — that's Tier 3's job.
 - **Tier 3 owns cross-cutting checks**. The CI job runs the full Vitest suite (unit + int) and the Playwright smoke specs against the per-PR **Railway** preview with cloned prod data. (The Next.js build runs on Railway's preview deploy — GitHub Actions does not build.) Don't reproduce Tier 3 locally on every PR. Use `check.sh --full` only to debug a red CI run.
 
+## The integration lane needs a live PostgreSQL
+
+`scripts/ensure-test-db.sh` brings one up. It runs from `worktreeSetup` and from the top of the lean
+gate, is **idempotent** — silent when 5432 already answers, so a developer's own Postgres is never
+touched — and is **best-effort**: a database it cannot start degrades the gate rather than failing
+it.
+
+It lives in this repo rather than in the Claude routine environment's setup script because that
+script is **cached between containers**, so editing it does not guarantee it runs. Three separate
+diagnoses came out of that one symptom: a setup script that exited non-zero and aborted the session
+at zero turns; a healthy cluster misread as absent because `psql` as `root` answers
+`FATAL: role "root" does not exist`, an auth error indistinguishable from a refused server; and
+finally a container holding the data directory and a stale socket with no server process at all.
+
+If the lane is unavailable, **say so rather than reasoning about why**. Name the layer that refused
+— process, socket, auth, or database — and note that CI is then the first thing to execute those
+specs.
+
 ## Local vs CI
 
 Locally, default to **targeted** runs:
