@@ -214,10 +214,10 @@ describe('buildEventCalendar — recurrence shapes', () => {
 })
 
 describe('buildEventCalendar — exclusions', () => {
-  const bounded = {
-    recurrenceType: 'WEEKLY' as const,
+  const bounded: Partial<ScheduleSubFields> = {
+    recurrenceType: 'WEEKLY',
     weekdays: ['TU'],
-    endingType: 'count' as const,
+    endingType: 'count',
     count: 8,
   }
 
