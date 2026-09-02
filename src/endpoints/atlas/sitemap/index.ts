@@ -170,21 +170,22 @@ export const atlasSitemap: Endpoint = {
     }
 
     try {
-      // Three memoized reads, and only the third is new: the region tree and
-      // the owners map are both already in flight for `webUrl`, and the
-      // fallback lookup is the one `sy-atlas-config` read #652 adds.
-      const [ownerById, fallbackOwner, { chainById }] = await Promise.all([
+      // Two memoized reads; the fallback lookup is the one `sy-atlas-config`
+      // read #652 adds.
+      const [ownerById, fallbackOwner] = await Promise.all([
         getRegionOwners(req),
         getCanonicalFallbackOwner(req),
-        getRegionTree(req),
       ])
 
       // The one branch. For the fallback client the answer is the *complement*
       // of the ownership map plus whatever it declares itself; for everyone
-      // else it is the lookup it always was.
+      // else it is the lookup it always was. The region tree is read inside
+      // that branch because only it takes a complement — every other client,
+      // including the `{ urls: [] }` case, would pay a `regions` query to
+      // compute a set it never looks at.
       const regionIds =
         fallbackOwner?.clientId === clientId
-          ? fallbackRegionIds(chainById.keys(), ownerById, clientId)
+          ? fallbackRegionIds((await getRegionTree(req)).chainById.keys(), ownerById, clientId)
           : ownedRegionIds(ownerById, clientId)
       // Nothing owned means nothing to enumerate — and, more usefully, no reads
       // at all: `id: { in: [] }` would be two round trips to learn what the

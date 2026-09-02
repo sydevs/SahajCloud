@@ -603,16 +603,25 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'gets `{ "urls": [] }` and a `200`, **not a 404** — owning nothing is a state, ' +
         'not an error, and the count is your signal. A document whose canonical cannot ' +
         'be published (nothing in its ancestry owns it, or a blank slug in the chain) ' +
-        'is **omitted**, never sent as `null`. A region with **no classes anywhere ' +
+        'is **omitted**, never sent as `null` — though see the fallback client below, ' +
+        'for whom pages nothing in their ancestry owns are precisely the answer. ' +
+        'A region with **no classes anywhere ' +
         'beneath it is still published** — regions are curated by hand rather than ' +
         'generated from a geography feed, so an empty one is a place expecting classes ' +
         'shortly, and a stable URL tells a crawler more than one that flickers in and ' +
         'out as the last class expires. **Finished classes are excluded**, as ' +
         'they are from `GET /api/events/geojson` and from a region page’s listing — ' +
         'they stay reachable by direct link, but a sitemap asks a crawler to index a ' +
-        'page, and a class that no longer happens is not one to index. There is **no ' +
-        'pagination**: a client owns a subtree of a corpus in the low thousands, and a ' +
-        'truncated sitemap that did not say so would be worse than a slow one. ' +
+        'page, and a class that no longer happens is not one to index. **One client ' +
+        'may additionally be the canonical *fallback*** and receives every route no ' +
+        'other client owns — the complement of the ownership map — so that pages ' +
+        'nobody declares are in somebody’s sitemap rather than nobody’s. Nothing ' +
+        'about the response shape changes and no other client’s answer is affected; ' +
+        'if that is not you, read the rest of this as written. There is **no ' +
+        'pagination**, and a truncated sitemap that did not say so would be worse ' +
+        'than a slow one. Size your fetch against the corpus rather than your ' +
+        'subtree: the fallback client’s answer approaches the whole atlas, low ' +
+        'thousands of entries and a few hundred KB, where a subtree owner’s is tens. ' +
         '`lastmod` is the document’s `updatedAt` — the one field you genuinely cannot ' +
         'derive. Entries are sorted by `route`, so unchanged ownership yields an ' +
         'unchanged list; `generated` is the one field that moves between two otherwise ' +

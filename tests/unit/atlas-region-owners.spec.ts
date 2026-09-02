@@ -110,8 +110,10 @@ describe('canonicalTargetFor', () => {
     expect(target.origin).not.toContain('sahajatlas')
   })
 
-  // #652: a named fallback client sits between the two, so an unclaimed region
-  // publishes an *observed* host rather than the declared env-var one.
+  // #652: the fallback client is passed here AS the owner, not beside one —
+  // this function ranks nothing. Precedence is `getCanonicalUrlBase` returning
+  // before it resolves a fallback at all, which only a database can show, so it
+  // is asserted in `region-canonical-url.int.spec.ts` and not here.
   const FALLBACK: CanonicalOwner = {
     clientId: 9,
     domain: 'wemeditate.com',
@@ -119,23 +121,12 @@ describe('canonicalTargetFor', () => {
     routing: 'path',
   }
 
-  it('uses the fallback client when nothing in the ancestry is owned', () => {
-    expect(canonicalTargetFor(undefined, FALLBACK)).toEqual({
+  it('treats the fallback client as an ordinary owner', () => {
+    expect(canonicalTargetFor(FALLBACK)).toEqual({
       origin: 'https://wemeditate.com',
       mount: '/map',
       routing: 'path',
     })
-  })
-
-  it('never lets the fallback client displace a real owner', () => {
-    expect(canonicalTargetFor(LONDON, FALLBACK).origin).toBe('https://sahajayogalondon.co.uk')
-  })
-
-  // The override is exactly that: with no fallback client resolvable — unset,
-  // unpublished, or never verified — the env-var surface answers as it always
-  // did, which is what "unchanged from today" means in the ticket.
-  it('returns the env-var surface when the fallback client cannot publish', () => {
-    expect(canonicalTargetFor(undefined, undefined)).toEqual(canonicalTargetFor(undefined))
   })
 })
 

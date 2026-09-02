@@ -510,6 +510,27 @@ describe('per-region canonical webUrl', () => {
         const resolved = many.result.docs as Array<{ webUrl?: string | null }>
         expect(resolved.length).toBeGreaterThan(1)
         for (const doc of resolved) expect(doc.webUrl).toContain(FALLBACK_DOMAIN)
+
+        // Precedence, asserted where it actually lives. `canonicalTargetFor`
+        // takes one owner and knows nothing about rank; what makes an owned
+        // region immune to the fallback is that `getCanonicalUrlBase` returns
+        // before resolving one. So this reads an OWNED region with the fallback
+        // still configured and asserts both halves: the owner's host answers,
+        // and the fallback was never queried — `clients` stays at 1, not 2.
+        const owned = await countFinds(() =>
+          payload.find({
+            collection: 'regions',
+            limit: 1,
+            depth: 0,
+            overrideAccess: true,
+            where: { id: { equals: region.uk } },
+            select: { webUrl: true } as never,
+          }),
+        )
+        const ukDoc = owned.result.docs[0] as { webUrl?: string | null }
+        expect(ukDoc.webUrl).toBe(`https://${UK_DOMAIN}/classes/?atlas=/uk`)
+        expect(ukDoc.webUrl).not.toContain(FALLBACK_DOMAIN)
+        expect(owned.counts.clients).toBe(1)
       } finally {
         await setFallback(null)
       }
