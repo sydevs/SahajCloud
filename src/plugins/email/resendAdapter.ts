@@ -83,12 +83,16 @@ export const resendAdapter = (): EmailAdapter => {
         // nothing reaches the Sentry plugin's `afterError` hook, so each failure
         // is reported here explicitly. Without this a delivery failure exists
         // only as a pino line: no Sentry issue, no admin-visible error (#320).
+        //
+        // ⚠ No part of the MESSAGE goes to Sentry — not the recipient, not the
+        // subject. A `user-messages` send carries a viewer-authored subject, and
+        // that collection is in `RESTRICTED_COLLECTIONS` precisely because it
+        // holds personal data; copying it into a third-party error tracker would
+        // widen where that data lives. The pino line beside each capture already
+        // carries the detail, in the log system that is meant to hold it.
         if (!resend) {
           payload.logger.error({ msg: 'Cannot send email - Resend client not initialized' })
-          Sentry.captureMessage('Email dropped: Resend client not initialized', {
-            level: 'error',
-            extra: { subject: message.subject },
-          })
+          Sentry.captureMessage('Email dropped: Resend client not initialized', { level: 'error' })
           return
         }
 
@@ -120,7 +124,7 @@ export const resendAdapter = (): EmailAdapter => {
             })
             Sentry.captureMessage('Email dropped: Resend API error', {
               level: 'error',
-              extra: { error: error.message, name: error.name, subject: message.subject },
+              extra: { error: error.message, name: error.name },
             })
             return
           }
@@ -133,7 +137,7 @@ export const resendAdapter = (): EmailAdapter => {
             msg: 'Email sending failed',
             error: error instanceof Error ? error.message : String(error),
           })
-          Sentry.captureException(error, { extra: { subject: message.subject } })
+          Sentry.captureException(error)
         }
       },
     }

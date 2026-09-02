@@ -23,6 +23,25 @@ The application uses different email providers based on environment:
 - All operations are logged for debugging.
 - Adapter selection in `src/payload.config.ts` is keyed on `NODE_ENV`.
 
+### A failed send never throws — so it reports itself to Sentry
+
+Not throwing is deliberate and must stay that way: `sendVerificationEmail` runs
+at `create.js:231`, after `registerLocalStrategy` but **before**
+`commitTransaction`, so a throw rolls the whole manager creation back and the
+admin gets a 500 with no account. The cost is that nothing reaches the Sentry
+plugin, which only registers an `afterError` hook — a production delivery
+failure used to exist **exclusively as a pino line**: no Sentry issue, no
+admin-visible error, no DB trace (#320).
+
+So the adapter's three non-throwing paths — no client, a Resend API error, a
+caught exception — each capture to Sentry themselves, and still return.
+
+⚠ **Nothing from the message goes with the capture** — not the recipient, not
+the subject. A `user-messages` send carries a viewer-authored subject, and that
+collection is in `RESTRICTED_COLLECTIONS` because it holds personal data;
+copying it into a third-party error tracker widens where that data lives. The
+pino line beside each capture already has the detail. Don't "enrich" these.
+
 ### It hand-maps the message — anything unmapped is silently dropped
 
 Payload's `SendEmailOptions` is nodemailer-shaped, but the adapter translates it
@@ -274,3 +293,26 @@ pluralize(strings, 'sessions_count', count, locale)
   (`ResetPasswordEmail`) are custom React Email templates wired on the Managers
   collection (`auth.verify` / `auth.forgotPassword`) — no longer Payload's bare
   defaults. Subjects derive from the resolved brand product name.
+
+### ⚠ The two token URLs have DIFFERENT shapes, and only one carries the slug
+
+They are written side by side in `Managers.ts` and look like they should match.
+They must not:
+
+| Link | Correct URL | Why |
+| --- | --- | --- |
+| Verify | `/admin/managers/verify/:token` | Payload matches `/:collectionSlug/verify/:token` in `getRouteData.js`'s `default:` branch, gated on `segmentTwo === 'verify'`. The slug is **required**, and there is no `collections/` prefix |
+| Reset | `/admin/reset/:token` | Matched by NAME against `config.admin.routes.reset` at the two-segment branch, so it carries **no** slug |
+
+A verify URL written in the reset shape (`/admin/verify/:token`) matches
+nothing, and **fails silently rather than 404ing**: `isPublicAdminRoute` returns
+true for any route containing `/verify/`, so the auth gate never fires and a
+logged-out recipient is redirected to `/admin` and then the login form. It looks
+exactly like the email never arrived, and it shipped that way from #483 to #320.
+
+You will not reproduce it locally — `admin.autoLogin` makes `req.user` truthy on
+every dev request, which takes the `notFound()` branch and shows a 404 instead.
+Open the link in a **private window**, or trust
+`tests/unit/manager-auth-urls.spec.ts`, which pins both shapes against Payload's
+own `formatAdminURL`. The template render specs cannot catch this: they pass a
+URL in and assert it round-trips, so a wrong URL round-trips just as happily.
