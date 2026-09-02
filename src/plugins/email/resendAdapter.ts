@@ -2,6 +2,7 @@ import type { Attachment as NodemailerAttachment } from 'nodemailer/lib/mailer'
 import type { EmailAdapter, SendEmailOptions } from 'payload'
 import type { CreateEmailOptions } from 'resend'
 
+import * as Sentry from '@sentry/nextjs'
 import { Resend } from 'resend'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
@@ -76,8 +77,18 @@ export const resendAdapter = (): EmailAdapter => {
       defaultFromName: 'We Meditate Admin',
 
       async sendEmail(message) {
+        // Every path below returns rather than throws — deliberately, because
+        // `sendVerificationEmail` runs inside the manager-create transaction and
+        // a throw would roll the account back. That non-fatal choice is also why
+        // nothing reaches the Sentry plugin's `afterError` hook, so each failure
+        // is reported here explicitly. Without this a delivery failure exists
+        // only as a pino line: no Sentry issue, no admin-visible error (#320).
         if (!resend) {
           payload.logger.error({ msg: 'Cannot send email - Resend client not initialized' })
+          Sentry.captureMessage('Email dropped: Resend client not initialized', {
+            level: 'error',
+            extra: { subject: message.subject },
+          })
           return
         }
 
@@ -107,6 +118,10 @@ export const resendAdapter = (): EmailAdapter => {
               error: error.message,
               name: error.name,
             })
+            Sentry.captureMessage('Email dropped: Resend API error', {
+              level: 'error',
+              extra: { error: error.message, name: error.name, subject: message.subject },
+            })
             return
           }
 
@@ -118,6 +133,7 @@ export const resendAdapter = (): EmailAdapter => {
             msg: 'Email sending failed',
             error: error instanceof Error ? error.message : String(error),
           })
+          Sentry.captureException(error, { extra: { subject: message.subject } })
         }
       },
     }

@@ -31,7 +31,15 @@ export const Managers: CollectionConfig = {
         renderEmail(
           createElement(VerifyEmail, {
             name: user.name || user.email,
-            verifyUrl: `${getServerUrl()}/admin/verify/${token}`,
+            // Payload serves the verify view at `/:collectionSlug/verify/:token`
+            // under the admin route — so the slug segment is REQUIRED and there
+            // is no `collections/` prefix. A two-segment `/admin/verify/:token`
+            // matches nothing and, because `isPublicAdminRoute` waves anything
+            // containing `/verify/` past the auth gate, a logged-out recipient
+            // is redirected to the login form rather than shown a 404 (#320).
+            // The slug is a literal on purpose: reading `Managers.slug` from
+            // inside the `Managers` definition is circular.
+            verifyUrl: `${getServerUrl()}/admin/managers/verify/${token}`,
           }),
         ),
       generateEmailSubject: () => `Verify Your Email — ${getEmailBrand().productName}`,
