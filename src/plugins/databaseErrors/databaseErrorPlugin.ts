@@ -15,12 +15,13 @@
  * ```
  *
  * So the response is rebuilt here rather than the query pre-validated. The
- * recognition itself is pure and lives in `@/lib/databaseErrors`; see that
- * module for why the driver error is reached through `cause` and why the
- * database is left to make the judgement. (sydevs/SahajCloud#670)
+ * recognition itself is pure and lives in `@/lib/databaseErrors`; the reasoning is
+ * in `docs/architecture.md`. (sydevs/SahajCloud#670)
  *
- * REST only. GraphQL takes its own error path and reads `graphqlResult`, which
- * this hook does not set.
+ * ⚠ **Payload's own REST routes only.** `routeError` is what invokes root `afterError`
+ * hooks, so a custom endpoint that catches its own errors never reaches this — it has to
+ * call `mapPostgresCastError` itself, as `Events/endpoints/geojson.ts` does. GraphQL
+ * likewise takes its own path and reads `graphqlResult`, which this hook does not set.
  */
 import type { Config } from 'payload'
 
@@ -68,8 +69,14 @@ export const databaseErrorPlugin =
             url: req.url,
           })
 
+          // `{ errors: [{ message, code }] }` is the shape every other error in this API
+          // uses, and both keys are in the published `ErrorResponse` schema
+          // (`@/plugins/openapi/customEndpoints`). The SQLSTATE is the machine-readable
+          // half, so a client can branch on the cause without parsing Postgres prose.
           return {
-            response: { errors: [{ name: 'BadRequest', message: mapped.message }] },
+            response: {
+              errors: [{ code: INVALID_TEXT_REPRESENTATION, message: mapped.message }],
+            },
             status: mapped.status,
           }
         },
