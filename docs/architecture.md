@@ -207,6 +207,22 @@ The custom logger:
 - Normalizes `Error` objects into plain serializable objects.
 - Runs consistently in local dev, Railway, and tests.
 
+### A caller's mistake is not an incident (issue #670)
+
+A value Postgres cannot cast to a column's type raises SQLSTATE `22P02` and used
+to surface as an unhandled **500** — telling the caller nothing, and filling a
+channel where a 500 means *wake someone*. `@/plugins/databaseErrors` maps it in
+Payload's root `afterError` hook to a **400 naming the offending value**, logs it
+at WARN through `payload.logger`, and `@/plugins/sentry` asks the same predicate
+(`mapPostgresCastError`) before reporting, so these no longer reach Sentry at all.
+Every other error is untouched: a genuine 500 stays a 500 and is still reported.
+
+Generic over the SQLSTATE rather than over enums, so it covers every enum, id and
+date cast, present and future. The driver's `code` is read off the `cause` chain,
+because drizzle wraps each failed query in a `Failed query: …` error;
+`tests/int/database-cast-errors.int.spec.ts` pins that shape against a real
+Postgres rather than a fixture.
+
 ### Sentry integration
 
 - `src/instrumentation.ts` — Server-side initialization (`@sentry/nextjs`)
