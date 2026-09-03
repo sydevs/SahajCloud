@@ -51,6 +51,7 @@ import * as migration_20260825_041552_activity_log from './20260825_041552_activ
 import * as migration_20260825_150733_events_activity_log from './20260825_150733_events_activity_log';
 import * as migration_20260825_212133_atlas_config_languages from './20260825_212133_atlas_config_languages';
 import * as migration_20260826_214829_add_user_messages from './20260826_214829_add_user_messages';
+import * as migration_20260902_224424_add_atlas_canonical_fallback_client from './20260902_224424_add_atlas_canonical_fallback_client';
 
 export const migrations = [
   {
@@ -316,6 +317,11 @@ export const migrations = [
   {
     up: migration_20260826_214829_add_user_messages.up,
     down: migration_20260826_214829_add_user_messages.down,
-    name: '20260826_214829_add_user_messages'
+    name: '20260826_214829_add_user_messages',
+  },
+  {
+    up: migration_20260902_224424_add_atlas_canonical_fallback_client.up,
+    down: migration_20260902_224424_add_atlas_canonical_fallback_client.down,
+    name: '20260902_224424_add_atlas_canonical_fallback_client'
   },
 ];
