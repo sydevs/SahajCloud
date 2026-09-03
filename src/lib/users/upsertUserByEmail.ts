@@ -1,8 +1,32 @@
 import type { PostgresAdapter } from '@payloadcms/db-postgres'
 import type { PayloadRequest } from 'payload'
 
+import { APIError } from 'payload'
+import { z } from 'zod'
+
 import { asTrustedReq } from '@/plugins/usage/hooks'
 import { applyWriteGuard, DEFAULT_WRITE_GUARD_POLICIES } from '@/plugins/writeGuard'
+
+/**
+ * The `users` collection's own field constraints, restated because the insert
+ * below goes around them.
+ *
+ * ⚠ **A Drizzle-level write runs no Payload field validation, and the
+ * write-guard is not a substitute** — the guard checks *content* (disposable
+ * domains, URLs in free text) and only for a `clients` caller, so on its own it
+ * would let a blank `name` or a malformed `email` through from anyone else. The
+ * `users` collection is two fields wide (`Users.ts` — `name` required text,
+ * `email` required and unique), which is the only reason restating them is
+ * proportionate; a third constrained field belongs here too.
+ *
+ * `event-submissions` is the caller that proves this is not theoretical:
+ * `prepareSubmission` forwards `submitterInfo.name` unchecked, and an empty one
+ * used to be refused by Payload with `The following field is invalid: Name`.
+ */
+const registrantSchema = z.object({
+  email: z.string().email().max(254),
+  name: z.string().trim().min(1),
+})
 
 /**
  * The Drizzle handle bound to the caller's transaction, or the pool when there
@@ -46,7 +70,11 @@ async function transactionalDrizzle(req: PayloadRequest): Promise<PostgresAdapte
  * to fail.
  *
  * `users` is a restricted, admin-only collection, so the reads elevate via
- * `overrideAccess`.
+ * `overrideAccess`. Going around `payload.create` also goes around its field
+ * validation and its hooks, so both are restored here explicitly:
+ * `registrantSchema` above for the field constraints, `applyWriteGuard` below
+ * for the anti-spam policy. `Users` has no hooks of its own, no localized
+ * fields and no versions, so nothing else was riding on that seam.
  *
  * Returns the user id.
  */
@@ -55,8 +83,18 @@ export async function upsertUserByEmail(args: {
   name: string
   req: PayloadRequest
 }): Promise<number> {
-  const { req, name } = args
-  const normalizedEmail = args.email.toLowerCase()
+  const { req } = args
+  const fields = registrantSchema.safeParse({ email: args.email, name: args.name })
+  if (!fields.success) {
+    throw new APIError(
+      `The following field is invalid: ${fields.error.issues[0]?.path.join('.') ?? 'registrant'}`,
+      400,
+      { code: 'invalid_registrant' },
+      true,
+    )
+  }
+  const { name } = fields.data
+  const normalizedEmail = fields.data.email.toLowerCase()
 
   const findByEmail = async () => {
     const { docs } = await req.payload.find({
