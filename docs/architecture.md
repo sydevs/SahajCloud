@@ -212,16 +212,29 @@ The custom logger:
 A value Postgres cannot cast to a column's type raises SQLSTATE `22P02` and used
 to surface as an unhandled **500** — telling the caller nothing, and filling a
 channel where a 500 means *wake someone*. `@/plugins/databaseErrors` maps it in
-Payload's root `afterError` hook to a **400 naming the offending value**, logs it
-at WARN through `payload.logger`, and `@/plugins/sentry` asks the same predicate
-(`mapPostgresCastError`) before reporting, so these no longer reach Sentry at all.
-Every other error is untouched: a genuine 500 stays a 500 and is still reported.
+Payload's root `afterError` hook to a **400 naming the offending value**, adds a
+WARN through `payload.logger`, and `@/plugins/sentry` asks the same predicate
+(`mapPostgresCastError`) before reporting, so these no longer reach Sentry.
+Errors of every other class are untouched: a genuine 500 stays a 500 and is still
+reported.
 
 Generic over the SQLSTATE rather than over enums, so it covers every enum, id and
-date cast, present and future. The driver's `code` is read off the `cause` chain,
-because drizzle wraps each failed query in a `Failed query: …` error;
+date cast, present and future. The driver's `code` is matched down the `cause`
+chain, because drizzle wraps each failed query in a `Failed query: …` error;
 `tests/int/database-cast-errors.int.spec.ts` pins that shape against a real
 Postgres rather than a fixture.
+
+Two things it deliberately does not do, both worth knowing before you tune
+alerting on it:
+
+- **The WARN is additive.** Payload's `routeError` logs at ERROR with the full
+  stack before any `afterError` hook runs, and `loggingLevels` cannot reach this
+  error (it keys on `err.name`, which `DrizzleQueryError` never sets). A rejected
+  request emits both lines. Only the Sentry report is removed.
+- **It cannot tell whose bad value it was.** A 22P02 our *own* code causes — a
+  derived id, a `where` composed from config, a job's own query — is now a 400
+  blaming the caller, and is reported to Sentry nowhere. Accepted: the class is
+  rare, the noise was not.
 
 ### Sentry integration
 

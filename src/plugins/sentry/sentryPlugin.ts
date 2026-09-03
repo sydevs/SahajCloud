@@ -105,7 +105,15 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
             // and `captureErrors` includes 400, so restatusing alone would not.
             // Asking the same pure predicate rather than reading a flag the other
             // hook sets keeps this independent of the order the two are registered
-            // in. (sydevs/SahajCloud#670)
+            // in.
+            //
+            // ⚠ **The accepted cost**: this keys on the SQLSTATE alone, so it
+            // cannot tell a caller's bad value from one OUR code composed — a
+            // derived id, a `where` built from config, a job's own query. Such a
+            // defect is now a 400 blaming the client and reaches Sentry nowhere.
+            // The trade was taken because the class is rare and the noise was
+            // not; if one is ever suspected, the WARN line is where it shows up.
+            // (sydevs/SahajCloud#670)
             if (mapPostgresCastError(error)) {
               return
             }

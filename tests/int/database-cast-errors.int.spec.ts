@@ -2,7 +2,11 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { findPostgresError, mapPostgresCastError } from '@/lib/databaseErrors'
+import {
+  findPostgresError,
+  INVALID_TEXT_REPRESENTATION,
+  mapPostgresCastError,
+} from '@/lib/databaseErrors'
 
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -62,8 +66,8 @@ describe('Postgres cast failures (SQLSTATE 22P02)', () => {
       }),
     )
 
-    const postgresError = findPostgresError(error)
-    expect(postgresError?.code).toBe('22P02')
+    const postgresError = findPostgresError(error, INVALID_TEXT_REPRESENTATION)
+    expect(postgresError).not.toBeNull()
     expect(postgresError?.message).toContain('enum_meditations_type')
 
     expect(mapPostgresCastError(error)).toEqual({
@@ -89,8 +93,9 @@ describe('Postgres cast failures (SQLSTATE 22P02)', () => {
       }),
     )
 
-    expect(findPostgresError(error)?.code).toBe('22P02')
-    expect(findPostgresError(error)?.message).toContain('invalid input syntax for type integer')
+    const postgresError = findPostgresError(error, INVALID_TEXT_REPRESENTATION)
+    expect(postgresError).not.toBeNull()
+    expect(postgresError?.message).toContain('invalid input syntax for type integer')
     expect(mapPostgresCastError(error)?.status).toBe(400)
   })
 
