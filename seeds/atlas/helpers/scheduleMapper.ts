@@ -18,14 +18,13 @@
 import { Temporal } from '@js-temporal/polyfill'
 
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
-import type { ScheduleSubFields } from '@/types/schedule'
+import type { SupportedTimezones } from '@/payload-types'
+import type { EventSchedule } from '@/types/schedule'
 
 /** RFC 5545 weekday code, as the CMS enumerates it. */
-type WeekdayCode = NonNullable<ScheduleSubFields['weekdays']>[number]
+type WeekdayCode = NonNullable<EventSchedule['weekdays']>[number]
 /** Ordinal week within a month, as the CMS enumerates it. */
-type WeekNumber = NonNullable<ScheduleSubFields['weekNumber']>
-/** The timezone set the `firstDate_tz` companion column accepts. */
-type Timezone = ScheduleSubFields['firstDate_tz']
+type WeekNumber = NonNullable<EventSchedule['weekNumber']>
 
 export interface AtlasSchedule {
   frequency: 'daily' | 'weekly' | 'monthly'
@@ -41,7 +40,7 @@ export interface AtlasSchedule {
 /**
  * The subset of the `scheduleFields` group an import populates.
  *
- * Every member derives from the generated `ScheduleSubFields` rather than
+ * Every member derives from the generated `EventSchedule` rather than
  * restating it (#671): this file used to declare `firstDate_tz`, `weekdays`,
  * `weekNumber` and `weekdayOfMonth` as bare `string`s, which type-checked for
  * values the CMS then rejected at write.
@@ -50,19 +49,19 @@ export interface AtlasSchedule {
  * is one the import never sets.
  */
 export interface ScheduleInput {
-  firstDate: ScheduleSubFields['firstDate']
-  firstDate_tz: Timezone
-  recurrenceType: NonNullable<ScheduleSubFields['recurrenceType']>
-  interval: NonNullable<ScheduleSubFields['interval']>
+  firstDate: EventSchedule['firstDate']
+  firstDate_tz: SupportedTimezones
+  recurrenceType: NonNullable<EventSchedule['recurrenceType']>
+  interval: NonNullable<EventSchedule['interval']>
   weekdays?: WeekdayCode[]
-  monthlyMode?: NonNullable<ScheduleSubFields['monthlyMode']>
-  monthDay?: NonNullable<ScheduleSubFields['monthDay']>
+  monthlyMode?: NonNullable<EventSchedule['monthlyMode']>
+  monthDay?: NonNullable<EventSchedule['monthDay']>
   weekNumber?: WeekNumber
   weekdayOfMonth?: WeekdayCode
-  endTime?: NonNullable<ScheduleSubFields['endTime']>
+  endTime?: NonNullable<EventSchedule['endTime']>
   /** The importer only ever writes an `until` ending, never a `count`. */
   endingType?: 'until'
-  untilDate?: NonNullable<ScheduleSubFields['untilDate']>
+  untilDate?: NonNullable<EventSchedule['untilDate']>
 }
 
 const FREQUENCY_TO_RECURRENCE: Record<AtlasSchedule['frequency'], ScheduleInput['recurrenceType']> =
@@ -95,7 +94,7 @@ function isWeekNumber(value: string): value is WeekNumber {
  *
  * Built from the same `SUPPORTED_TIMEZONES` the Payload config installs, which
  * is what `SupportedTimezones` in `payload-types.ts` is generated from — so this
- * membership test and the type above cannot disagree.
+ * membership test and that type cannot disagree.
  */
 const TIMEZONE_VALUES = new Set<string>(SUPPORTED_TIMEZONES.map(({ value }) => value))
 
@@ -113,10 +112,14 @@ const TIMEZONE_VALUES = new Set<string>(SUPPORTED_TIMEZONES.map(({ value }) => v
  * instant in the source zone and label it `UTC`, putting the event and its whole
  * recurrence hours out — trading a write the CMS rejects for data that is
  * silently wrong, which is the opposite of the point.
+ *
+ * ⚠ **The substitution is not silent.** It changes the instant an event is read
+ * back at, so the caller compares the raw zone against the resolved one and
+ * warns — see `reportTimezoneSubstitution` in `import.ts`.
  */
-function supportedTimezone(timeZone: string | null | undefined): Timezone {
+export function supportedTimezone(timeZone: string | null | undefined): SupportedTimezones {
   const candidate = timeZone?.trim()
-  return candidate && TIMEZONE_VALUES.has(candidate) ? (candidate as Timezone) : 'UTC'
+  return candidate && TIMEZONE_VALUES.has(candidate) ? (candidate as SupportedTimezones) : 'UTC'
 }
 
 /** RFC 5545 weekday codes indexed by Temporal `dayOfWeek` (1 = Monday … 7 = Sunday). */
