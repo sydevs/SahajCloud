@@ -110,6 +110,7 @@ export const resendVerification: Endpoint = {
     }
 
     const token = generateVerificationToken()
+    const previousToken = manager._verificationToken ?? null
 
     try {
       // Mirrors how `forgotPassword` persists its token
@@ -126,14 +127,60 @@ export const resendVerification: Endpoint = {
         req,
       })
 
-      const user = { ...manager, _verificationToken: token }
+      // ⚠ Project explicitly — do NOT spread `manager`. It came back with
+      // `showHiddenFields: true`, so it carries `hash`, `salt` and
+      // `resetPasswordToken`, and this object is handed to a template renderer
+      // whose output is emailed. Nothing reads them today; the point is that a
+      // careless template edit must not be able to. Payload's own create path
+      // passes the post-`afterRead` doc, which has those stripped already.
+      const user = {
+        id: manager.id,
+        name: manager.name,
+        email: manager.email,
+        collection: 'managers',
+        _verificationToken: token,
+      }
       const html = await verify.generateEmailHTML({ req, token, user })
       const subject =
         typeof verify.generateEmailSubject === 'function'
           ? await verify.generateEmailSubject({ req, token, user })
           : 'Verify Your Email'
 
-      await req.payload.sendEmail({ to: manager.email, subject, html })
+      // ⚠ `payload.sendEmail` does NOT throw on a delivery failure. The Resend
+      // adapter returns on every failure path on purpose — a throw would roll
+      // back the manager-create transaction it also runs inside — so a `catch`
+      // alone would report success for a message that was dropped, having
+      // already revoked the manager's outstanding link. That is the #320/#675
+      // failure class, on the path built to rescue it.
+      //
+      // Only an explicit `{ ok: false }` counts as a drop: Payload's own console
+      // adapter stands in wherever email is unconfigured and resolves
+      // `undefined`, which must keep reading as sent.
+      const result = (await req.payload.sendEmail({ to: manager.email, subject, html })) as
+        | { ok?: boolean }
+        | undefined
+
+      if (result?.ok === false) {
+        // Put the old token back, so a dropped resend leaves the manager exactly
+        // as it found them — an outstanding link that still works beats a
+        // revoked one and no replacement.
+        await req.payload.update({
+          collection: 'managers',
+          id,
+          data: { _verificationToken: previousToken } as Partial<Manager>,
+          overrideAccess: true,
+          depth: 0,
+          req,
+        })
+        req.payload.logger.error({
+          msg: 'resendVerification: send was dropped; restored the previous token',
+          managerId: id,
+        })
+        return denied(
+          'The verification email could not be sent. Any earlier link still works — try again shortly.',
+          502,
+        )
+      }
     } catch (error) {
       req.payload.logger.error({
         msg: 'resendVerification: failed to re-send the verification email',

@@ -18,8 +18,8 @@ The application uses different email providers based on environment:
 ## Resend adapter
 
 - Implements PayloadCMS `EmailAdapter`.
-- **Graceful fallback**: missing `RESEND_API_KEY` → logs error, returns error
-  message ID (no throw).
+- **Graceful fallback**: missing `RESEND_API_KEY` → logs error, captures to
+  Sentry, and returns `{ ok: false }` (no throw).
 - All operations are logged for debugging.
 - Adapter selection in `src/payload.config.ts` is keyed on `NODE_ENV`.
 
@@ -35,6 +35,20 @@ admin-visible error, no DB trace (#320).
 
 So the adapter's three non-throwing paths — no client, a Resend API error, a
 caught exception — each capture to Sentry themselves, and still return.
+
+**They return `{ ok: false, reason }`, and a caller that can act on a drop must
+read it.** Not throwing means a `try/catch` around `payload.sendEmail` sees
+nothing, so a caller with only a `catch` reports success for a message that was
+dropped. Most callers rightly ignore the result (there is nothing they could do),
+but `resendVerification` restores the manager's previous verification token when
+it sees `{ ok: false }` — otherwise a dropped resend would revoke a working link
+and put nothing in its place, which is the #320 failure class on the path built
+to rescue it.
+
+⚠ **Only an explicit `{ ok: false }` means dropped.** Payload's own
+`consoleEmailAdapter` stands in wherever email is not configured and resolves
+`undefined`; treating that as a failure would break every unconfigured
+environment. Test `result?.ok === false`, never `!result?.ok`.
 
 ⚠ **Nothing from the message goes with the capture** — not the recipient, not
 the subject. A `user-messages` send carries a viewer-authored subject, and that

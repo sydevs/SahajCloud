@@ -90,10 +90,19 @@ export const resendAdapter = (): EmailAdapter => {
         // holds personal data; copying it into a third-party error tracker would
         // widen where that data lives. The pino line beside each capture already
         // carries the detail, in the log system that is meant to hold it.
+        // ⚠ Returning `{ ok: false }` on a drop is what lets a caller that CAN
+        // act on the failure do so — `resendVerification` restores the previous
+        // token rather than leaving a manager with a revoked link and no
+        // replacement. It is a return value, not a throw, so the non-fatal
+        // contract above is unchanged and every existing caller (all of which
+        // ignore the result) behaves exactly as before. Only an explicit
+        // `{ ok: false }` means "dropped": Payload's own console adapter, which
+        // stands in wherever email is not configured, resolves `undefined`, and
+        // that must keep reading as sent.
         if (!resend) {
           payload.logger.error({ msg: 'Cannot send email - Resend client not initialized' })
           Sentry.captureMessage('Email dropped: Resend client not initialized', { level: 'error' })
-          return
+          return { ok: false as const, reason: 'not-initialized' as const }
         }
 
         try {
@@ -126,7 +135,7 @@ export const resendAdapter = (): EmailAdapter => {
               level: 'error',
               extra: { error: error.message, name: error.name },
             })
-            return
+            return { ok: false as const, reason: 'api-error' as const }
           }
 
           if (data) {
@@ -138,6 +147,7 @@ export const resendAdapter = (): EmailAdapter => {
             error: error instanceof Error ? error.message : String(error),
           })
           Sentry.captureException(error)
+          return { ok: false as const, reason: 'threw' as const }
         }
       },
     }
