@@ -218,11 +218,19 @@ WARN through `payload.logger`, and `@/plugins/sentry` asks the same predicate
 Errors of every other class are untouched: a genuine 500 stays a 500 and is still
 reported.
 
-Generic over the SQLSTATE rather than over enums, so it covers every enum, id and
-date cast, present and future. The driver's `code` is matched down the `cause`
-chain, because drizzle wraps each failed query in a `Failed query: …` error;
+Generic over the SQLSTATE rather than over enums, so within its reach it covers every
+enum, id and date cast, present and future. The driver's `code` is matched down the
+`cause` chain, because drizzle wraps each failed query in a `Failed query: …` error;
 `tests/int/database-cast-errors.int.spec.ts` pins that shape against a real
 Postgres rather than a fixture.
+
+⚠ **The hook's reach is Payload's own REST routes, not every route.** Root `afterError`
+hooks are invoked by `payload/dist/utilities/routeError.js`, so a custom endpoint that
+catches its own errors never reaches the hook and has to call `mapPostgresCastError`
+itself. `src/collections/Events/endpoints/geojson.ts` is the one that must: it forwards
+the client's `where` verbatim onto `eventType`, an enum column the OpenAPI docs advertise
+filtering on. Any future handler that catches its own errors and takes a client-supplied
+value inherits the same obligation — the predicate is exported for exactly this.
 
 Two things it deliberately does not do, both worth knowing before you tune
 alerting on it:
@@ -232,9 +240,13 @@ alerting on it:
   error (it keys on `err.name`, which `DrizzleQueryError` never sets). A rejected
   request emits both lines. Only the Sentry report is removed.
 - **It cannot tell whose bad value it was.** A 22P02 our *own* code causes — a
-  derived id, a `where` composed from config, a job's own query — is now a 400
-  blaming the caller, and is reported to Sentry nowhere. Accepted: the class is
-  rare, the noise was not.
+  derived id, a `where` composed from config — is now a 400 blaming the caller,
+  and is reported to Sentry nowhere. Accepted: the class is rare, the noise was not,
+  and the ERROR line above still fires for every one of them. Suppressing only for
+  authenticated callers was considered and rejected: access control denies an
+  anonymous read before any SQL runs (`hasPermission` returns `false` for no user),
+  so `req.user` is set on every error that can reach these hooks and the test would
+  never discriminate.
 
 ### Sentry integration
 

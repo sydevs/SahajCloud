@@ -3,6 +3,7 @@ import type { Endpoint, PopulateType, SelectType, Sort, Where } from 'payload'
 
 import { APIError } from 'payload'
 
+import { INVALID_TEXT_REPRESENTATION, mapPostgresCastError } from '@/lib/databaseErrors'
 import { requireActiveClient } from '@/lib/endpoints'
 import type { Event } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
@@ -121,6 +122,25 @@ export const eventsGeoJson: Endpoint = {
       // APIError(403) for a disallowed origin — surface status + message verbatim.
       if (error instanceof APIError) {
         return Response.json({ errors: [{ message: error.message }] }, { status: error.status })
+      }
+      // This handler forwards the client's `where` verbatim, and `eventType` is a
+      // Postgres enum column the OpenAPI docs invite callers to filter on — so
+      // `where[eventType][equals]=bogus` raises SQLSTATE 22P02 here. Payload's root
+      // `afterError` hook (`@/plugins/databaseErrors`) fires from `routeError`, which a
+      // handler that catches its own errors never reaches, so the mapping is asked for
+      // directly. (sydevs/SahajCloud#670)
+      const mapped = mapPostgresCastError(error)
+      if (mapped) {
+        req.payload.logger.warn({
+          msg: 'eventsGeoJson: rejected a request Postgres could not cast',
+          clientId: req.user?.id,
+          detail: mapped.message,
+          sqlstate: INVALID_TEXT_REPRESENTATION,
+        })
+        return Response.json(
+          { errors: [{ code: INVALID_TEXT_REPRESENTATION, message: mapped.message }] },
+          { status: mapped.status },
+        )
       }
       req.payload.logger.error({
         msg: 'eventsGeoJson: read failed',

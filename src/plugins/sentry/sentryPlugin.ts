@@ -98,22 +98,16 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
           async (args) => {
             const { error, req } = args
 
-            // A Postgres cast failure is the caller sending a value the column
-            // cannot hold — `@/plugins/databaseErrors` answers it with a 400 and
-            // logs it at WARN, so it is diagnosable without being an incident.
-            // Reporting it here would keep the noise this repo set out to remove,
-            // and `captureErrors` includes 400, so restatusing alone would not.
-            // Asking the same pure predicate rather than reading a flag the other
-            // hook sets keeps this independent of the order the two are registered
-            // in.
+            // A Postgres cast failure is the caller sending a value the column cannot
+            // hold, so it is a 400 rather than an incident. `captureErrors` includes 400,
+            // so restatusing alone would not stop the report — and asking the same pure
+            // predicate rather than reading a flag the other hook sets keeps this
+            // independent of the order the two plugins are registered in.
             //
-            // ⚠ **The accepted cost**: this keys on the SQLSTATE alone, so it
-            // cannot tell a caller's bad value from one OUR code composed — a
-            // derived id, a `where` built from config, a job's own query. Such a
-            // defect is now a 400 blaming the client and reaches Sentry nowhere.
-            // The trade was taken because the class is rare and the noise was
-            // not; if one is ever suspected, the WARN line is where it shows up.
-            // (sydevs/SahajCloud#670)
+            // ⚠ **This suppresses a 22P02 OUR code composed too**, not only a caller's.
+            // Do not try to discriminate on `req.user`: access control denies an
+            // anonymous read before any SQL runs, so it is set on every error that
+            // reaches here. `docs/architecture.md` has the trade. (sydevs/SahajCloud#670)
             if (mapPostgresCastError(error)) {
               return
             }
