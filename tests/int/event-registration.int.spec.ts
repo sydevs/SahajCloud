@@ -179,23 +179,76 @@ describe('registerForEvent endpoint', () => {
     })
 
     /**
-     * ⚠ Documents a PRE-EXISTING gap this ticket does not close, rather than
-     * asserting the behaviour we want.
+     * The inverse of what this asserted before #673: the registrant row used to
+     * survive a refused captcha, because the two writes shared no transaction.
      *
-     * `registerForEvent` upserts the registrant `users` row (line ~182) and
-     * *then* creates the registration (~186), with no transaction around the
-     * pair. The write guard fires on `registrations.create`, so a refused
-     * captcha stops the registration but leaves the user row behind.
-     *
-     * This is not caused by the captcha — any late failure already did it, the
-     * `questions` validation 400 above included. The fix is a transaction around
-     * both writes, which is a change to the endpoint's shape and does not belong
-     * in a policy flip. Flip this assertion the moment that lands.
+     * The captcha is only the most legible trigger — the guard fires on
+     * `registrations.create`, i.e. *after* the `users` row exists — so any late
+     * refusal produced the same orphan. The sibling case below covers the
+     * validation 400 that did it without any captcha involved.
      */
-    it('still creates the registrant row — the two writes share no transaction', async () => {
+    it('creates no REGISTRANT either — both writes are one transaction', async () => {
       verifyMock.mockResolvedValue({ success: false, reason: 'rejected' })
       await callRegister(eventId, body)
-      expect(await userCountByEmail(payload, 'captcha@example.com')).toBe(1)
+      expect(await userCountByEmail(payload, 'captcha@example.com')).toBe(0)
+    })
+  })
+
+  describe('the two writes are atomic (#673)', () => {
+    it('leaves no registrant and no registration when the questions payload is refused', async () => {
+      const email = 'orphan-questions@example.com'
+      const { status } = await callRegister(eventId, {
+        email,
+        name: 'Orphan Questions',
+        questions: { notAQuestion: 'x' },
+      })
+
+      expect(status).toBe(400)
+      expect(await userCountByEmail(payload, email)).toBe(0)
+      expect(await registrationCountByEmail(payload, email)).toBe(0)
+    })
+
+    /**
+     * Acceptance criterion 5, and the one that is *not* about the transaction.
+     *
+     * The registrant insert goes through Drizzle now, to get
+     * `ON CONFLICT DO NOTHING` — and a Drizzle-level write runs no Payload
+     * hooks, so the write-guard plugin's `users.create` policy would silently
+     * stop applying. `upsertUserByEmail` calls the guard explicitly instead;
+     * these two cases are what would notice if that call were dropped, since
+     * nothing else would fail.
+     */
+    it('still refuses a disposable registrant address, and stores nothing', async () => {
+      const email = 'spammer@mailinator.com'
+      const { status, body: res } = await callRegister(eventId, {
+        email,
+        name: 'Dis Posable',
+      })
+
+      expect(status).toBe(400)
+      expect(res.errors).toMatchObject([{ code: 'disposable_email' }])
+      expect(await userCountByEmail(payload, email)).toBe(0)
+    })
+
+    it('still refuses a URL in the registrant name, and stores nothing', async () => {
+      const email = 'linky@example.com'
+      const { status, body: res } = await callRegister(eventId, {
+        email,
+        name: 'Buy now at http://spam.example',
+      })
+
+      expect(status).toBe(400)
+      expect(res.errors).toMatchObject([{ code: 'urls_not_allowed' }])
+      expect(await userCountByEmail(payload, email)).toBe(0)
+    })
+
+    it('reuses a registrant that already exists rather than conflicting', async () => {
+      const email = 'returning@example.com'
+      await callRegister(eventId, { email, name: 'Re Turning' })
+      await callRegister(eventId, { email, name: 'Re Turning' })
+
+      expect(await userCountByEmail(payload, email)).toBe(1)
+      expect(await registrationCountByEmail(payload, email)).toBe(2)
     })
   })
 

@@ -6,7 +6,7 @@
  * a per-collection policy map. See `writeGuardPlugin.ts` for the contract.
  */
 
-export { writeGuardBeforeValidate, writeGuardPlugin } from './writeGuardPlugin'
+export { applyWriteGuard, writeGuardBeforeValidate, writeGuardPlugin } from './writeGuardPlugin'
 export {
   DEFAULT_WRITE_GUARD_POLICIES,
   type WriteGuardOperationPolicy,

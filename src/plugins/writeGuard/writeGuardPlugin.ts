@@ -93,16 +93,45 @@ async function runPolicy(
   }
 }
 
+/**
+ * Enforce one collection's policy for one write. **The whole gate, in one
+ * place** — which operations are covered, who is guarded, and the escape
+ * hatch — so a caller outside the collection seam cannot apply a subset of it.
+ *
+ * ⚠ **Call this directly only for a write that genuinely cannot reach
+ * `beforeValidate`.** There is exactly one: `upsertUserByEmail`'s atomic insert
+ * goes through Drizzle to get `ON CONFLICT DO NOTHING`, and a Drizzle-level
+ * write runs no Payload hooks — so the `users.create` policy would silently
+ * stop running on every public flow that creates a registrant. Anything writing
+ * through `payload.create` inherits the guard from the collection and must not
+ * call this as well: the checks are not idempotent, and a second Turnstile
+ * verification of a single-use token fails.
+ */
+export async function applyWriteGuard(args: {
+  data: Record<string, unknown>
+  operation: string
+  policy: undefined | WriteGuardPolicy
+  req: PayloadRequest
+}): Promise<void> {
+  const { data, operation, policy, req } = args
+  if (operation !== 'create' && operation !== 'update') return
+  const operationPolicy = policy?.[operation]
+  if (!operationPolicy) return
+  if (req.user?.collection !== 'clients') return
+  if (req.context?.skipWriteGuard) return
+
+  await runPolicy(operationPolicy, data, req)
+}
+
 /** The `beforeValidate` hook enforcing one collection's policy. */
 export function writeGuardBeforeValidate(policy: WriteGuardPolicy): CollectionBeforeValidateHook {
   return async ({ data, operation, req }) => {
-    if (operation !== 'create' && operation !== 'update') return data
-    const operationPolicy = policy[operation]
-    if (!operationPolicy) return data
-    if (req.user?.collection !== 'clients') return data
-    if (req.context?.skipWriteGuard) return data
-
-    await runPolicy(operationPolicy, (data ?? {}) as Record<string, unknown>, req)
+    await applyWriteGuard({
+      data: (data ?? {}) as Record<string, unknown>,
+      operation,
+      policy,
+      req,
+    })
     return data
   }
 }

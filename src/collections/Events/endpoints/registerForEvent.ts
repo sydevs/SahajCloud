@@ -1,9 +1,10 @@
 import type { EventRegistrationError, EventRegistrationResponse } from './responseTypes'
+import type { Registration } from '@/payload-types'
 import type { Endpoint, PayloadRequest } from 'payload'
 
 import { randomUUID } from 'node:crypto'
 
-import { APIError } from 'payload'
+import { APIError, commitTransaction, initTransaction, killTransaction } from 'payload'
 import { z } from 'zod'
 
 import { parseBody, requireActiveClient } from '@/lib/endpoints'
@@ -106,8 +107,9 @@ async function loadEmailClient(
  * Flow: parse the `:id` + body → confirm the event is one the client may see
  * (published + project-visible) → refuse it when the event's state is closed to
  * registration (external mode / ended / a started course / full — a
- * machine-readable 409) → upsert the registrant `user` by normalized
- * email with elevated access (`users` is admin-only) → create the `registration`
+ * machine-readable 409) → **in one transaction**, upsert the registrant `user`
+ * by normalized email with elevated access (`users` is admin-only) and create
+ * the `registration`
  * (event + user + startingAt + questions + a fresh uuid, plus the originating
  * `client` and `locale`, and `mailingListSubscribedAt` when the registrant opted
  * in via `subscribe`) → send the branded confirmation email.
@@ -179,27 +181,49 @@ export const registerForEvent: Endpoint = {
       // Upsert the registrant by normalized email (shared, race-safe helper —
       // also used by the event-submission flow).
       const normalizedEmail = email.toLowerCase()
-      const userId = await upsertUserByEmail({ req, name, email })
-
       const clientId = typeof req.user?.id === 'number' ? req.user.id : undefined
 
-      const registration = await req.payload.create({
-        collection: 'registrations',
-        data: {
-          event: eventId,
-          user: userId,
-          startingAt,
-          questions,
-          uuid: randomUUID(),
-          // Provenance for this and every later email about the registration.
-          client: clientId,
-          locale: registrantLocale,
-          // Record consent at registration time; omit when not opted in.
-          mailingListSubscribedAt: subscribe ? new Date().toISOString() : undefined,
-        },
-        overrideAccess: true,
-        req,
-      })
+      // ⚠ **One transaction around both writes** (sydevs/SahajCloud#673). Until
+      // this existed, anything refusing between them — the registrations
+      // write-guard's captcha or URL scan, a validation 400 — left an orphan
+      // `users` row that no registration referenced.
+      //
+      // Opened here rather than at the top of the handler on purpose: the reads
+      // above are the client's own lookups and answer the same whether or not
+      // they are in a transaction, so keeping them out shortens what is held.
+      // The `registrations` policy's Turnstile call *is* inside it, and has to
+      // be: undoing the user row on a refused captcha is the first thing this
+      // ticket asks for.
+      const ownsTransaction = await initTransaction(req)
+      let registration: Registration
+      try {
+        const userId = await upsertUserByEmail({ req, name, email })
+
+        registration = await req.payload.create({
+          collection: 'registrations',
+          data: {
+            event: eventId,
+            user: userId,
+            startingAt,
+            questions,
+            uuid: randomUUID(),
+            // Provenance for this and every later email about the registration.
+            client: clientId,
+            locale: registrantLocale,
+            // Record consent at registration time; omit when not opted in.
+            mailingListSubscribedAt: subscribe ? new Date().toISOString() : undefined,
+          },
+          overrideAccess: true,
+          req,
+        })
+
+        if (ownsTransaction) await commitTransaction(req)
+      } catch (writeError) {
+        // Rolls back both writes and clears `req.transactionID`, so the
+        // best-effort sends below and the catch further down run outside it.
+        await killTransaction(req)
+        throw writeError
+      }
 
       // The registrant is already registered — a failed send must not undo that
       // or surface as an error, so this is logged and swallowed. Awaited rather
