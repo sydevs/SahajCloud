@@ -446,6 +446,159 @@ describe('atlasSitemap endpoint', () => {
     })
   })
 
+  /**
+   * The canonical fallback client (#652) — the half that needs a database.
+   *
+   * Declared last and on regions of its own, so every case above ran against the
+   * pre-#652 world and this block is the only one that changes it. `france` and
+   * `lyon` stay unclaimed throughout, which is what makes them the complement.
+   *
+   * **Fixture assumption, checked before writing it:** a fallback client is an
+   * ordinary canonical owner — published, `canonical.enabled`, a region, and a
+   * job-written `canonical.verification.verified` — so it is built with the same
+   * `createOwner` helper every other owner here uses. Verified against
+   * `src/jobs/VerifyEmbeds/VerifyEmbeds.ts:78` (`dueClients` selects only
+   * `canonical.enabled === true`, so no other shape ever gets `verified`
+   * written) and `src/collections/Clients/hooks/validateCanonicalOwnership.ts:60`
+   * (an enabled client must name a region).
+   */
+  describe('canonical fallback client', () => {
+    const WM_DOMAIN = 'wemeditate.com'
+    const WM_MOUNT = '/map'
+    let fallbackClient: TestUser
+
+    const setFallback = (clientId: number | null) =>
+      payload.updateGlobal({
+        slug: 'sy-atlas-config',
+        data: { canonicalFallbackClient: clientId } as never,
+        overrideAccess: true,
+      })
+
+    beforeAll(async () => {
+      // A root of its own, so the client declares a subtree like any other owner
+      // *and* covers the remainder — the two halves the answer is a union of.
+      region.belgium = await createRegion({ name: 'Belgium', slug: 'belgium', level: 'country' })
+      fallbackClient = await createOwner({
+        name: 'We Meditate',
+        regionId: region.belgium,
+        domain: WM_DOMAIN,
+        mount: WM_MOUNT,
+        routing: 'path',
+      })
+      await setFallback(Number(fallbackClient!.id))
+    })
+
+    afterAll(async () => {
+      await setFallback(null)
+    })
+
+    it('publishes every route no other client owns, plus its own subtree', async () => {
+      const routes = await routesFor(fallbackClient)
+
+      // The complement: France, the city beneath it, and the class in that city
+      // — the inventory that belonged to nobody's sitemap before this field.
+      expect(routes).toContain('/france')
+      expect(routes).toContain('/france/lyon')
+      expect(routes).toContain(`/france/lyon/${event.lyon}`)
+      // …and the subtree it declares itself, in the same sorted answer.
+      expect(routes).toContain('/belgium')
+      expect(routes).toEqual([...routes].sort())
+    })
+
+    it('still stops at a subtree another client owns', async () => {
+      const routes = await routesFor(fallbackClient)
+      for (const route of routes) expect(route.startsWith('/netherlands')).toBe(false)
+    })
+
+    it('changes no other client’s answer', async () => {
+      expect(await routesFor(nlClient)).toEqual([
+        '/netherlands',
+        '/netherlands/amsterdam',
+        `/netherlands/amsterdam/${event.city}`,
+        '/netherlands/amsterdam/community-hall',
+        `/netherlands/amsterdam/community-hall/${event.venue}`,
+        '/netherlands/groningen',
+      ])
+      expect(await routesFor(unownedClient)).toEqual([])
+    })
+
+    // The second half of what the field buys: an unclaimed region's canonical
+    // stops being asserted from env vars and becomes the host the verification
+    // job observed — and `/seo` and the sitemap move together, because both read
+    // the document's own `webUrl`.
+    it('builds the unclaimed routes on the fallback client’s verified host', async () => {
+      const { body } = await callSitemap(fallbackClient)
+      expect(body.urls.length).toBeGreaterThan(0)
+
+      for (const url of body.urls) {
+        expect(url.loc).toBe(`https://${WM_DOMAIN}${WM_MOUNT}${url.route}`)
+        const seo = await callSeo(url.route, fallbackClient)
+        expect(seo.canonical, `canonical for ${url.route}`).toBe(url.loc)
+      }
+    })
+
+    /**
+     * The clause the other cases cannot reach, and the reason it exists.
+     *
+     * `verified` is deliberately **not** cleared when verification fails — it is
+     * the last thing we observed (`buildVerificationState`) — while the job
+     * switches `canonical.enabled` off after repeated failures
+     * (`VerifyEmbeds.updateSql`). So "switched off, still carrying a verified
+     * snapshot" is a state production reaches on its own, and a fallback
+     * resolver reading `verified` alone would let a client the job has just
+     * given up on keep speaking for every unclaimed page in the atlas.
+     */
+    it('ignores a client the verification job switched off, verified snapshot and all', async () => {
+      region.austria = await createRegion({ name: 'Austria', slug: 'austria', level: 'country' })
+      const lapsed = await createOwner({
+        name: 'Lapsed Atlas Client',
+        regionId: region.austria,
+        domain: 'lapsed.test',
+        mount: '/map',
+        routing: 'path',
+      })
+      const stored = await payload.findByID({
+        collection: 'clients',
+        id: Number(lapsed!.id),
+        depth: 0,
+        overrideAccess: true,
+      })
+      await payload.update({
+        collection: 'clients',
+        id: Number(lapsed!.id),
+        // Spread, so the verified snapshot survives exactly as the job leaves it.
+        data: { canonical: { ...stored.canonical, enabled: false } } as never,
+        overrideAccess: true,
+      })
+
+      await setFallback(Number(lapsed!.id))
+      try {
+        expect(await routesFor(lapsed)).toEqual([])
+        const seo = await callSeo('/france', nlClient)
+        expect(seo.canonical).not.toContain('lapsed.test')
+      } finally {
+        await setFallback(Number(fallbackClient!.id))
+      }
+    })
+
+    it('reverts to the env-var surface when the named client cannot publish', async () => {
+      // `unownedClient` is published and readable but declares no canonical
+      // ownership at all — the "named a client whose embed has not verified"
+      // case, which must read exactly as an unset field does.
+      await setFallback(Number(unownedClient!.id))
+      try {
+        expect(await routesFor(unownedClient)).toEqual([])
+        for (const user of [nlClient, utrechtClient, fallbackClient]) {
+          expect(await routesFor(user)).not.toContain('/france')
+        }
+        const seo = await callSeo('/france', nlClient)
+        expect(seo.canonical).not.toContain(WM_DOMAIN)
+      } finally {
+        await setFallback(Number(fallbackClient!.id))
+      }
+    })
+  })
+
   describe('response envelope', () => {
     // This answer differs per API key, unlike /seo. `Vary: Authorization` is
     // what keeps the edge from serving one client's owned routes to another.
