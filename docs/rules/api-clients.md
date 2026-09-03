@@ -319,6 +319,35 @@ no captcha, because nothing surfaces the misconfiguration. There is no
 dev/test bypass — point `TURNSTILE_SECRET_KEY` at Cloudflare's always-passes
 test key locally.
 
+#### One write does not inherit the guard from the collection seam
+
+The plugin enforces its policies in a `beforeValidate` hook, so **every write
+that reaches a collection operation is covered and no endpoint re-implements the
+check**. There is exactly one exception, and it is deliberate:
+`upsertUserByEmail` (`src/lib/users/`) inserts the registrant through Drizzle to
+get `ON CONFLICT (email) DO NOTHING` — a `payload.create` whose unique violation
+would abort the caller's transaction is precisely what #673 removed — and a
+Drizzle-level write runs no Payload hooks.
+
+So that helper calls **`applyWriteGuard`** from the plugin directly, with
+`DEFAULT_WRITE_GUARD_POLICIES.users`. Two things follow:
+
+- **It is the same gate, not a second copy.** `applyWriteGuard` holds the whole
+  decision — covered operations, `req.user.collection === 'clients'`, the
+  `skipWriteGuard` escape hatch — and `writeGuardBeforeValidate` is a wrapper
+  over it. Adding a condition in one place reaches both.
+- **The field validation had to be restored too, and the guard is not it.** The
+  guard checks *content* and only for a client caller; Payload's `required` /
+  `email` validation is what refuses a blank name or a malformed address from
+  anyone else. `registrantSchema` in that helper restates the `users`
+  collection's two constrained fields for that reason. **A new constrained field
+  on `Users` needs adding there as well** — nothing fails if you forget, which is
+  why it is written down.
+
+Do not take this as a pattern. Anything writing through `payload.create`
+inherits the guard already, and calling it twice re-verifies a single-use
+Turnstile token, which fails.
+
 ## Query Parameter Validation
 
 API client read requests must declare their data needs explicitly:
