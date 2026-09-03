@@ -12,20 +12,20 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildEventCalendar } from '@/lib/schedule/icsBuilder'
-import type { ScheduleSubFields } from '@/types/schedule'
+import type { EventScheduleInput } from '@/types/schedule'
 
 // 19:00 in Europe/London on Tue 21 Jul 2026 (BST, UTC+1) == 18:00 UTC.
 const FIRST_DATE = '2026-07-21T18:00:00.000Z'
 const TZ = 'Europe/London'
 
-function build(schedule: Partial<ScheduleSubFields>, overrides = {}) {
+function build(schedule: EventScheduleInput, overrides = {}) {
   return buildEventCalendar({
     title: 'Meditation Class',
     schedule: {
       firstDate: FIRST_DATE,
       firstDate_tz: TZ,
       ...schedule,
-    } as Partial<ScheduleSubFields>,
+    } as EventScheduleInput,
     ...overrides,
   })
 }
@@ -214,7 +214,7 @@ describe('buildEventCalendar — recurrence shapes', () => {
 })
 
 describe('buildEventCalendar — exclusions', () => {
-  const bounded: Partial<ScheduleSubFields> = {
+  const bounded: EventScheduleInput = {
     recurrenceType: 'WEEKLY',
     weekdays: ['TU'],
     endingType: 'count',
@@ -278,7 +278,7 @@ describe('buildEventCalendar — DST correctness', () => {
         firstDate_tz: 'Asia/Kolkata',
         recurrenceType: 'WEEKLY',
         weekdays: ['TU'],
-      } as Partial<ScheduleSubFields>,
+      } as EventScheduleInput,
     })!
 
     expect(line(ics, 'DTSTART')).toBe('DTSTART;TZID=Asia/Kolkata:20260721T190000')

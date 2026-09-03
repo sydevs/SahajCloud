@@ -21,7 +21,11 @@ import { describe, expect, it } from 'vitest'
  *    `lib/notifications/index.ts`.
  * 2. **Sibling relative imports.** `browserRendering.ts` is imported by
  *    `./verifyEmbed` next door, which a `@/lib/...` search never sees.
- * 3. **`scripts/`.** The email preview scripts import senders directly.
+ * 3. **`scripts/` and `seeds/`.** The email preview scripts import senders
+ *    directly, and the Atlas importer is the second owner of `mapbox/geocoder`
+ *    and `richEditor/plainTextToLexical`. Both trees were outside the graph
+ *    until #681, which made `geocoder` read as single-consumer the moment a
+ *    `src/lib` re-export of its `RegionLevel` was removed.
  *
  * So consumers are counted over the whole repo, in every import form. Tests and
  * scripts count as consumers of what they import.
@@ -127,11 +131,16 @@ const KNOWN_SINGLE_CONSUMER = new Set<string>([
   '@/lib/notifications/sendRegistrationNotification',
   '@/lib/notifications/sendUserMessage',
   '@/lib/registrations/gating',
+  // Only consumer is `seeds/atlas/helpers/lexical.ts`. Surfaced by adding
+  // `seeds/` to the graph rather than newly written — a plain-text→Lexical
+  // converter is general-purpose, so this is the "move it" shape, not the
+  // "justify it" one, and it is nobody's to move in a types refactor.
+  '@/lib/richEditor/plainTextToLexical',
   '@/lib/utilities/weightedSample',
 ])
 
 describe('src/lib holds shared code only', () => {
-  const graph = buildImportGraph([join(ROOT, 'src'), join(ROOT, 'scripts')])
+  const graph = buildImportGraph([join(ROOT, 'src'), join(ROOT, 'scripts'), join(ROOT, 'seeds')])
 
   it('has no module with exactly one consumer', () => {
     const offenders: string[] = []

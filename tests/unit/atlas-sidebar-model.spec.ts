@@ -8,7 +8,6 @@ import {
   type EventBucket,
   EVENT_BUCKET_ORDER,
   hasUnpublished,
-  type RegionLevel,
   regionLevelLabel,
   regionPillLabel,
   regionPillStyle,
@@ -19,6 +18,7 @@ import {
   type SidebarRegionInput,
   sortEventsIntoBuckets,
 } from '@/lib/atlasSidebar/sidebarModel'
+import type { Region } from '@/payload-types'
 
 describe('bucketForEvent', () => {
   it('maps each verification stage to its display bucket', () => {
@@ -130,7 +130,7 @@ describe('buildRegionTree', () => {
     id: number,
     name: string,
     parentId: number | null,
-    level: RegionLevel = 'city',
+    level: Region['level'] = 'city',
   ): SidebarRegionInput => ({
     id,
     name,

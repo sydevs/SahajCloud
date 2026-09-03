@@ -3,8 +3,8 @@ import type { CollectionConfig, Field, FieldHook } from 'payload'
 import { Temporal } from '@js-temporal/polyfill'
 
 import { mediaField, scheduleFields, urlField } from '@/fields'
-import type { ScheduleSubFields } from '@/lib/schedule/scheduleHooks'
 import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
+import type { EventScheduleInput } from '@/types/schedule'
 
 import { appCardsForAudience } from './endpoints/forAudience'
 
@@ -26,7 +26,7 @@ const viewScheduleAfterRead: FieldHook = ({ data: doc, req }) => {
     return { timezone: 'UTC' as const, schedule: { '00:00': 'default' as ViewName } }
   }
 
-  const schedule = doc.schedule as Partial<ScheduleSubFields> | null | undefined
+  const schedule = doc.schedule as EventScheduleInput | null | undefined
   if (!schedule?.firstDate) return null
 
   const startingSoon = doc.startingSoon as Record<string, unknown> | null | undefined

@@ -36,14 +36,8 @@ const DEFAULT_REGION_RADIUS_METERS = 50_000
 const MAX_RETRIES = 3
 const BASE_BACKOFF_MS = 500
 
-/**
- * The Atlas geo levels, in Payload terms (`area` → `city`).
- *
- * Derived, not restated: `TYPES_BY_LEVEL` below is a `Record` over this union,
- * so a level added in the CMS becomes a compile error here rather than a silent
- * gap in the geocoder's `types` mapping (#671).
- */
-export type RegionLevel = Region['level']
+/** Local shorthand — this file names the level four times. */
+type RegionLevel = Region['level']
 
 /**
  * Mapbox Search Box `types` per level — mirrors `Regions.mapboxId`'s
