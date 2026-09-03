@@ -39,16 +39,30 @@ const registrantSchema = z.object({
  * adapter in `beginTransaction`, so a statement issued on it is inside that
  * transaction and rolls back with it.
  *
- * Mirrors `getTransaction` in `@payloadcms/drizzle/dist/utilities/getTransaction.js`
- * — the adapter's own helper, including its fall back to `adapter.drizzle` when
- * the session is gone. Not imported, because `@payloadcms/drizzle` is a
- * transitive package here; only `@payloadcms/db-postgres` is a direct
- * dependency, and it does not re-export it.
+ * Mirrors `getTransaction` in `@payloadcms/drizzle/dist/utilities/getTransaction.js`.
+ * Not imported, because `@payloadcms/drizzle` is a transitive package here; only
+ * `@payloadcms/db-postgres` is a direct dependency, and it does not re-export it.
+ *
+ * ⚠ **One deliberate departure from that helper: no silent fall back to the
+ * pool.** Upstream answers `adapter.drizzle` when a `transactionID` resolves to
+ * no session, which is right for a read after the transaction ended and wrong
+ * for this write — it would put the insert outside the caller's transaction and
+ * resurrect the orphan row this whole change exists to prevent, invisibly and
+ * only under the conditions nobody tests. No call path can reach it today; the
+ * throw is what keeps that true rather than hoping.
  */
 async function transactionalDrizzle(req: PayloadRequest): Promise<PostgresAdapter['drizzle']> {
   const adapter = req.payload.db as unknown as PostgresAdapter
   if (!req.transactionID) return adapter.drizzle
-  return adapter.sessions[await req.transactionID]?.db ?? adapter.drizzle
+
+  const transactionID = await req.transactionID
+  const session = adapter.sessions[transactionID]?.db
+  if (!session) {
+    throw new Error(
+      `upsertUserByEmail: transaction ${transactionID} has no open session — refusing to insert outside it`,
+    )
+  }
+  return session
 }
 
 /**
