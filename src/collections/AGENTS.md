@@ -28,14 +28,16 @@ const canUpdate = hasPermission({
 ```
 
 Permission flow (in order):
+
 1. Block null users.
 2. Bypass function (admin → allow; inactive → deny; self-access → allow).
 3. Extract roles (flat array for clients, localized for managers).
 4. Per-role check: implicit project read access, explicit permissions, translate-only for localized field updates.
 5. Document-level manager access: when the above deny an active non-admin manager a read/update, `createAccessConfig` grants it if the doc (or an ancestor) lists them via a `managers`/`manager` field.
-5. Default: deny.
+6. Default: deny.
 
 Behaviors worth knowing:
+
 - **Implicit read access**: managers and clients can read everything in
   their role's project + collections that aren't in any project.
 - **Manager roles are per-locale** (uses `req.locale`).
@@ -102,7 +104,7 @@ A field that a `beforeChange` hook auto-fills has to break the rule above, and
 the reason is worth knowing: **no field hook runs in the browser**. Server-side
 the order is hooks → `validate` (`payload/dist/fields/hooks/beforeChange/promise.js`
 — hooks at line 58, `validate` at 86), so the value is already filled by the time
-it's checked. The admin panel validates *before* sending the request, with no
+it's checked. The admin panel validates _before_ sending the request, with no
 hook to fill anything — so `required` refuses the blank field outright and the
 "leave it blank and we'll write it for you" workflow is unreachable.
 
@@ -118,7 +120,7 @@ So put the guarantee where the knowledge is. `src/collections/Events/hooks/event
   comes up empty — it is the only party that knows whether it actually had
   anything to work from;
 - the **validator** answers only the cheap question the browser can answer (is a
-  value *plausible*), and never pretends to be the enforcement.
+  value _plausible_), and never pretends to be the enforcement.
 
 Don't reach for `event: 'submit'` to tell browser from server — Payload's server
 path passes `event: 'submit'` too, so it discriminates nothing.
@@ -134,7 +136,7 @@ Use it to exclude expensive virtual fields from relationship hydration:
 ```typescript
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
-  defaultPopulate: { tagAssignments: false },  // skip during relationship population
+  defaultPopulate: { tagAssignments: false }, // skip during relationship population
   fields: [
     {
       name: 'tagAssignments',
@@ -152,7 +154,7 @@ queries always include all fields:
 ```typescript
 // ❌ Direct query always includes virtual fields
 const m = await payload.findByID({ collection: 'meditations', id })
-expect(m.tagAssignments).toBeFalsy()  // FAILS
+expect(m.tagAssignments).toBeFalsy() // FAILS
 
 // ✅ Test through a populating relationship
 const lesson = await payload.findByID({ collection: 'lessons', id, depth: 1 })
@@ -189,7 +191,8 @@ assigns it straight onto the request object you hand over
 (`payload/dist/utilities/createLocalReq.js`):
 
 ```js
-req.locale = localeCandidate && typeof localeCandidate === 'string' ? localeCandidate : defaultLocale
+req.locale =
+  localeCandidate && typeof localeCandidate === 'string' ? localeCandidate : defaultLocale
 req.fallbackLocale = sanitizedFallback
 ```
 
@@ -226,7 +229,7 @@ uses the caller's own locale.
 The sibling trap, and a nastier one: **`afterRead` also runs on the response of
 a `create`/`update`**, while that write's transaction is still open. A nested
 read that forwards `req` joins it — and if that read goes wrong, it takes the
-*write* down with it:
+_write_ down with it:
 
 ```typescript
 // ❌ inside a virtual field's afterRead — aborts the create it is decorating
@@ -268,8 +271,13 @@ forwarding `req`:
 ```typescript
 function loadManager(req: PayloadRequest, managerId: number) {
   return memoizeOnRequest(req, `submissionManager:${managerId}`, () =>
-    req.payload.findByID({ collection: 'managers', id: managerId, depth: 0,
-      overrideAccess: true, disableErrors: true }),
+    req.payload.findByID({
+      collection: 'managers',
+      id: managerId,
+      depth: 0,
+      overrideAccess: true,
+      disableErrors: true,
+    }),
   )
 }
 ```
@@ -283,7 +291,7 @@ line.
 The neighbouring trap: a **populated** relationship is a plain object, so any
 code that treats "plain object ⇒ a group to expand" will render the whole row.
 `proposedChanges` had to special-case `relationship`/`upload` as references to
-*name*, or a proposed manager came out as their id, roles, email and every
+_name_, or a proposed manager came out as their id, roles, email and every
 notification preference.
 
 ## Activity logs (`logField`)
@@ -319,12 +327,12 @@ whatever the writer needs to read back. That default matters: a verification
 entry carries ten such fields, and with the rule the other way round that log
 rendered a fourteen-column table of raw enum values.
 
-| Key | Meaning |
-| --- | --- |
-| `at` | ISO timestamp. Always the first column, and what the log sorts by. |
-| `type` | Stable slug (`session-reminder`, `verification`) — matched, not shown. |
-| `key` | Exactly-once key, scoped to `type`. |
-| `cells` | What the columns read. Everything else is data. |
+| Key     | Meaning                                                                |
+| ------- | ---------------------------------------------------------------------- |
+| `at`    | ISO timestamp. Always the first column, and what the log sorts by.     |
+| `type`  | Stable slug (`session-reminder`, `verification`) — matched, not shown. |
+| `key`   | Exactly-once key, scoped to `type`.                                    |
+| `cells` | What the columns read. Everything else is data.                        |
 
 Nothing is hidden by not having a column: every row's trailing **⋯** opens the
 whole entry as JSON in a popover, which is where a reminder's stage, level and
@@ -345,15 +353,19 @@ it holds for every email above it.
 import { appendLogEntry, asLog, hasLogEntry } from '@/fields'
 
 const log = asLog(registration.activityLog)
-if (hasLogEntry(log, 'session-reminder', occurrenceIso)) continue  // exactly-once guard
+if (hasLogEntry(log, 'session-reminder', occurrenceIso)) continue // exactly-once guard
 // …send…
-data: { activityLog: appendLogEntry(log, {
-  at, type: 'session-reminder', key: occurrenceIso,
-  cells: {
-    activity: `Session reminder for ${date}`,
-    sentTo: { label: 'email', text: address },
-  },
-}) }
+data: {
+  activityLog: appendLogEntry(log, {
+    at,
+    type: 'session-reminder',
+    key: occurrenceIso,
+    cells: {
+      activity: `Session reminder for ${date}`,
+      sentTo: { label: 'email', text: address },
+    },
+  })
+}
 ```
 
 Three things worth knowing:
@@ -362,25 +374,27 @@ Three things worth knowing:
   rather than `[...log, entry]`: a reminder log on a weekly class gains an entry
   per occurrence, read and rewritten on every send, and nothing bounded it
   before this existed.
-- **Match on `type` *and* `key`.** One log holds several kinds of entry, so a
+- **Match on `type` _and_ `key`.** One log holds several kinds of entry, so a
   bare key collides — registration 42's follow-up must not read as its reminder.
-- **Display is additive, never a replacement.** Entries are read back as *data*:
+- **Display is additive, never a replacement.** Entries are read back as _data_:
   `hasReminderForStage` decides whether to send by reading an entry's `stage` and
   `manager.id`. An entry builder adds a `cells` block beside those fields — see
   `buildReminderEntry`, which is where that log's wording lives precisely
   because it is the code that knows the domain.
 - **A log is a record, not a query filter.** Nothing can `where` on a JSON column
-  cheaply, so a sweep that needs to *find* documents still wants a real dated
+  cheaply, so a sweep that needs to _find_ documents still wants a real dated
   column beside the log. `Registrations.followUpSentAt` is exactly that: the log
   says what happened, the column is what the query selects on.
 
 ## Plugins
 
 ### SEO (`@payloadcms/plugin-seo`)
+
 Applied to Pages. Title template `We Meditate — {title}`, description
 from page content, tabbed admin UI. Configured in `src/payload.config.ts`.
 
 ### Form Builder (`@payloadcms/plugin-form-builder`)
+
 Auto-generates `forms` (admin group: Resources) and `form-submissions`
 (admin group: System). Default email `contact@sydevelopers.com`. Standard
 permission-based access.
@@ -390,7 +404,7 @@ permission-based access.
 ```typescript
 import { slugField } from 'payload'
 
-slugField({ useAsSlug: 'title' })  // returns a RowField, no spread
+slugField({ useAsSlug: 'title' }) // returns a RowField, no spread
 ```
 
 `unique: true` and `index: true` are hardcoded; default
@@ -428,14 +442,14 @@ Supported: `en`, `es`, `de`, `it`, `fr`, `ru`, `ro`, `cs`, `uk`, `el`,
 `src/plugins/access/filterAvailableLocales.ts` controls which locales appear
 in the admin locale selector:
 
-| User | Locales shown |
-|---|---|
-| Unauthenticated | English only (login page) |
-| Admin managers | All 19 |
-| API clients | All (filter only applies to admin UI) |
-| Regular managers | exactly the locales where they have ≥ 1 role, most roles first |
-| Managers with roles in no locale | English only |
-| Inactive managers | English only |
+| User                             | Locales shown                                                  |
+| -------------------------------- | -------------------------------------------------------------- |
+| Unauthenticated                  | English only (login page)                                      |
+| Admin managers                   | All 19                                                         |
+| API clients                      | All (filter only applies to admin UI)                          |
+| Regular managers                 | exactly the locales where they have ≥ 1 role, most roles first |
+| Managers with roles in no locale | English only                                                   |
+| Inactive managers                | English only                                                   |
 
 A manager with `{ en: ['translator'], cs: ['meditations-editor'] }` sees
 English + Czech — not German/French/etc.
@@ -449,6 +463,7 @@ cosmetics. See `docs/rules/access.md` § "How per-locale roles reach `req.user`"
 ### Field-level localization
 
 Mark fields `localized: true`. Currently localized fields include:
+
 - `UserChoices` / `SongTags`: `title`
 - `Media`: `alt`, `credit`
 - `Songs`: `title`, `credit`
@@ -495,14 +510,14 @@ Live preview integrates with the We Meditate Web frontend
 
 ### Page blocks (`src/lib/richEditor/blocks/`)
 
-| Block | Notes |
-|---|---|
-| `TextBoxBlock` | `style` (splash / leftAligned / rightAligned / overlay), `title`/`text` (250-char limit, HTML stripped), `image`, `link`, `actionText` |
-| `ButtonBlock` | `text` + `url` |
-| `LayoutBlock` | `style` (grid / columns / accordion) + `items` array (image, title, text, link) |
-| `GalleryBlock` | `title`, `collectionType` (media/meditations/pages), `items` (max 10, dynamic relationTo) |
-| `QuoteBlock` | `title`, `text` (textarea, required), `credit`, `caption` (shown when credit exists) |
-| `CatalogBlock` | `items` relationship hasMany, min 3 / max 6, supports meditations + pages |
+| Block               | Notes                                                                                                                                                                                                                                                    |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TextBoxBlock`      | `style` (splash / leftAligned / rightAligned / overlay), `title`/`text` (250-char limit, HTML stripped), `image`, `link`, `actionText`                                                                                                                   |
+| `ButtonBlock`       | `text` + `url`                                                                                                                                                                                                                                           |
+| `LayoutBlock`       | `style` (grid / columns / accordion) + `items` array (image, title, text, link)                                                                                                                                                                          |
+| `GalleryBlock`      | `title`, `collectionType` (media/meditations/pages), `items` (max 10, dynamic relationTo)                                                                                                                                                                |
+| `QuoteBlock`        | `title`, `text` (textarea, required), `credit`, `caption` (shown when credit exists)                                                                                                                                                                     |
+| `CatalogBlock`      | `items` relationship hasMany, min 3 / max 6, supports meditations + pages                                                                                                                                                                                |
 | `ContentIndexBlock` | `type` select (meditations/pages/songs/lectures), `limit` (1–100), per-type filter fields (only the active filter survives via `clearWhenTypeNot` hooks), virtual `apiEndpoint` (computed by `computeApiEndpoint` afterRead — `null` if `limit` invalid) |
 
 Custom block icons → see `src/lib/richEditor/blocks/AGENTS.md`.
@@ -546,8 +561,8 @@ ownership system.
 
 Collections with `trash: true`: Files, Images, **Events**.
 
-**`payload.delete` is always a *hard* delete, even on a trash-enabled
-collection.** Its own `trash` argument only widens *which* documents are
+**`payload.delete` is always a _hard_ delete, even on a trash-enabled
+collection.** Its own `trash` argument only widens _which_ documents are
 deletable (i.e. whether already-trashed ones can be targeted) — it does not
 choose soft vs hard, and `deleteByID` never writes `deletedAt`. Trashing is
 setting `deletedAt` yourself:
@@ -570,7 +585,7 @@ don't query `_status`.
 
 Payload appends `deletedAt exists: false` to every read on a trash-enabled
 collection unless you pass **`trash: true`** (`appendNonTrashedFilter`). That
-flag *includes* trashed docs alongside live ones — it does not filter to
+flag _includes_ trashed docs alongside live ones — it does not filter to
 only-trashed — and it's a no-op on collections without `trash`, so it's safe to
 pass unconditionally.
 
@@ -582,7 +597,7 @@ later re-seed re-uploaded them instead of finding the trashed row (see
 `tests/int/seed-importer-preload.int.spec.ts`).
 
 **It applies to writes too, which is easier to miss.** An `update` addressing a
-trashed row *by id* throws `Not Found` without the flag — even when you got that
+trashed row _by id_ throws `Not Found` without the flag — even when you got that
 id from a query that did pass it. Two archived Atlas events failed on every seed
 run for exactly this reason: `preloadCollection` handed `upsert` the right id and
 the update then refused it. Fixing the read is not enough; every write that can
@@ -648,7 +663,7 @@ for (const [slug, refs] of byCollection) {
   const docs = await payload.find({ collection: slug, limit: 1000 })
   for (const doc of docs.docs) {
     for (const ref of refs) {
-      const ids = extractIdsFromDocument(doc, ref)  // Set<number>
+      const ids = extractIdsFromDocument(doc, ref) // Set<number>
     }
   }
 }
@@ -718,11 +733,10 @@ And one **stored** derived column, recomputed on every write (#603):
   event feeds filter on it (see `docs/rules/api-clients.md`).
 
   Two things to know if you touch it:
-
   - **Termination is read off the built rule's own `options()`**, not re-derived
     from the sub-fields, so it can't drift from `buildRRuleTemporal`'s conditions
     (a positive `count`, a parseable `untilDate`). An open-ended rule returns
-    `null` *before* `all()` is called — `all()` on an infinite rule would run to
+    `null` _before_ `all()` is called — `all()` on an infinite rule would run to
     its iteration cap.
   - **The partial-update trap.** A field `beforeChange` hook receives only the
     incoming patch, and Payload materialises an empty `{}` for a group the patch
@@ -757,12 +771,12 @@ validation.
 
 ### Stored-value conventions
 
-| Field | Stored values | RFC 5545 alignment |
-|---|---|---|
-| `recurrenceType` | `'DAILY'`, `'WEEKLY'`, `'MONTHLY'` | matches `freq` directly |
-| `weekdays` | `'MO'`, `'TU'`, `'WE'`, `'TH'`, `'FR'`, `'SA'`, `'SU'` | matches `byDay` |
-| `weekdayOfMonth` | `'MO'`–`'SU'` | matches RFC 5545 day codes |
-| `weekNumber` | `'1'`–`'4'`, `'-1'` | combined with weekday for `byDay` (e.g., `1MO`, `-1FR`) |
+| Field            | Stored values                                          | RFC 5545 alignment                                      |
+| ---------------- | ------------------------------------------------------ | ------------------------------------------------------- |
+| `recurrenceType` | `'DAILY'`, `'WEEKLY'`, `'MONTHLY'`                     | matches `freq` directly                                 |
+| `weekdays`       | `'MO'`, `'TU'`, `'WE'`, `'TH'`, `'FR'`, `'SA'`, `'SU'` | matches `byDay`                                         |
+| `weekdayOfMonth` | `'MO'`–`'SU'`                                          | matches RFC 5545 day codes                              |
+| `weekNumber`     | `'1'`–`'4'`, `'-1'`                                    | combined with weekday for `byDay` (e.g., `1MO`, `-1FR`) |
 
 ### `ScheduleSummary` (afterInput component)
 
@@ -783,9 +797,9 @@ for reactive access to schedule sub-fields.
   out?", shared by the ExpireEvents sweep, the public feeds, and registration)
 - `src/lib/schedule/backfillLastDate.ts` — recompute `lastDate` on existing rows
 - `src/types/schedule.ts` — `EventSchedule` (the stored group, derived from
-  `Event['schedule']`), `EventScheduleInput` (`Partial` of it — the parameter
-  type for anything reading a schedule off a document or merging a patch),
-  `ExclusionRange`
+  `Event['schedule']`) and `ExclusionRange`. Anything reading a schedule off a
+  document or merging a patch takes `Partial<EventSchedule>`, written out rather
+  than aliased
 - `src/components/admin/ScheduleSummary.tsx` — afterInput component
 - `src/components/admin/FlatArrayField/FlatArrayField.tsx` — custom
   array field for exclusions (flat rows, no per-row Collapsible)

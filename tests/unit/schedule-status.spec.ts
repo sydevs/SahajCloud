@@ -9,21 +9,20 @@
  */
 import type { Where } from 'payload'
 
-
 import { describe, expect, it } from 'vitest'
 
 import { notFinishedWhere } from '@/collections/Events/lifecycle/finished'
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
-import type { EventScheduleInput } from '@/types/schedule'
+import type { EventSchedule } from '@/types/schedule'
 
 const NOW = new Date('2026-06-11T02:00:00.000Z')
 
-const ONE_OFF_PAST: EventScheduleInput = {
+const ONE_OFF_PAST: Partial<EventSchedule> = {
   firstDate: '2025-03-15T14:00:00.000Z',
   firstDate_tz: 'UTC',
 }
-const ONE_OFF_FUTURE: EventScheduleInput = {
+const ONE_OFF_FUTURE: Partial<EventSchedule> = {
   firstDate: '2027-03-15T14:00:00.000Z',
   firstDate_tz: 'UTC',
 }
