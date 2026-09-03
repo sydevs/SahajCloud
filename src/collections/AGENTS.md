@@ -782,9 +782,9 @@ for reactive access to schedule sub-fields.
 - `src/lib/schedule/scheduleStatus.ts` — `shouldFinish` ("has this schedule run
   out?", shared by the ExpireEvents sweep, the public feeds, and registration)
 - `src/lib/schedule/backfillLastDate.ts` — recompute `lastDate` on existing rows
-- `src/types/schedule.ts` — `ScheduleSubFields` (authoring shape),
-  `EventScheduleInput` (that **or** Payload's generated `| null` shape — the
-  parameter type for anything reading a schedule off a document),
+- `src/types/schedule.ts` — `EventSchedule` (the stored group, derived from
+  `Event['schedule']`), `EventScheduleInput` (`Partial` of it — the parameter
+  type for anything reading a schedule off a document or merging a patch),
   `ExclusionRange`
 - `src/components/admin/ScheduleSummary.tsx` — afterInput component
 - `src/components/admin/FlatArrayField/FlatArrayField.tsx` — custom
