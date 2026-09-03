@@ -37,17 +37,33 @@ describe('findPostgresError', () => {
   it('finds the driver error one level down, under drizzle’s wrapper', () => {
     const cause = postgresError(INVALID_TEXT_REPRESENTATION, ENUM_FAILURE)
 
-    expect(findPostgresError(drizzleWrapped(cause))).toBe(cause)
+    expect(findPostgresError(drizzleWrapped(cause), INVALID_TEXT_REPRESENTATION)).toBe(cause)
   })
 
   it('finds it at the top level, when nothing wrapped it', () => {
     const error = postgresError('23505', 'duplicate key value violates unique constraint')
 
-    expect(findPostgresError(error)).toBe(error)
+    expect(findPostgresError(error, '23505')).toBe(error)
+  })
+
+  it('walks PAST an intermediate error that carries a code of its own', () => {
+    // The failure this guards: stopping at the first object with a `code`
+    // rather than the first with the code asked for. A `SystemError`
+    // (`ECONNRESET`) or any wrapper that sets one would hide the 22P02
+    // underneath it, and the caller would get back the 500 this module exists
+    // to remove — silently, since nothing in the chain is ours to constrain.
+    const driver = postgresError(INVALID_TEXT_REPRESENTATION, ENUM_FAILURE)
+    const decoy = Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' })
+    ;(decoy as Error & { cause?: unknown }).cause = driver
+
+    expect(findPostgresError(drizzleWrapped(decoy), INVALID_TEXT_REPRESENTATION)).toBe(driver)
+    expect(mapPostgresCastError(drizzleWrapped(decoy))?.status).toBe(400)
   })
 
   it('returns null for an error carrying no driver code at any depth', () => {
-    expect(findPostgresError(drizzleWrapped(new Error('connection terminated')))).toBeNull()
+    expect(
+      findPostgresError(drizzleWrapped(new Error('connection terminated')), INVALID_TEXT_REPRESENTATION),
+    ).toBeNull()
   })
 
   it('returns null rather than hanging on a cause cycle', () => {
@@ -56,7 +72,7 @@ describe('findPostgresError', () => {
     a.cause = b
     b.cause = a
 
-    expect(findPostgresError(a)).toBeNull()
+    expect(findPostgresError(a, INVALID_TEXT_REPRESENTATION)).toBeNull()
   })
 
   it('gives up past the depth bound instead of walking forever', () => {
@@ -64,13 +80,13 @@ describe('findPostgresError', () => {
     let error: unknown = postgresError(INVALID_TEXT_REPRESENTATION, ENUM_FAILURE)
     for (let i = 0; i < 12; i++) error = drizzleWrapped(error)
 
-    expect(findPostgresError(error)).toBeNull()
+    expect(findPostgresError(error, INVALID_TEXT_REPRESENTATION)).toBeNull()
   })
 
   it('returns null for a non-object', () => {
-    expect(findPostgresError('not an error')).toBeNull()
-    expect(findPostgresError(null)).toBeNull()
-    expect(findPostgresError(undefined)).toBeNull()
+    expect(findPostgresError('not an error', INVALID_TEXT_REPRESENTATION)).toBeNull()
+    expect(findPostgresError(null, INVALID_TEXT_REPRESENTATION)).toBeNull()
+    expect(findPostgresError(undefined, INVALID_TEXT_REPRESENTATION)).toBeNull()
   })
 })
 

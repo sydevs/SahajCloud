@@ -67,19 +67,27 @@ const isPostgresErrorLike = (value: unknown): value is PostgresErrorLike =>
   typeof (value as { message?: unknown }).message === 'string'
 
 /**
- * The first error in `error`'s `cause` chain that carries a driver `code`.
+ * The first error in `error`'s `cause` chain whose driver `code` is `code`.
+ *
+ * ⚠ **It matches the code rather than stopping at the first error that has
+ * one.** Those differ the moment anything between Payload and the driver
+ * carries a `code` of its own — a `SystemError` (`ECONNRESET`), a wrapper that
+ * sets one — and the difference is silent: the search would stop one level too
+ * high, report no 22P02, and hand the caller back the 500 this module exists to
+ * remove. Nothing in the chain is ours, so "the only thing with a code is the
+ * driver" is an assumption about somebody else's library, not an invariant.
  *
  * Returns `null` rather than throwing on a cycle or a non-error — this runs on
  * the error path, where a second failure would replace a bad response with no
  * response at all.
  */
-export function findPostgresError(error: unknown): null | PostgresErrorLike {
+export function findPostgresError(error: unknown, code: string): null | PostgresErrorLike {
   const seen = new Set<unknown>()
   let current = error
 
   for (let depth = 0; depth <= MAX_CAUSE_DEPTH; depth++) {
     if (current === null || typeof current !== 'object' || seen.has(current)) return null
-    if (isPostgresErrorLike(current)) return current
+    if (isPostgresErrorLike(current) && current.code === code) return current
     seen.add(current)
     current = (current as { cause?: unknown }).cause
   }
@@ -98,8 +106,8 @@ export function findPostgresError(error: unknown): null | PostgresErrorLike {
  * cannot miss a case, rather than a better-worded one that only covers enums.
  */
 export function mapPostgresCastError(error: unknown): MappedClientError | null {
-  const postgresError = findPostgresError(error)
-  if (!postgresError || postgresError.code !== INVALID_TEXT_REPRESENTATION) return null
+  const postgresError = findPostgresError(error, INVALID_TEXT_REPRESENTATION)
+  if (!postgresError) return null
 
   return {
     message: `Invalid value in request: ${postgresError.message}`,

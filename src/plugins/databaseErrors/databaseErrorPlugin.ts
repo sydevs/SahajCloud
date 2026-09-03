@@ -50,8 +50,16 @@ export const databaseErrorPlugin =
           const mapped = mapPostgresCastError(error)
           if (!mapped) return
 
-          // The caller gets the 400; this is how the same rejection is
-          // diagnosable from application logs, without Sentry.
+          // The caller gets the 400; this names the rejection in the
+          // application logs, so it stays diagnosable without Sentry.
+          //
+          // ⚠ **Additive, not a downgrade.** `routeError` calls `logError` at
+          // ERROR with the full stack *before* any `afterError` hook runs, and
+          // `loggingLevels` cannot reach this one — it keys on `err.name`, and
+          // `DrizzleQueryError` never sets one, so it is plain `Error`. Every
+          // rejected request therefore emits two lines, one of them still at
+          // ERROR. Anything alerting on ERROR level still fires; only Sentry
+          // stops. Say so rather than implying the noise is gone.
           req.payload.logger.warn({
             msg: 'Rejected a request Postgres could not cast',
             clientId: req.user?.id,
