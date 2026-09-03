@@ -120,11 +120,33 @@ is a set of 404s handed to a crawler deliberately.
 `tests/int/atlas-sitemap.int.spec.ts` asserts the two agree rather than trusting
 that they do.
 
-**The one thing it does not cover**: the We Meditate fallback surface is not a
-*client*, so a region nothing declares belongs to no client's sitemap. That is
-the rule #650 specifies (a client with no owned subtree gets `{ urls: [] }`), and
-it means WeMeditateWeb needs a canonical-ownership record of its own before this
-endpoint can feed its sitemap.
+**How the unowned remainder is covered** (#652): ownership is a `clients` fact,
+so for a while the We Meditate fallback — which is not a client, just two env
+vars — left every region nothing declares in *nobody's* sitemap, the larger share
+of a ~595-region tree. `sy-atlas-config.canonicalFallbackClient` names the client
+that owns that remainder, and it then asks for its own sitemap through the
+endpoint that already exists — no `?scope=`, no second endpoint, no new auth
+question, because the pages belong to somebody.
+
+Three properties are worth knowing before changing any of it:
+
+- **It is an override, not a replacement.** Unset, or naming a client that is
+  unpublished, not canonically enabled, or never verified, leaves the env-var
+  fallback exactly as it was. The predicate is the same one subtree ownership
+  uses — `canonical.enabled` included, because `verified` is deliberately *not*
+  cleared on failure while the job switches `enabled` off after repeated ones, so
+  reading `verified` alone would let a client the job gave up on keep speaking
+  for every unclaimed page.
+- **The owners map stays sparse.** The fallback is resolved in
+  `canonicalTargetFor`, and the endpoint answers it the *complement* of the map.
+  Materializing it into the map instead would give every unclaimed region an
+  entry — and absence is precisely what makes a nearer client's subtree drop out
+  of an ancestor's sitemap.
+- **The cost is per request, never per document.** `sy-atlas-config` backs no
+  other read on the `webUrl` path, so this genuinely adds two queries where there
+  were none; both are memoized on the request, and an *owned* region never asks
+  the question at all. Pinned by the query-cost cases in
+  `tests/int/region-canonical-url.int.spec.ts`.
 
 ## OpenAPI / Scalar API Docs
 

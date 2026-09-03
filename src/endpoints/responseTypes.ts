@@ -198,9 +198,19 @@ export type AtlasSitemapUrl = {
  * `GET /api/atlas/sitemap` success body.
  *
  * Every entry is a URL **this client owns** — a client that owns no region
- * subtree gets `urls: []`, which is an answer rather than an error. Unpaginated:
- * a client owns a subtree of a corpus in the low thousands, and a cursor is
- * easier to add later than to remove.
+ * subtree gets `urls: []`, which is an answer rather than an error.
+ *
+ * **One client may additionally be the canonical *fallback*** (#652), named on
+ * `sy-atlas-config`. Its answer is every route no other client owns — the
+ * complement of the ownership map — so pages nobody declares are in somebody's
+ * sitemap rather than nobody's. The response shape is unchanged, and no other
+ * client's answer is affected.
+ *
+ * Unpaginated. That was justified by a client owning a *subtree*, which the
+ * fallback client does not: its answer approaches the whole corpus, low
+ * thousands of documents and a few hundred KB. Still one response — a cursor is
+ * easier to add later than to remove — but size it against the corpus, not
+ * against a subtree.
  */
 export type AtlasSitemapResponse = {
   /**
