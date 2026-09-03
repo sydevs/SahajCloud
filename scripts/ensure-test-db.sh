@@ -63,7 +63,12 @@ if [ "$(id -u)" != "0" ] || [ ! -d /usr/lib/postgresql ]; then
 fi
 
 id postgres >/dev/null 2>&1 || useradd -m postgres >/dev/null 2>&1
-install -d -o postgres -g postgres /var/run/postgresql "$(dirname "$PGDATA")" "$PGDATA" 2>/dev/null
+install -d -o postgres -g postgres /var/run/postgresql "$(dirname "$PGDATA")" 2>/dev/null
+# PostgreSQL refuses to start on a data directory that is not 0700 or 0750, and
+# `install -d -m` chmods what it finds — so this both preserves the mode and
+# repairs a directory an earlier run left at 0755. It needs its own line: the
+# shared one above carries `install -d`'s default 0755 to every path it names.
+install -d -m 0700 -o postgres -g postgres "$PGDATA" 2>/dev/null
 
 # 3. Clear a stale socket left by a dead postmaster. A previous container's
 #    lock file survives in a warm sandbox and names a PID that no longer
@@ -75,11 +80,19 @@ fi
 
 [ -s "$PGDATA/PG_VERSION" ] || su postgres -c "$PGBIN/initdb -D $PGDATA --auth=trust -U postgres" >/dev/null 2>&1
 
+# One log path serves every $PGDATA and pg_ctl appends, so truncate it here or
+# the failure branch below can show a previous run's lines. Truncating AS
+# postgres matters: root would create it root-owned on a cold container, and
+# then the postmaster could not append to its own log.
+su postgres -c ": > /tmp/postgres.log" 2>/dev/null
+
 su postgres -c "$PGBIN/pg_ctl -D $PGDATA -l /tmp/postgres.log start" >/dev/null 2>&1
 
 if ! "$PGBIN/pg_isready" -h "$PGHOST_CHECK" -p "$PGPORT" -t 30 -q 2>/dev/null; then
   echo "ensure-test-db: cluster did not come up — integration lane unavailable" >&2
-  tail -20 /tmp/postgres.log 2>/dev/null >&2
+  # Redirection order is load-bearing: `2>/dev/null >&2` sends fd1 to /dev/null
+  # along with fd2, discarding the very log this branch exists to print.
+  tail -20 /tmp/postgres.log >&2
   exit 0
 fi
 
