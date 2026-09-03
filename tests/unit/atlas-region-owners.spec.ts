@@ -109,6 +109,25 @@ describe('canonicalTargetFor', () => {
     expect(target.routing).toBe('path')
     expect(target.origin).not.toContain('sahajatlas')
   })
+
+  // #652: the fallback client is passed here AS the owner, not beside one —
+  // this function ranks nothing. Precedence is `getCanonicalUrlBase` returning
+  // before it resolves a fallback at all, which only a database can show, so it
+  // is asserted in `region-canonical-url.int.spec.ts` and not here.
+  const FALLBACK: CanonicalOwner = {
+    clientId: 9,
+    domain: 'wemeditate.com',
+    mount: '/map',
+    routing: 'path',
+  }
+
+  it('treats the fallback client as an ordinary owner', () => {
+    expect(canonicalTargetFor(FALLBACK)).toEqual({
+      origin: 'https://wemeditate.com',
+      mount: '/map',
+      routing: 'path',
+    })
+  })
 })
 
 describe('buildRegionPath', () => {
