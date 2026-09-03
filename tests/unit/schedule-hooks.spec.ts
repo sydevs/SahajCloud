@@ -9,7 +9,6 @@
  */
 import type { FieldHook, NamedGroupField } from 'payload'
 
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import { scheduleFields } from '@/fields/scheduleFields'
@@ -21,7 +20,7 @@ import {
   getLocalTimeHHMM,
   lastOccurrenceEnd,
 } from '@/lib/schedule/scheduleHooks'
-import type { EventScheduleInput } from '@/types/schedule'
+import type { EventSchedule } from '@/types/schedule'
 
 // Helper to call a FieldHook with siblingData (avoids `as never` casts)
 const callHook = (hook: FieldHook, siblingData: Record<string, unknown>): unknown => {
@@ -30,7 +29,7 @@ const callHook = (hook: FieldHook, siblingData: Record<string, unknown>): unknow
 
 // Reusable base fields for building test cases.
 // firstDate is a UTC ISO datetime string; firstDate_tz is the IANA timezone.
-const baseFields: EventScheduleInput = {
+const baseFields: Partial<EventSchedule> = {
   firstDate: '2025-03-15T14:00:00.000Z',
   firstDate_tz: 'UTC',
 }

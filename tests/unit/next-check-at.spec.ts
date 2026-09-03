@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { isPreAdoptionStage, VERIFICATION_STAGES } from '@/lib/eventVerification/stages'
 import { FINISHED_RETENTION_MONTHS, resolveNextCheckAt } from '@/lib/eventVerification/watermark'
-import type { EventScheduleInput } from '@/types/schedule'
+import type { EventSchedule } from '@/types/schedule'
 
 /**
  * `resolveNextCheckAt` is the whole reason the ExpireEvents job needs only one
@@ -13,7 +13,7 @@ import type { EventScheduleInput } from '@/types/schedule'
 const NOW = new Date('2026-06-11T02:00:00.000Z')
 
 /** A weekly schedule whose final occurrence ends on 2026-06-30 (London). */
-const endingSchedule: EventScheduleInput = {
+const endingSchedule: Partial<EventSchedule> = {
   firstDate: '2026-06-02T18:00:00.000Z',
   firstDate_tz: 'Europe/London',
   recurrenceType: 'WEEKLY',
@@ -23,7 +23,7 @@ const endingSchedule: EventScheduleInput = {
 }
 
 /** Same start, but it recurs forever. */
-const openEndedSchedule: EventScheduleInput = {
+const openEndedSchedule: Partial<EventSchedule> = {
   firstDate: '2026-06-02T18:00:00.000Z',
   firstDate_tz: 'Europe/London',
   recurrenceType: 'WEEKLY',

@@ -33,7 +33,7 @@ import { getVtimezoneComponent } from '@touch4it/ical-timezones'
 import ical, { ICalEventRepeatingFreq, ICalWeekday } from 'ical-generator'
 
 import { stripNewlines } from '@/lib/utilities/emailSafeText'
-import type { EventScheduleInput } from '@/types/schedule'
+import type { EventSchedule } from '@/types/schedule'
 
 import { buildRRuleTemporal } from './scheduleHooks'
 
@@ -47,7 +47,7 @@ export interface EventCalendarInput {
   /** Event title — becomes `SUMMARY`. */
   title: string
   /** Structured schedule sub-fields; the recurrence is derived from these. */
-  schedule: EventScheduleInput
+  schedule: Partial<EventSchedule>
   /** Physical address or joining URL — becomes `LOCATION`. */
   location?: string | null
   /** Plain-text description — becomes `DESCRIPTION`. */
