@@ -1,5 +1,4 @@
 import type { EventRegistrationError, EventRegistrationResponse } from './responseTypes'
-import type { Registration } from '@/payload-types'
 import type { Endpoint, PayloadRequest } from 'payload'
 
 import { randomUUID } from 'node:crypto'
@@ -18,6 +17,7 @@ import { buildRegistrationAnswers } from '@/lib/registrations/questions'
 import { resolveEmailStrings } from '@/lib/translations/emailStrings'
 import { upsertUserByEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
+import type { Registration } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const bodySchema = z.object({
