@@ -587,39 +587,32 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       tags: ['Atlas'],
       summary: 'Every atlas URL this client owns, for a sitemap',
       description:
-        'Enumerates the atlas routes **your client owns** as the canonical URLs you ' +
-        'would publish for them, so you can build a sitemap without composing atlas ' +
-        'URLs yourself. Each `loc` is the document’s own `webUrl` — the identical ' +
-        'value `GET /api/atlas/seo` returns as `canonical` for the `route` beside it, ' +
-        'read from the identical place, so a sitemap and a page’s ' +
-        '`<link rel="canonical">` can never disagree. **Do not derive this from ' +
-        '`/api/regions` + `/api/events/geojson`**: that would be a second ' +
-        'implementation of the URL rule, free to disagree about mount joining, ' +
-        'trailing slashes and query-vs-path routing — and a sitemap that disagrees is ' +
-        'a set of 404s submitted to a crawler on purpose. **Things not to guess at:** ' +
-        'ownership is per-subtree with the **nearest** declaring client winning, so a ' +
-        'country-level client’s answer excludes a city another client owns — those ' +
-        'pages are canonically that client’s, not yours. A client that owns no subtree ' +
-        'gets `{ "urls": [] }` and a `200`, **not a 404** — owning nothing is a state, ' +
-        'not an error, and the count is your signal. A document whose canonical cannot ' +
-        'be published (nothing in its ancestry owns it, or a blank slug in the chain) ' +
-        'is **omitted**, never sent as `null`. A region with **no classes anywhere ' +
-        'beneath it is still published** — regions are curated by hand rather than ' +
-        'generated from a geography feed, so an empty one is a place expecting classes ' +
-        'shortly, and a stable URL tells a crawler more than one that flickers in and ' +
-        'out as the last class expires. **Finished classes are excluded**, as ' +
-        'they are from `GET /api/events/geojson` and from a region page’s listing — ' +
-        'they stay reachable by direct link, but a sitemap asks a crawler to index a ' +
-        'page, and a class that no longer happens is not one to index. There is **no ' +
-        'pagination**: a client owns a subtree of a corpus in the low thousands, and a ' +
-        'truncated sitemap that did not say so would be worse than a slow one. ' +
-        '`lastmod` is the document’s `updatedAt` — the one field you genuinely cannot ' +
-        'derive. Entries are sorted by `route`, so unchanged ownership yields an ' +
-        'unchanged list; `generated` is the one field that moves between two otherwise ' +
-        'identical answers, so diff `urls` rather than the whole body. Unlike ' +
-        '`/api/atlas/seo`, **this answer is per-client**; it ' +
-        'is cached on `Vary: Authorization`, so each API key gets its own variant. ' +
-        'Sets `Cache-Control: public, max-age=300, s-maxage=300`.',
+        'Every atlas route **your client owns**, as the canonical URL you would publish ' +
+        'for it. Each `loc` is the document’s own `webUrl` — the identical value ' +
+        '`GET /api/atlas/seo` returns as `canonical` for the `route` beside it, so a ' +
+        'sitemap and a page’s `<link rel="canonical">` cannot disagree. **Do not rebuild ' +
+        'this from `/api/regions` + `/api/events/geojson`**: a second implementation of ' +
+        'the URL rule is free to disagree about mount joining, trailing slashes and ' +
+        'query-vs-path routing, and a sitemap that disagrees is a set of 404s submitted ' +
+        'to a crawler on purpose.\n\n' +
+        '**What is in it.** Ownership is per-subtree, the **nearest** declaring client ' +
+        'winning — a country-level client’s answer excludes a city another client owns. ' +
+        'A region with no classes beneath it is still published. **Finished classes are ' +
+        'excluded**, as they are from `GET /api/events/geojson`. A document whose ' +
+        'canonical cannot be published — nothing in its ancestry owns it, or a blank slug ' +
+        'in the chain — is **omitted**, never sent as `null`. Owning nothing is ' +
+        '`{ "urls": [] }` and a `200`, not a 404.\n\n' +
+        '**One client may additionally be the canonical *fallback***, receiving every ' +
+        'route no other client owns, so pages nobody declares are in somebody’s sitemap ' +
+        'rather than nobody’s. No other client’s answer changes. There is **no ' +
+        'pagination**: size your fetch against the corpus rather than your subtree, since ' +
+        'the fallback client’s answer approaches the whole atlas — low thousands of ' +
+        'entries and a few hundred KB, where a subtree owner’s is tens.\n\n' +
+        '`lastmod` is the document’s `updatedAt`. Entries are sorted by `route`, and ' +
+        '`generated` is the only field that moves between two otherwise identical ' +
+        'answers, so diff `urls` rather than the whole body. Unlike `/api/atlas/seo` this ' +
+        'answer is **per-client**: cached on `Vary: Authorization`, and it sets ' +
+        '`Cache-Control: public, max-age=300, s-maxage=300`.',
       operationId: 'atlasSitemap',
       parameters: [],
       responses: {
