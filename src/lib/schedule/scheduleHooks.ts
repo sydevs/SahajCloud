@@ -28,9 +28,7 @@ import type { FieldHook } from 'payload'
 import { Temporal } from '@js-temporal/polyfill'
 import { type RRuleOptions, RRuleTemporal } from 'rrule-temporal'
 
-import type { EventScheduleInput, ExclusionRange, ScheduleSubFields } from '@/types/schedule'
-
-export type { ExclusionRange, ScheduleSubFields }
+import type { EventScheduleInput, ExclusionRange } from '@/types/schedule'
 
 /** Number of upcoming occurrences to compute */
 const UPCOMING_COUNT = 10
