@@ -18,7 +18,7 @@
  */
 import type { Payload, PayloadRequest } from 'payload'
 
-import { beforeAll, afterAll, describe, expect, it } from 'vitest'
+import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
 
 import { Managers } from '@/collections'
 import { resendVerification } from '@/collections/Managers/endpoints/resendVerification'
@@ -232,6 +232,33 @@ describe('manager email verification', () => {
       // The refusal has to happen BEFORE the token is rotated: a 403 that still
       // invalidated the outstanding link would break the manager it refused to help.
       expect(await tokenOf(id)).toBe(before)
+    })
+
+    it('restores the previous token when the send is dropped, and says so', async () => {
+      const { email, first } = await createUnverified('dropped')
+      const id = (await byEmail(email)).id
+      const firstToken = first.html!.match(VERIFY_URL)![1]
+      expect(await tokenOf(id)).toBe(firstToken)
+
+      // The Resend adapter never throws on a delivery failure — it returns
+      // `{ ok: false }` — so this is what a real drop looks like to the handler.
+      const spy = vi
+        .spyOn(payload, 'sendEmail')
+        .mockResolvedValue({ ok: false, reason: 'api-error' } as never)
+      let status: number
+      try {
+        ;({ status } = await call(id))
+      } finally {
+        spy.mockRestore()
+      }
+
+      expect(status).toBe(502)
+      // The whole point: the manager is left exactly as they were, so the link
+      // they may already be holding still works.
+      expect(await tokenOf(id)).toBe(firstToken)
+      await expect(
+        payload.verifyEmail({ collection: 'managers', token: firstToken }),
+      ).resolves.toBe(true)
     })
 
     it('404s an unknown manager and 400s an unusable id', async () => {
