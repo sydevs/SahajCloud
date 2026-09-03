@@ -12,6 +12,7 @@ import type { Config, PayloadRequest } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
+import { mapPostgresCastError } from '@/lib/databaseErrors'
 import { serverEnv } from '@/lib/env'
 
 /**
@@ -96,6 +97,21 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
           ...(config.hooks?.afterError ?? []),
           async (args) => {
             const { error, req } = args
+
+            // A Postgres cast failure is the caller sending a value the column cannot
+            // hold, so it is a 400 rather than an incident. `captureErrors` includes 400,
+            // so restatusing alone would not stop the report — and asking the same pure
+            // predicate rather than reading a flag the other hook sets keeps this
+            // independent of the order the two plugins are registered in.
+            //
+            // ⚠ **This suppresses a 22P02 OUR code composed too**, not only a caller's.
+            // Do not try to discriminate on `req.user`: access control denies an
+            // anonymous read before any SQL runs, so it is set on every error that
+            // reaches here. `docs/architecture.md` has the trade. (sydevs/SahajCloud#670)
+            if (mapPostgresCastError(error)) {
+              return
+            }
+
             const status =
               'status' in error && typeof error.status === 'number' ? error.status : 500
 

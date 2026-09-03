@@ -20,6 +20,7 @@ import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/plugins/access'
 import { cachePlugin } from '@/plugins/cache'
+import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/plugins/email'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
 import { seedPreviewAdmin } from '@/plugins/previewAdmin'
@@ -255,6 +256,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         docsUrl: '/docs',
         enabled: !isE2ETest, // Skip in E2E tests
       }),
+      // A Postgres cast failure is the caller's mistake: answer 400, not 500.
+      // Enabled everywhere, E2E included — it changes what a bad request gets
+      // back, which is exactly what an end-to-end run should see.
+      databaseErrorPlugin(),
       // Sentry error tracking (disabled in E2E tests)
       sentryPlugin({
         captureErrors: [400, 403, 404], // Capture additional error codes
