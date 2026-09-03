@@ -15,13 +15,16 @@ import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
+import { resendVerification } from './endpoints/resendVerification'
 import { setProject } from './endpoints/setProject'
 
 export const Managers: CollectionConfig = {
   slug: 'managers',
   // Access control is applied by accessPlugin with self-access pattern
   // `setProject` is the lightweight self-only Current Project write path (#532).
-  endpoints: [setProject],
+  // `resendVerification` is the admin-only rescue for a bounced verification
+  // email — Payload ships no resend operation at all (#680).
+  endpoints: [setProject, resendVerification],
   auth: {
     // Auth emails intentionally use the default brand (wemeditate-web) rather
     // than the recipient's currentProject — branding is an explicit per-send
@@ -72,6 +75,17 @@ export const Managers: CollectionConfig = {
       name: 'name',
       type: 'text',
       required: true,
+    },
+    {
+      // The admin-only rescue for a manager whose verification email never
+      // arrived (#680). A `ui` field because it stores nothing; the component
+      // hides itself on a verified manager, and the endpoint re-checks the
+      // caller is an admin regardless of what is rendered.
+      name: 'resendVerification',
+      type: 'ui',
+      admin: {
+        components: { Field: '@/components/admin/ResendVerification' },
+      },
     },
     {
       name: 'currentProject',
