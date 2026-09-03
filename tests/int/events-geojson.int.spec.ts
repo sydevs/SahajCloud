@@ -183,6 +183,28 @@ describe('eventsGeoJson endpoint', () => {
       const { status } = await callGeoJson({ select: { title: true }, depth: 2 })
       expect(status).toBe(400)
     })
+
+    /**
+     * sydevs/SahajCloud#670. This handler forwards `where` verbatim and catches its own
+     * errors, so Payload's root `afterError` hook — which only `routeError` invokes —
+     * never sees a cast failure raised here. Without the explicit
+     * `mapPostgresCastError` call in the catch, this is a flat 500 naming nothing.
+     *
+     * `eventType` is a `select` field (`Events.ts`), hence a Postgres enum column, and
+     * the OpenAPI docs advertise filtering on it — so this is a documented client route,
+     * not a contrived one. Driven against a real Postgres because the SQLSTATE is the
+     * whole assertion; a mocked `find` could only re-assert the fixture.
+     */
+    it('returns 400 naming the value when a where filter fails an enum cast', async () => {
+      const { status, body } = await callGeoJson({
+        ...SELECT,
+        where: { eventType: { equals: 'bogus' } },
+      })
+      expect(status).toBe(400)
+      expect(body.errors).toEqual([
+        { code: '22P02', message: expect.stringContaining('"bogus"') },
+      ])
+    })
   })
 
   describe('feature collection', () => {
