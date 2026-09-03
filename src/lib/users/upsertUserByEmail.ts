@@ -22,6 +22,13 @@ import { applyWriteGuard, DEFAULT_WRITE_GUARD_POLICIES } from '@/plugins/writeGu
  * `event-submissions` is the caller that proves this is not theoretical:
  * `prepareSubmission` forwards `submitterInfo.name` unchecked, and an empty one
  * used to be refused by Payload with `The following field is invalid: Name`.
+ *
+ * ⚠ **This is a patch downstream of the actual hole, and #687 is the fix.**
+ * `submitterInfo` is a schemaless `json` field on a client-writable collection,
+ * so nothing validates it where it enters — and this restatement only covers the
+ * two keys that reach `users`. Giving that field a `jsonSchema` closes it at the
+ * seam and would let this schema be deleted. Until then, a third constrained
+ * field on `Users` belongs here too.
  */
 const registrantSchema = z.object({
   email: z.string().email().max(254),

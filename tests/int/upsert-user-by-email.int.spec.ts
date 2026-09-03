@@ -1,3 +1,4 @@
+import type { PostgresAdapter } from '@payloadcms/db-postgres'
 import type { Payload, PayloadRequest } from 'payload'
 
 import { commitTransaction, initTransaction } from 'payload'
@@ -30,6 +31,40 @@ describe('upsertUserByEmail', () => {
       limit: 0,
     })
     return totalDocs
+  }
+
+  /**
+   * Block until Postgres reports a backend **waiting on a lock** for this
+   * suite's own `users` table, and fail rather than proceed if none appears.
+   *
+   * ⚠ **This replaces a fixed sleep, and the difference is the whole point of
+   * the case below.** A delay only guarantees that A commits *late*; it says
+   * nothing about where B got to. If B's `SELECT` is starved past A's commit it
+   * takes the ordinary `findByEmail` hit, never inserts, and every assertion in
+   * the case still passes — with `onConflictDoNothing`'s target deliberately
+   * broken. That is the same vacuity the `Promise.all` draft had, reached by a
+   * different route, and a quarter-second of event-loop starvation is not
+   * exotic: `vitest.config.mts` runs this lane in up to 4 parallel forks.
+   *
+   * The suite's schema name is in the statement text, so a sibling fork blocked
+   * on its own `users` table cannot satisfy this.
+   */
+  async function waitForBlockedInsert(timeoutMs = 15_000): Promise<void> {
+    const adapter = payload.db as unknown as PostgresAdapter
+    const deadline = Date.now() + timeoutMs
+    do {
+      const { rows } = await adapter.pool.query<{ waiting: number }>(
+        `SELECT count(*)::int AS waiting FROM pg_stat_activity
+          WHERE wait_event_type = 'Lock' AND datname = current_database() AND query LIKE $1`,
+        [`%"${adapter.schemaName}"."users"%`],
+      )
+      if ((rows[0]?.waiting ?? 0) > 0) return
+      await new Promise((resolve) => setTimeout(resolve, 25))
+    } while (Date.now() < deadline)
+
+    throw new Error(
+      'upsertUserByEmail race: B never blocked on A’s uncommitted row, so the conflict branch was not exercised',
+    )
   }
 
   beforeAll(async () => {
@@ -72,7 +107,9 @@ describe('upsertUserByEmail', () => {
     const reqB = bareReq()
     await initTransaction(reqB)
     const pendingB = upsertUserByEmail({ email, name: 'Racer Two', req: reqB })
-    await new Promise((resolve) => setTimeout(resolve, 250))
+
+    // Assert the interleave rather than hoping for it — see the helper.
+    await waitForBlockedInsert()
 
     await commitTransaction(reqA)
     const idB = await pendingB

@@ -30,8 +30,12 @@ export interface WriteGuardPolicy {
  * Which collections get which checks on **client-originated** writes. This is
  * the whole public write surface: API clients can only ever write
  * event-submissions and user-messages (built-in create), and users +
- * registrations through the register endpoint's internal upserts (which forward
- * the client `req`, so they land here too). Nothing sits outside it any more —
+ * registrations through the register endpoint's internal upserts. The
+ * `registrations` create forwards the client `req` and so lands on the
+ * collection seam; the `users` insert goes through Drizzle to get
+ * `ON CONFLICT DO NOTHING`, runs no Payload hooks, and applies this same map by
+ * an explicit `applyWriteGuard` call instead (`upsertUserByEmail`, #673).
+ * Nothing sits outside it any more —
  * the `contactAdmin` root endpoint that used to call these helpers by hand
  * became the `user-messages` collection (#632).
  *

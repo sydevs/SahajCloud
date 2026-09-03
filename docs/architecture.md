@@ -318,6 +318,27 @@ Source maps are uploaded to Sentry when `SENTRY_AUTH_TOKEN` is set during build.
   replicas) or raise the server's `max_connections`. Future bulk-write
   optimizations (batched endpoint, serialized writes) should re-measure with the
   Drizzle logger / Sentry `pg`-span capture rather than simply raising `max`.
+
+  **⚠ A guarded public write holds its connection across a network call, and one
+  of them now holds a row lock too.** The write-guard plugin's Turnstile check
+  runs in `beforeValidate`, and Payload opens the operation's transaction
+  *before* its hooks (`payload/dist/collections/operations/create.js` —
+  `initTransaction` at the top, `beforeValidate` inside), so every
+  `event-submissions` / `user-messages` / `registrations` create has held a
+  pooled connection for as long as siteverify takes since the guard shipped
+  (#629). `VERIFY_TIMEOUT_MS` bounds that at **10s**
+  (`src/lib/turnstile/verifyTurnstile.ts`) — the same order as
+  `connectionTimeoutMillis`, so an exhausted pool and a hung Cloudflare degrade
+  on the same timescale rather than one hiding the other.
+
+  What #673 added is the **row lock**: `/api/events/{id}/register` now inserts
+  the registrant and creates the registration in one transaction, so on a
+  Cloudflare slowdown the freshly-inserted `users` row is locked for up to that
+  same 10s. Two registrations for the same new address serialize behind it —
+  correct, and the reason the insert is `ON CONFLICT DO NOTHING` rather than
+  `create`-then-catch. At current volume (a handful of registrations a minute)
+  this is well inside the ~50-peak budget above; **re-measure before raising
+  registration throughput or lengthening `VERIFY_TIMEOUT_MS`**, not after.
 - **Depth caps** — `defaultDepth: 2` (Payload's own default, set explicitly) and
   `maxDepth: 3` (down from Payload's default 10). `maxDepth` clamps any explicit
   `depth` a caller asks for, guarding against runaway edit-view / API

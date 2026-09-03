@@ -21,7 +21,11 @@ import { DEFAULT_WRITE_GUARD_POLICIES } from './policies'
  * (Turnstile header, URL-in-text scan, email format + disposable-domain list)
  * in a `beforeValidate` hook — before field validation, before any hook does
  * real work. Endpoints don't re-implement the guard; they inherit it from the
- * collection seam, the same way origin enforcement rides on the usage plugin.
+ * collection seam, the same way origin enforcement rides on the usage plugin —
+ * **with one exception, which calls `applyWriteGuard` explicitly rather than
+ * re-implementing anything**: a write that cannot reach `beforeValidate` at all.
+ * There is exactly one (`upsertUserByEmail`'s Drizzle insert); see that
+ * function's docblock below.
  *
  * Who is guarded — exactly `req.user.collection === 'clients'`:
  *
@@ -29,8 +33,10 @@ import { DEFAULT_WRITE_GUARD_POLICIES } from './policies'
  * - System writes (jobs, seeds, the accept op, test fixtures) run with no user
  *   or a manager `req` and pass untouched.
  * - An endpoint's internal write that **forwards the client `req`** (the
- *   register endpoint's user/registration upserts) is deliberately guarded:
- *   that's the client's content, whatever code path carried it.
+ *   register endpoint's `registrations` create) is deliberately guarded: that's
+ *   the client's content, whatever code path carried it. The same endpoint's
+ *   `users` insert carries the same `req` but bypasses the collection seam
+ *   entirely, so it applies the policy by the explicit call instead.
  *
  * Escape hatch: `req.context.skipWriteGuard` — for an internal write that
  * forwards a client `req` but writes system-authored data (e.g. a sync hook
@@ -140,21 +146,27 @@ export function writeGuardBeforeValidate(policy: WriteGuardPolicy): CollectionBe
  * Wire the policy map into the matching collections. Collections without a
  * policy are untouched — the access plugin already denies clients every write
  * this map doesn't deliberately open.
+ *
+ * ⚠ **There is deliberately no `policies` option.** `applyWriteGuard`'s one
+ * direct caller has to name a map, and it names `DEFAULT_WRITE_GUARD_POLICIES`;
+ * an injectable map here would mean the collection seam and that call site could
+ * enforce different policies for the same collection — the exact drift
+ * extracting `applyWriteGuard` was meant to remove, one level down. Nothing ever
+ * passed one, and `tests/unit/write-guard-policies.spec.ts` pins the map itself.
  */
 export function writeGuardPlugin(
   options: {
     enabled?: boolean
-    policies?: Partial<Record<CollectionSlug, WriteGuardPolicy>>
   } = {},
 ): (config: Config) => Config {
-  const { enabled = true, policies = DEFAULT_WRITE_GUARD_POLICIES } = options
+  const { enabled = true } = options
 
   if (!enabled) return (config: Config) => config
 
   return (config: Config): Config => ({
     ...config,
     collections: config.collections?.map((collection) => {
-      const policy = policies[collection.slug as CollectionSlug]
+      const policy = DEFAULT_WRITE_GUARD_POLICIES[collection.slug as CollectionSlug]
       if (!policy) return collection
       return {
         ...collection,
