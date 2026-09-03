@@ -33,13 +33,12 @@ When a second consumer needs the type, extract it to `src/types/`.
 
 ## Never restate a shape `payload-types.ts` already generates
 
-**A type describing stored data derives from `@/payload-types`; it is never hand-written beside it.** A restatement does not merely duplicate — it drifts *wider* than the CMS, so it type-checks values the database then rejects. `ScheduleSubFields` declared `weekdays?: string[]` where the column enumerates `'MO' | … | 'SU'`, and `weekdays: ['Monday']` compiled for as long as it existed (#671).
+**A type describing stored data derives from `@/payload-types`; it is never hand-written beside it.** A restatement does not merely duplicate — it drifts *wider* than the CMS, so it type-checks values the database then rejects. The `event.schedule` group was hand-written as `weekdays?: string[]` where the column enumerates `'MO' | … | 'SU'`, and `weekdays: ['Monday']` compiled for as long as that lasted (#671).
 
 ```typescript
 // ✅ Derive — a new CMS value becomes a compile error here
-export type ScheduleSubFields = NonNullable<Event['schedule']>
-export type ExclusionRange = NonNullable<ScheduleSubFields['exclusions']>[number]
-export type RegionLevel = Region['level']
+export type EventSchedule = NonNullable<Event['schedule']>
+export type ExclusionRange = NonNullable<EventSchedule['exclusions']>[number]
 
 // ❌ Restate — silently accepts what the CMS refuses
 export type RegionLevel = 'country' | 'region' | 'city' | 'venue'
@@ -47,12 +46,28 @@ export type RegionLevel = 'country' | 'region' | 'city' | 'venue'
 
 This covers the **JSON-schema columns** too: a `jsonSchema` field generates an interface (`HttpsSahajcloudDevSchemas…Json`), and the hand-written interfaces sitting next to the schema are the same restatement one level down.
 
-Two things that are **not** restatements, so don't "fix" them:
+### A derived alias is local, and never re-exported
+
+`Region['level']` is already a name. An alias for it earns its place **only where one file repeats it enough that the indexed form gets in the way** — and then it stays unexported in that file. Write `Region['level']` at a call site that names it once or twice.
+
+```typescript
+// ✅ Local shorthand where a file names the level nine times
+type RegionLevel = Region['level']
+
+// ❌ Export it, and a second module re-exports it, and now the shape has three homes
+export type RegionLevel = Region['level']
+export type { RegionLevel } // in some other file
+```
+
+A re-export chain is the failure this rule exists to prevent, one level up: the name outlives the derivation, so the next reader cannot see what it is derived *from* and the next narrowing has several places to miss. Give a name of its own only to a shape that is genuinely not spellable from the generated type — `EventScheduleInput` is `Partial<EventSchedule>` because every reader takes a patch, which `Event['schedule']` (both members required) does not express.
+
+Some things are **not** restatements, so don't "fix" them:
 
 - **A relationship.** `NotificationChannel` is the generated `platform` union *plus* `'email'` — deriving it reads worse than the literal.
 - **A deliberately loose input.** `EventQualityInput` is `unknown` for most fields because it is fed from three sources that share no generated type; narrowing it would break the fixtures for no gain.
+- **A deliberate narrowing at a boundary.** A writer that only ever produces a subset may declare the subset — the Atlas importer's `ScheduleInput.endingType` is `'until'` where the column is `'count' | 'until'`, because the importer writes no `count` endings. Widening it back would lose that intent.
 
-**Fix at the import site, not with a corrected re-export.** And when narrowing surfaces errors, fix them — a value that no longer type-checks is a value the CMS was already going to refuse. Where the boundary genuinely takes an arbitrary string (a seed reading a legacy dump), narrow it with a runtime membership test against the same list the Payload config installs, and use the *narrowed* value everywhere the raw one was used.
+**Fix at the import site, not with a corrected re-export.** And when narrowing surfaces errors, fix them — a value that no longer type-checks is a value the CMS was already going to refuse. Where the boundary genuinely takes an arbitrary string (a seed reading a legacy dump), narrow it with a runtime membership test against the same list the Payload config installs, use the *narrowed* value everywhere the raw one was used, and say so when the two differ — a substitution that changes what gets stored is not a detail to swallow.
 
 ## Type File Organization
 
