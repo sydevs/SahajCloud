@@ -43,6 +43,34 @@ export function ownedRegionIds(
 }
 
 /**
+ * Every region the **canonical fallback client** publishes (#652): the subtree
+ * it declares like any other owner, plus the complement of the ownership map —
+ * every region no client claims.
+ *
+ * The complement is computed here rather than materialized into the owners map,
+ * and that is the whole design decision. `resolveOwnersByRegion`'s precedence
+ * rule is expressed by **absence**: a nearer client's subtree drops out of an
+ * ancestor's sitemap because those regions are simply not the ancestor's in the
+ * map. A map where nothing is ever absent would have to encode "this is only the
+ * fallback" some other way, and every consumer would then have to check it.
+ *
+ * The two halves are disjoint by construction — a region is in the map or it is
+ * not — so this concatenates rather than deduplicating, and sorts for the same
+ * reason {@link ownedRegionIds} does.
+ */
+export function fallbackRegionIds(
+  allRegionIds: Iterable<number>,
+  ownerById: ReadonlyMap<number, CanonicalOwner>,
+  clientId: number,
+): number[] {
+  const ids = ownedRegionIds(ownerById, clientId)
+  for (const regionId of allRegionIds) {
+    if (!ownerById.has(regionId)) ids.push(regionId)
+  }
+  return ids.sort((a, b) => a - b)
+}
+
+/**
  * Shape documents into sitemap entries, dropping every one that cannot be
  * published and sorting the rest by route.
  *
