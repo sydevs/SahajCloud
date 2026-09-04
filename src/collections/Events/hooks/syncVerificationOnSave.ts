@@ -4,7 +4,7 @@ import { isPreAdoptionStage } from '@/lib/eventVerification/stages'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
 import { relationId } from '@/lib/utilities/relationId'
-import type { EventScheduleInput } from '@/types/schedule'
+import type { EventSchedule } from '@/types/schedule'
 
 import { actorFromUser, computeVerifyFields, managerCadence } from '../lifecycle/verify'
 
@@ -86,11 +86,11 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
 function mergedSchedule(
   data: Record<string, unknown>,
   originalDoc: Record<string, unknown> | undefined,
-): EventScheduleInput | null {
-  const original = originalDoc?.schedule as EventScheduleInput | null | undefined
-  const incoming = data?.schedule as EventScheduleInput | null | undefined
+): Partial<EventSchedule> | null {
+  const original = originalDoc?.schedule as Partial<EventSchedule> | null | undefined
+  const incoming = data?.schedule as Partial<EventSchedule> | null | undefined
   if (!incoming && !original) return null
-  return { ...original, ...incoming } as EventScheduleInput
+  return { ...original, ...incoming } as Partial<EventSchedule>
 }
 
 /**
@@ -106,7 +106,7 @@ function mergedSchedule(
  *
  * A `null` result means the recurrence never ends, which also counts as revived.
  */
-function revivesFinishedEvent(schedule: EventScheduleInput | null): boolean {
+function revivesFinishedEvent(schedule: Partial<EventSchedule> | null): boolean {
   if (!schedule) return false
   const lastDate = lastOccurrenceEnd(schedule)
   return lastDate === null || new Date(lastDate) >= new Date()

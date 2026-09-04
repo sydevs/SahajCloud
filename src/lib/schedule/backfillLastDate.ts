@@ -31,7 +31,7 @@
 
 import type { Payload } from 'payload'
 
-import type { EventScheduleInput } from '@/types/schedule'
+import type { EventSchedule } from '@/types/schedule'
 
 import { lastOccurrenceEnd } from './scheduleHooks'
 
@@ -42,7 +42,7 @@ export type ScheduleCollection = (typeof SCHEDULE_COLLECTIONS)[number]
 const BATCH_SIZE = 200
 
 /** A schedule group as read off a document, plus the stored derived column. */
-type StoredSchedule = EventScheduleInput & { lastDate?: string | null }
+type StoredSchedule = Partial<EventSchedule> & { lastDate?: string | null }
 
 export interface BackfillStats {
   scanned: number

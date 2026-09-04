@@ -5,12 +5,13 @@ import { ChevronRight, Plus } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import React, { useState } from 'react'
 
-import type { RegionCounts, RegionLevel } from '@/lib/atlasSidebar/sidebarModel'
+import type { RegionCounts } from '@/lib/atlasSidebar/sidebarModel'
 import {
   buildRegionCreateUrl,
   childLevelOf,
   regionLevelLabel,
 } from '@/lib/atlasSidebar/sidebarModel'
+import type { Region } from '@/payload-types'
 
 import { CountPill } from './CountPill'
 import { HoverTooltip } from './HoverTooltip'
@@ -46,7 +47,7 @@ export function RegionTreeNode({
 }: {
   id: number
   name: string
-  level: RegionLevel
+  level: Region['level']
   counts: RegionCounts
   hasChildren: boolean
   /** Whether this node shares its level with other nodes (under the same parent). */
