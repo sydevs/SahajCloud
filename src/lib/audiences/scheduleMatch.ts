@@ -1,7 +1,7 @@
 import { Temporal } from '@js-temporal/polyfill'
 
 import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
-import type { ScheduleSubFields } from '@/types/schedule'
+import type { EventSchedule } from '@/types/schedule'
 
 /**
  * Returns true if `now` falls within an active window of the given schedule.
@@ -19,7 +19,7 @@ export function isScheduleActiveNow({
   schedule,
   now,
 }: {
-  schedule: Partial<ScheduleSubFields> | null | undefined
+  schedule: Partial<EventSchedule> | null | undefined
   now: Date
 }): boolean {
   if (!schedule?.firstDate) return false

@@ -11,7 +11,7 @@
  */
 
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
-import type { EventScheduleInput } from '@/types/schedule'
+import type { EventSchedule } from '@/types/schedule'
 
 import { isPreAdoptionStage, type VerificationStage } from './stages'
 
@@ -40,7 +40,7 @@ export interface NextCheckAtInput {
    */
   stageDeadline?: Date | null
   /** The event's schedule (merged, if this is a partial write). */
-  schedule?: EventScheduleInput | null
+  schedule?: Partial<EventSchedule> | null
   inactive?: boolean | null
   /** Injected clock — the `finished` retention fallback needs a reference point. */
   now?: Date
@@ -116,7 +116,7 @@ export function resolveNextCheckAt(input: NextCheckAtInput): string | null {
 }
 
 /** End of the schedule's final occurrence, or null when it never ends. */
-function scheduleEndDate(schedule: EventScheduleInput | null | undefined): Date | null {
+function scheduleEndDate(schedule: Partial<EventSchedule> | null | undefined): Date | null {
   if (!schedule?.firstDate) return null
   const lastDate = lastOccurrenceEnd(schedule)
   return lastDate == null ? null : new Date(lastDate)

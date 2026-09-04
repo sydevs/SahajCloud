@@ -15,7 +15,7 @@ import type { ActorRef, VerificationLogEntry } from '@/lib/eventVerification/log
 import { buildVerificationEntry } from '@/lib/eventVerification/log'
 import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
-import type { EventScheduleInput } from '@/types/schedule'
+import type { EventSchedule } from '@/types/schedule'
 
 /** The only two stages the Atlas dump's status (0, 6) maps to. */
 export type ImportVerificationStage = 'verified' | 'finished'
@@ -117,7 +117,7 @@ export function buildImportVerification(args: {
   status: number | null | undefined
   cadence?: string | null
   legacyId: number
-  schedule?: EventScheduleInput | null
+  schedule?: Partial<EventSchedule> | null
   inactive?: boolean | null
   now: Date
   actor?: ActorRef | null
@@ -130,8 +130,7 @@ export function buildImportVerification(args: {
     return {
       verificationStage: 'finished',
       nextCheckAt:
-        resolveNextCheckAt({ stage: 'finished', schedule, inactive, now: args.now }) ??
-        undefined,
+        resolveNextCheckAt({ stage: 'finished', schedule, inactive, now: args.now }) ?? undefined,
       activityLog: [entry],
     }
   }

@@ -14,14 +14,14 @@
  * schedule, so without the guard every one of them would falsely "finish".
  */
 
-import type { EventScheduleInput } from '@/types/schedule'
+import type { EventSchedule } from '@/types/schedule'
 
 import { lastOccurrenceEnd } from './scheduleHooks'
 
 /** Minimal shape the finished-check reads off an event. */
 export interface FinishCheckInput {
   inactive?: boolean | null
-  schedule?: EventScheduleInput | null
+  schedule?: Partial<EventSchedule> | null
 }
 
 /**

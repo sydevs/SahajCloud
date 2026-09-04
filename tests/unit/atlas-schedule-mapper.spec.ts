@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { type AtlasSchedule, mapSchedule } from '../../seeds/atlas/helpers/scheduleMapper'
+import {
+  type AtlasSchedule,
+  mapSchedule,
+  supportedTimezone,
+} from '../../seeds/atlas/helpers/scheduleMapper'
 
 const base: AtlasSchedule = {
   frequency: 'weekly',
@@ -34,6 +38,16 @@ describe('mapSchedule', () => {
     const result = mapSchedule({ ...base, startTime: null }, null)
     expect(result?.firstDate).toBe('2021-07-27T00:00:00.000Z')
     expect(result?.firstDate_tz).toBe('UTC')
+  })
+
+  it('resolves an unsupported timezone consistently across firstDate and firstDate_tz', () => {
+    // `+05:30` is a zone Temporal accepts and the `firstDate_tz` column does not.
+    // Both halves must fall back together: computing the instant at +05:30 and
+    // labelling the column `UTC` puts the whole recurrence 5.5 hours out, which
+    // no later read can detect.
+    const result = mapSchedule(base, '+05:30')
+    expect(result?.firstDate_tz).toBe('UTC')
+    expect(result?.firstDate).toBe('2021-07-27T19:00:00.000Z')
   })
 
   it('maps a weekly schedule to recurrenceType + weekdays', () => {
@@ -105,5 +119,26 @@ describe('mapSchedule', () => {
     const result = mapSchedule(base, 'UTC')
     expect(result?.endingType).toBeUndefined()
     expect(result?.untilDate).toBeUndefined()
+  })
+})
+
+describe('supportedTimezone', () => {
+  it('passes a zone the column accepts through unchanged', () => {
+    // The importer detects a substitution by comparing its input against this
+    // output, so an accepted zone returning anything but itself would make
+    // every registration and event look substituted.
+    expect(supportedTimezone('Asia/Kolkata')).toBe('Asia/Kolkata')
+    expect(supportedTimezone('  Europe/Prague  ')).toBe('Europe/Prague')
+  })
+
+  it('substitutes UTC for a zone the column would refuse', () => {
+    expect(supportedTimezone('Mars/Olympus')).toBe('UTC')
+    expect(supportedTimezone('+05:30')).toBe('UTC')
+  })
+
+  it('resolves an absent zone to UTC', () => {
+    expect(supportedTimezone(null)).toBe('UTC')
+    expect(supportedTimezone(undefined)).toBe('UTC')
+    expect(supportedTimezone('   ')).toBe('UTC')
   })
 })

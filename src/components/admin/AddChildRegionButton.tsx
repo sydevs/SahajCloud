@@ -5,8 +5,8 @@ import type { UIFieldClientComponent } from 'payload'
 import { Button, useDocumentInfo } from '@payloadcms/ui'
 import React from 'react'
 
-import type { RegionLevel } from '@/lib/atlasSidebar/sidebarModel'
 import { buildRegionCreateUrl } from '@/lib/atlasSidebar/sidebarModel'
+import type { Region } from '@/payload-types'
 
 /**
  * "New <Level>" action for a recursive child-join tab on Regions.
@@ -23,7 +23,7 @@ import { buildRegionCreateUrl } from '@/lib/atlasSidebar/sidebarModel'
 export const AddChildRegionButton: UIFieldClientComponent = ({ field }) => {
   const { id } = useDocumentInfo()
   const custom = field?.admin?.custom as
-    | { childLevel?: RegionLevel; levelLabel?: string }
+    | { childLevel?: Region['level']; levelLabel?: string }
     | undefined
   const childLevel = custom?.childLevel
 

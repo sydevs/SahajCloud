@@ -1,13 +1,13 @@
 import type { EventRegistrationErrorCode } from '@/collections/Events/endpoints/responseTypes'
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
-import type { EventScheduleInput } from '@/types/schedule'
+import type { EventSchedule } from '@/types/schedule'
 
 import { type EventFullnessInput, isEventFull } from './fullness'
 
 /** The event fields the gate reads — structurally a subset of an Event doc. */
 export interface RegistrationGateInput extends EventFullnessInput {
   inactive?: boolean | null
-  schedule?: EventScheduleInput | null
+  schedule?: Partial<EventSchedule> | null
 }
 
 /** A refusal: the machine-readable `code`, human `message`, and HTTP `status`. */
@@ -72,7 +72,7 @@ export function evaluateRegistrationGate(args: {
  * caught by `shouldFinish` as `event_ended` instead).
  */
 function isStartedLimitedCourse(
-  schedule: EventScheduleInput | null | undefined,
+  schedule: Partial<EventSchedule> | null | undefined,
   now: Date,
 ): boolean {
   if (!schedule?.recurrenceType) return false
