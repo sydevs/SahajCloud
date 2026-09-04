@@ -55,9 +55,10 @@ export async function createRestClient(env: {
   return async (path: string) => {
     const response = await handleEndpoints({
       config: env.config,
-      // `handleEndpoints` matches routes on the pathname; the query string
-      // travels on the Request, exactly as `REST_GET` passes it.
-      path: path.split('?')[0],
+      // No `path` override: it is documented as *"Override path from the
+      // request"* and defaults to `new URL(req.url).pathname`
+      // (`handleEndpoints.js:106`), which already excludes the query string.
+      // The query travels on the Request, exactly as `REST_GET` passes it.
       request: new Request(`http://localhost:3000${path}`, {
         method: 'GET',
         headers: { Authorization: `JWT ${token}` },

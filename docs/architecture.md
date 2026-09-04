@@ -284,6 +284,15 @@ It is not a logging setting and never was. `routeError` calls `logError` at ERRO
 with the whole error before any of this, so server-side logs and Sentry are
 unaffected in either mode.
 
+**`NODE_ENV`, deliberately — so Railway PR previews redact too.** Email and
+storage detect production with `isProductionDeployment()` (Railway's environment
+name) precisely because a preview also runs `NODE_ENV=production`; this flag
+wants the opposite answer, because a preview is as publicly reachable as
+production. The consequence to know before it bites: debugging a red preview
+means reading Railway's logs, not the response body. It is also what lets
+`tests/e2e/error-disclosure.e2e.spec.ts` observe the shipped setting — a preview
+in development mode would have nothing to assert.
+
 ⚠ **That makes the 400 above the only remaining path returning Postgres text**,
 and it survives by ordering rather than by exemption: `routeError` applies the
 redaction *before* it runs `afterError` hooks, and a hook's `result.response`
@@ -292,7 +301,9 @@ above the swap would silently turn every cast failure back into an opaque 500.
 `tests/int/error-disclosure.int.spec.ts` pins that ordering, and its sibling
 `error-disclosure-debug.int.spec.ts` pins what development still shows; both
 drive the real REST pipeline through `handleEndpoints`, because none of this is
-reachable from the local API.
+reachable from the local API. Neither can see the config line itself — they pass
+their own `debug` — so `tests/e2e/error-disclosure.e2e.spec.ts` reads it off the
+deployed preview instead, and is the gate that reverting the line turns red.
 
 What the 400 discloses is a Postgres type name (`enum_<collection>_<field>`, both
 halves already in the published OpenAPI document) plus the value the caller

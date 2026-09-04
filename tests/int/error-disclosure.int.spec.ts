@@ -34,12 +34,16 @@ import { createTestEnvironment } from '../utils/testHelpers'
  * `payload.config.ts` reverted to `debug: true`. What they pin is the pipeline —
  * what each VALUE discloses, and that the plugin's 400 survives either — which is
  * the half that is upstream's behaviour rather than ours and can therefore change
- * under us. The flag itself is a one-token expression, checked in review and on
- * the preview (#684's verification checklist). Asserting it here was tried and
- * rejected: reading `debug` off the app's real config means importing
- * `@/payload.config`, which pulls in the JSX email templates and dies under a
- * production transform with `jsxDEV is not a function` — a fragile guard around a
- * constant.
+ * under us. Asserting the flag here was tried and rejected: reading `debug` off
+ * the app's real config means importing `@/payload.config`, which pulls in the
+ * JSX email templates and dies under a production transform with `jsxDEV is not a
+ * function` — a fragile guard around a constant.
+ *
+ * **`tests/e2e/error-disclosure.e2e.spec.ts` is what covers it**, by observing
+ * the deployed value instead of importing it: the Railway PR preview runs
+ * `NODE_ENV=production` against the real config, so a revert of that line turns
+ * the smoke lane red. Keep the two in step — this suite owns the pipeline, that
+ * one owns the setting.
  *
  * **Fixture assumption, stated before it was written:** the test config carries
  * `databaseErrorPlugin()` and takes `debug` from its caller, matching
