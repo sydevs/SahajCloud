@@ -5,10 +5,10 @@ import * as Sentry from '@sentry/nextjs'
 import { appendLogEntry, asLog, hasLogEntry, type LogEntry } from '@/fields'
 import type { LocaleCode } from '@/lib/locales'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
-import type { ScheduleSubFields } from '@/lib/schedule/scheduleHooks'
 import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
+import type { EventSchedule } from '@/types/schedule'
 
 import { loadUsers } from './loadUsers'
 import { sendSessionReminder } from './sendSessionReminder'
@@ -63,7 +63,7 @@ function upcomingOccurrences(
   windowStart: Date,
   windowEnd: Date,
 ): string[] {
-  const rule = buildRRuleTemporal((schedule ?? {}) as Partial<ScheduleSubFields>)
+  const rule = buildRRuleTemporal((schedule ?? {}) as Partial<EventSchedule>)
   if (!rule) return []
 
   const raw = schedule?.recurrenceType ? rule.between(windowStart, windowEnd, true) : rule.all()

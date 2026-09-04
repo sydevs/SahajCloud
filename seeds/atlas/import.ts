@@ -26,15 +26,11 @@ import type { Payload } from 'payload'
 import { randomUUID } from 'node:crypto'
 import * as path from 'path'
 
-import {
-  type RegionLevel,
-  resolveRegionLocation,
-  geocodeRegion,
-  MANUAL_LOCATION,
-} from '@/lib/mapbox/geocoder'
+import { resolveRegionLocation, geocodeRegion, MANUAL_LOCATION } from '@/lib/mapbox/geocoder'
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { slugifyValue } from '@/lib/utilities/slugify'
+import type { Region } from '@/payload-types'
 
 import {
   BaseImporter,
@@ -51,7 +47,7 @@ import {
   mapNotificationPreferences,
   type NotificationPreferences,
 } from './helpers/managerMapper'
-import { type AtlasSchedule, mapSchedule } from './helpers/scheduleMapper'
+import { type AtlasSchedule, mapSchedule, supportedTimezone } from './helpers/scheduleMapper'
 import {
   type AtlasVenue,
   multiUseVenueIds,
@@ -179,6 +175,9 @@ interface AtlasData {
 // ============================================================================
 // CONSTANTS
 // ============================================================================
+
+/** Local shorthand — this file names the level three times. */
+type RegionLevel = Region['level']
 
 /** Atlas region level → Payload region level (`area` is renamed to `city`). */
 const ATLAS_TO_PAYLOAD_LEVEL: Record<GeoRef['level'], RegionLevel> = {
@@ -1120,6 +1119,26 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
+  /**
+   * Warn when a dump timezone was not one the column accepts.
+   *
+   * `supportedTimezone` substitutes `UTC`, which writes the row at a different
+   * instant than the source states — the loud enum rejection it replaces was at
+   * least visible. Every distinct zone in the committed dump is in the generated
+   * union today (venues 47/47, regions 53/53, registrations 64/64), so this is
+   * unreachable until a refreshed dump introduces one; that is exactly when it
+   * would otherwise pass unnoticed.
+   */
+  private reportTimezoneSubstitution(
+    label: string,
+    raw: string | null | undefined,
+    resolved: string | undefined,
+  ): void {
+    const source = raw?.trim()
+    if (!source || !resolved || source === resolved) return
+    this.addWarning(`${label}: unsupported timezone "${source}" → ${resolved}`)
+  }
+
   private async importEvent(
     event: AtlasEvent,
     ctx: {
@@ -1187,6 +1206,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     // (and a finished event's retention runs from it), so it needs the same
     // value the document is written with.
     const schedule = inactive ? undefined : (mapSchedule(event.schedule, timeZone) ?? undefined)
+    this.reportTimezoneSubstitution(`Event #${event.legacyId}`, timeZone, schedule?.firstDate_tz)
     // `legacyId` seeds the deterministic stagger on `nextCheckAt` — without it the
     // whole dump falls due in the same week. See importCheckOffsetDays.
     const verification = buildImportVerification({
@@ -1307,6 +1327,11 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         })
         continue
       }
+      this.reportTimezoneSubstitution(
+        `Registration ${reg.uuid}`,
+        reg.timeZone,
+        reg.timeZone ? supportedTimezone(reg.timeZone) : undefined,
+      )
       try {
         await this.upsert(
           'registrations',
@@ -1315,7 +1340,10 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             event: eventId,
             user: userId,
             startingAt: reg.startingAt ?? undefined,
-            startingAt_tz: reg.timeZone ?? undefined,
+            // Same enum column and the same raw dump string as `firstDate_tz`,
+            // so it takes the same narrowing — it just never surfaced as a type
+            // error, because `upsert` accepts a looser shape.
+            startingAt_tz: reg.timeZone ? supportedTimezone(reg.timeZone) : undefined,
             questions: reg.questions ?? undefined,
             uuid: reg.uuid,
             mailingListSubscribedAt: reg.mailingListSubscribedAt ?? undefined,

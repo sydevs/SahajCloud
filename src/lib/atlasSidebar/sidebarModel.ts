@@ -9,7 +9,7 @@
  */
 
 import type { VerificationStage } from '@/lib/eventVerification/stages'
-import type { RegionLevel } from '@/lib/mapbox/geocoder'
+import type { Region } from '@/payload-types'
 
 // =============================================================================
 // Events
@@ -136,14 +136,14 @@ export function sortEventsIntoBuckets(events: SidebarEventInput[]): SidebarEvent
 /**
  * A region's level in the geographic tree (Country → Region → City → Venue).
  *
- * Re-exported from the canonical union rather than redeclared. The import is
- * **type-only**, so it's erased at compile time and none of `geocoder.ts`'s
- * server-side Mapbox code reaches the client bundle this module feeds. Declaring
- * a second union here is what let the `center` → `venue` rename typecheck
- * cleanly while leaving stale values below — the failure only surfaced when the
- * unit lane ran.
+ * Local shorthand — this file names the level nine times. Not exported: a
+ * caller naming it once should write `Region['level']`, so there is one
+ * definition and no chain of re-exports to keep honest. Declaring a *second
+ * union* here is what let the `center` → `venue` rename typecheck cleanly while
+ * leaving stale values below; the import is type-only, so nothing of
+ * `@/payload-types` reaches the client bundle this module feeds.
  */
-export type { RegionLevel }
+type RegionLevel = Region['level']
 
 /**
  * The level a node's direct child would have — the natural "add child" target
