@@ -218,6 +218,37 @@ which can't compile because `handler` is `string | TaskHandler`. And
 API-client read can pass; `select: {}` is **not** equivalent — the client gate
 rejects an empty select with a 400.
 
+### Driving the REST API from the integration lane
+
+`createRestClient(env)` (`tests/utils/restRequest.ts`) issues authenticated
+requests through `handleEndpoints` — Payload's public REST entry point, the same
+one `@payloadcms/next`'s `REST_GET` calls. Reach for it **only** when the
+behaviour under test lives in the REST layer and nowhere else; the local API is
+faster and is right for everything else.
+
+Two things live only there, and both are why this exists (#684):
+
+- **Root `afterError` hooks** (`databaseErrorPlugin`) run inside
+  `payload/dist/utilities/routeError.js`, which the local API throws straight
+  past — so `payload.find()` surfaces the raw `DrizzleQueryError` and never the
+  400.
+- **The `config.debug` redaction** that decides whether an error body is the real
+  message plus a stack or `Something went wrong.`
+
+`createTestEnvironment({ debug })` selects that flag (default `false`, i.e.
+production's value) and returns the suite's `config`, which is what the client
+needs. The helper logs the suite admin in and marks it `_verified` first —
+`payload.login` refuses an unverified manager, and access control answers **403
+before any query runs**, so an anonymous request never reaches Postgres at all.
+
+⚠ **One environment per file still holds, and this is what violating it looks
+like.** `getPayload` caches per config, so a second `createTestEnvironment()` in
+the same file returns the **first** instance — a pair of suites meant to compare
+two `debug` values would silently assert one of them twice. It surfaces as the
+second call failing to create its admin (`The following field is invalid: email`)
+because it lands in the first suite's schema. Use two spec files, as
+`error-disclosure.int.spec.ts` and `error-disclosure-debug.int.spec.ts` do.
+
 ## Test file organization
 
 | File                              | Purpose                                                                                                                                                                                                                                                                    |
