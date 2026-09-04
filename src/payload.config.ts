@@ -51,7 +51,21 @@ const payloadConfig = (overrides?: Partial<Config>) => {
 
   return buildConfig({
     serverURL: serverUrl,
-    debug: true, // Enable verbose error logging for troubleshooting uploads
+    // ⚠ `debug` is the RESPONSE-BODY switch, not a logger setting — the verbose
+    // *logging* this line once asked for comes from `logger` below and is
+    // unaffected either way. Payload gates its production redaction on exactly
+    // this flag: `isErrorPublic` returns true immediately when it is set, so
+    // `routeError` never swaps a non-public error's body for `Something went
+    // wrong.`, and it also attaches `response.stack`. Left unconditionally true,
+    // an unauthenticated caller who triggers any 500 gets the real message —
+    // for a database error, drizzle's `Failed query: <full SQL>\nparams: …` —
+    // plus a stack trace. (sydevs/SahajCloud#684)
+    //
+    // `databaseErrorPlugin` is unaffected by this: its `afterError` hook runs
+    // AFTER the swap and replaces the body wholesale, which is what keeps a
+    // 22P02 answering 400 with the Postgres message in production. That
+    // ordering is pinned by `tests/int/error-disclosure.int.spec.ts`.
+    debug: !isProduction,
     // Use one logger implementation everywhere so local, CLI, and server behavior stay aligned.
     logger,
     // Cap relationship-population depth globally. `defaultDepth` (Payload's own
