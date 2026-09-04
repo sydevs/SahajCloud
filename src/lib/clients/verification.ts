@@ -1,5 +1,6 @@
-import type { RoutingMode } from './canonical'
 import type { JSONSchema4 } from 'json-schema'
+
+import type { HttpsSahajcloudDevSchemasClientCanonicalVerificationJson } from '@/payload-types'
 
 import { CANONICAL_DOMAIN_PATTERN, ROUTING_MODES } from './canonical'
 
@@ -45,30 +46,27 @@ export const VERIFICATION_INCONCLUSIVE_REASONS = [
 ] as const
 export type VerificationInconclusiveReason = (typeof VERIFICATION_INCONCLUSIVE_REASONS)[number]
 
+/**
+ * The stored `canonical.verification` column, straight off the generated type.
+ *
+ * The chain is one-directional and worth stating, because it is easy to read the
+ * wrong way round: the const arrays above are spliced into
+ * {@link canonicalVerificationJsonSchema} below, Payload generates
+ * `HttpsSahajcloudDevSchemasClientCanonicalVerificationJson` from that schema,
+ * and these three aliases derive from the generated type. So the arrays are the
+ * single source and this file cannot drift from the column (#671).
+ *
+ * `verified` is null until the first success — the only thing a canonical URL
+ * may be built from. `failureCount` is consecutive *definitive* failures, reset
+ * to 0 by any success.
+ */
+export type CanonicalVerification = HttpsSahajcloudDevSchemasClientCanonicalVerificationJson
+
 /** What the verifier observed on the live page. Job-written, never typed by hand. */
-export interface VerifiedEmbed {
-  domain: string
-  mount: string
-  routing: RoutingMode
-  widgetVersion: number
-  at: string
-}
+export type VerifiedEmbed = NonNullable<CanonicalVerification['verified']>
 
 /** One attempt, newest first in {@link CanonicalVerification.attempts}. */
-export interface VerificationAttempt {
-  at: string
-  status: 'verified' | 'failed' | 'inconclusive'
-  reason?: VerificationFailureReason | VerificationInconclusiveReason
-}
-
-/** The stored `canonical.verification` column. */
-export interface CanonicalVerification {
-  /** Null until the first success. The only thing a canonical URL may be built from. */
-  verified: VerifiedEmbed | null
-  /** Consecutive *definitive* failures. Reset to 0 by any success. */
-  failureCount: number
-  attempts: VerificationAttempt[]
-}
+export type VerificationAttempt = CanonicalVerification['attempts'][number]
 
 /** Consecutive definitive failures before canonical ownership is switched off. */
 export const CANONICAL_FAILURE_LIMIT = 3

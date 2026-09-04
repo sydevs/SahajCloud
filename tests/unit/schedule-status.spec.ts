@@ -14,11 +14,18 @@ import { describe, expect, it } from 'vitest'
 import { notFinishedWhere } from '@/collections/Events/lifecycle/finished'
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
+import type { EventSchedule } from '@/types/schedule'
 
 const NOW = new Date('2026-06-11T02:00:00.000Z')
 
-const ONE_OFF_PAST = { firstDate: '2025-03-15T14:00:00.000Z', firstDate_tz: 'UTC' }
-const ONE_OFF_FUTURE = { firstDate: '2027-03-15T14:00:00.000Z', firstDate_tz: 'UTC' }
+const ONE_OFF_PAST: Partial<EventSchedule> = {
+  firstDate: '2025-03-15T14:00:00.000Z',
+  firstDate_tz: 'UTC',
+}
+const ONE_OFF_FUTURE: Partial<EventSchedule> = {
+  firstDate: '2027-03-15T14:00:00.000Z',
+  firstDate_tz: 'UTC',
+}
 
 describe('shouldFinish', () => {
   it('finishes a one-off whose date has passed', () => {

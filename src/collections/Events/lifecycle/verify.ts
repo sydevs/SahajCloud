@@ -6,7 +6,7 @@ import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods
 import { verifyVerifyToken } from '@/lib/eventVerification/token'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import type { Event, Manager } from '@/payload-types'
-import type { EventScheduleInput } from '@/types/schedule'
+import type { EventSchedule } from '@/types/schedule'
 
 /**
  * Shared "verify" semantics used by both verify paths (the save hook and the
@@ -64,7 +64,7 @@ export function computeVerifyFields(args: {
   by: ActorRef | null
   frequency?: string | null
   /** The event's schedule, so the watermark can't outrun its last occurrence. */
-  schedule?: EventScheduleInput | null
+  schedule?: Partial<EventSchedule> | null
   inactive?: boolean | null
   now: Date
 }): VerifyFields {
