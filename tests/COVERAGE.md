@@ -81,6 +81,7 @@ Per `tests/AGENTS.md`, only **custom logic** belongs in the integration lane (ho
 | `breadcrumbs[].url` backfill — roots-only resave repopulates the whole tree via the nested-docs cascade, and is re-runnable | `region-breadcrumb-url-backfill` |
 | A pre-existing blank region slug survives the nested-docs cascade (its ancestors stay saveable), while a deliberate blank is still refused | `region-blank-slug-cascade` |
 | RBAC (`hasPermission`, `hasAnyPermission`, document-level manager access, locale roles, translator scopes)     | `role-based-access`         |
+| What a REST error body discloses — a 500 redacted to `Something went wrong.` with no stack, SQL or bound parameters when `config.debug` is off, the verbose body kept when it is on, and `databaseErrorPlugin`'s 400 surviving both (the `routeError` ordering) | `error-disclosure`, `error-disclosure-debug` |
 
 ## Gaps
 
