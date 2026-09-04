@@ -23,6 +23,7 @@ import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
 import { Managers } from '@/collections'
 import { resendVerification } from '@/collections/Managers/endpoints/resendVerification'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
+import type { Manager } from '@/payload-types'
 
 import { EmailTestAdapter } from '../utils/emailTestAdapter'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
@@ -261,6 +262,45 @@ describe('manager email verification', () => {
       ).resolves.toBe(true)
     })
 
+    it('says the link was revoked when the RESTORE itself fails — not that nothing happened', async () => {
+      const { email } = await createUnverified('restorefailed')
+      const id = (await byEmail(email)).id
+
+      const sendSpy = vi
+        .spyOn(payload, 'sendEmail')
+        .mockResolvedValue({ ok: false, reason: 'api-error' } as never)
+
+      // Rotation succeeds, the restore throws. This is the one ordering in
+      // which the manager ends up WORSE off than before the call — holding a
+      // link that no longer verifies, with nothing in its place — so it is the
+      // one whose copy must not say "any earlier link still works".
+      const realUpdate = payload.update.bind(payload)
+      let updates = 0
+      const updateSpy = vi.spyOn(payload, 'update').mockImplementation((async (
+        args: Parameters<typeof payload.update>[0],
+      ) => {
+        updates += 1
+        if (updates === 1) return realUpdate(args)
+        throw new Error('restore failed')
+      }) as typeof payload.update)
+
+      let status: number
+      let body: { errors?: { message?: string }[] }
+      try {
+        ;({ status, body } = await call(id))
+      } finally {
+        sendSpy.mockRestore()
+        updateSpy.mockRestore()
+      }
+
+      // 502, not the outer catch's 500: a restore failure is still a delivery
+      // failure, and the 500 copy ("Could not send … please try again") would
+      // describe a no-op.
+      expect(status).toBe(502)
+      expect(updates, 'the restore was never attempted').toBe(2)
+      expect(body.errors?.[0]?.message).toMatch(/revoked/i)
+    })
+
     it('404s an unknown manager and 400s an unusable id', async () => {
       expect((await call(99_999_999)).status).toBe(404)
       expect((await call('not-a-number')).status).toBe(400)
@@ -283,7 +323,7 @@ describe('manager email verification', () => {
           id,
           showHiddenFields: true,
           overrideAccess: true,
-        })) as { _verificationToken?: string | null }
+        })) as Manager
       )._verificationToken
   })
 })

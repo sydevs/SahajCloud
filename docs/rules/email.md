@@ -50,6 +50,14 @@ to rescue it.
 `undefined`; treating that as a failure would break every unconfigured
 environment. Test `result?.ok === false`, never `!result?.ok`.
 
+The union is **exported as `EmailSendResult`** from `resendAdapter.ts`, and a
+caller that acts on a drop narrows against that declaration rather than
+retyping the shape locally — so a fourth `reason` added here reaches every such
+reader through the compiler. The cast at the call site is still unavoidable:
+`EmailAdapter` is generic in its response, but the generic does not reach
+`payload.sendEmail`, which is typed `InitializedEmailAdapter['sendEmail']` and
+returns `unknown` regardless.
+
 ⚠ **Nothing from the message goes with the capture** — not the recipient, not
 the subject. A `user-messages` send carries a viewer-authored subject, and that
 collection is in `RESTRICTED_COLLECTIONS` because it holds personal data;
