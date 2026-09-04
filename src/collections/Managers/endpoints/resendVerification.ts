@@ -1,9 +1,10 @@
-import type { Endpoint, SanitizedCollectionConfig } from 'payload'
+import type { Endpoint } from 'payload'
 
 import crypto from 'crypto'
 
 import type { Manager } from '@/payload-types'
 import { isAdminManager } from '@/plugins/access'
+import type { EmailSendResult } from '@/plugins/email/resendAdapter'
 
 /**
  * Payload mints a verification token as 20 random bytes, hex-encoded
@@ -67,18 +68,29 @@ export const resendVerification: Endpoint = {
       return denied('Invalid manager id.', 400)
     }
 
-    // `showHiddenFields` is what surfaces `_verified` — it is a hidden auth
-    // field, so an ordinary read comes back without it and the already-verified
-    // guard below would never fire.
+    // `showHiddenFields` is what surfaces **`_verificationToken`**, which the
+    // restore path below needs. It is the only hidden field of the pair —
+    // `payload/dist/auth/baseFields/verification.js` puts `hidden: true` on the
+    // token and leaves `_verified` an ordinary checkbox with `defaultAccess`
+    // read, so `_verified` arrives with or without the flag. (The admin edit
+    // view depends on that: it fetches without `showHiddenFields`, and
+    // `ResendVerification.tsx` reads `_verified` off that document to decide
+    // whether to render at all.)
+    //
+    // The `select` is the projection, done by the framework rather than by
+    // hand: `hash`, `salt` and `resetPasswordToken` never enter this document,
+    // so nothing downstream — including the template renderer below — can
+    // read them by accident.
     const manager = (await req.payload.findByID({
       collection: 'managers',
       id,
       depth: 0,
       overrideAccess: true,
       showHiddenFields: true,
+      select: { name: true, email: true, _verified: true, _verificationToken: true },
       disableErrors: true,
       req,
-    })) as (Manager & { _verified?: boolean | null }) | null
+    })) as Manager | null
 
     if (!manager) return denied('Manager not found.', 404)
 
@@ -93,11 +105,9 @@ export const resendVerification: Endpoint = {
 
     if (!manager.email) return denied('This manager has no email address.', 422)
 
-    const verify = (
-      req.payload.config.collections.find(
-        (collection) => collection.slug === 'managers',
-      ) as SanitizedCollectionConfig | undefined
-    )?.auth?.verify
+    // Payload already indexes the sanitized configs by slug, so this is the
+    // typed lookup rather than a linear scan plus a cast.
+    const verify = req.payload.collections.managers?.config.auth?.verify
 
     if (!verify || typeof verify === 'boolean' || typeof verify.generateEmailHTML !== 'function') {
       // Refuse rather than falling back to a hand-written email: a verification
@@ -121,18 +131,16 @@ export const resendVerification: Endpoint = {
       await req.payload.update({
         collection: 'managers',
         id,
-        data: { _verificationToken: token } as Partial<Manager>,
+        data: { _verificationToken: token },
         overrideAccess: true,
         depth: 0,
         req,
       })
 
-      // ⚠ Project explicitly — do NOT spread `manager`. It came back with
-      // `showHiddenFields: true`, so it carries `hash`, `salt` and
-      // `resetPasswordToken`, and this object is handed to a template renderer
-      // whose output is emailed. Nothing reads them today; the point is that a
-      // careless template edit must not be able to. Payload's own create path
-      // passes the post-`afterRead` doc, which has those stripped already.
+      // Built explicitly rather than spread, so what reaches the template
+      // renderer is a decision rather than whatever the read happened to
+      // return. The `select` above is what guarantees the credential columns
+      // are absent either way.
       const user = {
         id: manager.id,
         name: manager.name,
@@ -156,22 +164,51 @@ export const resendVerification: Endpoint = {
       // Only an explicit `{ ok: false }` counts as a drop: Payload's own console
       // adapter stands in wherever email is unconfigured and resolves
       // `undefined`, which must keep reading as sent.
-      const result = (await req.payload.sendEmail({ to: manager.email, subject, html })) as
-        | { ok?: boolean }
-        | undefined
+      //
+      // `EmailSendResult` is exported by the adapter rather than restated
+      // here, so the union is a compiler fact and a fourth drop path added
+      // later cannot fail to reach this reader. The cast itself is
+      // unavoidable: `EmailAdapter` is generic in its response, but that
+      // generic does not reach `payload.sendEmail`, which is typed
+      // `InitializedEmailAdapter['sendEmail']` and so returns `unknown`.
+      const result = (await req.payload.sendEmail({
+        to: manager.email,
+        subject,
+        html,
+      })) as EmailSendResult
 
       if (result?.ok === false) {
         // Put the old token back, so a dropped resend leaves the manager exactly
         // as it found them — an outstanding link that still works beats a
         // revoked one and no replacement.
-        await req.payload.update({
-          collection: 'managers',
-          id,
-          data: { _verificationToken: previousToken } as Partial<Manager>,
-          overrideAccess: true,
-          depth: 0,
-          req,
-        })
+        //
+        // ⚠ Its own try/catch, not the outer one. A restore that itself throws
+        // would otherwise fall into the catch below and answer the generic 500
+        // — reporting "nothing happened" for the single outcome where the
+        // manager is genuinely worse off than before the call, with a link that
+        // has been revoked and not replaced. That is the one state whose copy
+        // has to say so.
+        try {
+          await req.payload.update({
+            collection: 'managers',
+            id,
+            data: { _verificationToken: previousToken },
+            overrideAccess: true,
+            depth: 0,
+            req,
+          })
+        } catch (restoreError) {
+          req.payload.logger.error({
+            msg: 'resendVerification: send was dropped AND the previous token could not be restored',
+            managerId: id,
+            error: restoreError instanceof Error ? restoreError.message : String(restoreError),
+          })
+          return denied(
+            'The verification email could not be sent, and this manager’s earlier link has been revoked. Send another before they try the old one.',
+            502,
+          )
+        }
+
         req.payload.logger.error({
           msg: 'resendVerification: send was dropped; restored the previous token',
           managerId: id,

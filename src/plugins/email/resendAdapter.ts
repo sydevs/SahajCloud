@@ -61,7 +61,22 @@ function toAddressList(value: SendEmailOptions['replyTo']): string[] | undefined
   return entries.length > 0 ? entries : undefined
 }
 
-export const resendAdapter = (): EmailAdapter => {
+/**
+ * What this adapter resolves to.
+ *
+ * `undefined` is a successful send — and is also what Payload's own
+ * `consoleEmailAdapter` resolves to wherever email is not configured, which is
+ * why a caller must test `result?.ok === false` and never `!result?.ok`.
+ *
+ * Exported so a caller that acts on a drop (`resendVerification`) narrows
+ * against this declaration rather than retyping the shape at its call site: a
+ * fourth drop path added here then reaches that reader through the compiler.
+ */
+export type EmailSendResult =
+  | { ok: false; reason: 'api-error' | 'not-initialized' | 'threw' }
+  | undefined
+
+export const resendAdapter = (): EmailAdapter<EmailSendResult> => {
   return ({ payload }) => {
     const apiKey = serverEnv.RESEND_API_KEY
 

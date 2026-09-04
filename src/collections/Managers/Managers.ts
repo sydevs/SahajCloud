@@ -12,7 +12,12 @@ import { VerifyEmail } from '@/emails/VerifyEmail'
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
 import { getLanguageOptions } from '@/lib/locales'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
-import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
+import {
+  adminOnlyCondition,
+  adminOnlyFieldAccess,
+  getRoleOptions,
+  getProjectOptions,
+} from '@/plugins/access'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
 import { resendVerification } from './endpoints/resendVerification'
@@ -84,6 +89,13 @@ export const Managers: CollectionConfig = {
       name: 'resendVerification',
       type: 'ui',
       admin: {
+        // Non-admin managers can read another manager's document — `managers`
+        // is not in `RESTRICTED_COLLECTIONS`, so the implicit project read
+        // applies — and without this they would be offered a button that can
+        // only ever 403. The condition covers the offer; the endpoint's own
+        // `isAdminManager` check remains the boundary, and reusing the same
+        // predicate is what keeps the two from drifting.
+        condition: adminOnlyCondition,
         components: { Field: '@/components/admin/ResendVerification' },
       },
     },
