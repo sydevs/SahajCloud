@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { isScheduleActiveNow } from '@/lib/audiences/scheduleMatch'
-import type { ScheduleSubFields } from '@/types/schedule'
+import type { EventSchedule } from '@/types/schedule'
 
 // Fixed base date for deterministic tests: 2024-01-16 (Tuesday)
 // DAILY schedule starts 2024-01-15T09:00:00Z → occurrences at 09:00 UTC each day
-const DAILY_SCHEDULE: Partial<ScheduleSubFields> = {
+const DAILY_SCHEDULE: Partial<EventSchedule> = {
   firstDate: '2024-01-15T09:00:00.000Z',
   firstDate_tz: 'Europe/London', // UTC+0 in January — equivalent to UTC here
   recurrenceType: 'DAILY',
@@ -82,7 +82,7 @@ describe('isScheduleActiveNow', () => {
   })
 
   describe('custom window via endTime', () => {
-    const scheduleWith90MinWindow: Partial<ScheduleSubFields> = {
+    const scheduleWith90MinWindow: Partial<EventSchedule> = {
       ...DAILY_SCHEDULE,
       // endTime is stored as HH:MM text by scheduleField
       endTime: '10:30', // 10:30 → delta from 09:00 = 90 min
@@ -111,7 +111,7 @@ describe('isScheduleActiveNow', () => {
   })
 
   describe('overnight window (endTime before startTime)', () => {
-    const overnightSchedule: Partial<ScheduleSubFields> = {
+    const overnightSchedule: Partial<EventSchedule> = {
       firstDate: '2024-01-15T22:00:00.000Z', // 22:00 London
       firstDate_tz: 'Europe/London',
       recurrenceType: 'DAILY',
@@ -132,7 +132,7 @@ describe('isScheduleActiveNow', () => {
   })
 
   describe('non-recurring (single occurrence)', () => {
-    const singleSchedule: Partial<ScheduleSubFields> = {
+    const singleSchedule: Partial<EventSchedule> = {
       firstDate: '2024-01-16T09:00:00.000Z',
       firstDate_tz: 'Europe/London',
       // no recurrenceType → count=1
@@ -168,7 +168,7 @@ describe('isScheduleActiveNow', () => {
 
   describe('weekly recurrence', () => {
     // WEEKLY on Tuesdays (Jan 16 2024 is a Tuesday)
-    const weeklySchedule: Partial<ScheduleSubFields> = {
+    const weeklySchedule: Partial<EventSchedule> = {
       firstDate: '2024-01-16T10:00:00.000Z', // Tuesday 10:00 London
       firstDate_tz: 'Europe/London',
       recurrenceType: 'WEEKLY',

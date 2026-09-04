@@ -1,57 +1,39 @@
 import type { Event } from '@/payload-types'
 
 /**
+ * The stored `event.schedule` group, with the field's own `undefined` stripped.
+ *
+ * Values use RFC 5545 conventions: uppercase frequencies, two-letter day codes.
+ * `lastDate`, `icalRule` and `upcomingDates` are derived columns recomputed on
+ * write or read — they are part of the shape so a hook merging a previous
+ * schedule doc over an incoming patch stays type-honest.
+ *
+ * Everything below derives from this rather than restating it. The hand-written
+ * copies these replace were **wider than the CMS**: `firstDate_tz`, `weekdays`
+ * and `weekNumber` were plain `string`/`string[]`, so `weekdays: ['Monday']`
+ * type-checked and was then rejected at write (#671).
+ */
+export type EventSchedule = NonNullable<Event['schedule']>
+
+/**
  * A single exclusion date range within the exclusions array.
  * When endDate is omitted, only startDate is excluded (single-date exclusion).
  *
- * Optional fields are `| null` to match how Payload stores them, so a schedule
- * read off a document assigns without a cast.
+ * Optional fields are `| null` because that is how Payload stores them, so a
+ * schedule read off a document assigns without a cast.
  */
-export interface ExclusionRange {
-  startDate: string // YYYY-MM-DD or ISO datetime
-  endDate?: string | null // YYYY-MM-DD or ISO datetime, optional
-  reason?: string | null
-  id?: string | null // PayloadCMS array item ID
-}
+export type ExclusionRange = NonNullable<EventSchedule['exclusions']>[number]
 
 /**
- * Sub-field structure matching the PayloadCMS Group field sub-fields for a schedule.
- * Values use RFC 5545 conventions: uppercase frequencies, two-letter day codes.
- * Extracted to src/types/ because it is shared between scheduleHooks.ts and
- * audiences/scheduleMatch.ts.
- */
-export interface ScheduleSubFields {
-  firstDate: string
-  firstDate_tz?: string
-  endTime?: string
-  recurrenceType?: 'DAILY' | 'WEEKLY' | 'MONTHLY'
-  interval?: number
-  weekdays?: string[]
-  monthDay?: number
-  monthlyMode?: 'date' | 'weekday'
-  weekNumber?: string
-  weekdayOfMonth?: string
-  endingType?: 'count' | 'until'
-  count?: number
-  untilDate?: string
-  exclusions?: ExclusionRange[]
-  /**
-   * Derived, not an input: the stored `lastDate` column, recomputed from the
-   * fields above on every write by `computeLastDate`. Present here so hooks
-   * merging a previous schedule doc over an incoming patch stay type-honest.
-   */
-  lastDate?: string | null
-}
-
-/**
- * A schedule as either the hand-written `ScheduleSubFields` or the
- * Payload-generated shape, whose optional fields are `| null` rather than
- * `| undefined`.
+ * ⚠ **A schedule the caller only partly holds is `Partial<EventSchedule>`, spelled
+ * out at the call site.** It had a name here (`EventScheduleInput`) and does not
+ * need one: `Partial` already says the whole of what the alias existed to say,
+ * and a third name hides that this is the same shape everything else reads.
  *
- * The two are structurally interchangeable for `buildRRuleTemporal`: every
- * field it reads is guarded by a truthy check or `??`, both of which treat
- * `null` and `undefined` identically. Accepting both here beats widening the
- * shared `ScheduleSubFields` (which would ripple into `audiences/scheduleMatch`)
- * or forcing callers to normalize.
+ * It is genuinely not `Event['schedule']`, which keeps `firstDate` and
+ * `firstDate_tz` required — a field hook's `siblingData`, a merge of a previous
+ * doc over an incoming patch, and a partially-built schedule have neither.
+ * `buildRRuleTemporal` guards every field it reads with a truthy check or `??`,
+ * which treat `null` and `undefined` identically, so the optionality is real
+ * rather than a convenience.
  */
-export type EventScheduleInput = NonNullable<Event['schedule']> | Partial<ScheduleSubFields>

@@ -22,6 +22,8 @@
  * Every non-clean resolution carries a `warning` for the caller to log.
  */
 
+import type { Region } from '@/payload-types'
+
 const FORWARD_URL = 'https://api.mapbox.com/search/searchbox/v1/forward'
 
 /** Sentinel `mapboxId` for a hand-entered location — matches `AddressSearchField`. */
@@ -34,8 +36,8 @@ const DEFAULT_REGION_RADIUS_METERS = 50_000
 const MAX_RETRIES = 3
 const BASE_BACKOFF_MS = 500
 
-/** The Atlas geo levels, in Payload terms (`area` → `city`). */
-export type RegionLevel = 'country' | 'region' | 'city' | 'venue'
+/** Local shorthand — this file names the level four times. */
+type RegionLevel = Region['level']
 
 /**
  * Mapbox Search Box `types` per level — mirrors `Regions.mapboxId`'s
