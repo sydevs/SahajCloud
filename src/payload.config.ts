@@ -51,22 +51,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
 
   return buildConfig({
     serverURL: serverUrl,
-    // ⚠ `debug` is the RESPONSE-BODY switch, not a logger setting — the verbose
-    // *logging* comes from `logger` below and is unaffected either way. On, it
-    // makes `isErrorPublic` return true, so `routeError` neither swaps a
-    // non-public error's body for `Something went wrong.` nor withholds
-    // `response.stack`. `databaseErrorPlugin` is unaffected in both directions:
-    // its `afterError` hook runs AFTER that swap and replaces the body
-    // wholesale, which is what keeps a 22P02 answering 400 with the Postgres
-    // message. Both facts are pinned by `tests/int/error-disclosure*.int.spec.ts`;
-    // the history is in `docs/architecture.md` (sydevs/SahajCloud#684).
-    //
-    // `NODE_ENV`, deliberately — NOT the `isProductionDeployment()` rule stated
-    // below for email and storage. A Railway PR preview also runs
-    // NODE_ENV=production and is as publicly reachable as production, so it
-    // redacts too; debug a red preview from Railway's logs, not from the
-    // response body. `tests/e2e/error-disclosure.e2e.spec.ts` depends on that,
-    // and is the only gate that fails if this line is reverted.
+    // ⚠ Response-body switch, NOT a logger setting: on, an unhandled error is
+    // returned verbatim with a stack. `NODE_ENV` deliberately — unlike the
+    // `isProductionDeployment()` rule below, previews redact too. See
+    // `docs/architecture.md` § "What an error body discloses (issue #684)".
     debug: !isProduction,
     // Use one logger implementation everywhere so local, CLI, and server behavior stay aligned.
     logger,
