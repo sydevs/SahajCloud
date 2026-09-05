@@ -18,6 +18,7 @@ import { buildConfig } from 'payload'
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { accessPlugin, bypassPermissions } from '@/plugins/access'
+import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
@@ -83,13 +84,19 @@ function makeTestSchemaName(): string {
  * @returns Payload configuration object
  */
 
-function createBaseTestConfig(emailConfig: any, schemaName: string) {
+function createBaseTestConfig(emailConfig: any, schemaName: string, debug = false) {
   // Build config with usagePlugin to get tasks auto-registered
   const baseConfig = buildConfig({
     admin: {
       user: Managers.slug,
       disable: true, // Disable admin UI in tests
     },
+    // Mirrors `payload.config.ts`'s `debug: !isProduction`. The default is
+    // FALSE — i.e. production's value — because this flag decides whether an
+    // error body is redacted, and the suite that cares about disclosure has to
+    // be able to observe production's behaviour. Pass `true` to get a
+    // development-mode instance (sydevs/SahajCloud#684).
+    debug,
     collections: getTestCollections(),
     globals,
     editor: lexicalEditor(),
@@ -124,6 +131,11 @@ function createBaseTestConfig(emailConfig: any, schemaName: string) {
       // Write Guard: anti-spam checks on client-originated writes (mirrors the
       // real payload.config.ts — the event-submission specs exercise it).
       writeGuardPlugin(),
+      // Database errors: maps a Postgres cast failure onto a 400 via a root
+      // `afterError` hook (mirrors the real payload.config.ts). Registered here
+      // so `tests/int/error-disclosure.int.spec.ts` can drive the REAL error
+      // path — the hook only runs inside `routeError`, which is REST-only.
+      databaseErrorPlugin(),
       // Nested docs: injects parent + breadcrumbs into Regions (mirrors the
       // real payload.config.ts so collection hooks relying on them are tested).
       nestedDocsPlugin(REGION_NESTED_DOCS_CONFIG),
@@ -175,13 +187,19 @@ async function cleanupTestEnvironment(payload: Payload, schemaName: string): Pro
  * Creates an isolated test database and Payload instance for a test suite
  * Each call creates a unique in-memory SQLite database to ensure complete isolation
  */
-export async function createTestEnvironment(): Promise<{
+export async function createTestEnvironment(options?: { debug?: boolean }): Promise<{
   payload: Payload
   cleanup: () => Promise<void>
   adminUser: Awaited<ReturnType<typeof testData.createManager>>
+  /**
+   * The suite's own config promise. `handleEndpoints` (Payload's public REST
+   * entry point) takes this, which is the only way a test can drive the real
+   * `routeError` path — `afterError` hooks run nowhere else.
+   */
+  config: ReturnType<typeof createBaseTestConfig>
 }> {
   const schemaName = makeTestSchemaName()
-  const config = createBaseTestConfig(undefined, schemaName)
+  const config = createBaseTestConfig(undefined, schemaName, options?.debug)
   const payload = await getPayload({ config })
   const adminUser = await testData.createManager(payload, {
     email: 'admin@example.com',
@@ -190,7 +208,7 @@ export async function createTestEnvironment(): Promise<{
 
   const cleanup = () => cleanupTestEnvironment(payload, schemaName)
 
-  return { payload, cleanup, adminUser }
+  return { payload, cleanup, adminUser, config }
 }
 
 /**

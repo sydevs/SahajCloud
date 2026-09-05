@@ -270,6 +270,46 @@ alerting on it:
   so `req.user` is set on every error that can reach these hooks and the test would
   never discriminate.
 
+### What an error body discloses (issue #684)
+
+`config.debug` is the **response-body** switch, and it is `!isProduction`
+(`src/payload.config.ts`). Payload's `isErrorPublic` returns true the moment it is
+set, so with it on `routeError` skips the `Something went wrong.` swap for a
+non-public error *and* attaches `response.stack`. It was unconditionally `true`
+until #684, which is why production answered every unhandled error with its real
+message — for a database error, drizzle's full statement and bound parameters —
+plus a stack trace.
+
+It is not a logging setting and never was. `routeError` calls `logError` at ERROR
+with the whole error before any of this, so server-side logs and Sentry are
+unaffected in either mode.
+
+**`NODE_ENV`, deliberately — so Railway PR previews redact too.** Email and
+storage detect production with `isProductionDeployment()` (Railway's environment
+name) precisely because a preview also runs `NODE_ENV=production`; this flag
+wants the opposite answer, because a preview is as publicly reachable as
+production. The consequence to know before it bites: debugging a red preview
+means reading Railway's logs, not the response body. It is also what lets
+`tests/e2e/error-disclosure.e2e.spec.ts` observe the shipped setting — a preview
+in development mode would have nothing to assert.
+
+⚠ **That makes the 400 above the only remaining path returning Postgres text**,
+and it survives by ordering rather than by exemption: `routeError` applies the
+redaction *before* it runs `afterError` hooks, and a hook's `result.response`
+then replaces the body wholesale. So a Payload release that moved root hooks
+above the swap would silently turn every cast failure back into an opaque 500.
+`tests/int/error-disclosure.int.spec.ts` pins that ordering, and its sibling
+`error-disclosure-debug.int.spec.ts` pins what development still shows; both
+drive the real REST pipeline through `handleEndpoints`, because none of this is
+reachable from the local API. Neither can see the config line itself — they pass
+their own `debug` — so `tests/e2e/error-disclosure.e2e.spec.ts` reads it off the
+deployed preview instead, and is the gate that reverting the line turns red.
+
+What the 400 discloses is a Postgres type name (`enum_<collection>_<field>`, both
+halves already in the published OpenAPI document) plus the value the caller
+itself sent — a deliberately different class from the SQL and parameters the flag
+used to return, and the whole usefulness of the 400.
+
 ### Sentry integration
 
 - `src/instrumentation.ts` — Server-side initialization (`@sentry/nextjs`)
