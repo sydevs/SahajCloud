@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     // Parse project from query params
     const projectParam = request.nextUrl.searchParams.get('project')
     const project: ProjectSlug | null =
-      projectParam && isValidProject(projectParam) ? (projectParam as ProjectSlug) : null
+      projectParam && isValidProject(projectParam) ? projectParam : null
 
     // Generate spec directly using payload-oapi internals (no internal fetch).
     // Edge caching is handled by Cloudflare (Cache Rules / the Cache-Control
