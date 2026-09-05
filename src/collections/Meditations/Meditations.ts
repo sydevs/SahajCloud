@@ -40,11 +40,8 @@ import { recomputeMeditationNodeWeights } from './hooks/recomputeMeditationNodeW
  *   { type: 'join', collection: 'user-choices', on: '<onField>' }
  */
 const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField => ({
-  // Virtual: produced by the hook below and never written, so a schema has
-  // nothing to validate. The shape is already typed at its source
-  // (the `{ id, title }[]` this factory's hook returns) — declaring it
-  // again would be a second definition to keep in step, which is the drift
-  // #659 set out to remove.
+  // Virtual: written by the hook below; typed at its source
+  // (the `{ id, title }[]` this factory's hook returns). See `src/collections/AGENTS.md`.
   name,
   type: 'json',
   virtual: true,
