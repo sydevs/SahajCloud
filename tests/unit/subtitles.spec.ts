@@ -49,17 +49,12 @@ describe('the subtitles schemas agree', () => {
     expect(acceptedByJsonSchema(value)).toBe(false)
   })
 
-  it('strips an unknown key in Zod, and refuses one at the column', () => {
-    // Not drift. The importer writes `safeParse(...).data`, which Zod has
-    // already stripped, so the value reaching the column never carries the
-    // extra key that `additionalProperties: false` would refuse
-    // (`seeds/storyblok/import.ts` — `parseSubtitles` returns `result.data`).
-    const withExtra = [{ startTimeMs: 0, endTimeMs: 1000, content: 'ok', speaker: 'extra' }]
-    const parsed = subtitlesZodSchema.safeParse(withExtra)
-    expect(parsed.success).toBe(true)
-    expect(parsed.success && parsed.data[0]).not.toHaveProperty('speaker')
-    expect(acceptedByJsonSchema(withExtra)).toBe(false)
-    expect(acceptedByJsonSchema(parsed.success ? parsed.data : null)).toBe(true)
+  it('both tolerate an unknown cue key', () => {
+    // Zod ignores it, the schema accepts it. Neither refuses, which is what
+    // keeps a row that already stores one saveable.
+    const withExtra = [{ startTimeMs: 0, endTimeMs: 1000, content: 'ok', speaker: 'Anna' }]
+    expect(subtitlesZodSchema.safeParse(withExtra).success).toBe(true)
+    expect(acceptedByJsonSchema(withExtra)).toBe(true)
   })
 
   it('diverges only on empty values, which the column allows either way', () => {

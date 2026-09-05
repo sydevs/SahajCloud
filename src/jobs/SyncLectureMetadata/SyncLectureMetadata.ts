@@ -37,8 +37,9 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
   retries: 2,
   inputSchema: [
     {
-      // Optional narrowing for a manual run. The schema types the input and
-      // rejects anything but a list of lecture ids at enqueue.
+      // Optional narrowing for a manual run. The schema generates the input's
+      // type, replacing a hand-written `SyncLectureMetadataInput` — it is not a
+      // runtime check, so the handler still tests `Array.isArray` below.
       name: 'lectureIds',
       type: 'json',
       required: false,

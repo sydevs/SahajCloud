@@ -96,6 +96,14 @@ describe('subtitles', () => {
     expect(runSchema(field, 'a string')).not.toBe(true)
   })
 
+  it('still accepts an unknown cue key, as the Zod validator did', () => {
+    // Closing the shape would narrow the column: a row already storing an extra
+    // key would fail every later save of its video, permanently.
+    expect(
+      runSchema(field, [{ startTimeMs: 0, endTimeMs: 1000, content: 'ok', speaker: 'Anna' }]),
+    ).toBe(true)
+  })
+
   it('treats every empty value as valid, exactly as the old validator did', () => {
     // `parseSubtitles` had its own `isEmpty` guard for these four. Payload's
     // built-in `json` validator skips the same four before touching Ajv, so
@@ -142,9 +150,13 @@ describe('Lectures.metadata', () => {
     ).toBe(true)
   })
 
-  it('refuses a key the builder never writes, and an unknown locale', () => {
+  it('refuses a key the builder never writes', () => {
     expect(runSchema(field, { hlsUrl: 'https://example.com/a.m3u8', vimeoId: 7 })).not.toBe(true)
-    expect(runSchema(field, { subtitles: { klingon: 'https://example.com/k.vtt' } })).not.toBe(true)
+  })
+
+  it('keeps the subtitle map open, so retiring a locale strands no row', () => {
+    expect(runSchema(field, { subtitles: { 'no-longer-a-locale': 'https://x/k.vtt' } })).toBe(true)
+    expect(runSchema(field, { subtitles: { en: 7 } })).not.toBe(true)
   })
 })
 
@@ -155,10 +167,20 @@ describe('Managers.notificationPreferences', () => {
     // The regression this guards: supplying `validate` takes over from the
     // built-in one, so a schema beside a custom validator silently does
     // nothing. Both halves must reject.
-    expect(runFieldValidate(field, { not_a_notification_type: {} })).not.toBe(true)
+    // `method: 5` passes the cross-key rule (the frequency is "Never", so no
+    // method is required) and fails the schema. Only the composition rejects it.
+    expect(
+      runFieldValidate(field, { event_registration: { frequency: 'Never', method: 5 } }),
+    ).not.toBe(true)
     expect(
       runFieldValidate(field, { event_registration: { frequency: 'Immediate', method: '' } }),
     ).toMatch(/Event Registration/)
+  })
+
+  it('keeps the top level open, so a retired notification type strands no manager', () => {
+    expect(runFieldValidate(field, { a_retired_type: { frequency: 'Never', method: '' } })).toBe(
+      true,
+    )
   })
 
   it('accepts the seeded default', () => {
@@ -183,10 +205,12 @@ describe('Meditations', () => {
   })
 
   it('composes the built-in validator on frames rather than replacing it', () => {
-    // One good entry and one with no timestamp. Normalization drops the second
-    // and still counts one frame, so the custom rule alone passes this — only
-    // the schema half rejects it. That asymmetry is what makes this case fail
-    // when the composition is dropped.
+    // One good entry and one with no timestamp. The custom rule alone passes
+    // this (normalization drops the second and still counts one frame), so only
+    // the schema half rejects it — which is what makes this case fail when the
+    // composition is dropped. On a real save the field's `beforeChange` hook
+    // normalizes first, so the schema types the stored value rather than gating
+    // it; the composition is still the rule, not an optimisation.
     expect(
       runFieldValidate(frames, [{ id: 1, timestamp: 0 }, { id: 2 }], { operation: 'update' }),
     ).not.toBe(true)

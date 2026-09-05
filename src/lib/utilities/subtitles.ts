@@ -13,9 +13,8 @@ export const SUBTITLES_SCHEMA_URI = 'https://sahajcloud.dev/schemas/subtitles.js
  *
  * It mirrors `subtitlesJsonSchema`. `tests/unit/subtitles.spec.ts` pins the two
  * against one fixture set in both directions, so the mirror cannot drift
- * silently. They part company in one place, deliberately: Zod strips an unknown
- * key and the column refuses one. The importer writes Zod's stripped output, so
- * the value that reaches the column has already lost it.
+ * silently. They part company on empty values only, which an optional column
+ * accepts either way.
  */
 export const subtitlesZodSchema = z.array(
   z.object({
@@ -42,7 +41,11 @@ export const subtitlesJsonSchema: JSONSchema4 = {
       durationMs: { type: 'number' },
     },
     required: ['content', 'startTimeMs', 'endTimeMs'],
-    additionalProperties: false,
+    // Open, because the validator this replaced was. Zod's default object mode
+    // ignores an unknown key, so a cue carrying one has always been accepted
+    // and stored. Closing the shape would make such a row fail every later
+    // save of its document, including one that never touched the subtitles.
+    additionalProperties: true,
   },
 }
 
