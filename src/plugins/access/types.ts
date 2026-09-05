@@ -53,12 +53,8 @@ export type BypassPermissionFunction = (
 // ============================================================================
 
 /**
- * Generic authenticated user type for access checking
- * Works with any auth collection (managers, clients, or custom)
- *
- * Role structure is auto-detected:
- * - Array of RoleSlug = flat roles (e.g., clients)
- * - Object with locale keys = localized roles (e.g., managers)
+ * Generic authenticated user type for access checking.
+ * Works with any auth collection (managers, clients, or custom).
  */
 export type TypedAuthUser = TypedUser &
   Partial<Pick<Manager, 'currentProject' | 'type'>> &
