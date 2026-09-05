@@ -14,6 +14,8 @@
 import type { ContentSlug } from '../types'
 import type { CollectionSlug } from 'payload'
 
+import type { ProjectSlug } from '@/payload-types'
+
 // =============================================================================
 // Internal Configuration (NOT exported - use helper functions)
 // =============================================================================
@@ -252,10 +254,17 @@ export function getProjectOptions(): Array<{ value: InternalProjectSlug; label: 
  * the handler's `try` — so the caller got a 500 where the schema promises a
  * 400 (#671).
  *
+ * Narrows to the **generated** `ProjectSlug`, not the internal
+ * `keyof typeof PROJECTS`, so a caller holding the result can hand it
+ * straight to Payload without a cast, and no second name for one shape
+ * reaches the call sites (`src/types/AGENTS.md`). The two are pinned to each
+ * other by `is-valid-project.spec.ts`, so the day they diverge is a failing
+ * type-check rather than a silent widening here.
+ *
  * @param value - Value to validate
  * @returns True if value is a valid project slug or null
  */
-export function isValidProject(value: string | null): boolean {
+export function isValidProject(value: string | null): value is ProjectSlug | null {
   return value === null || Object.hasOwn(PROJECTS, value)
 }
 

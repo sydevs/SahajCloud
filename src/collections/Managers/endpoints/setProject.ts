@@ -3,19 +3,21 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { parseBody, requireActiveManager } from '@/lib/endpoints'
-import type { ProjectSlug } from '@/payload-types'
 import { isValidProject } from '@/plugins/access'
 
-const bodySchema = z
-  .object({
-    // `null` is the admin "All Content" view. A slug selects a project.
-    // `isValidProject` is the membership check, and `''` is not a member.
-    currentProject: z.string().nullable(),
-  })
-  .refine(({ currentProject }) => isValidProject(currentProject), {
-    message: 'Invalid project.',
-    path: ['currentProject'],
-  })
+const bodySchema = z.object({
+  // `null` is the admin "All Content" view. A slug selects a project.
+  // `isValidProject` is the membership check, and `''` is not a member.
+  //
+  // The refine sits on the FIELD, not the object, so its type predicate
+  // narrows `currentProject` to `ProjectSlug | null` in `parsed.data`. On the
+  // object it would only gate the parse, leaving the field `string | null`
+  // and the update needing a cast to say what the check already established.
+  currentProject: z
+    .string()
+    .nullable()
+    .refine(isValidProject, { message: 'Invalid project.' }),
+})
 
 /**
  * POST /api/managers/set-project
@@ -50,7 +52,7 @@ export const setProject: Endpoint = {
       const updated = await req.payload.update({
         collection: 'managers',
         id: managerId,
-        data: { currentProject: currentProject as ProjectSlug | null },
+        data: { currentProject },
         // Self-scoped: `id` is the caller's own document, so elevate past the
         // per-field access pipeline — that's the whole point of this endpoint.
         overrideAccess: true,

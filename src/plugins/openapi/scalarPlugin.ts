@@ -386,7 +386,7 @@ export const scalarPlugin =
             const urlParams = new URLSearchParams(queryString)
             const projectParam = urlParams.get('project')
             const project: ProjectSlug | null =
-              projectParam && isValidProject(projectParam) ? (projectParam as ProjectSlug) : null
+              projectParam && isValidProject(projectParam) ? projectParam : null
 
             // Generate the HTML, with branding and the project selector.
             const html = generateScalarHtml(fullSpecUrl, project, baseUrl)
