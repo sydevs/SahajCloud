@@ -14,6 +14,12 @@
  * is the reliable source. This script reads it with the built-in
  * GITHUB_TOKEN. It needs no Railway API token.
  *
+ * The description carries a host only while the base environment's
+ * `SahajCloud` service holds a Railway-provided domain. Railway gives a
+ * PR service a domain only when the base service has one, so removing it
+ * from `production` silently strips every future PR of its preview URL,
+ * leaving a bare `"Success"` (#661). See RAILWAY_RUNBOOK.md.
+ *
  * Env:
  *   GITHUB_TOKEN         - GitHub token (CI default), workflow needs `statuses: read`
  *   GITHUB_REPOSITORY    - "owner/repo" (CI default)
@@ -21,13 +27,25 @@
  *   STATUS_CONTEXT_MATCH - substring of the Railway status context (default "SahajCloud")
  *   HEALTH_PATH          - health endpoint (default "/api/health")
  *
- * This script skips gracefully, with an empty preview_url and exit 0,
- * when no Railway preview status appears. For example, a PR whose own
- * branch is a deployed environment, or a run with no token. It writes
- * `preview_url=<url>` to $GITHUB_OUTPUT and `PREVIEW_URL=<url>` to
- * $GITHUB_ENV.
+ * Three exit paths:
+ *
+ *   exit 0, url    - the deploy published a host and the preview answered
+ *                    HEALTH_PATH. Smoke runs.
+ *   exit 0, empty  - no Railway status within the timeout, a failed or
+ *                    cancelled deploy, or missing env. There is genuinely
+ *                    no preview to test, so the smoke lane skips and
+ *                    ci.yml's `::warning` says so.
+ *   exit 1         - the deploy succeeded but published NO host, or the
+ *                    preview never became healthy. Both are broken
+ *                    configuration rather than an absent preview, and
+ *                    must not read as green.
+ *
+ * It writes `preview_url=<url>` to $GITHUB_OUTPUT and `PREVIEW_URL=<url>`
+ * to $GITHUB_ENV.
  */
 import { appendFileSync } from 'node:fs'
+
+import { discoverPreview, type CommitStatus } from './railway-preview-status'
 
 const GH_TOKEN = process.env.GITHUB_TOKEN
 const REPO = process.env.GITHUB_REPOSITORY
@@ -38,15 +56,8 @@ const HEALTH_PATH = process.env.HEALTH_PATH || '/api/health'
 const DISCOVER_TIMEOUT_MS = 12 * 60_000 // Railway build and deploy is slow
 const HEALTH_TIMEOUT_MS = 5 * 60_000
 const POLL_INTERVAL_MS = 15_000
-const DOMAIN_RE = /([a-z0-9-]+\.(?:up\.)?railway\.app)/i
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
-
-interface CommitStatus {
-  context?: string
-  state?: string
-  description?: string
-}
 
 async function fetchStatuses(): Promise<CommitStatus[]> {
   const res = await fetch(
@@ -61,23 +72,6 @@ async function fetchStatuses(): Promise<CommitStatus[]> {
   )
   if (!res.ok) throw new Error(`GitHub statuses API: HTTP ${res.status}`)
   return (await res.json()) as CommitStatus[]
-}
-
-// GitHub returns statuses most-recent first. The first match per context is current.
-async function findRailwayStatus(): Promise<{
-  state: string
-  url: string | null
-  description: string
-} | null> {
-  const statuses = await fetchStatuses()
-  const match = statuses.find((s) => (s.context || '').includes(CONTEXT_MATCH))
-  if (!match) return null
-  const domain = (match.description || '').match(DOMAIN_RE)
-  return {
-    state: match.state || 'unknown',
-    url: domain ? `https://${domain[1]}` : null,
-    description: match.description || '',
-  }
 }
 
 async function waitHealthy(url: string): Promise<boolean> {
@@ -112,45 +106,50 @@ async function main(): Promise<void> {
     return
   }
 
-  const deadline = Date.now() + DISCOVER_TIMEOUT_MS
-  let url: string | null = null
-  while (Date.now() < deadline) {
-    let status = null
-    try {
-      status = await findRailwayStatus()
-    } catch (err) {
-      console.error(`status check: ${(err as Error).message}`)
-    }
-    if (status) {
-      console.error(`railway status: state=${status.state} desc="${status.description}"`)
-      if (status.state === 'success' && status.url) {
-        url = status.url
-        break
-      }
-      if (status.state === 'failure' || status.state === 'error') {
-        console.error('Railway preview deploy reported failure — skipping smoke.')
-        exportUrl('')
-        return
-      }
-    } else {
-      console.error('no Railway preview status on the PR head commit yet...')
-    }
-    await sleep(POLL_INTERVAL_MS)
+  const outcome = await discoverPreview({
+    fetchStatuses,
+    contextMatch: CONTEXT_MATCH,
+    timeoutMs: DISCOVER_TIMEOUT_MS,
+    pollIntervalMs: POLL_INTERVAL_MS,
+    sleep,
+    now: Date.now,
+    log: (message) => console.error(message),
+  })
+
+  if (outcome.kind === 'unpublished') {
+    // Fail closed. The deploy worked, so re-running changes nothing: the
+    // base environment's SahajCloud service is missing its
+    // Railway-provided domain, and PR services inherit domains only from
+    // a base service that has one.
+    console.error(
+      '::error title=Railway preview has no URL::The Railway deploy succeeded but published ' +
+        'no host, so the smoke lane has nothing to test. Add a Railway-provided domain to the ' +
+        "`SahajCloud` service in the `production` environment (target port 8080); PR " +
+        'environments inherit one only from a base service that has one. See RAILWAY_RUNBOOK.md.',
+    )
+    exportUrl('')
+    process.exit(1)
   }
 
-  if (!url) {
+  if (outcome.kind === 'failed') {
+    console.error('Railway preview deploy reported failure — skipping smoke.')
+    exportUrl('')
+    return
+  }
+
+  if (outcome.kind === 'timeout') {
     console.error('No Railway preview URL found within timeout — skipping smoke.')
     exportUrl('')
     return
   }
 
-  console.error(`preview URL: ${url}`)
-  if (!(await waitHealthy(url))) {
+  console.error(`preview URL: ${outcome.url}`)
+  if (!(await waitHealthy(outcome.url))) {
     console.error('Preview environment never became healthy.')
     process.exit(1)
   }
-  exportUrl(url)
-  console.log(url)
+  exportUrl(outcome.url)
+  console.log(outcome.url)
 }
 
 main().catch((err) => {

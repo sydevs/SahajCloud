@@ -386,8 +386,9 @@ database.
 > issued real requests. If a future spec needs a page, install the browser
 > in that spec's own job rather than the shared one.
 
-CI points `PREVIEW_URL` at the per-PR **Railway preview** (discovered via
-the Railway API) and runs `pnpm test:smoke`. Locally it falls back to
+CI points `PREVIEW_URL` at the per-PR **Railway preview** (discovered from
+Railway's **GitHub commit status** by `scripts/get-railway-preview-url.ts`,
+which needs no Railway API token) and runs `pnpm test:smoke`. Locally it falls back to
 `http://localhost:3000` (the dev-server skill). Config:
 `playwright.config.ts` (`testDir: ./tests/e2e`, `testMatch:
 **/*.e2e.spec.ts`, `retries: 2` in CI).
@@ -409,6 +410,14 @@ can mean smoke never ran. CI now emits a `::warning` in that case. Read it
 before trusting the check. Discovery budgets up to 12 min for the deploy
 plus 5 min for health, so a slow Railway build can consume most of the job
 on its own.
+
+**A deploy that publishes no URL fails the job instead** (#661). Railway
+can report `success` while the service has no domain, and that is broken
+configuration, not an absent preview — so it must not skip quietly. The
+script exits non-zero on the first such poll, and CI fails. Fix it on the
+base environment, not the PR: `RAILWAY_RUNBOOK.md`. Discovery also returns
+as soon as the status is terminal, so a healthy PR costs seconds, and only
+a genuinely absent status still spends the full budget.
 
 Records are namespaced by `runId()` (`SMOKE_RUN_ID` in CI), since runs
 share the preview's cloned-prod data.
