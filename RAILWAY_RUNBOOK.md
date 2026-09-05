@@ -220,8 +220,26 @@ runs `pnpm test:smoke` against it. The smoke step skips gracefully, and the job 
 no preview is discovered — treat a skip as "unit and integration passed," not "smoke passed."
 
 Setting up a new PR-preview service the first time: **Project Canvas → + New → GitHub Repo**,
-same `railway.toml` and Railpack builder as production. Railway assigns each PR its own preview
-URL automatically once the service exists — no manual per-PR configuration is needed.
+same `railway.toml` and Railpack builder as production.
+
+### ⚠ PR previews inherit their domain from production
+
+**The `SahajCloud` service in the `production` environment must keep a Railway-provided
+`*.up.railway.app` domain, on target port 8080, alongside the custom `cloud.sydevelopers.com`.**
+Railway's rule: a service in a PR environment receives a domain automatically *only* when the
+corresponding base-environment service has a Railway-provided one. Remove it from production and
+every future PR environment silently gets none.
+
+That happened, and it cost the smoke lane weeks of PRs (#661). The symptoms, none of them loud:
+
+- The Railway commit status reads a bare `Success`, with no host after it.
+- The `railway-app` bot comment's **Web** column is empty for `SahajCloud`.
+- `Run smoke specs against the Railway preview` reports `skipped`, and the job stays green.
+
+`scripts/get-railway-preview-url.ts` now **fails the job** on that exact shape, with an `::error`
+naming this section, so the next occurrence is visible on the first PR rather than after weeks.
+Re-running will not help — fix the domain on production. Existing PR environments do not backfill,
+so only PRs opened after the fix get a URL.
 
 ---
 
