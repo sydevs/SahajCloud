@@ -21,6 +21,26 @@ export interface CommitStatus {
   description?: string
 }
 
+/**
+ * A `fetchStatuses` rejection that carries GitHub's HTTP status.
+ *
+ * Without it every non-ok response collapses into one opaque `Error`, so a
+ * permanent 401/403 is indistinguishable from a retryable 502 and costs the
+ * full budget before anyone finds out.
+ */
+export class StatusFetchError extends Error {
+  readonly status?: number
+
+  constructor(message: string, status?: number) {
+    super(message)
+    this.name = 'StatusFetchError'
+    this.status = status
+  }
+}
+
+/** GitHub will not change its mind about these within one CI run. */
+const PERMANENT_STATUSES = new Set([401, 403])
+
 /** A Railway status that has stopped changing, or one that has not started. */
 export type PreviewStatus =
   | { kind: 'absent' }
@@ -32,6 +52,7 @@ export type PreviewStatus =
 /** Terminal outcome of a discovery run. `timeout` carries what it last saw. */
 export type PreviewOutcome =
   | Exclude<PreviewStatus, { kind: 'absent' } | { kind: 'pending' }>
+  | { kind: 'forbidden'; status: number; message: string }
   | { kind: 'timeout'; last: PreviewStatus; elapsedMs: number; reads: number; errors: number }
 
 const DOMAIN_RE = /([a-z0-9-]+\.(?:up\.)?railway\.app)/i
@@ -86,9 +107,19 @@ export interface DiscoverDeps {
  * the alternative, and immediate was chosen. Revisit if a Railway deploy
  * is ever seen publishing its host in a second status.
  *
+ * Two things bound the risk of that choice, and both are observations
+ * rather than arguments. The evidence for `unpublished` is settled-state
+ * only — #699 posted a bare `Success`, #700 posted one with a host — so
+ * nobody has watched a pending→success transition attach a host late.
+ * Against that: discovery starts about six minutes into the job, behind
+ * lint, both typechecks and `pnpm test`, so any status it reads is already
+ * minutes old. The window where a late second status could redden a
+ * healthy PR is much narrower than the 15s poll interval suggests.
+ *
  * A throwing fetch is logged and retried, and counted: polls that all fail
- * are not evidence that no preview exists. Only the deadline yields
- * `timeout`.
+ * are not evidence that no preview exists. A 401 or 403 is the exception —
+ * GitHub will not relent inside one run, so it returns `forbidden` at once
+ * instead of spending the budget. Only the deadline yields `timeout`.
  */
 export async function discoverPreview(deps: DiscoverDeps): Promise<PreviewOutcome> {
   const { fetchStatuses, contextMatch, timeoutMs, pollIntervalMs, sleep, now, log } = deps
@@ -105,7 +136,14 @@ export async function discoverPreview(deps: DiscoverDeps): Promise<PreviewOutcom
       reads++
     } catch (err) {
       errors++
-      log(`status check: ${(err as Error).message}`)
+      const message = (err as Error).message
+      log(`status check: ${message}`)
+      // Read the status structurally, so a plain `{ status }` rejection
+      // works as well as a StatusFetchError across module boundaries.
+      const status = (err as { status?: unknown }).status
+      if (typeof status === 'number' && PERMANENT_STATUSES.has(status)) {
+        return { kind: 'forbidden', status, message }
+      }
     }
 
     if (statuses) {

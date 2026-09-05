@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   classifyStatuses,
   discoverPreview,
+  StatusFetchError,
   type CommitStatus,
   type PreviewStatus,
 } from '../../scripts/railway-preview-status'
@@ -15,9 +16,10 @@ import {
  * read green while the Tier-3 lane had not run on any PR for weeks.
  *
  * Fixture assumption: Railway posts context `"sahajcloud - SahajCloud"`
- * with either `"Success - <host>.up.railway.app"` or a bare `"Success"`.
- * Verified against the live commit statuses on PR #700 (host present)
- * and PR #699 (bare `Success`), via the GitHub statuses API.
+ * — `<project> - <service>` — with either
+ * `"Success - <host>.up.railway.app"` or a bare `"Success"`. Verified
+ * against the live commit statuses on PR #700 (host present) and PR #699
+ * (bare `Success`), via the GitHub statuses API.
  */
 
 const READY: CommitStatus = {
@@ -40,8 +42,15 @@ const FAILED: CommitStatus = {
   state: 'error',
   description: 'Deployment cancelled',
 }
+// Railway's context is `<project> - <service>`, so a sibling service on the
+// same project shares the project half. `mailpit - Mailpit` was never a
+// shape Railway posts, so the old fixture asserted against a string that
+// could not occur. With the real shape, the discrimination rests on
+// `includes` being case-sensitive: the project slug is `sahajcloud`, the
+// service is `SahajCloud`. That is load-bearing — a case-insensitive match
+// here would claim a sibling service's host as the preview.
 const OTHER: CommitStatus = {
-  context: 'mailpit - Mailpit',
+  context: 'sahajcloud - Mailpit',
   state: 'success',
   description: 'Success - mailpit-production-db88.up.railway.app',
 }
@@ -158,16 +167,40 @@ describe('discoverPreview', () => {
   })
 
   it('separates "every read failed" from "no status appeared"', () => {
-    // A revoked `statuses: read` scope must not read as an absent preview —
-    // that is #661's silent green through another door. `reads: 0` is what
-    // lets the caller tell the two apart.
-    const h = harness([new Error('GitHub statuses API: HTTP 403')], 45_000)
+    // Polls that all fail are not evidence that no preview exists.
+    // `reads: 0` is what lets the caller tell the two apart, so it can say
+    // "unknown" rather than "absent". A statusless error stays retryable.
+    const h = harness([new Error('GitHub statuses API: HTTP 502')], 45_000)
     return expect(h.run()).resolves.toMatchObject({
       kind: 'timeout',
       reads: 0,
       errors: 3,
       last: { kind: 'absent' },
     })
+  })
+
+  it.each([401, 403])('returns forbidden on HTTP %i, without sleeping', async (status) => {
+    // A revoked `statuses: read` scope must not read as an absent preview —
+    // that is #661's silent green through another door. GitHub will not
+    // relent inside one run, so spending the full budget first buys
+    // nothing and delays a red run by 12 minutes.
+    const h = harness([new StatusFetchError(`GitHub statuses API: HTTP ${status}`, status)])
+    await expect(h.run()).resolves.toEqual({
+      kind: 'forbidden',
+      status,
+      message: `GitHub statuses API: HTTP ${status}`,
+    })
+    expect(h.fetchStatuses).toHaveBeenCalledTimes(1)
+    expect(h.sleep).not.toHaveBeenCalled()
+  })
+
+  it('keeps retrying a transient status, so an incident does not fail the run', async () => {
+    // The set is deliberately narrow: only what GitHub will still refuse on
+    // the next poll is terminal. A 502 or a rate-limit spell must not turn
+    // every open PR red.
+    const h = harness([new StatusFetchError('GitHub statuses API: HTTP 502', 502), [READY]])
+    expect((await h.run()).kind).toBe('ready')
+    expect(h.fetchStatuses).toHaveBeenCalledTimes(2)
   })
 
   it('never sleeps past the deadline, so the budget is not overrun', async () => {
