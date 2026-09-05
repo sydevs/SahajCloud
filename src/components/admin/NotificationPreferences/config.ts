@@ -7,6 +7,7 @@
  * change. The helpers are pure (no React, no Payload) so they can be reused
  * by the field's `defaultValue`/`validate` and unit-tested directly.
  */
+import type { JSONSchema4 } from 'json-schema'
 
 export const NEVER_FREQUENCY = 'Never'
 export const DEFAULT_NOTIFICATION_METHOD = 'email'
@@ -25,6 +26,9 @@ export interface NotificationPreference {
 
 /** Stored JSON shape: `{ [key]: { frequency, method } }`. */
 export type NotificationPreferencesValue = Record<string, NotificationPreference>
+
+export const NOTIFICATION_PREFERENCES_SCHEMA_URI =
+  'https://sahajcloud.dev/schemas/notification-preferences.json'
 
 export const NOTIFICATION_TYPES: NotificationType[] = [
   {
@@ -109,8 +113,44 @@ export function buildDefaultNotificationPreferences(
 }
 
 /**
+ * The stored shape, derived from `NOTIFICATION_TYPES` so a new notification
+ * type cannot leave the schema behind. Wired onto `Managers.notificationPreferences`
+ * as its `jsonSchema`, which both generates the TypeScript type and rejects a
+ * key no notification type claims.
+ *
+ * Neither inner key is required. `buildDefaultNotificationPreferences` writes
+ * both, but Payload validates this column on every save of a manager, and a row
+ * seeded before a key existed must stay saveable. The frequency is checked as a
+ * string rather than against `frequencyOptions` for the same reason — dropping
+ * an option would otherwise strand every manager still on it.
+ */
+export const notificationPreferencesJsonSchema: JSONSchema4 = {
+  $id: NOTIFICATION_PREFERENCES_SCHEMA_URI,
+  title: 'NotificationPreferences',
+  type: 'object',
+  additionalProperties: false,
+  properties: Object.fromEntries(
+    NOTIFICATION_TYPES.map((type) => [
+      type.key,
+      {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          frequency: { type: 'string', description: type.frequencyOptions.join(' | ') },
+          method: { type: 'string' },
+        },
+      },
+    ]),
+  ),
+}
+
+/**
  * Every configured preference requires a delivery method unless its frequency
  * is "Never". Returns an error message naming the offending types, or `true`.
+ *
+ * This is a cross-key rule the JSON Schema cannot state, so it stays a custom
+ * `validate` — composed with the built-in one at the call site, never replacing
+ * it (see `Managers.notificationPreferences`).
  */
 export function validateNotificationPreferences(
   value: unknown,

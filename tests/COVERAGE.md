@@ -30,7 +30,7 @@ content collection.
 | `meditations`         | `filterMeditationsByLocale` beforeOperation, `extractAudioDuration` beforeChange, `durationMinutes` virtual, weight invalidation          | `meditations`, `meditation-duration`, `meditation-lectures`    |
 | `pages`               | `webUrl` virtual, Lexical block relationship depth, stale-content stripping                                                               | `pages`                                                        |
 | `songs`               | `autoSetIncludeForMeditationsOnCreate` beforeChange                                                                                       | `meditations` (via `includeForMeditations` behavior)           |
-| `videos`              | `previewUrl` virtual, `validateSubtitles` validator                                                                                       | `videos`                                                       |
+| `videos`              | `previewUrl` virtual, `subtitles` + `fileMetadata` JSON-Schema validation                                                                 | `videos`, unit: `json-field-schemas`                           |
 | `authors`             | Reachability only                                                                                                                         | `collections-smoke`                                            |
 | `images`              | `detectOrientationHook` beforeChange (auto-tags landscape/portrait/square)                                                                | `image-orientation`                                            |
 | `lectures`            | `populateFromNirmalaVidya` beforeChange, clip ↔ parent linking, subtitle language normalization, custom validators                        | `lectures`, `sync-lecture-metadata`, `meditation-lectures`     |
@@ -93,6 +93,8 @@ content collection.
 | A pre-existing blank region slug survives the nested-docs cascade. A deliberate blank is still refused         | `region-blank-slug-cascade` |
 | RBAC (`hasPermission`, `hasAnyPermission`, document-level manager access, locale roles, translator scopes)     | `role-based-access`         |
 | What a REST error body discloses under `config.debug` on/off, and `databaseErrorPlugin`'s 400 surviving both   | `error-disclosure`, `error-disclosure-debug` |
+| JSON columns declare a `jsonSchema` on the real field config, and a custom `validate` composes the built-in one rather than replacing it (#659) | unit: `json-field-schemas.spec.ts` |
+| The subtitles Zod parser and JSON Schema agree on one fixture set, and part company only where the importer strips  | unit: `subtitles.spec.ts` |
 
 ## Gaps
 

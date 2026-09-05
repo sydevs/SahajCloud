@@ -1,50 +1,76 @@
+import { json as jsonFieldValidation } from 'payload/shared'
 import { describe, expect, it } from 'vitest'
 
-import { parseSubtitles } from '@/lib/utilities/subtitles'
+import { subtitlesFieldSchema, subtitlesZodSchema } from '@/lib/utilities/subtitles'
 
-describe('parseSubtitles', () => {
-  const validSubtitles = [
-    { startTimeMs: 0, endTimeMs: 1500, durationMs: 1500, content: 'Hello' },
-    { startTimeMs: 1500, endTimeMs: 3500, content: 'World' },
-  ]
+/**
+ * The Zod schema and the JSON Schema describe the same cues for two different
+ * consumers: Zod parses a third-party payload in the Storyblok importer, the
+ * JSON Schema is what Payload validates and types the column with.
+ *
+ * Nothing forces them to agree, so this pins them against one fixture set in
+ * both directions. It replaces the `parseSubtitles` cases, which asserted the
+ * Zod half twice — once directly, once as the field validator it no longer is.
+ * `tests/unit/json-field-schemas.spec.ts` covers the field side.
+ */
+const req = { t: (key: string) => key } as never
 
-  it('accepts well-formed subtitles', () => {
-    expect(parseSubtitles(validSubtitles)).toBe(true)
+const acceptedByJsonSchema = (value: unknown): boolean =>
+  jsonFieldValidation(value as never, {
+    jsonSchema: subtitlesFieldSchema,
+    req,
+    required: false,
+  } as never) === true
+
+const accepted: unknown[] = [
+  [{ startTimeMs: 0, endTimeMs: 1500, durationMs: 1500, content: 'Hello' }],
+  [
+    { startTimeMs: 0, endTimeMs: 1500, content: 'Hello' },
+    { startTimeMs: 1500, endTimeMs: 3500, durationMs: 2000, content: 'World' },
+  ],
+]
+
+const rejected: unknown[] = [
+  'a string',
+  42,
+  { subtitles: 'not-an-array' },
+  [{ startTimeMs: 0, content: 'no endTimeMs' }],
+  [{ startTimeMs: '0', endTimeMs: 1000, content: 'wrong type' }],
+]
+
+describe('the subtitles schemas agree', () => {
+  it.each(accepted.map((value, i) => [i, value]))('both accept fixture %i', (_i, value) => {
+    expect(subtitlesZodSchema.safeParse(value).success).toBe(true)
+    expect(acceptedByJsonSchema(value)).toBe(true)
   })
 
-  it('treats undefined / null / empty object / empty array as valid (field is optional)', () => {
-    expect(parseSubtitles(undefined)).toBe(true)
-    expect(parseSubtitles(null)).toBe(true)
-    expect(parseSubtitles({})).toBe(true)
-    expect(parseSubtitles([])).toBe(true)
+  it.each(rejected.map((value, i) => [i, value]))('both reject fixture %i', (_i, value) => {
+    expect(subtitlesZodSchema.safeParse(value).success).toBe(false)
+    expect(acceptedByJsonSchema(value)).toBe(false)
   })
 
-  it('rejects top-level objects', () => {
-    const result = parseSubtitles({ notSubtitles: [] })
-    expect(typeof result).toBe('string')
-    expect(result as string).toMatch(/array/i)
+  it('strips an unknown key in Zod, and refuses one at the column', () => {
+    // Not drift. The importer writes `safeParse(...).data`, which Zod has
+    // already stripped, so the value reaching the column never carries the
+    // extra key that `additionalProperties: false` would refuse
+    // (`seeds/storyblok/import.ts` — `parseSubtitles` returns `result.data`).
+    const withExtra = [{ startTimeMs: 0, endTimeMs: 1000, content: 'ok', speaker: 'extra' }]
+    const parsed = subtitlesZodSchema.safeParse(withExtra)
+    expect(parsed.success).toBe(true)
+    expect(parsed.success && parsed.data[0]).not.toHaveProperty('speaker')
+    expect(acceptedByJsonSchema(withExtra)).toBe(false)
+    expect(acceptedByJsonSchema(parsed.success ? parsed.data : null)).toBe(true)
   })
 
-  it('rejects when a subtitle is missing a required field', () => {
-    const result = parseSubtitles([{ startTimeMs: 0, content: 'no endTimeMs' }])
-    expect(typeof result).toBe('string')
-    expect(result as string).toContain('endTimeMs')
-  })
-
-  it('rejects when a subtitle field has the wrong type', () => {
-    const result = parseSubtitles([{ startTimeMs: '0', endTimeMs: 1000, content: 'oops' }])
-    expect(typeof result).toBe('string')
-    expect(result as string).toMatch(/0\.startTimeMs/)
-  })
-
-  it('rejects when the top-level value is not an array', () => {
-    const result = parseSubtitles({ subtitles: 'not-an-array' })
-    expect(typeof result).toBe('string')
-    expect(result as string).toMatch(/array/i)
-  })
-
-  it('rejects top-level non-array values', () => {
-    expect(typeof parseSubtitles('a string')).toBe('string')
-    expect(typeof parseSubtitles(42)).toBe('string')
+  it('diverges only on empty values, which the column allows either way', () => {
+    // Payload skips `null`, `undefined`, `{}` and `[]` before reaching Ajv, so
+    // an optional column accepts all four. Zod sees them as data and rejects
+    // the two that are not arrays — which is correct for the importer, whose
+    // input is a response body rather than a possibly-absent column.
+    for (const empty of [null, undefined, {}, []]) {
+      expect(acceptedByJsonSchema(empty)).toBe(true)
+    }
+    expect(subtitlesZodSchema.safeParse([]).success).toBe(true)
+    expect(subtitlesZodSchema.safeParse({}).success).toBe(false)
   })
 })

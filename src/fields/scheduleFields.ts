@@ -514,6 +514,11 @@ function buildVirtualFields(): Field[] {
       },
     },
     {
+      // Virtual: produced by the hook below and never written, so a schema has
+      // nothing to validate. The shape is already typed at its source
+      // (`computeUpcomingDates` in `@/lib/schedule/scheduleHooks`) —
+      // declaring it again would be a second definition to keep in step,
+      // which is the drift #659 set out to remove.
       name: 'upcomingDates',
       type: 'json',
       virtual: true,

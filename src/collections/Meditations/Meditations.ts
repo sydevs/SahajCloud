@@ -1,10 +1,14 @@
-import type { CollectionConfig, JSONField, Validate } from 'payload'
+import type { CollectionConfig, JSONField, JSONFieldValidation, Validate } from 'payload'
+
+import { json as jsonFieldValidation } from 'payload/shared'
 
 import { hideUntilCreated, mediaField } from '@/fields'
 import { LOCALES } from '@/lib/locales'
 import {
   getFrameDiagnosticsLogContext,
   hasFrameNormalizationIssues,
+  meditationFramesFieldSchema,
+  meditationNodeWeightsFieldSchema,
   normalizeMeditationFrames,
   normalizeMeditationFramesForStorage,
 } from '@/lib/meditations/frames'
@@ -36,6 +40,11 @@ import { recomputeMeditationNodeWeights } from './hooks/recomputeMeditationNodeW
  *   { type: 'join', collection: 'user-choices', on: '<onField>' }
  */
 const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField => ({
+  // Virtual: produced by the hook below and never written, so a schema has
+  // nothing to validate. The shape is already typed at its source
+  // (the `{ id, title }[]` this factory's hook returns) — declaring it
+  // again would be a second definition to keep in step, which is the drift
+  // #659 set out to remove.
   name,
   type: 'json',
   virtual: true,
@@ -230,6 +239,7 @@ export const Meditations: CollectionConfig = {
               // and cascaded from Frames via `cascadeFrameNodeChange`.
               name: 'subtleSystemNodeWeights',
               type: 'json',
+              jsonSchema: meditationNodeWeightsFieldSchema,
               admin: {
                 readOnly: true,
                 hidden: true,
@@ -356,6 +366,7 @@ export const Meditations: CollectionConfig = {
                     {
                       name: 'frames',
                       type: 'json',
+                      jsonSchema: meditationFramesFieldSchema,
                       admin: {
                         // afterRead runs a frames query per row to enrich keyframes.
                         disableListColumn: true,
@@ -364,7 +375,14 @@ export const Meditations: CollectionConfig = {
                           Field: '@/components/admin/FrameEditor/FrameListManager',
                         },
                       },
+                      // Supplying `validate` REPLACES the built-in one, which is
+                      // what runs `jsonSchema` above — so compose it rather
+                      // than shadow it. "At least one frame" is a rule the
+                      // schema cannot state: it holds only on update, and it
+                      // counts the frames that survive normalization.
                       validate: ((value, options) => {
+                        const shape = jsonFieldValidation(value, options)
+                        if (shape !== true) return shape
                         // Only required during update (not on create)
                         const isUpdate = options.operation === 'update' || !!options.id
                         const valueToValidate = value === undefined ? options.previousValue : value
@@ -373,7 +391,7 @@ export const Meditations: CollectionConfig = {
                           return 'At least one frame is required'
                         }
                         return true
-                      }) as Validate,
+                      }) as JSONFieldValidation,
                       hooks: {
                         beforeChange: [
                           async ({ data, operation, req, value }) => {

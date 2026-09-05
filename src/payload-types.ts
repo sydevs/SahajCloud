@@ -6,6 +6,12 @@
  * and re-run `payload generate:types` to regenerate this file.
  */
 
+export type Subtitles = {
+  content: string;
+  startTimeMs: number;
+  endTimeMs: number;
+  durationMs?: number;
+}[];
 /**
  * Supported timezones in IANA format.
  *
@@ -594,6 +600,24 @@ export type SupportedTimezones =
   | 'Etc/GMT+10'
   | 'Etc/GMT+11'
   | 'Etc/GMT+12';
+export type MeditationFrames = {
+  /**
+   * The Frame document id.
+   */
+  id: number | string;
+  /**
+   * Seconds into the meditation.
+   */
+  timestamp: number;
+  [k: string]: unknown;
+}[];
+export type SyncLectureMetadataIds = number[];
+export type TableOfContentsHeadings = {
+  slug: string;
+  text: string;
+  level: number;
+  [k: string]: unknown;
+}[];
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "ProjectSlug".
@@ -968,15 +992,7 @@ export interface Image {
         | 'app-card'
       )[]
     | null;
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  fileMetadata?: FileMetadata;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -989,6 +1005,13 @@ export interface Image {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+export interface FileMetadata {
+  /**
+   * The filename as uploaded, before the adapter replaced it with a provider id.
+   */
+  originalFilename?: string;
+  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1047,25 +1070,9 @@ export interface Video {
    * Video title shown to users
    */
   title: string;
-  subtitles?: {
-    content: string;
-    startTimeMs: number;
-    endTimeMs: number;
-    durationMs?: number;
-  }[];
+  subtitles?: Subtitles;
   tags: 'testimonial' | 'workshop' | 'event' | 'technique';
-  /**
-   * Auto-populated video metadata (duration, format, etc.)
-   */
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  fileMetadata?: FileMetadata1;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1077,6 +1084,13 @@ export interface Video {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+export interface FileMetadata1 {
+  /**
+   * The filename as uploaded, before the adapter replaced it with a provider id.
+   */
+  originalFilename?: string;
+  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1325,18 +1339,7 @@ export interface Manager {
         id?: string | null;
       }[]
     | null;
-  /**
-   * Choose how and how often to receive each kind of notification.
-   */
-  notificationPreferences?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  notificationPreferences?: NotificationPreferences;
   lastRegistrationDigestSentAt?: string | null;
   legacyId?: number | null;
   legacyData?:
@@ -2373,6 +2376,36 @@ export interface HttpsSahajcloudDevSchemasEventSystemMetaJson {
     updatedAt?: string;
   };
 }
+export interface NotificationPreferences {
+  new_responsibility?: {
+    /**
+     * Immediate | Never
+     */
+    frequency?: string;
+    method?: string;
+  };
+  event_verification?: {
+    /**
+     * Monthly | 3 Months | 6 Months
+     */
+    frequency?: string;
+    method?: string;
+  };
+  event_registration?: {
+    /**
+     * Immediate | Daily Summary | Weekly Summary | Never
+     */
+    frequency?: string;
+    method?: string;
+  };
+  regional_summary?: {
+    /**
+     * Monthly | Never
+     */
+    frequency?: string;
+    method?: string;
+  };
+}
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "meditations".
@@ -2409,15 +2442,7 @@ export interface Meditation {
    */
   songTag?: (number | null) | SongTag;
   duration?: number | null;
-  subtleSystemNodeWeights?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  subtleSystemNodeWeights?: MeditationNodeWeights;
   durationMinutes?: number | null;
   /**
    * Optional auto-generated fallback title (e.g. Meditation for Anahat), derived from this meditation's dominant subtle-system node. Front-end clients use it only when they have no composed label of their own.
@@ -2466,15 +2491,7 @@ export interface Meditation {
       | boolean
       | null;
   };
-  frames?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  frames?: MeditationFrames;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -2551,15 +2568,7 @@ export interface Song {
    * Include this song in random selection in meditations. Auto-set to false on creation when the song has the vocals tag, then manually editable.
    */
   includeForMeditations?: boolean | null;
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  fileMetadata?: FileMetadata2;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -2598,6 +2607,16 @@ export interface Album {
   createdAt: string;
   deletedAt?: string | null;
 }
+export interface FileMetadata2 {
+  /**
+   * The filename as uploaded, before the adapter replaced it with a provider id.
+   */
+  originalFilename?: string;
+  [k: string]: unknown;
+}
+export interface MeditationNodeWeights {
+  [k: string]: number;
+}
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lessons".
@@ -2615,12 +2634,7 @@ export interface Lesson {
      * Image or video for this panel.
      */
     media?: (number | null) | File;
-    subtitles?: {
-      content: string;
-      startTimeMs: number;
-      endTimeMs: number;
-      durationMs?: number;
-    }[];
+    subtitles?: Subtitles;
     id?: string | null;
   }[];
   /**
@@ -2647,12 +2661,7 @@ export interface Lesson {
    * Audio introduction to this lesson.
    */
   introAudio?: (number | null) | File;
-  introSubtitles?: {
-    content: string;
-    startTimeMs: number;
-    endTimeMs: number;
-    durationMs?: number;
-  }[];
+  introSubtitles?: Subtitles;
   article?: {
     root: {
       type: string;
@@ -2758,18 +2767,7 @@ export interface Lecture {
         id?: string | null;
       }[]
     | null;
-  /**
-   * Auto-populated from Nirmala Vidya API and updated monthly.
-   */
-  metadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  metadata?: LectureMetadata;
   /**
    * The full lecture this clip is excerpted from. Required for clips (alternatively, supply a Vimeo URL during create to look up or create the parent automatically).
    */
@@ -2797,6 +2795,37 @@ export interface Lecture {
   };
   updatedAt: string;
   createdAt: string;
+}
+export interface LectureMetadata {
+  title?: string;
+  thumbnailUrl?: string | null;
+  hlsUrl?: string;
+  /**
+   * Subtitle track URL per CMS locale, from the NV API language codes.
+   */
+  subtitles?: {
+    en?: string;
+    es?: string;
+    de?: string;
+    it?: string;
+    fr?: string;
+    ru?: string;
+    ro?: string;
+    cs?: string;
+    uk?: string;
+    el?: string;
+    hy?: string;
+    pl?: string;
+    'pt-BR'?: string;
+    fa?: string;
+    bg?: string;
+    tr?: string;
+    'en-AU'?: string;
+    hu?: string;
+    nl?: string;
+  };
+  duration?: number | null;
+  lastSyncedAt?: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3507,15 +3536,7 @@ export interface Frame {
       )[]
     | null;
   duration?: number | null;
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  fileMetadata?: FileMetadata3;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -3527,6 +3548,13 @@ export interface Frame {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+export interface FileMetadata3 {
+  /**
+   * The filename as uploaded, before the adapter replaced it with a provider id.
+   */
+  originalFilename?: string;
+  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -6733,15 +6761,7 @@ export interface CollectionsWidget {
  */
 export interface TaskCleanupOrphanedMedia {
   input: {
-    testDateRange?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
+    testDateRange?: CleanupTestDateRange;
     maxOperations?: number | null;
   };
   output: {
@@ -6752,6 +6772,10 @@ export interface TaskCleanupOrphanedMedia {
     skippedImages: number;
     errors: number;
   };
+}
+export interface CleanupTestDateRange {
+  rangeStart: string;
+  rangeEnd: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -6849,15 +6873,7 @@ export interface TaskSendSessionReminders {
  */
 export interface TaskSyncLectureMetadata {
   input: {
-    lectureIds?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
+    lectureIds?: SyncLectureMetadataIds;
   };
   output: {
     totalProcessed: number;
@@ -7050,18 +7066,7 @@ export interface TableOfContentsBlock {
    * Optional heading displayed above the list (e.g. "In this article")
    */
   title?: string | null;
-  /**
-   * Select headings above to include in the table of contents
-   */
-  headings?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  headings?: TableOfContentsHeadings;
   id?: string | null;
   blockName?: string | null;
   blockType: 'table-of-contents';
