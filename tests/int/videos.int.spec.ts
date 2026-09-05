@@ -60,7 +60,7 @@ describe('Videos Collection — custom behavior', () => {
 
     it('rejects malformed subtitles via the field validator', async () => {
       // Guards against a future regression where someone removes
-      // `validate: validateSubtitles` from the field config — the unit
+      // `jsonSchema: subtitlesFieldSchema` from the field config — the unit
       // suite would still pass, but the wiring would be silently broken.
       await expect(
         testData.createVideo(payload, {

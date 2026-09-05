@@ -4,7 +4,7 @@ import type { JSONField } from 'payload'
 import type { NirmalaVidyaVideoData } from '@/lib/lectures/nirmalaVidyaApi'
 import type { LocaleCode } from '@/lib/locales'
 import { isValidLocale } from '@/lib/locales'
-import type { Lecture } from '@/payload-types'
+import type { LectureMetadata } from '@/payload-types'
 
 // =============================================================================
 // Language Code Mapping
@@ -84,14 +84,11 @@ export const lectureMetadataFieldSchema: JSONField['jsonSchema'] = {
 }
 
 /**
- * The stored shape, taken from the generated types rather than restated here.
- * `lectureMetadataJsonSchema` above is what produces it.
- */
-export type LectureMetadata = NonNullable<Lecture['metadata']>
-
-/**
  * Build a LectureMetadata object from an NV API response. Used by both the
  * create-time beforeChange hook and the monthly SyncLectureMetadata task.
+ *
+ * `LectureMetadata` is the interface `lectureMetadataJsonSchema` above
+ * generates — imported from `@/payload-types`, not restated here.
  */
 export function buildLectureMetadata(videoData: NirmalaVidyaVideoData): LectureMetadata {
   const subtitles: Partial<Record<LocaleCode, string>> = {}

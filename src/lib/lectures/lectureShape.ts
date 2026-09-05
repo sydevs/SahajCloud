@@ -1,8 +1,8 @@
 import type { PayloadLogger } from 'payload'
 
-import type { LectureMetadata } from '@/lib/lectures/nirmalaVidya'
+
 import { resolveThumbnailUrl } from '@/lib/utilities/thumbnailUrl'
-import type { Lecture, LecturesSelect } from '@/payload-types'
+import type { Lecture, LectureMetadata, LecturesSelect } from '@/payload-types'
 
 /**
  * Bounded include-mode `select` covering exactly the fields the feed/player
