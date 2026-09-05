@@ -7,26 +7,26 @@ paths:
 
 # Role-Based Access Control
 
-The CMS uses a unified RBAC system via the `accessPlugin`. The plugin
-automatically applies access control to every collection — collections do
-**not** need manual `access` config. It also applies `admin.hidden` for
-project visibility and field-level access for localized fields.
+The `accessPlugin` gives every collection access control automatically. A collection needs no manual `access` config. The plugin also sets `admin.hidden` for project visibility and field-level access for localized fields.
 
 ## Architecture
 
-- **Static permission checking** (no factory pattern)
-- **O(1) lookup tables** built once at module load
-- **Bypass logic** in `src/plugins/access/bypassPermissions.ts`
+- Static permission checking, no factory pattern.
+- O(1) lookup tables, built once at module load.
+- Bypass logic in `src/plugins/access/bypassPermissions.ts`.
 
-### Configuration files (single source of truth)
-
-| File                                  | Purpose                                  |
-| ------------------------------------- | ---------------------------------------- |
-| `src/plugins/access/config/projects.ts`   | Project config + lookup tables + helpers |
-| `src/plugins/access/config/roles.ts`      | Role config + lookup tables + helpers    |
-| `src/plugins/access/config/index.ts`      | Barrel export                            |
-| `src/plugins/access/bypassPermissions.ts` | Shared bypass function                   |
-| `src/payload.config.ts`               | Plugin registration                      |
+| File | Purpose |
+| --- | --- |
+| `config/projects.ts` | Project config, lookup tables, helpers |
+| `config/roles.ts` | Role config, lookup tables, helpers |
+| `config/index.ts` | Barrel export |
+| `bypassPermissions.ts` | Shared bypass function |
+| `accessPlugin.ts` | Main orchestration |
+| `permissions.ts` | `hasPermission`, `hasAnyPermission` |
+| `accessConfigs.ts` | Access configuration factories |
+| `fieldAccess.ts` | Field-level access for translatable collections |
+| `visibility.ts` | Admin UI visibility (`createHidden`) |
+| `filterAvailableLocales.ts` | Admin locale-selector filtering |
 
 ```typescript
 import { accessPlugin, bypassPermissions } from '@/plugins/access'
@@ -34,249 +34,119 @@ import { accessPlugin, bypassPermissions } from '@/plugins/access'
 plugins: [accessPlugin({ enabled: true, bypassPermissions })]
 ```
 
-### Plugin implementation
-
-| File                        | Purpose                                         |
-| --------------------------- | ----------------------------------------------- |
-| `accessPlugin.ts`           | Main orchestration                              |
-| `permissions.ts`            | `hasPermission`, `hasAnyPermission`             |
-| `accessConfigs.ts`          | Access configuration factories                  |
-| `fieldAccess.ts`            | Field-level access for translatable collections |
-| `visibility.ts`             | Admin UI visibility (`createHidden`)            |
-| `filterAvailableLocales.ts` | Admin locale-selector filtering                 |
-| `types.ts`                  | Plugin type definitions                         |
-| `index.ts`                  | Public API barrel export                        |
-
 ## Manager roles
 
-Manager `type` field controls top-level access:
+The Manager `type` field controls top-level access: `inactive` (denied), `manager` (uses `roles` plus document-level manager access, below), `admin` (full bypass — the admin UI hides `roles`).
 
-- `inactive` — denied
-- `manager` — uses `roles` + document-level manager access (see below)
-- `admin` — full bypass; `roles` hidden in admin UI
-
-### Available manager roles
-
-| Role                 | Description                                                                   |
-| -------------------- | ---------------------------------------------------------------------------- |
-| `meditations-editor` | Create/edit meditations + upload media                                       |
-| `path-editor`        | Edit lessons, lectures, lecture clips + upload media                         |
-| `web-translator`     | Edit localized fields in pages, songs, albums (read-only otherwise)          |
-| `atlas-manager`      | Sahaj Atlas: read project-wide; create/update events + regions, trash events — writes scoped to the manager's owned-region subtree (see below) |
-
-Manager roles are **per-locale** — different roles can be assigned for
-different languages. A manager with `meditations-editor` in English and
-`web-translator` in Czech can edit a meditation when the admin UI is in English
-but only translate it when in Czech.
-
-### How per-locale roles reach `req.user` (#665)
-
-That model is only real because the authenticated user is loaded **twice**.
-`roles` is a `localized` field, and every ordinary read resolves a localized
-field at one locale — Payload's own `local-jwt` strategy passes no locale at
-all, so it resolves at the default. For a long time that was the only read, and
-the per-locale model was inert at runtime in both directions: every manager's
-English roles applied in all 19 locales, and a manager with no English roles was
-locked out of the admin entirely.
-
-`src/plugins/access/localizedRolesAuth.ts` is the fix, and it is **four** reads
-rather than one because Payload re-loads the manager at four moments:
-
-| Moment | Without it |
+| Role | Description |
 | --- | --- |
-| the auth strategy, on every authenticated request | `req.user.roles` is flat — every server-side access check is wrong |
-| `afterLogin` | the first user the admin holds is flat |
-| `afterMe` | the admin client calls `/me` on mount and overwrites the strategy's work |
-| `afterRefresh` | a tab left open reverts mid-session |
+| `meditations-editor` | Create and edit meditations, upload media |
+| `path-editor` | Edit lessons, lectures, and lecture clips. Upload media |
+| `web-translator` | Edit localized fields on pages, songs, albums (read-only otherwise) |
+| `atlas-manager` | Sahaj Atlas: read project-wide. Create, update, and trash events and regions — writes scoped to the manager's owned-region subtree, below |
 
-⚠ **Nothing wires this up in the collection.** `accessPlugin` attaches all four
-to any auth collection whose `roles` field is `localized`, so `Managers` carries
-no auth-hook configuration and a future auth collection with localized roles is
-covered automatically. `Clients.roles` is flat, so it is skipped.
+Manager roles are **per-locale**: a manager can hold `meditations-editor` in English and `web-translator` in Czech, and gets the matching access in each admin locale.
 
-⚠ **A manager read any other way still carries the flat, default-locale array.**
-That is correct for editing a manager document; it is wrong for deciding access.
+### How a per-locale role reaches `req.user` (#665)
+
+This only works because the authenticated user loads **four times**, not once. `roles` is `localized`, and an ordinary read resolves one locale — Payload's own `local-jwt` strategy passes none, so it reads the default. Left alone, every manager's English roles would apply in all 19 locales, and a manager with no English roles would be locked out entirely.
+
+`src/plugins/access/localizedRolesAuth.ts` re-loads the manager at the auth strategy (every request), `afterLogin`, `afterMe` (the admin's own `/me` call on mount), and `afterRefresh` (a tab left open). Skip any one and that moment's read reverts to the flat, default-locale array.
+
+⚠ **Nothing wires this up on the collection**. `accessPlugin` attaches all four hooks to any auth collection whose `roles` field is `localized`. A future such collection is covered automatically. `Clients.roles` is flat, so it is skipped.
+
+⚠ **A manager loaded any other way still carries the flat array.** Fine for editing the document. Wrong for deciding access.
 
 ### What a check with no locale means
 
-`hasPermission`'s `locale` is a **`RoleScope`**, and each of its three values is
-a deliberate answer rather than a default:
+`hasPermission`'s `locale` argument is a `RoleScope`. Each value is a deliberate answer:
 
 | Scope | Meaning | Used by |
 | --- | --- | --- |
-| a `LocaleCode` | roles assigned in that locale | every ordinary access check |
-| `'union'` | roles in **any** locale | admin nav visibility (`createHidden`), which Payload calls with no locale — scoping it otherwise empties the sidebar for every non-admin manager |
-| `undefined` | nothing resolvable, so deny | `?locale=all`, and any locale not in `LOCALES` |
+| A `LocaleCode` | Roles assigned in that locale | Every ordinary access check |
+| `'union'` | Roles in **any** locale | Admin nav visibility, called with no locale — anything narrower empties the sidebar for non-admins |
+| `undefined` | Nothing resolvable, so deny | `?locale=all`, and any locale outside `LOCALES` |
 
-⚠ **Never derive that scope by hand from `req.locale`. Call
-`roleScopeFromLocale`.** Two reasons, and the second is a security property:
-
-- Written out per call site it drifts — four copies existed and the fourth
-  answered `?locale=all` with `'union'` where the other three denied it.
-- `req.locale` is a request-supplied string and `RoleScope` has a non-locale
-  member, so a cast lets `?locale=union` name the privileged scope and hand a
-  manager their roles from all 19 locales at once. The helper accepts only a
-  configured locale.
-
-`?locale=all` therefore **denies** a manager where it used to grant (the flat
-array leaked through). The admin UI never sends it, so this reaches hand-rolled
-API calls only. Clients are unaffected throughout — `Clients.roles` is not
-localized, so no scope applies to a flat array.
+⚠ **Never derive this scope by hand from `req.locale`. Call `roleScopeFromLocale`.** Written out per call site it drifts. Four hand-written copies once existed, and the fourth answered `?locale=all` with `'union'` where the rest denied it. Worse, `req.locale` is a request-supplied string, and `RoleScope` has a non-locale member. A cast lets `?locale=union` name the privileged scope and hand a manager every locale's roles at once. The helper accepts only a configured locale, so `?locale=all` now **denies** instead of leaking the flat array through. The admin UI never sends it. Only a hand-rolled API call can reach this path. Clients are unaffected — `Clients.roles` is not localized.
 
 ## API client roles
 
-| Role                    | Application              |
-| ----------------------- | ------------------------ |
+| Role | Application |
+| --- | --- |
 | `wemeditate-web-client` | We Meditate web frontend |
-| `wemeditate-app-client` | We Meditate mobile app   |
-| `sahaj-atlas-client`    | Sahaj Atlas application  |
+| `wemeditate-app-client` | We Meditate mobile app |
+| `sahaj-atlas-client` | Sahaj Atlas application |
 
-The `-client` suffix is intentional — it disambiguates from project slugs.
-Client roles are **not localized** — they apply uniformly across all locales.
-
-Clients are read-only by default; the `wemeditate-web` client may also
-create form submissions. API clients only see published documents on
-draft-enabled collections.
+The `-client` suffix disambiguates a client role from a project slug. Client roles are **not localized** — one set of roles applies across every locale. Clients are read-only by default, except `wemeditate-web`, which may also create form submissions. API clients see only published documents on draft-enabled collections.
 
 ## Permission checking
 
 ```typescript
 import { hasPermission, hasAnyPermission } from '@/plugins/access'
 
-// Single operation
 hasPermission({ user, collection: 'pages', operation: 'read' })
-hasPermission({ user, collection: 'meditations', operation: 'create' })
 hasPermission({ user, collection: 'pages', operation: 'update', field: { localized: true } })
 
 // Any-of (visibility, multi-op gating)
 hasAnyPermission({ user, collection: 'pages', operations: ['create', 'update', 'delete'] })
 
-// With explicit bypass (testing or custom logic)
+// With an explicit bypass (testing or custom logic)
 hasPermission({ user, collection: 'pages', operation: 'update' }, bypassFn)
 ```
 
 ## Permission flow
 
 1. Block null users.
-2. Call `bypassPermissions` (in order):
-   - Self-access — read/update own document
-   - Inactive user blocking — managers + clients
-   - Admin bypass — full access
-3. O(1) permission lookup via pre-computed tables.
-4. Translate-permission check for localized field updates.
-5. Project-based implicit read access — collections in the role's project +
-   shared collections (those listed in no project).
-6. Document-level manager access — when all the above deny an active non-admin
-   manager a read/update, `createAccessConfig` (async) grants it if the target
-   document, or an ancestor, lists them via a `managers`/`manager` field.
+2. Run `bypassPermissions`, in order: self-access (read or update your own document), inactive-user blocking (managers and clients), then admin bypass.
+3. Run an O(1) permission-table lookup.
+4. Check translate permission for a localized field update.
+5. Apply project-based implicit read: the role's project, plus every collection listed in no project (shared).
+6. Apply document-level manager access — see below — when every prior step denies an active non-admin manager a read or update.
 
-Bypass return values: `'allow'` / `'deny'` / `'continue'`.
-
-## Permissions data structure
-
-```typescript
-'meditations-editor': {
-  label: 'Meditations Editor',
-  project: 'wemeditate-app',
-  permissions: {
-    meditations: ['create', 'update'],
-    narrators: ['create', 'update'],
-    images: ['create'],
-    files: ['create'],
-  },
-}
-```
+A bypass function returns `'allow'`, `'deny'`, or `'continue'`.
 
 ## Important behaviors
 
-### Project-based implicit read access
+### Project-based implicit read
 
-Both managers and API clients read everything in their role's project
-**plus** shared collections.
-
-- `web-translator` (wemeditate-web) reads pages, meditations, songs, etc. + shared.
-- `wemeditate-app-client` reads meditations, lessons, lectures, lecture-clips, etc. + shared.
-- `sahaj-atlas-client` reads images, files (sahaj-atlas) + shared.
+Managers and API clients both read their role's project plus every shared collection. `web-translator` reads pages, meditations, songs, and shared. `wemeditate-app-client` reads meditations, lessons, lectures, lecture clips, and shared. `sahaj-atlas-client` reads images and files (sahaj-atlas) and shared.
 
 ### Document-level manager access
 
-Any collection that declares a `managers` (hasMany) or `manager` relationship
-to `managers` grants **read + update** on its documents to the listed managers
-— even with no role-based access. A self-referential `parent` relationship lets
-a document inherit managers from its ancestors, resolved through the nested-docs
-`breadcrumbs` trail (depth-independent) with a cycle-guarded parent-walk
-fallback. Fields are discovered by introspecting `flattenedFields`
-(`src/plugins/access/documentManagers.ts`) — no collection slugs are hardcoded,
-so it applies to any collection that adds them (currently Pages via "Page
-Editors", Regions, and Clients). Grants read + update only — never create or
-delete. Resolved asynchronously in `createAccessConfig`, only after the
-query-free permission check has already failed.
+A `managers` (hasMany) or `manager` relationship to `managers` on any collection grants those managers **read and update** on its documents, with no role needed. A self-referential `parent` field lets a document inherit managers from its ancestors, via the nested-docs `breadcrumbs` trail. Fields are found by introspecting `flattenedFields` (`documentManagers.ts`) — no slug is hardcoded. Any collection that adds such a field is covered (today: Pages via "Page Editors", Regions, Clients). Read and update only, never create or delete — and only after the query-free check has failed.
 
 ### Region-subtree write scoping (Atlas managers)
 
-The `atlas-manager` role is the one role that grants **create/update/delete**
-on document-managed collections (`events`, `regions`). Those grants are
-deliberately **not** collection-wide: `src/plugins/access/regionSubtreeAccess.ts`
-narrows each role-granted write to the manager's **owned-region subtree** — the
-regions that list them in `managers`, plus every descendant via the nested-docs
-`breadcrumbs` trail (reusing `resolveManagedDocIds`).
+`atlas-manager` is the one role granting **create, update, and delete** on `events` and `regions`. `regionSubtreeAccess.ts` narrows every such grant to the manager's **owned-region subtree**: the regions listing them in `managers`, plus every descendant via `breadcrumbs`.
 
-- **regions** — `create` requires the new region's `parent` to be in the
-  subtree; `update` is scoped to subtree members. No `delete` (region deletion
-  stays admin-only — child regions/events FK-reference it).
-- **events** — scoped by `event.region ∈ subtree` **OR** `event.manager == user`
-  (the latter preserves the direct-owner access the document-manager fallback
-  grants); `create` requires the incoming `region` to be in the subtree;
-  `delete` (permanent delete / the trash button's hard path) is scoped the same
-  way. Soft-delete (trash) is an `update` to `deletedAt`, covered by the update
-  scope.
-- **read** stays project-wide (implicit project read) — an Atlas manager sees
-  every Atlas event/region; only writes are subtree-scoped.
+- **regions** — `create` requires the new region's `parent` in the subtree. `update` is scoped to subtree members. There is no `delete` (admin-only, since child regions and events reference it by foreign key).
+- **events** — scoped by `region ∈ subtree` **or** `manager == user` (the direct-owner case). `create` requires the incoming `region` in the subtree. Hard `delete` is scoped the same way. Soft-delete (trash) is an `update` to `deletedAt`, already covered.
+- **read** stays project-wide — only writes are subtree-scoped.
 
-Wired into `createAccessConfig` after the role check passes, gated on an
-explicit slug allowlist (`{ regions, events }`) rather than field introspection
-— create/delete are security-sensitive, so the opt-in is auditable at a glance
-and a stray `managers` field elsewhere can't silently widen access.
+Wired into `createAccessConfig` on an explicit slug allowlist (`{ regions, events }`), not field introspection, since create/delete are security-sensitive and a stray `managers` field elsewhere must not silently widen access.
 
 ### Self-access
 
-Users can always read and update their own document in their auth
-collection. Implemented in the bypass function.
+A user can always read and update their own document in their auth collection.
 
-### Restricted collections — "in no project" is NOT restrictive
+### Restricted collections — "in no project" is not restrictive
 
-Read this together with step 5 above, because the two pull in opposite
-directions and the obvious reading is the wrong one. Access collections
-(`managers`, `clients`) and Payload system collections (`payload-jobs`,
-`payload-kv`, …) are in no project and are reachable only by
-explicit-permission users or the admin bypass — but that is because they carry
-**no write permission for anyone**, not because "no project" restricts them.
+This cuts the opposite way from implicit read, above, and the obvious reading is wrong. `managers`, `clients`, and Payload's system collections sit in no project. They are reachable only by explicit permission or the admin bypass — because no role grants write on them, not because "no project" is restrictive. For read, "no project" means the opposite: shared, and readable by every role.
 
-Step 5 says the opposite for read: implicit read covers a role's project
-**plus every collection in no project**. So a collection left out of `PROJECTS`
-is *shared*, i.e. readable by every role — which is the trap.
-
-**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the escape, and the only
-one: a collection named there is skipped by implicit read entirely, so only an
-explicit `read` grant in a role or the admin bypass reaches it. It holds
-`users`, `event-submissions`, and `user-messages` — everything carrying personal
-data.
-
-The two knobs compose, and a collection that must be admin-only needs both:
+**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the only way to stop that. A collection named there is skipped by implicit read, so only an explicit `read` grant, or the admin bypass, reaches it. It holds `users`, `event-submissions`, and `user-messages` — everything carrying personal data.
 
 | Want | Do |
 | --- | --- |
-| Nobody reads it implicitly | Add to `RESTRICTED_COLLECTIONS` |
+| Nobody reads it implicitly | Add it to `RESTRICTED_COLLECTIONS` |
 | A client may still create it | Grant `['create']` in that client's role |
-| **No manager role may read it** | Grant it in **no** role — `user-messages` is the example |
-| Visible in `/api/docs` | Add to a project's `collections` (see `docs/rules/openapi.md`) |
+| **No manager role may read it** | Grant it in **no** role (`user-messages`) |
+| Visible in `/api/docs` | Add it to a project's `collections` (`docs/rules/openapi.md`) |
 
-The last row is why both public intakes' POSTs are `x-internal`: neither is in a
-project, deliberately.
+Both public intakes' POSTs are `x-internal` for exactly this reason: neither sits in a project.
 
 ## Adding a new role
 
-1. Add to `src/plugins/access/config/roles.ts` in the `ROLES` constant:
+1. Add it to the `ROLES` constant in `src/plugins/access/config/roles.ts`:
 
 ```typescript
 const ROLES = {
@@ -288,23 +158,19 @@ const ROLES = {
       'my-collection': ['create', 'update'] as PermissionLevel[],
     },
   },
-  // ...
 }
 ```
 
-Lookup tables compute automatically at module load — no manual updates.
+Lookup tables compute automatically. No manual update is needed.
 
-2. `pnpm generate:types` to regenerate `RoleSlug`.
+2. Run `pnpm generate:types` to regenerate `RoleSlug`.
 3. Add tests in `tests/int/role-based-access.int.spec.ts`.
 
 ## Admin UI
 
-`PermissionsTable` (`src/components/admin/PermissionsTable.tsx`) displays
-computed permissions in real time as roles are toggled, rendered as
-`afterInput` on the `roles` field. Color-coded operation pills:
-read / create / update / delete.
+`PermissionsTable` (`src/components/admin/PermissionsTable.tsx`) shows computed permissions live as roles are toggled, rendered as `afterInput` on the `roles` field, with color-coded pills for read, create, update, and delete.
 
 ## Testing
 
-- `tests/int/role-based-access.int.spec.ts` — comprehensive RBAC integration tests
-- `tests/utils/testData.ts` — factories for managers and clients with roles
+- `tests/int/role-based-access.int.spec.ts` — RBAC integration tests.
+- `tests/utils/testData.ts` — factories for managers and clients with roles.

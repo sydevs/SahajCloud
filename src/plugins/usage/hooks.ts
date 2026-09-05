@@ -15,47 +15,51 @@ import { extractRequestHost, isHostAllowed, parseAllowedDomains } from './origin
 
 const SKIP_VALIDATION = 'skipClientQueryValidation'
 
-/** Wraps a client request to bypass query-param validation in trusted internal endpoints.
+/**
+ * Wrap a client request to bypass query-param validation, in trusted internal endpoints.
  *
- * Sets the `skipClientQueryValidation` flag so forwarded client reads (e.g. in the
- * related-* endpoints) don't have to enumerate every field via `select`. Usage is
- * counted once per top-level operation in `usageTrackingBeforeOperationHook` (keyed
- * off the absence of a numeric `currentDepth`), so no per-request dedup state needs
- * threading through here. See #559.
+ * This sets the `skipClientQueryValidation` flag, so a forwarded client read
+ * (for example in the related-* endpoints) does not have to enumerate every
+ * field through `select`. `usageTrackingBeforeOperationHook` counts usage
+ * once per top-level operation, keyed off the absence of a numeric
+ * `currentDepth`, so no per-request dedup state needs threading through
+ * here. See #559.
  */
 export function asTrustedReq(req: PayloadRequest): PayloadRequest {
   return { ...req, context: { ...req.context, [SKIP_VALIDATION]: true } }
 }
 
 /**
- * The same request with **no user** — a system write, performed in the caller's
- * transaction but not on the caller's authority.
+ * The same request, with **no user**: a system write, performed in the
+ * caller's transaction, but not on the caller's authority.
  *
  * `overrideAccess: true` skips collection access, but it does not skip
  * `filterOptions`, which Payload validates against `req.user`. So a write
- * triggered by an API client that touches a field with an owner-scoped filter
- * (the events `region` picker) is refused for a caller who would never pass
- * that filter — a 400 on an operation the client was entitled to trigger but
- * not to perform itself. Stripping the user is what says "this part is ours".
+ * that an API client triggers, and that touches a field with an
+ * owner-scoped filter (the events `region` picker), gets refused for a
+ * caller who would never pass that filter — a 400 on an operation the
+ * client was entitled to trigger, but not to perform itself. Stripping the
+ * user is what says "this part is ours."
  *
- * `context`, `transactionID` and `payload` still travel by reference, so the
- * transaction and any per-request memoization are unaffected.
+ * `context`, `transactionID`, and `payload` still travel by reference, so
+ * the transaction and any per-request memoization are unaffected.
  */
 export function asSystemReq(req: PayloadRequest): PayloadRequest {
   return { ...req, user: null } as PayloadRequest
 }
 
 /**
- * Whether a request was wrapped by {@link asTrustedReq} — i.e. it's an endpoint's
- * own internal read, forwarding the client's `req` rather than serving the
- * client's query directly.
+ * Whether a request was wrapped by {@link asTrustedReq}. That is, an
+ * endpoint's own internal read, forwarding the client's `req`, rather than
+ * serving the client's query directly.
  *
- * Honour this in hooks that shape the **client-facing** result of a read
- * (e.g. `excludeFinishedEvents`, which drops finished events from list feeds):
- * an endpoint doing its own lookup needs the true state so it can decide for
- * itself — silently narrowing it turns a precise error into a confusing one.
- * Do **not** honour it in security gates; see `validateClientOriginHook`, which
- * deliberately stays enforced for forwarded reads.
+ * Honor this in hooks that shape the **client-facing** result of a read, for
+ * example `excludeFinishedEvents`, which drops finished events from list
+ * feeds. An endpoint doing its own lookup needs the true state, so it can
+ * decide for itself — silently narrowing it turns a precise error into a
+ * confusing one. Do **not** honor it in security gates. See
+ * `validateClientOriginHook`, which deliberately stays enforced for
+ * forwarded reads.
  */
 export function isTrustedReq(req: PayloadRequest | undefined): boolean {
   return req?.context?.[SKIP_VALIDATION] === true
@@ -83,17 +87,19 @@ export function buildRateLimitKey(
 // ============================================================================
 
 /**
- * beforeOperation hook slot for API client rate limiting.
+ * A beforeOperation hook slot for API client rate limiting.
  *
- * Rate limiting now lives at the Cloudflare edge (Rate Limiting Rules in front
- * of the Railway origin), so this hook is intentionally a no-op in the app. It's
- * kept as an extension point: if app-level limits become necessary, implement
- * them here (e.g. a Railway Redis limiter keyed by `buildRateLimitKey`).
+ * Rate limiting now lives at the Cloudflare edge, in Rate Limiting Rules in
+ * front of the Railway origin, so this hook is intentionally a no-op in the
+ * app. It stays as an extension point: if app-level limits become
+ * necessary, implement them here — for example a Railway Redis limiter
+ * keyed by `buildRateLimitKey`.
  *
- * TODO(railway): finalize the rate-limiter home — Cloudflare edge rules vs Redis (#466).
+ * TODO(railway): finalize the rate-limiter home — Cloudflare edge rules or
+ * Redis (#466).
  */
 export const rateLimitHook: CollectionBeforeOperationHook = () => {
-  // Enforced at the Cloudflare edge; intentionally a no-op here.
+  // Enforced at the Cloudflare edge. Intentionally a no-op here.
 }
 
 // ============================================================================
@@ -101,38 +107,40 @@ export const rateLimitHook: CollectionBeforeOperationHook = () => {
 // ============================================================================
 
 /**
- * beforeOperation hook that forces API clients to declare their data needs explicitly.
+ * A beforeOperation hook that forces API clients to declare their data needs explicitly.
  *
- * - `select` is required on every client read, so they can't pull whole documents.
- * - `populate` is required when effective `depth > 1`, so they can't auto-populate
- *   every relationship.
+ * - `select` is required on every client read, so a client cannot pull whole documents.
+ * - `populate` is required when the effective `depth > 1`, so a client
+ *   cannot auto-populate every relationship.
  *
- * Validation is argument-based, not URL-based: Payload's REST handler parses URL
- * query params (e.g., `?select[title]=true`) into `args.select` before the hook
- * fires, and internal endpoints that forward `req` to `payload.find(...)` with
- * an explicit `select` also pass the check. Only applies to API client reads;
- * managers and write operations are untouched.
+ * Validation is argument-based, not URL-based. Payload's REST handler
+ * parses URL query params (for example `?select[title]=true`) into
+ * `args.select` before the hook fires, and internal endpoints that forward
+ * `req` to `payload.find(...)` with an explicit `select` also pass the
+ * check. This applies only to API client reads. Managers and write
+ * operations are untouched.
  *
- * Bracket notation (`?select[field]=true`) is required because PayloadCMS REST
- * uses `qs-esm` to parse query strings into nested objects. Comma-separated
- * strings (`?select=field1,field2`) parse to a plain string and fail the
- * `typeof === 'object'` check below. See `docs/rules/api-clients.md` for the
- * full format contract and `tests/int/client-query-validation.int.spec.ts` for
- * REST-format coverage.
+ * Bracket notation (`?select[field]=true`) is required, because PayloadCMS
+ * REST uses `qs-esm` to parse query strings into nested objects.
+ * Comma-separated strings (`?select=field1,field2`) parse to a plain
+ * string, and fail the `typeof === 'object'` check below. See
+ * `docs/rules/api-clients.md` for the full format contract, and
+ * `tests/int/client-query-validation.int.spec.ts` for REST-format coverage.
  *
- * On rejection, logs the offending shape (type + keys + short string preview)
- * and effective depth at WARN level so production failures are debuggable from
- * the application logs.
+ * On rejection, this logs the offending shape (type, keys, and a short
+ * string preview) and the effective depth, at WARN level, so production
+ * failures are debuggable from the application logs.
  *
- * Payload also performs internal Local API reads while populating selected
- * relationship/upload fields. Those reads carry a numeric `currentDepth`; they
- * are implementation details of the already-validated top-level request and
- * must not be rejected for lacking their own REST `select` parameter.
+ * Payload also performs internal Local API reads while it populates
+ * selected relationship or upload fields. Those reads carry a numeric
+ * `currentDepth`. They are implementation details of the already-validated
+ * top-level request, and must not be rejected for lacking their own REST
+ * `select` parameter.
  *
- * Live-preview reads are also exempt: a request carrying the valid
- * `SAHAJCLOUD_PREVIEW_SECRET` header (see `hasValidPreviewSecret`) renders the
- * whole document, so forcing it to enumerate `select`/`populate` is meaningless
- * and breaks the admin live preview.
+ * Live-preview reads are also exempt. A request carrying the valid
+ * `SAHAJCLOUD_PREVIEW_SECRET` header (see `hasValidPreviewSecret`) renders
+ * the whole document, so forcing it to enumerate `select` and `populate` is
+ * meaningless, and breaks the admin live preview.
  */
 export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
   args,
@@ -143,16 +151,18 @@ export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
     return
   }
 
-  // Trusted internal endpoints that forward client req to payload.find(...) can
-  // opt out by setting this context flag — they shape their own response and
-  // shouldn't have to enumerate every field via `select` on every internal call.
+  // A trusted internal endpoint that forwards the client req to
+  // payload.find(...) can opt out by setting this context flag. It shapes
+  // its own response, and should not have to enumerate every field through
+  // `select` on every internal call.
   if (req.context?.[SKIP_VALIDATION] === true) {
     return
   }
 
-  // Trusted live-preview reads (valid preview secret) render the whole document
-  // and must not be forced to enumerate select/populate. Same trust signal that
-  // already unlocks drafts in createAccessConfig.
+  // A trusted live-preview read (with a valid preview secret) renders the
+  // whole document, and must not be forced to enumerate select or populate.
+  // This is the same trust signal that already unlocks drafts in
+  // createAccessConfig.
   if (hasValidPreviewSecret(req)) {
     return
   }
@@ -231,49 +241,52 @@ function describeStringPreview(value: unknown): string | null {
 // ============================================================================
 
 /**
- * Enforce a client's `Origin`/`Referer` allowlist, throwing `APIError(403)` when
- * the request host isn't on it. The single source of the rule; both
- * {@link validateClientOriginHook} (collection reads/writes) and endpoints that
- * touch no collection at all (`GET /api/atlas/seo`) call it. Rules:
+ * Enforce a client's `Origin`/`Referer` allowlist. Throws `APIError(403)`
+ * when the request host is not on it. This is the single source of the
+ * rule. Both {@link validateClientOriginHook} (collection reads and
+ * writes) and endpoints that touch no collection at all
+ * (`GET /api/atlas/seo`) call it. Rules:
  *
  * - Non-client requests (managers, admin UI, server tasks): untouched.
- * - Empty / unset `allowedDomains`: ALLOW any origin (backward-compatible default).
- * - Non-empty `allowedDomains`: the request `Origin` (or `Referer` host) must
- *   match an entry, else 403. Exact host or `*.`-wildcard; see `originEnforcement.ts`.
- * - No `Origin`/`Referer` (server-to-server, cron): ALLOW — the API key is the gate.
- * - Valid live-preview secret: bypass — the same trust signal that unlocks drafts
- *   and skips the select/populate gate.
+ * - Empty or unset `allowedDomains`: ALLOW any origin (the backward-compatible default).
+ * - Non-empty `allowedDomains`: the request `Origin` (or the `Referer`
+ *   host) must match an entry, else 403. Exact host, or a `*.` wildcard.
+ *   See `originEnforcement.ts`.
+ * - No `Origin` or `Referer` (server-to-server, cron): ALLOW. The API key
+ *   is the gate.
+ * - A valid live-preview secret: bypass. This is the same trust signal
+ *   that unlocks drafts and skips the select/populate gate.
  *
- * Unlike `asTrustedReq`'s `skipClientQueryValidation` flag (a query-shape opt-out),
- * there is deliberately no trusted-req bypass here: origin is a security gate, so
- * forwarded client reads (e.g. register's events lookup) stay enforced against the
- * caller's real origin.
+ * Unlike `asTrustedReq`'s `skipClientQueryValidation` flag, a query-shape
+ * opt-out, there is deliberately no trusted-req bypass here. Origin is a
+ * security gate, so a forwarded client read (for example register's events
+ * lookup) stays enforced against the caller's real origin.
  *
- * On rejection, logs `clientId` + origin + referer at WARN so production denials
- * are debuggable from the application logs.
+ * On rejection, this logs `clientId`, origin, and referer at WARN, so
+ * production denials are debuggable from the application logs.
  *
- * @throws {APIError} 403 when the caller is a client whose allowlist excludes the
- *   request host.
+ * @throws {APIError} 403 when the caller is a client whose allowlist
+ *   excludes the request host.
  */
 export function assertClientOriginAllowed(req: PayloadRequest): void {
   if (req.user?.collection !== 'clients') {
     return
   }
 
-  // Trusted live-preview reads render the whole document from a known frontend —
-  // same bypass the select/populate gate uses.
+  // A trusted live-preview read renders the whole document from a known
+  // frontend. This is the same bypass the select/populate gate uses.
   if (hasValidPreviewSecret(req)) {
     return
   }
 
   const patterns = parseAllowedDomains((req.user as Client).allowedDomains)
   if (patterns.length === 0) {
-    return // No allowlist configured → allow all (backward-compatible default).
+    return // No allowlist configured. Allow all (the backward-compatible default).
   }
 
   const host = extractRequestHost(req)
   if (host === null) {
-    return // No Origin/Referer (server-to-server) → allow; API key remains the gate.
+    return // No Origin or Referer (server-to-server). Allow — the API key remains the gate.
   }
 
   if (isHostAllowed(host, patterns)) {
@@ -291,18 +304,18 @@ export function assertClientOriginAllowed(req: PayloadRequest): void {
 }
 
 /**
- * beforeOperation hook enforcing per-client `Origin`/`Referer` allow-listing.
+ * A beforeOperation hook that enforces per-client `Origin`/`Referer` allow-listing.
  *
- * Runs for every API-client operation on a usage-wrapped collection (the same
- * seam as `validateClientQueryParamsHook`), so it covers standard client reads
- * and the custom Atlas endpoints (geojson / register) whose internal
- * `payload.find` / `payload.create` calls forward the client `req`. The rule
- * itself lives in {@link assertClientOriginAllowed}; this hook adds the one
- * operation-shaped exemption:
+ * This runs for every API-client operation on a usage-wrapped collection,
+ * the same seam as `validateClientQueryParamsHook`. So it covers standard
+ * client reads, and the custom Atlas endpoints (geojson and register) whose
+ * internal `payload.find` and `payload.create` calls forward the client
+ * `req`. The rule itself lives in {@link assertClientOriginAllowed}. This
+ * hook adds the one operation-shaped exemption:
  *
- * - Internal relationship-population reads (numeric `currentDepth`) are skipped;
- *   the already-validated top-level read carries the same origin, so
- *   re-evaluating would only double-log.
+ * - Internal relationship-population reads (with a numeric `currentDepth`)
+ *   are skipped. The already-validated top-level read carries the same
+ *   origin, so re-evaluating would only double-log.
  */
 export const validateClientOriginHook: CollectionBeforeOperationHook = ({ args, req }) => {
   if (typeof (args as { currentDepth?: unknown }).currentDepth === 'number') {
@@ -317,8 +330,9 @@ export const validateClientOriginHook: CollectionBeforeOperationHook = ({ args, 
 // ============================================================================
 
 /**
- * Atomic Postgres UPDATE for incrementing usage counters. The `clients` table is
- * schema-qualified because a raw pool query doesn't honor the adapter's schema.
+ * An atomic Postgres UPDATE that increments usage counters. The `clients`
+ * table is schema-qualified, because a raw pool query does not honor the
+ * adapter's schema.
  */
 const usageIncrementSql = (quotedSchema: string) => `
   UPDATE ${quotedSchema}.clients
@@ -330,19 +344,20 @@ const usageIncrementSql = (quotedSchema: string) => `
 `
 
 /**
- * beforeOperation hook for usage tracking.
+ * A beforeOperation hook for usage tracking.
  *
- * Counts usage exactly once per top-level client operation, not per document
- * or internal relationship-population read. This prevents N+1 UPDATEs on
- * depth >= 1 reads that populate relationships.
+ * This counts usage exactly once per top-level client operation, not per
+ * document or internal relationship-population read. That prevents N+1
+ * UPDATEs on reads at depth 1 or more that populate relationships.
  *
- * Strategy: increment at the beforeOperation seam (before any reads fan out
- * into internal population sub-reads). Skip internal population reads via the
- * numeric `currentDepth` signal that Payload attaches to internal Local API
- * reads — these are implementation details of an already-validated top-level
- * request and should not trigger separate usage tracking.
+ * Strategy: increment at the beforeOperation seam, before any read fans out
+ * into internal population sub-reads. Skip an internal population read
+ * through the numeric `currentDepth` signal that Payload attaches to
+ * internal Local API reads. These are implementation details of an
+ * already-validated top-level request, and should not trigger separate
+ * usage tracking.
  *
- * Uses a single atomic Postgres UPDATE for race-free increments. See #559.
+ * This uses a single atomic Postgres UPDATE, for race-free increments. See #559.
  */
 export const usageTrackingBeforeOperationHook: CollectionBeforeOperationHook = async ({
   args,
@@ -354,10 +369,10 @@ export const usageTrackingBeforeOperationHook: CollectionBeforeOperationHook = a
     return
   }
 
-  // Skip internal relationship-population reads (identified by numeric currentDepth).
-  // These are implementation details of the top-level request and should not
-  // generate separate usage tracking. Only top-level reads (no currentDepth)
-  // should increment usage.
+  // Skip internal relationship-population reads, identified by a numeric
+  // currentDepth. These are implementation details of the top-level
+  // request, and should not generate separate usage tracking. Only a
+  // top-level read, with no currentDepth, should increment usage.
   if (typeof (args as { currentDepth?: unknown }).currentDepth === 'number') {
     return
   }
@@ -374,7 +389,7 @@ export const usageTrackingBeforeOperationHook: CollectionBeforeOperationHook = a
 
     await pool.query(usageIncrementSql(quotedDbSchema(req)), [now, now, clientId])
   } catch (error) {
-    // Fail open - don't block API requests if tracking fails
+    // Fail open. Do not block API requests when tracking fails.
     req.payload.logger.error({
       msg: 'Usage tracking error - failing open',
       error: error instanceof Error ? error.message : String(error),

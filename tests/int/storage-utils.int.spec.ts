@@ -315,8 +315,8 @@ describe('URL Field Factories', () => {
 
       const hook = getAfterReadHook(field)
       const url = callHook(hook!, { filename: 'video-id', mimeType: 'video/mp4' })
-      // `url` resolves to the HLS manifest (live immediately after transcode);
-      // the MP4 download 404s until the Stream webhook enables it (see `mp4Url`).
+      // `url` resolves to the HLS manifest (live immediately after transcode).
+      // The MP4 download 404s until the Stream webhook enables it (see `mp4Url`).
       expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/manifest/video.m3u8')
     })
 
@@ -567,7 +567,7 @@ describe('Filename Utilities', () => {
 
     it('handles filenames with multiple dots', () => {
       const result = generateCloudflareImageId('my.lecture.thumbnail.jpg')
-      // Final ".jpg" is dropped; dots in base are stripped by slugify
+      // Final ".jpg" is dropped. Dots in base are stripped by slugify
       expect(result).toMatch(/^mylecturethumbnail-[a-z0-9]{6}$/)
     })
 
@@ -583,7 +583,7 @@ describe('Filename Utilities', () => {
     })
 
     it('does not start with a hyphen for all-Unicode filenames', () => {
-      // slugify(strict) drops all non-ASCII; the helper falls back to "file"
+      // slugify(strict) drops all non-ASCII. The helper falls back to "file"
       // so the resulting ID never begins with a hyphen (CF Images rejects those).
       const result = generateCloudflareImageId('文件名.jpg')
       expect(result).toMatch(/^file-[a-z0-9]{6}$/)
@@ -829,7 +829,7 @@ describe('Storage Adapter handleUpload', () => {
         collection: { slug: 'frames' } as never,
       })
 
-      // Stream API doesn't accept custom IDs — make sure we didn't send one
+      // Stream API does not accept custom IDs — make sure we did not send one
       expect(sentFormData!.has('id')).toBe(false)
 
       expect(result).toEqual({
@@ -921,7 +921,7 @@ describe('Storage Adapter handleUpload', () => {
       const { mixedMediaAdapter } = await import('@/plugins/storage/mixedMediaAdapter')
 
       // Inner adapter mock that returns a known payload — proves the mixed
-      // adapter doesn't accidentally swallow the return.
+      // adapter does not accidentally swallow the return.
       const innerReturn = {
         filename: 'inner-image-id-abc123',
         fileMetadata: { originalFilename: 'photo.jpg' },
@@ -1001,7 +1001,7 @@ describe('storagePlugin R2 filename hook wiring', () => {
     vi.restoreAllMocks()
   })
 
-  // Minimal config shape that `storagePlugin` reads. We don't need a real
+  // Minimal config shape that `storagePlugin` reads. We do not need a real
   // SanitizedConfig, but `cloudStoragePlugin` iterates `collection.fields`
   // when injecting its own field hooks, so an empty array is required.
   const buildSyntheticConfig = (slugs: string[]) => ({

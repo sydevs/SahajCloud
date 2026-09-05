@@ -108,7 +108,7 @@ describe('sanitizeEmbedMetadata', () => {
 
   it('drops a record whose lastSeen is a string but not a date', () => {
     // `lastSeen` is the eviction sort key. An unparseable stamp would make that
-    // comparator return NaN, which doesn't sort the record last — it corrupts
+    // comparator return NaN, which does not sort the record last — it corrupts
     // the ordering of the whole array. So it has to be rejected here, not
     // tolerated as "some string".
     const { metadata, dropped } = sanitizeEmbedMetadata({
@@ -285,7 +285,7 @@ describe('mergeEmbedReport', () => {
     })
 
     it('keeps a canonical that is also the mount being reported', () => {
-      // Both protections name the same key; it must be pinned once, not
+      // Both protections name the same key. It must be pinned once, not
       // protected twice at the cost of a second eviction.
       const result = mergeEmbedReport({
         stored: fill(MAX_EMBED_MOUNTS),
@@ -300,7 +300,7 @@ describe('mergeEmbedReport', () => {
 
     it('ignores a canonical the record does not hold', () => {
       // An operator's designated mount that has not been reported back yet —
-      // pinning a key that isn't there must not consume an eviction slot.
+      // pinning a key that is not there must not consume an eviction slot.
       const result = mergeEmbedReport({
         stored: fill(MAX_EMBED_MOUNTS),
         key: 'https://a.org/new',

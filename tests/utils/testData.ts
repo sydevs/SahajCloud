@@ -45,7 +45,7 @@ type ManagerRole = NonNullable<Manager['roles']>[number]
  * `roles` is declared apart from the generated doc types because manager roles
  * are **localized**: at runtime they arrive as a per-locale record, which is the
  * shape `filterAvailableLocales` reads, while Payload generates the field as a
- * flat array. Intersecting `{ roles?: … }` onto the doc type wouldn't override
+ * flat array. Intersecting `{ roles?: … }` onto the doc type would not override
  * that array, it would intersect with it — so `roles` is `Omit`ted from the doc
  * fields first. Locale keys are optional: a manager only has entries for locales
  * they hold a role in, and both readers already treat an absent key as "no roles"
@@ -70,7 +70,7 @@ type DummyUserOverrides = Partial<Omit<Manager, 'roles'> | Omit<Client, 'roles'>
  * relationship (`number | Image | null`) keeps accepting a bare id.
  *
  * No special case for `Date`: Payload generates every date field as an ISO
- * `string`, so one can't reach the object branch here.
+ * `string`, so one cannot reach the object branch here.
  *
  * Exported because specs build their own inline fixture helpers around
  * `payload.create` — those want the same "loose but checked" contract rather
@@ -98,7 +98,7 @@ export type FixtureOverrides<T> = T extends (infer U)[]
  * enum literal like `level: 'center'` now fails here, not 7 minutes into CI.
  *
  * Exported for the same reason as `FixtureOverrides`: specs with their own
- * inline `payload.create` helpers need this seam too. Without it TS can't match
+ * inline `payload.create` helpers need this seam too. Without it TS cannot match
  * the non-draft `create` overload (the data type is derived from the *output*
  * doc, so an omitted `slug` pushes it onto the draft one) and reports the
  * baffling "Property 'draft' is missing".
@@ -124,7 +124,7 @@ export type LexicalContent = NonNullable<Page['content']>
  *
  * The return type is annotated rather than inferred: without it `direction` and
  * `format` widen to `string` and the result is rejected by every `richText`
- * field it's assigned to (`'ltr'` vs `('ltr' | 'rtl') | null`) — 7 of #606
+ * field it is assigned to (`'ltr'` vs `('ltr' | 'rtl') | null`) — 7 of #606
  * Phase 2's errors. The annotation contextually types the literal instead.
  *
  * @param text - The text content to include
@@ -187,7 +187,7 @@ export const testData = {
           textColor: 'black',
           image: imageId,
           // `default` is a nested group, so `createData`'s top-level `Partial`
-          // doesn't reach inside it — and both of these are `required: true` with
+          // does not reach inside it — and both of these are `required: true` with
           // a `defaultValue` in AppCards. Pass the collection's own declared
           // defaults, which is what Payload would have filled in anyway.
           aspectRatio: 'square',
@@ -359,7 +359,7 @@ export const testData = {
    *
    * Picks an unused slug from the closed 12-element enum each call to allow
    * multiple nodes per test. Pass `slug` in overrides to pin a specific value
-   * (e.g. when seeding a known node for backfill testing).
+   * (for example, when seeding a known node for backfill testing).
    */
   async createSubtleSystemNode(
     payload: Payload,
@@ -450,7 +450,7 @@ export const testData = {
 
   /**
    * Create an audience with optional progress ranges and/or country gate.
-   * All fields are optional — omit a range to leave it unbounded; omit
+   * All fields are optional — omit a range to leave it unbounded. Omit
    * country to match all countries.
    */
   async createAudience(
@@ -563,7 +563,7 @@ export const testData = {
     return (await payload.create({
       collection: 'meditations',
       // locale option provides request-level locale context for join subqueries
-      // that reference localized fields on other collections (e.g., user-choices)
+      // that reference localized fields on other collections (for example, user-choices)
       locale: overrides.locale || 'en',
       data: createData<'meditations'>({
         label: overrides.label || overrides.title || defaultLabel,

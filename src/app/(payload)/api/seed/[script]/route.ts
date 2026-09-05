@@ -1,12 +1,12 @@
 /**
- * Seed API Route
+ * Seed API route.
  *
  * GET /api/seed/:script
- *   Returns metadata about the script's collections for pagination planning.
+ *   Returns metadata about the script's collections. Use it to plan pagination.
  *
  * POST /api/seed/:script
- *   Triggers content seeding for the specified script.
- *   Streams progress updates via Server-Sent Events.
+ *   Starts content seeding for the named script.
+ *   Streams progress updates over Server-Sent Events.
  *
  * Scripts:
  * - tags: UserChoices, SongTags, and SubtleSystemNodes
@@ -16,14 +16,14 @@
  * - wm-app-translations: WeMeditate App Translations global (English seed)
  * - translations: All three translation globals (English seed)
  *
- * Authentication: Requires admin session
+ * Authentication: Needs an admin session.
  *
- * Query Parameters (POST):
- * - dryRun: If 'true', validates without writing to database
- * - update: If 'true', updates existing records (default: skip existing)
- * - collection: Target collection for paginated import (required if offset/limit used)
- * - offset: Starting index for pagination (default: 0)
- * - limit: Maximum items to process (default: environment-based)
+ * Query parameters (POST):
+ * - dryRun: 'true' validates the data. It does not write to the database.
+ * - update: 'true' updates existing records. The default skips existing records.
+ * - collection: Target collection for a paginated import. Required with offset or limit.
+ * - offset: Start index for pagination. Default: 0.
+ * - limit: Maximum items to process. Default: set by the environment.
  */
 
 import type { BaseImporter } from '../../../../../../seeds/lib/BaseImporter'
@@ -55,15 +55,15 @@ const VALID_SCRIPTS: ScriptName[] = [
 ]
 
 /**
- * Heartbeat interval in milliseconds (5 seconds)
- * Prevents Cloudflare Workers 100-second idle timeout
+ * Heartbeat interval, in milliseconds (5 seconds).
+ * Prevents the Cloudflare Workers 100-second idle timeout.
  */
 const HEARTBEAT_INTERVAL = 5_000
 
 /**
  * GET /api/seed/:script
  *
- * Returns metadata about the script's collections for pagination planning.
+ * Returns metadata about the script's collections. Use it to plan pagination.
  */
 export async function GET(
   request: NextRequest,
@@ -85,10 +85,8 @@ export async function GET(
     )
   }
 
-  // Get Payload instance
   const payload = await getPayload({ config })
 
-  // Check authentication - require admin session
   const { user } = await payload.auth({ headers: request.headers })
 
   if (!user) {
@@ -98,7 +96,6 @@ export async function GET(
     })
   }
 
-  // Check if user is admin
   if (user.collection !== 'managers' || !('type' in user) || user.type !== 'admin') {
     return new Response(JSON.stringify({ error: 'Admin access required' }), {
       status: 403,
@@ -106,7 +103,6 @@ export async function GET(
     })
   }
 
-  // Return script metadata
   const metadata = getScriptMetadata(script as ScriptName)
 
   return new Response(JSON.stringify(metadata), {
@@ -118,7 +114,7 @@ export async function GET(
 /**
  * POST /api/seed/:script
  *
- * Triggers content seeding. Supports paginated execution via query params.
+ * Starts content seeding. Query parameters control paginated runs.
  */
 export async function POST(
   request: NextRequest,
@@ -140,10 +136,8 @@ export async function POST(
     )
   }
 
-  // Get Payload instance
   const payload = await getPayload({ config })
 
-  // Check authentication - require admin session
   const { user } = await payload.auth({ headers: request.headers })
 
   if (!user) {
@@ -153,7 +147,6 @@ export async function POST(
     })
   }
 
-  // Check if user is admin (Managers with type='admin')
   if (user.collection !== 'managers' || !('type' in user) || user.type !== 'admin') {
     return new Response(JSON.stringify({ error: 'Admin access required' }), {
       status: 403,
@@ -168,9 +161,10 @@ export async function POST(
   const offsetParam = request.nextUrl.searchParams.get('offset')
   const limitParam = request.nextUrl.searchParams.get('limit')
 
-  // Optional request body: raw seed-file contents uploaded by the CLI when the
-  // Worker can't fetch them itself (private repo). Keyed by DataSource.localPath.
-  // Body is absent for most requests, so a parse failure is expected and ignored.
+  // Optional request body: raw seed-file contents from the CLI.
+  // The CLI sends this when the Worker cannot fetch a private repo file itself.
+  // The key is DataSource.localPath.
+  // Most requests have no body, so a parse failure here is normal. Ignore it.
   let inlineData: Record<string, string> | undefined
   try {
     const body = (await request.json()) as { inlineData?: Record<string, string> } | null
@@ -178,10 +172,10 @@ export async function POST(
       inlineData = body.inlineData
     }
   } catch {
-    // No body or not JSON — importer falls back to filesystem/remote fetch.
+    // No body, or invalid JSON. The importer falls back to a filesystem or remote fetch.
   }
 
-  // Validate pagination params - offset/limit require collection
+  // Validate pagination parameters. Offset and limit both require a collection.
   if ((offsetParam !== null || limitParam !== null) && !collection) {
     return new Response(
       JSON.stringify({
@@ -195,8 +189,8 @@ export async function POST(
     )
   }
 
-  // Validate offset and limit are non-negative integers (helper is unit-tested
-  // in seeds/lib/pagination.ts, so this path is covered without a running server).
+  // Validate that offset and limit are non-negative integers.
+  // A unit test in seeds/lib/pagination.ts covers this path without a running server.
   const paginationError =
     validatePaginationParam('offset', offsetParam) ?? validatePaginationParam('limit', limitParam)
   if (paginationError) {
@@ -206,7 +200,7 @@ export async function POST(
     })
   }
 
-  // Build pagination options if collection is specified
+  // Build pagination options when a collection is set.
   let pagination: PaginationOptions | undefined
   if (collection) {
     pagination = {
@@ -270,14 +264,14 @@ export async function POST(
       importerInstance = importer
       const importStartTime = Date.now()
 
-      // Send initial heartbeat immediately (provides instant feedback)
+      // Send an initial heartbeat right away, for instant feedback.
       await sendEvent({
         type: 'heartbeat',
         operation: 'Starting...',
         elapsedMs: 0,
       })
 
-      // Start heartbeat interval to prevent Cloudflare 100-second idle timeout
+      // Start the heartbeat interval to prevent the Cloudflare 100-second idle timeout.
       const sendHeartbeat = async () => {
         try {
           const operation = importerInstance?.getCurrentOperation() || 'Processing...'
@@ -288,7 +282,7 @@ export async function POST(
             elapsedMs,
           })
         } catch {
-          // Stream may be closed, stop heartbeat
+          // The stream may be closed. Stop the heartbeat.
           if (heartbeatInterval) {
             clearInterval(heartbeatInterval)
             heartbeatInterval = null
@@ -296,29 +290,26 @@ export async function POST(
         }
       }
 
-      // Send initial heartbeat immediately, then continue at interval
+      // Send the first heartbeat now, then repeat on the interval.
       await sendHeartbeat()
       heartbeatInterval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL)
 
-      // Run the importer
       await importer.run()
 
-      // Get final counts from database
       const counts = await getDatabaseCounts(payload, script as ScriptName)
 
-      // Verify counts against expected minimums (adjusted for pagination if applicable)
+      // Verify counts against the expected minimums. Pagination adjusts the minimums when it applies.
       const { results: verification, allPassed: verificationPassed } = verifyCountsForScript(
         script as ScriptName,
         counts,
         pagination,
       )
 
-      // Get report data
       const report = importer.getReport()
       const errorMessages = report.getErrors()
       const warningMessages = report.getWarnings()
 
-      // Build pagination result if paginated
+      // Build the pagination result when pagination is set.
       let paginationResult: PaginationResult | null = null
       if (pagination) {
         paginationResult = {
@@ -355,7 +346,7 @@ export async function POST(
         message,
       })
     } finally {
-      // Clean up heartbeat interval
+      // Stop the heartbeat interval.
       if (heartbeatInterval) {
         clearInterval(heartbeatInterval)
       }
@@ -363,10 +354,10 @@ export async function POST(
     }
   }
 
-  // Start the importer without awaiting (runs in background)
+  // Start the importer, but do not wait for it. It runs in the background.
   runImporter()
 
-  // Return SSE response
+  // Return the SSE response.
   return new Response(stream.readable, {
     headers: {
       'Content-Type': 'text/event-stream',
@@ -377,7 +368,7 @@ export async function POST(
 }
 
 /**
- * Get the appropriate importer class for the script
+ * Return the importer class for the named script.
  */
 async function getImporter(
   script: ScriptName,
@@ -438,7 +429,7 @@ async function getImporter(
 }
 
 /**
- * Get database counts for verification
+ * Return database counts for verification.
  */
 async function getDatabaseCounts(
   payload: Awaited<ReturnType<typeof getPayload>>,
@@ -449,7 +440,7 @@ async function getDatabaseCounts(
   try {
     switch (script) {
       case 'tags': {
-        // Note: image-tags removed - now inline enum strings on Images collection
+        // image-tags no longer exists. Its values are now inline enum strings on Images.
         const userChoices = await payload.count({ collection: 'user-choices' })
         const songTags = await payload.count({ collection: 'song-tags' })
         counts['user-choices'] = userChoices.totalDocs
@@ -508,7 +499,7 @@ async function getDatabaseCounts(
       }
     }
   } catch (error) {
-    // Log but don't fail - counts are for verification only
+    // Log the error, but do not fail the request. Counts are for verification only.
     payload.logger.error({ msg: 'Failed to get database counts', error })
   }
 

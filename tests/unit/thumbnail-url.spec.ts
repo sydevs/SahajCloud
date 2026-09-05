@@ -5,7 +5,7 @@ import type { Image } from '@/payload-types'
 
 
 describe('resolveThumbnailUrl', () => {
-  // A populated thumbnail relationship; the resolver only reads `url`.
+  // A populated thumbnail relationship. The resolver only reads `url`.
   const img = (url: string) => ({ id: 1, url }) as Image
 
   it('picks the override first', () => {
@@ -43,8 +43,8 @@ describe('resolveThumbnailUrl', () => {
   })
 
   it('ignores number-only refs (depth:0 IDs have no url to extract)', () => {
-    // At depth:1 the consuming endpoints always receive populated Image objects;
-    // if one ever sees a raw number it cannot resolve a URL, so it must fall
+    // At depth:1 the consuming endpoints always receive populated Image objects.
+    // If one ever sees a raw number it cannot resolve a URL, so it must fall
     // through to the fallback.
     expect(
       resolveThumbnailUrl({

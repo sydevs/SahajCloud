@@ -12,14 +12,13 @@ interface IconProps {
 }
 
 /**
- * Custom Icon component for Payload admin panel
- * Displays project-specific icon with theme-adaptive sizing
- * Handles null currentProject (admin view) by showing Sahaj Cloud logo
+ * Custom icon component for the Payload admin panel.
+ * It shows a project-specific icon at a size the theme controls.
+ * When currentProject is null (the admin view), it shows the Sahaj Cloud logo.
  */
 const Icon = ({ size = 30, alt = '', style = { borderRadius: '25%' } }: IconProps) => {
   const { currentProject } = useProject()
 
-  // Get icon for current project, fallback to sahaj-cloud (admin view)
   const iconSrc = getProjectIcon(currentProject)
 
   return <Image src={iconSrc} alt={alt} width={size} height={size} style={style} />

@@ -68,7 +68,7 @@ describe('mapLanguageCode', () => {
   })
 
   it('accepts any valid ISO 639-1 code (the language field is the full set)', () => {
-    // pt/nl/fi/sl aren't CMS UI locales, but the language field allows all ISO codes.
+    // pt/nl/fi/sl are not CMS UI locales, but the language field allows all ISO codes.
     expect(mapLanguageCode('PT')).toBe('pt')
     expect(mapLanguageCode('NL')).toBe('nl')
     expect(mapLanguageCode('SL')).toBe('sl')

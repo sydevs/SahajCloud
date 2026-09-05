@@ -162,8 +162,8 @@ describe('Events collection', () => {
   })
 
   describe('website field', () => {
-    // The field deliberately isn't `localized` — one URL is shared by every
-    // locale. Config introspection can't prove this (Payload strips
+    // The field deliberately is not `localized` — one URL is shared by every
+    // locale. Config introspection cannot prove this (Payload strips
     // `localized` during sanitization), so assert it functionally.
     it('shares one value across locales', async () => {
       const event = await testData.createEvent(payload, {

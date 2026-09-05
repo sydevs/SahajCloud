@@ -21,7 +21,7 @@ dotenv.config({ path: ['.env.local', '.env'] })
  *
  * A bare `.optional()` only accepts `undefined`, so `FOO=` in a .env file (an
  * empty string) still fails the inner rules. Deliberately blanking a credential
- * you don't need — as local dev does, where auto-login means `pnpm seed` needs
+ * you do not need — as local dev does, where auto-login means `pnpm seed` needs
  * none — should read as "unset", not as a validation error.
  */
 function emptyAsUndefined<T extends z.ZodTypeAny>(schema: T) {

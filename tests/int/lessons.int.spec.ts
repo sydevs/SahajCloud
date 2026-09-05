@@ -1,8 +1,8 @@
 /**
  * Lessons collection custom-behavior tests.
  *
- * Basic CRUD and required-field validation are covered by collections-smoke;
- * this file holds tests for behavior that's project-specific.
+ * Basic CRUD and required-field validation are covered by collections-smoke.
+ * This file holds tests for behavior that is project-specific.
  *
  * Currently: subtitle JSON behavior, article rich-text cleanup for stale
  * Lexical relationship nodes, and meditation field locale isolation

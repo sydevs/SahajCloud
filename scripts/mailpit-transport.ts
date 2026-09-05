@@ -1,13 +1,15 @@
 /**
  * Shared capture transport for the `preview-*-emails` scripts.
  *
- * Every preview script drives the real send path and needs somewhere for the
- * mail to land. They each used to call `nodemailer.createTestAccount()`, which
- * provisions a throwaway Ethereal inbox — convenient, but Ethereal deletes
- * messages after a few hours, so the links these scripts print (and that we now
- * put in PR descriptions) were dead well before anyone reviewed them.
+ * Every preview script drives the real send path, and needs somewhere
+ * for the mail to land. Each script used to call
+ * `nodemailer.createTestAccount()`, which creates a throwaway Ethereal
+ * inbox. That was convenient, but Ethereal deletes messages after a few
+ * hours. So the links these scripts print, now also used in PR
+ * descriptions, went dead before anyone reviewed them.
  *
- * They send to Mailpit instead: 7-day retention and a stable `/view/<id>` link.
+ * These scripts send to Mailpit instead. Mailpit keeps messages for 7
+ * days, at a stable `/view/<id>` link.
  */
 
 import nodemailer from 'nodemailer'
@@ -15,11 +17,12 @@ import nodemailer from 'nodemailer'
 import { buildSmtpTransportOptions } from '@/plugins/email'
 
 /**
- * Build the capture transport, plus a way to turn a send result into a link.
+ * Build the capture transport, and a way to turn a send result into a
+ * link.
  *
- * @throws If `SMTP_URL` is unset. These scripts exist to produce reviewable
- *   links, so a run that silently sent nowhere would be worse than no run —
- *   it would print an empty report that looks like success.
+ * @throws If `SMTP_URL` is unset. These scripts exist to produce
+ *   reviewable links. A run that silently sends nowhere is worse than no
+ *   run at all: it prints an empty report that looks like success.
  */
 export function createCaptureTransport() {
   const url = process.env.SMTP_URL
@@ -38,9 +41,10 @@ export function createCaptureTransport() {
    * A viewable link for one captured message.
    *
    * Mailpit returns its own message id in the SMTP acceptance line
-   * (`250 2.0.0 Ok: queued as <id>`), which is the id its web UI addresses.
-   * Returns `false` — matching nodemailer's `getTestMessageUrl` contract, which
-   * the callers already handle — when the id or viewer base is unavailable.
+   * (`250 2.0.0 Ok: queued as <id>`). Its web UI addresses messages by
+   * that same id. This returns `false` when the id or viewer base is
+   * missing, matching the `getTestMessageUrl` contract from nodemailer
+   * that callers already handle.
    */
   const messageUrl = (info: { response?: string }): string | false => {
     const id = info.response?.match(/queued as (\S+)/)?.[1]

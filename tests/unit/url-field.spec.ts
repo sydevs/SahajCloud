@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import { urlField } from '@/fields/urlField'
 
-// The factory's validator only reads `value`; the second arg is unused. It
+// The factory's validator only reads `value`. The second arg is unused. It
 // returns `TextField`, whose `validate` widens to the hasMany union — but the
 // factory pins `hasMany: false`, so narrow to the single-value form it casts to.
 const validatorFor = (options?: { protocols?: string[] }) => {

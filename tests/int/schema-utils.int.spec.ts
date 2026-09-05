@@ -114,7 +114,7 @@ describe('Schema Introspection Utilities', () => {
       const contentRef = lexicalRefs.find((r) => r.fieldPath === 'content')
       expect(contentRef).toBeDefined()
       expect(contentRef?.isLexicalBlock).toBe(true)
-      // The marker reference doesn't have a specific blockSlug (generic traversal)
+      // The marker reference does not have a specific blockSlug (generic traversal)
       expect(contentRef?.blockSlug).toBeUndefined()
     })
 
@@ -166,7 +166,7 @@ describe('Schema Introspection Utilities', () => {
       expect(extractId(undefined)).toBeNull()
       expect(extractId('not-a-number')).toBeNull()
       expect(extractId({})).toBeNull()
-      // Strings that start with numbers but aren't fully numeric should return null
+      // Strings that start with numbers but are not fully numeric should return null
       expect(extractId('123abc')).toBeNull()
       expect(extractId('1748234234_abcdef')).toBeNull()
     })

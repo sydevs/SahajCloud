@@ -11,7 +11,7 @@ test('create, update, and delete a Lecture clip against preview', async ({ reque
   const headers = authHeaders(token)
   const jsonHeaders = { ...headers, 'content-type': 'application/json' }
 
-  // Find a cloned full lecture to attach a clip to. We don't create full
+  // Find a cloned full lecture to attach a clip to. We do not create full
   // lectures here because the populateFromNirmalaVidya hook would call the
   // real NV API — that's an integration-test responsibility, not smoke.
   const lecturesRes = await request.get('/api/lectures?where[type][equals]=full&limit=1', {

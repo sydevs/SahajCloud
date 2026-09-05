@@ -75,7 +75,7 @@ describe('resendAdapter message mapping', () => {
   })
 
   it('drops a stream attachment with a warning rather than sending a bad payload', async () => {
-    // Resend's REST API takes no streams; forwarding one yields an opaque 422.
+    // Resend's REST API takes no streams. Forwarding one yields an opaque 422.
     const stream = { pipe: () => undefined, readable: true }
     await buildAdapter().sendEmail({
       ...baseMessage,

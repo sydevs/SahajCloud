@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Claude Code status line: shows dev server status + current git branch.
+# Claude Code status line: shows dev server status and current git branch.
 # Output goes on a single line below the chat.
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"

@@ -417,7 +417,7 @@ describe('per-region canonical webUrl', () => {
     })
 
     it('does not resolve ownership at all for a webPath-only read', async () => {
-      // The widget's geojson feed selects `webPath` and not `webUrl`; it should
+      // The widget's geojson feed selects `webPath` and not `webUrl`. It should
       // keep paying for one query, not two.
       const { counts, result } = await countFinds(() =>
         payload.find({
@@ -498,7 +498,7 @@ describe('per-region canonical webUrl', () => {
         const one = await countFinds(readParis(1))
         const many = await countFinds(readParis(3))
 
-        // One `regions` query for the tree; two `clients` queries — ownership,
+        // One `regions` query for the tree. Two `clients` queries — ownership,
         // then the fallback row — and neither moves with the document count.
         expect(one.counts.regions).toBe(1)
         expect(one.counts.clients).toBe(2)
@@ -512,7 +512,7 @@ describe('per-region canonical webUrl', () => {
         for (const doc of resolved) expect(doc.webUrl).toContain(FALLBACK_DOMAIN)
 
         // Precedence, asserted where it actually lives. `canonicalTargetFor`
-        // takes one owner and knows nothing about rank; what makes an owned
+        // takes one owner and knows nothing about rank. What makes an owned
         // region immune to the fallback is that `getCanonicalUrlBase` returns
         // before resolving one. So this reads an OWNED region with the fallback
         // still configured and asserts both halves: the owner's host answers,

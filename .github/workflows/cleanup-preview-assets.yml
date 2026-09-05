@@ -1,10 +1,11 @@
 name: Cleanup preview assets
 
-# Reaps preview-namespaced Cloudflare Images / Stream / R2 assets older than the
-# cutoff (issue #432). Non-prod deploys mark every upload with a `preview-`
-# prefix (Images/R2) or `meta.env=preview` tag (Stream); this job deletes the
-# stale ones so preview test uploads don't accumulate in the shared account.
-# Only preview-marked assets are ever deleted — see scripts/cleanup-preview-assets.ts.
+# This job removes old preview-namespaced Cloudflare assets: Images,
+# Stream, and R2 objects past the cutoff (issue #432). Non-prod deploys
+# mark every upload with a `preview-` prefix (Images and R2) or a
+# `meta.env=preview` tag (Stream). This job deletes only the stale,
+# preview-marked ones, so preview test uploads do not build up in the
+# shared account. See scripts/cleanup-preview-assets.ts.
 
 on:
   schedule:
@@ -34,17 +35,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      # One token covers all three backends: Images:Edit, Stream:Edit, and R2
-      # Object Read & Write (the script derives R2's S3 credentials from it).
-      # One token covers all three backends; only it is a secret. The bucket
-      # name and jurisdiction are configuration, so they stay unmasked — a
-      # masked `R2_BUCKET: ***` is exactly what makes an R2 403 hard to read.
+      # One token covers all three backends: Images:Edit, Stream:Edit, and
+      # R2 Object Read & Write. The script derives R2's S3 credentials from
+      # it, so it is the only secret here. The bucket name and jurisdiction
+      # are plain configuration, so they stay unmasked. A masked
+      # `R2_BUCKET: ***` would make an R2 403 error hard to read.
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
       R2_BUCKET: ${{ vars.R2_BUCKET }}
-      # The bucket is jurisdiction-bound and reachable only on the matching
-      # host; on the default host R2 answers AccessDenied, which impersonates a
-      # permissions problem.
+      # The bucket is jurisdiction-bound. It answers only on the matching
+      # host. On the default host, R2 returns AccessDenied instead, which
+      # looks like a permissions problem but is not one.
       R2_JURISDICTION: eu
     steps:
       - uses: actions/checkout@v4
@@ -54,13 +55,13 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Scheduled runs always delete. Manual runs delete only when `apply` is
-      # checked; otherwise they print a dry-run report.
+      # Scheduled runs always delete. Manual runs delete only when `apply`
+      # is checked. Otherwise they print a dry-run report.
       #
-      # All three secrets above are REQUIRED — the script exits 1 without them,
-      # which is deliberate: a cleanup that silently reaps nothing is worse than
-      # a loud failure. (It previously read a secret name that didn't exist and
-      # failed nightly for six weeks unnoticed.)
+      # All three secrets above are required. The script exits 1 without
+      # them, on purpose: a cleanup that silently deletes nothing is worse
+      # than a loud failure. It once read a secret name that did not
+      # exist, and it failed every night for six weeks, unnoticed.
       - name: Cleanup preview assets
         run: >-
           pnpm tsx scripts/cleanup-preview-assets.ts

@@ -436,7 +436,7 @@ describe('Pages Collection', () => {
     })
   })
 
-  // #542: a bulk publish fans the appUrl afterRead across every doc; guard that
+  // #542: a bulk publish fans the appUrl afterRead across every doc. Guard that
   // it publishes each and leaves version history intact. The once-per-request
   // wm-app-config load is guarded deterministically in
   // tests/unit/pages-app-config-cache.spec.ts — the stampede reproduces only
@@ -460,7 +460,7 @@ describe('Pages Collection', () => {
         expect(doc._status).toBe('published')
         // Proves the appUrl afterRead — and thus loadAppConfigOnce — actually ran
         // through the real bulk path: webPath computes from the published gate +
-        // slug, and appUrl is gated off (test pages aren't in wm-app-config).
+        // slug, and appUrl is gated off (test pages are not in wm-app-config).
         expect(doc.webPath).toBeTruthy()
         expect(doc.appUrl).toBeFalsy()
       })

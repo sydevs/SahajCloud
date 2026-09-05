@@ -1,10 +1,12 @@
 /**
- * Generate `statusConfig.json` files from each project's `StatusGlobalSpec`.
+ * Generate `statusConfig.json` files from each project's
+ * `StatusGlobalSpec`.
  *
- * Chained into `pnpm generate:types` so devs running their existing
- * post-schema-change workflow keep the JSON in sync automatically.
+ * This script runs as part of `pnpm generate:types`, so it keeps the
+ * JSON in sync automatically, as part of the normal post-schema-change
+ * workflow.
  *
- * Add a new project by registering its spec + output path below.
+ * To add a new project, register its spec and output path below.
  */
 
 import { writeFileSync } from 'fs'

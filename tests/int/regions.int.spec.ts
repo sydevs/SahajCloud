@@ -111,7 +111,7 @@ describe('Regions child-join recursive descendants', () => {
 
     it('lists cities at any depth — not just direct children (2 hops down)', async () => {
       const country = await readRegion(countryA)
-      // cityA/cityB sit under regions, never directly under the country; an
+      // cityA/cityB sit under regions, never directly under the country. An
       // `on: 'parent'` join would miss them entirely.
       expect(joinIds(country, 'childrenCities').sort()).toEqual([cityA, cityB].sort())
     })
@@ -156,7 +156,7 @@ describe('Regions child-join recursive descendants', () => {
 
   describe('locale independence', () => {
     it('returns the same descendant set in a non-default locale (cs)', async () => {
-      // The tree is created in the default locale (en); breadcrumbs are
+      // The tree is created in the default locale (en). Breadcrumbs are
       // non-localized (see Regions.ts), so the reverse-lookup on `breadcrumbs.doc`
       // is locale-stable — the descendant set a manager sees must not depend on
       // the admin UI locale.
@@ -176,7 +176,7 @@ describe('Regions child-join recursive descendants', () => {
   describe('canonical webPath / webUrl', () => {
     // A separate country → city pair (no region level) for the region-optional
     // shape and the slug-rename recompute check, kept off the shared tree so it
-    // can't disturb the child-join assertions above.
+    // cannot disturb the child-join assertions above.
     let countryZ: number
     let cityZ: number
 

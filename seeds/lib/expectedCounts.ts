@@ -35,7 +35,7 @@ export interface ExpectedCounts {
  * - storyblok: Based on current Storyblok content
  *
  * Note: Image tags are now inline enum select values on the Images collection,
- * so they don't have expected counts anymore.
+ * so they do not have expected counts anymore.
  */
 export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   tags: {
@@ -65,7 +65,7 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   'wm-app-translations': {},
   // translations updates three PayloadCMS globals, not collections.
   translations: {},
-  // Counts follow the 2026-08 Atlas dump (activity through Aug 2026; the
+  // Counts follow the 2026-08 Atlas dump (activity through Aug 2026. The
   // previous dump's data ended Oct 2024). Counted, not estimated —
   // verification is `actual >= expected`, so an understated value passes even
   // when the import silently loses rows. `tests/unit/atlas-events-data.spec.ts`
@@ -87,7 +87,7 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     // the importer skips (EXCLUDED_EVENT_LEGACY_IDS in seeds/atlas/import.ts),
     // #4958 (no Atlas area, so no resolvable region), and the 2 archived
     // events (#75, #199) that import straight into the trash, which
-    // `payload.count` doesn't see.
+    // `payload.count` does not see.
     events: 649,
     // 2034 source rows, less: the 27 belonging to a registrant whose email was
     // never an address, the 2 whose event has neither a row in events.json nor
@@ -251,9 +251,9 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       hasFileUploads: true, // Panel images, audio
     },
     {
-      // Storyblok currently carries 0 video stories in source. Code path is
-      // wired but unexercised; promote to >0 once editorial adds DD_Main_video
-      // blocks. Natural key matches lecture upserts (Vimeo URL).
+      // Storyblok currently carries 0 video stories in source. The code
+      // path is wired but unexercised. Promote to >0 once editorial adds
+      // DD_Main_video blocks. Natural key matches lecture upserts (Vimeo URL).
       slug: 'lectures',
       totalItems: 0,
       requiresPagination: false,
@@ -267,11 +267,12 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   'wm-app-translations': [],
   // translations targets three PayloadCMS globals, not collections.
   translations: [],
-  // Atlas migration. Order is the import order (the runner iterates this array):
-  // managers + regions before events/clients; events + users before
-  // registrations; events before pictures. Managers/regions/clients run in bulk
-  // (regions builds the country→region→city→center tree in one pass); the large
-  // collections paginate. `pictures` is a logical step that uploads to `images`.
+  // Atlas migration. Order is the import order (the runner iterates this
+  // array): managers and regions before events and clients, events and
+  // users before registrations, events before pictures. Managers, regions,
+  // and clients run in bulk (regions builds the country-to-region-to-city
+  // tree in one pass). The large collections paginate. `pictures` is a
+  // logical step that uploads to `images`.
   atlas: [
     {
       slug: 'managers',
