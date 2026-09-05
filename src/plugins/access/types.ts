@@ -8,7 +8,7 @@
 import type { CollectionSlug, FieldAccess, GlobalSlug, Operation, TypedUser } from 'payload'
 
 import type { LocaleCode } from '@/lib/locales'
-import type { ProjectSlug, RoleSlug } from '@/payload-types'
+import type { Client, Manager, RoleSlug } from '@/payload-types'
 
 // ============================================================================
 // Permission Level Type
@@ -60,23 +60,22 @@ export type BypassPermissionFunction = (
  * - Array of RoleSlug = flat roles (e.g., clients)
  * - Object with locale keys = localized roles (e.g., managers)
  */
-export type TypedAuthUser = TypedUser & {
-  /** Auth collection this user belongs to */
-  collection: 'managers' | 'clients'
-  /**
-   * User's roles — a flat array for clients, a per-locale record for managers.
-   *
-   * The record is produced by `hydrateLocalizedRoles` during authentication; a
-   * manager read any other way carries the flat, default-locale array instead.
-   */
-  roles?: RoleSlug[] | Record<LocaleCode, RoleSlug[]>
-  /** Currently selected project (for managers) */
-  currentProject?: ProjectSlug | null
-  /** Draft/published status (for clients — publish/unpublish is the auth gate) */
-  _status?: 'draft' | 'published'
-  /** User type (for managers) */
-  type?: 'admin' | 'manager' | 'inactive'
-}
+export type TypedAuthUser = TypedUser &
+  Partial<Pick<Manager, 'currentProject' | 'type'>> &
+  Partial<Pick<Client, '_status'>> & {
+    /** Auth collection this user belongs to */
+    collection: 'managers' | 'clients'
+    /**
+     * User's roles — a flat array for clients, a per-locale record for managers.
+     *
+     * This member is the one that cannot be a `Pick`. `hydrateLocalizedRoles`
+     * produces the per-locale record during authentication, and no generated
+     * type can express it — the collection declares `roles` as `localized`, so
+     * Payload generates the single-locale array (#665). A manager read any
+     * other way carries that flat, default-locale array instead.
+     */
+    roles?: RoleSlug[] | Record<LocaleCode, RoleSlug[]>
+  }
 
 // ============================================================================
 // Permission Check Arguments
