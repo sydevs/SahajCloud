@@ -58,7 +58,6 @@ describe('classifyStatuses', () => {
   it('reads success with no host as unpublished, not as pending', () => {
     expect(classifyStatuses([UNPUBLISHED], 'SahajCloud')).toEqual({
       kind: 'unpublished',
-      state: 'success',
       description: 'Success',
     })
   })
@@ -118,11 +117,7 @@ describe('discoverPreview', () => {
     // The #661 regression: 48 identical polls across 12m15s before a
     // silent skip. One poll, no sleep, and a terminal answer.
     const h = harness([[UNPUBLISHED]])
-    await expect(h.run()).resolves.toEqual({
-      kind: 'unpublished',
-      state: 'success',
-      description: 'Success',
-    })
+    await expect(h.run()).resolves.toEqual({ kind: 'unpublished', description: 'Success' })
     expect(h.fetchStatuses).toHaveBeenCalledTimes(1)
     expect(h.sleep).not.toHaveBeenCalled()
   })
@@ -156,8 +151,31 @@ describe('discoverPreview', () => {
       kind: 'timeout',
       last: { kind: 'absent' } satisfies PreviewStatus,
       elapsedMs: 45_000,
+      reads: 3,
+      errors: 0,
     })
     expect(h.fetchStatuses).toHaveBeenCalledTimes(3)
+  })
+
+  it('separates "every read failed" from "no status appeared"', () => {
+    // A revoked `statuses: read` scope must not read as an absent preview —
+    // that is #661's silent green through another door. `reads: 0` is what
+    // lets the caller tell the two apart.
+    const h = harness([new Error('GitHub statuses API: HTTP 403')], 45_000)
+    return expect(h.run()).resolves.toMatchObject({
+      kind: 'timeout',
+      reads: 0,
+      errors: 3,
+      last: { kind: 'absent' },
+    })
+  })
+
+  it('never sleeps past the deadline, so the budget is not overrun', async () => {
+    // The last sleep gates no further poll. Unclamped it overran the
+    // advertised budget by up to a full interval — 15s of dead CI clock.
+    const h = harness([[]], 40_000)
+    expect(await h.run()).toMatchObject({ kind: 'timeout', elapsedMs: 40_000 })
+    expect(h.sleep.mock.calls.map(([ms]) => ms)).toEqual([15_000, 15_000, 10_000])
   })
 
   it('times out on a deploy that never leaves pending', async () => {
