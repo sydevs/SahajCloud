@@ -34,9 +34,13 @@
  *   exit 0, empty  - no Railway status within the timeout, a failed or
  *                    cancelled deploy, or missing env. There is genuinely
  *                    no preview to test, so the smoke lane skips and
- *                    ci.yml's `::warning` says so.
- *   exit 1         - the deploy succeeded but published NO host, or the
- *                    preview never became healthy. Both are broken
+ *                    ci.yml's `::warning` says so. A statuses API that
+ *                    refused every read for the whole budget also lands
+ *                    here, under its own `::warning`, because that cause
+ *                    is transient.
+ *   exit 1         - the deploy succeeded but published NO host, GitHub
+ *                    refused the statuses read with 401/403, or the
+ *                    preview never became healthy. All three are broken
  *                    configuration rather than an absent preview, and
  *                    must not read as green.
  *
@@ -45,7 +49,7 @@
  */
 import { appendFileSync } from 'node:fs'
 
-import { discoverPreview, type CommitStatus } from './railway-preview-status'
+import { discoverPreview, StatusFetchError, type CommitStatus } from './railway-preview-status'
 
 const GH_TOKEN = process.env.GITHUB_TOKEN
 const REPO = process.env.GITHUB_REPOSITORY
@@ -70,7 +74,7 @@ async function fetchStatuses(): Promise<CommitStatus[]> {
       },
     },
   )
-  if (!res.ok) throw new Error(`GitHub statuses API: HTTP ${res.status}`)
+  if (!res.ok) throw new StatusFetchError(`GitHub statuses API: HTTP ${res.status}`, res.status)
   return (await res.json()) as CommitStatus[]
 }
 
@@ -130,6 +134,21 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
+  if (outcome.kind === 'forbidden') {
+    // Never having looked is not evidence of absence: a revoked
+    // `statuses: read` scope reads exactly like a PR with no preview
+    // environment. GitHub will not relent inside one run, so this is
+    // terminal on the first refusal rather than 12 minutes later.
+    console.error(
+      `::error title=Railway preview discovery was refused::GitHub refused the statuses read ` +
+        `(${outcome.message}), so whether a preview exists is unknown. Check the workflow's ` +
+        `\`statuses: read\` permission and GITHUB_TOKEN. Re-running will not help while the ` +
+        `token lacks the scope.`,
+    )
+    exportUrl('')
+    process.exit(1)
+  }
+
   if (outcome.kind === 'failed') {
     console.error(`Railway preview deploy reported ${outcome.state} — skipping smoke.`)
     exportUrl('')
@@ -139,19 +158,20 @@ async function main(): Promise<void> {
   if (outcome.kind === 'timeout') {
     const seconds = Math.round(outcome.elapsedMs / 1000)
 
-    // Every read failed, so we never actually looked. Reporting that as
-    // "no preview exists" is the same silent green #661 was about, through
-    // another door: a revoked `statuses: read` scope reads exactly like a
-    // PR with no preview environment.
+    // Every read failed, so we never actually looked, and "no preview
+    // exists" would overstate what we know. The permanent causes already
+    // exited above, so what is left is transient — a statuses-API incident
+    // outlasting the deadline. That must not redden every open PR, so it
+    // warns and skips rather than failing.
     if (outcome.reads === 0) {
       console.error(
-        `::error title=Railway preview discovery could not read any status::All ` +
+        `::warning title=Railway preview discovery could not read any status::All ` +
           `${outcome.errors} request(s) to the GitHub statuses API failed over ${seconds}s, so ` +
-          `whether a preview exists is unknown. Check the workflow's \`statuses: read\` ` +
-          `permission and GITHUB_TOKEN before treating this as an absent preview.`,
+          `whether a preview exists was never established. Smoke is skipping on an unknown, ` +
+          `not on an absent preview.`,
       )
       exportUrl('')
-      process.exit(1)
+      return
     }
 
     console.error(
