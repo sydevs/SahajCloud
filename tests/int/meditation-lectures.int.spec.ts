@@ -651,9 +651,7 @@ describe('meditationLectures endpoint', () => {
     await payload.update({
       collection: 'meditations',
       id: meditation.id,
-      // Nullable in Postgres, but the generated type omits `null` — a
-      // `jsonSchema` replaces Payload's loose JSON union verbatim.
-      data: { subtleSystemNodeWeights: null } as never,
+      data: { subtleSystemNodeWeights: null },
       context: { skipRecomputeNodeWeights: true },
       locale: 'en',
     })

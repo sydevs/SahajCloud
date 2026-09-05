@@ -331,6 +331,16 @@ Four things to know before you write one:
   Payload's loose union verbatim. The column is still nullable in
   Postgres, and the validator skips `null`, `undefined`, `{}` and `[]`
   before reaching Ajv — so code that clears a column casts.
+  **`type: ['object', 'null']` puts it back, but only on a schema with no
+  `properties`** (`meditationNodeWeightsFieldSchema`). Add `properties`
+  and `generate:types` emits `X & (X | null)`, which is `X` again plus a
+  duplicated copy of the whole interface — so there the cast stays.
+- **An open shape can still be typed.** `additionalProperties: true`
+  generates `[k: string]: unknown`, so every consumer reading a dynamic
+  key needs a hand-written alias to cast to — the second definition this
+  rule exists to delete. Give `additionalProperties` a schema instead
+  (`notificationPreferencesJsonSchema`): the value is described, the keys
+  stay open, and no row is stranded.
 - **Ajv runs in strict mode**, so only standard JSON Schema keywords may
   appear. A custom keyword throws at validate time, not at boot.
 

@@ -41,11 +41,7 @@ export function pickChannel(
   channel: NotificationChannel
   destination: string
 } {
-  const prefs = manager.notificationPreferences as
-    | Record<string, { method?: string } | undefined>
-    | null
-    | undefined
-  const method = prefs?.[notificationKey]?.method
+  const method = manager.notificationPreferences?.[notificationKey]?.method
 
   if (method === 'whatsapp' || method === 'telegram' || method === 'wechat') {
     const contact = (manager.contactDetails ?? []).find(

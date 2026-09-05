@@ -36,11 +36,7 @@ export interface VerifyFields {
 /** Pull the `event_verification` cadence off a (possibly unpopulated) manager. */
 export function managerCadence(manager: Manager | number | null | undefined): string | undefined {
   if (!manager || typeof manager !== 'object') return undefined
-  const prefs = manager.notificationPreferences as
-    | Record<string, { frequency?: string } | undefined>
-    | null
-    | undefined
-  return prefs?.event_verification?.frequency
+  return manager.notificationPreferences?.event_verification?.frequency
 }
 
 /** Build a log actor reference from the acting user (a manager). */
