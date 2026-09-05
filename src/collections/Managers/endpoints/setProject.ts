@@ -8,9 +8,9 @@ import { isValidProject } from '@/plugins/access'
 
 const bodySchema = z
   .object({
-    // `null` is the admin "All Content" view; a slug selects a project. The
-    // Managers `currentProject` beforeChange still maps '' → null, but the
-    // selector always sends `null` for that case.
+    // `null` is the admin "All Content" view. A slug selects a project.
+    // `isValidProject` rejects `''`, so the sentinel this field once carried
+    // cannot return through the one path that writes it.
     currentProject: z.string().nullable(),
   })
   .refine(({ currentProject }) => isValidProject(currentProject), {
