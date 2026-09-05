@@ -216,12 +216,32 @@ curl -I https://cloud.sydevelopers.com/admin                # Cache-Control: no-
 `.github/workflows/ci.yml` runs on every PR: lint, typecheck, and `pnpm test` against a
 `postgres:18` service container. It then discovers that PR's Railway preview URL from Railway's
 GitHub commit status via `scripts/get-railway-preview-url.ts` (no Railway API token needed) and
-runs `pnpm test:smoke` against it. The smoke step skips gracefully, and the job stays green, when
-no preview is discovered — treat a skip as "unit and integration passed," not "smoke passed."
+runs `pnpm test:smoke` against it. When a PR genuinely has no preview environment, the smoke step
+skips and the job stays green — treat that skip as "unit and integration passed," not "smoke
+passed." **When a deploy succeeds but publishes no URL, the job now fails instead** (#661); see the
+warning below for why those two cases must not look alike.
 
 Setting up a new PR-preview service the first time: **Project Canvas → + New → GitHub Repo**,
-same `railway.toml` and Railpack builder as production. Railway assigns each PR its own preview
-URL automatically once the service exists — no manual per-PR configuration is needed.
+same `railway.toml` and Railpack builder as production.
+
+### ⚠ PR previews inherit their domain from production
+
+**The `SahajCloud` service in the `production` environment must keep a Railway-provided
+`*.up.railway.app` domain, on target port 8080, alongside the custom `cloud.sydevelopers.com`.**
+Railway's rule: a service in a PR environment receives a domain automatically *only* when the
+corresponding base-environment service has a Railway-provided one. Remove it from production and
+every future PR environment silently gets none.
+
+That happened, and it cost the smoke lane weeks of PRs (#661). The symptoms, none of them loud:
+
+- The Railway commit status reads a bare `Success`, with no host after it.
+- The `railway-app` bot comment's **Web** column is empty for `SahajCloud`.
+- `Run smoke specs against the Railway preview` reports `skipped`, and the job stays green.
+
+`scripts/get-railway-preview-url.ts` now **fails the job** on that exact shape, with an `::error`
+naming this section, so the next occurrence is visible on the first PR rather than after weeks.
+Re-running will not help — fix the domain on production. Existing PR environments do not backfill,
+so only PRs opened after the fix get a URL.
 
 ---
 
