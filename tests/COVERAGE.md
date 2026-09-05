@@ -81,6 +81,7 @@ Per `tests/AGENTS.md`, only **custom logic** belongs in the integration lane (ho
 | `breadcrumbs[].url` backfill — roots-only resave repopulates the whole tree via the nested-docs cascade, and is re-runnable | `region-breadcrumb-url-backfill` |
 | A pre-existing blank region slug survives the nested-docs cascade (its ancestors stay saveable), while a deliberate blank is still refused | `region-blank-slug-cascade` |
 | RBAC (`hasPermission`, `hasAnyPermission`, document-level manager access, locale roles, translator scopes)     | `role-based-access`         |
+| What a REST error body discloses — a 500 redacted to `Something went wrong.` with no stack, SQL or bound parameters when `config.debug` is off, the verbose body kept when it is on, and `databaseErrorPlugin`'s 400 surviving both (the `routeError` ordering) | `error-disclosure`, `error-disclosure-debug` |
 
 ## Gaps
 
@@ -96,6 +97,7 @@ Tier 3 smoke specs run against the per-PR Railway preview environment with clone
 | `meditations.e2e.spec.ts` | `POST/PATCH/DELETE /api/meditations`, plus `GET` of resources |
 | `songs.e2e.spec.ts`       | `POST/PATCH/DELETE /api/songs`                                |
 | `lectures.e2e.spec.ts`    | `POST/PATCH/DELETE /api/lectures` (clip variant)              |
+| `error-disclosure.e2e.spec.ts` | `GET /api/meditations` with a failing `limit` and a failing `where` — the only gate reading the DEPLOYED `config.debug` (#684) |
 
 **Dedup pass (P5 of #434).** Searched `tests/int/` for files hitting the same REST paths. Three matches: `content-index-block` (builds `/api/meditations` URLs via `computeApiEndpoint` virtual), `meditation-lectures` (hits the custom `/api/meditations/lectures` endpoint, not `/api/meditations`), and `storage-utils` (URL field factory references `/api/songs/...`). None duplicates smoke's CRUD coverage — each exercises a hook, virtual field, or custom endpoint. No integration test was removed by P5.
 

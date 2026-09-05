@@ -51,7 +51,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
 
   return buildConfig({
     serverURL: serverUrl,
-    debug: true, // Enable verbose error logging for troubleshooting uploads
+    // ⚠ Response-body switch, NOT a logger setting: on, an unhandled error is
+    // returned verbatim with a stack. `NODE_ENV` deliberately — unlike the
+    // `isProductionDeployment()` rule below, previews redact too. See
+    // `docs/architecture.md` § "What an error body discloses (issue #684)".
+    debug: !isProduction,
     // Use one logger implementation everywhere so local, CLI, and server behavior stay aligned.
     logger,
     // Cap relationship-population depth globally. `defaultDepth` (Payload's own
