@@ -103,8 +103,13 @@ describe('SyncLectureMetadata task', () => {
       ru: 'https://example.com/refreshed-ru.vtt',
     })
     expect(metadata.duration).toBe(2400)
-    expect(new Date(metadata.lastSyncedAt).getTime()).toBeGreaterThan(
-      new Date(originalSyncedAt).getTime(),
+    // Both keys are optional on the generated type (the schema requires none,
+    // so a row written under an earlier shape stays saveable), so assert they
+    // are present before comparing.
+    expect(metadata.lastSyncedAt).toBeDefined()
+    expect(originalSyncedAt).toBeDefined()
+    expect(new Date(metadata.lastSyncedAt!).getTime()).toBeGreaterThan(
+      new Date(originalSyncedAt!).getTime(),
     )
   })
 

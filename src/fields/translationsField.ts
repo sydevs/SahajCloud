@@ -143,12 +143,15 @@ function createScreenshotField(
  * RichText keys are emitted as sibling richText fields at the same level
  * (see createRichTextField), not packed into this JSON blob.
  *
- * NOTE — no `jsonSchema` is set. Payload would compile it to a validator via
- * Ajv which uses `new Function()` for performance. Cloudflare Workers' V8
- * isolate disallows dynamic code generation, so any write to a
- * `jsonSchema`-validated field throws "Code generation from strings
- * disallowed" in prod. A pure-JS `validate` function enforces the same
- * key/type constraints instead.
+ * NOTE — no `jsonSchema` is set, and the reason given here used to be wrong.
+ * It said Ajv's `new Function()` is refused by the Cloudflare Workers V8
+ * isolate (#317); this app has run on Railway/Node since, so that constraint
+ * is gone and the pure-JS `validate` below is no longer forced.
+ *
+ * #705 owns the replacement: it derives a `jsonSchema` per leaf group, drops
+ * this validator, and adds a blocking `maxLength`. #659 leaves the field alone
+ * rather than give the column two definitions to reconcile at that merge —
+ * see `src/collections/AGENTS.md`, "A JSON column declares its shape".
  */
 function createStringsJsonField(
   fieldName: string,

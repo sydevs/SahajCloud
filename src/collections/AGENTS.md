@@ -295,6 +295,72 @@ code that treats "plain object ⇒ a group to expand" renders the whole row.
 references to _name_, or a proposed manager came out as their id, roles,
 email, and every notification preference.
 
+## A JSON column declares its shape (#659)
+
+`type: 'json'` with no `jsonSchema` accepts anything and generates
+`{ [k: string]: unknown } | unknown[] | string | number | boolean | null`.
+Declaring a schema buys both halves at once: Payload compiles an Ajv
+validator for writes **and** substitutes the schema into
+`payload-types.ts`, so the column's consumers stop restating its shape by
+hand.
+
+```typescript
+{
+  name: 'metadata',
+  type: 'json',
+  jsonSchema: {
+    uri: LECTURE_METADATA_SCHEMA_URI,
+    fileMatch: [LECTURE_METADATA_SCHEMA_URI],
+    schema: lectureMetadataJsonSchema,   // carries the same $id, plus a `title`
+  },
+}
+```
+
+Four things to know before you write one:
+
+- **A `title` names the generated interface**, and `$id` is the fallback.
+  Reuse one schema across several columns and Payload emits
+  `FileMetadata`, `FileMetadata1`, … — one per usage, same shape.
+- **Every property optional, unless nothing can hold the old shape.**
+  Payload validates the column on *every* save of the document, including
+  one that never touched it, so a `required` key or
+  `additionalProperties: false` can make a row written under an earlier
+  shape unsaveable. Close the shape only where a single internal writer
+  owns the column.
+- **The generated type omits `null`**, because the schema replaces
+  Payload's loose union verbatim. The column is still nullable in
+  Postgres, and the validator skips `null`, `undefined`, `{}` and `[]`
+  before reaching Ajv — so code that clears a column casts.
+- **Ajv runs in strict mode**, so only standard JSON Schema keywords may
+  appear. A custom keyword throws at validate time, not at boot.
+
+**Supplying `validate` replaces the built-in validator — which is the
+thing that runs the schema.** A schema sitting beside a custom validator
+does nothing at all. Compose instead, the same way a custom `text`
+validator composes `text` from `payload/shared`:
+
+```typescript
+import { json as jsonFieldValidation } from 'payload/shared'
+
+validate: (value, options) => {
+  const shape = jsonFieldValidation(value, options)
+  if (shape !== true) return shape
+  return myCrossKeyRule(value)   // what no schema can state
+}
+```
+
+Keep a custom validator only for a rule the schema cannot carry — a
+cross-key constraint, or one that depends on `operation`.
+`Managers.notificationPreferences` and `Meditations.frames` are the two
+examples; `tests/unit/json-field-schemas.spec.ts` fails if either stops
+composing.
+
+**Leave the shape open where it is genuinely open** — a verbatim legacy
+import, a third-party payload, a value one of our own `afterRead` hooks
+produces and nothing ever writes. Say so in a one-line comment naming
+where the type already lives, rather than restating that type as a second
+definition.
+
 ## Activity logs (`logField`)
 
 "What happened to this document, and when?" is a question managers ask —

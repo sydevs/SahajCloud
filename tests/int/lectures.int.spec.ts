@@ -161,7 +161,7 @@ describe('Lectures Collection', () => {
         data: createData<'lectures'>({ nirmalVidyaVimeoUrl: 'https://vimeo.com/333333333' }),
       })
 
-      expect((lecture.metadata as LectureMetadata).subtitles['pt-BR']).toBe(
+      expect((lecture.metadata as LectureMetadata).subtitles?.['pt-BR']).toBe(
         'https://example.com/subs/pt.vtt',
       )
     })

@@ -13,9 +13,7 @@ type SyncResult = {
   skippedNoVimeoId: number
 }
 
-type SyncLectureMetadataInput = {
-  lectureIds?: number[]
-}
+const LECTURE_IDS_SCHEMA_URI = 'https://sahajcloud.dev/schemas/sync-lecture-metadata-ids.json'
 
 const PAGINATION_LIMIT = 1000
 const MAX_CONCURRENT_FETCHES = 10
@@ -39,9 +37,21 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
   retries: 2,
   inputSchema: [
     {
+      // Optional narrowing for a manual run. The schema types the input and
+      // rejects anything but a list of lecture ids at enqueue.
       name: 'lectureIds',
       type: 'json',
       required: false,
+      jsonSchema: {
+        uri: LECTURE_IDS_SCHEMA_URI,
+        fileMatch: [LECTURE_IDS_SCHEMA_URI],
+        schema: {
+          $id: LECTURE_IDS_SCHEMA_URI,
+          title: 'SyncLectureMetadataIds',
+          type: 'array',
+          items: { type: 'integer' },
+        },
+      },
     },
   ],
   outputSchema: [
@@ -64,7 +74,7 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
       skippedNoVimeoId: 0,
     }
 
-    const lectureIds = (input as SyncLectureMetadataInput | undefined)?.lectureIds
+    const lectureIds = input?.lectureIds
     // Only full lectures own NV `metadata`; clips reference their parent and
     // have `metadata: null` by design (#338).
     const where: Where =

@@ -15,11 +15,70 @@
  * `subtleSystemNodeWeights` cache best-effort; failures must not propagate
  * to the user-facing save (root cause of issue #390).
  */
-import type { Payload, PayloadRequest } from 'payload'
+import type { JSONSchema4 } from 'json-schema'
+import type { JSONField, Payload, PayloadRequest } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
 import type { KeyframeDefinition } from '@/types/frames'
+
+export const MEDITATION_FRAMES_SCHEMA_URI = 'https://sahajcloud.dev/schemas/meditation-frames.json'
+
+/**
+ * What `Meditations.frames` accepts on write: a list of keyframes, each naming
+ * a frame and when it appears. `normalizeMeditationFramesForStorage` reduces
+ * every entry to exactly `{ id, timestamp }` before it is stored.
+ *
+ * **The entries stay open (`additionalProperties: true`) because validation
+ * runs before that normalization.** The field's `afterRead` enriches each
+ * keyframe with the whole Frame document, and `FrameListManager` posts that
+ * enriched array straight back, so a closed schema would reject every save from
+ * the admin panel. What is worth checking here is the part normalization cannot
+ * repair without silently dropping rows: that the value is a list, and that
+ * each entry names both an id and a timestamp.
+ */
+export const meditationFramesJsonSchema: JSONSchema4 = {
+  $id: MEDITATION_FRAMES_SCHEMA_URI,
+  title: 'MeditationFrames',
+  type: 'array',
+  items: {
+    type: 'object',
+    additionalProperties: true,
+    required: ['id', 'timestamp'],
+    properties: {
+      id: { type: ['integer', 'string'], description: 'The Frame document id.' },
+      timestamp: { type: 'number', description: 'Seconds into the meditation.' },
+    },
+  },
+}
+
+/** The field-level wrapper Payload wants — see `Meditations.frames`. */
+export const meditationFramesFieldSchema: JSONField['jsonSchema'] = {
+  uri: MEDITATION_FRAMES_SCHEMA_URI,
+  fileMatch: [MEDITATION_FRAMES_SCHEMA_URI],
+  schema: meditationFramesJsonSchema,
+}
+
+export const NODE_WEIGHTS_SCHEMA_URI =
+  'https://sahajcloud.dev/schemas/meditation-node-weights.json'
+
+/**
+ * `Meditations.subtleSystemNodeWeights`: the cached `{ slug → on-screen
+ * seconds }` map built by `computeMeditationNodeWeights`. Written only by the
+ * recompute hook and the cascade from Frames, so the schema can be closed on
+ * the value type while staying open on the keys — the keys are subtle-system
+ * node slugs, which live in the `subtle-system` collection rather than in code.
+ */
+export const meditationNodeWeightsFieldSchema: JSONField['jsonSchema'] = {
+  uri: NODE_WEIGHTS_SCHEMA_URI,
+  fileMatch: [NODE_WEIGHTS_SCHEMA_URI],
+  schema: {
+    $id: NODE_WEIGHTS_SCHEMA_URI,
+    title: 'MeditationNodeWeights',
+    type: 'object',
+    additionalProperties: { type: 'number' },
+  },
+}
 
 export type FrameNormalizationIssue =
   | 'invalid-id'

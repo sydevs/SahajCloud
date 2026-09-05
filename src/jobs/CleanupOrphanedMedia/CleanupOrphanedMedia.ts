@@ -44,11 +44,7 @@ type CleanupResult = {
  * or field knowledge required. Adding new collections with file/image references
  * requires no changes to this job.
  */
-/** Type for test-injected date range */
-type TestDateRangeInput = {
-  rangeStart: string
-  rangeEnd: string
-}
+const TEST_DATE_RANGE_SCHEMA_URI = 'https://sahajcloud.dev/schemas/cleanup-test-date-range.json'
 
 export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
   retries: 2,
@@ -56,9 +52,26 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
   slug: 'cleanupOrphanedMedia',
   inputSchema: [
     {
+      // Test-only injection point. The schema both types the input and refuses
+      // a malformed one at enqueue, instead of at the cast in the handler.
       name: 'testDateRange',
       type: 'json',
       required: false,
+      jsonSchema: {
+        uri: TEST_DATE_RANGE_SCHEMA_URI,
+        fileMatch: [TEST_DATE_RANGE_SCHEMA_URI],
+        schema: {
+          $id: TEST_DATE_RANGE_SCHEMA_URI,
+          title: 'CleanupTestDateRange',
+          type: 'object',
+          additionalProperties: false,
+          required: ['rangeStart', 'rangeEnd'],
+          properties: {
+            rangeStart: { type: 'string' },
+            rangeEnd: { type: 'string' },
+          },
+        },
+      },
     },
     {
       name: 'maxOperations',
@@ -114,7 +127,7 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
 
     // Check for test-injected date range
     if (input?.testDateRange) {
-      const testRange = input.testDateRange as TestDateRangeInput
+      const testRange = input.testDateRange
       rangeStart = new Date(testRange.rangeStart)
       rangeEnd = new Date(testRange.rangeEnd)
       rangeLabel = 'test-range'

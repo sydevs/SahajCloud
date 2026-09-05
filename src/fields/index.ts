@@ -18,6 +18,9 @@ export type {
   PublicUrlPlatform,
 } from './publicUrlFields'
 
+// File metadata - the shared sidebar column on the four upload collections
+export { fileMetadataField, FILE_METADATA_SCHEMA_URI } from './fileMetadataField'
+
 // Color field - text field with hex color validation and color picker
 export { colorField } from './colorField'
 export type { ColorFieldOptions } from './colorField'

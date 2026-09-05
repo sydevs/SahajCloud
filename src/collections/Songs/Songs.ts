@@ -1,5 +1,6 @@
 import type { CollectionConfig, CollectionBeforeChangeHook } from 'payload'
 
+import { fileMetadataField } from '@/fields'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
 
@@ -106,13 +107,6 @@ export const Songs: CollectionConfig = {
         position: 'sidebar',
       },
     },
-    {
-      name: 'fileMetadata',
-      type: 'json',
-      admin: {
-        position: 'sidebar',
-        readOnly: true,
-      },
-    },
+    fileMetadataField(),
   ],
 }

@@ -31,6 +31,9 @@ export function legacyMigrationFields(): Field[] {
         {
           name: 'legacyData',
           type: 'json',
+          // No schema on purpose: this is the source row verbatim, and the
+          // point of keeping it is that nothing here has interpreted it. Four
+          // collections share the field, so there is no one shape to declare.
           admin: { readOnly: true },
         },
       ],
