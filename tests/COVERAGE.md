@@ -94,6 +94,7 @@ content collection.
 | A pre-existing blank region slug survives the nested-docs cascade. A deliberate blank is still refused         | `region-blank-slug-cascade` |
 | RBAC (`hasPermission`, `hasAnyPermission`, document-level manager access, locale roles, translator scopes)     | `role-based-access`         |
 | What a REST error body discloses under `config.debug` on/off, and `databaseErrorPlugin`'s 400 surviving both   | `error-disclosure`, `error-disclosure-debug` |
+| The URL and SWR key each hand-rolled admin fetch builds from the active locale, and its refusal to build one without it (#701) | `admin-locale-urls` |
 
 ## Gaps
 

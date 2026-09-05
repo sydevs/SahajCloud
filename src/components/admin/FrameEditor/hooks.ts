@@ -10,6 +10,7 @@ import {
   getCachedPlaybackTime,
   subscribePlaybackTime,
 } from './playbackTimeStore'
+import { framesByNarratorKey } from './utils'
 
 /**
  * Hook to listen for playback time updates from the live preview iframe.
@@ -93,9 +94,7 @@ export const useAvailableFrames = (
   const { code } = useLocale()
 
   const { data, error, isLoading } = useSWR(
-    narratorId && code
-      ? `/api/frames/by-narrator/${narratorId}?locale=${encodeURIComponent(code)}`
-      : null,
+    framesByNarratorKey(narratorId, code),
     frameFetcher,
     {
       revalidateOnFocus: false, // Don't refetch when window regains focus

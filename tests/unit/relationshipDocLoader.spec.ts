@@ -2,13 +2,11 @@
  * Tests for the thumbnail-cell request-batching loader (#460).
  *
  * The loader collapses the per-row N+1 — one `/api/images` request per list
- * row — into a single batched request per collection. These tests pin the
- * coalescing/dedupe/missing-id behaviour using an injected fake fetcher. The
- * The real fetcher IS covered here, against a stubbed `globalThis.fetch`. It
- * used to be dismissed as "thin Payload REST plumbing", and #701 lived exactly
- * there: it sent no `?locale=`, so the collection read gate resolved the
- * manager's roles at the default locale and returned 403 for anyone whose
- * roles live only elsewhere. Thin is not the same as uninteresting.
+ * row — into one batched request per collection AND locale. These tests pin
+ * the coalescing/dedupe/missing-id behaviour using an injected fake fetcher.
+ *
+ * The real fetcher is covered too, against a stubbed `globalThis.fetch`,
+ * because the locale it sends is a permission rather than plumbing (#701).
  */
 
 import { describe, expect, it, vi } from 'vitest'

@@ -67,7 +67,20 @@ This only works because the authenticated user loads **four times**, not once. `
 | `'union'` | Roles in **any** locale | Admin nav visibility, called with no locale — anything narrower empties the sidebar for non-admins |
 | `undefined` | Nothing resolvable, so deny | `?locale=all`, and any locale outside `LOCALES` |
 
-⚠ **A custom admin client component that calls the REST API by hand must send the active admin locale — `useLocale().code` from `@payloadcms/ui` — on every request.** A request naming no locale resolves to the **default** locale, so the gate reads the manager's English roles and denies anyone whose roles live only elsewhere. Payload's own admin requests and `usePayloadAPI` already send it; a hand-rolled `fetch('/api/…')` does not. Three of them shipped without it, and a French-only manager saw a 403 on the frames library, blank list thumbnails, and a refused Accept (#701). A locale-keyed request cache (an SWR key, a batch key) must include the locale too, or one locale's response answers another's cells.
+⚠ **A hand-rolled admin `fetch('/api/…')` must send the active admin locale — `useLocale().code` from `@payloadcms/ui` — whenever the endpoint or collection it calls runs a per-locale `hasPermission`.** A request naming no locale resolves to the **default** locale, so the gate reads the manager's English roles and denies anyone whose roles live only elsewhere. Payload's own admin requests and `usePayloadAPI` already send it; a hand-rolled `fetch` does not. Three of them shipped without it, and a French-only manager saw a 403 on the frames library, blank list thumbnails, and a refused Accept (#701). A locale-keyed request cache (an SWR key, a batch key) must include the locale too, or one locale's response answers another's cells.
+
+**The condition is the gate, not the call.** `grep "fetch('/api/"` over `src/components` finds more call sites than this rule governs, so check what the target does before you "fix" one:
+
+| Call site | Sends the locale? | Why |
+| --- | --- | --- |
+| `FrameEditor/utils.ts` → `/api/frames/by-narrator/:id` | **Yes** | The endpoint calls `hasPermission` at `req.locale` |
+| `ThumbnailCell/relationshipDocLoader.ts` → `/api/:collection` | **Yes** | The collection read gate does |
+| `EventSubmissions/urls.ts` → `/api/event-submissions/:id/review` | **Yes** | `applyReview`'s role check does |
+| `ProjectSelector.tsx`, `ProjectContext.tsx` → `/api/managers/set-project` | No | Gated on `requireActiveManager`, then reads with `overrideAccess: true` — no per-locale check runs |
+| `CanonicalEmbedPicker/Description.tsx` → `/api/clients/:id/verify-embed` | No | Same shape, and `Clients.roles` is not localized |
+| `TranslationsRow/useEnglishTranslation.ts` → `?locale=en` | Pinned to `en` | It wants the English **text** for translators, not the caller's roles. Admin-only today |
+
+**Where the locale is required, build the URL in a pure module and return `null` without one** — `framesByNarratorKey` and `eventSubmissionActionUrl` both do. `useLocale()`'s context default is `{}`, so `code` is `string` to the compiler but can be `undefined` at runtime, and `?locale=undefined` is rewritten to the default locale by `sanitizeLocales` — the #701 403 again, silently. Refusing to build the URL turns that into a visible failure, and makes the call site testable without a browser.
 
 ⚠ **Never derive this scope by hand from `req.locale`. Call `roleScopeFromLocale`.** Written out per call site it drifts. Four hand-written copies once existed, and the fourth answered `?locale=all` with `'union'` where the rest denied it. Worse, `req.locale` is a request-supplied string, and `RoleScope` has a non-locale member. A cast lets `?locale=union` name the privileged scope and hand a manager every locale's roles at once. The helper accepts only a configured locale, so `?locale=all` now **denies** instead of leaking the flat array through. The admin UI never sends it. Only a hand-rolled API call can reach this path. Clients are unaffected — `Clients.roles` is not localized.
 
