@@ -245,11 +245,18 @@ export function getProjectOptions(): Array<{ value: InternalProjectSlug; label: 
 
 /**
  * Validate if a value is a valid project slug
+ *
+ * ⚠ `Object.hasOwn`, never `in`. `in` walks the prototype chain, so
+ * `isValidProject('toString')` was `true`. That passed `set-project`'s zod
+ * refine, and Payload's own select validation then refused the write inside
+ * the handler's `try` — so the caller got a 500 where the schema promises a
+ * 400 (#671).
+ *
  * @param value - Value to validate
  * @returns True if value is a valid project slug or null
  */
 export function isValidProject(value: string | null): boolean {
-  return value === null || value in PROJECTS
+  return value === null || Object.hasOwn(PROJECTS, value)
 }
 
 // =============================================================================
