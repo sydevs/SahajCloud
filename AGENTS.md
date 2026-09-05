@@ -47,7 +47,7 @@ Use the `/workflow:dev-server` skill for a dev server shared across sessions. It
 - `pnpm generate:types` — regenerate types after a schema change.
 - `pnpm generate:importmap` — regenerate the admin import map.
 - `pnpm test:unit` — the fast unit lane, no Payload bootstrap.
-- `pnpm test` / `pnpm test:int` — the full suite / integration only.
+- `pnpm test` / `pnpm test:int` — unit plus integration / integration only. Neither runs the smoke lane.
 - `pnpm test:smoke` — Playwright smoke specs against a Railway preview.
 
 Locally, run lint, `pnpm test:unit`, and the integration spec for the area you changed. Let CI run the full suite. See `docs/rules/testing-reqs.md` for the tier policy and the CPU rules (never run test commands, or a test and a build, in parallel).
@@ -116,4 +116,4 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the full documentation.
 
 ## Project Structure
 
-Standard Next.js + Payload layout under `src/` (plugins, collections, components, globals, jobs, lib, types, fields, app routes, migrations). Tests live under `tests/{int,e2e,utils}/`. See **`src/AGENTS.md`** for the layout and where new code belongs (`plugins/` vs `jobs/` vs `lib/` vs an owner's folder).
+Standard Next.js + Payload layout under `src/` (plugins, collections, components, globals, jobs, lib, types, fields, app routes, migrations). Tests live under `tests/{unit,int,e2e,files,setup,utils}/` — `unit` and `int` hold the two Vitest lanes, `e2e` the Playwright smoke specs, and `files`, `setup` and `utils` their fixtures and helpers. See **`src/AGENTS.md`** for the layout and where new code belongs (`plugins/` vs `jobs/` vs `lib/` vs an owner's folder).
