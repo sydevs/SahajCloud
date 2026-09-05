@@ -116,7 +116,7 @@ export function buildDefaultNotificationPreferences(
  * The stored shape, derived from `NOTIFICATION_TYPES` so a new notification
  * type cannot leave the schema behind. Wired onto `Managers.notificationPreferences`
  * as its `jsonSchema`, which both generates the TypeScript type and rejects a
- * key no notification type claims.
+ * preference whose frequency or method is not a string.
  *
  * Neither inner key is required. `buildDefaultNotificationPreferences` writes
  * both, but Payload validates this column on every save of a manager, and a row
@@ -128,7 +128,10 @@ export const notificationPreferencesJsonSchema: JSONSchema4 = {
   $id: NOTIFICATION_PREFERENCES_SCHEMA_URI,
   title: 'NotificationPreferences',
   type: 'object',
-  additionalProperties: false,
+  // Open at the top level. Retiring a notification type would otherwise block
+  // every save of any manager still holding its key — and `NotificationPreferences`
+  // spreads an unknown key back on save, so the admin could not clear it either.
+  additionalProperties: true,
   properties: Object.fromEntries(
     NOTIFICATION_TYPES.map((type) => [
       type.key,

@@ -52,8 +52,10 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
   slug: 'cleanupOrphanedMedia',
   inputSchema: [
     {
-      // Test-only injection point. The schema both types the input and refuses
-      // a malformed one at enqueue, instead of at the cast in the handler.
+      // Test-only injection point. The schema is what generates the input's
+      // type — nothing validates it at runtime, since Payload feeds
+      // `inputSchema` only to `generateJobsJSONSchemas`. It replaces a
+      // hand-written `TestDateRangeInput` and the cast that applied it.
       name: 'testDateRange',
       type: 'json',
       required: false,

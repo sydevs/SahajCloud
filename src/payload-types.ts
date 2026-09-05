@@ -11,6 +11,7 @@ export type Subtitles = {
   startTimeMs: number;
   endTimeMs: number;
   durationMs?: number;
+  [k: string]: unknown;
 }[];
 /**
  * Supported timezones in IANA format.
@@ -2405,6 +2406,7 @@ export interface NotificationPreferences {
     frequency?: string;
     method?: string;
   };
+  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2804,25 +2806,7 @@ export interface LectureMetadata {
    * Subtitle track URL per CMS locale, from the NV API language codes.
    */
   subtitles?: {
-    en?: string;
-    es?: string;
-    de?: string;
-    it?: string;
-    fr?: string;
-    ru?: string;
-    ro?: string;
-    cs?: string;
-    uk?: string;
-    el?: string;
-    hy?: string;
-    pl?: string;
-    'pt-BR'?: string;
-    fa?: string;
-    bg?: string;
-    tr?: string;
-    'en-AU'?: string;
-    hu?: string;
-    nl?: string;
+    [k: string]: string;
   };
   duration?: number | null;
   lastSyncedAt?: string;

@@ -3,7 +3,7 @@ import type { JSONField } from 'payload'
 
 import type { NirmalaVidyaVideoData } from '@/lib/lectures/nirmalaVidyaApi'
 import type { LocaleCode } from '@/lib/locales'
-import { isValidLocale, LOCALES } from '@/lib/locales'
+import { isValidLocale } from '@/lib/locales'
 import type { Lecture } from '@/payload-types'
 
 // =============================================================================
@@ -41,16 +41,17 @@ export const LECTURE_METADATA_SCHEMA_URI = 'https://sahajcloud.dev/schemas/lectu
  * the monthly sync task can refresh everything in one write.
  *
  * Wired onto the column as its `jsonSchema`, so Payload generates the
- * TypeScript type AND rejects a write it does not describe. `buildLectureMetadata`
- * below is the only writer — the create-time hook and the monthly sync task both
- * call it — which is what makes `additionalProperties: false` safe here.
+ * TypeScript type AND rejects a write it does not describe.
  *
- * Every key is optional on purpose. Payload validates this column on *every*
- * save of a lecture, including one that never touched it, so requiring a key
- * would make a row written under an earlier shape unsaveable.
+ * The top level is closed because one function owns it: `buildLectureMetadata`
+ * below, called by the create-time hook and by the monthly sync task, and by
+ * nothing else. Adding a seventh key without extending this schema should fail
+ * loudly rather than land untyped.
  *
- * The subtitle map is keyed by CMS locale code, taken from `LOCALES` rather than
- * re-listed, so adding a locale cannot leave the two out of step.
+ * Every key is optional, though. Payload validates this column on *every* save
+ * of a lecture, including one that never touched it, so requiring a key would
+ * make a row written under an earlier shape unsaveable.
+ *
  */
 export const lectureMetadataJsonSchema: JSONSchema4 = {
   $id: LECTURE_METADATA_SCHEMA_URI,
@@ -63,10 +64,11 @@ export const lectureMetadataJsonSchema: JSONSchema4 = {
     hlsUrl: { type: 'string' },
     subtitles: {
       type: 'object',
-      additionalProperties: false,
-      properties: Object.fromEntries(
-        LOCALES.map((locale) => [locale.code, { type: 'string' }]),
-      ) as Record<string, JSONSchema4>,
+      // Keyed by CMS locale code, but left open on the key: the locale set
+      // moves, and retiring one must not strand every lecture still holding a
+      // track for it. `apiLanguageToLocale` is what keeps the keys valid on
+      // write — it returns null for anything `LOCALES` does not name.
+      additionalProperties: { type: 'string' },
       description: 'Subtitle track URL per CMS locale, from the NV API language codes.',
     },
     duration: { type: ['number', 'null'] },

@@ -25,17 +25,21 @@ import type { KeyframeDefinition } from '@/types/frames'
 export const MEDITATION_FRAMES_SCHEMA_URI = 'https://sahajcloud.dev/schemas/meditation-frames.json'
 
 /**
- * What `Meditations.frames` accepts on write: a list of keyframes, each naming
- * a frame and when it appears. `normalizeMeditationFramesForStorage` reduces
- * every entry to exactly `{ id, timestamp }` before it is stored.
+ * What `Meditations.frames` holds: a list of keyframes, each naming a frame and
+ * when it appears.
  *
- * **The entries stay open (`additionalProperties: true`) because validation
- * runs before that normalization.** The field's `afterRead` enriches each
- * keyframe with the whole Frame document, and `FrameListManager` posts that
- * enriched array straight back, so a closed schema would reject every save from
- * the admin panel. What is worth checking here is the part normalization cannot
- * repair without silently dropping rows: that the value is a list, and that
- * each entry names both an id and a timestamp.
+ * **This types the column; it does not gate a save.** A field's `beforeChange`
+ * hooks run before its `validate` (`payload/dist/fields/hooks/beforeChange/promise.js`
+ * — hooks at line 58, validate at 86), and this field's hook runs
+ * `normalizeMeditationFramesForStorage`, which reduces every entry to exactly
+ * `{ id, timestamp }` and drops the rest. So by the time the schema sees a
+ * value it always matches. What the schema buys is the generated type, which is
+ * what `FrameListManager` and the ranking code read.
+ *
+ * Entries stay open for the same reason the normalizer exists: `afterRead`
+ * enriches each keyframe with the whole Frame document, and `FrameListManager`
+ * posts that enriched array straight back. Nothing but the hook stands between
+ * that and the column today.
  */
 export const meditationFramesJsonSchema: JSONSchema4 = {
   $id: MEDITATION_FRAMES_SCHEMA_URI,
