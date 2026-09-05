@@ -134,6 +134,15 @@ describe('setProject endpoint (POST /api/managers/set-project)', () => {
       expect(res.status).toBe(400)
     })
 
+    it('rejects an inherited Object.prototype key with 400, not 500', async () => {
+      // `in` walked the prototype chain, so `isValidProject('toString')` passed
+      // the refine. Payload's select validation then threw inside the handler's
+      // `try`, and the caller got a 500 where the schema promises a 400 (#671).
+      const mgr = await testData.createManager(payload, { name: 'Proto Key' })
+      const res = await callSetProject(payload, { currentProject: 'toString' }, asManager(mgr))
+      expect(res.status).toBe(400)
+    })
+
     it('rejects a malformed body (missing currentProject) with 400', async () => {
       const mgr = await testData.createManager(payload, { name: 'Missing Field' })
       const res = await callSetProject(payload, { project: 'wemeditate-web' }, asManager(mgr))

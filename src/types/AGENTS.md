@@ -91,6 +91,15 @@ Some things are **not** restatements — don't "fix" them:
   produces a subset may declare the subset — the Atlas importer's
   `ScheduleInput.endingType` is `'until'` where the column is `'count' |
   'until'`, because the importer writes no `count` endings.
+- **A shape a `localized` field cannot generate.** Payload generates the
+  single-locale type for a localized field, so a value carrying every
+  locale at once is not spellable from it. `TypedAuthUser.roles` is
+  `RoleSlug[] | Record<LocaleCode, RoleSlug[]>` because
+  `hydrateLocalizedRoles` builds that record during authentication (#665).
+  Replacing it with `Pick<Manager, 'roles'>` compiles and silently drops
+  every locale but the default. Its three siblings on that type —
+  `currentProject`, `type`, `_status` — are picks, so the exception is the
+  member, never the type (#671).
 
 **Fix at the import site, not with a fixed re-export.** When narrowing
 surfaces errors, fix them — a value that no longer type-checks is a value
