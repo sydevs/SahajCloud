@@ -40,7 +40,6 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   await db.execute(sql`
    ALTER TABLE "user_messages" DISABLE ROW LEVEL SECURITY;
   DROP TABLE "user_messages" CASCADE;
-  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_user_messages_fk";
   
   ALTER TABLE "payload_jobs_log" ALTER COLUMN "task_slug" SET DATA TYPE text;
   DROP TYPE "public"."enum_payload_jobs_log_task_slug";
