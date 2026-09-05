@@ -6,20 +6,12 @@ import { Managers } from '@/collections/Managers/Managers'
 import { getProjectSlugs } from '@/plugins/access'
 
 /**
- * `Managers.currentProject` once carried an `''` option meaning the admin "All
- * Content" view, plus a `beforeChange` hook that mapped `''` straight back to
- * `null`. The pair was self-cancelling, and it widened the generated
- * `Manager['currentProject']` union with a member no consumer handled.
+ * Pins the removal of the `''` sentinel from `currentProject` — see #671 for
+ * the option, the self-cancelling hook and the sidebar bug behind it.
  *
- * `visibility.ts` is what made that latent rather than harmless. It reads
- * `user.currentProject ?? null`, and `??` does not catch `''`, so a row holding
- * the sentinel reached `isCollectionVisibleInProject` as a project name, matched
- * no collection, and hid every project-assigned collection in the sidebar.
- * `null` would have shown them all.
- *
- * No fixture stands in for the config here — the spec reads the real
+ * No fixture stands in for the config here. The spec reads the real
  * `src/collections/Managers/Managers.ts` export, so a re-added option or hook
- * fails it. See #671.
+ * fails it.
  */
 
 const currentProject = Managers.fields.find(
