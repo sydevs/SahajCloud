@@ -73,7 +73,7 @@ outbound email. See `.env.example` for the full list of variables and validation
 
 Next.js and Payload share `src/`: `app/` for routes (frontend + admin/API), `collections/` and
 `globals/` for the Payload schema, `components/`, `lib/`, and `migrations/`. Tests live under
-`tests/{int,e2e,utils}/`. See **[src/AGENTS.md](src/AGENTS.md)** for the full layout and the
+`tests/{unit,int,e2e,files,setup,utils}/`. See **[src/AGENTS.md](src/AGENTS.md)** for the full layout and the
 rules for where new code belongs.
 
 ## Windows Setup for Symlinks
