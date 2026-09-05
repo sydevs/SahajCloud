@@ -75,10 +75,9 @@ export const Managers: CollectionConfig = {
     },
     {
       // `null` is the admin "All Content" view, and it has no option of its own.
-      // An `''` sentinel used to stand for it, undone again by a `beforeChange`
-      // that mapped `''` back to `null`. Both are gone: the field is
-      // `admin.hidden`, so Payload never renders this select, and the one writer
-      // — `POST /api/managers/set-project` — sends `null` directly.
+      // The field is `admin.hidden`, so Payload never renders this select, and
+      // `POST /api/managers/set-project` is the only writer. See #671 and
+      // `tests/unit/manager-current-project.spec.ts`.
       name: 'currentProject',
       type: 'select',
       options: getProjectOptions(),

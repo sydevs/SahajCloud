@@ -9,8 +9,7 @@ import { isValidProject } from '@/plugins/access'
 const bodySchema = z
   .object({
     // `null` is the admin "All Content" view. A slug selects a project.
-    // `isValidProject` rejects `''`, so the sentinel this field once carried
-    // cannot return through the one path that writes it.
+    // `isValidProject` is the membership check, and `''` is not a member.
     currentProject: z.string().nullable(),
   })
   .refine(({ currentProject }) => isValidProject(currentProject), {

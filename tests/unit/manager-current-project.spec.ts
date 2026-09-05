@@ -1,4 +1,4 @@
-import type { Field, SelectField } from 'payload'
+import type { SelectField } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
@@ -22,17 +22,18 @@ import { getProjectSlugs } from '@/plugins/access'
  * fails it. See #671.
  */
 
-const currentProject = (Managers.fields as Field[]).find(
-  (field): field is SelectField => 'name' in field && field.name === 'currentProject',
+const currentProject = Managers.fields.find(
+  (field): field is SelectField => field.type === 'select' && field.name === 'currentProject',
 )
+if (!currentProject) throw new Error('Managers declares no `currentProject` select field')
 
 describe('Managers.currentProject', () => {
-  it('is a select field on the collection', () => {
-    expect(currentProject).toBeDefined()
-  })
-
   it('offers exactly the real project slugs, and no sentinel', () => {
-    const values = (currentProject!.options as { value: string }[]).map((o) => o.value)
+    // `options` is `(string | OptionObject)[]`, so normalize rather than cast —
+    // a bare-string option would otherwise read back as `undefined`.
+    const values = currentProject.options?.map((option) =>
+      typeof option === 'string' ? option : option.value,
+    )
 
     expect(values).toEqual(getProjectSlugs())
     expect(values).not.toContain('')
@@ -40,10 +41,10 @@ describe('Managers.currentProject', () => {
 
   it('carries no hook that rewrites the stored value', () => {
     // The `''` → `null` beforeChange existed only to undo the option above.
-    expect(currentProject!.hooks?.beforeChange ?? []).toHaveLength(0)
+    expect(currentProject.hooks?.beforeChange ?? []).toHaveLength(0)
   })
 
   it('stays hidden, which is why no option ever had to name the admin view', () => {
-    expect(currentProject!.admin?.hidden).toBe(true)
+    expect(currentProject.admin?.hidden).toBe(true)
   })
 })
