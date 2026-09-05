@@ -106,6 +106,8 @@ Payload passes user data and locale objects with methods to view components, so 
 
 A server component has direct DB access via `getPayload()`. Don't fetch internal data over HTTP from a client component. Reserve `fetch()` for external APIs.
 
+⚠ **When a client component must call `/api/*` by hand, it sends `useLocale().code`.** A request naming no locale resolves to the default locale, and role gates are per-locale — so a manager with no English roles is denied (#701). See `docs/rules/access.md`, "What a check with no locale means".
+
 ```typescript
 const payload = await getPayload({ config })
 // payload.count() is cheaper than payload.find() for counts
