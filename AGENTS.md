@@ -116,4 +116,4 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the full documentation.
 
 ## Project Structure
 
-Standard Next.js + Payload layout under `src/` (plugins, collections, components, globals, jobs, lib, types, fields, app routes, migrations). Tests live under `tests/{unit,int,e2e,files,setup,utils}/` — `unit` and `int` hold the two Vitest lanes, `e2e` the Playwright smoke specs, and `files`, `setup` and `utils` their fixtures and helpers. See **`src/AGENTS.md`** for the layout and where new code belongs (`plugins/` vs `jobs/` vs `lib/` vs an owner's folder).
+Standard Next.js + Payload layout under `src/` (plugins, collections, components, globals, jobs, lib, types, fields, app routes, migrations). See **`src/AGENTS.md`** for that layout and where new code belongs (`plugins/` vs `jobs/` vs `lib/` vs an owner's folder). Tests live under `tests/` — see **`tests/AGENTS.md`** for the lanes and where a new spec belongs.
