@@ -52,7 +52,7 @@ export async function withRetry<T>(
     } catch (error) {
       lastError = error
 
-      // Don't retry if this is the last attempt or error is not retryable
+      // Do not retry if this is the last attempt or error is not retryable
       if (attempt === maxRetries || !shouldRetry(error)) {
         throw error
       }

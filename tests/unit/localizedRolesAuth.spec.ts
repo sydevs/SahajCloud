@@ -73,7 +73,7 @@ describe('withLocalizedRoleAuth', () => {
   })
 
   it('finds a top-level `roles` field too', () => {
-    // The nested case above is what `Managers` actually does; this pins that
+    // The nested case above is what `Managers` actually does. This pins that
     // supporting the real shape did not cost the simple one.
     const flat: CollectionConfig = {
       slug: 'other-auth',

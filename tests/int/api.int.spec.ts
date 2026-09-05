@@ -317,7 +317,7 @@ describe('API', () => {
         })
       }
 
-      // Verify the client wasn't touched
+      // Verify the client was not touched
       const client = (await payload.findByID({
         collection: 'clients',
         id: zeroUsageClient.id,
@@ -336,7 +336,7 @@ describe('API', () => {
       // Create a meditation and a user-choice that references it, so a depth>=1
       // read fans out into an internal population sub-read (meditations also carry
       // the usage hook). Pre-fix, that sub-read ran under a fresh context that
-      // defeated the afterRead dedup tracker and double-counted; post-fix,
+      // defeated the afterRead dedup tracker and double-counted. Post-fix,
       // beforeOperation counts the top-level read once and skips the
       // currentDepth-bearing populate sub-read.
       const meditation = await testData.createMeditation(payload, undefined, {

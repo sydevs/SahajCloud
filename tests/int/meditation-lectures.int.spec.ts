@@ -35,7 +35,7 @@ vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
 const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', _status: 'published' }
 
 // `audiences` is a required, non-empty comma-separated list of IDs. Tests
-// that don't exercise validation pass the resolved-audience ID through
+// that do not exercise validation pass the resolved-audience ID through
 // `defaultAudiences`. Cases that want to omit it entirely set
 // `skipDefaultAudiences: true`.
 async function callEndpoint(
@@ -281,7 +281,7 @@ describe('meditationLectures endpoint', () => {
     //   lectureAB → nodeA + nodeB ≈ 25s
     //   lectureB  → nodeC          ≈ 17s
     //   lectureA  → nodeA          ≈ 10s
-    //   lectureUC → nodeA          ≈ 10s   (tie with lectureA; tie-break by id asc)
+    //   lectureUC → nodeA          ≈ 10s   (tie with lectureA. Tie-break by id asc)
     //   lectureNone, lectureUCNone, lectureNoAudience excluded
     //   (zero weight without userChoice, or no audience)
     const ids = docs.map((d) => d.id)
@@ -352,8 +352,8 @@ describe('meditationLectures endpoint', () => {
   })
 
   it('userChoice + excludedLectureIds removes excluded lectures from both groups', async () => {
-    // Exclude the weighted userChoice match — zero-weight match stays in Group 1;
-    // positive-weight non-userChoice lectures still appear in Group 2.
+    // Exclude the weighted userChoice match. The zero-weight match stays in
+    // Group 1, and positive-weight non-userChoice lectures still appear in Group 2.
     const a = await callEndpoint(
       payload,
       meditation.id,
@@ -386,7 +386,7 @@ describe('meditationLectures endpoint', () => {
 
   it('falls back to the audience feed (relaxing exclusions) when excludedLectureIds empties the result (replaces #349 redirect)', async () => {
     // Exclude every lecture that would match the audience filter. Relevance is
-    // empty, so the endpoint falls back to the audience feed; since the
+    // empty, so the endpoint falls back to the audience feed. Since the
     // exclusions also empty that pool, they are relaxed as a last resort so the
     // player still has something to play (supersedes the old 307 redirect).
     const excludedIds = [
@@ -412,7 +412,7 @@ describe('meditationLectures endpoint', () => {
 
   it('userChoice with all eligible lectures excluded falls back to the audience feed', async () => {
     // userChoice set + every eligible lecture excluded → relevance empty. The
-    // fallback is the generic audience feed (it ignores userChoice); exclusions
+    // fallback is the generic audience feed (it ignores userChoice). Exclusions
     // are relaxed since they would empty the pool.
     const excludedIds = [
       lectureA.id,
@@ -474,7 +474,7 @@ describe('meditationLectures endpoint', () => {
   })
 
   it('returns an empty audience-fallback when the audiences filter rejects everything', async () => {
-    // Caller's resolved audiences don't include `audience`, so neither relevance
+    // Caller's resolved audiences do not include `audience`, so neither relevance
     // nor the audience-feed fallback can find lectures — the response is an empty
     // audience-fallback (no exclusions to relax).
     const { status, body } = await callEndpoint(
@@ -645,7 +645,7 @@ describe('meditationLectures endpoint', () => {
 
   it('ad-hoc compute when cached weights are null', async () => {
     // Wipe the cached weights via direct DB update with the skip flag so the
-    // afterChange hook doesn't immediately repopulate them. The endpoint
+    // afterChange hook does not immediately repopulate them. The endpoint
     // should still rank correctly by computing on the fly — and (per
     // GET-is-side-effect-free) leave the cache untouched.
     await payload.update({
@@ -836,7 +836,7 @@ describe('meditationLectures endpoint', () => {
         },
       )
       // Clip referencing eligible parent. Tagged with userChoice so the endpoint
-      // includes it even at weight=0 (clips don't always inherit nodeA weight).
+      // includes it even at weight=0 (clips do not always inherit nodeA weight).
       clipEligibleParent = await testData.createLectureExcerpt(
         payload,
         { fullLecture: parentForGating.id },

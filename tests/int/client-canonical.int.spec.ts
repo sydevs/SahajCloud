@@ -668,7 +668,7 @@ describe('client canonical ownership + embed metadata', () => {
       })
 
       it('stays bounded across repeated reports past the cap', async () => {
-        // The failure this guards is cumulative: a merge that can't delete grows
+        // The failure this guards is cumulative: a merge that cannot delete grows
         // the record by one on every report, so one round looks nearly right.
         const client = await seedAtCap('Repeatedly Capped Reporter')
 

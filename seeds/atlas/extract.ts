@@ -20,7 +20,7 @@ import { dedupeAtlasFiles } from './dedupe'
 import { normalizeDate, parseSchedule } from './helpers/recurrence'
 
 // node-postgres returns int8/bigint as strings (to avoid precision loss) but
-// int4 as numbers. Atlas mixes the two across FK columns (e.g. managers.id is
+// int4 as numbers. Atlas mixes the two across FK columns (for example, managers.id is
 // bigint, managed_records.manager_id is int4), so relationship keys would not
 // match. All Atlas ids are well under 2^53 — parse int8 as a JS number for a
 // single consistent numeric id type everywhere.
@@ -81,7 +81,7 @@ function decodeFlags(flags: readonly string[], mask: number | null): string[] {
 
 /**
  * Parse the country `mailing_list` Ruby-YAML blob down to just which mailing
- * service was used (e.g. `brevo`). The rest — api_key (a live secret), list_id,
+ * service was used (for example, `brevo`). The rest — api_key (a live secret), list_id,
  * and opt-in copy — is intentionally dropped.
  */
 function parseMailingService(raw: unknown): string | null {
@@ -208,9 +208,10 @@ async function main() {
   )
 
   // --- events.json ---
-  // The raw Atlas status integer is preserved verbatim (`0` and `6` are the only
-  // values in the dump); the importer maps it to #484's `verificationStage`
-  // (`0 → verified`, `6 → finished`). The full raw row rides along in
+  // The raw Atlas status integer is preserved verbatim (`0` and `6` are the
+  // only values in the dump). The importer maps it to #484's
+  // `verificationStage` (`0` becomes verified, `6` becomes finished). The
+  // full raw row rides along in
   // `legacyData` so the deferred verification/expiry state machine (#484) can
   // read the lifecycle timestamps (`verified_at`, `expiration_period`,
   // `should_update_status_at`, …) without re-accessing `atlas.dump`. Events carry
@@ -245,7 +246,7 @@ async function main() {
       // NOTE: `website` is *not* extracted here — Atlas has no such column. The
       // values in events.json were curated by hand from the free-text
       // descriptions (see seeds/atlas/AGENTS.md). Re-running this extract will
-      // drop them; re-apply them before committing the regenerated file.
+      // drop them. Re-apply them before committing the regenerated file.
       // Full raw Atlas row (all columns, jsonb parsed) for the deferred #484
       // lifecycle work — keeps `verified_at`, `expiration_period`, etc.
       legacyData: e,
@@ -282,8 +283,8 @@ async function main() {
   // importer (which only sees these JSON files, not `atlas.dump`) can resolve
   // each ref to a `regions` doc and add the manager to that region's `managers`
   // — the owning side of geo responsibility post-#476. The name is historical
-  // (the Payload `Managers.customResourceAccess` field was dropped in #476); the
-  // importer never writes it back to a manager.
+  // (the Payload `Managers.customResourceAccess` field was dropped in
+  // #476). The importer never writes it back to a manager.
   const countryIds = new Set(countries.map((c) => c.id))
   const areaIds = new Set(areas.map((a) => a.id))
   const managedRecords = await all('select * from managed_records order by id')
@@ -325,7 +326,7 @@ async function main() {
     })),
   )
 
-  // --- clients.json (public_key → clientId; secret dropped; geo scope → regions ref) ---
+  // --- clients.json (public_key becomes clientId, secret dropped, geo scope becomes a regions ref) ---
   const clients = await all('select * from clients order by id')
   write(
     'clients',

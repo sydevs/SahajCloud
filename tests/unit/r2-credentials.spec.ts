@@ -88,8 +88,8 @@ describe('r2AccessKeyId', () => {
   it('resolves an account-owned token', async () => {
     const { get, tried } = cfGet(ACCOUNT_SCOPE, 'acct-token-id')
     await expect(r2AccessKeyId(ACCOUNT, get)).resolves.toBe('acct-token-id')
-    // Account scope is tried first — it's the kind Cloudflare recommends for
-    // services, so the common case shouldn't pay for a wasted round trip.
+    // Account scope is tried first — it is the kind Cloudflare recommends for
+    // services, so the common case should not pay for a wasted round trip.
     expect(tried).toEqual([ACCOUNT_SCOPE])
   })
 

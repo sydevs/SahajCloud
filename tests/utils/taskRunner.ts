@@ -51,9 +51,9 @@ export async function runTaskHandler<TSlug extends TaskType>(
   const result = await task.handler({
     req,
     input: input as TaskHandlerArgs<TSlug>['input'],
-    // Queue plumbing. No task under test reads `job`/`tasks`; `inlineTask`
-    // throws rather than no-op'ing so a handler that grows a sub-task can't
-    // silently receive `undefined` where an output is expected.
+    // Queue plumbing. No task under test reads `job` or `tasks`. `inlineTask`
+    // throws rather than doing nothing, so a handler that grows a sub-task
+    // cannot silently receive `undefined` where an output is expected.
     job: {} as TaskHandlerArgs<TSlug>['job'],
     tasks: {} as TaskHandlerArgs<TSlug>['tasks'],
     inlineTask: (() => {

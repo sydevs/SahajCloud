@@ -75,16 +75,19 @@ const eslintConfig = [
     },
   },
 
-  // Logger-specific overrides
+  // Logger and migration overrides. This rule matches no files today: the
+  // logger is now a folder, and migrations live under `src/migrations/`.
+  // Update the globs below, or remove this block.
   {
     files: ['src/lib/logger.ts', 'migration/**/*.ts'],
     rules: {
-      // Allow console in logger and migration scripts
+      // Allow console calls in the logger and migration scripts.
       'no-console': 'off',
     },
   },
 
-  // Seeds: relax rules — external API data scripts; dev-only, not production code
+  // Seeds: turn off rules for external data scripts. They run only in
+  // development, never in production.
   {
     files: ['seeds/**/*.ts'],
     rules: {
@@ -93,7 +96,8 @@ const eslintConfig = [
     },
   },
 
-  // Tests: allow console output and `any` — test/debug patterns that don't affect production
+  // Tests: allow console calls and `any`. These support debugging and never
+  // run in production.
   {
     files: ['tests/**/*.{ts,tsx}'],
     rules: {
@@ -102,7 +106,8 @@ const eslintConfig = [
     },
   },
 
-  // React hooks: patterns that were valid before Next.js 16 strict rules; turn off to avoid noise
+  // React hooks: turn off two rules. Older code uses patterns that Next.js
+  // 16's stricter rules now flag as noise.
   {
     plugins: {
       'react-hooks': (await import('eslint-plugin-react-hooks')).default,

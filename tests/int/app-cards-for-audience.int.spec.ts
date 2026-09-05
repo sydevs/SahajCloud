@@ -11,8 +11,8 @@ import { createTestEnvironment } from '../utils/testHelpers'
 const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', _status: 'published' }
 
 // `audiences` is a required, non-empty comma-separated list of IDs.
-// Tests that don't exercise a specific eligibility scenario still need to
-// pass a valid value; pass `{ skipDefaultAudiences: true }` on the
+// Tests that do not exercise a specific eligibility scenario still need to
+// pass a valid value. Pass `{ skipDefaultAudiences: true }` on the
 // 400-validation cases that want to omit it.
 async function callEndpoint(
   payload: Payload,
@@ -50,7 +50,7 @@ describe('appCardsForAudience endpoint', () => {
   // - allEligible:  resolved audiences for a "path-started" caller
   //   (Open + PathStarted + NullRules — the union of every always-match
   //   plus a positive pathProgress audience).
-  // - openOnly:     resolved audiences for a beginner who hasn't started
+  // - openOnly:     resolved audiences for a beginner who has not started
   //   the path (Open + NullRules — PathStarted requires min:1).
   let allEligible: string
   let openOnly: string
@@ -79,7 +79,7 @@ describe('appCardsForAudience endpoint', () => {
     const imageId = img.id
 
     // Always-match audiences — no configured range rules. Rule semantics are
-    // tested in audiences-for-user.int.spec.ts; here we only care about
+    // tested in audiences-for-user.int.spec.ts. Here we only care about
     // which audiences end up in the caller's `audiences` list.
     openAudience = await testData.createAudience(payload, {
       label: 'Open Audience',
@@ -96,7 +96,7 @@ describe('appCardsForAudience endpoint', () => {
       label: 'Null Rules Audience',
     })
 
-    // Unconstrained audience (always passes; used for AND-gate tests)
+    // Unconstrained audience (always passes. Used for AND-gate tests)
     conditionAudience = await testData.createAudience(payload, {
       label: 'Open Condition',
     })
@@ -423,7 +423,7 @@ describe('appCardsForAudience endpoint', () => {
   })
 
   it('excludes cards whose audiences are not in the requested list', async () => {
-    // Caller's resolved audiences don't include pathStartedAudience.
+    // Caller's resolved audiences do not include pathStartedAudience.
     const { body } = await callEndpoint(payload, { targetSection: 'hero', limit: 20 }, undefined, {
       defaultAudiences: openOnly,
     })
@@ -556,7 +556,7 @@ describe('appCardsForAudience endpoint', () => {
 
   it('threads req through payload.find so usage-tracking and rate-limit hooks see the caller', async () => {
     // The hooks applied by usagePlugin read `req.user` to attribute a request
-    // to a client. If the endpoint doesn't forward `req` to `payload.find`,
+    // to a client. If the endpoint does not forward `req` to `payload.find`,
     // the hooks fire without a user and silently skip tracking/rate-limiting.
     const client = (await testData.createClient(payload, adminUserId, {
       name: 'Usage Tracking Forwarding Test',

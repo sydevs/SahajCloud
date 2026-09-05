@@ -1,7 +1,7 @@
 /**
  * Backfill of the derived `schedule.lastDate` column (#603).
  *
- * The interesting properties aren't the arithmetic (that's
+ * The interesting properties are not the arithmetic (that's
  * tests/unit/schedule-hooks.spec.ts) but the side effects: it must fill a NULL
  * left by a pre-column row, must not disturb the verification cycle while doing
  * so, and must be a no-op the second time.
@@ -161,7 +161,7 @@ describe('schedule.lastDate backfill', () => {
     const first = await readSchedule(course.id)
     expect(first.schedule?.lastDate).toBe('2021-01-18T23:59:59.999Z')
 
-    // …and it's stable from here.
+    // …and it is stable from here.
     const second = await backfillScheduleLastDate({
       payload,
       collection: 'events',

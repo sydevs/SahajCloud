@@ -111,8 +111,8 @@ describe('Atlas collections', () => {
     it('auto-fills an empty title from the first segment of the street address', async () => {
       const event = await payload.create({
         collection: 'events',
-        // draft: the now-required title/schedule are validated only on publish;
-        // the title beforeChange hook still runs and auto-fills from the street.
+        // draft: the now-required title and schedule are validated only on
+        // publish. The title beforeChange hook still runs and auto-fills from the street.
         draft: true,
         data: createData<'events'>({
           eventType: 'offline',
@@ -236,7 +236,7 @@ describe('Atlas collections', () => {
   })
 
   // #575 — the Live Preview tab appears iff the sanitized collection config
-  // carries `admin.livePreview`; the URL must carry the collection, doc id,
+  // carries `admin.livePreview`. The URL must carry the collection, doc id,
   // shared secret, and the edited locale so the Atlas widget can fetch the doc
   // (drafts included) client-side.
   describe('Live preview', () => {

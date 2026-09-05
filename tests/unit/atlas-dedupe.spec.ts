@@ -9,7 +9,7 @@ import {
 
 /**
  * The venue merge-map is what makes two events at one address group into a
- * single shared venue. It's curated by hand, so these guard its structural
+ * single shared venue. It is curated by hand, so these guard its structural
  * invariants — a chain or a self-reference would silently strand events on a
  * deleted venue row, which the importer would then import with no address.
  */

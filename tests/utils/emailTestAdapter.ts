@@ -81,8 +81,8 @@ export class EmailTestAdapter {
     }
 
     try {
-      // Compose through the real nodemailer path so MIME/header problems still
-      // surface; streamTransport buffers the result rather than sending it.
+      // Compose through the real nodemailer path so MIME and header problems
+      // still surface. streamTransport buffers the result rather than sending it.
       const info = await this.transporter.sendMail({
         from,
         to: Array.isArray(to) ? to.join(', ') : to,

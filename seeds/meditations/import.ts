@@ -423,7 +423,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
   /**
    * Rebuild frames idMap by matching legacy frame data to existing frames.
-   * Uses filename matching since legacy IDs aren't stored in Payload.
+   * Uses filename matching since legacy IDs are not stored in Payload.
    *
    * This is called when skip mode is enabled and we need to know which frames
    * already exist to properly reference them in meditations.
@@ -556,17 +556,17 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       return
     }
 
-    // Check if we're targeting a specific collection (paginated mode)
+    // Check if we are targeting a specific collection (paginated mode)
     const isPaginated = this.isPaginated()
 
-    // Check if we're in skip mode (not update mode) - can use rebuild instead of full import
+    // Check if we are in skip mode (not update mode) - can use rebuild instead of full import
     const isSkipMode = !this.options.updateMode
 
     // Check if this is the first batch (offset=0) to avoid re-running setup on subsequent batches
     const isFirstBatch = !this.options.pagination?.offset || this.options.pagination.offset === 0
 
     // Setup tags and placeholders
-    // - First batch: create if they don't exist, then cache IDs
+    // - First batch: create if they do not exist, then cache IDs
     // - Subsequent batches: just look up existing IDs (needed for thumbnail assignment)
     if (isFirstBatch) {
       await this.setupImageTags()
@@ -577,7 +577,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     }
 
     // Import in order of dependencies
-    // Narrators - import on first batch only (they don't change between batches)
+    // Narrators - import on first batch only (they do not change between batches)
     if (!isPaginated || this.isCollectionTargeted('narrators')) {
       await this.importNarrators()
     } else if (this.isCollectionTargeted('meditations') && isFirstBatch) {
@@ -818,7 +818,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   /**
    * Setup image tags for categorizing meditation thumbnails.
    * Image tags are now inline enum select values on the Images collection,
-   * so we just log that they're ready (no collection setup needed).
+   * so we just log that they are ready (no collection setup needed).
    */
   private async setupImageTags(): Promise<void> {
     await this.logger.info('\nSetting up image tags...')
@@ -1085,8 +1085,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
   /**
    * Maps a legacy `category` string from the source data to the post-rename
-   * shape. Chakras / nadis become a `subtleSystemNode` relationship; the four
-   * non-chakra values (clearing, meditate, ready, namaste) ride along on the
+   * shape. Chakras and nadis become a `subtleSystemNode` relationship. The
+   * four non-chakra values (clearing, meditate, ready, namaste) ride along on the
    * frame's `tags` array instead.
    *
    * Returns `null` when the legacy value is unrecognised so the importer can
@@ -1326,7 +1326,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       return
     }
 
-    // Not in cache = doesn't exist in DB. Download and upload new frame.
+    // Not in cache = does not exist in DB. Download and upload new frame.
     const buffer = await this.downloadFile(attachment.blob.key, filename)
     if (!buffer) {
       await this.reportDocument('frames', identifier, 'error', {
@@ -1343,7 +1343,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         subtleSystemNode: subtleSystemNodeId ?? undefined,
         tags: tagValues as any[],
         // Store original filename for preload cache matching in development mode
-        // (Cloudflare adapters set this automatically, but local storage doesn't)
+        // (Cloudflare adapters set this automatically, but local storage does not)
         fileMetadata: { originalFilename: filename },
       }
 
@@ -1436,7 +1436,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       return cachedId
     }
 
-    // Check database (in case it wasn't in cache)
+    // Check database (in case it was not in cache)
     const existing = await this.payload.find({
       collection: 'albums',
       where: { artist: { equals: artistName } },
@@ -1572,7 +1572,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         const existingId = this.songCache.get(cacheKey)
 
         if (existingId) {
-          // SKIP MODE: Just reuse existing song, don't update
+          // SKIP MODE: Just reuse existing song, do not update
           // UPDATE MODE: Update existing song with tags
           if (this.options.updateMode && songTagIds.length > 0) {
             await this.payload.update({

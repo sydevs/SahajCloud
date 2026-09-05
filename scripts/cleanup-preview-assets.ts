@@ -2,16 +2,18 @@
 /**
  * Scheduled cleanup of preview-namespaced storage assets (issue #432).
  *
- * Non-production deployments (Railway PR previews, staging) namespace every
- * upload with a `preview-` marker — an object-ID/key prefix for Cloudflare
- * Images + R2, and a `meta.env=preview` tag for Cloudflare Stream (see
- * `src/plugins/storage/previewIsolation.ts`). This script reaps those marked
- * assets once they are older than `--days`, so preview test uploads don't pile
- * up in the shared Cloudflare account / R2 bucket.
+ * Non-production deployments (Railway PR previews, staging) mark every
+ * upload with a `preview-` marker: an object-ID or key prefix for
+ * Cloudflare Images and R2, and a `meta.env=preview` tag for Cloudflare
+ * Stream (see `src/plugins/storage/previewIsolation.ts`). This script
+ * deletes those marked assets once they pass `--days` in age, so preview
+ * test uploads do not build up in the shared Cloudflare account or R2
+ * bucket.
  *
- * SAFETY: an asset is deleted only when it is BOTH preview-marked AND older than
- * the cutoff (`isReapablePreviewAsset`). Production assets carry no marker and
- * are never touched. The script defaults to a DRY RUN; pass `--apply` to delete.
+ * Safety: this script deletes an asset only when it is both
+ * preview-marked and older than the cutoff (`isReapablePreviewAsset`).
+ * Production assets carry no marker and are never touched. The script
+ * defaults to a dry run. Pass `--apply` to delete for real.
  *
  * Usage:
  *   pnpm tsx scripts/cleanup-preview-assets.ts                  # dry run, 7-day cutoff
@@ -20,13 +22,14 @@
  *
  * Env required (all three):
  *   CLOUDFLARE_ACCOUNT_ID
- *   CLOUDFLARE_API_KEY   one token covering Images:Edit, Stream:Edit and
+ *   CLOUDFLARE_API_KEY   one token covering Images:Edit, Stream:Edit, and
  *                        R2 Object Read & Write — see `r2CredentialsFromToken`
  *   R2_BUCKET
  * Optional:
- *   R2_JURISDICTION      `eu` / `fedramp` when the bucket was created with one.
- *                        Not a secret; set it in the workflow. A jurisdictional
- *                        bucket is unreachable on the default host.
+ *   R2_JURISDICTION      `eu` or `fedramp`, when the bucket was created
+ *                        with one. Not a secret; set it in the
+ *                        workflow. A jurisdictional bucket cannot be
+ *                        reached on the default host.
  */
 import { DeleteObjectCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3'
 import { z } from 'zod'
@@ -103,7 +106,7 @@ function requireEnv(name: string): string {
   return value
 }
 
-/** Parse a Cloudflare ISO timestamp, returning null when absent/invalid. */
+/** Parse a Cloudflare ISO timestamp. Returns null when absent or invalid. */
 function parseDate(value: string | undefined): Date | null {
   if (!value) return null
   const date = new Date(value)
@@ -196,12 +199,13 @@ async function reapImages(
 }
 
 /**
- * Reap preview-marked Cloudflare Stream videos older than the cutoff. Stream
- * UIDs are assigned by Cloudflare, so the marker lives in `meta.env=preview`.
+ * Reap preview-marked Cloudflare Stream videos older than the cutoff.
+ * Cloudflare assigns Stream UIDs, so the marker lives in
+ * `meta.env=preview` instead.
  *
- * Note: `GET /stream` returns the most recent ~1000 videos; preview video
- * uploads are rare (smoke tests don't upload video), so a single listing is
- * sufficient. A warning is logged if the cap is reached.
+ * Note: `GET /stream` returns only the most recent ~1000 videos. Preview
+ * video uploads are rare, since smoke tests do not upload video, so one
+ * listing is enough. This script logs a warning if the cap is reached.
  */
 async function reapStream(
   accountId: string,
@@ -210,8 +214,9 @@ async function reapStream(
   days: number,
   apply: boolean,
 ): Promise<ReapSummary> {
-  // Oldest-first (`asc=true`) so a single page reaches the reapable (aged)
-  // videos even when the account exceeds the ~1000-video listing cap.
+  // Oldest-first (`asc=true`), so one page still reaches the old,
+  // reapable videos, even when the account holds more than the
+  // ~1000-video listing cap.
   const json = await cfFetch('GET', `/accounts/${accountId}/stream?asc=true`, apiKey)
   const parsed = StreamListSchema.parse(json)
   if (!parsed.success) {
@@ -252,9 +257,9 @@ async function reapStream(
 }
 
 /**
- * S3 credentials for R2, derived from the same Cloudflare API token used for
- * Images and Stream — see `r2Credentials.ts` for why hashing a credential is
- * the documented approach rather than a mistake.
+ * S3 credentials for R2, derived from the same Cloudflare API token
+ * used for Images and Stream. See `r2Credentials.ts` for why hashing a
+ * credential here is the documented approach, not a mistake.
  */
 async function r2CredentialsFromToken(
   accountId: string,
@@ -268,7 +273,7 @@ async function r2CredentialsFromToken(
 
 /**
  * Reap preview-marked R2 objects older than the cutoff. R2 keys are
- * `<collection>/<filename>`; the marker is the `preview-` prefix on the
+ * `<collection>/<filename>`. The marker is the `preview-` prefix on the
  * filename segment.
  */
 async function reapR2(
@@ -291,9 +296,10 @@ async function reapR2(
   let reaped = 0
 
   do {
-    // R2 answers a jurisdictional bucket addressed on the default host with
-    // AccessDenied, not a 404 — so the raw SDK error sends you auditing token
-    // permissions when the endpoint is what's wrong. Name both.
+    // R2 answers a jurisdictional bucket on the default host with
+    // AccessDenied, not a 404. So the raw SDK error sends you to check
+    // token permissions when the real problem is the endpoint. Name
+    // both possible causes in the error below.
     const list = await client
       .send(new ListObjectsV2Command({ Bucket: bucket, ContinuationToken: continuationToken }))
       .catch((error: unknown) => {

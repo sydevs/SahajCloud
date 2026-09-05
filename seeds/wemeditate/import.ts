@@ -290,7 +290,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   /**
    * Setup image tags for content categorization.
    * Image tags are now inline enum select values on the Images collection,
-   * so we just log that they're ready (no collection setup needed).
+   * so we just log that they are ready (no collection setup needed).
    */
   private async setupImageTags(): Promise<void> {
     await this.logger.info('Setting up image tags...')
@@ -326,7 +326,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
    * Called automatically by BaseImporter when pagination is active.
    *
    * This method rebuilds the legacy ID → Payload ID mappings needed for
-   * cross-collection references (e.g., songs referencing albums).
+   * cross-collection references (for example, songs referencing albums).
    */
   protected async reconstructIdMaps(): Promise<void> {
     await this.logger.info('Reconstructing ID maps from database...')
@@ -335,8 +335,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     // This is required because reconstructIdMaps() is called before import()
     await this.loadData()
 
-    // For authors and categories, we can't reconstruct the original Rails ID → Payload ID mapping
-    // because we don't store the Rails IDs. However, we look up by slug during import anyway.
+    // For authors and categories, we cannot reconstruct the original Rails ID → Payload ID mapping
+    // because we do not store the Rails IDs. However, we look up by slug during import anyway.
     const authors = await this.payload.find({ collection: 'authors', limit: 100, depth: 0 })
     await this.logger.info(`✓ Found ${authors.totalDocs} existing authors`)
 
@@ -394,7 +394,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       return
     }
 
-    // Check if we're targeting a specific collection (paginated mode)
+    // Check if we are targeting a specific collection (paginated mode)
     const isPaginated = this.isPaginated()
 
     // Phase 1: Import metadata without content
@@ -458,7 +458,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     if (isFirstBatch) {
       // PRE-WORK: Only run once on first batch
       // Categories, content type tags, forms, global media, and lectures are imported once
-      // Subsequent batches skip these since they're already complete
+      // Subsequent batches skip these since they are already complete
 
       // Import forms (only once)
       // Note: page-tags removed - now inline enum strings on Pages collection
@@ -780,7 +780,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         // Link author image if available
         if (author.image) {
           // Construct image URL similar to album art pattern
-          // Author images are stored as plain filenames (e.g., "eddc874d5f.jpg")
+          // Author images are stored as plain filenames (for example, "eddc874d5f.jpg")
           const imageFilename =
             typeof author.image === 'string' ? author.image : String(author.image)
           const imageUrl = imageFilename.startsWith('http')
@@ -907,7 +907,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           this.idMaps.albums.set(this.toNumericId(artist.id), existingFromCache.id)
 
           if (!this.options.updateMode) {
-            // SKIP MODE: Don't update, just record the mapping
+            // SKIP MODE: Do not update, just record the mapping
             this.report.incrementSkipped()
             await this.reportDocument('albums', artist.name, 'skipped', {
               current: i + 1,
@@ -916,7 +916,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             continue
           }
 
-          // UPDATE MODE: Update metadata only (can't update file on upload collections)
+          // UPDATE MODE: Update metadata only (cannot update file on upload collections)
           await this.payload.update({
             collection: 'albums',
             id: existingFromCache.id,
@@ -940,10 +940,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         let downloadResult: { localPath: string; buffer?: Buffer } | null = null
         if (artist.image) {
           try {
-            // Parse JSONB string - it's stored as "filename.jpg" (quoted string in JSON)
+            // Parse JSONB string - it is stored as "filename.jpg" (quoted string in JSON)
             let imageFilename: string | null = null
             if (typeof artist.image === 'string') {
-              // If it's a string, it might be JSON-encoded or just the filename
+              // If it is a string, it might be JSON-encoded or just the filename
               try {
                 imageFilename = JSON.parse(artist.image) as string
               } catch {
@@ -1157,7 +1157,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
               : track.artist_ids[0]
           albumId = this.idMaps.albums.get(firstArtistId)
           if (!albumId) {
-            // Log which artist name we're looking for to help debug missing albums
+            // Log which artist name we are looking for to help debug missing albums
             const artistData = this.data.artists.find(
               (a) => this.toNumericId(a.id) === firstArtistId,
             )
@@ -1197,7 +1197,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         const existingFromCache = this.getPreloaded('songs', track.title)
         if (existingFromCache) {
           if (!this.options.updateMode) {
-            // SKIP MODE: Don't update existing songs
+            // SKIP MODE: Do not update existing songs
             this.report.incrementSkipped()
             await this.reportDocument('songs', track.title, 'skipped', {
               current: i + 1,
@@ -1609,7 +1609,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
 
     // Scan treatment thumbnails from pre-extracted data
-    // Apply getOriginalImageUrl to strip CarrierWave prefixes (e.g., small_)
+    // Apply getOriginalImageUrl to strip CarrierWave prefixes (for example, small_)
     for (const treatment of this.data.treatmentThumbnails) {
       const thumbnailUrl = getOriginalImageUrl(
         `${STORAGE_BASE_URL}media_file/file/${treatment.media_file_id}/${treatment.thumbnail_file}`,
@@ -1643,7 +1643,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         // This avoids unnecessary HTTP requests for media that already exists in the database
         const existingMediaId = this.mediaUploader.existsInCache(preDownloadFilename)
         if (existingMediaId && !this.options.updateMode) {
-          // SKIP MODE: Media exists and we're not updating - no download needed!
+          // SKIP MODE: Media exists and we are not updating - no download needed!
           this.idMaps.media.set(url, existingMediaId)
           this.report.incrementSkipped()
           await this.reportDocument('images', preDownloadFilename, 'skipped', {
@@ -1872,7 +1872,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
 
     // Scan treatment thumbnails
-    // Apply getOriginalImageUrl to strip CarrierWave prefixes (e.g., small_)
+    // Apply getOriginalImageUrl to strip CarrierWave prefixes (for example, small_)
     for (const treatment of this.data.treatmentThumbnails) {
       const thumbnailUrl = getOriginalImageUrl(
         `${STORAGE_BASE_URL}media_file/file/${treatment.media_file_id}/${treatment.thumbnail_file}`,
@@ -1948,13 +1948,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
    * Import one Lecture per unique vimeo_id encountered in page content.
    *
    * Rich-text content references the lecture directly, so `idMaps.lectures`
-   * ends up keyed `vimeo_id → lectureId` for the converter to consume. The
-   * Lecture is created via natural-key upsert on `nirmalVidyaVimeoUrl`; its
-   * `populateFromNirmalaVidya` create hook synchronously fills
+   * ends up keyed by `vimeo_id` to `lectureId` for the converter to consume.
+   * The Lecture is created via natural-key upsert on `nirmalVidyaVimeoUrl`.
+   * Its `populateFromNirmalaVidya` create hook synchronously fills
    * `metadata.duration`/`metadata.title` by hitting the Nirmala Vidya HLS API.
    *
    * Per-vimeo errors (NV API 404 / network blip) are isolated so one bad
-   * video doesn't kill the whole batch — downstream `convertVimeo` calls for
+   * video does not kill the whole batch — downstream `convertVimeo` calls for
    * that vimeo_id will log a missing-lecture warning and drop the block.
    */
   private async importLectures(): Promise<void> {
@@ -1991,7 +1991,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           for (const block of content.blocks) {
             if (block.type !== 'vimeo' || !block.data) continue
 
-            // Wemeditate uses nested data.items[]; tolerate flat too.
+            // Wemeditate uses nested data.items[]. Tolerate flat too.
             const items = Array.isArray(block.data.items) ? block.data.items : [block.data]
             for (const item of items) {
               if (item?.youtube_id) {
@@ -2030,7 +2030,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         // populateFromNirmalaVidya fires on create and fills metadata.
         // Note: BaseImporter.upsert swallows hook errors and returns action='error'
         // (with the input data echoed back as `doc`). The bare error is logged via
-        // reportDocument; we just isolate this vimeoId and move on.
+        // reportDocument. This code just isolates this vimeoId and moves on.
         const lectureResult = await this.upsert<{
           id: number | string
           title?: string | null
@@ -2047,9 +2047,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
         this.idMaps.lectures.set(vimeoId, lectureResult.doc.id)
       } catch (error) {
-        // Isolate per-vimeo failures so one bad video doesn't kill the run.
-        // The lectures map simply won't contain this vimeo_id; convertVimeo
-        // will log a missing-lecture warning when content references it.
+        // Isolate per-vimeo failures so one bad video does not kill the run.
+        // The lectures map simply will not contain this vimeo_id.
+        // convertVimeo will log a missing-lecture warning when content
+        // references it.
         this.addError(`Importing lecture for vimeo_id=${vimeoId}`, error as Error)
       }
     }

@@ -128,8 +128,9 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
       // Preload collections for efficient skip/update mode
       // Note: Lessons use compound key (unit+step), so we preload with a custom cache key
-      // Lectures are keyed on the NV Vimeo URL; pulling `metadata` + `title`
-      // lets skip-mode reads see NV-fetched fields without a follow-up fetch.
+      // Lectures are keyed on the NV Vimeo URL. Pulling `metadata` and
+      // `title` lets skip-mode reads see NV-fetched fields without a
+      // follow-up fetch.
       await this.preloadCollection('lectures', 'nirmalVidyaVimeoUrl', ['metadata', 'title'])
       // Preload lessons by building composite key from unit + step
       await this.preloadLessonsWithCompositeKey()
@@ -226,7 +227,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   /**
    * Setup image tags for content categorization.
    * Image tags are now inline enum select values on the Images collection,
-   * so we just log that they're ready (no collection setup needed).
+   * so we just log that they are ready (no collection setup needed).
    */
   private async setupImageTags(): Promise<void> {
     await this.logger.info('Setting up image tags...')
@@ -575,7 +576,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
    *
    * The `populateFromNirmalaVidya` create hook synchronously fills
    * `metadata` by hitting the Nirmala Vidya HLS API. Hook errors flow back
-   * through `BaseImporter.upsert` as `action='error'`; in that case the
+   * through `BaseImporter.upsert` as `action='error'`. In that case the
    * caller drops the inline reference.
    */
   private async upsertLecture(

@@ -115,7 +115,7 @@ describe('Meditation Duration Extraction', () => {
 
       // 2. Null out duration via raw SQL (simulates pre-migration state). The
       // table is schema-qualified because Payload's adapter binds to a per-suite
-      // schema in tests, which a raw drizzle query doesn't pick up implicitly.
+      // schema in tests, which a raw drizzle query does not pick up implicitly.
       const schema = (payload.db as unknown as { schemaName?: string }).schemaName || 'public'
       const db = (
         payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } }

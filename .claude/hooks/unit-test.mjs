@@ -4,14 +4,16 @@
  * Unit Test Hook (PostToolUse / Edit|Write)
  *
  * Runs the unit lane (`pnpm test:unit`) when source files or unit specs
- * change, giving Claude sub-5-second feedback during editing. Silent on
- * success; reports a short failure tail when tests break.
+ * change. This gives Claude fast feedback, under 5 seconds, during
+ * editing. It stays silent on success. It reports a short failure tail
+ * when tests break.
  *
  * Triggers on edits to:
- *   - src/{file}.ts / .tsx           (excluding src/payload-types.ts, src/migrations/**)
- *   - tests/unit/{file}.spec.ts      (the unit specs themselves)
+ *   - src/{file}.ts / .tsx (excludes src/payload-types.ts, src/migrations/**)
+ *   - tests/unit/{file}.spec.ts (the unit specs themselves)
  *
- * Tier 1 of the three-tier speed contract — see `docs/rules/testing-reqs.md`.
+ * This is Tier 1 of the three-tier speed contract. See
+ * `docs/rules/testing-reqs.md`.
  */
 
 import { execSync } from 'child_process'

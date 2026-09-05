@@ -80,7 +80,7 @@ describe('meditationSongs endpoint', () => {
     adminUserId = env.adminUser.id
 
     // One shared album keeps createSong from minting an album + artwork image
-    // per track (8 uploads' worth of setup the suite doesn't need).
+    // per track (8 uploads' worth of setup the suite does not need).
     const album = await testData.createAlbum(payload, { title: 'Songs test album' })
 
     songTag = await testData.createSongTag(payload, { title: 'Calm' })

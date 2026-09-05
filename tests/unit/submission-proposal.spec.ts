@@ -137,7 +137,7 @@ describe('mergeProposal', () => {
   })
 
   it('ignores an assigned manager when the proposal targets an event', () => {
-    // An update proposal inherits its target's manager; reassigning one is the
+    // An update proposal inherits its target's manager. Reassigning one is the
     // Event's own business, and the field is hidden for exactly that reason.
     const target = { manager: 3, verificationStage: 'verified' } as unknown as Partial<Event>
     const merged = mergeProposal({ proposed: {}, target, manager: 7 })
@@ -249,7 +249,7 @@ describe('buildProposedChanges', () => {
 
   it('hides a difference that formatting collapses to nothing visible', () => {
     // `null` → `''` is a real diff to microdiff and no change at all to a
-    // reader; showing it would claim something changed when nothing did.
+    // reader. Showing it would claim something changed when nothing did.
     const changes = buildProposedChanges({
       before: { contactPhone: null },
       after: { contactPhone: '' },
@@ -411,8 +411,8 @@ describe('group blocks', () => {
   })
 
   it('shows an unfiltered block rather than an empty one', () => {
-    // The address group's conditions mean "don't reveal these until a place is
-    // picked", not "these don't apply". Honouring them literally filtered away
+    // The address group's conditions mean "do not reveal these until a place is
+    // picked", not "these do not apply". Honouring them literally filtered away
     // every line of a hand-typed address and the reviewer saw no address at
     // all — so a block emptied by its own conditions falls back to unfiltered.
     const [change] = buildProposedChanges({
@@ -459,7 +459,7 @@ describe('reference fields', () => {
 describe('list fields', () => {
   it('diffs a hasMany list whole rather than by row number', () => {
     // microdiff reports a list per index, so adding one language surfaced as
-    // `Languages \u203a #2` \u2014 a row number a reviewer can't relate to anything.
+    // `Languages \u203a #2` \u2014 a row number a reviewer cannot relate to anything.
     const [change] = buildProposedChanges({
       before: { languages: ['en', 'cs'] },
       after: { languages: ['en', 'cs', 'de'] },

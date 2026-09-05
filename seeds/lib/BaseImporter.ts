@@ -78,7 +78,7 @@ export interface BaseImportOptions {
   onProgress?: OnProgressCallback // Optional progress callback for SSE streaming
   pagination?: PaginationOptions // Optional pagination for multi-step execution
   // Raw seed-file contents keyed by their canonical DataSource.localPath,
-  // uploaded by the CLI when the Worker can't fetch them itself (private repo).
+  // uploaded by the CLI when the Worker cannot fetch them itself (private repo).
   // Consumed via loadJsonData({ inlineContent }).
   inlineData?: Record<string, string>
 }
@@ -319,15 +319,12 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   // ============================================================================
 
   /**
-   * Bulk fetch a collection for skip/update decision-making.
-   * Uses Payload's `select` parameter for minimal data transfer.
-   *
-   * For upload collections using Cloudflare Images/Stream, also caches by
-   * `fileMetadata.originalFilename` to enable deduplication when the stored
-   * filename is replaced with a Cloudflare-generated ID.
+   * Bulk fetch a collection for skip/update decisions. See the Preload
+   * pattern in seeds/lib/AGENTS.md for the full rationale, including
+   * why this includes soft-deleted docs.
    *
    * @param collection - Collection to preload
-   * @param naturalKeyField - Field to use as cache key (e.g., 'slug', 'filename')
+   * @param naturalKeyField - Field to use as cache key, for example 'slug' or 'filename'
    * @param additionalFields - Additional fields to select beyond id and naturalKeyField
    * @returns PreloadCache map of natural key values to document data
    */
@@ -382,16 +379,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           page,
           depth: 0,
           select,
-          // Include soft-deleted docs: this cache answers "does this natural key
-          // already exist?", and a trashed doc still occupies its key. Without
-          // this, Payload's default `deletedAt exists: false` filter hides it, the
-          // cache misses, and `upsert` creates a duplicate (it goes straight to
-          // `payload.create` on a preloaded-but-absent key, with no fallback find).
-          // That bit Files/Images — CleanupOrphanedMedia trashes orphans, so a
-          // re-seed re-uploaded them — and would bite any collection whose rows get
-          // trashed. Safe for every collection: Payload's appendNonTrashedFilter
-          // ignores `trash` unless the collection enables it, and when it does this
-          // includes trashed docs *alongside* live ones rather than only-trashed.
+          // Include soft-deleted docs. See the Preload pattern in
+          // seeds/lib/AGENTS.md for why this cache must include trashed
+          // rows, and the bug it fixes.
           trash: true,
         }),
       )
@@ -540,7 +530,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    * Override to add custom cleanup logic
    */
   protected async cleanup(): Promise<void> {
-    // Only close Payload database connection if we created it (not external)
+    // Only close the Payload database connection if this instance created it (not external)
     if (!this.externalPayload && this.payload?.db?.destroy) {
       await this.payload.db.destroy()
     }
@@ -698,7 +688,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       publishSpecificLocale?: TypedLocale
       /** Force file upload even on update (default: false - skips file on update, assumes existing file is correct) */
       forceFileUpload?: boolean
-      /** Extra `req.context` forwarded to create/update (e.g. `{ skipVerifyHook: true }`). */
+      /** Extra `req.context` forwarded to create/update, for example `{ skipVerifyHook: true }`. */
       context?: Record<string, unknown>
       /** Skip Payload's verification email on create (bulk auth imports avoid mail rate limits). */
       disableVerificationEmail?: boolean
@@ -785,8 +775,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         return { doc: updated as unknown as T, action: 'updated' }
       }
 
-      // Doc doesn't exist in preload cache (or collection wasn't preloaded)
-      // If collection was preloaded and doc not found, create new directly
+      // The doc does not exist in the preload cache, or the collection
+      // was not preloaded. If the collection was preloaded and the doc
+      // was not found, create it directly.
       if (isPreloaded && !preloadedDoc) {
         const createStart = DEBUG ? Date.now() : 0
         if (DEBUG) console.log(`[UPSERT] Creating ${collection}:${identifier} (not in cache)`)
@@ -820,7 +811,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         return { doc: created as unknown as T, action: 'created' }
       }
 
-      // FALLBACK: Collection wasn't preloaded - use original find-then-update/create pattern
+      // Fallback: the collection was not preloaded. Use the original find-then-update-or-create pattern.
       const findStart = DEBUG ? Date.now() : 0
       if (DEBUG) console.log(`[UPSERT] Finding existing ${collection}:${identifier} (fallback)`)
       const existing = await this.executeWithRetry(() =>
@@ -854,7 +845,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           return { doc: existing.docs[0] as unknown as T, action: 'skipped' }
         }
 
-        // UPDATE MODE: Update existing (with retry for SQLITE_BUSY)
+        // UPDATE MODE: Update existing (with retry for transient database errors)
         const updateStart = DEBUG ? Date.now() : 0
         if (DEBUG) console.log(`[UPSERT] Updating ${collection}:${identifier}`)
         // Skip file upload on update unless forceFileUpload is true
@@ -897,7 +888,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         return { doc: updated as unknown as T, action: 'updated' }
       }
 
-      // Create new (with retry for SQLITE_BUSY)
+      // Create new (with retry for transient database errors)
       const createStart = DEBUG ? Date.now() : 0
       if (DEBUG) console.log(`[UPSERT] Creating ${collection}:${identifier}`)
       // Track file upload operation for heartbeat
@@ -945,7 +936,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         // Try to find the existing document with this slug
         // Use case-insensitive 'like' query to handle variations (trailing dashes, case differences)
         const normalizedSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '')
-        // Also create a version without hyphens for fuzzy matching (e.g., parimala-sab-u vs parimala-sabu)
+        // Also create a version without hyphens for fuzzy matching, for example parimala-sab-u versus parimala-sabu
         const slugWithoutHyphens = normalizedSlug.replace(/-/g, '')
 
         try {
@@ -1006,7 +997,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           )
         }
 
-        // Fallback: skip if we couldn't find existing
+        // Fallback: skip if no existing document was found
         const errorMsg = error instanceof Error ? error.message : String(error)
         this.report.addError(`Slug collision in ${collection} (slug="${slug}"): ${errorMsg}`)
         this.report.incrementSkipped()
@@ -1082,7 +1073,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     translations: T[],
     dataExtractor: (translation: T) => Record<string, unknown> | null,
     options?: {
-      /** Skip this locale (e.g., 'en' if already created with upsert) */
+      /** Skip this locale, for example 'en' if already created with upsert */
       excludeLocale?: string
       /** Only process translations where these fields have non-empty values */
       requiredFields?: (keyof T)[]
@@ -1222,10 +1213,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    * - Simple: { field: { equals: 'value' } }
    * - Compound: { and: [{ field1: { equals: 'value1' } }, { field2: { equals: 'value2' } }] }
    *
-   * For compound keys, values are joined with '-' (e.g., "Unit 1-3")
+   * For compound keys, values are joined with '-', for example "Unit 1-3"
    *
    * @param naturalKey - Where clause to extract value from
-   * @returns The string value, or undefined if pattern doesn't match
+   * @returns The string value, or undefined if the pattern does not match
    */
   private extractNaturalKeyValue(naturalKey: Where): string | undefined {
     if (typeof naturalKey !== 'object' || naturalKey === null) return undefined
@@ -1236,7 +1227,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     const [key, condition] = entries[0]
 
     // Handle compound AND conditions: { and: [{ unit: { equals: 'Unit 1' } }, { step: { equals: 3 } }] }
-    // Builds composite key by joining values with '-' (e.g., "Unit 1-3")
+    // Builds a composite key by joining values with '-', for example "Unit 1-3"
     if (key === 'and' && Array.isArray(condition)) {
       const values: string[] = []
       for (const subCondition of condition as Where[]) {
@@ -1270,7 +1261,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   /**
-   * Execute an operation with exponential backoff retry for SQLITE_BUSY errors
+   * Execute an operation with exponential backoff retry for transient
+   * database and connection errors
    */
   private async executeWithRetry<T>(
     operation: () => Promise<T>,

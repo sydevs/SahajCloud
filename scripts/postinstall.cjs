@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 const { execSync } = require('child_process')
 
-// The Playwright browser download is only needed for local e2e runs — skip it
-// in build/deploy environments. Railway exposes its RAILWAY_* variables during
-// both build and deploy, so detect the platform explicitly there rather than
-// relying on a generic CI flag; CI providers (GitHub Actions, etc.) set CI.
+// Local e2e runs are the only place that needs the Playwright browser
+// download. Skip it in build and deploy environments. Railway sets its
+// RAILWAY_* variables during both build and deploy, so check for those
+// directly instead of relying on a generic CI flag. Other CI providers,
+// such as GitHub Actions, set the CI variable instead.
 const isRailway = !!(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_ID)
 const isCI =
   process.env.CI === 'true' ||

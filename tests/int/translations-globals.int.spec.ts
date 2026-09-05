@@ -4,11 +4,11 @@
  * Verifies:
  * - The tabs field is the first (and only) top-level field in each global.
  * - The tabs structure preserves Title-Case labels per global.
- * - Each leaf group emits one JSON field; richText keys live as siblings.
+ * - Each leaf group emits one JSON field. richText keys live as siblings.
  * - Nested tabs (wm-app-translations, sy-atlas-translations) are wrapped in a
  *   Payload group named after the tab slug so the API response is namespaced:
  *   `{ onboarding: { welcome: {…} } }` instead of `{ onboarding_welcome: {…} }`.
- * - wm-web has no group wrappers; sy-atlas mixes leaf tabs (Common, Share) with
+ * - wm-web has no group wrappers. Sy-atlas mixes leaf tabs (Common, Share) with
  *   nested tabs (Region, Event, Registration) that do.
  * - richText fields inside nested tabs keep the sub-slug prefix (the group
  *   wrapper supplies the tab namespace), so the field name is
@@ -111,9 +111,9 @@ describe('Translations Globals Configuration', () => {
         collectFieldsByPredicate(t.fields, (f) => f.type === 'json'),
       ) as Array<{ name: string }>
       const names = jsonFields.map((f) => f.name)
-      // Leaf tabs emit a field named after the tab (`common`, `share`); nested
+      // Leaf tabs emit a field named after the tab (`common`, `share`). Nested
       // tabs emit one field per sub-group. Assert the full set so a dropped
-      // sub-group (e.g. event.recurrence, registration.errors) is caught.
+      // sub-group (for example, event.recurrence, registration.errors) is caught.
       expect(names).toEqual(
         expect.arrayContaining([
           'common',

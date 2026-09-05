@@ -42,7 +42,7 @@ type TestUser = {
 type SeoBody = AtlasSeoResponse & { errors?: { message: string }[] }
 
 // Annotated rather than `as const`: the latter freezes `weekdays` into a
-// readonly tuple, which the mutable schema field won't accept.
+// readonly tuple, which the mutable schema field will not accept.
 const SCHEDULE: NonNullable<FixtureOverrides<Event>['schedule']> = {
   firstDate: '2026-01-06T10:00:00.000Z',
   firstDate_tz: 'Europe/London',
@@ -323,7 +323,7 @@ describe('atlasSeo endpoint', () => {
 
     // The bug this replaced: `where['breadcrumbs.url'][equals]` matches when ANY
     // breadcrumb element matches, so a city route resolved to a venue two levels
-    // beneath it. The slug is the unique key; the trail is not.
+    // beneath it. The slug is the unique key. The trail is not.
     it('resolves the region the route names, not a descendant that shares its trail', async () => {
       const { body } = await callSeo({ route: '/united-kingdom/greater-london' })
       expect(body.id).toBe(region.london)
@@ -331,7 +331,7 @@ describe('atlasSeo endpoint', () => {
     })
 
     // Ancestry is the part of a URL that goes stale. A 404 here would drop every
-    // inbound link into a restructured subtree; instead the answer carries the
+    // inbound link into a restructured subtree. Instead the answer carries the
     // corrected route, which a host can redirect to.
     it('still resolves a region whose ancestry in the URL is wrong', async () => {
       const doc = await readRegion(region.london)
@@ -407,7 +407,7 @@ describe('atlasSeo endpoint', () => {
     //
     // **Both directions are asserted deliberately.** Whatever the database
     // happens to order by, one of the two cases must disagree with it — so this
-    // can't pass vacuously the way a single fixed ordering can. The first
+    // cannot pass vacuously the way a single fixed ordering can. The first
     // version of this test did exactly that: it stayed green with the
     // reordering deleted.
     it.each([

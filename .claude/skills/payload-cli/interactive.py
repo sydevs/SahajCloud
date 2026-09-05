@@ -1,35 +1,37 @@
-"""Run a Payload script on a PTY, answering drizzle's interactive prompts.
+"""Run a Payload script on a PTY. This answers drizzle's interactive prompts.
 
     python3 .claude/skills/payload-cli/interactive.py "<js module source>"
 
-The script is evaluated by `node --input-type=module --import tsx/esm -e`, from
-the repo root, so it can `await import('./src/payload.config.ts')`. Everything
-the child writes — including the output your script prints — goes to
-`/tmp/payload-pty.log`, because a PTY has no separate stdout to inherit.
+Node evaluates the script with `--input-type=module --import tsx/esm -e`,
+from the repo root, so it can `await import('./src/payload.config.ts')`.
+A PTY has no separate stdout to inherit, so everything the child writes,
+including your own script's output, goes to `/tmp/payload-pty.log`.
 
-**Load `.env` and `.env.local` before calling this**, or the config's
-`serverEnv` validation throws and `payload/bin.js` swallows it (`void start()`,
-no `.catch()`):
+**Load `.env` and `.env.local` before you call this.** Otherwise the
+config's `serverEnv` check throws, and `payload/bin.js` swallows the error
+(`void start()`, with no `.catch()`):
 
     set -a; . ./.env; . ./.env.local; set +a
 
-Three prompt-handling lessons are baked in, each learned from a hang:
+Three prompt-handling lessons are built in. Each came from a real hang:
 
-  * Answer once per distinct COLUMN, not per prompt text. The rename prompts
-    arrive back to back and a time-based debounce swallowed the second one.
+  * Answer once per distinct column, not once per prompt text. The rename
+    prompts arrive back to back, and a time-based debounce swallowed the
+    second one.
   * Clear that memo at the `Starting migration` phase boundary. Push and
-    migration-generation ask the same questions, so keying only on text
-    answered the first round and hung on the second.
-  * Accept the data-loss warning with `y`. Correct here because this drives a
-    LOCAL dev database catching up to a schema change; production applies
-    migrations instead and never sees this prompt.
+    migration generation ask the same questions. Keying only on text
+    answered the first round, then hung on the second.
+  * Accept the data-loss warning with `y`. This is correct here: it drives
+    a local dev database catching up to a schema change. Production
+    applies migrations a different way and never sees this prompt.
 
 Raw mode needs `\\r`, not `\\n`.
 
-The rename prompt's highlighted default is `+ create column`, which is a
-**drop+add**. That is right for a genuinely new column and destroys data for a
-real rename — see `src/migrations/AGENTS.md` before accepting one on a
-column that holds rows.
+The rename prompt highlights `+ create column` as its default answer. That
+choice drops the old column and adds a new one. This is right for a
+genuinely new column, but it destroys data on a real rename. Check
+`src/migrations/AGENTS.md` before you accept it on a column that holds
+rows.
 """
 
 import os
@@ -72,8 +74,8 @@ while proc.poll() is None:
     buf = (buf + chunk)[-4000:]
     text = buf.decode('utf-8', 'replace')
 
-    # Push and migration-generation ask the same questions; this boundary is
-    # what lets the second round be answered too.
+    # Push and migration generation ask the same questions. This boundary
+    # is what lets the second round get answered too.
     if 'Starting migration' in text and 'phase2' not in seen:
         seen.clear()
         seen.add('phase2')
@@ -96,9 +98,10 @@ while proc.poll() is None:
         log.write(b'\n[pty] accepted the data-loss warning (local dev DB)\n')
         buf = b''
 
-# Reap before reading the code: the loop above usually exits on EOF from the
-# PTY, which happens *before* the child is reaped, so `returncode` would still
-# be None and every run would look inconclusive.
+# Reap the process before you read its exit code. The loop above usually
+# exits on EOF from the PTY. This happens before the child process is
+# reaped, so `returncode` would still be None, and every run would look
+# inconclusive.
 rc = proc.wait()
 log.write(f'\n[pty] exited rc={rc}\n'.encode())
 print(f'[pty] done (rc={rc}) — full output in {LOG_PATH}')

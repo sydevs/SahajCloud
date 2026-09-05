@@ -31,7 +31,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      # Integration tests connect here; each suite uses an isolated schema.
+      # Integration tests connect here. Each suite uses an isolated schema.
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/payload_test
     steps:
       - uses: actions/checkout@v4
@@ -42,16 +42,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      - run: pnpm typecheck # tsc --noEmit — lint and Vitest don't typecheck; only this + the Railway build do
+      - run: pnpm typecheck # tsc --noEmit. Neither lint nor Vitest typechecks. Only this step and the Railway build do.
       - run: pnpm typecheck:tests # the root tsconfig excludes `tests`, so specs need their own pass (#606)
-      - run: pnpm test # test:unit + test:int (integration runs against Postgres)
+      - run: pnpm test # runs test:unit and test:int (integration runs against Postgres)
 
       # ── Smoke specs against the Railway PR preview ──────────────────────────
-      # Discover the PR's Railway preview URL from Railway's commit status (via
-      # the built-in GITHUB_TOKEN — no Railway API token needed) and wait until
-      # it's healthy, then run the smoke specs against it. Skips gracefully (empty
-      # preview_url) when there's no preview env — e.g. PRs whose branch is
-      # itself a deployed environment.
+      # Find the PR's Railway preview URL from Railway's commit status. This
+      # uses the built-in GITHUB_TOKEN, so it needs no Railway API token.
+      # Wait until the preview is healthy, then run the smoke specs against
+      # it. This step skips gracefully, with an empty preview_url, when no
+      # preview environment exists — for example, a PR whose own branch is
+      # a deployed environment.
       - name: Discover Railway preview URL
         id: preview
         env:

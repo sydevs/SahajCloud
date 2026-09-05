@@ -10,7 +10,7 @@
  * de-duplicated output. Re-running on already-clean data is a no-op.
  *
  * NOTE: genuinely *different* places that merely geocode to the same feature
- * (e.g. Liverpool, Nova Scotia vs Liverpool, England) are NOT merged here — they
+ * (for example, Liverpool, Nova Scotia vs Liverpool, England) are NOT merged here — they
  * are disambiguated at geocode time via the region's country (see geocoder.ts).
  */
 
@@ -27,15 +27,15 @@ const AREA_MERGES: Record<number, number> = {
   436: 367, // Stalden-Saas (CH)
   392: 438, // Paris (FR) — drop "Paris - IDF" (under France); keep "Paris" (under Île-de-France, has the events)
   // ── 2026-08 dump. Each pair geocodes to one Mapbox feature (the unique
-  // `mapboxId` catches them at import otherwise); the kept side is the id the
-  // previously-seeded environments already know, so it updates instead of
-  // colliding.
+  // `mapboxId` catches them at import otherwise). The kept side is the id
+  // the previously-seeded environments already know, so it updates
+  // instead of colliding.
   1538: 226, // Nottingham (GB) — identical coords; 226 is parented to the Midlands
   2726: 364, // Colombier (CH) — both on the Neuchâtel lakeshore; 364 has the older events
   2198: 393, // Compiègne (FR) — identical coords
   2759: 2231, // Martinique (FR) — identical coords; 2231 has the events
   // "Province Québec" duplicates the Québec feature the province/city nodes
-  // already claim; its two online events roll up under Québec (1472) instead.
+  // already claim. Its two online events roll up under Québec (1472) instead.
   1807: 1472,
 }
 
@@ -56,9 +56,9 @@ const AREA_MERGES: Record<number, number> = {
  */
 const VENUE_MERGES: Record<number, number> = {
   // Manenburgstraat 22, Amsterdam — now FOUR rows for one building. 11 keeps
-  // the real name ("Sahaja Yoga Center Netherlands"); 104 was the old target,
-  // so 342 is repointed past it rather than left dangling; 3116 arrived with
-  // the 2026 dump's new course listings.
+  // the real name ("Sahaja Yoga Center Netherlands"). 104 was the old
+  // target, so 342 is repointed past it rather than left dangling. 3116
+  // arrived with the 2026 dump's new course listings.
   342: 11,
   104: 11,
   3116: 11,
@@ -73,14 +73,14 @@ const VENUE_MERGES: Record<number, number> = {
   195: 217, // Chellaston Bowls Club, Derby — same club, 217 has the proper city casing
   // ── 2026-08 dump refresh ──
   4337: 4336, // Rue de Nimy 46, Mons — 4336 is named "P'tite Maison Folie"
-  // 293 Mainzer Landstraße, Frankfurt — three rows for one concert hall; 5194
-  // carries the venue's actual name ("stadtRAUMfrankfurt").
+  // 293 Mainzer Landstraße, Frankfurt — three rows for one concert hall.
+  // 5194 carries the venue's actual name ("stadtRAUMfrankfurt").
   5062: 5194,
   5293: 5194,
   4765: 4798, // Nottingham Central Library — 4798 has the clean single-segment street
   5063: 458, // Am Lilienberg 2(a), München — the 2026 concerts re-listed the existing building
-  // Burgstraße 72, Frankfurt — 5095 ("Burgstraße", no number) and 5096 are the
-  // same building as the older 492; three different managers list there.
+  // Burgstraße 72, Frankfurt — 5095 ("Burgstraße", no number) and 5096 are
+  // the same building as the older 492. Three different managers list there.
   5095: 492,
   5096: 492,
 }
@@ -96,7 +96,7 @@ const VENUE_FIELD_OVERRIDES: Record<number, Partial<AtlasVenue>> = {
   514: { name: 'Atelier' },
   // Trailing whitespace on the surviving rows.
   14: { city: 'Eindhoven', postCode: '5641EC' },
-  // The venue's `name` is its whole marketing slogan; a blank-titled event
+  // The venue's `name` is its whole marketing slogan. A blank-titled event
   // there would auto-title to the entire sentence. "Málnárium" is the name.
   2125: { name: 'Málnárium' },
   // Lowercase city surfaces into the rendered address (the #605 casing class).

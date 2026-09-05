@@ -5,7 +5,7 @@
  * registration gate) and `notFinishedWhere` (SQL, used by the public feeds) must
  * decide "has this schedule run out?" identically. The final block pins that
  * agreement across a matrix — the two are separate implementations because a
- * `where` can't call a function, so nothing but a test keeps them honest.
+ * `where` cannot call a function, so nothing but a test keeps them honest.
  */
 import type { Where } from 'payload'
 
@@ -108,7 +108,7 @@ describe('shouldFinish', () => {
 
   it('keeps an event live until midnight in its own timezone', () => {
     // 02:00Z on Jun 11. A New York event dated Jun 10 is still on its own local
-    // day (22:00 EDT Jun 10); the same date in UTC is already over.
+    // day (22:00 EDT Jun 10). The same date in UTC is already over.
     const justAfterUtcMidnight = new Date('2026-06-11T02:00:00.000Z')
     const dayOf = '2026-06-10T16:00:00.000Z'
 

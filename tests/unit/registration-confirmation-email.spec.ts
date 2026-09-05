@@ -123,7 +123,7 @@ describe('RegistrationConfirmationEmail — offline', () => {
   it('styles the directions button identically to the online CTA', async () => {
     const [offline, online] = await Promise.all([render({ details: offlineDetails }), render()])
 
-    // Both are BrandButtons, so the brand gradient + padding must match; a
+    // Both are BrandButtons, so the brand gradient + padding must match. A
     // plain <a> (the old "View on map" link) carries neither.
     const buttonStyle = (html: string, label: string) =>
       html.slice(0, html.indexOf(label)).lastIndexOf('background-image:linear-gradient')
@@ -176,9 +176,9 @@ describe('RegistrationConfirmationEmail — localization', () => {
   })
 
   it('selects the locale-correct plural form for the session count', async () => {
-    // Russian needs one/few/many. With 5 sessions the correct form is `many`;
-    // an unthreaded locale would fall back to English rules (→ `other`), so
-    // this pins that the registrant `locale` actually reaches `pluralize`.
+    // Russian needs one/few/many. With 5 sessions the correct form is `many`.
+    // An unthreaded locale would fall back to English rules (giving `other`),
+    // so this pins that the registrant `locale` actually reaches `pluralize`.
     const ruStrings: EmailStrings = {
       ...EMAIL_STRING_DEFAULTS,
       sessions_count_one: '%{count} занятие',
@@ -252,7 +252,7 @@ describe('RegistrationConfirmationEmail — event title', () => {
   })
 
   it('no longer announces the calendar attachment', async () => {
-    // The attachment is visible in the client on its own; saying so was noise.
+    // The attachment is visible in the client on its own. Saying so was noise.
     const html = await render()
     expect(html).not.toContain('calendar invite is attached')
   })

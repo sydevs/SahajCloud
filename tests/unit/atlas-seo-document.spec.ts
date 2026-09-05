@@ -300,7 +300,7 @@ describe('buildEventSeo', () => {
   })
 
   // A dormant class is hidden from the admin schedule tab and skipped by the
-  // expiry job; reporting its stored schedule here would make this the one
+  // expiry job. Reporting its stored schedule here would make this the one
   // surface claiming it still runs.
   it('reports no schedule for a dormant class', () => {
     const seo = buildEventSeo({ ...base, event: makeEvent({ inactive: true }) })
@@ -347,7 +347,7 @@ describe('buildRegionSeo', () => {
 
   // Region names collide across the tree — Georgia the country and Georgia the
   // US state are both in this data — so a bare name is a title a search engine
-  // can't tell apart either.
+  // cannot tell apart either.
   it('qualifies the title with the root ancestor', () => {
     expect(buildRegionSeo(base).title).toBe('London, United Kingdom')
   })
