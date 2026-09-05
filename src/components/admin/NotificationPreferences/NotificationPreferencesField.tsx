@@ -1,6 +1,6 @@
 'use client'
 
-import type { NotificationPreferencesValue, NotificationType } from './config'
+import type { NotificationType } from './config'
 import type { FieldClientComponent, FormState, JSONFieldClient } from 'payload'
 
 import {
@@ -11,6 +11,8 @@ import {
   useField,
 } from '@payloadcms/ui'
 import React, { useMemo } from 'react'
+
+import type { NotificationPreferences } from '@/payload-types'
 
 import { DEFAULT_NOTIFICATION_METHOD, NEVER_FREQUENCY } from './config'
 
@@ -62,7 +64,7 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
 
   // Path is inferred from FieldPathContext; `name` is the path for the
   // label/error/description wrappers (see ToggleGroupField).
-  const { value, setValue, showError } = useField<NotificationPreferencesValue>()
+  const { value, setValue, showError } = useField<NotificationPreferences>()
   const [formState] = useAllFormFields()
 
   const methodOptions = useMemo(

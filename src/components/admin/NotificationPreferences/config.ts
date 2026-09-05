@@ -9,6 +9,8 @@
  */
 import type { JSONSchema4 } from 'json-schema'
 
+import type { NotificationPreferences } from '@/payload-types'
+
 export const NEVER_FREQUENCY = 'Never'
 export const DEFAULT_NOTIFICATION_METHOD = 'email'
 
@@ -18,14 +20,6 @@ export interface NotificationType {
   description: string
   frequencyOptions: string[]
 }
-
-export interface NotificationPreference {
-  frequency: string
-  method: string
-}
-
-/** Stored JSON shape: `{ [key]: { frequency, method } }`. */
-export type NotificationPreferencesValue = Record<string, NotificationPreference>
 
 export const NOTIFICATION_PREFERENCES_SCHEMA_URI =
   'https://sahajcloud.dev/schemas/notification-preferences.json'
@@ -100,8 +94,8 @@ export const DEFAULT_REGISTRATION_FREQUENCY =
  */
 export function buildDefaultNotificationPreferences(
   types: NotificationType[] = NOTIFICATION_TYPES,
-): NotificationPreferencesValue {
-  const prefs: NotificationPreferencesValue = {}
+): NotificationPreferences {
+  const prefs: NotificationPreferences = {}
   for (const type of types) {
     const frequency = type.frequencyOptions[0] ?? NEVER_FREQUENCY
     prefs[type.key] = {
@@ -113,38 +107,48 @@ export function buildDefaultNotificationPreferences(
 }
 
 /**
- * The stored shape, derived from `NOTIFICATION_TYPES` so a new notification
- * type cannot leave the schema behind. Wired onto `Managers.notificationPreferences`
- * as its `jsonSchema`, which both generates the TypeScript type and rejects a
+ * The stored shape, wired onto `Managers.notificationPreferences` as its
+ * `jsonSchema` — which both generates the TypeScript type and rejects a
  * preference whose frequency or method is not a string.
  *
- * Neither inner key is required. `buildDefaultNotificationPreferences` writes
- * both, but Payload validates this column on every save of a manager, and a row
- * seeded before a key existed must stay saveable. The frequency is checked as a
- * string rather than against `frequencyOptions` for the same reason — dropping
- * an option would otherwise strand every manager still on it.
+ * **Open keys, typed value.** Every key is a notification-type key, and
+ * retiring a type must not block a save: Payload validates this column on every
+ * save of a manager, and the field component spreads an unknown key back, so a
+ * closed shape would strand the row rather than let the admin clear it. Saying
+ * what the *value* holds costs nothing and is what makes the generated
+ * interface usable — `additionalProperties: true` generates
+ * `[k: string]: unknown`, which is why every consumer reading
+ * `prefs[key]?.method` used to need a hand-written alias to cast to. That alias
+ * is the second definition #659 exists to delete.
+ *
+ * **There are deliberately no per-key `properties`.** They validated exactly
+ * what this does, differing only in a `description`, and TypeScript refuses the
+ * combination: an optional named property includes `undefined`, which is not
+ * assignable to an index signature that does not, so `payload-types.ts` itself
+ * fails `tsc` with TS2411. Requiring the four keys would fix the assignability
+ * and strand every row missing one. `NOTIFICATION_TYPES` stays the source of
+ * truth for which keys the admin renders, and the frequency is checked as a
+ * string rather than against `frequencyOptions` — dropping an option would
+ * otherwise strand every manager still on it.
  */
 export const notificationPreferencesJsonSchema: JSONSchema4 = {
   $id: NOTIFICATION_PREFERENCES_SCHEMA_URI,
   title: 'NotificationPreferences',
+  // Stays `'object'`. `type: ['object', 'null']` is the honest statement — the
+  // column is nullable — and it works on a schema with no `properties`
+  // (`meditationNodeWeightsFieldSchema`). Here it emits `X & (X | null)`, which
+  // is `X` again plus a duplicate of the whole interface. See
+  // `src/collections/AGENTS.md`.
   type: 'object',
-  // Open at the top level. Retiring a notification type would otherwise block
-  // every save of any manager still holding its key — and `NotificationPreferences`
-  // spreads an unknown key back on save, so the admin could not clear it either.
-  additionalProperties: true,
-  properties: Object.fromEntries(
-    NOTIFICATION_TYPES.map((type) => [
-      type.key,
-      {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          frequency: { type: 'string', description: type.frequencyOptions.join(' | ') },
-          method: { type: 'string' },
-        },
-      },
-    ]),
-  ),
+  additionalProperties: {
+    type: 'object',
+    // The value stays open for the same reason the keys do.
+    additionalProperties: true,
+    properties: {
+      frequency: { type: 'string' },
+      method: { type: 'string' },
+    },
+  },
 }
 
 /**
@@ -161,7 +165,7 @@ export function validateNotificationPreferences(
 ): true | string {
   if (!value || typeof value !== 'object') return true
 
-  const prefs = value as NotificationPreferencesValue
+  const prefs = value as NotificationPreferences
   const titleByKey = new Map(types.map((type) => [type.key, type.title]))
   const missing: string[] = []
 

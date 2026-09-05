@@ -601,6 +601,9 @@ export type SupportedTimezones =
   | 'Etc/GMT+10'
   | 'Etc/GMT+11'
   | 'Etc/GMT+12';
+export type MeditationNodeWeights = {
+  [k: string]: number;
+} | null;
 export type MeditationFrames = {
   /**
    * The Frame document id.
@@ -2378,35 +2381,11 @@ export interface HttpsSahajcloudDevSchemasEventSystemMetaJson {
   };
 }
 export interface NotificationPreferences {
-  new_responsibility?: {
-    /**
-     * Immediate | Never
-     */
+  [k: string]: {
     frequency?: string;
     method?: string;
+    [k: string]: unknown;
   };
-  event_verification?: {
-    /**
-     * Monthly | 3 Months | 6 Months
-     */
-    frequency?: string;
-    method?: string;
-  };
-  event_registration?: {
-    /**
-     * Immediate | Daily Summary | Weekly Summary | Never
-     */
-    frequency?: string;
-    method?: string;
-  };
-  regional_summary?: {
-    /**
-     * Monthly | Never
-     */
-    frequency?: string;
-    method?: string;
-  };
-  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2615,9 +2594,6 @@ export interface FileMetadata2 {
    */
   originalFilename?: string;
   [k: string]: unknown;
-}
-export interface MeditationNodeWeights {
-  [k: string]: number;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

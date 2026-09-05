@@ -183,6 +183,17 @@ describe('Managers.notificationPreferences', () => {
     )
   })
 
+  it('types a retired key without closing it', () => {
+    // `additionalProperties` is a schema, not `true`, so the generated index
+    // signature is usable at a dynamic key — which is what deleted the
+    // hand-written aliases and their four consumer casts. The value stays
+    // open, for the same reason the top level does.
+    expect(
+      runFieldValidate(field, { a_retired_type: { frequency: 'Never', extra: 'kept' } }),
+    ).toBe(true)
+    expect(runFieldValidate(field, { a_retired_type: 'Never' })).not.toBe(true)
+  })
+
   it('accepts the seeded default', () => {
     expect(
       runFieldValidate(field, {

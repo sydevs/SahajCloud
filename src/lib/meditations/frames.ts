@@ -79,7 +79,10 @@ export const meditationNodeWeightsFieldSchema: JSONField['jsonSchema'] = {
   schema: {
     $id: NODE_WEIGHTS_SCHEMA_URI,
     title: 'MeditationNodeWeights',
-    type: 'object',
+    // `null` is a legal write — the cache is cleared by setting the column to
+    // null — so the generated type has to carry it. Payload's built-in
+    // validator skips `null` before Ajv, so this changes no save.
+    type: ['object', 'null'],
     additionalProperties: { type: 'number' },
   },
 }
