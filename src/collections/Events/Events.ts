@@ -630,11 +630,8 @@ export const Events: CollectionConfig = {
       // localized either, and the per-locale tier's whole job is answering
       // "which of my languages is missing a title." A localized field
       // returns only the active locale, so it structurally cannot answer that.
-      // Virtual: produced by the hook below and never written, so a schema has
-      // nothing to validate. The shape is already typed at its source
-      // (`EventQualityReport` in `@/lib/eventQuality`) — declaring it again
-      // would be a second definition to keep in step, which is the drift #659
-      // set out to remove.
+      // Virtual: written by the hook below; typed at its source
+      // (`EventQualityReport` in `@/lib/eventQuality`). See `src/collections/AGENTS.md`.
       name: 'qualityReport',
       type: 'json',
       virtual: true,
