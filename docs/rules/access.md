@@ -67,6 +67,8 @@ This only works because the authenticated user loads **four times**, not once. `
 | `'union'` | Roles in **any** locale | Admin nav visibility, called with no locale — anything narrower empties the sidebar for non-admins |
 | `undefined` | Nothing resolvable, so deny | `?locale=all`, and any locale outside `LOCALES` |
 
+⚠ **A custom admin client component that calls the REST API by hand must send the active admin locale — `useLocale().code` from `@payloadcms/ui` — on every request.** A request naming no locale resolves to the **default** locale, so the gate reads the manager's English roles and denies anyone whose roles live only elsewhere. Payload's own admin requests and `usePayloadAPI` already send it; a hand-rolled `fetch('/api/…')` does not. Three of them shipped without it, and a French-only manager saw a 403 on the frames library, blank list thumbnails, and a refused Accept (#701). A locale-keyed request cache (an SWR key, a batch key) must include the locale too, or one locale's response answers another's cells.
+
 ⚠ **Never derive this scope by hand from `req.locale`. Call `roleScopeFromLocale`.** Written out per call site it drifts. Four hand-written copies once existed, and the fourth answered `?locale=all` with `'union'` where the rest denied it. Worse, `req.locale` is a request-supplied string, and `RoleScope` has a non-locale member. A cast lets `?locale=union` name the privileged scope and hand a manager every locale's roles at once. The helper accepts only a configured locale, so `?locale=all` now **denies** instead of leaking the flat array through. The admin UI never sends it. Only a hand-rolled API call can reach this path. Clients are unaffected — `Clients.roles` is not localized.
 
 ## API client roles
