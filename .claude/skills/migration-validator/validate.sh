@@ -89,9 +89,10 @@ fi
 
 # --- 6. D1 PRAGMA foreign_keys gotcha (child-then-parent rebuild) ---
 
-# Heuristic: warn if the migration does multiple CREATE TABLE / DROP TABLE sequences
-# (often a sign of table-rebuild migrations) AND uses `db.run` more than 4 times.
-# This is approximate — manual review is required for actual safety.
+# Heuristic: warn when the migration has more than one CREATE TABLE and
+# more than one DROP TABLE. This often means a table-rebuild migration.
+# This check is approximate. Always review the migration by hand for real
+# safety.
 
 CREATE_TABLE_COUNT=$(grep -ciE 'CREATE TABLE' "$MIGRATION" || true)
 DROP_TABLE_COUNT=$(grep -ciE 'DROP TABLE' "$MIGRATION" || true)

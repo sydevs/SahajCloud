@@ -1,10 +1,12 @@
 /**
  * Media Downloader
  *
- * Downloads media files for import
+ * Downloads media files for import.
  *
- * NOTE: Image conversion and processing disabled from the Workers era
- * Images are downloaded as-is without WebP conversion or dimension extraction
+ * Note: image conversion and processing were disabled in the old Cloudflare
+ * Workers era, since sharp needs a native binary Workers cannot run. Images
+ * download as-is, with no WebP conversion or dimension extraction. Node,
+ * this script's current runtime, can run sharp, so this could be re-enabled.
  */
 
 import type { Logger } from './logger'
@@ -15,7 +17,6 @@ import { promises as fs } from 'fs'
 import * as path from 'path'
 
 import { safeBufferFrom } from './runtime'
-// import * as sharp from 'sharp' // DISABLED: sharp is available on Node and could be re-enabled if conversion is needed
 
 // ============================================================================
 // CONSTANTS
@@ -81,7 +82,7 @@ export interface DownloadResult {
   height: number
   /** Buffer for Workers mode (no filesystem) */
   buffer?: Buffer
-  /** Original filename after URL transformation (e.g., without CarrierWave size prefix) */
+  /** Original filename after URL transformation (for example, without CarrierWave size prefix) */
   originalFilename: string
 }
 
@@ -114,7 +115,7 @@ export class MediaDownloader {
    * avoiding unnecessary HTTP requests for media that already exists.
    *
    * @param url - The media URL to extract filename from
-   * @returns The normalized filename (e.g., "background.jpg")
+   * @returns The normalized filename (for example, "background.jpg")
    */
   getFilenameFromUrl(url: string): string {
     // Normalize URL: Fix legacy domains and Google Storage URLs, then get original quality
@@ -170,7 +171,7 @@ export class MediaDownloader {
         this.downloadedFiles.set(normalizedUrl, result)
         return result
       } catch {
-        // File doesn't exist, download it
+        // File does not exist, download it
       }
 
       // Download image with automatic fallback for oversized files
@@ -305,7 +306,7 @@ export class MediaDownloader {
           return { buffer: variantBuffer, usedVariant: size }
         }
       } catch {
-        // Variant doesn't exist or failed, try next
+        // Variant does not exist or failed, try next
         continue
       }
     }
@@ -396,12 +397,12 @@ function buildMediaUrl(file: any, baseUrl: string): string | null {
 export function extractAuthorImageUrl(imageData: any, baseUrl: string): string | null {
   if (!imageData) return null
 
-  // Check if it's a JSONB object with file data
+  // Check if it is a JSONB object with file data
   if (imageData.file) {
     return buildMediaUrl(imageData.file, baseUrl)
   }
 
-  // Check if it's a direct URL
+  // Check if it is a direct URL
   if (typeof imageData === 'string' && imageData.startsWith('http')) {
     return imageData
   }

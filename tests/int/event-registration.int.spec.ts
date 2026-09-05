@@ -248,7 +248,7 @@ describe('registerForEvent endpoint', () => {
 
   it('returns 400 for an unrecognized registration-question key', async () => {
     // The Registrations.questions field validate rejects keys outside
-    // EVENT_REGISTRATION_QUESTIONS; the ValidationError surfaces as a 400.
+    // EVENT_REGISTRATION_QUESTIONS. The ValidationError surfaces as a 400.
     const { status, body } = await callRegister(eventId, {
       email: 'badq@example.com',
       name: 'Bad Q',
@@ -386,8 +386,8 @@ describe('registerForEvent endpoint', () => {
     })
 
     it('ignores a client-supplied mailingListSubscribedAt (stamped server-side)', async () => {
-      // Consent is stamped server-side; a body-supplied value must never be
-      // honored, or a caller could backdate/forge consent. The field isn't in
+      // Consent is stamped server-side. A body-supplied value must never be
+      // honored, or a caller could backdate/forge consent. The field is not in
       // the schema (Zod drops it) — this locks that guarantee in against a future
       // refactor that trusts the body.
       const before = Date.now()
@@ -425,8 +425,8 @@ describe('registerForEvent endpoint', () => {
 
       expect(status).toBe(201)
       // The endpoint also notifies the event manager (#588), so more than one
-      // email may send; select the registrant's confirmation (normalized
-      // address, matching the user upsert) rather than assuming it's the only one.
+      // email may send. Select the registrant's confirmation (normalized
+      // address, matching the user upsert) rather than assuming it is the only one.
       const confirmations = send.mock.calls
         .map((call) => call[0] as Record<string, unknown>)
         .filter((sent) => sent.to === 'confirmed@example.com')
@@ -537,7 +537,7 @@ describe('registerForEvent endpoint', () => {
     })
 
     it('strips CRLF from the client name before it becomes a From header', async () => {
-      // `Clients.name` is free text and lands in the From display name; a CR/LF
+      // `Clients.name` is free text and lands in the From display name. A CR/LF
       // there would terminate the header and let the rest be injected as
       // another one (Bcc: being the obvious abuse).
       await payload.update({
@@ -551,8 +551,8 @@ describe('registerForEvent endpoint', () => {
       await callRegister(eventId, { email: 'header@example.com', name: 'Head Er' })
 
       const from = String((send.mock.calls[0][0] as { from?: string }).from)
-      // The line break is what makes this an injection; the leftover text is
-      // inert once it can't start a new header line. Assert the structure holds:
+      // The line break is what makes this an injection. The leftover text is
+      // inert once it cannot start a new header line. Assert the structure holds:
       // one line, the injected text trapped in the display-name position, and
       // the address still ours.
       expect(from).not.toMatch(/[\r\n]/)
@@ -759,7 +759,7 @@ describe('registerForEvent endpoint', () => {
     it('sends nothing when the manager cannot be resolved (no recipient)', async () => {
       // Managers always have an email in practice (auth requires it), so the
       // "no usable destination" branch is reached here by failing the manager
-      // lookup; resolveRegistrationRecipient then returns null and nothing sends.
+      // lookup. `resolveRegistrationRecipient` then returns null and nothing sends.
       // The emailless-manager case itself is unit-tested on the resolver.
       const notifyEventId = await createNotifyEvent()
       const originalFindByID = payload.findByID.bind(payload)
@@ -781,7 +781,7 @@ describe('registerForEvent endpoint', () => {
 
     it('still returns 201 when the manager notification send throws', async () => {
       const notifyEventId = await createNotifyEvent()
-      // Let the registrant confirmation succeed; only the manager notice throws.
+      // Let the registrant confirmation succeed. Only the manager notice throws.
       vi.spyOn(payload, 'sendEmail').mockImplementation(
         (message) =>
           (typeof message.subject === 'string' && message.subject.startsWith('New registration')
@@ -831,7 +831,7 @@ describe('registerForEvent endpoint', () => {
           registrationMode: 'sahaj-atlas',
           manager: managerId,
           region: gatingRegionId,
-          // A default so the base data typechecks; every gating case overrides it.
+          // A default so the base data typechecks. Every gating case overrides it.
           schedule: SCHEDULE,
           _status: 'published',
           ...overrides,

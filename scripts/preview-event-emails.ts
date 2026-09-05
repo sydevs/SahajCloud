@@ -1,18 +1,19 @@
 /**
- * Operator script: render the event verification reminder emails (due /
- * escalated / expired) and send them to the Mailpit capture inbox for visual
- * review. Prints a direct preview link per level.
+ * Operator script: render the event verification reminder emails (due,
+ * escalated, expired) and send them to the Mailpit capture inbox, for
+ * visual review. Prints a direct preview link per level.
  *
  * Usage:
  *   pnpm tsx scripts/preview-event-emails.ts              # render-only (no DB)
  *   PERSIST_EVENT=1 pnpm tsx scripts/preview-event-emails.ts
  *
- * With PERSIST_EVENT=1 it first seeds a fully-populated sample Event (+ its
- * connected manager/region docs) into the local database and renders the
- * emails from that real event. This requires the local Postgres schema to be
- * up to date — if `push` would prompt interactively (e.g. right after a schema
- * change), sync it first (restart the dev server and answer the prompts, or
- * apply the pending migration). Without the flag, no database is touched.
+ * With PERSIST_EVENT=1, this script first seeds a fully populated
+ * sample Event, and its connected manager and region docs, into the
+ * local database, then renders the emails from that real event. This
+ * needs the local Postgres schema to be up to date. If `push` would
+ * prompt interactively, for example right after a schema change, sync
+ * it first: restart the dev server and answer the prompts, or apply
+ * the pending migration. Without the flag, no database is touched.
  */
 
 import type {
@@ -44,7 +45,7 @@ interface SampleData {
   listingProgress?: EventListingProgress
 }
 
-/** Seed a fully-populated Event + connected docs and return its summary. */
+/** Seed a fully populated Event and its connected docs, and return its summary. */
 async function persistSampleEvent(): Promise<SampleData> {
   const { getPayload } = await import('payload')
   const { default: config } = await import('../src/payload.config')
@@ -117,7 +118,7 @@ async function persistSampleEvent(): Promise<SampleData> {
     })
     imageId = image.id
   } catch {
-    // Image is optional — continue without it.
+    // Image is optional. Continue without it.
   }
 
   const description = {
@@ -190,13 +191,14 @@ async function persistSampleEvent(): Promise<SampleData> {
       },
       manager: eventManager.id,
       _status: 'published',
-      // Cast: the drafts-enabled create overload over-constrains an inline
-      // literal; the runtime shape is valid event data.
+      // Cast: the drafts-enabled create overload over-constrains an
+      // inline literal. The runtime shape here is valid event data.
     } as unknown as Event,
   })
 
-  // Put the event mid-escalation with a populated log so the admin notice
-  // banner + RecordTable show realistic data (skipVerifyHook keeps these).
+  // Put the event mid-escalation with a populated log, so the admin
+  // notice banner and RecordTable show realistic data (skipVerifyHook
+  // keeps these).
   const ref = (id: number, name: string) => ({ id, name })
   await payload.update({
     collection: 'events',
@@ -254,12 +256,12 @@ async function persistSampleEvent(): Promise<SampleData> {
       })
     }
   } catch {
-    // Registrations are optional — the row is simply omitted without them.
+    // Registrations are optional. The row is simply omitted without them.
   }
 
   const details = await buildEventEmailDetails({ payload, event })
-  // Default auto-title templates rather than the stored ones — a preview only
-  // needs a representative list, and this keeps the script off `req`.
+  // Use the default auto-title templates, not the stored ones. A preview
+  // only needs a representative list, and this keeps the script off `req`.
   const listingProgress = listingProgressFromReport(buildEventQualityReport(event)) ?? undefined
 
   const serverUrl = process.env.SAHAJCLOUD_URL || `http://localhost:${process.env.PORT || 3000}`
@@ -304,9 +306,9 @@ async function main() {
           lastVerified: 'Wednesday, 12 March 2026',
           recentRegistrations: 8,
         },
-        // Two open and two done, so the preview shows a part-filled bar with
-        // names on both sides of it. Wording comes from the check registry —
-        // see `@/lib/eventQuality/copy`.
+        // Two open and two done, so the preview shows a part-filled bar
+        // with names on both sides of it. Wording comes from the check
+        // registry. See `@/lib/eventQuality/copy`.
         listingProgress: {
           open: [
             {
@@ -340,8 +342,9 @@ async function main() {
 
   const { transport, messageUrl } = createCaptureTransport()
 
-  // Illustrative timing: a shared unpublish date in the future, "today" once
-  // expired, and a sample "last verified" age + event-manager contact card.
+  // Illustrative timing: a shared unpublish date in the future, "today"
+  // once expired, and a sample "last verified" age and event-manager
+  // contact card.
   const futureDeadline = formatLongDate(
     new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
   )
@@ -355,8 +358,9 @@ async function main() {
     ],
   }
 
-  // The event manager gets all four levels; region managers are looped in from
-  // escalated onward (a different framing + the manager's contacts).
+  // The event manager gets all four levels. Region managers get looped
+  // in from escalated onward, with a different framing and the
+  // manager's contacts.
   const combos: { level: ReminderLevel; audience: ReminderAudience }[] = [
     { level: 'due', audience: 'manager' },
     { level: 'escalated', audience: 'manager' },
@@ -375,14 +379,15 @@ async function main() {
         name: audience === 'region' ? 'Rohan Patil' : sample.managerName,
         eventTitle: sample.eventTitle,
         verifyUrl: buildVerifyEmailLink(token),
-        // Published events link to the map; expired (unpublished) ones don't.
+        // Published events link to the map. Expired, unpublished ones do not.
         eventUrl:
           level === 'expired' ? null : `https://wemeditate.com/map#/!/events/${sample.eventId}`,
         level,
         audience,
         details: sample.details,
-        // Passed for every combination; the template shows them to the event
-        // manager only (a region manager can't act on the listing).
+        // Passed for every combination. The template shows them only to
+        // the event manager, since a region manager cannot act on the
+        // listing.
         listingProgress: sample.listingProgress,
         deadline: level === 'expired' ? today : futureDeadline,
         sinceLastVerified,

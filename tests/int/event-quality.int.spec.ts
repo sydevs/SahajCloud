@@ -11,7 +11,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
  * Wiring-level behaviour of the listing-quality checks (#609) — everything the
- * pure unit lane can't reach: which hooks fire, what the stored columns hold
+ * pure unit lane cannot reach: which hooks fire, what the stored columns hold
  * after a partial write, and what a read costs. The check logic itself is
  * covered in `tests/unit/event-quality-checks.spec.ts`.
  */
@@ -96,7 +96,7 @@ describe('Event listing quality', () => {
       // `required: true` holds, but the field's beforeChange hook fills the
       // value before validation runs — so leaving it blank is a supported
       // workflow, not an omission. (The browser has no hook, which is why
-      // `eventTitleValidate` permits the blank case too; see its unit spec.)
+      // `eventTitleValidate` permits the blank case too. See its unit spec.)
       const event = await testData.createEvent(payload, {
         manager: managerId,
         region: regionId,
@@ -343,7 +343,7 @@ describe('Event listing quality', () => {
       })
       expect(improved.qualityOpenCount).toBe(before)
 
-      // Attaching nothing changes nothing; writing a real description does.
+      // Attaching nothing changes nothing. Writing a real description does.
       const described = await payload.update({
         collection: 'events',
         id: event.id,

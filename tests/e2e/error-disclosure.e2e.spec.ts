@@ -15,7 +15,7 @@ import { authHeaders, ensureAdmin } from './_helpers/preview'
  * value rather than a fixture's copy of it.
  *
  * ⚠ **Preview-only, and not for the usual reason.** The other smoke specs skip
- * when the preview DB has no seeded content; these skip when there is no
+ * when the preview DB has no seeded content. These skip when there is no
  * `PREVIEW_URL` at all, because the local fallback (`http://localhost:3000`) is
  * a development server where `debug` is on *by design* — a redaction assertion
  * there would be correct and inapplicable at the same time. On the preview both

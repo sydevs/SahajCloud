@@ -31,7 +31,7 @@ export interface ConversionContext {
 // MEDITATION TITLE MAPPING
 // ============================================================================
 // Hard-coded mapping from Rails meditation titles to PayloadCMS meditation titles
-// This handles cases where titles don't match exactly between the two systems
+// This handles cases where titles do not match exactly between the two systems
 const RAILS_TO_PAYLOAD_MEDITATION_TITLES: Record<string, string> = {
   'your first meditation': 'first meditation',
   'experience joy': 'feel inner joy',
@@ -148,7 +148,7 @@ function parseHTMLToSegments(html: string): TextSegment[] {
             .replace(/&gt;/g, '>')
             .replace(/&quot;/g, '"')
             .replace(/&#039;/g, "'")
-          // Only set URL if it's not just a hash anchor or empty
+          // Only set URL if it is not just a hash anchor or empty
           if (url !== '#' && url !== '') {
             currentUrl = url
           } else {
@@ -204,7 +204,7 @@ function parseHTMLToSegments(html: string): TextSegment[] {
  */
 function stripHTML(html: string): string {
   if (!html) return ''
-  // Ensure the input is a string, even if it's accidentally something else
+  // Ensure the input is a string, even if it is accidentally something else
   const htmlString = String(html)
   return htmlString.replace(/<[^>]*>/g, '')
 }
@@ -431,7 +431,7 @@ export function convertParagraph(block: EditorJSBlock): LexicalNode {
   const { data } = block
   const text = data.text || ''
 
-  // Check if it's a header (only blocks with type: 'header' should become headings)
+  // Check if it is a header (only blocks with type: 'header' should become headings)
   if (data.type === 'header') {
     const level = data.level === 'h1' ? 'h1' : data.level === 'h3' ? 'h3' : 'h2'
     return createHeadingNode(text, level)
@@ -450,7 +450,7 @@ export function convertTextbox(
 ): LexicalNode | null {
   const { data } = block
 
-  // Check if it's a quote (type: text or hero)
+  // Check if it is a quote (type: text or hero)
   if (data.type === 'text' || data.type === 'hero') {
     const text = stripHTML(data.text || '').trim()
     // Quote block requires text field - skip if empty
@@ -648,7 +648,7 @@ export function convertMedia(block: EditorJSBlock, context: ConversionContext): 
 
   // GalleryBlock requires minimum 3 items
   // If <3 items, return null and let caller convert to individual upload nodes
-  // (no skip log needed since we're converting, not skipping)
+  // (no skip log needed since we are converting, not skipping)
   if (items.length < 3) {
     return null
   }
@@ -692,7 +692,7 @@ export function convertAction(
 ): LexicalNode | null {
   const { data } = block
 
-  // Check if it's a form
+  // Check if it is a form
   if (data.form) {
     const formId = context.formMap.get(data.form)
     if (formId) {
@@ -722,16 +722,17 @@ export function convertAction(
  * Convert EditorJS vimeo block to Lecture relationship.
  *
  * Source-data shape: `{ type: 'vimeo', data: { items: [{ vimeo_id, youtube_id?, title? }] } }`.
- * Each block carries exactly one item in observed wemeditate data; we only
- * read the first. YouTube blocks are dropped — there is no Nirmala Vidya
- * YouTube ingest path. Missing-lecture lookups also return null + warn (the
- * parent importer logs the upstream NV API failure separately).
+ * Each block carries exactly one item in observed wemeditate data, so
+ * this reads only the first. YouTube blocks are dropped, since there is
+ * no Nirmala Vidya YouTube ingest path. A missing-lecture lookup also
+ * returns null and warns (the parent importer logs the upstream NV API
+ * failure separately).
  */
 export function convertVimeo(block: EditorJSBlock, context: ConversionContext): LexicalNode | null {
   const { data } = block
 
   // Tolerate both nested (data.items[0].vimeo_id) and flat (data.vimeo_id) shapes.
-  // Wemeditate uses nested; storyblok / hand-authored blocks may use flat.
+  // Wemeditate uses nested. Storyblok and hand-authored blocks may use flat.
   const item = (Array.isArray(data?.items) && data.items[0]) || data || {}
   const vimeoId: string | undefined = item.vimeo_id
   const youtubeId: string | undefined = item.youtube_id
@@ -787,7 +788,7 @@ export async function convertCatalog(
       }
     } else if (type === 'meditations') {
       // Two-step lookup: Rails ID → title → Payload ID
-      // Convert itemId to number if it's a string (JSON may have numbers as strings)
+      // Convert itemId to number if it is a string (JSON may have numbers as strings)
       const numericItemId = typeof itemId === 'string' ? parseInt(itemId) : itemId
 
       const railsTitle = context.meditationRailsTitleMap.get(numericItemId)
@@ -831,7 +832,7 @@ export async function convertCatalog(
 
   // CatalogBlock requires minimum 3 items (minRows: 3)
   // If <3 items, return null and let caller convert to individual relationship nodes
-  // (no skip log needed since we're converting, not skipping)
+  // (no skip log needed since we are converting, not skipping)
   if (itemIds.length < 3) {
     return null
   }
@@ -1054,7 +1055,7 @@ export async function convertEditorJSToLexical(
           break
 
         case 'catalog': {
-          // CatalogBlock doesn't have title field - add heading if title exists
+          // CatalogBlock does not have title field - add heading if title exists
           const title = stripHTML(block.data?.title || '').trim()
           if (title) {
             children.push(createHeadingNode(title, 'h2'))

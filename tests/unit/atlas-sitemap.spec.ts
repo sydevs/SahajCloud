@@ -67,8 +67,8 @@ describe('fallbackRegionIds', () => {
   const wemeditate = owner(9, 'wemeditate.com')
   const uk = owner(1, 'sahajayoga.org.uk')
 
-  // Regions 10–13 exist; 12 and 13 are claimed by the UK client, 10 and 11 by
-  // nobody. The fallback client publishes exactly the pair nobody claimed.
+  // Regions 10-13 exist. 12 and 13 are claimed by the UK client, 10 and 11
+  // by nobody. The fallback client publishes exactly the pair nobody claimed.
   const ALL = [10, 11, 12, 13]
   const ownerById = new Map([
     [12, uk],

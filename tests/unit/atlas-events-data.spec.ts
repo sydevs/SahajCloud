@@ -15,12 +15,12 @@ import { EXPECTED_COUNTS } from '../../seeds/lib/expectedCounts'
  *
  * These are data assertions, not code assertions — they exist so a future
  * re-extraction (which regenerates the file from the SQL dump and drops every
- * curated value) can't quietly undo the pass. See seeds/atlas/AGENTS.md.
+ * curated value) cannot quietly undo the pass. See seeds/atlas/AGENTS.md.
  *
  * The heuristics themselves are imported from `@/lib/eventQuality` (#609),
  * which makes the same judgements permanently on every listing a manager
  * edits. Shared rather than copied so the migration's definition of "a URL in
- * the description" and the runtime's can't drift apart.
+ * the description" and the runtime's cannot drift apart.
  */
 
 interface AtlasEventRow {
@@ -194,7 +194,7 @@ describe('events.json structured fields', () => {
   it('keeps no title that only says "meditation"', () => {
     // A generic custom name is strictly worse than the auto-title, which
     // localizes and can be improved for every event at once. A title earns its
-    // place by naming something the auto-title can't: a venue, an audience, a
+    // place by naming something the auto-title cannot: a venue, an audience, a
     // language, a format, or a named event.
     const bad = events.filter((e) => e.customName && GENERIC_TITLE_RE.test(e.customName.trim()))
     expect(bad.map((e) => `#${e.legacyId} ${e.customName}`)).toEqual([])
@@ -238,7 +238,7 @@ describe('events.json structured fields', () => {
   })
 
   it('uses languageCodes only where a listing is genuinely multi-language', () => {
-    // Atlas stored one `languageCode` per row; the curated override exists for
+    // Atlas stored one `languageCode` per row. The curated override exists for
     // sessions listed once per language and then merged (#753, #4298), and for
     // rows whose own text declares both languages (bilingual workshops and
     // concerts).
@@ -261,7 +261,7 @@ describe('events.json structured fields', () => {
     // `email_address`, mostly on dormant events where a contact is the whole
     // offer. The importer reads only phone_name/phone_number, so these are easy
     // to drop by accident — which happened once during the #605 grooming pass.
-    // (13 rows before the refresh; upstream deletions and merges leave 10.)
+    // (13 rows before the refresh. Upstream deletions and merges leave 10.)
     const withLegacyKeys = events.filter((e) =>
       Object.keys(e.contactInfo ?? {}).some((k) => !['phone_name', 'phone_number'].includes(k)),
     )
@@ -299,7 +299,7 @@ describe('expected counts follow from the data', () => {
   const importable = users.filter((u) => EMAIL_SHAPE.test((u.email ?? '').trim()))
 
   it('counts users as the unique addresses that can actually be imported', () => {
-    // 29 rows hold typed-in junk rather than an address; the rest collapse on
+    // 29 rows hold typed-in junk rather than an address. The rest collapse on
     // case-variant duplicates, since Payload stores email lowercased + unique.
     const unique = new Set(importable.map((u) => u.email!.trim().toLowerCase()))
     expect(users.length - importable.length).toBe(29)

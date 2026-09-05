@@ -19,8 +19,8 @@ describe('feedbackDestination', () => {
   })
 
   it('sends a denial to the region, never to the event', () => {
-    // They have just said the class isn't there; the listing is the one page
-    // that shouldn't greet them. It may also no longer exist — see below.
+    // They have just said the class is not there. The listing is the one page
+    // that should not greet them. It may also no longer exist — see below.
     expect(feedbackDestination({ vote: 'denied', event: EVENT, region: REGION })).toBe(
       `${REGION.webUrl}?feedback=denied`,
     )
@@ -42,7 +42,7 @@ describe('feedbackDestination', () => {
   })
 
   it('ignores an unpopulated relationship rather than treating an id as a URL', () => {
-    // At depth 0 these arrive as numbers; `region: 594` must not become
+    // At depth 0 these arrive as numbers. `region: 594` must not become
     // "594?feedback=denied".
     expect(feedbackDestination({ vote: 'denied', event: 652, region: 594 })).toBeNull()
   })

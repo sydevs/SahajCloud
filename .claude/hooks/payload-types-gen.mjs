@@ -3,13 +3,15 @@
 /**
  * Payload Types Generation Hook (PostToolUse / Edit|Write)
  *
- * Regenerates TypeScript types when a Payload schema source changes. Watched paths:
+ * Regenerates TypeScript types when a Payload schema source changes.
+ * Watched paths:
  *   - src/collections/
- *   - src/lib/richEditor/blocks/  (Lexical page-block configs live here, NOT src/blocks/)
+ *   - src/lib/richEditor/blocks/ (Lexical page-block configs live here,
+ *     not src/blocks/)
  *   - src/fields/
  *   - src/globals/
  *   - src/payload.config.ts
- * Runs silently on success; reports errors only.
+ * The hook runs silently on success. It reports errors only.
  */
 
 import { execSync } from 'child_process'

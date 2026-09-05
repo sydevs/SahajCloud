@@ -1,21 +1,22 @@
 /**
- * Operator script: send the manager-facing registration-notification email
- * (`EventRegistrationEmail`, #588) in each of its meaningful states to a
- * Mailpit capture inbox for visual review. Prints a direct preview link per
- * scenario.
+ * Operator script: send the manager-facing registration-notification
+ * email (`EventRegistrationEmail`, #588) in each of its meaningful
+ * states to a Mailpit capture inbox, for visual review. Prints a direct
+ * preview link per scenario.
  *
  * Usage:
  *   pnpm tsx scripts/preview-registration-notification-emails.ts
  *
- * No database is touched. The script drives the **real**
- * `sendRegistrationNotification()` path through a stub `payload` (its only
- * Payload touchpoints are `sendEmail` and `logger`), so what you see is what the
- * endpoint sends: same `Subject`, `From`, and HTML. Nothing is reimplemented, so
- * this preview can't drift from production behaviour.
+ * No database is touched. The script drives the real
+ * `sendRegistrationNotification()` path through a stub `payload` object.
+ * That stub only covers `sendEmail` and `logger`, the only Payload calls
+ * this path makes. So what you see is what the endpoint sends: the same
+ * `Subject`, `From`, and HTML. Nothing here is reimplemented, so this
+ * preview cannot drift from production behavior.
  *
- * Header logos and the "View event" button are absolute URLs. `SAHAJCLOUD_URL`
- * defaults to production here so both resolve in the preview; override it to
- * point elsewhere.
+ * Header logos and the "View event" button use absolute URLs.
+ * `SAHAJCLOUD_URL` defaults to production here, so both resolve in the
+ * preview. Override it to point elsewhere.
  */
 
 import type { RegistrationRecipient } from '@/lib/notifications/registrationRecipient'
@@ -27,11 +28,11 @@ import { createCaptureTransport } from './mailpit-transport'
 // Shell env wins, then .env.local, then .env (see seeds/env.ts).
 dotenv.config({ path: ['.env.local', '.env'] })
 
-// Absolute icon + admin-link URLs must resolve for the reviewer, so default to
-// production rather than a localhost the Mailpit viewer can't reach.
+// Absolute icon and admin-link URLs must resolve for the reviewer.
+// Default to production, since the Mailpit viewer cannot reach a localhost URL.
 process.env.SAHAJCLOUD_URL ||= 'https://cloud.sydevelopers.com'
 
-/** N days from now at 19:00 UTC as an ISO string — the session the registrant chose. */
+/** N days from now at 19:00 UTC as an ISO string. This is the session time the registrant chose. */
 function daysFromNow(days: number): string {
   const date = new Date()
   date.setUTCDate(date.getUTCDate() + days)
@@ -47,7 +48,7 @@ const managerRecipient: RegistrationRecipient = {
   frequency: 'Immediate',
 }
 
-/** A per-event override address — no display name, so the greeting is neutral. */
+/** A per-event override address, with no display name, so the greeting stays neutral. */
 const overrideRecipient: RegistrationRecipient = {
   destination: 'events-team@example.org',
   name: null,
@@ -63,7 +64,7 @@ interface Scenario {
   registrantName: string
   registrantEmail: string
   startingAt?: string | null
-  /** Raw registrant answers, keyed by question name — shaped exactly as the endpoint does. */
+  /** Raw registrant answers, keyed by question name. Shaped exactly as the endpoint shapes them. */
   questions?: Record<string, unknown>
 }
 
@@ -123,7 +124,7 @@ async function main() {
   const nodemailer = (await import('nodemailer')).default
   const { sendRegistrationNotification } =
     await import('@/lib/notifications/sendRegistrationNotification')
-  // Shape raw answers exactly as the endpoint does, so the preview can't drift.
+  // Shape raw answers exactly as the endpoint does, so the preview cannot drift.
   const { buildRegistrationAnswers } = await import('@/lib/registrations/questions')
 
   const { transport, messageUrl } = createCaptureTransport()
@@ -131,15 +132,15 @@ async function main() {
   const previews: { label: string; note: string; url: string | false }[] = []
 
   for (const scenario of SCENARIOS) {
-    // Stub only what sendRegistrationNotification touches (sendEmail + logger),
-    // so the real composition (Subject, From, HTML) runs unchanged.
+    // Stub only what sendRegistrationNotification touches: sendEmail and
+    // logger. This keeps the real composition (Subject, From, HTML) unchanged.
     const payload = {
       logger: { debug() {}, error() {}, info() {}, warn() {} },
       sendEmail: async (message: Record<string, unknown>) => {
         const info = await transport.sendMail({
           ...message,
-          // Label the inbox row so scenarios are distinguishable at a glance;
-          // the real subject stays visible inside the message.
+          // Label the inbox row so scenarios are distinguishable at a glance.
+          // The real subject still appears inside the message.
           subject: `[${scenario.label}] ${String(message.subject)}`,
         } as never)
         previews.push({

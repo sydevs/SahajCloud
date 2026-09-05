@@ -6,7 +6,7 @@ import type { APIRequestContext } from '@playwright/test'
  * These authenticate against a deployed Railway PR preview (`PREVIEW_URL`), not
  * just localhost, so the password is a real secret and comes from CI secrets —
  * never from source. `password` is a getter so importing this module stays safe
- * for specs that never log in; the throw lands at first use with a message that
+ * for specs that never log in. The throw lands at first use with a message that
  * says what to set, instead of surfacing as an opaque 401.
  */
 export const PREVIEW_ADMIN = {

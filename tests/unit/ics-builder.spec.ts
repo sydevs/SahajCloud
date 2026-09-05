@@ -153,7 +153,7 @@ describe('buildEventCalendar — recurrence shapes', () => {
   it('one-off: emits a plain VEVENT with no RRULE', () => {
     const ics = build({})!
 
-    // Internally a one-off is FREQ=DAILY;COUNT=1; that must not leak out as a
+    // Internally a one-off is FREQ=DAILY;COUNT=1. That must not leak out as a
     // series, or a single class shows as a repeating event.
     expect(vevent(ics)).not.toContain('RRULE:')
   })
@@ -181,7 +181,7 @@ describe('buildEventCalendar — recurrence shapes', () => {
       weekdayOfMonth: 'TU',
     })!
 
-    // rrule-temporal yields byDay ['3TU']; ical-generator rejects the prefix,
+    // rrule-temporal yields byDay ['3TU']. Ical-generator rejects the prefix,
     // so it must be split — otherwise the whole build throws.
     const rrule = line(ics, 'RRULE')!
     expect(rrule).toContain('FREQ=MONTHLY')

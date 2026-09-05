@@ -21,7 +21,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
  * error, drizzle's `Failed query: <full SQL>\nparams: <bound values>` — plus a
  * stack trace, to anyone who could reach the endpoint.
  *
- * **This suite pins production's behaviour; `error-disclosure-debug.int.spec.ts`
+ * **This suite pins production's behavior. `error-disclosure-debug.int.spec.ts`
  * pins development's.** They are two files rather than two `describe`s because
  * `getPayload` caches per config and a second `createTestEnvironment()` in one
  * file silently returns the FIRST instance — so a same-file pair would have
@@ -125,7 +125,7 @@ describe('error disclosure over REST — debug OFF, as production now is', () =>
     it('still discloses no SQL and no bound parameters', async () => {
       // The plugin returns the DRIVER's primary message, reached by walking
       // `cause` down to `pg`'s `DatabaseError` — not drizzle's wrapper, which is
-      // the string carrying the query. The two are easy to conflate; this is the
+      // the string carrying the query. The two are easy to conflate. This is the
       // assertion that keeps them apart.
       const { raw } = await request(CAST_FAILURE_PATH)
 

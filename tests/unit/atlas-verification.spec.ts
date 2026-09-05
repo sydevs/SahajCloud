@@ -22,7 +22,7 @@ describe('mapStatusToStage', () => {
 
   // `status` is the only authoritative current-state flag in the dump. 12 events
   // carry a `finished_at` while sitting at status 0 — every one of them has a
-  // *later* `verified_at`, i.e. they were reactivated and Atlas never cleared the
+  // *later* `verified_at`, that is, they were reactivated and Atlas never cleared the
   // stamp. Deriving `finished` from the timestamp would wrongly retire 12 live
   // events, so this pins the status-only behaviour.
   it('ignores a stale finished_at: status 0 stays verified', () => {

@@ -3,7 +3,7 @@
  * screening job that calls it. Pure: `payload.sendEmail` is a spy, so there's no
  * Payload bootstrap, no DB, and no SMTP.
  *
- * These cover the parts an integration test can't see, because the shared
+ * These cover the parts an integration test cannot see, because the shared
  * `EmailTestAdapter` captures only `to`/`from`/`subject`/`html` and drops
  * `replyTo` entirely — and `replyTo` is precisely what makes this channel useful
  * (a reply must reach the sender, and must be *absent* rather than empty when
@@ -48,7 +48,7 @@ describe('sendUserMessage', () => {
 
     expect(message.to).toBe(CONTACT_EMAIL)
     expect(message.subject).toBe('[Atlas Widget] Issue report')
-    // Resend verifies senders per domain, so From can't be the viewer.
+    // Resend verifies senders per domain, so From cannot be the viewer.
     expect(message.from).toContain(CONTACT_EMAIL)
     expect(message.html).toContain('The venue for this class closed last month.')
   })
@@ -107,7 +107,7 @@ describe('sendUserMessage', () => {
   it('renders no context rows for a minimal message', async () => {
     const message = await send()
 
-    // The service and the received-at stamp are ours; nothing else is invented.
+    // The service and the received-at stamp are ours. Nothing else is invented.
     expect(message.html).toContain('Atlas Widget')
     expect(message.html).toContain('2026-08-03T09:30:00.000Z')
     expect(message.html).not.toContain('Host page')

@@ -54,8 +54,8 @@ describe('normalizeLanguages', () => {
   })
 
   it('falls back rather than emitting nothing when every stored code is unusable', () => {
-    // An empty hreflang set would silently de-list the page's alternates; the
-    // launch set is the safer answer to data we can't read.
+    // An empty hreflang set would silently de-list the page's alternates. The
+    // launch set is the safer answer to data we cannot read.
     expect(normalizeLanguages([{ code: 'klingon' }])).toEqual([...ATLAS_DEFAULT_LOCALES])
   })
 

@@ -6,8 +6,8 @@ describe('getLanguageOptions', () => {
   const options = getLanguageOptions()
 
   it('returns the full ISO 639-1 set', () => {
-    // iso-639-1 carries ~183 languages; assert a healthy lower bound rather
-    // than an exact count so a package bump doesn't break the suite.
+    // iso-639-1 carries ~183 languages. Assert a healthy lower bound rather
+    // than an exact count so a package bump does not break the suite.
     expect(options.length).toBeGreaterThan(150)
   })
 

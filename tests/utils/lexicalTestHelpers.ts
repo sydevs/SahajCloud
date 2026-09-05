@@ -149,7 +149,7 @@ export function createLexicalWithGalleryBlock(imageIds: number[]): Page['content
  * - `type: 'upload'`, `version: 3` for upload nodes
  * - `relationTo`: the upload-collection slug ('images' here)
  * - `value`: the related document ID
- * - `fields`: bag of UploadFeature custom fields (e.g. caption, align)
+ * - `fields`: bag of UploadFeature custom fields (for example, caption, align)
  */
 export function createLexicalWithUploadNode(
   imageId: number,

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 // `NODE_ENV` is required on `ProcessEnv` (Next augments it) and is always set
-// during a test run, so it's carried through even when clearing the vars under
+// during a test run, so it is carried through even when clearing the vars under
 // test — none of which it is.
 const baseEnv = { NODE_ENV: 'test' } as const
 

@@ -47,7 +47,7 @@ const UPLOAD_COLLECTIONS: readonly string[] = [
 /**
  * Creates test-specific collections with image resizing disabled.
  * Image resizing is disabled in tests to avoid sharp dependency issues
- * and to speed up test execution since we're not testing image processing functionality.
+ * and to speed up test execution since we are not testing image processing functionality.
  *
  * @returns Modified collections array with image resizing disabled for upload collections
  */
@@ -92,7 +92,7 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       disable: true, // Disable admin UI in tests
     },
     // Mirrors `payload.config.ts`'s `debug: !isProduction`. The default is
-    // FALSE — i.e. production's value — because this flag decides whether an
+    // FALSE — that is, production's value — because this flag decides whether an
     // error body is redacted, and the suite that cares about disclosure has to
     // be able to observe production's behaviour. Pass `true` to get a
     // development-mode instance (sydevs/SahajCloud#684).
@@ -122,8 +122,7 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
     jobs: {
       tasks,
       deleteJobOnComplete: true,
-      // Mirror payload.config.ts: tasks that declare `concurrency` (e.g.
-      // expireEvents) require this, or Payload 3.86 refuses to build the config.
+      // Mirror payload.config.ts: tasks that declare `concurrency` (for example,       // expireEvents) require this, or Payload 3.86 refuses to build the config.
       enableConcurrencyControl: true,
     },
     plugins: [
@@ -171,7 +170,7 @@ async function cleanupTestEnvironment(payload: Payload, schemaName: string): Pro
       await pool.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`)
     }
   } catch (_error) {
-    // Best-effort schema cleanup — a leaked test schema doesn't fail the suite.
+    // Best-effort schema cleanup — a leaked test schema does not fail the suite.
   }
   // Close Payload connection
   try {
@@ -184,8 +183,8 @@ async function cleanupTestEnvironment(payload: Payload, schemaName: string): Pro
 }
 
 /**
- * Creates an isolated test database and Payload instance for a test suite
- * Each call creates a unique in-memory SQLite database to ensure complete isolation
+ * Creates an isolated test database and Payload instance for a test suite.
+ * Each call creates a unique Postgres schema, to keep suites fully isolated.
  */
 export async function createTestEnvironment(options?: { debug?: boolean }): Promise<{
   payload: Payload
@@ -219,7 +218,7 @@ export async function createTestEnvironmentWithEmail(): Promise<{
   cleanup: () => Promise<void>
   emailAdapter: EmailTestAdapter
 }> {
-  // Creating test environment with email support and in-memory SQLite database
+  // Creating a test environment with email support and its own Postgres schema
 
   // Initialize email adapter
   const emailAdapter = new EmailTestAdapter()

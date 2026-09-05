@@ -30,9 +30,9 @@ vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
 
 const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', _status: 'published' }
 
-// `audiences` is required by the endpoint's Zod schema. Tests that don't
+// `audiences` is required by the endpoint's Zod schema. Tests that do not
 // exercise a specific eligibility scenario still need to pass a non-empty
-// list; pass `{ skipDefaultAudiences: true }` on the 400-validation cases
+// list. Pass `{ skipDefaultAudiences: true }` on the 400-validation cases
 // that want to omit it entirely.
 async function callEndpoint(
   payload: Payload,
@@ -109,7 +109,7 @@ describe('lecturesForAudience endpoint', () => {
       { thumbnail: editorThumbnailImage.id },
       { title: 'Beginner Lecture', audiences: [audienceBeginner.id] },
     )
-    // No editor override; falls back to metadata.thumbnailUrl.
+    // No editor override. Falls back to metadata.thumbnailUrl.
     lectureIntermediateOnly = await testData.createLecture(
       payload,
       {},
@@ -142,7 +142,7 @@ describe('lecturesForAudience endpoint', () => {
     )
 
     // Excerpt = lecture pointing at a parent via `fullLecture`. Same uniform
-    // response shape as a full lecture; carries its own metadata via NV API.
+    // response shape as a full lecture. Carries its own metadata via NV API.
     excerptOfBeginner = await testData.createLectureExcerpt(
       payload,
       { fullLecture: lectureBeginnerOnly.id },
@@ -155,7 +155,7 @@ describe('lecturesForAudience endpoint', () => {
     )
 
     // Excerpt whose parent is itself NOT audience-eligible — should still
-    // surface (parent eligibility doesn't affect excerpt eligibility).
+    // surface (parent eligibility does not affect excerpt eligibility).
     excerptOfIntermediate = await testData.createLectureExcerpt(
       payload,
       { fullLecture: lectureIntermediateOnly.id },

@@ -86,7 +86,7 @@ describe('Atlas sidebar data builder', () => {
       region: city.id,
       verificationStage: 'verified',
     })
-    // Soft-delete (set deletedAt) → "Trashed" bucket; excluded from region
+    // Soft-delete (set deletedAt) → "Trashed" bucket. Excluded from region
     // counts. This mirrors how ExpireEvents trashes events.
     await payload.update({
       collection: 'events',
@@ -126,7 +126,7 @@ describe('Atlas sidebar data builder', () => {
     expect(root.children.map((child) => child.name)).toEqual([cityName])
 
     // Three non-trashed events in the subtree (incl. the managerless
-    // unverified one); all drafts, so none published. Counts roll up from the
+    // unverified one). All drafts, so none published. Counts roll up from the
     // city to its parent.
     expect(root.counts).toEqual({ published: 0, total: 3 })
     expect(root.children[0].counts).toEqual({ published: 0, total: 3 })

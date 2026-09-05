@@ -5,10 +5,11 @@
  * TranslationsRow) plus one richText field per richText key. The legacy
  * `group` wrapper and `strings` sub-field are gone.
  *
- * Why JSON-per-leaf instead of a column-per-key: SQLite's `json_array()`
- * argument limit (~100) breaks `findGlobal` once a single global has too
- * many flat localized columns. wm-app-translations has ~478 leaf keys, which
- * a column-per-key design blows past.
+ * Why JSON-per-leaf instead of a column-per-key: this design dates to
+ * Cloudflare D1 (SQLite), whose `json_array()` argument limit (~100) broke
+ * `findGlobal` once a global had too many flat localized columns.
+ * wm-app-translations has ~478 leaf keys, well past what a column-per-key
+ * design allows. The shape carried over unchanged after the move to Postgres.
  */
 import { describe, expect, it } from 'vitest'
 

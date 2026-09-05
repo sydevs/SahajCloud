@@ -1,15 +1,16 @@
 # Meditations Import
 
-Imports meditation content from legacy PostgreSQL database.
+Imports meditation content from the legacy PostgreSQL database.
 
 ## Prerequisite
 
-**Run tags seed first**:
+**Run the tags seed first**:
 ```bash
 pnpm seed tags
 ```
 
-The meditations seed maps legacy tag names to predefined tags by slug. Without tags, tag mapping fails.
+The meditations seed maps legacy tag names to predefined tags by slug. Without
+tags, tag mapping fails.
 
 ## Environment
 
@@ -26,7 +27,7 @@ pnpm seed meditations               # Full import
 pnpm seed meditations --clear-cache # Re-download files
 ```
 
-## Import Order
+## Import order
 
 1. Creates 2 narrator records (male/female)
 2. Maps legacy tags to predefined tags by slug
@@ -34,7 +35,7 @@ pnpm seed meditations --clear-cache # Re-download files
 4. Imports music with audio files
 5. Imports meditations with audio, thumbnails, and frame relationships
 
-## Source → Target Mappings
+## Source → target mappings
 
 | Source | Target Collection | Notes |
 |--------|-------------------|-------|
@@ -45,7 +46,7 @@ pnpm seed meditations --clear-cache # Re-download files
 | `meditations` + attachments | meditations | Audio + thumbnails |
 | `keyframes` | meditations.frames | Timestamp array |
 
-## Frame Category Mapping
+## Frame category mapping
 
 | Legacy | Payload |
 |--------|---------|
@@ -58,17 +59,16 @@ pnpm seed meditations --clear-cache # Re-download files
 | `agnya` | `agnya` |
 | `sahasrara` | `sahasrara` |
 
-## Tag Slug Mappings
+## Tag slug mappings
 
-Legacy tags are mapped to predefined slugs. If you see warnings:
+Legacy tags map to predefined slugs. For these warnings:
 
-**"No mapping found for legacy tag"**
-- Add to `LEGACY_TO_MEDITATION_TAG_SLUG` or `LEGACY_TO_MUSIC_TAG_SLUG` in `import.ts`
+**"No mapping found for legacy tag"** — add the tag to
+`LEGACY_TO_MEDITATION_TAG_SLUG` or `LEGACY_TO_MUSIC_TAG_SLUG` in `import.ts`.
 
-**"Predefined tag slug not found"**
-- Run `pnpm seed tags` first
+**"Predefined tag slug not found"** — run `pnpm seed tags` first.
 
-## Keyframe Processing
+## Keyframe processing
 
 1. Filter by `media_type = 'Meditation'`
 2. Select gender-appropriate frames (based on narrator)
@@ -78,15 +78,11 @@ Legacy tags are mapped to predefined slugs. If you see warnings:
 
 ## Troubleshooting
 
-### "Failed to download" errors
-- Check `STORAGE_BASE_URL` is correct
-- Verify storage bucket permissions
-- Some missing files are handled gracefully
+**"Failed to download" errors** — check that `STORAGE_BASE_URL` is correct and
+the storage bucket allows access. Some missing files fail gracefully.
 
-### Tag mapping warnings
-- Tags are case-insensitive (normalized to lowercase)
-- Add missing mappings to the mapping constants
+**Tag mapping warnings** — tags are case-insensitive (normalized to
+lowercase). Add missing mappings to the mapping constants.
 
-### Database errors
-- Ensure PostgreSQL is running
-- Check user has permission to create/drop databases
+**Database errors** — check PostgreSQL is running and the user can
+create/drop databases.

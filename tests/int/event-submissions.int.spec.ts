@@ -69,7 +69,7 @@ describe('Event submissions', () => {
    * Assemble the body the Atlas widget actually POSTs from a flat description.
    *
    * The submission stores one `proposed` Events patch plus `submitterInfo` /
-   * `regionHint`; these specs describe a submission flatly because that reads
+   * `regionHint`. These specs describe a submission flatly because that reads
    * better, and the mapping lives here so it is stated once. Anything not
    * recognised as intake metadata is an Events field and goes into `proposed`.
    */
@@ -393,7 +393,7 @@ describe('Event submissions', () => {
       // A snapshot of the intake's whole attack surface, against the real
       // Events config. Adding a field to Events fails this test until someone
       // decides, explicitly, whether an anonymous submitter may propose it —
-      // which is the only way a privileged field can't be forgotten.
+      // which is the only way a privileged field cannot be forgotten.
       const allowed = [
         ...proposableEventFields(payload.collections.events.config.flattenedFields),
       ].sort()
@@ -414,10 +414,10 @@ describe('Event submissions', () => {
     })
 
     it('does not carry an unknown nested key through to the event', async () => {
-      // Validation is top-level only: a group's subfields aren't individually
+      // Validation is top-level only: a group's subfields are not individually
       // checked. Payload drops unknown keys on the way into Events, but that
       // is its behaviour, not ours — pin it, so a future change that starts
-      // honouring nested keys can't quietly widen the intake.
+      // honouring nested keys cannot quietly widen the intake.
       const created = await submit({
         ...baseSubmission,
         country: countryId,
@@ -538,7 +538,7 @@ describe('Event submissions', () => {
 
     it('degrades to the bare prefix rather than guessing', async () => {
       // An online submission with no address and no anchor has nothing to name
-      // the event after; screening resolves a region only afterwards.
+      // the event after. Screening resolves a region only afterwards.
       const { address: _a, ...noAddress } = baseSubmission
       const created = await submit({
         ...noAddress,

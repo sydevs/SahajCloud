@@ -193,7 +193,7 @@ describe('eventsGeoJson endpoint', () => {
      * `eventType` is a `select` field (`Events.ts`), hence a Postgres enum column, and
      * the OpenAPI docs advertise filtering on it — so this is a documented client route,
      * not a contrived one. Driven against a real Postgres because the SQLSTATE is the
-     * whole assertion; a mocked `find` could only re-assert the fixture.
+     * whole assertion. A mocked `find` could only re-assert the fixture.
      */
     it('returns 400 naming the value when a where filter fails an enum cast', async () => {
       const { status, body } = await callGeoJson({
@@ -400,9 +400,9 @@ describe('eventsGeoJson endpoint', () => {
 
     it('keeps an event whose final occurrence is today until midnight in its own timezone', async () => {
       // A one-off whose only occurrence is *now* — so it has already happened,
-      // yet the event stays listed because its local day hasn't ended. Anchored
+      // yet the event stays listed because its local day has not ended. Anchored
       // to the current instant rather than a fixed clock: end-of-local-day is at
-      // or after `now` in every timezone, so this can't straddle a midnight.
+      // or after `now` in every timezone, so this cannot straddle a midnight.
       // The timezone contrast itself is pinned in tests/unit/schedule-status.spec.ts.
       const firstDate = new Date().toISOString()
       const endsToday = await createEvent('Ends Today', {

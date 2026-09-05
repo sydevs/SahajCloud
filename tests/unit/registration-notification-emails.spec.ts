@@ -121,9 +121,9 @@ describe('RegistrationDigestEmail', () => {
     // The registrant's registration-question answer is included.
     expect(html).toContain('How did you hear about this event?')
     expect(html).toContain('A friend recommended it')
-    // The session date is labelled so a bare date can't be misread as a signup date.
+    // The session date is labelled so a bare date cannot be misread as a signup date.
     expect(html).toContain('Attending 5 Aug 2025')
-    // Grand total in the intro + daily phrasing; the redundant per-event count is gone.
+    // Grand total in the intro + daily phrasing. The redundant per-event count is gone.
     expect(html).toContain('3 registrations')
     expect(html).toContain('in the last day')
     expect(html).not.toContain('2 registrations')
@@ -151,7 +151,7 @@ describe('occurrenceLine / buildReminderEmailDetails', () => {
   }
 
   it('formats a specific occurrence date + time span in the event timezone', () => {
-    // 09:00 UTC on 21 July is 10:00 London (BST); endTime 11:00 local.
+    // 09:00 UTC on 21 July is 10:00 London (BST). endTime is 11:00 local.
     const line = occurrenceLine(schedule as never, '2026-07-21T09:00:00.000Z')
     expect(line).toContain('21 July 2026')
     expect(line).toContain('10:00')

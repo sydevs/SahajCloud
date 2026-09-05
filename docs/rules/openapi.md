@@ -6,8 +6,7 @@ paths:
 
 # OpenAPI / Scalar API Docs
 
-Interactive REST API docs combine [`payload-oapi`](https://github.com/janbuchar/payload-oapi)
-for spec generation with a custom Scalar plugin for the UI.
+Interactive REST API docs combine [`payload-oapi`](https://github.com/janbuchar/payload-oapi) for spec generation with a custom Scalar plugin for the UI.
 
 ## Module layout
 
@@ -23,13 +22,13 @@ src/plugins/openapi/
 
 ## Endpoints
 
-| Endpoint                              | Description                                    |
-| ------------------------------------- | ---------------------------------------------- |
-| `/api/openapi.json`                   | Filtered OpenAPI 3.1 spec (hides internal ops) |
-| `/api/openapi.json?project=<project>` | Project-filtered spec                          |
-| `/api/openapi-raw.json`               | Raw spec — everything visible                  |
-| `/api/docs`                           | Scalar UI with We Meditate branding            |
-| `/api/docs?project=<project>`         | Project-filtered Scalar UI                     |
+| Endpoint | Description |
+| --- | --- |
+| `/api/openapi.json` | Filtered OpenAPI 3.1 spec (hides internal ops) |
+| `/api/openapi.json?project=<project>` | Project-filtered spec |
+| `/api/openapi-raw.json` | Raw spec — everything visible |
+| `/api/docs` | Scalar UI, We Meditate branding |
+| `/api/docs?project=<project>` | Project-filtered Scalar UI |
 
 ## Plugin registration (`src/payload.config.ts`)
 
@@ -41,28 +40,19 @@ plugins: [
   openapi({
     openapiVersion: '3.1',
     specEndpoint: '/openapi-raw.json',
-    metadata: {
-      title: 'Sahaj Cloud API',
-      version: '1.0.0',
-      description: 'REST API for Sahaj Cloud CMS',
-    },
+    metadata: { title: 'Sahaj Cloud API', version: '1.0.0', description: 'REST API for Sahaj Cloud CMS' },
   }),
-  scalarPlugin({
-    specEndpoint: '/openapi.json',
-    docsUrl: '/docs',
-  }),
+  scalarPlugin({ specEndpoint: '/openapi.json', docsUrl: '/docs' }),
 ]
 ```
 
 ## Scalar plugin (`scalarPlugin.ts`)
 
-- **We Meditate coral theme** (`#F07855`) — light/dark mode support.
-- **Project selector** dropdown filters visible endpoints by project.
-- **Dynamic logo** swaps based on selected project (sahaj-cloud, wemeditate-web,
-  wemeditate-app, sahaj-atlas).
-- **HTTP client filtering** — JS, Node, Dart, Python only.
-- **Flash prevention** — critical CSS + blocking dark-mode detection inline
-  in the head.
+- We Meditate coral theme (`#F07855`), with light and dark mode.
+- A project-selector dropdown filters visible endpoints by project.
+- The logo swaps per selected project (sahaj-cloud, wemeditate-web, wemeditate-app, sahaj-atlas).
+- HTTP client filtering shows only JS, Node, Dart, and Python.
+- Critical CSS and blocking dark-mode detection sit inline in the head, to stop a flash on load.
 
 ## Spec filter (`specFilter.ts`)
 
@@ -79,173 +69,82 @@ import {
 filterSpec(rawSpec) // union of all client collections
 filterSpec(rawSpec, { project: 'wemeditate-web' }) // single project
 
-// Root endpoints (`config.endpoints`) belong to no collection, so they must be
-// declared or the project tiers hide them — see the root-path note below.
+// Root endpoints (`config.endpoints`) belong to no collection, so declare them
+// explicitly or the project tiers hide them — see the root-path note below.
 filterSpec(rawSpec, {
   project,
   rootEndpointPaths: rootEndpointPathsFrom(payload.config.endpoints),
 })
 ```
 
-**Always-hidden collections** (system collections, never visible):
+**Always-hidden collections** (system collections, never visible): the access collections `managers` and `clients`, the system collections `images` and `files`, and every Payload internal collection (`payload-kv`, `payload-jobs`, `payload-locked-documents`, `payload-preferences`, `payload-migrations`, `payload-job-stats`).
 
-- access: `managers`, `clients`
-- system: `images`, `files`
-- payload internal: `payload-kv`, `payload-jobs`, `payload-locked-documents`,
-  `payload-preferences`, `payload-migrations`, `payload-job-stats`
+**Excluded operations**: `DELETE` and `PATCH` are always hidden.
 
-**Excluded operations** (HTTP methods always hidden):
+**`ALLOW_POST_FOR`** lists the collections that may accept POST in the public spec: `form-submissions`, and the two public intakes `event-submissions` and `user-messages`.
 
-- `DELETE`, `PATCH`
+**`ALLOW_POST_FOR` is necessary but not sufficient.** Two independent tiers can each mark a POST `x-internal`: clearing the create-specific one leaves the second untouched, since **any path whose collection is in no project is hidden**. Both public intakes sit in no project on purpose — that is what stops project membership granting implicit read to a project's roles — so both POSTs stay `x-internal` despite this list. Clients discover them through the generated types, not `/api/docs`.
 
-**`ALLOW_POST_FOR`** — collections that may accept POST in the public spec:
+To document one of them, change project membership plus `RESTRICTED_COLLECTIONS` instead — not another entry here. `tests/unit/openapi-custom-endpoints.spec.ts` pins both directions.
 
-- `form-submissions`
-- `event-submissions`, `user-messages` — the two public intakes
-
-**`ALLOW_POST_FOR` is necessary but not sufficient**, and the gap has bitten
-twice. Two independent tiers can mark a POST `x-internal`, and clearing the
-create-specific one leaves tier 2 untouched: **any path whose collection is in
-no project is hidden**. Both public intakes are deliberately in no project —
-that is what stops project membership granting implicit read to a project's
-roles — so both POSTs are `x-internal` despite being in this list, and clients
-discover them through the generated types rather than `/api/docs`.
-
-If you want one of them documented, the change is **project membership plus
-`RESTRICTED_COLLECTIONS`** (the latter is what keeps implicit read off a
-collection that carries personal data), not another entry here. Both directions
-are pinned in `tests/unit/openapi-custom-endpoints.spec.ts`.
-
-**Project-based filtering** — when a project is specified, only its
-collections are shown; otherwise the union of all client-role collections
-is shown. Uses `getProjectCollections()` and `getRoleOptions()` from
-`@/plugins/access` (not duplicate helpers).
+**Project-based filtering.** With a project specified, only its collections show. Otherwise the union of all client-role collections shows. This uses `getProjectCollections()` and `getRoleOptions()` from `@/plugins/access` — not duplicate helpers.
 
 ## Route handler (`src/app/(payload)/api/openapi.json/route.ts`)
 
-1. Parse `?project=` query param.
-2. Validate project via `isValidProject()` from `@/plugins/access`.
-3. Generate spec via `payload-oapi` internals (avoids self-referential fetch).
-4. Merge in `customEndpoints.ts` entries.
-5. Apply `filterSpec()` with project filtering, passing
-   `rootEndpointPaths: rootEndpointPathsFrom(payload.config.endpoints)`.
-6. Return with caching headers (Cloudflare Cache API in production).
+1. Parse the `?project=` query param.
+2. Validate the project via `isValidProject()` from `@/plugins/access`.
+3. Generate the spec via `payload-oapi` internals (this avoids a self-referential fetch).
+4. Merge in the `customEndpoints.ts` entries.
+5. Apply `filterSpec()` with project filtering, passing `rootEndpointPaths: rootEndpointPathsFrom(payload.config.endpoints)`.
+6. Return the spec with caching headers (the Cloudflare Cache API, in production).
 
 ## Custom-endpoint shim (`customEndpoints.ts`)
 
-`payload-oapi` v0.2.5 doesn't auto-generate paths for Payload collection
-endpoints (those wired via a collection's `endpoints` array under
-`src/collections/<Name>/endpoints/`). We hand-author entries here and merge them into the
-raw spec inside the route handler **between** `generateV31Spec` and
-`filterSpec`, so project-based visibility applies automatically by
-collection slug.
+`payload-oapi` v0.2.5 does not auto-generate paths for endpoints wired through a collection's `endpoints` array. This shim hand-authors those entries and merges them into the raw spec **between** `generateV31Spec` and `filterSpec`, so project-based visibility still applies by collection slug.
 
-| Custom path                                  | Handler                                | Response schema                                          |
-| -------------------------------------------- | -------------------------------------- | -------------------------------------------------------- |
-| `GET /api/frames/by-narrator/{narratorId}`   | `src/collections/Frames/endpoints/byNarrator.ts`    | `#/components/schemas/Frames`                            |
-| `GET /api/audiences/for-user`                | `src/collections/Audiences/endpoints/forUser.ts`    | `#/components/schemas/AudienceIdList`                    |
-| `GET /api/lectures/for-audience`             | `src/collections/Lectures/endpoints/forAudience.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
-| `GET /api/app-cards/for-audience`            | `src/collections/AppCards/endpoints/forAudience.ts` | `#/components/schemas/AppCards`                          |
-| `GET /api/meditations/{id}/related-lectures` | `src/collections/Meditations/endpoints/lectures.ts`  | `#/components/schemas/LecturePlayerData` (hand-authored) |
-| `GET /api/lectures/{id}/related-meditations` | `src/collections/Lectures/endpoints/relatedMeditations.ts` | `#/components/schemas/MeditationCardData` (hand-authored) |
-| `GET /api/events/geojson`                    | `src/collections/Events/endpoints/geojson.ts`       | `#/components/schemas/EventFeatureCollection` (hand-authored) |
-| `POST /api/events/{id}/register`             | `src/collections/Events/endpoints/registerForEvent.ts` | `#/components/schemas/EventRegistrationResponse` (hand-authored) |
-| `GET /api/atlas/seo`                         | `src/endpoints/atlas/seo/` (root endpoint)         | `#/components/schemas/AtlasSeoResponse` (hand-authored) |
-| `GET /api/atlas/sitemap`                     | `src/endpoints/atlas/sitemap/` (root endpoint)     | `#/components/schemas/AtlasSitemapResponse` (hand-authored) |
-| `POST /api/clients/report`                   | `src/collections/Clients/endpoints/report.ts`       | `#/components/schemas/ClientEmbedReportResponse` (hand-authored) — **`x-internal`**, see below |
+| Custom path | Handler | Response schema |
+| --- | --- | --- |
+| `GET /api/frames/by-narrator/{narratorId}` | `Frames/endpoints/byNarrator.ts` | `#/components/schemas/Frames` |
+| `GET /api/audiences/for-user` | `Audiences/endpoints/forUser.ts` | `#/components/schemas/AudienceIdList` |
+| `GET /api/lectures/for-audience` | `Lectures/endpoints/forAudience.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
+| `GET /api/app-cards/for-audience` | `AppCards/endpoints/forAudience.ts` | `#/components/schemas/AppCards` |
+| `GET /api/meditations/{id}/related-lectures` | `Meditations/endpoints/lectures.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
+| `GET /api/lectures/{id}/related-meditations` | `Lectures/endpoints/relatedMeditations.ts` | `#/components/schemas/MeditationCardData` (hand-authored) |
+| `GET /api/events/geojson` | `Events/endpoints/geojson.ts` | `#/components/schemas/EventFeatureCollection` (hand-authored) |
+| `POST /api/events/{id}/register` | `Events/endpoints/registerForEvent.ts` | `#/components/schemas/EventRegistrationResponse` (hand-authored) |
+| `GET /api/atlas/seo` | `src/endpoints/atlas/seo/` (root endpoint) | `#/components/schemas/AtlasSeoResponse` (hand-authored) |
+| `GET /api/atlas/sitemap` | `src/endpoints/atlas/sitemap/` (root endpoint) | `#/components/schemas/AtlasSitemapResponse` (hand-authored) |
+| `POST /api/clients/report` | `Clients/endpoints/report.ts` | `#/components/schemas/ClientEmbedReportResponse` (hand-authored) — **`x-internal`**, see below |
 
-`POST /api/clients/report` is the one registered custom endpoint that is
-deliberately **not** visible in `/api/docs`. `clients` is in
-`ALWAYS_HIDDEN_COLLECTIONS` and belongs to no project, so `filterSpec` marks it
-`x-internal` under tiers 1 and 2. That is the intended outcome — it is the
-first-party Atlas widget's telemetry channel, not a third-party integration
-surface, and advertising it only invites forged reports. It is still in
-`/api/openapi-raw.json`, and the "stays x-internal" case in
-`tests/unit/openapi-custom-endpoints.spec.ts` pins the behaviour so a future
-filter change can't publish it by accident.
+`POST /api/clients/report` is the one custom endpoint deliberately hidden from `/api/docs`: `clients` sits in `ALWAYS_HIDDEN_COLLECTIONS` and belongs to no project, so `filterSpec` marks it `x-internal` under every project tier. That is intended — it is the first-party Atlas widget's telemetry channel, not a third-party integration surface, and advertising it only invites forged reports. It still appears in `/api/openapi-raw.json`, and a pinned test case in `tests/unit/openapi-custom-endpoints.spec.ts` stops a future filter change from publishing it by accident.
 
 ### Root-level endpoints have no collection to key visibility off
 
-`filterSpec` derives project visibility from the first path segment
-(`getCollectionFromPath`). A **root** endpoint — registered on `config.endpoints`
-rather than a collection's — has a segment that looks like a slug but names no
-collection, so every project tier reads it as "not in this project" and marks it
-`x-internal`, hiding it from `/api/docs` everywhere.
+`filterSpec` derives project visibility from a path's first segment (`getCollectionFromPath`). A **root** endpoint (registered on `config.endpoints`, not a collection) has a segment that looks like a slug but names no collection, so every project tier reads it as "not in this project" and hides it.
 
-The route handler closes that gap by passing `filterSpec` a `rootEndpointPaths`
-option, built by `rootEndpointPathsFrom(payload.config.endpoints)` — those paths
-are exempted from the tiers and stay visible in every project's spec, which is
-right since a root endpoint is project-agnostic by nature (`/api/atlas/seo`
-answers for any client app's route).
+The route handler closes the gap with a `rootEndpointPaths` option, built by `rootEndpointPathsFrom(payload.config.endpoints)`: those paths stay visible in every project's spec, since a root endpoint is project-agnostic by nature (`/api/atlas/seo` answers for any client app's route).
 
-**Derived from the live config, so there's no second list to keep in sync** —
-registering the endpoint in `payload.config.ts` is the only edit needed. The
-option defaults to `[]`, so a caller that omits it gets the old hiding behaviour;
-`tests/unit/openapi-custom-endpoints.spec.ts` pins both directions (visible in
-all three projects when declared, `x-internal` when not).
+**Derived from the live config, so there is no second list to keep in sync** — registering the endpoint in `payload.config.ts` is the only edit needed. The option defaults to `[]`, so an omitted call keeps the old hiding behavior. `tests/unit/openapi-custom-endpoints.spec.ts` pins both directions.
 
-`filterSpec` marks POST operations `x-internal` (hidden from `/docs`) only for
-the **auto-generated base-collection create** (`POST /api/{collection}`) unless
-the collection is in `ALLOW_POST_FOR`; hand-authored custom POST subpaths like
-`/api/events/{id}/register` stay visible (`isBaseCollectionPath` guards the gate).
-`tests/unit/openapi-custom-endpoints.spec.ts` is the regression guard for the
-Atlas paths + this POST visibility rule.
+`filterSpec` marks a POST `x-internal` only for the **auto-generated base-collection create** (`POST /api/{collection}`), unless the collection is in `ALLOW_POST_FOR`. A hand-authored custom POST subpath, such as `/api/events/{id}/register`, stays visible (`isBaseCollectionPath` guards this). The same spec file is the regression guard for both the Atlas paths and this POST rule.
 
-The audience query params on `/api/audiences/for-user` are hand-authored
-in `customEndpoints.ts` as `audienceQueryParameters` — six required
-params: four progress params (`pathProgress`, `meditationsPerWeek`,
-`totalMeditationsViewed`, `totalLecturesViewed`) plus `country` and
-`timezone`. The three data endpoints
-(`/lectures/for-audience`, `/app-cards/for-audience`,
-`/meditations/{id}/related-lectures`) take a single pre-resolved
-`audiences` ID list (mirrors `audiencesQueryParamSchema` in
-`src/lib/audiences/audiencesQueryParam.ts`) instead of the rule-data
-params (#340).
+`/api/audiences/for-user` hand-authors six required query params in `customEndpoints.ts`: four progress fields (`pathProgress`, `meditationsPerWeek`, `totalMeditationsViewed`, `totalLecturesViewed`) plus `country` and `timezone`. The three data endpoints (`/lectures/for-audience`, `/app-cards/for-audience`, `/meditations/{id}/related-lectures`) instead take one pre-resolved `audiences` ID list, mirroring `audiencesQueryParamSchema` in `src/lib/audiences/audiencesQueryParam.ts` (#340).
 
-When `payload-oapi` ships native custom-endpoint support, both the
-shim module and the merge block in the route handler can be deleted in
-a single follow-up.
+When `payload-oapi` ships native custom-endpoint support, delete the shim module and the merge block together.
 
 ## Known limitations (payload-oapi v0.2.5)
 
-- **API-key header format**: plugin uses OAuth2 password flow rather than
-  the actual `Authorization: clients API-Key <key>` shape we use in
-  production.
-- **`/api/health` and webhook routes** — Next.js app-router routes
-  (`/api/health`, `/api/webhooks/...`, `/api/seed/:script`) are
-  intentionally omitted. They're infrastructure, not part of the public
-  client API.
-- **`select` / `populate` / `depth` / `limit` / `page` query params** are
-  not surfaced in the generated spec for auto-generated CRUD endpoints.
-  `injectClientReadParameters()` in `specFilter.ts` patches this — it
-  registers reusable definitions from `clientReadParametersDocs.ts` under
-  `components.parameters` and adds `$ref`s to every collection list +
-  findByID GET operation (skipping `/api/globals/*` and custom subpath
-  endpoints, which have their own param surface). Added in #419 after
-  the original PR (#294) shipped without REST-format documentation
-  anywhere clients could discover the bracket-notation contract.
+- **API-key header format** — the plugin models OAuth2 password flow, not the `Authorization: clients API-Key <key>` shape this app uses in production.
+- **`/api/health` and webhook routes** are intentionally omitted — infrastructure, not part of the public client API.
+- **`select` / `populate` / `depth` / `limit` / `page`** are missing from the generated spec for auto-generated CRUD endpoints. `injectClientReadParameters()` in `specFilter.ts` fixes this: it registers definitions from `clientReadParametersDocs.ts` under `components.parameters` and `$ref`s them onto every collection list and findByID GET, skipping globals and custom subpaths (which have their own params). Added in #419, after #294 shipped with no documented bracket-notation contract.
 
 Review payload-oapi quarterly for native support of these.
 
 ## Testing
 
-Current guards (both **unit** — no Payload bootstrap):
+Two guards, both **unit** (no Payload boot):
 
-- `tests/unit/openapi-custom-endpoints.spec.ts` — the hand-authored custom paths
-  + schemas stay registered (Atlas events, `/lectures/{id}/related-meditations`,
-  `/atlas/seo`), shaped endpoints expose no `select`/`populate`, `filterSpec`
-  POST visibility (the auto-generated base-collection `POST /api/{collection}` is
-  hidden unless the collection is in `ALLOW_POST_FOR`; hand-authored custom POST
-  subpaths stay visible), and the root-path exemption in both directions —
-  declared → visible in all three projects, undeclared → `x-internal`.
+- `tests/unit/openapi-custom-endpoints.spec.ts` — the hand-authored custom paths and schemas stay registered, shaped endpoints expose no `select`/`populate`, `filterSpec` POST visibility, and the root-path exemption in both directions. Its `op()` helper asserts the operation **exists** before reading `x-internal` — without that, a path missing from the spec reads as `undefined` → falsy → "visible", and every visibility assertion passes vacuously.
+- `tests/unit/openapi-endpoint-auth.spec.ts` — the `DOCS_PASSWORD` basic-auth gate on `/openapi-raw.json` (passes through unset, 401 on a wrong password).
 
-  Its `op()` helper asserts the operation **exists** before reading `x-internal`.
-  Without that, a path missing from the spec entirely reads as `undefined` →
-  falsy → "visible", and every visibility assertion passes vacuously.
-- `tests/unit/openapi-endpoint-auth.spec.ts` — the `DOCS_PASSWORD` basic-auth gate
-  on `/openapi-raw.json` (passes through when unset, 401 on a wrong password).
-
-The earlier `tests/int/api-explorer.int.spec.ts` — which exercised spec generation,
-project filtering, `ALWAYS_HIDDEN_COLLECTIONS`/DELETE-PATCH filtering, the Scalar UI
-responses, and the audience query-param coverage — was **removed** in the #434
-test-suite audit as it only covered Payload/plugin built-ins (see `tests/COVERAGE.md`).
+`tests/int/api-explorer.int.spec.ts` was **deleted** in the #434 audit — it only covered Payload/plugin built-ins (see `tests/COVERAGE.md`).

@@ -23,7 +23,7 @@ test('create, update, and delete a Meditation against preview', async ({ request
   const { docs: images } = (await imagesRes.json()) as ListResponse<Doc>
 
   // Meditations require at least one frame on UPDATE (collection-level
-  // validation in src/collections/AGENTS.md); fetch any frame to include.
+  // validation in src/collections/AGENTS.md). Fetch any frame to include.
   const framesRes = await request.get('/api/frames?limit=1', { headers })
   expect(framesRes.ok()).toBe(true)
   const { docs: frames } = (await framesRes.json()) as ListResponse<Doc>
@@ -35,7 +35,7 @@ test('create, update, and delete a Meditation against preview', async ({ request
     'preview DB has no seeded narrator/image/frame',
   )
 
-  // Retry-aware identifier so Playwright's automatic retries don't trip on
+  // Retry-aware identifier so Playwright's automatic retries do not trip on
   // meditations_filename_idx (UNIQUE) — a failed first attempt would
   // otherwise leave a row that blocks every retry.
   const label = `smoke-${runId()}-meditation-r${testInfo.retry}`

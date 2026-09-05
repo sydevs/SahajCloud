@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Test Meditations Import Script
-# This script tests the meditations import with SQLite database (via Wrangler/D1)
-# Note: This script also requires PostgreSQL for reading source data from data.bin
+# Tests the meditations import against the seed_test Postgres schema.
+# Also requires PostgreSQL to read source data from data.bin.
 
 set -e
 
@@ -16,8 +16,8 @@ pnpm tsx seeds/tests/setup-test-db.ts setup
 echo ""
 
 # Set test environment variables
-# Note: SQLite database for Payload is configured via payload.config.ts (using Wrangler D1)
-# PostgreSQL is used separately for reading source data from data.bin
+# Payload connects to the seed_test Postgres schema via test-payload.config.ts.
+# PostgreSQL is also used separately to read source data from data.bin.
 export PAYLOAD_SECRET="test-secret-key-12345"
 export STORAGE_BASE_URL="https://storage.googleapis.com/test-bucket"
 

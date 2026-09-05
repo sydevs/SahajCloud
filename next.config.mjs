@@ -3,19 +3,22 @@ import { withSentryConfig } from '@sentry/nextjs'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Self-hosted output: bundle only traced production deps + a minimal server
-  // into `.next/standalone` instead of shipping the full `node_modules`. Railpack
-  // runs `pnpm build`, then `scripts/standalone-postbuild.mjs` copies `.next/static`
-  // and `public/` next to `server.js` (Next does not copy these automatically).
-  // Migrations (`prodMigrations`) and the admin `importMap.js` are statically
-  // imported, so they trace into the bundle and still run on boot. See issue #471.
+  // Self-hosted build: bundle only the traced production files and a small
+  // server into `.next/standalone`. This skips shipping the full
+  // `node_modules`. Railpack runs `pnpm build`, then
+  // `scripts/standalone-postbuild.mjs` copies `.next/static` and `public/`
+  // next to `server.js`, since Next does not copy these files on its own.
+  // Migrations (`prodMigrations`) and the admin `importMap.js` are static
+  // imports, so they trace into the bundle and still run at boot. See
+  // issue #471.
   output: 'standalone',
-  // Keep dev-only and test artifacts out of the standalone trace. Next/Turbopack
-  // otherwise copies these (large) project dirs into `.next/standalone` — a local
-  // `pnpm build` balloons to many GB via `media/` + `seeds/`. Prod stores uploads
-  // in R2 (not local `media/`) and never runs seeds/tests, so excluding them is
-  // safe — same intent as `.railwayignore` (drop dev-only/test artifacts), via a
-  // different mechanism (build trace vs. upload filter). See issue #471.
+  // Keep dev and test files out of the standalone trace. Otherwise Next
+  // copies these large directories into `.next/standalone`, and a local
+  // `pnpm build` grows to many GB from `media/` and `seeds/`. Production
+  // stores uploads in R2, not local `media/`, and never runs seeds or
+  // tests, so excluding them here is safe. `.railwayignore` drops the same
+  // kind of files through a different mechanism: it filters uploads, not
+  // the build trace. See issue #471.
   outputFileTracingExcludes: {
     '*': [
       'media/**/*',
@@ -26,7 +29,6 @@ const nextConfig = {
       'coverage/**/*',
     ],
   },
-  // Your Next.js config here
   webpack: (webpackConfig) => {
     webpackConfig.resolve.extensionAlias = {
       '.cjs': ['.cts', '.cjs'],
@@ -38,11 +40,13 @@ const nextConfig = {
   },
   // Configure CSP headers for Fathom Analytics and Live Preview iframes
   async headers() {
-    // Build frame-src dynamically from environment variables with fallbacks
-    // `headers()` is evaluated at BUILD time. Railway exposes all service variables
-    // to the build, so this reads the real WEMEDITATE_WEB_URL / SAHAJATLAS_URL and
-    // the build-time frame-src matches the runtime `livePreview.url` (otherwise the
-    // browser CSP-blocks the preview iframe). The literals are local/CI fallbacks.
+    // Build `frame-src` from environment variables, with fallback values.
+    // Next.js runs `headers()` at build time. Railway exposes every service
+    // variable to the build, so this step reads the real WEMEDITATE_WEB_URL
+    // and SAHAJATLAS_URL values. This keeps the build-time frame-src in
+    // sync with the runtime `livePreview.url`. Without this, the browser
+    // blocks the preview iframe under CSP. The literal URLs below are
+    // fallbacks for local and CI runs.
     const frameSources = [
       "'self'",
       'https://app.usefathom.com',
@@ -81,8 +85,8 @@ const nextConfig = {
         hostname: 'img.shields.io', // For status badges (issue #100)
       },
     ],
-    // Next image optimization runs on the Node server (via sharp); Cloudflare
-    // caches the optimized output at the edge.
+    // Next.js runs image optimization on the Node server, using sharp.
+    // Cloudflare caches the optimized output at the edge.
   },
   // External packages for server-side rendering
   serverExternalPackages: ['payload', 'jose'],
@@ -90,9 +94,10 @@ const nextConfig = {
 
 const configWithPayload = withPayload(nextConfig, { devBundleServerPackages: false })
 
-// Wrap with Sentry. Source maps are only uploaded when SENTRY_AUTH_TOKEN (+ org
-// / project) are configured (CI / Railway); otherwise the build proceeds without
-// upload. `silent` keeps local builds quiet.
+// Wrap the config with Sentry. Sentry uploads source maps only when
+// SENTRY_AUTH_TOKEN and the org and project settings are set, in CI or on
+// Railway. Otherwise the build skips the upload. `silent` keeps local
+// builds quiet.
 export default withSentryConfig(configWithPayload, {
   silent: !process.env.CI,
 })

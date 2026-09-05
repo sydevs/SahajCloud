@@ -260,7 +260,7 @@ describe('Lectures Collection', () => {
 
       expect(lecture.id).toBeDefined()
       // Factory generates a unique numeric vimeo id per call so each call lands
-      // on a distinct URL; uniqueness is no longer enforced at the DB level
+      // on a distinct URL. Uniqueness is no longer enforced at the DB level
       // (after #330 excerpts share the parent's URL).
       expect(lecture.nirmalVidyaVimeoUrl).toMatch(/^https:\/\/vimeo\.com\/\d+$/)
     })
@@ -333,7 +333,7 @@ describe('Lectures Collection', () => {
         id: lecture.id,
         data: { startTime: 0, stopTime: 60 },
       })
-      // stopTime is unchanged at 60; new startTime=100 should violate stopTime > startTime.
+      // stopTime is unchanged at 60. New startTime=100 should violate stopTime > startTime.
       await expect(
         payload.update({
           collection: 'lectures',

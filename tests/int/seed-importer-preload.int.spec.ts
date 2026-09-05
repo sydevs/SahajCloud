@@ -4,13 +4,13 @@
  * The preload cache answers "does this natural key already exist?" — and a trashed
  * doc still occupies its key. Payload appends a `deletedAt exists: false` filter to
  * every find unless `trash: true` is passed, so without it the cache misses a
- * trashed row; `upsert` then takes its `isPreloaded && !preloadedDoc` branch and
+ * trashed row. `upsert` then takes its `isPreloaded && !preloadedDoc` branch and
  * calls `payload.create` directly (there is no fallback find), producing a
  * duplicate on every re-seed while the trashed original lingers.
  *
  * This bit Files/Images in production: `CleanupOrphanedMedia` trashes orphans, so a
  * later storyblok/meditations seed re-uploaded them instead of finding the trashed
- * row. `events` is used here because it's trash-enabled and needs no upload
+ * row. `events` is used here because it is trash-enabled and needs no upload
  * fixture — the `preloadCollection` code path is shared by every collection, so the
  * mechanism is identical.
  */
@@ -25,7 +25,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
 /**
  * Minimal concrete importer exposing the two protected members under test.
  * `run()` is deliberately not used — it owns the whole lifecycle (config load,
- * cache dirs, reporting); this only needs `payload` + `logger`.
+ * cache dirs, reporting). This only needs `payload` + `logger`.
  */
 class PreloadProbe extends BaseImporter {
   protected readonly importName = 'Preload Probe'

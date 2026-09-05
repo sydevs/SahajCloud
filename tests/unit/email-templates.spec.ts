@@ -8,7 +8,7 @@
  * ⚠ The URLs below are INPUTS, so nothing here can tell you whether the shape
  * is one Payload will route — a wrong URL round-trips just as happily as a
  * right one, which is how #320 survived. Their shape is pinned in
- * `manager-auth-urls.spec.ts`, against the config that builds them; they are
+ * `manager-auth-urls.spec.ts`, against the config that builds them. They are
  * written correctly here only so the fixtures do not teach the wrong URL.
  */
 import { createElement } from 'react'
@@ -127,7 +127,7 @@ describe('EventRegistrationEmail', () => {
     const html = await renderEmail(
       createElement(EventRegistrationEmail, { ...props, recipientName: null }),
     )
-    // React Email inserts `<!-- -->` markers between adjacent text nodes; strip
+    // React Email inserts `<!-- -->` markers between adjacent text nodes. Strip
     // them so the greeting reads as one string.
     expect(html.replace(/<!-- -->/g, '')).toContain('Hello there')
     expect(html).not.toContain('Anna')
@@ -232,7 +232,7 @@ describe('UserMessageEmail', () => {
     { label: 'Path', value: '/events/berlin' },
   ]
   // Resolved by the send helper and passed in, so the `From` display name and
-  // the rendered body can't drift apart.
+  // the rendered body cannot drift apart.
   const brand = getEmailBrand()
 
   it('renders the message, the sender address, and every detail row', async () => {

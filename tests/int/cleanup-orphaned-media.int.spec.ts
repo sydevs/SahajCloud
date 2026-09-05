@@ -128,7 +128,7 @@ async function runCleanupJobWithDefaultRange(payload: Payload): Promise<CleanupR
     payload,
   } as PayloadRequest
 
-  // Don't pass testDateRange - uses default month-based calculation
+  // Do not pass testDateRange - uses default month-based calculation
   const handler = CleanupOrphanedMedia.handler as (args: {
     req: PayloadRequest
     input: Record<string, unknown>
@@ -218,7 +218,7 @@ describe('CleanupOrphanedMedia Job', () => {
   describe('Phase A: Permanent Deletion', () => {
     it('permanently deletes trashed files', async () => {
       // Create a file and soft-delete it (move to trash)
-      // Note: payload.delete() hard-deletes; use update() to set deletedAt for soft delete
+      // Note: payload.delete() hard-deletes. Use update() to set deletedAt for soft delete
       const file = await testData.createFile(payload)
       await payload.update({
         collection: 'files',
@@ -248,7 +248,7 @@ describe('CleanupOrphanedMedia Job', () => {
 
     it('permanently deletes trashed images', async () => {
       // Create an image and soft-delete it (move to trash)
-      // Note: payload.delete() hard-deletes; use update() to set deletedAt for soft delete
+      // Note: payload.delete() hard-deletes. Use update() to set deletedAt for soft delete
       const image = await testData.createMediaImage(payload)
       await payload.update({
         collection: 'images',
@@ -359,7 +359,7 @@ describe('CleanupOrphanedMedia Job', () => {
       // Run cleanup job
       const result = await runCleanupJob(payload)
 
-      // Verify image was trashed (orientation tags don't protect from cleanup)
+      // Verify image was trashed (orientation tags do not protect from cleanup)
       expect(result.trashedImages).toBeGreaterThanOrEqual(1)
       expect(await imageInTrash(payload, image.id)).toBe(true)
     })
@@ -588,7 +588,7 @@ describe('CleanupOrphanedMedia Job', () => {
     it('returns correct counts for mixed operations', async () => {
       // Setup: Create various scenarios
       // 1. Trashed file (will be permanently deleted)
-      // Note: payload.delete() hard-deletes; use update() to set deletedAt for soft delete
+      // Note: payload.delete() hard-deletes. Use update() to set deletedAt for soft delete
       const trashedFile = await testData.createFile(payload)
       await payload.update({
         collection: 'files',
@@ -597,7 +597,7 @@ describe('CleanupOrphanedMedia Job', () => {
       })
 
       // 2. Trashed image (will be permanently deleted)
-      // Note: payload.delete() hard-deletes; use update() to set deletedAt for soft delete
+      // Note: payload.delete() hard-deletes. Use update() to set deletedAt for soft delete
       const trashedImage = await testData.createMediaImage(payload)
       await payload.update({
         collection: 'images',
@@ -780,7 +780,7 @@ describe('CleanupOrphanedMedia Job', () => {
       // Run cleanup job with default (month-based) date range
       const result = await runCleanupJobWithDefaultRange(payload)
 
-      // Verify file was permanently deleted even though it's outside Phase B date range
+      // Verify file was permanently deleted even though it is outside Phase B date range
       expect(result.permanentlyDeletedFiles).toBeGreaterThanOrEqual(1)
 
       // Verify file no longer exists (even in trash)
@@ -814,7 +814,7 @@ describe('CleanupOrphanedMedia Job', () => {
       // Create orphan files outside any references
       for (let i = 0; i < orphanCount; i++) {
         const file = await testData.createFile(payload)
-        // Backdate so it's in the cleanup window
+        // Backdate so it is in the cleanup window
         await backdateCreatedAt(payload, 'files', file.id, 48)
         orphanIds.push(file.id)
       }

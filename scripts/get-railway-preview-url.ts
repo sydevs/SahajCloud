@@ -1,26 +1,31 @@
 #!/usr/bin/env node
 /**
- * Discover the Railway PR-preview URL for the current pull request, wait until it
- * is healthy, and export it as PREVIEW_URL for the Playwright smoke specs.
+ * Find the Railway PR-preview URL for the current pull request. Wait
+ * until it is healthy, then export it as PREVIEW_URL for the
+ * Playwright smoke specs.
  *
- * When Railway deploys a per-PR preview environment it posts a GitHub **commit
- * status** on the PR's head commit whose description carries the public URL, e.g.
- * `"Success - sahajcloud-sahajcloud-pr-470.up.railway.app"`. (The GitHub
- * Deployment's `environment_url` only points at the Railway dashboard, and a
- * Railway *project* token can't read other environments' domains over the API —
- * so the commit-status description is the reliable source.) This reads it with
- * the built-in GITHUB_TOKEN; no Railway API token is required.
+ * When Railway deploys a per-PR preview environment, it posts a GitHub
+ * commit status on the PR's head commit. That status's description
+ * carries the public URL, for example
+ * `"Success - sahajcloud-sahajcloud-pr-470.up.railway.app"`. The GitHub
+ * Deployment's `environment_url` field only points at the Railway
+ * dashboard, and a Railway project token cannot read other
+ * environments' domains over the API. So the commit-status description
+ * is the reliable source. This script reads it with the built-in
+ * GITHUB_TOKEN. It needs no Railway API token.
  *
  * Env:
- *   GITHUB_TOKEN         - GitHub token (CI default); workflow needs `statuses: read`
+ *   GITHUB_TOKEN         - GitHub token (CI default), workflow needs `statuses: read`
  *   GITHUB_REPOSITORY    - "owner/repo" (CI default)
  *   PR_HEAD_SHA          - PR head commit SHA (github.event.pull_request.head.sha)
  *   STATUS_CONTEXT_MATCH - substring of the Railway status context (default "SahajCloud")
  *   HEALTH_PATH          - health endpoint (default "/api/health")
  *
- * Skips gracefully (empty preview_url, exit 0) when no Railway preview status
- * appears — e.g. a PR whose branch is itself a deployed environment, or no token.
- * Writes `preview_url=<url>` to $GITHUB_OUTPUT and `PREVIEW_URL=<url>` to $GITHUB_ENV.
+ * This script skips gracefully, with an empty preview_url and exit 0,
+ * when no Railway preview status appears. For example, a PR whose own
+ * branch is a deployed environment, or a run with no token. It writes
+ * `preview_url=<url>` to $GITHUB_OUTPUT and `PREVIEW_URL=<url>` to
+ * $GITHUB_ENV.
  */
 import { appendFileSync } from 'node:fs'
 
@@ -30,7 +35,7 @@ const SHA = process.env.PR_HEAD_SHA
 const CONTEXT_MATCH = process.env.STATUS_CONTEXT_MATCH || 'SahajCloud'
 const HEALTH_PATH = process.env.HEALTH_PATH || '/api/health'
 
-const DISCOVER_TIMEOUT_MS = 12 * 60_000 // Railway build + deploy is slow
+const DISCOVER_TIMEOUT_MS = 12 * 60_000 // Railway build and deploy is slow
 const HEALTH_TIMEOUT_MS = 5 * 60_000
 const POLL_INTERVAL_MS = 15_000
 const DOMAIN_RE = /([a-z0-9-]+\.(?:up\.)?railway\.app)/i
@@ -58,7 +63,7 @@ async function fetchStatuses(): Promise<CommitStatus[]> {
   return (await res.json()) as CommitStatus[]
 }
 
-// GitHub returns statuses most-recent first; the first match per context is current.
+// GitHub returns statuses most-recent first. The first match per context is current.
 async function findRailwayStatus(): Promise<{
   state: string
   url: string | null

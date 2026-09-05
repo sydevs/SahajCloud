@@ -42,9 +42,9 @@ async function sweepOrphanedTestSchemas(connectionString: string): Promise<void>
       [GENERATED_TEST_SCHEMA_PATTERN],
     )
     for (const { schema_name } of rows) {
-      // schema_name is matched against GENERATED_TEST_SCHEMA_PATTERN by the query
-      // (only [0-9a-z_] in fixed positions), so interpolating it is injection-safe;
-      // identifiers can't be parameterized in DDL anyway.
+      // schema_name is matched against GENERATED_TEST_SCHEMA_PATTERN by the
+      // query (only [0-9a-z_] in fixed positions), so interpolating it is
+      // injection-safe. Identifiers cannot be parameterized in DDL anyway.
       await client.query(`DROP SCHEMA IF EXISTS "${schema_name}" CASCADE`)
     }
     if (rows.length > 0) {

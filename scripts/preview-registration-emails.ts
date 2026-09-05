@@ -1,31 +1,35 @@
 /**
- * Operator script: send the registrant confirmation email in each of its
- * meaningful states to the Mailpit capture inbox for visual review. Prints a
- * direct preview link per scenario.
+ * Operator script: send the registrant confirmation email in each of
+ * its meaningful states to the Mailpit capture inbox, for visual
+ * review. Prints a direct preview link per scenario.
  *
  * Usage:
  *   pnpm tsx scripts/preview-registration-emails.ts             # in-memory fixtures
  *   FROM_DB=1 pnpm tsx scripts/preview-registration-emails.ts   # real services + events
  *
- * `FROM_DB=1` picks a representative spread of real published services and
- * events out of the local database and renders the email for each — useful for
- * seeing the template against production-shaped content (long titles, other
- * languages, missing optional fields). It is **read-only**: the selection is
- * query-driven, and nothing is created or modified.
+ * `FROM_DB=1` picks a representative spread of real published services
+ * and events from the local database, and renders the email for each.
+ * This is useful for seeing the template against production-shaped
+ * content: long titles, other languages, missing optional fields. It
+ * is read-only: the selection is query-driven, and nothing is created
+ * or modified.
  *
- * Without the flag, no database is touched. The script
- * drives the **real** `sendRegistrationConfirmation()` composition path through
- * a stub `payload` (its only Payload touchpoints are `findGlobal`, `sendEmail`,
- * and `logger`), so what you see is what the endpoint sends: same subject,
- * `From`, `Reply-To`, HTML, plain-text part, and `.ics` attachment. Nothing is
- * reimplemented here, so this preview can't drift from production behaviour.
+ * Without the flag, no database is touched. The script drives the real
+ * `sendRegistrationConfirmation()` composition path through a stub
+ * `payload` object. That stub only covers `findGlobal`, `sendEmail`,
+ * and `logger`, the only Payload calls this path makes. So what you
+ * see is what the endpoint sends: the same subject, `From`,
+ * `Reply-To`, HTML, plain-text part, and `.ics` attachment. Nothing
+ * here is reimplemented, so this preview cannot drift from production
+ * behavior.
  *
- * The `.ics` attachment rides along on each message — download it from Mailpit
- * and open it in Google Calendar / Apple Calendar to check the recurrence,
- * timezone, and any excluded dates.
+ * The `.ics` attachment rides along on each message. Download it from
+ * Mailpit, and open it in Google Calendar or Apple Calendar, to check
+ * the recurrence, timezone, and any excluded dates.
  *
- * Header logos are absolute URLs. `SAHAJCLOUD_URL` defaults to production here
- * so the icon actually renders in the preview; override it to point elsewhere.
+ * Header logos use absolute URLs. `SAHAJCLOUD_URL` defaults to
+ * production here, so the icon actually renders in the preview.
+ * Override it to point elsewhere.
  */
 
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
@@ -41,21 +45,22 @@ import { createCaptureTransport } from './mailpit-transport'
 // Shell env wins, then .env.local, then .env (see seeds/env.ts).
 dotenv.config({ path: ['.env.local', '.env'] })
 
-// Absolute icon URLs must resolve for the reviewer's mail client, so default to
-// production rather than a localhost the Mailpit viewer can't reach.
+// Absolute icon URLs must resolve for the reviewer's mail client.
+// Default to production, since the Mailpit viewer cannot reach a localhost URL.
 process.env.SAHAJCLOUD_URL ||= 'https://cloud.sydevelopers.com'
 
 /**
- * The next occurrence of `weekday` at `hour`:00 **local time** in `tz`, at
+ * The next occurrence of `weekday` at `hour`:00 local time in `tz`, at
  * least three days out, as a UTC ISO string.
  *
- * Anchoring to a real weekday + wall-clock hour matters twice over: a
- * `now + N days` fixture inherits the current time-of-day (so the preview reads
- * "5:04 PM" and tells you nothing about formatting), and an exclusion date that
- * doesn't land on an occurrence produces no EXDATE at all — silently turning
- * the "course with a cancelled session" scenario into a plain one.
+ * Anchoring to a real weekday and wall-clock hour matters for two
+ * reasons. A `now + N days` fixture inherits the current time of day,
+ * so the preview reads "5:04 PM" and tells you nothing about
+ * formatting. And an exclusion date that does not land on an
+ * occurrence produces no EXDATE at all, silently turning the "course
+ * with a cancelled session" scenario into a plain one.
  *
- * `dayOfWeek` is ISO-numbered: 1 = Monday … 7 = Sunday.
+ * `dayOfWeek` is ISO-numbered: 1 is Monday, 7 is Sunday.
  */
 function nextLocalOccurrence(weekday: number, hour: number, tz: string): string {
   let zdt = Temporal.Now.zonedDateTimeISO(tz)
@@ -118,8 +123,8 @@ const WEEKLY_COURSE = {
   endTime: '20:30',
   endingType: 'count',
   count: 8,
-  // Three weeks in — a real occurrence of the rule, so it actually yields an
-  // EXDATE rather than silently excluding nothing.
+  // Three weeks in: a real occurrence of the rule, so it actually
+  // yields an EXDATE, instead of silently excluding nothing.
   exclusions: [
     {
       startDate: localDatePlusWeeks(COURSE_START, 3, LONDON),
@@ -159,7 +164,7 @@ const offlineEvent = {
   description: DESCRIPTION,
   contactName: 'Priya Deshmukh',
   contactPhone: '+44 20 7946 0000',
-  // Open-ended (no endingType/count) 10:00 Saturday class — no session count.
+  // Open-ended (no endingType or count) 10:00 Saturday class. No session count.
   schedule: {
     ...WEEKLY_COURSE,
     firstDate: nextLocalOccurrence(SATURDAY, 10, LONDON),
@@ -171,7 +176,7 @@ const offlineEvent = {
   },
 } as unknown as Event
 
-/** A single dated session — no recurrence phrase, no session count. */
+/** A single dated session. No recurrence phrase, no session count. */
 const oneOffEvent = {
   id: 1044,
   title: 'Introduction to Meditation — Open Day',
@@ -187,7 +192,7 @@ const oneOffEvent = {
   },
 } as unknown as Event
 
-/** Nothing optional set — every conditional section should collapse. */
+/** Nothing optional set. Every conditional section should collapse. */
 const minimalEvent = {
   id: 1045,
   title: 'Weekly Meditation',
@@ -206,15 +211,15 @@ const brandedClient: EmailClient = {
   name: 'Sahaja Yoga London',
   color1: '#7B4EA8',
   color2: '#B08BD4',
-  logo: null, // no Cloudflare image locally — falls back to the Atlas icon
+  logo: null, // no Cloudflare image locally: falls back to the Atlas icon
   websiteUrl: 'https://www.sahajayogalondon.example',
   supportEmail: 'hello@sahajayogalondon.example',
 }
 
 /**
- * The realistic half-configured service: `Clients.name` is required by the
- * schema, so a client always has one — but everything the email adds is
- * optional and falls back independently.
+ * The realistic half-configured service. `Clients.name` is required by
+ * the schema, so a client always has one, but everything else the
+ * email adds is optional and falls back on its own.
  */
 const partialClient: EmailClient = {
   name: 'Meditation Berlin',
@@ -226,9 +231,9 @@ const partialClient: EmailClient = {
 }
 
 /**
- * A partially-translated German `emails` group. `confirmation_subject`,
- * `contact_label`, and others are deliberately omitted so the per-key English
- * fallback is visible in the rendered mail.
+ * A partially translated German `emails` group. `confirmation_subject`,
+ * `contact_label`, and others are left out on purpose, so the per-key
+ * English fallback shows in the rendered mail.
  */
 const GERMAN_EMAILS = {
   confirmation_heading: 'Du bist angemeldet',
@@ -253,15 +258,17 @@ interface Scenario {
 }
 
 /**
- * Pick a representative spread of real services + events from the local
- * database (`FROM_DB=1`).
+ * Pick a representative spread of real services and events from the
+ * local database (`FROM_DB=1`).
  *
- * Selection is query-driven rather than hardcoded ids, so it works against any
- * database. Read-only: nothing is created or modified.
+ * Selection is query-driven, not based on hardcoded ids, so it works
+ * against any database. This is read-only: nothing is created or
+ * modified.
  *
- * The client↔event pairing is deliberately arbitrary — a registration's client
- * is whoever holds the API key that called the endpoint, not a property of the
- * event — so events are simply round-robined across services.
+ * The pairing between client and event is arbitrary, on purpose. A
+ * registration's client is whoever holds the API key that called the
+ * endpoint, not a property of the event. So this just round-robins
+ * events across services.
  */
 async function selectFromDatabase(): Promise<Scenario[]> {
   const { getPayload } = await import('payload')
@@ -439,8 +446,8 @@ async function main() {
         hadAttachment = Boolean(attachments?.length)
         const info = await transport.sendMail({
           ...message,
-          // Label the inbox row so scenarios are distinguishable at a glance;
-          // the real subject stays visible inside the message.
+          // Label the inbox row so scenarios are distinguishable at a glance.
+          // The real subject still appears inside the message.
           subject: `[${scenario.label}] ${String(message.subject)}`,
         } as never)
         previews.push({

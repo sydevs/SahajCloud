@@ -31,7 +31,7 @@ export function parseArgs(): CLIArgs {
 /**
  * Print usage information for a seed script
  *
- * @param scriptName - Name of the script (e.g., 'tags', 'meditations')
+ * @param scriptName - Name of the script (for example, 'tags', 'meditations')
  */
 export function printUsage(scriptName: string): void {
   console.log(`Usage: pnpm seed ${scriptName} [options]`)

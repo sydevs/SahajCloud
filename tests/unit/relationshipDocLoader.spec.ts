@@ -3,8 +3,8 @@
  *
  * The loader collapses the per-row N+1 — one `/api/images` request per list
  * row — into a single batched request per collection. These tests pin the
- * coalescing/dedupe/missing-id behaviour using an injected fake fetcher; the
- * real fetcher is thin Payload REST plumbing and isn't worth a unit test.
+ * coalescing/dedupe/missing-id behaviour using an injected fake fetcher. The
+ * real fetcher is thin Payload REST plumbing and is not worth a unit test.
  */
 
 import { describe, expect, it, vi } from 'vitest'
