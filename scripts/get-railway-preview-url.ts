@@ -113,32 +113,52 @@ async function main(): Promise<void> {
     pollIntervalMs: POLL_INTERVAL_MS,
     sleep,
     now: Date.now,
-    log: (message) => console.error(message),
+    log: console.error,
   })
 
   if (outcome.kind === 'unpublished') {
-    // Fail closed. The deploy worked, so re-running changes nothing: the
-    // base environment's SahajCloud service is missing its
-    // Railway-provided domain, and PR services inherit domains only from
-    // a base service that has one.
+    // Fail closed, and do not restate the remediation here — the runbook
+    // owns it, and a copy in this string is the one that goes stale.
+    // Re-running will not help: the deploy already succeeded.
     console.error(
-      '::error title=Railway preview has no URL::The Railway deploy succeeded but published ' +
-        'no host, so the smoke lane has nothing to test. Add a Railway-provided domain to the ' +
-        "`SahajCloud` service in the `production` environment (target port 8080); PR " +
-        'environments inherit one only from a base service that has one. See RAILWAY_RUNBOOK.md.',
+      '::error title=Railway preview has no URL::The Railway deploy succeeded but published no ' +
+        'host, so the smoke lane has nothing to test. This is base-environment configuration, ' +
+        'not a transient failure — re-running produces the same result. Fix: RAILWAY_RUNBOOK.md, ' +
+        '"PR previews inherit their domain from production".',
     )
     exportUrl('')
     process.exit(1)
   }
 
   if (outcome.kind === 'failed') {
-    console.error('Railway preview deploy reported failure — skipping smoke.')
+    console.error(`Railway preview deploy reported ${outcome.state} — skipping smoke.`)
     exportUrl('')
     return
   }
 
   if (outcome.kind === 'timeout') {
-    console.error('No Railway preview URL found within timeout — skipping smoke.')
+    const seconds = Math.round(outcome.elapsedMs / 1000)
+
+    // Every read failed, so we never actually looked. Reporting that as
+    // "no preview exists" is the same silent green #661 was about, through
+    // another door: a revoked `statuses: read` scope reads exactly like a
+    // PR with no preview environment.
+    if (outcome.reads === 0) {
+      console.error(
+        `::error title=Railway preview discovery could not read any status::All ` +
+          `${outcome.errors} request(s) to the GitHub statuses API failed over ${seconds}s, so ` +
+          `whether a preview exists is unknown. Check the workflow's \`statuses: read\` ` +
+          `permission and GITHUB_TOKEN before treating this as an absent preview.`,
+      )
+      exportUrl('')
+      process.exit(1)
+    }
+
+    console.error(
+      outcome.last.kind === 'absent'
+        ? `No Railway preview status appeared in ${seconds}s — skipping smoke.`
+        : `Railway preview never left ${outcome.last.kind} in ${seconds}s — skipping smoke.`,
+    )
     exportUrl('')
     return
   }
