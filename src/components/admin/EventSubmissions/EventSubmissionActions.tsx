@@ -8,6 +8,7 @@ import {
   useForm,
   useFormFields,
   useFormModified,
+  useLocale,
 } from '@payloadcms/ui'
 import { useRouter } from 'next/navigation'
 import React, { useCallback, useState } from 'react'
@@ -61,6 +62,7 @@ const EventSubmissionActions: React.FC = () => {
   const router = useRouter()
   const { submit } = useForm()
   const modified = useFormModified()
+  const { code: locale } = useLocale()
   const status = useFormFields(([fields]) => fields?.status?.value as SubmissionStatus | undefined)
   const [busy, setBusy] = useState<Action | null>(null)
 
@@ -76,13 +78,19 @@ const EventSubmissionActions: React.FC = () => {
         // asking the reviewer to do it in two steps. Nothing else on the page
         // is editable, so a dirty form can only mean the region moved.
         if (action === 'accept' && modified) await submit()
+        // The review op resolves the reviewer's roles at `req.locale`, so the
+        // request must name the active admin locale — without it Payload
+        // resolves the default locale and denies any manager whose roles live
+        // only elsewhere (#701). DELETE is not locale-gated today, but sending
+        // it keeps both calls the same shape and costs nothing.
+        const query = `?locale=${encodeURIComponent(locale)}`
         const response =
           action === 'delete'
-            ? await fetch(`/api/event-submissions/${id}`, {
+            ? await fetch(`/api/event-submissions/${id}${query}`, {
                 method: 'DELETE',
                 credentials: 'include',
               })
-            : await fetch(`/api/event-submissions/${id}/review`, {
+            : await fetch(`/api/event-submissions/${id}/review${query}`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
@@ -106,7 +114,7 @@ const EventSubmissionActions: React.FC = () => {
         setBusy(null)
       }
     },
-    [id, busy, router, submit, modified],
+    [id, busy, router, submit, modified, locale],
   )
 
   // An unsaved document has nothing to act on yet.
