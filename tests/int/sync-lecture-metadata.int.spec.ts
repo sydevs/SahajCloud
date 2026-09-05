@@ -3,8 +3,7 @@ import type { Payload } from 'payload'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SyncLectureMetadata } from '@/jobs/SyncLectureMetadata/SyncLectureMetadata'
-import type { LectureMetadata } from '@/lib/lectures/nirmalaVidya'
-import type { Lecture } from '@/payload-types'
+import type { Lecture, LectureMetadata } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
