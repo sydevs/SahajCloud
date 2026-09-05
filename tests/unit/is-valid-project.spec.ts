@@ -1,27 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { getProjectSlugs, isValidProject } from '@/plugins/access'
+import { isValidProject } from '@/plugins/access'
 
 /**
  * `isValidProject` gates `POST /api/managers/set-project`, through the zod
- * refine that produces its 400. It used to test `value in PROJECTS`, and `in`
- * walks the prototype chain — so `'toString'`, `'constructor'` and
- * `'valueOf'` all passed.
- *
- * The failure was not a widened grant. Payload's own select validation still
- * refused the write, but it threw inside the handler's `try`, so the caller
- * got a 500 `Failed to change project.` where the schema promises a 400
- * `Invalid project.` Found while removing the `''` sentinel (#671), which is
- * what made this guard the field's stated contract.
+ * refine that produces its 400. Each case below states what must hold. See
+ * #671 for the `in` → `Object.hasOwn` fix, and
+ * `tests/int/set-project-endpoint.int.spec.ts` for the 400 it produces.
  */
 
 describe('isValidProject', () => {
-  it('accepts every real project slug', () => {
-    for (const slug of getProjectSlugs()) {
-      expect(isValidProject(slug)).toBe(true)
-    }
-  })
-
   it('accepts null — the admin "All Content" view', () => {
     expect(isValidProject(null)).toBe(true)
   })
