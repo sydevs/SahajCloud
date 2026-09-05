@@ -216,8 +216,10 @@ curl -I https://cloud.sydevelopers.com/admin                # Cache-Control: no-
 `.github/workflows/ci.yml` runs on every PR: lint, typecheck, and `pnpm test` against a
 `postgres:18` service container. It then discovers that PR's Railway preview URL from Railway's
 GitHub commit status via `scripts/get-railway-preview-url.ts` (no Railway API token needed) and
-runs `pnpm test:smoke` against it. The smoke step skips gracefully, and the job stays green, when
-no preview is discovered — treat a skip as "unit and integration passed," not "smoke passed."
+runs `pnpm test:smoke` against it. When a PR genuinely has no preview environment, the smoke step
+skips and the job stays green — treat that skip as "unit and integration passed," not "smoke
+passed." **When a deploy succeeds but publishes no URL, the job now fails instead** (#661); see the
+warning below for why those two cases must not look alike.
 
 Setting up a new PR-preview service the first time: **Project Canvas → + New → GitHub Repo**,
 same `railway.toml` and Railpack builder as production.
