@@ -82,7 +82,13 @@ const PROJECTS = {
     collections: ['regions', 'events', 'registrations', 'images', 'files'],
     globals: ['sy-atlas-config', 'sy-atlas-translations'],
   },
-} as const
+  // `satisfies` pins the keys to the generated `ProjectSlug`, which
+  // `accessPlugin.ts` builds from these same keys. The one drift it catches is
+  // a stale `payload-types.ts`: someone edited this object and skipped
+  // `pnpm generate:types`. That fails `pnpm typecheck` here, at the line being
+  // edited, rather than letting `isValidProject` narrow to a slug Payload
+  // rejects.
+} as const satisfies Record<ProjectSlug, unknown>
 
 /**
  * Admin view constants (for null project handling)
@@ -257,8 +263,8 @@ export function getProjectOptions(): Array<{ value: InternalProjectSlug; label: 
  * Narrows to the **generated** `ProjectSlug`, not the internal
  * `keyof typeof PROJECTS`, so a caller holding the result can hand it
  * straight to Payload without a cast, and no second name for one shape
- * reaches the call sites (`src/types/AGENTS.md`). The two are pinned to each
- * other by `is-valid-project.spec.ts`, so the day they diverge is a failing
+ * reaches the call sites (`src/types/AGENTS.md`). The `satisfies` clause on
+ * `PROJECTS` pins the two together, so a stale `payload-types.ts` is a failing
  * type-check rather than a silent widening here.
  *
  * @param value - Value to validate

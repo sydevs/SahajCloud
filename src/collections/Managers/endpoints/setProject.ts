@@ -9,10 +9,7 @@ const bodySchema = z.object({
   // `null` is the admin "All Content" view. A slug selects a project.
   // `isValidProject` is the membership check, and `''` is not a member.
   //
-  // The refine sits on the FIELD, not the object, so its type predicate
-  // narrows `currentProject` to `ProjectSlug | null` in `parsed.data`. On the
-  // object it would only gate the parse, leaving the field `string | null`
-  // and the update needing a cast to say what the check already established.
+  // The refine sits on the field, so its predicate narrows `parsed.data`.
   currentProject: z
     .string()
     .nullable()
