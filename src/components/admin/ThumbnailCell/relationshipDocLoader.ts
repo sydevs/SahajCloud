@@ -62,8 +62,8 @@ interface PendingBatch {
  *
  * Every `load()` call made within the same microtask tick — i.e. all the
  * thumbnail cells on a list page, whose effects React flushes together — is
- * coalesced into a single request per `relationTo`, collapsing the per-row N+1
- * into one round-trip. See #460.
+ * coalesced into a single request per `relationTo` and locale, collapsing the
+ * per-row N+1 into one round-trip. See #460, and the locale note on `batches`.
  */
 export function createRelationshipDocLoader(
   fetchDocs: FetchRelationshipDocs = fetchRelationshipDocs,

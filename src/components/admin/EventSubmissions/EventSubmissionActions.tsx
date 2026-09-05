@@ -1,5 +1,7 @@
 'use client'
 
+import type { Action } from './urls'
+
 import {
   Button,
   SaveButton,
@@ -19,13 +21,13 @@ import {
   REOPENABLE_STATUSES,
 } from '@/collections/EventSubmissions/statuses'
 
+import { eventSubmissionActionUrl } from './urls'
+
 // The same sets the review op enforces server-side, from the leaf module both
 // can import — a button offered for a status `applyReview` would refuse is a
 // promise the UI can't keep.
 const OPEN = new Set<SubmissionStatus>(OPEN_SUBMISSION_STATUSES)
 const REOPENABLE = new Set<SubmissionStatus>(REOPENABLE_STATUSES)
-
-type Action = 'accept' | 'reject' | 'reopen' | 'delete'
 
 const CONFIRM: Partial<Record<Action, string>> = {
   reject: 'Reject this submission?',
@@ -78,19 +80,21 @@ const EventSubmissionActions: React.FC = () => {
         // asking the reviewer to do it in two steps. Nothing else on the page
         // is editable, so a dirty form can only mean the region moved.
         if (action === 'accept' && modified) await submit()
-        // The review op resolves the reviewer's roles at `req.locale`, so the
-        // request must name the active admin locale — without it Payload
-        // resolves the default locale and denies any manager whose roles live
-        // only elsewhere (#701). DELETE is not locale-gated today, but sending
-        // it keeps both calls the same shape and costs nothing.
-        const query = `?locale=${encodeURIComponent(locale)}`
+        // No locale, no request. Sending one without it resolves the default
+        // locale server-side and reproduces the #701 403 silently — see
+        // `eventSubmissionActionUrl`.
+        const url = eventSubmissionActionUrl(id, action, locale)
+        if (!url) {
+          toast.error('Could not apply that action.')
+          return
+        }
         const response =
           action === 'delete'
-            ? await fetch(`/api/event-submissions/${id}${query}`, {
+            ? await fetch(url, {
                 method: 'DELETE',
                 credentials: 'include',
               })
-            : await fetch(`/api/event-submissions/${id}/review${query}`, {
+            : await fetch(url, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
