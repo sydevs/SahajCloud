@@ -23,7 +23,7 @@
  * @see https://github.com/ggaabe/rrule-temporal
  */
 
-import type { FieldHook } from 'payload'
+import type { FieldHook, JSONField } from 'payload'
 
 import { Temporal } from '@js-temporal/polyfill'
 import { type RRuleOptions, RRuleTemporal } from 'rrule-temporal'
@@ -256,6 +256,24 @@ export const computeIcalRule: FieldHook = ({ siblingData }) => {
  * Exclusion dates are automatically excluded by rrule-temporal's between()
  * and all() methods — no additional filtering is needed.
  */
+export const UPCOMING_DATES_SCHEMA_URI = 'urn:sahajcloud:schema:schedule-upcoming-dates'
+
+/**
+ * What `computeUpcomingDates` returns: up to `UPCOMING_COUNT` ISO 8601 UTC
+ * instants, ascending. Closed because that hook is the only writer and the
+ * column is virtual — nothing stores it, so no row holds an earlier shape.
+ */
+export const upcomingDatesFieldSchema: JSONField['jsonSchema'] = {
+  uri: UPCOMING_DATES_SCHEMA_URI,
+  fileMatch: [UPCOMING_DATES_SCHEMA_URI],
+  schema: {
+    $id: UPCOMING_DATES_SCHEMA_URI,
+    title: 'ScheduleUpcomingDates',
+    type: 'array',
+    items: { type: 'string', description: 'ISO 8601 UTC instant of one occurrence.' },
+  },
+}
+
 export const computeUpcomingDates: FieldHook = ({ siblingData }) => {
   const fields = siblingData as Partial<EventSchedule>
   const rule = buildRRuleTemporal(fields)

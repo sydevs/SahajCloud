@@ -39,12 +39,46 @@ import { recomputeMeditationNodeWeights } from './hooks/recomputeMeditationNodeW
  * Each call maps 1:1 to this native join field config:
  *   { type: 'join', collection: 'user-choices', on: '<onField>' }
  */
+export const TAG_ASSIGNMENTS_SCHEMA_URI = 'urn:sahajcloud:schema:meditation-tag-assignments'
+
+/**
+ * What `virtualJoinField`'s hook returns: the user-choices rows pointing at
+ * this meditation, reduced to what `TagAssignmentField` renders.
+ *
+ * Closed because the hook below is the only writer and the column is virtual —
+ * nothing stores it, so no row exists under an earlier shape. The four call
+ * sites share one `$id`, so Payload emits `TagAssignments`, `TagAssignments1`,
+ * … — one interface per usage, same shape.
+ */
+const tagAssignmentsFieldSchema: JSONField['jsonSchema'] = {
+  uri: TAG_ASSIGNMENTS_SCHEMA_URI,
+  fileMatch: [TAG_ASSIGNMENTS_SCHEMA_URI],
+  schema: {
+    $id: TAG_ASSIGNMENTS_SCHEMA_URI,
+    title: 'TagAssignments',
+    type: 'array',
+    items: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['id', 'title'],
+      properties: {
+        // Narrower than `MeditationFrames`'s id on purpose: nothing posts this
+        // column back, so the only writer is the hook below, which reads a
+        // numeric `user-choices` primary key.
+        id: { type: 'integer', description: 'The UserChoice document id.' },
+        title: { type: 'string', description: 'The tag title, in the read locale.' },
+      },
+    },
+  },
+}
+
 const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField => ({
-  // Virtual: written by the hook below; typed at its source
-  // (the `{ id, title }[]` this factory's hook returns). See `src/collections/AGENTS.md`.
+  // Virtual: written by the hook below, never stored. The schema exists for the
+  // generated type. See `src/collections/AGENTS.md`.
   name,
   type: 'json',
   virtual: true,
+  jsonSchema: tagAssignmentsFieldSchema,
   admin: {
     readOnly: true,
     // Like a real join, this resolves nothing until the doc exists — hide on create.

@@ -96,6 +96,7 @@ content collection.
 | What a REST error body discloses under `config.debug` on/off, and `databaseErrorPlugin`'s 400 surviving both   | `error-disclosure`, `error-disclosure-debug` |
 | The URL and SWR key each hand-rolled admin fetch builds from the active locale, and its refusal to build one without it (#701) | `admin-locale-urls` |
 | JSON columns declare a `jsonSchema` on the real field config, and a custom `validate` composes the built-in one rather than replacing it (#659) | unit: `json-field-schemas.spec.ts` |
+| The six virtual JSON columns match what their `afterRead` hook returns, and `qualityReport`'s two arms stay discriminated (#659) | unit: `json-field-schemas.spec.ts` |
 | The subtitles Zod parser and JSON Schema agree on one fixture set, and part company only where the importer strips  | unit: `subtitles.spec.ts` |
 
 ## Gaps

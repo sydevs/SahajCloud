@@ -19,6 +19,11 @@ export {
 } from './checks'
 export { EMAIL_RE, findStaleDates, GENERIC_TITLE_RE, lexicalPlainText, URL_RE } from './heuristics'
 export { buildEventQualityReport, countOpenDocumentIssues, type BuildReportOptions } from './report'
+export {
+  eventQualityReportFieldSchema,
+  eventQualityReportJsonSchema,
+  EVENT_QUALITY_REPORT_SCHEMA_URI,
+} from './schema'
 export { SKIP_REASON_LABELS, shouldSkipQualityChecks } from './skip'
 export { loadTitleTemplates } from './titleTemplates'
 export type {

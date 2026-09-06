@@ -11,12 +11,12 @@ import { FieldLabel, useDocumentDrawer, useField } from '@payloadcms/ui'
 import Link from 'next/link'
 import { useCallback } from 'react'
 
+import type { TagAssignments } from '@/payload-types'
+
 import { ExternalLinkIcon } from './ExternalLinkIcon'
 
-interface TagAssignment {
-  id: number
-  title: string
-}
+/** One row of the virtual join column, straight off the generated type. */
+type TagAssignment = TagAssignments[number]
 
 /**
  * Individual tag pill that opens a document drawer on click.
