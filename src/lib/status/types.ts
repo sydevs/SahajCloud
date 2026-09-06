@@ -1,6 +1,6 @@
 import type { BasePayload, PayloadRequest, TypedLocale } from 'payload'
 
-import type { ReadinessReport as GeneratedReadinessReport } from '@/payload-types'
+import type { ReadinessReport } from '@/payload-types'
 
 /**
  * Stable identifier emitted by a compute function for a single readiness
@@ -79,18 +79,6 @@ export type ReadinessGroup =
       /** Errored groups have no counter. */
       counter: null
     }
-
-/**
- * Per-section readiness output. Every group contributes `1/1` to its
- * section's `summary`; per-document totals stay inside each group's
- * own `summary`.
- *
- * Straight off the generated type: `readinessReportJsonSchema` in
- * `./virtualReadinessField` is spliced into every readiness column, so this
- * alias cannot drift from what those columns return. `summary` counts required
- * groups only; `progress` sums every group's `counter`, optional ones included.
- */
-export type ReadinessReport = GeneratedReadinessReport
 
 /** How an aggregate group's item rows are summarized in the table view. */
 export type RowDisplay = 'all' | 'summarize-excess' | 'collapse-passing'

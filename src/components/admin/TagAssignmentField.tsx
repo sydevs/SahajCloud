@@ -15,15 +15,12 @@ import type { TagAssignments } from '@/payload-types'
 
 import { ExternalLinkIcon } from './ExternalLinkIcon'
 
-/** One row of the virtual join column, straight off the generated type. */
-type TagAssignment = TagAssignments[number]
-
 /**
  * Individual tag pill that opens a document drawer on click.
  * Extracted as a separate component because useDocumentDrawer is a hook
  * and cannot be called inside a loop.
  */
-const TagPill: React.FC<{ tag: TagAssignment }> = ({ tag }) => {
+const TagPill: React.FC<{ tag: TagAssignments[number] }> = ({ tag }) => {
   const [DocumentDrawer, , { openDrawer }] = useDocumentDrawer({
     collectionSlug: 'user-choices',
     id: tag.id,
@@ -64,7 +61,7 @@ const TagPill: React.FC<{ tag: TagAssignment }> = ({ tag }) => {
 
 export const TagAssignmentField: JSONFieldClientComponent = ({ field }) => {
   const { name, label } = field
-  const { value } = useField<TagAssignment[]>()
+  const { value } = useField<TagAssignments>()
 
   const tags = Array.isArray(value) ? value : []
 

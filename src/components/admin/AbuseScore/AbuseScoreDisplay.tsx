@@ -2,7 +2,10 @@
 
 import { Pill } from '@payloadcms/ui'
 
-import type { AbuseLevel, AbuseScore } from '@/plugins/usage/abuse'
+import type { ClientAbuseScore } from '@/payload-types'
+
+/** Local shorthand — this file names the severity band four times. */
+type AbuseLevel = ClientAbuseScore['level']
 
 /**
  * Get Pill style for abuse level.
@@ -19,7 +22,7 @@ function getPillStyle(level: AbuseLevel): 'error' | 'warning' | 'success' | unde
 }
 
 interface AbuseScoreDisplayProps {
-  abuseScore: AbuseScore | null
+  abuseScore: ClientAbuseScore | null
 }
 
 /**

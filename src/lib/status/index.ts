@@ -8,7 +8,6 @@ export type {
   GroupRowLinkTarget,
   GroupView,
   ReadinessGroup,
-  ReadinessReport,
   RowDisplay,
 } from './types'
 export { aggregateGroup, documentsGroup, erroredGroup, isGroupPassing, summarize } from './groups'

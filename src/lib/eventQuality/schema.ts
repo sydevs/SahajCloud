@@ -1,5 +1,8 @@
 /**
- * The JSON-Schema twin of `EventQualityReport`, for `Events.qualityReport`.
+ * The schema behind `EventQualityReport`, for `Events.qualityReport`.
+ *
+ * Flat, because `title` stopped being localized — the Atlas widget translates
+ * client-side from the one stored value.
  *
  * That column is virtual: `computeEventQualityReport` is its only writer and
  * nothing stores it, so the shape can be closed — no row exists under an

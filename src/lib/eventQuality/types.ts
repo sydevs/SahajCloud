@@ -1,7 +1,6 @@
 import type { RedundancyKind } from './copy'
 
 import type { EventTitleSlot } from '@/lib/eventTitle/compose'
-import type { EventQualityReport as GeneratedEventQualityReport } from '@/payload-types'
 
 export type { RedundancyKind }
 
@@ -34,16 +33,6 @@ export type QualityCheckResult = {
 
 /** Why the checks weren't run at all. */
 export type QualitySkipReason = 'unpublished' | 'finished' | 'expired' | 'denied' | 'trashed'
-
-/**
- * The whole report, as returned by the virtual field in a single read.
- *
- * Straight off the generated type: `eventQualityReportJsonSchema` in `./schema`
- * is spliced into `Events.qualityReport`, so this alias cannot drift from the
- * column it describes. Flat, because `title` stopped being localized — the
- * Atlas widget translates client-side from the one stored value.
- */
-export type EventQualityReport = GeneratedEventQualityReport
 
 /**
  * The slice of an event a check reads. Loose on purpose: the report is built

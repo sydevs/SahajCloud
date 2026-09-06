@@ -10,38 +10,18 @@
 import type { JSONSchema4 } from 'json-schema'
 import type { JSONField } from 'payload'
 
+import type { ClientAbuseScore } from '@/payload-types'
+
 import { HIGH_USAGE_THRESHOLD } from './constants'
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-export type AbuseLevel = 'normal' | 'elevated' | 'high' | 'critical'
-
-export interface AbuseScore {
-  /** Abuse score from 0-100 */
-  score: number
-  /** Severity level based on score thresholds */
-  level: AbuseLevel
-  /** Individual component contributions to the score */
-  breakdown: {
-    /** Frequency contribution (0-40) */
-    frequency: number
-    /** Recency contribution (0-30) */
-    recency: number
-    /** Current spike contribution (0-30) */
-    current: number
-  }
-}
 
 export const ABUSE_SCORE_SCHEMA_URI = 'urn:sahajcloud:schema:client-abuse-score'
 
 /**
- * The JSON-Schema twin of `AbuseScore`, for `Clients.usage.abuseScore`.
+ * The schema behind `ClientAbuseScore`, for `Clients.usage.abuseScore`.
  *
  * That column is virtual: `calculateAbuseScore` below is its only writer and
  * nothing stores it, so the shape can be closed — no row exists under an
- * earlier one. `abuse.spec.ts` pins the two definitions to each other.
+ * earlier one. `json-field-schemas.spec.ts` pins the generated type to it.
  */
 export const abuseScoreJsonSchema: JSONSchema4 = {
   $id: ABUSE_SCORE_SCHEMA_URI,
@@ -96,7 +76,7 @@ export function calculateAbuseScore(usage: {
   highUsageDays?: number | null
   lastHighUsageAt?: string | null
   firstRequestAt?: string | null
-}): AbuseScore {
+}): ClientAbuseScore {
   const { dailyRequests = 0, highUsageDays = 0, lastHighUsageAt, firstRequestAt } = usage
 
   // Calculate days active (minimum 1)
@@ -123,7 +103,7 @@ export function calculateAbuseScore(usage: {
   const score = frequency + recency + current
 
   // Determine level
-  const level: AbuseLevel =
+  const level: ClientAbuseScore['level'] =
     score >= 75 ? 'critical' : score >= 50 ? 'high' : score >= 25 ? 'elevated' : 'normal'
 
   return { score, level, breakdown: { frequency, recency, current } }

@@ -396,10 +396,13 @@ Two consequences worth knowing:
   future occurrence, no locale — is not expressible alongside `properties`
   (see the bullet above), so a consumer still null-checks.
 
-Then **delete the hand-written type the schema replaces**, or the repo ends
-up with two same-named definitions of one shape: `EventQualityReport` and
-`ReadinessReport` are now aliases of the generated interfaces for exactly
-that reason.
+Then **delete the hand-written type the schema replaces, and import the
+generated one at each call site** — do not leave an alias behind. An alias
+puts the shape's name in two places, and the next reader cannot see what it
+came from (`src/types/AGENTS.md`, "A derived alias stays local, and is never
+re-exported"). `EventQualityReport`, `ReadinessReport`, `ClientAbuseScore`
+and `TagAssignments` are all imported from `@/payload-types` directly for
+exactly that reason.
 
 ## Activity logs (`logField`)
 

@@ -1,5 +1,8 @@
 import type { ProjectRequestContext, SectionSpec } from './spec'
-import type { ReadinessGroup, ReadinessReport } from './types'
+import type { ReadinessGroup } from './types'
+
+import type { ReadinessReport } from '@/payload-types'
+
 
 import { aggregateGroup, documentsGroup, erroredGroup, summarize } from './groups'
 

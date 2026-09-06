@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { ChecksMetadata } from '@/components/admin/EventQualityPanel/model'
 import { buildPanelModel } from '@/components/admin/EventQualityPanel/model'
 import { EVENT_QUALITY_CHECK_METADATA } from '@/lib/eventQuality'
-import type { EventQualityReport } from '@/lib/eventQuality/types'
+import type { EventQualityReport } from '@/payload-types'
 
 const metadata = EVENT_QUALITY_CHECK_METADATA as ChecksMetadata
 
