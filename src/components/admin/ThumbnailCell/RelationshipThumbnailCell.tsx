@@ -3,7 +3,7 @@
 import type { RelationshipDoc } from './relationshipDocLoader'
 import type { DefaultCellComponentProps, UploadFieldClient } from 'payload'
 
-import { useDocumentDrawer } from '@payloadcms/ui'
+import { useDocumentDrawer, useLocale } from '@payloadcms/ui'
 import { useCallback, useEffect, useState } from 'react'
 
 
@@ -18,22 +18,23 @@ import { relationshipDocLoader } from './relationshipDocLoader'
 function useRelationshipDoc(
   relationTo: string,
   id: string | null,
+  locale: string,
 ): RelationshipDoc | null | undefined {
   const [doc, setDoc] = useState<RelationshipDoc | null | undefined>(undefined)
 
   useEffect(() => {
-    if (id == null) {
+    if (id == null || !locale) {
       setDoc(null)
       return
     }
     let active = true
-    void relationshipDocLoader.load(relationTo, id).then((resolved) => {
+    void relationshipDocLoader.load(relationTo, id, locale).then((resolved) => {
       if (active) setDoc(resolved)
     })
     return () => {
       active = false
     }
-  }, [relationTo, id])
+  }, [relationTo, id, locale])
 
   return doc
 }
@@ -62,6 +63,11 @@ export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
   // cellData is the related document ID (number or string)
   const relatedId = cellData != null ? String(cellData) : null
 
+  // The read gate resolves roles at `req.locale`, so the request must name the
+  // active admin locale or a manager without default-locale roles sees only
+  // placeholders (#701).
+  const { code: locale } = useLocale()
+
   // Document drawer for opening related document in overlay
   // useDocumentDrawer expects number | null | undefined for id
   const [DocumentDrawer, , { openDrawer }] = useDocumentDrawer({
@@ -77,7 +83,7 @@ export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
     [openDrawer],
   )
 
-  const doc = useRelationshipDoc(relationTo, relatedId)
+  const doc = useRelationshipDoc(relationTo, relatedId, locale)
 
   return (
     <>
