@@ -118,8 +118,6 @@ export type SupportedTimezones =
   | 'America/Swift_Current'
   | 'Canada/Saskatchewan'
   | 'America/Tegucigalpa'
-  | 'Pacific/Easter'
-  | 'Chile/EasterIsland'
   | 'Pacific/Galapagos'
   | 'America/Edmonton'
   | 'America/Cambridge_Bay'
@@ -153,6 +151,8 @@ export type SupportedTimezones =
   | 'America/Resolute'
   | 'Canada/Central'
   | 'America/Rainy_River'
+  | 'Pacific/Easter'
+  | 'Chile/EasterIsland'
   | 'America/Atikokan'
   | 'America/Cancun'
   | 'America/Cayman'
@@ -194,7 +194,6 @@ export type SupportedTimezones =
   | 'America/Curacao'
   | 'America/Santo_Domingo'
   | 'America/La_Paz'
-  | 'Chile/Continental'
   | 'America/Havana'
   | 'Cuba'
   | 'America/Nassau'
@@ -261,6 +260,7 @@ export type SupportedTimezones =
   | 'Antarctica/Rothera'
   | 'America/Punta_Arenas'
   | 'America/Coyhaique'
+  | 'Chile/Continental'
   | 'Atlantic/Stanley'
   | 'America/Cayenne'
   | 'America/Asuncion'
@@ -601,9 +601,46 @@ export type SupportedTimezones =
   | 'Etc/GMT+10'
   | 'Etc/GMT+11'
   | 'Etc/GMT+12';
+export type ScheduleUpcomingDates = string[];
+export type EventQualityReport =
+  | {
+      skipped: true;
+      /**
+       * Why the checks were not run at all.
+       */
+      reason: 'unpublished' | 'finished' | 'expired' | 'denied' | 'trashed';
+    }
+  | {
+      skipped: false;
+      checks: {
+        /**
+         * Stable check id, labelled elsewhere.
+         */
+        key: string;
+        status: 'passed' | 'failed' | 'pending';
+        /**
+         * What went wrong, for a check folding several problems into one.
+         */
+        detail?: string;
+      }[];
+      /**
+       * Failed items — what `qualityOpenCount` stores.
+       */
+      openCount: number;
+    };
 export type MeditationNodeWeights = {
   [k: string]: number;
 } | null;
+export type TagAssignments = {
+  /**
+   * The UserChoice document id.
+   */
+  id: number;
+  /**
+   * The tag title, in the read locale.
+   */
+  title: string;
+}[];
 export type MeditationFrames = {
   /**
    * The Frame document id.
@@ -1770,15 +1807,7 @@ export interface Event {
       | null;
     lastDate?: string | null;
     icalRule?: string | null;
-    upcomingDates?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
+    upcomingDates?: ScheduleUpcomingDates;
   };
   registrationMode: 'sahaj-atlas' | 'external';
   externalRegistrationUrl?: string | null;
@@ -1834,15 +1863,7 @@ export interface Event {
    * How strongly attendees confirm this event is real (0–1). Rises with confirmations, falls with denials, and stays cautious while there are few votes — the Atlas map ranks unverified listings by it. Blank until the first vote.
    */
   confidenceScore?: number | null;
-  qualityReport?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  qualityReport?: EventQualityReport;
   /**
    * Who submitted this listing (record-keeping only).
    */
@@ -1863,7 +1884,7 @@ export interface Event {
    * Check-set version the count was stamped from.
    */
   qualityCheckVersion?: number | null;
-  systemMeta?: HttpsSahajcloudDevSchemasEventSystemMetaJson;
+  systemMeta?: EventSystemMeta;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -2251,10 +2272,10 @@ export interface Client {
      * Which of the embeds this service reported owns the canonical URLs. Domain, mount and routing all come from this one choice.
      */
     embed?: string | null;
-    verification?: HttpsSahajcloudDevSchemasClientCanonicalVerificationJson;
+    verification?: ClientCanonicalVerification;
     nextVerifyAt?: string | null;
   };
-  embedMetadata?: HttpsSahajcloudDevSchemasClientEmbedMetadataJson;
+  embedMetadata?: ClientEmbedMetadata;
   /**
    * Purpose and usage notes for this client
    */
@@ -2283,15 +2304,7 @@ export interface Client {
    * API usage statistics
    */
   usage?: {
-    abuseScore?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
+    abuseScore?: ClientAbuseScore;
     /**
      * Today's request count
      */
@@ -2339,7 +2352,7 @@ export interface Client {
   apiKeyIndex?: string | null;
   collection: 'clients';
 }
-export interface HttpsSahajcloudDevSchemasClientCanonicalVerificationJson {
+export interface ClientCanonicalVerification {
   verified: {
     domain: string;
     mount: string;
@@ -2354,7 +2367,7 @@ export interface HttpsSahajcloudDevSchemasClientCanonicalVerificationJson {
     reason?: 'dns' | 'http' | 'marker-absent' | 'not-configured' | 'provider-error' | 'quota' | 'bot-challenge';
   }[];
 }
-export interface HttpsSahajcloudDevSchemasClientEmbedMetadataJson {
+export interface ClientEmbedMetadata {
   [k: string]: {
     mode: 'inline' | 'iframe';
     topLevel: boolean;
@@ -2364,7 +2377,31 @@ export interface HttpsSahajcloudDevSchemasClientEmbedMetadataJson {
     lastSeen: string;
   };
 }
-export interface HttpsSahajcloudDevSchemasEventSystemMetaJson {
+export interface ClientAbuseScore {
+  /**
+   * Abuse score from 0-100.
+   */
+  score: number;
+  /**
+   * Severity band the score falls in.
+   */
+  level: 'normal' | 'elevated' | 'high' | 'critical';
+  breakdown: {
+    /**
+     * Frequency contribution (0-40).
+     */
+    frequency: number;
+    /**
+     * Recency contribution (0-30).
+     */
+    recency: number;
+    /**
+     * Current-spike contribution (0-30).
+     */
+    current: number;
+  };
+}
+export interface EventSystemMeta {
   communityFeedback?: {
     /**
      * Registrants who confirmed the event exists.
@@ -2435,42 +2472,10 @@ export interface Meditation {
    * Shows which categories use this meditation for each time of day. Managed from the Categories collection.
    */
   tagAssignments?: {
-    asMorningMeditation?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    asAfternoonMeditation?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    asEveningMeditation?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    asNightMeditation?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
+    asMorningMeditation?: TagAssignments;
+    asAfternoonMeditation?: TagAssignments;
+    asEveningMeditation?: TagAssignments;
+    asNightMeditation?: TagAssignments;
   };
   frames?: MeditationFrames;
   updatedAt: string;
@@ -3127,15 +3132,7 @@ export interface AppCard {
   id: number;
   label?: string | null;
   type: 'standard' | 'event';
-  viewSchedule?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  viewSchedule?: AppCardViewSchedule;
   default: {
     /**
      * Shown above the card in hero placement.
@@ -3289,15 +3286,7 @@ export interface AppCard {
       | null;
     lastDate?: string | null;
     icalRule?: string | null;
-    upcomingDates?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
+    upcomingDates?: ScheduleUpcomingDates;
   };
   /**
    * Target sections where this card should appear on the app homepage.
@@ -3322,6 +3311,18 @@ export interface AppCard {
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
+}
+export interface AppCardViewSchedule {
+  /**
+   * IANA zone the schedule keys are read in.
+   */
+  timezone: string;
+  /**
+   * HH:MM (24-hour UTC) → the view active from then until the next key.
+   */
+  schedule: {
+    [k: string]: 'startingSoon' | 'liveNow' | 'default';
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -5935,90 +5936,13 @@ export interface WmAppTranslation {
  */
 export interface WmAppStatus {
   id: number;
-  /**
-   * Computed launch-readiness report for the userChoices section in the current locale.
-   */
-  userChoices?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Computed launch-readiness report for the lessons section in the current locale.
-   */
-  lessons?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Computed launch-readiness report for the lectures section in the current locale.
-   */
-  lectures?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Computed launch-readiness report for the pages section in the current locale.
-   */
-  pages?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Computed launch-readiness report for the appConfig section in the current locale.
-   */
-  appConfig?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Computed launch-readiness report for the translations section in the current locale.
-   */
-  translations?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Computed launch-readiness report for the appCards section in the current locale.
-   */
-  appCards?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  userChoices?: ReadinessReport;
+  lessons?: ReadinessReport;
+  lectures?: ReadinessReport;
+  pages?: ReadinessReport;
+  appConfig?: ReadinessReport;
+  translations?: ReadinessReport;
+  appCards?: ReadinessReport;
   /**
    * App cards that must be ready before launch. All other app cards roll up under the optional "other-cards" group.
    */
@@ -6278,6 +6202,74 @@ export interface WmAppStatus {
     | 'ZW';
   updatedAt?: string | null;
   createdAt?: string | null;
+}
+export interface ReadinessReport {
+  groups: (
+    | {
+        type: 'documents';
+        key: string;
+        optional?: boolean;
+        documents: {
+          id: number | string;
+          label: string;
+          checks: {
+            key: string;
+            passed: boolean;
+          }[];
+        }[];
+        summary: {
+          total: number;
+          passing: number;
+        };
+        passing: boolean;
+        counter: {
+          current: number;
+          total: number;
+        };
+      }
+    | {
+        type: 'aggregate';
+        key: string;
+        optional?: boolean;
+        passed: boolean;
+        actual: number;
+        threshold: number;
+        items?: {
+          id: number | string;
+          label: string;
+          checks: {
+            key: string;
+            passed: boolean;
+          }[];
+        }[];
+        passing: boolean;
+        counter: {
+          current: number;
+          total: number;
+        };
+      }
+    | {
+        type: 'errored';
+        key: string;
+        optional?: boolean;
+        error: string;
+        passing: false;
+        counter: null;
+      }
+  )[];
+  summary: {
+    total: number;
+    passing: number;
+  };
+  optionalSummary?: {
+    total: number;
+    passing: number;
+  };
+  passing: boolean;
+  progress: {
+    passing: number;
+    total: number;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

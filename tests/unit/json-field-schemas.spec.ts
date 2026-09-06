@@ -3,15 +3,24 @@ import type { Field, JSONField } from 'payload'
 import { json as jsonFieldValidation } from 'payload/shared'
 import { describe, expect, it } from 'vitest'
 
+import { AppCards, VIEW_SCHEDULE_SCHEMA_URI } from '@/collections/AppCards/AppCards'
+import { Clients } from '@/collections/Clients/Clients'
+import { Events } from '@/collections/Events/Events'
 import { Lectures } from '@/collections/Lectures/Lectures'
 import { Managers } from '@/collections/Managers/Managers'
-import { Meditations } from '@/collections/Meditations/Meditations'
+import { Meditations, TAG_ASSIGNMENTS_SCHEMA_URI } from '@/collections/Meditations/Meditations'
 import { Videos } from '@/collections/Videos/Videos'
 import { FILE_METADATA_SCHEMA_URI } from '@/fields'
+import { WeMeditateAppStatus } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
+import { EVENT_QUALITY_REPORT_SCHEMA_URI } from '@/lib/eventQuality'
 import { LECTURE_METADATA_SCHEMA_URI } from '@/lib/lectures/nirmalaVidya'
 import { MEDITATION_FRAMES_SCHEMA_URI, NODE_WEIGHTS_SCHEMA_URI } from '@/lib/meditations/frames'
 import { TableOfContentsBlock } from '@/lib/richEditor/blocks/TableOfContentsBlock'
+import { UPCOMING_DATES_SCHEMA_URI } from '@/lib/schedule/scheduleHooks'
+import type { ReadinessReport } from '@/lib/status'
+import { READINESS_REPORT_SCHEMA_URI } from '@/lib/status/virtualReadinessField'
 import { SUBTITLES_SCHEMA_URI } from '@/lib/utilities/subtitles'
+import { ABUSE_SCORE_SCHEMA_URI, type AbuseScore } from '@/plugins/usage'
 
 /**
  * #659: every JSON column that can state its shape now declares a `jsonSchema`,
@@ -244,6 +253,110 @@ describe('Meditations', () => {
   it('accepts a node-weight map and refuses a non-numeric weight', () => {
     expect(runSchema(weights, { 'left-nabhi': 12.5, agnya: 4 })).toBe(true)
     expect(runSchema(weights, { agnya: 'four' })).not.toBe(true)
+  })
+})
+
+/**
+ * The six virtual JSON columns. Nothing stores these — an `afterRead` hook is
+ * each one's only writer — so the schema buys the generated type rather than a
+ * write gate, and can be closed without stranding a row written under an
+ * earlier shape.
+ *
+ * Each case asserts the schema is wired onto the **real** field and that it
+ * accepts what its hook returns while refusing a drifted shape. A schema that
+ * stopped matching its hook's output would still pass a test written against a
+ * copy of the schema, which is why these read the configs.
+ */
+describe('virtual columns', () => {
+  it('types AppCards.viewSchedule as the hook returns it', () => {
+    const field = jsonField(AppCards.fields, 'viewSchedule')
+    expect(field.jsonSchema?.uri).toBe(VIEW_SCHEDULE_SCHEMA_URI)
+    expect(runSchema(field, { timezone: 'Europe/Amsterdam', schedule: { '00:00': 'default' } })).toBe(
+      true,
+    )
+    // A view name the hook cannot emit, and the timezone the hook always sets.
+    expect(runSchema(field, { timezone: 'UTC', schedule: { '00:00': 'unknown' } })).not.toBe(true)
+    expect(runSchema(field, { schedule: { '00:00': 'default' } })).not.toBe(true)
+  })
+
+  it('types Clients.usage.abuseScore as `AbuseScore`', () => {
+    const field = jsonField(Clients.fields, 'abuseScore')
+    expect(field.jsonSchema?.uri).toBe(ABUSE_SCORE_SCHEMA_URI)
+    const score: AbuseScore = {
+      score: 42,
+      level: 'elevated',
+      breakdown: { frequency: 12, recency: 20, current: 10 },
+    }
+    expect(runSchema(field, score)).toBe(true)
+    // `calculateAbuseScore` always fills the whole breakdown.
+    expect(runSchema(field, { ...score, breakdown: { frequency: 12, recency: 20 } })).not.toBe(true)
+    expect(runSchema(field, { ...score, level: 'severe' })).not.toBe(true)
+  })
+
+  it('keeps both arms of Events.qualityReport discriminated', () => {
+    const field = jsonField(Events.fields, 'qualityReport')
+    expect(field.jsonSchema?.uri).toBe(EVENT_QUALITY_REPORT_SCHEMA_URI)
+    expect(runSchema(field, { skipped: true, reason: 'unpublished' })).toBe(true)
+    expect(
+      runSchema(field, {
+        skipped: false,
+        checks: [{ key: 'has-description', status: 'failed', detail: 'Too short' }],
+        openCount: 1,
+      }),
+    ).toBe(true)
+    // Crossing the two arms is what `oneOf` exists to refuse — a skipped report
+    // carrying checks would let a reader narrow on `skipped` and still be wrong.
+    expect(runSchema(field, { skipped: true, reason: 'finished', openCount: 0 })).not.toBe(true)
+    expect(runSchema(field, { skipped: false, openCount: 0 })).not.toBe(true)
+  })
+
+  it('types the Meditations virtual join columns', () => {
+    const field = jsonField(Meditations.fields, 'asMorningMeditation')
+    expect(field.jsonSchema?.uri).toBe(TAG_ASSIGNMENTS_SCHEMA_URI)
+    expect(runSchema(field, [{ id: 7, title: 'Morning' }])).toBe(true)
+    // The hook selects exactly these two keys off a numeric primary key, and
+    // `TagAssignmentField` hands the id straight to `useDocumentDrawer`.
+    expect(runSchema(field, [{ id: '7', title: 'Morning' }])).not.toBe(true)
+    expect(runSchema(field, [{ id: 7 }])).not.toBe(true)
+  })
+
+  it('types schedule.upcomingDates as ISO strings', () => {
+    const field = jsonField(Events.fields, 'upcomingDates')
+    expect(field.jsonSchema?.uri).toBe(UPCOMING_DATES_SCHEMA_URI)
+    expect(runSchema(field, ['2026-09-07T18:00:00.000Z'])).toBe(true)
+    expect(runSchema(field, [1757269200000])).not.toBe(true)
+  })
+
+  it('types a readiness section as `ReadinessReport`, groups discriminated', () => {
+    const field = jsonField(WeMeditateAppStatus.fields, 'appCards')
+    expect(field.jsonSchema?.uri).toBe(READINESS_REPORT_SCHEMA_URI)
+    const report: ReadinessReport = {
+      groups: [
+        {
+          type: 'aggregate',
+          key: 'launch-critical-cards',
+          passed: true,
+          actual: 3,
+          threshold: 3,
+          passing: true,
+          counter: { current: 3, total: 3 },
+        },
+        { type: 'errored', key: 'other-cards', error: 'boom', passing: false, counter: null },
+      ],
+      summary: { total: 2, passing: 1 },
+      passing: false,
+      progress: { passing: 3, total: 3 },
+    }
+    expect(runSchema(field, report)).toBe(true)
+    // An errored group never passes and never carries a counter — both are
+    // baked facts the widget reads without re-deriving them.
+    expect(
+      runSchema(field, {
+        ...report,
+        groups: [{ type: 'errored', key: 'x', error: 'boom', passing: true, counter: null }],
+      }),
+    ).not.toBe(true)
+    expect(runSchema(field, { ...report, groups: [{ type: 'documents', key: 'x' }] })).not.toBe(true)
   })
 })
 

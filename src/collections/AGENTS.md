@@ -366,10 +366,40 @@ examples; `tests/unit/json-field-schemas.spec.ts` fails if either stops
 composing.
 
 **Leave the shape open where it is genuinely open** — a verbatim legacy
-import, a third-party payload, a value one of our own `afterRead` hooks
-produces and nothing ever writes. Say so in a one-line comment naming
+import, or a third-party payload. Say so in a one-line comment naming
 where the type already lives, rather than restating that type as a second
 definition.
+
+### A virtual column takes a schema too, and it can be closed
+
+`virtual: true` changes what the schema is *for*, not whether to write one.
+Nothing stores the column, so the Ajv validator has nothing to gate — but
+`generate:types` still reads the schema, and without one the column's type
+is the loose union above. "Typed at its source" types the **hook**, never
+the interface, so every consumer reading the field still casts.
+
+The `required` / `additionalProperties: false` caution above does not apply
+here: the caution exists because a stored row written under an earlier
+shape must stay saveable, and a virtual column has no stored row. Its only
+writer is its own `afterRead` hook, so close the shape to match what that
+hook returns — `Events.qualityReport`, `Clients.usage.abuseScore`,
+`AppCards.viewSchedule`, `schedule.upcomingDates`, the Meditations join
+columns, and every readiness section all do.
+
+Two consequences worth knowing:
+
+- **Write a union as `oneOf`, not one object with optional keys.** `oneOf`
+  keeps the discriminator, so a reader narrowing on `qualityReport.skipped`
+  gets `checks` non-null. Merged into one object, both arms' keys become
+  optional and the narrowing is gone.
+- **The generated type still omits `null`.** A hook returning `null` — no
+  future occurrence, no locale — is not expressible alongside `properties`
+  (see the bullet above), so a consumer still null-checks.
+
+Then **delete the hand-written type the schema replaces**, or the repo ends
+up with two same-named definitions of one shape: `EventQualityReport` and
+`ReadinessReport` are now aliases of the generated interfaces for exactly
+that reason.
 
 ## Activity logs (`logField`)
 

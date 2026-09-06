@@ -7,6 +7,9 @@
  * - Current (30%): dailyRequests / threshold
  */
 
+import type { JSONSchema4 } from 'json-schema'
+import type { JSONField } from 'payload'
+
 import { HIGH_USAGE_THRESHOLD } from './constants'
 
 // ============================================================================
@@ -29,6 +32,48 @@ export interface AbuseScore {
     /** Current spike contribution (0-30) */
     current: number
   }
+}
+
+export const ABUSE_SCORE_SCHEMA_URI = 'urn:sahajcloud:schema:client-abuse-score'
+
+/**
+ * The JSON-Schema twin of `AbuseScore`, for `Clients.usage.abuseScore`.
+ *
+ * That column is virtual: `calculateAbuseScore` below is its only writer and
+ * nothing stores it, so the shape can be closed — no row exists under an
+ * earlier one. `abuse.spec.ts` pins the two definitions to each other.
+ */
+export const abuseScoreJsonSchema: JSONSchema4 = {
+  $id: ABUSE_SCORE_SCHEMA_URI,
+  title: 'ClientAbuseScore',
+  type: 'object',
+  additionalProperties: false,
+  required: ['score', 'level', 'breakdown'],
+  properties: {
+    score: { type: 'number', description: 'Abuse score from 0-100.' },
+    level: {
+      type: 'string',
+      enum: ['normal', 'elevated', 'high', 'critical'],
+      description: 'Severity band the score falls in.',
+    },
+    breakdown: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['frequency', 'recency', 'current'],
+      properties: {
+        frequency: { type: 'number', description: 'Frequency contribution (0-40).' },
+        recency: { type: 'number', description: 'Recency contribution (0-30).' },
+        current: { type: 'number', description: 'Current-spike contribution (0-30).' },
+      },
+    },
+  },
+}
+
+/** The field-level wrapper Payload wants — see `Clients.usage.abuseScore`. */
+export const abuseScoreFieldSchema: JSONField['jsonSchema'] = {
+  uri: ABUSE_SCORE_SCHEMA_URI,
+  fileMatch: [ABUSE_SCORE_SCHEMA_URI],
+  schema: abuseScoreJsonSchema,
 }
 
 // ============================================================================

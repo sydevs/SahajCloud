@@ -8,7 +8,7 @@ import {
 } from '@/lib/clients/verification'
 import { getLanguageOptions } from '@/lib/locales'
 import { getRoleOptions } from '@/plugins/access'
-import { calculateAbuseScore } from '@/plugins/usage'
+import { abuseScoreFieldSchema, calculateAbuseScore } from '@/plugins/usage'
 
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
@@ -333,11 +333,12 @@ export const Clients: CollectionConfig = {
       },
       fields: [
         {
-          // Virtual: written by the hook below; typed at its source
-          // (`AbuseScore` in `@/plugins/usage`). See `src/collections/AGENTS.md`.
+          // Virtual: written by the hook below, never stored. The schema mirrors
+          // `AbuseScore` in `@/plugins/usage`. See `src/collections/AGENTS.md`.
           name: 'abuseScore',
           type: 'json',
           virtual: true,
+          jsonSchema: abuseScoreFieldSchema,
           hooks: {
             afterRead: [
               ({ siblingData }) => {

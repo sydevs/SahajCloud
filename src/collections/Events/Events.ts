@@ -27,7 +27,11 @@ import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { getRegionWebPaths } from '@/lib/atlas/regionTree'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
-import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS } from '@/lib/eventQuality'
+import {
+  eventQualityReportFieldSchema,
+  EVENT_QUALITY_CHECK_METADATA,
+  SKIP_REASON_LABELS,
+} from '@/lib/eventQuality'
 import { communityFeedbackJsonSchema } from '@/lib/eventVerification/communityFeedback'
 import {
   DEFAULT_VERIFICATION_STAGE,
@@ -630,11 +634,12 @@ export const Events: CollectionConfig = {
       // localized either, and the per-locale tier's whole job is answering
       // "which of my languages is missing a title." A localized field
       // returns only the active locale, so it structurally cannot answer that.
-      // Virtual: written by the hook below; typed at its source
-      // (`EventQualityReport` in `@/lib/eventQuality`). See `src/collections/AGENTS.md`.
+      // Virtual: written by the hook below, never stored. The schema mirrors
+      // `EventQualityReport` in `@/lib/eventQuality`. See `src/collections/AGENTS.md`.
       name: 'qualityReport',
       type: 'json',
       virtual: true,
+      jsonSchema: eventQualityReportFieldSchema,
       label: false,
       admin: {
         position: 'sidebar',
