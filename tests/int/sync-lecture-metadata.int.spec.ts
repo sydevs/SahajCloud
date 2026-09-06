@@ -172,6 +172,27 @@ describe('SyncLectureMetadata task', () => {
     void lectureB
   })
 
+  it('runs unscoped when the schedule passes no input at all', async () => {
+    // The monthly schedule (`0 3 1 * *`) supplies no input. Every other case
+    // here passes `lectureIds`, so this is the only cover for the one path
+    // that actually runs in production.
+    await testData.createLecture(payload, undefined, {
+      nirmalVidyaVimeoUrl: 'https://vimeo.com/20000003',
+    })
+    const info = vi.spyOn(payload.logger, 'info')
+
+    try {
+      const output = await runTaskHandler(SyncLectureMetadata, { payload })
+
+      expect(output.totalProcessed).toBeGreaterThan(0)
+      expect(info).toHaveBeenCalledWith(
+        expect.objectContaining({ msg: 'Starting SyncLectureMetadata', scope: 'all lectures' }),
+      )
+    } finally {
+      info.mockRestore()
+    }
+  })
+
   it('skips clip-type lectures (only full lectures own metadata)', async () => {
     // Create a full parent + a clip pointing at it.
     const parent = await testData.createLecture(payload)
