@@ -38,7 +38,7 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
       CUSTOM_ENDPOINT_PATHS['/api/events/geojson']?.get as { description?: string }
     ).description
     expect(description).toContain('Finished events are excluded')
-    // The definition, the timezone rule, and that `where` can't override it here.
+    // The definition, the timezone rule, and that `where` cannot override it here.
     expect(description).toContain('schedule.lastDate')
     expect(description).toContain('own timezone')
     expect(description).toContain('cannot re-include')
@@ -85,8 +85,8 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
     const locale = schema.properties?.locale
 
     expect(locale?.type).toBe('string')
-    // Enumerated so a widget can't send a language the CMS has no translation
-    // for; sourced from LOCALES, so adding a locale updates the spec for free.
+    // Enumerated so a widget cannot send a language the CMS has no translation
+    // for. Sourced from LOCALES, so adding a locale updates the spec for free.
     expect(locale?.enum).toContain('en')
     expect(locale?.enum).toContain('pt-BR')
     expect(locale?.enum).not.toContain('xx')
@@ -156,7 +156,7 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
       // So the public intake is discoverable from the generated types (which is
       // how the Atlas SDK consumes it) rather than from /api/docs. This is the
       // same position `event-submissions` has been in since #625 — asserted
-      // below so the two can't silently diverge, and so anyone who wants this
+      // below so the two cannot silently diverge, and so anyone who wants this
       // POST documented knows the change is project membership, not this list.
       expect(op('/api/user-messages', 'post')['x-internal']).toBe(true)
       expect(op('/api/event-submissions', 'post')['x-internal']).toBe(true)
@@ -213,7 +213,7 @@ describe('clients embed-report custom endpoint (OpenAPI)', () => {
     expect(schema.properties?.mode?.enum).toEqual([...EMBED_MODES])
     expect(schema.properties?.routing?.enum).toEqual([...ROUTING_MODES])
     // The whole point of the ticket's routing decision — a canonical URL a
-    // crawler can't follow is not a canonical URL.
+    // crawler cannot follow is not a canonical URL.
     expect(schema.properties?.routing?.enum).not.toContain('hash')
     expect(schema.properties?.origin?.maxLength).toBe(MAX_MOUNT_KEY_LENGTH)
     expect(schema.properties?.pathname?.maxLength).toBe(MAX_MOUNT_KEY_LENGTH)
@@ -231,7 +231,7 @@ describe('clients embed-report custom endpoint (OpenAPI)', () => {
   })
 
   it('documents the machine codes a rejected url carries', () => {
-    // The widget distinguishes "I sent a bad URL" from "this host isn't mine",
+    // The widget distinguishes "I sent a bad URL" from "this host is not mine",
     // so both refusals have to be discoverable from the spec.
     for (const code of ['query_or_fragment', 'invalid_url', 'unsupported_scheme']) {
       expect(post?.responses?.['400']?.description).toContain(code)
@@ -242,7 +242,7 @@ describe('clients embed-report custom endpoint (OpenAPI)', () => {
   // `clients` is in ALWAYS_HIDDEN_COLLECTIONS and belongs to no project, so
   // filterSpec marks this x-internal. Deliberate — it is the first-party
   // widget's telemetry channel, not a third-party integration surface — and
-  // pinned here so a future filter change doesn't publish it by accident.
+  // pinned here so a future filter change does not publish it by accident.
   it('stays x-internal in the public spec', () => {
     const filtered = filterSpec(
       {
@@ -293,8 +293,8 @@ describe('atlas SEO root endpoint (OpenAPI)', () => {
     expect(get?.parameters?.find((p) => p.name === 'locale')?.required).toBeFalsy()
   })
 
-  // A shaped endpoint publishes a fixed structure; `select`/`populate` are
-  // meaningless over it, and offering them would invite a caller to try.
+  // A shaped endpoint publishes a fixed structure. `select` and `populate`
+  // are meaningless over it, and offering them would invite a caller to try.
   it('exposes no select/populate/depth passthrough', () => {
     const names = get?.parameters?.map((parameter) => parameter.name) ?? []
     for (const forbidden of ['select', 'populate', 'depth', 'where']) {
@@ -370,7 +370,7 @@ describe('atlas sitemap root endpoint (OpenAPI)', () => {
     }
   })
 
-  // The whole endpoint is "everything you own"; a parameter would imply the
+  // The whole endpoint is "everything you own". A parameter would imply the
   // caller gets to choose, and the only correct answer is its own subtree.
   it('takes no parameters at all', () => {
     expect(get?.parameters).toEqual([])

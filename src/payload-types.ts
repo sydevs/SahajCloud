@@ -1085,7 +1085,7 @@ export interface Video {
 export interface Manager {
   id: number;
   name: string;
-  currentProject?: ('' | 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas') | null;
+  currentProject?: ('wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas') | null;
   /**
    * Set the manager's access level. Admin grants full access, Manager uses role-based permissions, Inactive blocks all access.
    */

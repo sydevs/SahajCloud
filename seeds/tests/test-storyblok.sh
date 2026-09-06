@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test Storyblok Import Script
-# This script tests the storyblok import with SQLite database (via Wrangler/D1)
+# Tests the storyblok import against the seed_test Postgres schema.
 
 set -e
 
@@ -15,8 +15,8 @@ pnpm tsx seeds/tests/setup-test-db.ts setup
 echo ""
 
 # Set test environment variables
-# Note: SQLite database is configured via payload.config.ts (using Wrangler D1)
-# No DATABASE_URI needed - Payload automatically uses D1 binding
+# Payload connects to the seed_test Postgres schema via test-payload.config.ts.
+# Set DATABASE_URL to a reachable Postgres instance.
 export PAYLOAD_SECRET="test-secret-key-12345"
 
 # Check if STORYBLOK_ACCESS_TOKEN is set

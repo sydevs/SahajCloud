@@ -38,7 +38,7 @@ describe('buildVerificationEntry', () => {
   })
 
   it('humanises an unrecognised method rather than showing the slug raw', () => {
-    // The union is closed today; this is the guard for the next member.
+    // The union is closed today. This is the guard for the next member.
     const entry = buildVerificationEntry('some-new-method' as never, MANAGER, AT)
     expect(entry.cells.delivery).toBe('Some New Method')
   })

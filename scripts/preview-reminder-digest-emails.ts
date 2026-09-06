@@ -1,21 +1,23 @@
 /**
- * Operator script: send the #589 scheduled emails — the registrant **session
- * reminder** and the manager **registration digest** — in each meaningful state
- * to the Mailpit capture inbox for visual review. Prints a direct preview link
- * per scenario.
+ * Operator script: send the #589 scheduled emails, the registrant
+ * session reminder and the manager registration digest, in each
+ * meaningful state to the Mailpit capture inbox, for visual review.
+ * Prints a direct preview link per scenario.
  *
  * Usage:
  *   pnpm tsx scripts/preview-reminder-digest-emails.ts
  *
- * No database is touched. The script drives the **real** send paths
- * (`sendSessionReminder` / `sendRegistrationDigest`) through a stub `payload`
- * (its only Payload touchpoints are `findGlobal`, `sendEmail`, `logger`, and
- * `secret`), so what you see is what the jobs send: same subject, `From`,
- * `Reply-To`, HTML, and plain-text part. Nothing is reimplemented here, so this
- * preview can't drift from production behaviour.
+ * No database is touched. The script drives the real send paths
+ * (`sendSessionReminder` and `sendRegistrationDigest`) through a stub
+ * `payload` object. That stub only covers `findGlobal`, `sendEmail`,
+ * `logger`, and `secret`, the only Payload calls these paths make. So
+ * what you see is what the jobs send: the same subject, `From`,
+ * `Reply-To`, HTML, and plain-text part. Nothing here is reimplemented,
+ * so this preview cannot drift from production behavior.
  *
- * Header logos are absolute URLs. `SAHAJCLOUD_URL` defaults to production so the
- * icon (and the unsubscribe link's origin) resolve in the preview.
+ * Header logos use absolute URLs. `SAHAJCLOUD_URL` defaults to
+ * production, so the icon and the unsubscribe link's origin both
+ * resolve in the preview.
  */
 
 import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
@@ -100,15 +102,15 @@ const brandedClient: EmailClient = {
   name: 'Sahaja Yoga London',
   color1: '#7B4EA8',
   color2: '#B08BD4',
-  logo: null, // no Cloudflare image locally — falls back to the Atlas icon
+  logo: null, // no Cloudflare image locally: falls back to the Atlas icon
   websiteUrl: 'https://www.sahajayogalondon.example',
   supportEmail: 'hello@sahajayogalondon.example',
 }
 
 /**
- * A partly-translated German `emails` group for the reminder — `reminder_subject`,
- * `unsubscribe_cta`, and others are deliberately omitted so the per-key English
- * fallback is visible in the rendered mail.
+ * A partly-translated German `emails` group for the reminder.
+ * `reminder_subject`, `unsubscribe_cta`, and others are left out on
+ * purpose, so the per-key English fallback shows in the rendered mail.
  */
 const GERMAN_EMAILS = {
   reminder_heading: 'Deine Klasse ist morgen',
@@ -178,8 +180,9 @@ interface DigestScenario {
   groups: DigestEventGroup[]
 }
 
-// Realistic Q&A drawn from EVENT_REGISTRATION_QUESTIONS, cycled through so the
-// high-volume scenario shows a mix of fully / partly / un-answered registrations.
+// Realistic Q&A drawn from EVENT_REGISTRATION_QUESTIONS, cycled through
+// so the high-volume scenario shows a mix of full, partial, and
+// unanswered registrations.
 const QA: { label: string; value: string }[][] = [
   [
     {
@@ -200,7 +203,7 @@ const QA: { label: string; value: string }[][] = [
     },
     { label: 'Do you have any accessibility requirements?', value: 'Step-free access, please' },
   ],
-  [], // some registrants answer nothing optional
+  [], // some registrants leave every optional question blank
   [{ label: 'How did you hear about this event?', value: 'Google search' }],
 ]
 
@@ -224,8 +227,9 @@ const NAMES = [
 
 /**
  * A busy manager's week: many events, each with a different number of
- * registrations, most carrying answers. Deterministic (index-driven, no RNG) so
- * re-runs match — the point is to judge how manageable a dense digest reads.
+ * registrations, and most carrying answers. This is deterministic,
+ * index-driven with no RNG, so re-runs match. The point is to judge how
+ * manageable a dense digest reads.
  */
 function buildStressGroups(): DigestEventGroup[] {
   const events = [
@@ -359,7 +363,7 @@ async function main() {
       registrantEmail: 'registrant@example.com',
       locale: s.locale ?? 'en',
       registrationId: s.event.id,
-      // The single occurrence to remind about — the class's next session.
+      // The single occurrence to remind about: the class's next session.
       occurrenceIso: (s.event.schedule as { firstDate: string }).firstDate,
     })
     previews[previews.length - 1].note = s.note

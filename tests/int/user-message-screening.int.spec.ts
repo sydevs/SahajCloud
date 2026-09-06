@@ -1,6 +1,6 @@
 /**
  * Integration tests for the `screenUserMessage` job (#632) — the deep checks the
- * request path can't afford, and the delivery that follows them.
+ * request path cannot afford, and the delivery that follows them.
  *
  * The task is invoked deterministically via `runTaskHandler` rather than through
  * the queue: the collection's `afterChange` hook suppresses its immediate kick
@@ -95,7 +95,7 @@ describe('User message screening', () => {
 
   beforeEach(() => {
     mxMock.mockReset().mockResolvedValue(true)
-    // Creating the manager above sent a verification email; without this the
+    // Creating the manager above sent a verification email. Without this the
     // first `toHaveBeenCalledTimes(1)` would be off by one.
     sendEmail.mockClear()
   })

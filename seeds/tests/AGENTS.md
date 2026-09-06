@@ -1,28 +1,26 @@
 # Import Tests
 
-Testing infrastructure for import scripts, run against a Postgres test schema.
+Testing infrastructure for the import scripts, run against a Postgres test
+schema.
 
-## Database Architecture
+## Database architecture
 
-**Two separate databases**:
+**Two separate databases:**
 
-1. **Payload storage (Postgres)**
-   - A dedicated `seed_test` schema in the same Postgres the app uses
-     (`DATABASE_URL`), auto-synced via Drizzle `push` — see
-     `seeds/tests/test-payload.config.ts`.
-   - Production runs on Railway Postgres.
+1. **Payload storage (Postgres)** — a dedicated `seed_test` schema in the same
+   Postgres the app uses (`DATABASE_URL`), auto-synced via Drizzle `push` —
+   see `seeds/tests/test-payload.config.ts`. Production runs on Railway
+   Postgres.
+2. **Source data (Postgres)** — a temporary database for the meditations and
+   wemeditate imports, created from `data.bin` files. Requires PostgreSQL
+   installed.
 
-2. **Source data (Postgres)**
-   - Temporary database for meditations/wemeditate imports
-   - Created from `data.bin` files
-   - Requires PostgreSQL installed
+## Test scripts
 
-## Test Scripts
-
-### Setup/Cleanup
+### Setup/cleanup
 
 ```bash
-# Initialize test database
+# Initialize the test database
 pnpm tsx seeds/tests/setup-test-db.ts setup
 
 # View collection counts
@@ -32,17 +30,17 @@ pnpm tsx seeds/tests/check-db-stats.ts
 pnpm tsx seeds/tests/check-tags.ts
 ```
 
-### Test Runners
+### Test runners
 
 ```bash
-# Storyblok (requires API token)
+# Storyblok (requires an API token)
 ./seeds/tests/test-storyblok.sh
 
 # Meditations (requires data.bin)
 ./seeds/tests/test-meditations.sh
 ```
 
-### Manual Testing
+### Manual testing
 
 ```bash
 export PAYLOAD_SECRET="test-secret-key-12345"
@@ -57,7 +55,7 @@ pnpm tsx seeds/meditations/import.ts
 pnpm tsx seeds/tests/check-db-stats.ts
 ```
 
-## Test Results
+## Test results
 
 | Script      | Status              | Notes                 |
 | ----------- | ------------------- | --------------------- |
@@ -66,34 +64,31 @@ pnpm tsx seeds/tests/check-db-stats.ts
 | Storyblok   | Requires API token  | Structure verified    |
 | WeMeditate  | Requires PostgreSQL | Structure verified    |
 
-## Success Criteria
+## Success criteria
 
-- Complete without fatal errors
-- Create expected document counts
-- Create import tags correctly
-- Tag media files with import tag
-- Handle duplicates gracefully
+- Completes without fatal errors
+- Creates the expected document counts
+- Creates import tags correctly
+- Tags media files with the import tag
+- Handles duplicates gracefully
 
 ## Troubleshooting
 
-### "PostgreSQL command not found"
+**"PostgreSQL command not found"**
 
 ```bash
 brew install postgresql  # macOS
 ```
 
-Note: PostgreSQL only needed for meditations/wemeditate imports
+PostgreSQL is only needed for the meditations and wemeditate imports.
 
-### "STORYBLOK_ACCESS_TOKEN not set"
+**"STORYBLOK_ACCESS_TOKEN not set"** — expected for Storyblok tests without
+API access.
 
-Expected for Storyblok tests without API access.
+**"data.bin not found"** — place a PostgreSQL dump at
+`seeds/meditations/data.bin`.
 
-### "data.bin not found"
-
-Place PostgreSQL dump at `seeds/meditations/data.bin`
-
-### "DATABASE_URL not set / connection refused"
-
-Set `DATABASE_URL` to a reachable Postgres — the test config (`test-payload.config.ts`)
-uses the `seed_test` schema and auto-syncs via Drizzle `push`. Locally, point it
-at your dev Postgres.
+**"DATABASE_URL not set / connection refused"** — set `DATABASE_URL` to a
+reachable Postgres. The test config (`test-payload.config.ts`) uses the
+`seed_test` schema and auto-syncs via Drizzle `push`. Locally, point it at
+your dev Postgres.

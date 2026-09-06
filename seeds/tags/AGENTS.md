@@ -1,10 +1,11 @@
 # Tags Import
 
-Imports UserChoices (24 items) and MusicTags (4 items) from Cloudinary-hosted SVG assets.
+Imports UserChoices (24 items) and MusicTags (4 items) from Cloudinary-hosted
+SVG assets.
 
-## No Prerequisites
+## No prerequisites
 
-Can run independently. Should run **before** meditations import.
+Runs independently. Run it **before** the meditations import.
 
 ## Commands
 
@@ -22,9 +23,9 @@ PAYLOAD_SECRET=your-secret
 
 ## Data
 
-### Meditation Tags (24)
+### Meditation tags (24)
 
-User emotional state categories with colors:
+User emotional-state categories, each with a color:
 
 | Title | Slug | Color |
 |-------|------|-------|
@@ -35,9 +36,9 @@ User emotional state categories with colors:
 | Too many thoughts | `hard-to-focus` | `#DF8D7A` |
 | ... | ... | ... |
 
-### Music Tags (4)
+### Music tags (4)
 
-Background music categories (no colors):
+Background music categories, no colors:
 
 | Title | Slug |
 |-------|------|
@@ -46,12 +47,12 @@ Background music categories (no colors):
 | None | `none` |
 | Strings | `strings` |
 
-## SVG Processing
+## SVG processing
 
 1. Downloads SVG icons from Cloudinary URLs
 2. Replaces hardcoded hex colors (`#RRGGBB`, `#RGB`) with `currentColor`
 3. Caches locally in `seeds/cache/tags/assets/`
-4. Uploads as SVG file attachments
+4. Uploads the SVGs as file attachments
 
 **Before** (hardcoded):
 ```xml
@@ -63,19 +64,15 @@ Background music categories (no colors):
 <path fill="currentColor" d="..." />
 ```
 
-## Idempotent Updates
+## Idempotent updates
 
-- First run: Creates all tags
-- Subsequent runs: Updates existing tags by slug (no duplicates)
+- First run: creates all tags.
+- Later runs: update existing tags by slug. No duplicates.
 
 ## Troubleshooting
 
-### SVG download errors
-- Check internet connection
-- Verify Cloudinary URLs accessible
-- Use `--clear-cache` to re-download
+**SVG download errors** — check the internet connection and the Cloudinary
+URLs are reachable. Use `--clear-cache` to re-download.
 
-### Tag creation errors
-- Check Payload configuration
-- Verify `PAYLOAD_SECRET` is set
-- Run `pnpm generate:types` if types are stale
+**Tag creation errors** — check the Payload configuration and that
+`PAYLOAD_SECRET` is set. Run `pnpm generate:types` if types are stale.

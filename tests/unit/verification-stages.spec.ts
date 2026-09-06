@@ -93,7 +93,7 @@ describe('stageAction', () => {
   })
 
   // "An already-finished event is never re-finished" used to be a flag on the
-  // table; it's now a guard in the job (finishing is a transition *into*
+  // table. It is now a guard in the job (finishing is a transition *into*
   // `finished`), covered end-to-end by the retention case in
   // tests/int/expire-events.int.spec.ts.
 
@@ -132,7 +132,7 @@ describe('daysUntilUnpublish', () => {
   })
 })
 
-// `shouldFinish` moved to @/lib/schedule/scheduleStatus in #603 (it's now shared
+// `shouldFinish` moved to @/lib/schedule/scheduleStatus in #603 (it is now shared
 // with the public feeds and the registration gate, and keys off the stored
 // `schedule.lastDate` instead of the virtual `upcomingDates`). Its cases — and
 // the agreement test against `notFinishedWhere` — live in

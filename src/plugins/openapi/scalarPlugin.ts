@@ -1,11 +1,11 @@
 /**
- * Custom Scalar Plugin for PayloadCMS
+ * Custom Scalar plugin for PayloadCMS.
  *
- * Replaces payload-oapi's basic Scalar plugin with a customized version featuring:
+ * It replaces payload-oapi's basic Scalar plugin. It adds:
  * - We Meditate coral branding (#F07855)
- * - Project selector for filtering visible endpoints
- * - Dynamic logo based on selected project
- * - Prioritized HTTP client examples (JS, Node, Dart, Python only)
+ * - A project selector that filters visible endpoints
+ * - A logo that changes with the selected project
+ * - A short list of HTTP client examples (JS, Node, Dart, Python only)
  */
 
 import type { Config, Endpoint } from 'payload'
@@ -17,26 +17,26 @@ import { getProjectIcon, getProjectLabel, getProjectOptions, isValidProject } fr
 import { checkBasicAuth } from '@/plugins/openapi/basicAuth'
 
 export interface ScalarPluginOptions {
-  /** Path to the OpenAPI spec endpoint (default: '/openapi.json') */
+  /** Path to the OpenAPI spec endpoint. Default: '/openapi.json'. */
   specEndpoint?: string
-  /** URL path for the Scalar docs UI (default: '/docs') */
+  /** URL path for the Scalar docs UI. Default: '/docs'. */
   docsUrl?: string
-  /** Enable/disable the plugin (default: true) */
+  /** Turns the plugin on or off. Default: true. */
   enabled?: boolean
 }
 
 /**
- * Theme colors are derived from the shared brand colors in @/lib/branding.
- * This ensures consistency between Scalar API docs and PayloadCMS admin themes.
- * See: src/lib/branding/themeColors.ts for the single source of truth.
+ * Theme colors come from the shared brand colors in @/lib/branding.
+ * This keeps the Scalar API docs and the PayloadCMS admin theme consistent.
+ * See src/lib/branding/themeColors.ts for the single source of truth.
  */
 
 /**
- * Generate CSS theme overrides for a specific project
- * Returns empty string for default Scalar theme
+ * Generate CSS theme overrides for one project.
+ * Returns an empty string for the default Scalar theme.
  */
 function generateThemeCss(theme: ScalarThemeColors | null): string {
-  if (!theme) return '' // Use Scalar's default theme
+  if (!theme) return '' // Use Scalar's default theme.
 
   return `
     /* Dynamic Theme based on selected project */
@@ -73,7 +73,7 @@ function generateThemeCss(theme: ScalarThemeColors | null): string {
 }
 
 /**
- * Generate project selector options from project metadata
+ * Generate project-selector options from the project metadata.
  */
 function getProjectSelectorOptions(): string {
   const options = getProjectOptions()
@@ -85,14 +85,14 @@ function getProjectSelectorOptions(): string {
 }
 
 /**
- * Generate the custom Scalar HTML with branding and project selector
+ * Generate the custom Scalar HTML, with branding and the project selector.
  */
 function generateScalarHtml(specUrl: string, project: ProjectSlug | null, baseUrl: string): string {
   const currentLogo = getProjectIcon(project)
   const projectTitle = getProjectLabel(project)
   const theme = getScalarThemeColors(project)
 
-  // Build the full spec URL with project parameter
+  // Build the full spec URL, with the project parameter.
   const fullSpecUrl = project ? `${specUrl}?project=${project}` : specUrl
 
   return `<!DOCTYPE html>
@@ -106,7 +106,7 @@ function generateScalarHtml(specUrl: string, project: ProjectSlug | null, baseUr
   <link rel="icon" type="image/svg+xml" href="${currentLogo}" />
   <!-- Critical CSS first to prevent flash of unstyled content -->
   <style>
-    /* CSS Reset and base colors - MUST be first */
+    /* CSS reset and base colors. This block must load first. */
     html, body {
       margin: 0;
       padding: 0;
@@ -116,7 +116,7 @@ function generateScalarHtml(specUrl: string, project: ProjectSlug | null, baseUr
       background: #1a1a1a;
     }
   </style>
-  <!-- Blocking dark mode detection - runs after critical CSS is defined -->
+  <!-- Blocking dark-mode detection. This runs after the critical CSS above. -->
   <script>
     (function() {
       if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -261,7 +261,7 @@ function generateScalarHtml(specUrl: string, project: ProjectSlug | null, baseUr
   </header>
 
   <script>
-    // Handle project selection change
+    // Change the URL when the project selection changes.
     function handleProjectChange(project) {
       const url = new URL(window.location);
       if (project) {
@@ -272,14 +272,12 @@ function generateScalarHtml(specUrl: string, project: ProjectSlug | null, baseUr
       window.location.href = url.toString();
     }
 
-    // Initialize on DOMContentLoaded
     document.addEventListener('DOMContentLoaded', function() {
-      // Set initial project value from URL
       const params = new URLSearchParams(window.location.search);
       const currentProject = params.get('project') || '';
       document.getElementById('project-select').value = currentProject;
 
-      // Watch for system dark mode changes (initial detection is in blocking script above)
+      // Watch for system dark mode changes. The blocking script above sets the initial mode.
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
         if (e.matches) {
           document.documentElement.classList.add('dark-mode');
@@ -336,12 +334,12 @@ function generateScalarHtml(specUrl: string, project: ProjectSlug | null, baseUr
 }
 
 /**
- * Custom Scalar Plugin for PayloadCMS
+ * Custom Scalar plugin for PayloadCMS.
  *
- * Provides We Meditate branded API documentation with project-based filtering.
+ * It provides We Meditate branded API documentation, filtered by project.
  *
- * @param options - Plugin configuration options
- * @returns PayloadCMS plugin function
+ * @param options - Plugin configuration options.
+ * @returns A PayloadCMS plugin function.
  */
 export const scalarPlugin =
   ({
@@ -379,24 +377,24 @@ export const scalarPlugin =
               }
             }
 
-            // Construct base URL using payload-oapi pattern
+            // Build the base URL the same way payload-oapi does.
             const baseUrl = `${req.protocol}//${req.headers.get('host')}`
             const fullSpecUrl = `${baseUrl}/api${specEndpoint}`
 
-            // Parse project from query string (avoid new URL() which can throw)
+            // Read the project from the query string. Avoid new URL(), which can throw.
             const queryString = req.url?.split('?')[1] || ''
             const urlParams = new URLSearchParams(queryString)
             const projectParam = urlParams.get('project')
             const project: ProjectSlug | null =
-              projectParam && isValidProject(projectParam) ? (projectParam as ProjectSlug) : null
+              projectParam && isValidProject(projectParam) ? projectParam : null
 
-            // Generate HTML with branding and project selector
+            // Generate the HTML, with branding and the project selector.
             const html = generateScalarHtml(fullSpecUrl, project, baseUrl)
 
             return new Response(html, {
               headers: {
                 'Content-Type': 'text/html',
-                // Don't cache password-protected pages publicly
+                // Do not cache a password-protected page publicly.
                 'Cache-Control': docsPassword ? 'private, no-store' : 'public, max-age=3600',
                 'X-Robots-Tag': 'noindex, nofollow',
               },

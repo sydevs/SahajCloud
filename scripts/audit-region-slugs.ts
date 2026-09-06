@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 /**
- * Report regions whose slug is blank, and the damage each one does (#634).
+ * Report regions with a blank slug, and the damage each one does (#634).
  *
- * A region's slug is one segment of every canonical URL beneath it, so a blank
- * one costs that region, its whole descendant subtree, and every event inside
- * them their `webPath` and `webUrl` — silently, because `buildRegionPath`
- * refuses a chain with a gap rather than emitting `//`.
+ * A region's slug is one segment of every canonical URL beneath it. So a
+ * blank slug silently costs that region, its whole descendant subtree,
+ * and every event inside them their `webPath` and `webUrl`.
+ * `buildRegionPath` refuses a chain with a gap, rather than emitting
+ * `//`.
  *
- * **Read-only, always.** There is no `--force`: what the right name for each of
- * these regions is cannot be derived from the data, so fixing them is a human
- * decision made in the admin panel (or by the Atlas importer). This script
- * exists to say precisely which rows need that decision and what each is
- * costing, so `withNonEmptySlug`'s grandfather clause can eventually be
- * dropped.
+ * **Read-only, always.** There is no `--force`. The right name for each
+ * of these regions cannot come from the data, so fixing them is a human
+ * decision, made in the admin panel or by the Atlas importer. This
+ * script exists to say exactly which rows need that decision, and what
+ * each one costs, so `withNonEmptySlug`'s grandfather clause can
+ * eventually be dropped.
  *
  * Usage:
  *   pnpm tsx scripts/audit-region-slugs.ts
@@ -59,8 +60,9 @@ async function main(): Promise<void> {
   }
 
   const blankIds = new Set(blank.map((row) => row.id))
-  // A region is collateral when a blank-slugged region sits anywhere in its
-  // ancestry — that is exactly the set whose canonical URLs cannot be built.
+  // A region counts as collateral when a blank-slugged region sits
+  // anywhere in its ancestry. That is exactly the set whose canonical
+  // URLs cannot be built.
   const affected = rows.filter((row) =>
     (row.breadcrumbs ?? []).some((crumb) => {
       const id = relationId(crumb?.doc)
@@ -68,9 +70,10 @@ async function main(): Promise<void> {
     }),
   )
 
-  // Every region whose canonical URL is unbuildable: the blank ones plus
-  // everything that inherits the gap. One `events` query over the whole set,
-  // tallied in memory — a count per region would be one round-trip each.
+  // This is every region whose canonical URL cannot be built: the blank
+  // ones, plus everything that inherits the gap. One `events` query
+  // covers the whole set, tallied in memory. A separate count per region
+  // would cost one round trip each.
   const affectedIds = new Set([...blankIds, ...affected.map((row) => row.id)])
   const { docs: eventDocs } = await payload.find({
     collection: 'events',

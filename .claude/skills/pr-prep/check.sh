@@ -2,24 +2,25 @@
 #
 # Pre-PR validation.
 #
-# Implements Tier 2 (lean local gate) by default and Tier 3 (local CI parity,
-# minus smoke) under --full. See docs/rules/testing-reqs.md for the full
-# three-tier contract.
+# Runs Tier 2 (the lean local gate) by default, and Tier 3 (local CI
+# parity, without smoke) under --full. See docs/rules/testing-reqs.md for
+# the full three-tier contract.
 #
-# Default — Tier 2: lint + typecheck + the fast unit suite. Run the targeted
-# integration spec(s) for what you changed separately, e.g.
+# Default, Tier 2: lint, typecheck, and the fast unit suite. Run the
+# integration spec(s) for your change separately, for example:
 #   pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts
 #
-# --full — Tier 3 locally: lint + typecheck + full `pnpm test` + the Railway
-# `pnpm build`. Skips `pnpm test:smoke` because the smoke specs target a
-# deployed Railway PR preview, not a local build. For full Tier 3 coverage,
-# push and let CI run smoke against the preview.
+# --full, Tier 3 locally: lint, typecheck, the full `pnpm test`, and the
+# Railway `pnpm build`. This skips `pnpm test:smoke`, since the smoke
+# specs target a deployed Railway PR preview, not a local build. For full
+# Tier 3 coverage, push and let CI run smoke against the preview.
 #
-# CI (.github/workflows/ci.yml) is the source of truth for Tier 3 on every PR.
+# CI (.github/workflows/ci.yml) is the source of truth for Tier 3 on every
+# PR.
 #
 # Usage:
-#   .claude/skills/pr-prep/check.sh            # Tier 2: lint + typecheck + test:unit
-#   .claude/skills/pr-prep/check.sh --full     # Tier 3 locally (no smoke): lint + typecheck + full test + Railway build
+#   .claude/skills/pr-prep/check.sh          # Tier 2: lint, typecheck, test:unit
+#   .claude/skills/pr-prep/check.sh --full   # Tier 3 locally (no smoke): lint, typecheck, full test, Railway build
 
 set -u
 
@@ -30,10 +31,11 @@ cd "$PROJECT_DIR" || exit 1
 
 START_TIME=$(date +%s)
 
-# The integration lane needs a live PostgreSQL. Idempotent and best-effort:
-# silent when 5432 already answers, and it never fails this gate. Without it a
-# sandbox can present a data directory, a stale socket and no server process,
-# which reads as "no database" only after something tries to connect.
+# The integration lane needs a live PostgreSQL. This step is idempotent
+# and best-effort. It stays silent when port 5432 already answers, and it
+# never fails this gate. Without it, a sandbox can have a data directory,
+# a stale socket, and no server process. That state looks like "no
+# database" only once something tries to connect.
 [ -x scripts/ensure-test-db.sh ] && scripts/ensure-test-db.sh
 
 echo "=== Lint ==="
@@ -56,9 +58,10 @@ fi
 echo "✓ Typecheck passed"
 echo
 
-# Separate from the src pass: the root tsconfig excludes `tests`, so specs are
-# otherwise never typechecked — Vitest transpiles via esbuild, which erases types
-# without checking them (#606). Covers all of `tests/**`.
+# Separate from the src pass. The root tsconfig excludes `tests`, so specs
+# would otherwise never get typechecked. Vitest transpiles with esbuild,
+# which strips types without checking them (#606). This step covers all
+# of `tests/**`.
 echo "=== Typecheck (tests) ==="
 if ! pnpm typecheck:tests; then
   echo

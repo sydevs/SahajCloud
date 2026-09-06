@@ -2,8 +2,8 @@
  * Parse the Atlas event `recurrence_data` Ruby-YAML blob into the structured
  * `schedule` shape that events.json carries (and `scheduleMapper` consumes).
  *
- * Extracted from extract.ts so it's unit-testable: extract.ts runs `main()` at
- * module load, so a test can't import from it. Pure + side-effect free, like the
+ * Extracted from extract.ts so it is unit-testable: extract.ts runs `main()` at
+ * module load, so a test cannot import from it. Pure + side-effect free, like the
  * rest of seeds/atlas/helpers.
  */
 
@@ -48,9 +48,10 @@ const WEEKDAY_NAMES = [
 ] as const
 
 /**
- * Atlas `monthly_*` recurrence types → schedule `weekNumber` (`-1` = last).
- * The dump holds `monthly_1st` / `monthly_2nd` / `monthly_last`; 3rd/4th are
- * covered for completeness. Matches `scheduleMapper`'s WEEK_NUMBERS domain.
+ * Atlas `monthly_*` recurrence types map to schedule `weekNumber` (`-1`
+ * means last). The dump holds `monthly_1st`, `monthly_2nd`, and
+ * `monthly_last`. 3rd and 4th are covered for completeness. Matches
+ * `scheduleMapper`'s WEEK_NUMBERS domain.
  */
 const MONTHLY_WEEK_NUMBERS: Record<string, number> = {
   monthly_1st: 1,
@@ -65,7 +66,7 @@ export function weekdayOf(isoDate: string | null): string | null {
   if (!isoDate) return null
   const [y, m, d] = isoDate.split('-').map(Number)
   if (!y || !m || !d) return null
-  // Construct in UTC so the local timezone can't shift the day.
+  // Construct in UTC so the local timezone cannot shift the day.
   return WEEKDAY_NAMES[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] ?? null
 }
 
@@ -79,7 +80,7 @@ export function weekdayOf(isoDate: string | null): string | null {
  *   2. string keys with human dates and a quoted `'on':` weekday (394 rows)
  *   3. the same string keys with **no `on` key at all** (263 rows)
  *
- * In dialect 3 the recurring weekday is implied by `start_date`, so it's derived
+ * In dialect 3 the recurring weekday is implied by `start_date`, so it is derived
  * from there. This matters most for monthly types: without a weekday,
  * `scheduleMapper` falls back to `monthlyMode: 'date'` and turns "first Sunday
  * of the month" into "the 3rd of every month". Weekly events are covered either

@@ -397,7 +397,7 @@ describe('Role-Based Access Control', () => {
           data: { managers: [mgr.id] },
         })
 
-        // Reads: every node in the managed subtree resolves; the sibling does not.
+        // Reads: every node in the managed subtree resolves. The sibling does not.
         const visible = await payload.find({
           collection: 'regions',
           user: managerUser(mgr),
@@ -457,9 +457,9 @@ describe('Role-Based Access Control', () => {
     let otherCountryId: number
     let otherVenueId: number
 
-    // Non-'manual' mapboxId keeps the conditionally-required coordinate fields out
-    // of validation. Pass a `user` to exercise access (overrideAccess: false);
-    // omit it to set up fixtures as admin.
+    // Non-'manual' mapboxId keeps the conditionally-required coordinate fields
+    // out of validation. Pass a `user` to exercise access
+    // (overrideAccess: false). Omit it to set up fixtures as admin.
     const createRegion = (data: RegionFixture, user?: ManagerFixture) =>
       payload.create({
         collection: 'regions',
@@ -538,7 +538,7 @@ describe('Role-Based Access Control', () => {
       for (const collection of ['events', 'regions', 'registrations'] as const) {
         expect(hasPermission({ user, collection, operation: 'read' }, bypassPermissions)).toBe(true)
       }
-      // Role grants events CUD and regions CU (scoped at the access layer); no
+      // Role grants events CUD and regions CU (scoped at the access layer). No
       // region delete, and nothing on unrelated collections.
       expect(
         hasPermission({ user, collection: 'events', operation: 'delete' }, bypassPermissions),
@@ -891,7 +891,7 @@ describe('Role-Based Access Control', () => {
       })
 
       // Should NOT have implicit read to collections only in other projects
-      // lessons and app-cards are only in wemeditate-app; lectures is shared
+      // lessons and app-cards are only in wemeditate-app. Lectures is shared
       // across wemeditate-web and wemeditate-app, so it IS readable here.
       expect(
         hasPermission(

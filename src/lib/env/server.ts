@@ -1,13 +1,14 @@
 /**
- * Server Environment Variable Validation
+ * Server environment variables.
  *
- * This module provides type-safe server environment variable validation using Zod.
- * Extends client environment with server-only variables (secrets, API keys).
+ * This module validates server environment variables with Zod, and gives
+ * type-safe access to them. It extends the client environment with
+ * server-only variables, such as secrets and API keys.
  *
- * **IMPORTANT**: This file should ONLY be imported from server-side code.
+ * Import this file only from server-side code.
  * For client-side code, use `@/lib/env/client` instead.
  *
- * **Usage**:
+ * Usage:
  * ```typescript
  * import { serverEnv } from '@/lib/env'
  *
@@ -20,14 +21,14 @@ import { z } from 'zod'
 import { ClientEnvSchema } from './client'
 
 /**
- * Server-side environment variables schema
+ * Server-side environment variables schema.
  *
- * These variables are NEVER exposed to the client and include:
+ * The client never sees these variables. They include:
  * - Secrets and API keys
  * - Database connection strings
  * - Internal service URLs
  *
- * All client environment variables are also included in the server schema.
+ * The server schema also includes every client environment variable.
  */
 const ServerEnvSchema = ClientEnvSchema.extend({
   // ============================================
@@ -35,34 +36,36 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   // ============================================
 
   /**
-   * PayloadCMS encryption secret
-   * Must be at least 32 characters for security (AES-256 key strength)
+   * PayloadCMS encryption secret.
+   * Must be at least 32 characters long, to match AES-256 key strength.
    */
   PAYLOAD_SECRET: z.string().min(32, 'PAYLOAD_SECRET must be at least 32 characters'),
 
   /**
    * Postgres connection string (Railway Postgres).
-   * Consumed by the Payload Postgres adapter in `src/payload.config.ts`.
+   * The Payload Postgres adapter in `src/payload.config.ts` uses this value.
    * Example: `postgresql://user:password@host:5432/dbname`
    */
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required (Postgres connection string)'),
 
   /**
    * Max size of the Postgres connection pool (node-postgres `pool.max`).
-   * Consumed by the Payload Postgres adapter in `src/payload.config.ts`.
-   * Size to the Railway Postgres connection limit divided across running
-   * instances — see the pool-sizing notes in `docs/architecture.md`.
-   * Prod (2026-07): Postgres `max_connections=100` (97 usable), 1 app replica →
-   * default 20 leaves ample headroom while doubling bulk-publish burst capacity.
+   * The Payload Postgres adapter in `src/payload.config.ts` uses this value.
+   * Set it to the Railway Postgres connection limit, divided across the
+   * running instances. See the pool-sizing notes in `docs/architecture.md`.
+   * Prod, as of 2026-07: Postgres allows max_connections=100 (97 usable), with
+   * 1 app replica. The default of 20 leaves ample headroom, and doubles the
+   * bulk-publish burst capacity.
    * @default 20
    */
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).default(20),
 
   /**
-   * Enable Drizzle query logging (SQL + params to the console). Opt-in and
-   * force-disabled in production — used to capture the query trail behind a
-   * slow admin operation in dev/staging. Any truthy string (`true`/`1`) turns
-   * it on. Pair with Railway Postgres `log_min_duration_statement` for
+   * Turn on Drizzle query logging (SQL and parameters, to the console).
+   * This is opt-in, and production always disables it.
+   * Use it to capture the query trail behind a slow admin operation, in dev
+   * or staging. Any truthy string (`true` or `1`) turns it on.
+   * Pair it with Railway Postgres `log_min_duration_statement`, for
    * server-side timings. See `docs/architecture.md`.
    * @default false
    */
@@ -72,8 +75,9 @@ const ServerEnvSchema = ClientEnvSchema.extend({
     .transform((value) => value === 'true' || value === '1'),
 
   /**
-   * Nirmala Vidya API key for fetching lecture metadata from Vimeo
-   * Optional at startup — validated at point of use when creating/refreshing lectures
+   * Nirmala Vidya API key. Fetches lecture metadata from Vimeo.
+   * Optional at startup. The app validates it at the point of use, when it
+   * creates or refreshes lectures.
    */
   NIRMALA_VIDYA_API_KEY: z
     .string()
@@ -81,124 +85,132 @@ const ServerEnvSchema = ClientEnvSchema.extend({
     .optional(),
 
   /**
-   * Cloudflare Turnstile secret key, used by the write-guard plugin to verify
-   * the captcha token server-side on public collection writes
-   * (`src/lib/turnstile/verifyTurnstile.ts`).
+   * Cloudflare Turnstile secret key.
+   * The write-guard plugin uses it to verify the captcha token server-side,
+   * on public collection writes (`src/lib/turnstile/verifyTurnstile.ts`).
    *
-   * Required in production, but — like `NIRMALA_VIDYA_API_KEY` — validated at
-   * **point of use** rather than at startup, so a missing key can't take the
-   * whole app down (including the per-PR Railway preview). The verifier fails
-   * closed when it's unset: the write is refused with a 500 and logged, never a
-   * silent pass. In development, point it at Cloudflare's always-passes test key
+   * Required in production. Like `NIRMALA_VIDYA_API_KEY`, the app validates it
+   * at the point of use, not at startup, so a missing key cannot take down
+   * the whole app, including a per-PR Railway preview.
+   *
+   * The verifier fails closed when this key is unset: it refuses the write
+   * with a 500, and logs the failure. It never lets an unverified write pass.
+   * In development, use Cloudflare's always-passing test key
    * `1x0000000000000000000000000000000AA` (see `.env.example`).
    */
   TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
 
   // ============================================
-  // OPTIONAL - Cloudflare media services (Images, Stream) + R2 over S3
+  // OPTIONAL: Cloudflare media services (Images, Stream), and R2 over S3
   // ============================================
   //
-  // Images and Stream stay on Cloudflare (plain HTTPS APIs). R2 is now reached
-  // via the S3-compatible API (see `src/plugins/storage`) rather than a Workers
-  // binding. When the relevant credentials are unset, storage falls back to
-  // local files (development).
+  // Images and Stream stay on Cloudflare, over plain HTTPS APIs. The app now
+  // reaches R2 through the S3-compatible API (see `src/plugins/storage`), not
+  // a Workers binding. When the credentials are unset, storage falls back to
+  // local files in development.
 
   /**
-   * Cloudflare Account ID
-   * Used for the Images/Stream HTTPS APIs and to derive the R2 S3 endpoint
-   * (`https://<accountId>.r2.cloudflarestorage.com`). Optional in development.
+   * Cloudflare account ID.
+   * The Images and Stream HTTPS APIs use this, and it derives the R2 S3
+   * endpoint (`https://<accountId>.r2.cloudflarestorage.com`). Optional in
+   * development.
    */
   CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
 
   /**
-   * Cloudflare API Key (unified token for Images and Stream)
-   * Required for the Cloudflare media services in production. Optional in development.
+   * Cloudflare API key (one token, for Images and Stream).
+   * Required in production, for the Cloudflare media services. Optional in
+   * development.
    */
   CLOUDFLARE_API_KEY: z.string().min(20).optional(),
 
   /**
-   * Cloudflare Zone ID for the site's zone. Required (with
-   * `CLOUDFLARE_CACHE_PURGE_TOKEN`) to enable edge-cache purge-on-write; unset
-   * disables purging and the app relies on the Cache Rule's TTL. See
-   * `src/plugins/cache`.
+   * Cloudflare zone ID for the site's zone.
+   * With `CLOUDFLARE_CACHE_PURGE_TOKEN`, this turns on edge-cache purge-on-write.
+   * When unset, purging is off, and the app relies on the Cache Rule's TTL
+   * instead. See `src/plugins/cache`.
    */
   CLOUDFLARE_ZONE_ID: z.string().optional(),
 
   /**
-   * Cloudflare API token scoped to `Cache Purge` for the zone above. Optional —
-   * when unset, edge-cache purge-on-write is a no-op (TTL is the invalidation).
+   * Cloudflare API token, scoped to `Cache Purge` for the zone above.
+   * Optional. When unset, edge-cache purge-on-write does nothing, and the TTL
+   * is the only invalidation.
    */
   CLOUDFLARE_CACHE_PURGE_TOKEN: z.string().min(20).optional(),
 
   /**
-   * Cloudflare Images delivery URL
+   * Cloudflare Images delivery URL.
    * Format: https://imagedelivery.net/<hash>
    */
   CLOUDFLARE_IMAGES_DELIVERY_URL: z.url().optional(),
 
   /**
-   * Cloudflare Stream delivery URL
+   * Cloudflare Stream delivery URL.
    * Format: https://customer-<code>.cloudflarestream.com
    */
   CLOUDFLARE_STREAM_DELIVERY_URL: z.url().optional(),
 
   /**
-   * R2 public delivery URL (custom domain / CDN in front of the R2 bucket).
-   * Delivery domains are unchanged by the S3 migration (e.g. https://assets.sydevelopers.com).
+   * R2 public delivery URL (a custom domain or CDN in front of the R2 bucket).
+   * The S3 migration did not change delivery domains, for example
+   * https://assets.sydevelopers.com.
    */
   CLOUDFLARE_R2_DELIVERY_URL: z.url().optional(),
 
   /**
-   * R2 bucket name (the S3 bucket the app reads/writes).
-   * Required in production for R2-backed collections; optional in development.
+   * R2 bucket name (the S3 bucket the app reads and writes).
+   * Required in production for R2-backed collections. Optional in development.
    */
   R2_BUCKET: z.string().optional(),
 
   /**
-   * R2 S3 API access key id (from an R2 API token with object read/write).
-   * Required in production for R2 uploads; optional in development.
+   * R2 S3 API access key ID, from an R2 API token with object read and write access.
+   * Required in production for R2 uploads. Optional in development.
    */
   R2_ACCESS_KEY_ID: z.string().optional(),
 
   /**
-   * R2 S3 API secret access key (pairs with R2_ACCESS_KEY_ID).
-   * Required in production for R2 uploads; optional in development.
+   * R2 S3 API secret access key. Pairs with R2_ACCESS_KEY_ID.
+   * Required in production for R2 uploads. Optional in development.
    */
   R2_SECRET_ACCESS_KEY: z.string().optional(),
 
   /**
-   * Optional R2 S3 endpoint override. Defaults to the account-derived endpoint
-   * `https://<CLOUDFLARE_ACCOUNT_ID>.r2.cloudflarestorage.com`. Set this when the
-   * bucket lives in a jurisdiction — e.g. EU:
-   * `https://<CLOUDFLARE_ACCOUNT_ID>.eu.r2.cloudflarestorage.com`. The native R2
-   * binding hid the jurisdiction; the S3 API needs the exact endpoint.
+   * Optional override for the R2 S3 endpoint.
+   * Defaults to the account-derived endpoint
+   * `https://<CLOUDFLARE_ACCOUNT_ID>.r2.cloudflarestorage.com`.
+   * Set this when the bucket lives in a jurisdiction, for example EU:
+   * `https://<CLOUDFLARE_ACCOUNT_ID>.eu.r2.cloudflarestorage.com`.
+   * The native R2 binding hid the jurisdiction. The S3 API needs the exact endpoint.
    */
   R2_S3_ENDPOINT: z.url().optional(),
 
   /**
-   * Cloudflare Stream webhook signing secret
-   * Returned by `PUT /accounts/{id}/stream/webhook` and used to verify HMAC-SHA256
-   * signatures on inbound webhooks. Production only — dev deployments do not
-   * subscribe to the account-scoped Stream webhook.
+   * Cloudflare Stream webhook signing secret.
+   * `PUT /accounts/{id}/stream/webhook` returns this value. The app uses it
+   * to verify HMAC-SHA256 signatures on inbound webhooks.
+   * Production only. Dev deployments do not subscribe to the account-scoped
+   * Stream webhook.
    */
   CLOUDFLARE_STREAM_WEBHOOK_SECRET: z.string().min(32).optional(),
 
   // ============================================
-  // OPTIONAL - Email Services
+  // OPTIONAL: Email Services
   // ============================================
 
   /**
-   * Resend API key for transactional emails.
-   * Production only. When unset in production, mail is logged and dropped.
+   * Resend API key for transactional email.
+   * Production only. When unset in production, the app logs the mail and drops it.
    */
   RESEND_API_KEY: z.string().min(20).optional(),
 
   /**
-   * SMTP endpoint for captured (non-delivered) mail — Mailpit.
-   * Used by local dev and by Railway PR previews, both of which must never
-   * deliver real mail. When set, it takes precedence over every other adapter
-   * choice outside production; when unset outside production, email is
-   * disabled with a warning rather than silently going somewhere.
+   * SMTP endpoint for captured mail that Mailpit does not deliver.
+   * Local dev and Railway PR previews use this. Neither must ever deliver real mail.
+   * When set outside production, it overrides every other adapter choice.
+   * When unset outside production, email is off, and the app logs a warning
+   * instead of silently sending mail somewhere.
    *
    * Shape: smtp://user:pass@host:port
    */
@@ -209,23 +221,24 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   // ============================================
 
   /**
-   * Sahaj Cloud server URL
-   * Auto-derived from PORT if not set (http://localhost:{PORT})
+   * Sahaj Cloud server URL.
+   * If not set, the app derives it from PORT (http://localhost:{PORT}).
    */
   SAHAJCLOUD_URL: z.url().optional(),
 
   /**
-   * We Meditate Web frontend URL for live preview
+   * We Meditate Web frontend URL, for live preview.
    */
   WEMEDITATE_WEB_URL: z.url(),
 
   /**
-   * Path the Atlas widget is mounted at on the We Meditate web frontend.
+   * Path where the Atlas widget mounts on the We Meditate web frontend.
    *
-   * The canonical fallback for any region no client owns: a region with no
-   * canonical-enabled client anywhere in its ancestry resolves its `webUrl` to
-   * `WEMEDITATE_WEB_URL + WEMEDITATE_ATLAS_BASE_PATH + webPath`. Path only —
-   * the host is `WEMEDITATE_WEB_URL`. Use `''` to mount the widget at the root.
+   * This is the canonical fallback for a region no client owns. When no
+   * canonical-enabled client sits anywhere in a region's ancestry, its
+   * `webUrl` resolves to `WEMEDITATE_WEB_URL + WEMEDITATE_ATLAS_BASE_PATH + webPath`.
+   * This value is a path only. The host comes from `WEMEDITATE_WEB_URL`.
+   * Use `''` to mount the widget at the root.
    */
   WEMEDITATE_ATLAS_BASE_PATH: z
     .string()
@@ -240,39 +253,40 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   SAHAJCLOUD_PREVIEW_SECRET: z.string().min(16),
 
   /**
-   * Sahaj Atlas frontend URL for live preview
+   * Sahaj Atlas frontend URL, for live preview.
    */
   SAHAJATLAS_URL: z.url(),
 
   /**
-   * API documentation password (HTTP Basic Auth)
-   * When set, password-protects the /api/docs endpoint
-   * Any username is accepted; only the password is checked
-   * Optional — docs are publicly accessible when not set
+   * API documentation password (HTTP Basic Auth).
+   * When set, it password-protects the /api/docs endpoint.
+   * The app accepts any username, and checks only the password.
+   * Optional. The docs are public when this is not set.
    */
   DOCS_PASSWORD: z.string().min(8, 'DOCS_PASSWORD must be at least 8 characters').optional(),
 
   /**
    * Admin password for a Railway PR preview.
    *
-   * Supplied by Railway to preview environments and by CI to the smoke lane. On boot,
-   * a preview reconciles its admin against this value (`@/plugins/previewAdmin`), so
-   * rotating it takes effect on the next deploy rather than orphaning the environment.
+   * Railway supplies this to preview environments, and CI supplies it to the
+   * smoke lane. On boot, a preview reconciles its admin account against this
+   * value (`@/plugins/previewAdmin`). Rotating the value takes effect on the
+   * next deploy, so an environment never gets orphaned with a stale password.
    *
-   * Optional, and absent by design on production, local dev and the test lanes — the
-   * seeding gate reads Railway's environment name too, so the absence is not what keeps
-   * it from running there.
+   * Optional, and absent by design on production, local dev, and the test
+   * lanes. The seeding gate also reads Railway's environment name, so this
+   * value's absence is not what stops seeding from running there.
    */
   PREVIEW_ADMIN_PASSWORD: z.string().min(1).optional(),
 
   /**
-   * Email the preview admin is provisioned under.
-   * Optional — defaults to `contact@sydevelopers.com`, matching the smoke lane.
+   * Email address for the provisioned preview admin.
+   * Optional. Defaults to `contact@sydevelopers.com`, to match the smoke lane.
    */
   PREVIEW_ADMIN_EMAIL: z.email().optional(),
 
   /**
-   * Server port number
+   * Server port number.
    * @default 3000
    */
   PORT: z.coerce.number().int().min(1).max(65535).optional().default(3000),
@@ -282,11 +296,13 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   // ============================================
 
   /**
-   * Sentry performance-tracing sample rate (0–1). Consumed by
-   * `src/sentry.server.config.ts`. A low non-zero rate (e.g. 0.1) keeps a
-   * representative sample of admin transactions — including bulk edits and the
-   * `/api/{collection}` reads the admin list/edit views fire — with their
-   * DB-span breakdown, at negligible overhead. Set to 0 to disable tracing.
+   * Sentry performance-tracing sample rate (0 to 1).
+   * `src/sentry.server.config.ts` reads this value.
+   * A low non-zero rate, for example 0.1, keeps a representative sample of
+   * admin transactions and their DB-span breakdown, at little overhead.
+   * This sample includes bulk edits and the `/api/{collection}` reads that
+   * the admin list and edit views fire.
+   * Set this to 0 to turn tracing off.
    * @default 0.1
    */
   SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
@@ -296,23 +312,22 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   // ============================================
 
   /**
-   * Node.js environment mode
-   * Automatically set by Next.js/Node.js - included for type safety
+   * Node.js environment mode.
+   * Next.js and Node.js set this automatically. It is included here for type safety.
    */
   NODE_ENV: z.enum(['development', 'production', 'test']).optional(),
 })
 
-// Type inference for TypeScript
 export type ServerEnv = z.infer<typeof ServerEnvSchema>
 
 let cachedServerEnv: ServerEnv | null = null
 
 /**
- * Parse and cache server-side environment variables.
+ * Parse server-side environment variables once, and cache the result.
  *
- * Payload collection/config modules can be included in the admin client bundle.
- * Keep validation lazy so browser evaluation of an unused server module does not
- * fail on private variables that are intentionally unavailable to the client.
+ * A Payload collection or config module can end up in the admin client bundle.
+ * Validation stays lazy so that evaluating an unused server module in the
+ * browser does not fail on private variables the client must never see.
  */
 export function getServerEnv(): ServerEnv {
   if (cachedServerEnv) return cachedServerEnv
@@ -328,9 +343,9 @@ export function getServerEnv(): ServerEnv {
     return cachedServerEnv
   } catch (error) {
     if (error instanceof z.ZodError) {
-      // Note: Using console.error here is intentional for fail-fast behavior
-      // This code runs before the Payload logger is initialized
-      // We need immediate, visible feedback when environment validation fails
+      // console.error is intentional here, for fail-fast behavior.
+      // This code runs before Payload starts its logger.
+      // Environment validation failures need immediate, visible feedback.
       // eslint-disable-next-line no-console
       console.error('❌ Environment validation error (server):')
       // eslint-disable-next-line no-console
@@ -348,9 +363,10 @@ export function getServerEnv(): ServerEnv {
 /**
  * Validated server-side environment variables.
  *
- * Accessing any property validates once and caches the parsed result. The proxy
- * preserves the old `serverEnv.NAME` call sites while avoiding eager validation
- * when this module is accidentally bundled into client-side admin code.
+ * Reading any property validates the environment once, and caches the
+ * result. The proxy keeps the old `serverEnv.NAME` call sites working, while
+ * it avoids eager validation if this module ends up bundled into
+ * client-side admin code.
  */
 export const serverEnv = new Proxy({} as ServerEnv, {
   get(_target, prop: string | symbol) {
@@ -379,6 +395,6 @@ export const serverEnv = new Proxy({} as ServerEnv, {
   },
 })
 
-// Re-export client types and values for convenience in server code
+// Re-export client types and values, for convenience in server code.
 export type { ClientEnv } from './client'
 export { clientEnv } from './client'

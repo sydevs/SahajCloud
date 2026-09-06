@@ -35,7 +35,7 @@ describe('Videos Collection — custom behavior', () => {
     expect(previewUrlField).toBeDefined()
     expect(previewUrlField).toHaveProperty('virtual', true)
     // Without Cloudflare Stream the field returns undefined and is omitted
-    // from API responses; the virtual flag itself is what we care about.
+    // from API responses. The virtual flag itself is what we care about.
   })
 
   it('accepts inline tag enum values', async () => {
@@ -66,7 +66,7 @@ describe('Videos Collection — custom behavior', () => {
         testData.createVideo(payload, {
           title: 'Invalid Subs Video',
           // Deliberately malformed — the case asserts the field validator
-          // rejects it, so it can't be typed as a valid row.
+          // rejects it, so it cannot be typed as a valid row.
           subtitles: [{ startTimeMs: 'oops', endTimeMs: 1000, content: 'x' }] as unknown as Video['subtitles'],
         }),
       ).rejects.toThrow(/subtitles|startTimeMs/i)
@@ -75,7 +75,7 @@ describe('Videos Collection — custom behavior', () => {
 
   describe('admin media URL wiring (#455)', () => {
     // Videos live in Cloudflare Stream, not on the Worker filesystem. The admin
-    // edit view renders `thumbnailURL || url` as an <img>; if either resolves to
+    // edit view renders `thumbnailURL || url` as an <img>. If either resolves to
     // Payload's default `/api/videos/file/<id>` route, that request 500s in
     // production. Both must resolve to Cloudflare instead.
 
@@ -85,7 +85,7 @@ describe('Videos Collection — custom behavior', () => {
       )
 
       expect(urlField).toBeDefined()
-      // Payload's base `url` field is not virtual; mixedMediaUrlField's is. A
+      // Payload's base `url` field is not virtual. mixedMediaUrlField's is. A
       // non-virtual `url` here means the override was dropped and the file-route
       // 500 has returned.
       expect(urlField).toHaveProperty('virtual', true)

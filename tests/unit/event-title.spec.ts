@@ -55,7 +55,7 @@ describe('composeEventTitle', () => {
 
 describe('addressPlaceName', () => {
   it('prefers the venue name over the street', () => {
-    // "Broadstairs Friends Meeting House" is what a seeker sees on the door;
+    // "Broadstairs Friends Meeting House" is what a seeker sees on the door.
     // "9 St Peter's Park Rd" tells them almost nothing.
     expect(
       addressPlaceName({

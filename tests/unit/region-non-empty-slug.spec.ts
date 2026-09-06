@@ -66,7 +66,7 @@ describe('withNonEmptySlug', () => {
     })
 
     it('never consults the wrapped validator for a blank value', () => {
-      // The uniqueness validator runs a query; a blank slug is already decided.
+      // The uniqueness validator runs a query. A blank slug is already decided.
       const inner = vi.fn().mockReturnValue(true)
       run('', { operation: 'create' }, inner as unknown as TextField['validate'])
       expect(inner).not.toHaveBeenCalled()

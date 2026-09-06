@@ -1,238 +1,201 @@
 # Database Migrations
 
-**Development** uses Postgres with `push: true` (auto-schema-sync via Drizzle).
-**Production** uses explicit migration files, applied automatically in-process on server boot via `prodMigrations`.
+**Development** uses Postgres with `push: true` (Drizzle auto-syncs the
+schema — no `pnpm db:migrate` step locally). **Production** applies
+migration files automatically, in-process on server boot, via
+`prodMigrations` in `src/payload.config.ts`
+(`postgresAdapter({ prodMigrations: migrations })`). Point `DATABASE_URL` at
+a running Postgres (Docker or Railway) for local dev.
 
-The old 36 SQLite/D1 migrations were deleted. The Postgres baseline is managed via migration files committed to git; they auto-apply on Railway boot (no manual `pnpm db:migrate` step in the deploy flow).
-
-## First-time dev setup
-
-Dev uses `push: true`, so the schema auto-syncs against your local Postgres on
-boot — no `pnpm db:migrate` needed locally. Point `DATABASE_URL` at a running
-Postgres (Docker or Railway). Production applies migration files automatically
-in-process on server boot via `prodMigrations` (see "Production workflow" below).
+> **History footnote.** This app moved from Cloudflare Workers + D1 (SQLite)
+> to Railway + Postgres (infra #466). The 36 old D1 migrations were
+> deleted — they imported `@payloadcms/db-d1-sqlite` and do not apply to
+> Postgres. Only the **data** migrated 1:1, via a one-off ETL script
+> (`scripts/etl-d1-to-postgres.ts`). The schema restarted from a fresh
+> Postgres baseline, `20260606_050852_initial_schema.{ts,json}`. This is the
+> only place this history is recorded — do not re-add it elsewhere. Postgres
+> migrations are real transactional DDL (every statement in a migration
+> commits or rolls back together, foreign keys can defer, `ALTER TABLE`
+> renames/retypes a column directly). The old SQLite/D1 constraints no
+> longer apply.
 
 ## Creating a migration
 
-`pnpm db:migrations:create` is just an alias for `pnpm payload migrate:create`
-(see `package.json`) — both run the same Payload CLI, so they behave
-identically. Pass the name as the first argument:
-`pnpm db:migrations:create my_migration_name`.
+`pnpm db:migrations:create` aliases `pnpm payload migrate:create` (see
+`package.json`). Pass the name as the first argument.
 
-**Attempt it non-interactively first; hand off to the user only if it would
-become interactive.** The command has exactly two interactive prompts (verified
-against Payload 3.86.0 / drizzle-kit 0.31.7 source):
+**Try it non-interactively first. Hand off to the user only if it would
+become interactive.** It has exactly two interactive prompts (verified
+against Payload 3.86.0 / drizzle-kit 0.31.7):
 
-1. **Blank-migration confirm** — fires only when **no schema changes** are
-   detected. The `--skip-empty` flag suppresses it entirely: with no changes the
-   command exits 0 immediately with no files; with changes the flag is a no-op.
-2. **Rename-vs-create prompt** — fires from drizzle-kit internals on ambiguous
-   column changes (drop+add that looks like a rename). No flag bypasses it
-   (`--force-accept-warning` does not); on non-TTY stdin it **hangs
-   indefinitely** before writing any files. Only a timeout catches it.
+1. **Blank-migration confirm** — fires only with no schema changes.
+   `--skip-empty` suppresses it (a no-op when changes exist).
+2. **Rename-vs-create prompt** — fires on an ambiguous column change (a
+   drop+add that looks like a rename). No flag bypasses it. On non-TTY
+   stdin it **hangs indefinitely**, before writing any files. Only a
+   timeout catches it.
 
-So run:
+Run:
 
 ```bash
 timeout 300 pnpm db:migrations:create <name> --skip-empty < /dev/null
 ```
 
-(No `--` separator: pnpm 11 forwards run-script args as-is, and a literal `--`
-reaches Payload and breaks its flag parsing — verified: with `--` the blank
-prompt still rendered.)
+(No `--` separator — pnpm forwards args as-is, and a literal `--` reaches
+Payload and breaks its flag parsing.)
 
-⚠ **The bound has to clear the command's own boot time, or exit 124 stops
-meaning anything.** This command boots the whole Payload config before it looks
-at the schema. **Measured at 2m08s** in a cloud sandbox (twice, exit 0). At
-`timeout 30` — the value this documented for three days — a slow boot returned
-124 and the table below read it as the drizzle prompt, so the one signal that
-discriminates the two outcomes fired on both. Every SahajCloud PR the loop
-opened in that window shipped with the migration contract unverified. 300s is
-the current bound, ~2.3× the measured boot, and it matches `AGENTS.md`'s
-existing `timeout 300 pnpm test:*` allowance, so it needs no new permission
-entry. If a run exceeds it, **raise the bound** — never revert to a shorter one
-and read the resulting 124 as a hang.
+⚠ **The bound must clear the command's own boot time, or exit 124 stops
+meaning anything.** This command boots the whole Payload config before it
+looks at the schema. Measured at **2m08s** in a cloud sandbox, twice, exit 0
+both times. At `timeout 30` — the value this documented for three days — a
+slow boot returned 124, and the table below read that as the drizzle prompt.
+The one signal that tells the two apart fired on both. Every SahajCloud PR the
+loop opened in that window shipped with the migration contract unverified.
+300s is the current bound, about 2.3× the measured boot, and it matches
+`AGENTS.md`'s existing `timeout 300 pnpm test:*` allowance, so it needs no new
+permission entry. If a run exceeds it, **raise the bound**. Never revert to a
+shorter one and read the resulting 124 as a hang.
 
 ⚠ **It needs no database.** It diffs the config against the newest `.json`
-snapshot in this folder, so it runs, and is worth running, wherever the repo is
-checked out. A missing Postgres is not a reason to skip the contract.
+snapshot in this folder. So it runs, and is worth running, wherever the repo
+is checked out. A missing Postgres is not a reason to skip the contract.
 
 Then classify the outcome:
 
 | Outcome | Signal | Action |
 | --- | --- | --- |
-| Migration created | exit 0, new `.ts` + `.json` pair in `src/migrations/` | Validate (migration-validator skill), review the `.ts` for duplicate DDL (snapshot trap below), commit both files |
-| No schema changes | exit 0, no new files, **and** the newest `.json` snapshot already has the column | Report it — dev `push: true` may have already synced, or a pending migration already captures the schema. Not an error |
-| Silent CLI death | exit 0, no new files, no output, and the column is **absent** from the newest snapshot | The CLI died without saying so — see below. Do **not** conclude "no changes" |
-| Interactive hang | exit 124 (timeout), no new files | Drizzle hit the rename-vs-create prompt. Hand the user the plain `pnpm db:migrations:create <name>` to run interactively, then validate + commit their result |
-| Partial write | exit 124, lone `.json` (no `.ts`) | The `.json` snapshot is written before the `.ts`; delete the orphaned `.json`, then hand off to the user as above |
-| Other error | exit ≥ 1 with output | Surface the error; don't retry blindly |
+| Migration created | exit 0, new `.ts` + `.json` pair | Validate (migration-validator skill), check for duplicate DDL (snapshot trap below), commit both files |
+| No schema changes | exit 0, no new files, newest `.json` already has the column | Report it. Not an error |
+| Silent CLI death | exit 0, no files, no output, column **absent** from the snapshot | The CLI died silently — see below. Do **not** conclude "no changes" |
+| Interactive hang | exit 124, no new files | Hand the user the plain command to run interactively, then validate and commit |
+| Partial write | exit 124, lone `.json` (no `.ts`) | Delete the orphaned `.json`, then hand off as above |
+| Other error | exit ≥ 1 with output | Surface the error. Do not retry blindly |
 
-On success, augment the `.ts` only if needed (see "Augmenting" below) and
-commit both files.
-
-### "Migration created" has a false positive too — read the DDL before committing
+### "Migration created" has a false positive too — read the DDL first
 
 A clean checkout of `main` generated a **111 KB** migration on the run that
 measured the boot time above. Every statement in it touched one of the five
 `*_tz` columns, dropping and recreating their enum types to reorder the
-`SupportedTimezones` members — no table, no column, no semantic change.
+`SupportedTimezones` members. No table, no column, no semantic change.
 
 A second run, against the snapshot the first one wrote, generated **nothing**.
-So the ordering is stable in a given checkout and differs from the ordering the
-committed snapshot holds. Two runs is all that was established; the cause is not.
+So the ordering is stable in a given checkout, and it differs from the ordering
+the committed snapshot holds. Two runs is all that was established. The cause
+is not.
 
-That makes a created migration as ambiguous as exit 124 was: it means either a
+That makes a created migration as ambiguous as exit 124 was. It means either a
 real schema change or an enum reordering this environment happens to disagree
 with. **Read the `.ts` before you commit it.** A reorder-only migration is not
-harmless — it `DROP TYPE`s and recreates five enums that production data
-depends on, and it is not what any ticket asked for. Delete it and say so.
+harmless: it `DROP TYPE`s and recreates five enums that production data depends
+on, and no ticket asked for it. Delete it and say so.
 
-### "exit 0, no new files" is ambiguous — check the snapshot
+### "Exit 0, no new files" is ambiguous — check the snapshot
 
 It means either *no schema changes* or *the CLI died silently* (exit 0, zero
-bytes on stdout **and** stderr — `payload/bin.js` runs `void start()` with no
-`.catch()`, so a config-load rejection vanishes). The two look identical from
-the shell, and reading the wrong one ships a schema change with no migration —
-which is a prod crash-loop on boot (`column ... does not exist`), not a silent
-no-op.
+bytes on stdout and stderr — `payload/bin.js` runs `void start()` with no
+`.catch()`). Trusting the wrong reading ships a schema change with no
+migration — a prod crash-loop on boot, not a silent no-op.
 
-Disambiguate against the newest snapshot, which is the schema the *next*
-migration will diff against. If the column you just added isn't there, no
-migration has captured it:
+Disambiguate against the newest snapshot (the schema the *next* migration
+diffs against). If your new column is missing from it, no migration
+captured it:
 
 ```bash
 python3 -c "import json,pathlib,sys;print(sorted(json.loads(pathlib.Path(sys.argv[1]).read_text())['tables']['public.<table>']['columns']))"   "$(ls -t src/migrations/*.json | head -1)"
 ```
 
-If it's absent, escalate: preload the env and redirect stdout to a file
-(`set -a; . ./.env; set +a` — piping to `tail`/`grep` also loses the output),
-and if that still says nothing, drive `payload.db.createMigration()` directly
-from `node --import tsx/esm` with an `unhandledRejection` handler. Both worked
-in PR #642 where `dangerouslyDisableSandbox` alone did not; the full ladder is
-in the `payload-cli-dies-silently-in-sandbox` memory.
+If it is absent, escalate: preload the env and redirect stdout to a file
+(piping through `tail`/`grep` loses the output), and if that still shows
+nothing, drive `payload.db.createMigration()` directly from `node --import
+tsx/esm` with an `unhandledRejection` handler. Both worked in PR #642 where
+`dangerouslyDisableSandbox` alone did not — see the
+`payload-cli-dies-silently-in-sandbox` memory for the full ladder (this trap
+is shared with the `payload-cli` skill).
 
 ## Running locally
 
 ```bash
 pnpm payload migrate          # apply pending migrations to DATABASE_URL
-pnpm payload migrate:down     # roll back last migration
+pnpm payload migrate:down     # roll back the last migration
 ```
 
-Never pipe through `| tail` or background — output is buffered and you lose
-visibility into progress and any interactive prompts.
+Never pipe through `| tail` or run in the background — you lose visibility
+into progress and any interactive prompts.
 
 ## Production workflow
 
-Migrations are applied **automatically in-process on server boot** via
-`prodMigrations` in `src/payload.config.ts` (see `postgresAdapter({ prodMigrations: migrations })`).
-There is no manual `pnpm db:migrate` step in the deploy flow.
+1. Run `pnpm db:migrations:create` locally. Commit both files.
+2. On the next deploy, Railway boots the app. `prodMigrations` applies
+   pending migrations before the server starts.
 
-**Local authoring → commit → auto-apply on next Railway boot**, unchanged:
-
-1. Run `pnpm db:migrations:create` locally; commit both `.ts` and `.json` files.
-2. On next deploy, Railway boots the Node app, Payload's `prodMigrations` hook
-   runs automatically, applies any pending migrations, and the server starts.
-3. No separate migration step needed; build → start → migrated in one process.
+No separate migration step exists — build, start, and migrate happen in one
+process.
 
 ## File requirements
 
-Both `.ts` and `.json` files are required for each migration:
-
-- `.ts` contains migration logic (SQL or Payload operations)
-- `.json` is the Drizzle schema snapshot used for rollback
-
-**Data-only migrations** (no schema changes): copy the previous migration's
-`.json` and rename to match your new timestamp. This keeps the schema-snapshot
-chain intact.
+Both files are required per migration: `.ts` (the migration logic) and
+`.json` (the Drizzle schema snapshot, used for rollback). For a **data-only**
+migration (no schema change), copy the previous migration's `.json` and
+rename it to the new timestamp — this keeps the snapshot chain intact.
 
 ## Reviewing generated migrations
 
-Before deploy, scan each new generated `.ts` against the earlier migrations
-in the chain — the **whole applied chain**, not just the same pending batch
-(see the snapshot trap below). If it repeats `CREATE TABLE`, `CREATE INDEX`,
-or `ALTER TABLE ADD COLUMN` for schema already introduced earlier in the
-chain, stop and trim or regenerate it; adding `IF NOT EXISTS` to a new
-migration is only a replay-recovery tool, not a substitute for a clean
-migration delta.
+Before deploy, scan each new `.ts` against the **whole applied chain**, not
+just the pending batch (see the snapshot trap below). A repeated `CREATE
+TABLE`/`CREATE INDEX`/`ADD COLUMN` for schema already introduced earlier
+means: stop, then trim or regenerate. `IF NOT EXISTS` only recovers from a
+replay — it is not a substitute for a clean delta.
 
 ### "Unmerged" does not mean "unapplied" — Railway deploys every push
 
-A migration is **applied somewhere** the moment its branch is pushed: Railway
-builds a per-PR preview environment and runs `prodMigrations` on boot. So
-regenerating a migration — deleting the file and reissuing it under a new
-timestamp — is only safe **before the branch has ever deployed**.
+A migration is **applied somewhere** the moment its branch is pushed —
+Railway runs `prodMigrations` on every PR preview's boot. So regenerating a
+migration (deleting it and reissuing under a new timestamp) is safe only
+**before the branch has ever deployed**.
 
-Do it later and the preview database keeps the *columns* the old migration
-created but has no `payload_migrations` row naming the new one, so the new
-migration re-runs and dies on the first `ADD COLUMN`:
-
-```
-Error running migration 20260819_002657_add_client_canonical
-column "canonical_enabled" of relation "clients" already exists
-```
-
-The app then crash-loops on boot and every route 502s — while `/api/health` may
-answer briefly, which makes it look like a networking fault rather than a
-migration one. (#633: the canonical migrations were regenerated to emit their
-final shape after four pushes had already deployed them.)
-
-**A clean-database test cannot catch this.** `pnpm payload migrate` against an
-empty database passes precisely because it is empty. The failing state needs a
+Do it later, and the preview keeps the old migration's *columns* but no
+`payload_migrations` row naming the new one — the new migration then
+re-runs and fails on its first `ADD COLUMN`, crash-looping the app on boot
+(#633: canonical migrations were regenerated after four pushes had already
+deployed them). **A clean-database test cannot catch this** — it needs a
 database that ran the *old* migration.
 
-When you need to reshape a migration that has already deployed, pick one:
+To reshape a migration that already deployed, pick one:
 
-- **Reset the environment** — `railway environment delete SahajCloud-pr-<n> --yes`;
-  the next push recreates it from prod and the chain applies as it will on merge.
-  Preferred: no hand-edited schema, and it exercises a realistic starting state.
-- **Stack a new migration** instead of regenerating, and accept the
-  add-then-change churn in the chain.
+- **Reset the environment** (`railway environment delete
+  SahajCloud-pr-<n> --yes`) — the next push recreates it from prod.
+  Preferred: no hand-edited schema.
+- **Stack a new migration** instead, and accept the add-then-change churn.
 
-Do **not** reach for `ADD COLUMN IF NOT EXISTS` to paper over it — that ships
-permanently weaker DDL to production to accommodate one disposable preview.
+Never reach for `ADD COLUMN IF NOT EXISTS` to paper over this — it ships
+weaker DDL to production for one disposable preview.
 
-**Reading a failed preview deploy.** A Railway *project* token only sees the
-`production` environment, so it cannot fetch PR-environment logs. The CLI's own
-user session can (`~/.railway/config.json` → `user.token`), against
-`backboard.railway.com/graphql/v2`:
-
-```graphql
-query { deploymentLogs(deploymentId: "<id>", limit: 200) { timestamp message } }
-```
-
+**Reading a failed preview deploy.** A Railway *project* token only sees
+`production`. The CLI's own user session can read PR-environment logs
+(`~/.railway/config.json` → `user.token`, against
+`backboard.railway.com/graphql/v2`, `deploymentLogs(deploymentId, limit)`).
 The deployment id is in the Railway check's URL on the PR.
 
 ### Never generate a migration (or types) with `E2E_TEST=true`
 
-`payload.config.ts` disables several plugins under that flag — including the usage
-plugin, which registers the `trackUsage` / `resetUsage` tasks. Generating with it
-set produces a schema **missing those tasks**, and the `.json` snapshot records
-that as the truth. The next `migrate:create` then diffs against the gap and emits
-`ALTER TYPE … ADD VALUE 'resetUsage'` for a label that has been in the enum since
-the initial schema — which throws `enum label … already exists` and aborts the
-in-process boot migration on deploy.
+That flag disables several plugins, including the usage plugin (`trackUsage`
+/ `resetUsage` tasks). A migration generated under it produces a schema
+**missing those tasks**. The next real `migrate:create` then diffs against
+the gap and emits `ALTER TYPE … ADD VALUE 'resetUsage'` for a label that has
+existed since the initial schema — which throws `enum label … already
+exists` and aborts the boot migration on deploy (#633).
 
-This used to be tempting because the CLI could become unusable for an unrelated
-reason: dev email called `nodemailer.createTestAccount()` on every config load,
-so an `ethereal.email` outage made every Payload command die silently, and
-`E2E_TEST=true` was the quickest way past it. **That failure mode is gone** —
-email is now configured explicitly from `SMTP_URL` and no adapter reaches the
-network at config load. Should you ever be tempted again: it is the wrong escape
-hatch, because **it corrupts the artefact you are generating.** Use a flag that
-only touches email.
+Symptom: a generated migration adds an enum value you did not introduce.
+Cross-check it against the whole chain — `grep -ln resetUsage
+src/migrations/*.ts` shows where it was really created. Use a different flag
+if you need to skip an unrelated check. This one corrupts the artefact you
+are generating.
 
-Symptom to recognise: a generated migration adds an enum value you did not
-introduce. Cross-check the label against the whole chain before shipping it —
-`grep -ln resetUsage src/migrations/*.ts` shows it was created in
-`20260606_050852_initial_schema` and never removed. (Caught in #633; the fix was
-to hand-trim the migration and regenerate its snapshot without the flag.)
+### `generate:types` silence means "no change," not "done"
 
-### `generate:types` silence means "no change", not "done"
-
-It returns early and writes nothing when it believes the output matches disk — so
-a genuinely new field can be missing from `src/payload-types.ts` after an
-apparently successful run. Verify by content, and force it when in doubt:
+It writes nothing when it believes the output already matches disk, so a
+genuinely new field can be missing from `src/payload-types.ts` after an
+apparently successful run. Force it when in doubt:
 
 ```bash
 rm src/payload-types.ts && pnpm payload generate:types
@@ -240,75 +203,51 @@ rm src/payload-types.ts && pnpm payload generate:types
 
 ### The out-of-order snapshot trap (duplicate re-emission)
 
-`migrate:create` picks its diff base as the **newest-by-filename-timestamp**
-`.json` snapshot — not the last entry in `index.ts`. Migrations authored on
-parallel branches can merge out of timestamp order (e.g.
-`20260705_161112_bcp47` sorts after `20260705_160029_sy_atlas_translations_views`
-but was generated on a branch that predates 160029's schema change). The
-newest-by-timestamp snapshot is then **stale**, and the next `migrate:create`
-re-emits DDL that is already applied — replaying it fails (`ADD COLUMN` on an
-existing column) and aborts the in-process boot migration on deploy. This
-produced a duplicate of 160029's views DDL, caught and removed in #566.
+`migrate:create` diffs against the **newest-by-filename-timestamp** `.json`
+snapshot, not the last entry in `index.ts`. Migrations authored on parallel
+branches can merge out of timestamp order, leaving the newest-by-timestamp
+snapshot **stale** — the next `migrate:create` then re-emits DDL that is
+already applied, and replaying it fails and aborts the boot migration on
+deploy (#566).
 
-- When a generated migration contains DDL you didn't just cause with a schema
-  edit, suspect this trap: grep the repeated table/column names across
-  `src/migrations/*.ts` to find the earlier migration that already ships them.
-- A freshly generated migration's snapshot reflects the **full current
-  schema**, so once one lands with the highest timestamp the chain is healed
-  for future runs.
-- After merging parallel branches that both added migrations, verify the
-  highest-timestamp snapshot post-merge actually contains both branches'
-  schema before generating the next migration.
+- If a generated migration contains DDL you did not just cause, suspect
+  this: grep the repeated table/column names across `src/migrations/*.ts`
+  to find the earlier migration that already ships them.
+- A freshly generated migration's snapshot reflects the full current
+  schema, so once one lands with the highest timestamp, the chain heals.
+- After merging parallel branches that both add migrations, verify the
+  highest-timestamp snapshot contains both branches' schema before
+  generating the next migration.
 
-When adding required relationship fields to an existing table, keep the SQL
-column nullable unless the migration also backfills every existing row before
-enforcing `NOT NULL`. Payload validation can require the field at the app
-layer while old rows are hydrated after deploy.
+When adding a required relationship field to an existing table, keep the SQL
+column nullable unless the migration also backfills every row before
+enforcing `NOT NULL` — old rows may still be hydrating after deploy.
 
-If a field is added and renamed before deploy, inspect the generated rebuild.
+If a field is added and renamed before deploy, check the generated rebuild:
 Drizzle can emit `SELECT new_column FROM old_table`, which fails because the
-old table only has the previous column name. Prefer a guarded
-`ALTER TABLE ... RENAME COLUMN` for that narrow rename.
+old table only has the previous name. Prefer a guarded `ALTER TABLE ...
+RENAME COLUMN` for that narrow case.
 
 ## Squashing (preserve data)
 
-When the migration chain gets painfully large, squash it (see DEPLOYMENT.md).
-After pulling a squash commit, reset your local Postgres so it no longer carries
-pre-squash `payload_migrations` rows: drop the local database/schema and let
-`push` recreate it (dev), or re-run `pnpm db:migrate` from a clean database —
-otherwise future migrations behave inconsistently.
-
-## Postgres Advantages
-
-Postgres migrations are **atomic transactions** with **real transactional DDL**:
-
-- All statements in a migration succeed or all fail together (no partial state)
-- Deferrable foreign keys allow safe constraint reordering
-- `ALTER TABLE` is proper SQL (column rename, type change, constraint update)
-- Connection pooling via Drizzle
-- Full-featured transaction support for complex migrations
-
-The old SQLite/D1 gotchas **no longer apply**. Migrations are much simpler to reason about.
+When the migration chain gets painfully large, squash it (see
+`DEPLOYMENT.md`). After pulling a squash commit, reset your local Postgres
+so it no longer carries pre-squash `payload_migrations` rows — drop the
+local database/schema and let `push` recreate it, or re-run `pnpm
+db:migrate` from a clean database.
 
 ## Augmenting generated migrations
 
-**Default: don't.** Leave the output of `pnpm db:migrations:create` exactly
-as generated. Hand-editing has repeatedly caused FK / table-rebuild bugs
-(polymorphic FK renames, `_rels` rebuilds, versioned-table companion drift),
-so the cost of a clean post-deploy resync is lower than the risk of a
-broken migration.
+**Default: don't.** Hand-editing has repeatedly caused FK / table-rebuild
+bugs (polymorphic FK renames, `_rels` rebuilds, versioned-table companion
+drift). A clean post-deploy resync is cheaper than a broken migration.
 
-Augment only when:
+Augment only when the migration fails without the edit, or the user has
+explicitly asked for it. If a spec calls for a data backfill inside the
+migration, surface the trade-off to the user rather than deciding it
+yourself — backfills-in-migration have historically caused FK issues. A
+post-deploy sync/job is often safer.
 
-1. The migration fails without the edit (e.g. the polymorphic-FK bug above), or
-2. The user has explicitly asked for the augmentation.
-
-If an issue spec calls for a data backfill inside the migration, **surface
-the trade-off to the user** ("spec asks for backfill; doing so historically
-causes FK issues — prefer a post-deploy sync/job?") rather than deciding
-unilaterally.
-
-When you do edit, change only what's necessary — no defensive NULL-ing,
-no redundant cleanups FK cascade already handles. Features should also be
-designed so an unpopulated new column degrades gracefully (endpoints skip
-rows with a missing field) until a follow-up sync/job hydrates it.
+When you do edit, change only what is necessary — no defensive NULL-ing, no
+cleanup the FK cascade already handles. Design features so an unpopulated
+new column degrades gracefully until a follow-up job hydrates it.

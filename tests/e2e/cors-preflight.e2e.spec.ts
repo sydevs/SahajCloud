@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 /**
  * #575 — a real CORS preflight against the deployed preview. The Atlas widget
  * fetches drafts client-side with the `x-sahajcloud-preview-secret` header, so
- * the browser's preflight must see that header in the allow-list; credentials
+ * the browser's preflight must see that header in the allow-list. Credentials
  * must stay off (#509). Mirrors the preflight the widget origin actually sends.
  */
 test('CORS preflight allows the live-preview secret header without credentials', async ({

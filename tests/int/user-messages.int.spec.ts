@@ -255,7 +255,7 @@ describe('User messages intake (POST /api/user-messages)', () => {
           `atlas-manager should not ${operation}`,
         ).toBe(false)
       }
-      // Contrast, so the block can't pass merely because the fixture is inert.
+      // Contrast, so the block cannot pass merely because the fixture is inert.
       expect(
         hasPermission({
           user: atlasManager,

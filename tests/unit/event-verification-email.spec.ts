@@ -33,7 +33,7 @@ const eventManager: EventManagerContact = {
  * Fingerprints for the two listing states, asserted instead of their prose.
  * Copy here gets reworded often, and a reworded string silently turns every
  * "this did not render" assertion into a vacuous pass — twice already. These
- * key on structure the wording can't drift away from: the open state's
+ * key on structure the wording cannot drift away from: the open state's
  * generated caption, and the complete state's grey callout.
  */
 const PROGRESS_CAPTION = /\d+ of \d+ complete/
@@ -253,7 +253,7 @@ describe('EventVerificationEmail', () => {
       // `total: 0` would render "0 of 0 complete" over an empty bar — there is
       // nothing to be a fraction of. Asserted as byte-identity against the
       // never-checked render rather than "no caption appears": the complete
-      // state has no caption either, so that alone wouldn't tell the two apart.
+      // state has no caption either, so that alone would not tell the two apart.
       const empty = await render({
         level: 'due',
         listingProgress: { open: [], done: [], resolved: 0, total: 0 },
@@ -308,7 +308,7 @@ describe('EventVerificationEmail', () => {
     it('points its CTA at the event manager (mailto), not the verify link', async () => {
       const html = await render({ ...regionProps, level: 'escalated' })
       expect(html).toContain('mailto:priya@example.com')
-      // Region managers don't verify the event themselves.
+      // Region managers do not verify the event themselves.
       expect(html).not.toContain(baseProps.verifyUrl)
     })
 

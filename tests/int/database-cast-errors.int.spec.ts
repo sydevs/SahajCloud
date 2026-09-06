@@ -84,7 +84,7 @@ describe('Postgres cast failures (SQLSTATE 22P02)', () => {
     // ⚠ The slug itself is NOT the way in through the local API — measured, not
     // assumed: `findByID({ id: 'daily_fallback_shri_mataji_clip' })` throws
     // Payload's own `NotFound` (404) before any SQL runs. Only the numeric NaN
-    // reaches Postgres, so that is what this asserts; the coercion in front of
+    // reaches Postgres, so that is what this asserts. The coercion in front of
     // it belongs to the REST layer this lane cannot drive.
     const error = await thrownBy(() =>
       payload.findByID({

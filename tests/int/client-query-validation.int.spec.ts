@@ -26,7 +26,7 @@ function parseRestQuery(url: string): Record<string, unknown> {
   }) as Record<string, unknown>
   const args = { ...query }
   if ('select' in args) {
-    // sanitizeSelectParam mutates the input; pass through it the same way parseParams does
+    // sanitizeSelectParam mutates the input. Pass through it the same way parseParams does
     args.select = sanitizeSelectParam(args.select as never)
   }
   if ('populate' in args) {
@@ -69,7 +69,7 @@ describe('Client query parameter validation', () => {
       testClient.apiKey || 'test-key',
     ) as PayloadRequest
 
-  // Access control is unrelated to this hook; use overrideAccess so tests focus
+  // Access control is unrelated to this hook. Use overrideAccess so tests focus
   // purely on validation behavior, not on whether the test client has narrator
   // read permissions.
   describe('select parameter', () => {
@@ -197,7 +197,7 @@ describe('Client query parameter validation', () => {
 
     it('skips validation when SKIP_CLIENT_QUERY_VALIDATION_KEY context flag is set', async () => {
       // Trusted internal endpoints set this flag when forwarding client req to
-      // payload.find(...) so they don't have to enumerate every field via select.
+      // payload.find(...) so they do not have to enumerate every field via select.
       const trustedReq = {
         ...clientReq(),
         context: { skipClientQueryValidation: true },

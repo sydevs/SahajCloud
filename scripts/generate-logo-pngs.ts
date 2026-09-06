@@ -1,10 +1,12 @@
 /**
- * Operator script: rasterise the project logos to PNG for use in emails.
+ * Operator script: convert the project logos to PNG files, for use in
+ * emails.
  *
- * Email clients render SVG poorly (Gmail strips it, Outlook ignores it) and
- * WebP support is patchy, so the brand icon in transactional emails uses a PNG
- * alternative alongside the source SVG/WebP. Re-run this whenever a source logo
- * changes; commit the regenerated PNGs.
+ * Email clients render SVG poorly: Gmail strips it, and Outlook ignores
+ * it. WebP support is also patchy. So transactional emails use a PNG
+ * version of the brand icon, alongside the source SVG or WebP file.
+ * Re-run this script whenever a source logo changes, and commit the
+ * regenerated PNGs.
  *
  * Usage:  pnpm tsx scripts/generate-logo-pngs.ts
  */
@@ -13,7 +15,7 @@ import path from 'path'
 
 import sharp from 'sharp'
 
-/** Square output size — emails display the icon at 48px; 256 gives retina headroom. */
+/** Square output size in pixels. Emails show the icon at 48px. 256px gives headroom for retina screens. */
 const SIZE = 256
 const IMAGES_DIR = path.resolve(process.cwd(), 'public/images')
 

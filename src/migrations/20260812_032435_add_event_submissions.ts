@@ -99,7 +99,6 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "event_submissions_languages" CASCADE;
   DROP TABLE "event_submissions_schedule_weekdays" CASCADE;
   DROP TABLE "event_submissions" CASCADE;
-  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_event_submissions_fk";
   
   ALTER TABLE "payload_jobs_log" ALTER COLUMN "task_slug" SET DATA TYPE text;
   DROP TYPE "public"."enum_payload_jobs_log_task_slug";

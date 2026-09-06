@@ -185,7 +185,7 @@ describe('SendRegistrationDigests job', () => {
   })
 
   it('still includes a registration whose registrant unsubscribed from reminders', async () => {
-    // The unsubscribe link covers registrant *reminders* only; manager digests are
+    // The unsubscribe link covers registrant *reminders* only. Manager digests are
     // controlled by notificationPreferences, not that flag (#589). So a registrant's
     // reminder opt-out must NOT hide their registration from the manager's digest.
     const managerId = await createManager('unsub-digest@example.com', 'Daily Summary')

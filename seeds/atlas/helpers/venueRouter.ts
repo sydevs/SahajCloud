@@ -1,9 +1,10 @@
 /**
  * Venue routing for the Atlas import. There is no Venues collection: a place
- * referenced by more than one event becomes a Regions `venue` node (events
- * point their `region` at it); a single-use venue's address is lifted inline
- * onto the event's `address` group. Pure helpers — the actual node creation +
- * Mapbox geocoding live in the importer.
+ * referenced by more than one event becomes a Regions `venue` node, and
+ * events point their `region` at it. A single-use venue's address is
+ * lifted inline onto the event's `address` group. These are pure
+ * helpers. The actual node creation and Mapbox geocoding live in the
+ * importer.
  */
 
 export interface AtlasVenue {
@@ -81,7 +82,7 @@ const addressTokens = (value: string): string =>
  * or simply after their city (venue 483 is named "Воронеж", in Воронеж) — using
  * either as the place in an auto-title is no better than the street, and the
  * city one is worse. Compared as a bag of alphanumeric tokens so word order,
- * punctuation and house-number position don't matter.
+ * punctuation and house-number position do not matter.
  */
 export function isRedundantVenueName(name: string, venue: AtlasVenue): boolean {
   const tokens = addressTokens(name)
@@ -119,9 +120,10 @@ export interface EventAddress {
 }
 
 /**
- * Lift a venue's address onto an event's inline `address` group. `mapboxId` is
- * resolved by the caller (geocode → real id, or `manual`). Empty fields are
- * omitted; the venue's own coordinates back the manual fallback.
+ * Lift a venue's address onto an event's inline `address` group. The
+ * caller resolves `mapboxId` (a geocoded real id, or `manual`). Empty
+ * fields are omitted. The venue's own coordinates back the manual
+ * fallback.
  *
  * `venueName` carries the building's own name. Atlas has one on most venues and
  * it was previously discarded here, leaving a listing with nothing but a street

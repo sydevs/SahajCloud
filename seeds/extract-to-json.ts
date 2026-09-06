@@ -3,9 +3,9 @@
 /**
  * PostgreSQL Data Extraction Script
  *
- * One-time script to extract data from PostgreSQL dumps (data.bin) to JSON files.
- * This removes the PostgreSQL dependency from import scripts, enabling them to run
- * anywhere (migrations, CI/CD, Cloudflare Workers).
+ * One-time script to extract data from PostgreSQL dumps (data.bin) to JSON
+ * files. This removes the PostgreSQL dependency from import scripts, so
+ * they can run anywhere: migrations, CI, or on Railway.
  *
  * Usage:
  *   pnpm tsx seeds/extract-to-json.ts

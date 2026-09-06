@@ -122,7 +122,7 @@ describe('convertVimeo', () => {
     const result = convertVimeo(block, context)
 
     expect(result).toBeNull()
-    // No lecture lookup possible → no missing-lecture warning either; this is
+    // No lecture lookup possible → no missing-lecture warning either. This is
     // a malformed block, not a missing reference. Stay quiet.
     expect(context.logger.warn).not.toHaveBeenCalled()
   })

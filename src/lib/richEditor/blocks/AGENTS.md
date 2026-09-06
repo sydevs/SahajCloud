@@ -1,22 +1,22 @@
 # Custom Block Icons (Lexical Editor)
 
 Page blocks live in `src/lib/richEditor/blocks/`. Icons appear in the Lexical
-editor's slash menu (typing `/`) and the block-inserter toolbar button.
-Icons are configured via the `imageURL` property on the Block config as
-inline base64 data URLs.
+editor's slash menu (typing `/`) and in the block-inserter toolbar button.
+Configure an icon via the `imageURL` property on the Block config, as an
+inline base64 data URL.
 
 ## Icon specs
 
 | Property | Value |
 |---|---|
 | ViewBox | `0 0 20 20` (20×20 px) |
-| Format | SVG encoded as base64 data URL |
+| Format | SVG encoded as a base64 data URL |
 | Color | `#6B7280` (gray-500) |
 | Style | Stroked outline preferred |
 | Stroke attrs | `stroke-linecap="round" stroke-linejoin="round"` |
 
-**Critical**: do NOT use `currentColor` — it renders as black in data-URL
-images because there's no CSS context.
+**Critical**: do not use `currentColor`. It renders as black in data-URL
+images, because there is no CSS context there.
 
 ## Templates
 
@@ -53,8 +53,8 @@ export const MyBlock: Block = {
 }
 ```
 
-Always include a descriptive `// Icon:` comment above `imageURL` so future
-edits know what the icon depicts without decoding the base64.
+Always add a descriptive `// Icon:` comment above `imageURL`, so a later edit
+can tell what the icon shows without decoding the base64.
 
 ## Common pitfalls
 
@@ -67,19 +67,19 @@ edits know what the icon depicts without decoding the base64.
 
 ## Reference examples
 
-- `src/lib/richEditor/blocks/ButtonBlock.ts` — stroked rounded rectangle with text line
+- `src/lib/richEditor/blocks/ButtonBlock.ts` — stroked rounded rectangle with a text line
 - `src/lib/richEditor/blocks/QuoteBlock.ts` — filled quotation marks
 - `src/lib/richEditor/blocks/ShowcaseBlock.ts` — filled star with stroked lines
 
 ## Testing
 
-1. Start the dev server (`.claude/skills/dev-server/dev-server.sh`).
-2. Admin → Pages → edit any page.
-3. Type `/` in the editor — verify your block's icon appears.
-4. Check both light and dark admin themes.
+1. Start the dev server (`/workflow:dev-server`).
+2. Go to Admin → Pages → edit any page.
+3. Type `/` in the editor and confirm your block's icon appears.
+4. Confirm the block renders correctly in both the light and dark admin themes.
 
 ## Key files
 
-- `src/lib/richEditor/blocks/index.ts` — barrel export and `pageBlocks` array
+- `src/lib/richEditor/blocks/index.ts` — barrel export and the `pageBlocks` array
 - `src/lib/richEditor/index.ts` — Lexical editor configuration presets
-- `src/collections/Pages/Pages.ts` — collection consuming the blocks
+- `src/collections/Pages/Pages.ts` — the collection that consumes the blocks

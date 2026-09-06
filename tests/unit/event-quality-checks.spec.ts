@@ -12,7 +12,7 @@ import {
 } from '@/lib/eventQuality'
 import { EVENT_TITLE_DEFAULTS } from '@/lib/eventTitle/compose'
 
-/** Fixed clock so the stale-date check can't drift with the calendar. */
+/** Fixed clock so the stale-date check cannot drift with the calendar. */
 const NOW = new Date('2026-06-15T00:00:00.000Z')
 
 /** Lexical value for plain paragraphs, as the Atlas importer writes them. */
@@ -122,7 +122,7 @@ describe('description', () => {
 
   describe('a dependent supersedes the prerequisite it passed', () => {
     // The other half of `dependsOn`: while the prerequisite fails, the
-    // dependent is skipped; once the dependent passes, the prerequisite has
+    // dependent is skipped. Once the dependent passes, the prerequisite has
     // nothing left to add. "Has a description" beside "Has a good quality
     // description" is one row of noise wherever the report is rendered.
     const keys = (event: EventQualityInput) => {
@@ -266,7 +266,7 @@ describe('title quality', () => {
   it('is skipped entirely for a blank (hence auto-filled) title', () => {
     // The manager left the title blank, so eventTitleBeforeChange stored the
     // composed auto-title — there is no wording of theirs to judge. This is the
-    // assertion that proves #605's decision didn't regress.
+    // assertion that proves #605's decision did not regress.
     const autoFilled = goodEvent({ title: 'Meditation at Sunrise Hall', address })
     expect(resultFor(autoFilled, 'title.quality')).toBeUndefined()
   })
@@ -357,7 +357,7 @@ describe('skip rules', () => {
   })
 
   it('reports the actionable reason when several apply', () => {
-    // An expired event is also unpublished; "expired" is what a manager can act on.
+    // An expired event is also unpublished. "expired" is what a manager can act on.
     expect(
       shouldSkipQualityChecks(goodEvent({ verificationStage: 'expired', _status: 'draft' })),
     ).toBe('expired')

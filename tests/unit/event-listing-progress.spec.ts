@@ -7,7 +7,7 @@ import { listingProgressFromReport } from '@/lib/notifications'
 /**
  * The reminder email's projection of a listing-quality report (#611): open
  * items, already-done items, and the counts behind the progress bar. Rendering
- * is covered by `event-verification-email.spec.ts`; the job wiring by
+ * is covered by `event-verification-email.spec.ts`. The job wiring by
  * `tests/int/event-verification.int.spec.ts`.
  */
 
@@ -94,7 +94,7 @@ describe('listingProgressFromReport', () => {
       ]),
     )
     expect(progress?.open.map((item) => item.key)).toEqual(['images.insufficient'])
-    // The bar must never count something it won't name.
+    // The bar must never count something it will not name.
     expect(progress).toMatchObject({ resolved: 0, total: 1 })
   })
 
@@ -129,7 +129,7 @@ describe('listingProgressFromReport', () => {
     // n < d — so the ratio is monotonic and effort is never punished.
     const ratio = (r: { resolved: number; total: number }) => r.resolved / r.total
 
-    // Before: no description, so `description.quality` isn't even evaluated.
+    // Before: no description, so `description.quality` is not even evaluated.
     const before = listingProgressFromReport(
       report([
         { key: 'description.missing', status: 'failed' },

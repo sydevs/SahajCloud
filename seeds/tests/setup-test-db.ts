@@ -4,8 +4,9 @@
 /**
  * Setup Test Database for Migration Scripts
  *
- * This script initializes an in-memory SQLite database for testing import scripts.
- * It uses Payload's test configuration with better-sqlite3 for fast, isolated testing.
+ * This script sets up the `seed_test` Postgres schema for testing import
+ * scripts. It uses Payload's test configuration (`test-payload.config.ts`),
+ * which auto-syncs the schema via Drizzle push.
  */
 
 import type { Payload } from 'payload'

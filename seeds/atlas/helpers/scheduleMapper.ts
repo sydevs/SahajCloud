@@ -1,6 +1,6 @@
 /**
  * Map an Atlas event `schedule` (parsed from Rails `recurrence_data`) into the
- * project `scheduleFields` group shape. Pure + side-effect free so it's unit
+ * project `scheduleFields` group shape. Pure + side-effect free so it is unit
  * testable without a Payload bootstrap.
  *
  * The Atlas shape (see seeds/atlas/extract.ts `parseSchedule`):
@@ -103,9 +103,10 @@ const TIMEZONE_VALUES = new Set<string>(SUPPORTED_TIMEZONES.map(({ value }) => v
  *
  * Falls back to `UTC` — as the caller already did for a missing zone — rather
  * than passing an unrecognised string through to a write the CMS refuses. The
- * set is the full tz database plus its aliases and the `Etc/GMT*` range, so a
- * zone `Temporal` accepts is essentially always in it; the gap is a fixed-offset
- * zone (`+05:30`) or an alias the pinned `@vvo/tzdb` does not group.
+ * set is the full tz database plus its aliases and the `Etc/GMT*` range, so
+ * a zone `Temporal` accepts is essentially always in it. The gap is a
+ * fixed-offset zone (`+05:30`) or an alias the pinned `@vvo/tzdb` does not
+ * group.
  *
  * ⚠ **`mapSchedule` resolves this ONCE and uses the result for both
  * `firstDate` and `firstDate_tz`.** Narrowing only the column would compute the
