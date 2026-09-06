@@ -74,7 +74,9 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
 
     req.payload.logger.info({
       msg: 'Starting SyncLectureMetadata',
-      scope: where ? `lectureIds[${lectureIds!.length}]` : 'all lectures',
+      // Test the value the line reads, not `where` — that is an object on both
+      // branches, so it is always truthy and the unscoped arm was unreachable.
+      scope: lectureIds?.length ? `lectureIds[${lectureIds.length}]` : 'all lectures',
       maxConcurrentFetches: MAX_CONCURRENT_FETCHES,
     })
 
