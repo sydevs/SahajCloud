@@ -134,8 +134,8 @@ export const UserMessages: CollectionConfig = {
       // server meeting a newer client. Generates the type the job and the admin
       // banner both read.
       jsonSchema: {
-        uri: 'https://sahajcloud.dev/schemas/user-message-screening-result.json',
-        fileMatch: ['https://sahajcloud.dev/schemas/user-message-screening-result.json'],
+        uri: 'urn:sahajcloud:schema:user-message-screening-result',
+        fileMatch: ['urn:sahajcloud:schema:user-message-screening-result'],
         schema: screeningResultJsonSchema,
       },
       access: systemFieldAccess,
@@ -185,8 +185,8 @@ export const UserMessages: CollectionConfig = {
       name: 'context',
       type: 'json',
       jsonSchema: {
-        uri: 'https://sahajcloud.dev/schemas/user-message-context.json',
-        fileMatch: ['https://sahajcloud.dev/schemas/user-message-context.json'],
+        uri: 'urn:sahajcloud:schema:user-message-context',
+        fileMatch: ['urn:sahajcloud:schema:user-message-context'],
         schema: contextJsonSchema,
       },
       admin: { readOnly: true },

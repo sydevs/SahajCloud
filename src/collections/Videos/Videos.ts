@@ -78,7 +78,6 @@ export const Videos: CollectionConfig = {
       },
     },
     fileMetadataField({
-      defaultEmpty: true,
       description: 'Auto-populated video metadata (duration, format, etc.)',
     }),
   ],

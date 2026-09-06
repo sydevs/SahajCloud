@@ -721,7 +721,8 @@ export const Events: CollectionConfig = {
           admin: { readOnly: true, description: 'Check-set version the count was stamped from.' },
         },
         systemMetaField({
-          uri: 'https://sahajcloud.dev/schemas/event-system-meta.json',
+          uri: 'urn:sahajcloud:schema:event-system-meta',
+          title: 'EventSystemMeta',
           namespaces: { communityFeedback: communityFeedbackJsonSchema },
           admin: {
             // Raw internal state. Useful when debugging why an event was

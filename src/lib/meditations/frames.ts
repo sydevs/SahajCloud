@@ -22,7 +22,7 @@ import * as Sentry from '@sentry/nextjs'
 
 import type { KeyframeDefinition } from '@/types/frames'
 
-export const MEDITATION_FRAMES_SCHEMA_URI = 'https://sahajcloud.dev/schemas/meditation-frames.json'
+export const MEDITATION_FRAMES_SCHEMA_URI = 'urn:sahajcloud:schema:meditation-frames'
 
 /**
  * What `Meditations.frames` holds: a list of keyframes, each naming a frame and
@@ -64,7 +64,7 @@ export const meditationFramesFieldSchema: JSONField['jsonSchema'] = {
 }
 
 export const NODE_WEIGHTS_SCHEMA_URI =
-  'https://sahajcloud.dev/schemas/meditation-node-weights.json'
+  'urn:sahajcloud:schema:meditation-node-weights'
 
 /**
  * `Meditations.subtleSystemNodeWeights`: the cached `{ slug → on-screen

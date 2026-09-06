@@ -3,7 +3,7 @@ import type { JSONField } from 'payload'
 
 import { z } from 'zod'
 
-export const SUBTITLES_SCHEMA_URI = 'https://sahajcloud.dev/schemas/subtitles.json'
+export const SUBTITLES_SCHEMA_URI = 'urn:sahajcloud:schema:subtitles'
 
 /**
  * Parser for subtitle payloads arriving from **outside** the CMS — the
