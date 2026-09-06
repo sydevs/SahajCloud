@@ -149,7 +149,9 @@ describe('resolveRegistrationRecipient', () => {
     it('defaults the frequency to Immediate when the manager has no preference', () => {
       const result = resolveRegistrationRecipient(
         event(),
-        manager({ notificationPreferences: null } as Partial<Manager>),
+        // The column is nullable in Postgres; the generated type omits `null`
+        // because a `jsonSchema` replaces Payload's loose JSON union verbatim.
+        manager({ notificationPreferences: null } as unknown as Partial<Manager>),
       )
       expect(result?.frequency).toBe('Immediate')
     })

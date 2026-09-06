@@ -3,8 +3,7 @@ import type { Payload } from 'payload'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SyncLectureMetadata } from '@/jobs/SyncLectureMetadata/SyncLectureMetadata'
-import type { LectureMetadata } from '@/lib/lectures/nirmalaVidya'
-import type { Lecture } from '@/payload-types'
+import type { Lecture, LectureMetadata } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
@@ -103,8 +102,13 @@ describe('SyncLectureMetadata task', () => {
       ru: 'https://example.com/refreshed-ru.vtt',
     })
     expect(metadata.duration).toBe(2400)
-    expect(new Date(metadata.lastSyncedAt).getTime()).toBeGreaterThan(
-      new Date(originalSyncedAt).getTime(),
+    // Both keys are optional on the generated type (the schema requires none,
+    // so a row written under an earlier shape stays saveable), so assert they
+    // are present before comparing.
+    expect(metadata.lastSyncedAt).toBeDefined()
+    expect(originalSyncedAt).toBeDefined()
+    expect(new Date(metadata.lastSyncedAt!).getTime()).toBeGreaterThan(
+      new Date(originalSyncedAt!).getTime(),
     )
   })
 

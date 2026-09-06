@@ -136,6 +136,10 @@ export function logField({
   columns,
   admin = {},
 }: LogFieldOptions): JSONField {
+  // No schema here yet, deliberately. #695 promotes `activityLog` to every
+  // submission type, on a path a client's action reaches, so it decides what
+  // this factory declares. Adding one now would give the column two definitions
+  // to reconcile at that merge. See #659's group B.
   return {
     name,
     type: 'json',

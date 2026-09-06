@@ -6,6 +6,13 @@
  * and re-run `payload generate:types` to regenerate this file.
  */
 
+export type Subtitles = {
+  content: string;
+  startTimeMs: number;
+  endTimeMs: number;
+  durationMs?: number;
+  [k: string]: unknown;
+}[];
 /**
  * Supported timezones in IANA format.
  *
@@ -111,8 +118,6 @@ export type SupportedTimezones =
   | 'America/Swift_Current'
   | 'Canada/Saskatchewan'
   | 'America/Tegucigalpa'
-  | 'Pacific/Easter'
-  | 'Chile/EasterIsland'
   | 'Pacific/Galapagos'
   | 'America/Edmonton'
   | 'America/Cambridge_Bay'
@@ -146,6 +151,8 @@ export type SupportedTimezones =
   | 'America/Resolute'
   | 'Canada/Central'
   | 'America/Rainy_River'
+  | 'Pacific/Easter'
+  | 'Chile/EasterIsland'
   | 'America/Atikokan'
   | 'America/Cancun'
   | 'America/Cayman'
@@ -187,7 +194,6 @@ export type SupportedTimezones =
   | 'America/Curacao'
   | 'America/Santo_Domingo'
   | 'America/La_Paz'
-  | 'Chile/Continental'
   | 'America/Havana'
   | 'Cuba'
   | 'America/Nassau'
@@ -254,6 +260,7 @@ export type SupportedTimezones =
   | 'Antarctica/Rothera'
   | 'America/Punta_Arenas'
   | 'America/Coyhaique'
+  | 'Chile/Continental'
   | 'Atlantic/Stanley'
   | 'America/Cayenne'
   | 'America/Asuncion'
@@ -594,6 +601,64 @@ export type SupportedTimezones =
   | 'Etc/GMT+10'
   | 'Etc/GMT+11'
   | 'Etc/GMT+12';
+export type ScheduleUpcomingDates = string[];
+export type EventQualityReport =
+  | {
+      skipped: true;
+      /**
+       * Why the checks were not run at all.
+       */
+      reason: 'unpublished' | 'finished' | 'expired' | 'denied' | 'trashed';
+    }
+  | {
+      skipped: false;
+      checks: {
+        /**
+         * Stable check id, labelled elsewhere.
+         */
+        key: string;
+        status: 'passed' | 'failed' | 'pending';
+        /**
+         * What went wrong, for a check folding several problems into one.
+         */
+        detail?: string;
+      }[];
+      /**
+       * Failed items — what `qualityOpenCount` stores.
+       */
+      openCount: number;
+    };
+export type MeditationNodeWeights = {
+  [k: string]: number;
+} | null;
+export type TagAssignments = {
+  /**
+   * The UserChoice document id.
+   */
+  id: number;
+  /**
+   * The tag title, in the read locale.
+   */
+  title: string;
+}[];
+export type MeditationFrames = {
+  /**
+   * The Frame document id.
+   */
+  id: number | string;
+  /**
+   * Seconds into the meditation.
+   */
+  timestamp: number;
+  [k: string]: unknown;
+}[];
+export type SyncLectureMetadataIds = number[];
+export type TableOfContentsHeadings = {
+  slug: string;
+  text: string;
+  level: number;
+  [k: string]: unknown;
+}[];
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "ProjectSlug".
@@ -968,15 +1033,7 @@ export interface Image {
         | 'app-card'
       )[]
     | null;
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  fileMetadata?: FileMetadata;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -989,6 +1046,13 @@ export interface Image {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+export interface FileMetadata {
+  /**
+   * The filename as uploaded, before the adapter replaced it with a provider id.
+   */
+  originalFilename?: string;
+  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1047,25 +1111,9 @@ export interface Video {
    * Video title shown to users
    */
   title: string;
-  subtitles?: {
-    content: string;
-    startTimeMs: number;
-    endTimeMs: number;
-    durationMs?: number;
-  }[];
+  subtitles?: Subtitles;
   tags: 'testimonial' | 'workshop' | 'event' | 'technique';
-  /**
-   * Auto-populated video metadata (duration, format, etc.)
-   */
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  fileMetadata?: FileMetadata1;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1077,6 +1125,13 @@ export interface Video {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+export interface FileMetadata1 {
+  /**
+   * The filename as uploaded, before the adapter replaced it with a provider id.
+   */
+  originalFilename?: string;
+  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1325,18 +1380,7 @@ export interface Manager {
         id?: string | null;
       }[]
     | null;
-  /**
-   * Choose how and how often to receive each kind of notification.
-   */
-  notificationPreferences?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  notificationPreferences?: NotificationPreferences;
   lastRegistrationDigestSentAt?: string | null;
   legacyId?: number | null;
   legacyData?:
@@ -1763,15 +1807,7 @@ export interface Event {
       | null;
     lastDate?: string | null;
     icalRule?: string | null;
-    upcomingDates?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
+    upcomingDates?: ScheduleUpcomingDates;
   };
   registrationMode: 'sahaj-atlas' | 'external';
   externalRegistrationUrl?: string | null;
@@ -1827,15 +1863,7 @@ export interface Event {
    * How strongly attendees confirm this event is real (0–1). Rises with confirmations, falls with denials, and stays cautious while there are few votes — the Atlas map ranks unverified listings by it. Blank until the first vote.
    */
   confidenceScore?: number | null;
-  qualityReport?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  qualityReport?: EventQualityReport;
   /**
    * Who submitted this listing (record-keeping only).
    */
@@ -1856,7 +1884,7 @@ export interface Event {
    * Check-set version the count was stamped from.
    */
   qualityCheckVersion?: number | null;
-  systemMeta?: HttpsSahajcloudDevSchemasEventSystemMetaJson;
+  systemMeta?: EventSystemMeta;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -2244,10 +2272,10 @@ export interface Client {
      * Which of the embeds this service reported owns the canonical URLs. Domain, mount and routing all come from this one choice.
      */
     embed?: string | null;
-    verification?: HttpsSahajcloudDevSchemasClientCanonicalVerificationJson;
+    verification?: ClientCanonicalVerification;
     nextVerifyAt?: string | null;
   };
-  embedMetadata?: HttpsSahajcloudDevSchemasClientEmbedMetadataJson;
+  embedMetadata?: ClientEmbedMetadata;
   /**
    * Purpose and usage notes for this client
    */
@@ -2276,15 +2304,7 @@ export interface Client {
    * API usage statistics
    */
   usage?: {
-    abuseScore?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
+    abuseScore?: ClientAbuseScore;
     /**
      * Today's request count
      */
@@ -2332,7 +2352,7 @@ export interface Client {
   apiKeyIndex?: string | null;
   collection: 'clients';
 }
-export interface HttpsSahajcloudDevSchemasClientCanonicalVerificationJson {
+export interface ClientCanonicalVerification {
   verified: {
     domain: string;
     mount: string;
@@ -2347,7 +2367,7 @@ export interface HttpsSahajcloudDevSchemasClientCanonicalVerificationJson {
     reason?: 'dns' | 'http' | 'marker-absent' | 'not-configured' | 'provider-error' | 'quota' | 'bot-challenge';
   }[];
 }
-export interface HttpsSahajcloudDevSchemasClientEmbedMetadataJson {
+export interface ClientEmbedMetadata {
   [k: string]: {
     mode: 'inline' | 'iframe';
     topLevel: boolean;
@@ -2357,7 +2377,31 @@ export interface HttpsSahajcloudDevSchemasClientEmbedMetadataJson {
     lastSeen: string;
   };
 }
-export interface HttpsSahajcloudDevSchemasEventSystemMetaJson {
+export interface ClientAbuseScore {
+  /**
+   * Abuse score from 0-100.
+   */
+  score: number;
+  /**
+   * Severity band the score falls in.
+   */
+  level: 'normal' | 'elevated' | 'high' | 'critical';
+  breakdown: {
+    /**
+     * Frequency contribution (0-40).
+     */
+    frequency: number;
+    /**
+     * Recency contribution (0-30).
+     */
+    recency: number;
+    /**
+     * Current-spike contribution (0-30).
+     */
+    current: number;
+  };
+}
+export interface EventSystemMeta {
   communityFeedback?: {
     /**
      * Registrants who confirmed the event exists.
@@ -2371,6 +2415,13 @@ export interface HttpsSahajcloudDevSchemasEventSystemMetaJson {
      * ISO timestamp of the last vote applied.
      */
     updatedAt?: string;
+  };
+}
+export interface NotificationPreferences {
+  [k: string]: {
+    frequency?: string;
+    method?: string;
+    [k: string]: unknown;
   };
 }
 /**
@@ -2409,15 +2460,7 @@ export interface Meditation {
    */
   songTag?: (number | null) | SongTag;
   duration?: number | null;
-  subtleSystemNodeWeights?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  subtleSystemNodeWeights?: MeditationNodeWeights;
   durationMinutes?: number | null;
   /**
    * Optional auto-generated fallback title (e.g. Meditation for Anahat), derived from this meditation's dominant subtle-system node. Front-end clients use it only when they have no composed label of their own.
@@ -2429,52 +2472,12 @@ export interface Meditation {
    * Shows which categories use this meditation for each time of day. Managed from the Categories collection.
    */
   tagAssignments?: {
-    asMorningMeditation?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    asAfternoonMeditation?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    asEveningMeditation?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    asNightMeditation?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
+    asMorningMeditation?: TagAssignments;
+    asAfternoonMeditation?: TagAssignments;
+    asEveningMeditation?: TagAssignments;
+    asNightMeditation?: TagAssignments;
   };
-  frames?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  frames?: MeditationFrames;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -2551,15 +2554,7 @@ export interface Song {
    * Include this song in random selection in meditations. Auto-set to false on creation when the song has the vocals tag, then manually editable.
    */
   includeForMeditations?: boolean | null;
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  fileMetadata?: FileMetadata2;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -2598,6 +2593,13 @@ export interface Album {
   createdAt: string;
   deletedAt?: string | null;
 }
+export interface FileMetadata2 {
+  /**
+   * The filename as uploaded, before the adapter replaced it with a provider id.
+   */
+  originalFilename?: string;
+  [k: string]: unknown;
+}
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lessons".
@@ -2615,12 +2617,7 @@ export interface Lesson {
      * Image or video for this panel.
      */
     media?: (number | null) | File;
-    subtitles?: {
-      content: string;
-      startTimeMs: number;
-      endTimeMs: number;
-      durationMs?: number;
-    }[];
+    subtitles?: Subtitles;
     id?: string | null;
   }[];
   /**
@@ -2647,12 +2644,7 @@ export interface Lesson {
    * Audio introduction to this lesson.
    */
   introAudio?: (number | null) | File;
-  introSubtitles?: {
-    content: string;
-    startTimeMs: number;
-    endTimeMs: number;
-    durationMs?: number;
-  }[];
+  introSubtitles?: Subtitles;
   article?: {
     root: {
       type: string;
@@ -2758,18 +2750,7 @@ export interface Lecture {
         id?: string | null;
       }[]
     | null;
-  /**
-   * Auto-populated from Nirmala Vidya API and updated monthly.
-   */
-  metadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  metadata?: LectureMetadata;
   /**
    * The full lecture this clip is excerpted from. Required for clips (alternatively, supply a Vimeo URL during create to look up or create the parent automatically).
    */
@@ -2797,6 +2778,19 @@ export interface Lecture {
   };
   updatedAt: string;
   createdAt: string;
+}
+export interface LectureMetadata {
+  title?: string;
+  thumbnailUrl?: string | null;
+  hlsUrl?: string;
+  /**
+   * Subtitle track URL per CMS locale, from the NV API language codes.
+   */
+  subtitles?: {
+    [k: string]: string;
+  };
+  duration?: number | null;
+  lastSyncedAt?: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3138,15 +3132,7 @@ export interface AppCard {
   id: number;
   label?: string | null;
   type: 'standard' | 'event';
-  viewSchedule?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  viewSchedule?: AppCardViewSchedule;
   default: {
     /**
      * Shown above the card in hero placement.
@@ -3300,15 +3286,7 @@ export interface AppCard {
       | null;
     lastDate?: string | null;
     icalRule?: string | null;
-    upcomingDates?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
+    upcomingDates?: ScheduleUpcomingDates;
   };
   /**
    * Target sections where this card should appear on the app homepage.
@@ -3333,6 +3311,18 @@ export interface AppCard {
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
+}
+export interface AppCardViewSchedule {
+  /**
+   * IANA zone the schedule keys are read in.
+   */
+  timezone: string;
+  /**
+   * HH:MM (24-hour UTC) → the view active from then until the next key.
+   */
+  schedule: {
+    [k: string]: 'startingSoon' | 'liveNow' | 'default';
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3507,15 +3497,7 @@ export interface Frame {
       )[]
     | null;
   duration?: number | null;
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  fileMetadata?: FileMetadata3;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -3527,6 +3509,13 @@ export interface Frame {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+export interface FileMetadata3 {
+  /**
+   * The filename as uploaded, before the adapter replaced it with a provider id.
+   */
+  originalFilename?: string;
+  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -5947,90 +5936,13 @@ export interface WmAppTranslation {
  */
 export interface WmAppStatus {
   id: number;
-  /**
-   * Computed launch-readiness report for the userChoices section in the current locale.
-   */
-  userChoices?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Computed launch-readiness report for the lessons section in the current locale.
-   */
-  lessons?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Computed launch-readiness report for the lectures section in the current locale.
-   */
-  lectures?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Computed launch-readiness report for the pages section in the current locale.
-   */
-  pages?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Computed launch-readiness report for the appConfig section in the current locale.
-   */
-  appConfig?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Computed launch-readiness report for the translations section in the current locale.
-   */
-  translations?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Computed launch-readiness report for the appCards section in the current locale.
-   */
-  appCards?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  userChoices?: ReadinessReport;
+  lessons?: ReadinessReport;
+  lectures?: ReadinessReport;
+  pages?: ReadinessReport;
+  appConfig?: ReadinessReport;
+  translations?: ReadinessReport;
+  appCards?: ReadinessReport;
   /**
    * App cards that must be ready before launch. All other app cards roll up under the optional "other-cards" group.
    */
@@ -6290,6 +6202,74 @@ export interface WmAppStatus {
     | 'ZW';
   updatedAt?: string | null;
   createdAt?: string | null;
+}
+export interface ReadinessReport {
+  groups: (
+    | {
+        type: 'documents';
+        key: string;
+        optional?: boolean;
+        documents: {
+          id: number | string;
+          label: string;
+          checks: {
+            key: string;
+            passed: boolean;
+          }[];
+        }[];
+        summary: {
+          total: number;
+          passing: number;
+        };
+        passing: boolean;
+        counter: {
+          current: number;
+          total: number;
+        };
+      }
+    | {
+        type: 'aggregate';
+        key: string;
+        optional?: boolean;
+        passed: boolean;
+        actual: number;
+        threshold: number;
+        items?: {
+          id: number | string;
+          label: string;
+          checks: {
+            key: string;
+            passed: boolean;
+          }[];
+        }[];
+        passing: boolean;
+        counter: {
+          current: number;
+          total: number;
+        };
+      }
+    | {
+        type: 'errored';
+        key: string;
+        optional?: boolean;
+        error: string;
+        passing: false;
+        counter: null;
+      }
+  )[];
+  summary: {
+    total: number;
+    passing: number;
+  };
+  optionalSummary?: {
+    total: number;
+    passing: number;
+  };
+  passing: boolean;
+  progress: {
+    passing: number;
+    total: number;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -6733,15 +6713,7 @@ export interface CollectionsWidget {
  */
 export interface TaskCleanupOrphanedMedia {
   input: {
-    testDateRange?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
+    testDateRange?: CleanupTestDateRange;
     maxOperations?: number | null;
   };
   output: {
@@ -6752,6 +6724,10 @@ export interface TaskCleanupOrphanedMedia {
     skippedImages: number;
     errors: number;
   };
+}
+export interface CleanupTestDateRange {
+  rangeStart: string;
+  rangeEnd: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -6849,15 +6825,7 @@ export interface TaskSendSessionReminders {
  */
 export interface TaskSyncLectureMetadata {
   input: {
-    lectureIds?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
+    lectureIds?: SyncLectureMetadataIds;
   };
   output: {
     totalProcessed: number;
@@ -7050,18 +7018,7 @@ export interface TableOfContentsBlock {
    * Optional heading displayed above the list (e.g. "In this article")
    */
   title?: string | null;
-  /**
-   * Select headings above to include in the table of contents
-   */
-  headings?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  headings?: TableOfContentsHeadings;
   id?: string | null;
   blockName?: string | null;
   blockType: 'table-of-contents';

@@ -6,6 +6,7 @@ import {
   computeLastDate,
   computeUpcomingDates,
   getLocalTimeHHMM,
+  upcomingDatesFieldSchema,
 } from '@/lib/schedule/scheduleHooks'
 
 /**
@@ -514,9 +515,12 @@ function buildVirtualFields(): Field[] {
       },
     },
     {
+      // Virtual: written by `computeUpcomingDates` below, never stored. The
+      // schema exists for the generated type. See `src/collections/AGENTS.md`.
       name: 'upcomingDates',
       type: 'json',
       virtual: true,
+      jsonSchema: upcomingDatesFieldSchema,
       admin: { hidden: true },
       hooks: {
         afterRead: [computeUpcomingDates],

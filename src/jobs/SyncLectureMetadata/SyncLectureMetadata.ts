@@ -1,4 +1,4 @@
-import type { TaskConfig, Where } from 'payload'
+import type { JSONField, TaskConfig, Where } from 'payload'
 
 import pMap from 'p-map'
 import pRetry from 'p-retry'
@@ -13,8 +13,17 @@ type SyncResult = {
   skippedNoVimeoId: number
 }
 
-type SyncLectureMetadataInput = {
-  lectureIds?: number[]
+const LECTURE_IDS_SCHEMA_URI = 'urn:sahajcloud:schema:sync-lecture-metadata-ids'
+
+const lectureIdsJsonSchema: NonNullable<JSONField['jsonSchema']> = {
+  uri: LECTURE_IDS_SCHEMA_URI,
+  fileMatch: [LECTURE_IDS_SCHEMA_URI],
+  schema: {
+    $id: LECTURE_IDS_SCHEMA_URI,
+    title: 'SyncLectureMetadataIds',
+    type: 'array',
+    items: { type: 'integer' },
+  },
 }
 
 const PAGINATION_LIMIT = 1000
@@ -39,9 +48,13 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
   retries: 2,
   inputSchema: [
     {
+      // Optional narrowing for a manual run. The schema generates the input's
+      // type, replacing a hand-written `SyncLectureMetadataInput` — it is not a
+      // runtime check, so the handler still tests `Array.isArray` below.
       name: 'lectureIds',
       type: 'json',
       required: false,
+      jsonSchema: lectureIdsJsonSchema,
     },
   ],
   outputSchema: [
@@ -64,7 +77,7 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
       skippedNoVimeoId: 0,
     }
 
-    const lectureIds = (input as SyncLectureMetadataInput | undefined)?.lectureIds
+    const lectureIds = input?.lectureIds
     // Only full lectures own NV `metadata`; clips reference their parent and
     // have `metadata: null` by design (#338).
     const where: Where =

@@ -94,8 +94,8 @@ export const Registrations: CollectionConfig = {
       // key or non-string answer throws a ValidationError → 400 at the register
       // endpoint, surfaced verbatim rather than a 500).
       jsonSchema: {
-        uri: 'https://sahajcloud.dev/schemas/registration-questions.json',
-        fileMatch: ['https://sahajcloud.dev/schemas/registration-questions.json'],
+        uri: 'urn:sahajcloud:schema:registration-questions',
+        fileMatch: ['urn:sahajcloud:schema:registration-questions'],
         schema: registrationQuestionsJsonSchema,
       },
       admin: {

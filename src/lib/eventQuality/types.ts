@@ -35,24 +35,6 @@ export type QualityCheckResult = {
 export type QualitySkipReason = 'unpublished' | 'finished' | 'expired' | 'denied' | 'trashed'
 
 /**
- * The whole report, as returned by the virtual field in a single read.
- *
- * Flat: `title` stopped being localized, so there is no per-locale dimension
- * left — the Atlas widget translates client-side from the one stored value.
- */
-export type EventQualityReport =
-  | {
-      skipped: true
-      reason: QualitySkipReason
-    }
-  | {
-      skipped: false
-      checks: QualityCheckResult[]
-      /** Open (failed) items — what `qualityOpenCount` stores. */
-      openCount: number
-    }
-
-/**
  * The slice of an event a check reads. Loose on purpose: the report is built
  * from a Payload document, from `{ ...originalDoc, ...data }` inside a
  * `beforeChange`, and from hand-written fixtures in the unit lane — none of

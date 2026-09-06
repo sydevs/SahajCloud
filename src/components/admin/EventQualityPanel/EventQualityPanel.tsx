@@ -10,7 +10,8 @@ import React from 'react'
 
 import { StatusIcon } from '@/components/admin/ReadinessField/StatusIcon'
 import { summaryTone, toneToColor } from '@/components/admin/ReadinessField/summary'
-import type { EventQualityReport, QualitySkipReason } from '@/lib/eventQuality/types'
+import type { QualitySkipReason } from '@/lib/eventQuality/types'
+import type { EventQualityReport } from '@/payload-types'
 
 import { buildPanelModel } from './model'
 

@@ -3,7 +3,7 @@
 import { Banner, useAllFormFields } from '@payloadcms/ui'
 import React from 'react'
 
-import type { ReadinessReport } from '@/lib/status'
+import type { ReadinessReport } from '@/payload-types'
 
 import { ProgressBar } from './ProgressBar'
 

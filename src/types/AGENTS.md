@@ -51,8 +51,10 @@ export type RegionLevel = 'country' | 'region' | 'city' | 'venue'
 ```
 
 This also covers **JSON-schema columns**: a `jsonSchema` field generates an
-interface (`HttpsSahajcloudDevSchemas…Json`). A hand-written interface next
-to that schema is the same restatement, one level down.
+interface, named after the schema's `title` (`LectureMetadata`) or, with no
+title, its `$id` (`HttpsSahajcloudDevSchemas…Json`). A hand-written interface
+next to that schema is the same restatement, one level down — import the
+generated one instead, as `nirmalaVidya.ts` and `lectureShape.ts` do.
 
 ### A derived alias stays local, and is never re-exported
 

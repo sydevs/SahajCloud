@@ -1,6 +1,7 @@
 import type { CollectionConfig, Where } from 'payload'
 
 import { mediaField, urlField } from '@/fields'
+import { lectureMetadataFieldSchema } from '@/lib/lectures/nirmalaVidya'
 import { LOCALES, getLocaleLabel } from '@/lib/locales'
 
 import { lecturesForAudience } from './endpoints/forAudience'
@@ -166,6 +167,7 @@ export const Lectures: CollectionConfig = {
     {
       name: 'metadata',
       type: 'json',
+      jsonSchema: lectureMetadataFieldSchema,
       access: {
         // Clips source NV metadata from their parent and have `metadata: null`
         // by design (#338). Reject API writes that would diverge a clip from

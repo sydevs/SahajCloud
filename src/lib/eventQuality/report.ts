@@ -1,13 +1,13 @@
 import type {
   CheckContext,
   EventQualityInput,
-  EventQualityReport,
   QualityCheck,
   QualityCheckResult,
   TitleTemplateSet,
 } from './types'
 
 import { EVENT_TITLE_DEFAULTS } from '@/lib/eventTitle/compose'
+import type { EventQualityReport } from '@/payload-types'
 
 import { isAutoFilledTitle } from './autoTitle'
 import { eventAddressPhrases, eventDescriptionText, EVENT_QUALITY_CHECKS } from './checks'
