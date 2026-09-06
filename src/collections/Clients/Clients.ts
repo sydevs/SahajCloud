@@ -333,8 +333,8 @@ export const Clients: CollectionConfig = {
       },
       fields: [
         {
-          // Virtual: written by the hook below, never stored. The schema mirrors
-          // `AbuseScore` in `@/plugins/usage`. See `src/collections/AGENTS.md`.
+          // Virtual: written by the hook below, never stored. The schema generates
+          // `ClientAbuseScore`. See `src/collections/AGENTS.md`.
           name: 'abuseScore',
           type: 'json',
           virtual: true,

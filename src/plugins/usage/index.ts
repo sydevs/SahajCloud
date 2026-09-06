@@ -57,6 +57,4 @@ export {
   abuseScoreJsonSchema,
   ABUSE_SCORE_SCHEMA_URI,
   calculateAbuseScore,
-  type AbuseLevel,
-  type AbuseScore,
 } from './abuse'

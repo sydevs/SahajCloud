@@ -1,4 +1,7 @@
-import type { CheckResult, DocumentReport, ReadinessGroup, ReadinessReport } from './types'
+import type { CheckResult, DocumentReport, ReadinessGroup } from './types'
+
+import type { ReadinessReport } from '@/payload-types'
+
 
 /** Baked onto every group by its constructor — exposed for external callers/tests. */
 export function isGroupPassing(group: ReadinessGroup): boolean {

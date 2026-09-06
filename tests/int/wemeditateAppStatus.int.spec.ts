@@ -13,7 +13,8 @@ import {
   userChoicesSection,
   type WeMeditateAppStatusConfig,
 } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
-import { runSection, type ReadinessReport, type SectionSpec } from '@/lib/status'
+import { runSection, type SectionSpec } from '@/lib/status'
+import type { ReadinessReport } from '@/payload-types'
 import type { AppCard, Lesson, Manager, Page, UserChoice, WmAppStatus } from '@/payload-types'
 
 import { testData } from '../utils/testData'

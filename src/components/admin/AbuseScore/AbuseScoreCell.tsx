@@ -2,7 +2,7 @@
 
 import type { DefaultCellComponentProps } from 'payload'
 
-import type { AbuseScore } from '@/plugins/usage/abuse'
+import type { ClientAbuseScore } from '@/payload-types'
 
 import { AbuseScoreDisplay } from './AbuseScoreDisplay'
 
@@ -11,7 +11,7 @@ import { AbuseScoreDisplay } from './AbuseScoreDisplay'
  * Receives pre-computed value via cellData from the virtual field's afterRead hook.
  */
 export const AbuseScoreCell: React.FC<DefaultCellComponentProps> = ({ cellData }) => {
-  const abuseScore = cellData as AbuseScore | null
+  const abuseScore = cellData as ClientAbuseScore | null
   return <AbuseScoreDisplay abuseScore={abuseScore} />
 }
 

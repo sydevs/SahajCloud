@@ -1,4 +1,5 @@
-import type { CheckStatus, EventQualityReport, QualitySkipReason } from '@/lib/eventQuality/types'
+import type { CheckStatus, QualitySkipReason } from '@/lib/eventQuality/types'
+import type { EventQualityReport } from '@/payload-types'
 
 /** Metadata threaded through `admin.custom` from the check registry. */
 export type ChecksMetadata = Record<

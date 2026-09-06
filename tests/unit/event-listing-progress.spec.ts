@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import type { EventQualityReport, QualityCheckResult } from '@/lib/eventQuality'
+import type { QualityCheckResult } from '@/lib/eventQuality'
 import { EVENT_QUALITY_CHECK_METADATA } from '@/lib/eventQuality'
 import { listingProgressFromReport } from '@/lib/notifications'
+import type { EventQualityReport } from '@/payload-types'
 
 /**
  * The reminder email's projection of a listing-quality report (#611): open

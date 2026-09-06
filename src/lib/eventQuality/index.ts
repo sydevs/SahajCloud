@@ -29,7 +29,6 @@ export { loadTitleTemplates } from './titleTemplates'
 export type {
   CheckStatus,
   EventQualityInput,
-  EventQualityReport,
   QualityCheck,
   QualityCheckResult,
   QualitySkipReason,

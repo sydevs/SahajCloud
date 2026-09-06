@@ -1,12 +1,13 @@
 import type { PayloadRequest } from 'payload'
 
 import type { EventListingProgress, EventSuggestion } from '@/emails/EventVerificationEmail'
-import type { EventQualityInput, EventQualityReport } from '@/lib/eventQuality'
+import type { EventQualityInput } from '@/lib/eventQuality'
 import {
   buildEventQualityReport,
   EVENT_QUALITY_CHECK_METADATA,
   loadTitleTemplates,
 } from '@/lib/eventQuality'
+import type { EventQualityReport } from '@/payload-types'
 
 /**
  * A listing-quality report projected into what the reminder email shows.

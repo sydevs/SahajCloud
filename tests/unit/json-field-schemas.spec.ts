@@ -17,10 +17,10 @@ import { LECTURE_METADATA_SCHEMA_URI } from '@/lib/lectures/nirmalaVidya'
 import { MEDITATION_FRAMES_SCHEMA_URI, NODE_WEIGHTS_SCHEMA_URI } from '@/lib/meditations/frames'
 import { TableOfContentsBlock } from '@/lib/richEditor/blocks/TableOfContentsBlock'
 import { UPCOMING_DATES_SCHEMA_URI } from '@/lib/schedule/scheduleHooks'
-import type { ReadinessReport } from '@/lib/status'
 import { READINESS_REPORT_SCHEMA_URI } from '@/lib/status/virtualReadinessField'
 import { SUBTITLES_SCHEMA_URI } from '@/lib/utilities/subtitles'
-import { ABUSE_SCORE_SCHEMA_URI, type AbuseScore } from '@/plugins/usage'
+import type { ClientAbuseScore, ReadinessReport } from '@/payload-types'
+import { ABUSE_SCORE_SCHEMA_URI } from '@/plugins/usage'
 
 /**
  * #659: every JSON column that can state its shape now declares a `jsonSchema`,
@@ -279,10 +279,10 @@ describe('virtual columns', () => {
     expect(runSchema(field, { schedule: { '00:00': 'default' } })).not.toBe(true)
   })
 
-  it('types Clients.usage.abuseScore as `AbuseScore`', () => {
+  it('types Clients.usage.abuseScore as `ClientAbuseScore`', () => {
     const field = jsonField(Clients.fields, 'abuseScore')
     expect(field.jsonSchema?.uri).toBe(ABUSE_SCORE_SCHEMA_URI)
-    const score: AbuseScore = {
+    const score: ClientAbuseScore = {
       score: 42,
       level: 'elevated',
       breakdown: { frequency: 12, recency: 20, current: 10 },
