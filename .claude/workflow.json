@@ -8,7 +8,7 @@
   },
   "contractStep": {
     "description": "Payload migrations. Attempt first, then hand off if it hangs.",
-    "command": "timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null",
+    "command": "timeout 300 pnpm db:migrations:create <name> --skip-empty < /dev/null",
     "onExit124": "Hand off to the user. Do not retry.",
     "rationale": "src/migrations/AGENTS.md"
   },
