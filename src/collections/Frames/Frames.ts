@@ -143,6 +143,6 @@ export const Frames: CollectionConfig = {
         ],
       },
     },
-    fileMetadataField({ defaultEmpty: true }),
+    fileMetadataField(),
   ],
 }

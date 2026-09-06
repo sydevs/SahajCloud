@@ -226,10 +226,11 @@ export const Clients: CollectionConfig = {
                   type: 'json',
                   label: 'Discovered Embeds',
                   jsonSchema: {
-                    uri: 'https://sahajcloud.dev/schemas/client-embed-metadata.json',
-                    fileMatch: ['https://sahajcloud.dev/schemas/client-embed-metadata.json'],
+                    uri: 'urn:sahajcloud:schema:client-embed-metadata',
+                    fileMatch: ['urn:sahajcloud:schema:client-embed-metadata'],
                     schema: {
-                      $id: 'https://sahajcloud.dev/schemas/client-embed-metadata.json',
+                      $id: 'urn:sahajcloud:schema:client-embed-metadata',
+                      title: 'ClientEmbedMetadata',
                       ...embedMetadataJsonSchema,
                     },
                   },

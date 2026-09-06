@@ -1,4 +1,4 @@
-import type { TaskConfig, Where } from 'payload'
+import type { JSONField, TaskConfig, Where } from 'payload'
 
 import pMap from 'p-map'
 import pRetry from 'p-retry'
@@ -13,7 +13,18 @@ type SyncResult = {
   skippedNoVimeoId: number
 }
 
-const LECTURE_IDS_SCHEMA_URI = 'https://sahajcloud.dev/schemas/sync-lecture-metadata-ids.json'
+const LECTURE_IDS_SCHEMA_URI = 'urn:sahajcloud:schema:sync-lecture-metadata-ids'
+
+const lectureIdsJsonSchema: NonNullable<JSONField['jsonSchema']> = {
+  uri: LECTURE_IDS_SCHEMA_URI,
+  fileMatch: [LECTURE_IDS_SCHEMA_URI],
+  schema: {
+    $id: LECTURE_IDS_SCHEMA_URI,
+    title: 'SyncLectureMetadataIds',
+    type: 'array',
+    items: { type: 'integer' },
+  },
+}
 
 const PAGINATION_LIMIT = 1000
 const MAX_CONCURRENT_FETCHES = 10
@@ -43,16 +54,7 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
       name: 'lectureIds',
       type: 'json',
       required: false,
-      jsonSchema: {
-        uri: LECTURE_IDS_SCHEMA_URI,
-        fileMatch: [LECTURE_IDS_SCHEMA_URI],
-        schema: {
-          $id: LECTURE_IDS_SCHEMA_URI,
-          title: 'SyncLectureMetadataIds',
-          type: 'array',
-          items: { type: 'integer' },
-        },
-      },
+      jsonSchema: lectureIdsJsonSchema,
     },
   ],
   outputSchema: [

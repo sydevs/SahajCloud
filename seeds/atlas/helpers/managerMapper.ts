@@ -15,13 +15,6 @@ const MESSAGING_PLATFORMS = new Set<string>(['whatsapp', 'telegram', 'wechat'])
 const SUMMARY_FLAGS = ['place_summary', 'country_summary', 'application_summary', 'client_summary']
 
 /**
- * The stored `notificationPreferences` shape, re-exported from the generated
- * type rather than declared again — `notificationPreferencesJsonSchema` is the
- * one definition, and this file used to hold a third copy of it.
- */
-export type { NotificationPreferences }
-
-/**
  * Map Atlas `notifications` flags and `contactMethod` to #462's
  * `notificationPreferences` json. Frequencies follow the MIGRATION_PLAN
  * defaults. The delivery method is the manager's messaging platform, or

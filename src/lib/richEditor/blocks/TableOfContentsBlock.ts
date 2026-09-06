@@ -1,6 +1,6 @@
 import type { Block } from 'payload'
 
-const TOC_HEADINGS_SCHEMA_URI = 'https://sahajcloud.dev/schemas/toc-headings.json'
+const TOC_HEADINGS_SCHEMA_URI = 'urn:sahajcloud:schema:toc-headings'
 
 export const TableOfContentsBlock: Block = {
   slug: 'table-of-contents',

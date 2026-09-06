@@ -22,7 +22,7 @@ export interface NotificationType {
 }
 
 export const NOTIFICATION_PREFERENCES_SCHEMA_URI =
-  'https://sahajcloud.dev/schemas/notification-preferences.json'
+  'urn:sahajcloud:schema:notification-preferences'
 
 export const NOTIFICATION_TYPES: NotificationType[] = [
   {

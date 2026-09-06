@@ -24,7 +24,7 @@ import { CANONICAL_DOMAIN_PATTERN, ROUTING_MODES } from './canonical'
 
 /** `$id` / `fileMatch` key Payload names the generated type from. */
 export const CANONICAL_VERIFICATION_SCHEMA_URI =
-  'https://sahajcloud.dev/schemas/client-canonical-verification.json'
+  'urn:sahajcloud:schema:client-canonical-verification'
 
 /** Definitive failures — the embed is genuinely not working. These count. */
 export const VERIFICATION_FAILURE_REASONS = ['dns', 'http', 'marker-absent'] as const
@@ -96,6 +96,7 @@ const domainSchema: JSONSchema4 = {
  */
 export const canonicalVerificationJsonSchema: JSONSchema4 = {
   $id: CANONICAL_VERIFICATION_SCHEMA_URI,
+  title: 'ClientCanonicalVerification',
   type: 'object',
   additionalProperties: false,
   required: ['verified', 'failureCount', 'attempts'],

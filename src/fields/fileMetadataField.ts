@@ -1,6 +1,6 @@
 import type { JSONField } from 'payload'
 
-export const FILE_METADATA_SCHEMA_URI = 'https://sahajcloud.dev/schemas/file-metadata.json'
+export const FILE_METADATA_SCHEMA_URI = 'urn:sahajcloud:schema:file-metadata'
 
 /**
  * The sidebar `fileMetadata` column shared by the four upload collections
@@ -16,13 +16,11 @@ export const FILE_METADATA_SCHEMA_URI = 'https://sahajcloud.dev/schemas/file-met
  * catch a bug. Declaring the one key every writer sets still buys the generated
  * type, which is what `BaseImporter` and `MediaUploader` read.
  */
-export function fileMetadataField(
-  options: { defaultEmpty?: boolean; description?: string } = {},
-): JSONField {
+export function fileMetadataField(options: { description?: string } = {}): JSONField {
   return {
     name: 'fileMetadata',
     type: 'json',
-    ...(options.defaultEmpty ? { defaultValue: {} } : {}),
+    defaultValue: {},
     jsonSchema: {
       uri: FILE_METADATA_SCHEMA_URI,
       fileMatch: [FILE_METADATA_SCHEMA_URI],

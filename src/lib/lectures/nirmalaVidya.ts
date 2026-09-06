@@ -33,7 +33,7 @@ export function apiLanguageToLocale(apiCode: string): LocaleCode | null {
 // Metadata Shape
 // =============================================================================
 
-export const LECTURE_METADATA_SCHEMA_URI = 'https://sahajcloud.dev/schemas/lecture-metadata.json'
+export const LECTURE_METADATA_SCHEMA_URI = 'urn:sahajcloud:schema:lecture-metadata'
 
 /**
  * Shape stored in `Lectures.metadata`. All NV-sourced data is bundled here so
