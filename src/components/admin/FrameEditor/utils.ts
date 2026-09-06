@@ -95,3 +95,23 @@ export const getFrameDisplayLabel = (
 export const isVideoFrame = (mimeType?: string | null): boolean => {
   return mimeType?.startsWith('video/') ?? false
 }
+
+/**
+ * The SWR key for the frames-by-narrator request, or `null` when there is
+ * nothing safe to ask for.
+ *
+ * `locale` is as load-bearing as `narratorId`. The endpoint's role gate
+ * resolves the manager's roles at `req.locale`, so a request naming no locale
+ * resolves to the default one and denies any manager whose roles live only
+ * elsewhere (#701). `useLocale()`'s context default is `{}`, so `code` can be
+ * undefined at runtime — returning `null` refuses to ask rather than asking
+ * under the wrong locale. The locale is part of the key, so switching the
+ * admin locale refetches.
+ */
+export const framesByNarratorKey = (
+  narratorId: string | null | undefined,
+  locale: string | undefined,
+): string | null =>
+  narratorId && locale
+    ? `/api/frames/by-narrator/${narratorId}?locale=${encodeURIComponent(locale)}`
+    : null

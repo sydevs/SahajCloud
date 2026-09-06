@@ -7,6 +7,10 @@ import { isValidProject } from '@/plugins/access'
  * refine that produces its 400. Each case below states what must hold. See
  * #671 for the `in` → `Object.hasOwn` fix, and
  * `tests/int/set-project-endpoint.int.spec.ts` for the 400 it produces.
+ *
+ * The predicate narrows to the generated `ProjectSlug` while the runtime check
+ * reads `PROJECTS`. The `satisfies` clause on `PROJECTS` holds those two
+ * together, inside `pnpm typecheck`, so no pin is needed here.
  */
 
 describe('isValidProject', () => {
