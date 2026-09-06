@@ -72,7 +72,7 @@ macOS ignores filename case, but TypeScript and Webpack builds do not — check 
 1. Change a collection, then run `pnpm generate:types`.
 2. Database is PostgreSQL on Railway, via migrations in `src/migrations/`. Dev uses `push: true` (auto-sync). Prod applies migrations in-process on boot. See `src/migrations/AGENTS.md`.
 3. Admin is at `/admin`. REST API is at `/api/*` (GraphQL disabled).
-4. To add a migration: create it locally, commit it, and it auto-applies on the next deploy. Run `timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null` first. This suppresses the blank-migration prompt and catches drizzle's rename-vs-create prompt, which hangs on non-TTY input. Only on exit 124, hand the command to the user to run interactively. See `src/migrations/AGENTS.md` for the full outcome table.
+4. To add a migration: create it locally, commit it, and it auto-applies on the next deploy. Run `timeout 300 pnpm db:migrations:create <name> --skip-empty < /dev/null` first. This suppresses the blank-migration prompt and catches drizzle's rename-vs-create prompt, which hangs on non-TTY input. The bound must clear the command's own boot time, measured at 2m08s in a cloud sandbox. Below that, exit 124 fires on a slow boot too and stops telling the two apart. Only on exit 124, hand the command to the user to run interactively. See `src/migrations/AGENTS.md` for the full outcome table.
 
 ### Git Commands
 

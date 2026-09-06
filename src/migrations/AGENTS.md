@@ -38,11 +38,29 @@ against Payload 3.86.0 / drizzle-kit 0.31.7):
 Run:
 
 ```bash
-timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null
+timeout 300 pnpm db:migrations:create <name> --skip-empty < /dev/null
 ```
 
 (No `--` separator — pnpm forwards args as-is, and a literal `--` reaches
-Payload and breaks its flag parsing.) Then classify the outcome:
+Payload and breaks its flag parsing.)
+
+⚠ **The bound must clear the command's own boot time, or exit 124 stops
+meaning anything.** This command boots the whole Payload config before it
+looks at the schema. Measured at **2m08s** in a cloud sandbox, twice, exit 0
+both times. At `timeout 30` — the value this documented for three days — a
+slow boot returned 124, and the table below read that as the drizzle prompt.
+The one signal that tells the two apart fired on both. Every SahajCloud PR the
+loop opened in that window shipped with the migration contract unverified.
+300s is the current bound, about 2.3× the measured boot, and it matches
+`AGENTS.md`'s existing `timeout 300 pnpm test:*` allowance, so it needs no new
+permission entry. If a run exceeds it, **raise the bound**. Never revert to a
+shorter one and read the resulting 124 as a hang.
+
+⚠ **It needs no database.** It diffs the config against the newest `.json`
+snapshot in this folder. So it runs, and is worth running, wherever the repo
+is checked out. A missing Postgres is not a reason to skip the contract.
+
+Then classify the outcome:
 
 | Outcome | Signal | Action |
 | --- | --- | --- |
@@ -52,6 +70,24 @@ Payload and breaks its flag parsing.) Then classify the outcome:
 | Interactive hang | exit 124, no new files | Hand the user the plain command to run interactively, then validate and commit |
 | Partial write | exit 124, lone `.json` (no `.ts`) | Delete the orphaned `.json`, then hand off as above |
 | Other error | exit ≥ 1 with output | Surface the error. Do not retry blindly |
+
+### "Migration created" has a false positive too — read the DDL first
+
+A clean checkout of `main` generated a **111 KB** migration on the run that
+measured the boot time above. Every statement in it touched one of the five
+`*_tz` columns, dropping and recreating their enum types to reorder the
+`SupportedTimezones` members. No table, no column, no semantic change.
+
+A second run, against the snapshot the first one wrote, generated **nothing**.
+So the ordering is stable in a given checkout, and it differs from the ordering
+the committed snapshot holds. Two runs is all that was established. The cause
+is not.
+
+That makes a created migration as ambiguous as exit 124 was. It means either a
+real schema change or an enum reordering this environment happens to disagree
+with. **Read the `.ts` before you commit it.** A reorder-only migration is not
+harmless: it `DROP TYPE`s and recreates five enums that production data depends
+on, and no ticket asked for it. Delete it and say so.
 
 ### "Exit 0, no new files" is ambiguous — check the snapshot
 
