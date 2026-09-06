@@ -60,7 +60,8 @@ content collection.
 | `/api/atlas/seo` (root endpoint)      | Route → region/event resolution. Canonical read from each document's own `webUrl` and each breadcrumb rung's own ancestor's. Descendant-inclusive class listing. 404 matrix. Locale-free canonical across locales. Ordered image list driving `og:image`. The operator-owned hreflang set changing live with `sy-atlas-config`. JSON-LD script-breakout safety end to end | `atlas-seo` + unit: `atlas-seo-route.spec.ts`, `atlas-seo-document.spec.ts`, `atlas-locales.spec.ts` |
 | `POST /api/user-messages` (built-in)  | The public intake as a client: write-guard refusals carry their machine code. System fields stripped from a forged body. `client` stamped from the key. `user` linked or null. `bodyHash` stamped. Screening queued. Then the job: spam / valid-MX / repeat-sender / duplicate-body checks, `delivered` on clean, `failed` + retry on a send failure. Then retention: delivered purged, spam kept, `failed` never | `user-messages`, `user-message-screening`, `user-message-retention` + unit: `send-user-message.spec.ts`, `user-message-screening.spec.ts`, `turnstile.spec.ts`, `email-templates.spec.ts` |
 | `/api/audiences/for-user`             | Progress-rule matching, country/location gating, condition audiences, range semantics                              | `audiences-for-user`     |
-| `/api/frames/by-narrator/:narratorId` | Param validation, narrator lookup (404), gender-based filtering, mimeType sort, depth:1 subtleSystemNode hydration | `frames-by-narrator`     |
+| `/api/frames/by-narrator/:narratorId` | Param validation, narrator lookup (404), gender-based filtering, mimeType sort, depth:1 subtleSystemNode hydration. **The locale gate over the real REST pipeline**: a French-only manager is denied with no `?locale=`, allowed at `?locale=fr`, denied at `?locale=en` (#701) | `frames-by-narrator`     |
+| `POST /api/event-submissions/:id/review` | The locale gate over the real REST pipeline: an `atlas-manager` holding roles only in French is denied with no `?locale=`, allowed at `?locale=fr`, denied at `?locale=en` (#701). `applyReview`'s own transitions are covered by `event-submissions` | `event-submissions-review` |
 | `/api/lectures/for-audience`          | Priority sampling, audience filter, subtitle/thumbnail fallback, clip metadata inheritance                         | `lectures-for-audience`  |
 | `/api/meditations/lectures`           | Weight-based ranking, audience validation, frame cascade, auth gate, audience-feed fallback                        | `meditation-lectures`    |
 
@@ -93,6 +94,7 @@ content collection.
 | A pre-existing blank region slug survives the nested-docs cascade. A deliberate blank is still refused         | `region-blank-slug-cascade` |
 | RBAC (`hasPermission`, `hasAnyPermission`, document-level manager access, locale roles, translator scopes)     | `role-based-access`         |
 | What a REST error body discloses under `config.debug` on/off, and `databaseErrorPlugin`'s 400 surviving both   | `error-disclosure`, `error-disclosure-debug` |
+| The URL and SWR key each hand-rolled admin fetch builds from the active locale, and its refusal to build one without it (#701) | `admin-locale-urls` |
 | JSON columns declare a `jsonSchema` on the real field config, and a custom `validate` composes the built-in one rather than replacing it (#659) | unit: `json-field-schemas.spec.ts` |
 | The subtitles Zod parser and JSON Schema agree on one fixture set, and part company only where the importer strips  | unit: `subtitles.spec.ts` |
 

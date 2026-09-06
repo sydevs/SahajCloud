@@ -223,6 +223,15 @@ same one `@payloadcms/next`'s `REST_GET` calls. Reach for it **only** when
 the behaviour under test lives in the REST layer and nowhere else. The
 local API is faster and is right for everything else.
 
+`createRestClientAs(env, manager)` does the same as any manager, and the
+returned caller takes `(path, { method, json })` for a POST or DELETE.
+**A third thing lives only in the REST layer: how `req.locale` is DERIVED.**
+A spec that builds `req` by hand and hardcodes `locale: 'en'` cannot see a
+request that names no locale at all — Payload then resolves the *default*
+locale, and per-locale role gates deny anyone whose roles live elsewhere.
+That is #701, and `frames-by-narrator` / `event-submissions-review` cover it
+by logging in a French-only manager and varying `?locale=`.
+
 Two things live only there, and both are why this exists (#684): **root
 `afterError` hooks** (`databaseErrorPlugin`) run inside
 `payload/dist/utilities/routeError.js`, which the local API throws

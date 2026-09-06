@@ -20,39 +20,52 @@ type TestConfig = Awaited<ReturnType<typeof createTestEnvironment>>['config']
  * throws straight past all of it, which is why `database-cast-errors.int.spec.ts`
  * can only assert the mapper against a caught error and says so in its docblock.
  */
-export type RestClient = (path: string) => Promise<{
+export interface RestRequestInit {
+  method?: string
+  /** JSON body. Serialized, with `Content-Type: application/json` set. */
+  json?: unknown
+}
+
+export type RestClient = (
+  path: string,
+  init?: RestRequestInit,
+) => Promise<{
   status: number
   body: Record<string, unknown>
   raw: string
 }>
 
 /**
- * Log the suite's admin in and return a caller that issues authenticated REST
- * requests against `config`.
+ * Log `manager` in and return a caller that issues authenticated REST requests
+ * against `config` as that manager.
  *
  * ⚠ The login is not incidental. Access control refuses an anonymous read with
  * **403 before any query runs**, so an unauthenticated request never reaches
  * Postgres and cannot produce the database errors these suites are about.
- * `createTestEnvironment`'s admin is created unverified, so `_verified` is set
- * here — `payload.login` refuses otherwise (`UnverifiedEmail`).
+ * Managers built by `createTestEnvironment` and `testData.createManager` are
+ * unverified, so `_verified` is set here — `payload.login` refuses otherwise
+ * (`UnverifiedEmail`).
  */
-export async function createRestClient(env: {
-  payload: Payload
-  config: TestConfig
-  adminUser: { id: number | string; email: string }
-}): Promise<RestClient> {
+export async function createRestClientAs(
+  env: { payload: Payload; config: TestConfig },
+  manager: { id: number | string; email: string },
+  password = 'password123',
+): Promise<RestClient> {
   await env.payload.update({
     collection: 'managers',
-    id: env.adminUser.id,
+    id: manager.id,
     data: { _verified: true },
   })
 
   const { token } = await env.payload.login({
     collection: 'managers',
-    data: { email: env.adminUser.email, password: 'password123' },
+    data: { email: manager.email, password },
   })
 
-  return async (path: string) => {
+  return async (path, init) => {
+    const headers: Record<string, string> = { Authorization: `JWT ${token}` }
+    if (init?.json !== undefined) headers['Content-Type'] = 'application/json'
+
     const response = await handleEndpoints({
       config: env.config,
       // No `path` override: it is documented as *"Override path from the
@@ -60,14 +73,24 @@ export async function createRestClient(env: {
       // (`handleEndpoints.js:106`), which already excludes the query string.
       // The query travels on the Request, exactly as `REST_GET` passes it.
       request: new Request(`http://localhost:3000${path}`, {
-        method: 'GET',
-        headers: { Authorization: `JWT ${token}` },
+        method: init?.method ?? 'GET',
+        headers,
+        ...(init?.json === undefined ? {} : { body: JSON.stringify(init.json) }),
       }),
     })
 
     const raw = await response.text()
     return { status: response.status, body: JSON.parse(raw) as Record<string, unknown>, raw }
   }
+}
+
+/** The suite admin's REST client — the common case. */
+export async function createRestClient(env: {
+  payload: Payload
+  config: TestConfig
+  adminUser: { id: number | string; email: string }
+}): Promise<RestClient> {
+  return createRestClientAs(env, env.adminUser)
 }
 
 /**

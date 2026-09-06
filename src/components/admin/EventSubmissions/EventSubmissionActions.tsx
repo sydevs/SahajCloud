@@ -1,5 +1,7 @@
 'use client'
 
+import type { Action } from './urls'
+
 import {
   Button,
   SaveButton,
@@ -8,6 +10,7 @@ import {
   useForm,
   useFormFields,
   useFormModified,
+  useLocale,
 } from '@payloadcms/ui'
 import { useRouter } from 'next/navigation'
 import React, { useCallback, useState } from 'react'
@@ -18,13 +21,13 @@ import {
   REOPENABLE_STATUSES,
 } from '@/collections/EventSubmissions/statuses'
 
+import { eventSubmissionActionUrl } from './urls'
+
 // The same sets the review op enforces server-side, from the leaf module both
 // can import — a button offered for a status `applyReview` would refuse is a
 // promise the UI can't keep.
 const OPEN = new Set<SubmissionStatus>(OPEN_SUBMISSION_STATUSES)
 const REOPENABLE = new Set<SubmissionStatus>(REOPENABLE_STATUSES)
-
-type Action = 'accept' | 'reject' | 'reopen' | 'delete'
 
 const CONFIRM: Partial<Record<Action, string>> = {
   reject: 'Reject this submission?',
@@ -61,6 +64,7 @@ const EventSubmissionActions: React.FC = () => {
   const router = useRouter()
   const { submit } = useForm()
   const modified = useFormModified()
+  const { code: locale } = useLocale()
   const status = useFormFields(([fields]) => fields?.status?.value as SubmissionStatus | undefined)
   const [busy, setBusy] = useState<Action | null>(null)
 
@@ -76,13 +80,21 @@ const EventSubmissionActions: React.FC = () => {
         // asking the reviewer to do it in two steps. Nothing else on the page
         // is editable, so a dirty form can only mean the region moved.
         if (action === 'accept' && modified) await submit()
+        // No locale, no request. Sending one without it resolves the default
+        // locale server-side and reproduces the #701 403 silently — see
+        // `eventSubmissionActionUrl`.
+        const url = eventSubmissionActionUrl(id, action, locale)
+        if (!url) {
+          toast.error('Could not apply that action.')
+          return
+        }
         const response =
           action === 'delete'
-            ? await fetch(`/api/event-submissions/${id}`, {
+            ? await fetch(url, {
                 method: 'DELETE',
                 credentials: 'include',
               })
-            : await fetch(`/api/event-submissions/${id}/review`, {
+            : await fetch(url, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
@@ -106,7 +118,7 @@ const EventSubmissionActions: React.FC = () => {
         setBusy(null)
       }
     },
-    [id, busy, router, submit, modified],
+    [id, busy, router, submit, modified, locale],
   )
 
   // An unsaved document has nothing to act on yet.

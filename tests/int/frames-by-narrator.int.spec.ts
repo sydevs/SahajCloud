@@ -1,3 +1,4 @@
+import type { RestClient } from '../utils/restRequest'
 import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -5,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { framesByNarrator } from '@/collections/Frames/endpoints/byNarrator'
 import type { Client, Frame, Narrator } from '@/payload-types'
 
+import { createRestClientAs } from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -47,6 +49,7 @@ async function callEndpoint(
 describe('framesByNarrator endpoint', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
+  let env: Awaited<ReturnType<typeof createTestEnvironment>>
 
   let maleNarrator: Narrator
   let femaleNarrator: Narrator
@@ -58,7 +61,7 @@ describe('framesByNarrator endpoint', () => {
   let framesClient: Client
 
   beforeAll(async () => {
-    const env = await createTestEnvironment()
+    env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
 
@@ -230,5 +233,44 @@ describe('framesByNarrator endpoint', () => {
     )
     expect(docWithNode).toBeDefined()
     expect((docWithNode!.subtleSystemNode as { slug?: string }).slug).toBe('anahat')
+  })
+
+  /**
+   * The handler-level cases above build `req` by hand and hardcode
+   * `locale: 'en'`, so none of them can see how `req.locale` is DERIVED. That
+   * is where #701 lived: the admin's hand-rolled fetch sent no `?locale=`,
+   * Payload resolved the default locale, and the gate read the manager's
+   * English roles — empty for a French-only manager, so 403.
+   *
+   * These drive Payload's real REST pipeline instead, as that manager.
+   */
+  describe('REST path — locale resolution gates a non-default-locale manager', () => {
+    let rest: RestClient
+    let path: string
+
+    beforeAll(async () => {
+      const frenchManager = await testData.createManager(payload, {
+        type: 'manager',
+        roles: { fr: ['meditations-editor'] },
+      })
+      rest = await createRestClientAs(env, frenchManager)
+      path = `/api/frames/by-narrator/${maleNarrator.id}`
+    })
+
+    it('denies a request naming no locale, because it resolves to the default', async () => {
+      const { status } = await rest(path)
+      expect(status).toBe(403)
+    })
+
+    it('allows the same request under the locale the manager holds roles in', async () => {
+      const { status, body } = await rest(`${path}?locale=fr`)
+      expect(status).toBe(200)
+      expect(Array.isArray(body.docs)).toBe(true)
+    })
+
+    it('denies it under a locale the manager holds no roles in', async () => {
+      const { status } = await rest(`${path}?locale=en`)
+      expect(status).toBe(403)
+    })
   })
 })
