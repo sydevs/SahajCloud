@@ -1,6 +1,6 @@
 /**
  * Pure field mappers for the Atlas Managers import (#462 / #479). Kept side-
- * effect free so they're unit testable without a Payload bootstrap.
+ * effect free so they are unit testable without a Payload bootstrap.
  */
 import ISO6391 from 'iso-639-1'
 
@@ -20,11 +20,12 @@ export interface NotificationPreference {
 export type NotificationPreferences = Record<string, NotificationPreference>
 
 /**
- * Map Atlas `notifications` flags + `contactMethod` to #462's
+ * Map Atlas `notifications` flags and `contactMethod` to #462's
  * `notificationPreferences` json. Frequencies follow the MIGRATION_PLAN
- * defaults; the delivery method is the manager's messaging platform, else
- * email. A "Never" frequency ships with no method (so it passes the field's
- * validator, which requires a method only for non-Never types).
+ * defaults. The delivery method is the manager's messaging platform, or
+ * email if none is set. A "Never" frequency ships with no method, so it
+ * passes the field's validator, which requires a method only for
+ * non-Never types.
  */
 export function mapNotificationPreferences(
   notifications: string[] | null | undefined,

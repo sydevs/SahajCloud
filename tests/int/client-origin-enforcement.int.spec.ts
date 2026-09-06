@@ -21,7 +21,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
 /**
  * End-to-end wiring for `validateClientOriginHook` (added by the usage plugin to
  * every non-excluded collection). The pure matching/normalization logic is
- * covered in `tests/unit/origin-enforcement.spec.ts`; here we prove the hook
+ * covered in `tests/unit/origin-enforcement.spec.ts`. Here we prove the hook
  * fires through `payload.find` and the custom Atlas endpoints, and that a
  * disallowed origin yields a 403.
  *

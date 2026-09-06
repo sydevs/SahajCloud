@@ -166,7 +166,7 @@ describe('SyncLectureMetadata task', () => {
 
     const output = await runTask(payload, { lectureIds: [lectureA.id] })
     // totalProcessed may include other lectures created in earlier tests if no
-    // filter were applied; with the filter we expect exactly 1.
+    // filter were applied. With the filter we expect exactly 1.
     expect(output.totalProcessed).toBe(1)
     expect(output.synced).toBe(1)
     void lectureB
@@ -178,7 +178,7 @@ describe('SyncLectureMetadata task', () => {
     const clip = await testData.createLectureExcerpt(payload, { fullLecture: parent.id })
 
     const output = await runTask(payload, { lectureIds: [parent.id, clip.id] })
-    // Only the full lecture is processed; the clip is filtered out by the
+    // Only the full lecture is processed. The clip is filtered out by the
     // task's `where.type: { equals: 'full' }` clause.
     expect(output.totalProcessed).toBe(1)
     expect(output.synced).toBe(1)

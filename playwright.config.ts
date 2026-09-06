@@ -6,7 +6,8 @@ import 'dotenv/config'
  * Playwright config for smoke specs that hit a deployed preview environment.
  *
  * CI sets PREVIEW_URL to the per-PR Railway preview URL (a `*.up.railway.app`
- * domain, discovered via the Railway API) before invoking `pnpm test:smoke`.
+ * domain, discovered from Railway's GitHub commit status by
+ * `scripts/get-railway-preview-url.ts`) before invoking `pnpm test:smoke`.
  * Locally, falls back to the dev-server URL on port 3000 (dev-server skill).
  */
 export default defineConfig({

@@ -49,7 +49,7 @@ describe('lengthStatus', () => {
   })
 
   it('counts Unicode code points, not UTF-16 units', () => {
-    // '👍' is one code point but two UTF-16 units; it fits a limit of 1.
+    // '👍' is one code point but two UTF-16 units. It fits a limit of 1.
     expect(lengthStatus('👍', 1)).toEqual({ maxLength: 1, length: 1, over: false })
   })
 })

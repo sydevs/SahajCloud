@@ -10,7 +10,7 @@ import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 // createLecture triggers populateFromNirmalaVidya, which fetches from the NV API.
-// Stub it so full-lecture creation doesn't hit the network.
+// Stub it so full-lecture creation does not hit the network.
 vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/lib/lectures/nirmalaVidyaApi')>()
   return {
@@ -157,8 +157,8 @@ describe('lectureRelatedMeditations endpoint', () => {
     const { status, body } = await callEndpoint(payload, anchorLecture.id, { limit: 10 })
     expect(status).toBe(200)
     const res = body as ResponseBody
-    // medHigh (overlaps both nodes) outranks medMid (overlaps one); medZero has
-    // no overlap and is not a relevance match.
+    // medHigh (overlaps both nodes) outranks medMid (overlaps one). medZero
+    // has no overlap and is not a relevance match.
     expect(res.relevanceCount).toBe(2)
     expect(res.docs[0].id).toBe(medHigh.id)
     expect(res.docs[1].id).toBe(medMid.id)
@@ -301,7 +301,7 @@ describe('lectureRelatedMeditations endpoint', () => {
     // whole daily pool — an N+1 that grew with the number of candidates. The
     // bounded `CANDIDATE_SELECT` omits both fields, so their afterReads are
     // stripped before they run. Asserting the count stays at *zero* as the pool
-    // grows proves it's flat, not merely "smaller".
+    // grows proves it is flat, not merely "smaller".
     it('fires no per-row user-choices / frames sub-queries, and stays flat as the pool grows', async () => {
       const findSpy = vi.spyOn(payload, 'find')
       try {

@@ -1,12 +1,12 @@
 # Seed Utilities Library
 
-Shared utilities for import scripts. All imports should extend `BaseImporter`.
+Shared utilities for import scripts. Every importer extends `BaseImporter`.
 
-## BaseImporter Class
+## BaseImporter class
 
 Abstract base class providing common functionality for all imports.
 
-### Required Overrides
+### Required overrides
 
 ```typescript
 class MyImporter extends BaseImporter<BaseImportOptions> {
@@ -19,17 +19,17 @@ class MyImporter extends BaseImporter<BaseImportOptions> {
 }
 ```
 
-### Lifecycle Hooks
+### Lifecycle hooks
 
 | Method      | Purpose                               | Default           |
-| ----------- | ------------------------------------- | ----------------- |
-| `setup()`   | Custom initialization after Payload   | No-op             |
-| `import()`  | **Required** - Main import logic      | Abstract          |
-| `cleanup()` | Custom cleanup (DB connections, etc.) | Closes Payload DB |
+| ----------- | -------------------------------------- | ------------------ |
+| `setup()`   | Custom initialization after Payload    | No-op              |
+| `import()`  | **Required** — main import logic       | Abstract           |
+| `cleanup()` | Custom cleanup (DB connections, etc.)  | Closes Payload DB  |
 
-### Core Methods
+### Core methods
 
-**Idempotent Upsert** - Find by natural key, update or create:
+**Idempotent upsert** — find by natural key, update or create:
 
 ```typescript
 const result = await this.upsert<Lesson>(
@@ -41,13 +41,13 @@ const result = await this.upsert<Lesson>(
 // result.action: 'created' | 'updated' | 'skipped'
 ```
 
-**Find by Natural Key** (read-only lookup):
+**Find by natural key** (read-only lookup):
 
 ```typescript
 const existing = await this.findByNaturalKey<Page>('pages', { slug: { equals: 'home' } })
 ```
 
-**Error Handling**:
+**Error handling**:
 
 ```typescript
 this.addError('Context', error) // Log error, increment counter
@@ -55,15 +55,15 @@ this.addWarning('Warning message') // Log warning
 this.skip('Skipping item') // Log skip, increment counter
 ```
 
-### Built-in Properties
+### Built-in properties
 
-- `this.payload` - Payload instance (null in dry-run)
-- `this.logger` - Logger instance
-- `this.fileUtils` - FileUtils instance
-- `this.report` - ValidationReport instance
-- `this.options.dryRun` - Boolean flag
+- `this.payload` — Payload instance (null in dry-run)
+- `this.logger` — Logger instance
+- `this.fileUtils` — FileUtils instance
+- `this.report` — ValidationReport instance
+- `this.options.dryRun` — Boolean flag
 
-## Shared Utilities
+## Shared utilities
 
 ### Logger
 
@@ -119,7 +119,7 @@ const tagManager = new TagManager(payload, logger)
 // For user-choices and music-tags collections (require SVG icons)
 const tagId = await tagManager.ensureTag('user-choices', 'My Tag')
 
-// For image tags (now inline enum strings - pass string array directly)
+// For image tags (now inline enum strings — pass a string array directly)
 await tagManager.addTagsToImage(imageId, ['thumbnail', 'meditation'])
 ```
 
@@ -146,7 +146,7 @@ const context: ConversionContext = {
 const lexical = await convertEditorJSToLexical(editorJsContent, context)
 ```
 
-### CLI Parser
+### CLI parser
 
 ```typescript
 import { parseArgs } from '../lib'
@@ -155,11 +155,12 @@ const options = parseArgs()
 // options.dryRun, options.clearCache
 ```
 
-## Key Patterns
+## Key patterns
 
-### Preload Pattern (Skip/Update Mode Optimization)
+### Preload pattern (skip/update mode optimization)
 
-Preload collections in `setup()` for efficient skip/update decisions without per-item queries:
+Preload collections in `setup()` for efficient skip/update decisions without
+per-item queries:
 
 ```typescript
 protected async setup(): Promise<void> {
@@ -172,34 +173,35 @@ protected async setup(): Promise<void> {
 
 protected async import(): Promise<void> {
   for (const item of items) {
-    // Skip mode: if doc exists in cache, upsert() skips it entirely (no DB ops)
-    // Update mode: if doc exists in cache, upsert() updates it using cached ID
+    // Skip mode: if the doc exists in cache, upsert() skips it entirely (no DB ops)
+    // Update mode: if the doc exists in cache, upsert() updates it using the cached ID
     await this.upsert('user-choices', { slug: { equals: item.slug } }, data)
   }
 }
 ```
 
-**Preload Methods:**
+**Preload methods:**
 
-- `preloadCollection(collection, naturalKey, additionalFields?)` - Bulk fetch for cache
-- `getPreloaded(collection, keyValue)` - Get cached doc by natural key
-- `hasPreloaded(collection, keyValue)` - Check if doc exists in cache
+- `preloadCollection(collection, naturalKey, additionalFields?)` — bulk fetch for the cache
+- `getPreloaded(collection, keyValue)` — get a cached doc by natural key
+- `hasPreloaded(collection, keyValue)` — check whether a doc exists in the cache
 
-**The cache includes soft-deleted docs** (`trash: true` on its find). A trashed row
-still occupies its natural key, so it must count as "exists" — otherwise `upsert`
-takes its `isPreloaded && !preloadedDoc` branch straight to `payload.create` (there
-is no fallback find) and duplicates the row on every re-seed. This was a live bug:
-`CleanupOrphanedMedia` trashes orphaned Files/Images, so a later `storyblok` /
-`meditations` run re-uploaded them. Guarded by
-`tests/int/seed-importer-preload.int.spec.ts`.
+**The cache includes soft-deleted docs** (`trash: true` on its find). A
+trashed row still occupies its natural key, so it must count as "exists" —
+otherwise `upsert` takes its `isPreloaded && !preloadedDoc` branch straight
+to `payload.create` (there is no fallback find) and duplicates the row on
+every re-seed. This was a live bug: `CleanupOrphanedMedia` trashes orphaned
+Files/Images, so a later `storyblok`/`meditations` run re-uploaded them.
+Guarded by `tests/int/seed-importer-preload.int.spec.ts`.
 
-Consequence worth knowing: **a deliberately-trashed doc is not re-created by a
-re-seed** — it's skipped (or updated in `--update` mode). Permanently delete it to
-force recreation.
+Consequence worth knowing: **a deliberately-trashed doc is not re-created by
+a re-seed** — it is skipped (or updated, in `--update` mode). Permanently
+delete it to force recreation.
 
-### Pagination Pattern
+### Pagination pattern
 
-For large imports, to keep each request bounded and avoid long-running seed requests timing out:
+For large imports, to keep each request bounded and avoid long-running seed
+requests timing out:
 
 ```typescript
 protected async import(): Promise<void> {
@@ -216,38 +218,35 @@ protected async import(): Promise<void> {
   }
 }
 
-// Optional: Override to rebuild ID maps for paginated runs
+// Optional: override to rebuild ID maps for paginated runs
 protected async reconstructIdMaps(): Promise<void> {
   // Called automatically when isPaginated() is true, before import()
   this.narratorIdMap = await this.reconstructIdMap('narrators', 'slug')
 }
 ```
 
-**Pagination Methods:**
+**Pagination methods:**
 
-- `isPaginated()` - Check if pagination is active
-- `isCollectionTargeted(collection)` - Check if collection should be processed
-- `paginateItems(items)` - Get slice based on offset/limit
-- `reconstructIdMap(collection, naturalKey)` - Rebuild ID map from existing docs
-- `reconstructIdMaps()` - Hook for subclasses to rebuild maps (called before import)
+- `isPaginated()` — check whether pagination is active
+- `isCollectionTargeted(collection)` — check whether the collection should be processed
+- `paginateItems(items)` — get a slice based on offset/limit
+- `reconstructIdMap(collection, naturalKey)` — rebuild an ID map from existing docs
+- `reconstructIdMaps()` — hook for subclasses to rebuild maps (called before `import()`)
 
-### Error Handling Architecture
+### Error handling architecture
 
-Two-tier error handling:
+Two tiers:
 
-**Helper Classes** (payloadHelpers, fileUtils, MediaUploader):
+**Helper classes** (payloadHelpers, fileUtils, MediaUploader) — use
+`logger.error()` to log without tracking, and return null/false on failure.
+The caller decides how to handle it.
 
-- Use `logger.error()` - log but don't track
-- Return null/false on failure
-- Caller decides how to handle
-
-**Importer Classes** (extend BaseImporter):
-
-- Use `addError()` - log AND track in report
-- Check helper return values and call addError() if tracking needed
+**Importer classes** (extend BaseImporter) — use `addError()` to log **and**
+track in the report. Check a helper's return value and call `addError()`
+when tracking is needed.
 
 ```typescript
-// In helper class
+// In a helper class
 async uploadFile(path: string): Promise<string | null> {
   try { ... } catch (error) {
     await this.logger.error(`Failed: ${error}`)  // Log only
@@ -255,14 +254,14 @@ async uploadFile(path: string): Promise<string | null> {
   }
 }
 
-// In importer class
+// In an importer class
 const id = await helper.uploadFile(path)
 if (!id) {
   this.addError('Uploading file', new Error('Failed'))  // Track in report
 }
 ```
 
-### Resilient Error Handling
+### Resilient error handling
 
 ```typescript
 for (const item of items) {
@@ -275,7 +274,7 @@ for (const item of items) {
 }
 ```
 
-### File Upload Format
+### File upload format
 
 Payload expects buffer-based objects:
 
@@ -288,15 +287,15 @@ const fileData: FileData = {
 }
 ```
 
-### Creating New Seed Scripts
+### Creating a new seed script
 
-1. Create `seeds/<name>/import.ts`
-2. Extend `BaseImporter`
-3. Implement `import()` method
-4. Add to `seeds/run.ts` SCRIPTS map
-5. Add npm script to `package.json`
+1. Create `seeds/<name>/import.ts`.
+2. Extend `BaseImporter`.
+3. Implement `import()`.
+4. Add it to the `seeds/run.ts` SCRIPTS map.
+5. Add an npm script to `package.json`.
 
-## File Structure
+## File structure
 
 ```
 lib/

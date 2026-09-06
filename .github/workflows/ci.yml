@@ -31,7 +31,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      # Integration tests connect here; each suite uses an isolated schema.
+      # Integration tests connect here. Each suite uses an isolated schema.
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/payload_test
     steps:
       - uses: actions/checkout@v4
@@ -42,16 +42,21 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      - run: pnpm typecheck # tsc --noEmit — lint and Vitest don't typecheck; only this + the Railway build do
+      - run: pnpm typecheck # tsc --noEmit. Neither lint nor Vitest typechecks. Only this step and the Railway build do.
       - run: pnpm typecheck:tests # the root tsconfig excludes `tests`, so specs need their own pass (#606)
-      - run: pnpm test # test:unit + test:int (integration runs against Postgres)
+      - run: pnpm test # runs test:unit and test:int (integration runs against Postgres)
 
       # ── Smoke specs against the Railway PR preview ──────────────────────────
-      # Discover the PR's Railway preview URL from Railway's commit status (via
-      # the built-in GITHUB_TOKEN — no Railway API token needed) and wait until
-      # it's healthy, then run the smoke specs against it. Skips gracefully (empty
-      # preview_url) when there's no preview env — e.g. PRs whose branch is
-      # itself a deployed environment.
+      # Find the PR's Railway preview URL from Railway's commit status. This
+      # uses the built-in GITHUB_TOKEN, so it needs no Railway API token.
+      # Wait until the preview is healthy, then run the smoke specs against
+      # it. This step skips gracefully, with an empty preview_url, when no
+      # preview environment exists — for example, a PR whose own branch is
+      # a deployed environment.
+      # It FAILS, rather than skipping, when a deploy succeeds but publishes
+      # no host. That is base-environment misconfiguration, not an absent
+      # preview, and it hid a dead smoke lane for weeks (#661). Re-running
+      # will not clear it — see RAILWAY_RUNBOOK.md.
       - name: Discover Railway preview URL
         id: preview
         env:
@@ -62,8 +67,10 @@ jobs:
         if: ${{ steps.preview.outputs.preview_url == '' }}
         run: |
           echo "::warning title=Smoke specs skipped::No Railway preview was discovered for this \
-          commit, so the Tier-3 smoke lane did not run. The job is still green — treat it as \
-          'unit + integration passed', not 'smoke passed'."
+          commit, so the Tier-3 smoke lane did not run. Read the 'Discover Railway preview URL' \
+          step for which case this was — no preview environment, a failed deploy, or one still \
+          building at the deadline. Treat this job as 'unit + integration passed', not 'smoke \
+          passed'."
 
       - name: Run smoke specs against the Railway preview
         if: ${{ steps.preview.outputs.preview_url != '' }}

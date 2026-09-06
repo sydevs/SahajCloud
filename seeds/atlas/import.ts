@@ -8,14 +8,15 @@
  * `legacyId`. See seeds/atlas/MIGRATION_PLAN.md for the full design.
  *
  * Highlights:
- * - Relationships rewired via `legacyId` maps (regions keyed by `level:legacyId`
- *   since countries/regions/areas share an id space).
- * - Venues have no collection: a place used by >1 event becomes a Regions
- *   `venue`; a single-use venue's address is lifted onto the event.
- * - `mapboxId` resolved via the server-side Search Box geocoder (src/lib/mapbox).
- * - Event status → #484 `verificationStage` (0→verified / 6→finished) with the
- *   verification backfill seeded under `context.skipVerifyHook`.
- * - Event pictures re-uploaded from GCS into Images and linked to their event.
+ * - Relationships are rewired via `legacyId` maps (regions keyed by
+ *   `level:legacyId`, since countries, regions, and areas share an id space).
+ * - Venues have no collection. A place used by more than one event becomes
+ *   a Regions `venue`. A single-use venue's address is lifted onto the event.
+ * - `mapboxId` is resolved via the server-side Search Box geocoder (src/lib/mapbox).
+ * - Event status maps to #484 `verificationStage` (0 becomes verified, 6
+ *   becomes finished), with the verification backfill seeded under
+ *   `context.skipVerifyHook`.
+ * - Event pictures are re-uploaded from GCS into Images and linked to their event.
  *
  * Usage: `pnpm seed atlas [--dry-run] [--update]`
  */
@@ -188,7 +189,7 @@ const ATLAS_TO_PAYLOAD_LEVEL: Record<GeoRef['level'], RegionLevel> = {
 
 /**
  * The `idMaps.regions` key for an Atlas geo-ref, applying the area→city rename.
- * Centralised so the transform can't be forgotten at one call site. (Node keys
+ * Centralized so the transform cannot be forgotten at one call site. (Node keys
  * built from an already-Payload level — `city:areaId`, `venue:venueId` — are
  * written inline since there's no ref to translate.)
  */
@@ -210,24 +211,23 @@ const REGISTRATION_QUESTION_NAMES = new Set<string>(
 const DEFAULT_LOCALE = 'en'
 
 /**
- * Atlas rows that must never become events, and why.
+ * Atlas rows that must never become events.
  *
- * #494/#575 are test records still present in events.json — skipping rather than
- * deleting keeps them out of the import while leaving the events list handed to
- * `multiUseVenueIds` unchanged, so the venue → region topology (and the regions
- * count) is unaffected.
+ * #494 and #575 are test records still in events.json. Skipping, not
+ * deleting, keeps them out of the import while leaving the events list
+ * handed to `multiUseVenueIds` unchanged, so venue-to-region topology
+ * stays correct.
  *
- * The rest were **removed from events.json** as confirmed duplicates: same
- * venue, weekday and start time as a surviving row, differing only in title,
- * description, lifecycle status or language. They are listed here so a
- * re-extraction — which rebuilds the file from `select * from events` and would
- * bring every one of them back — cannot silently undo the merge. See
- * seeds/atlas/AGENTS.md for the evidence behind each.
+ * The rest were removed from events.json as confirmed duplicates of a
+ * surviving row. This map exists so a re-extraction, which rebuilds the
+ * file from `select * from events`, cannot silently bring them back. See
+ * seeds/atlas/AGENTS.md ("Merged duplicates") for the evidence behind
+ * each one.
  */
 const EXCLUDED_EVENT_LEGACY_IDS = new Map<number, string>([
-  // ── #605 pass (June dump). Rows whose Atlas source was since deleted
-  // upstream (575, 458, 461, 468, 469) are kept as harmless no-ops so an older
-  // dump can never resurrect them.
+  // ── #605 pass (June dump). Rows whose Atlas source has since been
+  // deleted upstream (575, 458, 461, 468, 469) stay here as harmless
+  // no-ops, so an older dump can never resurrect them.
   [494, 'Atlas test record'],
   [575, 'Atlas test record'],
   [195, 'duplicate — same Zoom room + slot as #603'],
@@ -245,9 +245,10 @@ const EXCLUDED_EVENT_LEGACY_IDS = new Map<number, string>([
   [534, 'duplicate of #497; both sides already retired'],
   [355, 'duplicate of #535; both sides already retired'],
   [535, 'duplicate of #355; both sides already retired'],
-  // ── 2026-08 dump refresh. Same evidence bar: same manager plus a shared
-  // venue/Zoom room and identical slot; "session re-listing" means sequential
-  // non-overlapping terms of one class, where the latest term survives.
+  // ── 2026-08 dump refresh. Same evidence bar: same manager, plus a
+  // shared venue or Zoom room, and an identical slot. "Session re-listing"
+  // means sequential, non-overlapping terms of one class, where the
+  // latest term survives.
   [2951, 'duplicate — re-entered as #3440 (same manager, venue, slot)'],
   [1988, 'duplicate — superseded by #4662 (same manager, library, slot)'],
   [1328, 'duplicate — session re-listing; open-ended term kept as #2945'],
@@ -260,11 +261,11 @@ const EXCLUDED_EVENT_LEGACY_IDS = new Map<number, string>([
 ])
 
 /**
- * Merge survivors for rows removed as duplicates: a merge is not a delete, so
- * a registration on the removed listing belongs to the class that survived it.
- * Pairs with no survivor — the both-retired #605 sets, and the Swiss rows
- * whose survivors (#570/#571) were since deleted in Atlas — have no entry;
- * their registrations are genuinely unresolvable and are skipped.
+ * Merge survivors for rows removed as duplicates. A merge is not a
+ * delete, so a registration on the removed listing belongs to the class
+ * that survived it. Pairs with no living survivor have no entry here,
+ * and their registrations are skipped as unresolvable. See
+ * seeds/atlas/AGENTS.md ("Merged duplicates") for which pairs those are.
  */
 const MERGED_EVENT_TARGETS: Record<number, number> = {
   195: 603,
@@ -333,15 +334,17 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
   }
 
   /**
-   * Rebuild the legacyId→id maps from the DB for paginated batches (each HTTP
-   * request is a fresh importer). Regions key on `level:legacyId`; users map
-   * every Atlas legacyId (including email-duplicates) to the one stored user.
+   * Rebuild the legacyId-to-id maps from the DB for paginated batches
+   * (each HTTP request is a fresh importer). Regions key on
+   * `level:legacyId`. Users map every Atlas legacyId, including
+   * email-duplicates, to the one stored user.
    */
   protected async reconstructIdMaps(): Promise<void> {
-    // Each paginated batch is a fresh importer, so rebuild the legacyId→id maps
-    // from the DB — but only the ones the targeted collection consumes:
-    // managers ← regions/events/clients; regions ← events/clients;
-    // events ← registrations/pictures; users ← registrations.
+    // Each paginated batch is a fresh importer, so rebuild the
+    // legacyId-to-id maps from the DB. Rebuild only the ones the
+    // targeted collection consumes. Managers feed regions, events, and
+    // clients. Regions feed events and clients. Events feed
+    // registrations and pictures. Users feed registrations.
     const need = (slug: string): boolean => !this.isPaginated() || this.isCollectionTargeted(slug)
 
     // Deliberately excludes trashed docs (Payload's default): two events
@@ -461,10 +464,11 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
   private async getData(): Promise<AtlasData> {
     if (this.cachedData) return this.cachedData
-    // The data files are excluded from the deployed standalone build (next.config
-    // `outputFileTracingExcludes` drops `seeds/**`), so when seeding a remote env
-    // the CLI uploads them as `inlineData` keyed by local path (see
-    // SCRIPT_DATA_FILES in seeds/run.ts); locally they're read from disk.
+    // The deployed standalone build excludes the data files (next.config's
+    // `outputFileTracingExcludes` drops `seeds/**`). So when seeding a
+    // remote environment, the CLI uploads them as `inlineData` keyed by
+    // local path (see SCRIPT_DATA_FILES in seeds/run.ts). Locally, they
+    // are read straight from disk.
     const load = <T>(name: string): Promise<T> => {
       const localPath = `seeds/atlas/data/${name}.json`
       return loadJsonData<T>({ localPath, inlineContent: this.options.inlineData?.[localPath] })
@@ -489,7 +493,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
   // ─── Dry run: counts + referential-integrity validation (no DB, no network) ─
 
   private validateDryRun(data: AtlasData): void {
-    // Each collection's first batch (offset 0) validates it once; skip the rest.
+    // Each collection's first batch (offset 0) validates it once. Skip the rest.
     if (this.options.pagination?.offset) return
     const t = (slug: string): boolean => !this.isPaginated() || this.isCollectionTargeted(slug)
     const ids = (rows: { legacyId: number }[]): Set<number> => new Set(rows.map((r) => r.legacyId))
@@ -573,7 +577,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('\n=== Importing Managers ===')
     const total = data.managers.length
 
-    // Every manager already here that Atlas didn't put here, by email. Loaded
+    // Every manager already here that Atlas did not put here, by email. Loaded
     // once rather than queried per manager — 327 round trips for what is one
     // small read. Usually a single row: the deployment's own admin account.
     const nonAtlas = await this.payload.find({
@@ -595,13 +599,15 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     for (let i = 0; i < total; i++) {
       const manager = data.managers[i]
       try {
-        // A manager already here under this email but with no `legacyId` is not
-        // an Atlas row — it's an account this deployment made for itself, the
-        // admin login among them. Its email is unique, so upserting on
-        // `legacyId` would try to *create* a second one and fail; upserting on
-        // email would instead overwrite the account, resetting its password and
-        // `type` from the dump. Neither is wanted: adopt the existing row so
-        // events owned by this Atlas manager still resolve, and leave it alone.
+        // A manager already here under this email, but with no `legacyId`,
+        // is not an Atlas row. It is an account this deployment made for
+        // itself, the admin login among them. Its email is unique, so
+        // upserting on `legacyId` would try to create a second one and
+        // fail. Upserting on email would instead overwrite the account,
+        // resetting its password and `type` from the dump. Neither is
+        // wanted, so adopt the existing row instead. This way, events
+        // owned by this Atlas manager still resolve, and the account is
+        // left alone.
         const adoptedId = adoptable.get(manager.email.trim().toLowerCase())
         if (adoptedId != null) {
           this.idMaps.managers.set(manager.legacyId, adoptedId)
@@ -628,8 +634,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
               manager.phoneVerified,
             ),
             notificationPreferences: prefs,
-            // Atlas managers authenticate passwordlessly; give a random password
-            // they'll never use (reset/passwordless on first login).
+            // Atlas managers authenticate passwordlessly. Give them a
+            // random password they will never use: they reset it, or
+            // stay passwordless, on first login.
             password: randomPassword(),
             _verified: !!manager.emailVerified,
             legacyId: manager.legacyId,
@@ -648,24 +655,28 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
   // ─── Regions (country → region → city → venue) ──────────────────────────
 
   /**
-   * Deterministic, collision-free `slug` for every region node (country / region
-   * / city) and shared `venue`, keyed by the same `level:legacyId` /
-   * `venue:venueId` map key the upserts use. Six region names repeat across the
-   * Atlas tree (e.g. Georgia the country vs. the US state, São Paulo the state
-   * vs. the city) and `regions.slug` is unique, so a bare `slugify(name)` would
-   * trip the constraint. Nodes are walked in a fixed `(level, legacyId)` order so
-   * the same node always wins the bare slug across reseeds; colliders fall back to
-   * `name-parentName` (when the parent's name differs) and finally `name-legacyId`.
-   * Uses the shared `slugifyValue` (transliterates Cyrillic etc.), which is also
-   * the slugField default — so a manager re-generating a slug in the admin
-   * reproduces the same value, and non-Latin names yield readable slugs
-   * (`Москва → "moskva"`) rather than the `region-<legacyId>` fallback.
+   * A deterministic, collision-free `slug` for every region node
+   * (country, region, city) and shared `venue`. It keys on the same
+   * `level:legacyId` or `venue:venueId` map key the upserts use. Six
+   * region names repeat across the Atlas tree, for example Georgia the
+   * country versus the US state, or São Paulo the state versus the city,
+   * and `regions.slug` is unique, so a bare `slugify(name)` would trip
+   * the constraint. Nodes are walked in a fixed `(level, legacyId)`
+   * order, so the same node always wins the bare slug across reseeds.
+   * Colliders fall back to `name-parentName`, when the parent's name
+   * differs, and finally to `name-legacyId`. This uses the shared
+   * `slugifyValue`, which transliterates Cyrillic and similar scripts.
+   * That function is also the slugField default, so a manager
+   * re-generating a slug in the admin reproduces the same value, and
+   * non-Latin names yield readable slugs (`Москва` becomes `"moskva"`)
+   * rather than the `region-<legacyId>` fallback.
    *
-   * **Countries slug as their ISO alpha-2 code** (`belgium → be`) — the Sahaj
-   * Atlas derives each country's code (flags, localized names) from the slug
-   * instead of the deprecated `legacyData.countryCode` (#556). Countries sort
-   * first, so they always claim the two-letter slugs; a country with a missing
-   * or malformed code falls back to the name-based slug above.
+   * **Countries slug as their ISO alpha-2 code** (`belgium` becomes
+   * `be`). The Sahaj Atlas derives each country's code, for flags and
+   * localized names, from the slug, instead of the deprecated
+   * `legacyData.countryCode` (#556). Countries sort first, so they
+   * always claim the two-letter slugs. A country with a missing or
+   * malformed code falls back to the name-based slug above.
    */
   private buildRegionSlugs(data: AtlasData): Map<string, string> {
     // Legacy `level:legacyId` → region, for parent-name lookups (a node's parent
@@ -781,9 +792,10 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
   /**
    * Report imported regions whose Atlas source row no longer exists.
    *
-   * The events-side counterpart is `reportUpstreamDeletedEvents`; regions need
-   * it just as much because Atlas *renumbers* geo nodes (the 2026-08 dump moved
-   * Paris from area 438 to 1208, and similar). The stale doc is worse than
+   * The events-side counterpart is `reportUpstreamDeletedEvents`.
+   * Regions need it just as much, because Atlas renumbers geo nodes (the
+   * 2026-08 dump moved Paris from area 438 to 1208, and similar). The
+   * stale doc is worse than
    * clutter here: `slug` and `mapboxId` are unique, so it blocks the renumbered
    * node's create until an operator trashes it — errors like
    * "The following field is invalid: Slug/mapboxId" on a region upsert are this.
@@ -846,10 +858,11 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
           level,
           name: region.name,
           slug: this.regionSlugs.get(mapKey),
-          // Pin the importer's collision-free slug. The slugField's generateSlug
-          // hook defaults on and would otherwise rewrite it to slugify(name) on
-          // every update — which is empty/colliding for non-Latin names (e.g.
-          // Москва → "-"), tripping the uniqueness validator.
+          // Pin the importer's collision-free slug. The slugField's
+          // generateSlug hook defaults on, and would otherwise rewrite
+          // it to slugify(name) on every update. That form is empty or
+          // colliding for non-Latin names, for example `Москва` becomes
+          // `"-"`, which trips the uniqueness validator.
           generateSlug: false,
           subtitle: region.subtitle ?? undefined,
           parent: parentId,
@@ -926,7 +939,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
    * re-pointed, and two venue rows for one place collapse into a single node —
    * but the import only ever upserts, so the stale region lingers in the tree
    * with its own public URL. Warn rather than delete: a manager may have hung
-   * content or child nodes off it, and a seed script shouldn't destroy that.
+   * content or child nodes off it, and a seed script should not destroy that.
    */
   private async warnOrphanedVenueNodes(sharedVenueIds: Set<number>): Promise<void> {
     if (!this.payload) return
@@ -1018,7 +1031,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       const excluded = EXCLUDED_EVENT_LEGACY_IDS.get(event.legacyId)
       if (excluded) {
         this.skip(`Event "${identifier}" (#${event.legacyId}) — ${excluded}`)
-        // Skipping stops it being (re-)created, but can't undo an earlier import
+        // Skipping stops it being (re-)created, but cannot undo an earlier import
         // that predates this guard — #575 came through as *published*, and every
         // merged duplicate was imported before the merge. Flag it so an operator
         // trashes the row by hand.
@@ -1056,13 +1069,15 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
   /**
    * Report imported events whose Atlas source row no longer exists.
    *
-   * The import only upserts, so an event deleted in Atlas after an earlier seed
-   * survives here indefinitely — the 2026-08 dump refresh dropped 64 such rows.
-   * Deletion stays manual by design (a manager may have hung content off the
-   * doc); this warning names each row so an operator can trash it in the admin
-   * panel. Events created directly in SahajCloud carry no legacyId and are never
-   * flagged; already-trashed docs are excluded by the default `trash` behaviour,
-   * and excluded legacy ids get their own targeted warning in the import loop.
+   * The import only upserts, so an event deleted in Atlas after an
+   * earlier seed survives here indefinitely. The 2026-08 dump refresh
+   * dropped 64 such rows. Deletion stays manual by design, since a
+   * manager may have hung content off the doc, so this warning names
+   * each row for an operator to trash in the admin panel. Events
+   * created directly in SahajCloud carry no legacyId and are never
+   * flagged. Already-trashed docs are excluded by the default `trash`
+   * behavior, and excluded legacy ids get their own targeted warning in
+   * the import loop.
    */
   private async reportUpstreamDeletedEvents(data: AtlasData): Promise<void> {
     const knownIds = [...data.events.map((e) => e.legacyId), ...EXCLUDED_EVENT_LEGACY_IDS.keys()]
@@ -1097,7 +1112,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
    *
    * Whole-pass only. A paginated run imports one batch per invocation, so a
    * count taken mid-run legitimately includes every event the later batches
-   * haven't reached yet — checking there would warn on every batch but the last.
+   * have not reached yet. Checking there would warn on every batch but the last.
    */
   private async verifyEventQualityStamps(): Promise<void> {
     if (this.options.dryRun || this.isPaginated()) return
@@ -1122,12 +1137,13 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
   /**
    * Warn when a dump timezone was not one the column accepts.
    *
-   * `supportedTimezone` substitutes `UTC`, which writes the row at a different
-   * instant than the source states — the loud enum rejection it replaces was at
-   * least visible. Every distinct zone in the committed dump is in the generated
-   * union today (venues 47/47, regions 53/53, registrations 64/64), so this is
-   * unreachable until a refreshed dump introduces one; that is exactly when it
-   * would otherwise pass unnoticed.
+   * `supportedTimezone` substitutes `UTC`, which writes the row at a
+   * different instant than the source states. At least the loud enum
+   * rejection it replaces was visible. Every distinct zone in the
+   * committed dump is in the generated union today (venues 47/47,
+   * regions 53/53, registrations 64/64), so this path is unreachable
+   * until a refreshed dump introduces a new zone. That is exactly when
+   * it would otherwise pass unnoticed.
    */
   private reportTimezoneSubstitution(
     label: string,
@@ -1171,7 +1187,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
     const inactive = event.category === 'inactive'
     // Contact is all-or-nothing: contactName is required whenever contactPhone
-    // is set, so a lone phone (no name) — ~61 Atlas events — can't satisfy the
+    // is set, so a lone phone with no name (~61 Atlas events) cannot satisfy the
     // schema. Import the pair only when both are present (raw values ride along
     // in legacyData regardless).
     const rawContactName = event.contactInfo?.phone_name?.trim() || undefined
@@ -1217,11 +1233,12 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       inactive,
       now: ctx.now,
     })
-    // Atlas's `archived` terminal → a Payload soft delete. Only set when the
-    // `archived_at` stamp isn't superseded by a later re-verification (2 of 511).
+    // Atlas's `archived` terminal maps to a Payload soft delete. Only set
+    // when the `archived_at` stamp is not superseded by a later
+    // re-verification (2 of 511).
     const deletedAt = importDeletedAt(event.legacyData as AtlasLifecycleTimestamps)
 
-    // Publish state. Inactive events with no contact info can't satisfy the
+    // Publish state. Inactive events with no contact info cannot satisfy the
     // contact requirement, so import them as a draft (drafts skip validation).
     const wantsPublish = event.published
     const draftReason = inactive && !hasContact ? 'inactive event without contact info' : null
@@ -1251,7 +1268,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       languages: this.mapEventLanguages(event, language),
       contactPhone: contactPhone ?? null,
       contactName: contactName ?? null,
-      // Atlas stores descriptions as plain text; the richText field needs Lexical.
+      // Atlas stores descriptions as plain text. The richText field needs Lexical.
       description: plainTextToLexical(event.description) ?? null,
       inactive,
       ...(inactive ? {} : { schedule }),
@@ -1281,7 +1298,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       identifier: event.customName || `event-${event.legacyId}`,
       current: ctx.current,
       total: ctx.total,
-      // Keep the imported verification snapshot — don't let verifyOnSave reset it.
+      // Keep the imported verification snapshot. Do not let verifyOnSave reset it.
       context: { skipVerifyHook: true },
     }
     const where = { legacyId: { equals: event.legacyId } }
@@ -1290,8 +1307,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     try {
       result = await this.upsert<{ id: number }>('events', where, eventData, upsertOpts)
     } catch (error) {
-      // Don't drop a published event with incomplete/malformed source data (e.g.
-      // a bad onlineUrl) — re-import it as a draft so an admin can fix + publish.
+      // Do not drop a published event for incomplete or malformed source
+      // data, for example a bad onlineUrl. Re-import it as a draft
+      // instead, so an admin can fix it and publish.
       if (status !== 'published' || (error as Error)?.name !== 'ValidationError') throw error
       this.addWarning(`Event #${event.legacyId}: imported as draft — ${(error as Error).message}`)
       result = await this.upsert<{ id: number }>(
@@ -1389,7 +1407,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             primaryContact: managerId,
             roles: ['sahaj-atlas-client'],
             // Publish/unpublish is the auth gate — disabled Atlas services
-            // import as drafts so they can't authenticate.
+            // import as drafts, so they cannot authenticate.
             _status: client.enabled ? 'published' : 'draft',
             allowedDomains: client.config?.domain || undefined,
             color1: isHexColor(client.config?.primary_color)
@@ -1514,8 +1532,8 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
   }
 
   /**
-   * Spread a resolved region location into Regions columns (manual → coords).
-   * `Regions.mapboxId` is unique, so a manual node can't keep the bare shared
+   * Spread a resolved region location into Regions columns (manual or coords).
+   * `Regions.mapboxId` is unique, so a manual node cannot keep the bare shared
    * `'manual'` sentinel — it gets a unique `manual-<seed>` id keyed on the
    * region's natural key (`level:legacyId`) so re-imports stay idempotent.
    */
@@ -1533,11 +1551,12 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
   }
 
   /**
-   * The Events `languages` value. Atlas stored a single `languageCode`, so this
-   * is normally a one-element array. Events merged from two same-slot listings
-   * that differed only in language carry a curated `languageCodes` instead —
-   * one bilingual session rather than two rows. Unmappable codes are warned
-   * about and dropped; an empty result falls back to the default locale.
+   * The Events `languages` value. Atlas stored a single `languageCode`,
+   * so this is normally a one-element array. Events merged from two
+   * same-slot listings that differed only in language carry a curated
+   * `languageCodes` instead: one bilingual session, rather than two
+   * rows. This warns about and drops unmappable codes. An empty result
+   * falls back to the default locale.
    */
   private mapEventLanguages(event: AtlasEvent, fallback: string | undefined): string[] {
     const curated = event.languageCodes
@@ -1572,7 +1591,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
    * The old best-effort map only covered `experience` and `referral` and warned
    * away the other two — silently dropping `questions` on 435 events and
    * `aspirations` on 78. An unknown flag is still warned about, since that
-   * would mean the dump grew a question the contract doesn't have.
+   * would mean the dump grew a question the contract does not have.
    */
   private mapRegistrationQuestions(event: AtlasEvent): Record<string, boolean> | undefined {
     const result: Record<string, boolean> = {}

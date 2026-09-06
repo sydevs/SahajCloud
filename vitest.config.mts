@@ -16,9 +16,10 @@ const sharedResolve = {
 
 const sharedPlugins = [tsconfigPaths(), react()]
 
-// Shared across both Vitest projects (unit + int) — previously copy-pasted in
-// each project's `env` block (see #499 §6). DATABASE_URL falls back to a local
-// Postgres for contributors who don't set it; CI injects the service-container URL.
+// Shared by both Vitest projects, unit and int. Each project's `env` block
+// used to copy this (see #499 §6). DATABASE_URL falls back to a local
+// Postgres URL when a contributor sets none. CI injects the service
+// container's URL instead.
 const sharedTestEnv: Record<string, string> = {
   NODE_ENV: 'test',
   DATABASE_URL: process.env.DATABASE_URL ?? DEFAULT_TEST_DATABASE_URL,
@@ -29,26 +30,27 @@ const sharedTestEnv: Record<string, string> = {
   NIRMALA_VIDYA_API_KEY: 'test-nirmala-vidya-api-key-placeholder',
 }
 
-// Upper bound on concurrent integration-suite forks (#499 §2). The int lane is
-// DB-bound: every suite runs a full-schema Drizzle `push` against the SAME
-// Postgres, and each Payload instance opens a connection pool (node-pg default
-// max 10). So forks are capped to keep total connections well under Postgres'
-// default max_connections (100) and to leave the dev machine headroom locally
-// (the CPU-guard rule in docs/rules/testing-reqs.md). CI gets a dedicated
-// service-container Postgres, so it can use the (smaller) runner fully. Override
+// Upper bound on concurrent integration-suite forks (#499 §2). The int lane
+// is DB-bound. Every suite runs a full-schema Drizzle `push` against the
+// same Postgres, and each Payload instance opens a connection pool (the
+// node-pg default max is 10). Forks are capped for two reasons: to keep
+// total connections well under Postgres' default max_connections (100),
+// and to leave headroom on the local dev machine (see the CPU-guard rule
+// in docs/rules/testing-reqs.md). CI uses a dedicated service-container
+// Postgres, so it can use the whole (smaller) runner. Override this value
 // with VITEST_INT_MAX_FORKS.
-// V8 coverage instruments the whole Payload module graph, which makes the
-// per-suite bootstrap (buildConfig + getPayload + Drizzle push) several× slower —
-// enough to blow the normal 60s/120s timeouts. `pnpm test:coverage` is an
-// opt-in, heavyweight run (≈20 min), so grant it much larger (600s) timeouts.
-// Detected from argv since Vitest doesn't expose the coverage flag in config.
+// V8 coverage instruments the whole Payload module graph. This makes the
+// per-suite bootstrap (buildConfig, getPayload, Drizzle push) many times
+// slower, past the normal 60s/120s timeouts. `pnpm test:coverage` is an
+// opt-in run that takes about 20 minutes, so it gets 600s timeouts instead.
+// This flag is read from argv because Vitest does not expose it in config.
 const isCoverage = process.argv.includes('--coverage')
 
 const cpuCount = os.availableParallelism?.() ?? os.cpus().length
 const envMaxForks = Number(process.env.VITEST_INT_MAX_FORKS)
 const intMaxForks =
   Number.isFinite(envMaxForks) && envMaxForks >= 1
-    ? Math.floor(envMaxForks) // explicit override (ignored if non-numeric/<1)
+    ? Math.floor(envMaxForks) // explicit override (skipped when not a number, or below 1)
     : process.env.CI
       ? Math.min(cpuCount, 4)
       : Math.max(2, Math.min(cpuCount - 1, 6))
@@ -60,17 +62,18 @@ export default defineConfig({
         classNameStrategy: 'non-scoped',
       },
     },
-    // Coverage for the unit + int lanes (#499 §3): `pnpm test:coverage` (no
-    // --project → all projects). Off by default; CI's `pnpm test` stays
-    // coverage-free. Thresholds are scoped to the security-critical access plugin
-    // only (a soft signal, not a global gate) per the "test custom logic" rule.
+    // Coverage covers both the unit and int lanes (#499 §3). Run it with
+    // `pnpm test:coverage` (no --project flag runs all projects). Coverage
+    // is off by default, so CI's `pnpm test` never collects it. Thresholds
+    // apply only to the security-critical access plugin, as a soft signal,
+    // not a global gate, per the "test custom logic" rule.
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
       reportsDirectory: './coverage',
-      // Still emit the report if a test fails — under heavy v8 instrumentation a
-      // slow Payload suite can occasionally trip a timeout, and we don't want one
-      // flake to swallow the whole coverage report.
+      // Emit the coverage report even when a test fails. Under heavy v8
+      // instrumentation, a slow Payload suite can occasionally hit a
+      // timeout. One flaky failure must not swallow the whole report.
       reportOnFailure: true,
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
@@ -79,11 +82,13 @@ export default defineConfig({
         '**/*.d.ts',
       ],
       thresholds: {
-        // Soft signal on the security-critical access plugin ONLY — not a global
-        // gate (aligns with the "test custom logic, not Payload internals" rule).
-        // Set comfortably below current coverage (~68% stmts / 67% branches via
-        // role-based-access alone) so it flags a regression without bit-rotting;
-        // raise as access coverage improves.
+        // This is a soft signal on the security-critical access plugin
+        // only, not a global gate. It follows the "test custom logic, not
+        // Payload internals" rule. The thresholds sit below current
+        // coverage (about 68% statements and 67% branches from
+        // role-based-access alone), so this flags a real regression
+        // without failing on small drift. Raise these numbers as access
+        // coverage improves.
         'src/plugins/access/**': {
           statements: 55,
           branches: 50,
@@ -114,12 +119,13 @@ export default defineConfig({
           globalSetup: ['./tests/setup/globalSetup.ts'],
           include: ['tests/int/**/*.int.spec.ts', 'seeds/**/*.test.ts'],
           pool: 'forks',
-          // File-level parallelism is EXPLICIT (#499 §2). `maxConcurrency: 1`
-          // only serialises tests *within* a file — it does NOT serialise files.
-          // `fileParallelism: true` (Vitest's default for the forks pool, pinned
-          // here so it's not silently flipped) runs suites concurrently across
-          // forked workers, bounded by `poolOptions.forks.maxForks` (see
-          // `intMaxForks` above for the DB-connection rationale).
+          // File-level parallelism is explicit (#499 §2). `maxConcurrency: 1`
+          // only serializes tests within one file. It does not serialize
+          // files. Vitest defaults to `fileParallelism: true` for the forks
+          // pool. This line pins that value so it cannot silently change.
+          // It runs suites concurrently across forked workers, bounded by
+          // `poolOptions.forks.maxForks` (see `intMaxForks` above for the
+          // connection-count reason).
           maxConcurrency: 1,
           fileParallelism: true,
           poolOptions: {
@@ -128,15 +134,16 @@ export default defineConfig({
               maxForks: intMaxForks,
             },
           },
-          // Postgres has real per-op latency (vs the old instant in-memory SQLite),
-          // so write-heavy integration tests + per-suite schema push need more
-          // headroom — and much more again under coverage instrumentation.
+          // Postgres has real per-operation latency, unlike the old instant
+          // in-memory SQLite. Write-heavy integration tests and the
+          // per-suite schema push need more time. Coverage instrumentation
+          // needs far more time again.
           testTimeout: isCoverage ? 600000 : 60000,
           hookTimeout: isCoverage ? 600000 : 120000,
-          // One retry in CI only (#499 §5) — absorbs transient Postgres latency /
-          // connection blips under the parallel load above (Playwright already
-          // uses retries: 2 in CI). Local stays at 0 so failures are honest
-          // during development.
+          // CI retries a failed test once (#499 §5). This absorbs transient
+          // Postgres latency or connection blips under the parallel load
+          // above. Playwright already retries twice in CI. Local runs keep
+          // 0 retries, so failures stay honest during development.
           retry: process.env.CI ? 1 : 0,
           env: sharedTestEnv,
         },

@@ -4,43 +4,44 @@ Rules for creating React components in this codebase.
 
 ## Prefer built-in components over custom ones
 
-Before building or styling a component, check for an existing one and use it —
-custom components add maintenance burden and drift from the CMS look & feel.
+Before you build or style a component, check for an existing one and use it.
+A custom component adds maintenance burden and drifts from the CMS look and
+feel.
 
 - **Admin panel**: prefer `@payloadcms/ui`'s built-ins (Banner, Pill, Table,
   Card, Tooltip, Drawer, Button, field primitives, icons, …). See the catalog
-  in `docs/rules/admin-ui.md` ("Prefer Payload's built-in components"). Only
-  write a custom-styled component when no built-in fits, and note why.
+  in `docs/rules/admin-ui.md` ("Prefer Payload's built-in components"). Write
+  a custom-styled component only when no built-in fits, and note why.
 - **Public frontend / non-admin**: use `lucide-react` for icons (see
-  `docs/code-style.md`); Payload UI components don't apply there.
+  `docs/code-style.md`). Payload UI components do not apply there.
 
-## Server vs Client Components
+## Server vs client components
 
-### Server Components (Preferred for Data Fetching)
-- **Definition**: React components without the `'use client'` directive
-- **Props**: Can receive non-serializable props (functions, class instances)
-- **Data Access**: Direct access to Payload API via `getPayload()`
-- **Use Cases**: Dashboard views, components receiving PayloadCMS props
+### Server components (preferred for data fetching)
+- **Definition**: components with no `'use client'` directive
+- **Props**: can receive non-serializable props (functions, class instances)
+- **Data access**: direct access to the Payload API via `getPayload()`
+- **Use cases**: dashboard views, components receiving PayloadCMS props
 
-### Client Components (Only When Necessary)
-- **Definition**: Components with `'use client'` directive at top
-- **Props**: Can only receive serializable props (JSON-compatible)
-- **Use Cases**: Interactive elements, components with useState/useEffect
+### Client components (only when necessary)
+- **Definition**: components with a `'use client'` directive at the top
+- **Props**: can only receive serializable props (JSON-compatible)
+- **Use cases**: interactive elements, components with useState/useEffect
 
-### Common Error
+### Common error
 ```
 Error: Functions cannot be passed directly to Client Components...
 ```
-**Solution**: Use server components for views receiving PayloadCMS props.
+**Fix**: use server components for views that receive PayloadCMS props.
 
-## Component Folder Organization
+## Component folder organization
 
-### When to Use Folders
-- Component has multiple related files (UI + wrapper, sub-components)
-- Types should be exported alongside component
-- Component is registered in PayloadCMS config (needs default export)
+### When to use a folder
+- The component has multiple related files (UI + wrapper, sub-components).
+- Types export alongside the component.
+- The component registers in the PayloadCMS config (needs a default export).
 
-### Pattern: Field Component (UI + Wrapper)
+### Pattern: field component (UI + wrapper)
 ```
 src/components/admin/
 └── TagSelector/
@@ -49,7 +50,7 @@ src/components/admin/
     └── TagSelectorField.tsx  # PayloadCMS field wrapper
 ```
 
-### Pattern: View Component Family
+### Pattern: view component family
 ```
 src/components/admin/
 └── Dashboard/
@@ -59,15 +60,16 @@ src/components/admin/
     └── MetricsDashboard.tsx  # Sub-component (server, data fetching)
 ```
 
-### Barrel Export Pattern
+### Barrel export pattern
 ```typescript
 export { TagSelector, type TagOption } from './TagSelector'
 export { TagSelectorField } from './TagSelectorField'
 export { default } from './TagSelectorField'  // Default for PayloadCMS
 ```
 
-### Key Points
-- **Default export**: Required for PayloadCMS component registration
-- **Named exports**: Allow importing specific components
-- **Folder naming**: Match main component name (Dashboard/ contains Dashboard.tsx)
-- **Utilities**: Place in `utils.ts` within component folder
+### Key points
+- **Default export**: required for PayloadCMS component registration.
+- **Named exports**: allow importing specific components.
+- **Folder naming**: match the main component name (Dashboard/ contains
+  Dashboard.tsx).
+- **Utilities**: place in `utils.ts` within the component folder.

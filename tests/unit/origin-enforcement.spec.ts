@@ -39,7 +39,7 @@ describe('normalizeHost', () => {
   })
 
   it('converts IDN to punycode identically for the URL and bare-host forms', () => {
-    // The request side (browser Origin) arrives already punycoded; normalizing the
+    // The request side (browser Origin) arrives already punycoded. Normalizing the
     // config side the same way means they compare equal — and a lookalike ASCII
     // host does NOT (no homograph bypass).
     expect(normalizeHost('https://MÜNCHEN.de')).toBe(normalizeHost('münchen.de'))

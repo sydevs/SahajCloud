@@ -37,7 +37,7 @@ describe('buildStageTracker', () => {
   it('always renders the three steps in order', () => {
     const { steps } = buildStageTracker({ log: [], currentStage: 'verified', nextCheckAt: null })
     expect(steps.map((s) => s.key)).toEqual(['verified', 'reminders', 'expired'])
-    // upcoming reminders read as "Will Need Verification"; upcoming expired as "Will Expire"
+    // upcoming reminders read as "Will Need Verification". Upcoming expired as "Will Expire"
     expect(steps.map((s) => s.label)).toEqual([
       'Last Verified',
       'Will Need Verification',

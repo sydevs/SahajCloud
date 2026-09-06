@@ -86,7 +86,7 @@ export class MediaUploader {
    * This method allows checking for existing media BEFORE downloading,
    * avoiding unnecessary HTTP requests for media that already exists.
    *
-   * @param filename - The filename to check (e.g., "background.jpg")
+   * @param filename - The filename to check (for example, "background.jpg")
    * @returns The existing media ID if found, null otherwise
    */
   existsInCache(filename: string): number | string | null {
@@ -165,7 +165,7 @@ export class MediaUploader {
 
   /**
    * Extract base filename for deduplication matching
-   * Removes Payload's auto-generated suffixes (e.g., "-abc123")
+   * Removes Payload's auto-generated suffixes (for example, "-abc123")
    */
   private extractBaseName(filename: string): string {
     const ext = filename.substring(filename.lastIndexOf('.'))
@@ -179,7 +179,7 @@ export class MediaUploader {
    * Upload media file with deduplication
    *
    * This method checks if media with the same filename already exists in the database,
-   * accounting for Payload's automatic filename suffixes (e.g., image-abc123.jpg).
+   * accounting for Payload's automatic filename suffixes (for example, image-abc123.jpg).
    * If found, it reuses the existing media instead of uploading a duplicate.
    *
    * @param localPath - Path to the local file to upload
@@ -288,7 +288,7 @@ export class MediaUploader {
       return null
     }
 
-    // Fallback: query database (used when preload wasn't called)
+    // Fallback: query database (used when preload was not called)
     try {
       const baseNameWithoutExt = filename.substring(0, filename.lastIndexOf('.')) || filename
       const extension = filename.substring(filename.lastIndexOf('.'))
@@ -368,7 +368,7 @@ export class MediaUploader {
         })
       }
     } catch (_error) {
-      // Tag update failed, but don't fail the whole operation
+      // Tag update failed, but do not fail the whole operation
       await this.logger.warn(`Failed to update tags for media ${mediaId}`)
     }
   }

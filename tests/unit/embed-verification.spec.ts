@@ -104,7 +104,7 @@ describe('classifyRenderError', () => {
     expect(classifyRenderError('something nobody anticipated')).toBe('provider')
   })
 
-  // "quota exceeded" matches the timeout pattern too; quota has to win, or
+  // "quota exceeded" matches the timeout pattern too. Quota has to win, or
   // exhausting our own allowance would be recorded as their embed failing.
   it('prefers quota over timeout when a message matches both', () => {
     expect(classifyRenderError('Daily quota exceeded')).toBe('quota')

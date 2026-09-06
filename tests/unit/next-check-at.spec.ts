@@ -6,7 +6,7 @@ import type { EventSchedule } from '@/types/schedule'
 
 /**
  * `resolveNextCheckAt` is the whole reason the ExpireEvents job needs only one
- * query: a transition is reachable if and only if it's expressed as a
+ * query: a transition is reachable if and only if it is expressed as a
  * watermark here. These pin each stage's rule.
  */
 
@@ -37,7 +37,7 @@ describe('resolveNextCheckAt — pre-adoption stages', () => {
     for (const stage of ['unverified', 'denied'] as const) {
       const result = asDate(resolveNextCheckAt({ stage, schedule: endingSchedule }))
       expect(result).not.toBeNull()
-      // End of the final occurrence's local day, i.e. late on 2026-06-30.
+      // End of the final occurrence's local day, that is, late on 2026-06-30.
       expect(result!.toISOString().slice(0, 10)).toBe('2026-06-30')
     }
   })
@@ -153,7 +153,7 @@ describe('the nullability contract', () => {
   it('is null only for a pre-adoption stage with nothing scheduled', () => {
     for (const stage of VERIFICATION_STAGES) {
       // Strip every schedule-derived input, leaving only what the stage's own
-      // writer would pass. Pre-adoption stages have nothing left; every other
+      // writer would pass. Pre-adoption stages have nothing left. Every other
       // stage still has a clock.
       const bare = resolveNextCheckAt({
         stage,

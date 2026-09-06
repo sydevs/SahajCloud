@@ -1,15 +1,18 @@
 {
-  // Typecheck gate for the test suite. The root `tsconfig.json` excludes
-  // `tests`, and it's the config the Next.js build consumes — so the test lane
-  // gets its own config here instead, keeping this work off the shipping build.
+  // This is the typecheck gate for the test suite. The root
+  // `tsconfig.json` excludes `tests`, and the Next.js build uses that root
+  // config directly. So the test lane needs its own config here, kept out
+  // of the shipping build.
   //
-  // Covers the whole suite as of #606 Phase 2 (Phase 1 shipped the unit lane
-  // only). `src/**` needs no entry — it's pulled in transitively via the `@/`
-  // imports these files make, and the root config already typechecks it directly.
+  // This config covers the whole test suite, as of #606 Phase 2. Phase 1
+  // shipped only the unit lane. `src/**` needs no entry here. The test
+  // files pull it in transitively through their `@/` imports, and the
+  // root config already typechecks `src/` on its own.
   //
-  // `tests/tsconfig.json` is the editor's entry point — TS servers resolve the
-  // nearest `tsconfig.json` walking up from a file and won't find this one by
-  // name — and is a one-line re-export, so the options live here only.
+  // Editors use `tests/tsconfig.json` as their entry point. A TS server
+  // finds the nearest `tsconfig.json` by walking up from a file, so it
+  // will not find this file by name. `tests/tsconfig.json` is a one-line
+  // re-export, so all real options live here.
   "extends": "./tsconfig.json",
   "include": ["tests/**/*.ts", "tests/**/*.tsx", "src/types/*.d.ts"],
   "exclude": ["node_modules"]

@@ -2,14 +2,15 @@
 /**
  * Backfill the derived `schedule.lastDate` column on existing rows (#603).
  *
- * Rows written before the column shipped hold NULL, which reads as "this
- * recurrence never ends" — so a finished event stays on the public feeds until
- * something recomputes it. This CLI walks `events` + `app-cards` and fixes them.
- * The routine itself (and the reasoning behind it) lives in
- * `src/lib/schedule/backfillLastDate.ts`.
+ * Rows written before this column shipped hold NULL, which reads as
+ * "this recurrence never ends." So a finished event stays on the public
+ * feeds until something recomputes it. This CLI walks `events` and
+ * `app-cards` and fixes them. The routine itself, and the reasoning
+ * behind it, live in `src/lib/schedule/backfillLastDate.ts`.
  *
- * Reports by default; writes only with `--force`. Re-runnable — a second pass
- * finds nothing to do, because `lastDate` is a pure function of the schedule.
+ * This reports by default. It writes only with `--force`. You can
+ * re-run it safely: a second pass finds nothing to do, because
+ * `lastDate` is a pure function of the schedule.
  *
  * Usage:
  *   pnpm tsx scripts/backfill-schedule-last-date.ts              # dry run
@@ -57,9 +58,10 @@ function parseArgs(argv: string[]): Args {
 }
 
 /**
- * The Payload config validates the whole server env when it's imported, and ESM
- * hoists every static import above the module body — so dotenv has to run first
- * and the config has to be pulled in dynamically.
+ * The Payload config checks the whole server env as soon as something
+ * imports it. ESM also hoists every static import above the module
+ * body. So dotenv must run first, and the config must load through a
+ * dynamic import instead.
  */
 async function loadPayload(): Promise<Payload> {
   // Shell env wins, then .env.local, then .env (see seeds/env.ts).

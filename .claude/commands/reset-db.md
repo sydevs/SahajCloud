@@ -1,68 +1,54 @@
 # Reset Database and Migrations
 
-Reset local PayloadCMS migrations and PostgreSQL database to start fresh with the current schema.
+Reset the local PayloadCMS database to match the current schema.
 
-**WARNING: This is a destructive operation. All data in the local database will be lost.**
+**Warning: this is destructive. It deletes all local data.**
 
-## Local Workflow
+## Local reset
 
-Local development uses PostgreSQL with Drizzle `push: true` (auto-schema-sync). To reset:
+Local development uses PostgreSQL with Drizzle `push: true` (auto-schema-sync).
 
 ### Step 1: Delete the local database
 
-Drop and recreate your local PostgreSQL database:
-
 ```bash
-# Replace 'sahajcloud' with your actual local DB name if different
+# Replace 'sahajcloud' with your local database name if it differs
 dropdb sahajcloud
 createdb sahajcloud
 ```
 
 ### Step 2: Restart the dev server
 
-The dev server will auto-sync the schema on next boot:
-
 ```bash
-pnpm devsafe  # clears .next and restarts, or
-.claude/skills/dev-server/dev-server.sh restart
+pnpm devsafe   # clears .next, then restarts
 ```
 
-This will run Drizzle `push` and populate the schema from `src/payload.config.ts`.
+Or run `/workflow:dev-server restart` for the shared dev-server skill. Either way, Drizzle runs
+`push` on boot and rebuilds the schema from `src/payload.config.ts`.
 
 ### Step 3: Re-seed data (optional)
 
-If needed, re-populate test/seed data:
-
 ```bash
-pnpm seed <script-name>  # e.g., pnpm seed meditations
+pnpm seed <script-name>   # e.g. pnpm seed meditations
 ```
 
-See `seeds/AGENTS.md` for available scripts.
+See `seeds/AGENTS.md` for the list of available scripts.
 
-## Migration Workflow (if editing schema)
+## Schema changes
 
-If you modified `src/collections/`, `src/fields/`, `src/globals/`, or `src/payload.config.ts`:
+If you changed `src/collections/`, `src/fields/`, `src/globals/`, or `src/payload.config.ts`,
+create a migration instead of only resetting local data:
 
-1. **Create migration** (attempt non-interactively first; hand to the user only on timeout — see `src/migrations/AGENTS.md` for the outcome table):
+```bash
+timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null
+git add src/migrations/
+git commit -m "chore(migrations): <description>"
+```
 
-   ```bash
-   timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null
-   ```
+The migration auto-applies on the next server boot, local or Railway. See
+`src/migrations/AGENTS.md` for the full workflow, the outcome table, and the timeout rationale.
 
-2. **Commit migration files** in a separate commit:
+## Key facts
 
-   ```bash
-   git add src/migrations/
-   git commit -m "chore(migrations): <description>"
-   ```
-
-3. **Apply on next dev boot** — migrations auto-apply during server startup via Payload's `prodMigrations`.
-
-See `src/migrations/AGENTS.md` for the full migration workflow.
-
-## Key Details
-
-- **Local database**: PostgreSQL (dev uses Drizzle `push: true`)
-- **Migrations directory**: `src/migrations/`
-- **Production migrations**: Applied in-process on server boot (no preDeployCommand)
-- **Dev server**: `pnpm dev` or `.claude/skills/dev-server/dev-server.sh` (shared across sessions)
+- **Local database**: PostgreSQL, with Drizzle `push: true`.
+- **Migrations directory**: `src/migrations/`.
+- **Production migrations**: apply in-process on server boot. There is no separate deploy step.

@@ -473,8 +473,8 @@ export function buildProposedChanges(args: {
         label: labelForPath(entry.path, args.fields),
         ...(longEdit ? { segments: wordSegments(before, after) } : {}),
         // Classify by what the reviewer sees, not by microdiff's key-level
-        // verdict: a column that held `null` and now holds a value is a
-        // CHANGE to microdiff and plainly an addition to a human.
+        // verdict. A column that held `null` and now holds a value is a
+        // CHANGE to microdiff, but plainly an addition to a human.
         kind: before === null ? 'added' : after === null ? 'removed' : 'changed',
         before,
         after,

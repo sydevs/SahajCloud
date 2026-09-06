@@ -115,8 +115,8 @@ export interface LexicalRoot {
 // ============================================================================
 
 /**
- * Lexical text-node `format` is a bitmask; the relevant bits for the
- * basicRichTextEditor preset (Bold + Italic + Link + InlineToolbar) are:
+ * Lexical text-node `format` is a bitmask. The relevant bits for the
+ * basicRichTextEditor preset (Bold, Italic, Link, InlineToolbar) are:
  *
  *   bit 0 (value 1) — Bold
  *   bit 1 (value 2) — Italic
@@ -170,7 +170,7 @@ function segmentToLexicalChild(
  * Convert a seed richText field (paragraphs of segments) to the Lexical
  * JSON tree shape that Payload's richText fields persist.
  *
- * `ctx` is a human-readable label (e.g. `"onboarding_consent_modal.body_intro"`)
+ * `ctx` is a human-readable label (for example, `"onboarding_consent_modal.body_intro"`)
  * used in error messages when an individual segment is malformed.
  */
 export function seedRichTextToLexical(field: SeedRichTextField, ctx: string): LexicalRoot {
@@ -227,7 +227,7 @@ export type SeedLeaf =
  * Field values extracted from a single seed leaf, decoupled from how Payload
  * names/places them. `strings` is the flat `{ key: value }` map for the leaf's
  * JSON field (or null when the leaf has no string keys). `richText` maps each
- * richText key (bare, e.g. `legal_disclaimer`) to its Lexical tree.
+ * richText key (bare, for example, `legal_disclaimer`) to its Lexical tree.
  *
  * Handles both pure-string leaves (no `strings` block) and mixed leaves
  * (`{ strings: {...}, richKey: SeedRichTextField, ... }`).
@@ -254,7 +254,7 @@ export function seedLeafToFieldValues(
     return { strings: Object.keys(stringKeys).length > 0 ? stringKeys : null, richText }
   }
 
-  // Mixed leaf — `strings` block holds string keys; siblings are richText fields.
+  // Mixed leaf. The `strings` block holds string keys. Siblings are richText fields.
   for (const [k, v] of Object.entries(leaf)) {
     if (k === 'strings' || k.startsWith('_')) continue
     if (!isSeedRichTextField(v)) {
@@ -299,9 +299,9 @@ function isSchemaGroup(node: SchemaLeafProp | SchemaGroupNode): node is SchemaGr
  * - Nested tab `onboarding` (has sub-groups): wrapped in a Payload group named
  *   after the tab, so strings for sub-group `welcome` → `data.onboarding.welcome`
  *   and richText `legal_disclaimer` → `data.onboarding.welcome_legal_disclaimer`
- *   (the sub-slug prefix is kept; the group supplies the tab namespace).
+ *   (the sub-slug prefix is kept. The group supplies the tab namespace.)
  *
- * Seed leaf slugs are flat (`onboarding_welcome`); walking the schema avoids
+ * Seed leaf slugs are flat (`onboarding_welcome`). Walking the schema avoids
  * having to guess the tab/sub-group boundary from the slug.
  */
 export function buildWmAppGlobalData(

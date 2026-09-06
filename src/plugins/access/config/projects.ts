@@ -14,6 +14,8 @@
 import type { ContentSlug } from '../types'
 import type { CollectionSlug } from 'payload'
 
+import type { ProjectSlug } from '@/payload-types'
+
 // =============================================================================
 // Internal Configuration (NOT exported - use helper functions)
 // =============================================================================
@@ -80,7 +82,13 @@ const PROJECTS = {
     collections: ['regions', 'events', 'registrations', 'images', 'files'],
     globals: ['sy-atlas-config', 'sy-atlas-translations'],
   },
-} as const
+  // `satisfies` pins the keys to the generated `ProjectSlug`, which
+  // `accessPlugin.ts` builds from these same keys. The one drift it catches is
+  // a stale `payload-types.ts`: someone edited this object and skipped
+  // `pnpm generate:types`. That fails `pnpm typecheck` here, at the line being
+  // edited, rather than letting `isValidProject` narrow to a slug Payload
+  // rejects.
+} as const satisfies Record<ProjectSlug, unknown>
 
 /**
  * Admin view constants (for null project handling)
@@ -245,11 +253,25 @@ export function getProjectOptions(): Array<{ value: InternalProjectSlug; label: 
 
 /**
  * Validate if a value is a valid project slug
+ *
+ * ⚠ `Object.hasOwn`, never `in`. `in` walks the prototype chain, so
+ * `isValidProject('toString')` was `true`. That passed `set-project`'s zod
+ * refine, and Payload's own select validation then refused the write inside
+ * the handler's `try` — so the caller got a 500 where the schema promises a
+ * 400 (#671).
+ *
+ * Narrows to the **generated** `ProjectSlug`, not the internal
+ * `keyof typeof PROJECTS`, so a caller holding the result can hand it
+ * straight to Payload without a cast, and no second name for one shape
+ * reaches the call sites (`src/types/AGENTS.md`). The `satisfies` clause on
+ * `PROJECTS` pins the two together, so a stale `payload-types.ts` is a failing
+ * type-check rather than a silent widening here.
+ *
  * @param value - Value to validate
  * @returns True if value is a valid project slug or null
  */
-export function isValidProject(value: string | null): boolean {
-  return value === null || value in PROJECTS
+export function isValidProject(value: string | null): value is ProjectSlug | null {
+  return value === null || Object.hasOwn(PROJECTS, value)
 }
 
 // =============================================================================

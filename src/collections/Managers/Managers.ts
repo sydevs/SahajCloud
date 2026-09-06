@@ -74,22 +74,15 @@ export const Managers: CollectionConfig = {
       required: true,
     },
     {
+      // `null` is the admin "All Content" view, and it has no option of its own.
+      // The field is `admin.hidden`, so Payload never renders this select, and
+      // `POST /api/managers/set-project` is the only writer. See #671 and
+      // `tests/unit/manager-current-project.spec.ts`.
       name: 'currentProject',
       type: 'select',
-      options: [
-        { value: '', label: 'Sahaj Cloud' }, // Empty string represents admin view
-        ...getProjectOptions(),
-      ],
+      options: getProjectOptions(),
       admin: {
         hidden: true,
-      },
-      hooks: {
-        // Convert null to empty string when saving to database
-        beforeChange: [
-          ({ value }) => {
-            return value === '' ? null : value
-          },
-        ],
       },
     },
     {

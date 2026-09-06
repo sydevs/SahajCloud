@@ -16,7 +16,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
  * until this has run.
  *
  * The routine lives in `src/lib/atlas/` rather than in the script precisely so
- * it can be exercised here; the CLI wrapper is argument parsing and printing.
+ * it can be exercised here. The CLI wrapper is argument parsing and printing.
  */
 describe('breadcrumb URL backfill', () => {
   let payload: Payload
@@ -82,7 +82,7 @@ describe('breadcrumb URL backfill', () => {
     const stats = await backfillBreadcrumbUrls({ payload, apply: false })
     expect(stats.scanned).toBe(4)
     expect(stats.missing).toBe(4)
-    // Two roots (uk, france) would be re-saved; the cascade covers the rest.
+    // Two roots (uk, france) would be re-saved. The cascade covers the rest.
     expect(stats.resaved).toBe(2)
     expect(stats.failed).toBe(0)
 

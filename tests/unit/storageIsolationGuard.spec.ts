@@ -1,7 +1,7 @@
 /**
  * Safety test for the preview/non-production storage delete guard (issue #432,
  * acceptance criterion: "from preview, attempt to delete a cloned asset that
- * exists in prod; confirm it is intact afterwards").
+ * exists in prod. Confirm it is intact afterwards").
  *
  * We prove the guard deterministically rather than by deleting a real prod asset:
  * a non-production deployment's `handleDelete` must NOT issue the underlying
@@ -25,7 +25,7 @@ import { r2NativeAdapter } from '@/plugins/storage/r2NativeAdapter'
 
 const PREVIEW_ENV = 'pr-432'
 
-// A cloned-from-prod id/key carries no preview marker; a preview-created one does.
+// A cloned-from-prod id/key carries no preview marker. A preview-created one does.
 const PROD_ASSET_ID = 'real-prod-photo-ab12cd'
 const PREVIEW_ASSET_ID = `${PREVIEW_ASSET_PREFIX}smoke-photo-ef34gh`
 

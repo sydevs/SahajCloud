@@ -105,7 +105,7 @@ describe('Event verification lifecycle', () => {
       manager: eventManager.id,
       region: defaultRegion.id,
       // Publish on create (the manager's publish action) so the expire →
-      // draft flip is observable; the hook leaves _status to the save choice.
+      // draft flip is observable. The hook leaves _status to the save choice.
       _status: 'published',
       ...rest,
     }
@@ -238,7 +238,7 @@ describe('Event verification lifecycle', () => {
         payload.findByID({ collection: 'events', id: event.id, overrideAccess: true }),
         payload.findByID({ collection: 'regions', id: defaultRegion.id, overrideAccess: true }),
       ])
-      // "Default City" has no parent → its path is `/<slug>`; the event's path
+      // "Default City" has no parent → its path is `/<slug>`. The event's path
       // appends its id, and webUrl joins that to the Atlas host.
       expect(region.webPath).toBe(`/${region.slug}`)
       expect(fetched.webPath).toBe(`/${region.slug}/${event.id}`)
@@ -355,7 +355,7 @@ describe('Event verification lifecycle', () => {
     const second = await runJob(payload)
     const after = await getEvent(payload, event.id)
 
-    // The event isn't due, so it isn't even examined.
+    // The event is not due, so it is not even examined.
     expect(second.remindersSent).toBe(0)
     expect(second.advanced).toBe(0)
     expect(after.verificationStage).toBe(before.verificationStage)
@@ -453,7 +453,7 @@ describe('Event verification lifecycle', () => {
 
       const html = await remindOnce(event.id, 'Evening Sitting for Night-Shift Nurses')
       expect(html).toContain('Your listing is complete')
-      // The ticks name what passed; the bar is dropped once there's no
+      // The ticks name what passed. The bar is dropped once there's no
       // progress left to show, so the caption goes with it.
       expect(html).toContain('Has 3+ photos')
       // "Has a good quality description" supersedes "Has a description" — the
@@ -466,8 +466,8 @@ describe('Event verification lifecycle', () => {
     })
 
     it('sends none for an unpublished event — it was never checked', async () => {
-      // Not "no problems found": an invisible listing isn't graded (#609). The
-      // reminder itself still goes out, because the ladder doesn't care.
+      // Not "no problems found": an invisible listing is not graded (#609). The
+      // reminder itself still goes out, because the ladder does not care.
       const event = await createEvent({ title: 'Hidden Listing' })
       await payload.update({
         collection: 'events',
@@ -541,7 +541,7 @@ describe('Event verification lifecycle', () => {
     const event = await createEvent({ region: city.id })
 
     // Simulate a crash mid-fan-out at the escalated stage: the event manager
-    // was already logged, but the region manager wasn't.
+    // was already logged, but the region manager was not.
     await payload.update({
       collection: 'events',
       id: event.id,
@@ -729,7 +729,7 @@ describe('Event verification lifecycle', () => {
 
       // Forcing the stage to `verified` while the manager is still null must
       // fail validation: verified always implies managed. (Payload surfaces
-      // the per-field message in `error.data`; the thrown message names the
+      // the per-field message in `error.data`. The thrown message names the
       // field.)
       await expect(
         payload.update({

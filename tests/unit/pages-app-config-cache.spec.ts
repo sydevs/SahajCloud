@@ -58,7 +58,7 @@ describe('loadAppConfigOnce (#542 bulk-publish stampede guard)', () => {
     })
 
     await expect(loadAppConfigOnce(req)).rejects.toThrow('boom')
-    // A cached rejection would poison the rest of the request; eviction lets the
+    // A cached rejection would poison the rest of the request. Eviction lets the
     // next read reload instead.
     await expect(loadAppConfigOnce(req)).resolves.toEqual({ ok: true })
     expect(findGlobal).toHaveBeenCalledTimes(2)

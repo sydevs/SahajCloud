@@ -28,7 +28,7 @@ const callHook = (hook: FieldHook, siblingData: Record<string, unknown>): unknow
 }
 
 // Reusable base fields for building test cases.
-// firstDate is a UTC ISO datetime string; firstDate_tz is the IANA timezone.
+// firstDate is a UTC ISO datetime string. `firstDate_tz` is the IANA timezone.
 const baseFields: Partial<EventSchedule> = {
   firstDate: '2025-03-15T14:00:00.000Z',
   firstDate_tz: 'UTC',
@@ -927,7 +927,7 @@ describe('Schedule Field Hooks', () => {
         exclusions: [{ startDate: '2025-04-01', endDate: '2025-04-05' }],
       }) as string
 
-      // April exclusions don't overlap with March 15-17 occurrences
+      // April exclusions do not overlap with March 15-17 occurrences
       expect(result).not.toContain('EXDATE')
     })
 
@@ -1263,7 +1263,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('uses the end of the *local* day for a non-UTC timezone', () => {
-        // 14:00Z on Mar 15 is 10:00 EDT; local end-of-day is 23:59:59.999 -04:00
+        // 14:00Z on Mar 15 is 10:00 EDT. Local end-of-day is 23:59:59.999 -04:00
         expect(lastOccurrenceEnd({ ...baseFields, firstDate_tz: 'America/New_York' })).toBe(
           '2025-03-16T03:59:59.999Z',
         )
@@ -1394,7 +1394,7 @@ describe('Schedule Field Hooks', () => {
     })
 
     it('is a no-op for an unrelated partial update (empty group patch)', () => {
-      // e.g. the ExpireEvents job patching only `activityLog`
+      // for example, the ExpireEvents job patching only `activityLog`
       expect(callLastDateHook({ ...COURSE, lastDate: '2025-03-17T23:59:59.999Z' }, {})).toBe(
         '2025-03-17T23:59:59.999Z',
       )

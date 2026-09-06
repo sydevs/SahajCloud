@@ -1,6 +1,7 @@
 # Storyblok Import
 
-Imports "Path Step" content from Storyblok CMS API into Payload's `lessons` collection.
+Imports "Path Step" content from the Storyblok CMS API into Payload's
+`lessons` collection.
 
 ## Environment
 
@@ -17,24 +18,24 @@ pnpm seed storyblok               # Full import
 pnpm seed storyblok --clear-cache # Re-download assets
 ```
 
-## Field Mappings
+## Field mappings
 
 | Storyblok Source | Payload Target | Notes |
 |------------------|----------------|-------|
-| `story.name` | `lessons.title` | Escape sequences converted to spaces |
-| `story.slug` (e.g., "step-1") | `lessons.step` | Regex extracts step number |
+| `story.name` | `lessons.title` | Escape sequences convert to spaces |
+| `story.slug` (e.g., "step-1") | `lessons.step` | Regex extracts the step number |
 | `Step_info[0].Unit_number` | `lessons.unit` | Maps to "Unit 1", "Unit 2", etc. |
 | `Intro_quote` | `panels[0].quote` | CoverStoryBlock (first panel) |
 | `Intro_stories[]` | `panels[]` | TextStoryBlock or VideoStoryBlock |
 | `Audio_intro[0].Audio_track` | `lessons.introAudio` | FileAttachment (R2 audio) |
-| `Audio_intro[0].Subtitles` | `lessons.introSubtitles` | JSON parsed subtitles |
+| `Audio_intro[0].Subtitles` | `lessons.introSubtitles` | JSON-parsed subtitles |
 | `Step_info[0].Step_Image` | `lessons.icon` | FileAttachment (R2 image) |
 | `Meditation_reference[0]` | `lessons.meditation` | Lookup by "Step N" title |
 | `Delving_deeper_article[0].Blocks` | `lessons.article` | Lexical rich text conversion |
 
-## Panel Structure
+## Panel structure
 
-Storyblok `Intro_stories` array → Payload `panels` array:
+The Storyblok `Intro_stories` array maps to the Payload `panels` array:
 
 | Panel Type | blockType | Fields |
 |------------|-----------|--------|
@@ -42,9 +43,10 @@ Storyblok `Intro_stories` array → Payload `panels` array:
 | Text | `text` | title, text, image (relationship) |
 | Video | `video` | video (FileAttachment) |
 
-**First panel must be CoverStoryBlock** with title and quote from Shri Mataji.
+**The first panel must be a CoverStoryBlock**, with title and quote from Shri
+Mataji.
 
-## Lexical Block Conversion
+## Lexical block conversion
 
 | Storyblok Block | Lexical Node |
 |-----------------|--------------|
@@ -57,18 +59,18 @@ Storyblok `Intro_stories` array → Payload `panels` array:
 
 ## Output
 
-- **Lessons** with panels array
+- **Lessons** with a panels array
 - **Images** for panel backgrounds
 - **Lectures** for video references (rich text references the lecture)
 - **Files** for audio/icon attachments
 
 ## Troubleshooting
 
-### "STORYBLOK_ACCESS_TOKEN not set"
-Export the token: `export STORYBLOK_ACCESS_TOKEN=your-token`
+**"STORYBLOK_ACCESS_TOKEN not set"** — export the token:
+`export STORYBLOK_ACCESS_TOKEN=your-token`.
 
-### "Meditation not found for Step N"
-Warning only - meditation relationship will be null. Import meditations separately.
+**"Meditation not found for Step N"** — a warning only. The meditation
+relationship stays null. Import meditations separately.
 
-### Asset download failures
-Use `--clear-cache` to re-download. Check Storyblok asset URLs are accessible.
+**Asset download failures** — use `--clear-cache` to re-download. Check that
+the Storyblok asset URLs are reachable.

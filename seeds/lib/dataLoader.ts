@@ -129,7 +129,7 @@ export async function readCache(cachePath: string): Promise<Buffer | null> {
       return fs.readFile(cachePath)
     }
   } catch {
-    // File doesn't exist
+    // File does not exist
   }
   return null
 }

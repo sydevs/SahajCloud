@@ -16,7 +16,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
  *
  * 16 regions have a blank name (and so a blank slug) in production today, so
  * this is a live scenario, not a hypothetical. The unit spec covers the
- * validator in isolation; this covers the contract it depends on — that
+ * validator in isolation. This covers the contract it depends on — that
  * Payload really does supply `previousValue` during a cascade re-save, so the
  * clause fires when it should.
  *
@@ -67,7 +67,7 @@ describe('blank region slug vs the nested-docs cascade', () => {
 
   it('still lets an ancestor be saved, cascade and all', async () => {
     // This is the whole point. The country's write cascades into the blank
-    // region; without the grandfather clause the validator rejects that child
+    // region. Without the grandfather clause the validator rejects that child
     // and the plugin turns it into "Could not publish or save changes: One or
     // more children are invalid" — an entire country made unsaveable by one row.
     await expect(
@@ -107,7 +107,7 @@ describe('blank region slug vs the nested-docs cascade', () => {
   })
 
   it('restores the whole subtree’s canonical paths once the slug is fixed', async () => {
-    // The gap cost this region *and everything under it* their paths; filling
+    // The gap cost this region *and everything under it* their paths. Filling
     // it in brings them all back on the next read, with no backfill.
     const [region, city] = await Promise.all([readRegion(blankRegion), readRegion(cityBelow)])
     expect(region.webPath).toBe('/rootland/now-named')

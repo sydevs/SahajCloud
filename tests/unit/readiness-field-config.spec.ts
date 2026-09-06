@@ -19,7 +19,7 @@ describe('wm-app-status — ReadinessField registration contract', () => {
   if (!statusTab) {
     throw new Error('Expected a Status tab on wm-app-status')
   }
-  // The Status tab leads with a `_readiness_banner` UI field; the section
+  // The Status tab leads with a `_readiness_banner` UI field. The section
   // virtual fields are the JSON ones.
   const sectionFields = (statusTab.fields as JSONField[]).filter((f) => f.type === 'json')
 

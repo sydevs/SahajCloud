@@ -137,7 +137,7 @@ describe('Usage Tracking Deduplication (Issue #546)', () => {
         id: testClient.id,
       })) as Client
 
-      // Verify firstRequestAt doesn't change
+      // Verify firstRequestAt does not change
       expect(updated.usage?.firstRequestAt).toBe(firstRequestAt)
       // Verify increments by 1, not more
       expect(updated.usage?.dailyRequests).toBe(initialDailyRequests)
@@ -306,7 +306,7 @@ describe('Usage Tracking Deduplication (Issue #546)', () => {
       //
       // This is the gap the previous boolean-flag implementation missed: each
       // asTrustedReq spread created a new context copy, so the flag set in the
-      // first find didn't reach the second find.
+      // first find did not reach the second find.
 
       const client = (await payload.findByID({
         collection: 'clients',
@@ -318,7 +318,7 @@ describe('Usage Tracking Deduplication (Issue #546)', () => {
       // Simulate the pattern: a handler calls asTrustedReq(req) 3 times to fetch
       // related content. Each call returns documents and triggers afterRead.
       // Without a shared tracker, this would be 3 writes. With the shared tracker,
-      // it's 1 write total.
+      // it is 1 write total.
 
       const now = new Date().toISOString()
 
@@ -339,7 +339,7 @@ describe('Usage Tracking Deduplication (Issue #546)', () => {
 
       // Call 2: find featured-meditations (returns 1 doc, triggers 1 afterRead)
       // With the shared tracker, this should NOT increment (tracker.counted is true)
-      // Simulate that the second find doesn't increment
+      // Simulate that the second find does not increment
       const client2 = (await payload.findByID({
         collection: 'clients',
         id: testClient.id,

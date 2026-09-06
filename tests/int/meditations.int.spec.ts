@@ -264,8 +264,8 @@ describe('Meditations Collection', () => {
       })
       const allCount = await payload.count({
         collection: 'meditations',
-        // Payload's cross-locale read; the generated union lists configured
-        // locales only, so it doesn't include this.
+        // Payload's cross-locale read. The generated union lists configured
+        // locales only, so it does not include this.
         locale: 'all' as Parameters<typeof payload.count>[0]['locale'],
       })
 
@@ -338,7 +338,7 @@ describe('Meditations Collection', () => {
     })
 
     it('returns "Meditation for <dominant node>" from cached node weights', async () => {
-      // A single pingala frame makes pingala the dominant (only) node; pingala
+      // A single pingala frame makes pingala the dominant (only) node. Pingala
       // maps to the "Right Channel" label via SUBTLE_SYSTEM_NODE_OPTIONS.
       const node = await testData.createSubtleSystemNode(payload, {}, { slug: 'pingala' })
       const frame = await testData.createFrame(payload, { subtleSystemNode: node.id })
@@ -376,7 +376,7 @@ describe('Meditations Collection', () => {
     // — label, thumbnail, _status, type, durationMinutes, duration — plus the
     // upload thumbnail fields appended by appendUploadSelectFields. Replicated
     // here because the select is assembled in @payloadcms/next's RSC List view,
-    // which an integration test can't invoke directly.
+    // which an integration test cannot invoke directly.
     const LIST_VIEW_SELECT: MeditationsSelect<true> = {
       label: true,
       thumbnail: true,
@@ -446,7 +446,7 @@ describe('Meditations Collection', () => {
 
     it('still renders the durationMinutes column (duration stays selected)', async () => {
       // audio-42s.mp3 → duration ~42s → ceil(42 / 60) = 1 minute. This only
-      // works because `duration` is in the list select; drop it from
+      // works because `duration` is in the list select. Drop it from
       // defaultColumns and the virtual column blanks.
       const result = await fetchListView()
       const doc = result.docs[0]

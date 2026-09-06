@@ -28,8 +28,8 @@
  *   ADMIN_PASSWORD  - Admin password for authentication (not needed locally)
  *   PORT            - Local dev server port (default: 3000)
  *
- * Local dev enables Payload's `admin.autoLogin`, so no credentials are needed
- * against a local server; they're only required for a remote target.
+ * Local dev enables Payload's `admin.autoLogin`, so no credentials are
+ * needed against a local server. They are only required for a remote target.
  *
  * Examples:
  *   pnpm seed                           # Run all scripts in order
@@ -90,16 +90,16 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
 
-// Seed-data files that the API endpoint can't fetch itself because they live in
+// Seed-data files that the API endpoint cannot fetch itself because they live in
 // a private repo (the Worker's unauthenticated GitHub raw fetch 404s). The CLI
-// reads these locally and uploads them in the POST body; the importer consumes
+// reads these locally and uploads them in the POST body. The importer consumes
 // them via loadJsonData({ inlineContent }). Keys must match each importer's
 // DataSource.localPath exactly.
 const SCRIPT_DATA_FILES: Partial<Record<ScriptName, string[]>> = {
   'wm-app-translations': ['seeds/wm-app-translations/data.en.json'],
   translations: ['seeds/wm-app-translations/data.en.json'],
-  // Atlas reads all 8 dumps via loadJsonData (keyed by these exact paths); the
-  // standalone build excludes seeds/, so the CLI uploads them for remote seeding.
+  // Atlas reads all 8 dumps via loadJsonData (keyed by these exact paths).
+  // The standalone build excludes seeds/, so the CLI uploads them for remote seeding.
   atlas: [
     'seeds/atlas/data/users.json',
     'seeds/atlas/data/managers.json',
@@ -128,7 +128,7 @@ async function loadInlineData(scriptName: ScriptName): Promise<Record<string, st
 }
 
 /**
- * Auth header for a seed request. `null` means we're relying on the target's
+ * Auth header for a seed request. `null` means we are relying on the target's
  * auto-login (see `authenticate`), so the request must go out *without* an
  * `Authorization` header for Payload's tokenless path to kick in.
  */
@@ -152,7 +152,7 @@ function seedPostInit(token: string | null, inlineData?: Record<string, string>)
 }
 
 /**
- * Format elapsed milliseconds as human-readable string (e.g., "1m 30s")
+ * Format elapsed milliseconds as human-readable string (for example, "1m 30s")
  */
 function formatElapsed(ms: number): string {
   const seconds = Math.floor(ms / 1000)
@@ -238,11 +238,11 @@ async function hasAutoLogin(baseUrl: string): Promise<boolean> {
   try {
     if (!(await probe())) return false
 
-    // A truthy `user` on its own isn't proof: an edge cache in front of a remote
+    // A truthy `user` on its own is not proof: an edge cache in front of a remote
     // target can replay a *previously authenticated* response to our tokenless
     // request, which would look identical. `DisableAutologin` is the tell — a
     // live Payload always answers it with `{ user: null }`, so a user here means
-    // we're reading a cached body, not talking to an auto-login server.
+    // we are reading a cached body, not talking to an auto-login server.
     return !(await probe({ DisableAutologin: 'true' }))
   } catch {
     // Unreachable target — let the real seed request report the failure.
@@ -257,8 +257,8 @@ async function hasAutoLogin(baseUrl: string): Promise<boolean> {
  * Uses the token from the login response *body*, not the `Set-Cookie` header.
  * Payload's CSRF protection ignores cookie-based JWTs unless the request
  * `Origin` matches the configured `csrf` allowlist — which a server-to-server
- * fetch can't satisfy (it sends no `Origin`). The `Authorization: JWT <token>`
- * header is not subject to CSRF, so it's the correct mechanism here.
+ * fetch cannot satisfy (it sends no `Origin`). The `Authorization: JWT <token>`
+ * header is not subject to CSRF, so it is the correct mechanism here.
  * Do not switch this back to cookie forwarding.
  */
 async function authenticate(baseUrl: string): Promise<string | null> {
@@ -886,7 +886,7 @@ async function main(): Promise<void> {
 
       let result: ScriptResult
 
-      // Use paginated import if metadata indicates it's needed
+      // Use paginated import if metadata indicates it is needed
       if (metadata?.requiresPagination) {
         result = await runPaginatedImport(scriptName, metadata, baseUrl, token, {
           dryRun,

@@ -27,7 +27,7 @@ describe('parseAtlasRoute', () => {
 
     // Ancestry is exactly the part of a URL that goes stale — a region moved in
     // the tree, or a country re-slugged to its ISO code (#556). Ignoring it
-    // keeps an old inbound link resolving; the answer's canonical corrects it.
+    // keeps an old inbound link resolving. The answer's canonical corrects it.
     it('keys on the terminal slug alone, whatever ancestry precedes it', () => {
       expect(parseAtlasRoute('/wrong/legacy/chain/london')).toEqual({
         kind: 'region',

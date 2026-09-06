@@ -34,14 +34,14 @@ test('upload + delete an Image against preview, namespaced for isolation', async
   const id = created.doc.id
   const filename = created.doc.filename ?? ''
 
-  // Cloudflare Images IDs carry no file extension; the local-storage fallback
+  // Cloudflare Images IDs carry no file extension. The local-storage fallback
   // (no Cloudflare credentials) keeps ".png". Only assert the preview namespace
   // when the upload actually went to Cloudflare Images — the path #432 isolates.
   if (!filename.endsWith('.png')) {
     expect(filename, 'Cloudflare Images upload should be preview-namespaced').toMatch(/^preview-/)
   }
 
-  // The preview may delete its OWN (preview-marked) upload; the guard only
+  // The preview may delete its OWN (preview-marked) upload. The guard only
   // blocks deletes of unmarked, cloned-from-prod assets.
   const deleteRes = await request.delete(`/api/images/${id}`, { headers })
   expect(deleteRes.ok()).toBe(true)

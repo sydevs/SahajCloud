@@ -6,7 +6,7 @@
  * the two callers that get them wrong in opposite directions:
  *
  * - a collection check scoped to the WRONG locale would grant a manager's English
- *   roles in all 19 locales, which is the over-grant half of the bug;
+ *   roles in all 19 locales. This is the over-grant half of the bug.
  * - the admin nav check has no locale to offer at all, and scoping it to none
  *   empties the sidebar for every non-admin manager.
  *

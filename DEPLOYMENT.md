@@ -1,6 +1,8 @@
 # Deployment Documentation
 
-This document provides comprehensive deployment procedures, troubleshooting, and production configuration for the SY Developers CMS deployed on Railway.
+How Sahaj Cloud runs today on Railway: infrastructure, the edge cache rule, environment
+variables, the deploy workflow, and day-to-day troubleshooting. For provisioning a Railway
+project from scratch, or for disaster recovery, see [RAILWAY_RUNBOOK.md](RAILWAY_RUNBOOK.md).
 
 **Production URL**: https://cloud.sydevelopers.com
 
@@ -11,115 +13,34 @@ This document provides comprehensive deployment procedures, troubleshooting, and
 ## Table of Contents
 
 1. [Infrastructure Overview](#infrastructure-overview)
-2. [Deployment Commands](#deployment-commands)
+2. [Edge Cache (Cloudflare Cache Rule)](#edge-cache-cloudflare-cache-rule)
 3. [Database Migrations](#database-migrations)
 4. [Environment Variables](#environment-variables)
 5. [Deployment Workflow](#deployment-workflow)
 6. [Verifying Deployments](#verifying-deployments)
 7. [Troubleshooting](#troubleshooting)
 8. [Cost Monitoring](#cost-monitoring)
-9. [Preview Environment](#preview-environment)
 
 ---
 
 ## Infrastructure Overview
 
-### Railway + PostgreSQL Platform
-
-The application is deployed to **Railway**, a modern platform for building and deploying applications. The app runs as a long-lived Node.js server.
-
 **Components**:
 
 - **Compute**: Railway (Node.js 22+)
-- **Database**: Railway PostgreSQL 18 (latest major)
-- **Storage**: Cloudflare R2 (S3-compatible object storage via `@aws-sdk/client-s3`)
+- **Database**: Railway PostgreSQL 18
+- **Storage**: Cloudflare R2 (S3-compatible, via `@aws-sdk/client-s3`)
 - **CDN/Edge**: Cloudflare reverse proxy (rate limiting, Images, Stream, cache rules)
 
 **Build & Start**:
 
-- **Railpack** (Railway's native builder): Railway detects Node.js project and builds automatically
-- `railway.toml`: `[build] builder = "RAILPACK"` and `[deploy] startCommand = "pnpm start"`
-  - `pnpm build` → `next build` (emits a self-contained `.next/standalone`, `output: 'standalone'`) followed by a postbuild step (`scripts/standalone-postbuild.mjs`) that copies `.next/static` + `public/` next to `server.js` — Next does not copy these automatically
-  - `pnpm start` → `node .next/standalone/server.js` (`HOSTNAME=0.0.0.0`): ships only traced production deps + a minimal server, not the full `node_modules` (much smaller runtime image)
-- Migrations applied **in-process on server boot** via Payload `prodMigrations` hook (see [Database Migrations](#database-migrations)) — the migration files are statically imported, so they trace into the standalone bundle and still run on boot
-- `Sentry` via `@sentry/nextjs` (wraps `next.config.mjs` with `withSentryConfig`)
+- **Railpack** (Railway's native builder) detects the Node.js project and builds it — no Dockerfile.
+- `pnpm build` runs `next build` (emits a self-contained `.next/standalone`, `output: 'standalone'`), then `scripts/standalone-postbuild.mjs` copies `.next/static` and `public/` next to `server.js` — Next does not copy these on its own.
+- `pnpm start` runs `node .next/standalone/server.js` (`HOSTNAME=0.0.0.0`). It ships only the traced production dependencies, not the full `node_modules`.
+- Migrations apply **in-process on server boot**, via Payload's `prodMigrations` hook (see [Database Migrations](#database-migrations)). The migration files import statically, so they trace into the bundle and still run at boot.
+- `@sentry/nextjs` wraps `next.config.mjs` via `withSentryConfig`.
 
-**Health Check**:
-
-- Railway pings `/api/health` during deploy to verify readiness
-- Startup takes ~5–10 seconds after container init
-
-### Edge Cache (Cloudflare Cache Rule)
-
-Client-facing API reads are made edge-cacheable **at the app layer**: the app emits
-`Cache-Control: public, s-maxage=…` + `Vary: Authorization` (+ `Cache-Tag`) for cacheable reads
-(policy in `src/plugins/cache/` — the `cachePlugin` module registered in
-`src/payload.config.ts` + the `/api/**` middleware in `src/middleware.ts`). These headers are
-**inert on their own**: Cloudflare treats any request carrying an `Authorization` header as
-private and serves it `cf-cache-status: DYNAMIC` unless a **Cache Rule** marks the path "Eligible
-for cache". Caching therefore only activates once the rule below exists — **absent or disabled,
-nothing is cached (fail-safe: no cross-client leak, just no edge HITs).**
-
-**Required Cache Rule** (Cloudflare dashboard → Caching → Cache Rules) — **live** on the
-`sydevelopers.com` zone as the enabled rule _"Client read edge cache (Vary: Authorization)"_. It
-covers both the custom client endpoints (originally #552) and the built-in REST collection reads:
-
-- **Match** — a `GET` that **(a)** carries a **non-empty `Authorization` header**, **(b)** does
-  **not** carry `x-sahajcloud-preview-secret`, and **(c)** whose path is a cacheable read:
-  `/api/<slug>` (list) or `/api/<slug>/…` (findByID + the custom sub-endpoints) for
-  `slug ∈ {meditations, lectures, songs, app-cards, regions, audiences, events, pages, images, albums}`.
-  The `/api/<slug>/…` prefix also covers the custom `for-audience` / `related-*` / `songs` /
-  `geojson` endpoints, since they live under those slugs. Enumerated with `eq` / `starts_with`
-  because the Free plan has no regex `matches` operator.
-- **⚠️ The `Authorization`-present predicate is mandatory — do NOT use a bare `/api/*` match.**
-  `Vary: Authorization` partitions the cache per API-key _value_, but it does **not** isolate the
-  _absent_-header case. Without requiring `Authorization` to be present, Cloudflare serves the
-  cached **authed** response to an **unauthenticated** request (`cf-cache-status: HIT`, `200`) even
-  though the origin returns **403** for it — an access-control bypass that also skips edge rate
-  limiting and usage tracking. Requiring the header present makes unauth reads fall through to the
-  origin (→ `403`), mirroring the app middleware, which only stamps `public` when `Authorization`
-  is set. (Verified in production 2026-07: with the predicate, unauth/invalid-key reads are
-  `403 / DYNAMIC`; authed reads `MISS → HIT`, isolated per key.)
-- **Eligible for cache**: ON, **Edge TTL: Respect origin** — honour the origin `s-maxage`.
-- **`vary.authorization = passthrough`** — **critical**: this is what makes Cloudflare key a
-  separate cached variant per API key, so one client is never served another's cached response.
-  Set `vary.default = passthrough` too, **not `bypass`**: Next.js also stamps `rsc` /
-  `next-router-*` / `Sec-CH-Prefers-Color-Scheme` onto `Vary`, and a `bypass` default would bypass
-  on those before `Authorization` is considered.
-- **Preview bypass**: the `x-sahajcloud-preview-secret`-present exclusion in the match keeps
-  draft-bearing live-preview reads out of cache (the app also emits `private, no-store` for those
-  as defense-in-depth).
-
-Because only `Authorization`-bearing, cacheable-slug GETs match, everything else stays
-`cf-cache-status: DYNAMIC` at the origin: writes, unauthenticated / invalid-key reads (→ `403`),
-preview reads, and non-cacheable collections (`clients`, `managers`, `users`, …).
-
-> **⚠️ A root endpoint's path names no collection, so the slug list does not reach it.**
-> `GET /api/atlas/seo` (#645) emits `Cache-Control: public, s-maxage=300` like any other client
-> read, but `atlas` is not a collection slug, so the `/api/<slug>` terms above never matched it —
-> it stayed `cf-cache-status: DYNAMIC` and every SSR page render reached the origin. Nothing broke;
-> the caching simply never activated, which is the same fail-safe as an absent rule.
->
-> **Fixed 2026-08-25: `http.request.uri.path eq "/api/atlas/seo"` was added to the path group of
-> the existing rule** (ruleset v8 → v9). It had to go *inside* that rule rather than into a new
-> one, because a separate rule would not carry the `any(http.request.headers["authorization"][*]
-> != "")` conjunct — and without it an unauthenticated request becomes cache-eligible and is served
-> the cached authed body (`Vary: Authorization` does not isolate the absent-header case). **Any
-> future root endpoint needs the same treatment: one more `eq` term here, never a second rule.**
-
-**Purge-on-write** (optional): set `CLOUDFLARE_ZONE_ID` + `CLOUDFLARE_CACHE_PURGE_TOKEN` to enable
-best-effort `Cache-Tag` purge when a cached collection is written (Cloudflare Enterprise tag-purge;
-on the Free plan the per-collection `s-maxage` TTL is the invalidation path). Unset → purge is a
-no-op, so this is safe to leave unconfigured.
-
-### Configuration Files
-
-**next.config.mjs**:
-
-- `output: 'standalone'` — self-contained server bundle (see Build & Start above)
-- `outputFileTracingExcludes` — keeps dev-only `media/`/`seeds/`/tests out of the trace (same intent as `.railwayignore`, different mechanism); without it a local `pnpm build` balloons `.next/standalone` to many GB
-- Wrapped with `withSentryConfig` from `@sentry/nextjs`
-- Next.js configured with Cloudflare integration for image optimization
+**Health Check**: Railway pings `/api/health` during a deploy. Startup takes about 5–10 seconds after the container starts.
 
 **railway.toml**:
 
@@ -127,69 +48,88 @@ no-op, so this is safe to leave unconfigured.
 [build]
 builder = "RAILPACK"
 
-[start]
-cmd = "pnpm start"
+[deploy]
+startCommand = "pnpm start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
 ```
 
-- Railway uses Railpack (native builder) — no Dockerfile needed
-- Exposes port 3000 via Railway `PORT` env var
+Railway builds with Railpack and exposes port 3000 through its own `PORT` variable.
+`next.config.mjs`'s `outputFileTracingExcludes` keeps dev-only `media/`, `seeds/`, and tests out
+of the trace — without it, a local `pnpm build` balloons `.next/standalone` to many GB.
 
 ---
 
-## Deployment Commands
+## Edge Cache (Cloudflare Cache Rule)
 
-### Production Deployment
+The app makes client-facing API reads edge-cacheable **at the app layer**: it emits
+`Cache-Control: public, s-maxage=…`, `Vary: Authorization`, and `Cache-Tag` for cacheable reads
+(policy in `src/plugins/cache/`, applied by the `/api/**` middleware in `src/middleware.ts`).
+These headers do nothing on their own — Cloudflare treats any request carrying an `Authorization`
+header as private and serves it `cf-cache-status: DYNAMIC`, unless a **Cache Rule** marks the
+path "Eligible for cache". Caching activates only once the rule below exists. Absent or disabled,
+nothing is cached — that is a fail-safe, not a leak.
 
-```bash
-# Build locally
-pnpm build
+**Required Cache Rule** (Cloudflare dashboard → Caching → Cache Rules) — **live** on the
+`sydevelopers.com` zone as the enabled rule *"Client read edge cache (Vary: Authorization)"*. It
+covers both the custom client endpoints and the built-in REST collection reads:
 
-# Push to Railway via git (triggers automatic build & deploy)
-git push origin main  # (or your configured Railway deploy branch)
-```
+- **Match** — a `GET` that **(a)** carries a non-empty `Authorization` header, **(b)** does
+  **not** carry `x-sahajcloud-preview-secret`, and **(c)** has a cacheable-read path:
+  `/api/<slug>` (list) or `/api/<slug>/…` (findByID and the custom sub-endpoints) for
+  `slug ∈ {meditations, lectures, songs, app-cards, regions, audiences, events, pages, images,
+  albums}`, plus root endpoints named individually (see the note below). Enumerated with `eq` /
+  `starts_with`, since the Free plan has no regex `matches` operator.
+- **⚠️ The `Authorization`-present condition is mandatory — never match a bare `/api/*`.**
+  `Vary: Authorization` partitions the cache per API-key *value*, but it does not isolate the
+  *absent*-header case. Without requiring `Authorization` present, Cloudflare serves the cached
+  **authed** response to an **unauthenticated** request — `cf-cache-status: HIT`, `200` — even
+  though the origin returns **403** for it. That is a verified production access-control bypass,
+  and it also skips edge rate limiting and usage tracking. Requiring the header makes unauth
+  reads fall through to the origin instead, matching the app's own middleware.
+- **Eligible for cache**: ON. **Edge TTL**: Respect origin (honor the origin `s-maxage`).
+- **`vary.authorization = passthrough`** — critical: this is what makes Cloudflare key a
+  separate cached variant per API key, so one client is never served another's cached response.
+  Set `vary.default = passthrough` too, **not `bypass`** — Next.js also stamps `rsc` /
+  `next-router-*` / `Sec-CH-Prefers-Color-Scheme` onto `Vary`, and a `bypass` default would
+  bypass on those before `Authorization` is even considered.
+- **Preview bypass**: excluding requests that carry `x-sahajcloud-preview-secret` keeps
+  draft-bearing live-preview reads out of cache. The app also emits `private, no-store` for
+  those, as defense in depth.
 
-**Note**: Migrations are applied **automatically on server boot** via Payload's `prodMigrations` hook — there is no separate migration step or preDeployCommand.
+Everything else stays `cf-cache-status: DYNAMIC` at the origin: writes, unauthenticated or
+invalid-key reads (→ `403`), preview reads, and non-cacheable collections (`clients`, `managers`,
+`users`, …).
 
-### Monitoring
+> **⚠️ A root endpoint's path names no collection, so the slug list does not cover it by
+> default.** `GET /api/atlas/seo` emits the same cacheable headers as any other client read, but
+> `atlas` is not a collection slug, so it stayed `cf-cache-status: DYNAMIC` until
+> `http.request.uri.path eq "/api/atlas/seo"` was added **to this rule's own path group**. Add a
+> new root endpoint the same way — one more `eq` term on the existing rule, never a second rule.
+> A separate rule would not carry the `Authorization`-present condition, and would reopen the
+> same bypass.
 
-```bash
-# View Railway deployment logs
-railway logs -s sahajcloud --tail
-
-# Check deployment status in Railway dashboard
-# https://railway.app/project/[project-id]
-
-# Tail live logs (development)
-railway logs --tail
-```
+**Purge-on-write** (optional): set `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_CACHE_PURGE_TOKEN` to
+enable best-effort `Cache-Tag` purge when a cached collection is written (Cloudflare Enterprise
+tag-purge). Unset, purge is a no-op — on the Free plan, the per-collection `s-maxage` TTL is the
+invalidation path, so this is safe to leave unconfigured.
 
 ---
 
 ## Database Migrations
 
-### Migration Workflow
+**Development** (local Postgres): `push: true` auto-syncs the schema — no migration files
+needed. **Production** (Railway Postgres): `push: false`, so every schema change needs an
+explicit migration file, applied **in-process on server boot** via Payload's `prodMigrations`
+hook in `src/payload.config.ts`. There is no separate migration step or `preDeployCommand`.
 
-Migrations are managed via Payload CMS and Drizzle ORM. The workflow differs between development and production:
-
-**Development** (`DATABASE_URL` points to local Postgres):
-
-- `push: true` — schema is auto-synced (no migration files needed for rapid iteration)
-- Run `pnpm payload migrate` to apply any checked-in migration files
-
-**Production** (`DATABASE_URL` points to Railway Postgres):
-
-- `push: false` — schema changes require explicit migration files
-- Migrations are applied **in-process on server boot** via Payload's `prodMigrations` hook in `src/payload.config.ts`
-- No preDeployCommand or separate migration step needed
-- All 36 legacy SQLite/D1 migrations were deleted; the Postgres baseline is generated fresh on first Railway deploy
-
-### Creating New Migrations
+**Creating a migration**:
 
 ```bash
-# Ask the user to run this interactively (it prompts for a name)
+# Ask the user to run this interactively — it can prompt for a name
 pnpm db:migrations:create
-
-# This creates a migration file in src/migrations/
 
 # Apply locally to verify
 pnpm payload migrate
@@ -199,556 +139,173 @@ git add src/migrations/
 git commit -m "migration: <description>"
 ```
 
-### Applying Migrations
+**Applying migrations** locally: `pnpm payload migrate` (apply pending), `pnpm payload
+migrate:down` (roll back the last one — dev/test only). In production, migrations apply
+automatically on boot, inside a Postgres transaction. No manual step is needed.
 
-**Locally**:
+**Verifying**:
 
-```bash
-pnpm payload migrate          # apply pending
-pnpm payload migrate:down     # roll back last (dev/test only)
+```sql
+SELECT * FROM payload_migrations ORDER BY id DESC;  -- applied migrations
+\d <table_name>                                     -- table structure (psql)
 ```
 
-**Production**:
-
-- Migrations are applied **in-process on server boot** via Payload's `prodMigrations` hook
-- No manual intervention needed; migrations are atomic via Postgres transactions
-
-### Verifying Migrations
-
-```bash
-# Check applied migrations
-SELECT * FROM payload_migrations ORDER BY id DESC;
-
-# Verify table structure
-\d <table_name>  -- psql
-
-# Check specific table row count
-SELECT COUNT(*) FROM managers;
-```
-
-### Postgres Advantages Over D1
-
-- **Transactional DDL**: all migrations are ACID — if one statement fails, the whole transaction rolls back
-- **Deferrable foreign keys**: Postgres can defer FK checks within a transaction, eliminating the D1 `PRAGMA foreign_keys=OFF` cascade-null gotcha
-- **Real ALTER TABLE**: column renames, type changes, and constraint updates are standard SQL
-- **No connection pooling quirks**: unlike D1's per-call statement boundary
+See [`src/migrations/AGENTS.md`](./src/migrations/AGENTS.md) for the full workflow: the
+non-interactive attempt sequence, the outcome table, the out-of-order snapshot trap, and how to
+reshape a migration that has already deployed to a PR preview.
 
 ---
 
 ## Environment Variables
 
-### Production Secrets
+Set production values in Railway: **Service → Variables → Add variable** (encrypted at rest).
+Never paste a secret into git or email.
 
-Set via Railway service settings (encrypted at rest):
+### Core
 
-```bash
-# In Railway dashboard:
-# Service → Variables → Add variable
-PAYLOAD_SECRET=<secret>
-RESEND_API_KEY=<key>
-TURNSTILE_SECRET_KEY=<key>
-DATABASE_URL=postgres://...
-R2_BUCKET=<bucket>
-R2_ACCESS_KEY_ID=<key>
-R2_SECRET_ACCESS_KEY=<secret>
-CLOUDFLARE_ACCOUNT_ID=<id>
-CLOUDFLARE_API_KEY=<token>
-CLOUDFLARE_IMAGES_DELIVERY_URL=<url>
-CLOUDFLARE_STREAM_DELIVERY_URL=<url>
-CLOUDFLARE_STREAM_WEBHOOK_SECRET=<secret>
-CLOUDFLARE_R2_DELIVERY_URL=<url>
-NEXT_PUBLIC_SENTRY_DSN=<dsn>
-SENTRY_AUTH_TOKEN=<token>
-```
+| Variable | Notes |
+| --- | --- |
+| `PAYLOAD_SECRET` | ≥32 chars. Payload's authentication and encryption secret. |
+| `DATABASE_URL` | `postgres://user:password@host:5432/dbname` — the only required database variable. |
+| `DATABASE_POOL_MAX` | Optional, default 10. `node-postgres` `pool.max`. Size it to the Railway Postgres connection limit divided by running instances, leaving headroom for in-process migrations and `psql`. |
+| `DB_QUERY_LOGGING` | Optional, default false, **local dev only** — force-disabled when `NODE_ENV=production` (every Railway build, previews included). Logs Drizzle SQL and bound params. ⚠️ It logs bound params — emails, tokens, API keys. Never enable it against real or cloned production data. Use Railway's `log_min_duration_statement` for server-side timings there instead. |
 
-### Required Variables
+### Storage and Cloudflare services
 
-**Core Configuration**:
+- `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` — R2 (S3-compatible)
+- `CLOUDFLARE_ACCOUNT_ID` — derives the R2 endpoint
+- `CLOUDFLARE_R2_DELIVERY_URL` — public delivery URL, e.g. `https://assets.sydevelopers.com`
+- `CLOUDFLARE_IMAGES_DELIVERY_URL`, `CLOUDFLARE_STREAM_DELIVERY_URL`, `CLOUDFLARE_STREAM_WEBHOOK_SECRET`
+- `CLOUDFLARE_API_KEY` — one token for Images and Stream
+- `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_CACHE_PURGE_TOKEN` — optional, enable purge-on-write (see [Edge Cache](#edge-cache-cloudflare-cache-rule))
 
-- `PAYLOAD_SECRET` - Payload authentication secret (min 32 chars)
-- `DATABASE_URL` - PostgreSQL connection string (Railway Postgres)
-  - Format: `postgres://user:password@host:5432/dbname`
+### Sentry and Resend
 
-**Database (Railway Postgres)**:
+- `NEXT_PUBLIC_SENTRY_DSN` — public, needed at build time and runtime
+- `SENTRY_AUTH_TOKEN` — optional, for source-map upload
+- `SENTRY_TRACES_SAMPLE_RATE` — optional, default 0.1. A low non-zero rate samples admin
+  transactions with their DB-span breakdown. `0` disables tracing.
+- `RESEND_API_KEY` — transactional email API key
 
-- `DATABASE_URL` - the only **required** database variable
-- No SQLite, no D1 configuration
-- `DATABASE_POOL_MAX` _(optional, default 10)_ - node-postgres `pool.max`. Size
-  to the **Railway Postgres connection limit ÷ running instances** (e.g. a
-  20-connection limit across 2 instances → `max` ≈ 8–10 each, leaving headroom
-  for in-process migrations and psql). Capping the pool stops bursts of parallel
-  admin work (a bulk publish runs its per-doc queries concurrently) from
-  exhausting connections.
-- `DB_QUERY_LOGGING` _(optional, default false; **local dev only**)_ - set to
-  `true` to log Drizzle SQL + params. Force-disabled when `NODE_ENV=production`
-  (which Railway builds — staging previews included — always set). ⚠️ It logs
-  bound params (emails, tokens, API keys), so **never enable it in any env with
-  real or cloned prod data** — use Railway `log_min_duration_statement` for
-  server-side query timings there instead.
+### Captcha (Cloudflare Turnstile)
 
-**Storage (R2 S3-compatible API)**:
+- `TURNSTILE_SECRET_KEY` — **required in production**. Server-side secret the write-guard plugin
+  checks on `POST /api/user-messages` and `POST /api/event-submissions` (token in the
+  `x-turnstile-token` header). Validated at point of use, not at boot, so a missing key cannot
+  take the app or a PR preview down — but the verifier then **fails closed**: it refuses the
+  write with `500` and logs `antiSpamGuard: Turnstile verification could not be completed`,
+  `reason: "not-configured"`. It never lets a message through unverified. Pair it with the
+  matching **site key** in the client widget (a different value, held by SahajAtlasWeb and
+  WeMeditateWeb). Non-production can use Cloudflare's test keys —
+  `1x0000000000000000000000000000000AA` always passes, `2x0000000000000000000000000000000AA`
+  always fails — never in production. See [Turnstile
+  testing](https://developers.cloudflare.com/turnstile/troubleshooting/testing/).
 
-- `R2_BUCKET` - R2 bucket name (e.g., `sahajcloud`)
-- `R2_ACCESS_KEY_ID` - R2 API access key
-- `R2_SECRET_ACCESS_KEY` - R2 API secret key
-- `CLOUDFLARE_ACCOUNT_ID` - for R2 endpoint derivation
-- `CLOUDFLARE_R2_DELIVERY_URL` - public delivery URL (e.g., `https://assets.sydevelopers.com`)
+### Frontend URLs
 
-**Cloudflare Services** (unchanged):
-
-- `CLOUDFLARE_IMAGES_DELIVERY_URL` - Images delivery base URL
-- `CLOUDFLARE_STREAM_DELIVERY_URL` - Stream video base URL
-- `CLOUDFLARE_STREAM_WEBHOOK_SECRET` - webhook signature secret
-- `CLOUDFLARE_API_KEY` - API token for Images + Stream
-
-**Error Monitoring (Sentry)**:
-
-- `NEXT_PUBLIC_SENTRY_DSN` - Sentry DSN (public; client + server)
-- `SENTRY_AUTH_TOKEN` - for source maps upload (optional)
-- `SENTRY_TRACES_SAMPLE_RATE` _(optional, default 0.1)_ - performance-tracing
-  sample rate (0–1). A low non-zero rate samples admin transactions (bulk edits,
-  admin API reads) with their DB-span breakdown; set `0` to disable tracing.
-
-**Email (Resend)**:
-
-- `RESEND_API_KEY` - transactional email API key
-
-**Captcha (Cloudflare Turnstile)**:
-
-- `TURNSTILE_SECRET_KEY` - **required in production**; server-side secret for the
-  captcha the write-guard plugin enforces on the public write surface —
-  `POST /api/user-messages` and `POST /api/event-submissions`, which read the
-  token from the `x-turnstile-token` header. Validated at **point of use**, not
-  at boot, so a missing key can't take the app (or a PR preview) down — but the
-  verifier then fails closed: the write is refused with `500` and logs
-  `antiSpamGuard: Turnstile verification could not be completed` with
-  `reason: "not-configured"`, and **never** lets a message through unverified.
-  Pair it with the matching **site key** in the client app's widget (a different
-  value, held by SahajAtlasWeb / WeMeditateWeb — not needed here).
-  Non-production environments can use Cloudflare's public test keys —
-  `1x0000000000000000000000000000000AA` always passes,
-  `2x0000000000000000000000000000000AA` always fails. Never use those in
-  production. See
-  [Turnstile testing](https://developers.cloudflare.com/turnstile/troubleshooting/testing/).
-
-**Frontend URLs**:
-
-- `WEMEDITATE_WEB_URL` - We Meditate Web frontend URL
-- `SAHAJATLAS_URL` - Sahaj Atlas frontend URL. Live preview, CSP `frame-src` and
-  the `csrf` allowlist only — **not** a canonical base, since the Atlas host is
+- `WEMEDITATE_WEB_URL`, `SAHAJATLAS_URL` — build-time. `SAHAJATLAS_URL` feeds only the
+  live-preview `frame-src` CSP and the `csrf` allowlist, not a canonical base — the Atlas host is
   `noindex` on three layers (#634).
-- `WEMEDITATE_ATLAS_BASE_PATH` - Path the Atlas widget is mounted at on We
-  Meditate (optional, default `/map`). Every region **no client owns** resolves
-  its canonical `webUrl` to `WEMEDITATE_WEB_URL + WEMEDITATE_ATLAS_BASE_PATH +
-  webPath`, so this names a page that has to exist. ⚠️ We Meditate does not
-  serve that page yet — until it does, those canonical URLs point at a 404. That
-  is the intended end state (#634); the alternative was leaving them on a host
-  we tell search engines to ignore.
-
-**Post-deploy step for #634** — region paths only become queryable
-(`where[breadcrumbs.url][equals]=…`) once the existing rows are re-saved, since
-breadcrumbs populate on write:
-
-```bash
-pnpm tsx scripts/backfill-region-breadcrumb-urls.ts          # dry run
-pnpm tsx scripts/backfill-region-breadcrumb-urls.ts --force  # apply
-```
+- `WEMEDITATE_ATLAS_BASE_PATH` — optional, default `/map`. Every region no client owns resolves
+  its canonical `webUrl` to `WEMEDITATE_WEB_URL + WEMEDITATE_ATLAS_BASE_PATH + webPath`, so this
+  path must exist on We Meditate (#634).
 
 ---
 
 ## Deployment Workflow
 
-### Step-by-Step Production Deployment
-
-1. **Verify Local Changes**:
+1. **Verify locally**:
 
    ```bash
-   # Run tests
-   pnpm test
-
-   # Run linting
-   pnpm lint
-
-   # Generate types
-   pnpm generate:types
-
-   # Build locally
-   pnpm build
+   pnpm test && pnpm lint && pnpm generate:types && pnpm build
    ```
 
-2. **Create Migration** (if schema changed):
+2. **Create a migration**, if the schema changed:
 
    ```bash
-   pnpm db:migrations:create   # ask user to run interactively
+   pnpm db:migrations:create   # ask the user to run this interactively
    ```
 
-3. **Deploy to Production**:
+3. **Deploy**:
 
    ```bash
-   # Push to Railway's deploy branch (usually main)
-   # Migrations will run automatically on server boot
-   git push origin main
+   git push origin main   # Railway builds and deploys, then runs migrations on boot
    ```
 
-4. **Monitor Deployment**:
+4. **Monitor**:
 
    ```bash
-   # Watch logs in Railway
    railway logs -s sahajcloud --tail
-
-   # Or in the Railway dashboard:
-   # https://railway.app/project/[project-id]/services/sahajcloud/logs
    ```
 
-5. **Verify Deployment**:
+5. **Verify**:
 
    ```bash
-   # Health check
    curl https://cloud.sydevelopers.com/api/health
-
-   # Test API
    curl https://cloud.sydevelopers.com/api/meditations
    ```
 
-### Railway Deploy Sequence
+**Railway's deploy sequence**: detect the push → build via Railpack → start the app → Payload
+applies pending migrations in-process on boot → Railway polls `/api/health` until ready → traffic
+routes to the new instance → the previous instance keeps running until the new one is healthy
+(zero-downtime).
 
-Railway automatically:
-
-1. Detects a git push to the deploy branch
-2. Builds the app via Railpack (`pnpm build` → `.next/standalone` + asset copy)
-3. Starts the app: `pnpm start` → `node .next/standalone/server.js`
-4. Payload **applies all pending migrations in-process on server boot** (via `prodMigrations` hook in `src/payload.config.ts`)
-5. Monitors `/api/health` until the server is ready (health checks passing)
-6. Routes traffic from Cloudflare edge proxy to the new instance
-7. Keeps previous instance running until new instance fully ready (zero-downtime deploy)
-
-### Deployment Warnings (Expected & Safe)
-
-The Next.js build may produce warnings for:
-
-- **Dynamic imports**: Payload CMS's dynamic migration loading
-- **Optimizations**: Sentry source map processing
-
-These are expected and do not affect functionality.
-
----
+The Next.js build can warn about Payload's dynamic migration loading and Sentry's source-map
+processing — both are expected and do not affect the app.
 
 ## Verifying Deployments
 
-### Browser Tests
-
-Visit the production site:
-
-- [ ] Access admin: https://cloud.sydevelopers.com/admin
-- [ ] Login with credentials
-- [ ] Create test record in each collection
-- [ ] Upload test file (verify R2 integration)
-- [ ] Trigger password reset (verify email via Resend)
-- [ ] Check Sentry for errors
-- [ ] Check Railway deployment logs
-
-### API Tests
+Beyond the health and API checks in step 5 above: log in to the admin panel, create a test
+record in a collection, upload a test file (R2), and trigger a password reset (Resend). To test
+Sentry capture (production only — `503` in development):
 
 ```bash
-# Health check
-curl https://cloud.sydevelopers.com/api/health
-
-# Test REST API
-curl https://cloud.sydevelopers.com/api/meditations
-```
-
-### Sentry Error Tracking Tests
-
-Test Sentry error capture in production:
-
-```bash
-# Test error capture
 curl https://cloud.sydevelopers.com/api/test-sentry?type=error
-
-# Test message capture
-curl https://cloud.sydevelopers.com/api/test-sentry?type=message
-
-# Expected response (production only):
-# {
-#   "success": true,
-#   "message": "Test error captured successfully",
-#   "eventId": "abc123...",
-#   "testType": "error"
-# }
 ```
 
-**Verification**:
-
-1. Visit Sentry dashboard: https://sentry.io/organizations/your-org/issues/
-2. Check for test events with tags:
-   - `test: true`
-   - `endpoint: /api/test-sentry`
-3. Verify event details include:
-   - Stack trace (for error type)
-   - Environment: production
-   - Timestamp and context
-
-**Note**: Test endpoint only works in production (`NODE_ENV=production`). In development, it returns a 503 error.
-
-### Monitoring (First 24 Hours)
-
-- [ ] Monitor Railway deployment logs for errors
-- [ ] Monitor Sentry for exceptions
-- [ ] Check Railway PostgreSQL usage in dashboard
-- [ ] Check R2 storage usage
-- [ ] Verify email deliverability (Resend dashboard)
-- [ ] Test frontend integration
+Verify the event in Sentry, tagged `test: true`, `endpoint: /api/test-sentry`, with a stack
+trace and the right environment. For the first 24 hours after a major change, watch Railway logs
+and Sentry for new errors, and watch Postgres and R2 usage.
 
 ---
 
 ## Troubleshooting
 
-### Railway Deployment Fails
-
-**Symptoms**:
-
-- Deployment hangs or shows red status in Railway dashboard
-- Logs show build or startup errors
-
-**Solutions**:
-
-1. Check Railway logs:
-
-   ```bash
-   railway logs -s sahajcloud --tail
-   ```
-
-2. Verify environment variables are set in Railway:
-
-   ```bash
-   railway variables list
-   ```
-
-3. Verify DATABASE_URL is correct:
-
-   ```bash
-   railway variables get DATABASE_URL
-   ```
-
-4. Redeploy after fixing issues:
-   ```bash
-   git push origin main   # re-trigger deploy
-   ```
-
-### Database Connection Fails
-
-**Symptoms**:
-
-- `Error: ENOTFOUND` or `connect ECONNREFUSED`
-- Admin page shows database error
-
-**Solutions**:
-
-1. Verify DATABASE_URL format:
-
-   ```
-   postgres://user:password@host:5432/dbname
-   ```
-
-2. Check Railway PostgreSQL service is running:
-
-   ```bash
-   railway services list
-   ```
-
-3. Verify credentials:
-
-   ```bash
-   railway variables get DATABASE_URL
-   psql $DATABASE_URL -c "SELECT 1;"  # test connection
-   ```
-
-4. Check network connectivity — if Railway app is in a private network, ensure the Postgres service is accessible.
-
-### Migrations Don't Run
-
-**Symptoms**:
-
-- Tables not created after deploy
-- `payload_migrations` table empty
-- Server boots but admin panel shows schema errors
-
-**Solutions**:
-
-1. Check migration files exist in `src/migrations/`:
-
-   ```bash
-   ls src/migrations/
-   ```
-
-2. Verify `src/payload.config.ts` includes `prodMigrations` in the adapter config:
-
-   ```typescript
-   postgresAdapter({
-     prodMigrations: migrations, // <- should be present
-     // ...
-   })
-   ```
-
-3. Check Railway logs for migration output:
-
-   ```bash
-   railway logs -s sahajcloud --tail | grep -i migrat
-   ```
-
-4. If migrations fail on boot, check the error:
-   - Server will not fully start until migrations succeed
-   - Review Railway logs for Drizzle/Payload migration errors
-
-### Email Not Sending
-
-**Symptoms**:
-
-- Password reset emails not received
-- No errors in Resend dashboard
-
-**Solutions**:
-
-1. Verify API key is set in Railway:
-
-   ```bash
-   railway variables get RESEND_API_KEY
-   ```
-
-2. Test Resend API directly:
-
-   ```bash
-   curl https://api.resend.com/emails \
-     -H "Authorization: Bearer $RESEND_API_KEY" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "from": "contact@sydevelopers.com",
-       "to": "test@example.com",
-       "subject": "Test",
-       "html": "<p>Test</p>"
-     }'
-   ```
-
-3. Check Resend dashboard for:
-   - API usage
-   - Bounces/complaints
-   - Rate limits
-
-### High Error Rate
-
-**Diagnosis**:
-
-```bash
-# Check Sentry for patterns
-# Visit Sentry dashboard
-
-# Check Railway logs
-railway logs -s sahajcloud --tail
-
-# Filter by error messages
-railway logs -s sahajcloud --tail | grep -i error
-```
-
-**Solutions**:
-
-1. Review error messages in Sentry
-2. Check for recent code changes
-3. Verify environment variables are set correctly
-4. Test affected functionality locally
-5. Consider rolling back deployment if critical
+| Symptom | Diagnose | Fix |
+| --- | --- | --- |
+| Deploy fails or hangs | `railway logs -s sahajcloud --tail`, `railway variables list` | Fix the reported error, then `git push origin main` to redeploy |
+| DB connection fails (`ENOTFOUND` / `ECONNREFUSED`) | `railway services list`, `psql "$DATABASE_URL" -c "SELECT 1;"` | Fix `DATABASE_URL` (`postgres://user:password@host:5432/dbname`) or, on a private network, verify Postgres is reachable |
+| Migrations don't run (tables missing, `payload_migrations` empty) | `ls src/migrations/`, verify `prodMigrations` is in `src/payload.config.ts`, `railway logs -s sahajcloud --tail \| grep -i migrat` | A failed migration stops the server. Read the Drizzle/Payload error in the logs and fix it |
+| Email not sending | `railway variables get RESEND_API_KEY`, then test the Resend API directly with `curl` | Review the Resend dashboard for bounces and rate limits |
+| High error rate | Sentry, then `railway logs -s sahajcloud --tail \| grep -i error` | Review recent changes and env vars. Roll back if critical (see [RAILWAY_RUNBOOK.md § Disaster Recovery & Rollback](./RAILWAY_RUNBOOK.md#disaster-recovery--rollback)) |
 
 ---
 
 ## Cost Monitoring
 
-### Expected Monthly Costs
+| Service | Plan | Expected cost |
+| --- | --- | --- |
+| Railway | Standard usage | $5–20/month |
+| Postgres | Railway built-in | included |
+| R2 | 10GB+ storage | $1–5/month |
+| Resend | 3k emails/month | $0/month |
+| Sentry | Free tier | $0/month |
+| **Total** | | **$6–25/mo** |
 
-| Service      | Plan             | Expected Cost |
-| ------------ | ---------------- | ------------- |
-| **Railway**  | Standard usage   | $5–20/month   |
-| **Postgres** | Railway built-in | included      |
-| **R2**       | 10GB+ storage    | $1–5/month    |
-| **Resend**   | 3k emails/month  | $0/month      |
-| **Sentry**   | Free tier        | $0/month      |
-| **Total**    | N/A              | **$6–25/mo**  |
-
-Railway pricing is per-minute resource usage (CPU, memory, bandwidth). Production typically uses ~$10–15/month for a small-to-medium workload.
-
-### Monitoring Usage
-
-**Railway Dashboard**:
-
-1. Visit https://railway.app/project/[project-id]
-2. Check:
-   - Resource usage (CPU, memory, bandwidth)
-   - Postgres disk usage
-   - Deploy history and logs
-
-**Set Billing Alerts**:
-
-1. Railway Account → Billing → Cost limits
-2. Set threshold (e.g., $50/month)
-
-**R2 Usage**:
-
-1. Cloudflare Dashboard → R2 → Analytics
-2. Check storage size and operation counts
-
-**Optimization Tips**:
-
-- Cache frequently accessed data via Cloudflare edge rules
-- Use connection pooling (Railway Postgres includes it)
-- Batch database operations where possible
-- Optimize expensive queries
-- Archive old media files in R2 lifecycle rules
-
----
-
-## Migration status — Cloudflare Workers + D1 → Railway + Postgres
-
-The migration is **complete and live**: `cloud.sydevelopers.com` is served from Railway behind the Cloudflare edge (proxied).
-
-### Done
-
-- **Provisioning** — Railway Postgres 18 + the app service (Railpack native builder); `DATABASE_URL` set via a Railway reference variable; CI runs a `postgres:18` service container.
-- **Schema** — the legacy SQLite/D1 migrations were removed and a fresh Postgres baseline (`src/migrations/`) was applied to Railway (117 tables).
-- **Data ETL** — `scripts/etl-d1-to-postgres.ts` copies all data from the production D1 (read-only) into Railway Postgres: type-aware coercion, FK triggers deferred during load, sequences reset. Verified **111 tables / 7,980 rows**, and **202 FK constraints with 0 orphans**.
-- **Storage** — R2 reached via the S3 API (`@aws-sdk/client-s3`); Cloudflare Images + Stream kept. Uploads verified end-to-end (R2 + Images).
-- **Cutover** — `cloud.sydevelopers.com` repointed to Railway and **proxied** through Cloudflare (edge cache + WAF retained; SSL Full). The Stream webhook was re-registered to the Railway URL and its secret set.
-- **Per-PR previews** — Railway PR environments with CI smoke tests; `scripts/get-railway-preview-url.ts` discovers the preview URL from the Railway-posted GitHub commit status (via `GITHUB_TOKEN`) and the smoke specs self-seed the admin. Validated end-to-end.
-- **Preview storage isolation** — Cloudflare Images, Stream, and R2 are shared across every environment, so non-production deploys namespace uploads with a `preview-` marker (Stream uses `meta.env=preview`) and refuse to delete any unmarked (cloned-from-prod) asset. A daily `cleanup-preview-assets` workflow reaps old preview-marked assets; it needs the GitHub secrets `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_KEY`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. Detail: `docs/rules/storage.md` § "Preview / non-production isolation" (#432).
-
-### Remaining (gated)
-
-- [ ] **Verify Railway Postgres automated backups are enabled** (Railway → Postgres → Backups).
-- [ ] **Decommission the Cloudflare Worker + D1** after a soak, and disable the Cloudflare "Workers Builds" check. Note: the Worker **custom domain** was removed during cutover, so a rollback to the Worker would require re-adding it; the D1 data remains as a read-only fallback in the meantime.
-- [ ] **Merge PR #468.**
-- [ ] (Optional) Move Cloudflare SSL from **Full** to **Full (strict)** once Railway's own origin cert is issued.
-
-### Deferred cleanup (dead Cloudflare-artifact references)
-
-These still reference `.wrangler/`, `.open-next/`, and `worker-configuration.d.ts` (none of which exist anymore). Harmless, left in place — remove in a follow-up:
-
-- `eslint.config.mjs` — ignore patterns (~lines 120–121, 139)
-- `.gitignore` — Wrangler/OpenNext/SQLite entries (~lines 58–63)
-- `.dockerignore` — `.open-next`, `.wrangler` entries
+Railway bills per-minute resource usage (CPU, memory, bandwidth). Production typically runs
+$10–15/month. Watch usage in the Railway dashboard (resource usage, Postgres disk, deploy
+history) and set a cost-limit alert under **Billing → Cost limits**. Watch R2 usage under
+**Cloudflare Dashboard → R2 → Analytics**.
 
 ---
 
 ## Related Documentation
 
-- **Main Project Docs**: [CLAUDE.md](CLAUDE.md)
-- **Database Migrations**: [src/migrations/AGENTS.md](./src/migrations/AGENTS.md)
+- **Provisioning & disaster recovery**: [RAILWAY_RUNBOOK.md](./RAILWAY_RUNBOOK.md)
+- **Main project docs**: [AGENTS.md](./AGENTS.md)
+- **Database migrations**: [src/migrations/AGENTS.md](./src/migrations/AGENTS.md)
 - **Storage**: [docs/rules/storage.md](./docs/rules/storage.md)
-- **API Clients & Rate Limiting**: [docs/rules/api-clients.md](./docs/rules/api-clients.md)
-- **Railway Documentation**: https://docs.railway.app/
-- **Cloudflare R2**: https://developers.cloudflare.com/r2/
-- **Cloudflare Images**: https://developers.cloudflare.com/images/
-- **Cloudflare Stream**: https://developers.cloudflare.com/stream/
-- **Resend Documentation**: https://resend.com/docs
-
----
-
-**Last Updated**: 2026-06-06
-**Production URL**: https://cloud.sydevelopers.com
-**Platform**: Railway + PostgreSQL + Cloudflare (Images, Stream, edge cache, rate limiting, WAF)
+- **API clients & rate limiting**: [docs/rules/api-clients.md](./docs/rules/api-clients.md)
+- **Railway docs**: https://docs.railway.app/
+- **Cloudflare R2 / Images / Stream**: https://developers.cloudflare.com/r2/, /images/, /stream/
+- **Resend docs**: https://resend.com/docs

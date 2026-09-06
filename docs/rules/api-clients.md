@@ -6,217 +6,77 @@ paths:
 
 # API Client Authentication, Rate Limiting, Usage Tracking
 
-REST API authentication for third-party clients lives in the `Clients`
-collection plus the consolidated `usagePlugin`. The plugin auto-applies
-hooks and registers two scheduled tasks. GraphQL is disabled — all client
-access is REST-only.
+REST authentication for third-party clients lives in the `Clients` collection plus the `usagePlugin`, which auto-applies hooks and registers two scheduled tasks. GraphQL is disabled — all client access is REST-only.
 
 ## Clients collection (`src/collections/Clients/Clients.ts`)
 
-- `useAPIKey: true` — Payload generates an API key per client.
-- Managers can regenerate keys and manage settings.
-- Virtual `highUsageAlert` field surfaces when daily limits are exceeded.
-- `usage` group: `dailyRequests`, `peakDailyRequests`, `lastRequestAt`.
-- Custom hooks in `src/collections/Clients/hooks/`:
-  - `validateClientData` — ensures `primaryContact` is in the managers list.
-  - `validateCanonicalOwnership` — the canonical-ownership rule, below.
+- `useAPIKey: true` — Payload generates an API key per client. Managers can regenerate keys and manage settings.
+- A virtual `highUsageAlert` field surfaces when daily limits are exceeded. The `usage` group holds `dailyRequests`, `peakDailyRequests`, `lastRequestAt`.
+- Custom hooks (`src/collections/Clients/hooks/`): `validateClientData` (`primaryContact` must be in the managers list) and `validateCanonicalOwnership` (below).
 
 ## Canonical ownership + observed embeds (#633)
 
-Two Atlas white-label fields, split across the **Config** and **SEO** tabs.
-`canonical.enabled` defaults false, so a client owns nothing until someone opts
-it in — but once opted in **and verified**, these fields do resolve: they are
-what `webUrl` is built from, per region (#634, below).
+Two Atlas white-label fields, split across the **Config** and **SEO** tabs. `canonical.enabled` defaults false, so a client owns nothing until opted in — but once opted in **and verified**, these fields build `webUrl` for the client's region (#634, below).
 
 ### `canonical` — who owns a region's canonical URLs
 
-`client.region` alone cannot identify an owner: three published clients map to
-Czechia, two to Finland, two to Australia. So ownership is an explicit opt-in
-with a uniqueness rule.
+`client.region` alone can't identify an owner — several published clients can map to one country. Ownership is an explicit opt-in with a uniqueness rule:
 
 | Field | Notes |
 | --- | --- |
-| `canonical.enabled` | checkbox, **default false**. The master switch — every other canonical field is `admin.condition`-gated on it |
-| `canonical.embed` | **required when enabled.** Which reported mount owns the canonical URLs, chosen from a picker, never typed. Host, mount and routing all follow from it |
-| `canonical.verification` | json, admin-readonly. **Written only by the CMS**, from what it observed loading the page: the verified snapshot, a consecutive-failure count, and a bounded attempt log |
-| `canonical.nextVerifyAt` | date, indexed, hidden. The verification job's watermark — a real column so it stays a cheap predicate |
+| `canonical.enabled` | checkbox, default false — every other field is `admin.condition`-gated on it |
+| `canonical.embed` | required when enabled. Which reported mount owns the URLs, chosen from a picker, never typed |
+| `canonical.verification` | json, admin-readonly — written only by the CMS: the verified snapshot, a consecutive-failure count, a bounded attempt log |
+| `canonical.nextVerifyAt` | date, indexed, hidden — the verification job's watermark, a real column so it stays a cheap predicate |
 
-`validateCanonicalOwnership` (beforeChange) enforces the rule: enabling requires
-`region` **and** `canonical.embed`, and a second enabled client on a region is
-rejected with the incumbent named. It watches `region` as well as `canonical`,
-so moving an already-enabled client onto an owned region can't walk around it,
-and it skips when nothing the rules read has actually moved — which also stops
-an unrelated edit being *refused* because two services were left enabled on one
-region. Uniqueness is checked against **committed** state, so a conflicting
-draft is caught on publish.
+`validateCanonicalOwnership` (beforeChange) enforces this: enabling requires `region` and `canonical.embed`, and a second enabled client on a region is rejected, naming the incumbent. It watches `region` too, so moving an enabled client onto an owned region can't dodge the check, and skips when nothing the rule reads has moved. Uniqueness checks against **committed** state, so a conflicting draft is caught only on publish.
 
-**`required` + a condition is the mechanism, not a hazard.** Payload skips both
-`required` and any custom `validate` while `admin.condition` is false and runs
-them normally when it is true, so `required` on `embed` reads as exactly
-"required when canonical ownership is on" — the same shape as `primaryContact`.
-Verified for **non-admin writes** too by an integration test that saves a
-canonical-disabled service with no embed through a plain API write; the whole
-gating design rests on it, so that test is load-bearing.
+`required` plus an `admin.condition` is the mechanism, not a hazard — Payload skips both `required` and a custom `validate` while the condition is false, so `required` on `embed` reads as "required when ownership is on." An integration test saves a canonical-disabled service with no embed through a plain API write, proving this holds for non-admin writes too. The whole gating design rests on it.
 
 ### Verification — how a nomination becomes a canonical URL
 
-`canonical.embed` is only a nomination. What a canonical URL is built from is
-`canonical.verification.verified`, written **solely** by the CMS after it loads
-the page itself.
+`canonical.embed` is only a nomination. A canonical URL is built from `canonical.verification.verified`, written **solely** by the CMS after it loads the page itself — a real browser is required, since the widget is JavaScript and fetching HTML would only prove a `<script>` tag exists.
 
-- **`src/lib/embedVerification/`** — a Cloudflare Browser Rendering client, the
-  readiness-marker parser, and the routine that turns a render into a result. A
-  real browser is required: the widget is JavaScript, so fetching HTML would only
-  prove a `<script>` tag exists and would false-FAIL every client-rendered site.
-- **The marker** is `data-sahaj-atlas-ready` on `<html>`, carrying
-  `{ v, routing, topLevel, urlWritable }` — the cross-repo contract from
-  sydevs/SahajAtlasWeb#153, shipped in #159. Reading `routing` off the rendered
-  page is what makes it server-attested rather than self-reported.
-- **`src/jobs/VerifyEmbeds`** — nightly (`0 3 * * *`), watermarked on
-  `canonical.nextVerifyAt`, bounded to enabled services. Three consecutive
-  definitive failures switch ownership off and notify the `primaryContact`.
-  Writes go through the atomic-SQL seam, not `payload.update`.
-- **`POST /api/clients/:id/verify-embed`** — manager-authenticated, the same
-  routine on demand so setup isn't gated on the cron. It never disables.
+- **`src/lib/embedVerification/`** — a Cloudflare Browser Rendering client, the readiness-marker parser, and the render-to-result routine.
+- **The marker** is `data-sahaj-atlas-ready` on `<html>`, carrying `{ v, routing, topLevel, urlWritable }` (the cross-repo contract from sydevs/SahajAtlasWeb#153, #159). Reading `routing` off the rendered page makes verification server-attested, not self-reported.
+- **`src/jobs/VerifyEmbeds`** runs nightly, watermarked on `nextVerifyAt`, bounded to enabled services. Three consecutive failures turn ownership off and notify `primaryContact`, via the atomic-SQL seam, not `payload.update`.
+- **`POST /api/clients/:id/verify-embed`** — manager-authenticated, the same routine on demand. It never disables.
 
-**`failed` vs `inconclusive` is the load-bearing distinction.** `failed` is
-evidence about the customer's embed and counts toward the budget.
-`inconclusive` — provider error, exhausted quota, bot challenge, missing
-credentials — means we could not look, and changes nothing. Cloudflare reports
-both through one error channel, so `classifyRenderError` biases every
-unrecognised message to inconclusive, and matches quota *before* timeout (a
-"quota exceeded" message matches both, and reading our own exhausted allowance
-as their embed timing out would count a strike against them).
+**`failed` vs `inconclusive` is load-bearing.** `failed` counts toward the three-strike budget. `inconclusive` (a provider error, exhausted quota, a bot challenge, missing credentials) means we couldn't look, and changes nothing. `classifyRenderError` biases an unrecognized message to inconclusive, and checks quota before timeout, so an exhausted allowance of our own is never misread as the embed timing out.
 
-**Exercising it for real.** Every test stubs the render, so the integration itself — request
-shape, auth, and how Cloudflare's errors map onto our vocabulary — is proven by
-`pnpm tsx scripts/verify-embed-live.ts --self-test`, which drives all four outcomes against the
-live API. The error codes it classifies on (`6002` selector timeout, `5006` network/DNS, `10000`
-auth) were captured from real responses and are pinned in
-`tests/unit/embed-verification.spec.ts`; prose matching is only the fallback, because the messages
-are generic enough to be dangerous (`Network connection closed.` is what a dead customer domain
-returns).
+**Exercised for real** by `pnpm tsx scripts/verify-embed-live.ts --self-test`, which drives all four outcomes against the live API — every unit test stubs the render. Its error codes (`6002` selector timeout, `5006` network/DNS, `10000` auth) are pinned in `tests/unit/embed-verification.spec.ts`. Prose matching is a fallback only, since the messages are generic enough to be misleading.
 
-**What the marker proves, precisely.** It detects an embed that is installed and
-*not working* — the case a report can never reveal, since the report is sent by
-the same widget whose health is in question. It does **not** prove the page is
-honest: the attribute carries no nonce, and any host that can run our script can
-hand-write it. The trust boundary stays `allowedDomains`. What it buys against a
-third party holding a stolen key is real though — they can claim a mount on the
-client's domain in a report, but cannot make that domain serve a marker they
-control.
+**What the marker proves, precisely.** It detects an embed that is installed and *not working* — the one thing a client-sent report can never reveal. It does **not** prove the page is honest: the attribute carries no nonce, so any host running our script can hand-write it. The trust boundary stays `allowedDomains`. What the marker buys is that a stolen key can claim a mount on the client's domain, but can't make that domain serve a marker it doesn't control.
 
-Vocabulary lives in `src/lib/clients/canonical.ts` and the verification contract
-in `src/lib/clients/verification.ts` (there, not in the collection folder,
-because the job and the verifier both need them — see
-`src/AGENTS.md` rule 4). `legacyConfig` was **removed**
-rather than promoted, and nothing backfills from it any more: canonical
-ownership now requires a *verified reported* embed, which legacy Atlas config can
-never produce.
+Vocabulary lives in `src/lib/clients/canonical.ts`, the verification contract in `src/lib/clients/verification.ts` — not the collection folder, since the job and the verifier both need it (`src/AGENTS.md` rule 4). `legacyConfig` was removed, not promoted: nothing backfills from it, since ownership now requires a verified reported embed.
 
 ### `embedMetadata` — what the widget observed
 
-Admin-readonly JSON, keyed by **origin + pathname**, one record per mount
-(`mode`, `topLevel`, `urlWritable`, `paramPersisted`, `routing`, `lastSeen`). A
-JSON column because nothing queries it — the ownership resolver loads every
-client with `pagination: false` (~31 rows) and filters in memory. ⚠ Revisit if
-the client count grows by an order of magnitude. The field carries a
-`jsonSchema`, so Payload both generates the type and rejects a malformed write.
+Admin-readonly JSON, keyed by **origin + pathname**, one record per mount (`mode`, `topLevel`, `urlWritable`, `paramPersisted`, `routing`, `lastSeen`). It stays a JSON column because nothing queries it — the ownership resolver loads every client (`pagination: false`, ~31 rows) and filters in memory. ⚠ Revisit if the client count grows an order of magnitude. A `jsonSchema` lets Payload generate the type and reject a malformed write.
 
-Observed, never configured: the hand-maintained legacy `embed_type` was wrong in
-the field (`sahajayoga.at` is recorded as `script` and in fact serves an
-`<iframe>`).
+**Canonical viability is automatic. Canonical *identity* is not.** A human designates which discovered mount is canonical. The metadata only decides whether that mount still qualifies. This bounds tampering: a forged report can assert viability only for a mount someone already chose, never invent one the verifier hasn't seen.
 
-**Canonical viability is automatic; canonical *identity* is not.** A human
-designates which discovered mount is canonical; the reported metadata only
-decides whether that mount currently qualifies, in both directions. That stops a
-canonical flip-flopping between two embeds on one site, and bounds the tampering
-surface — a forged report can only assert viability for a mount someone already
-chose, and cannot make the *verifier* see something that is not there.
+**The body is `origin` + `pathname`, two fields.** A query string or fragment is refused, since the endpoint can only enforce "path alone" that way — except a WordPress permalink (`?p=<digits>`), where discarding it would collapse the whole site onto one mount with no way to name the operator's intended page.
 
-**The body is `origin` + `pathname`, two fields**, matching what the widget
-sends (sydevs/SahajAtlasWeb#159). The split is not cosmetic: the endpoint refuses
-a path carrying a query string, and can only enforce that if the path arrives on
-its own. The single exception is a WordPress default permalink, `?p=<digits>` —
-discarding the query would collapse such a site onto one mount and leave the page
-an operator must name as canonical unnameable, for exactly this feature's
-audience. Every other query string is still refused, `?p=123&utm_source=…`
-included.
-
-**The write is raw SQL, and has to be.** `payload.update` deadlocks here: the
-usage plugin increments `usage_daily_requests` on the caller's own row, on its
-own connection, for the very request being served, while `payload.update` holds
-that row inside the request transaction — both sides then sit on
-`Lock: transactionid` and the request never returns. A single autocommit
-`jsonb ||` merge has no transaction to overlap with, and closes the
-read-modify-write window as a side effect.
+**The write is raw SQL, and has to be.** `payload.update` deadlocks here: the usage plugin increments `usage_daily_requests` on the caller's own row on its own connection, for the very request being served, while `payload.update` holds that row inside the request transaction — both then wait on `Lock: transactionid` forever. An autocommit `jsonb ||` merge has no transaction to overlap with.
 
 ### `POST /api/clients/report`
 
-The write path (`src/collections/Clients/endpoints/report.ts`). Merges into the
-keyed object; never replaces it.
+The write path (`Clients/endpoints/report.ts`). Merges into the keyed object. It never replaces it. Since `clients` is excluded from the usage plugin, no `beforeOperation` hook fires here — the handler calls `assertClientOriginAllowed(req)` itself, right after `requireActiveClient`, and usage tracking likewise does not apply.
 
-- **`clients` is excluded from the usage plugin** (`usagePlugin.ts`), so **no**
-  `beforeOperation` hook fires on this route. The handler calls
-  `assertClientOriginAllowed(req)` itself, right after `requireActiveClient` —
-  the same compensation a root endpoint makes. Usage tracking likewise does not
-  apply.
-- **Two origin checks.** The request's `Origin`/`Referer` must be in
-  `allowedDomains`, *and* so must the reported `url`'s host — a client can only
-  describe pages on domains it owns, whether or not a browser sent an `Origin`.
-- **`url` is origin + pathname only.** A query string or fragment is rejected
-  (`400`, `errors[0].code: query_or_fragment`), not stripped: the widget already
-  strips them (as `hostPageUrl()` does for Sentry), so a payload carrying either
-  means the widget is misbehaving and cleaning it up quietly would hide that.
-- **Rate limiting is Cloudflare's**, at the edge, as for every other client
-  route (this app's `rateLimitHook` is a no-op on Railway). On top of that the
-  handler is free when there's nothing new to say: a repeat of a recent
-  identical observation is answered `updated: false` with **no read and no
-  write**. That path carries the traffic — since sydevs/SahajAtlasWeb#153 the
-  widget reports on **every page load**, not only when something changed.
-- **The cap bounds storage, never which mounts are knowable** (#639).
-  `MAX_EMBED_MOUNTS` (50) caps what a forger can accumulate, but a client at the
-  cap still reports a **new** mount: the least-recently-seen entry is evicted to
-  make room, so which 50 are held reflects what is currently live rather than
-  what arrived first. **There is no 429** — refusing growth was first-50-wins,
-  and once ordinary traffic could fill the budget (see the bullet above) it meant
-  the page an operator wanted to nominate could never be reported and so never
-  appeared in the picker.
+Two origin checks apply: the request's `Origin`/`Referer` must be in `allowedDomains`, and so must the reported `url`'s host — a client can only describe pages on domains it owns. `url` is origin plus pathname only. A query string or fragment is rejected (`400`, `query_or_fragment`), not stripped, since the widget already strips them and a payload carrying either means the widget is misbehaving.
 
-  Two things the rule will not spend:
+Rate limiting is Cloudflare's, at the edge, as for every client route. On top of that, a repeat of a recent identical observation gets `updated: false` with **no read and no write** — the widget reports on every page load, so this path carries most of the traffic.
+- **The cap bounds storage, never which mounts are knowable** (#639). `MAX_EMBED_MOUNTS` (50) caps what a forger can accumulate. A client at the cap still reports a new mount, evicting the least-recently-seen entry, so the held 50 reflect what is currently live. There is no 429 — refusing growth was tried first, and once ordinary traffic filled the budget an operator's intended page could never get reported. Two exceptions to eviction: the designated `canonical.embed` is never evicted, and the mount just reported can't be evicted by the write that reports it.
 
-  - **The designated `canonical.embed` is never evicted**, whatever its
-    `lastSeen`. It is one page competing with however many the site's traffic
-    touches, and the picker's selection and the verification job's subject both
-    resolve through that key — evicting it would cost a live canonical URL the
-    mount it is built from.
-  - **The mount just reported**, so a clock running behind can't delete the very
-    write the request came to make.
+  `mergeEmbedReport` (`embedMetadata.ts`) computes the decision. The endpoint applies it in one statement — `|| $1::jsonb` merges, `- $2::text[]` deletes evicted keys. Both halves matter: `||` alone can't delete, so the column would grow unbounded while the cap stayed inert.
+- Registered in the OpenAPI shim but stays `x-internal` (`docs/rules/openapi.md`).
 
-  The decision is pure (`mergeEmbedReport` in `src/lib/clients/embedMetadata.ts`)
-  and the endpoint applies it in one statement: `|| $1::jsonb` merges the record
-  and `- $2::text[]` deletes the evicted keys. **Both halves are load-bearing** —
-  `||` cannot delete, so merging the post-eviction record alone would re-compute
-  and re-drop the same mounts on every report while the column grew without
-  bound, leaving the cap inert.
-- It is registered in the OpenAPI shim but stays `x-internal`; see
-  `docs/rules/openapi.md`.
-
-Tests: `tests/unit/client-embed-metadata.spec.ts` (mount keys incl. the `?p=`
-carve-out, and the merge), `tests/unit/embed-verification.spec.ts` (marker
-parsing, error classification, and the failed/inconclusive split),
-`tests/unit/canonical-embed-picker.spec.ts` (canonical-URL building incl. the `&`
-join, the three-strikes ladder, picker option derivation), and
-`tests/int/client-canonical.int.spec.ts` (the hook, the endpoint, the job ladder,
-reaching the cap and reporting past it, and that enabling ownership re-roots an
-event's `webUrl` while leaving `webPath` byte-identical).
+Tests: `tests/unit/client-embed-metadata.spec.ts` (mount keys incl. `?p=`, the merge), `tests/unit/embed-verification.spec.ts` (marker parsing, error classification, failed/inconclusive), `tests/unit/canonical-embed-picker.spec.ts` (URL building, the three-strike ladder, picker options), `tests/int/client-canonical.int.spec.ts` (the hook, the endpoint, the job ladder, the cap, and that enabling ownership re-roots `webUrl` while `webPath` stays byte-identical).
 
 ## Per-region canonical `webUrl` (#634)
 
-`webUrl` is **not** one global base. It resolves to the client that owns the
-document's region — or the nearest owning ancestor — and falls back to the We
-Meditate surface when nothing in the ancestry is owned. `SAHAJATLAS_URL` is no
-longer a canonical base anywhere; it survives only in the two live-preview URLs.
+`webUrl` is not one global base. It resolves to the client owning the document's region, or the nearest owning ancestor, and falls back to the We Meditate surface when nothing in the ancestry is owned. `SAHAJATLAS_URL` is no longer a canonical base anywhere — it survives only in the two live-preview URLs.
 
 | Piece | Where |
 | --- | --- |
@@ -228,375 +88,132 @@ longer a canonical base anywhere; it survives only in the two live-preview URLs.
 path :  https://{domain}{mount}{webPath}   → https://wemeditate.com/map/nl/amsterdam/1204
 query:  https://{domain}{mount}{?|&}atlas={webPath}
                                            → https://sahajayoga.nl/locatelessons/?atlas=/nl/amsterdam/1204
-                                           → https://host.example/?p=42&atlas=/nl/amsterdam/1204
 ```
 
-Things worth knowing before touching it:
-
-- **`webPath` is unchanged by any of this** — still the bare ancestor slug chain,
-  no base, no owner. Ownership only decides what it is joined to.
-- **Two extra queries per request, total** — one `regions`, one `clients`, both
-  memoized on the `PayloadRequest`, independent of how many documents resolve.
-  Ownership loads **lazily**: a `webPath`-only read (the widget's geojson feed)
-  still issues one query and never looks at ownership. Asserted by counting
-  `payload.find` calls in `tests/int/region-canonical-url.int.spec.ts`.
-- **Never a fragment.** Hash routing is gone from the widget with no
-  back-compat, so nothing may emit `#!`.
-- **The verified host is re-checked at read time, not trusted.** VerifyEmbeds
-  writes `canonical.verification` with a raw `pool.query`, so the JSON schema's
-  `CANONICAL_DOMAIN_PATTERN` never runs on the write that fills it — and
-  `splitMountKey` records `url.host`, which keeps a port that `allowedDomains`
-  (port-stripped) would let through. `loadDirectOwners` re-validates, *before*
-  the ancestor walk, so an unusable client is skipped and the next ancestor up
-  wins rather than its whole subtree collapsing to the fallback.
-- **The path is emitted raw**, not percent-encoded — a no-op only because region
-  slugs are transliterated to `[a-z0-9-]` and event ids are numeric. That
-  assumption is asserted in `tests/unit/atlas-canonical-url.spec.ts`; widening
-  the slug charset fails there.
-- **Region paths are queryable** now that the nested-docs plugin has a
-  `generateURL`: `where[breadcrumbs.url][equals]='/nl/amsterdam'`. Note it
-  matches **descendants too** (their trail contains the ancestor's URL) — add
-  `slug` to the `where` to resolve exactly one region. Existing rows need
-  `pnpm tsx scripts/backfill-region-breadcrumb-urls.ts` once.
+- **`webPath` never changes** — the bare ancestor slug chain. Ownership only decides what it's joined to.
+- **Two extra queries per request, total** (one `regions`, one `clients`), memoized on the `PayloadRequest`, loaded lazily — a `webPath`-only read never touches ownership.
+- **Never a fragment.** Hash routing is gone from the widget with no back-compat.
+- **The verified host is re-checked at read time, not trusted** — `VerifyEmbeds` writes via raw SQL, bypassing the JSON schema's domain pattern. `loadDirectOwners` re-validates before the ancestor walk, so an unusable client is skipped rather than collapsing its whole subtree to the fallback.
+- **The path is emitted raw**, not percent-encoded — safe only because region slugs are `[a-z0-9-]` and event ids are numeric (`tests/unit/atlas-canonical-url.spec.ts` pins this).
+- **Region paths are queryable** via `where[breadcrumbs.url][equals]='/nl/amsterdam'`, but this matches descendants too — add `slug` to resolve exactly one. Existing rows need `pnpm tsx scripts/backfill-region-breadcrumb-urls.ts` once.
 
 ## Usage plugin (`src/plugins/usage/`)
 
-| File             | Purpose                                                             |
-| ---------------- | ------------------------------------------------------------------- |
-| `usagePlugin.ts` | Plugin orchestration                                                |
-| `hooks.ts`       | `usageTrackingBeforeOperationHook` (beforeOperation); `rateLimitHook` (no-op on Railway) |
-| `tasks.ts`       | `trackUsageTask`, `resetUsageTask` factories (Postgres atomic ops)  |
-| `types.ts`       | Type definitions and constants                                      |
+| File | Purpose |
+| --- | --- |
+| `usagePlugin.ts` | Plugin orchestration |
+| `hooks.ts` | `usageTrackingBeforeOperationHook`, `rateLimitHook` (no-op on Railway) |
+| `tasks.ts` | `trackUsageTask`, `resetUsageTask` (atomic Postgres ops) |
+| `types.ts` | Type definitions and constants |
 
 ## Authentication flow
 
-1. Client sends `Authorization: clients API-Key <key>` (+ optional `X-User-ID`).
+1. The client sends `Authorization: clients API-Key <key>` (plus optional `X-User-ID`).
 2. Payload authenticates via the encrypted API key.
-3. Cloudflare edge (rate limiting rules) checks rate limits (no app-level limiter needed).
-4. Access middleware enforces read-only RBAC permissions.
-5. `usageTrackingBeforeOperationHook` increments usage once per top-level client
-   read (beforeOperation), skipping internal relationship-population sub-reads
-   (numeric `currentDepth`) so `depth >= 1` reads don't over-count. See #559.
-6. Increment is a single atomic Postgres UPDATE.
+3. Cloudflare's edge rate-limiting rules check the request — no app-level limiter is needed.
+4. Access middleware enforces read-only RBAC.
+5. `usageTrackingBeforeOperationHook` counts one use per top-level client read, skipping internal relationship-population sub-reads (`depth >= 1`) so those don't over-count (#559).
+6. The increment is a single atomic Postgres UPDATE.
 
 ## Security
 
-- **Permission-based access** via `accessPlugin` — clients require explicit
-  permissions. **No delete access**, ever. Managers and Clients collections
-  completely blocked for API clients.
-- **Active status** — only active clients authenticate.
-- **Encrypted keys** with `PAYLOAD_SECRET`.
-- **GraphQL disabled** — REST only.
+Access is permission-based via `accessPlugin` — a client needs an explicit permission for everything, gets **no delete access, ever**, and cannot reach `Managers` or `Clients` at all. Only an active client can authenticate. Keys are encrypted with `PAYLOAD_SECRET`. GraphQL is disabled.
 
 ### Every public write path requires Turnstile
 
-`writeGuardPlugin` (`src/plugins/writeGuard/`) runs anti-spam checks on
-**client-originated** writes, and `turnstile: true` in
-`DEFAULT_WRITE_GUARD_POLICIES` requires a solved token in the
-**`x-turnstile-token` header** — transport metadata, so it stays out of the
-document shape on the built-in REST endpoints.
+`writeGuardPlugin` runs anti-spam checks on **client-originated** writes. `turnstile: true` in `DEFAULT_WRITE_GUARD_POLICIES` requires a solved token in the **`x-turnstile-token`** header, kept out of the document shape. Registrations were the last public write without it (#629) — the gate could only turn on once the Atlas widget sent the header (sydevs/SahajAtlasWeb#182), so the two shipped in that order.
 
-Registrations were the last public write without it (#629). The gate could only
-be turned on once the Atlas widget was sending the header
-(sydevs/SahajAtlasWeb#182): flipping it first would have refused every real
-registration, which is why the two shipped in that order.
-
-The two refusals are deliberately different, and a client should treat them
-differently:
-
-| Outcome | Status | `errors[0].code` | What a client should do |
+| Outcome | Status | `errors[0].code` | Client action |
 | --- | --- | --- | --- |
-| Missing, forged, expired or **replayed** token | 403 | `captcha_failed` | Reset the challenge and retry with a freshly solved token |
-| Our secret unset, or Cloudflare unreachable | 500 | `captcha_unavailable` | Retry later — this is never a pass |
+| Missing, forged, expired, or **replayed** token | 403 | `captcha_failed` | Reset the challenge, retry with a fresh token |
+| Our secret unset, or Cloudflare unreachable | 500 | `captcha_unavailable` | Retry later — never a pass |
 
-⚠ **Tokens are single-use**, so `timeout-or-duplicate` (a replay) is refused
-exactly like a forgery. A client that retries with the *same* token after any
-error gets a second 403 and reads it as a persistent rejection.
+⚠ **Tokens are single-use** — a replay is refused exactly like a forgery, so retrying with the *same* token after any error gets a second 403.
 
-⚠ **The gate fails closed on our own misconfiguration**, and that is the point:
-a captcha that silently disables itself when its secret is missing is worse than
-no captcha, because nothing surfaces the misconfiguration. There is no
-dev/test bypass — point `TURNSTILE_SECRET_KEY` at Cloudflare's always-passes
-test key locally.
+⚠ **The gate fails closed on our own misconfiguration, on purpose.** A captcha that silently disables itself on a missing secret is worse than none, since nothing would surface the misconfiguration. There is no dev/test bypass — point `TURNSTILE_SECRET_KEY` at Cloudflare's always-passes test key locally.
 
-## Query Parameter Validation
+## Query parameter validation
 
-API client read requests must declare their data needs explicitly:
-
-- `select` is required on every read request.
-- `populate` is required when effective `depth > 1` (explicit `depth` or the
-  server default depth when omitted).
-
-`validateClientQueryParamsHook` in `src/plugins/usage/hooks.ts` enforces this
-before rate limiting, so malformed reads do not consume a rate-limit slot.
-Managers, admin UI requests, and writes are unaffected.
+An API client read must declare its data needs: `select` is required on every read, and `populate` is required whenever effective `depth > 1` (explicit or the server default). `validateClientQueryParamsHook` enforces this before rate limiting, so a malformed read costs no rate-limit slot. Managers, admin UI requests, and writes are unaffected.
 
 ### Expected REST format (bracket notation)
 
-PayloadCMS REST uses `qs-esm` to parse query strings into **nested objects** —
-NOT comma-separated strings. The hook checks `typeof args.select === 'object'`,
-so only bracket notation passes. This is the format the official
-[PayloadCMS docs](https://payloadcms.com/docs/queries/select) describe.
-
-✅ Correct — bracket notation:
+Payload's REST layer parses query strings into **nested objects** via `qs-esm`, not comma-separated strings. The hook checks `typeof args.select === 'object'`, so only bracket notation passes — the format the [official docs](https://payloadcms.com/docs/queries/select) describe.
 
 ```
-GET /api/meditations?select[title]=true&select[slug]=true&depth=2&populate[narrators][name]=true
+✅ GET /api/meditations?select[title]=true&select[slug]=true&depth=2&populate[narrators][name]=true
+   → { select: { title: true, slug: true }, depth: 2, populate: { narrators: { name: true } } }
+
+❌ GET /api/meditations?select=title,slug&populate=narrator.name
+   → { select: 'title,slug', populate: 'narrator.name' }  — fails typeof === 'object', returns 400
 ```
 
-Parses to:
+Nested `select` is valid (`select[meta][image]=true`). When a selected field is itself a relationship, Payload's internal population reads count as part of the already-validated request. With no relationship traversal needed, pass `depth=1` (or `0` for raw IDs) — omitting `depth` uses the server default (currently `2`), so `populate` is still required.
 
-```ts
-{
-  select: { title: true, slug: true },
-  depth: 2,
-  populate: { narrators: { name: true } },
-}
-```
-
-Passes validation.
-
-Nested select example:
-
-```
-GET /api/pages/69?select[meta][image]=true&depth=1
-```
-
-Nested `select` is valid. When a selected field is a relationship/upload field
-such as `meta.image`, Payload may perform internal population reads; the
-validator treats those internal reads as part of the already-validated top-level
-request.
-
-If the client does not need nested relationship traversal, pass `depth=1` (or
-`depth=0` for raw relationship IDs). Omitting `depth` uses Payload's server
-default, currently `2`, so `populate` is still required.
-
-❌ Wrong — comma-separated strings (rejected):
-
-```
-GET /api/meditations?select=title,slug&populate=narrator.name
-```
-
-Parses to:
-
-```ts
-{ select: 'title,slug', populate: 'narrator.name' }
-```
-
-Fails the `typeof === 'object'` check, returns 400.
-
-### Diagnostic logging
-
-On rejection the hook logs the offending shape at WARN level — type +
-top-level keys + a 100-char preview when the value is a string (no full
-payload, no secrets). Filter the application logs (`railway logs`) by `clientId` if a client reports
-an unexpected 400; the log entry identifies whether the param arrived as a
-string, an empty object, or missing entirely.
-
-The full URL → args parse contract is locked in by
-`tests/int/client-query-validation.int.spec.ts` (`describe('REST URL format (via qs.parse + sanitize)', ...)`).
+On rejection the hook logs the offending shape at WARN (type, top-level keys, a 100-char preview for a string value — never the full payload or a secret). Filter `railway logs` by `clientId` to see whether a param arrived as a string, an empty object, or was missing. The full contract is pinned in `tests/int/client-query-validation.int.spec.ts`.
 
 ### Internal-endpoint bypass
 
-Trusted internal endpoint handlers that forward a client `req` to
-`payload.find(...)` or `payload.findByID(...)` should wrap the request via the
-`asTrustedReq()` helper exported from `src/plugins/usage/hooks.ts` (which sets the
-`req.context.skipClientQueryValidation` flag). These handlers shape their own
-response and should not require every endpoint caller to enumerate internal
-fields with `select`, while rate limiting and usage tracking still see the
-authenticated client.
-
-The companion predicate `isTrustedReq(req)` reads that flag back. Honour it in
-hooks that shape the **client-facing result** of a read — an endpoint doing its
-own lookup needs the true state, so silently narrowing it turns a precise error
-into a confusing one (`excludeFinishedEvents` exempts trusted reqs so
-`POST /api/events/{id}/register` can answer 409 instead of 404). Do **not**
-honour it in security gates — see `validateClientOriginHook` below.
+A trusted internal handler forwarding a client `req` to `payload.find`/`findByID` should wrap it via `asTrustedReq()` (sets `req.context.skipClientQueryValidation`), so it need not enumerate `select` while rate limiting and usage tracking still see the authenticated client. The companion `isTrustedReq(req)` reads that flag back. Honour it in a hook shaping the **client-facing result** (`excludeFinishedEvents` exempts a trusted req so registration can answer 409 instead of 404), but never in a security gate — `validateClientOriginHook` does not honour it.
 
 ### System writes: `asSystemReq`, and why `overrideAccess` isn't enough
 
-A third helper sits beside those two: `asSystemReq(req)` returns the same
-request with **no user**. Reach for it when a client-triggered operation
-performs a write that isn't on the caller's authority — the registration
-vote-sync hook updating the *event*, for instance.
-
-`overrideAccess: true` is not sufficient on its own, which is the trap. It
-skips collection access but **not** `filterOptions`, which Payload validates
-against `req.user`: a write touching the events `region` picker (owner-scoped
-for atlas managers) is refused for a caller who could never pass that filter,
-400ing an operation the client was entitled to trigger but not to perform
-itself.
-
-`context`, `transactionID` and `payload` still travel by reference, so the
-transaction and per-request memoization are unaffected — only the authority
-changes. Distinct from `asTrustedReq`, which keeps the user and relaxes the
-query-shape gate; the two compose.
+`asSystemReq(req)` returns the same request with **no user** — reach for it when a client-triggered write isn't on the caller's own authority (the registration vote-sync hook updating the *event*). `overrideAccess: true` alone is not enough: it skips collection access but **not** `filterOptions`, which Payload validates against `req.user` — a write touching an owner-scoped picker would 400 for a caller entitled to trigger the operation but not to perform it directly. `context`, `transactionID`, and `payload` still travel by reference. Only the authority changes. `asTrustedReq` keeps the user and relaxes the query-shape gate instead — the two compose.
 
 ### Live preview bypass
 
-Admin live preview loads the external We Meditate Web frontend, which fetches
-draft content back from this CMS as a client and forwards the
-`SAHAJCLOUD_PREVIEW_SECRET` in the `x-sahajcloud-preview-secret` header. A
-request carrying the valid secret renders the **whole** document, so requiring
-it to enumerate `select`/`populate` is meaningless — and forcing it 400s the
-preview. `validateClientQueryParamsHook` skips validation for such requests via
-`hasValidPreviewSecret(req)` from `src/lib/utilities/previewSecret.ts` (the same helper
-the access layer uses to unlock drafts in `createAccessConfig`). Rate limiting
-and usage tracking still apply. Without this, PR #294's gate breaks the
-meditations, pages, and wemeditate-web live previews.
+Admin live preview loads the external We Meditate Web frontend, which fetches draft content back as a client, forwarding `SAHAJCLOUD_PREVIEW_SECRET` in `x-sahajcloud-preview-secret`. Since that request renders the whole document, `validateClientQueryParamsHook` skips it via `hasValidPreviewSecret(req)` — the same helper the access layer uses to unlock drafts. Rate limiting and usage tracking still apply.
 
 ## Client read contract: finished events (#603)
 
-A **finished** event — one whose schedule has fully run out — stays `published`,
-because its Atlas page must keep resolving for a seeker following an old link
-(`webPath` / `webUrl` are publish-gated, so unpublishing is precisely what would
-break those links). It drops out of the public *feeds* instead. So for API
-clients:
+A **finished** event (its schedule fully run out) stays `published`, since its Atlas page must keep resolving for an old link — but it drops out of public *feeds*:
 
-| Read                       | Finished events                                                       |
-| -------------------------- | --------------------------------------------------------------------- |
-| `GET /api/events`          | **excluded by default**; an explicit `where` on `schedule.lastDate` opts out |
-| `GET /api/events/geojson`  | **always excluded** — no opt-out; a caller's `where` can only narrow   |
-| `GET /api/events/{id}`     | returned normally, with non-null `webPath` / `webUrl`                  |
-| `GET /api/atlas/seo`       | a **region** route's listing excludes them (its internal list read runs the same hook); an **event** route returns one normally, since it is a single-doc read |
-| `GET /api/atlas/sitemap`   | **excluded** (its list read runs the same hook) — the page still resolves, but a sitemap asks a crawler to index it |
-| Admin / manager / job reads | unaffected (the Atlas sidebar buckets on `verificationStage`)          |
+| Read | Finished events |
+| --- | --- |
+| `GET /api/events` | Excluded by default. An explicit `where` on `schedule.lastDate` opts out |
+| `GET /api/events/geojson` | Always excluded, no opt-out |
+| `GET /api/events/{id}` | Returned normally |
+| `GET /api/atlas/seo` | A region listing excludes them. A single-event read returns it |
+| `GET /api/atlas/sitemap` | Excluded — the page still resolves, but a sitemap shouldn't ask a crawler to index it |
+| Admin / manager / job reads | Unaffected |
 
-"Finished" = `schedule.lastDate` (end of the final occurrence's **local** day) is
-in the past. An event running today stays listed until midnight in its own
-timezone. A NULL `lastDate` means no fixed end (open-ended recurrence), and
-`inactive` events are dormant by design — neither is ever finished. One
-definition, two expressions: `shouldFinish` (`@/lib/schedule/scheduleStatus`) in
-memory, `notFinishedWhere` (`@/collections/Events/lifecycle/finished`) as SQL,
-pinned to agree by `tests/unit/schedule-status.spec.ts`.
+"Finished" means `schedule.lastDate` (the final occurrence's local end-of-day) is in the past — an event running today stays listed until midnight in its own timezone. A NULL `lastDate` (open-ended recurrence) and an `inactive` event are never finished. One definition, two expressions: `shouldFinish` in memory, `notFinishedWhere` as SQL, pinned to agree by `tests/unit/schedule-status.spec.ts`.
 
-The list-read default is applied by the `excludeFinishedEvents` beforeOperation
-hook on Events; the opt-out is any `where` naming `schedule.lastDate` (**dotted
-path only** — Payload rejects the nested-group form `where[schedule][lastDate]`
-with "path cannot be queried"). `POST /api/events/{id}/register` refuses a
-finished event with **409** ("This event has ended"), since the published-only
-access filter no longer catches it.
+The default is applied by the `excludeFinishedEvents` beforeOperation hook on Events. The opt-out is a `where` naming `schedule.lastDate` by **dotted path only** (Payload rejects the nested-group form). `POST /api/events/{id}/register` refuses a finished event with **409** ("This event has ended"), since the published-only access filter no longer catches it.
 
-> **Existing clients see fewer docs from `GET /api/events`.** Deliberate. The
-> contract is published on the geojson operation's OpenAPI `description`; the
-> generated `/api/events` path has no description seam (custom paths merge into
-> the spec by shallow spread, so annotating it would replace the generated
-> operation).
+> Existing clients see fewer docs from `GET /api/events`. This is deliberate, and published on the geojson operation's OpenAPI `description` (the generated `/api/events` path has no description seam to annotate).
 
-## Origin / Referer Enforcement
+## Origin / Referer enforcement
 
-`validateClientOriginHook` (`src/plugins/usage/hooks.ts`) is the second
-beforeOperation client gate. The usage plugin runs it **first** on every
-non-excluded collection — ahead of the query-param gate and rate accounting — so
-a disallowed origin is rejected before any other work. Centralizing it in the
-plugin means it covers standard client reads **and** the custom Atlas endpoints
-(`GET /api/events/geojson`, `POST /api/events/:id/register`), whose internal
-`payload.find` / `payload.create` calls forward the client `req`.
+`validateClientOriginHook` is the usage plugin's second beforeOperation gate, run **first** on every non-excluded collection, ahead of the query-param gate and rate accounting. It covers standard client reads and the custom Atlas endpoints, whose internal `payload.find`/`create` calls forward the client `req`.
 
-The rule itself lives in **`assertClientOriginAllowed(req)`**; the hook is a thin
-wrapper adding the `currentDepth` exemption. An endpoint whose **handler** touches
-no collection runs no beforeOperation hook of its own, so it must call the
-assertion itself — both root endpoints do, right after `requireActiveClient`:
-`GET /api/atlas/seo` and `GET /api/atlas/sitemap`, whose own forwarded reads
-*would* fire the hook, but only after the handler has already begun work. Don't
-lean on an incidental collection read to trigger the hook instead: `clients` is
-excluded from the plugin, so re-reading the caller's own record wouldn't fire it
-either.
+The rule itself lives in `assertClientOriginAllowed(req)`. The hook is a thin wrapper adding the `currentDepth` exemption. An endpoint whose handler touches no collection runs no beforeOperation hook, so it must call the assertion itself — both `GET /api/atlas/seo` and `GET /api/atlas/sitemap` do, right after `requireActiveClient`. Don't lean on an incidental collection read to trigger it instead — `clients` is excluded from the plugin, so reading the caller's own record wouldn't fire it either.
 
-### Rule
+**Rule**: runs only when `req.user?.collection === 'clients'`. An empty/unset `allowedDomains` allows any origin (the default). A non-empty list requires the request `Origin` (or `Referer` as fallback) to match an entry, else **403**. No `Origin`/`Referer` at all (server-to-server, cron) is allowed — the API key is the gate there.
 
-- Runs only when `req.user?.collection === 'clients'` — managers, admin UI, and
-  server tasks are untouched.
-- **Empty / unset `allowedDomains` → allow any origin** (backward-compatible
-  default; the field is the Atlas-config textarea on `Clients`).
-- **Non-empty `allowedDomains`** → the request `Origin` (or the `Referer` host as
-  fallback) must match an entry, else **403**.
-- **No `Origin`/`Referer`** (server-to-server, cron) → **allow**; the API key
-  remains the gate.
+**Matching** (`originEnforcement.ts`): both sides normalize to a bare host (scheme, userinfo, port, path, trailing dot stripped, lowercased). An exact host matches only itself. A `*.` wildcard matches any subdomain but not the apex, and blocks the injection `evil-example.org` against `*.example.org`.
 
-### Matching (`src/plugins/usage/originEnforcement.ts`)
+**Bypasses**: a valid live-preview secret, or an internal relationship-population read (reusing the top-level origin already validated). `asTrustedReq()` does **not** bypass this — its flag is a query-shape opt-out, not a security one.
 
-Pure, unit-tested helpers normalize both sides to a bare host — scheme, userinfo,
-port, path, and trailing dot stripped, lowercased — then match:
+**CORS**: `cors: { origins: '*', headers: ['x-sahajcloud-preview-secret'] }`. Per-client CORS is impossible, since a preflight is anonymous — the browser omits `Authorization`, so the server can't return a per-client allowlist at that point. The wildcard lets an embedded widget's preflight succeed on any host page. The real per-domain gate is this hook plus the API key. Payload omits `Access-Control-Allow-Credentials` for wildcard origins, so cookie-based admin sessions stay protected. The `headers` list **appends** to Payload's defaults (#575), so the live-preview widget's `x-sahajcloud-preview-secret` still clears preflight. Guarded by `tests/int/cors-config.int.spec.ts` and `tests/e2e/cors-preflight.e2e.spec.ts`.
 
-- **Exact host**: `example.org` matches only `example.org`.
-- **`*.` wildcard**: `*.example.org` matches any subdomain (`a.example.org`,
-  `a.b.example.org`) but **not** the apex `example.org`. The leading-dot suffix
-  blocks injection (`evil-example.org` does not match).
-
-### Bypasses
-
-- **Valid live-preview secret** (`hasValidPreviewSecret`) — same trust signal that
-  unlocks drafts and skips the query-param gate.
-- **Internal relationship-population reads** (numeric `currentDepth`) — they reuse
-  the already-validated top-level request's origin.
-- `asTrustedReq()` does **not** bypass origin enforcement. Its
-  `skipClientQueryValidation` flag is a query-shape opt-out, not a security one —
-  forwarded client reads stay enforced against the caller's real origin.
-
-On rejection the hook logs `clientId` + origin + referer at WARN. The geojson and
-register handlers surface the thrown `APIError(403)` verbatim (instead of masking
-it as a 500).
-
-### CORS
-
-`payload.config.ts` sets `cors: { origins: '*', headers: ['x-sahajcloud-preview-secret'] }`.
-Per-client CORS is impossible — CORS preflight (`OPTIONS`) is anonymous (the
-browser omits `Authorization`), so the server cannot return a per-client
-allowlist at preflight time. Wildcard origins let embedded widgets' preflight
-succeed on any host page; the real per-domain gate is this server-side hook plus
-the API key. Payload omits `Access-Control-Allow-Credentials` for wildcard
-origins, so cookie-based admin sessions stay protected — the `csrf` allowlist is
-unchanged.
-
-The `headers` list **appends** to Payload's default allow-list (#575): the Sahaj
-Atlas live-preview widget fetches drafts client-side, so the draft-unlock
-`x-sahajcloud-preview-secret` header (`src/lib/utilities/previewSecret.ts`) rides
-cross-origin browser requests and must clear preflight. Guarded by
-`tests/int/cors-config.int.spec.ts` (real config through Payload's
-`headersWithCors`) and `tests/e2e/cors-preflight.e2e.spec.ts` (live preflight
-against the deployed preview).
-
-### Tests
-
-- `tests/unit/origin-enforcement.spec.ts` — normalization + matching (exact,
-  wildcard, suffix-injection, empty, missing-header).
-- `tests/int/client-origin-enforcement.int.spec.ts` — wiring through
-  `payload.find` and the geojson/register endpoints (403 / allow).
+Tests: `tests/unit/origin-enforcement.spec.ts` (normalization and matching), `tests/int/client-origin-enforcement.int.spec.ts` (wiring through `payload.find` and the geojson/register endpoints).
 
 ## Usage monitoring
 
-- **Async tracking** via Payload job queue (no in-request DB write).
-- **Daily limits** — alerts logged when daily count exceeds threshold (>1,000/day).
-- **Peak tracking** — `peakDailyRequests` records the historical max.
-- **Reset schedule** — `resetUsageTask` runs daily at midnight UTC.
-- **Implementation** — atomic Postgres UPDATE via Drizzle pool (single transaction, no race conditions)
+Tracking is async, via the Payload job queue (no in-request DB write). An alert logs when the daily count passes 1,000 requests. `peakDailyRequests` records the historical max. `resetUsageTask` runs daily at midnight UTC. The increment is one atomic Postgres UPDATE via the Drizzle pool — a single transaction, no race.
 
-## Rate limiting (Cloudflare Edge)
+## Rate limiting (Cloudflare edge)
 
-Per-user rate limiting is now handled by **Cloudflare Rate Limiting Rules** at the edge, in front of Railway. This eliminates the need for an app-level rate limiter binding.
+Per-user rate limiting runs at the Cloudflare edge, in front of Railway, so no app-level limiter binding is needed. A request that fails the edge's rate-limiting rules gets a 429 before it ever reaches Railway, and `rateLimitHook` is a no-op.
 
-### How it works
+| Setting | Value |
+| --- | --- |
+| Limit | 500 requests |
+| Period | 60 seconds |
+| Scope | per `(client, IP)` tuple, at the edge |
 
-1. Request arrives at Cloudflare edge (reverse proxy).
-2. Cloudflare Rate Limiting Rules evaluate the request.
-3. Allow → forwards to Railway, blocked → returns 429.
-4. No app-level `rateLimitHook` needed; it's a no-op.
-
-### Limits
-
-| Setting | Value                              |
-| ------- | ---------------------------------- |
-| Limit   | 500 requests                       |
-| Period  | 60 seconds                         |
-| Scope   | per `(client, IP)` tuple (at edge) |
-
-### `X-User-ID` header
-
-The header is still present for API semantic clarity but is not rate-limited at the edge. Clients can pass it to identify their end-users in logs.
-
-- Format: `^[a-zA-Z0-9-_]{8,64}$`
-- **Privacy**: user ID is visible to the app but not enforced by Cloudflare rules.
+`X-User-ID` (`^[a-zA-Z0-9-_]{8,64}$`) still travels for semantic clarity and log identification, but the edge does not rate-limit on it, and it is visible to the app but not privacy-enforced.
 
 ```http
 GET /api/meditations HTTP/1.1
@@ -604,22 +221,11 @@ Authorization: clients API-Key abc123xyz
 X-User-ID: user_12345678
 ```
 
-### Error responses
-
-```json
-// 429 — rate limit exceeded (Cloudflare)
-{ "errors": [{ "message": "Rate limit exceeded. Maximum 500 requests per minute." }] }
-```
-
-### Monitoring
-
-- Cloudflare Analytics: view rate limit hits per rule.
-- Sentry: `usageTrackingBeforeOperationHook` logs client requests (no rate limiter events).
-- Pino: `clientId`, IP, timestamp logged at usage tracking time.
+A 429 returns `{ "errors": [{ "message": "Rate limit exceeded. Maximum 500 requests per minute." }] }`. Monitor via Cloudflare Analytics (rate-limit hits per rule), Sentry (`usageTrackingBeforeOperationHook` logs client requests), and Pino (`clientId`, IP, timestamp).
 
 ## Testing
 
-- `tests/int/clients.int.spec.ts` — Client CRUD + hooks
-- `tests/int/api.int.spec.ts` — usage tracking + reset jobs
-- `tests/e2e/clients.e2e.spec.ts` — admin UI flows
-- `tests/utils/` — factories for clients and authenticated requests
+- `tests/int/clients.int.spec.ts` — Client CRUD and hooks.
+- `tests/int/api.int.spec.ts` — usage tracking and reset jobs.
+- `tests/e2e/clients.e2e.spec.ts` — admin UI flows.
+- `tests/utils/` — factories for clients and authenticated requests.

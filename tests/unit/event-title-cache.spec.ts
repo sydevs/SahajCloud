@@ -55,7 +55,7 @@ describe('Event title memoization (#542 bulk-import stampede guard)', () => {
     it('memoizes the in-flight promise across concurrent beforeChange hooks', async () => {
       // Simulates a bulk import: many events' beforeChange hooks fire concurrently
       // (Promise.all), all resolving templates while the load is still pending.
-      // A value cache would issue 8 findGlobal calls; a promise cache collapses to 1.
+      // A value cache would issue 8 findGlobal calls. A promise cache collapses to 1.
       let resolve!: (v: Record<string, unknown>) => void
       const pending = new Promise<Record<string, unknown>>((r) => {
         resolve = r
@@ -102,8 +102,8 @@ describe('Event title memoization (#542 bulk-import stampede guard)', () => {
 
       const { eventTitleBeforeChange } = await import('@/collections/Events/hooks/eventTitle')
 
-      // The load fails; resolveTitleTemplates catches the error internally and
-      // falls back to EVENT_TITLE_DEFAULTS. The promise still resolves.
+      // The load fails. `resolveTitleTemplates` catches the error internally
+      // and falls back to EVENT_TITLE_DEFAULTS. The promise still resolves.
       const result1 = await eventTitleBeforeChange({
         value: '',
         data: { address: { street: 'Street 1' }, schedule: eveningSchedule },

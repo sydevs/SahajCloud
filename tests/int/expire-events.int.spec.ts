@@ -45,7 +45,7 @@ async function createDueEvent(payload: Payload, title: string) {
   const event = await testData.createEvent(payload, { title, verificationStage: 'verified' })
   // The handler only picks up events whose nextCheckAt has passed. `skipVerifyHook`
   // is the same context flag the real job uses so the verifyOnSave beforeChange
-  // hook doesn't clobber our backdated value with `now + cadence`.
+  // hook does not clobber our backdated value with `now + cadence`.
   await payload.update({
     collection: 'events',
     id: event.id,
@@ -74,7 +74,7 @@ describe('ExpireEvents job', () => {
   })
 
   it('declares the single-run concurrency lock and processes each due event once', async () => {
-    // The lock itself is enforced by Payload's queue at runtime; what's under our
+    // The lock itself is enforced by Payload's queue at runtime. What's under our
     // control (and what this asserts) is that the task declares it correctly.
     const concurrency = ExpireEvents.concurrency as
       | { key: (args: { input: unknown; queue: string }) => string; exclusive?: boolean }
@@ -119,7 +119,7 @@ describe('ExpireEvents job', () => {
       const result = await runTask(payload)
 
       // At least our two events were attempted and exactly one failed (the one we
-      // forced) — so the sweep did not abort on the first failure; it kept going
+      // forced) — so the sweep did not abort on the first failure. It kept going
       // and processed the healthy event. (>= 2 because a failed event from an
       // earlier test stays due — the failure means it never advanced.)
       expect(result.processed).toBeGreaterThanOrEqual(2)
@@ -137,7 +137,7 @@ describe('ExpireEvents job', () => {
   describe('publish side effects', () => {
     /**
      * Put a due event into a given stage. Stage / nextCheckAt / _status are set
-     * in one `skipVerifyHook` update so the verifyOnSave hook doesn't reset the
+     * in one `skipVerifyHook` update so the verifyOnSave hook does not reset the
      * stage to `verified` and stamp a future nextCheckAt.
      */
     async function createDueEventAtStage(
@@ -237,7 +237,7 @@ describe('ExpireEvents job', () => {
   // ──────────────────────────────────────────────────────────────────────────
   // Stage-independent sweeps: pre-adoption (unverified/denied) events carry
   // `nextCheckAt: null` and are invisible to the due sweep, so a separate pass
-  // finishes them when their schedule runs out; and finished events are
+  // finishes them when their schedule runs out. And finished events are
   // trashed once their schedule ended 6+ months ago.
   // ──────────────────────────────────────────────────────────────────────────
   // ──────────────────────────────────────────────────────────────────────────
@@ -409,7 +409,7 @@ describe('ExpireEvents job', () => {
         RAN_OUT_RECENTLY,
       )
 
-      // Finishes on the first run; its retention sits ~4 months out.
+      // Finishes on the first run. Its retention sits ~4 months out.
       await runTask(payload)
       // A second run must not touch it — it is no longer due.
       await runTask(payload)

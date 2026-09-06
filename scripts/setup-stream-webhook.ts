@@ -2,10 +2,10 @@
 /**
  * One-off script to register (or delete) a Cloudflare Stream webhook.
  *
- * The Cloudflare Stream webhook is **account-scoped**: only one notification
- * URL exists per account. Running this script against the wrong URL will
- * silently break production. Only run from an operator machine, pointing at
- * the production deployment.
+ * The Cloudflare Stream webhook is **account-scoped**. Only one
+ * notification URL exists per account. Running this script against the
+ * wrong URL will silently break production. Run it only from an
+ * operator machine, pointing at the production deployment.
  *
  * Usage:
  *   pnpm tsx scripts/setup-stream-webhook.ts --url <https-url>
@@ -17,8 +17,9 @@
  *   CLOUDFLARE_ACCOUNT_ID
  *   CLOUDFLARE_API_KEY  (token with Stream:Edit permission)
  *
- * After running with --url, copy the printed signing secret into Workers:
- *   wrangler secret put CLOUDFLARE_STREAM_WEBHOOK_SECRET
+ * After running with --url, copy the printed signing secret into
+ * Railway:
+ *   railway variables --set "CLOUDFLARE_STREAM_WEBHOOK_SECRET=<secret>"
  */
 import { z } from 'zod'
 

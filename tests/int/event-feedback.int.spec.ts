@@ -87,7 +87,7 @@ describe('Event feedback (registrant voting)', () => {
         roles: ['sahaj-atlas-client'],
       },
       // Both, as `createPayloadRequest` sets them on a real REST request —
-      // the fixture used to set only `query`, which is why it couldn't tell
+      // the fixture used to set only `query`, which is why it could not tell
       // that the access helper's `searchParams` fallback was unreachable.
       query: registrationUuid ? { registrationUuid } : {},
       searchParams: new URLSearchParams(registrationUuid ? { registrationUuid } : {}),

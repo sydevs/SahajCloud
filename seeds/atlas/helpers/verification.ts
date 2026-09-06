@@ -1,15 +1,17 @@
 /**
- * Event verification backfill for the Atlas import. The live verification/expiry
- * state machine (#484) owns the ongoing lifecycle; the importer seeds an initial
- * snapshot from the Atlas status. Pure + unit testable.
+ * Event verification backfill for the Atlas import. The live
+ * verification/expiry state machine (#484) owns the ongoing lifecycle.
+ * The importer only seeds an initial snapshot from the Atlas status.
+ * This module is pure and unit testable.
  *
- * **`status` is the only authoritative current-state flag in the dump.** Atlas
- * never cleared its lifecycle timestamps on reactivation, so `expired_at`,
- * `archived_at` and `finished_at` are stale on almost every row — 287 of 289
- * `archived_at` and 295 of 297 `expired_at` values are superseded by a later
- * `verified_at`, and all 12 events with a `finished_at` but `status: 0` were
- * re-verified afterwards. Never derive state from a timestamp alone; check it
- * against `verified_at` first (see `isCurrentLifecycleFlag`).
+ * **`status` is the only authoritative current-state flag in the
+ * dump.** Atlas never cleared its lifecycle timestamps on reactivation,
+ * so `expired_at`, `archived_at`, and `finished_at` are stale on almost
+ * every row. 287 of 289 `archived_at` and 295 of 297 `expired_at`
+ * values are superseded by a later `verified_at`, and all 12 events
+ * with a `finished_at` but `status: 0` were re-verified afterwards.
+ * Never derive state from a timestamp alone. Check it against
+ * `verified_at` first (see `isCurrentLifecycleFlag`).
  */
 import type { ActorRef, VerificationLogEntry } from '@/lib/eventVerification/log'
 import { buildVerificationEntry } from '@/lib/eventVerification/log'
@@ -21,8 +23,9 @@ import type { EventSchedule } from '@/types/schedule'
 export type ImportVerificationStage = 'verified' | 'finished'
 
 /**
- * Atlas status int → verificationStage. The dump holds only `0` and `6`;
- * anything else defaults to `verified` (republished, kept on the map).
+ * Atlas status int maps to verificationStage. The dump holds only `0`
+ * and `6`. Anything else defaults to `verified` (republished, kept on
+ * the map).
  */
 export function mapStatusToStage(status: number | null | undefined): ImportVerificationStage {
   return status === 6 ? 'finished' : 'verified'
@@ -55,9 +58,10 @@ export function isCurrentLifecycleFlag(
  * verification supersedes it, else `undefined`.
  *
  * Atlas's `archived` terminal is what the Events collection models as a soft
- * delete (`trash: true`), so a genuinely-archived event lands in the admin trash
- * rather than on the map. Only 2 of the 511 dumped events qualify (legacyId 75 and
- * 199); the other 287 carrying an `archived_at` were reactivated.
+ * delete (`trash: true`), so a genuinely archived event lands in the admin
+ * trash rather than on the map. Only 2 of the 511 dumped events qualify
+ * (legacyId 75 and 199). The other 287 carrying an `archived_at` were
+ * reactivated.
  */
 export function importDeletedAt(
   legacyData: AtlasLifecycleTimestamps | null | undefined,

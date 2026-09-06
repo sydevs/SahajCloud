@@ -30,8 +30,8 @@ describe('asLog', () => {
   })
 
   it('preserves extra properties a consumer carries', () => {
-    // The verification log adds level/role/region and renders them itself; the
-    // coercion must not strip what it doesn't recognise.
+    // The verification log adds level/role/region and renders them itself. The
+    // coercion must not strip what it does not recognise.
     const rich = entry({ level: 'urgent', role: 'region' })
     expect(asLog([rich])[0]).toMatchObject({ level: 'urgent', role: 'region' })
   })

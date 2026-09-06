@@ -7,7 +7,7 @@
  * that gap: `/admin/verify/:token` matches no view, and because
  * `isPublicAdminRoute` waves any route containing `/verify/` past the auth
  * gate, a logged-out recipient is redirected to the login form rather than
- * shown a 404. Nothing failed; the manager simply could never verify.
+ * shown a 404. Nothing failed. The manager simply could never verify.
  *
  * The expectations are built with Payload's own `formatAdminURL` rather than a
  * hand-copied string, so they cannot drift from the router in the same
@@ -73,7 +73,7 @@ describe('Managers auth token URLs', () => {
 
     // The sibling that was already correct — `reset` is matched by name at the
     // two-segment branch, so it carries NO collection slug. Pinned so that
-    // "make the two consistent" can't regress it into the verify shape.
+    // "make the two consistent" cannot regress it into the verify shape.
     const expected =
       getServerUrl() + formatAdminURL({ adminRoute: ADMIN_ROUTE, path: `/reset/${TOKEN}` })
 

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 /**
  * `src/lib/` is for code shared across owners. A module in there with exactly
- * **one** consumer isn't shared — it's that consumer's private code sitting in
+ * **one** consumer is not shared — it is that consumer's private code sitting in
  * the commons, importable by anything, and read by anyone tracing the feature
  * as though it were general-purpose (`src/AGENTS.md`,
  * rule 4).
@@ -31,7 +31,7 @@ import { describe, expect, it } from 'vitest'
  * scripts count as consumers of what they import.
  *
  * A module consumed **only from inside `src/lib`** is exempt: that is a shared
- * module decomposed into parts (a barrel and its members; an integration seam
+ * module decomposed into parts (a barrel and its members. An integration seam
  * kept separate so it unit-tests without booting its caller). The folder is the
  * unit there, and whether it is shared is answered by its entry point. What
  * this catches is the other shape — a lib module private to exactly one owner
@@ -64,7 +64,7 @@ function libModules(): string[] {
  * Every import in the tree, resolved, as `target module → files importing it`.
  *
  * Built in **one pass over the files**, not one pass per lib module. The first
- * version scanned every source for each of ~150 modules; it ran in 1.4s alone
+ * version scanned every source for each of ~150 modules. It ran in 1.4s alone
  * and then timed out at 8s inside the parallel unit lane, which is the only
  * place it actually runs. Inverting it is ~50ms.
  *
@@ -110,7 +110,7 @@ function consumersOf(specifier: string, graph: Map<string, Set<string>>): string
  *
  * A recorded baseline, not an approval: the rule is new to an existing tree, so
  * failing on everything at once would have meant either an unreviewable reshuffle
- * or no check at all. New violations fail; these are the backlog, and the list
+ * or no check at all. New violations fail. These are the backlog, and the list
  * should only ever shrink.
  *
  * Each is one of two shapes. Some are genuinely one owner's private helper and

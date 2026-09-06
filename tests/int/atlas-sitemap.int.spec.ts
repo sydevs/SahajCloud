@@ -48,7 +48,7 @@ type SitemapBody = AtlasSitemapResponse & { errors?: { message: string }[] }
 type SeoBody = AtlasSeoResponse & { errors?: { message: string }[] }
 
 // Annotated rather than `as const`: the latter freezes `weekdays` into a
-// readonly tuple, which the mutable schema field won't accept.
+// readonly tuple, which the mutable schema field will not accept.
 const SCHEDULE: NonNullable<FixtureOverrides<Event>['schedule']> = {
   firstDate: '2026-01-06T10:00:00.000Z',
   firstDate_tz: 'Europe/London',
@@ -217,7 +217,7 @@ describe('atlasSitemap endpoint', () => {
       parent: region.netherlands,
     })
     // Owned, and empty — no class at it or beneath it, ever. Deliberately
-    // published anyway; see the case that pins it.
+    // published anyway. See the case that pins it.
     region.groningen = await createRegion({
       name: 'Groningen',
       slug: 'groningen',

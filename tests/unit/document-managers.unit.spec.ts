@@ -131,7 +131,7 @@ describe('parent-walk fallback (no breadcrumbs) terminates on cycles', () => {
   })
 
   it('userManagesDocument stops walking up a cyclic parent chain', async () => {
-    // 3 → parent 4 → parent 3 → … ; neither lists the user.
+    // 3 → parent 4 → parent 3 → … . Neither lists the user.
     const req = {
       payload: {
         findByID: async ({ id }: { id: number }) => {

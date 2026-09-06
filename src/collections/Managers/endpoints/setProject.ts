@@ -3,20 +3,18 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { parseBody, requireActiveManager } from '@/lib/endpoints'
-import type { ProjectSlug } from '@/payload-types'
 import { isValidProject } from '@/plugins/access'
 
-const bodySchema = z
-  .object({
-    // `null` is the admin "All Content" view; a slug selects a project. The
-    // Managers `currentProject` beforeChange still maps '' → null, but the
-    // selector always sends `null` for that case.
-    currentProject: z.string().nullable(),
-  })
-  .refine(({ currentProject }) => isValidProject(currentProject), {
-    message: 'Invalid project.',
-    path: ['currentProject'],
-  })
+const bodySchema = z.object({
+  // `null` is the admin "All Content" view. A slug selects a project.
+  // `isValidProject` is the membership check, and `''` is not a member.
+  //
+  // The refine sits on the field, so its predicate narrows `parsed.data`.
+  currentProject: z
+    .string()
+    .nullable()
+    .refine(isValidProject, { message: 'Invalid project.' }),
+})
 
 /**
  * POST /api/managers/set-project
@@ -51,7 +49,7 @@ export const setProject: Endpoint = {
       const updated = await req.payload.update({
         collection: 'managers',
         id: managerId,
-        data: { currentProject: currentProject as ProjectSlug | null },
+        data: { currentProject },
         // Self-scoped: `id` is the caller's own document, so elevate past the
         // per-field access pipeline — that's the whole point of this endpoint.
         overrideAccess: true,

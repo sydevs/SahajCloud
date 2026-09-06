@@ -2,14 +2,15 @@
 /**
  * Backfill `breadcrumbs[].url` on existing regions (#634).
  *
- * The nested-docs plugin populates that column only on write, so enabling
- * `generateURL` leaves every existing row null until something re-saves them —
- * and `where[breadcrumbs.url][equals]='/nl/amsterdam'` resolves nothing until
- * this has run. Re-saves **roots only** and lets the plugin's own cascade visit
- * the subtree; see `src/lib/atlas/backfillBreadcrumbUrls.ts`.
+ * The nested-docs plugin fills that column only on write. So turning on
+ * `generateURL` leaves every existing row null until something re-saves
+ * it, and `where[breadcrumbs.url][equals]='/nl/amsterdam'` resolves
+ * nothing until this script runs. It re-saves **roots only**, and lets
+ * the plugin's own cascade visit the rest of the subtree. See
+ * `src/lib/atlas/backfillBreadcrumbUrls.ts`.
  *
- * Reports by default; writes only with `--force`. Re-runnable — `url` is a pure
- * function of the ancestor slug chain.
+ * This reports by default. It writes only with `--force`. You can
+ * re-run it safely: `url` is a pure function of the ancestor slug chain.
  *
  * Usage:
  *   pnpm tsx scripts/backfill-region-breadcrumb-urls.ts            # dry run
@@ -25,9 +26,10 @@ import { getPayload } from 'payload'
 import { backfillBreadcrumbUrls } from '../src/lib/atlas/backfillBreadcrumbUrls'
 
 /**
- * The Payload config validates the whole server env when it's imported, and ESM
- * hoists every static import above the module body — so dotenv has to run first
- * and the config has to be pulled in dynamically.
+ * The Payload config checks the whole server env as soon as something
+ * imports it. ESM also hoists every static import above the module
+ * body. So dotenv must run first, and the config must load through a
+ * dynamic import instead.
  */
 async function loadPayload(): Promise<Payload> {
   // Shell env wins, then .env.local, then .env (see seeds/env.ts).

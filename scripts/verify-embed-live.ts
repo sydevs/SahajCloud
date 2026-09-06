@@ -1,22 +1,27 @@
 #!/usr/bin/env node
 /**
- * Exercise the Cloudflare Browser Rendering integration against real pages.
+ * Exercise the Cloudflare Browser Rendering integration against real
+ * pages.
  *
- * Everything about embed verification is unit-tested with the render stubbed, which is right for
- * the test lane but leaves the integration itself — request shape, auth, and how Cloudflare's
- * errors map onto our vocabulary — unproven until it runs. This is that proof, and a diagnostic
- * for later: when a service's canonical ownership is disabled and nobody believes it, run the URL
+ * Unit tests already cover embed verification with the render stubbed
+ * out. That is right for the test lane, but it leaves the real
+ * integration unproven: the request shape, the auth, and how
+ * Cloudflare's errors map onto our own vocabulary. This script is that
+ * proof. It also works as a later diagnostic: when a service's
+ * canonical ownership gets disabled and nobody believes it, run the URL
  * through here and read what the CMS actually saw.
  *
- * It calls the same `verifyEmbed()` the nightly job calls, so a green run here is evidence about
- * production and not about a mock.
+ * It calls the same `verifyEmbed()` function the nightly job calls, so
+ * a green run here is evidence about production, not about a mock.
  *
  * Usage:
  *   pnpm tsx scripts/verify-embed-live.ts --self-test        # all four outcomes, no live site needed
  *   pnpm tsx scripts/verify-embed-live.ts https://sahajayoga.nl/locatelessons/
  *
- * Env: CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_KEY (the token needs Browser Rendering).
- * Costs one Browser Rendering call per URL — it is a real render, not a fetch.
+ * Env: CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_KEY (the token needs
+ * Browser Rendering).
+ * Each URL costs one Browser Rendering call. It is a real render, not a
+ * fetch.
  */
 import dotenv from 'dotenv'
 
@@ -24,11 +29,14 @@ import dotenv from 'dotenv'
 const MARKER = { v: 2, routing: 'query', topLevel: true, urlWritable: true }
 
 /**
- * A `data:` page that writes the marker from JS *after* load, the way the widget does.
+ * A `data:` page that writes the marker from JS after load, the same
+ * way the real widget does.
  *
- * Cloudflare navigates `data:` URLs, so the success path is provable without hosting anything or
- * waiting on a customer site to upgrade — and it is a fair test precisely because the marker is not
- * in the served markup: `waitForSelector` has to observe the script writing it.
+ * Cloudflare can navigate `data:` URLs, so this proves the success path
+ * without hosting anything or waiting for a customer site to upgrade.
+ * It is a fair test for one exact reason: the marker never appears in
+ * the served markup, so `waitForSelector` must observe the script write
+ * it live.
  */
 function markerPage(marker: Record<string, unknown> | null): string {
   const write = marker
@@ -51,13 +59,14 @@ async function main(): Promise<void> {
   const { READY_ATTR } = await import('../src/lib/embedVerification/readinessMarker')
 
   /**
-   * The success case goes one level below `verifyEmbed`, deliberately.
+   * The success case goes one level below `verifyEmbed`, on purpose.
    *
-   * `verifyEmbed` refuses any non-http(s) mount before rendering — correct, since that guard is
-   * what keeps `data:` and `file:` out of the browser — so the probe page has to enter through
-   * `renderPage`. Every layer that matters is still real: the live render, the entity-decoded
-   * marker, and the classification. Only the one-line scheme guard is bypassed, and it has its own
-   * unit test.
+   * `verifyEmbed` refuses any non-http(s) mount before it renders. That
+   * guard is correct: it keeps `data:` and `file:` out of the browser.
+   * So the probe page enters through `renderPage` instead. Every layer
+   * that matters stays real: the live render, the entity-decoded
+   * marker, and the classification. Only the one-line scheme guard gets
+   * bypassed, and that guard has its own unit test.
    */
   const verifyProbePage = async (url: string) =>
     resultFromRender(url, await renderPage(url, `[${READY_ATTR}]`))

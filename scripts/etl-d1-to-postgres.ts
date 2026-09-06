@@ -1,19 +1,21 @@
 #!/usr/bin/env node
 /**
- * One-off ETL: copy all data from the production Cloudflare D1 (SQLite) into the
- * Railway Postgres created by the baseline migration. **Read-only on D1.**
+ * One-off ETL: copy all data from the production Cloudflare D1 (SQLite)
+ * into the Railway Postgres created by the baseline migration.
+ * **Read-only on D1.**
  *
  * Usage:
  *   DATABASE_URL=postgresql://... pnpm tsx scripts/etl-d1-to-postgres.ts [--dry-run] [--truncate]
  *
  * Env (read directly, per scripts/AGENTS.md):
- *   CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_KEY  (D1 read) — from .env.local or shell
- *   DATABASE_URL                                — target Postgres (Railway public URL)
+ *   CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_KEY  (for D1 reads, from .env.local or shell)
+ *   DATABASE_URL                                (target Postgres, the Railway public URL)
  *
- * Strategy: introspect the PG column types, read each D1 table read-only, coerce
- * SQLite values to PG types (0/1→bool, JSON text→jsonb, ISO strings→timestamptz),
- * bulk-insert preserving ids with FK triggers disabled, reset sequences, then
- * verify row counts table-by-table.
+ * Strategy: read the Postgres column types, read each D1 table
+ * read-only, convert SQLite values to Postgres types (0/1 to bool, JSON
+ * text to jsonb, ISO strings to timestamptz), bulk-insert while
+ * preserving ids with FK triggers disabled, reset the sequences, then
+ * verify row counts table by table.
  */
 import { readFileSync } from 'fs'
 
@@ -24,22 +26,25 @@ const { Client } = pg
 // Tables that must NOT be copied 1:1.
 const EXCLUDE = new Set([
   'payload_migrations', // PG keeps its own baseline migration record
-  'managers_sessions', // auth sessions — force a clean re-login at cutover
-  'payload_jobs', // job queue — transient runtime state
+  'managers_sessions', // auth sessions: force a clean re-login at cutover
+  'payload_jobs', // job queue: transient runtime state
   'payload_jobs_stats',
-  'payload_locked_documents', // admin edit-locks — transient
+  'payload_locked_documents', // admin edit-locks: transient
   'payload_locked_documents_rels',
 ])
 
 /**
- * Remap legacy enum values that the current Payload config no longer allows.
- * D1 (SQLite) doesn't enforce enums, so old select-option values lingered; the
- * Postgres enums (generated from the current config) reject them.
+ * Remap legacy enum values that the current Payload config no longer
+ * allows. D1 (SQLite) does not enforce enums, so old select-option
+ * values lingered. The Postgres enums, generated from the current
+ * config, reject them.
  *   table -> column -> { oldValue: newValue }
- * - app_cards.type: legacy non-event types collapsed into the new default
- *   'standard' (old default was 'app-page'); 'event' rows are already tagged.
- * - _meditations_v.version_type: 'realization' is a removed option; only 2
- *   version-history rows — map to the most common current type 'daily'.
+ * - app_cards.type: legacy non-event types collapse into the new
+ *   default, 'standard' (the old default was 'app-page'). 'event' rows
+ *   are already tagged correctly.
+ * - _meditations_v.version_type: 'realization' is a removed option.
+ *   Only 2 version-history rows used it, so they map to the most common
+ *   current type, 'daily'.
  */
 const VALUE_REMAP: Record<string, Record<string, Record<string, string>>> = {
   app_cards: { type: { 'app-page': 'standard', content: 'standard' } },
@@ -64,7 +69,7 @@ function loadEnvLocal(): void {
       if (!process.env[k]) process.env[k] = v
     }
   } catch {
-    /* no .env.local — rely on shell env */
+    /* no .env.local: rely on shell env instead */
   }
 }
 loadEnvLocal()
@@ -196,7 +201,7 @@ async function main(): Promise<void> {
 
   if (!DRY) {
     await client.query(`SET session_replication_role = 'origin'`)
-    // Reset id sequences so future inserts don't collide with copied ids.
+    // Reset id sequences so future inserts do not collide with copied ids.
     for (const t of toCopy) {
       if (!pgCols.get(t)!.has('id')) continue
       try {

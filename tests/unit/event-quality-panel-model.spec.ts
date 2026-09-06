@@ -33,7 +33,7 @@ describe('buildPanelModel', () => {
   })
 
   it('puts open findings first, then what already passes, in one list', () => {
-    // No grouping — four checks doesn't warrant headings, and the passing rows
+    // No grouping — four checks does not warrant headings, and the passing rows
     // read as a quiet confirmation directly under the work still to do.
     const model = buildPanelModel(report(), metadata)
     if (!model || model.skipped) throw new Error('expected a report model')
@@ -93,7 +93,7 @@ describe('buildPanelModel', () => {
   })
 
   it('drops a key with no metadata rather than rendering a bare slug', () => {
-    // A key with no label means a stale cached report; showing a volunteer
+    // A key with no label means a stale cached report. Showing a volunteer
     // manager "description.quality" helps nobody.
     const model = buildPanelModel(
       report({
