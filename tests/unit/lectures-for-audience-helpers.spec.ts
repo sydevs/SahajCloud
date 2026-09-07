@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  LECTURE_FEED_POPULATE,
-  LECTURE_FEED_SELECT,
   mergeSubtitles,
   shapeLecture,
   shapeUserChoices,
@@ -145,7 +143,7 @@ describe('shapeLecture returns userChoices', () => {
     expect(shapeLecture(playableLecture())?.userChoices).toEqual([])
   })
 
-  it('uses a clip own memberships, not its parent lecture ones', () => {
+  it("uses a clip's own memberships, not its parent lecture's", () => {
     // A clip is assigned to a user choice independently. Inheriting the
     // parent's would report a membership no editor ever set.
     const parent = playableLecture({
@@ -164,18 +162,10 @@ describe('shapeLecture returns userChoices', () => {
   })
 })
 
-describe('the lecture feed read bounds', () => {
-  it('selects userChoices, so both feed endpoints can shape it', () => {
-    // Without this the relationship is absent from every doc and
-    // `shapeUserChoices` returns `[]` for every lecture — a silently empty
-    // field rather than a failure.
-    expect(LECTURE_FEED_SELECT.userChoices).toBe(true)
-  })
-
-  it('bounds a populated user-choice to its title', () => {
-    // `user-choices` is an upload collection carrying a virtual URL field and
-    // several localized fields. Unbounded, selecting the relationship pulls
-    // every one of them for every lecture in the candidate pool.
-    expect(LECTURE_FEED_POPULATE).toEqual({ 'user-choices': { title: true } })
-  })
-})
+// The two read bounds — `LECTURE_FEED_SELECT.userChoices` and
+// `LECTURE_FEED_POPULATE` — are deliberately NOT asserted here. Restating a
+// constant's literal value only fails when someone edits the constant, and the
+// fix is then to edit the expectation. Both are covered by their effect
+// instead, in `tests/int/lectures-for-audience.int.spec.ts`: the `expectedKeys`
+// pin needs the select, and `strips everything but title from a populated user
+// choice` needs the populate.

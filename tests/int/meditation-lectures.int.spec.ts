@@ -644,6 +644,23 @@ describe('meditationLectures endpoint', () => {
     expect(Object.keys(docs[0]).sort()).toEqual(expectedKeys)
   })
 
+  it('populates userChoices with a real id and title, not bare ids (#526)', async () => {
+    // The key-set assertion above proves only that the key exists. This
+    // endpoint is the one that also *reads* `userChoices` for ranking, so a
+    // change to `CANDIDATE_SELECT` or the populate bound could leave the
+    // memberships unpopulated — `title: null` on every row, blank pills, and
+    // the key-set pin still green.
+    const { body } = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 10, userChoice: userChoice.id },
+      { defaultAudiences: audienceFilter },
+    )
+    const docs = (body as { docs: LecturePlayerData[] }).docs
+    const tagged = docs.find((d) => d.id === lectureUC.id)
+    expect(tagged?.userChoices).toEqual([{ id: userChoice.id, title: 'Stress relief' }])
+  })
+
   it('ad-hoc compute when cached weights are null', async () => {
     // Wipe the cached weights via direct DB update with the skip flag so the
     // afterChange hook does not immediately repopulate them. The endpoint

@@ -1,4 +1,4 @@
-import type { PayloadLogger } from 'payload'
+import type { PayloadLogger, PopulateType } from 'payload'
 
 import type { LectureMetadata } from '@/lib/lectures/nirmalaVidya'
 import { resolveThumbnailUrl } from '@/lib/utilities/thumbnailUrl'
@@ -47,15 +47,26 @@ export const LECTURE_FEED_SELECT = {
  * Bounds what a populated `userChoices` row carries, for any read that pairs it
  * with {@link LECTURE_FEED_SELECT}.
  *
- * `user-choices` is an upload collection. Its rows carry a `virtualUrlField`
- * whose `afterRead` composes a CDN URL, two `join` fields, the upload columns,
- * and four more localized relationships. The feed returns none of them. Without
- * this bound, selecting the relationship pulls every one of them for every
- * lecture in the candidate pool — the same N+1 shape `LECTURE_FEED_SELECT`
- * exists to avoid one level up.
+ * **This is not the #541 N+1, and profiling it as one will find nothing.**
+ * Population goes through `req.payloadDataLoader`, which batches every key
+ * sharing a `(collection, depth, locale, select, populate)` signature into one
+ * `find`. So the cost here scales with the number of *distinct* user choices —
+ * a small taxonomy — not with the candidate pool. `LECTURE_FEED_SELECT` above
+ * prevents a genuine per-row subquery. This prevents a wide one.
  *
- * `id` survives the bound, which is what lets the related-lectures ranking loop
- * keep comparing `uc.id`.
+ * What it is worth: unbounded, each hydrated row runs `user-choices`' two
+ * `join` fields — `children`, and `lectures` at `defaultLimit: 100` — and drags
+ * in the upload columns, the virtual URL field and four localized
+ * relationships. The feed returns none of that.
+ *
+ * `id` survives the bound (`buildFindManyArgs` hard-sets it whenever a select is
+ * present), which is what lets the related-lectures ranking loop keep comparing
+ * `uc.id`.
+ *
+ * One thing it does not bound: a clip's nested `fullLecture` parent hydrates its
+ * own `userChoices` a level down, and `shapeLecture` discards them. That is a
+ * second batched round trip, not a per-row one, and narrowing it would need
+ * `Lectures.defaultPopulate` — a global change for a local saving.
  *
  * `title` is localized, so it resolves against the request's locale. That is
  * what makes {@link shapeLecture}'s `userChoices[].title` locale-correct without
@@ -63,7 +74,7 @@ export const LECTURE_FEED_SELECT = {
  */
 export const LECTURE_FEED_POPULATE = {
   'user-choices': { title: true },
-} as const
+} satisfies PopulateType
 
 /**
  * Flat, playback-ready shape for a lecture returned from /api/lectures/for-audience
@@ -144,11 +155,15 @@ export function shapeUserChoices(
   userChoices: Lecture['userChoices'],
 ): LectureUserChoice[] {
   if (!Array.isArray(userChoices)) return []
-  return userChoices.map((choice) =>
-    typeof choice === 'number'
-      ? { id: choice, title: null }
-      : { id: choice.id, title: choice.title ?? null },
-  )
+  return userChoices.flatMap((choice) => {
+    if (typeof choice === 'number') return [{ id: choice, title: null }]
+    // Payload cannot hand back a hole here — `relationshipPopulationPromise`
+    // filters nulls out of a hasMany array. This guard is for a hand-built
+    // caller: `{ id: undefined }` would serialize to a row missing the `id` the
+    // OpenAPI schema marks required, which is worse than dropping it.
+    if (!choice || typeof choice !== 'object') return []
+    return [{ id: choice.id, title: choice.title ?? null }]
+  })
 }
 
 /**

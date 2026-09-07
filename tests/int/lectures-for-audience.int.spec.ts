@@ -1082,5 +1082,33 @@ describe('lecturesForAudience endpoint', () => {
       expect(nestedParent.clips).toBeUndefined()
       expect(nestedParent.metadata).toBeTruthy()
     })
+
+    it('strips everything but title from a populated user choice (#526)', async () => {
+      // The behavioural half of LECTURE_FEED_POPULATE. Without it, every
+      // assertion about `userChoices` still passes — an unbounded populate
+      // returns the same title, just with far more beside it. This is the only
+      // case that fails when the `populate` argument is dropped.
+      const bounded = await payload.find({
+        collection: 'lectures',
+        where: { id: { equals: lectureWithUserChoices.id } },
+        depth: 2,
+        locale: 'en',
+        select: LECTURE_FEED_SELECT,
+        populate: LECTURE_FEED_POPULATE,
+      })
+      const choice = (bounded.docs[0]?.userChoices as UserChoice[])[0]
+
+      expect(choice && typeof choice === 'object').toBe(true)
+      // What the feed keeps.
+      expect(choice.id).toBe(choiceCalm.id)
+      expect(choice.title).toBe('Calm')
+      // The two `join` fields — the expensive part — and the virtual URL field
+      // whose afterRead never runs once the row is stripped.
+      expect(choice.lectures).toBeUndefined()
+      expect(choice.children).toBeUndefined()
+      expect(choice.url).toBeUndefined()
+      // A plain upload column, to show the strip is not join-specific.
+      expect(choice.filename).toBeUndefined()
+    })
   })
 })
