@@ -3,7 +3,11 @@ import type { Payload, PayloadRequest } from 'payload'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { lecturesForAudience } from '@/collections/Lectures/endpoints/forAudience'
-import { LECTURE_FEED_SELECT, type LecturePlayerData } from '@/lib/lectures/lectureShape'
+import {
+  LECTURE_FEED_POPULATE,
+  LECTURE_FEED_SELECT,
+  type LecturePlayerData,
+} from '@/lib/lectures/lectureShape'
 import type { Audience, Client, Image, Lecture, UserChoice } from '@/payload-types'
 
 import { testData } from '../utils/testData'
@@ -358,6 +362,16 @@ describe('lecturesForAudience endpoint', () => {
         (d) => d.id === lectureBeginnerOnly.id,
       )
       expect(plain?.userChoices).toEqual([])
+    })
+
+    it('tags the response with user-choices, so a rename purges it', async () => {
+      // The response now embeds a user choice's title, so its cache must not
+      // outlive that title. Without the tag, renaming one leaves stale labels
+      // at the edge for a full TTL.
+      const { headers } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
+      expect(headers.get('Cache-Tag')?.split(',')).toContain('user-choices')
     })
   })
 
@@ -1052,6 +1066,10 @@ describe('lecturesForAudience endpoint', () => {
         depth: 2,
         locale: 'en',
         select: LECTURE_FEED_SELECT,
+        // Both endpoints pass this alongside the select, so the spec has to as
+        // well — without it this read hydrates `user-choices` unbounded and
+        // stops reproducing production (#526).
+        populate: LECTURE_FEED_POPULATE,
       })
       const boundedParent = bounded.docs.find((d) => d.id === parent.id) as Lecture
       expect(boundedParent.clips).toBeUndefined()

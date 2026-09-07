@@ -257,7 +257,7 @@ export const meditationLectures: Endpoint = {
           relevanceCount: shaped.length,
         } satisfies RelatedLecturesResponse,
         {
-          headers: publicReadCacheHeaders(req, ['lectures', 'meditations']),
+          headers: publicReadCacheHeaders(req, ['lectures', 'meditations', 'user-choices']),
         },
       )
     }
@@ -312,7 +312,7 @@ export const meditationLectures: Endpoint = {
     return Response.json(
       { docs, source: 'audience-fallback', relevanceCount: 0 } satisfies RelatedLecturesResponse,
       {
-        headers: publicReadCacheHeaders(req, ['lectures', 'meditations']),
+        headers: publicReadCacheHeaders(req, ['lectures', 'meditations', 'user-choices']),
       },
     )
   },

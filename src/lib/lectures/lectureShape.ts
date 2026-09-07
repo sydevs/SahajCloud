@@ -48,10 +48,14 @@ export const LECTURE_FEED_SELECT = {
  * with {@link LECTURE_FEED_SELECT}.
  *
  * `user-choices` is an upload collection. Its rows carry a `virtualUrlField`
- * whose `afterRead` composes a CDN URL, plus ~8 localized fields — none of which
- * the feed returns. Without this bound, selecting the relationship pulls every
- * one of them for every lecture in the candidate pool, which is the same N+1
- * shape `LECTURE_FEED_SELECT` exists to avoid one level up.
+ * whose `afterRead` composes a CDN URL, two `join` fields, the upload columns,
+ * and four more localized relationships. The feed returns none of them. Without
+ * this bound, selecting the relationship pulls every one of them for every
+ * lecture in the candidate pool — the same N+1 shape `LECTURE_FEED_SELECT`
+ * exists to avoid one level up.
+ *
+ * `id` survives the bound, which is what lets the related-lectures ranking loop
+ * keep comparing `uc.id`.
  *
  * `title` is localized, so it resolves against the request's locale. That is
  * what makes {@link shapeLecture}'s `userChoices[].title` locale-correct without

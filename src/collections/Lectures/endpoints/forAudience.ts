@@ -76,7 +76,7 @@ export const lecturesForAudience: Endpoint = {
     return Response.json(
       { docs },
       {
-        headers: publicReadCacheHeaders(req, ['lectures', 'audiences']),
+        headers: publicReadCacheHeaders(req, ['lectures', 'audiences', 'user-choices']),
       },
     )
   },

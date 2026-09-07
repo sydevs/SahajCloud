@@ -155,4 +155,12 @@ describe('CACHEABLE_SLUGS (cacheable set = purge set)', () => {
     expect(CACHEABLE_SLUGS.has('users')).toBe(false)
     expect(CACHEABLE_SLUGS.has('clients')).toBe(false)
   })
+
+  it('includes user-choices, whose titles the lecture feeds embed', () => {
+    // #526 put a user choice's localized `title` inside the two lecture feed
+    // responses. A slug outside this set is not a `CacheableSlug`, so those
+    // responses could not tag it and a rename fired no purge — leaving stale
+    // labels at the edge for a full TTL.
+    expect(CACHEABLE_SLUGS.has('user-choices')).toBe(true)
+  })
 })
