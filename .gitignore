@@ -73,6 +73,9 @@ tests/.e2e.sqlite-shm
 # Scheduled-tasks runtime lock (written by the loop/schedule skills)
 .claude/scheduled_tasks.lock
 
+# Worktrees from /implement-issue — a second checkout of this repo, never source
+.claude/worktrees/
+
 # Seed logs
 seed*.log
 
