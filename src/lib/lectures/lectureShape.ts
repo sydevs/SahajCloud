@@ -22,9 +22,13 @@ import type { Lecture, LecturesSelect } from '@/payload-types'
  * populate concern, not a select one), so the parent's own `clips` join is
  * bounded separately by `Lectures.defaultPopulate: { clips: false }` — the
  * nested-population analog of this top-level skip. The related-lectures ranking
- * loop additionally reads `subtleSystemNodes` / `userChoices`; it spreads those
- * onto this base rather than bloating the shared feed select (for-audience
- * doesn't rank, so it doesn't need them).
+ * loop additionally reads `subtleSystemNodes`; it spreads that onto this base
+ * rather than bloating the shared feed select (for-audience doesn't rank, so it
+ * doesn't need it).
+ *
+ * `userChoices` is on the shared base, not the ranking spread, because both
+ * endpoints now return it in `LecturePlayerData` (#526). Pair it with
+ * {@link LECTURE_FEED_POPULATE} — see that constant for why.
  */
 export const LECTURE_FEED_SELECT = {
   type: true,
@@ -36,7 +40,26 @@ export const LECTURE_FEED_SELECT = {
   subtitles: true,
   priority: true,
   fullLecture: true,
+  userChoices: true,
 } satisfies LecturesSelect<true>
+
+/**
+ * Bounds what a populated `userChoices` row carries, for any read that pairs it
+ * with {@link LECTURE_FEED_SELECT}.
+ *
+ * `user-choices` is an upload collection. Its rows carry a `virtualUrlField`
+ * whose `afterRead` composes a CDN URL, plus ~8 localized fields — none of which
+ * the feed returns. Without this bound, selecting the relationship pulls every
+ * one of them for every lecture in the candidate pool, which is the same N+1
+ * shape `LECTURE_FEED_SELECT` exists to avoid one level up.
+ *
+ * `title` is localized, so it resolves against the request's locale. That is
+ * what makes {@link shapeLecture}'s `userChoices[].title` locale-correct without
+ * the endpoint passing `locale` explicitly.
+ */
+export const LECTURE_FEED_POPULATE = {
+  'user-choices': { title: true },
+} as const
 
 /**
  * Flat, playback-ready shape for a lecture returned from /api/lectures/for-audience
@@ -52,6 +75,11 @@ export const LECTURE_FEED_SELECT = {
  * `title` is nullable (localized + hook-populated). `stopTime` and `duration`
  * may be `null` when neither an explicit value nor `metadata.duration` is
  * available.
+ *
+ * `userChoices` carries this lecture's own user-choice membership, so a consumer
+ * that SSR-loads the feed once can render filter pills and match each card to
+ * them client-side without a second query (#526). It is always an array — a
+ * lecture with none returns `[]`, never `null`.
  */
 export type LecturePlayerData = {
   id: number
@@ -63,6 +91,18 @@ export type LecturePlayerData = {
   stopTime: number | null
   duration: number | null
   fullLectureId: number | null
+  userChoices: LectureUserChoice[]
+}
+
+/**
+ * One user-choice a lecture belongs to, as returned in {@link LecturePlayerData}.
+ *
+ * `title` is the localized title for the request's locale, and is `null` when
+ * the relationship came back unpopulated — see {@link shapeUserChoices}.
+ */
+export type LectureUserChoice = {
+  id: number
+  title: string | null
 }
 
 /**
@@ -82,6 +122,29 @@ export function mergeSubtitles(
     }
   }
   return merged
+}
+
+/**
+ * Shape a lecture's `userChoices` relationship into the feed's `{ id, title }`
+ * rows, in the order the lecture stores them.
+ *
+ * A `hasMany` relationship comes back as ids at depth 0 and as documents at
+ * depth ≥ 1, and both endpoints that build `LecturePlayerData` read at depth 2.
+ * An id is still handled rather than dropped: a caller reading at a lower depth
+ * gets the membership it needs for filtering, with `title: null` saying the
+ * label was not populated. Dropping the row instead would report the lecture as
+ * belonging to no user-choice at all, which reads as data rather than as a
+ * missing join.
+ */
+export function shapeUserChoices(
+  userChoices: Lecture['userChoices'],
+): LectureUserChoice[] {
+  if (!Array.isArray(userChoices)) return []
+  return userChoices.map((choice) =>
+    typeof choice === 'number'
+      ? { id: choice, title: null }
+      : { id: choice.id, title: choice.title ?? null },
+  )
 }
 
 /**
@@ -163,5 +226,9 @@ export function shapeLecture(
     stopTime,
     duration,
     fullLectureId: isClip ? resolveFullLectureId(parent, eligibleAudienceIds) : null,
+    // The clip's own memberships, never the parent's. A clip is assigned to a
+    // user-choice independently, and inheriting the parent's would report a
+    // membership an editor never set.
+    userChoices: shapeUserChoices(lecture.userChoices),
   }
 }

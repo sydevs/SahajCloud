@@ -639,6 +639,7 @@ describe('meditationLectures endpoint', () => {
       'subtitles',
       'thumbnailUrl',
       'title',
+      'userChoices',
     ]
     expect(Object.keys(docs[0]).sort()).toEqual(expectedKeys)
   })
