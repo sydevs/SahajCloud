@@ -82,6 +82,12 @@ covers both the custom client endpoints and the built-in REST collection reads:
   `slug ∈ {meditations, lectures, songs, app-cards, regions, audiences, events, pages, images,
   albums}`, plus root endpoints named individually (see the note below). Enumerated with `eq` /
   `starts_with`, since the Free plan has no regex `matches` operator.
+- **This list is deliberately narrower than `CACHE_TTLS`, and does not have to track it.**
+  `user-choices` sits in `CACHE_TTLS` so that slug is a `Cache-Tag` the lecture feeds may carry
+  and `cachePlugin` purges on write (#526) — the feeds embed a user choice's localized title, so
+  a rename has to invalidate them. Caching `GET /api/user-choices` itself was never the point.
+  Leaving it out of this rule just means that one read stays `DYNAMIC`, which is the fail-safe
+  direction. Add a slug here only when you intend its own REST read to be cached.
 - **⚠️ The `Authorization`-present condition is mandatory — never match a bare `/api/*`.**
   `Vary: Authorization` partitions the cache per API-key *value*, but it does not isolate the
   *absent*-header case. Without requiring `Authorization` present, Cloudflare serves the cached

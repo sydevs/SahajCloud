@@ -62,7 +62,7 @@ content collection.
 | `/api/audiences/for-user`             | Progress-rule matching, country/location gating, condition audiences, range semantics                              | `audiences-for-user`     |
 | `/api/frames/by-narrator/:narratorId` | Param validation, narrator lookup (404), gender-based filtering, mimeType sort, depth:1 subtleSystemNode hydration. **The locale gate over the real REST pipeline**: a French-only manager is denied with no `?locale=`, allowed at `?locale=fr`, denied at `?locale=en` (#701) | `frames-by-narrator`     |
 | `POST /api/event-submissions/:id/review` | The locale gate over the real REST pipeline: an `atlas-manager` holding roles only in French is denied with no `?locale=`, allowed at `?locale=fr`, denied at `?locale=en` (#701). `applyReview`'s own transitions are covered by `event-submissions` | `event-submissions-review` |
-| `/api/lectures/for-audience`          | Priority sampling, audience filter, subtitle/thumbnail fallback, clip metadata inheritance                         | `lectures-for-audience`  |
+| `/api/lectures/for-audience`          | Priority sampling, audience filter, subtitle/thumbnail fallback, clip metadata inheritance, `userChoices` membership and its per-request localized title (#526) | `lectures-for-audience`  |
 | `/api/meditations/lectures`           | Weight-based ranking, audience validation, frame cascade, auth gate, audience-feed fallback                        | `meditation-lectures`    |
 
 ## Scheduled jobs
