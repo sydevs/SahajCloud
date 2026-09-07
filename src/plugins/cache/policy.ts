@@ -45,9 +45,6 @@ export const CACHE_TTLS = {
   songs: DEFAULT_SMAXAGE,
   'app-cards': DEFAULT_SMAXAGE,
   regions: DEFAULT_SMAXAGE,
-  // The lecture feeds embed a user choice's localized `title` (#526), so this
-  // slug has to be tagged and purgeable, or renaming one leaves stale labels at
-  // the edge for a full TTL — the exact thing `resolveTtl` exists to prevent.
   'user-choices': DEFAULT_SMAXAGE,
   audiences: 300,
   events: 300,

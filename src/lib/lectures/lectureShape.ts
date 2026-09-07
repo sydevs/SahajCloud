@@ -2,7 +2,15 @@ import type { PayloadLogger, PopulateType } from 'payload'
 
 import type { LectureMetadata } from '@/lib/lectures/nirmalaVidya'
 import { resolveThumbnailUrl } from '@/lib/utilities/thumbnailUrl'
-import type { Lecture, LecturesSelect } from '@/payload-types'
+import type { Lecture, LecturesSelect, UserChoice } from '@/payload-types'
+
+/**
+ * One user-choice row in {@link LecturePlayerData}, derived from the generated
+ * interface. `Required` restores what `Pick` alone would relax: `UserChoice`
+ * declares `title?`, while the OpenAPI schema marks it `required`, so the key
+ * is always present and only its value is nullable.
+ */
+type FeedUserChoice = Required<Pick<UserChoice, 'id' | 'title'>>
 
 /**
  * Bounded include-mode `select` covering exactly the fields the feed/player
@@ -106,18 +114,7 @@ export type LecturePlayerData = {
   stopTime: number | null
   duration: number | null
   fullLectureId: number | null
-  userChoices: LectureUserChoice[]
-}
-
-/**
- * One user-choice a lecture belongs to, as returned in {@link LecturePlayerData}.
- *
- * `title` is the localized title for the request's locale, and is `null` when
- * the relationship came back unpopulated — see {@link shapeUserChoices}.
- */
-export type LectureUserChoice = {
-  id: number
-  title: string | null
+  userChoices: FeedUserChoice[]
 }
 
 /**
@@ -140,30 +137,21 @@ export function mergeSubtitles(
 }
 
 /**
- * Shape a lecture's `userChoices` relationship into the feed's `{ id, title }`
- * rows, in the order the lecture stores them.
+ * Normalize the two shapes a `hasMany` relationship comes back as: an id at
+ * depth 0, a document at depth ≥ 1. {@link LECTURE_FEED_POPULATE} already
+ * narrows the document to `{ id, title }`, so there is nothing to pick here.
  *
- * A `hasMany` relationship comes back as ids at depth 0 and as documents at
- * depth ≥ 1, and both endpoints that build `LecturePlayerData` read at depth 2.
- * An id is still handled rather than dropped: a caller reading at a lower depth
- * gets the membership it needs for filtering, with `title: null` saying the
- * label was not populated. Dropping the row instead would report the lecture as
- * belonging to no user-choice at all, which reads as data rather than as a
- * missing join.
+ * An id keeps `title: null` rather than being dropped, so a caller reading
+ * below depth 1 still sees the membership. Dropping it would report the
+ * lecture as belonging to no user-choice, which reads as data.
  */
-export function shapeUserChoices(
-  userChoices: Lecture['userChoices'],
-): LectureUserChoice[] {
+export function shapeUserChoices(userChoices: Lecture['userChoices']): FeedUserChoice[] {
   if (!Array.isArray(userChoices)) return []
-  return userChoices.flatMap((choice) => {
-    if (typeof choice === 'number') return [{ id: choice, title: null }]
-    // Payload cannot hand back a hole here — `relationshipPopulationPromise`
-    // filters nulls out of a hasMany array. This guard is for a hand-built
-    // caller: `{ id: undefined }` would serialize to a row missing the `id` the
-    // OpenAPI schema marks required, which is worse than dropping it.
-    if (!choice || typeof choice !== 'object') return []
-    return [{ id: choice.id, title: choice.title ?? null }]
-  })
+  return userChoices.map((choice) =>
+    typeof choice === 'number'
+      ? { id: choice, title: null }
+      : { id: choice.id, title: choice.title ?? null },
+  )
 }
 
 /**
