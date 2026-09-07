@@ -1000,6 +1000,7 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       'stopTime',
       'duration',
       'fullLectureId',
+      'userChoices',
     ],
     properties: {
       id: { type: 'integer' },
@@ -1011,6 +1012,22 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       stopTime: { type: ['number', 'null'] },
       duration: { type: ['number', 'null'] },
       fullLectureId: { type: ['integer', 'null'] },
+      userChoices: {
+        type: 'array',
+        description:
+          'User choices this lecture belongs to, for client-side filter pills. ' +
+          '`title` is localized to the request locale. Empty when the lecture ' +
+          'has no user choices assigned.',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id', 'title'],
+          properties: {
+            id: { type: 'integer' },
+            title: { type: ['string', 'null'] },
+          },
+        },
+      },
     },
   },
   /**

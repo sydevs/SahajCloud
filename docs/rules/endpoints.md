@@ -150,7 +150,11 @@ The client REST surface is already protected: `validateClientQueryParamsHook` re
 
 - **Co-locate the select with the shape helper.** Export a `FOO_CARD_SELECT` next to the function reading those fields, so the two stay in sync. The endpoint spreads it and adds any extra field its own sort or rank needs.
 - **Co-select a virtual field's dependency.** An include-mode `select` strips unselected siblings before `afterRead` runs, so a computed field reads `null` unless its own dependency is also selected — miss one and the card silently drops, rather than just slowing down.
-- **`select` cannot narrow a relationship's fields** — it is boolean-only there. To skip an expensive field on a **populated** relationship, exclude it on the target collection's `defaultPopulate` instead (`Lectures.defaultPopulate: { clips: false }`). `defaultPopulate` only affects relationship hydration. Direct reads and the admin edit view are unaffected.
+- **`select` cannot narrow a relationship's fields** — it is boolean-only there. Two things can, and they are not interchangeable:
+  - **`defaultPopulate` on the target collection**, for a field every hydration of that collection should skip (`Lectures.defaultPopulate: { clips: false }`). It only affects relationship hydration. Direct reads and the admin edit view are unaffected.
+  - **The read's own `populate` option**, for a bound that belongs to *this* read rather than to the target collection. `LECTURE_FEED_POPULATE` (`src/lib/lectures/lectureShape.ts`) is that case: the lecture feeds return a user-choice's `id` and `title`, so they populate those two and nothing else. `user-choices` is an upload collection with a virtual URL field and several localized fields, and no other reader of it wants them skipped — so narrowing it globally would be wrong. `id` always survives, which is what lets the related-lectures ranking loop keep comparing `uc.id`.
+
+  Pair a `populate` bound with the `select` that admits the relationship, and keep the two next to each other for the same reason the select sits beside its shape helper.
 - **Regression-test it flat, not fast.** Spy on `payload.find` and assert the per-row sub-query count stays at zero as the pool doubles. For native joins, assert the field is absent from populated docs. A timing assertion is flaky. A count assertion pins the behavior.
 
 ## Payload endpoint vs Next.js route

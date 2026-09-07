@@ -24,6 +24,7 @@
  * | ---------------------------------------------------------- | ---------- | --------------------------------- |
  * | `audiences`, `events`, `pages`                             | 300s       | targeting/schedule/content churn  |
  * | `meditations`, `lectures`, `songs`, `app-cards`, `regions` | 600s       | content, edited occasionally      |
+ * | `user-choices`                                             | 600s       | display metadata, renamed rarely  |
  * | `images`, `albums`                                         | 1800s      | media rarely changes; high volume |
  */
 
@@ -44,6 +45,7 @@ export const CACHE_TTLS = {
   songs: DEFAULT_SMAXAGE,
   'app-cards': DEFAULT_SMAXAGE,
   regions: DEFAULT_SMAXAGE,
+  'user-choices': DEFAULT_SMAXAGE,
   audiences: 300,
   events: 300,
   pages: 300,

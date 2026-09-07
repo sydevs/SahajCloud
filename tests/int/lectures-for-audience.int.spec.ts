@@ -3,8 +3,12 @@ import type { Payload, PayloadRequest } from 'payload'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { lecturesForAudience } from '@/collections/Lectures/endpoints/forAudience'
-import { LECTURE_FEED_SELECT, type LecturePlayerData } from '@/lib/lectures/lectureShape'
-import type { Audience, Client, Image, Lecture } from '@/payload-types'
+import {
+  LECTURE_FEED_POPULATE,
+  LECTURE_FEED_SELECT,
+  type LecturePlayerData,
+} from '@/lib/lectures/lectureShape'
+import type { Audience, Client, Image, Lecture, UserChoice } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -38,7 +42,11 @@ async function callEndpoint(
   payload: Payload,
   query: Record<string, string | number | boolean>,
   user?: { id: number | string; collection: string; _status?: 'published' | 'draft' } | null,
-  options: { skipDefaultAudiences?: boolean; defaultAudiences?: string } = {},
+  options: {
+    skipDefaultAudiences?: boolean
+    defaultAudiences?: string
+    locale?: string
+  } = {},
 ): Promise<{ status: number; headers: Headers; body: { docs: LecturePlayerData[] } | unknown }> {
   const finalQuery = options.skipDefaultAudiences
     ? query
@@ -49,6 +57,10 @@ async function callEndpoint(
     headers: new Headers(),
     routeParams: {},
     user: user === undefined ? DEFAULT_CLIENT_USER : user,
+    // The endpoint's own `find` passes no `locale`, so it inherits the
+    // request's. That is what makes a localized relationship title resolve
+    // for the caller's locale (#526).
+    ...(options.locale ? { locale: options.locale } : {}),
   } as unknown as PayloadRequest
 
   const response = (await lecturesForAudience.handler(req)) as Response
@@ -78,6 +90,8 @@ describe('lecturesForAudience endpoint', () => {
   let lectureWithSubtitleOverride: Lecture
 
   let editorThumbnailImage: Image
+  let choiceCalm: UserChoice
+  let lectureWithUserChoices: Lecture
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -119,6 +133,26 @@ describe('lecturesForAudience endpoint', () => {
       payload,
       {},
       { title: 'No Audience Lecture', audiences: [] },
+    )
+
+    // #526: the feed returns each lecture's user choices so a consumer that
+    // SSR-loads it once can render filter pills. `title` is localized on
+    // `user-choices`, so the French title is written as a second locale.
+    choiceCalm = await testData.createUserChoice(payload, { title: 'Calm' })
+    await payload.update({
+      collection: 'user-choices',
+      id: choiceCalm.id,
+      locale: 'fr',
+      data: { title: 'Calme' },
+    })
+    lectureWithUserChoices = await testData.createLecture(
+      payload,
+      {},
+      {
+        title: 'User Choice Lecture',
+        audiences: [audienceBeginner.id],
+        userChoices: [choiceCalm.id],
+      },
     )
 
     // OR-match: passes when ANY attached audience is in the requested list.
@@ -291,6 +325,56 @@ describe('lecturesForAudience endpoint', () => {
     })
   })
 
+  describe('userChoices (#526)', () => {
+    const findUserChoiceLecture = (body: unknown) =>
+      (body as { docs: LecturePlayerData[] }).docs.find(
+        (d) => d.id === lectureWithUserChoices.id,
+      )
+
+    it('returns each membership as an id and a title', async () => {
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
+      expect(findUserChoiceLecture(body)?.userChoices).toEqual([
+        { id: choiceCalm.id, title: 'Calm' },
+      ])
+    })
+
+    it('resolves the title for the request locale', async () => {
+      // The endpoint passes no `locale` of its own, so this is the only place
+      // the localized title can come from. Asserting the French value proves
+      // the relationship really is populated per-request, rather than the
+      // default locale leaking through.
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+        locale: 'fr',
+      })
+      expect(findUserChoiceLecture(body)?.userChoices).toEqual([
+        { id: choiceCalm.id, title: 'Calme' },
+      ])
+    })
+
+    it('returns an empty array for a lecture with no user choices', async () => {
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
+      const plain = (body as { docs: LecturePlayerData[] }).docs.find(
+        (d) => d.id === lectureBeginnerOnly.id,
+      )
+      expect(plain?.userChoices).toEqual([])
+    })
+
+    it('tags the response with user-choices, so a rename purges it', async () => {
+      // The response now embeds a user choice's title, so its cache must not
+      // outlive that title. Without the tag, renaming one leaves stale labels
+      // at the edge for a full TTL.
+      const { headers } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
+      expect(headers.get('Cache-Tag')?.split(',')).toContain('user-choices')
+    })
+  })
+
   describe('Uniform response shape', () => {
     it('emits the same flat key set for every record (no excerpt-vs-full branching)', async () => {
       const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
@@ -309,6 +393,7 @@ describe('lecturesForAudience endpoint', () => {
         'subtitles',
         'thumbnailUrl',
         'title',
+        'userChoices',
       ]
       for (const doc of docs) {
         expect(Object.keys(doc).sort()).toEqual(expectedKeys)
@@ -981,6 +1066,10 @@ describe('lecturesForAudience endpoint', () => {
         depth: 2,
         locale: 'en',
         select: LECTURE_FEED_SELECT,
+        // Both endpoints pass this alongside the select, so the spec has to as
+        // well — without it this read hydrates `user-choices` unbounded and
+        // stops reproducing production (#526).
+        populate: LECTURE_FEED_POPULATE,
       })
       const boundedParent = bounded.docs.find((d) => d.id === parent.id) as Lecture
       expect(boundedParent.clips).toBeUndefined()
@@ -992,6 +1081,34 @@ describe('lecturesForAudience endpoint', () => {
       expect(nestedParent && typeof nestedParent === 'object').toBe(true)
       expect(nestedParent.clips).toBeUndefined()
       expect(nestedParent.metadata).toBeTruthy()
+    })
+
+    it('strips everything but title from a populated user choice (#526)', async () => {
+      // The behavioural half of LECTURE_FEED_POPULATE. Without it, every
+      // assertion about `userChoices` still passes — an unbounded populate
+      // returns the same title, just with far more beside it. This is the only
+      // case that fails when the `populate` argument is dropped.
+      const bounded = await payload.find({
+        collection: 'lectures',
+        where: { id: { equals: lectureWithUserChoices.id } },
+        depth: 2,
+        locale: 'en',
+        select: LECTURE_FEED_SELECT,
+        populate: LECTURE_FEED_POPULATE,
+      })
+      const choice = (bounded.docs[0]?.userChoices as UserChoice[])[0]
+
+      expect(choice && typeof choice === 'object').toBe(true)
+      // What the feed keeps.
+      expect(choice.id).toBe(choiceCalm.id)
+      expect(choice.title).toBe('Calm')
+      // The two `join` fields — the expensive part — and the virtual URL field
+      // whose afterRead never runs once the row is stripped.
+      expect(choice.lectures).toBeUndefined()
+      expect(choice.children).toBeUndefined()
+      expect(choice.url).toBeUndefined()
+      // A plain upload column, to show the strip is not join-specific.
+      expect(choice.filename).toBeUndefined()
     })
   })
 })

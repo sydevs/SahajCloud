@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
 import { parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { selectAudienceFeed } from '@/lib/lectures/audienceFeed'
-import { LECTURE_FEED_SELECT } from '@/lib/lectures/lectureShape'
+import { LECTURE_FEED_POPULATE, LECTURE_FEED_SELECT } from '@/lib/lectures/lectureShape'
 import type { Lecture } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 import { asTrustedReq } from '@/plugins/usage/hooks'
@@ -60,6 +60,9 @@ export const lecturesForAudience: Endpoint = {
       // Bounded to the feed-shape fields so the `clips` join afterRead never
       // fires across the pool (#541).
       select: LECTURE_FEED_SELECT,
+      // Keeps a populated `userChoices` row to its localized title, instead of
+      // every field of an upload collection's document (#526).
+      populate: LECTURE_FEED_POPULATE,
       req: asTrustedReq(req),
     })
 
@@ -73,7 +76,7 @@ export const lecturesForAudience: Endpoint = {
     return Response.json(
       { docs },
       {
-        headers: publicReadCacheHeaders(req, ['lectures', 'audiences']),
+        headers: publicReadCacheHeaders(req, ['lectures', 'audiences', 'user-choices']),
       },
     )
   },

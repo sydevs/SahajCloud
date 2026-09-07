@@ -30,7 +30,7 @@ Three places to add an HTTP endpoint. Both Payload endpoint kinds are documented
 | --- | --- | --- |
 | `framesByNarrator` | `/api/frames/by-narrator/:narratorId` | frames filtered by narrator gender |
 | `audiencesForUser` | `/api/audiences/for-user` | resolves eligible audience IDs from a user's progress data (4 required integers) and country. Returns sorted IDs. `max-age=300`. |
-| `lecturesForAudience` | `/api/lectures/for-audience` | random lecture feed, filtered to an `audiences` overlap (OR). `max-age=600`. |
+| `lecturesForAudience` | `/api/lectures/for-audience` | random lecture feed, filtered to an `audiences` overlap (OR). Each record carries its `userChoices`, so a consumer can filter one SSR-loaded list client-side. `max-age=600`. |
 | `appCardsForAudience` | `/api/app-cards/for-audience` | published app cards for a `targetSection`, filtered by `audiences` overlap and weighted-random sampled. `max-age=600`. |
 | `meditationLectures` | `/api/meditations/:id/related-lectures` | lectures ranked by topical overlap with the meditation's frames. Optional `userChoice` adds tagged lectures first. Falls back to the audience feed when nothing matches. `max-age=600`. |
 | `atlasSeo` | `/api/atlas/seo?route=…&locale=…` | root-level. Everything a host page needs for one atlas route (title, description, canonical, hreflang, Open Graph, JSON-LD, body content) in one call. Keyed by the route's terminal segment, so stale ancestry still resolves. A region with no description returns `null`, never invented text. No HTML crosses the wire. `max-age=300`. |

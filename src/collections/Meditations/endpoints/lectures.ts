@@ -6,6 +6,7 @@ import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
 import { commaSeparatedIntIds, parseQuery, requireActiveClient } from '@/lib/endpoints'
 import { selectAudienceFeed } from '@/lib/lectures/audienceFeed'
 import {
+  LECTURE_FEED_POPULATE,
   LECTURE_FEED_SELECT,
   shapeLecture,
   type LecturePlayerData,
@@ -23,16 +24,20 @@ import { asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
  * Bounded select for the lecture candidate pool: the feed-shape fields
- * ({@link LECTURE_FEED_SELECT}) plus the two relationships this endpoint's
- * ranking loop reads — `subtleSystemNodes` (topical weight) and `userChoices`
- * (the userChoice grouping). An include-mode select keeps the lectures `clips`
- * join afterRead from firing across the whole candidate pool, so the read stays
- * flat instead of N+1 (#541).
+ * ({@link LECTURE_FEED_SELECT}) plus the one relationship this endpoint's
+ * ranking loop reads and the feed shape does not — `subtleSystemNodes`, the
+ * topical weight. An include-mode select keeps the lectures `clips` join
+ * afterRead from firing across the whole candidate pool, so the read stays flat
+ * instead of N+1 (#541).
+ *
+ * `userChoices` moved onto {@link LECTURE_FEED_SELECT} with #526, since the feed
+ * shape returns it now. The ranking loop below still reads it from the same
+ * documents — pair the read with {@link LECTURE_FEED_POPULATE}, which bounds a
+ * populated row to `id` and `title`. The loop only compares `id`.
  */
 const CANDIDATE_SELECT: LecturesSelect<true> = {
   ...LECTURE_FEED_SELECT,
   subtleSystemNodes: true,
-  userChoices: true,
 }
 
 /** Which selection strategy produced the `docs` in a related-lectures response. */
@@ -199,6 +204,7 @@ export const meditationLectures: Endpoint = {
       depth: 2,
       pagination: false,
       select: CANDIDATE_SELECT,
+      populate: LECTURE_FEED_POPULATE,
       locale: req.locale ?? 'en',
       req: asTrustedReq(req),
     })
@@ -251,7 +257,7 @@ export const meditationLectures: Endpoint = {
           relevanceCount: shaped.length,
         } satisfies RelatedLecturesResponse,
         {
-          headers: publicReadCacheHeaders(req, ['lectures', 'meditations']),
+          headers: publicReadCacheHeaders(req, ['lectures', 'meditations', 'user-choices']),
         },
       )
     }
@@ -290,6 +296,7 @@ export const meditationLectures: Endpoint = {
         depth: 2,
         pagination: false,
         select: CANDIDATE_SELECT,
+        populate: LECTURE_FEED_POPULATE,
         locale: req.locale ?? 'en',
         req: asTrustedReq(req),
       })
@@ -305,7 +312,7 @@ export const meditationLectures: Endpoint = {
     return Response.json(
       { docs, source: 'audience-fallback', relevanceCount: 0 } satisfies RelatedLecturesResponse,
       {
-        headers: publicReadCacheHeaders(req, ['lectures', 'meditations']),
+        headers: publicReadCacheHeaders(req, ['lectures', 'meditations', 'user-choices']),
       },
     )
   },
