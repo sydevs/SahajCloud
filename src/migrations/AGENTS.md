@@ -76,33 +76,24 @@ Then classify the outcome:
 
 ### "Migration created" has a false positive too — read the DDL first
 
-A clean checkout of `main` generated a **111 KB** migration on the run that
-measured the boot time above. Every statement in it touched one of the five
-`*_tz` columns, dropping and recreating their enum types to reorder the
-`SupportedTimezones` members. No table, no column, no semantic change.
+A migration whose every statement drops and recreates the five `*_tz` enum types
+changes no table and no column — it only reorders the `SupportedTimezones`
+members. `src/lib/timezones/index.ts` imposes a stable order and
+`tests/unit/timezone-options.spec.ts` pins it, so a reorder nobody asked for
+turns that spec red first (#722).
 
-A second run, against the snapshot the first one wrote, generated **nothing**.
-So the ordering is stable in a given checkout, and it differs from the ordering
-the committed snapshot holds. Two runs is all that was established. The cause
-is not.
+**A widening looks exactly like a reorder**, so still check. Adding one zone
+also drops and recreates all five enums, and deleting a widening is the
+crash-loop this file exists to prevent. Compare the member list the new `.ts`
+writes against the newest committed `.json` snapshot, as **sets**:
 
-That makes a created migration as ambiguous as exit 124 was. It means either a
-real schema change or an enum reordering this environment disagrees with. A
-reorder-only migration is not harmless: it `DROP TYPE`s and recreates five
-enums that production data depends on, and no ticket asked for it.
-
-**Tell the two apart on the enum members, never on the DDL's shape.** Adding
-one zone also drops and recreates all five enums, so a widening and a reorder
-look alike at a glance, and deleting a widening is the crash-loop this file
-exists to prevent. Take the member list the new `.ts` writes and the member
-list in the newest committed `.json` snapshot, and compare them as **sets**:
-
-- Same set, different order — a reorder. Delete the migration and say so.
-- Any member added or removed — a real change. Keep it.
-
-The determinism this contradicts is claimed by `src/lib/timezones/index.ts`,
-which pins `@vvo/tzdb` for exactly this reason. The cause is undiagnosed and
-tracked in #722.
+- Same set, different order — a reorder. Do not commit it until you know why the
+  list moved.
+- Any member added or removed — a real change. Keep it, and update the pin in the
+  same commit. Usually a `@vvo/tzdb` bump — but confirm that from the lockfile. A
+  **shorter** list with no dependency change means the module fell back to a
+  host-dependent source. That is a bug in this checkout, never a schema change,
+  and must not be committed.
 
 ### "Exit 0, no new files" is ambiguous — check the snapshot
 

@@ -1,4 +1,4 @@
-import { getTimeZones } from '@vvo/tzdb'
+import { rawTimeZones } from '@vvo/tzdb'
 import { defaultTimezones } from 'payload/shared'
 
 export interface TimezoneOption {
@@ -20,6 +20,14 @@ export interface TimezoneOption {
  * legacy IANA names the Atlas data uses (`Europe/Kiev`, `Australia/Melbourne`,
  * `America/Belem`, …) resolve, not just the canonical `Europe/Kyiv` /
  * `Australia/Sydney`. Bumping `@vvo/tzdb` widens the enums → needs a migration.
+ *
+ * ⚠ **The order is schema too, so take it from neither the host nor the clock**
+ * (#722). Sort on `rawOffsetInMinutes`, fixed for a zone, and read the static
+ * `rawTimeZones`. `getTimeZones()` fails both: it sorts on
+ * `currentTimeOffsetInMinutes`, which every DST boundary moves, and it resolves
+ * each zone through `Intl`, silently dropping any the host's ICU cannot format.
+ *
+ * `tests/unit/timezone-options.spec.ts` pins both membership and order.
  */
 export const SUPPORTED_TIMEZONES: TimezoneOption[] = (() => {
   const byValue = new Map<string, TimezoneOption>()
@@ -28,7 +36,13 @@ export const SUPPORTED_TIMEZONES: TimezoneOption[] = (() => {
   for (const { label, value } of defaultTimezones) {
     if (!byValue.has(value)) byValue.set(value, { label, value })
   }
-  for (const zone of getTimeZones()) {
+  // Compare code units, never `localeCompare` — collation varies with the host's
+  // ICU version, the same dependency this module exists to avoid.
+  const byName = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+  const zones = [...rawTimeZones].sort(
+    (a, b) => a.rawOffsetInMinutes - b.rawOffsetInMinutes || byName(a.name, b.name),
+  )
+  for (const zone of zones) {
     for (const value of [zone.name, ...zone.group]) {
       if (!byValue.has(value)) byValue.set(value, { label: zone.rawFormat, value })
     }

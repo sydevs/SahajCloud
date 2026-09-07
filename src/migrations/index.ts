@@ -53,6 +53,7 @@ import * as migration_20260825_212133_atlas_config_languages from './20260825_21
 import * as migration_20260826_214829_add_user_messages from './20260826_214829_add_user_messages';
 import * as migration_20260902_224424_add_atlas_canonical_fallback_client from './20260902_224424_add_atlas_canonical_fallback_client';
 import * as migration_20260905_130913_drop_manager_project_sentinel from './20260905_130913_drop_manager_project_sentinel';
+import * as migration_20260907_181403_reorder_timezone_enums from './20260907_181403_reorder_timezone_enums';
 
 export const migrations = [
   {
@@ -328,6 +329,11 @@ export const migrations = [
   {
     up: migration_20260905_130913_drop_manager_project_sentinel.up,
     down: migration_20260905_130913_drop_manager_project_sentinel.down,
-    name: '20260905_130913_drop_manager_project_sentinel'
+    name: '20260905_130913_drop_manager_project_sentinel',
+  },
+  {
+    up: migration_20260907_181403_reorder_timezone_enums.up,
+    down: migration_20260907_181403_reorder_timezone_enums.down,
+    name: '20260907_181403_reorder_timezone_enums'
   },
 ];
