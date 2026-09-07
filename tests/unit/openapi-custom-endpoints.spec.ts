@@ -184,6 +184,54 @@ describe('Lectures related-meditations custom endpoint (OpenAPI)', () => {
   })
 })
 
+describe('LecturePlayerData schema (OpenAPI)', () => {
+  // `customEndpoints.ts` says to keep this schema in lockstep with
+  // `LecturePlayerData` in `src/lib/lectures/lectureShape.ts`. Only a comment
+  // said so, so adding a field to the type and forgetting the schema — or the
+  // reverse — drifted silently. `additionalProperties: false` does not catch
+  // it: nothing validates a response against this schema at runtime.
+  const schema = CUSTOM_ENDPOINT_SCHEMAS['LecturePlayerData'] as {
+    additionalProperties?: boolean
+    required?: string[]
+    properties?: Record<string, unknown>
+  }
+
+  it('documents exactly the keys the shaper emits', () => {
+    // The same list `lectures-for-audience` and `meditation-lectures` pin
+    // against a real response.
+    expect(Object.keys(schema.properties ?? {}).sort()).toEqual([
+      'duration',
+      'fullLectureId',
+      'hlsUrl',
+      'id',
+      'startTime',
+      'stopTime',
+      'subtitles',
+      'thumbnailUrl',
+      'title',
+      'userChoices',
+    ])
+    expect(schema.additionalProperties).toBe(false)
+  })
+
+  it('marks userChoices required, since the shaper always emits an array', () => {
+    // `shapeLecture` returns `[]` rather than omitting the key, so a consumer
+    // may index it without a null check.
+    expect(schema.required).toContain('userChoices')
+  })
+
+  it('types a userChoice as an id and a nullable title', () => {
+    const item = (schema.properties?.userChoices as { items?: Record<string, unknown> })?.items as {
+      required?: string[]
+      properties?: Record<string, { type?: unknown }>
+    }
+    expect(item?.required?.sort()).toEqual(['id', 'title'])
+    expect(item?.properties?.id?.type).toBe('integer')
+    // `title` is null when the relationship came back unpopulated.
+    expect(item?.properties?.title?.type).toEqual(['string', 'null'])
+  })
+})
+
 describe('depth parameter (OpenAPI)', () => {
   // The documented `maximum` must track the server `maxDepth` in
   // src/payload.config.ts (currently 3) so REST clients see the real cap.
