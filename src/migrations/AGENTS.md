@@ -47,14 +47,17 @@ Payload and breaks its flag parsing.)
 ⚠ **The bound must clear the command's own boot time, or exit 124 stops
 meaning anything.** This command boots the whole Payload config before it
 looks at the schema. Measured at **2m08s** in a cloud sandbox, twice, exit 0
-both times. At `timeout 30` — the value this documented for three days — a
-slow boot returned 124, and the table below read that as the drizzle prompt.
-The one signal that tells the two apart fired on both. Every SahajCloud PR the
-loop opened in that window shipped with the migration contract unverified.
-300s is the current bound, about 2.3× the measured boot, and it matches
-`AGENTS.md`'s existing `timeout 300 pnpm test:*` allowance, so it needs no new
-permission entry. If a run exceeds it, **raise the bound**. Never revert to a
-shorter one and read the resulting 124 as a hang.
+both times. Below that, a slow boot returns 124 and the table below reads it
+as the drizzle prompt. 300s is the current bound, about 2.3× the measured
+boot. If a run exceeds it, **raise the bound**. Never revert to a shorter one
+and read the resulting 124 as a hang.
+
+⚠ **The number is part of the permission string. Change both, attended.**
+`.claude/settings.json` allows one literal prefix — `Bash(timeout 300 pnpm
+db:migrations:create:*)` — so a bound changed here and not there matches no
+rule. An unattended run then waits on an approval prompt it cannot answer:
+a hang with no exit code at all. `.claude/` is under Protected Paths, so that
+edit needs an attended session, in the same pass as this one.
 
 ⚠ **It needs no database.** It diffs the config against the newest `.json`
 snapshot in this folder. So it runs, and is worth running, wherever the repo
@@ -64,7 +67,7 @@ Then classify the outcome:
 
 | Outcome | Signal | Action |
 | --- | --- | --- |
-| Migration created | exit 0, new `.ts` + `.json` pair | Validate (migration-validator skill), check for duplicate DDL (snapshot trap below), commit both files |
+| Migration created | exit 0, new `.ts` + `.json` pair | Read the DDL first (false positive below), validate (migration-validator skill), check for duplicate DDL (snapshot trap below), commit both files |
 | No schema changes | exit 0, no new files, newest `.json` already has the column | Report it. Not an error |
 | Silent CLI death | exit 0, no files, no output, column **absent** from the snapshot | The CLI died silently — see below. Do **not** conclude "no changes" |
 | Interactive hang | exit 124, no new files | Hand the user the plain command to run interactively, then validate and commit |
@@ -84,10 +87,22 @@ the committed snapshot holds. Two runs is all that was established. The cause
 is not.
 
 That makes a created migration as ambiguous as exit 124 was. It means either a
-real schema change or an enum reordering this environment happens to disagree
-with. **Read the `.ts` before you commit it.** A reorder-only migration is not
-harmless: it `DROP TYPE`s and recreates five enums that production data depends
-on, and no ticket asked for it. Delete it and say so.
+real schema change or an enum reordering this environment disagrees with. A
+reorder-only migration is not harmless: it `DROP TYPE`s and recreates five
+enums that production data depends on, and no ticket asked for it.
+
+**Tell the two apart on the enum members, never on the DDL's shape.** Adding
+one zone also drops and recreates all five enums, so a widening and a reorder
+look alike at a glance, and deleting a widening is the crash-loop this file
+exists to prevent. Take the member list the new `.ts` writes and the member
+list in the newest committed `.json` snapshot, and compare them as **sets**:
+
+- Same set, different order — a reorder. Delete the migration and say so.
+- Any member added or removed — a real change. Keep it.
+
+The determinism this contradicts is claimed by `src/lib/timezones/index.ts`,
+which pins `@vvo/tzdb` for exactly this reason. The cause is undiagnosed and
+tracked in #722.
 
 ### "Exit 0, no new files" is ambiguous — check the snapshot
 
