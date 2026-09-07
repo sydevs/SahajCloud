@@ -39,7 +39,7 @@ If you changed `src/collections/`, `src/fields/`, `src/globals/`, or `src/payloa
 create a migration instead of only resetting local data:
 
 ```bash
-timeout 30 pnpm db:migrations:create <name> --skip-empty < /dev/null
+timeout 300 pnpm db:migrations:create <name> --skip-empty < /dev/null
 git add src/migrations/
 git commit -m "chore(migrations): <description>"
 ```
