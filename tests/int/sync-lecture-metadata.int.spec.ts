@@ -24,8 +24,10 @@ vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
   }
 })
 
+// `input` passes through undefined rather than defaulting to `{}`, so
+// `runTask(payload)` reproduces the scheduled run, which supplies no input.
 const runTask = (payload: Payload, input?: { lectureIds?: number[] }) =>
-  runTaskHandler(SyncLectureMetadata, { payload, input: input ?? {} })
+  runTaskHandler(SyncLectureMetadata, { payload, input })
 
 describe('SyncLectureMetadata task', () => {
   let payload: Payload
@@ -170,6 +172,27 @@ describe('SyncLectureMetadata task', () => {
     expect(output.totalProcessed).toBe(1)
     expect(output.synced).toBe(1)
     void lectureB
+  })
+
+  it('runs unscoped when the schedule passes no input at all', async () => {
+    // The monthly schedule (`0 3 1 * *`) supplies no input. Every other case
+    // here passes `lectureIds`, so this is the only cover for the one path
+    // that actually runs in production.
+    await testData.createLecture(payload, undefined, {
+      nirmalVidyaVimeoUrl: 'https://vimeo.com/20000003',
+    })
+    const info = vi.spyOn(payload.logger, 'info')
+
+    try {
+      const output = await runTask(payload)
+
+      expect(output.totalProcessed).toBeGreaterThan(0)
+      expect(info).toHaveBeenCalledWith(
+        expect.objectContaining({ msg: 'Starting SyncLectureMetadata', scope: 'all lectures' }),
+      )
+    } finally {
+      info.mockRestore()
+    }
   })
 
   it('skips clip-type lectures (only full lectures own metadata)', async () => {

@@ -65,16 +65,20 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
     }
 
     const lectureIds = (input as SyncLectureMetadataInput | undefined)?.lectureIds
+    // Whether this run is scoped is decided once. `input` is an unvalidated
+    // `json` field, so a second test of it can disagree with this one — and
+    // that is how the query and the log line came to describe different runs.
+    const scopedIds = Array.isArray(lectureIds) && lectureIds.length > 0 ? lectureIds : null
+
     // Only full lectures own NV `metadata`; clips reference their parent and
     // have `metadata: null` by design (#338).
-    const where: Where =
-      Array.isArray(lectureIds) && lectureIds.length > 0
-        ? { and: [{ type: { equals: 'full' } }, { id: { in: lectureIds } }] }
-        : { type: { equals: 'full' } }
+    const where: Where = scopedIds
+      ? { and: [{ type: { equals: 'full' } }, { id: { in: scopedIds } }] }
+      : { type: { equals: 'full' } }
 
     req.payload.logger.info({
       msg: 'Starting SyncLectureMetadata',
-      scope: where ? `lectureIds[${lectureIds!.length}]` : 'all lectures',
+      scope: scopedIds ? `lectureIds[${scopedIds.length}]` : 'all lectures',
       maxConcurrentFetches: MAX_CONCURRENT_FETCHES,
     })
 
