@@ -24,8 +24,10 @@ vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
   }
 })
 
+// `input` passes through undefined rather than defaulting to `{}`, so
+// `runTask(payload)` reproduces the scheduled run, which supplies no input.
 const runTask = (payload: Payload, input?: { lectureIds?: number[] }) =>
-  runTaskHandler(SyncLectureMetadata, { payload, input: input ?? {} })
+  runTaskHandler(SyncLectureMetadata, { payload, input })
 
 describe('SyncLectureMetadata task', () => {
   let payload: Payload
@@ -182,7 +184,7 @@ describe('SyncLectureMetadata task', () => {
     const info = vi.spyOn(payload.logger, 'info')
 
     try {
-      const output = await runTaskHandler(SyncLectureMetadata, { payload })
+      const output = await runTask(payload)
 
       expect(output.totalProcessed).toBeGreaterThan(0)
       expect(info).toHaveBeenCalledWith(
