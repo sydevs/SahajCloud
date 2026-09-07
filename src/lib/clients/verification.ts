@@ -1,6 +1,6 @@
 import type { JSONSchema4 } from 'json-schema'
 
-import type { HttpsSahajcloudDevSchemasClientCanonicalVerificationJson } from '@/payload-types'
+import type { ClientCanonicalVerification } from '@/payload-types'
 
 import { CANONICAL_DOMAIN_PATTERN, ROUTING_MODES } from './canonical'
 
@@ -24,7 +24,7 @@ import { CANONICAL_DOMAIN_PATTERN, ROUTING_MODES } from './canonical'
 
 /** `$id` / `fileMatch` key Payload names the generated type from. */
 export const CANONICAL_VERIFICATION_SCHEMA_URI =
-  'https://sahajcloud.dev/schemas/client-canonical-verification.json'
+  'urn:sahajcloud:schema:client-canonical-verification'
 
 /** Definitive failures — the embed is genuinely not working. These count. */
 export const VERIFICATION_FAILURE_REASONS = ['dns', 'http', 'marker-absent'] as const
@@ -52,15 +52,15 @@ export type VerificationInconclusiveReason = (typeof VERIFICATION_INCONCLUSIVE_R
  * The chain is one-directional and worth stating, because it is easy to read the
  * wrong way round: the const arrays above are spliced into
  * {@link canonicalVerificationJsonSchema} below, Payload generates
- * `HttpsSahajcloudDevSchemasClientCanonicalVerificationJson` from that schema,
- * and these three aliases derive from the generated type. So the arrays are the
- * single source and this file cannot drift from the column (#671).
+ * `ClientCanonicalVerification` from that schema's `title`, and these three
+ * aliases derive from the generated type. So the arrays are the single source
+ * and this file cannot drift from the column (#671).
  *
  * `verified` is null until the first success — the only thing a canonical URL
  * may be built from. `failureCount` is consecutive *definitive* failures, reset
  * to 0 by any success.
  */
-export type CanonicalVerification = HttpsSahajcloudDevSchemasClientCanonicalVerificationJson
+export type CanonicalVerification = ClientCanonicalVerification
 
 /** What the verifier observed on the live page. Job-written, never typed by hand. */
 export type VerifiedEmbed = NonNullable<CanonicalVerification['verified']>
@@ -96,6 +96,7 @@ const domainSchema: JSONSchema4 = {
  */
 export const canonicalVerificationJsonSchema: JSONSchema4 = {
   $id: CANONICAL_VERIFICATION_SCHEMA_URI,
+  title: 'ClientCanonicalVerification',
   type: 'object',
   additionalProperties: false,
   required: ['verified', 'failureCount', 'attempts'],

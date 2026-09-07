@@ -1,5 +1,7 @@
 import type { BasePayload, PayloadRequest, TypedLocale } from 'payload'
 
+import type { ReadinessReport } from '@/payload-types'
+
 /**
  * Stable identifier emitted by a compute function for a single readiness
  * check. The rendering layer joins it against `statusConfig.json` to
@@ -77,25 +79,6 @@ export type ReadinessGroup =
       /** Errored groups have no counter. */
       counter: null
     }
-
-/**
- * Per-section readiness output. Every group contributes `1/1` to its
- * section's `summary`; per-document totals stay inside each group's
- * own `summary`.
- */
-export type ReadinessReport = {
-  groups: ReadinessGroup[]
-  summary: { total: number; passing: number }
-  optionalSummary?: { total: number; passing: number }
-  /** Baked fact: all required groups pass (`summary.total>0 && summary.passing===summary.total`). */
-  passing: boolean
-  /**
-   * Baked document-level progress for the section progress bar — the sum of
-   * every group's `counter` across ALL groups (including optional). Distinct
-   * from `summary`, which counts required groups only.
-   */
-  progress: { passing: number; total: number }
-}
 
 /** How an aggregate group's item rows are summarized in the table view. */
 export type RowDisplay = 'all' | 'summarize-excess' | 'collapse-passing'

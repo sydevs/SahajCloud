@@ -1,4 +1,4 @@
-import type { CollectionSlug, TaskConfig, Payload, PayloadRequest } from 'payload'
+import type { CollectionSlug, JSONField, TaskConfig, Payload, PayloadRequest } from 'payload'
 
 import type { ImageTag } from '@/types/tags'
 
@@ -44,10 +44,22 @@ type CleanupResult = {
  * or field knowledge required. Adding new collections with file/image references
  * requires no changes to this job.
  */
-/** Type for test-injected date range */
-type TestDateRangeInput = {
-  rangeStart: string
-  rangeEnd: string
+const TEST_DATE_RANGE_SCHEMA_URI = 'urn:sahajcloud:schema:cleanup-test-date-range'
+
+const testDateRangeJsonSchema: NonNullable<JSONField['jsonSchema']> = {
+  uri: TEST_DATE_RANGE_SCHEMA_URI,
+  fileMatch: [TEST_DATE_RANGE_SCHEMA_URI],
+  schema: {
+    $id: TEST_DATE_RANGE_SCHEMA_URI,
+    title: 'CleanupTestDateRange',
+    type: 'object',
+    additionalProperties: false,
+    required: ['rangeStart', 'rangeEnd'],
+    properties: {
+      rangeStart: { type: 'string' },
+      rangeEnd: { type: 'string' },
+    },
+  },
 }
 
 export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
@@ -56,9 +68,14 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
   slug: 'cleanupOrphanedMedia',
   inputSchema: [
     {
+      // Test-only injection point. The schema is what generates the input's
+      // type — nothing validates it at runtime, since Payload feeds
+      // `inputSchema` only to `generateJobsJSONSchemas`. It replaces a
+      // hand-written `TestDateRangeInput` and the cast that applied it.
       name: 'testDateRange',
       type: 'json',
       required: false,
+      jsonSchema: testDateRangeJsonSchema,
     },
     {
       name: 'maxOperations',
@@ -114,7 +131,7 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
 
     // Check for test-injected date range
     if (input?.testDateRange) {
-      const testRange = input.testDateRange as TestDateRangeInput
+      const testRange = input.testDateRange
       rangeStart = new Date(testRange.rangeStart)
       rangeEnd = new Date(testRange.rangeEnd)
       rangeLabel = 'test-range'

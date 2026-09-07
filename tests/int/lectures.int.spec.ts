@@ -2,8 +2,8 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { LectureMetadata } from '@/lib/lectures/nirmalaVidya'
-import type { Image } from '@/payload-types'
+
+import type { Image, LectureMetadata } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -161,7 +161,7 @@ describe('Lectures Collection', () => {
         data: createData<'lectures'>({ nirmalVidyaVimeoUrl: 'https://vimeo.com/333333333' }),
       })
 
-      expect((lecture.metadata as LectureMetadata).subtitles['pt-BR']).toBe(
+      expect((lecture.metadata as LectureMetadata).subtitles?.['pt-BR']).toBe(
         'https://example.com/subs/pt.vtt',
       )
     })

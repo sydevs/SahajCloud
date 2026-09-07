@@ -4,6 +4,8 @@
  */
 import ISO6391 from 'iso-639-1'
 
+import type { NotificationPreferences } from '@/payload-types'
+
 export type ContactPlatform = 'whatsapp' | 'telegram' | 'wechat'
 
 /** Atlas `contactMethod` values that map to a messaging handle (email → none). */
@@ -11,13 +13,6 @@ const MESSAGING_PLATFORMS = new Set<string>(['whatsapp', 'telegram', 'wechat'])
 
 /** Atlas notification bits that all fold into the single `regional_summary` type. */
 const SUMMARY_FLAGS = ['place_summary', 'country_summary', 'application_summary', 'client_summary']
-
-/** One row of the `notificationPreferences` json (see NotificationPreferences/config). */
-export interface NotificationPreference {
-  frequency: string
-  method: string
-}
-export type NotificationPreferences = Record<string, NotificationPreference>
 
 /**
  * Map Atlas `notifications` flags and `contactMethod` to #462's
@@ -33,7 +28,7 @@ export function mapNotificationPreferences(
 ): NotificationPreferences {
   const flags = new Set(notifications ?? [])
   const method = MESSAGING_PLATFORMS.has(contactMethod ?? '') ? (contactMethod as string) : 'email'
-  const pref = (frequency: string): NotificationPreference =>
+  const pref = (frequency: string) =>
     frequency === 'Never' ? { frequency, method: '' } : { frequency, method }
 
   const hasSummary = SUMMARY_FLAGS.some((flag) => flags.has(flag))

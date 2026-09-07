@@ -130,6 +130,9 @@ export const TextBoxBlock: Block = {
     {
       name: 'importData',
       type: 'json',
+      // No schema on purpose: this is the Storyblok block, verbatim, kept so an
+      // import can be re-derived. Its shape is the source system's, not ours,
+      // and it differs per block variant.
       admin: {
         readOnly: true,
         description: 'Original import data (background, color, position, spacing, decorations)',

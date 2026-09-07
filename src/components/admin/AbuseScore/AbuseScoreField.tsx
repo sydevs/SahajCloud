@@ -2,7 +2,7 @@
 
 import { useField } from '@payloadcms/ui'
 
-import type { AbuseScore } from '@/plugins/usage/abuse'
+import type { ClientAbuseScore } from '@/payload-types'
 
 import { AbuseScoreDisplay } from './AbuseScoreDisplay'
 
@@ -11,7 +11,7 @@ import { AbuseScoreDisplay } from './AbuseScoreDisplay'
  * Uses useField hook to access the virtual field's computed value.
  */
 export const AbuseScoreField: React.FC = () => {
-  const { value } = useField<AbuseScore | null>()
+  const { value } = useField<ClientAbuseScore | null>()
   return (
     <div style={{ paddingBottom: 'calc(var(--base) * 0.5)' }}>
       <AbuseScoreDisplay abuseScore={value} />

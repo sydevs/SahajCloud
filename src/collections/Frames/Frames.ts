@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
+import { fileMetadataField } from '@/fields'
 import { GENDER_OPTIONS } from '@/lib/utilities/gender'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import {
@@ -142,14 +143,6 @@ export const Frames: CollectionConfig = {
         ],
       },
     },
-    {
-      name: 'fileMetadata',
-      type: 'json',
-      defaultValue: {},
-      admin: {
-        position: 'sidebar',
-        readOnly: true,
-      },
-    },
+    fileMetadataField(),
   ],
 }

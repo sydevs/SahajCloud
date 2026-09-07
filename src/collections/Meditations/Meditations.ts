@@ -1,10 +1,14 @@
-import type { CollectionConfig, JSONField, Validate } from 'payload'
+import type { CollectionConfig, JSONField, JSONFieldValidation, Validate } from 'payload'
+
+import { json as jsonFieldValidation } from 'payload/shared'
 
 import { hideUntilCreated, mediaField } from '@/fields'
 import { LOCALES } from '@/lib/locales'
 import {
   getFrameDiagnosticsLogContext,
   hasFrameNormalizationIssues,
+  meditationFramesFieldSchema,
+  meditationNodeWeightsFieldSchema,
   normalizeMeditationFrames,
   normalizeMeditationFramesForStorage,
 } from '@/lib/meditations/frames'
@@ -35,10 +39,46 @@ import { recomputeMeditationNodeWeights } from './hooks/recomputeMeditationNodeW
  * Each call maps 1:1 to this native join field config:
  *   { type: 'join', collection: 'user-choices', on: '<onField>' }
  */
+export const TAG_ASSIGNMENTS_SCHEMA_URI = 'urn:sahajcloud:schema:meditation-tag-assignments'
+
+/**
+ * What `virtualJoinField`'s hook returns: the user-choices rows pointing at
+ * this meditation, reduced to what `TagAssignmentField` renders.
+ *
+ * Closed because the hook below is the only writer and the column is virtual —
+ * nothing stores it, so no row exists under an earlier shape. The four call
+ * sites share one `$id`, so Payload emits `TagAssignments`, `TagAssignments1`,
+ * … — one interface per usage, same shape.
+ */
+const tagAssignmentsFieldSchema: JSONField['jsonSchema'] = {
+  uri: TAG_ASSIGNMENTS_SCHEMA_URI,
+  fileMatch: [TAG_ASSIGNMENTS_SCHEMA_URI],
+  schema: {
+    $id: TAG_ASSIGNMENTS_SCHEMA_URI,
+    title: 'TagAssignments',
+    type: 'array',
+    items: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['id', 'title'],
+      properties: {
+        // Narrower than `MeditationFrames`'s id on purpose: nothing posts this
+        // column back, so the only writer is the hook below, which reads a
+        // numeric `user-choices` primary key.
+        id: { type: 'integer', description: 'The UserChoice document id.' },
+        title: { type: 'string', description: 'The tag title, in the read locale.' },
+      },
+    },
+  },
+}
+
 const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField => ({
+  // Virtual: written by the hook below, never stored. The schema exists for the
+  // generated type. See `src/collections/AGENTS.md`.
   name,
   type: 'json',
   virtual: true,
+  jsonSchema: tagAssignmentsFieldSchema,
   admin: {
     readOnly: true,
     // Like a real join, this resolves nothing until the doc exists — hide on create.
@@ -230,6 +270,7 @@ export const Meditations: CollectionConfig = {
               // and cascaded from Frames via `cascadeFrameNodeChange`.
               name: 'subtleSystemNodeWeights',
               type: 'json',
+              jsonSchema: meditationNodeWeightsFieldSchema,
               admin: {
                 readOnly: true,
                 hidden: true,
@@ -356,6 +397,7 @@ export const Meditations: CollectionConfig = {
                     {
                       name: 'frames',
                       type: 'json',
+                      jsonSchema: meditationFramesFieldSchema,
                       admin: {
                         // afterRead runs a frames query per row to enrich keyframes.
                         disableListColumn: true,
@@ -364,7 +406,14 @@ export const Meditations: CollectionConfig = {
                           Field: '@/components/admin/FrameEditor/FrameListManager',
                         },
                       },
+                      // Supplying `validate` REPLACES the built-in one, which is
+                      // what runs `jsonSchema` above — so compose it rather
+                      // than shadow it. "At least one frame" is a rule the
+                      // schema cannot state: it holds only on update, and it
+                      // counts the frames that survive normalization.
                       validate: ((value, options) => {
+                        const shape = jsonFieldValidation(value, options)
+                        if (shape !== true) return shape
                         // Only required during update (not on create)
                         const isUpdate = options.operation === 'update' || !!options.id
                         const valueToValidate = value === undefined ? options.previousValue : value
@@ -373,7 +422,7 @@ export const Meditations: CollectionConfig = {
                           return 'At least one frame is required'
                         }
                         return true
-                      }) as Validate,
+                      }) as JSONFieldValidation,
                       hooks: {
                         beforeChange: [
                           async ({ data, operation, req, value }) => {

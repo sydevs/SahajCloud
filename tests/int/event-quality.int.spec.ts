@@ -3,8 +3,7 @@ import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { QUALITY_CHECK_VERSION } from '@/lib/eventQuality'
-import type { EventQualityReport } from '@/lib/eventQuality/types'
-import type { Event } from '@/payload-types'
+import type { Event, EventQualityReport } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'

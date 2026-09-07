@@ -2,7 +2,6 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
-import type { NotificationPreferencesValue } from '@/components/admin/NotificationPreferences/config'
 import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
 import type { RegistrationRecipient } from '@/lib/notifications'
 import { formatShortDate, resolveRegistrationRecipient } from '@/lib/notifications'
@@ -46,8 +45,7 @@ interface DigestRow {
 }
 
 function eventRegistrationFrequency(manager: Manager): string | undefined {
-  const prefs = manager.notificationPreferences as NotificationPreferencesValue | null | undefined
-  return prefs?.event_registration?.frequency
+  return manager.notificationPreferences?.event_registration?.frequency
 }
 
 /** Advance a manager's digest watermark to the run start. */

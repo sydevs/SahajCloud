@@ -52,4 +52,9 @@ export { getPgPool, quotedDbSchema } from './db'
 export { resetUsageTask } from './tasks'
 
 // Abuse detection utilities
-export { calculateAbuseScore, type AbuseLevel, type AbuseScore } from './abuse'
+export {
+  abuseScoreFieldSchema,
+  abuseScoreJsonSchema,
+  ABUSE_SCORE_SCHEMA_URI,
+  calculateAbuseScore,
+} from './abuse'

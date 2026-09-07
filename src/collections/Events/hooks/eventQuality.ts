@@ -1,6 +1,6 @@
 import type { CollectionBeforeChangeHook, FieldHook } from 'payload'
 
-import type { EventQualityInput, EventQualityReport } from '@/lib/eventQuality'
+import type { EventQualityInput } from '@/lib/eventQuality'
 import {
   buildEventQualityReport,
   countOpenDocumentIssues,
@@ -8,6 +8,7 @@ import {
   QUALITY_CHECK_VERSION,
   shouldSkipQualityChecks,
 } from '@/lib/eventQuality'
+import type { EventQualityReport } from '@/payload-types'
 
 /**
  * `afterRead` for the virtual `qualityReport` field.

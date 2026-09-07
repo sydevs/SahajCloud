@@ -1,9 +1,6 @@
 import type { NotificationChannel } from './types'
 
-import {
-  DEFAULT_REGISTRATION_FREQUENCY,
-  type NotificationPreferencesValue,
-} from '@/components/admin/NotificationPreferences/config'
+import { DEFAULT_REGISTRATION_FREQUENCY } from '@/components/admin/NotificationPreferences/config'
 import type { Event, Manager } from '@/payload-types'
 
 import { pickChannel } from './recipients'
@@ -58,11 +55,12 @@ export function resolveRegistrationRecipient(
   const { channel, destination } = pickChannel(manager, 'event_registration')
   if (!destination) return null
 
-  const prefs = manager.notificationPreferences as NotificationPreferencesValue | null | undefined
   return {
     destination,
     name: manager.name || manager.email || null,
     channel,
-    frequency: prefs?.event_registration?.frequency || DEFAULT_REGISTRATION_FREQUENCY,
+    frequency:
+      manager.notificationPreferences?.event_registration?.frequency ||
+      DEFAULT_REGISTRATION_FREQUENCY,
   }
 }

@@ -27,8 +27,10 @@ import type { JSONField } from 'payload'
  * — an admin form, a partial API patch — can't wipe it.
  */
 export function systemMetaField(options: {
-  /** Unique `$id` for the schema (Payload keys its generated type off this). */
+  /** Unique `$id` for the schema. */
   uri: string
+  /** Names the generated interface in `payload-types.ts` — without it Payload derives one from `$id`. */
+  title: string
   /** One entry per namespace, e.g. `{ communityFeedback: { … } }`. */
   namespaces: Record<string, JSONSchema4>
   /** Extra admin config merged over the defaults (e.g. `condition`). */
@@ -42,6 +44,7 @@ export function systemMetaField(options: {
       fileMatch: [options.uri],
       schema: {
         $id: options.uri,
+        title: options.title,
         type: 'object',
         additionalProperties: false,
         properties: options.namespaces,

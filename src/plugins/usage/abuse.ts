@@ -7,28 +7,53 @@
  * - Current (30%): dailyRequests / threshold
  */
 
+import type { JSONSchema4 } from 'json-schema'
+import type { JSONField } from 'payload'
+
+import type { ClientAbuseScore } from '@/payload-types'
+
 import { HIGH_USAGE_THRESHOLD } from './constants'
 
-// ============================================================================
-// TYPES
-// ============================================================================
+export const ABUSE_SCORE_SCHEMA_URI = 'urn:sahajcloud:schema:client-abuse-score'
 
-export type AbuseLevel = 'normal' | 'elevated' | 'high' | 'critical'
+/**
+ * The schema behind `ClientAbuseScore`, for `Clients.usage.abuseScore`.
+ *
+ * That column is virtual: `calculateAbuseScore` below is its only writer and
+ * nothing stores it, so the shape can be closed — no row exists under an
+ * earlier one. `json-field-schemas.spec.ts` pins the generated type to it.
+ */
+export const abuseScoreJsonSchema: JSONSchema4 = {
+  $id: ABUSE_SCORE_SCHEMA_URI,
+  title: 'ClientAbuseScore',
+  type: 'object',
+  additionalProperties: false,
+  required: ['score', 'level', 'breakdown'],
+  properties: {
+    score: { type: 'number', description: 'Abuse score from 0-100.' },
+    level: {
+      type: 'string',
+      enum: ['normal', 'elevated', 'high', 'critical'],
+      description: 'Severity band the score falls in.',
+    },
+    breakdown: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['frequency', 'recency', 'current'],
+      properties: {
+        frequency: { type: 'number', description: 'Frequency contribution (0-40).' },
+        recency: { type: 'number', description: 'Recency contribution (0-30).' },
+        current: { type: 'number', description: 'Current-spike contribution (0-30).' },
+      },
+    },
+  },
+}
 
-export interface AbuseScore {
-  /** Abuse score from 0-100 */
-  score: number
-  /** Severity level based on score thresholds */
-  level: AbuseLevel
-  /** Individual component contributions to the score */
-  breakdown: {
-    /** Frequency contribution (0-40) */
-    frequency: number
-    /** Recency contribution (0-30) */
-    recency: number
-    /** Current spike contribution (0-30) */
-    current: number
-  }
+/** The field-level wrapper Payload wants — see `Clients.usage.abuseScore`. */
+export const abuseScoreFieldSchema: JSONField['jsonSchema'] = {
+  uri: ABUSE_SCORE_SCHEMA_URI,
+  fileMatch: [ABUSE_SCORE_SCHEMA_URI],
+  schema: abuseScoreJsonSchema,
 }
 
 // ============================================================================
@@ -51,7 +76,7 @@ export function calculateAbuseScore(usage: {
   highUsageDays?: number | null
   lastHighUsageAt?: string | null
   firstRequestAt?: string | null
-}): AbuseScore {
+}): ClientAbuseScore {
   const { dailyRequests = 0, highUsageDays = 0, lastHighUsageAt, firstRequestAt } = usage
 
   // Calculate days active (minimum 1)
@@ -78,7 +103,7 @@ export function calculateAbuseScore(usage: {
   const score = frequency + recency + current
 
   // Determine level
-  const level: AbuseLevel =
+  const level: ClientAbuseScore['level'] =
     score >= 75 ? 'critical' : score >= 50 ? 'high' : score >= 25 ? 'elevated' : 'normal'
 
   return { score, level, breakdown: { frequency, recency, current } }

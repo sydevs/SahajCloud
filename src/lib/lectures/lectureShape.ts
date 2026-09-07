@@ -1,8 +1,8 @@
 import type { PayloadLogger, PopulateType } from 'payload'
 
-import type { LectureMetadata } from '@/lib/lectures/nirmalaVidya'
+
 import { resolveThumbnailUrl } from '@/lib/utilities/thumbnailUrl'
-import type { Lecture, LecturesSelect, UserChoice } from '@/payload-types'
+import type { Lecture, LectureMetadata, LecturesSelect, UserChoice } from '@/payload-types'
 
 /**
  * One user-choice row in {@link LecturePlayerData}, derived from the generated

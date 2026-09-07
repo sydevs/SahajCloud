@@ -31,7 +31,7 @@ import { resolveRegionLocation, geocodeRegion, MANUAL_LOCATION } from '@/lib/map
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { slugifyValue } from '@/lib/utilities/slugify'
-import type { Region } from '@/payload-types'
+import type { NotificationPreferences, Region } from '@/payload-types'
 
 import {
   BaseImporter,
@@ -46,7 +46,6 @@ import {
   mapLanguageCode,
   managerVerificationCadence,
   mapNotificationPreferences,
-  type NotificationPreferences,
 } from './helpers/managerMapper'
 import { type AtlasSchedule, mapSchedule, supportedTimezone } from './helpers/scheduleMapper'
 import {
