@@ -45,3 +45,10 @@ overrides:
   # (6.12.6 is the newest 6.x and already carries the $data fix), so it is left as-is.
   'yaml@^2.0.0': '^2.8.3'
   'brace-expansion@^1.0.0': '^1.1.13'
+  # sharp inherits four libvips CVEs (GHSA-f88m-g3jw-g9cj), patched in 0.35.0.
+  # Bumping our own dependency is not enough: `next` pins `sharp: 0.34.5` as its
+  # own optional dependency, and it is that nested copy the image optimizer
+  # loads — the reachable path. Unlike the entries above, this one crosses a
+  # minor on a 0.x line, so it is a real version change, not a patch pin. Drop
+  # it once `next` ships an optional dependency on sharp >= 0.35.
+  sharp: '^0.35.4'
