@@ -46,9 +46,12 @@ overrides:
   'yaml@^2.0.0': '^2.8.3'
   'brace-expansion@^1.0.0': '^1.1.13'
   # sharp inherits four libvips CVEs (GHSA-f88m-g3jw-g9cj), patched in 0.35.0.
-  # Bumping our own dependency is not enough: `next` pins `sharp: 0.34.5` as its
-  # own optional dependency, and it is that nested copy the image optimizer
-  # loads — the reachable path. Unlike the entries above, this one crosses a
-  # minor on a 0.x line, so it is a real version change, not a patch pin. Drop
-  # it once `next` ships an optional dependency on sharp >= 0.35.
-  sharp: '^0.35.4'
+  # Bumping our own dependency is not enough: `next` declares `sharp: ^0.34.5`
+  # as its own optional dependency, and a caret on a 0.x line pins the minor —
+  # so the fix is out of next's range too, and it is that nested copy the image
+  # optimizer loads. Unlike the entries above, this one crosses a minor rather
+  # than pinning a patch, so it is a real version change. Scoped to next's
+  # declared range: our own dependency is already 0.35.4 and needs no override,
+  # and an unscoped '^0.35.4' would cap every future sharp below 0.36. The
+  # entry stops matching by itself once next moves (16.3.4 declares ^0.35.4).
+  'sharp@^0.34.5': '^0.35.4'
