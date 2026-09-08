@@ -4,7 +4,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { atlasSeo } from '@/endpoints/atlas/seo'
 import type { AtlasSeoResponse } from '@/endpoints/responseTypes'
-import { ATLAS_DEFAULT_LOCALES } from '@/lib/atlas/defaultLocales'
 import { serverEnv } from '@/lib/env'
 import type { Event } from '@/payload-types'
 
@@ -467,50 +466,57 @@ describe('atlasSeo endpoint', () => {
   })
 
   describe('the head payload', () => {
-    it('emits the widget’s ten locales plus an x-default pointing at the canonical', async () => {
+    // An unconfigured `availableLocales` answers English alone (#705), not the
+    // launch set the deleted `ATLAS_DEFAULT_LOCALES` used to supply. That is
+    // the point of the change: a wider fallback would promise a crawler pages
+    // in nine languages before an operator said any of them were translated.
+    it('emits English plus an x-default pointing at the canonical, unconfigured', async () => {
       const { body } = await callSeo({ route: '/united-kingdom' })
-      expect(body.alternates).toHaveLength(11)
+      expect(body.alternates.map((row) => row.hreflang)).toEqual(['en', 'x-default'])
       expect(body.alternates.at(-1)).toEqual({ hreflang: 'x-default', href: body.canonical })
-      expect(body.alternates.find((row) => row.hreflang === 'fr')?.href).toBe(
-        `${body.canonical}?locale=fr`,
-      )
+      expect(body.alternates[0]?.href).toBe(`${body.canonical}?locale=en`)
     })
 
     // Isolated: these mutate a global every other case reads, so the set is
     // restored afterwards rather than left for whatever runs next to inherit.
     describe('operator-configured locales', () => {
-      // The field stores `{ code }` rows, not bare strings — see the global's
-      // own comment for why it is an array, and why it is named `languages`.
+      // `availableLocales` is a `hasMany` select of bare locale codes (#705),
+      // replacing the `{ code }` array `languages` used to store.
       //
-      // Only non-empty sets are writable here: the field is `required` with
-      // `minRows: 1`, so Payload rejects `[]` with a ValidationError. The
-      // unconfigured-column fallback is therefore covered in
-      // `tests/unit/atlas-locales.spec.ts`, against the pure normalizer.
+      // `skipAvailableLocalesCheck` is what makes this writable at all: the
+      // field refuses a locale whose translations are not published, and this
+      // suite publishes none. `en` stays required with the flag set, which is
+      // why every set below includes it. The unconfigured-column fallback is
+      // covered in `tests/unit/available-locales.spec.ts`, against the pure
+      // reader.
       const setLocales = (locales: string[]) =>
         payload.updateGlobal({
           slug: 'sy-atlas-config',
-          data: { languages: locales.map((code) => ({ code })) } as never,
+          data: { availableLocales: locales } as never,
+          context: { skipAvailableLocalesCheck: true },
           overrideAccess: true,
         })
 
       afterAll(async () => {
-        await setLocales([...ATLAS_DEFAULT_LOCALES])
+        await setLocales(['en'])
       })
 
       // The whole point of moving the list onto the global: an operator turning a
       // language off has to stop us telling crawlers that language has a page.
       it('takes its hreflang set from the sy-atlas-config global, live', async () => {
-        await setLocales(['fr', 'nl'])
+        await setLocales(['en', 'fr', 'nl'])
         const narrowed = await callSeo({ route: '/united-kingdom' })
         expect(narrowed.body.alternates.map((row) => row.hreflang)).toEqual([
+          'en',
           'fr',
           'nl',
           'x-default',
         ])
 
-        await setLocales(['fr', 'nl', 'de'])
+        await setLocales(['en', 'fr', 'nl', 'de'])
         const widened = await callSeo({ route: '/united-kingdom' })
         expect(widened.body.alternates.map((row) => row.hreflang)).toEqual([
+          'en',
           'fr',
           'nl',
           'de',

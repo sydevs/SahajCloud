@@ -2,7 +2,7 @@
 
 import type { LengthStatus } from './lengthStatus'
 
-import { FieldDescription, WarningIcon } from '@payloadcms/ui'
+import { ErrorIcon, FieldDescription, WarningIcon } from '@payloadcms/ui'
 import React from 'react'
 
 import { EnglishReference } from './EnglishReference'
@@ -48,23 +48,27 @@ export const TranslationsRow: React.FC<TranslationsRowProps> = ({
       </div>
       <div className="translations-row__input-cell">
         {children}
-        {/* Advisory only — the value still saves when over the limit. Reuses the
-            field-description style, and stays one line high in both states (the
-            icon is sized to the text line) so going over never shifts the row. */}
+        {/* Advisory unless the key is `strict`, in which case going over is
+            refused on save and the row says so. Reuses the field-description
+            style, and stays one line high in every state (the icon is sized to
+            the text line) so going over never shifts the row. */}
         {length && (
           <div
             className={[
               'field-description',
               'translations-row__length',
               length.over && 'translations-row__length--over',
+              length.blocking && 'translations-row__length--blocking',
             ]
               .filter(Boolean)
               .join(' ')}
           >
-            {length.over && <WarningIcon />}
+            {length.blocking ? <ErrorIcon /> : length.over && <WarningIcon />}
             <span>
               {length.over
-                ? `${length.length} / ${length.maxLength} characters`
+                ? `${length.length} / ${length.maxLength} characters${
+                    length.blocking ? ' — over the limit, this will not save' : ''
+                  }`
                 : `max ${length.maxLength} characters`}
             </span>
           </div>

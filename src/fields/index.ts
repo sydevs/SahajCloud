@@ -33,6 +33,11 @@ export type { SlugFieldOptions } from './slugField'
 export { buildTranslationTabs } from './translationsField'
 export type { SchemaEntry, TranslationsSchema } from './translationsField'
 
+// Available locales - the language set a web project offers, gated on published
+// translations for each one
+export { availableLocalesField, SKIP_AVAILABLE_LOCALES_CHECK } from './availableLocalesField'
+export type { AvailableLocalesFieldOptions } from './availableLocalesField'
+
 // Schedule fields - group of datetime, timezone, and RRULE sub-fields
 // Delivery log — "did that email actually go out?", rendered for managers.
 export {

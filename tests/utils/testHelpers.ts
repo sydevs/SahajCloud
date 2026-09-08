@@ -109,6 +109,14 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       locales: buildPayloadLocales(),
       defaultLocale: DEFAULT_LOCALE,
     },
+    // Mirrors `src/payload.config.ts`. Payload forces `localizeStatus` off per
+    // entity unless the root flag is set, so without this every suite would
+    // silently run the two translations globals with one status for all
+    // locales — and every publish-gating assertion would pass for the wrong
+    // reason.
+    experimental: {
+      localizeStatus: true,
+    },
     // Postgres test database — each suite gets an isolated schema (dropped on
     // cleanup). DATABASE_URL is injected by vitest.config.mts.
     db: postgresAdapter({

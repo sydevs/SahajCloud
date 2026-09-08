@@ -1,85 +1,15 @@
+
 import translationsSchema from '@/globals/WeMeditateAppTranslations/translationsSchema.json' with { type: 'json' }
 import { getLocaleLabel, isValidLocale } from '@/lib/locales'
 import { type GroupSpec, type SectionSpec } from '@/lib/status'
+import type { LeafLookup, SchemaNode } from '@/lib/translations/schemaWalker'
+import { collectLeafLookups, extractPlainText } from '@/lib/translations/schemaWalker'
 
 import { type WeMeditateAppStatusConfig } from './shared'
-
-type LeafProp = { type: 'string' | 'richText' }
-type SchemaNode = {
-  type: 'object'
-  description?: string
-  properties?: Record<string, LeafProp | SchemaNode>
-}
 
 const tabProperties =
   (translationsSchema as { properties?: Record<string, SchemaNode> }).properties ?? {}
 const tabEntries = Object.entries(tabProperties)
-
-function isObjectNode(node: LeafProp | SchemaNode): node is SchemaNode {
-  return node.type === 'object'
-}
-
-/**
- * Per-leaf-key descriptor for looking up the live value on a loaded global.
- *
- * For nested tabs (sub-groups wrapped in a Payload group), `groupField` is the
- * group name (e.g. `onboarding`) and `fieldName` is the sub-slug (e.g.
- * `welcome`). String keys live at `data[groupField][fieldName][key]`. RichText
- * keys live at `data[groupField][fieldName_key]`.
- *
- * For simple tabs (no sub-groups), `groupField` is null. String keys live at
- * `data[fieldName][key]`. RichText keys live at `data[fieldName_key]`.
- */
-interface LeafLookup {
-  groupField: string | null
-  fieldName: string
-  innerKey: string | null
-}
-
-function collectLeafLookups(tabSlug: string, tabNode: SchemaNode): LeafLookup[] {
-  const out: LeafLookup[] = []
-  const topLevelProps = tabNode.properties ?? {}
-  const hasSubgroups = Object.values(topLevelProps).some(isObjectNode)
-
-  if (!hasSubgroups) {
-    // Simple tab: one JSON field named tabSlug containing all string keys.
-    for (const [key, child] of Object.entries(topLevelProps)) {
-      if (child.type === 'string') {
-        out.push({ groupField: null, fieldName: tabSlug, innerKey: key })
-      } else if (child.type === 'richText') {
-        out.push({ groupField: null, fieldName: `${tabSlug}_${key}`, innerKey: null })
-      }
-    }
-    return out
-  }
-
-  // Nested tab: each sub-group is a field under a Payload group named tabSlug.
-  // API path: data[tabSlug][subSlug][key]
-  for (const [subSlug, subSchema] of Object.entries(topLevelProps)) {
-    if (!isObjectNode(subSchema)) continue
-    for (const [key, child] of Object.entries(subSchema.properties ?? {})) {
-      if (child.type === 'string') {
-        out.push({ groupField: tabSlug, fieldName: subSlug, innerKey: key })
-      } else if (child.type === 'richText') {
-        out.push({ groupField: tabSlug, fieldName: `${subSlug}_${key}`, innerKey: null })
-      }
-    }
-  }
-  return out
-}
-
-function extractPlainText(node: unknown): string {
-  if (!node) return ''
-  if (typeof node === 'string') return node
-  if (Array.isArray(node)) return node.map(extractPlainText).join('')
-  if (typeof node === 'object') {
-    const obj = node as Record<string, unknown>
-    if (typeof obj.text === 'string') return obj.text
-    if (Array.isArray(obj.children)) return extractPlainText(obj.children)
-    if (obj.root) return extractPlainText(obj.root)
-  }
-  return ''
-}
 
 function isPopulated(translations: Record<string, unknown>, lookup: LeafLookup): boolean {
   const container: Record<string, unknown> = lookup.groupField

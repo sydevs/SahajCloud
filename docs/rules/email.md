@@ -142,6 +142,10 @@ Email glue lives in the plugin (`@/plugins/email`). Only JSX templates live in `
 
 Registrant-facing chrome is resolved **server-side** by `resolveEmailStrings()` (`src/lib/translations/emailStrings.ts`) from the Atlas `emails` translation group, merged over the English `EMAIL_STRING_DEFAULTS`. Templates receive resolved strings as props and never query.
 
+**Keep that merge, even though the CMS now merges English too.** `clientEnglishFallback` (#705) fills a blank key from the CMS's own English — but only for a read whose `req.user.collection` is `clients`. `resolveEmailStrings` reads as a manager or with no user at all, so it never sees that hook. The two are complementary rather than duplicated: the hook covers a key an operator translated into English but not French, and `EMAIL_STRING_DEFAULTS` covers a key nobody has entered anywhere.
+
+`PLURAL_CATEGORIES` now lives in `src/lib/translations/pluralCategories.ts`, re-exported from `@/fields/translationsField` for existing importers.
+
 **Plurals go through `pluralize()`, not `interpolate()`.** A quantity-dependent string is a family of keys suffixed with CLDR categories (`sessions_count_one` / `_few` / `_many` / `_other`), selected at render time:
 
 ```tsx

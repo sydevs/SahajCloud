@@ -93,6 +93,14 @@
   font-weight: 500;
 }
 
+/* A `strict` key's limit is enforced by the field's JSON Schema, so going over
+   is a refused save rather than untidy copy. Declared after the warning rule so
+   it wins on the element that carries both classes. */
+.translations-row__length--blocking,
+.translations-row__length--blocking svg {
+  color: var(--theme-error-600);
+}
+
 .translations-row__length svg {
   flex-shrink: 0;
   width: calc(var(--base-body-size) * 1.1px);

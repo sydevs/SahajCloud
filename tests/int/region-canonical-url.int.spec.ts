@@ -476,7 +476,10 @@ describe('per-region canonical webUrl', () => {
       const setFallback = (id: number | null) =>
         payload.updateGlobal({
           slug: 'sy-atlas-config',
-          data: { canonicalFallbackClient: id } as never,
+          // See the note in `atlas-sitemap.int.spec.ts`: `availableLocales` is
+          // required, and this partial update must carry it.
+          data: { canonicalFallbackClient: id, availableLocales: ['en'] } as never,
+          context: { skipAvailableLocalesCheck: true },
           overrideAccess: true,
         })
 

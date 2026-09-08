@@ -1,5 +1,7 @@
 import type { GlobalConfig } from 'payload'
 
+import { availableLocalesField } from '@/fields/availableLocalesField'
+
 export const WeMeditateWebConfig: GlobalConfig = {
   slug: 'wm-web-config',
   admin: {
@@ -21,6 +23,14 @@ export const WeMeditateWebConfig: GlobalConfig = {
       relationTo: 'pages',
       required: true,
     },
+    availableLocalesField({
+      translationsSlug: 'wm-web-translations',
+      description:
+        'Languages We Meditate is offered in. Drives the site’s language picker and the ' +
+        'hreflang links on every page. A language can only be selected once the We Meditate ' +
+        'Web translations are published in it — publish that global in the language first. ' +
+        'Publishing all locales at once includes empty ones, so publish deliberately.',
+    }),
     {
       name: 'audiences',
       type: 'relationship',

@@ -1,8 +1,17 @@
-import type { Field, GroupField, JSONField, RichTextField, TabsField, UIField } from 'payload'
+import type {
+  CollapsibleField,
+  Field,
+  GroupField,
+  JSONField,
+  RichTextField,
+  TabsField,
+  UIField,
+} from 'payload'
 
-import { toWords } from 'payload/shared'
+import { json as validateJson, toWords } from 'payload/shared'
 
 import { basicRichTextEditor } from '@/lib/richEditor'
+import { pluralStorageKeys } from '@/lib/translations/pluralCategories'
 
 // ============================================================================
 // Types
@@ -12,13 +21,23 @@ interface StringPropertySchema {
   type: 'string'
   description?: string
   /**
-   * Soft character limit for this key's on-screen UI slot (e.g. a status chip
-   * or action label). Advisory only: the admin shows a per-row reference and a
-   * non-blocking over-length warning, but an over-length string still saves.
+   * Character limit for this key's on-screen UI slot (e.g. a status chip or
+   * action label). Advisory by default: the admin shows a per-row reference and
+   * a non-blocking over-length warning, but an over-length string still saves.
+   * Set `strict: true` beside it to make the limit block the save instead.
    * Measures the raw stored string, so limit keys with `%{...}` placeholders
    * generously — the placeholder expands or contracts at render time.
    */
   maxLength?: number
+  /**
+   * Turns this key's `maxLength` from advisory into blocking. The limit is
+   * emitted into the field's JSON Schema, so Payload's own validator refuses
+   * the save, and the admin renders an error rather than a warning.
+   *
+   * Only meaningful beside `maxLength`. Use it where an over-length string
+   * breaks a layout rather than merely looking untidy.
+   */
+  strict?: boolean
   /**
    * Marks a quantity-dependent string. The one declared key expands into the
    * CLDR plural family for storage (`<key>_one`/`_few`/`_many`/`_other`), and
@@ -28,16 +47,6 @@ interface StringPropertySchema {
    */
   plural?: boolean
 }
-
-/**
- * CLDR plural categories a translation key expands into when `plural: true`.
- * The union across the app's locales (English needs only one/other; Russian,
- * Ukrainian, and Czech add few/many). `EMAIL_STRING_DEFAULTS` must define the
- * whole family for every plural key in the `emails` group, else `withDefaults`
- * drops a translated form — a guard test in `translations-field.int.spec.ts`
- * enforces that sync against this exported constant.
- */
-export const PLURAL_CATEGORIES = ['one', 'few', 'many', 'other'] as const
 
 interface RichTextPropertySchema {
   type: 'richText'
@@ -83,8 +92,10 @@ export interface TranslationsSchema {
 export interface SchemaEntry {
   key: string
   description: string
-  /** Soft character limit for the key's UI slot; see `StringPropertySchema`. */
+  /** Character limit for the key's UI slot; see `StringPropertySchema`. */
   maxLength?: number
+  /** When true, `maxLength` blocks the save; see `StringPropertySchema`. */
+  strict?: true
   /** When true, this key holds a CLDR plural family; see `StringPropertySchema`. */
   plural?: boolean
 }
@@ -131,6 +142,81 @@ function createScreenshotField(
   }
 }
 
+/** `sy-atlas-translations` + `emails` -> `SyAtlasTranslationsEmails`. */
+function pascalCase(...segments: (string | undefined)[]): string {
+  return segments
+    .filter((segment): segment is string => !!segment)
+    .flatMap((segment) => segment.split(/[-_]/))
+    .filter((word) => word.length > 0)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('')
+}
+
+const SCHEMA_URI_BASE = 'https://sahajcloud.dev/schemas/translations'
+
+/**
+ * The JSON Schema for one leaf group's strings blob.
+ *
+ * Two things it buys, both of which the hand-rolled `validate` it replaced
+ * could not: Payload generates a **named interface** per group instead of the
+ * `{ [k: string]: unknown } | … | null` union every consumer had to cast away,
+ * and Ajv enforces the shape on write.
+ *
+ * Three rules hold it together:
+ *
+ * - **Every property is optional.** Payload validates a stored column on every
+ *   save of its document, including a save that never touched translations, so
+ *   a `required` key would strand every locale that has not been translated yet.
+ * - **`maxLength` appears only for a `strict` key.** An advisory limit that
+ *   blocked the save would be a silent behaviour change on keys already over it.
+ * - **Only standard JSON Schema keywords may appear.** Payload runs Ajv 8 in
+ *   strict mode, where an unknown keyword throws at validate time rather than
+ *   at boot — so `plural`, `screenshot` and `strict` must never leak in.
+ *   A plural key contributes its expanded CLDR family instead of itself.
+ */
+export function stringsJsonSchema({
+  allowAdditional,
+  fieldName,
+  globalSlug,
+  parentGroup,
+  stringProps,
+}: {
+  allowAdditional: boolean
+  fieldName: string
+  globalSlug: string
+  parentGroup?: string
+  stringProps: [string, StringPropertySchema][]
+}): NonNullable<JSONField['jsonSchema']> {
+  const uri = [SCHEMA_URI_BASE, globalSlug, parentGroup, fieldName].filter(Boolean).join('/')
+  const title = `${pascalCase(globalSlug, parentGroup, fieldName)}Strings`
+
+  const properties: Record<string, { type: 'string'; description?: string; maxLength?: number }> = {}
+  for (const [key, prop] of stringProps) {
+    const property = {
+      type: 'string' as const,
+      ...(prop.description ? { description: prop.description } : {}),
+      ...(prop.strict === true && typeof prop.maxLength === 'number'
+        ? { maxLength: prop.maxLength }
+        : {}),
+    }
+    for (const storageKey of prop.plural === true ? pluralStorageKeys(key) : [key]) {
+      properties[storageKey] = property
+    }
+  }
+
+  return {
+    uri,
+    fileMatch: [uri],
+    schema: {
+      $id: uri,
+      title,
+      type: 'object',
+      additionalProperties: allowAdditional,
+      properties,
+    },
+  }
+}
+
 /**
  * One localized JSON field per leaf group, holding every string-typed key in
  * that group as flat `{ key: value }` pairs. Rendered by TranslationsRow,
@@ -143,15 +229,18 @@ function createScreenshotField(
  * RichText keys are emitted as sibling richText fields at the same level
  * (see createRichTextField), not packed into this JSON blob.
  *
- * NOTE — no `jsonSchema` is set, and the reason given here used to be wrong.
- * It said Ajv's `new Function()` is refused by the Cloudflare Workers V8
- * isolate (#317); this app has run on Railway/Node since, so that constraint
- * is gone and the pure-JS `validate` below is no longer forced.
+ * **The `validate` here COMPOSES Payload's built-in one — it must never
+ * replace it.** Supplying a validate replaces the built-in `json` validator,
+ * which is the one bound to `jsonSchema`, so a hand-rolled rule would switch
+ * the whole schema off with nothing to show for it. The built-in enforces what
+ * the deleted validator did (unknown keys, non-string values) plus `maxLength`
+ * for a `strict` key.
  *
- * #705 owns the replacement: it derives a `jsonSchema` per leaf group, drops
- * this validator, and adds a blocking `maxLength`. #659 leaves the field alone
- * rather than give the column two definitions to reconcile at that merge —
- * see `src/collections/AGENTS.md`, "A JSON column declares its shape".
+ * One rule it does not reach: the built-in short-circuits on an "empty" value,
+ * and `[]` counts as empty (`payload/dist/fields/validations.js`), so an array
+ * would land in a column whose generated type is an object. The old validator
+ * rejected every array, so that check is kept ahead of the delegation.
+ * See `src/collections/AGENTS.md`, "A JSON column declares its shape".
  */
 function createStringsJsonField(
   fieldName: string,
@@ -166,22 +255,22 @@ function createStringsJsonField(
     key,
     description: prop.description || '',
     maxLength: prop.maxLength,
+    strict: prop.strict === true ? true : undefined,
     plural: prop.plural === true ? true : undefined,
   }))
-  // A plural key is declared once but stored as its CLDR family, so the JSON
-  // blob holds `<key>_one`/`_few`/… — validate against the expanded keys.
-  const allowedKeys = new Set(
-    stringProps.flatMap(([key, prop]) =>
-      prop.plural === true ? PLURAL_CATEGORIES.map((cat) => `${key}_${cat}`) : [key],
-    ),
-  )
-  const allowAdditional = group.additionalProperties === true
 
   return {
     name: fieldName,
     type: 'json',
     localized: true,
     label: false,
+    jsonSchema: stringsJsonSchema({
+      allowAdditional: group.additionalProperties === true,
+      fieldName,
+      globalSlug,
+      parentGroup,
+      stringProps,
+    }),
     admin: {
       components: { Field: '@/components/admin/TranslationsRow' },
       custom: {
@@ -190,20 +279,9 @@ function createStringsJsonField(
         parentGroup,
       },
     },
-    validate: (value): true | string => {
-      if (value === null || value === undefined) return true
-      if (typeof value !== 'object' || Array.isArray(value)) return 'Value must be a JSON object'
-      const obj = value as Record<string, unknown>
-      if (!allowAdditional) {
-        for (const key of Object.keys(obj)) {
-          if (!allowedKeys.has(key)) return `Unknown key "${key}" (not in schema)`
-        }
-      }
-      for (const key of allowedKeys) {
-        if (!(key in obj)) continue
-        if (typeof obj[key] !== 'string') return `Key "${key}" must be a string`
-      }
-      return true
+    validate: (value, args) => {
+      if (Array.isArray(value)) return 'Value must be a JSON object'
+      return validateJson(value, args)
     },
   }
 }
@@ -308,20 +386,29 @@ export function buildTranslationTabs(
       if (subgroups.length > 0) {
         // Wrap sub-group fields in a group named after the tab slug so the
         // API response is namespaced: { onboarding: { welcome: {…} } }
+        //
+        // Each sub-group renders as a **collapsible**, not an inner tab row.
+        // Tabs inside tabs hide every sub-group but one, which is the wrong
+        // shape for a translator working down a page. Collapsibles are
+        // presentational only: the data path and the column name are identical
+        // either way (`<tab>_<sub>`), so `wm-app-translations` reads and saves
+        // exactly as before and no migration is involved.
+        const collapsibles: CollapsibleField[] = subgroups.map(([subSlug, subSchema]) => ({
+          type: 'collapsible',
+          label: toWords(subSlug.replace(/_/g, '-')),
+          admin: {
+            ...(subSchema.description ? { description: subSchema.description } : {}),
+            // Accessibility strings are long, rarely edited, and would push
+            // the visible copy off the screen. Everything else opens.
+            initCollapsed: subSlug === 'a11y',
+          },
+          fields: createLeafFields(subSlug, subSchema, globalSlug, groupSlug),
+        }))
         const groupField: GroupField = {
           name: groupSlug,
           type: 'group',
           label: false,
-          fields: [
-            {
-              type: 'tabs',
-              tabs: subgroups.map(([subSlug, subSchema]) => ({
-                label: toWords(subSlug.replace(/_/g, '-')),
-                description: subSchema.description,
-                fields: createLeafFields(subSlug, subSchema, globalSlug, groupSlug),
-              })),
-            },
-          ],
+          fields: collapsibles,
         }
         return {
           label: toWords(groupSlug.replace(/_/g, '-')),

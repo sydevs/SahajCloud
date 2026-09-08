@@ -470,7 +470,11 @@ describe('atlasSitemap endpoint', () => {
     const setFallback = (clientId: number | null) =>
       payload.updateGlobal({
         slug: 'sy-atlas-config',
-        data: { canonicalFallbackClient: clientId } as never,
+        // `availableLocales` is required (#705), and this is a partial update —
+        // Payload validates the merged document, so a row that never had one is
+        // refused. `skipAvailableLocalesCheck` relaxes only the publish gate.
+        data: { canonicalFallbackClient: clientId, availableLocales: ['en'] } as never,
+        context: { skipAvailableLocalesCheck: true },
         overrideAccess: true,
       })
 

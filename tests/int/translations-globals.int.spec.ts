@@ -14,6 +14,11 @@
  *   wrapper supplies the tab namespace), so the field name is
  *   `welcome_legal_disclaimer` and the API path is
  *   `onboarding.welcome_legal_disclaimer`.
+ * - Since #705 each sub-group renders as a collapsible rather than an inner
+ *   tabs row, `localizeStatus` is on for the two web-project globals and off
+ *   for `wm-app-translations`, the JSON columns enforce their own schema on
+ *   write, and an API client reading a partly translated locale gets English
+ *   for the blanks.
  */
 import type { Field, Payload, TabsField } from 'payload'
 
@@ -163,7 +168,7 @@ describe('Translations Globals Configuration', () => {
       expect(groups).toHaveLength(0)
     })
 
-    it('wm-app-translations wraps each nested-tab in a single group containing an inner tabs field', () => {
+    it('wm-app-translations wraps each nested-tab in a single group of collapsibles', () => {
       const tabsField = findGlobal('wm-app-translations').fields[0] as TabsField
       for (const tab of tabsField.tabs) {
         const groups = tab.fields.filter((f) => f.type === 'group') as Array<{
@@ -174,12 +179,12 @@ describe('Translations Globals Configuration', () => {
         // Each tab has either 0 groups (simple leaf tab) or exactly 1 group (nested sub-groups)
         expect(groups.length === 0 || groups.length === 1).toBe(true)
         if (groups.length === 1) {
-          expect(groups[0]!.fields[0]?.type).toBe('tabs')
+          expect(groups[0]!.fields.every((f) => f.type === 'collapsible')).toBe(true)
         }
       }
     })
 
-    it('sy-atlas-translations wraps nested tabs (Region, Event, Registration) in a single group with an inner tabs field', () => {
+    it('sy-atlas-translations wraps nested tabs (Region, Event, Registration) in a single group of collapsibles', () => {
       const tabsField = findGlobal('sy-atlas-translations').fields[0] as TabsField
       const nestedTabs = new Set(['Region', 'Event', 'Registration'])
       for (const tab of tabsField.tabs) {
@@ -189,15 +194,87 @@ describe('Translations Globals Configuration', () => {
           fields: Field[]
         }>
         if (nestedTabs.has(label)) {
-          // Nested tabs wrap their subgroups in exactly one group whose first
-          // field is the inner tabs field.
+          // Nested tabs wrap their sub-groups in exactly one group, whose
+          // fields are one collapsible each (#705 — no inner tabs row).
           expect(groups, label).toHaveLength(1)
-          expect(groups[0]!.fields[0]?.type).toBe('tabs')
+          expect(groups[0]!.fields.every((f) => f.type === 'collapsible'), label).toBe(true)
         } else {
           // Leaf tabs (Common, Share) have no group wrapper.
           expect(groups, label).toHaveLength(0)
         }
       }
+    })
+  })
+
+  // The root `experimental.localizeStatus` flag alone changes nothing: Payload
+  // forces it off per entity unless the global also asks for it. So the two
+  // web-project globals must differ from `wm-app-translations` here, and a
+  // suite whose test config forgot the root flag would see all three the same.
+  describe('per-locale publish status', () => {
+    it('is on for the two web-project globals and off for wm-app-translations', () => {
+      const localizeStatus = (slug: Slug) => {
+        const versions = findGlobal(slug).versions as { drafts?: { localizeStatus?: boolean } }
+        return versions.drafts?.localizeStatus === true
+      }
+      expect(localizeStatus('sy-atlas-translations')).toBe(true)
+      expect(localizeStatus('wm-web-translations')).toBe(true)
+      expect(localizeStatus('wm-app-translations')).toBe(false)
+    })
+
+    it('publishing one locale leaves the others unpublished', async () => {
+      await payload.updateGlobal({
+        slug: 'sy-atlas-translations',
+        locale: 'fr',
+        publishSpecificLocale: 'fr',
+        data: { _status: 'published', common: { loading: 'Chargement…' } } as never,
+        overrideAccess: true,
+      })
+
+      const all = (await payload.findGlobal({
+        slug: 'sy-atlas-translations',
+        locale: 'all',
+        fallbackLocale: false,
+        depth: 0,
+        overrideAccess: true,
+      })) as unknown as { _status: Record<string, string> }
+
+      expect(all._status.fr).toBe('published')
+      expect(all._status.de).not.toBe('published')
+    })
+  })
+
+  // The JSON columns carry a `jsonSchema` and no `validate` of their own, so
+  // Payload's built-in validator enforces the schema. These assertions exist
+  // because a `validate` accidentally reintroduced anywhere would REPLACE that
+  // validator, and every shape check would silently stop running.
+  describe('the JSON columns enforce their schema on write', () => {
+    const write = (data: Record<string, unknown>) =>
+      payload.updateGlobal({
+        slug: 'sy-atlas-translations',
+        locale: 'en',
+        data: data as never,
+        overrideAccess: true,
+      })
+
+    it('rejects a key the schema does not declare', async () => {
+      await expect(write({ common: { mystery: 'nope' } })).rejects.toThrow()
+    })
+
+    it('rejects a non-string value for a declared key', async () => {
+      await expect(write({ common: { loading: 42 } })).rejects.toThrow()
+    })
+
+    it('accepts a partial object, and null', async () => {
+      await expect(write({ common: { loading: 'Loading…' } })).resolves.toBeDefined()
+      await expect(write({ common: null })).resolves.toBeDefined()
+    })
+
+    // Payload's built-in validator short-circuits on an "empty" value and
+    // counts `[]` as empty, so the schema never sees it. The composed check
+    // ahead of the delegation is what refuses it.
+    it('rejects an array, which the built-in validator alone lets through', async () => {
+      await expect(write({ common: [] })).rejects.toThrow()
+      await expect(write({ common: ['a'] })).rejects.toThrow()
     })
   })
 })

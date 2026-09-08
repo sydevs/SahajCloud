@@ -2,9 +2,12 @@
 
 import type { JSONFieldClientComponent } from 'payload'
 
+
 import { FieldError, FieldLabel, useField, useLocale } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
 import React, { useCallback, useMemo } from 'react'
+
+import type { SchemaEntry } from '@/fields/translationsField'
 
 import { AutoGrowTextarea } from './AutoGrowTextarea'
 import { lengthStatus } from './lengthStatus'
@@ -14,13 +17,6 @@ import { TranslationsRow } from './TranslationsRow'
 import { useEnglishTranslation } from './useEnglishTranslation'
 
 import './styles.css'
-
-interface SchemaEntry {
-  key: string
-  description: string
-  maxLength?: number
-  plural?: boolean
-}
 
 export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly }) => {
   const { name, label, localized, required, admin: { custom } = {} } = field
@@ -72,7 +68,7 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
           englishValue=""
           isEnglish={isEnglish}
           hideEnglish
-          length={lengthStatus(pluralValues, entry.maxLength)}
+          length={lengthStatus(pluralValues, entry.maxLength, entry.strict === true)}
         >
           <PluralInputs
             baseKey={entry.key}
@@ -101,7 +97,7 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
         isEnglish={isEnglish}
         isLoadingEnglish={isLoading}
         isErrorEnglish={isError}
-        length={lengthStatus(currentValue, entry.maxLength)}
+        length={lengthStatus(currentValue, entry.maxLength, entry.strict === true)}
       >
         <AutoGrowTextarea
           value={currentValue}

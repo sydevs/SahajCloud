@@ -73,6 +73,16 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       defaultLocale: DEFAULT_LOCALE,
       filterAvailableLocales,
     },
+    // Lets a global opt into per-locale publish status. The root flag changes
+    // nothing on its own: Payload forces `localizeStatus` off per entity unless
+    // this is set, and only a global that also sets
+    // `versions.drafts.localizeStatus` behaves differently
+    // (`dist/globals/config/sanitize.js`). Two do — the Sahaj Atlas and
+    // WeMeditate Web translations — so "published in French" becomes a fact
+    // `availableLocales` can gate on. It grants no access and hides no field.
+    experimental: {
+      localizeStatus: true,
+    },
     // CORS is intentionally open. Per-client origin enforcement is server-side:
     // `validateClientOriginHook` (usagePlugin) checks each request's Origin/Referer
     // against the client's `allowedDomains`, and the API key gates access. CORS

@@ -35,16 +35,60 @@ pages, required), `featuredPages` (hasMany 2–3), `featuredArticles`
 `vibeCheckTracks` (localized array. Each item has an `identifier` select
 plus required `audio`/`subtitles` uploads).
 
-**Sahaj Atlas** (admin group: System) — `languages` (required array, min 1,
-one `code` select per row from the CMS locales), `defaultMapCenter` group
-(required `latitude`/`longitude`), `defaultZoomLevel` (1–20).
+**Sahaj Atlas** (admin group: System) — `availableLocales`,
+`canonicalFallbackClient`, `defaultMapCenter` group (required
+`latitude`/`longitude`), `defaultZoomLevel` (1–20).
 
-`languages` is the **source of truth for which languages the atlas offers**
-(#645): the SEO endpoint reads it for every page's `hreflang` cluster. It
-replaced a constant duplicated across two repos. `ATLAS_DEFAULT_LOCALES`
-(`src/lib/atlas/defaultLocales.ts`) is both its `defaultValue` and the
-fallback for an unconfigured column, so the two cannot drift — the fallback
-matters because a `defaultValue` never backfills an existing global row.
+**WeMeditate Web** also carries `availableLocales`, after `homePage`.
+
+### `availableLocales` — the language set, gated on published translations
+
+`availableLocalesField({ translationsSlug, surface })`
+(`src/fields/availableLocalesField.ts`) is the **source of truth for which
+languages a project offers** (#645, rewritten by #705): the SEO endpoint
+reads it for every atlas page's `hreflang` cluster. It replaced
+`sy-atlas-config.languages`, an unvalidated array of `{ code }` rows.
+
+Two invariants, both enforced in the field because a stored value that
+breaks either is a wrong `hreflang` on every page:
+
+1. **`en` is always available.** Every other locale falls back to it.
+2. **A locale can only be offered once that project's translations are
+   published in it.** The field reads the translations global once per
+   request at `locale: 'all'` and rejects any selection whose `_status` is
+   not `published`.
+
+⚠ **English is exempt from the publish gate, and that is not an oversight.**
+It is mandatory rather than chosen, so gating it is a deadlock, not a gate:
+Payload validates the merged document on **every** save of the global — not
+only when someone edits this field — and the migration that adds per-locale
+`_status` lands every locale as `draft`. Gating English would leave both
+config globals unsaveable after deploy, with an error telling the operator to
+publish the one locale they cannot deselect.
+
+⚠ **`locale: 'all'` is load-bearing.** A single-locale read resolves
+`_status` through the English fallback, so an untranslated locale reports
+itself published and the gate opens for everything. Only the raw per-locale
+map answers correctly.
+
+`req.context.skipAvailableLocalesCheck` relaxes the publish check for the
+**local API only** — seeds and specs that create a config row before
+anything is published. `en` stays required with it set. It is unreachable
+over REST: Payload hard-codes `context: {}` on every REST request.
+
+⚠ **Every partial write to either config global must now carry
+`availableLocales`.** Payload merges the stored value into the field's
+sibling data and validates it, so a `required` field with no stored value
+refuses a write that never mentioned it. `seeds/wemeditate/import.ts` and two
+integration suites each needed a line for this.
+
+**An unconfigured column answers `['en']`** (`readAvailableLocales`,
+`src/lib/translations/availableLocales.ts`), not the ten launch locales the
+deleted `ATLAS_DEFAULT_LOCALES` used to supply. A `defaultValue` never
+backfills an existing global row, and production's row exists — so the
+fallback is what production sees on deploy. A wider one would tell a
+crawler nine languages have pages before an operator said any of them were
+translated.
 
 > ### ⚠ Never name a global's field `locales`
 >
@@ -72,6 +116,32 @@ the global. Versions: max 3.
 - WeMeditate Web tabs: Common, Navigation
 - WeMeditate App tabs: Daily, Path, Explore, Profile, Meditation
 - Sahaj Atlas tabs: Common, Region, Event, Registration, Share, Emails
+
+Three things distinguish `sy-atlas-translations` and `wm-web-translations`
+from `wm-app-translations` (#705):
+
+- **Per-locale publish status.** Both set
+  `versions.drafts.localizeStatus: true` (the object form — `drafts: true`
+  sanitises the flag back to `false`), and `payload.config.ts` sets the
+  root `experimental.localizeStatus`. Payload forces the flag off per
+  entity without that root flag, so a test config that forgets it runs
+  every global with one status for all locales. The admin then offers
+  "Publish in \<Locale\>", "Publish all locales" and "Unpublish in
+  \<Locale\>"; from the local API it is
+  `updateGlobal({ locale: 'fr', publishSpecificLocale: 'fr', data: { _status: 'published' } })`.
+  ⚠ "Publish all locales" includes empty ones, which `availableLocales`
+  then accepts.
+- **An English merge for API clients.** `clientEnglishFallback`
+  (`src/lib/translations/clientEnglishFallback.ts`) is an `afterRead` hook
+  that fills blank or missing keys from English when
+  `req.user.collection === 'clients'`. A manager read is untouched on
+  purpose — the admin and the status report must keep showing which keys
+  are empty. It never re-adds a field the caller's `select` stripped, and
+  it never throws.
+- **`_locales` is a reserved suffix, and it is matched exactly.** Drizzle
+  keys the localized-values table on the literal `<table>_locales`, never
+  on a suffix, so `sy_atlas_config_available_locales` is safe. The `⚠`
+  box below is still the rule for naming a field.
 
 The Atlas `Emails` group is read **server-side** by `resolveEmailStrings()`
 (`src/lib/translations/emailStrings.ts`), which supplies localized chrome
@@ -139,19 +209,56 @@ Lowercase only. Use `_` between words (`about_meditation`, not
 `aboutMeditation`). No dots — the nested schema handles grouping. Keep keys
 descriptive.
 
-### Per-key character limit (`maxLength`)
+### The JSON column declares its own shape
 
-A `string` leaf may carry an optional `maxLength` — a soft limit for its
+Each leaf group's JSON field carries a `jsonSchema` built by
+`stringsJsonSchema` (#705), so Payload generates a named
+`<Global><Parent><Leaf>Strings` interface instead of the
+`{ [k: string]: unknown } | … | null` union, and Ajv enforces the shape on
+write.
+
+- **A `validate` here must COMPOSE the built-in, never replace it.** Supplying
+  one replaces Payload's built-in `json` validator — the one bound to
+  `jsonSchema` — so a hand-rolled rule switches every shape check off silently.
+  `createStringsJsonField` adds one check (an array, which the built-in
+  short-circuits past because `[]` counts as an "empty" value) and then
+  delegates to `json` from `payload/shared`.
+- **Every property is optional.** Payload validates a stored column on
+  every save of its document, so a `required` key would strand a locale
+  that predates it, on a save that never touched translations.
+- **Only standard JSON Schema keywords may appear.** Payload runs Ajv 8 in
+  strict mode, where an unknown keyword throws at *validate* time, not at
+  boot — so `plural`, `screenshot` and `strict` must never reach the
+  emitted schema. A plural key contributes its expanded CLDR family.
+
+### Sub-groups render as collapsibles
+
+A tab with sub-groups still wraps them in a Payload `group` named after the
+tab (API path `tab.sub.key`, column `<tab>_<sub>`), but each sub-group is a
+`collapsible`, not an inner tab. Tabs inside tabs hide every sub-group but
+one. A sub-group named `a11y` starts collapsed; everything else opens. This
+is presentational only — the data path and column name are unchanged, so no
+migration is involved. Mixing leaf keys and sub-groups at one level is
+deliberately unsupported: declare explicit `general` + `a11y` sub-groups.
+
+### Per-key character limit (`maxLength`, and `strict`)
+
+A `string` leaf may carry an optional `maxLength` — a limit for its
 on-screen UI slot (a status chip, an action label). It threads schema →
 `admin.custom` → `TranslationsRow`, which shows the limit and, once
-exceeded, a live count plus a warning icon. **Advisory only** — the field's
-`validate` is unchanged, so an over-limit string still saves. It lives in
-`admin.custom`, not the DB schema, so tuning one needs no migration. The
-comparison lives in `lengthStatus`
+exceeded, a live count plus a warning icon. **Advisory by default** — an
+over-limit string still saves. The comparison lives in `lengthStatus`
 (`src/components/admin/TranslationsRow/lengthStatus.ts`, unit-tested),
 which counts Unicode code points. Budget generously for keys with `%{...}`
 placeholders — the raw stored string is measured, and the placeholder
 expands at render.
+
+Add **`"strict": true`** beside it to make the limit block the save. The
+limit is then emitted into the field's JSON Schema, so Payload refuses the
+write, and the row renders an error ("over the limit, this will not save")
+instead of a warning. Reach for it where an over-length string breaks a
+layout rather than merely looking untidy. Turning an existing advisory
+limit strict can make keys already over it unsaveable — check first.
 
 ```json
 "online_cta": {

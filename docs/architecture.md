@@ -54,7 +54,7 @@ Serves one atlas route's metadata and body content as data (#645), so a host pag
 - **Keyed by the route's terminal segment, not the whole path.** A region slug is unique, and an event id needs no ancestry. Both match the widget's own `resolvePath` rule — a restructured subtree does not 404 every inbound link.
 - **`where['breadcrumbs.url'][equals]` is not a unique key.** `breadcrumbs` is an array, so `equals` also matches every descendant (`/gb/london` matches London's whole subtree). Use `slug` instead for exactly one region.
 - **Nothing in the atlas is localized.** Titles and descriptions are single values the widget translates client-side. The canonical is locale-free, and `alternates` differ only by the widget's `?locale=`.
-- **The `alternates` language set is operator-owned**, on `sy-atlas-config.languages` — not the CMS's full locale list. See `src/globals/AGENTS.md` for why the field must not be named `locales`.
+- **The `alternates` language set is operator-owned**, on `sy-atlas-config.availableLocales` — not the CMS's full locale list, and gated: a language can only be offered once the Sahaj Atlas translations are published in it (#705). An unconfigured row answers `['en']`. See `src/globals/AGENTS.md`.
 
 `GET /api/atlas/sitemap` is the enumeration half (#650). `/sitemap` answers every route this client owns, as the same `webUrl` `/seo` returns as `canonical`. The two can't drift and 404 a crawler (`tests/int/atlas-sitemap.int.spec.ts`).
 

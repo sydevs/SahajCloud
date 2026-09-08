@@ -29,6 +29,9 @@ import type { Payload, TypedLocale } from 'payload'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
 
+import { SKIP_AVAILABLE_LOCALES_CHECK } from '@/fields/availableLocalesField'
+import { readAvailableLocales } from '@/lib/translations/availableLocales'
+
 import {
   BaseImporter,
   BaseImportOptions,
@@ -2396,12 +2399,28 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         return
       }
 
+      // `availableLocales` is required (#705) and this is a partial update, so
+      // Payload validates the merged document and refuses a row that has never
+      // had one. Carry the stored value through, or seed English — which is
+      // also what `readAvailableLocales` answers for an unconfigured row, so
+      // this changes no consumer's behaviour.
+      //
+      // `skipAvailableLocalesCheck` is the local-API escape hatch for the
+      // publish gate: a seed runs before any translations are published, and
+      // English stays required with the flag set.
+      const existing = await this.payload.findGlobal({ slug: 'wm-web-config', depth: 0 })
+      const availableLocales = readAvailableLocales(
+        (existing as { availableLocales?: unknown }).availableLocales,
+      )
+
       await this.payload.updateGlobal({
         slug: 'wm-web-config',
         data: {
           homePage,
           featuredPages,
+          availableLocales,
         },
+        context: { [SKIP_AVAILABLE_LOCALES_CHECK]: true },
       })
 
       await this.logger.success('✓ We Meditate Web Config updated')

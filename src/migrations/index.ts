@@ -54,6 +54,7 @@ import * as migration_20260826_214829_add_user_messages from './20260826_214829_
 import * as migration_20260902_224424_add_atlas_canonical_fallback_client from './20260902_224424_add_atlas_canonical_fallback_client';
 import * as migration_20260905_130913_drop_manager_project_sentinel from './20260905_130913_drop_manager_project_sentinel';
 import * as migration_20260907_181403_reorder_timezone_enums from './20260907_181403_reorder_timezone_enums';
+import * as migration_20260907_213802_translations_localize_status_available_locales from './20260907_213802_translations_localize_status_available_locales';
 
 export const migrations = [
   {
@@ -334,6 +335,11 @@ export const migrations = [
   {
     up: migration_20260907_181403_reorder_timezone_enums.up,
     down: migration_20260907_181403_reorder_timezone_enums.down,
-    name: '20260907_181403_reorder_timezone_enums'
+    name: '20260907_181403_reorder_timezone_enums',
+  },
+  {
+    up: migration_20260907_213802_translations_localize_status_available_locales.up,
+    down: migration_20260907_213802_translations_localize_status_available_locales.down,
+    name: '20260907_213802_translations_localize_status_available_locales'
   },
 ];
