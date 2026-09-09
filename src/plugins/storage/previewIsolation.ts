@@ -24,6 +24,8 @@
  * See `docs/rules/storage.md` § "Preview / non-production isolation".
  */
 
+import { railwayEnvironmentName } from '@/lib/env/deploymentEnvironment'
+
 import { storageLogger } from './storageLogger'
 
 /**
@@ -57,17 +59,6 @@ export const PREVIEW_ASSET_PREFIX = 'preview-'
 /** Cloudflare Stream `meta` key/value stamped on non-prod video uploads. */
 export const PREVIEW_STREAM_META_KEY = 'env'
 export const PREVIEW_STREAM_META_VALUE = 'preview'
-
-/**
- * The current Railway environment name, or `undefined` off-Railway (local, CI,
- * test). Reads `process.env` directly so the result reflects the live env and
- * stays trivially testable — the pattern `payload.config.ts` uses for
- * `process.env.NODE_ENV`. Prefers `RAILWAY_ENVIRONMENT_NAME`, falling back to
- * the legacy `RAILWAY_ENVIRONMENT` (`scripts/postinstall.cjs` confirms the
- * latter is set on Railway).
- */
-export const railwayEnvironmentName = (): string | undefined =>
-  process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.RAILWAY_ENVIRONMENT
 
 /**
  * True only when this deployment is the production Railway environment.

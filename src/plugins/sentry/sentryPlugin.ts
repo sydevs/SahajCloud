@@ -14,6 +14,7 @@ import * as Sentry from '@sentry/nextjs'
 
 import { mapPostgresCastError } from '@/lib/databaseErrors'
 import { serverEnv } from '@/lib/env'
+import { deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
 
 /**
  * Context object for Sentry error capture
@@ -125,7 +126,7 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
                     }
                   : undefined,
                 tags: {
-                  environment: process.env.NODE_ENV,
+                  environment: deploymentEnvironment(),
                   locale: req.locale,
                   collection: 'collection' in args ? String(args.collection?.slug) : undefined,
                 },

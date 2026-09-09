@@ -9,7 +9,6 @@ import {
   isStorageIsolationActive,
   PREVIEW_ASSET_PREFIX,
   PRODUCTION_ENVIRONMENT_NAME,
-  railwayEnvironmentName,
 } from '@/plugins/storage/previewIsolation'
 
 const PREVIEW_ENV = 'pr-432'
@@ -37,25 +36,9 @@ afterEach(() => {
   restore('RAILWAY_ENVIRONMENT', ORIGINAL_ENV)
 })
 
-describe('railwayEnvironmentName', () => {
-  it('prefers RAILWAY_ENVIRONMENT_NAME', () => {
-    process.env.RAILWAY_ENVIRONMENT_NAME = 'production'
-    process.env.RAILWAY_ENVIRONMENT = 'ignored'
-    expect(railwayEnvironmentName()).toBe('production')
-  })
-
-  it('falls back to the legacy RAILWAY_ENVIRONMENT', () => {
-    delete process.env.RAILWAY_ENVIRONMENT_NAME
-    process.env.RAILWAY_ENVIRONMENT = 'pr-7'
-    expect(railwayEnvironmentName()).toBe('pr-7')
-  })
-
-  it('is undefined off-Railway', () => {
-    setRailwayEnv(undefined)
-    expect(railwayEnvironmentName()).toBeUndefined()
-  })
-})
-
+// `railwayEnvironmentName` itself is covered by
+// `tests/unit/deployment-environment.spec.ts`, beside its definition. This file
+// covers what reads it: the isolation guard below.
 describe('isProductionDeployment / isStorageIsolationActive', () => {
   it('treats the production environment as production (isolation off)', () => {
     setRailwayEnv(PRODUCTION_ENVIRONMENT_NAME)

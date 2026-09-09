@@ -62,7 +62,12 @@ tracking), which a root handler must then compensate for by hand — see
 
 No loose files at the root — every file lives in a named folder:
 
-- `env/` — environment-variable validation (broadly imported config)
+- `env/` — environment-variable validation (broadly imported config), plus
+  `deploymentEnvironment.ts`, which names the deployment (Railway environment
+  name, falling back to `NODE_ENV`). That one is deliberately **outside** the
+  `@/lib/env` barrel and imported by its deep path: the barrel pulls in the
+  validated `serverEnv` parse, and Sentry reads it during
+  `instrumentation.register()`, before that parse is safe to depend on
 - `logger/` — `clientLogger`, `workerSafeLogger`
 - `utilities/` — purposeful cross-boundary helpers (`serverUrl`,
   `previewSecret`, `gender`, `subtitles`, `weightedSample`, `isRecord`,

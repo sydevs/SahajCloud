@@ -1,5 +1,6 @@
 import { serverEnv } from '@/lib/env'
-import { isProductionDeployment, railwayEnvironmentName } from '@/plugins/storage/previewIsolation'
+import { railwayEnvironmentName } from '@/lib/env/deploymentEnvironment'
+import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 
 /**
  * Inputs the gate reads. Passed in rather than read from `process.env` here, so the

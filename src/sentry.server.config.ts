@@ -7,6 +7,8 @@
  */
 import * as Sentry from '@sentry/nextjs'
 
+import { deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
+
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
 
 /**
@@ -25,7 +27,7 @@ const tracesSampleRate = Number.isFinite(parsedRate)
 if (dsn) {
   Sentry.init({
     dsn,
-    environment: process.env.NODE_ENV,
+    environment: deploymentEnvironment(),
     // Never attach PII to events/spans. Explicit even though it's the
     // @sentry/nextjs default — now that tracing is on, this keeps the
     // @sentry/node HTTP integration from recording request headers (Cookie,
