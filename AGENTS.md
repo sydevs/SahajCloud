@@ -25,7 +25,7 @@ Subsystem guidance loads two ways, by whether its scope is one directory:
 
 ## Project Overview
 
-A Next.js 15 app on Payload CMS 3.0, a headless CMS. TypeScript, PostgreSQL, deployed on Railway. Cloudflare R2 (S3 API) handles storage. Cloudflare's edge (Images, Stream, rate limiting, caching) sits in front.
+A Next.js 16 app on Payload CMS 3.0, a headless CMS. TypeScript, PostgreSQL, deployed on Railway. Cloudflare R2 (S3 API) handles storage. Cloudflare's edge (Images, Stream, rate limiting, caching) sits in front.
 
 ## Admin Access
 

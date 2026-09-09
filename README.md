@@ -1,6 +1,6 @@
 # Sahaj Cloud CMS
 
-A headless content management system built with **Next.js 15** and **PayloadCMS 3.0**. It runs on
+A headless content management system built with **Next.js 16** and **PayloadCMS 3.0**. It runs on
 **Railway** with **PostgreSQL** and Cloudflare R2 (S3 API) for storage, behind Cloudflare's edge
 (Images, Stream, rate limiting, caching).
 
