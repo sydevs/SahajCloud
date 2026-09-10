@@ -16,7 +16,12 @@ import { mapPostgresCastError } from '@/lib/databaseErrors'
 import { serverEnv } from '@/lib/env'
 import { deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
 
-import { classifyAuthAttempt } from './authAttempt'
+import {
+  detectRejectedCredential,
+  logRejectedCredential,
+  rejectedCredentialFingerprint,
+  rejectedCredentialTags,
+} from './credentialRejection'
 
 /**
  * Context object for Sentry error capture
@@ -145,27 +150,9 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
               // A presented-and-rejected credential is a broken integration, not
               // traffic — but only below 500. The caller's credential is not what
               // is wrong with a 500, so nothing auth-related is computed there.
-              const rejected =
-                status < 500
-                  ? classifyAuthAttempt(
-                      req.headers?.get?.('authorization'),
-                      Boolean(req.user),
-                      // `hasOwn`, not `in`: a header naming `toString` must not
-                      // read as a real collection off the prototype chain.
-                      (slug) => Object.hasOwn(req.payload?.collections ?? {}, slug),
-                    )
-                  : undefined
+              const rejected = status < 500 ? detectRejectedCredential(req) : null
 
-              if (rejected?.outcome === 'rejected') {
-                // Cloudflare sets CF-Connecting-IP at the edge; a direct origin
-                // hit has none. Read the same way as `verifyTurnstileOrFail`.
-                //
-                // ⚠ **Trust it only as far as the edge.** A caller reaching the
-                // Railway origin directly can set this header to anything. The
-                // key fingerprint is what actually names an integration.
-                const userAgent = req.headers?.get?.('user-agent') ?? undefined
-                const ip = req.headers?.get?.('cf-connecting-ip') ?? undefined
-
+              if (rejected) {
                 // ⚠ **Accepted risk: this level is caller-triggerable.** Any
                 // anonymous caller can raise a captured 400/403/404 to `error`
                 // by sending a junk `Authorization` header. Grouping stays
@@ -178,46 +165,20 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
                 // `sendDefaultPii: false` and the project's "Prevent Storing of
                 // IP Addresses" setting both act on that field alone; an `extra`
                 // is opaque context no scrubber reaches.
-                clientIp = ip
-                // A tag, not an extra, despite its cardinality: naming WHICH
-                // integration is broken is the point, and only a tag is searchable.
-                Object.assign(tags, {
-                  auth_outcome: rejected.outcome,
-                  auth_collection: rejected.authCollection,
-                  auth_scheme: rejected.authScheme,
-                  key_fingerprint: rejected.keyFingerprint,
-                })
-                Object.assign(extra, { userAgent })
-                // Group by the collection, never the key fingerprint: a broken
-                // integration must not open one Sentry issue per key it presents.
-                // `classifyAuthAttempt` has already checked the slug against the
-                // real collection list, so this stays bounded. The tag above
-                // segments within the group.
-                fingerprint = [
-                  'credential-rejected',
-                  String(status),
-                  rejected.authCollection ?? 'unknown',
-                ]
+                clientIp = rejected.ip
+                Object.assign(tags, rejectedCredentialTags(rejected))
+                Object.assign(extra, { userAgent: rejected.userAgent })
+                fingerprint = rejectedCredentialFingerprint(rejected, status)
 
-                // Mirror to the application log, so a denial stays diagnosable
-                // from Railway without opening Sentry — the same shape
-                // `assertClientOriginAllowed` uses. Deliberately outside the
-                // custom `context` function below: that may reshape the report,
-                // but the denial itself still happened.
+                // Deliberately outside the custom `context` function below: that
+                // may reshape the report, but the denial itself still happened.
                 //
                 // ⚠ This plugin returns the config untouched when no
                 // `NEXT_PUBLIC_SENTRY_DSN` is set, so a deployment without one
                 // gets neither the event nor this line. Every deployed
                 // environment sets it; a local run that does not, will not see
-                // this.
-                req.payload.logger.warn({
-                  msg: 'sentryPlugin: API credential presented and rejected',
-                  status,
-                  url: req.url,
-                  ...rejected,
-                  userAgent,
-                  ip,
-                })
+                // this. `requireActiveClient`'s path has no such gate (#743).
+                logRejectedCredential(req, rejected, { status, source: 'sentryPlugin' })
               }
 
               // The two arms are mutually exclusive: `clientIp` is set only on
