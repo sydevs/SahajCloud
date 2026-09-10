@@ -42,7 +42,10 @@ Permission flow, in order:
 Worth knowing: **implicit read access** lets managers and clients read
 everything in their role's project, plus collections in no project.
 **Manager roles are per-locale** (uses `req.locale`). **Client roles apply
-uniformly across all locales.**
+uniformly across all locales.** **Version history follows `update`, not
+`read`** — `withVersionHistoryAccess` derives `readVersions` from the
+collection's edit authority, so a read-only role reaches no drafts through
+`/api/{collection}/versions` (#719, see `docs/rules/access.md`).
 
 Full RBAC details: see `docs/rules/access.md` (loads when editing
 `src/plugins/access/`).

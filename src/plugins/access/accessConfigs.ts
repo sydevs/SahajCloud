@@ -10,7 +10,16 @@
  */
 
 import type { BypassPermissionFunction, ContentSlug, FieldAccessConfig } from './types'
-import type { AccessArgs, CollectionConfig, CollectionSlug, PayloadRequest, Where } from 'payload'
+import type {
+  Access,
+  AccessArgs,
+  CollectionConfig,
+  CollectionSlug,
+  PayloadRequest,
+  Where,
+} from 'payload'
+
+import { appendVersionToQueryKey, hasWhereAccessResult } from 'payload'
 
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 
@@ -157,6 +166,41 @@ export function createAccessConfig(
   }
 
   return accessConfig
+}
+
+/**
+ * Derive `readVersions` from `update`: version history is EDIT authority, not
+ * read authority (#719).
+ *
+ * Payload's fallback for an *unset* `readVersions` is the permissive one — "is
+ * anyone logged in" — which an API key satisfies. Why `update` is the authority
+ * to delegate to, and what was readable before: "Version history is edit
+ * authority" in `docs/rules/access.md`.
+ *
+ * ⚠ Wrap the MERGED access config, after any per-entity override. Deriving this
+ * inside `createAccessConfig` binds `readVersions` to an `update` the override
+ * has already replaced.
+ */
+export function withVersionHistoryAccess<T extends { readVersions?: Access; update?: Access }>(
+  access: T,
+): T {
+  const { readVersions, update } = access
+  if (readVersions || !update) return access
+
+  return {
+    ...access,
+    // ⚠ Drop the id. `findVersionByID` passes the VERSION ROW's primary key,
+    // not the document's, so every id-sensitive branch of `update` would answer
+    // about the wrong document. Dropped, `update` answers at the list level and
+    // `findVersionByID` ANDs the row id back on itself.
+    readVersions: async ({ id: _versionRowId, ...args }) => {
+      const result = await update(args)
+      // ⚠ Translate the `Where`. `update` queries DOCUMENTS; this one runs over
+      // VERSIONS, where a document's fields sit under `version.` and its id is
+      // `parent`.
+      return hasWhereAccessResult(result) ? appendVersionToQueryKey(result) : result
+    },
+  }
 }
 
 /**
