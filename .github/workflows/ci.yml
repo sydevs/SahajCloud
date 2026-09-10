@@ -34,9 +34,9 @@ jobs:
       # Integration tests connect here. Each suite uses an isolated schema.
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/payload_test
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .node-version
           cache: pnpm
