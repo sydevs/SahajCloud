@@ -101,7 +101,11 @@ Attribution is the auth scheme, the collection slug, the `User-Agent`, `cf-conne
 
 ⚠ **The `error` level is caller-triggerable, and that is accepted.** Any anonymous caller can raise a captured 400/403/404 to `error` by sending a junk `Authorization` header. Grouping is bounded by the collection check, so the cost is event quota and alert noise rather than issue sprawl. Mute it with a Sentry-side rule on the `auth_outcome` tag, not by dropping the level — the level is what distinguishes the signal.
 
-⚠ **This sees only what Payload's error handler sees.** A custom endpoint that denies by *returning* a 403 `Response` — everything behind `requireActiveClient` — never reaches the hook, so a rejected key there is still invisible. #743 tracks it. A 500 is deliberately left alone: the caller's credential is not what is wrong with it.
+⚠ **The hook sees only what Payload's error handler sees.** A custom endpoint that denies by *returning* a 403 `Response` never throws, so nothing reaches the hook. `requireActiveClient` (`src/lib/endpoints/requireActiveClient.ts`) reports its own denials for that reason (#743) — one seam covering the fifteen handlers that short-circuit on it, `/api/atlas/seo` and `/api/atlas/sitemap` among them. Both paths share `src/plugins/sentry/credentialRejection.ts`: one tag set, one fingerprint shape, one log message, because a second copy would split one Sentry issue in two. A 500 is deliberately left alone: the caller's credential is not what is wrong with it.
+
+Two differences follow from the guard denying rather than throwing. It captures a **message** (`Sentry.captureMessage`) where the hook captures the exception, since there is no exception. And it is **not gated on `NEXT_PUBLIC_SENTRY_DSN`** — `sentryPlugin` returns the config untouched without one, so the hook's WARN mirror disappears with it, while the guard's line survives a local run. Reporting there never throws: a telemetry failure must not turn a caller's 403 into a 500.
+
+⚠ **`requireActiveManager` is deliberately not covered.** It guards the admin surface, where a denial is a person's stale session far more often than a broken integration, and #743's criteria name the client guard alone. Adding it is a one-line call to the same helper if the admin surface ever wants the signal.
 
 ### What an error body discloses (#684)
 

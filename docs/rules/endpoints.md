@@ -115,6 +115,8 @@ handler: async (req) => {
 
 `requireActiveClient` returns `403` unless the caller is a **published** `clients` user. Don't hand-roll the check — it is the single source for the guard's shape and message. An endpoint that must skip it (internal or admin-only) needs a comment saying why.
 
+⚠ **Hand-rolling it also costs you the rejected-credential signal.** A `403` this guard *returns* never reaches Payload's `afterError` hook, so the guard reports a presented-and-rejected API key itself (#743) — see `docs/rules/api-clients.md`. A hand-rolled check is silent, and a dead integration hammering the endpoint stays invisible.
+
 ### 2. Register it in the OpenAPI shim
 
 `payload-oapi` does not auto-generate paths for custom collection endpoints, so a new one stays invisible in `/api/docs` until hand-authored. For every endpoint:
