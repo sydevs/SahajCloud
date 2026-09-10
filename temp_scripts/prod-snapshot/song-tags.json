@@ -1,0 +1,220 @@
+[
+  {
+    "id": 9,
+    "generateSlug": false,
+    "slug": "piano",
+    "title": {
+      "en": "Piano"
+    },
+    "songs": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-02-11T16:39:16.531Z",
+    "createdAt": "2026-02-11T12:56:21.423Z",
+    "thumbnailURL": null,
+    "filename": "piano-3w8fmj3hlw.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 2004,
+    "width": 48,
+    "height": 48,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/piano-3w8fmj3hlw.svg"
+  },
+  {
+    "id": 8,
+    "generateSlug": false,
+    "slug": "evening",
+    "title": {
+      "en": "Evening"
+    },
+    "songs": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-02-11T16:39:22.265Z",
+    "createdAt": "2026-01-22T08:01:27.493Z",
+    "thumbnailURL": null,
+    "filename": "evening-u7frldfz5g.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 1969,
+    "width": 48,
+    "height": 48,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/evening-u7frldfz5g.svg"
+  },
+  {
+    "id": 7,
+    "generateSlug": false,
+    "slug": "afternoon",
+    "title": {
+      "en": "Afternoon"
+    },
+    "songs": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-02-11T16:39:20.274Z",
+    "createdAt": "2026-01-22T08:01:25.535Z",
+    "thumbnailURL": null,
+    "filename": "afternoon-snwhr2sl8e.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 1267,
+    "width": 800,
+    "height": 800,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/afternoon-snwhr2sl8e.svg"
+  },
+  {
+    "id": 6,
+    "generateSlug": false,
+    "slug": "morning",
+    "title": {
+      "en": "Morning"
+    },
+    "songs": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-02-11T16:39:18.559Z",
+    "createdAt": "2026-01-22T08:01:23.506Z",
+    "thumbnailURL": null,
+    "filename": "morning-7pvrwt7k3ck.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 931,
+    "width": 48,
+    "height": 48,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/morning-7pvrwt7k3ck.svg"
+  },
+  {
+    "id": 4,
+    "generateSlug": false,
+    "slug": "vocals",
+    "title": {
+      "en": "Vocals"
+    },
+    "songs": {
+      "docs": [
+        27,
+        26,
+        25,
+        24,
+        23,
+        22,
+        21,
+        20,
+        19,
+        18,
+        13,
+        12,
+        11
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-02-11T16:39:14.862Z",
+    "createdAt": "2026-01-22T08:01:18.649Z",
+    "thumbnailURL": null,
+    "filename": "vocals-kf0ugif4q7h.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 2004,
+    "width": 48,
+    "height": 48,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/vocals-kf0ugif4q7h.svg"
+  },
+  {
+    "id": 3,
+    "generateSlug": false,
+    "slug": "strings",
+    "title": {
+      "en": "Strings"
+    },
+    "songs": {
+      "docs": [
+        18,
+        17,
+        16,
+        7,
+        6,
+        5,
+        4,
+        2,
+        1
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-02-11T16:39:12.851Z",
+    "createdAt": "2026-01-22T08:01:15.654Z",
+    "thumbnailURL": null,
+    "filename": "strings-2di40q1zjf.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 2388,
+    "width": 48,
+    "height": 48,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/strings-2di40q1zjf.svg"
+  },
+  {
+    "id": 2,
+    "generateSlug": false,
+    "slug": "flute",
+    "title": {
+      "en": "Flute"
+    },
+    "songs": {
+      "docs": [
+        18,
+        17,
+        16,
+        15,
+        14,
+        10,
+        9,
+        8,
+        3
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-02-11T16:39:10.787Z",
+    "createdAt": "2026-01-22T08:01:12.691Z",
+    "thumbnailURL": null,
+    "filename": "flute-d1frro3kfu.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 1197,
+    "width": 32,
+    "height": 32,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/flute-d1frro3kfu.svg"
+  },
+  {
+    "id": 1,
+    "generateSlug": false,
+    "slug": "nature",
+    "title": {
+      "en": "Nature"
+    },
+    "songs": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-02-11T16:39:08.828Z",
+    "createdAt": "2026-01-22T08:01:10.120Z",
+    "thumbnailURL": null,
+    "filename": "nature-qi3kle3nko.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 3336,
+    "width": 32,
+    "height": 32,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/nature-qi3kle3nko.svg"
+  }
+]

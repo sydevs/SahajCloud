@@ -1,0 +1,1371 @@
+[
+  {
+    "id": 27,
+    "generateSlug": false,
+    "slug": "quick-meditation--15-min",
+    "title": {
+      "en": "10-15 min"
+    },
+    "type": "duration",
+    "color": "#e08e79",
+    "parent": null,
+    "isFeatured": false,
+    "order": 1,
+    "timings": [
+      "morning",
+      "afternoon",
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": 114
+    },
+    "afternoonMeditation": {
+      "en": 133
+    },
+    "eveningMeditation": {
+      "en": 130
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:04:19.248Z",
+    "createdAt": "2026-04-29T04:46:49.468Z",
+    "thumbnailURL": null,
+    "filename": "duration15unselected-h8w16f.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 284,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/duration15unselected-h8w16f.svg"
+  },
+  {
+    "id": 26,
+    "generateSlug": false,
+    "slug": "quick-meditation--10-min",
+    "title": {
+      "en": "5-10 min"
+    },
+    "type": "duration",
+    "color": "#e08e79",
+    "parent": null,
+    "isFeatured": false,
+    "order": 1,
+    "timings": [
+      "morning",
+      "afternoon",
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": 36
+    },
+    "afternoonMeditation": {
+      "en": 82
+    },
+    "eveningMeditation": {
+      "en": 17
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:04:20.578Z",
+    "createdAt": "2026-04-29T04:46:39.155Z",
+    "thumbnailURL": null,
+    "filename": "duration10unselected-lc7mlj.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 338,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/duration10unselected-lc7mlj.svg"
+  },
+  {
+    "id": 25,
+    "generateSlug": false,
+    "slug": "quick-meditation---5-min",
+    "title": {
+      "en": "5 min"
+    },
+    "type": "duration",
+    "color": "#e08e79",
+    "parent": null,
+    "isFeatured": false,
+    "order": 1,
+    "timings": [
+      "morning",
+      "afternoon",
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": 105
+    },
+    "afternoonMeditation": {
+      "en": 95
+    },
+    "eveningMeditation": {
+      "en": 44
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:04:29.012Z",
+    "createdAt": "2026-04-29T04:46:33.879Z",
+    "thumbnailURL": null,
+    "filename": "duration5unselected-e78exw.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 329,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/duration5unselected-e78exw.svg"
+  },
+  {
+    "id": 16,
+    "generateSlug": false,
+    "slug": "feeling-good",
+    "title": {
+      "en": "Had a great day, feeling good!"
+    },
+    "type": "mood",
+    "color": "#DF8E79",
+    "parent": null,
+    "isFeatured": true,
+    "order": 1,
+    "timings": [
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": null
+    },
+    "afternoonMeditation": {
+      "en": null
+    },
+    "eveningMeditation": {
+      "en": 89
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        12
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:04:30.287Z",
+    "createdAt": "2026-01-22T08:00:38.129Z",
+    "thumbnailURL": null,
+    "filename": "feeling-good-om07y7s66yf.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 3264,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/feeling-good-om07y7s66yf.svg"
+  },
+  {
+    "id": 12,
+    "generateSlug": false,
+    "slug": "want-to-reconnect",
+    "title": {
+      "en": "Feeling fine, just want to reconnect"
+    },
+    "type": "mood",
+    "color": "#A1C3D7",
+    "parent": null,
+    "isFeatured": true,
+    "order": 1,
+    "timings": [
+      "afternoon"
+    ],
+    "morningMeditation": {
+      "en": null
+    },
+    "afternoonMeditation": {
+      "en": 37
+    },
+    "eveningMeditation": {
+      "en": null
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        21,
+        8
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:04:31.332Z",
+    "createdAt": "2026-01-22T08:00:28.970Z",
+    "thumbnailURL": null,
+    "filename": "want-to-reconnect-ie3vd56fri.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 3561,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/want-to-reconnect-ie3vd56fri.svg"
+  },
+  {
+    "id": 7,
+    "generateSlug": false,
+    "slug": "demotivated-uninspired",
+    "title": {
+      "en": "Demotivated, uninspired"
+    },
+    "type": "mood",
+    "color": "#A4C7D9",
+    "parent": null,
+    "isFeatured": false,
+    "order": 1,
+    "timings": [
+      "morning"
+    ],
+    "morningMeditation": {
+      "en": 43
+    },
+    "afternoonMeditation": {
+      "en": null
+    },
+    "eveningMeditation": {
+      "en": null
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        80
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-05T07:25:55.459Z",
+    "createdAt": "2026-01-22T08:00:18.168Z",
+    "thumbnailURL": null,
+    "filename": "demotivated-uninspired-61l4muk2q3.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 2867,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/demotivated-uninspired-61l4muk2q3.svg"
+  },
+  {
+    "id": 3,
+    "generateSlug": false,
+    "slug": "emotionally-down",
+    "title": {
+      "en": "Sad, emotionally down"
+    },
+    "type": "mood",
+    "color": "#DF8E7A",
+    "parent": null,
+    "isFeatured": false,
+    "order": 1,
+    "timings": [
+      "morning",
+      "afternoon",
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": 93
+    },
+    "afternoonMeditation": {
+      "en": 111
+    },
+    "eveningMeditation": {
+      "en": 90
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        83
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:04:32.687Z",
+    "createdAt": "2026-01-22T08:00:09.909Z",
+    "thumbnailURL": null,
+    "filename": "emotionally-down-7v2duc920w.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 6407,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/emotionally-down-7v2duc920w.svg"
+  },
+  {
+    "id": 1,
+    "generateSlug": false,
+    "slug": "excited-today",
+    "title": {
+      "en": "Excited for the day!"
+    },
+    "type": "mood",
+    "color": "#FFD591",
+    "parent": null,
+    "isFeatured": true,
+    "order": 1,
+    "timings": [
+      "morning"
+    ],
+    "morningMeditation": {
+      "en": 69
+    },
+    "afternoonMeditation": {
+      "en": null
+    },
+    "eveningMeditation": {
+      "en": null
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        4
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:04:36.729Z",
+    "createdAt": "2026-01-22T08:00:05.296Z",
+    "thumbnailURL": null,
+    "filename": "excited-today-jpeu4hdj7wg.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 2191,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/excited-today-jpeu4hdj7wg.svg"
+  },
+  {
+    "id": 21,
+    "generateSlug": false,
+    "slug": "feeling-fine",
+    "title": {
+      "en": "Feel fine"
+    },
+    "type": "mood",
+    "color": "#A1C3D7",
+    "parent": null,
+    "isFeatured": true,
+    "order": 2,
+    "timings": [
+      "morning"
+    ],
+    "morningMeditation": {
+      "en": 101
+    },
+    "afternoonMeditation": {
+      "en": null
+    },
+    "eveningMeditation": {
+      "en": null
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        21,
+        6
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:04:37.943Z",
+    "createdAt": "2026-01-22T08:00:49.511Z",
+    "thumbnailURL": null,
+    "filename": "feeling-fine-tllmrbxjju.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 3561,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/feeling-fine-tllmrbxjju.svg"
+  },
+  {
+    "id": 13,
+    "generateSlug": false,
+    "slug": "wired-agitated",
+    "title": {
+      "en": "Wired and agitated"
+    },
+    "type": "mood",
+    "color": "#A6D6D0",
+    "parent": null,
+    "isFeatured": false,
+    "order": 2,
+    "timings": [
+      "morning",
+      "afternoon",
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": 117
+    },
+    "afternoonMeditation": {
+      "en": 51
+    },
+    "eveningMeditation": {
+      "en": 115
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        91
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-05T07:45:53.577Z",
+    "createdAt": "2026-01-22T08:00:31.584Z",
+    "thumbnailURL": null,
+    "filename": "wired-agitated-0twrehv1c3.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 4429,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/wired-agitated-0twrehv1c3.svg"
+  },
+  {
+    "id": 8,
+    "generateSlug": false,
+    "slug": "want-to-unwind",
+    "title": {
+      "en": "Feeling fine, just want to unwind"
+    },
+    "type": "mood",
+    "color": "#A1C3D7",
+    "parent": null,
+    "isFeatured": true,
+    "order": 2,
+    "timings": [
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": null
+    },
+    "afternoonMeditation": {
+      "en": null
+    },
+    "eveningMeditation": {
+      "en": 130
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        21
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-16T19:14:16.849Z",
+    "createdAt": "2026-01-22T08:00:20.224Z",
+    "thumbnailURL": null,
+    "filename": "want-to-unwind-98zvchusm3g.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 3561,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/want-to-unwind-98zvchusm3g.svg"
+  },
+  {
+    "id": 5,
+    "generateSlug": false,
+    "slug": "hard-to-focus",
+    "title": {
+      "en": "Too many thoughts, hard to focus"
+    },
+    "type": "mood",
+    "color": "#DF8D7A",
+    "parent": null,
+    "isFeatured": true,
+    "order": 2,
+    "timings": [
+      "afternoon"
+    ],
+    "morningMeditation": {
+      "en": null
+    },
+    "afternoonMeditation": {
+      "en": 18
+    },
+    "eveningMeditation": {
+      "en": null
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        78,
+        10
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-05T07:28:05.537Z",
+    "createdAt": "2026-01-22T08:00:14.094Z",
+    "thumbnailURL": null,
+    "filename": "hard-to-focus-mv8io93ynu.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 6880,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/hard-to-focus-mv8io93ynu.svg"
+  },
+  {
+    "id": 23,
+    "generateSlug": false,
+    "slug": "need-to-pause",
+    "title": {
+      "en": "Overwhelmed, need to pause"
+    },
+    "type": "mood",
+    "color": "#A4C7D9",
+    "parent": null,
+    "isFeatured": true,
+    "order": 3,
+    "timings": [
+      "afternoon"
+    ],
+    "morningMeditation": {
+      "en": null
+    },
+    "afternoonMeditation": {
+      "en": 80
+    },
+    "eveningMeditation": {
+      "en": null
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        98
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:04:43.795Z",
+    "createdAt": "2026-01-22T08:00:57.558Z",
+    "thumbnailURL": null,
+    "filename": "need-to-pause-j6at8h40lt.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 6165,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/need-to-pause-j6at8h40lt.svg"
+  },
+  {
+    "id": 20,
+    "generateSlug": false,
+    "slug": "feel-angry",
+    "title": {
+      "en": "Feel angry"
+    },
+    "type": "mood",
+    "color": "#FED593",
+    "parent": null,
+    "isFeatured": false,
+    "order": 3,
+    "timings": [
+      "morning",
+      "afternoon",
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": 94
+    },
+    "afternoonMeditation": {
+      "en": 116
+    },
+    "eveningMeditation": {
+      "en": 139
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        35
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-05T09:41:29.462Z",
+    "createdAt": "2026-01-22T08:00:46.923Z",
+    "thumbnailURL": null,
+    "filename": "feel-angry-jqpaii04vm.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 6407,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/feel-angry-jqpaii04vm.svg"
+  },
+  {
+    "id": 4,
+    "generateSlug": false,
+    "slug": "feeling-lethargic",
+    "title": {
+      "en": "Can't wake up, lethargic"
+    },
+    "type": "mood",
+    "color": "#e08e79",
+    "parent": null,
+    "isFeatured": true,
+    "order": 3,
+    "timings": [
+      "morning"
+    ],
+    "morningMeditation": {
+      "en": 85
+    },
+    "afternoonMeditation": {
+      "en": null
+    },
+    "eveningMeditation": {
+      "en": null
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        25
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:04:47.479Z",
+    "createdAt": "2026-01-22T08:00:12.015Z",
+    "thumbnailURL": null,
+    "filename": "feeling-lethargic-hg3i51ztvv.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 8410,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/feeling-lethargic-hg3i51ztvv.svg"
+  },
+  {
+    "id": 2,
+    "generateSlug": false,
+    "slug": "stressed-tense",
+    "title": {
+      "en": "Stressed and tense"
+    },
+    "type": "mood",
+    "color": "#DF8D7A",
+    "parent": null,
+    "isFeatured": true,
+    "order": 3,
+    "timings": [
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": null
+    },
+    "afternoonMeditation": {
+      "en": null
+    },
+    "eveningMeditation": {
+      "en": 132
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        29
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-16T19:14:57.541Z",
+    "createdAt": "2026-01-22T08:00:07.865Z",
+    "thumbnailURL": null,
+    "filename": "stressed-tense-dqavrrb2mn.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 6819,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/stressed-tense-dqavrrb2mn.svg"
+  },
+  {
+    "id": 22,
+    "generateSlug": false,
+    "slug": "need-energy-boost",
+    "title": {
+      "en": "Low on energy, need a boost"
+    },
+    "type": "mood",
+    "color": "#A4C7D9",
+    "parent": null,
+    "isFeatured": true,
+    "order": 4,
+    "timings": [
+      "afternoon"
+    ],
+    "morningMeditation": {
+      "en": null
+    },
+    "afternoonMeditation": {
+      "en": 107
+    },
+    "eveningMeditation": {
+      "en": null
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        89
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-30T16:12:44.570Z",
+    "createdAt": "2026-01-22T08:00:52.076Z",
+    "thumbnailURL": null,
+    "filename": "need-energy-boost-colm169z6zg.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 3186,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/need-energy-boost-colm169z6zg.svg"
+  },
+  {
+    "id": 17,
+    "generateSlug": false,
+    "slug": "anxious-overwhelmed",
+    "title": {
+      "en": "Feel anxious and overwhelmed"
+    },
+    "type": "mood",
+    "color": "#FED593",
+    "parent": null,
+    "isFeatured": false,
+    "order": 4,
+    "timings": [
+      "morning",
+      "afternoon",
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": 88
+    },
+    "afternoonMeditation": {
+      "en": 103
+    },
+    "eveningMeditation": {
+      "en": 92
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        37
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:04:52.116Z",
+    "createdAt": "2026-01-22T08:00:40.835Z",
+    "thumbnailURL": null,
+    "filename": "anxious-overwhelmed-in8af8j44m.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 4703,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/anxious-overwhelmed-in8af8j44m.svg"
+  },
+  {
+    "id": 11,
+    "generateSlug": false,
+    "slug": "mind-racing",
+    "title": {
+      "en": "Mind is racing, can't relax"
+    },
+    "type": "mood",
+    "color": "#DF8D7A",
+    "parent": null,
+    "isFeatured": true,
+    "order": 4,
+    "timings": [
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": null
+    },
+    "afternoonMeditation": {
+      "en": null
+    },
+    "eveningMeditation": {
+      "en": 86
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        14
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:04:53.330Z",
+    "createdAt": "2026-01-22T08:00:26.379Z",
+    "thumbnailURL": null,
+    "filename": "mind-racing-2w293ls1jn.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 6880,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/mind-racing-2w293ls1jn.svg"
+  },
+  {
+    "id": 10,
+    "generateSlug": false,
+    "slug": "restless-thoughts",
+    "title": {
+      "en": "Restless, too many thoughts"
+    },
+    "type": "mood",
+    "color": "#DF8D7A",
+    "parent": null,
+    "isFeatured": true,
+    "order": 4,
+    "timings": [
+      "morning"
+    ],
+    "morningMeditation": {
+      "en": 102
+    },
+    "afternoonMeditation": {
+      "en": null
+    },
+    "eveningMeditation": {
+      "en": null
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        27
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:04:56.771Z",
+    "createdAt": "2026-01-22T08:00:24.372Z",
+    "thumbnailURL": null,
+    "filename": "restless-thoughts-umy64u5vs3.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 6880,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/restless-thoughts-umy64u5vs3.svg"
+  },
+  {
+    "id": 19,
+    "generateSlug": false,
+    "slug": "feel-exhausted",
+    "title": {
+      "en": "Feel exhausted"
+    },
+    "type": "mood",
+    "color": "#A4C7D9",
+    "parent": null,
+    "isFeatured": false,
+    "order": 5,
+    "timings": [
+      "morning",
+      "afternoon",
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": 104
+    },
+    "afternoonMeditation": {
+      "en": 72
+    },
+    "eveningMeditation": {
+      "en": 112
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        31
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-05T13:13:32.322Z",
+    "createdAt": "2026-01-22T08:00:44.880Z",
+    "thumbnailURL": null,
+    "filename": "feel-exhausted-0o1wmw2jss.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 3186,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/feel-exhausted-0o1wmw2jss.svg"
+  },
+  {
+    "id": 15,
+    "generateSlug": false,
+    "slug": "tired-overwhelmed",
+    "title": {
+      "en": "Tired and overwhelmed"
+    },
+    "type": "mood",
+    "color": "#A4C7D9",
+    "parent": null,
+    "isFeatured": true,
+    "order": 5,
+    "timings": [
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": null
+    },
+    "afternoonMeditation": {
+      "en": null
+    },
+    "eveningMeditation": {
+      "en": 87
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        85
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:04:59.156Z",
+    "createdAt": "2026-01-22T08:00:35.530Z",
+    "thumbnailURL": null,
+    "filename": "tired-overwhelmed-c7j5wccl2y.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 3186,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/tired-overwhelmed-c7j5wccl2y.svg"
+  },
+  {
+    "id": 24,
+    "generateSlug": false,
+    "slug": "spiritual-experience",
+    "title": {
+      "en": "Seeking deeper spiritual experience"
+    },
+    "type": "mood",
+    "color": "#A4D9D1",
+    "parent": null,
+    "isFeatured": true,
+    "order": 6,
+    "timings": [
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": null
+    },
+    "afternoonMeditation": {
+      "en": null
+    },
+    "eveningMeditation": {
+      "en": 137
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        92
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-16T19:13:22.219Z",
+    "createdAt": "2026-01-22T08:00:59.693Z",
+    "thumbnailURL": null,
+    "filename": "spiritual-experience-7kszdfuwnz.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 2166,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/spiritual-experience-7kszdfuwnz.svg"
+  },
+  {
+    "id": 14,
+    "generateSlug": false,
+    "slug": "low-self-esteem",
+    "title": {
+      "en": "Feel insecure, lacking self esteem"
+    },
+    "type": "mood",
+    "color": "#A6D6D0",
+    "parent": null,
+    "isFeatured": false,
+    "order": 6,
+    "timings": [
+      "morning",
+      "afternoon",
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": 28
+    },
+    "afternoonMeditation": {
+      "en": 34
+    },
+    "eveningMeditation": {
+      "en": 22
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        33
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-05T07:49:57.980Z",
+    "createdAt": "2026-01-22T08:00:33.563Z",
+    "thumbnailURL": null,
+    "filename": "low-self-esteem-enljmuecuqf.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 4429,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/low-self-esteem-enljmuecuqf.svg"
+  },
+  {
+    "id": 9,
+    "generateSlug": false,
+    "slug": "feel-lonely",
+    "title": {
+      "en": "Feel lonely"
+    },
+    "type": "mood",
+    "color": "#A6D6D1",
+    "parent": null,
+    "isFeatured": false,
+    "order": 7,
+    "timings": [
+      "morning",
+      "afternoon",
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": 46
+    },
+    "afternoonMeditation": {
+      "en": 134
+    },
+    "eveningMeditation": {
+      "en": 140
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-05T09:56:48.013Z",
+    "createdAt": "2026-01-22T08:00:22.343Z",
+    "thumbnailURL": null,
+    "filename": "feel-lonely-gw5j9wnen1.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 5722,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/feel-lonely-gw5j9wnen1.svg"
+  },
+  {
+    "id": 18,
+    "generateSlug": false,
+    "slug": "feel-stressed",
+    "title": {
+      "en": "Feel stressed"
+    },
+    "type": "mood",
+    "color": "#DF8D7A",
+    "parent": null,
+    "isFeatured": false,
+    "order": 8,
+    "timings": [
+      "morning",
+      "afternoon",
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": 31
+    },
+    "afternoonMeditation": {
+      "en": 141
+    },
+    "eveningMeditation": {
+      "en": 96
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        82
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-05T10:18:15.763Z",
+    "createdAt": "2026-01-22T08:00:42.825Z",
+    "thumbnailURL": null,
+    "filename": "feel-stressed-65y5ynlrq8.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 6819,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/feel-stressed-65y5ynlrq8.svg"
+  },
+  {
+    "id": 6,
+    "generateSlug": false,
+    "slug": "guilty-regretful",
+    "title": {
+      "en": "Feel guilty and regretful"
+    },
+    "type": "mood",
+    "color": "#DF8E7A",
+    "parent": null,
+    "isFeatured": false,
+    "order": 9,
+    "timings": [
+      "morning",
+      "afternoon",
+      "evening"
+    ],
+    "morningMeditation": {
+      "en": 108
+    },
+    "afternoonMeditation": {
+      "en": 135
+    },
+    "eveningMeditation": {
+      "en": 41
+    },
+    "nightMeditation": {
+      "en": null
+    },
+    "isParent": false,
+    "children": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "lectures": {
+      "docs": [
+        39
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-04T21:05:07.971Z",
+    "createdAt": "2026-01-22T08:00:16.129Z",
+    "thumbnailURL": null,
+    "filename": "guilty-regretful-w8hxvrpe8fg.svg",
+    "mimeType": "image/svg+xml",
+    "filesize": 6407,
+    "width": 64,
+    "height": 64,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/guilty-regretful-w8hxvrpe8fg.svg"
+  }
+]

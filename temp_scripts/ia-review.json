@@ -1,0 +1,244 @@
+[
+  {
+    "leaf": "daily.common",
+    "confidence": "high",
+    "coverageOk": true,
+    "keyCount": 8,
+    "orderCount": 5,
+    "dead": [
+      "unlock_after_first_meditation",
+      "path_coming_soon",
+      "map_coming_soon"
+    ],
+    "misfiled": [],
+    "changedFromDraft": [
+      "Broadened something_went_wrong description — it is a generic error shown as the error-screen heading AND in multiple snackbars (password reset, profile activity, favourite removal), not just Daily/profile list load failures.",
+      "Corrected card_action_not_available description — shown when a card's destination is missing/unknown/invalid, not because a 'feature isn't built yet'.",
+      "Tightened external_link_coming_soon and music_coming_soon descriptions to match actual trigger conditions.",
+      "Renamed sections: 'Error card' -> 'Errors' (something_went_wrong is broader than the card) and 'Coming-soon messages' -> 'Unavailable & coming-soon pop-ups' (card_action_not_available is an availability fallback, not strictly coming-soon).",
+      "Fixed leaf description wording: 'Home and Profile area' (not 'Home and Daily area'), since the keys serve Profile too.",
+      "Verified and kept the dead list (unlock_after_first_meditation, path_coming_soon, map_coming_soon) and coverage unchanged — all confirmed against source."
+    ],
+    "notes": [
+      "This pool is NOT a visible screen — it's a shared set of error/snackbar strings, so there is no strict top-to-bottom order. Two natural groups: the Home error screen (something_went_wrong heading + retry button, from daily_tab.dart) and the unavailable/coming-soon snackbars (from app_card_navigation.dart, fired across Home/Profile).",
+      "Namespace mismatch vs CMS slug: the CMS leaf slug is 'daily.common' but in the app these keys live under 'home.common' and serve the broader Home/Profile area, not just the Daily tab. Slug kept as data; relabeled the tab via title only.",
+      "Corrected something_went_wrong: the draft scoped it to 'Daily tab or a profile list failing to load'. In source it is a generic error used in FOUR places — the daily_tab.dart error-screen heading, a password-reset-failure snackbar (app_router.dart), a profile-activity metadata-failure snackbar (profile_activity_navigation.dart), and a favourite-removal error (profile_favourites_screen.dart). Broadened the description accordingly.",
+      "Corrected card_action_not_available: the draft said 'feature isn't built yet'. In app_card_navigation.dart it actually fires when a card's destination/data is missing, unknown, or invalid (content_payload_missing, card_destination_unknown, external_url_invalid, etc.), not for an unbuilt feature.",
+      "Confirmed zero usages in lib/ for unlock_after_first_meditation, path_coming_soon, and map_coming_soon (grepped both snake_case and camelCase accessors, excluding generated .g.dart). Note map_coming_soon's English text is 'In-person classes are coming soon', but the in-person/map card actually routes to checkVibesInPersonClassExplainer — so the key is genuinely unused.",
+      "No {placeholder} tokens in any of these strings.",
+      "'retry' appears as a key in several en.yaml namespaces; this leaf uses only home.common.retry, wired to the error-screen PrimaryButton in daily_tab.dart (single confirmed usage)."
+    ]
+  },
+  {
+    "leaf": "daily.load_info",
+    "confidence": "high",
+    "coverageOk": true,
+    "keyCount": 6,
+    "orderCount": 6,
+    "dead": [],
+    "misfiled": [],
+    "changedFromDraft": [
+      "Corrected render mechanism: top_daily_random and quick_daily_random are SnackBars (bottom floating toasts), not inline banners at the top of the screen.",
+      "Flagged that the 4 unavailable/failed keys are never displayed — their state fields (topMeditationLoadInfo/quickMeditationsLoadInfo) are set but never read by any widget; rewrote their descriptions to say 'Not currently shown anywhere in the app.'",
+      "Rewrote all 6 descriptions to reflect actual behaviour (toast vs never-shown; unavailable = empty + no fallback, failed = error + no fallback, random = substitute shown).",
+      "Renamed sections from 'Daily meditation banner (top)' / 'Quick meditations banner' to 'Daily meditation' / 'Quick meditations' (the word 'banner' was inaccurate).",
+      "Rewrote the top-level leaf description and title (Load Warnings -> Load Messages) to stop implying all six are visible warning banners.",
+      "Replaced the draft's inaccurate notes (which claimed all six are live inline banners rendered top-to-bottom) with usage-traced notes documenting the toast vs never-rendered split and why the 4 unused keys are not marked dead."
+    ],
+    "notes": [
+      "Only 2 of the 6 keys actually reach the user: top_daily_random and quick_daily_random render as SnackBars (floating bottom toasts) in daily_tab.dart _localizedLoadInfo (~:583-620), driven by hardcoded enum literals + the isTop/QuickMeditationsRandomFallback booleans. The draft called all six 'banners at the top' — corrected: they are bottom toasts, not top banners.",
+      "The 4 unavailable/failed keys (top_daily_unavailable, top_daily_failed, quick_daily_unavailable, quick_daily_failed) are assigned to the state fields topMeditationLoadInfo / quickMeditationsLoadInfo (home_cubit.dart :670-691, :745-777) but those state fields are NEVER read by any widget (verified: zero external readers). So these four strings currently render nowhere.",
+      "Not marked 'dead': the 4 never-shown strings are still referenced compile-time in the exhaustive switch _localizedLoadInfo (daily_tab.dart :2494-2501) via the generated strings.home.loadInfo.* accessors. Removing the yaml key would drop the accessor and break the switch, so they are NOT 'safe to remove' — they fail the dead-bucket AND-condition and stay in order with a corrected description. A human/product owner should decide whether to wire these into a real UI or delete both the strings and their switch arms + state plumbing.",
+      "Semantics per cubit: 'unavailable' = the daily/quick list returned empty AND the random fallback also found nothing; 'failed' = loading threw AND the random fallback found nothing; 'random' = primary content missing/errored but a random substitute was shown. These distinctions are preserved in the corrected descriptions.",
+      "Schema order kept as-is (matches the enum order in home_cubit.dart :318-325: top group then quick group; unavailable/failed/random within each). Since 4 keys never render and 2 are toasts, there is no true on-screen top-to-bottom order to match; grouping the three top_* then three quick_* by area is the sensible reading order.",
+      "No {placeholder} tokens in any of the six strings (confirmed in en.yaml :70-75)."
+    ]
+  },
+  {
+    "leaf": "explore.overview",
+    "confidence": "high",
+    "coverageOk": true,
+    "keyCount": 21,
+    "orderCount": 21,
+    "dead": [],
+    "misfiled": [],
+    "changedFromDraft": [
+      "card_vibes_check_subtitle: changed from 'shown under the card title' to NOT DISPLAYED — coming-soon state overrides the subtitle with the 'Coming soon' label (explore_card.dart line 40), so the value never renders.",
+      "card_coming_soon: reworded from 'small badge' to the label shown in place of the subtitle on locked cards (it occupies the subtitle slot, it is not a separate overlay badge).",
+      "card_music_title / card_challenges_title: removed the claim that they render 'title-only'; clarified they show the 'Coming soon' label in the subtitle slot.",
+      "Rewrote the notes: corrected the inaccurate 'render title-only by design' note, added the card_vibes_check_subtitle override note and a human-decision flag.",
+      "Minor style polish across descriptions (section anchoring like 'in the Meditate section', 'Keep the line break', consistent phrasing) — no key, order, section, dead, or coverage changes."
+    ],
+    "notes": [
+      "LEARN card order confirmed against explore_tab.dart sections[1] and en.yaml: who_is -> talks -> subtle_system -> what_is. The draft's corrected order is correct.",
+      "section_label is a single shared key rendered three times (explore_tab.dart lines 88, 185, 276), once above each of the three section headings. Placed first and ungrouped; editing it changes the label over all three sections at once.",
+      "Line breaks (\\n) are baked into card_who_is_title, card_talks_title, card_live_online_title and card_find_classes_title (four keys). Translators must keep a line break so these titles stay two lines.",
+      "CORRECTION: card_vibes_check_subtitle is passed to the card but never shown. ExploreCard forces the subtitle to the 'Coming soon' label whenever a card is coming-soon (explore_card.dart line 40). It is still referenced in code, so it is NOT dead/removable — flagged for a human to decide whether it is still worth translating.",
+      "CORRECTION: Music and Challenges have no subtitle key of their own, but they are NOT title-only on screen — as coming-soon cards they display the card_coming_soon ('Coming soon') label in the subtitle slot (explore_card.dart lines 40, 85).",
+      "The Meditate coming-soon (locked) cards are Vibes check, Music and Challenges; card_coming_soon is the label they show in place of a subtitle.",
+      "All 21 keys are live/referenced in explore_tab.dart; none are safe to remove, so dead is empty."
+    ]
+  },
+  {
+    "leaf": "auth.common",
+    "confidence": "high",
+    "coverageOk": true,
+    "keyCount": 10,
+    "orderCount": 10,
+    "dead": [],
+    "misfiled": [],
+    "changedFromDraft": [
+      "Moved 'cancel' out of the 'Sign-in buttons' section into its own 'Account-exists prompt' section — it renders on the existing-provider bottom sheet, a different on-screen area — and clarified its description accordingly.",
+      "Refined continue_with_email description: it is the first button on the create-account screen (login uses a separate 'Next' button), not a generic top-of-screen button.",
+      "Refined 'or' description: the divider only appears on the login screen's social section.",
+      "Corrected continue_with_apple visibility wording: hidden on Android, shown elsewhere (iOS and web), rather than 'only on iOS'.",
+      "Tightened error_enter_password to note it fires on the create-account screen (the only screen with a password field on entry).",
+      "Expanded the leaf description to mention the account-exists Cancel button.",
+      "Added source-grounded notes explaining the camelCase-getter access (why a naive snake_case grep finds nothing) and confirming all keys live."
+    ],
+    "notes": [
+      "All 10 keys verified used in lib/presentation/screens/auth/* and social button/router code (accessed as camelCase getters: continueWithEmail, errorEnterEmail, etc. — codegen converts the snake_case YAML keys). None are dead.",
+      "continue_with_email appears on the create-account screen's button list; the login screen uses a separate 'Next' button (auth.login.next), not this key. It is also reused as a label in the account-exists prompt and sign-in-method descriptions.",
+      "'or' divider only renders on the login screen (AuthSocialSection); the create-account button list has no divider.",
+      "cancel is the secondary button on the existing-provider bottom sheet (app_router.dart _showExistingProviderLinkPrompt), a different on-screen area than the main sign-in buttons — given its own section.",
+      "continue_with_apple visibility: showAppleSignIn = !isAndroidPlatform (isAndroidPlatform = !kIsWeb && Android) — hidden on Android native, shown on iOS and web.",
+      "error_enter_password / error_password_min_length only fire on the create-account screen (login has no password field on the entry step; it validates email only).",
+      "error_password_needs_number ('Password must contain at least one number') exists in the app YAML under auth.common AND is used in create_account_email_screen, but is NOT in this leaf's given key set, so it is omitted as instructed — the CMS cannot translate it via this leaf.",
+      "No {placeholder} tokens in any of these strings; free to translate fully."
+    ]
+  },
+  {
+    "leaf": "auth.login",
+    "confidence": "high",
+    "coverageOk": true,
+    "keyCount": 22,
+    "orderCount": 21,
+    "dead": [
+      "error_cannot_continue_with_email"
+    ],
+    "misfiled": [],
+    "changedFromDraft": [
+      "Rewrote open_login description: it is a FALLBACK primary-button label shown only when the existing sign-in method isn't a recognised provider (google/apple/email otherwise supply the label), not an always-present button.",
+      "Reframed the 'EDGE —' sheet/error descriptions to lead with the condition per the required style ('Only shown when …').",
+      "Tightened account_exists_existing_provider_fallback to state the condition (when provider name(s) can't be determined) up front.",
+      "Refined the leaf description and next/signing_in wording for accuracy (next 'submits the sign-in'; signing_in leads with its condition).",
+      "Confirmed (no change): all 22 English strings, the single dead key, sheet ownership, {providers} handling, and coverage."
+    ],
+    "notes": [
+      "Verified in app source: keys are read via context.el.auth.login (aliased as `strings`) in lib/presentation/screens/auth/login_screen.dart, login_password_screen.dart, and lib/presentation/utils/routing/app_router.dart.",
+      "error_cannot_continue_with_email CONFIRMED DEAD: zero references anywhere in lib/ (only present in en.yaml, English \"We couldn't continue with that email...\").",
+      "account_exists_subtitle contains a {providers} placeholder that MUST survive translation verbatim — app_router.dart replaces it via .replaceAll('{providers}', providerDescription).",
+      "open_login is NOT always the sheet's button: app_router.dart picks the primary label via a switch — google/apple/password methods use auth.common.continueWith*; open_login is used only for the fallback (unknown/multiple methods) case. Corrected the description from the draft's plain 'button that opens the log-in screen' to a FALLBACK framing.",
+      "account_exists_existing_provider_fallback fills {providers} only when _describeSignInMethods() returns no resolvable labels (context.el.auth.login.accountExistsExistingProviderFallback).",
+      "Sheet ownership verified: account-not-found sheet = create_new_account (primary) + try_different_account (secondary); existing-method sheet = open_login (fallback primary) with a Cancel secondary drawn from auth.common (outside this leaf).",
+      "Order note: the form spans two steps (email step in login_screen.dart; password step in login_password_screen.dart). continue_as_new_user is a step-1 button while password_*/forgot_password are step-2; the draft's flat 'fields then buttons' ordering is a reasonable single-list reading and was kept (not a screen-order error worth churning).",
+      "All keys are plain strings; no RichText keys in this leaf."
+    ]
+  },
+  {
+    "leaf": "auth.restore_password",
+    "confidence": "high",
+    "coverageOk": true,
+    "keyCount": 6,
+    "orderCount": 6,
+    "dead": [],
+    "misfiled": [],
+    "changedFromDraft": [],
+    "notes": [
+      "All six keys are used on the restore_password screen; on-screen order matches schema order, so no reordering needed.",
+      "Verified in lib/presentation/screens/auth/restore_password_screen.dart: AuthScaffold title -> description text -> FormTextField (email label + placeholder) -> PrimaryButton (submit). error_invalid_email is returned by _validateEmail for both empty input and input missing '@'/'.', so 'empty or not a valid address' is accurate.",
+      "title=null is correct: the slug label 'Restore Password' already reads well as a tab label."
+    ]
+  },
+  {
+    "leaf": "auth.restore_password_email_sent",
+    "confidence": "high",
+    "coverageOk": true,
+    "keyCount": 2,
+    "orderCount": 2,
+    "dead": [],
+    "misfiled": [],
+    "changedFromDraft": [
+      "Nothing substantive changed — verified against en.yaml and the screen source; order, sections, descriptions, and coverage are all correct.",
+      "Added a note recording that the OK route resolves to the login/login-password screen, corroborating the sign-in-flow description."
+    ],
+    "notes": [
+      "'message' contains a newline (\\n) in the English source ('An email has been sent.\\nPlease check your inbox.') — the line break is cosmetic; translators should keep a sensible break but it is not a required placeholder token.",
+      "Both keys confirmed in use in lib/presentation/screens/auth/restore_password_email_sent_screen.dart: message renders as centered text under an email icon, ok is the CtaFooter primary button. On-screen order (message → ok) matches schema order.",
+      "OK button navigates via resolveRestorePasswordEmailSentOkRoute to the login / login-password route, confirming the description's 'returns to the sign-in flow'."
+    ]
+  },
+  {
+    "leaf": "auth.create_account",
+    "confidence": "high",
+    "coverageOk": true,
+    "keyCount": 23,
+    "orderCount": 17,
+    "dead": [
+      "error_email_in_use",
+      "login_with_existing_account",
+      "error_google_failed",
+      "error_apple_failed",
+      "error_facebook_failed",
+      "error_provider_cancelled"
+    ],
+    "misfiled": [],
+    "changedFromDraft": [
+      "Moved error_email_in_use, error_google_failed, error_apple_failed, error_facebook_failed, error_provider_cancelled from order (draft's 'Unused sign-in errors' section) into the `dead` array — confirmed zero getter usages in lib/; provider errors use the shared interstitial dialog, cancellations are silent, collisions use the account-exists sheet.",
+      "Moved login_with_existing_account into `dead` — the draft kept it in order with a description implying it shows 'when the entered email already has an account', but its button is gated on `_showLoginWithExistingAccount`, a flag never set true anywhere, so the label can never render.",
+      "Corrected error_invalid_email description: it is the server-side Firebase 'invalid-email' mapping (edge case behind the form's own live email check), not the primary client-side 'not a valid email' validation (which uses a different shared key).",
+      "Corrected error_weak_password description: it is the server-side Firebase 'weak-password' mapping, not the client-side 'shorter than 6 characters' check (which uses a different shared key); the form already enforces 6+ chars with a number before submit.",
+      "Gave consent_label its own 'Consent' section instead of reusing 'Landing screen' — as richText it renders detached at the very end, so reusing the landing header would print a confusing duplicate header.",
+      "Renamed the error section header to 'Email sign-up form errors' and tightened several descriptions; dropped the now-resolved SUSPICIOUS-DEAD note (resolved into the dead array)."
+    ],
+    "notes": [
+      "Leaf spans TWO app screens: the sign-up landing/method-chooser (create_account_screen.dart) and the email sign-up form (create_account_email_screen.dart). Order follows the flow — landing first, then the email form. consent_label (richText) renders detached AFTER the whole string block by the CMS's known limitation.",
+      "title vs screen_title are NOT duplicates: title = the email form's top-bar title (\"Create Account\"); screen_title = the landing screen's big heading (\"Let's now create your account!\"). Different screens — the handoff's near-duplicate concern is resolved.",
+      "DEAD (draft missed this) — login_with_existing_account: its secondary button is gated on the state flag `_showLoginWithExistingAccount`, which is initialised false and set false at every assignment in create_account_email_screen.dart, and never set true anywhere. The old inline 'login instead' path was replaced by the 'You already have an account!' bottom sheet, whose copy lives under other keys (account_exists_*, not in this leaf). The label can never render. A human should decide whether to drop the key or restore the flag.",
+      "DEAD — error_email_in_use, error_google_failed, error_apple_failed, error_facebook_failed, error_provider_cancelled: zero getter references in lib/ (confirmed by grep). Email collisions show the account-exists sheet; social-provider failures surface through the shared auth interstitial error dialog (copy.errorTitle/errorSubtitle — its own keys, not this leaf); a cancelled social sign-in is silently dismissed with no message.",
+      "CONTRACT NOTE (consent_label): en.yaml has NO `consent_label` key — in-app the line is assembled from four separate strings (consent_prefix + consent_terms + consent_and_acknowledge + consent_privacy). The schema exposes it as one richText field; translators must keep both the Terms & Conditions and Privacy Policy link phrases intact.",
+      "CONTRACT NOTE (variant copy not exposed): screen_title / screen_subtitle / skip_and_explore have alternate wordings for the meditation-gate and onboarding-start entry points (screen_title_gate, screen_title_onboarding_start, screen_subtitle_onboarding_start, skip_explore_app, dismiss_continue_exploring). Those keys are NOT in this leaf, so edits here affect only the default entry point.",
+      "error_invalid_email and error_weak_password (this leaf's copies) are Firebase SERVER-error mappings, shown only if a bad value slips past the form's own live validation — which uses different, shared keys (auth.common.errorInvalidEmail / errorPasswordMinLength). They render rarely.",
+      "No {placeholder} tokens appear in any key of this leaf."
+    ]
+  },
+  {
+    "leaf": "navigation",
+    "confidence": "high",
+    "coverageOk": true,
+    "keyCount": 4,
+    "orderCount": 4,
+    "dead": [],
+    "misfiled": [],
+    "changedFromDraft": [
+      "Nothing corrected — re-verified every claim against source; draft was accurate. Refined the notes wording (fallback lines 188-194 rather than 189-192; added that the navbar is the sole consumer)."
+    ],
+    "notes": [
+      "Verified against app source: all four keys match schema and app (navigation.daily/path/explore/profile at en.yaml lines 458-462). On-screen order daily -> path -> explore -> profile confirmed in app_bottom_navbar.dart (tabs at lines 111, 123, 135, 147; indices 0-3).",
+      "Fallback contract confirmed: _resolveNavigationLabels (app_bottom_navbar.dart lines 188-194) wraps the label lookup in try/catch and returns hardcoded English ('Daily','Path','Explore','Profile') on any failure, so a missing translation silently reverts to English rather than showing an error.",
+      "Single consumer: context.el.navigation is referenced only in app_bottom_navbar.dart (one grep hit); no other screen uses these labels, so there is no alternate grouping to reconcile.",
+      "No {placeholder} tokens in any of these labels; all are plain single words. No dead or misfiled keys."
+    ]
+  },
+  {
+    "leaf": "general",
+    "confidence": "high",
+    "coverageOk": true,
+    "keyCount": 3,
+    "orderCount": 3,
+    "dead": [],
+    "misfiled": [],
+    "changedFromDraft": [
+      "Fixed retry description: removed the incorrect 'path' claim (path_page uses path.retry, not general.retry; line 111 is only a comment). Correct surfaces are meditation player, talk player, and profile.",
+      "Refined back description to reflect its only real usage — the Back button on the meditation player's load-error screen — rather than generic previous-screen navigation.",
+      "Updated the note to accurately list the confirmed usages and drop the 'path page' from retry.",
+      "Slightly broadened the leaf description to mention these are mostly error/confirmation-screen labels."
+    ],
+    "notes": [
+      "All three keys confirmed in use. back: meditation_player_screen.dart:3645 (generalStrings.back), the Back button in the meditation load-error view. retry: three general.retry usages — meditation player error view, talk_player_screen.dart:1246 (unavailable state), profile_main_screen.dart:589 (load error). undo: profile_favourites_screen.dart:273, snackbar label after removing a favourite. No dead keys.",
+      "Corrected the draft's retry description: it wrongly listed 'path'. path_page uses context.el.path.retry (a separate key), and the general.retry mention there is only a code comment (line 111), not a real usage. Actual general.retry surfaces are meditation player, talk player, and profile.",
+      "back has a single usage (the meditation player error screen), not general back navigation — tightened the description accordingly.",
+      "Kept schema order (back, retry, undo) and a single ungrouped section: three generic reused labels with no meaningful on-screen sequence."
+    ]
+  }
+]

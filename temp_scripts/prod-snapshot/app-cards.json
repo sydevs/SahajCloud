@@ -1,0 +1,7964 @@
+[
+  {
+    "id": 58,
+    "label": "Find out more about the practice",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "Find out more about the practice"
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": "Watch now"
+      },
+      "buttonIcon": 384,
+      "destination": "lecture",
+      "page": null,
+      "lecture": 23,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": 383,
+      "aspectRatio": "flexible",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-14T10:58:30.635Z",
+    "createdAt": "2026-06-09T06:57:35.623Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 57,
+    "label": "Live meditations - UK - Internal",
+    "type": "event",
+    "default": {
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "Join Zoom meditations"
+      },
+      "subtitle": {
+        "en": "Join our Zoom class, every Tuesday and Thursday at {event_time}, starting in:"
+      },
+      "buttonText": {
+        "en": "Set a reminder"
+      },
+      "buttonIcon": 379,
+      "destination": "url",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": "https://wemeditate.com/live-meditations-reminder"
+      },
+      "image": 445,
+      "aspectRatio": "flexible",
+      "textColor": "white",
+      "alignment": "center"
+    },
+    "startingSoon": {
+      "enabled": true,
+      "threshold": "18:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "Join our live meditation"
+      },
+      "subtitle": {
+        "en": "Join our Zoom class today at {event_time}, starting in:"
+      },
+      "buttonText": {
+        "en": "Set a reminder"
+      },
+      "buttonIcon": 379,
+      "destination": "url",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": "https://wemeditate.com/live-meditations-reminder"
+      },
+      "image": 445,
+      "aspectRatio": "flexible",
+      "textColor": "white",
+      "alignment": "center"
+    },
+    "liveNow": {
+      "enabled": true,
+      "threshold": "0:05",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "We are live!"
+      },
+      "subtitle": {
+        "en": "Join the Zoom class now for a 45-min session led by experienced instructors:"
+      },
+      "buttonText": {
+        "en": "Join now"
+      },
+      "buttonIcon": 380,
+      "destination": "url",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": "https://us06web.zoom.us/j/95191456249?pwd=RVh5dkdBWU5LeG9QZUZPS1FKdUlTdz09"
+      },
+      "image": 445,
+      "aspectRatio": "flexible",
+      "textColor": "white",
+      "alignment": "center"
+    },
+    "schedule": {
+      "firstDate": "2026-06-02T18:00:00.000Z",
+      "firstDate_tz": "Europe/London",
+      "endTime": "20:00",
+      "recurrenceType": "WEEKLY",
+      "interval": 1,
+      "weekdays": [
+        "TU",
+        "TH"
+      ],
+      "exclusions": [],
+      "icalRule": "DTSTART;TZID=Europe/London:20260602T190000\nRRULE:FREQ=WEEKLY;BYDAY=TU,TH",
+      "upcomingDates": [
+        "2026-07-21T18:00:00.000Z",
+        "2026-07-23T18:00:00.000Z",
+        "2026-07-28T18:00:00.000Z",
+        "2026-07-30T18:00:00.000Z",
+        "2026-08-04T18:00:00.000Z",
+        "2026-08-06T18:00:00.000Z",
+        "2026-08-11T18:00:00.000Z",
+        "2026-08-13T18:00:00.000Z",
+        "2026-08-18T18:00:00.000Z",
+        "2026-08-20T18:00:00.000Z"
+      ]
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [
+      1
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-09T17:15:18.597Z",
+    "createdAt": "2026-06-03T12:09:43.614Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "startingSoon",
+        "17:55": "liveNow",
+        "19:00": "default"
+      }
+    }
+  },
+  {
+    "id": 56,
+    "label": "Wind down for the day - highlight meditation",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "Wind down for the day"
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": "meditation",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": 8,
+      "url": {
+        "en": null
+      },
+      "image": 418,
+      "aspectRatio": "square",
+      "textColor": "white",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [
+      "evening"
+    ],
+    "audiences": [
+      3
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-05T07:14:44.318Z",
+    "createdAt": "2026-05-26T17:25:53.365Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 55,
+    "label": "Silent Meditation - highlight meditation",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "Silent Meditation"
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": "meditation",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": 5,
+      "url": {
+        "en": null
+      },
+      "image": 419,
+      "aspectRatio": "square",
+      "textColor": "white",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [
+      "morning"
+    ],
+    "audiences": [
+      3
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-05T07:16:00.397Z",
+    "createdAt": "2026-05-26T17:23:07.216Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 54,
+    "label": "Experience inner silence - highlight meditation",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "Experience inner silence"
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": "meditation",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": 9,
+      "url": {
+        "en": null
+      },
+      "image": 419,
+      "aspectRatio": "square",
+      "textColor": "white",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [
+      "evening"
+    ],
+    "audiences": [
+      3
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-09T15:42:54.749Z",
+    "createdAt": "2026-05-26T17:16:34.893Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 53,
+    "label": "Regenerate yourself - highlight meditation",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "Regenerate yourself"
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": "meditation",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": 6,
+      "url": {
+        "en": null
+      },
+      "image": 419,
+      "aspectRatio": "square",
+      "textColor": "white",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [
+      "afternoon"
+    ],
+    "audiences": [
+      3
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-10T10:06:02.173Z",
+    "createdAt": "2026-05-26T17:09:46.202Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 52,
+    "label": "Om meditation - highlight meditation",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "Om meditation"
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": "meditation",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": 1,
+      "url": {
+        "en": null
+      },
+      "image": 355,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [
+      "morning"
+    ],
+    "audiences": [
+      3
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-05T07:16:42.364Z",
+    "createdAt": "2026-05-26T17:06:30.551Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 51,
+    "label": "Meditation on your breath - highlight meditation",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "Meditation on your breath"
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": "meditation",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": 2,
+      "url": {
+        "en": null
+      },
+      "image": 355,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [
+      "afternoon"
+    ],
+    "audiences": [
+      3
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-10T10:05:12.372Z",
+    "createdAt": "2026-05-26T17:03:59.984Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 50,
+    "label": "Inner strength - highlight meditation",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "Inner strength"
+      },
+      "subtitle": {
+        "en": "Elevate your morning"
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": "meditation",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": 4,
+      "url": {
+        "en": null
+      },
+      "image": 447,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [
+      "morning"
+    ],
+    "audiences": [
+      3
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-10T07:28:57.832Z",
+    "createdAt": "2026-05-26T17:00:38.420Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 49,
+    "label": "Ground yourself - highlight meditation",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "Ground yourself"
+      },
+      "subtitle": {
+        "en": "A soothing evening meditation"
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": "meditation",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": 3,
+      "url": {
+        "en": null
+      },
+      "image": 447,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [
+      "evening"
+    ],
+    "audiences": [
+      3
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-18T19:12:09.536Z",
+    "createdAt": "2026-05-26T16:57:53.589Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 48,
+    "label": "Get back your focus - highlight meditation",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "Get back your focus"
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": "meditation",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": 10,
+      "url": {
+        "en": null
+      },
+      "image": 53,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [
+      "afternoon"
+    ],
+    "audiences": [
+      3
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-05T06:57:27.108Z",
+    "createdAt": "2026-05-26T16:56:16.581Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 47,
+    "label": "Focus with bija mantras - highlight meditation",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "Focus with bija mantras"
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": "meditation",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": 20,
+      "url": {
+        "en": null
+      },
+      "image": 355,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [
+      "evening"
+    ],
+    "audiences": [
+      3
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-05T07:15:22.605Z",
+    "createdAt": "2026-05-26T16:54:05.196Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 46,
+    "label": "Exited for the day - Highlight Meditation",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": "Excited for the day"
+      },
+      "subtitle": {
+        "en": "Morning meditation"
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": "meditation",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": 69,
+      "url": {
+        "en": null
+      },
+      "image": 446,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null
+      },
+      "title": {
+        "en": null
+      },
+      "subtitle": {
+        "en": null
+      },
+      "buttonText": {
+        "en": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [
+      "morning"
+    ],
+    "audiences": [
+      3
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-10T07:26:46.993Z",
+    "createdAt": "2026-05-26T07:15:44.027Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 45,
+    "label": "Subtle system",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": "Subtle system",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": "Your Chakras and Channels",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": "page",
+      "page": 5,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": 422,
+      "aspectRatio": "flexible",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [],
+    "audiences": [
+      1
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-05-27T07:09:02.746Z",
+    "createdAt": "2026-05-25T02:13:46.890Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 44,
+    "label": "Shri Mataji's Lectures",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": "Shri Mataji's Lectures",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": "Learn from the source",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": "page",
+      "page": 78,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": 383,
+      "aspectRatio": "flexible",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [],
+    "audiences": [
+      1
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-05-25T16:01:00.626Z",
+    "createdAt": "2026-05-24T16:00:06.209Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 43,
+    "label": "\"I bow to all the seekers of truth\" - New Users lecture",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": "\"I bow to all the seekers of truth\"",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": "Enjoy an extract of Shri Mataji's lecture",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": "Watch now",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": 384,
+      "destination": "lecture",
+      "page": null,
+      "lecture": 2,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": 370,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "hero"
+    ],
+    "timings": [],
+    "audiences": [
+      2
+    ],
+    "conditions": [],
+    "weight": 4,
+    "updatedAt": "2026-06-02T02:08:53.021Z",
+    "createdAt": "2026-05-22T10:16:50.762Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 42,
+    "label": "Path invite card",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": "The Path: guided course",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": "Start",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": "page",
+      "page": 95,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": 371,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "center"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [
+      1
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-05-27T04:46:12.580Z",
+    "createdAt": "2026-05-12T17:03:36.701Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 41,
+    "label": "Bring peace within - highlight meditation",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": "Bring peace within",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": "Enjoy this soothing meditation",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": "meditation",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": 117,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": 357,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [
+      "afternoon"
+    ],
+    "audiences": [
+      3
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-05T06:51:58.210Z",
+    "createdAt": "2026-05-12T07:41:48.899Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 40,
+    "label": "\"Kundalini connects you to the ocean of energy\"",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": "Learn from the source",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": "\"I bow to all the seekers of truth\"",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": "Enjoy a talk by Shri Mataji - the founder of Sahaja Yoga",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": "Watch now",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": 384,
+      "destination": "lecture",
+      "page": null,
+      "lecture": 2,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": 444,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "hero"
+    ],
+    "timings": [],
+    "audiences": [
+      1
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-22T09:14:51.863Z",
+    "createdAt": "2026-05-12T07:06:58.725Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 39,
+    "label": "Your first meditation - highlight",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": "Your first meditation",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": "meditation",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": 62,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": 421,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "highlights"
+    ],
+    "timings": [],
+    "audiences": [
+      6
+    ],
+    "conditions": [],
+    "weight": 4,
+    "updatedAt": "2026-06-05T06:22:29.899Z",
+    "createdAt": "2026-05-12T06:55:51.365Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 38,
+    "label": "Shri Mataji’s Lectures",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": "Learn from the source",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": "Shri Mataji’s Lectures",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": "Enjoy the collection of talks by Shri Mataji - the founder of Sahaja Yoga",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": "See more",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": "page",
+      "page": 78,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": 370,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "hero"
+    ],
+    "timings": [],
+    "audiences": [
+      3
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-05-26T06:07:23.223Z",
+    "createdAt": "2026-05-12T06:34:48.184Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 37,
+    "label": "Find a free class near you",
+    "type": "standard",
+    "default": {
+      "header": {
+        "en": "Meditate with others",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": "Find a free class near you",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": "Meditation works better when you do it with other people",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": "Find a class",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": "page",
+      "page": 64,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": 349,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": "left"
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": null,
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [
+      "hero"
+    ],
+    "timings": [],
+    "audiences": [
+      4
+    ],
+    "conditions": [
+      5
+    ],
+    "weight": 3,
+    "updatedAt": "2026-05-26T06:15:35.077Z",
+    "createdAt": "2026-05-12T06:31:20.951Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 36,
+    "label": "Live meditations - UK",
+    "type": "event",
+    "default": {
+      "header": {
+        "en": "Join Zoom meditations",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": "Join our free Zoom meditations!",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": "Join our Zoom class, every Tuesday and Thursday at {event_time}, starting in:",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": "Set a reminder",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": 379,
+      "destination": "url",
+      "page": 65,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": "https://wemeditate.com/live-meditations-reminder",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": 445,
+      "aspectRatio": "square",
+      "textColor": "white",
+      "alignment": "center"
+    },
+    "startingSoon": {
+      "enabled": true,
+      "threshold": "18:00",
+      "header": {
+        "en": "Join Zoom Meditation",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": "Join live meditation",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": "Join our Zoom class today at {event_time}, starting in:",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": "Set a reminder",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": 379,
+      "destination": "url",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": "https://wemeditate.com/live-meditations-reminder",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": 445,
+      "aspectRatio": "square",
+      "textColor": "white",
+      "alignment": "center"
+    },
+    "liveNow": {
+      "enabled": true,
+      "threshold": "0:05",
+      "header": {
+        "en": "Join Zoom Meditation",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "title": {
+        "en": "We are live!",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "subtitle": {
+        "en": "Join the Zoom class now for a 45-min session led by experienced instructors:",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonText": {
+        "en": "Join now",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "buttonIcon": 380,
+      "destination": "url",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {
+        "en": "https://us06web.zoom.us/j/95191456249?pwd=RVh5dkdBWU5LeG9QZUZPS1FKdUlTdz09",
+        "es": null,
+        "de": null,
+        "it": null,
+        "fr": null,
+        "ru": null,
+        "ro": null,
+        "cs": null,
+        "uk": null,
+        "el": null,
+        "hy": null,
+        "pl": null,
+        "pt-BR": null,
+        "fa": null,
+        "bg": null,
+        "tr": null
+      },
+      "image": 445,
+      "aspectRatio": "square",
+      "textColor": "white",
+      "alignment": "center"
+    },
+    "schedule": {
+      "firstDate": "2026-05-12T18:00:00.000Z",
+      "firstDate_tz": "Europe/London",
+      "endTime": "20:00",
+      "recurrenceType": "WEEKLY",
+      "interval": 1,
+      "weekdays": [
+        "TH",
+        "TU"
+      ],
+      "exclusions": [],
+      "icalRule": "DTSTART;TZID=Europe/London:20260512T190000\nRRULE:FREQ=WEEKLY;BYDAY=TH,TU",
+      "upcomingDates": [
+        "2026-07-21T18:00:00.000Z",
+        "2026-07-23T18:00:00.000Z",
+        "2026-07-28T18:00:00.000Z",
+        "2026-07-30T18:00:00.000Z",
+        "2026-08-04T18:00:00.000Z",
+        "2026-08-06T18:00:00.000Z",
+        "2026-08-11T18:00:00.000Z",
+        "2026-08-13T18:00:00.000Z",
+        "2026-08-18T18:00:00.000Z",
+        "2026-08-20T18:00:00.000Z"
+      ]
+    },
+    "targetSections": [
+      "hero"
+    ],
+    "timings": [],
+    "audiences": [
+      1
+    ],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-06-09T17:11:46.170Z",
+    "createdAt": "2026-05-12T06:13:12.236Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "startingSoon",
+        "17:55": "liveNow",
+        "19:00": "default"
+      }
+    }
+  },
+  {
+    "id": 35,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": "lecture",
+      "page": null,
+      "lecture": 2,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 350,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-05-11T11:40:01.332Z",
+    "createdAt": "2026-05-11T11:39:51.087Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 34,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": "page",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 349,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 2,
+    "updatedAt": "2026-05-11T11:20:56.259Z",
+    "createdAt": "2026-05-11T11:20:56.259Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 33,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": "meditation",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-05-11T11:19:32.269Z",
+    "createdAt": "2026-05-11T11:19:32.269Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 32,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": "page",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 370,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-05-11T11:12:20.040Z",
+    "createdAt": "2026-05-11T10:15:15.384Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 31,
+    "label": null,
+    "type": "event",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": "page",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 347,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": true,
+      "threshold": "23:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": "page",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": true,
+      "threshold": "0:05",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": "url",
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": "2026-05-12T18:00:00.000Z",
+      "firstDate_tz": "Europe/London",
+      "endTime": "20:00",
+      "recurrenceType": "WEEKLY",
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": "DTSTART;TZID=Europe/London:20260512T190000\nRRULE:FREQ=WEEKLY",
+      "upcomingDates": [
+        "2026-07-21T18:00:00.000Z",
+        "2026-07-28T18:00:00.000Z",
+        "2026-08-04T18:00:00.000Z",
+        "2026-08-11T18:00:00.000Z",
+        "2026-08-18T18:00:00.000Z",
+        "2026-08-25T18:00:00.000Z",
+        "2026-09-01T18:00:00.000Z",
+        "2026-09-08T18:00:00.000Z",
+        "2026-09-15T18:00:00.000Z",
+        "2026-09-22T18:00:00.000Z"
+      ]
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-05-11T09:31:58.388Z",
+    "createdAt": "2026-05-11T09:07:36.533Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default",
+        "17:55": "liveNow",
+        "19:00": "default"
+      }
+    }
+  },
+  {
+    "id": 30,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-05-08T13:51:39.123Z",
+    "createdAt": "2026-05-08T13:51:39.123Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 29,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-04-29T04:57:14.830Z",
+    "createdAt": "2026-04-29T04:56:34.752Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 28,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 360,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-04-28T11:49:26.314Z",
+    "createdAt": "2026-04-28T11:49:26.314Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 27,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 350,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-05-06T09:53:13.159Z",
+    "createdAt": "2026-04-28T11:33:18.371Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 26,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-04-28T11:29:49.825Z",
+    "createdAt": "2026-04-28T11:29:49.825Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 25,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 349,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-05-06T16:21:31.693Z",
+    "createdAt": "2026-04-28T11:27:18.215Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 24,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 347,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": "2026-04-28T18:00:00.000Z",
+      "firstDate_tz": "Europe/London",
+      "endTime": null,
+      "recurrenceType": "WEEKLY",
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": "DTSTART;TZID=Europe/London:20260428T190000\nRRULE:FREQ=WEEKLY",
+      "upcomingDates": [
+        "2026-07-21T18:00:00.000Z",
+        "2026-07-28T18:00:00.000Z",
+        "2026-08-04T18:00:00.000Z",
+        "2026-08-11T18:00:00.000Z",
+        "2026-08-18T18:00:00.000Z",
+        "2026-08-25T18:00:00.000Z",
+        "2026-09-01T18:00:00.000Z",
+        "2026-09-08T18:00:00.000Z",
+        "2026-09-15T18:00:00.000Z",
+        "2026-09-22T18:00:00.000Z"
+      ]
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-05-07T08:50:51.406Z",
+    "createdAt": "2026-04-28T11:14:31.280Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 23,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 370,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-04-28T09:56:45.811Z",
+    "createdAt": "2026-04-28T09:41:37.153Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 22,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 371,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-04-28T11:30:06.261Z",
+    "createdAt": "2026-04-24T08:07:59.492Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 21,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-05-06T16:19:37.813Z",
+    "createdAt": "2026-04-23T11:45:20.812Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 20,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-04-20T10:41:01.179Z",
+    "createdAt": "2026-04-20T10:41:01.179Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 19,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 371,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-04-16T03:04:25.320Z",
+    "createdAt": "2026-04-16T03:04:25.320Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 18,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-03-26T11:03:53.597Z",
+    "createdAt": "2026-02-13T15:08:46.919Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 17,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-02-13T15:06:31.145Z",
+    "createdAt": "2026-02-13T15:06:31.145Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 16,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 361,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-02-13T15:04:59.804Z",
+    "createdAt": "2026-02-13T15:04:59.804Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 15,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 360,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-02-13T15:00:01.669Z",
+    "createdAt": "2026-02-13T15:00:01.669Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 14,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 359,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-02-13T14:58:00.569Z",
+    "createdAt": "2026-02-13T14:58:00.569Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 13,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 358,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-02-13T14:56:56.834Z",
+    "createdAt": "2026-02-13T14:56:56.834Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 12,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 357,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-02-13T14:55:56.204Z",
+    "createdAt": "2026-02-13T14:55:56.204Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 11,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-02-13T14:55:08.382Z",
+    "createdAt": "2026-02-13T14:55:08.382Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 10,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 355,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-02-13T14:53:03.541Z",
+    "createdAt": "2026-02-13T14:53:03.541Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 9,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 354,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-02-13T14:51:48.299Z",
+    "createdAt": "2026-02-13T14:51:48.299Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 8,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 353,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-02-13T14:50:20.451Z",
+    "createdAt": "2026-02-13T14:50:20.451Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 7,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 352,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-02-13T09:12:59.218Z",
+    "createdAt": "2026-02-13T09:12:59.218Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 6,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 351,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-03-30T12:43:53.543Z",
+    "createdAt": "2026-02-11T05:55:50.639Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 5,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 370,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 4,
+    "updatedAt": "2026-04-14T22:17:57.673Z",
+    "createdAt": "2026-02-11T05:23:48.945Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 4,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 349,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-03-28T05:43:56.902Z",
+    "createdAt": "2026-02-11T05:01:55.373Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 3,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 348,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": null,
+      "firstDate_tz": null,
+      "endTime": null,
+      "recurrenceType": null,
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": null,
+      "upcomingDates": []
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-04-14T09:15:48.920Z",
+    "createdAt": "2026-02-11T03:28:43.975Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  },
+  {
+    "id": 2,
+    "label": null,
+    "type": "standard",
+    "default": {
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": 347,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "startingSoon": {
+      "enabled": false,
+      "threshold": "1:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "liveNow": {
+      "enabled": false,
+      "threshold": "0:00",
+      "header": {},
+      "title": {},
+      "subtitle": {},
+      "buttonText": {},
+      "buttonIcon": null,
+      "destination": null,
+      "page": null,
+      "lecture": null,
+      "album": null,
+      "meditation": null,
+      "url": {},
+      "image": null,
+      "aspectRatio": "square",
+      "textColor": "black",
+      "alignment": null
+    },
+    "schedule": {
+      "firstDate": "2026-02-12T19:00:00.000Z",
+      "firstDate_tz": "Europe/London",
+      "endTime": null,
+      "recurrenceType": "WEEKLY",
+      "interval": 1,
+      "weekdays": [],
+      "exclusions": [],
+      "icalRule": "DTSTART;TZID=Europe/London:20260212T190000\nRRULE:FREQ=WEEKLY",
+      "upcomingDates": [
+        "2026-07-23T18:00:00.000Z",
+        "2026-07-30T18:00:00.000Z",
+        "2026-08-06T18:00:00.000Z",
+        "2026-08-13T18:00:00.000Z",
+        "2026-08-20T18:00:00.000Z",
+        "2026-08-27T18:00:00.000Z",
+        "2026-09-03T18:00:00.000Z",
+        "2026-09-10T18:00:00.000Z",
+        "2026-09-17T18:00:00.000Z",
+        "2026-09-24T18:00:00.000Z"
+      ]
+    },
+    "targetSections": [],
+    "timings": [],
+    "audiences": [],
+    "conditions": [],
+    "weight": 3,
+    "updatedAt": "2026-03-30T06:01:32.913Z",
+    "createdAt": "2026-02-11T02:56:00.249Z",
+    "_status": "published",
+    "viewSchedule": {
+      "timezone": "UTC",
+      "schedule": {
+        "00:00": "default"
+      }
+    }
+  }
+]

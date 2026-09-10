@@ -1,0 +1,654 @@
+[
+  {
+    "id": 27,
+    "title": {
+      "en": "Shlokas | Agya"
+    },
+    "album": 7,
+    "tags": [
+      4
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-06-16T05:00:24.830Z",
+    "createdAt": "2026-01-22T08:50:47.673Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "6agya-zgyq0lfbhu.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 3289256,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/6agya-zgyq0lfbhu.mp3"
+  },
+  {
+    "id": 26,
+    "title": {
+      "en": "Shlokas | Sahasrara"
+    },
+    "album": 7,
+    "tags": [
+      4
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-06-16T05:00:34.282Z",
+    "createdAt": "2026-01-22T08:50:42.052Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "7sahasrara-i2flao8wm7l.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 7816381,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/7sahasrara-i2flao8wm7l.mp3"
+  },
+  {
+    "id": 25,
+    "title": {
+      "en": "Shlokas | Vishuddhi"
+    },
+    "album": 7,
+    "tags": [
+      4
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-06-16T05:00:41.273Z",
+    "createdAt": "2026-01-22T08:50:37.314Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "5vishuddhi-bgp5lca3ps.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 5997631,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/5vishuddhi-bgp5lca3ps.mp3"
+  },
+  {
+    "id": 24,
+    "title": {
+      "en": "Shlokas | Jagadamba"
+    },
+    "album": 7,
+    "tags": [
+      4
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-06-16T05:00:47.502Z",
+    "createdAt": "2026-01-22T08:50:33.994Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "4ajagadamba-i9hdd879zj.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 5747483,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/4ajagadamba-i9hdd879zj.mp3"
+  },
+  {
+    "id": 23,
+    "title": {
+      "en": "Shlokas | Shiva"
+    },
+    "album": 7,
+    "tags": [
+      4
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-06-16T05:00:54.060Z",
+    "createdAt": "2026-01-22T08:50:28.936Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "4shiva-ibk0bvq9tt.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 3536270,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/4shiva-ibk0bvq9tt.mp3"
+  },
+  {
+    "id": 22,
+    "title": {
+      "en": "Shlokas | Void"
+    },
+    "album": 7,
+    "tags": [
+      4
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-06-16T05:01:01.617Z",
+    "createdAt": "2026-01-22T08:50:24.668Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "3avoid-gyhlwyt1hg.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 3465425,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/3avoid-gyhlwyt1hg.mp3"
+  },
+  {
+    "id": 21,
+    "title": {
+      "en": "Shlokas | Nabhi"
+    },
+    "album": 7,
+    "tags": [
+      4
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-06-16T05:01:08.096Z",
+    "createdAt": "2026-01-22T08:50:19.359Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "nabhi-ropr5cnr3x.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 5462225,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/nabhi-ropr5cnr3x.mp3"
+  },
+  {
+    "id": 20,
+    "title": {
+      "en": "Shlokas | Swadishtan"
+    },
+    "album": 7,
+    "tags": [
+      4
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-06-16T05:01:14.496Z",
+    "createdAt": "2026-01-22T08:50:14.855Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "swadishtan-0497juksjx.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 5284175,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/swadishtan-0497juksjx.mp3"
+  },
+  {
+    "id": 19,
+    "title": {
+      "en": "Shlokas | Mooladhara"
+    },
+    "album": 7,
+    "tags": [
+      4
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-06-16T05:01:21.174Z",
+    "createdAt": "2026-01-22T08:50:09.797Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "mooladhara-cfxnsgi0v4.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 5355646,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/mooladhara-cfxnsgi0v4.mp3"
+  },
+  {
+    "id": 18,
+    "title": {
+      "en": "Bhairavi"
+    },
+    "album": 1,
+    "tags": [
+      3,
+      2,
+      4
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-05-21T07:50:10.686Z",
+    "createdAt": "2026-01-22T08:50:04.371Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "shakthidhariyerpauloviniciuskoushikaithal-musicandmeditation-08sahasrara-bhairavi-xtts900g0l.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 11127085,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/shakthidhariyerpauloviniciuskoushikaithal-musicandmeditation-08sahasrara-bhairavi-xtts900g0l.mp3"
+  },
+  {
+    "id": 17,
+    "title": {
+      "en": "Durga"
+    },
+    "album": 1,
+    "tags": [
+      3,
+      2
+    ],
+    "includeForMeditations": true,
+    "fileMetadata": null,
+    "updatedAt": "2026-01-22T08:49:58.438Z",
+    "createdAt": "2026-01-22T08:49:58.438Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "shakthidhariyerpaulovinicius-musicandmeditation-05anahat-durga-oqnwffvqpxf.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 10227428,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/shakthidhariyerpaulovinicius-musicandmeditation-05anahat-durga-oqnwffvqpxf.mp3"
+  },
+  {
+    "id": 16,
+    "title": {
+      "en": "Yaman"
+    },
+    "album": 1,
+    "tags": [
+      3,
+      2
+    ],
+    "includeForMeditations": true,
+    "fileMetadata": null,
+    "updatedAt": "2026-01-22T08:49:50.751Z",
+    "createdAt": "2026-01-22T08:49:50.751Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "shakthidhariyerpaulovinicius-musicandmeditation-02swadhishthana-yaman-abf8fxhklx.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 9626612,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/shakthidhariyerpaulovinicius-musicandmeditation-02swadhishthana-yaman-abf8fxhklx.mp3"
+  },
+  {
+    "id": 15,
+    "title": {
+      "en": "Bageshri"
+    },
+    "album": 1,
+    "tags": [
+      2
+    ],
+    "includeForMeditations": true,
+    "fileMetadata": null,
+    "updatedAt": "2026-01-22T08:49:45.717Z",
+    "createdAt": "2026-01-22T08:49:45.717Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "shakthidhariyer-musicandmeditation-07agnya-bageshri-65y6cbom2r.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 8287053,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/shakthidhariyer-musicandmeditation-07agnya-bageshri-65y6cbom2r.mp3"
+  },
+  {
+    "id": 14,
+    "title": {
+      "en": "Abhogi"
+    },
+    "album": 1,
+    "tags": [
+      2
+    ],
+    "includeForMeditations": true,
+    "fileMetadata": null,
+    "updatedAt": "2026-01-22T08:49:39.278Z",
+    "createdAt": "2026-01-22T08:49:39.278Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "shakthidhariyer-musicandmeditation-03nabhi-abhogi-iqtlq0y3t.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 11227395,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/shakthidhariyer-musicandmeditation-03nabhi-abhogi-iqtlq0y3t.mp3"
+  },
+  {
+    "id": 13,
+    "title": {
+      "en": "Jaijaivanti"
+    },
+    "album": 8,
+    "tags": [
+      4
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-06-18T06:37:27.229Z",
+    "createdAt": "2026-01-22T08:49:34.666Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "koushikaithal-musicandmeditation-06vishuddhi-jaijaivanti-sd456tg7gz.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 7606824,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/koushikaithal-musicandmeditation-06vishuddhi-jaijaivanti-sd456tg7gz.mp3"
+  },
+  {
+    "id": 12,
+    "title": {
+      "en": "Malkauns"
+    },
+    "album": 8,
+    "tags": [
+      4
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-06-15T14:53:32.458Z",
+    "createdAt": "2026-01-22T08:49:28.050Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "koushikaithal-musicandmeditation-04void-malkauns-ovmcpr6r9v.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 7981942,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/koushikaithal-musicandmeditation-04void-malkauns-ovmcpr6r9v.mp3"
+  },
+  {
+    "id": 11,
+    "title": {
+      "en": "Shyam Kalyan"
+    },
+    "album": 8,
+    "tags": [
+      4
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-06-15T14:57:06.582Z",
+    "createdAt": "2026-01-22T08:49:23.575Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "koushikaithal-musicandmeditation-01mooladhara-shyamkalyan-x4xwi84eim.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 8586938,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/koushikaithal-musicandmeditation-01mooladhara-shyamkalyan-x4xwi84eim.mp3"
+  },
+  {
+    "id": 10,
+    "title": {
+      "en": "Flute | Raag Durga p.2"
+    },
+    "album": 1,
+    "tags": [
+      2
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-06-15T15:03:26.374Z",
+    "createdAt": "2026-01-22T08:49:17.442Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "shakthidhar-ragadurgamadhyalayateentaal-kwmojnxv8s.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 34687460,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/shakthidhar-ragadurgamadhyalayateentaal-kwmojnxv8s.mp3"
+  },
+  {
+    "id": 9,
+    "title": {
+      "en": "Flute | Raag Durga"
+    },
+    "album": 1,
+    "tags": [
+      2
+    ],
+    "includeForMeditations": true,
+    "fileMetadata": null,
+    "updatedAt": "2026-01-22T08:49:10.721Z",
+    "createdAt": "2026-01-22T08:49:10.721Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "shakthidhar-ragadurgaaalap-ve75nxjdy1.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 6138955,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/shakthidhar-ragadurgaaalap-ve75nxjdy1.mp3"
+  },
+  {
+    "id": 8,
+    "title": {
+      "en": "Flute | Raag Lalit"
+    },
+    "album": 1,
+    "tags": [
+      2
+    ],
+    "includeForMeditations": true,
+    "fileMetadata": null,
+    "updatedAt": "2026-01-22T08:49:06.308Z",
+    "createdAt": "2026-01-22T08:49:06.308Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "shakthidhar-ragalalitaalap-9hpc5lu0ow.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 6596569,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/shakthidhar-ragalalitaalap-9hpc5lu0ow.mp3"
+  },
+  {
+    "id": 7,
+    "title": {
+      "en": "Setar Dashti"
+    },
+    "album": 5,
+    "tags": [
+      3
+    ],
+    "includeForMeditations": true,
+    "fileMetadata": null,
+    "updatedAt": "2026-01-22T08:49:01.872Z",
+    "createdAt": "2026-01-22T08:49:01.872Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "setardashti-gwz4ozdekm.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 6211417,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/setardashti-gwz4ozdekm.mp3"
+  },
+  {
+    "id": 6,
+    "title": {
+      "en": "Persian Vibes | Segah Avaz"
+    },
+    "album": 5,
+    "tags": [
+      3
+    ],
+    "includeForMeditations": true,
+    "fileMetadata": null,
+    "updatedAt": "2026-01-22T08:48:56.742Z",
+    "createdAt": "2026-01-22T08:48:56.742Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "segahavaz-uba73fwva5.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 4428403,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/segahavaz-uba73fwva5.mp3"
+  },
+  {
+    "id": 5,
+    "title": {
+      "en": "Santoor | Ambient"
+    },
+    "album": 4,
+    "tags": [
+      3
+    ],
+    "includeForMeditations": true,
+    "fileMetadata": null,
+    "updatedAt": "2026-01-22T08:48:51.679Z",
+    "createdAt": "2026-01-22T08:48:51.679Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "santoorkaushikranjani-00xm1urrg4.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 23715597,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/santoorkaushikranjani-00xm1urrg4.mp3"
+  },
+  {
+    "id": 4,
+    "title": {
+      "en": "Persian Vibes | Rast-Panjgah Story"
+    },
+    "album": 4,
+    "tags": [
+      3
+    ],
+    "includeForMeditations": false,
+    "fileMetadata": null,
+    "updatedAt": "2026-06-18T14:32:58.159Z",
+    "createdAt": "2026-01-22T08:48:43.830Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "rast-panjgahstory-h8ck8pt4zw.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 31712779,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/rast-panjgahstory-h8ck8pt4zw.mp3"
+  },
+  {
+    "id": 3,
+    "title": {
+      "en": "Flute | Soothing vibes "
+    },
+    "album": 5,
+    "tags": [
+      2
+    ],
+    "includeForMeditations": true,
+    "fileMetadata": null,
+    "updatedAt": "2026-01-22T08:48:37.310Z",
+    "createdAt": "2026-01-22T08:48:37.310Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "flutenirmalnair-1lk1fhtq5mh.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 26516445,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/flutenirmalnair-1lk1fhtq5mh.mp3"
+  },
+  {
+    "id": 2,
+    "title": {
+      "en": "Sitar | Raag Yaman "
+    },
+    "album": 6,
+    "tags": [
+      3
+    ],
+    "includeForMeditations": true,
+    "fileMetadata": null,
+    "updatedAt": "2026-01-22T08:48:30.764Z",
+    "createdAt": "2026-01-22T08:48:30.764Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "surbaharraagyaman-leovertunni-4dyqjmaqus.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 35765938,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/surbaharraagyaman-leovertunni-4dyqjmaqus.mp3"
+  },
+  {
+    "id": 1,
+    "title": {
+      "en": "Sitar | Raag Bhairavi"
+    },
+    "album": 6,
+    "tags": [
+      3
+    ],
+    "includeForMeditations": true,
+    "fileMetadata": null,
+    "updatedAt": "2026-01-22T08:48:23.915Z",
+    "createdAt": "2026-01-22T08:48:23.915Z",
+    "deletedAt": null,
+    "thumbnailURL": null,
+    "filename": "ragabhairavi-leovertunni-kjp9szqyxnl.mp3",
+    "mimeType": "audio/mpeg",
+    "filesize": 25631327,
+    "width": null,
+    "height": null,
+    "focalX": null,
+    "focalY": null,
+    "url": "https://assets.sydevelopers.com/ragabhairavi-leovertunni-kjp9szqyxnl.mp3"
+  }
+]

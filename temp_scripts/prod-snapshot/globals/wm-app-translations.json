@@ -1,0 +1,1241 @@
+{
+  "id": 1,
+  "onboarding": {
+    "welcome": {
+      "en": {
+        "title": "Welcome, friend",
+        "subtitle": "Let's get you meditating",
+        "get_started": "Get started",
+        "link_open_failed": "Couldn't open the link. Please try again.",
+        "privacy_policy_title": "Privacy Policy",
+        "use_existing_account": "Use existing account",
+        "email_app_unavailable": "Couldn't open email app. Please install or set up a mail app.",
+        "terms_and_conditions_title": "Terms & Conditions"
+      }
+    },
+    "welcome_legal_disclaimer": {
+      "en": {
+        "root": {
+          "type": "root",
+          "format": "",
+          "indent": 0,
+          "version": 1,
+          "children": [
+            {
+              "type": "paragraph",
+              "format": "",
+              "indent": 0,
+              "version": 1,
+              "children": [
+                {
+                  "mode": "normal",
+                  "text": "By continuing, you agree to our ",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                },
+                {
+                  "type": "link",
+                  "fields": {
+                    "url": "wm-app-config://termsAndConditionsPage",
+                    "newTab": false,
+                    "linkType": "custom"
+                  },
+                  "format": "",
+                  "indent": 0,
+                  "version": 3,
+                  "children": [
+                    {
+                      "mode": "normal",
+                      "text": "Terms",
+                      "type": "text",
+                      "style": "",
+                      "detail": 0,
+                      "format": 0,
+                      "version": 1
+                    }
+                  ],
+                  "direction": null
+                },
+                {
+                  "mode": "normal",
+                  "text": " & ",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                },
+                {
+                  "type": "link",
+                  "fields": {
+                    "url": "wm-app-config://privacyPolicyPage",
+                    "newTab": false,
+                    "linkType": "custom"
+                  },
+                  "format": "",
+                  "indent": 0,
+                  "version": 3,
+                  "children": [
+                    {
+                      "mode": "normal",
+                      "text": "Privacy Policy",
+                      "type": "text",
+                      "style": "",
+                      "detail": 0,
+                      "format": 0,
+                      "version": 1
+                    }
+                  ],
+                  "direction": null
+                }
+              ],
+              "direction": null,
+              "textFormat": 0
+            }
+          ],
+          "direction": null
+        }
+      }
+    },
+    "name": {
+      "en": {
+        "title": "What's your name?",
+        "continue": "Continue",
+        "placeholder": "Your first name"
+      }
+    },
+    "greeting": {
+      "en": {
+        "message_prefix": "We are happy\nyou are here,\n"
+      }
+    },
+    "user_type": {
+      "en": {
+        "get_started": "Get started",
+        "option_yogi": "Have been practicing for years",
+        "option_tried_before": "Tried it before, but didn't go deep into it",
+        "option_attending_classes": "Currently attending a newcomer class (in-person or online)",
+        "option_complete_beginner": "Never tried it, I'm completely new!"
+      }
+    },
+    "user_type_title": {
+      "en": {
+        "root": {
+          "type": "root",
+          "format": "",
+          "indent": 0,
+          "version": 1,
+          "children": [
+            {
+              "type": "paragraph",
+              "format": "",
+              "indent": 0,
+              "version": 1,
+              "children": [
+                {
+                  "mode": "normal",
+                  "text": "Have you tried\n",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                },
+                {
+                  "mode": "normal",
+                  "text": "Sahaja Yoga",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 1,
+                  "version": 1
+                },
+                {
+                  "mode": "normal",
+                  "text": " before?",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                }
+              ],
+              "direction": null,
+              "textFormat": 0
+            }
+          ],
+          "direction": null
+        }
+      }
+    },
+    "carousel": {
+      "en": {
+        "page_moment_title": "A moment of peace",
+        "page_moment_subtitle": "Let's switch off those worries and thoughts.",
+        "page_true_self_subtitle": "An ocean of pure joy and satisfaction lies within you.",
+        "page_unlock_potential_title": "Unlock your potential",
+        "page_unlock_potential_subtitle": "There's a lot more to you than you realise!"
+      }
+    },
+    "carousel_page_true_self_title": {
+      "en": {
+        "root": {
+          "type": "root",
+          "format": "",
+          "indent": 0,
+          "version": 1,
+          "children": [
+            {
+              "type": "paragraph",
+              "format": "",
+              "indent": 0,
+              "version": 1,
+              "children": [
+                {
+                  "mode": "normal",
+                  "text": "Get to know your ",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                },
+                {
+                  "mode": "normal",
+                  "text": "true self",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 1,
+                  "version": 1
+                }
+              ],
+              "direction": null,
+              "textFormat": 0
+            }
+          ],
+          "direction": null
+        }
+      }
+    },
+    "consent_modal": {
+      "en": {
+        "allow": "Allow",
+        "title": "Help spread the word",
+        "reject": "Reject",
+        "body_benefits": "We are a non-profit with a modest budget, and this helps us spend it wisely: we see which outreach is useful, avoid bothering people who already use WeMeditate, and help ad platforms build lookalike audiences to find people with similar interests who may benefit from meditation.",
+        "body_settings_hint": "Help our outreach! You can change this anytime in Profile → Privacy & advertising."
+      }
+    },
+    "consent_modal_body_never_share": {
+      "en": {
+        "root": {
+          "type": "root",
+          "format": "",
+          "indent": 0,
+          "version": 1,
+          "children": [
+            {
+              "type": "paragraph",
+              "format": "",
+              "indent": 0,
+              "version": 1,
+              "children": [
+                {
+                  "mode": "normal",
+                  "text": "We'll never share",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 1,
+                  "version": 1
+                },
+                {
+                  "mode": "normal",
+                  "text": " your mood, goals, hand sensations, reflections, location, or details about your practice.",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                }
+              ],
+              "direction": null,
+              "textFormat": 0
+            }
+          ],
+          "direction": null
+        }
+      }
+    },
+    "consent_modal_body_never_sell": {
+      "en": {
+        "root": {
+          "type": "root",
+          "format": "",
+          "indent": 0,
+          "version": 1,
+          "children": [
+            {
+              "type": "paragraph",
+              "format": "",
+              "indent": 0,
+              "version": 1,
+              "children": [
+                {
+                  "mode": "normal",
+                  "text": "And ",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                },
+                {
+                  "mode": "normal",
+                  "text": "we never sell",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 1,
+                  "version": 1
+                },
+                {
+                  "mode": "normal",
+                  "text": " your data to anyone, ever.",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                }
+              ],
+              "direction": null,
+              "textFormat": 0
+            }
+          ],
+          "direction": null
+        }
+      }
+    },
+    "consent_modal_body_intro": {
+      "en": {
+        "root": {
+          "type": "root",
+          "format": "",
+          "indent": 0,
+          "version": 1,
+          "children": [
+            {
+              "type": "paragraph",
+              "format": "",
+              "indent": 0,
+              "version": 1,
+              "children": [
+                {
+                  "mode": "normal",
+                  "text": "With your permission, we'll share a few basic app usage and device details with Meta, Apple Search Ads and Google Ads, like app installs or completed sessions. (",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                },
+                {
+                  "type": "link",
+                  "fields": {
+                    "url": "wm-app-config://privacyPolicyPage#what-we-share",
+                    "newTab": false,
+                    "linkType": "custom"
+                  },
+                  "format": "",
+                  "indent": 0,
+                  "version": 3,
+                  "children": [
+                    {
+                      "mode": "normal",
+                      "text": "what we share",
+                      "type": "text",
+                      "style": "",
+                      "detail": 0,
+                      "format": 0,
+                      "version": 1
+                    }
+                  ],
+                  "direction": null
+                },
+                {
+                  "mode": "normal",
+                  "text": ").",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                }
+              ],
+              "direction": null,
+              "textFormat": 0
+            }
+          ],
+          "direction": null
+        }
+      }
+    }
+  },
+  "daily": {
+    "main": {
+      "en": {
+        "live_now": "Live now",
+        "see_more": "See more",
+        "start_now": "Start now",
+        "help_me_deal": "Help me deal\nwith something",
+        "start_course": "Start course",
+        "minutes_short": "min",
+        "quick_evening": "Quick detox to\nsleep better",
+        "quick_morning": "Quick dose of joy\nand clarity",
+        "explore_deeper": "Explore the\npractice deeper",
+        "longer_session": "Longer, more\ntailored session",
+        "continue_course": "Continue course",
+        "quick_afternoon": "Quick\n\"pick-me-up\"",
+        "highlights_title": "HIGHLIGHTS",
+        "start_meditation": "Start meditation",
+        "start_the_course": "Start the course",
+        "learn_from_source": "LEARN FROM THE SOURCE",
+        "scroll_to_the_path": "scroll to The Path",
+        "continue_the_course": "Continue the course",
+        "find_class_near_you": "Find a class\nnear you",
+        "hero_label_discover": "Discover",
+        "live_countdown_days": "days",
+        "get_back_in_the_flow": "Get back in\nthe flow",
+        "live_countdown_hours": "hours",
+        "meditate_with_others": "MEDITATE WITH OTHERS",
+        "the_path_going_deeper": "THE PATH: GOING DEEPER",
+        "hero_label_get_started": "Get started",
+        "improve_meditation_tag": "Improve",
+        "join_live_online_class": "Join a live\nonline class",
+        "live_countdown_minutes": "minutes",
+        "improve_your_meditation": "IMPROVE YOUR MEDITATION",
+        "path_going_deeper_title": "The Path:\ngoing deeper",
+        "shri_mataji_talks_title": "Shri Mataji's Talks",
+        "whats_your_priority_tag": "Priority",
+        "your_evening_meditation": "Your evening meditation",
+        "your_morning_meditation": "Your morning meditation",
+        "meditate_with_others_tag": "Community",
+        "help_me_deal_custom_title": "Okay, let's start here.\nWhat are you feeling?",
+        "unlock_guided_meditations": "Unlock guided meditations",
+        "whats_your_priority_today": "WHAT'S YOUR PRIORITY TODAY?",
+        "your_afternoon_meditation": "Your afternoon meditation",
+        "path_going_deeper_subtitle": "Self-paced meditation course to learn deeper aspects:",
+        "shri_mataji_talks_subtitle": "Learn from the source - watch talks by the founder of Sahaja Yoga",
+        "evening_meditation_subtitle": "Settle down, and unwind for the night ahead",
+        "live_reminder_button_active": "30m before",
+        "morning_meditation_subtitle": "Quick dose of joy, or a longer,\nmore personalised session",
+        "whats_your_priority_tonight": "WHAT'S YOUR PRIORITY TONIGHT?",
+        "hero_label_learn_from_source": "Learn from the source",
+        "hero_label_try_something_new": "Try something new",
+        "afternoon_meditation_subtitle": "Personalise, or\ndive right in",
+        "improve_card_techniques_title": "Techniques",
+        "hero_label_meditate_with_others": "Meditate with others",
+        "live_reminder_notification_body": "Your live meditation begins in 30 minutes.",
+        "live_reminder_permission_denied": "Allow notifications to get a reminder before live meditation.",
+        "improve_card_subtle_system_title": "Subtle system",
+        "improve_card_techniques_subtitle": "Enhance your meditation with cleansing techniques",
+        "live_reminder_notification_title": "Live meditation starts soon",
+        "live_reminder_permission_settings": "Enable notifications in Settings to get live meditation reminders.",
+        "improve_card_subtle_system_subtitle": "Learn about chakras, channels, and Kundalini"
+      }
+    },
+    "common": {
+      "en": {
+        "retry": "Retry",
+        "map_coming_soon": "In-person classes are coming soon",
+        "path_coming_soon": "Path content is coming soon",
+        "music_coming_soon": "Music section is coming soon",
+        "something_went_wrong": "Something went wrong",
+        "card_action_not_available": "This card action is not available yet",
+        "external_link_coming_soon": "External links are coming soon",
+        "unlock_after_first_meditation": "Complete your first meditation to unlock more"
+      }
+    },
+    "load_info": {
+      "en": {
+        "top_daily_failed": "Daily meditation failed to load.",
+        "top_daily_random": "Daily meditation did not load. Showing a random meditation.",
+        "quick_daily_failed": "Quick meditations failed to load.",
+        "quick_daily_random": "Daily quick meditations did not load. Showing random meditations.",
+        "top_daily_unavailable": "Daily meditation is unavailable right now.",
+        "quick_daily_unavailable": "Quick meditations are unavailable right now."
+      }
+    }
+  },
+  "path": {
+    "overview": {
+      "en": {
+        "unit": "UNIT",
+        "retry": "Retry",
+        "error_message": "Failed to load the path. Please try again.",
+        "more_steps_coming_soon": "MORE STEPS COMING SOON"
+      }
+    },
+    "info": {
+      "en": {
+        "first_text": "In this course you will learn some of the main aspects of Sahaja Yoga meditation.\\n\\nEach step of the path features a guided meditation, but also some nuggets of knowledge and new techniques to improve your meditation!",
+        "third_text": "A journey of a 1000 miles starts with one step.\\n\\nSimply select the first step and let your journey of self-discovery begin!",
+        "first_title": "Welcome to the Path!",
+        "second_text": "You will gradually learn how to use Sahaja Yoga meditation to help with life's challenges and grow as a person through it.\\n\\nThe meditations will get more advanced as you progress through the path and learn more about this amazing system within you.",
+        "third_title": "Ready to begin?",
+        "second_title": "Your course to learn Sahaja Yoga Meditation"
+      }
+    },
+    "step_1": {
+      "en": {
+        "begin": "Begin",
+        "author": "Shri Mataji Nirmala Devi",
+        "skip_title": "Are you sure you want to exit?",
+        "back_to_path": "Back to path",
+        "skip_continue": "Continue",
+        "default_intro_quote": "This Kundalini, when She passes through these six centers, She enlightens those centers, nourishes those centers and integrates them - so in totality you are all right."
+      }
+    },
+    "step_2": {
+      "en": {
+        "continue_button": "Continue"
+      }
+    },
+    "step_3": {
+      "en": {
+        "exit": "Exit",
+        "skip_intro": "Skip introduction",
+        "skip_title": "Skip introduction?",
+        "back_to_step": "Back to step",
+        "back_to_intro": "Back to introduction",
+        "skip_continue": "Skip to meditation",
+        "meditation_intro": "MEDITATION INTRO",
+        "start_meditation": "Start Meditation"
+      }
+    },
+    "step_4": {
+      "en": {
+        "complete_step": "Complete step",
+        "delving_deeper": "DELVING DEEPER",
+        "lecture_prompt": "Continue to meditate as you listen to Shri Mataji speak about this subject",
+        "media_card_author": "Talk by Shri Mataji",
+        "media_card_watch_later": "Watch Later",
+        "media_card_fallback_title": "“Within us lie all these powers, which can be easily awakened”",
+        "media_card_author_subtitle": "The founder of Sahaja Yoga"
+      }
+    },
+    "step_complete": {
+      "en": {
+        "title": "Step Completed!",
+        "subtitle": "Ready for the next one?",
+        "back_to_path": "Back to Path"
+      }
+    }
+  },
+  "explore": {
+    "overview": {
+      "en": {
+        "section_label": "Explore",
+        "card_path_title": "Path",
+        "card_coming_soon": "Coming soon",
+        "card_daily_title": "Daily",
+        "card_music_title": "Music for meditation",
+        "card_talks_title": "Talks of\nShri Mataji",
+        "card_who_is_title": "Who is\nShri Mataji",
+        "card_path_subtitle": "Guided course to go deeper in Sahaja Yoga",
+        "card_what_is_title": "What is Sahaja Yoga?",
+        "section_join_title": "Join free classes",
+        "card_daily_subtitle": "Meditations tailored to your state and the time of day",
+        "section_learn_title": "Learn",
+        "card_challenges_title": "Challenges",
+        "card_techniques_title": "Techniques",
+        "card_live_online_title": "Live Online\nClasses",
+        "card_vibes_check_title": "Vibes check",
+        "section_meditate_title": "Meditate",
+        "card_find_classes_title": "Find classes\nnear you",
+        "card_subtle_system_title": "Subtle System",
+        "card_techniques_subtitle": "Enhance your meditation",
+        "card_vibes_check_subtitle": "Tailor your meditation to your state"
+      }
+    },
+    "subtle_system": {
+      "en": {
+        "chip_left": "Left",
+        "chip_right": "Right",
+        "aspect_left": "Left Aspect",
+        "chip_center": "Center",
+        "aspect_right": "Right Aspect",
+        "mode_chakras": "Chakras",
+        "screen_label": "Subtle system",
+        "aspect_center": "Center Aspect",
+        "diagram_title": "Tap the diagram to learn about chakras & channels",
+        "mode_channels": "Channels",
+        "diagram_subtitle": "",
+        "front_view_mirrored": "Front view - left and right are mirrored"
+      }
+    },
+    "talks_intro": {
+      "en": {
+        "start": "Start",
+        "title": "Shri Mataji's Talks",
+        "watch_now": "Watch now",
+        "maybe_later": "Maybe later",
+        "unavailable": "This talk is temporarily unavailable",
+        "clip_description": "You are about to watch a video with the founder of Sahaja Yoga Shri Mataji.",
+        "generic_description": "Shri Mataji Nirmala Devi discovered a unique method of meditation called \"Sahaja Yoga\" which allows the achievement of inner enlightenment and reveals the true potential of humanity. Shri Mataji devoted her entire life to the development and dissemination of this method, and today hundreds of thousands of people around the world practice Sahaja Yoga.",
+        "post_first_meditation_name": "Shri Mataji,",
+        "post_first_meditation_subtitle": "The founder of Sahaja Yoga",
+        "post_first_meditation_description": "Let's now learn about this technique directly from the founder of Sahaja Yoga Meditation"
+      }
+    },
+    "talks_list": {
+      "en": {
+        "start": "Start",
+        "watched": "Watched",
+        "all_tags": "All tags",
+        "learn_more": "Learn more",
+        "description": "Enrich your practice with subtle knowledge straight from the founder of Sahaja Yoga, Shri Mataji Nirmala Devi.",
+        "screen_title": "SHRI MATAJI'S TALKS",
+        "section_title": "Learn from the source"
+      }
+    },
+    "talks_player": {
+      "en": {
+        "play": "Play",
+        "pause": "Pause",
+        "replay": "Replay",
+        "unavailable": "We couldn't load this talk right now",
+        "subtitles_off": "Off",
+        "subtitles_title": "Subtitles",
+        "subtitles_french": "French",
+        "subtitles_english": "English",
+        "subtitles_spanish": "Spanish",
+        "subtitles_turkish": "Turkish",
+        "subtitles_bulgarian": "Bulgarian",
+        "subtitles_portuguese_brazil": "Portuguese (Brazil)"
+      }
+    }
+  },
+  "profile": {
+    "main": {
+      "en": {
+        "see_all": "See All",
+        "joined_years": "Joined {years} years ago",
+        "legal_header": "LEGAL",
+        "account_title": "Account settings",
+        "contact_title": "Contact us",
+        "history_title": "History",
+        "joined_months": "Joined {months} months ago",
+        "feedback_header": "ANY FEEDBACK?",
+        "joined_fallback": "Joined recently",
+        "joined_one_year": "Joined 1 year ago",
+        "account_subtitle": "Your details and preferences",
+        "contact_subtitle": "Your feedback or ideas",
+        "history_subtitle": "Your meditation activities",
+        "joined_one_month": "Joined 1 month ago",
+        "favourites_header": "MY FAVOURITES",
+        "no_favourites_title": "No favourites yet",
+        "privacy_policy_title": "Privacy Policy",
+        "joined_less_than_year": "Joined less than a year ago",
+        "no_favourites_subtitle": "Like the meditations you enjoyed the most to save them here",
+        "privacy_policy_subtitle": "How we collect and use data",
+        "terms_and_conditions_title": "Terms & Conditions",
+        "privacy_and_advertising_title": "Privacy & Advertising",
+        "terms_and_conditions_subtitle": "Legal terms for using WeMeditate",
+        "privacy_and_advertising_subtitle": "Privacy choices and ad preferences"
+      }
+    },
+    "favourites": {
+      "en": {
+        "title": "FAVOURITES",
+        "removed_from_favourites": "Removed from favourites"
+      }
+    },
+    "history": {
+      "en": {
+        "title": "HISTORY",
+        "empty_title": "No activity",
+        "empty_subtitle": "Your meditations and other activities you do will be displayed here"
+      }
+    },
+    "account": {
+      "en": {
+        "save": "Save",
+        "login": "Log in",
+        "saved": "Account settings saved",
+        "title": "My Account",
+        "cancel": "Cancel",
+        "logout": "Log out",
+        "saving": "Saving...",
+        "name_hint": "Your name",
+        "name_label": "Name",
+        "edit_action": "Edit",
+        "email_label": "Email",
+        "save_failed": "Failed to save account settings",
+        "save_changes": "Save Changes",
+        "create_account": "Create account",
+        "delete_account": "Delete account",
+        "details_header": "YOUR DETAILS",
+        "password_label": "Password",
+        "privacy_policy": "Privacy policy",
+        "continue_action": "Continue",
+        "edit_email_title": "Edit Email",
+        "first_name_label": "First Name",
+        "email_unavailable": "Email not available",
+        "guest_email_prompt": "Log in to add email",
+        "reset_password_sent": "Password reset email sent",
+        "delete_account_error": "Failed to delete account",
+        "delete_account_title": "Delete Account",
+        "reauthenticate_title": "Confirm Password",
+        "reset_password_error": "Failed to send password reset email",
+        "reset_password_title": "Reset Password",
+        "edit_first_name_title": "Edit First Name",
+        "guest_password_prompt": "Log in to manage password",
+        "reset_password_action": "Reset Password",
+        "email_edit_unavailable": "Email editing is not available yet",
+        "reauthenticate_invalid": "Incorrect password",
+        "reauthenticate_required": "Please enter your password to continue",
+        "delete_account_description": "This will permanently delete your account and remove your profile data from the app.",
+        "reauthenticate_description": "Please confirm your password to continue deleting your account.",
+        "reset_password_description": "We will send the password reset link to your registered email:",
+        "delete_account_requires_recent_login": "Please log in again before deleting your account"
+      }
+    },
+    "privacy": {
+      "en": {
+        "screen_title": "Help spread the word and make the app better",
+        "status_allowed": "Status: Allowed on {date}",
+        "advertising_title": "Advertising measurement and improvement",
+        "learn_more_header": "Learn more",
+        "status_not_allowed": "Status: Not allowed",
+        "privacy_policy_title": "Privacy Policy",
+        "privacy_policy_subtitle": "How we collect and use data",
+        "product_analytics_title": "Anonymous product analytics",
+        "advertising_body_benefits": "We are a non-profit with a modest budget, and this helps us spend it wisely: we see which outreach is useful, avoid bothering people who already use WeMeditate, and help ad platforms find people with similar interests who may benefit from meditation.",
+        "advertising_platform_meta": "Meta",
+        "terms_and_conditions_title": "Terms & Conditions",
+        "advertising_body_change_hint": "You can change this anytime using the toggle above.",
+        "advertising_platforms_header": "Current advertising platforms",
+        "product_analytics_description": "We log anonymous, aggregated information about how the app is used so we can fix bugs and improve We Meditate. No individual data, no advertisers, no profile of you. You can opt out by turning this off above.",
+        "terms_and_conditions_subtitle": "Legal terms for using WeMeditate",
+        "advertising_platform_google_ads": "Google Ads",
+        "advertising_platform_apple_search_ads": "Apple Search Ads"
+      }
+    },
+    "privacy_advertising_body_never_share": {
+      "en": {
+        "root": {
+          "type": "root",
+          "format": "",
+          "indent": 0,
+          "version": 1,
+          "children": [
+            {
+              "type": "paragraph",
+              "format": "",
+              "indent": 0,
+              "version": 1,
+              "children": [
+                {
+                  "mode": "normal",
+                  "text": "We'll never share",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 1,
+                  "version": 1
+                },
+                {
+                  "mode": "normal",
+                  "text": " your mood, goals, hand sensations, reflections, location, or details about your practice. And ",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                },
+                {
+                  "mode": "normal",
+                  "text": "we never sell",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 1,
+                  "version": 1
+                },
+                {
+                  "mode": "normal",
+                  "text": " your data, ever.",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                }
+              ],
+              "direction": null,
+              "textFormat": 0
+            }
+          ],
+          "direction": null
+        }
+      }
+    },
+    "privacy_advertising_body_intro": {
+      "en": {
+        "root": {
+          "type": "root",
+          "format": "",
+          "indent": 0,
+          "version": 1,
+          "children": [
+            {
+              "type": "paragraph",
+              "format": "",
+              "indent": 0,
+              "version": 1,
+              "children": [
+                {
+                  "mode": "normal",
+                  "text": "With your permission, we'll share a few basic app and device details with Meta, Apple Search Ads and Google Ads, like app installs or completed sessions. (",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                },
+                {
+                  "type": "link",
+                  "fields": {
+                    "url": "wm-app-config://privacyPolicyPage#what-we-share",
+                    "newTab": false,
+                    "linkType": "custom"
+                  },
+                  "format": "",
+                  "indent": 0,
+                  "version": 3,
+                  "children": [
+                    {
+                      "mode": "normal",
+                      "text": "what we share",
+                      "type": "text",
+                      "style": "",
+                      "detail": 0,
+                      "format": 0,
+                      "version": 1
+                    }
+                  ],
+                  "direction": null
+                },
+                {
+                  "mode": "normal",
+                  "text": ").",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                }
+              ],
+              "direction": null,
+              "textFormat": 0
+            }
+          ],
+          "direction": null
+        }
+      }
+    },
+    "contact": {
+      "en": {
+        "send": "Send",
+        "sent": "Thank you for your feedback",
+        "title": "CONTACT US",
+        "header": "We are always looking for ways to improve this app, so your feedback is more than welcome!",
+        "sending": "Sending...",
+        "subtitle": "We are always looking for ways to improve this app, so your feedback is more than welcome!",
+        "send_error": "Failed to send feedback",
+        "empty_error": "Please enter your message",
+        "placeholder": "Type here..",
+        "min_length_error": "Please write at least 50 characters"
+      }
+    }
+  },
+  "meditation": {
+    "intent": {
+      "en": {
+        "learn_more": "Learn more",
+        "step_label": "Step 1 of 3",
+        "title_today": "How can we best\nsupport you today?",
+        "repeat_video": "Repeat explanation",
+        "title_tonight": "How can we best\nsupport you tonight?",
+        "locked_subtitle": "Unlocks after first meditation",
+        "start_meditation": "Start meditation",
+        "carousel_continue": "Continue",
+        "personalized_title": "Personalised meditation, tailored to your state",
+        "ready_to_try_title": "Ready to try?",
+        "quick_evening_title": "Quick evening meditation",
+        "quick_morning_title": "Quick morning meditation",
+        "personalized_subtitle": "An extended session with more personalisation",
+        "quick_afternoon_title": "Quick afternoon meditation",
+        "first_meditation_title": "Your first meditation",
+        "go_to_first_meditation": "Go to first meditation",
+        "quick_evening_subtitle": "Simple session to unwind, detox, reconnect and sleep better",
+        "quick_morning_subtitle": "Get your dose of joy, focus and clarity for the day",
+        "set_reminder_for_later": "Set a reminder for later",
+        "skip_video_and_continue": "Skip video and continue",
+        "locked_quick_start_title": "Start right away",
+        "quick_afternoon_subtitle": "Get a quick energy boost,\ncalm down and reconnect",
+        "skip_and_explore_the_app": "Skip and explore the app",
+        "first_meditation_subtitle": "Start with this Kundalini awakening meditation",
+        "ready_to_try_subtitle_repeat": "Awaken your inner energy once more with this next meditation.",
+        "repeat_first_meditation_title": "Your First Meditation",
+        "locked_quick_custom_time_title": "Custom time",
+        "ready_to_try_subtitle_beginner": "Awaken your inner energy with this next meditation.",
+        "repeat_first_meditation_subtitle": "Express once more the pure desire for your Kundalini energy to rise",
+        "locked_personalized_feeling_title": "How are you feeling?",
+        "locked_quick_custom_time_description": "Choose between 5, 10 and 15 minutes.",
+        "locked_personalized_custom_time_title": "Custom time",
+        "locked_quick_start_description_evening": "Simple session to unwind, detox, reconnect and sleep better.",
+        "locked_quick_start_description_morning": "Get your dose of joy, focus and clarity for the day.",
+        "locked_personalized_feeling_description": "Choose your current state to personalise your meditation.",
+        "locked_quick_start_description_afternoon": "Get a quick energy boost, calm down and reconnect.",
+        "locked_personalized_custom_time_description": "After the first 15 minutes, choose how long you'd like to continue for."
+      }
+    },
+    "reminder": {
+      "en": {
+        "sheet_done": "Done",
+        "sheet_error": "Couldn't set reminder. Please try again.",
+        "sheet_title": "Set a reminder to get back\nto this meditation later",
+        "prompt_title": "Schedule this meditation\nfor later?",
+        "prompt_not_now": "Not now",
+        "sheet_dont_set": "Don't set a reminder",
+        "prompt_subtitle": "Pick a time and we'll send a reminder\nto try your first meditation!",
+        "prompt_no_thanks": "No thanks",
+        "sheet_explore_app": "Explore the app",
+        "notification_title": "Time to meditate",
+        "prompt_set_reminder": "Set a reminder",
+        "sheet_success_title": "Reminder set",
+        "prompt_open_settings": "Open settings",
+        "notification_body_exit": "Come back to your meditation when you're ready.",
+        "sheet_leave_meditation": "Leave meditation",
+        "sheet_success_subtitle": "We will send a notification to remind you later!",
+        "notification_body_locked": "Your meditation reminder is ready when you are.",
+        "preset_slow_down_weekend": "Slow down and enjoy your weekend",
+        "preset_pause_and_recharge": "Pause and recharge",
+        "preset_unwind_later_today": "Unwind later today",
+        "sheet_return_to_meditation": "Return to meditation",
+        "preset_reset_for_week_ahead": "Reset for the week ahead",
+        "preset_start_your_week_calm": "Start your week calm",
+        "sheet_start_first_meditation": "Start first meditation",
+        "preset_end_your_week_with_peace": "End your week with peace",
+        "allow_notifications_screen_title": "Allow notifications to set a reminder",
+        "preset_find_your_midweek_balance": "Find your midweek balance",
+        "prompt_allow_notifications_title": "Allow notifications, so we can send your reminder",
+        "prompt_allow_notifications_primary": "Allow notifications",
+        "prompt_turn_on_notifications_title": "Turn on notifications",
+        "allow_notifications_screen_subtitle": "This way we will be able to send you a\nreminder about your meditation ✨",
+        "preset_mindful_break_before_weekend": "Mindful break before the weekend",
+        "prompt_allow_notifications_subtitle": "Tap \"Allow\" on the next screen",
+        "prompt_turn_on_notifications_subtitle": "Enable notifications in your device settings to receive meditation reminders."
+      }
+    },
+    "footsoak": {
+      "en": {
+        "title": "Footsoak with this meditation?",
+        "step_label": "Step 3 of 3",
+        "tutorial_cta": "See how to do it",
+        "start_meditation": "Start Meditation",
+        "start_with_footsoak": "Start with a footsoak"
+      }
+    },
+    "footsoak_description": {
+      "en": {
+        "root": {
+          "type": "root",
+          "format": "",
+          "indent": 0,
+          "version": 1,
+          "children": [
+            {
+              "type": "paragraph",
+              "format": "",
+              "indent": 0,
+              "version": 1,
+              "children": [
+                {
+                  "mode": "normal",
+                  "text": "This would ",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                },
+                {
+                  "mode": "normal",
+                  "text": "really",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 2,
+                  "version": 1
+                },
+                {
+                  "mode": "normal",
+                  "text": " help you have a much better meditation!",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                }
+              ],
+              "direction": null,
+              "textFormat": 0
+            }
+          ],
+          "direction": null
+        }
+      }
+    },
+    "player": {
+      "en": {
+        "load_error_title": "Failed to load meditation"
+      }
+    },
+    "vibes_check": {
+      "en": {
+        "cool": "Cool",
+        "warm": "Warm",
+        "got_it": "Got it",
+        "nothing": "Nothing",
+        "skip_it": "Skip it",
+        "not_sure": "Not sure",
+        "left_hand": "left",
+        "right_hand": "right",
+        "intro_question": "What do you feel\non your hands?",
+        "continue_action": "Continue",
+        "question_prefix": "What do you feel on your\n",
+        "question_suffix": " hand?",
+        "fingers_tingling": "Fingers tingling",
+        "skip_vibes_check": "Skip vibes check",
+        "skip_prompt_title": "Skip vibes check?",
+        "back_to_explanation": "Continue vibes check",
+        "interpretation_intro": "Feeling cool means it is clear, and the Kundalini energy is flowing nicely :)",
+        "interpretation_detail": "Your left hand is a representation of your left energy channel",
+        "interpretation_nothing": "No worries! You will start feeling these sensations as you continue to meditate.",
+        "skip_prompt_description": "It will provide explanation to what you have experienced.",
+        "return_to_meditation_action": "Return to meditation",
+        "return_to_meditation_prompt_title": "Return to meditation?",
+        "return_to_meditation_prompt_description": "This will start the first meditation from the beginning - you can always skip to the end if you missed something."
+      }
+    },
+    "feedback": {
+      "en": {
+        "hint": "Type here..",
+        "send": "Send",
+        "close": "Close",
+        "title": "How was your experience?",
+        "thank_you": "Thank you!",
+        "description": "Did you enjoy the meditation? What was good and what could be improved?",
+        "error_length": "Please write at least 50 characters",
+        "thank_you_description": "Your feedback\nhelps us improve\nthis app"
+      }
+    }
+  },
+  "auth": {
+    "common": {
+      "en": {
+        "or": "or",
+        "cancel": "Cancel",
+        "error_enter_email": "Please enter your email",
+        "continue_with_apple": "Continue with Apple",
+        "continue_with_email": "Continue with Email",
+        "error_invalid_email": "Please enter a valid email",
+        "continue_with_google": "Continue with Google",
+        "error_enter_password": "Please enter your password",
+        "continue_with_facebook": "Continue with Facebook",
+        "error_password_min_length": "Password must be at least 6 characters"
+      }
+    },
+    "login": {
+      "en": {
+        "next": "Next",
+        "title": "Log In",
+        "open_login": "Open login",
+        "signing_in": "Signing in...",
+        "email_label": "Email",
+        "error_generic": "Failed to sign in",
+        "password_label": "Password",
+        "forgot_password": "Forgot password",
+        "email_placeholder": "Your email",
+        "create_new_account": "Create new account",
+        "account_exists_title": "Sign in with your existing account",
+        "continue_as_new_user": "Continue as new user",
+        "password_placeholder": "Your password",
+        "try_different_account": "Try different account",
+        "account_exists_subtitle": "We found another sign-in method for this email. Use {providers} to continue, then we'll connect everything to the same account.",
+        "account_not_found_title": "We couldn't find your account",
+        "error_too_many_requests": "Too many attempts. Please try again later",
+        "error_invalid_credentials": "Incorrect email or password",
+        "error_session_persistence": "Signed in, but failed to restore your session",
+        "account_not_found_subtitle": "Please try a different account, create a new one or continue as a new user",
+        "error_cannot_continue_with_email": "We couldn't continue with that email. Please check it or continue as a new user.",
+        "account_exists_existing_provider_fallback": "your existing provider"
+      }
+    },
+    "restore_password": {
+      "en": {
+        "title": "Restore Password",
+        "submit": "Restore password",
+        "description": "Please enter your email address. We'll send you a link to reset your password.",
+        "email_label": "Email",
+        "email_placeholder": "Your email",
+        "error_invalid_email": "Please enter a valid email"
+      }
+    },
+    "restore_password_email_sent": {
+      "en": {
+        "ok": "OK",
+        "message": "An email has been sent.\nPlease check your inbox."
+      }
+    },
+    "create_account": {
+      "en": {
+        "title": "Create Account",
+        "submit": "Create Account",
+        "creating": "Creating...",
+        "email_label": "Email",
+        "screen_title": "Let's create your account!",
+        "error_generic": "Failed to create account",
+        "password_label": "Password",
+        "screen_subtitle": "This will save your progress and unlock all the features of the app",
+        "skip_and_explore": "Skip for now",
+        "email_placeholder": "Your email",
+        "error_apple_failed": "Failed to continue with Apple",
+        "error_email_in_use": "An account with this email already exists. Please login or use a different email.",
+        "error_check_consent": "Check the box to continue",
+        "error_google_failed": "Failed to continue with Google",
+        "error_invalid_email": "Please enter a valid email",
+        "error_weak_password": "Password must be at least 6 characters",
+        "password_placeholder": "Create a password",
+        "error_facebook_failed": "Failed to continue with Facebook",
+        "error_too_many_requests": "Too many attempts. Please try again later",
+        "error_provider_cancelled": "Authentication was cancelled",
+        "error_session_persistence": "Account created, but failed to restore your session",
+        "login_with_existing_account": "Login with existing account"
+      }
+    },
+    "create_account_consent_label": {
+      "en": {
+        "root": {
+          "type": "root",
+          "format": "",
+          "indent": 0,
+          "version": 1,
+          "children": [
+            {
+              "type": "paragraph",
+              "format": "",
+              "indent": 0,
+              "version": 1,
+              "children": [
+                {
+                  "mode": "normal",
+                  "text": "I agree to WeMeditate's ",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                },
+                {
+                  "type": "link",
+                  "fields": {
+                    "url": "wm-app-config://termsAndConditionsPage",
+                    "newTab": false,
+                    "linkType": "custom"
+                  },
+                  "format": "",
+                  "indent": 0,
+                  "version": 3,
+                  "children": [
+                    {
+                      "mode": "normal",
+                      "text": "Terms & Conditions",
+                      "type": "text",
+                      "style": "",
+                      "detail": 0,
+                      "format": 0,
+                      "version": 1
+                    }
+                  ],
+                  "direction": null
+                },
+                {
+                  "mode": "normal",
+                  "text": " and confirm that I acknowledge the ",
+                  "type": "text",
+                  "style": "",
+                  "detail": 0,
+                  "format": 0,
+                  "version": 1
+                },
+                {
+                  "type": "link",
+                  "fields": {
+                    "url": "wm-app-config://privacyPolicyPage",
+                    "newTab": false,
+                    "linkType": "custom"
+                  },
+                  "format": "",
+                  "indent": 0,
+                  "version": 3,
+                  "children": [
+                    {
+                      "mode": "normal",
+                      "text": "Privacy Policy",
+                      "type": "text",
+                      "style": "",
+                      "detail": 0,
+                      "format": 0,
+                      "version": 1
+                    }
+                  ],
+                  "direction": null
+                }
+              ],
+              "direction": null,
+              "textFormat": 0
+            }
+          ],
+          "direction": null
+        }
+      }
+    }
+  },
+  "navigation": {
+    "en": {
+      "path": "Path",
+      "daily": "Daily",
+      "explore": "Explore",
+      "profile": "Profile"
+    }
+  },
+  "general": {
+    "en": {
+      "back": "Back",
+      "undo": "Undo",
+      "retry": "Retry"
+    }
+  },
+  "_status": "draft",
+  "updatedAt": "2026-05-28T08:00:58.504Z",
+  "createdAt": "2026-05-25T16:32:30.038Z"
+}

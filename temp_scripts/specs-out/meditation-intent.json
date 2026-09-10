@@ -1,0 +1,266 @@
+[
+  {
+    "leaf": "meditation.intent",
+    "seedKey": "meditation_intent",
+    "title": "Meditation setup & intro slides",
+    "description": "Everything a user reads before a meditation actually starts: the \"Step 1 of 3\" screen where they pick which meditation to do, the pop-up explaining meditations that are still locked, and the welcome slides plus explainer video that lead into the very first meditation.",
+    "order": [
+      {
+        "key": "step_label",
+        "section": "Choose your meditation — top of screen",
+        "description": "Step indicator in the header of the choose-your-meditation screen, e.g. \"Step 1 of 3\"."
+      },
+      {
+        "key": "title_today",
+        "section": "Choose your meditation — top of screen",
+        "description": "VARIANT — the big question at the top of the screen, shown in the morning and the afternoon. In the evening \"title_tonight\" is shown instead. Keep the line break."
+      },
+      {
+        "key": "title_tonight",
+        "section": "Choose your meditation — top of screen",
+        "description": "VARIANT — the same big question, shown only in the evening. Keep the line break."
+      },
+      {
+        "key": "first_meditation_title",
+        "section": "\"Your first meditation\" card",
+        "description": "Title of the first card. This card is the only one a user can tap until they have finished their first meditation. Shown to everyone."
+      },
+      {
+        "key": "first_meditation_subtitle",
+        "section": "\"Your first meditation\" card",
+        "description": "VARIANT — the small line under that title, shown to people who said they are completely new to Sahaja Yoga."
+      },
+      {
+        "key": "repeat_first_meditation_subtitle",
+        "section": "\"Your first meditation\" card",
+        "description": "VARIANT — the same small line, shown instead to people who said they have already tried Sahaja Yoga before."
+      },
+      {
+        "key": "quick_morning_title",
+        "section": "Quick meditation card",
+        "description": "VARIANT — title of the quick-meditation card, shown in the morning."
+      },
+      {
+        "key": "quick_morning_subtitle",
+        "section": "Quick meditation card",
+        "description": "VARIANT — the small line under the morning title. Only shown once the first meditation is done; before that the card is locked and shows \"locked_subtitle\" instead."
+      },
+      {
+        "key": "quick_afternoon_title",
+        "section": "Quick meditation card",
+        "description": "VARIANT — title of the quick-meditation card, shown in the afternoon."
+      },
+      {
+        "key": "quick_afternoon_subtitle",
+        "section": "Quick meditation card",
+        "description": "VARIANT — the small line under the afternoon title. Only shown once the first meditation is done. Keep the line break."
+      },
+      {
+        "key": "quick_evening_title",
+        "section": "Quick meditation card",
+        "description": "VARIANT — title of the quick-meditation card, shown in the evening."
+      },
+      {
+        "key": "quick_evening_subtitle",
+        "section": "Quick meditation card",
+        "description": "VARIANT — the small line under the evening title. Only shown once the first meditation is done."
+      },
+      {
+        "key": "personalized_title",
+        "section": "Personalised meditation card",
+        "description": "Title of the last card, the longer session tailored to how the user feels. Same wording at every time of day. It is also the heading of the pop-up that opens when this card is still locked."
+      },
+      {
+        "key": "personalized_subtitle",
+        "section": "Personalised meditation card",
+        "description": "The small line under that title. Only shown once the first meditation is done; before that the card is locked and shows \"locked_subtitle\" instead."
+      },
+      {
+        "key": "locked_subtitle",
+        "section": "When cards are still locked",
+        "description": "Only shown before the first meditation is finished: it replaces the normal small line on the quick and personalised cards. It also appears next to the padlock near the bottom of the pop-up that opens when a locked card is tapped."
+      },
+      {
+        "key": "learn_more",
+        "section": "When cards are still locked",
+        "description": "Only shown on a locked card: a small pill button at the bottom of the card that opens the pop-up explaining what the card unlocks."
+      },
+      {
+        "key": "locked_quick_start_title",
+        "section": "Locked quick meditation — pop-up",
+        "description": "Only shown in the pop-up for the locked quick meditation: the heading of its first row."
+      },
+      {
+        "key": "locked_quick_start_description_morning",
+        "section": "Locked quick meditation — pop-up",
+        "description": "VARIANT — the text under that first row, shown in the morning."
+      },
+      {
+        "key": "locked_quick_start_description_afternoon",
+        "section": "Locked quick meditation — pop-up",
+        "description": "VARIANT — the same text, shown in the afternoon."
+      },
+      {
+        "key": "locked_quick_start_description_evening",
+        "section": "Locked quick meditation — pop-up",
+        "description": "VARIANT — the same text, shown in the evening."
+      },
+      {
+        "key": "locked_quick_custom_time_title",
+        "section": "Locked quick meditation — pop-up",
+        "description": "Only shown in that pop-up: the heading of the second row, about picking how long to meditate."
+      },
+      {
+        "key": "locked_quick_custom_time_description",
+        "section": "Locked quick meditation — pop-up",
+        "description": "The text under that second row, explaining the lengths on offer."
+      },
+      {
+        "key": "locked_personalized_feeling_title",
+        "section": "Locked personalised meditation — pop-up",
+        "description": "Only shown in the pop-up for the locked personalised meditation: the heading of its first row."
+      },
+      {
+        "key": "locked_personalized_feeling_description",
+        "section": "Locked personalised meditation — pop-up",
+        "description": "The text under that first row, explaining that the session adapts to how the user feels."
+      },
+      {
+        "key": "locked_personalized_custom_time_title",
+        "section": "Locked personalised meditation — pop-up",
+        "description": "The heading of the second row in that pop-up, about choosing how long to continue."
+      },
+      {
+        "key": "locked_personalized_custom_time_description",
+        "section": "Locked personalised meditation — pop-up",
+        "description": "The text under that second row."
+      },
+      {
+        "key": "go_to_first_meditation",
+        "section": "Locked pop-up — buttons",
+        "description": "Main button at the bottom of either locked pop-up; it takes the user straight to their first meditation."
+      },
+      {
+        "key": "set_reminder_for_later",
+        "section": "Locked pop-up — buttons",
+        "description": "Second button at the bottom of either locked pop-up; it opens the reminder picker so the user can come back later."
+      },
+      {
+        "key": "carousel_continue",
+        "section": "Welcome slides before the first meditation",
+        "description": "Button at the bottom of each of the first three welcome slides, moving on to the next slide."
+      },
+      {
+        "key": "ready_to_try_title",
+        "section": "Welcome slides before the first meditation",
+        "description": "Title of the final welcome slide, which invites the user into their first meditation."
+      },
+      {
+        "key": "ready_to_try_subtitle_beginner",
+        "section": "Welcome slides before the first meditation",
+        "description": "VARIANT — the line under that title, shown to people who said they are completely new to Sahaja Yoga."
+      },
+      {
+        "key": "ready_to_try_subtitle_repeat",
+        "section": "Welcome slides before the first meditation",
+        "description": "VARIANT — the same line, shown instead to people who said they have already tried Sahaja Yoga before."
+      },
+      {
+        "key": "start_meditation",
+        "section": "Welcome slides before the first meditation",
+        "description": "Main button on that final slide; it begins the first meditation."
+      },
+      {
+        "key": "skip_and_explore_the_app",
+        "section": "Welcome slides before the first meditation",
+        "description": "Second button on that final slide, for someone who would rather look around the app first."
+      },
+      {
+        "key": "skip_video_and_continue",
+        "section": "Short explainer video",
+        "description": "Only shown while the short explainer video is playing before the first meditation: a link that jumps past the rest of it."
+      },
+      {
+        "key": "repeat_first_meditation_title",
+        "section": "Currently unused — needs a product decision",
+        "description": "NOT CURRENTLY SHOWN — an alternative card title for someone coming back to repeat their first meditation. The app currently shows \"first_meditation_title\" to everyone and only swaps the subtitle."
+      }
+    ],
+    "dead": [
+      "repeat_video"
+    ],
+    "misfiled": [],
+    "notes": [
+      "DEAD: \"repeat_video\" has zero usages anywhere in the app and is not even present in the app's own English source (assets/l10n/en.yaml). Nothing in the app can ever render it. Safe to remove.",
+      "PRODUCT DECISION: \"repeat_first_meditation_title\" exists in the app's English source but no screen reads it. The repeat-user path (lib/presentation/screens/meditation/meditation_intent/meditation_intent_screen.dart, _resolveFirstMeditationCardCopy) deliberately reuses first_meditation_title and only swaps in repeat_first_meditation_subtitle. Either wire it up or drop it — kept in `order` under the trailing unused section for now.",
+      "VARIANT SETS a translator must understand: (1) time of day — title_today vs title_tonight; quick_{morning,afternoon,evening}_{title,subtitle}; locked_quick_start_description_{morning,afternoon,evening}. Exactly one of each set shows, chosen by the clock. (2) experience level — first_meditation_subtitle vs repeat_first_meditation_subtitle, and ready_to_try_subtitle_beginner vs ready_to_try_subtitle_repeat. The 'beginner' variant shows for users who answered that they are completely new (and for anyone who skipped the question); the 'repeat' variant for everyone else.",
+      "LINE BREAKS to preserve in the English: title_today, title_tonight and quick_afternoon_subtitle each contain a deliberate line break.",
+      "This leaf spans four surfaces, not one screen: the choose-your-meditation screen (Step 1 of 3), the locked-card pop-up, the onboarding welcome slides, and the explainer video. Sections are ordered surface by surface, each surface top-to-bottom.",
+      "Reordered relative to the current schema: the quick-meditation titles and subtitles are now paired per time of day (morning title, morning subtitle, afternoon title, …) instead of all titles then all subtitles, so each mutually-exclusive variant reads as one unit.",
+      "personalized_title does double duty: it is both the personalised card title and the heading of the locked personalised pop-up. Kept once, in the card section."
+    ]
+  },
+  {
+    "leaf": "meditation.footsoak",
+    "seedKey": "meditation_footsoak",
+    "title": null,
+    "description": "The optional foot-soak step, offered as the last setup screen just before the meditation starts.",
+    "order": [
+      {
+        "key": "step_label",
+        "section": "",
+        "description": "Step indicator in the header at the very top, e.g. \"Step 3 of 3\"."
+      },
+      {
+        "key": "title",
+        "section": "",
+        "description": "The question in large text at the top of the screen, asking whether the user wants to soak their feet."
+      },
+      {
+        "key": "tutorial_cta",
+        "section": "",
+        "description": "Link with a play icon just below the photo, opening a short how-to video."
+      },
+      {
+        "key": "start_with_footsoak",
+        "section": "Buttons",
+        "description": "Main button at the bottom — starts the meditation with a foot soak."
+      },
+      {
+        "key": "start_meditation",
+        "section": "Buttons",
+        "description": "Second button at the bottom — starts the meditation without a foot soak."
+      },
+      {
+        "key": "description",
+        "section": "Body text",
+        "description": "The short sentence encouraging the user to soak their feet. On screen it sits directly under the title and above the photo — near the top of the screen, not at the bottom where this field appears here. It is formatted text because one word in it is emphasised; keep that emphasis."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "The key was given as \"description [richText]\"; the stored slug is \"description\" (confirmed in translationsSchema.json) and the \"[richText]\" part is only the type annotation, so it is emitted as \"description\".",
+      "In the app's English source this one sentence is still three separate strings (description_prefix / description_emphasis / description_suffix) so the middle word can be bold-italic. The CMS models it as a single formatted-text field — its description tells the translator to keep the emphasis rather than exposing the split.",
+      "The formatted-text field renders after the plain string fields in the editor, so its description explicitly states that the text really sits between the title and the photo."
+    ]
+  },
+  {
+    "leaf": "meditation.player",
+    "seedKey": "meditation_player",
+    "title": null,
+    "description": "The screen that plays a meditation.",
+    "order": [
+      {
+        "key": "load_error_title",
+        "section": "",
+        "description": "Error heading shown only when the meditation cannot be loaded — for example with no internet. A more specific reason appears underneath it, with Back and Retry buttons."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "Only one key is assigned to this leaf. The app also has meditation.player.not_connected_to_internet and connection_unstable — the reason lines shown under this heading — but they are not part of this leaf's key set, so they were left alone."
+    ]
+  }
+]

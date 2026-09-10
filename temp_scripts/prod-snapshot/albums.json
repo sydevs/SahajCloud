@@ -1,0 +1,179 @@
+[
+  {
+    "id": 8,
+    "artwork": 346,
+    "title": {
+      "en": "Koushik Aithal"
+    },
+    "artist": {
+      "en": "Koushik Aithal"
+    },
+    "artistUrl": "https://sahajsongs.bandcamp.com/album/music-and-meditation",
+    "songs": {
+      "docs": [
+        13,
+        12,
+        11
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-01-22T08:48:12.132Z",
+    "createdAt": "2026-01-22T08:48:12.132Z",
+    "deletedAt": null
+  },
+  {
+    "id": 7,
+    "artwork": 345,
+    "title": {
+      "en": "Nicki Wells"
+    },
+    "artist": {
+      "en": "Nicki Wells"
+    },
+    "artistUrl": null,
+    "songs": {
+      "docs": [
+        27,
+        26,
+        25,
+        24,
+        23,
+        22,
+        21,
+        20,
+        19
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-01-22T08:48:08.818Z",
+    "createdAt": "2026-01-22T08:48:08.818Z",
+    "deletedAt": null
+  },
+  {
+    "id": 6,
+    "artwork": 344,
+    "title": {
+      "en": "Leo Vertunni"
+    },
+    "artist": {
+      "en": "Leo Vertunni"
+    },
+    "artistUrl": "http://indialucia.com",
+    "songs": {
+      "docs": [
+        2,
+        1
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-01-22T08:48:04.136Z",
+    "createdAt": "2026-01-22T08:48:04.136Z",
+    "deletedAt": null
+  },
+  {
+    "id": 5,
+    "artwork": 343,
+    "title": {
+      "en": "Nirmal Nair"
+    },
+    "artist": {
+      "en": "Nirmal Nair"
+    },
+    "artistUrl": null,
+    "songs": {
+      "docs": [
+        7,
+        6,
+        3
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-01-22T08:48:01.454Z",
+    "createdAt": "2026-01-22T08:48:01.454Z",
+    "deletedAt": null
+  },
+  {
+    "id": 4,
+    "artwork": 342,
+    "title": {
+      "en": "Rishi Nair"
+    },
+    "artist": {
+      "en": "Rishi Nair"
+    },
+    "artistUrl": null,
+    "songs": {
+      "docs": [
+        5,
+        4
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-01-22T08:47:59.504Z",
+    "createdAt": "2026-01-22T08:47:59.504Z",
+    "deletedAt": null
+  },
+  {
+    "id": 3,
+    "artwork": 341,
+    "title": {
+      "en": "Paulo Vinícius"
+    },
+    "artist": {
+      "en": "Paulo Vinícius"
+    },
+    "artistUrl": "https://seveneyesofficial.com/",
+    "songs": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-01-22T08:47:57.403Z",
+    "createdAt": "2026-01-22T08:47:57.403Z",
+    "deletedAt": null
+  },
+  {
+    "id": 2,
+    "artwork": 340,
+    "title": {
+      "en": "Shivakumar Sharma"
+    },
+    "artist": {
+      "en": "Shivakumar Sharma"
+    },
+    "artistUrl": "http://www.santoor.com/",
+    "songs": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-01-22T08:47:55.128Z",
+    "createdAt": "2026-01-22T08:47:55.128Z",
+    "deletedAt": null
+  },
+  {
+    "id": 1,
+    "artwork": 339,
+    "title": {
+      "en": "Shakthidhar Iyer"
+    },
+    "artist": {
+      "en": "Shakthidhar Iyer"
+    },
+    "artistUrl": "https://www.shakthidhar.com/",
+    "songs": {
+      "docs": [
+        18,
+        17,
+        16,
+        15,
+        14,
+        10,
+        9,
+        8
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-01-22T08:47:52.907Z",
+    "createdAt": "2026-01-22T08:47:52.907Z",
+    "deletedAt": null
+  }
+]

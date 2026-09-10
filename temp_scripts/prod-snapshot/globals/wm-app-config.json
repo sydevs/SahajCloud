@@ -1,0 +1,80 @@
+{
+  "id": 1,
+  "classesPage": 94,
+  "liveMeditationsPage": 65,
+  "explorePage": 93,
+  "exploreDeeperPage": 77,
+  "meditateTogetherPage": 64,
+  "techniquesPage": 74,
+  "lecturesPage": 78,
+  "lessonsPage": 95,
+  "musicPage": 9,
+  "shriMatajiPage": 4,
+  "sahajaYogaPage": 6,
+  "subtleSystemPage": 5,
+  "privacyPage": 73,
+  "termsPage": 76,
+  "selfRealizationMeditation": {
+    "en": 62
+  },
+  "postRealizationLecture": {
+    "en": 161
+  },
+  "vibeCheckTracks": {
+    "en": [
+      {
+        "identifier": "BH-COOL",
+        "audio": 264,
+        "subtitles": 232,
+        "id": "69de40c5785175b7e24ddb0c"
+      },
+      {
+        "identifier": "BH-NOTHING",
+        "audio": 257,
+        "subtitles": 233,
+        "id": "69de419d785175b7e24ddb0d"
+      },
+      {
+        "identifier": "INTRO-INTERPRET",
+        "audio": 258,
+        "subtitles": 235,
+        "id": "69de41cd785175b7e24ddb0e"
+      },
+      {
+        "identifier": "SOMETHING-COOL",
+        "audio": 259,
+        "subtitles": 237,
+        "id": "69de41f4785175b7e24ddb0f"
+      },
+      {
+        "identifier": "SOMETHING-NO-COOL",
+        "audio": 260,
+        "subtitles": 239,
+        "id": "69de4218785175b7e24ddb10"
+      },
+      {
+        "identifier": "WHAT-YOU-FEEL-LEFT",
+        "audio": 261,
+        "subtitles": 241,
+        "id": "69de423f785175b7e24ddb11"
+      },
+      {
+        "identifier": "WHAT-YOU-FEEL-RIGHT",
+        "audio": 262,
+        "subtitles": 243,
+        "id": "69de4251785175b7e24ddb12"
+      },
+      {
+        "identifier": "WHAT-YOU-FEEL-START",
+        "audio": 263,
+        "subtitles": 244,
+        "id": "69de4265785175b7e24ddb13"
+      }
+    ]
+  },
+  "fallbackLecture": 21,
+  "iosAppUrl": "https://apps.apple.com/us/app/we-meditate/id6465684494",
+  "androidAppUrl": "https://play.google.com/store/apps/details?id=co.wemeditate.sahajaapp",
+  "updatedAt": "2026-06-04T19:23:39.352Z",
+  "createdAt": "2026-02-07T11:30:28.075Z"
+}

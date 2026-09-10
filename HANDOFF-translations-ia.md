@@ -45,6 +45,9 @@ Translators open a leaf and get **one flat, arbitrarily-ordered column of keys**
 | `09ddcd8` | Section mechanism (Collapsible) + `daily.main` fully reordered/sectioned |
 | `8208ed7` | `onboarding` — all six leaves sectioned/reordered |
 | `be85ace` | `daily.common`, `daily.load_info`, `explore.overview`, all five `auth` leaves, `navigation`, `general` |
+| `bead15e` | the remaining 23 — all `profile`, all `meditation`, the `explore` sub-leaves, all seven `path` leaves |
+
+**Coverage: 32 of 40 leaves sectioned (431 of 449 rows).** The 8 that stay flat are 1–4 rows each (`path.overview`, `onboarding.name`, `profile.history`, `general`, `profile.favourites`, `onboarding.greeting`, `path.step_2`, `meditation.player`), where a section header would only add noise. Verified by running the real `buildTranslationTabs` builder over the schema (`temp_scripts/verify-tabs.ts`): sections contiguous, every row described, every leaf renders fields.
 
 - **`path`** — tabs now **Overview · Info · Intro · Story · Meditation · Article · Completed**. Removed `path.step_1.default_intro_quote` and `path.step_3.pre_meditation_lines` (a phantom that existed only in the CMS).
 - **`daily.main`** — 58 → 45 keys in 7 sections in reel order. 9 fallbacks labelled; 12 dead + 1 misfiled removed.
@@ -54,8 +57,16 @@ Translators open a leaf and get **one flat, arbitrarily-ordered column of keys**
 - **`explore.overview`** — three sections; **Learn cards reordered** to the real on-screen order (`card_who_is_title → card_talks_title → card_subtle_system_title → card_what_is_title`); `section_label` kept ungrouped since it renders once per section.
 - **`auth`** — `common` (Sign-in buttons / Account-exists prompt / Errors), `login` (form + the two bottom sheets + errors, 1 dead removed), `restore_password`, `restore_password_email_sent`, `create_account` (landing screen / email form / errors / consent).
 - **`navigation`**, **`general`** — described; order was already right.
+- **`profile`** — `main` (5 sections, incl. the "member since" variant rules spelled out), `account` relabelled **"Account settings"** (7 sections across the detail rows, edit pop-ups, reset/confirm-password dialogs and errors), `privacy`, `contact`, `favourites`, `history`.
+- **`meditation`** — `intent` relabelled **"Meditation setup & intro slides"** (11 sections; the time-of-day and beginner/repeat variants each described so a translator knows which one shows), `vibes_check`, `footsoak`, `player`, plus the two unreachable leaves below.
+- **`explore` sub-leaves** — `subtle_system`, `talks_intro`, `talks_list`, `talks_player` (subtitle-language labels grouped).
+- **`path`** — all seven leaves sectioned; the Intro/Story/Meditation/Article/Completed tab labels preserved.
 
-**Method note:** order, sections and every dead claim were re-verified against the app source (not taken from the audit alone) by a per-leaf draft→adversarial-verify pass. That caught several audit errors — e.g. `something_went_wrong` is a generic error used in four places, not a Daily-load failure; `card_action_not_available` fires on a missing/invalid card destination, not an unbuilt feature.
+**Three leaves are now labelled so translators stop working them** (their copy cannot reach the app — see contract breaks): `meditation.reminder` → *"Reminders (not connected to the app)"*, `meditation.feedback` → *"Feedback (not shown in the app)"*, `profile.privacy` → *"Privacy & Advertising (does not reach the app)"*. Every key's description in those leaves opens with the same warning.
+
+**Method note:** order, sections and every dead claim were re-verified against the app source (not taken from the audit alone) — the first batch by a draft→adversarial-verify pass, the rest by per-leaf source audits. That caught several audit errors — e.g. `something_went_wrong` is a generic error used in four places, not a Daily-load failure; `card_action_not_available` fires on a missing/invalid card destination, not an unbuilt feature.
+
+**Deletion rule used.** Only a **phantom** — a key absent from the app's own `en.yaml`, so it could never render — was removed: `meditation.intent.repeat_video` (plus, in earlier commits, the audited-dead keys the original handoff had already confirmed). Anything merely *unused* was **kept** in a trailing `Currently unused — needs a product decision` section rather than deleted, so the calls stay with a human.
 
 ## Open decisions — for a human, deliberately not acted on
 

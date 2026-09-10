@@ -1,0 +1,193 @@
+[
+  {
+    "leaf": "meditation.vibes_check",
+    "seedKey": "meditation_vibes_check",
+    "title": null,
+    "description": "The \"check your vibrations\" flow shown straight after the first meditation: the opening hands question, the left-hand and right-hand sensation questions, and the two confirmation screens for skipping or going back to the meditation.",
+    "order": [
+      {
+        "key": "intro_question",
+        "section": "Opening screen",
+        "description": "Question shown under the animated hands on the very first vibes-check screen. Keep the line break so it stays on two lines."
+      },
+      {
+        "key": "skip_vibes_check",
+        "section": "Opening screen",
+        "description": "Button at the bottom of that first screen for people who want to skip the whole vibes check."
+      },
+      {
+        "key": "question_prefix",
+        "section": "The hand question",
+        "description": "First part of the question shown above the sensation cards. The word \"left\" or \"right\" is added immediately after it, so keep the line break at the end."
+      },
+      {
+        "key": "left_hand",
+        "section": "The hand question",
+        "description": "The word dropped into the middle of that question on the left-hand step. It appears in italics."
+      },
+      {
+        "key": "right_hand",
+        "section": "The hand question",
+        "description": "The same word for the right-hand step, which comes straight after the left-hand one."
+      },
+      {
+        "key": "question_suffix",
+        "section": "The hand question",
+        "description": "The end of that question, joined on after the word left/right. Keep the space at the start."
+      },
+      {
+        "key": "cool",
+        "section": "The four sensation cards",
+        "description": "Label on the top-left card."
+      },
+      {
+        "key": "warm",
+        "section": "The four sensation cards",
+        "description": "Label on the top-right card."
+      },
+      {
+        "key": "fingers_tingling",
+        "section": "The four sensation cards",
+        "description": "Label on the bottom-left card. It is the longest label and may wrap onto two lines, so keep it short."
+      },
+      {
+        "key": "nothing",
+        "section": "The four sensation cards",
+        "description": "Label on the bottom-right card, for feeling no sensation. Picking it clears any other cards that were chosen."
+      },
+      {
+        "key": "continue_action",
+        "section": "Buttons under the cards",
+        "description": "Main button on each hand question. It stays greyed out until at least one card is chosen."
+      },
+      {
+        "key": "not_sure",
+        "section": "Buttons under the cards",
+        "description": "Smaller button below it, for people who cannot tell. It records \"Nothing\" for that hand and moves on."
+      },
+      {
+        "key": "got_it",
+        "section": "Explanation screen",
+        "description": "Button that ends the spoken explanation shown after both hands and continues the flow."
+      },
+      {
+        "key": "skip_prompt_title",
+        "section": "\"Skip vibes check?\" screen",
+        "description": "Title of the confirmation screen shown after someone taps the skip button."
+      },
+      {
+        "key": "skip_prompt_description",
+        "section": "\"Skip vibes check?\" screen",
+        "description": "Line under that title explaining what they would miss by skipping."
+      },
+      {
+        "key": "back_to_explanation",
+        "section": "\"Skip vibes check?\" screen",
+        "description": "Main button that takes them back into the vibes check. The same label is also used as the main button on the \"Return to meditation?\" screen below."
+      },
+      {
+        "key": "skip_it",
+        "section": "\"Skip vibes check?\" screen",
+        "description": "Second button that confirms skipping the vibes check."
+      },
+      {
+        "key": "return_to_meditation_prompt_title",
+        "section": "\"Return to meditation?\" screen",
+        "description": "Only shown when someone presses back from the very first vibes-check screen. Title of that confirmation screen."
+      },
+      {
+        "key": "return_to_meditation_prompt_description",
+        "section": "\"Return to meditation?\" screen",
+        "description": "Line under that title, warning that the meditation starts again from the beginning."
+      },
+      {
+        "key": "return_to_meditation_action",
+        "section": "\"Return to meditation?\" screen",
+        "description": "Second button on that screen, which confirms going back to the meditation."
+      },
+      {
+        "key": "interpretation_nothing",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text, so translating it changes nothing on screen. It was meant as the explanation for someone who felt nothing in either hand; the explanation screen now uses its own built-in wording and recorded narration instead."
+      },
+      {
+        "key": "interpretation_intro",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text, so translating it changes nothing on screen. It was meant as the opening line of the explanation about vibrations, which the app now speaks and captions from its own built-in wording."
+      },
+      {
+        "key": "interpretation_detail",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text, so translating it changes nothing on screen. It was meant as the follow-up explanation about the energy channels, which the app now speaks and captions from its own built-in wording."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "CONTRACT BREAK (second one, smaller than meditation.feedback): interpretation_nothing, interpretation_intro and interpretation_detail have zero usages in the app. The explanation screen (lib/presentation/screens/meditation/meditation_player/meditation_feedback/widgets/meditation_vibes_interpretation.dart) builds its caption text from a hardcoded _fallbackSubtitleFor() switch plus bundled/CMS VTT subtitle files, and the four real variants it can show (both-hands-cool, something-but-no-cool, something-with-cool, both-hands-nothing) do not correspond one-to-one with these three keys. Kept in `order` under 'Currently unused — needs a product decision' rather than marked dead — product needs to decide whether to wire the screen to these keys, replace them with a per-variant set, or drop them.",
+      "The English seed values for these three keys are also stale/shorter than what the screen actually says, which is further evidence they were abandoned rather than temporarily disconnected.",
+      "back_to_explanation is shared: it is the primary button on BOTH the 'Skip vibes check?' screen and the 'Return to meditation?' screen. It is listed once, in the skip-prompt section, and its description says so. Any wording chosen must read correctly in both places.",
+      "question_prefix / left_hand / right_hand / question_suffix are concatenated into one sentence at runtime. Languages that put the possessive or adjective in a different position may not be translatable with this split — flag if a translator reports it.",
+      "intro_question and question_prefix contain deliberate line breaks that control how the heading wraps; they must be preserved."
+    ]
+  },
+  {
+    "leaf": "meditation.feedback",
+    "seedKey": "meditation_feedback",
+    "title": "Feedback (not shown in the app)",
+    "description": "WARNING — the app currently ignores every line on this tab. The after-meditation feedback form and its thank-you screen display their own built-in English wording, so nothing you translate here reaches a user until the app is changed. Please do not spend time on this tab; it is kept only so the text is not lost.",
+    "order": [
+      {
+        "key": "title",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the big heading at the top of the feedback form."
+      },
+      {
+        "key": "description",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the line under the heading asking what was good and what could be improved."
+      },
+      {
+        "key": "error_length",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the message shown above the box when the feedback written was too short."
+      },
+      {
+        "key": "hint",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the faint placeholder inside the empty writing box."
+      },
+      {
+        "key": "send",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the button that submits the feedback."
+      },
+      {
+        "key": "thank_you",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the thank-you screen shows its own built-in wording instead. It was the title after the feedback was sent."
+      },
+      {
+        "key": "thank_you_description",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the thank-you screen shows its own built-in wording instead. It was the message under that title, and it carried deliberate line breaks."
+      },
+      {
+        "key": "close",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the thank-you screen shows its own built-in wording instead. It was the button that closed the thank-you screen."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "CONFIRMED CONTRACT BREAK — all 8 keys have zero usages in the app. Verified by grepping the whole app repo: there is no `context.el....feedback` accessor anywhere in lib/ for this leaf. The strings exist only in assets/l10n/en.yaml (top-level `path_meditation_feedback:`, lines 516-524) and in the generated localization/lib/localization.dart; nothing reads them.",
+      "The screen hardcodes the same English strings inline: lib/presentation/screens/meditation/meditation_player/meditation_feedback/widgets/meditation_feedback_form.dart line 73 ('How was your experience?' = title), line 88 ('Did you enjoy the meditation? What was good and what could be improved?' = description), line 102 ('Please write at least 50 characters' = error_length), line 120 ('Type here..' = hint), line 151 ('Send' = send). The thank-you half is in widgets/meditation_feedback_thank_you.dart: line 44 ('Thank you!' = thank_you), 'Your feedback\\nhelps us improve\\nthis app' (= thank_you_description) and 'Close' (= close).",
+      "Because the hardcoded strings are character-for-character identical to the seed values, this looks like a screen that was built before the copy was moved into the translation system and never rewired — not an intentional removal.",
+      "KEPT, NOT DELETED, per instruction: the fix is a one-line-per-string app change (swap the literals for the l10n accessors), which is a product/engineering decision, not a translation decision. If that change ships, the whole 'Currently unused' section should be re-sectioned into the normal screen order: title, description, error_length, hint, send | thank_you, thank_you_description, close — which is the order they are already listed in.",
+      "Note the naming mismatch worth checking during that fix: the CMS leaf is meditation.feedback / meditation_feedback, but the English seed lives under the top-level `path_meditation_feedback:` node in en.yaml, not under `meditation:`. Whoever wires this up must confirm which node the app will actually read.",
+      "thank_you_description contains deliberate line breaks that shape the card; they must be preserved if the text is ever used.",
+      "The tab title has been set to 'Feedback (not shown in the app)' so a translator can see from the tab list that this leaf is inert. The slug is unchanged."
+    ]
+  }
+]

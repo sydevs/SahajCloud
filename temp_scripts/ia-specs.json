@@ -1,0 +1,1755 @@
+[
+  {
+    "leaf": "explore.subtle_system",
+    "seedKey": "explore_subtle_system",
+    "title": null,
+    "description": "The Subtle System screen — a tall body diagram you tap to explore the chakras and energy channels, plus the pop-up that opens when a point on the diagram is tapped.",
+    "order": [
+      {
+        "key": "screen_label",
+        "section": "Top of the screen",
+        "description": "Small heading in the bar at the very top of the screen. Shown in capital letters."
+      },
+      {
+        "key": "diagram_title",
+        "section": "Top of the screen",
+        "description": "Big heading above the body diagram. When the same diagram appears in the summary after a meditation, a heading set on that meditation in the CMS replaces this one."
+      },
+      {
+        "key": "diagram_subtitle",
+        "section": "Top of the screen",
+        "description": "Short line under the big heading, telling people they can tap the points on the diagram. Leave it empty to hide the line."
+      },
+      {
+        "key": "mode_chakras",
+        "section": "Chakras / Channels switch",
+        "description": "Label of the left button under the diagram, which switches the diagram to show the chakras."
+      },
+      {
+        "key": "mode_channels",
+        "section": "Chakras / Channels switch",
+        "description": "Label of the right button under the diagram, which switches the diagram to show the energy channels."
+      },
+      {
+        "key": "front_view_mirrored",
+        "section": "Pop-up when a point is tapped",
+        "description": "Small grey note in the top-left corner of the pop-up, explaining that the body is seen from the front so left and right look swapped."
+      },
+      {
+        "key": "chip_right",
+        "section": "Pop-up when a point is tapped",
+        "description": "First of the three side buttons at the bottom of the pop-up, for showing the right side."
+      },
+      {
+        "key": "chip_center",
+        "section": "Pop-up when a point is tapped",
+        "description": "Second of the three side buttons at the bottom of the pop-up, for showing the centre."
+      },
+      {
+        "key": "chip_left",
+        "section": "Pop-up when a point is tapped",
+        "description": "Third of the three side buttons at the bottom of the pop-up, for showing the left side."
+      },
+      {
+        "key": "aspect_right",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere in the app right now. The pop-up uses the shorter \"Right\" button label instead."
+      },
+      {
+        "key": "aspect_center",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere in the app right now. The pop-up uses the shorter \"Center\" button label instead."
+      },
+      {
+        "key": "aspect_left",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere in the app right now. The pop-up uses the shorter \"Left\" button label instead."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "aspect_right / aspect_center / aspect_left (\"Right Aspect\", \"Center Aspect\", \"Left Aspect\") have zero usages in the app; only the generated localization accessor references them. They look like longer labels that were superseded by chip_right/chip_center/chip_left in the tapped-point pop-up. Kept in order under the trailing unused section — removing them is a product decision.",
+      "diagram_title and diagram_subtitle are used two ways: on the standalone Subtle System screen they are the real text, but when the diagram is embedded in the post-meditation summary a CMS-set heading/subheading overrides them. The description says this in plain words rather than calling it a fallback.",
+      "The same YAML block also holds worked_on_title / worked_on_subtitle, which were not assigned to this leaf — presumably they live on a meditation-summary leaf. Worth confirming they are covered somewhere."
+    ]
+  },
+  {
+    "leaf": "explore.talks_intro",
+    "seedKey": "explore_talks_intro",
+    "title": null,
+    "description": "The screen that introduces Shri Mataji's talks before a video plays. It comes in two looks: the ordinary intro (used from Explore, from the daily meditation, and when opening one specific clip), and a separate portrait version shown once, right after someone finishes their first meditation.",
+    "order": [
+      {
+        "key": "title",
+        "section": "Ordinary intro",
+        "description": "Heading at the top of the intro, naming the talks. Shown on every version except the one after the first meditation."
+      },
+      {
+        "key": "clip_description",
+        "section": "Ordinary intro",
+        "description": "Short line under the heading. Only shown when the intro is for one particular video clip, including when it is opened from the daily meditation."
+      },
+      {
+        "key": "generic_description",
+        "section": "Ordinary intro",
+        "description": "The long paragraph about Shri Mataji, below her photo. Not shown on the short single-clip version of the intro."
+      },
+      {
+        "key": "watch_now",
+        "section": "Ordinary intro",
+        "description": "Label of the button at the bottom that opens the video. The running time is added in brackets after it automatically. Shown on every version except the one after the first meditation."
+      },
+      {
+        "key": "post_first_meditation_name",
+        "section": "Shown right after the first meditation",
+        "description": "Name shown just under the portrait, on the special version of this screen that appears once someone has finished their first meditation."
+      },
+      {
+        "key": "post_first_meditation_subtitle",
+        "section": "Shown right after the first meditation",
+        "description": "Small italic line under the name on that same after-the-first-meditation screen."
+      },
+      {
+        "key": "post_first_meditation_description",
+        "section": "Shown right after the first meditation",
+        "description": "The sentence in the middle of that screen, inviting the person to watch the talk."
+      },
+      {
+        "key": "start",
+        "section": "Shown right after the first meditation",
+        "description": "Label of the main button on that screen. The running time is added in brackets after it automatically. Only used there — every other version of the intro uses the \"Watch now\" label instead."
+      },
+      {
+        "key": "maybe_later",
+        "section": "Shown right after the first meditation",
+        "description": "Label of the quieter second button under the main one, for skipping the video. Only on the after-the-first-meditation screen."
+      },
+      {
+        "key": "unavailable",
+        "section": "Errors",
+        "description": "Brief message that slides up from the bottom of the screen only when a talk cannot be opened."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "Two clearly distinct variant sets. The post_first_meditation_* keys plus start and maybe_later belong exclusively to the portrait screen shown after someone's first meditation; every other variant (Explore intro, daily-meditation intro, single-clip intro) uses title / clip_description / generic_description / watch_now.",
+      "The 'Learn from the source' label above the heading on the daily-meditation version comes from a different leaf (home.daily), not from here."
+    ]
+  },
+  {
+    "leaf": "explore.talks_list",
+    "seedKey": "explore_talks_list",
+    "title": null,
+    "description": "The list of Shri Mataji's talks — a large featured talk at the top, then a short intro block, then the rows of remaining talks.",
+    "order": [
+      {
+        "key": "screen_title",
+        "section": "Top of the screen",
+        "description": "Small heading in the bar at the very top of the screen. Shown in capital letters."
+      },
+      {
+        "key": "section_title",
+        "section": "Intro block under the featured talk",
+        "description": "FALLBACK — heading of the intro block below the featured talk; normally the heading entered on the talks page in the CMS is shown."
+      },
+      {
+        "key": "description",
+        "section": "Intro block under the featured talk",
+        "description": "FALLBACK — paragraph under that heading; normally the text entered on the talks page in the CMS is shown."
+      },
+      {
+        "key": "learn_more",
+        "section": "Intro block under the featured talk",
+        "description": "FALLBACK — label of the link under that paragraph, which opens the Shri Mataji page on the website; normally the link label entered in the CMS is shown."
+      },
+      {
+        "key": "watched",
+        "section": "Talk rows",
+        "description": "Small grey word under a talk's name in the list. Only shown for talks the person has already watched."
+      },
+      {
+        "key": "all_tags",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere in the app right now. It was meant for a filter above the list, which was never built."
+      },
+      {
+        "key": "start",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere in the app right now. Talks are opened by tapping the row, so no Start button is drawn."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "all_tags and start have zero usages in the app. The list rows carry tag data but no filter control is rendered, and rows have no Start button — both look like designed-but-unbuilt UI, so they are kept under the trailing unused section rather than deleted.",
+      "section_title, description and learn_more are only used when the CMS talks page leaves the corresponding field empty. Extra subtlety worth knowing: if the CMS supplies a description but no learn-more label/URL, the link is hidden entirely rather than falling back to this text."
+    ]
+  },
+  {
+    "leaf": "explore.talks_player",
+    "seedKey": "explore_talks_player",
+    "title": null,
+    "description": "The video player for a talk — the playback controls and the subtitles menu that slides up from the bottom.",
+    "order": [
+      {
+        "key": "replay",
+        "section": "Playback controls",
+        "description": "Label of the button that plays the talk again. It appears after the short talk on the vibes-check screen has finished."
+      },
+      {
+        "key": "subtitles_title",
+        "section": "Subtitles menu",
+        "description": "Heading at the top of the subtitles menu that slides up from the bottom of the player."
+      },
+      {
+        "key": "subtitles_off",
+        "section": "Subtitles menu",
+        "description": "First option in the subtitles menu, for turning subtitles off. Always listed."
+      },
+      {
+        "key": "subtitles_english",
+        "section": "Subtitles menu",
+        "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language."
+      },
+      {
+        "key": "subtitles_turkish",
+        "section": "Subtitles menu",
+        "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language."
+      },
+      {
+        "key": "subtitles_bulgarian",
+        "section": "Subtitles menu",
+        "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language."
+      },
+      {
+        "key": "subtitles_portuguese_brazil",
+        "section": "Subtitles menu",
+        "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language."
+      },
+      {
+        "key": "subtitles_french",
+        "section": "Subtitles menu",
+        "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language."
+      },
+      {
+        "key": "subtitles_spanish",
+        "section": "Subtitles menu",
+        "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language."
+      },
+      {
+        "key": "unavailable",
+        "section": "Errors",
+        "description": "Message shown in place of the video only when the talk cannot be loaded."
+      },
+      {
+        "key": "play",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere in the app right now. The player uses a picture-only play button with no text."
+      },
+      {
+        "key": "pause",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere in the app right now. The player uses a picture-only pause button with no text."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "play and pause have zero usages in the app — the player's controls are icon-only with no visible or spoken text label. Kept under the trailing unused section; removing them (or wiring them up as accessibility labels, which would be the better fix) is a product decision.",
+      "replay is the only playback label in real use, and it is used on the vibes-check screen rather than on the full talk player. The description says where it actually appears.",
+      "The six language names are shown in whatever order the talk's own subtitle tracks come back in, so the order in this editor does not control the on-screen order. \"Off\" is always the first entry. A talk with a subtitle language not in this list shows the raw language code in capitals instead."
+    ]
+  },
+  {
+    "leaf": "meditation.intent",
+    "seedKey": "meditation_intent",
+    "title": "Meditation setup & intro slides",
+    "description": "Everything a user reads before a meditation actually starts: the \"Step 1 of 3\" screen where they pick which meditation to do, the pop-up explaining meditations that are still locked, and the welcome slides plus explainer video that lead into the very first meditation.",
+    "order": [
+      {
+        "key": "step_label",
+        "section": "Choose your meditation — top of screen",
+        "description": "Step indicator in the header of the choose-your-meditation screen, e.g. \"Step 1 of 3\"."
+      },
+      {
+        "key": "title_today",
+        "section": "Choose your meditation — top of screen",
+        "description": "VARIANT — the big question at the top of the screen, shown in the morning and the afternoon. In the evening \"title_tonight\" is shown instead. Keep the line break."
+      },
+      {
+        "key": "title_tonight",
+        "section": "Choose your meditation — top of screen",
+        "description": "VARIANT — the same big question, shown only in the evening. Keep the line break."
+      },
+      {
+        "key": "first_meditation_title",
+        "section": "\"Your first meditation\" card",
+        "description": "Title of the first card. This card is the only one a user can tap until they have finished their first meditation. Shown to everyone."
+      },
+      {
+        "key": "first_meditation_subtitle",
+        "section": "\"Your first meditation\" card",
+        "description": "VARIANT — the small line under that title, shown to people who said they are completely new to Sahaja Yoga."
+      },
+      {
+        "key": "repeat_first_meditation_subtitle",
+        "section": "\"Your first meditation\" card",
+        "description": "VARIANT — the same small line, shown instead to people who said they have already tried Sahaja Yoga before."
+      },
+      {
+        "key": "quick_morning_title",
+        "section": "Quick meditation card",
+        "description": "VARIANT — title of the quick-meditation card, shown in the morning."
+      },
+      {
+        "key": "quick_morning_subtitle",
+        "section": "Quick meditation card",
+        "description": "VARIANT — the small line under the morning title. Only shown once the first meditation is done; before that the card is locked and shows \"locked_subtitle\" instead."
+      },
+      {
+        "key": "quick_afternoon_title",
+        "section": "Quick meditation card",
+        "description": "VARIANT — title of the quick-meditation card, shown in the afternoon."
+      },
+      {
+        "key": "quick_afternoon_subtitle",
+        "section": "Quick meditation card",
+        "description": "VARIANT — the small line under the afternoon title. Only shown once the first meditation is done. Keep the line break."
+      },
+      {
+        "key": "quick_evening_title",
+        "section": "Quick meditation card",
+        "description": "VARIANT — title of the quick-meditation card, shown in the evening."
+      },
+      {
+        "key": "quick_evening_subtitle",
+        "section": "Quick meditation card",
+        "description": "VARIANT — the small line under the evening title. Only shown once the first meditation is done."
+      },
+      {
+        "key": "personalized_title",
+        "section": "Personalised meditation card",
+        "description": "Title of the last card, the longer session tailored to how the user feels. Same wording at every time of day. It is also the heading of the pop-up that opens when this card is still locked."
+      },
+      {
+        "key": "personalized_subtitle",
+        "section": "Personalised meditation card",
+        "description": "The small line under that title. Only shown once the first meditation is done; before that the card is locked and shows \"locked_subtitle\" instead."
+      },
+      {
+        "key": "locked_subtitle",
+        "section": "When cards are still locked",
+        "description": "Only shown before the first meditation is finished: it replaces the normal small line on the quick and personalised cards. It also appears next to the padlock near the bottom of the pop-up that opens when a locked card is tapped."
+      },
+      {
+        "key": "learn_more",
+        "section": "When cards are still locked",
+        "description": "Only shown on a locked card: a small pill button at the bottom of the card that opens the pop-up explaining what the card unlocks."
+      },
+      {
+        "key": "locked_quick_start_title",
+        "section": "Locked quick meditation — pop-up",
+        "description": "Only shown in the pop-up for the locked quick meditation: the heading of its first row."
+      },
+      {
+        "key": "locked_quick_start_description_morning",
+        "section": "Locked quick meditation — pop-up",
+        "description": "VARIANT — the text under that first row, shown in the morning."
+      },
+      {
+        "key": "locked_quick_start_description_afternoon",
+        "section": "Locked quick meditation — pop-up",
+        "description": "VARIANT — the same text, shown in the afternoon."
+      },
+      {
+        "key": "locked_quick_start_description_evening",
+        "section": "Locked quick meditation — pop-up",
+        "description": "VARIANT — the same text, shown in the evening."
+      },
+      {
+        "key": "locked_quick_custom_time_title",
+        "section": "Locked quick meditation — pop-up",
+        "description": "Only shown in that pop-up: the heading of the second row, about picking how long to meditate."
+      },
+      {
+        "key": "locked_quick_custom_time_description",
+        "section": "Locked quick meditation — pop-up",
+        "description": "The text under that second row, explaining the lengths on offer."
+      },
+      {
+        "key": "locked_personalized_feeling_title",
+        "section": "Locked personalised meditation — pop-up",
+        "description": "Only shown in the pop-up for the locked personalised meditation: the heading of its first row."
+      },
+      {
+        "key": "locked_personalized_feeling_description",
+        "section": "Locked personalised meditation — pop-up",
+        "description": "The text under that first row, explaining that the session adapts to how the user feels."
+      },
+      {
+        "key": "locked_personalized_custom_time_title",
+        "section": "Locked personalised meditation — pop-up",
+        "description": "The heading of the second row in that pop-up, about choosing how long to continue."
+      },
+      {
+        "key": "locked_personalized_custom_time_description",
+        "section": "Locked personalised meditation — pop-up",
+        "description": "The text under that second row."
+      },
+      {
+        "key": "go_to_first_meditation",
+        "section": "Locked pop-up — buttons",
+        "description": "Main button at the bottom of either locked pop-up; it takes the user straight to their first meditation."
+      },
+      {
+        "key": "set_reminder_for_later",
+        "section": "Locked pop-up — buttons",
+        "description": "Second button at the bottom of either locked pop-up; it opens the reminder picker so the user can come back later."
+      },
+      {
+        "key": "carousel_continue",
+        "section": "Welcome slides before the first meditation",
+        "description": "Button at the bottom of each of the first three welcome slides, moving on to the next slide."
+      },
+      {
+        "key": "ready_to_try_title",
+        "section": "Welcome slides before the first meditation",
+        "description": "Title of the final welcome slide, which invites the user into their first meditation."
+      },
+      {
+        "key": "ready_to_try_subtitle_beginner",
+        "section": "Welcome slides before the first meditation",
+        "description": "VARIANT — the line under that title, shown to people who said they are completely new to Sahaja Yoga."
+      },
+      {
+        "key": "ready_to_try_subtitle_repeat",
+        "section": "Welcome slides before the first meditation",
+        "description": "VARIANT — the same line, shown instead to people who said they have already tried Sahaja Yoga before."
+      },
+      {
+        "key": "start_meditation",
+        "section": "Welcome slides before the first meditation",
+        "description": "Main button on that final slide; it begins the first meditation."
+      },
+      {
+        "key": "skip_and_explore_the_app",
+        "section": "Welcome slides before the first meditation",
+        "description": "Second button on that final slide, for someone who would rather look around the app first."
+      },
+      {
+        "key": "skip_video_and_continue",
+        "section": "Short explainer video",
+        "description": "Only shown while the short explainer video is playing before the first meditation: a link that jumps past the rest of it."
+      },
+      {
+        "key": "repeat_first_meditation_title",
+        "section": "Currently unused — needs a product decision",
+        "description": "NOT CURRENTLY SHOWN — an alternative card title for someone coming back to repeat their first meditation. The app currently shows \"first_meditation_title\" to everyone and only swaps the subtitle."
+      }
+    ],
+    "dead": [
+      "repeat_video"
+    ],
+    "misfiled": [],
+    "notes": [
+      "DEAD: \"repeat_video\" has zero usages anywhere in the app and is not even present in the app's own English source (assets/l10n/en.yaml). Nothing in the app can ever render it. Safe to remove.",
+      "PRODUCT DECISION: \"repeat_first_meditation_title\" exists in the app's English source but no screen reads it. The repeat-user path (lib/presentation/screens/meditation/meditation_intent/meditation_intent_screen.dart, _resolveFirstMeditationCardCopy) deliberately reuses first_meditation_title and only swaps in repeat_first_meditation_subtitle. Either wire it up or drop it — kept in `order` under the trailing unused section for now.",
+      "VARIANT SETS a translator must understand: (1) time of day — title_today vs title_tonight; quick_{morning,afternoon,evening}_{title,subtitle}; locked_quick_start_description_{morning,afternoon,evening}. Exactly one of each set shows, chosen by the clock. (2) experience level — first_meditation_subtitle vs repeat_first_meditation_subtitle, and ready_to_try_subtitle_beginner vs ready_to_try_subtitle_repeat. The 'beginner' variant shows for users who answered that they are completely new (and for anyone who skipped the question); the 'repeat' variant for everyone else.",
+      "LINE BREAKS to preserve in the English: title_today, title_tonight and quick_afternoon_subtitle each contain a deliberate line break.",
+      "This leaf spans four surfaces, not one screen: the choose-your-meditation screen (Step 1 of 3), the locked-card pop-up, the onboarding welcome slides, and the explainer video. Sections are ordered surface by surface, each surface top-to-bottom.",
+      "Reordered relative to the current schema: the quick-meditation titles and subtitles are now paired per time of day (morning title, morning subtitle, afternoon title, …) instead of all titles then all subtitles, so each mutually-exclusive variant reads as one unit.",
+      "personalized_title does double duty: it is both the personalised card title and the heading of the locked personalised pop-up. Kept once, in the card section."
+    ]
+  },
+  {
+    "leaf": "meditation.footsoak",
+    "seedKey": "meditation_footsoak",
+    "title": null,
+    "description": "The optional foot-soak step, offered as the last setup screen just before the meditation starts.",
+    "order": [
+      {
+        "key": "step_label",
+        "section": "",
+        "description": "Step indicator in the header at the very top, e.g. \"Step 3 of 3\"."
+      },
+      {
+        "key": "title",
+        "section": "",
+        "description": "The question in large text at the top of the screen, asking whether the user wants to soak their feet."
+      },
+      {
+        "key": "tutorial_cta",
+        "section": "",
+        "description": "Link with a play icon just below the photo, opening a short how-to video."
+      },
+      {
+        "key": "start_with_footsoak",
+        "section": "Buttons",
+        "description": "Main button at the bottom — starts the meditation with a foot soak."
+      },
+      {
+        "key": "start_meditation",
+        "section": "Buttons",
+        "description": "Second button at the bottom — starts the meditation without a foot soak."
+      },
+      {
+        "key": "description",
+        "section": "Body text",
+        "description": "The short sentence encouraging the user to soak their feet. On screen it sits directly under the title and above the photo — near the top of the screen, not at the bottom where this field appears here. It is formatted text because one word in it is emphasised; keep that emphasis."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "The key was given as \"description [richText]\"; the stored slug is \"description\" (confirmed in translationsSchema.json) and the \"[richText]\" part is only the type annotation, so it is emitted as \"description\".",
+      "In the app's English source this one sentence is still three separate strings (description_prefix / description_emphasis / description_suffix) so the middle word can be bold-italic. The CMS models it as a single formatted-text field — its description tells the translator to keep the emphasis rather than exposing the split.",
+      "The formatted-text field renders after the plain string fields in the editor, so its description explicitly states that the text really sits between the title and the photo."
+    ]
+  },
+  {
+    "leaf": "meditation.player",
+    "seedKey": "meditation_player",
+    "title": null,
+    "description": "The screen that plays a meditation.",
+    "order": [
+      {
+        "key": "load_error_title",
+        "section": "",
+        "description": "Error heading shown only when the meditation cannot be loaded — for example with no internet. A more specific reason appears underneath it, with Back and Retry buttons."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "Only one key is assigned to this leaf. The app also has meditation.player.not_connected_to_internet and connection_unstable — the reason lines shown under this heading — but they are not part of this leaf's key set, so they were left alone."
+    ]
+  },
+  {
+    "leaf": "meditation.reminder",
+    "seedKey": "meditation_reminder",
+    "title": "Reminders (not connected to the app)",
+    "description": "WARNING — NOTHING ON THIS TAB REACHES THE APP. Every text below is currently stored by the app under a different key name, so translating anything here has no effect on what people see. The copy is kept and described so it is ready the moment the connection is fixed; please do not delete it, but do not spend translation time here until a developer confirms it is live. What the texts are for: the flow that offers to remind you to come back and meditate later — the first offer, the requests to allow notifications, the sheet where you pick a day and time, the confirmation, and the reminder notification itself.",
+    "order": [
+      {
+        "key": "prompt_title",
+        "section": "Step 1 — The offer to set a reminder",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Heading of the panel that offers to schedule the meditation for later; appears when someone leaves or skips their first meditation."
+      },
+      {
+        "key": "prompt_subtitle",
+        "section": "Step 1 — The offer to set a reminder",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Sentence under that heading, explaining that a reminder will be sent."
+      },
+      {
+        "key": "prompt_set_reminder",
+        "section": "Step 1 — The offer to set a reminder",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Main button that accepts the offer. The same text is reused later as the confirm button after picking a time."
+      },
+      {
+        "key": "prompt_no_thanks",
+        "section": "Step 1 — The offer to set a reminder",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Button below it that declines the offer and closes the panel."
+      },
+      {
+        "key": "prompt_allow_notifications_title",
+        "section": "Step 2 — Asking to allow notifications",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Heading shown after accepting the offer, explaining that notifications are needed to send the reminder."
+      },
+      {
+        "key": "prompt_allow_notifications_subtitle",
+        "section": "Step 2 — Asking to allow notifications",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Line under that heading telling people to tap Allow on the phone's own pop-up that comes next."
+      },
+      {
+        "key": "prompt_allow_notifications_primary",
+        "section": "Step 2 — Asking to allow notifications",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Main button that triggers the phone's notification permission pop-up."
+      },
+      {
+        "key": "prompt_not_now",
+        "section": "Step 2 — Asking to allow notifications",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Button that postpones the permission request. Shown both here and on the 'notifications are switched off' panel below."
+      },
+      {
+        "key": "prompt_turn_on_notifications_title",
+        "section": "Step 3 — Only if notifications are switched off",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Only shown when notifications have already been refused or switched off: heading asking to turn them on."
+      },
+      {
+        "key": "prompt_turn_on_notifications_subtitle",
+        "section": "Step 3 — Only if notifications are switched off",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Only shown in that case: line explaining the switch has to be turned on in the phone's own settings."
+      },
+      {
+        "key": "prompt_open_settings",
+        "section": "Step 3 — Only if notifications are switched off",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Only shown in that case: button that opens the phone's settings."
+      },
+      {
+        "key": "allow_notifications_screen_title",
+        "section": "Full-screen version of the notifications request",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Heading of the full-screen version of the notifications request, shown during a meditation rather than in a small panel."
+      },
+      {
+        "key": "allow_notifications_screen_subtitle",
+        "section": "Full-screen version of the notifications request",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Sentence under that heading on the full-screen version."
+      },
+      {
+        "key": "sheet_title",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Heading at the top of the sheet that slides up for choosing when to be reminded."
+      },
+      {
+        "key": "preset_unwind_later_today",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder for later the same day — the first option in the list."
+      },
+      {
+        "key": "preset_start_your_week_calm",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Monday."
+      },
+      {
+        "key": "preset_find_your_midweek_balance",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Tuesday."
+      },
+      {
+        "key": "preset_pause_and_recharge",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Wednesday."
+      },
+      {
+        "key": "preset_mindful_break_before_weekend",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Thursday."
+      },
+      {
+        "key": "preset_end_your_week_with_peace",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Friday."
+      },
+      {
+        "key": "preset_slow_down_weekend",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Saturday."
+      },
+      {
+        "key": "preset_reset_for_week_ahead",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Sunday."
+      },
+      {
+        "key": "sheet_dont_set",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Button at the bottom of the sheet that closes it without setting anything. Appears both on the list of days and on the clock where the time is picked."
+      },
+      {
+        "key": "sheet_success_title",
+        "section": "Step 5 — Reminder confirmed",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Short heading with a tick shown once the reminder has been saved."
+      },
+      {
+        "key": "sheet_success_subtitle",
+        "section": "Step 5 — Reminder confirmed",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Sentence under that tick, promising a notification later."
+      },
+      {
+        "key": "sheet_explore_app",
+        "section": "Step 5 — Reminder confirmed",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Main button on the confirmation, which closes the sheet and lets people browse the app."
+      },
+      {
+        "key": "sheet_start_first_meditation",
+        "section": "Step 5 — Reminder confirmed",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Second button on the confirmation, which begins the meditation straight away instead of waiting."
+      },
+      {
+        "key": "sheet_done",
+        "section": "Step 5 — Reminder confirmed",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Replaces the main confirmation button when the reminder was set for a meditation that is still locked."
+      },
+      {
+        "key": "sheet_return_to_meditation",
+        "section": "Step 5 — Reminder confirmed",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Replaces the second confirmation button when the reminder was set from inside or just before a meditation; it takes people back to it."
+      },
+      {
+        "key": "sheet_leave_meditation",
+        "section": "Step 5 — Reminder confirmed",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Replaces the main confirmation button when the reminder was set by pressing back during a meditation; it confirms leaving the session."
+      },
+      {
+        "key": "sheet_error",
+        "section": "Errors",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Error shown only when the reminder could not be saved, as a short message at the bottom of the screen."
+      },
+      {
+        "key": "notification_title",
+        "section": "The reminder notification itself",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Title of the notification that arrives on the phone at the chosen time."
+      },
+      {
+        "key": "notification_body_locked",
+        "section": "The reminder notification itself",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Text of that notification when the reminder was set for a meditation that had not been unlocked yet."
+      },
+      {
+        "key": "notification_body_exit",
+        "section": "The reminder notification itself",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Text of that notification when the reminder was set on leaving or skipping a meditation."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "CONTRACT BREAK — CONFIRMED BY GREP: 0 of the 34 keys on this leaf reach the app. Not one. Verified two ways: (1) assets/l10n/en.yaml has no `meditation.reminder` node at all — the only children of `meditation:` are intent, duration, mood, player, footsoak, vibes_check, subtle_system; (2) all 34 strings exist verbatim under `meditation.intent`, each with a literal `reminder_` prefix on the key name (en.yaml lines 204-237, e.g. `reminder_prompt_title`, `reminder_sheet_title`, `reminder_preset_unwind_later_today`, `reminder_notification_title`, `reminder_allow_notifications_screen_title`). The app reads them as `context.el.meditation.intent.reminderPromptTitle` etc.",
+      "WHY NOTHING GETS THROUGH: the CMS-to-app overlay in lib/preview/translation_preview.dart applies a CMS leaf onto an app path by EXACT key name (`_deepOverlay` — a CMS key with no identically-named counterpart in the app tree is silently skipped). The mapping table in that file has an entry for appPath ['meditation','intent'] -> cmsPath ['meditation','intent'] and NO entry at all for cmsPath ['meditation','reminder']. So even if a mapping were added, every key would still be dropped, because `prompt_title` != `reminder_prompt_title`. Both halves are broken: the leaf is unmapped AND the key names differ.",
+      "WHAT A FIX NEEDS: a `keyPrefix` concept on the leaf mapping, not a per-key remap table. One mapping entry — cmsPath ['meditation','reminder'] -> appPath ['meditation','intent'] with keyPrefix 'reminder_' — makes `_deepOverlay` write `reminder_` + each CMS key into the meditation.intent map, and all 34 land at once. A 34-row remap would work too but is pure duplication and will rot as keys are added. Do NOT fix this by renaming CMS slugs to `reminder_*`: slugs are data, stored translations and the English seed are keyed on them, and a rename orphans every existing translation.",
+      "SECOND-ORDER RISK once the prefix fix lands: the CMS also has a separate `meditation.intent` leaf that already maps 1:1 onto the same app section. Both leaves would then write into meditation.intent. That is fine only as long as no `reminder_`-prefixed CMS key exists on the intent leaf. Worth a one-line guard or a check at implementation time. Note that `set_reminder_for_later` (en.yaml line 203) legitimately belongs to the intent leaf, not here — it is the entry-point link into this flow, not part of it.",
+      "TRANSLATOR TIME: because zero keys are live, this whole tab is currently a decoy. Recommend hiding it or leaving the warning prominent until the keyPrefix fix ships — otherwise translators will do 34 keys of work that renders nowhere.",
+      "No {token} placeholders in any of these 34 strings. Several do contain deliberate line breaks (\\n) — prompt_title, prompt_subtitle, sheet_title, allow_notifications_screen_subtitle — which translators should preserve so the text wraps as designed.",
+      "Order note: `prompt_set_reminder` and `sheet_dont_set` each appear at two points in the flow (the offer panel and the time picker; the day list and the time picker). Each is listed once, at its first appearance, and its description says where else it shows.",
+      "Order note: `sheet_done`, `sheet_return_to_meditation` and `sheet_leave_meditation` are not extra buttons — they are alternative labels that replace `sheet_explore_app` / `sheet_start_first_meditation` on the same confirmation screen, depending on where the reminder was set from. Grouped with them for that reason."
+    ]
+  },
+  {
+    "leaf": "meditation.vibes_check",
+    "seedKey": "meditation_vibes_check",
+    "title": null,
+    "description": "The \"check your vibrations\" flow shown straight after the first meditation: the opening hands question, the left-hand and right-hand sensation questions, and the two confirmation screens for skipping or going back to the meditation.",
+    "order": [
+      {
+        "key": "intro_question",
+        "section": "Opening screen",
+        "description": "Question shown under the animated hands on the very first vibes-check screen. Keep the line break so it stays on two lines."
+      },
+      {
+        "key": "skip_vibes_check",
+        "section": "Opening screen",
+        "description": "Button at the bottom of that first screen for people who want to skip the whole vibes check."
+      },
+      {
+        "key": "question_prefix",
+        "section": "The hand question",
+        "description": "First part of the question shown above the sensation cards. The word \"left\" or \"right\" is added immediately after it, so keep the line break at the end."
+      },
+      {
+        "key": "left_hand",
+        "section": "The hand question",
+        "description": "The word dropped into the middle of that question on the left-hand step. It appears in italics."
+      },
+      {
+        "key": "right_hand",
+        "section": "The hand question",
+        "description": "The same word for the right-hand step, which comes straight after the left-hand one."
+      },
+      {
+        "key": "question_suffix",
+        "section": "The hand question",
+        "description": "The end of that question, joined on after the word left/right. Keep the space at the start."
+      },
+      {
+        "key": "cool",
+        "section": "The four sensation cards",
+        "description": "Label on the top-left card."
+      },
+      {
+        "key": "warm",
+        "section": "The four sensation cards",
+        "description": "Label on the top-right card."
+      },
+      {
+        "key": "fingers_tingling",
+        "section": "The four sensation cards",
+        "description": "Label on the bottom-left card. It is the longest label and may wrap onto two lines, so keep it short."
+      },
+      {
+        "key": "nothing",
+        "section": "The four sensation cards",
+        "description": "Label on the bottom-right card, for feeling no sensation. Picking it clears any other cards that were chosen."
+      },
+      {
+        "key": "continue_action",
+        "section": "Buttons under the cards",
+        "description": "Main button on each hand question. It stays greyed out until at least one card is chosen."
+      },
+      {
+        "key": "not_sure",
+        "section": "Buttons under the cards",
+        "description": "Smaller button below it, for people who cannot tell. It records \"Nothing\" for that hand and moves on."
+      },
+      {
+        "key": "got_it",
+        "section": "Explanation screen",
+        "description": "Button that ends the spoken explanation shown after both hands and continues the flow."
+      },
+      {
+        "key": "skip_prompt_title",
+        "section": "\"Skip vibes check?\" screen",
+        "description": "Title of the confirmation screen shown after someone taps the skip button."
+      },
+      {
+        "key": "skip_prompt_description",
+        "section": "\"Skip vibes check?\" screen",
+        "description": "Line under that title explaining what they would miss by skipping."
+      },
+      {
+        "key": "back_to_explanation",
+        "section": "\"Skip vibes check?\" screen",
+        "description": "Main button that takes them back into the vibes check. The same label is also used as the main button on the \"Return to meditation?\" screen below."
+      },
+      {
+        "key": "skip_it",
+        "section": "\"Skip vibes check?\" screen",
+        "description": "Second button that confirms skipping the vibes check."
+      },
+      {
+        "key": "return_to_meditation_prompt_title",
+        "section": "\"Return to meditation?\" screen",
+        "description": "Only shown when someone presses back from the very first vibes-check screen. Title of that confirmation screen."
+      },
+      {
+        "key": "return_to_meditation_prompt_description",
+        "section": "\"Return to meditation?\" screen",
+        "description": "Line under that title, warning that the meditation starts again from the beginning."
+      },
+      {
+        "key": "return_to_meditation_action",
+        "section": "\"Return to meditation?\" screen",
+        "description": "Second button on that screen, which confirms going back to the meditation."
+      },
+      {
+        "key": "interpretation_nothing",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text, so translating it changes nothing on screen. It was meant as the explanation for someone who felt nothing in either hand; the explanation screen now uses its own built-in wording and recorded narration instead."
+      },
+      {
+        "key": "interpretation_intro",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text, so translating it changes nothing on screen. It was meant as the opening line of the explanation about vibrations, which the app now speaks and captions from its own built-in wording."
+      },
+      {
+        "key": "interpretation_detail",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text, so translating it changes nothing on screen. It was meant as the follow-up explanation about the energy channels, which the app now speaks and captions from its own built-in wording."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "CONTRACT BREAK (second one, smaller than meditation.feedback): interpretation_nothing, interpretation_intro and interpretation_detail have zero usages in the app. The explanation screen (lib/presentation/screens/meditation/meditation_player/meditation_feedback/widgets/meditation_vibes_interpretation.dart) builds its caption text from a hardcoded _fallbackSubtitleFor() switch plus bundled/CMS VTT subtitle files, and the four real variants it can show (both-hands-cool, something-but-no-cool, something-with-cool, both-hands-nothing) do not correspond one-to-one with these three keys. Kept in `order` under 'Currently unused — needs a product decision' rather than marked dead — product needs to decide whether to wire the screen to these keys, replace them with a per-variant set, or drop them.",
+      "The English seed values for these three keys are also stale/shorter than what the screen actually says, which is further evidence they were abandoned rather than temporarily disconnected.",
+      "back_to_explanation is shared: it is the primary button on BOTH the 'Skip vibes check?' screen and the 'Return to meditation?' screen. It is listed once, in the skip-prompt section, and its description says so. Any wording chosen must read correctly in both places.",
+      "question_prefix / left_hand / right_hand / question_suffix are concatenated into one sentence at runtime. Languages that put the possessive or adjective in a different position may not be translatable with this split — flag if a translator reports it.",
+      "intro_question and question_prefix contain deliberate line breaks that control how the heading wraps; they must be preserved."
+    ]
+  },
+  {
+    "leaf": "meditation.feedback",
+    "seedKey": "meditation_feedback",
+    "title": "Feedback (not shown in the app)",
+    "description": "WARNING — the app currently ignores every line on this tab. The after-meditation feedback form and its thank-you screen display their own built-in English wording, so nothing you translate here reaches a user until the app is changed. Please do not spend time on this tab; it is kept only so the text is not lost.",
+    "order": [
+      {
+        "key": "title",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the big heading at the top of the feedback form."
+      },
+      {
+        "key": "description",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the line under the heading asking what was good and what could be improved."
+      },
+      {
+        "key": "error_length",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the message shown above the box when the feedback written was too short."
+      },
+      {
+        "key": "hint",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the faint placeholder inside the empty writing box."
+      },
+      {
+        "key": "send",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the feedback screen shows its own built-in wording instead. It was the button that submits the feedback."
+      },
+      {
+        "key": "thank_you",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the thank-you screen shows its own built-in wording instead. It was the title after the feedback was sent."
+      },
+      {
+        "key": "thank_you_description",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the thank-you screen shows its own built-in wording instead. It was the message under that title, and it carried deliberate line breaks."
+      },
+      {
+        "key": "close",
+        "section": "Currently unused — needs a product decision",
+        "description": "The app currently ignores this text — the thank-you screen shows its own built-in wording instead. It was the button that closed the thank-you screen."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "CONFIRMED CONTRACT BREAK — all 8 keys have zero usages in the app. Verified by grepping the whole app repo: there is no `context.el....feedback` accessor anywhere in lib/ for this leaf. The strings exist only in assets/l10n/en.yaml (top-level `path_meditation_feedback:`, lines 516-524) and in the generated localization/lib/localization.dart; nothing reads them.",
+      "The screen hardcodes the same English strings inline: lib/presentation/screens/meditation/meditation_player/meditation_feedback/widgets/meditation_feedback_form.dart line 73 ('How was your experience?' = title), line 88 ('Did you enjoy the meditation? What was good and what could be improved?' = description), line 102 ('Please write at least 50 characters' = error_length), line 120 ('Type here..' = hint), line 151 ('Send' = send). The thank-you half is in widgets/meditation_feedback_thank_you.dart: line 44 ('Thank you!' = thank_you), 'Your feedback\\nhelps us improve\\nthis app' (= thank_you_description) and 'Close' (= close).",
+      "Because the hardcoded strings are character-for-character identical to the seed values, this looks like a screen that was built before the copy was moved into the translation system and never rewired — not an intentional removal.",
+      "KEPT, NOT DELETED, per instruction: the fix is a one-line-per-string app change (swap the literals for the l10n accessors), which is a product/engineering decision, not a translation decision. If that change ships, the whole 'Currently unused' section should be re-sectioned into the normal screen order: title, description, error_length, hint, send | thank_you, thank_you_description, close — which is the order they are already listed in.",
+      "Note the naming mismatch worth checking during that fix: the CMS leaf is meditation.feedback / meditation_feedback, but the English seed lives under the top-level `path_meditation_feedback:` node in en.yaml, not under `meditation:`. Whoever wires this up must confirm which node the app will actually read.",
+      "thank_you_description contains deliberate line breaks that shape the card; they must be preserved if the text is ever used.",
+      "The tab title has been set to 'Feedback (not shown in the app)' so a translator can see from the tab list that this leaf is inert. The slug is unchanged."
+    ]
+  },
+  {
+    "leaf": "path.overview",
+    "seedKey": "path_overview",
+    "title": null,
+    "description": "The Path tab's main list: the label above each group of steps, the message at the bottom of the list, and the error state.",
+    "order": [
+      {
+        "key": "unit",
+        "section": "",
+        "description": "Label above each group of steps on the Path list. The unit number is added after it automatically, so it reads like \"UNIT 1\"."
+      },
+      {
+        "key": "more_steps_coming_soon",
+        "section": "",
+        "description": "Message at the very bottom of the Path list, below the last step."
+      },
+      {
+        "key": "error_message",
+        "section": "",
+        "description": "Only shown when the Path fails to load — the message in the middle of the screen. The same message is also used when a step's article fails to load."
+      },
+      {
+        "key": "retry",
+        "section": "",
+        "description": "Only shown with that error message — the button that tries loading again."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "Reordered to match the screen: the unit label and the end-of-list message are what a user normally sees; the error message and Retry button only appear when loading fails.",
+      "error_message and retry are shared: they also appear on the step's Article section and on other Path routes when loading fails. Wording must stay generic enough for all of them."
+    ]
+  },
+  {
+    "leaf": "path.info",
+    "seedKey": "path_info",
+    "title": null,
+    "description": "Three full-screen intro slides about the Path, shown the first time the Path opens and from the info button on the Path screen. The user taps or swipes from one slide to the next.",
+    "order": [
+      {
+        "key": "first_title",
+        "section": "Slide 1",
+        "description": "Heading on the first slide."
+      },
+      {
+        "key": "first_text",
+        "section": "Slide 1",
+        "description": "Paragraph under that heading on the first slide."
+      },
+      {
+        "key": "second_title",
+        "section": "Slide 2",
+        "description": "Heading on the second slide."
+      },
+      {
+        "key": "second_text",
+        "section": "Slide 2",
+        "description": "Paragraph on the second slide. It contains a bulleted list — keep the line-break markers and the bullet characters exactly as they appear in the English text."
+      },
+      {
+        "key": "third_title",
+        "section": "Slide 3",
+        "description": "Heading on the third and last slide."
+      },
+      {
+        "key": "third_text",
+        "section": "Slide 3",
+        "description": "Paragraph on the last slide. Keep the line-break markers exactly as they appear in the English text."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "The Continue button on the last slide is not in this leaf — it reuses the Story section's Continue button (path.step_2.continue_button). Changing it there changes it here too.",
+      "second_text and third_text carry literal line-break markers in the source text; translators must not drop them or the slides run together."
+    ]
+  },
+  {
+    "leaf": "path.step_1",
+    "seedKey": "path_step_1",
+    "title": "Intro",
+    "description": "The opening section of a Path step: the step title, a photo, a quote with a credit under it, and the Begin button.",
+    "order": [
+      {
+        "key": "author",
+        "section": "",
+        "description": "The credit line printed under the quote. It is the same for every step — it always reads \"Shri Mataji Nirmala Devi\", even when the quote shown above it was written for that step by someone else. There is no per-step way to change this credit."
+      },
+      {
+        "key": "begin",
+        "section": "",
+        "description": "Button at the bottom that starts the step."
+      },
+      {
+        "key": "skip_title",
+        "section": "Leaving the step",
+        "description": "Question shown when the user taps the back arrow on this section and is asked whether to leave the step."
+      },
+      {
+        "key": "skip_continue",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere. The prompt for leaving the step uses the Meditation section's buttons instead (Exit / Back to step)."
+      },
+      {
+        "key": "back_to_path",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere. The prompt for leaving the step uses the Meditation section's \"Back to step\" button instead."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "CONFIRMED ISSUE — the credit under the quote is fixed to \"Shri Mataji Nirmala Devi\" for every step, while the quote itself comes from the step's own first panel. A step whose quote is by someone else will still be credited to Shri Mataji. A Path step has no author field at all, so this cannot be fixed by editing content — it needs a code/schema change.",
+      "The two buttons on this section's \"leave the step\" prompt come from the Meditation section (path.step_3.exit and path.step_3.back_to_step), not from here. That is why skip_continue and back_to_path are unused — they are leftovers from an earlier version of the prompt. Keys kept, nothing renamed.",
+      "The default quote text (default_intro_quote in the app) is not in the CMS, so the fallback quote shown when a step has no panel text cannot be translated here."
+    ]
+  },
+  {
+    "leaf": "path.step_2",
+    "seedKey": "path_step_2",
+    "title": "Story",
+    "description": "The swipeable full-screen story panels of a Path step.",
+    "order": [
+      {
+        "key": "continue_button",
+        "section": "",
+        "description": "Button that appears only on the last story panel and moves on to the meditation. The same wording is also used on the last of the three Path intro slides."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "This one button is shared with the Path intro slides (path.info), so a change here also changes the button at the end of those slides."
+    ]
+  },
+  {
+    "leaf": "path.step_3",
+    "seedKey": "path_step_3",
+    "title": "Meditation",
+    "description": "The spoken introduction that plays before the meditation, plus the prompts for skipping the introduction or leaving the step.",
+    "order": [
+      {
+        "key": "meditation_intro",
+        "section": "",
+        "description": "Heading at the top of the screen while the spoken introduction is playing."
+      },
+      {
+        "key": "skip_intro",
+        "section": "",
+        "description": "Text button at the bottom of that screen, offering to go straight to the meditation."
+      },
+      {
+        "key": "skip_title",
+        "section": "Skipping the introduction",
+        "description": "Question shown after tapping that button, asking whether to skip the introduction."
+      },
+      {
+        "key": "skip_continue",
+        "section": "Skipping the introduction",
+        "description": "Button on that question that goes straight to the meditation."
+      },
+      {
+        "key": "back_to_intro",
+        "section": "Skipping the introduction",
+        "description": "Button on that question that keeps listening to the introduction."
+      },
+      {
+        "key": "exit",
+        "section": "Leaving the step",
+        "description": "Button that leaves the step. It appears on the prompt shown when the user taps the back arrow on the Intro section."
+      },
+      {
+        "key": "back_to_step",
+        "section": "Leaving the step",
+        "description": "Button on that same prompt that stays in the step."
+      },
+      {
+        "key": "start_meditation",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere. The spoken introduction runs into the meditation on its own, so there is no Start Meditation button on this screen."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "exit and back_to_step live in this leaf but are only used by the Intro section's \"leave the step\" prompt. Their wording is written from that screen's point of view (\"Back to step\"). Kept here — renaming would break stored translations.",
+      "start_meditation is unused by design: the code notes there is deliberately no explicit Start Meditation button because the introduction auto-advances into the meditation."
+    ]
+  },
+  {
+    "leaf": "path.step_4",
+    "seedKey": "path_step_4",
+    "title": "Article",
+    "description": "The in-depth article at the end of a Path step. The article's own headings and text come from the article content, not from here — this leaf covers the talk card inside it and the button that finishes the step.",
+    "order": [
+      {
+        "key": "media_card_fallback_title",
+        "section": "Talk card",
+        "description": "FALLBACK — the title on the talk card, shown only when the talk itself has no title; normally the talk's own title is shown. This card appears wherever a talk is placed in content, not only in this Path article."
+      },
+      {
+        "key": "media_card_author",
+        "section": "Talk card",
+        "description": "The name shown under the talk card. It is the same for every talk card in the app — the speaker recorded with the talk is not used. Appears wherever a talk card is shown, not only in this Path article."
+      },
+      {
+        "key": "media_card_author_subtitle",
+        "section": "Talk card",
+        "description": "The smaller line under that name on the talk card. Also the same for every talk card in the app."
+      },
+      {
+        "key": "media_card_watch_later",
+        "section": "Talk card",
+        "description": "Button on the talk card that saves the talk to watch later. Appears wherever a talk card is shown."
+      },
+      {
+        "key": "complete_step",
+        "section": "Finishing the step",
+        "description": "Button at the end of the article that marks the step as completed."
+      },
+      {
+        "key": "delving_deeper",
+        "section": "Currently unused — needs a product decision",
+        "description": "NOT DISPLAYED — an old heading for the article section. The article now supplies its own headings, so nothing shows this text."
+      },
+      {
+        "key": "lecture_prompt",
+        "section": "Currently unused — needs a product decision",
+        "description": "NOT DISPLAYED — an old line introducing the talk before playing it. Nothing shows this text today."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "CONFIRMED ISSUE — the four media_card_* keys are in the wrong place. They are read by the shared talk card, which is rendered by any lecture-card block in CMS content (Daily completion, any article, etc.), not only by this Path step. Editing them here silently changes the card everywhere in the app. Keys left in place and kept in `order` so translators still see and translate them — renaming would break stored translations; moving them to a shared/global leaf is a code change.",
+      "CONFIRMED ISSUE — media_card_author and media_card_author_subtitle are fixed text for every talk. Talks do carry a speaker name in the CMS, but the card ignores it and always prints this fixed credit. Using the talk's own speaker name is a code change.",
+      "delving_deeper and lecture_prompt have zero usages in the app — the article screen renders only CMS content. Kept in a trailing unused section rather than deleted: whether the article should have a fixed \"Delving deeper\" heading and a talk intro line is a product decision, not a translation one."
+    ]
+  },
+  {
+    "leaf": "path.step_complete",
+    "seedKey": "path_step_complete",
+    "title": "Completed",
+    "description": "The screen shown after finishing a Path step.",
+    "order": [
+      {
+        "key": "title",
+        "section": "",
+        "description": "The large text in the middle of the completion screen."
+      },
+      {
+        "key": "subtitle",
+        "section": "",
+        "description": "The smaller line under that text."
+      },
+      {
+        "key": "back_to_path",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere. The button on this screen reads \"Continue\", and that wording is not editable in the CMS."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "The only button on this screen uses a \"Continue\" string that is not exposed in the CMS at all, so it cannot be translated here. back_to_path is a leftover from when the button read \"Back to Path\". Key kept, nothing renamed.",
+      "This screen also has a special first-meditation variant (\"Congratulations! / You have completed your first meditation!\"). Those two strings are likewise not exposed in the CMS, so that celebration screen cannot be translated. Worth adding if translation coverage matters."
+    ]
+  },
+  {
+    "leaf": "profile.account",
+    "seedKey": "profile_account",
+    "title": "Account settings",
+    "description": "The \"My Account\" screen reached from Profile, plus all its pop-ups: editing the name and email, sending a password reset link, and deleting the account.",
+    "order": [
+      {
+        "key": "title",
+        "section": "",
+        "description": "Big heading at the top of the screen."
+      },
+      {
+        "key": "first_name_label",
+        "section": "Account details rows",
+        "description": "Small grey label above the person's first name, in the first row of the list."
+      },
+      {
+        "key": "email_label",
+        "section": "Account details rows",
+        "description": "Small grey label above the email address row. Only shown once someone is signed in."
+      },
+      {
+        "key": "password_label",
+        "section": "Account details rows",
+        "description": "Small grey label above the password row. Only shown for people who signed in with an email and password, not with Google, Apple or Facebook."
+      },
+      {
+        "key": "edit_action",
+        "section": "Account details rows",
+        "description": "Small link on the right-hand side of every row that can be changed. The same word is used on all of them."
+      },
+      {
+        "key": "email_unavailable",
+        "section": "Account details rows",
+        "description": "FALLBACK — shown in the email row only when the account has no email address on record; normally the person's real email address is shown."
+      },
+      {
+        "key": "logout",
+        "section": "Buttons at the bottom",
+        "description": "Main button at the bottom of the screen, shown when someone is signed in."
+      },
+      {
+        "key": "delete_account",
+        "section": "Buttons at the bottom",
+        "description": "Second button at the bottom, shown when someone is signed in. The same words are reused as the heading and as the red confirm button on the delete-account screen."
+      },
+      {
+        "key": "create_account",
+        "section": "Buttons at the bottom",
+        "description": "Main button at the bottom, shown instead of the log-out button when nobody is signed in."
+      },
+      {
+        "key": "login",
+        "section": "Buttons at the bottom",
+        "description": "Second button at the bottom, shown instead of the delete button when nobody is signed in."
+      },
+      {
+        "key": "edit_first_name_title",
+        "section": "Edit name and email pop-ups",
+        "description": "Heading of the pop-up that slides up from the bottom when the edit link next to the first name is tapped."
+      },
+      {
+        "key": "edit_email_title",
+        "section": "Edit name and email pop-ups",
+        "description": "Heading of the pop-up that slides up when the edit link next to the email address is tapped."
+      },
+      {
+        "key": "save_changes",
+        "section": "Edit name and email pop-ups",
+        "description": "Main button inside both of those pop-ups."
+      },
+      {
+        "key": "cancel",
+        "section": "Edit name and email pop-ups",
+        "description": "Second button that closes a pop-up without changing anything. Shared by the edit pop-ups, the reset-password pop-up and the confirm-password pop-up."
+      },
+      {
+        "key": "reset_password_title",
+        "section": "Reset password pop-up",
+        "description": "Heading of the pop-up that slides up when the edit link next to the password is tapped."
+      },
+      {
+        "key": "reset_password_description",
+        "section": "Reset password pop-up",
+        "description": "Line under that heading explaining that a reset link will be emailed. The person's email address is shown in a box just below it."
+      },
+      {
+        "key": "reset_password_action",
+        "section": "Reset password pop-up",
+        "description": "Main button in that pop-up that sends the reset link."
+      },
+      {
+        "key": "reauthenticate_title",
+        "section": "Confirm password before deleting",
+        "description": "Heading of the pop-up that asks for the password one more time. Only shown part-way through deleting an account, and only when the person has not signed in recently."
+      },
+      {
+        "key": "reauthenticate_description",
+        "section": "Confirm password before deleting",
+        "description": "Line under that heading explaining why the password is being asked for again."
+      },
+      {
+        "key": "continue_action",
+        "section": "Confirm password before deleting",
+        "description": "Main button in that pop-up, tapped after typing the password."
+      },
+      {
+        "key": "save_failed",
+        "section": "Error messages",
+        "description": "Error shown as a small bar at the bottom, only when a new first name could not be saved."
+      },
+      {
+        "key": "email_edit_unavailable",
+        "section": "Error messages",
+        "description": "Message shown as a small bar at the bottom every time someone tries to save a new email address. Changing the email is not built yet, so this always appears."
+      },
+      {
+        "key": "delete_account_error",
+        "section": "Error messages",
+        "description": "Error shown only when deleting the account fails for an unexpected reason."
+      },
+      {
+        "key": "delete_account_requires_recent_login",
+        "section": "Error messages",
+        "description": "Error shown only when deleting fails because the person has not signed in recently enough."
+      },
+      {
+        "key": "reauthenticate_required",
+        "section": "Error messages",
+        "description": "Error shown only when the confirm-password step is submitted with nothing typed in."
+      },
+      {
+        "key": "reauthenticate_invalid",
+        "section": "Error messages",
+        "description": "Error shown only when the password typed to confirm the deletion is wrong."
+      },
+      {
+        "key": "guest_email_prompt",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently shown by the app — the whole email row is hidden when nobody is signed in, so this prompt never reaches the screen."
+      },
+      {
+        "key": "guest_password_prompt",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently shown by the app — the whole password row is hidden when nobody is signed in, so this prompt never reaches the screen."
+      },
+      {
+        "key": "details_header",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — a heading above the details rows from an older version of this screen. The rows now start straight after the main heading."
+      },
+      {
+        "key": "name_label",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — the row is labelled with the first-name label instead."
+      },
+      {
+        "key": "name_hint",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — grey placeholder text from an older name field that no longer exists."
+      },
+      {
+        "key": "save",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — button from an older version that saved the whole screen at once. Editing now happens in pop-ups."
+      },
+      {
+        "key": "saving",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — the \"in progress\" wording for that old save button."
+      },
+      {
+        "key": "saved",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — the confirmation message for that old save button."
+      },
+      {
+        "key": "reset_password_sent",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — the reset-password pop-up now shows its own full success screen instead of this short message."
+      },
+      {
+        "key": "reset_password_error",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — the reset-password pop-up now shows its own full failure screen with a retry button instead of this short message."
+      },
+      {
+        "key": "delete_account_title",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — the delete-account screen now uses different confirmation wording, which is not on this tab."
+      },
+      {
+        "key": "delete_account_description",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — replaced by the newer delete confirmation wording, which is not on this tab."
+      },
+      {
+        "key": "privacy_policy",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — the Privacy Policy link sits on the main Profile screen, not on this one."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "Eleven keys have zero references anywhere in the app code and are leftovers from an earlier design of this screen: details_header, name_label, name_hint, save, saving, saved, reset_password_sent, reset_password_error, delete_account_title, delete_account_description, privacy_policy. They are kept in a trailing 'Currently unused' section rather than deleted, because removing them is a product/content decision.",
+      "guest_email_prompt and guest_password_prompt ARE referenced in the code but can never be seen: the account screen computes them and then hides the email and password rows entirely for signed-out visitors. Either the rows should be shown to guests (so these prompts appear) or both keys should be retired — a product decision.",
+      "email_edit_unavailable is not a rare error: saving a new email address always shows it, because email editing has not been implemented. Worth flagging to product — a translator will reasonably assume it is an edge case.",
+      "The app has grown newer strings on this screen that do NOT exist in the CMS schema, so they cannot be translated today: reset_password_sent_title, reset_password_sent_message, reset_password_done, reset_password_failed_title, reset_password_failed_message, reset_password_try_again, delete_account_confirmation_title, delete_account_confirmation_description, delete_account_confirmation_placeholder, not_now, confirm_identity_title, confirm_identity_description, and the sign_in_method_* group (label, email, apple, google, facebook, phone). Several are prominent (the whole delete confirmation screen and the reset-password success/failure screens). Adding them to the CMS schema is an engineering task, not something this ordering pass can fix.",
+      "delete_account is reused in three places (bottom button on the account screen, heading of the delete screen, red confirm button on the delete screen), so the wording has to work as both a heading and a button."
+    ]
+  },
+  {
+    "leaf": "profile.privacy",
+    "seedKey": "profile_privacy",
+    "title": "Privacy & Advertising (does not reach the app)",
+    "description": "WARNING — almost nothing on this tab currently reaches the app. The Privacy & Advertising screen was rebuilt and its text was renamed, so only one key below still matches what the app looks for. Editing the rest changes nothing on screen. Please do not spend time translating this tab until it has been rewired.",
+    "order": [
+      {
+        "key": "screen_title",
+        "section": "",
+        "description": "Not currently used by the app — the app reads a differently named key for the big heading at the top of the Privacy & Advertising screen."
+      },
+      {
+        "key": "advertising_title",
+        "section": "Advertising section",
+        "description": "Not currently used by the app — the app reads a differently named key. It was the name of the advertising setting, shown next to its on/off switch."
+      },
+      {
+        "key": "status_allowed",
+        "section": "Advertising section",
+        "description": "The one line on this tab that still reaches the app. Small grey status line under a setting's name when that setting is switched on. Used under both the advertising switch and the anonymous-analytics switch."
+      },
+      {
+        "key": "status_not_allowed",
+        "section": "Advertising section",
+        "description": "Not currently used by the app — the app reads a differently named key for the status line shown when a setting is switched off."
+      },
+      {
+        "key": "advertising_body_benefits",
+        "section": "Advertising section",
+        "description": "Not currently used by the app — the app reads a differently named key. It was the paragraph explaining why sharing this information helps a small non-profit spend its budget well."
+      },
+      {
+        "key": "advertising_body_change_hint",
+        "section": "Advertising section",
+        "description": "Not currently used by the app — the app reads a differently named key. It was the short closing line reminding people they can change the setting at any time."
+      },
+      {
+        "key": "advertising_platforms_header",
+        "section": "Advertising platforms list",
+        "description": "Not currently used by the app — the app has no list of advertising platforms on this screen at all. It names the three companies inside a sentence instead."
+      },
+      {
+        "key": "advertising_platform_meta",
+        "section": "Advertising platforms list",
+        "description": "Not currently used by the app — part of the platform list the app no longer has. A company name, so it usually stays untranslated anyway."
+      },
+      {
+        "key": "advertising_platform_google_ads",
+        "section": "Advertising platforms list",
+        "description": "Not currently used by the app — part of the platform list the app no longer has. A product name, so it usually stays untranslated anyway."
+      },
+      {
+        "key": "advertising_platform_apple_search_ads",
+        "section": "Advertising platforms list",
+        "description": "Not currently used by the app — part of the platform list the app no longer has. A product name, so it usually stays untranslated anyway."
+      },
+      {
+        "key": "product_analytics_title",
+        "section": "Anonymous analytics section",
+        "description": "Not currently used by the app — the app reads a differently named key. It was the name of the anonymous-analytics setting, shown next to its on/off switch."
+      },
+      {
+        "key": "product_analytics_description",
+        "section": "Anonymous analytics section",
+        "description": "Not currently used by the app — the app reads a differently named key. It was the paragraph explaining that usage information is anonymous and never sold."
+      },
+      {
+        "key": "learn_more_header",
+        "section": "Learn more links",
+        "description": "Not currently used by the app — the app reads a differently named key for the small heading above the two legal links near the bottom."
+      },
+      {
+        "key": "privacy_policy_title",
+        "section": "Learn more links",
+        "description": "Not currently used by the app — the Privacy Policy link on this screen takes its wording from the main Profile screen instead, so editing it here has no effect."
+      },
+      {
+        "key": "privacy_policy_subtitle",
+        "section": "Learn more links",
+        "description": "Not currently used by the app — the small grey line under the Privacy Policy link comes from the main Profile screen instead."
+      },
+      {
+        "key": "terms_and_conditions_title",
+        "section": "Learn more links",
+        "description": "Not currently used by the app — the Terms & Conditions link on this screen takes its wording from the main Profile screen instead."
+      },
+      {
+        "key": "terms_and_conditions_subtitle",
+        "section": "Learn more links",
+        "description": "Not currently used by the app — the small grey line under the Terms & Conditions link comes from the main Profile screen instead."
+      },
+      {
+        "key": "advertising_body_intro",
+        "section": "Advertising — longer paragraphs",
+        "description": "Not currently used by the app — the app reads differently named keys. It was the opening paragraph of the advertising section, which on screen sits just under the advertising switch and contains a tappable link."
+      },
+      {
+        "key": "advertising_body_never_share",
+        "section": "Advertising — longer paragraphs",
+        "description": "Not currently used by the app — the app reads differently named keys. It was the promise never to share personal practice details and never to sell data, which on screen sits in the middle of the advertising section."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "CONTRACT BREAK CONFIRMED BY GREP. The CMS leaf is 'profile.privacy'; the app's matching screen keeps its text under 'profile.privacy_advertising' in assets/l10n/en.yaml, and its keys were renamed to the ads_* / product_* family. Overrides are applied by exact key name within a mapped leaf, so a renamed key silently does nothing.",
+      "Exactly 1 of the 19 keys still matches a key the app looks for: status_allowed. Everything else is renamed, split, merged, or removed.",
+      "Name-by-name mapping to the app's current keys: screen_title→title, status_not_allowed→status_off, advertising_title→ads_title, advertising_body_benefits→ads_body_why, advertising_body_change_hint→ads_body_change_anytime, product_analytics_title→product_title, product_analytics_description→product_body, learn_more_header→learn_more. advertising_body_intro was split into ads_body_intro_before_link + what_we_share + ads_body_intro_after_link, and advertising_body_never_share into ads_body_never_share_lead + ads_body_never_share_middle + ads_body_never_sell_lead + ads_body_never_sell_tail — so the two richText keys cannot be mapped one-to-one and need a schema change, not just a rename.",
+      "advertising_platforms_header and the three advertising_platform_* keys have no app counterpart at all: the app no longer lists the platforms separately, it names Meta, Apple Search Ads and Google Ads inside the intro sentence. Removing them is a product decision, so they are kept.",
+      "The four legal-link keys (privacy_policy_title/subtitle, terms_and_conditions_title/subtitle) are duplicates: the screen renders those two rows from profile.main, not from this leaf. Either point the screen at this leaf or drop these four — a product/engineering decision.",
+      "The app screen also has strings with no home in this leaf at all: status_loading, status_allowed_on and status_off_since (these last two contain a {date} placeholder that must be kept), what_we_share, read_more_here, the whole 'are you sure you want to turn this off' confirmation screen (ads_off_confirm_question, ads_off_confirm_body_before_link, ads_off_confirm_body_after_link, keep_on, turn_off), and three error messages (load_error, ads_update_error, product_update_error). None of these can be translated today.",
+      "There is also no preview mapping for this leaf, so this tab cannot currently be previewed in the CMS the way profile.account can. Recommend hiding or clearly banner-warning this tab for translators until the schema is realigned with profile.privacy_advertising."
+    ]
+  },
+  {
+    "leaf": "profile.main",
+    "seedKey": "profile_main",
+    "title": null,
+    "description": "The landing screen of the Profile tab: the member's name and how long they have been a member, a strip of their favourite meditations, then the menu rows for History, Account settings, Contact us and the legal pages.",
+    "order": [
+      {
+        "key": "joined_fallback",
+        "section": "Under the member's name",
+        "description": "Shown when we do not know when the person joined, or when they joined less than a month ago."
+      },
+      {
+        "key": "joined_one_month",
+        "section": "Under the member's name",
+        "description": "Shown when the person joined exactly one month ago."
+      },
+      {
+        "key": "joined_months",
+        "section": "Under the member's name",
+        "description": "Shown when the person joined between two and eleven months ago. Keep the {months} placeholder — the number is filled in."
+      },
+      {
+        "key": "joined_one_year",
+        "section": "Under the member's name",
+        "description": "Shown for the whole first year of membership, from one year up to just under two years."
+      },
+      {
+        "key": "joined_years",
+        "section": "Under the member's name",
+        "description": "Shown from two years of membership onwards. Keep the {years} placeholder — the number of full years is filled in."
+      },
+      {
+        "key": "favourites_header",
+        "section": "My favourites",
+        "description": "Small heading above the row of favourite meditations."
+      },
+      {
+        "key": "see_all",
+        "section": "My favourites",
+        "description": "Link on the right of that heading that opens the full Favourites list. Always visible, even when there are no favourites."
+      },
+      {
+        "key": "no_favourites_title",
+        "section": "My favourites",
+        "description": "Title of the placeholder card shown in place of the favourites row when the person has not saved anything yet. The same text is also used on the full Favourites screen when it is empty."
+      },
+      {
+        "key": "no_favourites_subtitle",
+        "section": "My favourites",
+        "description": "Explaining line under that placeholder title. Also reused on the empty Favourites screen."
+      },
+      {
+        "key": "history_title",
+        "section": "Activity and account",
+        "description": "Title of the first menu row, which opens the History screen."
+      },
+      {
+        "key": "history_subtitle",
+        "section": "Activity and account",
+        "description": "Smaller line under the History row title."
+      },
+      {
+        "key": "account_title",
+        "section": "Activity and account",
+        "description": "Title of the second menu row, which opens Account settings."
+      },
+      {
+        "key": "account_subtitle",
+        "section": "Activity and account",
+        "description": "Smaller line under the Account settings row title."
+      },
+      {
+        "key": "feedback_header",
+        "section": "Feedback",
+        "description": "Small heading that introduces the Contact us row."
+      },
+      {
+        "key": "contact_title",
+        "section": "Feedback",
+        "description": "Title of the Contact us row, which opens the feedback form."
+      },
+      {
+        "key": "contact_subtitle",
+        "section": "Feedback",
+        "description": "Smaller line under the Contact us row title."
+      },
+      {
+        "key": "legal_header",
+        "section": "Legal",
+        "description": "Small heading above the last group of rows at the bottom of the screen."
+      },
+      {
+        "key": "privacy_policy_title",
+        "section": "Legal",
+        "description": "Title of the row that opens the Privacy Policy."
+      },
+      {
+        "key": "privacy_policy_subtitle",
+        "section": "Legal",
+        "description": "Smaller line under the Privacy Policy row title."
+      },
+      {
+        "key": "terms_and_conditions_title",
+        "section": "Legal",
+        "description": "Title of the row that opens the Terms & Conditions."
+      },
+      {
+        "key": "terms_and_conditions_subtitle",
+        "section": "Legal",
+        "description": "Smaller line under the Terms & Conditions row title."
+      },
+      {
+        "key": "privacy_and_advertising_title",
+        "section": "Legal",
+        "description": "Title of the last row on the screen, which opens the privacy and advertising choices."
+      },
+      {
+        "key": "privacy_and_advertising_subtitle",
+        "section": "Legal",
+        "description": "Smaller line under that last row title."
+      },
+      {
+        "key": "joined_less_than_year",
+        "section": "Currently unused — needs a product decision",
+        "description": "Appears unused — the app’s five “member since” options never pick this one. Kept pending a product decision."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "How the joined line is chosen (from the app's own rule): no join date or under 1 full month -> joined_fallback; exactly 1 month -> joined_one_month; 2-11 months -> joined_months; 12-23 months -> joined_one_year; 24 months and above -> joined_years with the number of full years.",
+      "joined_less_than_year is marked dead: the app's five buckets never select it, and it has zero references anywhere in the app source (it exists only in the English string files). Translating it has no effect.",
+      "CONTRACT BREAK — the app reads privacy_advertising_title / privacy_advertising_subtitle (no 'and'), while the CMS key is privacy_and_advertising_title / privacy_and_advertising_subtitle. The row is genuinely on screen, last in the Legal group, so both keys are kept in order — but as things stand any translation entered here will never reach the app, which falls back to the bundled English. Someone needs to align the two names (rename on the app side, or map it in the export). Do not rename the CMS slug without also changing the app.",
+      "no_favourites_title / no_favourites_subtitle are shared: they are the empty state both for the favourites strip on this screen and for the full Favourites screen (profile.favourites). Wording has to work in both places."
+    ]
+  },
+  {
+    "leaf": "profile.favourites",
+    "seedKey": "profile_favourites",
+    "title": null,
+    "description": "The full list of meditations and talks the member has saved, opened from 'See All' on the Profile screen.",
+    "order": [
+      {
+        "key": "title",
+        "section": "",
+        "description": "Heading at the top of the Favourites screen."
+      },
+      {
+        "key": "removed_from_favourites",
+        "section": "",
+        "description": "Brief message that pops up at the bottom after the member unlikes an item; it comes with an Undo button."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "This screen's empty state does not live here — when the list is empty it shows no_favourites_title / no_favourites_subtitle from profile.main.",
+      "The Undo label on the removal message comes from the shared general strings, not from this leaf."
+    ]
+  },
+  {
+    "leaf": "profile.history",
+    "seedKey": "profile_history",
+    "title": null,
+    "description": "The list of the member's past meditations and other activity, opened from the History row on the Profile screen.",
+    "order": [
+      {
+        "key": "title",
+        "section": "",
+        "description": "Heading at the top of the History screen."
+      },
+      {
+        "key": "empty_title",
+        "section": "",
+        "description": "Title of the placeholder card shown when the member has no activity yet."
+      },
+      {
+        "key": "empty_subtitle",
+        "section": "",
+        "description": "Explaining line under that placeholder title."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": []
+  },
+  {
+    "leaf": "profile.contact",
+    "seedKey": "profile_contact",
+    "title": null,
+    "description": "The Contact us form, opened from the Profile screen: a short invitation to write in, a large message box and a Send button.",
+    "order": [
+      {
+        "key": "title",
+        "section": "Top of the screen",
+        "description": "Heading at the top of the Contact us screen."
+      },
+      {
+        "key": "header",
+        "section": "Top of the screen",
+        "description": "Centred paragraph below the heading inviting the member to send feedback. This is the only intro text on the screen."
+      },
+      {
+        "key": "min_length_error",
+        "section": "Message box",
+        "description": "Warning that appears just above the message box, and turns its border red, when Send is tapped and the message is shorter than 50 characters. It also covers the case of an empty message."
+      },
+      {
+        "key": "placeholder",
+        "section": "Message box",
+        "description": "Faint hint text inside the empty message box."
+      },
+      {
+        "key": "send",
+        "section": "Send button",
+        "description": "Label on the button at the bottom of the screen."
+      },
+      {
+        "key": "sending",
+        "section": "Send button",
+        "description": "Replaces the button label for the moment the message is being sent."
+      },
+      {
+        "key": "sent",
+        "section": "After sending",
+        "description": "Thank-you message that pops up at the bottom once the feedback has been sent; the message box is cleared."
+      },
+      {
+        "key": "send_error",
+        "section": "After sending",
+        "description": "Message shown only when sending fails, for example with no internet connection. The typed message is kept so it can be sent again."
+      },
+      {
+        "key": "subtitle",
+        "section": "Currently unused — needs a product decision",
+        "description": "Appears unused — it duplicates the header line above and is never read. Kept pending a product decision."
+      },
+      {
+        "key": "empty_error",
+        "section": "Currently unused — needs a product decision",
+        "description": "Appears unused — sending an empty message shows the minimum-length message instead. Kept pending a product decision."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "subtitle is marked dead: it holds exactly the same English sentence as header, and the screen only ever displays header. It is a leftover duplicate with zero references in the app.",
+      "empty_error is marked dead: the form has a single check — at least 50 characters — so an empty message shows min_length_error, and empty_error is never displayed. If the team wants a distinct wording for a completely empty box, that is a product change in the app, not a translation fix."
+    ]
+  }
+]

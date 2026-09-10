@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cms-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
+      "port": 3000
+    },
+    {
+      "name": "cms-dev-clean",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["devsafe"],
+      "port": 3000
+    }
+  ]
+}

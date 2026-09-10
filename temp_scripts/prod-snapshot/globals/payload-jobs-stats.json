@@ -1,0 +1,21 @@
+{
+  "id": 1,
+  "stats": {
+    "scheduledRuns": {
+      "queues": {
+        "nightly": {
+          "tasks": {
+            "resetUsage": {
+              "lastScheduledRun": "2026-07-17T05:00:00.961Z"
+            },
+            "expireEvents": {
+              "lastScheduledRun": "2026-07-17T05:00:00.673Z"
+            }
+          }
+        }
+      }
+    }
+  },
+  "updatedAt": "2026-07-17T05:00:00.961Z",
+  "createdAt": "2026-06-06T12:00:01.066Z"
+}

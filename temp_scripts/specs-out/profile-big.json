@@ -1,0 +1,328 @@
+[
+  {
+    "leaf": "profile.account",
+    "seedKey": "profile_account",
+    "title": "Account settings",
+    "description": "The \"My Account\" screen reached from Profile, plus all its pop-ups: editing the name and email, sending a password reset link, and deleting the account.",
+    "order": [
+      {
+        "key": "title",
+        "section": "",
+        "description": "Big heading at the top of the screen."
+      },
+      {
+        "key": "first_name_label",
+        "section": "Account details rows",
+        "description": "Small grey label above the person's first name, in the first row of the list."
+      },
+      {
+        "key": "email_label",
+        "section": "Account details rows",
+        "description": "Small grey label above the email address row. Only shown once someone is signed in."
+      },
+      {
+        "key": "password_label",
+        "section": "Account details rows",
+        "description": "Small grey label above the password row. Only shown for people who signed in with an email and password, not with Google, Apple or Facebook."
+      },
+      {
+        "key": "edit_action",
+        "section": "Account details rows",
+        "description": "Small link on the right-hand side of every row that can be changed. The same word is used on all of them."
+      },
+      {
+        "key": "email_unavailable",
+        "section": "Account details rows",
+        "description": "FALLBACK — shown in the email row only when the account has no email address on record; normally the person's real email address is shown."
+      },
+      {
+        "key": "logout",
+        "section": "Buttons at the bottom",
+        "description": "Main button at the bottom of the screen, shown when someone is signed in."
+      },
+      {
+        "key": "delete_account",
+        "section": "Buttons at the bottom",
+        "description": "Second button at the bottom, shown when someone is signed in. The same words are reused as the heading and as the red confirm button on the delete-account screen."
+      },
+      {
+        "key": "create_account",
+        "section": "Buttons at the bottom",
+        "description": "Main button at the bottom, shown instead of the log-out button when nobody is signed in."
+      },
+      {
+        "key": "login",
+        "section": "Buttons at the bottom",
+        "description": "Second button at the bottom, shown instead of the delete button when nobody is signed in."
+      },
+      {
+        "key": "edit_first_name_title",
+        "section": "Edit name and email pop-ups",
+        "description": "Heading of the pop-up that slides up from the bottom when the edit link next to the first name is tapped."
+      },
+      {
+        "key": "edit_email_title",
+        "section": "Edit name and email pop-ups",
+        "description": "Heading of the pop-up that slides up when the edit link next to the email address is tapped."
+      },
+      {
+        "key": "save_changes",
+        "section": "Edit name and email pop-ups",
+        "description": "Main button inside both of those pop-ups."
+      },
+      {
+        "key": "cancel",
+        "section": "Edit name and email pop-ups",
+        "description": "Second button that closes a pop-up without changing anything. Shared by the edit pop-ups, the reset-password pop-up and the confirm-password pop-up."
+      },
+      {
+        "key": "reset_password_title",
+        "section": "Reset password pop-up",
+        "description": "Heading of the pop-up that slides up when the edit link next to the password is tapped."
+      },
+      {
+        "key": "reset_password_description",
+        "section": "Reset password pop-up",
+        "description": "Line under that heading explaining that a reset link will be emailed. The person's email address is shown in a box just below it."
+      },
+      {
+        "key": "reset_password_action",
+        "section": "Reset password pop-up",
+        "description": "Main button in that pop-up that sends the reset link."
+      },
+      {
+        "key": "reauthenticate_title",
+        "section": "Confirm password before deleting",
+        "description": "Heading of the pop-up that asks for the password one more time. Only shown part-way through deleting an account, and only when the person has not signed in recently."
+      },
+      {
+        "key": "reauthenticate_description",
+        "section": "Confirm password before deleting",
+        "description": "Line under that heading explaining why the password is being asked for again."
+      },
+      {
+        "key": "continue_action",
+        "section": "Confirm password before deleting",
+        "description": "Main button in that pop-up, tapped after typing the password."
+      },
+      {
+        "key": "save_failed",
+        "section": "Error messages",
+        "description": "Error shown as a small bar at the bottom, only when a new first name could not be saved."
+      },
+      {
+        "key": "email_edit_unavailable",
+        "section": "Error messages",
+        "description": "Message shown as a small bar at the bottom every time someone tries to save a new email address. Changing the email is not built yet, so this always appears."
+      },
+      {
+        "key": "delete_account_error",
+        "section": "Error messages",
+        "description": "Error shown only when deleting the account fails for an unexpected reason."
+      },
+      {
+        "key": "delete_account_requires_recent_login",
+        "section": "Error messages",
+        "description": "Error shown only when deleting fails because the person has not signed in recently enough."
+      },
+      {
+        "key": "reauthenticate_required",
+        "section": "Error messages",
+        "description": "Error shown only when the confirm-password step is submitted with nothing typed in."
+      },
+      {
+        "key": "reauthenticate_invalid",
+        "section": "Error messages",
+        "description": "Error shown only when the password typed to confirm the deletion is wrong."
+      },
+      {
+        "key": "guest_email_prompt",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently shown by the app — the whole email row is hidden when nobody is signed in, so this prompt never reaches the screen."
+      },
+      {
+        "key": "guest_password_prompt",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently shown by the app — the whole password row is hidden when nobody is signed in, so this prompt never reaches the screen."
+      },
+      {
+        "key": "details_header",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — a heading above the details rows from an older version of this screen. The rows now start straight after the main heading."
+      },
+      {
+        "key": "name_label",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — the row is labelled with the first-name label instead."
+      },
+      {
+        "key": "name_hint",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — grey placeholder text from an older name field that no longer exists."
+      },
+      {
+        "key": "save",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — button from an older version that saved the whole screen at once. Editing now happens in pop-ups."
+      },
+      {
+        "key": "saving",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — the \"in progress\" wording for that old save button."
+      },
+      {
+        "key": "saved",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — the confirmation message for that old save button."
+      },
+      {
+        "key": "reset_password_sent",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — the reset-password pop-up now shows its own full success screen instead of this short message."
+      },
+      {
+        "key": "reset_password_error",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — the reset-password pop-up now shows its own full failure screen with a retry button instead of this short message."
+      },
+      {
+        "key": "delete_account_title",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — the delete-account screen now uses different confirmation wording, which is not on this tab."
+      },
+      {
+        "key": "delete_account_description",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — replaced by the newer delete confirmation wording, which is not on this tab."
+      },
+      {
+        "key": "privacy_policy",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not currently used by the app — the Privacy Policy link sits on the main Profile screen, not on this one."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "Eleven keys have zero references anywhere in the app code and are leftovers from an earlier design of this screen: details_header, name_label, name_hint, save, saving, saved, reset_password_sent, reset_password_error, delete_account_title, delete_account_description, privacy_policy. They are kept in a trailing 'Currently unused' section rather than deleted, because removing them is a product/content decision.",
+      "guest_email_prompt and guest_password_prompt ARE referenced in the code but can never be seen: the account screen computes them and then hides the email and password rows entirely for signed-out visitors. Either the rows should be shown to guests (so these prompts appear) or both keys should be retired — a product decision.",
+      "email_edit_unavailable is not a rare error: saving a new email address always shows it, because email editing has not been implemented. Worth flagging to product — a translator will reasonably assume it is an edge case.",
+      "The app has grown newer strings on this screen that do NOT exist in the CMS schema, so they cannot be translated today: reset_password_sent_title, reset_password_sent_message, reset_password_done, reset_password_failed_title, reset_password_failed_message, reset_password_try_again, delete_account_confirmation_title, delete_account_confirmation_description, delete_account_confirmation_placeholder, not_now, confirm_identity_title, confirm_identity_description, and the sign_in_method_* group (label, email, apple, google, facebook, phone). Several are prominent (the whole delete confirmation screen and the reset-password success/failure screens). Adding them to the CMS schema is an engineering task, not something this ordering pass can fix.",
+      "delete_account is reused in three places (bottom button on the account screen, heading of the delete screen, red confirm button on the delete screen), so the wording has to work as both a heading and a button."
+    ]
+  },
+  {
+    "leaf": "profile.privacy",
+    "seedKey": "profile_privacy",
+    "title": "Privacy & Advertising (does not reach the app)",
+    "description": "WARNING — almost nothing on this tab currently reaches the app. The Privacy & Advertising screen was rebuilt and its text was renamed, so only one key below still matches what the app looks for. Editing the rest changes nothing on screen. Please do not spend time translating this tab until it has been rewired.",
+    "order": [
+      {
+        "key": "screen_title",
+        "section": "",
+        "description": "Not currently used by the app — the app reads a differently named key for the big heading at the top of the Privacy & Advertising screen."
+      },
+      {
+        "key": "advertising_title",
+        "section": "Advertising section",
+        "description": "Not currently used by the app — the app reads a differently named key. It was the name of the advertising setting, shown next to its on/off switch."
+      },
+      {
+        "key": "status_allowed",
+        "section": "Advertising section",
+        "description": "The one line on this tab that still reaches the app. Small grey status line under a setting's name when that setting is switched on. Used under both the advertising switch and the anonymous-analytics switch."
+      },
+      {
+        "key": "status_not_allowed",
+        "section": "Advertising section",
+        "description": "Not currently used by the app — the app reads a differently named key for the status line shown when a setting is switched off."
+      },
+      {
+        "key": "advertising_body_benefits",
+        "section": "Advertising section",
+        "description": "Not currently used by the app — the app reads a differently named key. It was the paragraph explaining why sharing this information helps a small non-profit spend its budget well."
+      },
+      {
+        "key": "advertising_body_change_hint",
+        "section": "Advertising section",
+        "description": "Not currently used by the app — the app reads a differently named key. It was the short closing line reminding people they can change the setting at any time."
+      },
+      {
+        "key": "advertising_platforms_header",
+        "section": "Advertising platforms list",
+        "description": "Not currently used by the app — the app has no list of advertising platforms on this screen at all. It names the three companies inside a sentence instead."
+      },
+      {
+        "key": "advertising_platform_meta",
+        "section": "Advertising platforms list",
+        "description": "Not currently used by the app — part of the platform list the app no longer has. A company name, so it usually stays untranslated anyway."
+      },
+      {
+        "key": "advertising_platform_google_ads",
+        "section": "Advertising platforms list",
+        "description": "Not currently used by the app — part of the platform list the app no longer has. A product name, so it usually stays untranslated anyway."
+      },
+      {
+        "key": "advertising_platform_apple_search_ads",
+        "section": "Advertising platforms list",
+        "description": "Not currently used by the app — part of the platform list the app no longer has. A product name, so it usually stays untranslated anyway."
+      },
+      {
+        "key": "product_analytics_title",
+        "section": "Anonymous analytics section",
+        "description": "Not currently used by the app — the app reads a differently named key. It was the name of the anonymous-analytics setting, shown next to its on/off switch."
+      },
+      {
+        "key": "product_analytics_description",
+        "section": "Anonymous analytics section",
+        "description": "Not currently used by the app — the app reads a differently named key. It was the paragraph explaining that usage information is anonymous and never sold."
+      },
+      {
+        "key": "learn_more_header",
+        "section": "Learn more links",
+        "description": "Not currently used by the app — the app reads a differently named key for the small heading above the two legal links near the bottom."
+      },
+      {
+        "key": "privacy_policy_title",
+        "section": "Learn more links",
+        "description": "Not currently used by the app — the Privacy Policy link on this screen takes its wording from the main Profile screen instead, so editing it here has no effect."
+      },
+      {
+        "key": "privacy_policy_subtitle",
+        "section": "Learn more links",
+        "description": "Not currently used by the app — the small grey line under the Privacy Policy link comes from the main Profile screen instead."
+      },
+      {
+        "key": "terms_and_conditions_title",
+        "section": "Learn more links",
+        "description": "Not currently used by the app — the Terms & Conditions link on this screen takes its wording from the main Profile screen instead."
+      },
+      {
+        "key": "terms_and_conditions_subtitle",
+        "section": "Learn more links",
+        "description": "Not currently used by the app — the small grey line under the Terms & Conditions link comes from the main Profile screen instead."
+      },
+      {
+        "key": "advertising_body_intro",
+        "section": "Advertising — longer paragraphs",
+        "description": "Not currently used by the app — the app reads differently named keys. It was the opening paragraph of the advertising section, which on screen sits just under the advertising switch and contains a tappable link."
+      },
+      {
+        "key": "advertising_body_never_share",
+        "section": "Advertising — longer paragraphs",
+        "description": "Not currently used by the app — the app reads differently named keys. It was the promise never to share personal practice details and never to sell data, which on screen sits in the middle of the advertising section."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "CONTRACT BREAK CONFIRMED BY GREP. The CMS leaf is 'profile.privacy'; the app's matching screen keeps its text under 'profile.privacy_advertising' in assets/l10n/en.yaml, and its keys were renamed to the ads_* / product_* family. Overrides are applied by exact key name within a mapped leaf, so a renamed key silently does nothing.",
+      "Exactly 1 of the 19 keys still matches a key the app looks for: status_allowed. Everything else is renamed, split, merged, or removed.",
+      "Name-by-name mapping to the app's current keys: screen_title→title, status_not_allowed→status_off, advertising_title→ads_title, advertising_body_benefits→ads_body_why, advertising_body_change_hint→ads_body_change_anytime, product_analytics_title→product_title, product_analytics_description→product_body, learn_more_header→learn_more. advertising_body_intro was split into ads_body_intro_before_link + what_we_share + ads_body_intro_after_link, and advertising_body_never_share into ads_body_never_share_lead + ads_body_never_share_middle + ads_body_never_sell_lead + ads_body_never_sell_tail — so the two richText keys cannot be mapped one-to-one and need a schema change, not just a rename.",
+      "advertising_platforms_header and the three advertising_platform_* keys have no app counterpart at all: the app no longer lists the platforms separately, it names Meta, Apple Search Ads and Google Ads inside the intro sentence. Removing them is a product decision, so they are kept.",
+      "The four legal-link keys (privacy_policy_title/subtitle, terms_and_conditions_title/subtitle) are duplicates: the screen renders those two rows from profile.main, not from this leaf. Either point the screen at this leaf or drop these four — a product/engineering decision.",
+      "The app screen also has strings with no home in this leaf at all: status_loading, status_allowed_on and status_off_since (these last two contain a {date} placeholder that must be kept), what_we_share, read_more_here, the whole 'are you sure you want to turn this off' confirmation screen (ads_off_confirm_question, ads_off_confirm_body_before_link, ads_off_confirm_body_after_link, keep_on, turn_off), and three error messages (load_error, ads_update_error, product_update_error). None of these can be translated today.",
+      "There is also no preview mapping for this leaf, so this tab cannot currently be previewed in the CMS the way profile.account can. Recommend hiding or clearly banner-warning this tab for translators until the schema is realigned with profile.privacy_advertising."
+    ]
+  }
+]

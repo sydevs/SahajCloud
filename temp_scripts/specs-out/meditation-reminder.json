@@ -1,0 +1,192 @@
+[
+  {
+    "leaf": "meditation.reminder",
+    "seedKey": "meditation_reminder",
+    "title": "Reminders (NOT CONNECTED TO THE APP)",
+    "description": "WARNING — NOTHING ON THIS TAB REACHES THE APP. Every text below is currently stored by the app under a different key name, so translating anything here has no effect on what people see. The copy is kept and described so it is ready the moment the connection is fixed; please do not delete it, but do not spend translation time here until a developer confirms it is live. What the texts are for: the flow that offers to remind you to come back and meditate later — the first offer, the requests to allow notifications, the sheet where you pick a day and time, the confirmation, and the reminder notification itself.",
+    "order": [
+      {
+        "key": "prompt_title",
+        "section": "Step 1 — The offer to set a reminder",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Heading of the panel that offers to schedule the meditation for later; appears when someone leaves or skips their first meditation."
+      },
+      {
+        "key": "prompt_subtitle",
+        "section": "Step 1 — The offer to set a reminder",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Sentence under that heading, explaining that a reminder will be sent."
+      },
+      {
+        "key": "prompt_set_reminder",
+        "section": "Step 1 — The offer to set a reminder",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Main button that accepts the offer. The same text is reused later as the confirm button after picking a time."
+      },
+      {
+        "key": "prompt_no_thanks",
+        "section": "Step 1 — The offer to set a reminder",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Button below it that declines the offer and closes the panel."
+      },
+      {
+        "key": "prompt_allow_notifications_title",
+        "section": "Step 2 — Asking to allow notifications",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Heading shown after accepting the offer, explaining that notifications are needed to send the reminder."
+      },
+      {
+        "key": "prompt_allow_notifications_subtitle",
+        "section": "Step 2 — Asking to allow notifications",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Line under that heading telling people to tap Allow on the phone's own pop-up that comes next."
+      },
+      {
+        "key": "prompt_allow_notifications_primary",
+        "section": "Step 2 — Asking to allow notifications",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Main button that triggers the phone's notification permission pop-up."
+      },
+      {
+        "key": "prompt_not_now",
+        "section": "Step 2 — Asking to allow notifications",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Button that postpones the permission request. Shown both here and on the 'notifications are switched off' panel below."
+      },
+      {
+        "key": "prompt_turn_on_notifications_title",
+        "section": "Step 3 — Only if notifications are switched off",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Only shown when notifications have already been refused or switched off: heading asking to turn them on."
+      },
+      {
+        "key": "prompt_turn_on_notifications_subtitle",
+        "section": "Step 3 — Only if notifications are switched off",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Only shown in that case: line explaining the switch has to be turned on in the phone's own settings."
+      },
+      {
+        "key": "prompt_open_settings",
+        "section": "Step 3 — Only if notifications are switched off",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Only shown in that case: button that opens the phone's settings."
+      },
+      {
+        "key": "allow_notifications_screen_title",
+        "section": "Full-screen version of the notifications request",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Heading of the full-screen version of the notifications request, shown during a meditation rather than in a small panel."
+      },
+      {
+        "key": "allow_notifications_screen_subtitle",
+        "section": "Full-screen version of the notifications request",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Sentence under that heading on the full-screen version."
+      },
+      {
+        "key": "sheet_title",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Heading at the top of the sheet that slides up for choosing when to be reminded."
+      },
+      {
+        "key": "preset_unwind_later_today",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder for later the same day — the first option in the list."
+      },
+      {
+        "key": "preset_start_your_week_calm",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Monday."
+      },
+      {
+        "key": "preset_find_your_midweek_balance",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Tuesday."
+      },
+      {
+        "key": "preset_pause_and_recharge",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Wednesday."
+      },
+      {
+        "key": "preset_mindful_break_before_weekend",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Thursday."
+      },
+      {
+        "key": "preset_end_your_week_with_peace",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Friday."
+      },
+      {
+        "key": "preset_slow_down_weekend",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Saturday."
+      },
+      {
+        "key": "preset_reset_for_week_ahead",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Name of the suggested reminder that falls on a Sunday."
+      },
+      {
+        "key": "sheet_dont_set",
+        "section": "Step 4 — Picking a day and time",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Button at the bottom of the sheet that closes it without setting anything. Appears both on the list of days and on the clock where the time is picked."
+      },
+      {
+        "key": "sheet_success_title",
+        "section": "Step 5 — Reminder confirmed",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Short heading with a tick shown once the reminder has been saved."
+      },
+      {
+        "key": "sheet_success_subtitle",
+        "section": "Step 5 — Reminder confirmed",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Sentence under that tick, promising a notification later."
+      },
+      {
+        "key": "sheet_explore_app",
+        "section": "Step 5 — Reminder confirmed",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Main button on the confirmation, which closes the sheet and lets people browse the app."
+      },
+      {
+        "key": "sheet_start_first_meditation",
+        "section": "Step 5 — Reminder confirmed",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Second button on the confirmation, which begins the meditation straight away instead of waiting."
+      },
+      {
+        "key": "sheet_done",
+        "section": "Step 5 — Reminder confirmed",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Replaces the main confirmation button when the reminder was set for a meditation that is still locked."
+      },
+      {
+        "key": "sheet_return_to_meditation",
+        "section": "Step 5 — Reminder confirmed",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Replaces the second confirmation button when the reminder was set from inside or just before a meditation; it takes people back to it."
+      },
+      {
+        "key": "sheet_leave_meditation",
+        "section": "Step 5 — Reminder confirmed",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Replaces the main confirmation button when the reminder was set by pressing back during a meditation; it confirms leaving the session."
+      },
+      {
+        "key": "sheet_error",
+        "section": "Errors",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Error shown only when the reminder could not be saved, as a short message at the bottom of the screen."
+      },
+      {
+        "key": "notification_title",
+        "section": "The reminder notification itself",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Title of the notification that arrives on the phone at the chosen time."
+      },
+      {
+        "key": "notification_body_locked",
+        "section": "The reminder notification itself",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Text of that notification when the reminder was set for a meditation that had not been unlocked yet."
+      },
+      {
+        "key": "notification_body_exit",
+        "section": "The reminder notification itself",
+        "description": "NOT USED BY THE APP — the app reads a differently-named text, so edits here have no effect. Text of that notification when the reminder was set on leaving or skipping a meditation."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "CONTRACT BREAK — CONFIRMED BY GREP: 0 of the 34 keys on this leaf reach the app. Not one. Verified two ways: (1) assets/l10n/en.yaml has no `meditation.reminder` node at all — the only children of `meditation:` are intent, duration, mood, player, footsoak, vibes_check, subtle_system; (2) all 34 strings exist verbatim under `meditation.intent`, each with a literal `reminder_` prefix on the key name (en.yaml lines 204-237, e.g. `reminder_prompt_title`, `reminder_sheet_title`, `reminder_preset_unwind_later_today`, `reminder_notification_title`, `reminder_allow_notifications_screen_title`). The app reads them as `context.el.meditation.intent.reminderPromptTitle` etc.",
+      "WHY NOTHING GETS THROUGH: the CMS-to-app overlay in lib/preview/translation_preview.dart applies a CMS leaf onto an app path by EXACT key name (`_deepOverlay` — a CMS key with no identically-named counterpart in the app tree is silently skipped). The mapping table in that file has an entry for appPath ['meditation','intent'] -> cmsPath ['meditation','intent'] and NO entry at all for cmsPath ['meditation','reminder']. So even if a mapping were added, every key would still be dropped, because `prompt_title` != `reminder_prompt_title`. Both halves are broken: the leaf is unmapped AND the key names differ.",
+      "WHAT A FIX NEEDS: a `keyPrefix` concept on the leaf mapping, not a per-key remap table. One mapping entry — cmsPath ['meditation','reminder'] -> appPath ['meditation','intent'] with keyPrefix 'reminder_' — makes `_deepOverlay` write `reminder_` + each CMS key into the meditation.intent map, and all 34 land at once. A 34-row remap would work too but is pure duplication and will rot as keys are added. Do NOT fix this by renaming CMS slugs to `reminder_*`: slugs are data, stored translations and the English seed are keyed on them, and a rename orphans every existing translation.",
+      "SECOND-ORDER RISK once the prefix fix lands: the CMS also has a separate `meditation.intent` leaf that already maps 1:1 onto the same app section. Both leaves would then write into meditation.intent. That is fine only as long as no `reminder_`-prefixed CMS key exists on the intent leaf. Worth a one-line guard or a check at implementation time. Note that `set_reminder_for_later` (en.yaml line 203) legitimately belongs to the intent leaf, not here — it is the entry-point link into this flow, not part of it.",
+      "TRANSLATOR TIME: because zero keys are live, this whole tab is currently a decoy. Recommend hiding it or leaving the warning prominent until the keyPrefix fix ships — otherwise translators will do 34 keys of work that renders nowhere.",
+      "No {token} placeholders in any of these 34 strings. Several do contain deliberate line breaks (\\n) — prompt_title, prompt_subtitle, sheet_title, allow_notifications_screen_subtitle — which translators should preserve so the text wraps as designed.",
+      "Order note: `prompt_set_reminder` and `sheet_dont_set` each appear at two points in the flow (the offer panel and the time picker; the day list and the time picker). Each is listed once, at its first appearance, and its description says where else it shows.",
+      "Order note: `sheet_done`, `sheet_return_to_meditation` and `sheet_leave_meditation` are not extra buttons — they are alternative labels that replace `sheet_explore_app` / `sheet_start_first_meditation` on the same confirmation screen, depending on where the reminder was set from. Grouped with them for that reason."
+    ]
+  }
+]

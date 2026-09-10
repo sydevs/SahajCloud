@@ -1,0 +1,271 @@
+[
+  {
+    "leaf": "path.overview",
+    "seedKey": "path_overview",
+    "title": null,
+    "description": "The Path tab's main list: the label above each group of steps, the message at the bottom of the list, and the error state.",
+    "order": [
+      {
+        "key": "unit",
+        "section": "",
+        "description": "Label above each group of steps on the Path list. The unit number is added after it automatically, so it reads like \"UNIT 1\"."
+      },
+      {
+        "key": "more_steps_coming_soon",
+        "section": "",
+        "description": "Message at the very bottom of the Path list, below the last step."
+      },
+      {
+        "key": "error_message",
+        "section": "",
+        "description": "Only shown when the Path fails to load — the message in the middle of the screen. The same message is also used when a step's article fails to load."
+      },
+      {
+        "key": "retry",
+        "section": "",
+        "description": "Only shown with that error message — the button that tries loading again."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "Reordered to match the screen: the unit label and the end-of-list message are what a user normally sees; the error message and Retry button only appear when loading fails.",
+      "error_message and retry are shared: they also appear on the step's Article section and on other Path routes when loading fails. Wording must stay generic enough for all of them."
+    ]
+  },
+  {
+    "leaf": "path.info",
+    "seedKey": "path_info",
+    "title": null,
+    "description": "Three full-screen intro slides about the Path, shown the first time the Path opens and from the info button on the Path screen. The user taps or swipes from one slide to the next.",
+    "order": [
+      {
+        "key": "first_title",
+        "section": "Slide 1",
+        "description": "Heading on the first slide."
+      },
+      {
+        "key": "first_text",
+        "section": "Slide 1",
+        "description": "Paragraph under that heading on the first slide."
+      },
+      {
+        "key": "second_title",
+        "section": "Slide 2",
+        "description": "Heading on the second slide."
+      },
+      {
+        "key": "second_text",
+        "section": "Slide 2",
+        "description": "Paragraph on the second slide. It contains a bulleted list — keep the line-break markers and the bullet characters exactly as they appear in the English text."
+      },
+      {
+        "key": "third_title",
+        "section": "Slide 3",
+        "description": "Heading on the third and last slide."
+      },
+      {
+        "key": "third_text",
+        "section": "Slide 3",
+        "description": "Paragraph on the last slide. Keep the line-break markers exactly as they appear in the English text."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "The Continue button on the last slide is not in this leaf — it reuses the Story section's Continue button (path.step_2.continue_button). Changing it there changes it here too.",
+      "second_text and third_text carry literal line-break markers in the source text; translators must not drop them or the slides run together."
+    ]
+  },
+  {
+    "leaf": "path.step_1",
+    "seedKey": "path_step_1",
+    "title": "Intro",
+    "description": "The opening section of a Path step: the step title, a photo, a quote with a credit under it, and the Begin button.",
+    "order": [
+      {
+        "key": "author",
+        "section": "",
+        "description": "The credit line printed under the quote. It is the same for every step — it always reads \"Shri Mataji Nirmala Devi\", even when the quote shown above it was written for that step by someone else. There is no per-step way to change this credit."
+      },
+      {
+        "key": "begin",
+        "section": "",
+        "description": "Button at the bottom that starts the step."
+      },
+      {
+        "key": "skip_title",
+        "section": "Leaving the step",
+        "description": "Question shown when the user taps the back arrow on this section and is asked whether to leave the step."
+      },
+      {
+        "key": "skip_continue",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere. The prompt for leaving the step uses the Meditation section's buttons instead (Exit / Back to step)."
+      },
+      {
+        "key": "back_to_path",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere. The prompt for leaving the step uses the Meditation section's \"Back to step\" button instead."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "CONFIRMED ISSUE — the credit under the quote is fixed to \"Shri Mataji Nirmala Devi\" for every step, while the quote itself comes from the step's own first panel. A step whose quote is by someone else will still be credited to Shri Mataji. A Path step has no author field at all, so this cannot be fixed by editing content — it needs a code/schema change.",
+      "The two buttons on this section's \"leave the step\" prompt come from the Meditation section (path.step_3.exit and path.step_3.back_to_step), not from here. That is why skip_continue and back_to_path are unused — they are leftovers from an earlier version of the prompt. Keys kept, nothing renamed.",
+      "The default quote text (default_intro_quote in the app) is not in the CMS, so the fallback quote shown when a step has no panel text cannot be translated here."
+    ]
+  },
+  {
+    "leaf": "path.step_2",
+    "seedKey": "path_step_2",
+    "title": "Story",
+    "description": "The swipeable full-screen story panels of a Path step.",
+    "order": [
+      {
+        "key": "continue_button",
+        "section": "",
+        "description": "Button that appears only on the last story panel and moves on to the meditation. The same wording is also used on the last of the three Path intro slides."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "This one button is shared with the Path intro slides (path.info), so a change here also changes the button at the end of those slides."
+    ]
+  },
+  {
+    "leaf": "path.step_3",
+    "seedKey": "path_step_3",
+    "title": "Meditation",
+    "description": "The spoken introduction that plays before the meditation, plus the prompts for skipping the introduction or leaving the step.",
+    "order": [
+      {
+        "key": "meditation_intro",
+        "section": "",
+        "description": "Heading at the top of the screen while the spoken introduction is playing."
+      },
+      {
+        "key": "skip_intro",
+        "section": "",
+        "description": "Text button at the bottom of that screen, offering to go straight to the meditation."
+      },
+      {
+        "key": "skip_title",
+        "section": "Skipping the introduction",
+        "description": "Question shown after tapping that button, asking whether to skip the introduction."
+      },
+      {
+        "key": "skip_continue",
+        "section": "Skipping the introduction",
+        "description": "Button on that question that goes straight to the meditation."
+      },
+      {
+        "key": "back_to_intro",
+        "section": "Skipping the introduction",
+        "description": "Button on that question that keeps listening to the introduction."
+      },
+      {
+        "key": "exit",
+        "section": "Leaving the step",
+        "description": "Button that leaves the step. It appears on the prompt shown when the user taps the back arrow on the Intro section."
+      },
+      {
+        "key": "back_to_step",
+        "section": "Leaving the step",
+        "description": "Button on that same prompt that stays in the step."
+      },
+      {
+        "key": "start_meditation",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere. The spoken introduction runs into the meditation on its own, so there is no Start Meditation button on this screen."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "exit and back_to_step live in this leaf but are only used by the Intro section's \"leave the step\" prompt. Their wording is written from that screen's point of view (\"Back to step\"). Kept here — renaming would break stored translations.",
+      "start_meditation is unused by design: the code notes there is deliberately no explicit Start Meditation button because the introduction auto-advances into the meditation."
+    ]
+  },
+  {
+    "leaf": "path.step_4",
+    "seedKey": "path_step_4",
+    "title": "Article",
+    "description": "The in-depth article at the end of a Path step. The article's own headings and text come from the article content, not from here — this leaf covers the talk card inside it and the button that finishes the step.",
+    "order": [
+      {
+        "key": "media_card_fallback_title",
+        "section": "Talk card",
+        "description": "FALLBACK — the title on the talk card, shown only when the talk itself has no title; normally the talk's own title is shown. This card appears wherever a talk is placed in content, not only in this Path article."
+      },
+      {
+        "key": "media_card_author",
+        "section": "Talk card",
+        "description": "The name shown under the talk card. It is the same for every talk card in the app — the speaker recorded with the talk is not used. Appears wherever a talk card is shown, not only in this Path article."
+      },
+      {
+        "key": "media_card_author_subtitle",
+        "section": "Talk card",
+        "description": "The smaller line under that name on the talk card. Also the same for every talk card in the app."
+      },
+      {
+        "key": "media_card_watch_later",
+        "section": "Talk card",
+        "description": "Button on the talk card that saves the talk to watch later. Appears wherever a talk card is shown."
+      },
+      {
+        "key": "complete_step",
+        "section": "Finishing the step",
+        "description": "Button at the end of the article that marks the step as completed."
+      },
+      {
+        "key": "delving_deeper",
+        "section": "Currently unused — needs a product decision",
+        "description": "NOT DISPLAYED — an old heading for the article section. The article now supplies its own headings, so nothing shows this text."
+      },
+      {
+        "key": "lecture_prompt",
+        "section": "Currently unused — needs a product decision",
+        "description": "NOT DISPLAYED — an old line introducing the talk before playing it. Nothing shows this text today."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "CONFIRMED ISSUE — the four media_card_* keys are in the wrong place. They are read by the shared talk card, which is rendered by any lecture-card block in CMS content (Daily completion, any article, etc.), not only by this Path step. Editing them here silently changes the card everywhere in the app. Keys left in place and kept in `order` so translators still see and translate them — renaming would break stored translations; moving them to a shared/global leaf is a code change.",
+      "CONFIRMED ISSUE — media_card_author and media_card_author_subtitle are fixed text for every talk. Talks do carry a speaker name in the CMS, but the card ignores it and always prints this fixed credit. Using the talk's own speaker name is a code change.",
+      "delving_deeper and lecture_prompt have zero usages in the app — the article screen renders only CMS content. Kept in a trailing unused section rather than deleted: whether the article should have a fixed \"Delving deeper\" heading and a talk intro line is a product decision, not a translation one."
+    ]
+  },
+  {
+    "leaf": "path.step_complete",
+    "seedKey": "path_step_complete",
+    "title": "Completed",
+    "description": "The screen shown after finishing a Path step.",
+    "order": [
+      {
+        "key": "title",
+        "section": "",
+        "description": "The large text in the middle of the completion screen."
+      },
+      {
+        "key": "subtitle",
+        "section": "",
+        "description": "The smaller line under that text."
+      },
+      {
+        "key": "back_to_path",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere. The button on this screen reads \"Continue\", and that wording is not editable in the CMS."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "The only button on this screen uses a \"Continue\" string that is not exposed in the CMS at all, so it cannot be translated here. back_to_path is a leftover from when the button read \"Back to Path\". Key kept, nothing renamed.",
+      "This screen also has a special first-meditation variant (\"Congratulations! / You have completed your first meditation!\"). Those two strings are likewise not exposed in the CMS, so that celebration screen cannot be translated. Worth adding if translation coverage matters."
+    ]
+  }
+]

@@ -1,0 +1,313 @@
+[
+  {
+    "id": 12,
+    "slug": "sushumna",
+    "page": 62,
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "frames": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-08T04:40:49.387Z",
+    "createdAt": "2026-04-28T12:13:43.276Z"
+  },
+  {
+    "id": 11,
+    "slug": "ida",
+    "page": 61,
+    "lectures": {
+      "docs": [
+        16
+      ],
+      "hasNextPage": false
+    },
+    "frames": {
+      "docs": [
+        109,
+        108,
+        2,
+        1
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-08T04:40:47.822Z",
+    "createdAt": "2026-04-28T12:13:41.529Z"
+  },
+  {
+    "id": 10,
+    "slug": "pingala",
+    "page": 60,
+    "lectures": {
+      "docs": [
+        17
+      ],
+      "hasNextPage": false
+    },
+    "frames": {
+      "docs": [
+        115,
+        114,
+        8,
+        7
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-08T04:40:46.240Z",
+    "createdAt": "2026-04-28T12:13:39.784Z"
+  },
+  {
+    "id": 9,
+    "slug": "kundalini",
+    "page": 63,
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "frames": {
+      "docs": [
+        124,
+        118,
+        117,
+        116,
+        77,
+        76,
+        75,
+        74,
+        55
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-08T04:40:50.964Z",
+    "createdAt": "2026-04-28T12:13:37.878Z"
+  },
+  {
+    "id": 8,
+    "slug": "sahasrara",
+    "page": 59,
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "frames": {
+      "docs": [
+        81,
+        80,
+        79,
+        78,
+        50,
+        49,
+        48,
+        47
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-08T04:40:44.649Z",
+    "createdAt": "2026-04-28T12:13:36.856Z"
+  },
+  {
+    "id": 7,
+    "slug": "agnya",
+    "page": 58,
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "frames": {
+      "docs": [
+        119,
+        111,
+        110,
+        63,
+        62,
+        61,
+        60,
+        59,
+        58,
+        57,
+        56,
+        46,
+        45,
+        44,
+        43,
+        42,
+        41,
+        40
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-08T04:40:43.093Z",
+    "createdAt": "2026-04-28T12:13:35.101Z"
+  },
+  {
+    "id": 6,
+    "slug": "vishuddhi",
+    "page": 57,
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "frames": {
+      "docs": [
+        121,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99,
+        98,
+        65,
+        64,
+        39,
+        38,
+        37,
+        36,
+        35,
+        34,
+        33,
+        32
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-08T04:40:41.512Z",
+    "createdAt": "2026-04-28T12:13:33.338Z"
+  },
+  {
+    "id": 5,
+    "slug": "anahat",
+    "page": 56,
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "frames": {
+      "docs": [
+        73,
+        72,
+        71,
+        70,
+        69,
+        68,
+        67,
+        66,
+        31,
+        30,
+        29,
+        28,
+        27,
+        26,
+        25,
+        24
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-08T04:40:39.965Z",
+    "createdAt": "2026-04-28T12:13:31.545Z"
+  },
+  {
+    "id": 4,
+    "slug": "void",
+    "page": 55,
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "frames": {
+      "docs": [
+        107,
+        106
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-08T04:40:37.514Z",
+    "createdAt": "2026-04-28T12:13:29.770Z"
+  },
+  {
+    "id": 3,
+    "slug": "nabhi",
+    "page": 54,
+    "lectures": {
+      "docs": [
+        19
+      ],
+      "hasNextPage": false
+    },
+    "frames": {
+      "docs": [
+        122,
+        89,
+        88,
+        87,
+        86,
+        85,
+        84,
+        83,
+        82,
+        23,
+        22,
+        21,
+        20,
+        19
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-08T04:40:34.718Z",
+    "createdAt": "2026-04-28T12:13:27.983Z"
+  },
+  {
+    "id": 2,
+    "slug": "swadhistan",
+    "page": 53,
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "frames": {
+      "docs": [
+        97,
+        96,
+        95,
+        94,
+        93,
+        92,
+        91,
+        90,
+        18,
+        17,
+        16,
+        15,
+        14,
+        13
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-08T04:40:32.607Z",
+    "createdAt": "2026-04-28T12:13:26.207Z"
+  },
+  {
+    "id": 1,
+    "slug": "mooladhara",
+    "page": 52,
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "frames": {
+      "docs": [
+        120,
+        113,
+        112,
+        53,
+        10,
+        9
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-06-08T04:40:30.994Z",
+    "createdAt": "2026-04-28T12:13:24.456Z"
+  }
+]

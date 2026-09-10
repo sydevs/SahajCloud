@@ -1,0 +1,252 @@
+[
+  {
+    "leaf": "profile.main",
+    "seedKey": "profile_main",
+    "title": null,
+    "description": "The landing screen of the Profile tab: the member's name and how long they have been a member, a strip of their favourite meditations, then the menu rows for History, Account settings, Contact us and the legal pages.",
+    "order": [
+      {
+        "key": "joined_fallback",
+        "section": "Under the member's name",
+        "description": "Shown when we do not know when the person joined, or when they joined less than a month ago."
+      },
+      {
+        "key": "joined_one_month",
+        "section": "Under the member's name",
+        "description": "Shown when the person joined exactly one month ago."
+      },
+      {
+        "key": "joined_months",
+        "section": "Under the member's name",
+        "description": "Shown when the person joined between two and eleven months ago. Keep the {months} placeholder — the number is filled in."
+      },
+      {
+        "key": "joined_one_year",
+        "section": "Under the member's name",
+        "description": "Shown for the whole first year of membership, from one year up to just under two years."
+      },
+      {
+        "key": "joined_years",
+        "section": "Under the member's name",
+        "description": "Shown from two years of membership onwards. Keep the {years} placeholder — the number of full years is filled in."
+      },
+      {
+        "key": "favourites_header",
+        "section": "My favourites",
+        "description": "Small heading above the row of favourite meditations."
+      },
+      {
+        "key": "see_all",
+        "section": "My favourites",
+        "description": "Link on the right of that heading that opens the full Favourites list. Always visible, even when there are no favourites."
+      },
+      {
+        "key": "no_favourites_title",
+        "section": "My favourites",
+        "description": "Title of the placeholder card shown in place of the favourites row when the person has not saved anything yet. The same text is also used on the full Favourites screen when it is empty."
+      },
+      {
+        "key": "no_favourites_subtitle",
+        "section": "My favourites",
+        "description": "Explaining line under that placeholder title. Also reused on the empty Favourites screen."
+      },
+      {
+        "key": "history_title",
+        "section": "Activity and account",
+        "description": "Title of the first menu row, which opens the History screen."
+      },
+      {
+        "key": "history_subtitle",
+        "section": "Activity and account",
+        "description": "Smaller line under the History row title."
+      },
+      {
+        "key": "account_title",
+        "section": "Activity and account",
+        "description": "Title of the second menu row, which opens Account settings."
+      },
+      {
+        "key": "account_subtitle",
+        "section": "Activity and account",
+        "description": "Smaller line under the Account settings row title."
+      },
+      {
+        "key": "feedback_header",
+        "section": "Feedback",
+        "description": "Small heading that introduces the Contact us row."
+      },
+      {
+        "key": "contact_title",
+        "section": "Feedback",
+        "description": "Title of the Contact us row, which opens the feedback form."
+      },
+      {
+        "key": "contact_subtitle",
+        "section": "Feedback",
+        "description": "Smaller line under the Contact us row title."
+      },
+      {
+        "key": "legal_header",
+        "section": "Legal",
+        "description": "Small heading above the last group of rows at the bottom of the screen."
+      },
+      {
+        "key": "privacy_policy_title",
+        "section": "Legal",
+        "description": "Title of the row that opens the Privacy Policy."
+      },
+      {
+        "key": "privacy_policy_subtitle",
+        "section": "Legal",
+        "description": "Smaller line under the Privacy Policy row title."
+      },
+      {
+        "key": "terms_and_conditions_title",
+        "section": "Legal",
+        "description": "Title of the row that opens the Terms & Conditions."
+      },
+      {
+        "key": "terms_and_conditions_subtitle",
+        "section": "Legal",
+        "description": "Smaller line under the Terms & Conditions row title."
+      },
+      {
+        "key": "privacy_and_advertising_title",
+        "section": "Legal",
+        "description": "Title of the last row on the screen, which opens the privacy and advertising choices."
+      },
+      {
+        "key": "privacy_and_advertising_subtitle",
+        "section": "Legal",
+        "description": "Smaller line under that last row title."
+      },
+      {
+        "key": "joined_less_than_year",
+        "section": "Currently unused — needs a product decision",
+        "description": "Appears unused — the app’s five “member since” options never pick this one. Kept pending a product decision."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "How the joined line is chosen (from the app's own rule): no join date or under 1 full month -> joined_fallback; exactly 1 month -> joined_one_month; 2-11 months -> joined_months; 12-23 months -> joined_one_year; 24 months and above -> joined_years with the number of full years.",
+      "joined_less_than_year is marked dead: the app's five buckets never select it, and it has zero references anywhere in the app source (it exists only in the English string files). Translating it has no effect.",
+      "CONTRACT BREAK — the app reads privacy_advertising_title / privacy_advertising_subtitle (no 'and'), while the CMS key is privacy_and_advertising_title / privacy_and_advertising_subtitle. The row is genuinely on screen, last in the Legal group, so both keys are kept in order — but as things stand any translation entered here will never reach the app, which falls back to the bundled English. Someone needs to align the two names (rename on the app side, or map it in the export). Do not rename the CMS slug without also changing the app.",
+      "no_favourites_title / no_favourites_subtitle are shared: they are the empty state both for the favourites strip on this screen and for the full Favourites screen (profile.favourites). Wording has to work in both places."
+    ]
+  },
+  {
+    "leaf": "profile.favourites",
+    "seedKey": "profile_favourites",
+    "title": null,
+    "description": "The full list of meditations and talks the member has saved, opened from 'See All' on the Profile screen.",
+    "order": [
+      {
+        "key": "title",
+        "section": "",
+        "description": "Heading at the top of the Favourites screen."
+      },
+      {
+        "key": "removed_from_favourites",
+        "section": "",
+        "description": "Brief message that pops up at the bottom after the member unlikes an item; it comes with an Undo button."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "This screen's empty state does not live here — when the list is empty it shows no_favourites_title / no_favourites_subtitle from profile.main.",
+      "The Undo label on the removal message comes from the shared general strings, not from this leaf."
+    ]
+  },
+  {
+    "leaf": "profile.history",
+    "seedKey": "profile_history",
+    "title": null,
+    "description": "The list of the member's past meditations and other activity, opened from the History row on the Profile screen.",
+    "order": [
+      {
+        "key": "title",
+        "section": "",
+        "description": "Heading at the top of the History screen."
+      },
+      {
+        "key": "empty_title",
+        "section": "",
+        "description": "Title of the placeholder card shown when the member has no activity yet."
+      },
+      {
+        "key": "empty_subtitle",
+        "section": "",
+        "description": "Explaining line under that placeholder title."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": []
+  },
+  {
+    "leaf": "profile.contact",
+    "seedKey": "profile_contact",
+    "title": null,
+    "description": "The Contact us form, opened from the Profile screen: a short invitation to write in, a large message box and a Send button.",
+    "order": [
+      {
+        "key": "title",
+        "section": "Top of the screen",
+        "description": "Heading at the top of the Contact us screen."
+      },
+      {
+        "key": "header",
+        "section": "Top of the screen",
+        "description": "Centred paragraph below the heading inviting the member to send feedback. This is the only intro text on the screen."
+      },
+      {
+        "key": "min_length_error",
+        "section": "Message box",
+        "description": "Warning that appears just above the message box, and turns its border red, when Send is tapped and the message is shorter than 50 characters. It also covers the case of an empty message."
+      },
+      {
+        "key": "placeholder",
+        "section": "Message box",
+        "description": "Faint hint text inside the empty message box."
+      },
+      {
+        "key": "send",
+        "section": "Send button",
+        "description": "Label on the button at the bottom of the screen."
+      },
+      {
+        "key": "sending",
+        "section": "Send button",
+        "description": "Replaces the button label for the moment the message is being sent."
+      },
+      {
+        "key": "sent",
+        "section": "After sending",
+        "description": "Thank-you message that pops up at the bottom once the feedback has been sent; the message box is cleared."
+      },
+      {
+        "key": "send_error",
+        "section": "After sending",
+        "description": "Message shown only when sending fails, for example with no internet connection. The typed message is kept so it can be sent again."
+      },
+      {
+        "key": "subtitle",
+        "section": "Currently unused — needs a product decision",
+        "description": "Appears unused — it duplicates the header line above and is never read. Kept pending a product decision."
+      },
+      {
+        "key": "empty_error",
+        "section": "Currently unused — needs a product decision",
+        "description": "Appears unused — sending an empty message shows the minimum-length message instead. Kept pending a product decision."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "subtitle is marked dead: it holds exactly the same English sentence as header, and the screen only ever displays header. It is a leftover duplicate with zero references in the app.",
+      "empty_error is marked dead: the form has a single check — at least 50 characters — so an empty message shows min_length_error, and empty_error is never displayed. If the team wants a distinct wording for a completely empty box, that is a product change in the app, not a translation fix."
+    ]
+  }
+]

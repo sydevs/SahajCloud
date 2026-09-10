@@ -1,0 +1,265 @@
+[
+  {
+    "leaf": "explore.subtle_system",
+    "seedKey": "explore_subtle_system",
+    "title": null,
+    "description": "The Subtle System screen — a tall body diagram you tap to explore the chakras and energy channels, plus the pop-up that opens when a point on the diagram is tapped.",
+    "order": [
+      {
+        "key": "screen_label",
+        "section": "Top of the screen",
+        "description": "Small heading in the bar at the very top of the screen. Shown in capital letters."
+      },
+      {
+        "key": "diagram_title",
+        "section": "Top of the screen",
+        "description": "Big heading above the body diagram. When the same diagram appears in the summary after a meditation, a heading set on that meditation in the CMS replaces this one."
+      },
+      {
+        "key": "diagram_subtitle",
+        "section": "Top of the screen",
+        "description": "Short line under the big heading, telling people they can tap the points on the diagram. Leave it empty to hide the line."
+      },
+      {
+        "key": "mode_chakras",
+        "section": "Chakras / Channels switch",
+        "description": "Label of the left button under the diagram, which switches the diagram to show the chakras."
+      },
+      {
+        "key": "mode_channels",
+        "section": "Chakras / Channels switch",
+        "description": "Label of the right button under the diagram, which switches the diagram to show the energy channels."
+      },
+      {
+        "key": "front_view_mirrored",
+        "section": "Pop-up when a point is tapped",
+        "description": "Small grey note in the top-left corner of the pop-up, explaining that the body is seen from the front so left and right look swapped."
+      },
+      {
+        "key": "chip_right",
+        "section": "Pop-up when a point is tapped",
+        "description": "First of the three side buttons at the bottom of the pop-up, for showing the right side."
+      },
+      {
+        "key": "chip_center",
+        "section": "Pop-up when a point is tapped",
+        "description": "Second of the three side buttons at the bottom of the pop-up, for showing the centre."
+      },
+      {
+        "key": "chip_left",
+        "section": "Pop-up when a point is tapped",
+        "description": "Third of the three side buttons at the bottom of the pop-up, for showing the left side."
+      },
+      {
+        "key": "aspect_right",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere in the app right now. The pop-up uses the shorter \"Right\" button label instead."
+      },
+      {
+        "key": "aspect_center",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere in the app right now. The pop-up uses the shorter \"Center\" button label instead."
+      },
+      {
+        "key": "aspect_left",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere in the app right now. The pop-up uses the shorter \"Left\" button label instead."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "aspect_right / aspect_center / aspect_left (\"Right Aspect\", \"Center Aspect\", \"Left Aspect\") have zero usages in the app; only the generated localization accessor references them. They look like longer labels that were superseded by chip_right/chip_center/chip_left in the tapped-point pop-up. Kept in order under the trailing unused section — removing them is a product decision.",
+      "diagram_title and diagram_subtitle are used two ways: on the standalone Subtle System screen they are the real text, but when the diagram is embedded in the post-meditation summary a CMS-set heading/subheading overrides them. The description says this in plain words rather than calling it a fallback.",
+      "The same YAML block also holds worked_on_title / worked_on_subtitle, which were not assigned to this leaf — presumably they live on a meditation-summary leaf. Worth confirming they are covered somewhere."
+    ]
+  },
+  {
+    "leaf": "explore.talks_intro",
+    "seedKey": "explore_talks_intro",
+    "title": null,
+    "description": "The screen that introduces Shri Mataji's talks before a video plays. It comes in two looks: the ordinary intro (used from Explore, from the daily meditation, and when opening one specific clip), and a separate portrait version shown once, right after someone finishes their first meditation.",
+    "order": [
+      {
+        "key": "title",
+        "section": "Ordinary intro",
+        "description": "Heading at the top of the intro, naming the talks. Shown on every version except the one after the first meditation."
+      },
+      {
+        "key": "clip_description",
+        "section": "Ordinary intro",
+        "description": "Short line under the heading. Only shown when the intro is for one particular video clip, including when it is opened from the daily meditation."
+      },
+      {
+        "key": "generic_description",
+        "section": "Ordinary intro",
+        "description": "The long paragraph about Shri Mataji, below her photo. Not shown on the short single-clip version of the intro."
+      },
+      {
+        "key": "watch_now",
+        "section": "Ordinary intro",
+        "description": "Label of the button at the bottom that opens the video. The running time is added in brackets after it automatically. Shown on every version except the one after the first meditation."
+      },
+      {
+        "key": "post_first_meditation_name",
+        "section": "Shown right after the first meditation",
+        "description": "Name shown just under the portrait, on the special version of this screen that appears once someone has finished their first meditation."
+      },
+      {
+        "key": "post_first_meditation_subtitle",
+        "section": "Shown right after the first meditation",
+        "description": "Small italic line under the name on that same after-the-first-meditation screen."
+      },
+      {
+        "key": "post_first_meditation_description",
+        "section": "Shown right after the first meditation",
+        "description": "The sentence in the middle of that screen, inviting the person to watch the talk."
+      },
+      {
+        "key": "start",
+        "section": "Shown right after the first meditation",
+        "description": "Label of the main button on that screen. The running time is added in brackets after it automatically. Only used there — every other version of the intro uses the \"Watch now\" label instead."
+      },
+      {
+        "key": "maybe_later",
+        "section": "Shown right after the first meditation",
+        "description": "Label of the quieter second button under the main one, for skipping the video. Only on the after-the-first-meditation screen."
+      },
+      {
+        "key": "unavailable",
+        "section": "Errors",
+        "description": "Brief message that slides up from the bottom of the screen only when a talk cannot be opened."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "Two clearly distinct variant sets. The post_first_meditation_* keys plus start and maybe_later belong exclusively to the portrait screen shown after someone's first meditation; every other variant (Explore intro, daily-meditation intro, single-clip intro) uses title / clip_description / generic_description / watch_now.",
+      "The 'Learn from the source' label above the heading on the daily-meditation version comes from a different leaf (home.daily), not from here."
+    ]
+  },
+  {
+    "leaf": "explore.talks_list",
+    "seedKey": "explore_talks_list",
+    "title": null,
+    "description": "The list of Shri Mataji's talks — a large featured talk at the top, then a short intro block, then the rows of remaining talks.",
+    "order": [
+      {
+        "key": "screen_title",
+        "section": "Top of the screen",
+        "description": "Small heading in the bar at the very top of the screen. Shown in capital letters."
+      },
+      {
+        "key": "section_title",
+        "section": "Intro block under the featured talk",
+        "description": "FALLBACK — heading of the intro block below the featured talk; normally the heading entered on the talks page in the CMS is shown."
+      },
+      {
+        "key": "description",
+        "section": "Intro block under the featured talk",
+        "description": "FALLBACK — paragraph under that heading; normally the text entered on the talks page in the CMS is shown."
+      },
+      {
+        "key": "learn_more",
+        "section": "Intro block under the featured talk",
+        "description": "FALLBACK — label of the link under that paragraph, which opens the Shri Mataji page on the website; normally the link label entered in the CMS is shown."
+      },
+      {
+        "key": "watched",
+        "section": "Talk rows",
+        "description": "Small grey word under a talk's name in the list. Only shown for talks the person has already watched."
+      },
+      {
+        "key": "all_tags",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere in the app right now. It was meant for a filter above the list, which was never built."
+      },
+      {
+        "key": "start",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere in the app right now. Talks are opened by tapping the row, so no Start button is drawn."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "all_tags and start have zero usages in the app. The list rows carry tag data but no filter control is rendered, and rows have no Start button — both look like designed-but-unbuilt UI, so they are kept under the trailing unused section rather than deleted.",
+      "section_title, description and learn_more are only used when the CMS talks page leaves the corresponding field empty. Extra subtlety worth knowing: if the CMS supplies a description but no learn-more label/URL, the link is hidden entirely rather than falling back to this text."
+    ]
+  },
+  {
+    "leaf": "explore.talks_player",
+    "seedKey": "explore_talks_player",
+    "title": null,
+    "description": "The video player for a talk — the playback controls and the subtitles menu that slides up from the bottom.",
+    "order": [
+      {
+        "key": "replay",
+        "section": "Playback controls",
+        "description": "Label of the button that plays the talk again. It appears after the short talk on the vibes-check screen has finished."
+      },
+      {
+        "key": "subtitles_title",
+        "section": "Subtitles menu",
+        "description": "Heading at the top of the subtitles menu that slides up from the bottom of the player."
+      },
+      {
+        "key": "subtitles_off",
+        "section": "Subtitles menu",
+        "description": "First option in the subtitles menu, for turning subtitles off. Always listed."
+      },
+      {
+        "key": "subtitles_english",
+        "section": "Subtitles menu",
+        "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language."
+      },
+      {
+        "key": "subtitles_turkish",
+        "section": "Subtitles menu",
+        "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language."
+      },
+      {
+        "key": "subtitles_bulgarian",
+        "section": "Subtitles menu",
+        "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language."
+      },
+      {
+        "key": "subtitles_portuguese_brazil",
+        "section": "Subtitles menu",
+        "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language."
+      },
+      {
+        "key": "subtitles_french",
+        "section": "Subtitles menu",
+        "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language."
+      },
+      {
+        "key": "subtitles_spanish",
+        "section": "Subtitles menu",
+        "description": "Names a language as it appears in the subtitles menu. Only listed when the talk actually has subtitles in that language."
+      },
+      {
+        "key": "unavailable",
+        "section": "Errors",
+        "description": "Message shown in place of the video only when the talk cannot be loaded."
+      },
+      {
+        "key": "play",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere in the app right now. The player uses a picture-only play button with no text."
+      },
+      {
+        "key": "pause",
+        "section": "Currently unused — needs a product decision",
+        "description": "Not shown anywhere in the app right now. The player uses a picture-only pause button with no text."
+      }
+    ],
+    "dead": [],
+    "misfiled": [],
+    "notes": [
+      "play and pause have zero usages in the app — the player's controls are icon-only with no visible or spoken text label. Kept under the trailing unused section; removing them (or wiring them up as accessibility labels, which would be the better fix) is a product decision.",
+      "replay is the only playback label in real use, and it is used on the vibes-check screen rather than on the full talk player. The description says where it actually appears.",
+      "The six language names are shown in whatever order the talk's own subtitle tracks come back in, so the order in this editor does not control the on-screen order. \"Off\" is always the first entry. A talk with a subtitle language not in this list shows the raw language code in capitals instead."
+    ]
+  }
+]

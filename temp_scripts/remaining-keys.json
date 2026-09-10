@@ -1,0 +1,421 @@
+{
+  "profile.main": {
+    "seedKey": "profile_main",
+    "title": null,
+    "keys": [
+      "favourites_header",
+      "see_all",
+      "no_favourites_title",
+      "no_favourites_subtitle",
+      "history_title",
+      "history_subtitle",
+      "account_title",
+      "account_subtitle",
+      "privacy_and_advertising_title",
+      "privacy_and_advertising_subtitle",
+      "feedback_header",
+      "contact_title",
+      "contact_subtitle",
+      "joined_fallback",
+      "joined_one_month",
+      "joined_months",
+      "joined_less_than_year",
+      "joined_one_year",
+      "joined_years",
+      "legal_header",
+      "privacy_policy_title",
+      "privacy_policy_subtitle",
+      "terms_and_conditions_title",
+      "terms_and_conditions_subtitle"
+    ]
+  },
+  "profile.favourites": {
+    "seedKey": "profile_favourites",
+    "title": null,
+    "keys": [
+      "title",
+      "removed_from_favourites"
+    ]
+  },
+  "profile.history": {
+    "seedKey": "profile_history",
+    "title": null,
+    "keys": [
+      "title",
+      "empty_title",
+      "empty_subtitle"
+    ]
+  },
+  "profile.contact": {
+    "seedKey": "profile_contact",
+    "title": null,
+    "keys": [
+      "title",
+      "header",
+      "subtitle",
+      "placeholder",
+      "send",
+      "sending",
+      "sent",
+      "empty_error",
+      "min_length_error",
+      "send_error"
+    ]
+  },
+  "profile.account": {
+    "seedKey": "profile_account",
+    "title": null,
+    "keys": [
+      "title",
+      "details_header",
+      "name_label",
+      "name_hint",
+      "save",
+      "saving",
+      "saved",
+      "first_name_label",
+      "email_label",
+      "password_label",
+      "edit_action",
+      "edit_first_name_title",
+      "edit_email_title",
+      "cancel",
+      "save_changes",
+      "save_failed",
+      "reset_password_title",
+      "reset_password_description",
+      "reset_password_action",
+      "reset_password_sent",
+      "reset_password_error",
+      "email_edit_unavailable",
+      "email_unavailable",
+      "create_account",
+      "delete_account_title",
+      "delete_account_description",
+      "delete_account_error",
+      "delete_account_requires_recent_login",
+      "reauthenticate_title",
+      "reauthenticate_description",
+      "reauthenticate_required",
+      "reauthenticate_invalid",
+      "continue_action",
+      "guest_email_prompt",
+      "guest_password_prompt",
+      "login",
+      "logout",
+      "privacy_policy",
+      "delete_account"
+    ]
+  },
+  "profile.privacy": {
+    "seedKey": "profile_privacy",
+    "title": null,
+    "keys": [
+      "screen_title",
+      "status_allowed",
+      "status_not_allowed",
+      "product_analytics_title",
+      "product_analytics_description",
+      "advertising_title",
+      "advertising_body_benefits",
+      "advertising_body_never_share [richText]",
+      "advertising_body_change_hint",
+      "advertising_platforms_header",
+      "advertising_platform_meta",
+      "advertising_platform_google_ads",
+      "advertising_platform_apple_search_ads",
+      "advertising_body_intro [richText]",
+      "learn_more_header",
+      "privacy_policy_title",
+      "privacy_policy_subtitle",
+      "terms_and_conditions_title",
+      "terms_and_conditions_subtitle"
+    ]
+  },
+  "meditation.intent": {
+    "seedKey": "meditation_intent",
+    "title": null,
+    "keys": [
+      "carousel_continue",
+      "skip_video_and_continue",
+      "repeat_video",
+      "start_meditation",
+      "skip_and_explore_the_app",
+      "step_label",
+      "title_today",
+      "title_tonight",
+      "first_meditation_title",
+      "first_meditation_subtitle",
+      "repeat_first_meditation_title",
+      "repeat_first_meditation_subtitle",
+      "ready_to_try_title",
+      "ready_to_try_subtitle_beginner",
+      "ready_to_try_subtitle_repeat",
+      "quick_morning_title",
+      "quick_afternoon_title",
+      "quick_evening_title",
+      "quick_morning_subtitle",
+      "quick_afternoon_subtitle",
+      "quick_evening_subtitle",
+      "personalized_title",
+      "personalized_subtitle",
+      "locked_subtitle",
+      "learn_more",
+      "go_to_first_meditation",
+      "set_reminder_for_later",
+      "locked_quick_start_title",
+      "locked_quick_start_description_morning",
+      "locked_quick_start_description_afternoon",
+      "locked_quick_start_description_evening",
+      "locked_quick_custom_time_title",
+      "locked_quick_custom_time_description",
+      "locked_personalized_feeling_title",
+      "locked_personalized_feeling_description",
+      "locked_personalized_custom_time_title",
+      "locked_personalized_custom_time_description"
+    ]
+  },
+  "meditation.reminder": {
+    "seedKey": "meditation_reminder",
+    "title": null,
+    "keys": [
+      "prompt_title",
+      "prompt_subtitle",
+      "prompt_set_reminder",
+      "prompt_no_thanks",
+      "prompt_allow_notifications_title",
+      "prompt_allow_notifications_subtitle",
+      "prompt_allow_notifications_primary",
+      "prompt_not_now",
+      "prompt_turn_on_notifications_title",
+      "prompt_turn_on_notifications_subtitle",
+      "prompt_open_settings",
+      "sheet_title",
+      "sheet_dont_set",
+      "sheet_done",
+      "sheet_return_to_meditation",
+      "sheet_leave_meditation",
+      "sheet_success_title",
+      "sheet_success_subtitle",
+      "sheet_explore_app",
+      "sheet_start_first_meditation",
+      "sheet_error",
+      "preset_unwind_later_today",
+      "preset_start_your_week_calm",
+      "preset_find_your_midweek_balance",
+      "preset_pause_and_recharge",
+      "preset_mindful_break_before_weekend",
+      "preset_end_your_week_with_peace",
+      "preset_slow_down_weekend",
+      "preset_reset_for_week_ahead",
+      "notification_title",
+      "notification_body_locked",
+      "notification_body_exit",
+      "allow_notifications_screen_title",
+      "allow_notifications_screen_subtitle"
+    ]
+  },
+  "meditation.footsoak": {
+    "seedKey": "meditation_footsoak",
+    "title": null,
+    "keys": [
+      "step_label",
+      "title",
+      "tutorial_cta",
+      "start_with_footsoak",
+      "start_meditation",
+      "description [richText]"
+    ]
+  },
+  "meditation.player": {
+    "seedKey": "meditation_player",
+    "title": null,
+    "keys": [
+      "load_error_title"
+    ]
+  },
+  "meditation.vibes_check": {
+    "seedKey": "meditation_vibes_check",
+    "title": null,
+    "keys": [
+      "intro_question",
+      "question_prefix",
+      "question_suffix",
+      "left_hand",
+      "right_hand",
+      "cool",
+      "warm",
+      "fingers_tingling",
+      "nothing",
+      "continue_action",
+      "not_sure",
+      "got_it",
+      "interpretation_nothing",
+      "interpretation_intro",
+      "interpretation_detail",
+      "skip_vibes_check",
+      "skip_prompt_title",
+      "skip_prompt_description",
+      "back_to_explanation",
+      "return_to_meditation_prompt_title",
+      "return_to_meditation_prompt_description",
+      "return_to_meditation_action",
+      "skip_it"
+    ]
+  },
+  "meditation.feedback": {
+    "seedKey": "meditation_feedback",
+    "title": null,
+    "keys": [
+      "title",
+      "description",
+      "error_length",
+      "hint",
+      "send",
+      "thank_you",
+      "thank_you_description",
+      "close"
+    ]
+  },
+  "explore.subtle_system": {
+    "seedKey": "explore_subtle_system",
+    "title": null,
+    "keys": [
+      "screen_label",
+      "diagram_title",
+      "diagram_subtitle",
+      "mode_chakras",
+      "mode_channels",
+      "front_view_mirrored",
+      "chip_right",
+      "chip_center",
+      "chip_left",
+      "aspect_right",
+      "aspect_center",
+      "aspect_left"
+    ]
+  },
+  "explore.talks_intro": {
+    "seedKey": "explore_talks_intro",
+    "title": null,
+    "keys": [
+      "unavailable",
+      "title",
+      "generic_description",
+      "clip_description",
+      "post_first_meditation_name",
+      "post_first_meditation_subtitle",
+      "post_first_meditation_description",
+      "start",
+      "maybe_later",
+      "watch_now"
+    ]
+  },
+  "explore.talks_list": {
+    "seedKey": "explore_talks_list",
+    "title": null,
+    "keys": [
+      "screen_title",
+      "section_title",
+      "description",
+      "all_tags",
+      "learn_more",
+      "start",
+      "watched"
+    ]
+  },
+  "explore.talks_player": {
+    "seedKey": "explore_talks_player",
+    "title": null,
+    "keys": [
+      "unavailable",
+      "play",
+      "pause",
+      "replay",
+      "subtitles_title",
+      "subtitles_off",
+      "subtitles_english",
+      "subtitles_turkish",
+      "subtitles_bulgarian",
+      "subtitles_portuguese_brazil",
+      "subtitles_french",
+      "subtitles_spanish"
+    ]
+  },
+  "path.overview": {
+    "seedKey": "path_overview",
+    "title": null,
+    "keys": [
+      "error_message",
+      "unit",
+      "retry",
+      "more_steps_coming_soon"
+    ]
+  },
+  "path.info": {
+    "seedKey": "path_info",
+    "title": null,
+    "keys": [
+      "first_title",
+      "first_text",
+      "second_title",
+      "second_text",
+      "third_title",
+      "third_text"
+    ]
+  },
+  "path.step_1": {
+    "seedKey": "path_step_1",
+    "title": "Intro",
+    "keys": [
+      "author",
+      "begin",
+      "skip_title",
+      "skip_continue",
+      "back_to_path"
+    ]
+  },
+  "path.step_2": {
+    "seedKey": "path_step_2",
+    "title": "Story",
+    "keys": [
+      "continue_button"
+    ]
+  },
+  "path.step_3": {
+    "seedKey": "path_step_3",
+    "title": "Meditation",
+    "keys": [
+      "meditation_intro",
+      "skip_intro",
+      "start_meditation",
+      "skip_title",
+      "skip_continue",
+      "back_to_intro",
+      "exit",
+      "back_to_step"
+    ]
+  },
+  "path.step_4": {
+    "seedKey": "path_step_4",
+    "title": "Article",
+    "keys": [
+      "delving_deeper",
+      "lecture_prompt",
+      "media_card_fallback_title",
+      "media_card_author",
+      "media_card_author_subtitle",
+      "media_card_watch_later",
+      "complete_step"
+    ]
+  },
+  "path.step_complete": {
+    "seedKey": "path_step_complete",
+    "title": "Completed",
+    "keys": [
+      "title",
+      "subtitle",
+      "back_to_path"
+    ]
+  }
+}

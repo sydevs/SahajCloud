@@ -1,0 +1,374 @@
+[
+  {
+    "id": 6,
+    "label": "New users",
+    "pathProgress": {
+      "min": null,
+      "max": null
+    },
+    "meditationsPerWeek": {
+      "min": null,
+      "max": null
+    },
+    "totalMeditationsViewed": {
+      "min": null,
+      "max": 0
+    },
+    "totalLecturesViewed": {
+      "min": null,
+      "max": null
+    },
+    "location": {
+      "countries": []
+    },
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "appCards": {
+      "docs": [
+        39
+      ],
+      "hasNextPage": false
+    },
+    "appCardConditions": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-05-11T11:18:44.161Z",
+    "createdAt": "2026-05-11T11:18:44.161Z"
+  },
+  {
+    "id": 5,
+    "label": "Users in countries with Atlas programs",
+    "pathProgress": {
+      "min": 0,
+      "max": null
+    },
+    "meditationsPerWeek": {
+      "min": null,
+      "max": null
+    },
+    "totalMeditationsViewed": {
+      "min": null,
+      "max": null
+    },
+    "totalLecturesViewed": {
+      "min": null,
+      "max": null
+    },
+    "location": {
+      "countries": [
+        "AD",
+        "PT",
+        "HU",
+        "AM",
+        "NL",
+        "LU",
+        "BE",
+        "FR",
+        "GB",
+        "GE",
+        "PL",
+        "UA",
+        "GR",
+        "CH",
+        "US",
+        "UZ",
+        "KG",
+        "AU",
+        "AR",
+        "BR",
+        "FI",
+        "EE",
+        "ES",
+        "DE",
+        "IT",
+        "CA",
+        "IE",
+        "AT",
+        "CZ",
+        "NZ",
+        "RU"
+      ]
+    },
+    "lectures": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "appCards": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "appCardConditions": {
+      "docs": [
+        37
+      ],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-05-11T11:16:08.854Z",
+    "createdAt": "2026-05-06T15:51:06.161Z"
+  },
+  {
+    "id": 4,
+    "label": "Intermediate users",
+    "pathProgress": {
+      "min": 3,
+      "max": null
+    },
+    "meditationsPerWeek": {
+      "min": null,
+      "max": null
+    },
+    "totalMeditationsViewed": {
+      "min": 6,
+      "max": null
+    },
+    "totalLecturesViewed": {
+      "min": null,
+      "max": null
+    },
+    "location": {
+      "countries": []
+    },
+    "lectures": {
+      "docs": [
+        124,
+        77,
+        72
+      ],
+      "hasNextPage": false
+    },
+    "appCards": {
+      "docs": [
+        37
+      ],
+      "hasNextPage": false
+    },
+    "appCardConditions": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-05-06T15:48:42.924Z",
+    "createdAt": "2026-04-28T11:27:06.721Z"
+  },
+  {
+    "id": 3,
+    "label": "Completed first meditation",
+    "pathProgress": {
+      "min": null,
+      "max": null
+    },
+    "meditationsPerWeek": {
+      "min": null,
+      "max": null
+    },
+    "totalMeditationsViewed": {
+      "min": 1,
+      "max": null
+    },
+    "totalLecturesViewed": {
+      "min": null,
+      "max": null
+    },
+    "location": {
+      "countries": []
+    },
+    "lectures": {
+      "docs": [
+        100,
+        85,
+        78,
+        59,
+        55,
+        19,
+        17,
+        16,
+        14,
+        12,
+        10,
+        8,
+        6,
+        4
+      ],
+      "hasNextPage": false
+    },
+    "appCards": {
+      "docs": [
+        56,
+        55,
+        54,
+        53,
+        52,
+        51,
+        50,
+        49,
+        48,
+        47,
+        46,
+        41,
+        38
+      ],
+      "hasNextPage": false
+    },
+    "appCardConditions": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-05-06T08:29:11.984Z",
+    "createdAt": "2026-04-28T09:42:13.069Z"
+  },
+  {
+    "id": 2,
+    "label": "Ready for full lectures",
+    "pathProgress": {
+      "min": null,
+      "max": null
+    },
+    "meditationsPerWeek": {
+      "min": null,
+      "max": null
+    },
+    "totalMeditationsViewed": {
+      "min": 50,
+      "max": null
+    },
+    "totalLecturesViewed": {
+      "min": 40,
+      "max": null
+    },
+    "location": {
+      "countries": []
+    },
+    "lectures": {
+      "docs": [
+        154,
+        152
+      ],
+      "hasNextPage": false
+    },
+    "appCards": {
+      "docs": [
+        43
+      ],
+      "hasNextPage": false
+    },
+    "appCardConditions": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-05-11T11:15:07.210Z",
+    "createdAt": "2026-04-23T11:29:56.071Z"
+  },
+  {
+    "id": 1,
+    "label": "All Users",
+    "pathProgress": {
+      "min": null,
+      "max": null
+    },
+    "meditationsPerWeek": {
+      "min": null,
+      "max": null
+    },
+    "totalMeditationsViewed": {
+      "min": null,
+      "max": null
+    },
+    "totalLecturesViewed": {
+      "min": null,
+      "max": null
+    },
+    "location": {
+      "countries": []
+    },
+    "lectures": {
+      "docs": [
+        163,
+        161,
+        159,
+        157,
+        155,
+        150,
+        148,
+        146,
+        144,
+        142,
+        140,
+        138,
+        136,
+        134,
+        132,
+        130,
+        128,
+        126,
+        122,
+        120,
+        118,
+        116,
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        98,
+        96,
+        94,
+        92,
+        91,
+        89,
+        87,
+        83,
+        82,
+        80,
+        76,
+        74,
+        70,
+        69,
+        67,
+        65,
+        63,
+        61,
+        57,
+        53,
+        51,
+        50,
+        48,
+        46,
+        44,
+        43,
+        41,
+        39,
+        37,
+        35,
+        33,
+        31,
+        29,
+        27,
+        25,
+        21,
+        2
+      ],
+      "hasNextPage": false
+    },
+    "appCards": {
+      "docs": [
+        57,
+        45,
+        44,
+        42,
+        40,
+        36
+      ],
+      "hasNextPage": false
+    },
+    "appCardConditions": {
+      "docs": [],
+      "hasNextPage": false
+    },
+    "updatedAt": "2026-04-27T10:07:40.453Z",
+    "createdAt": "2026-04-22T15:59:41.652Z"
+  }
+]
