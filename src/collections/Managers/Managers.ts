@@ -238,7 +238,7 @@ export const Managers: CollectionConfig = {
               // on it. Why there are no per-key `properties`, and why the value
               // is typed at all, are in `src/collections/AGENTS.md` under "A
               // JSON column declares its shape".
-              title: 'NotificationPreferences',
+              schemaTitle: 'NotificationPreferences',
               schema: z.record(
                 z.string(),
                 // The value stays open for the same reason the keys do.

@@ -137,7 +137,7 @@ export const UserMessages: CollectionConfig = {
       // an unknown key or a bad verdict is a bug in the job rather than an older
       // server meeting a newer client. Generates the type the job and the admin
       // banner both read.
-      title: 'UserMessageScreeningResult',
+      schemaTitle: 'UserMessageScreeningResult',
       schema: screeningResultJsonSchema,
       access: systemFieldAccess,
       admin: {
@@ -184,7 +184,7 @@ export const UserMessages: CollectionConfig = {
       // path, the host URL, a crash stack. Rendered into the email's details
       // block, each row omitted when its value is absent.
       name: 'context',
-      title: 'UserMessageContext',
+      schemaTitle: 'UserMessageContext',
       schema: contextJsonSchema,
       admin: { readOnly: true },
     }),

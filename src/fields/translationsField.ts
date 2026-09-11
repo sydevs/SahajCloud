@@ -188,8 +188,8 @@ export function stringsSchema({
   globalSlug: string
   parentGroup?: string
   stringProps: [string, StringPropertySchema][]
-}): Pick<JsonFieldOptions, 'schema' | 'title'> {
-  const title = `${pascalCase(globalSlug, parentGroup, fieldName)}Strings`
+}): Pick<JsonFieldOptions, 'schema' | 'schemaTitle'> {
+  const schemaTitle = `${pascalCase(globalSlug, parentGroup, fieldName)}Strings`
 
   const properties: Record<string, { type: 'string'; description?: string; maxLength?: number }> =
     {}
@@ -210,7 +210,7 @@ export function stringsSchema({
   // group's own entries, so building it in Zod only to convert it back would be
   // a round trip.
   return {
-    title,
+    schemaTitle,
     schema: {
       type: 'object',
       additionalProperties: allowAdditional,

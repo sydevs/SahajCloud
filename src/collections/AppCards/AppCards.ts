@@ -539,7 +539,7 @@ export const AppCards: CollectionConfig = {
               virtual: true,
               // Closed on both levels because the hook is the only writer and the
               // column is virtual — no stored row under an earlier shape to strand.
-              title: 'AppCardViewSchedule',
+              schemaTitle: 'AppCardViewSchedule',
               schema: z.strictObject({
                 timezone: z.string().describe('IANA zone the schedule keys are read in.'),
                 schedule: z

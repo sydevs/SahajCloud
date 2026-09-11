@@ -21,7 +21,7 @@ import { jsonField } from './jsonField'
 export function fileMetadataField(options: { description?: string } = {}): JSONField {
   return jsonField({
     name: 'fileMetadata',
-    title: 'FileMetadata',
+    schemaTitle: 'FileMetadata',
     schema: z.looseObject({
       originalFilename: z
         .string()

@@ -639,7 +639,7 @@ export const Events: CollectionConfig = {
       // `EventQualityReport` in `@/lib/eventQuality`. See `src/collections/AGENTS.md`.
       name: 'qualityReport',
       virtual: true,
-      title: 'EventQualityReport',
+      schemaTitle: 'EventQualityReport',
       schema: eventQualityReportZodSchema,
       label: false,
       admin: {
@@ -727,7 +727,7 @@ export const Events: CollectionConfig = {
           admin: { readOnly: true, description: 'Check-set version the count was stamped from.' },
         },
         systemMetaField({
-          title: 'EventSystemMeta',
+          schemaTitle: 'EventSystemMeta',
           namespaces: { communityFeedback: communityFeedbackJsonSchema },
           admin: {
             // Raw internal state. Useful when debugging why an event was

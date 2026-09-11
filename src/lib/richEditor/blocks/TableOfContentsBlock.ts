@@ -33,7 +33,7 @@ export const TableOfContentsBlock: Block = {
       // in a `'use client'` module, and this block config is server-side.
       // Entries stay open so a heading gaining a field does not make every
       // existing page unsaveable.
-      title: 'TableOfContentsHeadings',
+      schemaTitle: 'TableOfContentsHeadings',
       schema: z.array(
         z.looseObject({
           slug: z.string(),

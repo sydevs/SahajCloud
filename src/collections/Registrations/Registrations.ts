@@ -93,7 +93,7 @@ export const Registrations: CollectionConfig = {
       // Payload generates the `questions` TS type AND validates on write (an unknown
       // key or non-string answer throws a ValidationError → 400 at the register
       // endpoint, surfaced verbatim rather than a 500).
-      title: 'RegistrationQuestions',
+      schemaTitle: 'RegistrationQuestions',
       schema: registrationQuestionsJsonSchema,
       admin: {
         description:

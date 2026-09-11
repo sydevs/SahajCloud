@@ -30,7 +30,7 @@ import { jsonField } from './jsonField'
  */
 export function systemMetaField(options: {
   /** Names the generated interface in `payload-types.ts`, and derives the schema's URI. */
-  title: string
+  schemaTitle: string
   /** One entry per namespace, e.g. `{ communityFeedback: { … } }`. */
   namespaces: Record<string, JSONSchema4>
   /** Extra admin config merged over the defaults (e.g. `condition`). */
@@ -41,7 +41,7 @@ export function systemMetaField(options: {
   // same way every other JSON column's is.
   return jsonField({
     name: 'systemMeta',
-    title: options.title,
+    schemaTitle: options.schemaTitle,
     schema: {
       type: 'object',
       additionalProperties: false,

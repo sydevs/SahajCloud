@@ -521,7 +521,7 @@ function buildVirtualFields(): Field[] {
       // schema exists for the generated type. See `src/collections/AGENTS.md`.
       name: 'upcomingDates',
       virtual: true,
-      title: 'ScheduleUpcomingDates',
+      schemaTitle: 'ScheduleUpcomingDates',
       schema: upcomingDatesSchema,
       admin: { hidden: true },
       hooks: {

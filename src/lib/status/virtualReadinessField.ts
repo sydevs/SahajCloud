@@ -132,7 +132,7 @@ export function virtualReadinessField<TConfig>(
     virtual: true,
     // Named above rather than written out here: a three-branch group union
     // nested in a report is past what a reader can take in beside a field.
-    title: 'ReadinessReport',
+    schemaTitle: 'ReadinessReport',
     schema: readinessReportZodSchema,
     localized: true,
     // The custom component renders the section header inline. Hiding the

@@ -74,7 +74,7 @@ export const Lessons: CollectionConfig = {
                 jsonField({
                   name: 'subtitles',
                   label: 'Subtitles',
-                  title: 'Subtitles',
+                  schemaTitle: 'Subtitles',
                   schema: subtitlesSchema,
                   admin: {
                     condition: (_, siblingData) => !!siblingData?.media,
@@ -133,7 +133,7 @@ export const Lessons: CollectionConfig = {
             jsonField({
               name: 'introSubtitles',
               label: 'Intro Subtitles',
-              title: 'Subtitles',
+              schemaTitle: 'Subtitles',
               schema: subtitlesSchema,
               admin: {
                 description:

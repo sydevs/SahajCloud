@@ -61,7 +61,7 @@ export const Videos: CollectionConfig = {
     },
     jsonField({
       name: 'subtitles',
-      title: 'Subtitles',
+      schemaTitle: 'Subtitles',
       schema: subtitlesSchema,
       admin: {
         description: 'Subtitle cues: [{ startTimeMs, endTimeMs, durationMs?, content }]',

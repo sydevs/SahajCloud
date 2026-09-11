@@ -167,7 +167,7 @@ export const Lectures: CollectionConfig = {
     },
     jsonField({
       name: 'metadata',
-      title: 'LectureMetadata',
+      schemaTitle: 'LectureMetadata',
       schema: lectureMetadataSchema,
       access: {
         // Clips source NV metadata from their parent and have `metadata: null`

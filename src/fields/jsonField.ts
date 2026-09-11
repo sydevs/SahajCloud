@@ -15,14 +15,14 @@ import { z } from 'zod'
  * builds a fresh Ajv per call and validates against `schema` directly, and
  * `configToJSONSchema` reads only `schema` too, so `uri` and `fileMatch` reach
  * nothing but the admin's Monaco editor, which needs them merely unique. All
- * four therefore derive from the title, and the title is the only thing a caller
+ * four therefore derive from `schemaTitle`, which is the only thing a caller
  * states.
  *
- * `title` is the one that is load-bearing: it names the interface Payload
+ * `schemaTitle` is the one that is load-bearing: it names the interface Payload
  * generates into `payload-types.ts`. Renaming a schema's `$id` renames that
- * interface only when `title` is absent, which is why this helper always sets
- * one — the derived URI is then free to change without touching a generated
- * name.
+ * interface only when the schema's `title` is absent, which is why this helper
+ * always sets one — the derived URI is then free to change without touching a
+ * generated name.
  *
  * Pass a Zod type to declare the shape inline at the field it belongs to. Pass a
  * raw {@link JSONSchema4} where the shape is **assembled as data** — properties
@@ -115,19 +115,24 @@ export type JsonFieldOptions = Omit<JSONField, 'jsonSchema' | 'type'> & {
   /**
    * Names the generated interface in `payload-types.ts`, and derives the
    * schema's `uri`, `fileMatch` and `$id`. PascalCase.
+   *
+   * Named `schemaTitle` rather than `title` because `JSONField` has no `title`
+   * of its own, and every neighbouring key here is the admin-facing field
+   * config: `label` is what a person sees. This one names a type.
    */
-  title: string
+  schemaTitle: string
 }
 
 /** Declare a JSON column — its shape, and everything that shape implies. */
-export function jsonField({ schema, title, ...field }: JsonFieldOptions): JSONField {
-  const slug = toKebabCase(title)
-  if (!slug) throw new Error(`jsonField: a title is required, got ${JSON.stringify(title)}`)
+export function jsonField({ schema, schemaTitle, ...field }: JsonFieldOptions): JSONField {
+  const slug = toKebabCase(schemaTitle)
+  if (!slug)
+    throw new Error(`jsonField: a schemaTitle is required, got ${JSON.stringify(schemaTitle)}`)
 
   const uri = `${SCHEMA_URI_PREFIX}${slug}`
   const body = isZodType(schema) ? fromZod(schema) : schema
 
-  return { ...field, type: 'json', jsonSchema: shared(uri, title, body) }
+  return { ...field, type: 'json', jsonSchema: shared(uri, schemaTitle, body) }
 }
 
 /**

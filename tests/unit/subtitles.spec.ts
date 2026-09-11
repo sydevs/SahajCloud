@@ -19,7 +19,7 @@ const req = { t: (key: string) => key } as never
 /** What every `subtitles` column declares, built the one way a field may. */
 const subtitlesJsonSchema = jsonField({
   name: 'subtitles',
-  title: 'Subtitles',
+  schemaTitle: 'Subtitles',
   schema: subtitlesSchema,
 }).jsonSchema
 

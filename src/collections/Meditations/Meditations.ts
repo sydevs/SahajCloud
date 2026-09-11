@@ -66,7 +66,7 @@ const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField
     // generated type. See `src/collections/AGENTS.md`.
     name,
     virtual: true,
-    title: 'TagAssignments',
+    schemaTitle: 'TagAssignments',
     schema: tagAssignmentsSchema,
     admin: {
       readOnly: true,
@@ -258,7 +258,7 @@ export const Meditations: CollectionConfig = {
               // `recomputeMeditationNodeWeights` afterChange hook on Meditations
               // and cascaded from Frames via `cascadeFrameNodeChange`.
               name: 'subtleSystemNodeWeights',
-              title: 'MeditationNodeWeights',
+              schemaTitle: 'MeditationNodeWeights',
               schema: meditationNodeWeightsSchema,
               admin: {
                 readOnly: true,
@@ -385,7 +385,7 @@ export const Meditations: CollectionConfig = {
                   fields: [
                     jsonField({
                       name: 'frames',
-                      title: 'MeditationFrames',
+                      schemaTitle: 'MeditationFrames',
                       schema: meditationFramesSchema,
                       admin: {
                         // afterRead runs a frames query per row to enrich keyframes.

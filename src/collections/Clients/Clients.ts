@@ -252,7 +252,7 @@ export const Clients: CollectionConfig = {
                   // Written only by the VerifyEmbeds job (and verify-on-demand) from
                   // what was observed on the live page — never by a client report, so
                   // a forged report can nominate a mount but never reshape a public URL.
-                  title: 'ClientCanonicalVerification',
+                  schemaTitle: 'ClientCanonicalVerification',
                   schema: canonicalVerificationSchema,
                   admin: {
                     readOnly: true,
@@ -285,7 +285,7 @@ export const Clients: CollectionConfig = {
                   // mount, keyed by origin + pathname; see ./embedMetadata.ts.
                   name: 'embedMetadata',
                   label: 'Discovered Embeds',
-                  title: 'ClientEmbedMetadata',
+                  schemaTitle: 'ClientEmbedMetadata',
                   schema: embedMetadataJsonSchema,
                   admin: {
                     readOnly: true,
@@ -390,7 +390,7 @@ export const Clients: CollectionConfig = {
           // `ClientAbuseScore`. See `src/collections/AGENTS.md`.
           name: 'abuseScore',
           virtual: true,
-          title: 'ClientAbuseScore',
+          schemaTitle: 'ClientAbuseScore',
           schema: abuseScoreSchema,
           hooks: {
             afterRead: [

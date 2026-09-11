@@ -34,15 +34,15 @@ function runSchema(schema: NonNullable<JSONField['jsonSchema']>, value: unknown)
 }
 
 /** The `jsonSchema` a declared field carries — what every case below reads. */
-function built(title: string, schema: JSONSchema4 | z.ZodType) {
-  return jsonField({ name: 'probe', title, schema }).jsonSchema as NonNullable<
+function built(schemaTitle: string, schema: JSONSchema4 | z.ZodType) {
+  return jsonField({ name: 'probe', schemaTitle, schema }).jsonSchema as NonNullable<
     JSONField['jsonSchema']
   >
 }
 
 describe('jsonField', () => {
   it('declares a JSON column, not just its schema', () => {
-    const field = jsonField({ name: 'frames', title: 'MeditationFrames', schema: z.string() })
+    const field = jsonField({ name: 'frames', schemaTitle: 'MeditationFrames', schema: z.string() })
 
     expect(field.type).toBe('json')
     expect(field.name).toBe('frames')

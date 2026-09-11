@@ -59,7 +59,7 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
       // hand-written `TestDateRangeInput` and the cast that applied it.
       name: 'testDateRange',
       required: false,
-      title: 'CleanupTestDateRange',
+      schemaTitle: 'CleanupTestDateRange',
       schema: z.strictObject({ rangeStart: z.string(), rangeEnd: z.string() }),
     }),
     {

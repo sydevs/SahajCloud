@@ -42,7 +42,7 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
       // runtime check, so the handler still tests `Array.isArray` below.
       name: 'lectureIds',
       required: false,
-      title: 'SyncLectureMetadataIds',
+      schemaTitle: 'SyncLectureMetadataIds',
       schema: z.array(z.int()),
     }),
   ],

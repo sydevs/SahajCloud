@@ -305,8 +305,8 @@ validator for writes **and** substitutes the schema into
 hand.
 
 **`jsonField` (`src/fields/jsonField.ts`) is the one way to declare a JSON
-column.** It takes a title, a shape, and the rest of the field, and derives
-`type`, `uri`, `fileMatch`, `$id` and `title` from the first two — nothing
+column.** It takes a `schemaTitle`, a shape, and the rest of the field, and
+derives `type`, `uri`, `fileMatch`, `$id` and `title` from the first two — nothing
 else may build a `jsonSchema` literal, and no `*_SCHEMA_URI` constant exists
 to import. It is the module's only export, so there is no bare `jsonSchema`
 to attach to a field that skipped it.
@@ -314,7 +314,7 @@ to attach to a field that skipped it.
 ```typescript
 jsonField({
   name: 'frames',
-  title: 'MeditationFrames',
+  schemaTitle: 'MeditationFrames',
   schema: z.array(z.looseObject({
     id: z.union([z.int(), z.string()]).describe('The Frame document id.'),
     timestamp: z.number().describe('Seconds into the meditation.'),
@@ -356,9 +356,11 @@ jsonField({
   component reaching it ships both to the browser to describe a shape only
   the server validates. `Clients.canonical.verification` and
   `Managers.notificationPreferences` sit at their fields for that reason.
-- **A `title` names the generated interface**, and it is the only thing a
-  URI change cannot move. Payload names an interface off the schema
-  **object**, not the title, so equal-but-separate objects would emit
+- **A `schemaTitle` names the generated interface**, and it is the only
+  thing a URI change cannot move. It is spelled `schemaTitle`, not `title`,
+  because every neighbouring key configures the admin field — `label` is
+  what a person sees, this one names a type. Payload names an interface off
+  the schema **object**, not the title, so equal-but-separate objects emit
   `FileMetadata`, `FileMetadata1`, … — the same body under several names.
   `jsonField` interns one object per distinct shape, so declaring a column
   at its field costs nothing a shared constant used to buy. Two _different_
