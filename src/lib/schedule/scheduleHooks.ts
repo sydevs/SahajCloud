@@ -27,7 +27,6 @@ import type { FieldHook } from 'payload'
 
 import { Temporal } from '@js-temporal/polyfill'
 import { type RRuleOptions, RRuleTemporal } from 'rrule-temporal'
-import { z } from 'zod'
 
 import type { EventSchedule, ExclusionRange } from '@/types/schedule'
 
@@ -257,15 +256,6 @@ export const computeIcalRule: FieldHook = ({ siblingData }) => {
  * Exclusion dates are automatically excluded by rrule-temporal's between()
  * and all() methods — no additional filtering is needed.
  */
-/**
- * What `computeUpcomingDates` returns: up to `UPCOMING_COUNT` ISO 8601 UTC
- * instants, ascending. Closed because that hook is the only writer and the
- * column is virtual — nothing stores it, so no row holds an earlier shape.
- */
-export const upcomingDatesSchema = z.array(
-  z.string().describe('ISO 8601 UTC instant of one occurrence.'),
-)
-
 export const computeUpcomingDates: FieldHook = ({ siblingData }) => {
   const fields = siblingData as Partial<EventSchedule>
   const rule = buildRRuleTemporal(fields)

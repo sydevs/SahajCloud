@@ -1,12 +1,13 @@
 import type { Field, GroupField, JSONField } from 'payload'
 
+import { z } from 'zod'
+
 import {
   cleanupExpiredExclusions,
   computeIcalRule,
   computeLastDate,
   computeUpcomingDates,
   getLocalTimeHHMM,
-  upcomingDatesSchema,
 } from '@/lib/schedule/scheduleHooks'
 
 import { jsonField } from './jsonField'
@@ -517,12 +518,14 @@ function buildVirtualFields(): Field[] {
       },
     },
     jsonField({
-      // Virtual: written by `computeUpcomingDates` below, never stored. The
-      // schema exists for the generated type. See `src/collections/AGENTS.md`.
+      // Virtual: written by `computeUpcomingDates`, never stored. The schema
+      // exists for the generated type. See `src/collections/AGENTS.md`.
       name: 'upcomingDates',
       virtual: true,
       schemaTitle: 'ScheduleUpcomingDates',
-      schema: upcomingDatesSchema,
+      // Closed because that hook is the only writer and the column is
+      // virtual — nothing stores it, so no row holds an earlier shape.
+      schema: z.array(z.string().describe('ISO 8601 UTC instant of one occurrence.')),
       admin: { hidden: true },
       hooks: {
         afterRead: [computeUpcomingDates],
