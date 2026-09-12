@@ -131,6 +131,62 @@ export const logRejectedCredential = (
 const GUARD_DENIAL_STATUS = 403
 
 /**
+ * How long one key fingerprint's Sentry event stands for, in this process.
+ *
+ * ⚠ **Bounds the capture, never the log.** The WARN line is written for every
+ * denial: it is cheap, it needs no DSN, and it is the half a local run and a
+ * Railway query can see. The Sentry event is the half that costs quota, and a
+ * broken integration retrying 500 times a minute says nothing in the second
+ * event that the first did not.
+ *
+ * Per process, so N instances report at most N times per window — a bound, not
+ * a guarantee of one. Bounding it here is what makes the level safe to keep
+ * while the Sentry-side mute rule on `auth_outcome` does not yet exist.
+ */
+const CAPTURE_WINDOW_MS = 60_000
+
+/**
+ * How many fingerprints the window remembers before it is dropped wholesale.
+ *
+ * ⚠ **A caller mints fingerprints for free** — one per `Authorization` value it
+ * invents — so this map is caller-controlled and must never grow unbounded.
+ * Expired entries go first, and a map still full after that is cleared: losing
+ * the window costs duplicate events, never memory.
+ */
+const CAPTURE_WINDOW_MAX_KEYS = 1_000
+
+const capturedAt = new Map<string, number>()
+
+/**
+ * Whether this fingerprint's rejection is the first of its window, claiming the
+ * window for it when it is. A credential carrying no fingerprint always
+ * reports — `classifyAuthAttempt` gives every `rejected` outcome one, and a
+ * missing one must not silently collapse distinct integrations into one entry.
+ */
+const claimCaptureWindow = (fingerprint: string | undefined, now: number): boolean => {
+  if (!fingerprint) return true
+
+  const captured = capturedAt.get(fingerprint)
+  if (captured !== undefined && now - captured < CAPTURE_WINDOW_MS) return false
+
+  if (capturedAt.size >= CAPTURE_WINDOW_MAX_KEYS) {
+    for (const [key, at] of capturedAt) if (now - at >= CAPTURE_WINDOW_MS) capturedAt.delete(key)
+    if (capturedAt.size >= CAPTURE_WINDOW_MAX_KEYS) capturedAt.clear()
+  }
+
+  capturedAt.set(fingerprint, now)
+  return true
+}
+
+/**
+ * Forget every claimed window.
+ *
+ * ⚠ **Tests only.** They share one module instance, so without this the second
+ * spec to present a given key would assert against a suppressed capture.
+ */
+export const __resetCredentialCaptureWindowForTests = (): void => capturedAt.clear()
+
+/**
  * Report a denial that never throws, so no `afterError` hook will.
  *
  * Safe to call on **every** denial: it returns at once unless a credential was
@@ -139,13 +195,15 @@ const GUARD_DENIAL_STATUS = 403
  * ⚠ **Never throws.** A telemetry failure must not turn a caller's 403 into a
  * 500, and this runs on the request's denial path rather than its error path.
  *
- * ⚠ **Accepted risk, inherited from #734 and wider here.** One junk
- * `Authorization` header buys one `error` event and one WARN line, and these
- * endpoints are public. Grouping stays bounded by the collection check, so the
- * cost is event quota and log volume, never one Sentry issue per value invented.
- * Cloudflare's edge rate limiting is what bounds the request rate. Mute the
- * noise with a Sentry rule on `auth_outcome`, never by dropping the level — the
- * level is the signal.
+ * ⚠ **Amplification, inherited from #734 and wider here.** These endpoints are
+ * public, and #734's path needed a Payload route that throws. Cloudflare's edge
+ * allows 500 req/min per (client, IP), so one stale integration could otherwise
+ * buy ~720k `error` events a day, and the mute — a Sentry rule on
+ * `auth_outcome` — is external to this repo and may not exist. So the capture
+ * is deduped per key fingerprint here instead (`CAPTURE_WINDOW_MS`), which
+ * bounds the volume without dropping the level. The level is the signal.
+ * Grouping stays bounded by the collection check, so the residual cost is log
+ * volume, never one Sentry issue per value invented.
  *
  * ⚠ **Not gated on `NEXT_PUBLIC_SENTRY_DSN`**, unlike `sentryPlugin`, which
  * returns the config untouched without one. `Sentry.captureMessage` is a no-op
@@ -169,6 +227,9 @@ export const reportRejectedCredential = (req: PayloadRequest): void => {
     } catch {
       // Deliberately silent, for the reason the outer `catch` gives.
     }
+
+    // One event per fingerprint per window. See `CAPTURE_WINDOW_MS`.
+    if (!claimCaptureWindow(rejected.attempt.keyFingerprint, Date.now())) return
 
     Sentry.withScope((scope) => {
       scope.setLevel('error')

@@ -12,6 +12,7 @@ import type { PayloadRequest } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { requireActiveClient } from '@/lib/endpoints'
+import { __resetCredentialCaptureWindowForTests } from '@/plugins/sentry/credentialRejection'
 
 const sentry = vi.hoisted(() => ({
   captureMessage: vi.fn(),
@@ -34,6 +35,8 @@ vi.mock('@/lib/env/deploymentEnvironment', () => ({
 }))
 
 const KEY = '00000000-1111-4222-8333-444444444444'
+/** A second integration's key, for the per-fingerprint half of the dedupe. */
+const OTHER_KEY = '99999999-8888-4777-8666-555555555555'
 const USER_AGENT = 'node'
 const IP = '203.0.113.7'
 const URL = 'https://cloud.sydevelopers.com/api/atlas/seo?path=/gb/london'
@@ -71,6 +74,10 @@ const extras = () => Object.fromEntries(sentry.scope.setExtra.mock.calls)
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // The capture is deduped per fingerprint in module state, which outlives a
+  // spec. Without this every test after the first to present KEY would assert
+  // against a capture the previous one already claimed.
+  __resetCredentialCaptureWindowForTests()
 })
 
 describe('a denial whose credential was rejected', () => {
@@ -142,6 +149,48 @@ describe('a denial whose credential was rejected', () => {
     expect(written).not.toContain(KEY)
     expect(written).not.toContain(KEY.slice(0, 8))
     expect(written).not.toContain(KEY.slice(-12))
+  })
+})
+
+describe('a retrying integration', () => {
+  // The edge allows 500 req/min per (client, IP) and these endpoints are
+  // public, so without a bound one stale key buys ~720k `error` events a day.
+  // The mute is a Sentry-side rule, external to this repo.
+  const retry = () => requireActiveClient(buildRequest(`clients API-Key ${KEY}`))
+
+  it('captures the same key once per window, not once per request', () => {
+    retry()
+    retry()
+    retry()
+
+    expect(sentry.captureMessage).toHaveBeenCalledOnce()
+  })
+
+  it('still logs every denial — the WARN line is the cheap half', () => {
+    retry()
+    retry()
+
+    expect(logger.warn).toHaveBeenCalledTimes(2)
+  })
+
+  it('captures a second key in the same window — the bound is per fingerprint', () => {
+    retry()
+    requireActiveClient(buildRequest(`clients API-Key ${OTHER_KEY}`))
+
+    expect(sentry.captureMessage).toHaveBeenCalledTimes(2)
+  })
+
+  it('captures again once the window has passed', () => {
+    vi.useFakeTimers()
+    try {
+      retry()
+      vi.advanceTimersByTime(60_001)
+      retry()
+    } finally {
+      vi.useRealTimers()
+    }
+
+    expect(sentry.captureMessage).toHaveBeenCalledTimes(2)
   })
 })
 
