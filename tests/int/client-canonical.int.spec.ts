@@ -4,9 +4,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { Clients } from '@/collections/Clients/Clients'
 import { clientEmbedReport } from '@/collections/Clients/endpoints/report'
+import { verifyEmbedOnDemand } from '@/collections/Clients/endpoints/verifyEmbed'
 import { runVerifyEmbeds } from '@/jobs/VerifyEmbeds/VerifyEmbeds'
 import { MAX_EMBED_MOUNTS } from '@/lib/clients/embedMetadata'
-import type { VerificationResult } from '@/lib/clients/verification'
+import type { RoutingProbeResult, VerificationResult } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
@@ -99,10 +100,23 @@ describe('client canonical ownership + embed metadata', () => {
       expect(condition?.({})).toBe(false)
     })
 
-    it('no longer declares legacyConfig, or the three hand-typed canonical fields', () => {
-      for (const gone of ['legacyConfig', 'domain', 'mount', 'routing']) {
+    it('no longer declares legacyConfig, or the hand-typed canonical fields', () => {
+      for (const gone of ['legacyConfig', 'domain', 'mount']) {
         expect(findField(Clients.fields as unknown[], gone)).toBeNull()
       }
+    })
+
+    it('declares canonical.routing derived and untypeable, never an operator setting', () => {
+      // The hand-typed `routing` field was deleted in #633, and #644 gives the
+      // name back to the derived verdict. What the deletion actually protected
+      // is that nobody can assert a routing mode — so that is what this pins,
+      // rather than the absence of the name. `virtual` is the whole guarantee:
+      // no stored column, so a write has nowhere to land, whatever the admin
+      // panel or a client sends.
+      const routing = findField(Clients.fields as unknown[], 'routing')
+      expect(routing?.virtual).toBe(true)
+      expect((routing?.admin as { readOnly?: boolean } | undefined)?.readOnly).toBe(true)
+      expect(routing?.hooks).toBeDefined()
     })
   })
 
@@ -351,6 +365,9 @@ describe('client canonical ownership + embed metadata', () => {
             },
             failureCount: 0,
             attempts: [],
+            // The URL *shape* comes from the probe's verdict, not from the
+            // widget's self-report beside it (#644).
+            routingProbe: { at: '2026-08-18T00:00:00.000Z', verdict: 'path', failedAttempts: 0 },
           },
         },
       } as never,
@@ -718,13 +735,13 @@ describe('client canonical ownership + embed metadata', () => {
     const inconclusive: VerificationResult = { status: 'inconclusive', reason: 'provider-error' }
 
     /** A service that owns canonical URLs and is due for a check. */
-    async function createOwner(name: string, slug: string) {
+    async function createOwner(name: string, slug: string, embed = 'https://verify.example/embed') {
       const region = await createRegion(slug)
       const client = await createClient(name, { region: region.id })
       await payload.update({
         collection: 'clients',
         id: client.id,
-        data: { canonical: { enabled: true, embed: 'https://verify.example/embed' } },
+        data: { canonical: { enabled: true, embed } },
         overrideAccess: true,
       })
       return client.id
@@ -806,6 +823,242 @@ describe('client canonical ownership + embed metadata', () => {
         overrideAccess: true,
       })
       expect(doc.docs[0]?.canonical?.verification ?? null).toBeNull()
+    })
+
+    // ── The routing probe (#644) ───────────────────────────────────────
+
+    /**
+     * The job with both renders stubbed, recording every mount the probe was
+     * asked about — the probe budget is part of the contract, so "was it called
+     * at all" has to be observable.
+     */
+    const runProbing = async (args: {
+      mount: VerificationResult
+      probe: RoutingProbeResult
+      now: Date
+    }) => {
+      const probed: string[] = []
+      const output = await runVerifyEmbeds({
+        payload,
+        req: { payload } as never,
+        now: args.now,
+        deps: {
+          verify: async () => args.mount,
+          probe: async (mountKey: string) => {
+            probed.push(mountKey)
+            return args.probe
+          },
+        },
+      })
+      return { output, probed }
+    }
+
+    const PROBE_MOUNT = 'https://probe.example/classes'
+    const positive: RoutingProbeResult = { status: 'positive' }
+    const negative: RoutingProbeResult = { status: 'negative' }
+
+    it('promotes a service to path routing on a single positive probe', async () => {
+      const id = await createOwner('Probe Promote', 'probe-promote', PROBE_MOUNT)
+      const { output, probed } = await runProbing({
+        mount: verified,
+        probe: positive,
+        now: daysAfter(40),
+      })
+
+      expect(probed).toContain(PROBE_MOUNT)
+      expect(output.pathPromoted).toBeGreaterThanOrEqual(1)
+      const doc = await read(id)
+      expect(doc.canonical?.verification?.routingProbe).toMatchObject({
+        verdict: 'path',
+        failedAttempts: 0,
+      })
+      expect(doc.canonical?.routing).toBe('path')
+    })
+
+    /**
+     * The asymmetry that matters: a wrong `path` 404s every deep link, a wrong
+     * `query` only produces uglier URLs that work. So promotion is immediate and
+     * demotion needs a pattern — and neither may touch `failureCount`, which is
+     * what switches canonical ownership off and emails a manager.
+     */
+    it('demotes only on the third consecutive negative, and never disables ownership', async () => {
+      const id = await createOwner('Probe Demote', 'probe-demote', PROBE_MOUNT)
+      await runProbing({ mount: verified, probe: positive, now: daysAfter(50) })
+      expect((await read(id)).canonical?.routing).toBe('path')
+
+      await runProbing({ mount: verified, probe: negative, now: daysAfter(51) })
+      await runProbing({ mount: verified, probe: negative, now: daysAfter(52) })
+      let doc = await read(id)
+      expect(doc.canonical?.routing).toBe('path')
+      expect(doc.canonical?.verification?.routingProbe?.failedAttempts).toBe(2)
+
+      await runProbing({ mount: verified, probe: negative, now: daysAfter(53) })
+      doc = await read(id)
+      expect(doc.canonical?.routing).toBe('query')
+      // The embed is present and publishing — in `?atlas=` shape, which is a
+      // real canonical. Nothing about ownership may have moved.
+      expect(doc.canonical?.enabled).toBe(true)
+      expect(doc.canonical?.verification?.failureCount).toBe(0)
+      expect(doc.canonical?.verification?.verified).toMatchObject({ domain: 'verify.example' })
+    })
+
+    it('counts a negative without spending a render when the mount itself failed', async () => {
+      const id = await createOwner('Probe Mount Failed', 'probe-mount-failed', PROBE_MOUNT)
+      const { probed } = await runProbing({ mount: failed, probe: positive, now: daysAfter(60) })
+
+      // The widget is not on the page at all, so the subtree cannot be serving it.
+      expect(probed).not.toContain(PROBE_MOUNT)
+      const doc = await read(id)
+      expect(doc.canonical?.verification?.routingProbe).toMatchObject({
+        verdict: 'query',
+        failedAttempts: 1,
+      })
+    })
+
+    it('leaves the verdict and the strike count alone on an inconclusive run', async () => {
+      const id = await createOwner('Probe Inconclusive', 'probe-inconclusive', PROBE_MOUNT)
+      await runProbing({ mount: verified, probe: positive, now: daysAfter(70) })
+      const before = (await read(id)).canonical?.verification?.routingProbe
+
+      const { probed } = await runProbing({
+        mount: inconclusive,
+        probe: negative,
+        now: daysAfter(71),
+      })
+      expect(probed).not.toContain(PROBE_MOUNT)
+      expect((await read(id)).canonical?.verification?.routingProbe).toEqual(before)
+    })
+
+    /**
+     * The reason the verdict is a sibling of `verified` rather than a key inside
+     * it: the widget should path-route as soon as the host serves the subtree,
+     * whether or not the mount verification has ever succeeded.
+     */
+    it('reports path for a service whose mount verification has never succeeded', async () => {
+      const id = await createOwner('Probe Unverified', 'probe-unverified', PROBE_MOUNT)
+      await payload.update({
+        collection: 'clients',
+        id,
+        data: {
+          canonical: {
+            enabled: true,
+            embed: PROBE_MOUNT,
+            verification: {
+              verified: null,
+              failureCount: 0,
+              attempts: [],
+              routingProbe: { at: '2026-09-12T03:00:00.000Z', verdict: 'path', failedAttempts: 0 },
+            },
+          },
+        },
+        overrideAccess: true,
+      })
+
+      const doc = await read(id)
+      expect(doc.canonical?.verification?.verified ?? null).toBeNull()
+      expect(doc.canonical?.routing).toBe('path')
+    })
+
+    // The column is closed (`additionalProperties: false`) and validated on
+    // every save of the document, so a required `routingProbe` would have stranded
+    // every row written before this shipped.
+    it('still saves a service whose verification predates the probe', async () => {
+      const id = await createOwner('Probe Legacy Row', 'probe-legacy', PROBE_MOUNT)
+      await payload.update({
+        collection: 'clients',
+        id,
+        data: {
+          canonical: {
+            enabled: true,
+            embed: PROBE_MOUNT,
+            verification: {
+              verified: {
+                domain: 'probe.example',
+                mount: '/classes',
+                routing: 'path',
+                widgetVersion: 2,
+                at: '2026-08-01T00:00:00.000Z',
+              },
+              failureCount: 0,
+              attempts: [],
+            },
+          },
+        },
+        overrideAccess: true,
+      })
+
+      // Saved unmodified, and a `path` self-report shapes nothing.
+      const doc = await read(id)
+      expect(doc.canonical?.verification?.verified?.routing).toBe('path')
+      expect(doc.canonical?.routing).toBe('query')
+
+      // And it saves again untouched, which is what a closed column makes fragile.
+      await expect(
+        payload.update({
+          collection: 'clients',
+          id,
+          data: { notes: 'unrelated edit' },
+          overrideAccess: true,
+        }),
+      ).resolves.toBeTruthy()
+    })
+  })
+
+  // ── POST /api/clients/:id/verify-embed ──────────────────────────────────────
+
+  describe('verify-embed on demand', () => {
+    /**
+     * Exercised without Cloudflare credentials, so both renders come back
+     * `unconfigured` — the case an operator on a fresh environment actually
+     * hits. What is under test is the wiring: the handler folds a probe result
+     * in, persists the row, and answers with the derived routing.
+     */
+    it('answers with the derived routing, and changes nothing it could not observe', async () => {
+      const region = await createRegion('verify-on-demand')
+      const client = await createClient('Verify On Demand', { region: region.id })
+      await payload.update({
+        collection: 'clients',
+        id: client.id,
+        data: {
+          canonical: {
+            enabled: true,
+            embed: 'https://ondemand.example/classes',
+            verification: {
+              verified: null,
+              failureCount: 0,
+              attempts: [],
+              routingProbe: { at: '2026-09-12T03:00:00.000Z', verdict: 'path', failedAttempts: 0 },
+            },
+          },
+        },
+        overrideAccess: true,
+      })
+
+      const req = {
+        payload,
+        routeParams: { id: String(client.id) },
+        user: { id: managerId, collection: 'managers', type: 'admin' },
+      } as unknown as PayloadRequest
+      const response = await (
+        verifyEmbedOnDemand.handler as (r: PayloadRequest) => Promise<Response>
+      )(req)
+      expect(response.status).toBe(200)
+
+      const body = (await response.json()) as { status: string; routing: string }
+      expect(body.status).toBe('inconclusive')
+      expect(body.routing).toBe('path')
+
+      // An inconclusive check must leave the stored verdict exactly as it was.
+      const doc = await payload.findByID({
+        collection: 'clients',
+        id: client.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(doc.canonical?.verification?.routingProbe).toMatchObject({
+        verdict: 'path',
+        failedAttempts: 0,
+      })
     })
   })
 })

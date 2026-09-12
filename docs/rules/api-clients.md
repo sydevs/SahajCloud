@@ -26,7 +26,8 @@ Two Atlas white-label fields, split across the **Config** and **SEO** tabs. `can
 | --- | --- |
 | `canonical.enabled` | checkbox, default false — every other field is `admin.condition`-gated on it |
 | `canonical.embed` | required when enabled. Which reported mount owns the URLs, chosen from a picker, never typed |
-| `canonical.verification` | json, admin-readonly — written only by the CMS: the verified snapshot, a consecutive-failure count, a bounded attempt log |
+| `canonical.verification` | json, admin-readonly — written only by the CMS: the verified snapshot, a consecutive-failure count, a bounded attempt log, and the `routingProbe` routing verdict |
+| `canonical.routing` | virtual select, admin-readonly — the derived routing shape (#644, below). No stored column |
 | `canonical.nextVerifyAt` | date, indexed, hidden — the verification job's watermark, a real column so it stays a cheap predicate |
 
 `validateCanonicalOwnership` (beforeChange) enforces this: enabling requires `region` and `canonical.embed`, and a second enabled client on a region is rejected, naming the incumbent. It watches `region` too, so moving an enabled client onto an owned region can't dodge the check, and skips when nothing the rule reads has moved. Uniqueness checks against **committed** state, so a conflicting draft is caught only on publish.
@@ -38,7 +39,7 @@ Two Atlas white-label fields, split across the **Config** and **SEO** tabs. `can
 `canonical.embed` is only a nomination. A canonical URL is built from `canonical.verification.verified`, written **solely** by the CMS after it loads the page itself — a real browser is required, since the widget is JavaScript and fetching HTML would only prove a `<script>` tag exists.
 
 - **`src/lib/embedVerification/`** — a Cloudflare Browser Rendering client, the readiness-marker parser, and the render-to-result routine.
-- **The marker** is `data-sahaj-atlas-ready` on `<html>`, carrying `{ v, routing, topLevel, urlWritable }` (the cross-repo contract from sydevs/SahajAtlasWeb#153, #159). Reading `routing` off the rendered page makes verification server-attested, not self-reported.
+- **The marker** is `data-sahaj-atlas-ready` on `<html>`, carrying `{ v, routing, topLevel, urlWritable }` (the cross-repo contract from sydevs/SahajAtlasWeb#153, #159). Its `routing` says what the widget was asked to do, so the verifier no longer records it — see "Routing is derived, never configured" below.
 - **`src/jobs/VerifyEmbeds`** runs nightly, watermarked on `nextVerifyAt`, bounded to enabled services. Three consecutive failures turn ownership off and notify `primaryContact`, via the atomic-SQL seam, not `payload.update`.
 - **`POST /api/clients/:id/verify-embed`** — manager-authenticated, the same routine on demand. It never disables.
 
@@ -47,6 +48,21 @@ Two Atlas white-label fields, split across the **Config** and **SEO** tabs. `can
 **Exercised for real** by `pnpm tsx scripts/verify-embed-live.ts --self-test`, which drives all four outcomes against the live API — every unit test stubs the render. Its error codes (`6002` selector timeout, `5006` network/DNS, `10000` auth) are pinned in `tests/unit/embed-verification.spec.ts`. Prose matching is a fallback only, since the messages are generic enough to be misleading.
 
 **What the marker proves, precisely.** It detects an embed that is installed and *not working* — the one thing a client-sent report can never reveal. It does **not** prove the page is honest: the attribute carries no nonce, so any host running our script can hand-write it. The trust boundary stays `allowedDomains`. What the marker buys is that a stolen key can claim a mount on the client's domain, but can't make that domain serve a marker it doesn't control.
+
+### Routing is derived, never configured (#644)
+
+Nothing lets an operator — or a script tag — say how a client's URLs are shaped. `effectiveRouting(verification)` (`src/lib/clients/verification.ts`) is the one answer, read by `canonicalOwnerFrom`, by the admin picker's preview, and by the widget through the virtual `canonical.routing` field on `GET /api/clients/me`.
+
+It reads **`verification.routingProbe`**, a sibling of `verified`, and it is the record's only routing answer. `verified.routing` — the readiness marker's copy of the widget's own script parameter — is no longer written: shaping a public URL from it was circular, and a second stored answer is a second thing to read by mistake. The widget's report is still kept as a report, per mount, in `embedMetadata`. The key stays in the verification schema as an optional legacy property, since that object is closed and validated on every save, so deleting it would strand every row verified before this change.
+
+- **The probe is a second render, not a new subsystem.** `probeRouting` loads `<mount>/<random-token>` and the control `<origin>/<random-token>`. A positive needs both: the marker under the prefix **and** its absence at the origin, which is what a host mounting the widget on its own 404 page fails. The token is random and never a real slug — a site can hand-build `/gb/london`, and one working page proves nothing about the subtree.
+- **The two probe renders start together, and that is a latency rule, not a verdict rule.** The verdict still reads the probe first and returns it unless positive. Sequentially the promote path was three renders end to end at `RENDER_TIMEOUT_MS` each, and Cloudflare abandons an origin response at 100s — so "Verify now" answered a 524 on the very press that promoted a service, after the row was written. The cost is the control render on a host that fails the probe, where it used to be skipped: an enabled owner now spends three renders (mount, token, control), which is the budget #644 sets, and one where the mount verification failed.
+- **Both URLs are derived from `canonical.embed` in one place** (`routingProbeUrls`), so an operator-typed string cannot reach the renderer by another route. A mount carrying a query string is a negative spending no render — `canonicalUrlBase` refuses that combination anyway.
+- **The ladder is asymmetric, because the failures are.** A wrong `path` 404s every deep link and puts dead URLs in the sitemap. A wrong `query` only produces uglier URLs that work. So: promote on one positive, demote only after `ROUTING_PROBE_FAILURE_LIMIT` consecutive negatives.
+- **Its own counter, never `failureCount`.** That one becomes `disable`, which switches canonical ownership off and emails the manager. A routing negative means the embed is present and publishing, so a shared counter would delete working public URLs over a URL-shape preference. `query` is a real canonical: the builder has a full arm for it, it is the default in both readers, and six `query` cases are pinned in `atlas-url-contract.json`.
+- **The verdict survives a null `verified`**, which is why it sits beside it: a client should path-route as soon as its host serves the subtree, whether or not it is publishing canonical URLs yet.
+- **"Verify now" may demote, where it may not disable.** Three presses return a client to `query` in a minute, with evidence — which is why there is no manual override field. The accepted cost: a host that serves the subtree but refuses headless renders (`bot-challenge`) stays on `query`, which is what it has today.
+- **Nothing backfills the verdict**, so every service reads `query` until it is probed, including one publishing `path` canonicals before the deploy. Backfilling from the marker's `routing` would re-introduce the self-report this rule removes, and each existing embed is re-verified by hand anyway. The operator step is in [`DEPLOYMENT.md`](../../DEPLOYMENT.md#-post-deploy-step-re-verify-each-canonical-owning-client-644).
 
 Vocabulary lives in `src/lib/clients/canonical.ts`, the verification contract in `src/lib/clients/verification.ts` — not the collection folder, since the job and the verifier both need it (`src/AGENTS.md` rule 4). `legacyConfig` was removed, not promoted: nothing backfills from it, since ownership now requires a verified reported embed.
 

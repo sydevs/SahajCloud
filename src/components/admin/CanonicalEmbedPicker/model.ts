@@ -2,7 +2,7 @@ import { buildCanonicalUrl, canonicalTargetForHost } from '@/lib/atlas/canonical
 import type { RoutingMode } from '@/lib/clients/canonical'
 import type { EmbedMetadata, EmbedMountRecord } from '@/lib/clients/embedMetadata'
 import type { CanonicalVerification, VerifiedEmbed } from '@/lib/clients/verification'
-import { splitMountKey } from '@/lib/clients/verification'
+import { effectiveRouting, splitMountKey } from '@/lib/clients/verification'
 
 /**
  * Turns the two stored facts — what the widget reported, and what the CMS has
@@ -178,15 +178,25 @@ function summarise(args: {
   // the picker already renders as "no example", and that is the truth: the
   // resolver would refuse this embed too.
   if (isVerifiedForThisEmbed && verified) {
-    routing = verified.routing
-    const target = canonicalTargetForHost(verified)
+    // The derived verdict, not `verified.routing` — the preview has to be the
+    // shape the resolver emits, and that is what `canonicalOwnerFrom` reads (#644).
+    routing = effectiveRouting(verification)
+    const target = canonicalTargetForHost(verified, routing)
     sampleUrl = target && buildCanonicalUrl(target, SAMPLE_ATLAS_PATH)
   } else if (mount) {
     const split = splitMountKey(embed)
     if (split) {
-      routing = mount.routing
+      // The derived verdict here too, so the sample only ever moves when the
+      // verdict moves. This branch used to read `mount.routing` — the widget's
+      // report of its own script parameter — which showed a fresh embed `path`,
+      // flipped it to `?atlas=` the moment verification succeeded, then flipped
+      // it back on the first positive probe: three shapes for one unchanged
+      // host. It was also the last read of a script-URL routing value left in
+      // this repo (#644). Still marked provisional: nothing has verified this
+      // mount, which is a separate fact from which shape it will publish.
+      routing = effectiveRouting(verification)
       sampleIsProvisional = true
-      const target = canonicalTargetForHost({ ...split, routing: mount.routing })
+      const target = canonicalTargetForHost(split, routing)
       sampleUrl = target && buildCanonicalUrl(target, SAMPLE_ATLAS_PATH)
     }
   }

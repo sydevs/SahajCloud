@@ -30,7 +30,6 @@ const healthy = {
 const verified: VerifiedEmbed = {
   domain: 'sahajayoga.nl',
   mount: '/locatelessons/',
-  routing: 'query',
   widgetVersion: 2,
   at: '2026-08-17T03:00:00.000Z',
 }
@@ -50,16 +49,28 @@ const verified: VerifiedEmbed = {
  * to the embed's default route.
  */
 describe('the sample URL the picker shows', () => {
-  const model = (v: VerifiedEmbed) =>
+  const model = (
+    v: VerifiedEmbed,
+    routingProbe?: CanonicalVerification['routingProbe'],
+    // What the widget reported for this mount. It lives in `embedMetadata` and
+    // nowhere else since #644's review — the verified snapshot no longer keeps a
+    // copy — and the preview must ignore it.
+    reported: 'query' | 'path' = 'query',
+  ) =>
     buildPickerModel({
-      embedMetadata: { [`https://${v.domain}${v.mount}`]: { ...healthy, routing: v.routing } },
+      embedMetadata: { [`https://${v.domain}${v.mount}`]: { ...healthy, routing: reported } },
       embed: `https://${v.domain}${v.mount}`,
-      verification: { verified: v, failureCount: 0, attempts: [] },
+      verification: {
+        verified: v,
+        failureCount: 0,
+        attempts: [],
+        ...(routingProbe && { routingProbe }),
+      },
       now,
     }).selected
 
   it('is byte-identical to what the resolver would build', () => {
-    const target = canonicalTargetForHost(verified)
+    const target = canonicalTargetForHost(verified, 'query')
     expect(target).not.toBeNull()
     expect(model(verified)?.sampleUrl).toBe(buildCanonicalUrl(target!, '/events/12345'))
   })
@@ -78,10 +89,61 @@ describe('the sample URL the picker shows', () => {
     )
   })
 
-  it('builds a path-routed sample without a query at all', () => {
-    expect(model({ ...verified, routing: 'path' })?.sampleUrl).toBe(
+  // The preview follows the *derived* verdict, because that is what
+  // `canonicalOwnerFrom` reads when it builds the real thing (#644).
+  it('builds a path-routed sample once the probe has promoted the client', () => {
+    const promoted = { at: '2026-08-18T03:00:00.000Z', verdict: 'path' as const, failedAttempts: 0 }
+    expect(model(verified, promoted)?.sampleUrl).toBe(
       'https://sahajayoga.nl/locatelessons/events/12345',
     )
+  })
+
+  // The circularity #644 removed: the report is the widget repeating what its
+  // script tag asked for, and it may no longer shape a URL.
+  it('ignores a `path` self-report the probe has not confirmed', () => {
+    expect(model(verified, undefined, 'path')?.sampleUrl).toBe(
+      'https://sahajayoga.nl/locatelessons/?atlas=/events/12345',
+    )
+  })
+
+  const KEY = 'https://sahajayoga.nl/locatelessons/'
+
+  /**
+   * The same rule on the *provisional* branch, which read the report until
+   * #644's review: a fresh embed reporting `path` previewed a path-routed
+   * sample, flipped to `?atlas=` the moment verification succeeded, then flipped
+   * back on the first positive probe — three shapes for one unchanged host.
+   */
+  it('ignores a `path` self-report on a mount nothing has verified', () => {
+    const selected = buildPickerModel({
+      embedMetadata: { [KEY]: { ...healthy, routing: 'path' } },
+      embed: KEY,
+      verification: null,
+      now,
+    }).selected
+    expect(selected?.sampleIsProvisional).toBe(true)
+    expect(selected?.routing).toBe('query')
+    expect(selected?.sampleUrl).toBe('https://sahajayoga.nl/locatelessons/?atlas=/events/12345')
+  })
+
+  // And it follows the verdict where there is one, with `verified` still null —
+  // the state `effectiveRouting` exists to be able to answer for (#644). The
+  // sample stays marked provisional: nothing has verified this mount, which is
+  // a separate fact from which shape it will publish.
+  it('previews a path sample for a probed mount whose verification is null', () => {
+    const selected = buildPickerModel({
+      embedMetadata: { [KEY]: { ...healthy, routing: 'query' } },
+      embed: KEY,
+      verification: {
+        verified: null,
+        failureCount: 0,
+        attempts: [],
+        routingProbe: { at: '2026-08-18T03:00:00.000Z', verdict: 'path', failedAttempts: 0 },
+      },
+      now,
+    }).selected
+    expect(selected?.sampleIsProvisional).toBe(true)
+    expect(selected?.sampleUrl).toBe('https://sahajayoga.nl/locatelessons/events/12345')
   })
 })
 

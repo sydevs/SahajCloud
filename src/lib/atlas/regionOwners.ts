@@ -3,6 +3,7 @@ import type { PayloadRequest } from 'payload'
 
 import type { RoutingMode } from '@/lib/clients/canonical'
 import { isValidCanonicalDomain } from '@/lib/clients/canonical'
+import { effectiveRouting } from '@/lib/clients/verification'
 import { serverEnv } from '@/lib/env'
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
@@ -21,8 +22,9 @@ import { getRegionTree } from './regionTree'
  * one: Greater London under `sahajayogalondon.co.uk`, not
  * `sahajayoga.org.uk`.
  *
- * **The host, mount, and routing come from `canonical.verification.verified`,
- * never from the declaration itself.** `canonical.embed` only *nominates*
+ * **The host and mount come from `canonical.verification.verified`, and the
+ * routing shape from the `routingProbe` verdict beside it — never from the
+ * declaration itself.** `canonical.embed` only *nominates*
  * one of the mounts the widget reported, and the report endpoint is
  * reachable by anyone holding a published key from an allowed origin
  * (#633). Only the verification job writes `verified`, from what it
@@ -58,8 +60,9 @@ interface ClientRow {
       verified?: {
         domain?: string | null
         mount?: string | null
-        routing?: RoutingMode | null
       } | null
+      /** What the CMS observed about the host's own server — the routing verdict. */
+      routingProbe?: { verdict?: RoutingMode | null } | null
     } | null
   } | null
 }
@@ -151,7 +154,9 @@ function canonicalOwnerFrom(row: ClientRow): CanonicalOwner | undefined {
     clientId: row.id,
     domain: verified.domain,
     mount: verified.mount ?? '/',
-    routing: verified.routing ?? 'query',
+    // Derived, not reported (#644): the probe is what the host's server
+    // actually does. See `effectiveRouting`.
+    routing: effectiveRouting(row.canonical?.verification),
   }
 }
 
@@ -317,7 +322,7 @@ export function canonicalTargetFor(owner: CanonicalOwner | undefined): Canonical
   // canonical URL — see `canonicalTargetForHost`. (A port survives
   // `allowedDomains`, which compares port-stripped hostnames.) Treat this
   // as no owner, rather than publishing a host nobody chose.
-  const owned = owner ? canonicalTargetForHost(owner) : null
+  const owned = owner ? canonicalTargetForHost(owner, owner.routing) : null
   if (owned) return owned
 
   return {
@@ -345,7 +350,7 @@ export async function getCanonicalUrlBase(
   regionId: number | null,
 ): Promise<string | null> {
   const owner = regionId == null ? undefined : (await getRegionOwners(req)).get(regionId)
-  const owned = owner ? canonicalTargetForHost(owner) : null
+  const owned = owner ? canonicalTargetForHost(owner, owner.routing) : null
   if (owned) return canonicalUrlBase(owned)
 
   return canonicalUrlBase(canonicalTargetFor(await getCanonicalFallbackOwner(req)))

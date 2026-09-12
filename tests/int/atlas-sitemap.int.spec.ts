@@ -170,6 +170,13 @@ describe('atlasSitemap endpoint', () => {
           },
           failureCount: 0,
           attempts: [],
+          // The shape is the derived verdict, never `verified.routing` — see
+          // `effectiveRouting`.
+          routingProbe: {
+            at: '2026-08-18T00:00:00.000Z',
+            verdict: args.routing,
+            failedAttempts: 0,
+          },
         },
       },
       _status: 'published',

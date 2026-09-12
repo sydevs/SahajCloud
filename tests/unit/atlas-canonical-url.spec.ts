@@ -142,17 +142,29 @@ describe('slug-charset assumption behind emitting the path raw', () => {
  */
 describe('canonicalTargetForHost rejects anything that is not a bare host', () => {
   it('accepts a bare host', () => {
-    expect(canonicalTargetForHost({ domain: 'sahajayoga.nl', mount: '/x/', routing: 'query' })).toEqual(
-      { origin: 'https://sahajayoga.nl', mount: '/x/', routing: 'query' },
-    )
+    expect(canonicalTargetForHost({ domain: 'sahajayoga.nl', mount: '/x/' }, 'query')).toEqual({
+      origin: 'https://sahajayoga.nl',
+      mount: '/x/',
+      routing: 'query',
+    })
   })
 
-  it('defaults an absent mount and routing', () => {
-    expect(canonicalTargetForHost({ domain: 'sahajayoga.nl' })).toEqual({
+  it('defaults an absent mount', () => {
+    expect(canonicalTargetForHost({ domain: 'sahajayoga.nl' }, 'query')).toEqual({
       origin: 'https://sahajayoga.nl',
       mount: '/',
       routing: 'query',
     })
+  })
+
+  /**
+   * Routing is a separate, required argument (#644), so a host record's own
+   * `routing` key — the widget's self-report — cannot reach the builder by
+   * being spread in. The caller has to say where its verdict came from.
+   */
+  it('takes routing from its argument, never from the host record', () => {
+    const selfReport = { domain: 'sahajayoga.nl', mount: '/map', routing: 'path' as const }
+    expect(canonicalTargetForHost(selfReport, 'query')?.routing).toBe('query')
   })
 
   // The realistic one: `allowedDomains` compares port-stripped hostnames, so a
@@ -167,13 +179,11 @@ describe('canonicalTargetForHost rejects anything that is not a bare host', () =
     '*.example.org',
     '',
   ])('refuses %j', (domain) => {
-    expect(canonicalTargetForHost({ domain, mount: '/', routing: 'query' })).toBeNull()
+    expect(canonicalTargetForHost({ domain, mount: '/' }, 'query')).toBeNull()
   })
 
   it('refuses a missing domain rather than emitting https://undefined', () => {
-    expect(
-      canonicalTargetForHost({ domain: undefined as unknown as string }),
-    ).toBeNull()
+    expect(canonicalTargetForHost({ domain: undefined as unknown as string }, 'query')).toBeNull()
   })
 })
 
