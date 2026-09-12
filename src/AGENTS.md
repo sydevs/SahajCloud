@@ -145,10 +145,13 @@ caller wrote — but the edge into `@/lib/env/server` is `@/lib/env`'s own
 `./server`, which no caller ever writes. So it was green from #633 to #770
 with 14 browser entries reaching it, 12 through that barrel. #770 fixed both
 halves, and both matter: derived entries alone still miss the edge, and file
-matching alone still misses the entry. The walk also stops at a `'use server'`
-module, because Next compiles one to a client reference and never bundles its
-body. `@/lib/status` is the same barrel shape, not yet cut — `ReadinessGroup`
-pulls nine modules through it for one function.
+matching alone still misses the entry. The barrel is also a `SERVER_ONLY` row
+in its own right, so the rule above holds even if the barrel stops reaching
+`@/lib/env/server` — the weight is the cost, not just the Node dependency. The
+walk also stops at a `'use server'` module, because Next compiles one to a
+client reference and never bundles its body. `@/lib/status` is the same barrel
+shape, not yet cut — `ReadinessGroup` pulls nine modules through it for one
+function.
 
 **A second guard walks the same graph for a different rule.**
 `tests/unit/public-env-substitution.spec.ts` checks that browser code reads

@@ -22,8 +22,7 @@ import { clientEntries, findInImportGraph, SRC } from '../utils/importGraph'
  */
 
 /**
- * Modules that drag Node-only dependencies in with them, as src-relative
- * **files**.
+ * Modules a browser entry may not reach, as src-relative **files**.
  *
  * Matching the import *specifier* is what made this guard unfailable: the edge
  * into `lib/env/server.ts` is `@/lib/env`'s own `./server`, a specifier no
@@ -31,6 +30,12 @@ import { clientEntries, findInImportGraph, SRC } from '../utils/importGraph'
  * and this matches the file it lands on (#770). The chain in the failure
  * message still reports specifiers, which is what a reader needs to find the
  * import to cut.
+ *
+ * Two kinds of row. Most drag a Node-only dependency in with them. The access
+ * barrel is here for its weight instead: it is the rule `src/AGENTS.md` states,
+ * and without its own row it is caught only while it happens to reach
+ * `lib/env/server.ts` — cut that one edge and the browser still downloads
+ * `accessPlugin`, `fieldAccess`, `accessConfigs` and `permissions`.
  */
 const SERVER_ONLY = new Map(
   [
@@ -38,6 +43,10 @@ const SERVER_ONLY = new Map(
     ['plugins/usage/db.ts', 'imports pg directly'],
     ['lib/env/server.ts', 'validates and holds server secrets'],
     ['lib/embedVerification/browserRendering.ts', 'holds Cloudflare credentials'],
+    [
+      'plugins/access/index.ts',
+      'the access barrel — client code imports ./config, ./adminOnly or ./types',
+    ],
   ].map(([file, reason]) => [join(SRC, file), reason]),
 )
 
