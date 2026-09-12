@@ -639,6 +639,18 @@ counting hook needs no extra guard. In practice only `findVersions`
 reaches the 400 in a hook that already skips `findByID`, since
 `findVersionByID` carries an `id` too.
 
+**Decline or translate? Ask what the `where` decides.** Both answers exist
+in this repo, and the choice is not about which edit is smaller:
+
+- A filter that **scopes a listing** — `locale`, finished events — is
+  **declined**. A versions read is not that listing, nobody's authority
+  widens, and `findByID` has never carried these filters either.
+- A filter that **decides authority** is **translated**, never declined,
+  because declining it would widen who may read a version row.
+  `withVersionHistoryAccess` (`src/plugins/access/accessConfigs.ts`)
+  rewrites `update`'s `Where` onto `version.` with Payload's own
+  `appendVersionToQueryKey` for exactly that reason.
+
 The two hooks that append a `where` — `filterMeditationsByLocale` and
 `excludeFinishedEvents` — are the only ones that needed this, and both are
 covered by integration specs that go red when the guard is deleted
