@@ -80,7 +80,8 @@ No loose files at the root — every file lives in a named folder:
   `localeIsolatedReq` — gives a nested cross-locale read a copy so it can't
   repoint the caller's request, `versionsRead` — tells a `beforeOperation`
   hook whether its `read` is a versions read, which cannot carry a document
-  `where`)
+  `where`, `url` — `parseUrl`/`originOf` for admin code deciding whether to
+  trust a URL the browser handed it, where an opaque origin reads as none)
 - `locales/` — locale config (`@/lib/locales` resolves to `locales/index.ts`)
 - `richEditor/` — Lexical editor presets + `blocks/` (the editor's block
   set) + `lexicalHooks`
