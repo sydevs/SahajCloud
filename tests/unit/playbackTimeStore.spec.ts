@@ -18,8 +18,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   __resetPlaybackTimeStoreForTests,
   getCachedPlaybackTime,
-  previewOriginOf,
-  setPlaybackTimeOrigin,
   subscribePlaybackTime,
 } from '@/components/admin/FrameEditor/playbackTimeStore'
 
@@ -34,10 +32,13 @@ const dispatchPlaybackUpdate = (currentTime: unknown, origin: string = PREVIEW_O
   )
 }
 
+/** Subscribing to the preview origin, which is what every case but the gate does. */
+const subscribe = (cb: (time: number) => void, origin = PREVIEW_ORIGIN) =>
+  subscribePlaybackTime(cb, origin)
+
 describe('playbackTimeStore', () => {
   beforeEach(() => {
     __resetPlaybackTimeStoreForTests()
-    setPlaybackTimeOrigin(PREVIEW_ORIGIN)
   })
 
   afterEach(() => {
@@ -50,7 +51,7 @@ describe('playbackTimeStore', () => {
 
   it('updates the cached time when a PLAYBACK_TIME_UPDATE message arrives', () => {
     const cb = vi.fn()
-    subscribePlaybackTime(cb)
+    subscribe(cb)
 
     dispatchPlaybackUpdate(90)
 
@@ -60,7 +61,7 @@ describe('playbackTimeStore', () => {
 
   it('preserves the cached time across "remounts" (subscribe → unsubscribe → resubscribe)', () => {
     const firstSubscriber = vi.fn()
-    const unsubscribe = subscribePlaybackTime(firstSubscriber)
+    const unsubscribe = subscribe(firstSubscriber)
     dispatchPlaybackUpdate(45)
     unsubscribe()
 
@@ -68,28 +69,32 @@ describe('playbackTimeStore', () => {
     // unmounts, audio is paused (no more messages), then a sibling
     // component mounts. It must see the last known playhead.
     const secondSubscriber = vi.fn()
-    subscribePlaybackTime(secondSubscriber)
+    subscribe(secondSubscriber)
 
     expect(getCachedPlaybackTime()).toBe(45)
   })
 
   it('stops notifying a subscriber after unsubscribe', () => {
     const cb = vi.fn()
-    const unsubscribe = subscribePlaybackTime(cb)
+    const unsubscribe = subscribe(cb)
     dispatchPlaybackUpdate(10)
     expect(cb).toHaveBeenCalledExactlyOnceWith(10)
 
     unsubscribe()
     dispatchPlaybackUpdate(20)
     expect(cb).toHaveBeenCalledTimes(1)
-    expect(getCachedPlaybackTime()).toBe(20)
+    // The cache follows live subscriptions, so an update arriving while
+    // nothing is mounted is neither delivered nor kept. The window it can fall
+    // in is one React commit — the gap between the outgoing tab unmounting and
+    // the incoming one subscribing.
+    expect(getCachedPlaybackTime()).toBe(10)
   })
 
   it('fans updates out to multiple subscribers', () => {
     const a = vi.fn()
     const b = vi.fn()
-    subscribePlaybackTime(a)
-    subscribePlaybackTime(b)
+    subscribe(a)
+    subscribe(b)
 
     dispatchPlaybackUpdate(7)
 
@@ -99,7 +104,7 @@ describe('playbackTimeStore', () => {
 
   it('ignores unrelated message types (e.g. payload-live-preview traffic)', () => {
     const cb = vi.fn()
-    subscribePlaybackTime(cb)
+    subscribe(cb)
 
     window.dispatchEvent(
       new MessageEvent('message', {
@@ -118,7 +123,7 @@ describe('playbackTimeStore', () => {
 
   it('ignores messages with non-finite or non-numeric currentTime', () => {
     const cb = vi.fn()
-    subscribePlaybackTime(cb)
+    subscribe(cb)
 
     dispatchPlaybackUpdate('30')
     dispatchPlaybackUpdate(NaN)
@@ -130,9 +135,9 @@ describe('playbackTimeStore', () => {
   })
 
   describe('origin gate', () => {
-    it('ignores a PLAYBACK_TIME_UPDATE from a foreign origin', () => {
+    it('ignores a PLAYBACK_TIME_UPDATE from any other origin', () => {
       const cb = vi.fn()
-      subscribePlaybackTime(cb)
+      subscribe(cb)
 
       dispatchPlaybackUpdate(120, 'https://evil.example')
 
@@ -140,21 +145,22 @@ describe('playbackTimeStore', () => {
       expect(getCachedPlaybackTime()).toBe(0)
     })
 
-    it('fails closed: accepts nothing until an origin is published', () => {
-      setPlaybackTimeOrigin(null)
-      const cb = vi.fn()
-      subscribePlaybackTime(cb)
+    // Nothing mounted means nothing listening — the permission lives with the
+    // subscription rather than with a flag somebody has to remember to clear.
+    it('fails closed with no subscriber', () => {
+      const unsubscribe = subscribe(vi.fn())
+      unsubscribe()
 
       dispatchPlaybackUpdate(120)
 
-      expect(cb).not.toHaveBeenCalled()
       expect(getCachedPlaybackTime()).toBe(0)
     })
 
-    it('follows the iframe when the preview is repointed at another origin', () => {
+    it('follows the panel when the preview is repointed at another origin', () => {
       const cb = vi.fn()
-      subscribePlaybackTime(cb)
-      setPlaybackTimeOrigin(previewOriginOf('https://other.example/preview?secret=x'))
+      const unsubscribe = subscribe(cb)
+      unsubscribe()
+      subscribe(cb, 'https://other.example')
 
       dispatchPlaybackUpdate(30, PREVIEW_ORIGIN)
       expect(cb).not.toHaveBeenCalled()
@@ -164,25 +170,12 @@ describe('playbackTimeStore', () => {
     })
   })
 
-  describe('previewOriginOf', () => {
-    it('reads the origin of an iframe src', () => {
-      expect(previewOriginOf('https://preview.example/preview?secret=x')).toBe(PREVIEW_ORIGIN)
-    })
-
-    it.each([null, undefined, '', 'not a url', 'data:text/html,x', 'javascript:alert(1)'])(
-      'returns null for %s, so nothing is accepted',
-      (src) => {
-        expect(previewOriginOf(src)).toBeNull()
-      },
-    )
-  })
-
   it('attaches the window listener only once across many subscribers', () => {
     const addSpy = vi.spyOn(window, 'addEventListener')
 
-    subscribePlaybackTime(vi.fn())
-    subscribePlaybackTime(vi.fn())
-    subscribePlaybackTime(vi.fn())
+    subscribe(vi.fn())
+    subscribe(vi.fn())
+    subscribe(vi.fn())
 
     const messageCalls = addSpy.mock.calls.filter(([type]) => type === 'message')
     expect(messageCalls).toHaveLength(1)

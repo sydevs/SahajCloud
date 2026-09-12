@@ -4,14 +4,11 @@ import { useLivePreviewContext, useLocale } from '@payloadcms/ui'
 import { useCallback, useEffect, useState } from 'react'
 import useSWR from 'swr'
 
+import { originOf } from '@/lib/utilities/url'
 import type { Frame } from '@/payload-types'
 
-import {
-  getCachedPlaybackTime,
-  previewOriginOf,
-  setPlaybackTimeOrigin,
-  subscribePlaybackTime,
-} from './playbackTimeStore'
+
+import { getCachedPlaybackTime, subscribePlaybackTime } from './playbackTimeStore'
 import { framesByNarratorKey } from './utils'
 
 /**
@@ -23,24 +20,23 @@ import { framesByNarratorKey } from './utils'
  * inactive. Without the singleton, switching tabs while audio was paused
  * would reset the playhead state to 0.
  *
- * It also publishes the origin the store accepts messages from. The store has
- * no React context to read, and this hook mounts wherever the playhead is
- * read, so the two facts stay together. `url` is a dependency because the
- * iframe's `src` follows it — re-reading the element after Payload repoints
- * the panel is how the allowed origin stays current.
+ * The subscription names the origin it will hear from — the live-preview
+ * iframe's. `url` is a dependency because the iframe's `src` follows it, so
+ * repointing the panel re-subscribes against the new origin. With no iframe
+ * there is no subscription at all, which is the closed side of failing closed.
  */
 export const usePlaybackTime = (): number => {
   const [time, setTime] = useState<number>(getCachedPlaybackTime)
   const { iframeRef, url } = useLivePreviewContext()
 
   useEffect(() => {
-    setPlaybackTimeOrigin(previewOriginOf(iframeRef.current?.src ?? url))
-  }, [iframeRef, url])
-
-  useEffect(() => {
     setTime(getCachedPlaybackTime())
-    return subscribePlaybackTime(setTime)
-  }, [])
+
+    const origin = originOf(iframeRef.current?.src ?? url)
+    if (!origin) return
+
+    return subscribePlaybackTime(setTime, origin)
+  }, [iframeRef, url])
 
   return time
 }
@@ -60,7 +56,7 @@ export const useSeekToTime = (): ((timestamp: number) => void) => {
   return useCallback(
     (timestamp: number) => {
       const iframe = iframeRef.current
-      const targetOrigin = previewOriginOf(iframe?.src)
+      const targetOrigin = originOf(iframe?.src)
 
       if (!iframe?.contentWindow || !targetOrigin) return
       iframe.contentWindow.postMessage({ type: 'SEEK_TO_TIME', timestamp }, targetOrigin)

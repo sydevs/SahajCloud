@@ -10,6 +10,19 @@ import type { PreviewTarget as PreviewTargetDeclaration } from '@/fields/preview
 import { composeTargetUrl } from './composeTargetUrl'
 
 /**
+ * The panel is one per document view, and so are these. They are module state
+ * rather than refs because the fields hand over **between** tabs: switching
+ * tabs unmounts one instance and mounts the next, and the mounting one reads
+ * the URL from the render it was mounted in — still the old tab's composed URL,
+ * since the outgoing instance's restore has not re-rendered the provider yet.
+ * A per-instance ref therefore captures that as its "default" and restores a
+ * view nobody asked for on the way out. Remembering what we last composed, for
+ * all of them, is what tells a URL we set apart from one Payload resolved.
+ */
+let lastComposedUrl: null | string = null
+let serverResolvedUrl: null | string = null
+
+/**
  * Points the Live Preview panel at the view its tab describes, and puts it
  * back when the tab closes. Renders nothing.
  *
@@ -32,10 +45,6 @@ export const PreviewTarget: UIFieldClientComponent = ({ field }) => {
 
   const { isLivePreviewEnabled, setIsLivePreviewing, setURL, url } = useLivePreviewContext()
 
-  /** The last URL this component handed to `setURL`. */
-  const composedRef = useRef<string | null>(null)
-  /** The server-resolved URL to restore on unmount. */
-  const defaultUrlRef = useRef<string | null>(null)
   /**
    * `setURL` is rebuilt on every `url` change, and the unmount cleanup below
    * runs once. Holding the latest one in a ref keeps that cleanup from
@@ -47,29 +56,36 @@ export const PreviewTarget: UIFieldClientComponent = ({ field }) => {
     setUrlRef.current = setURL
   })
 
+  /** Whether this instance moved the panel, and so owes it a restore. */
+  const repointed = useRef(false)
+
   useEffect(() => {
     if (!isLivePreviewEnabled || !target?.autoOpen) return
     setIsLivePreviewing(true)
   }, [isLivePreviewEnabled, setIsLivePreviewing, target?.autoOpen])
 
   useEffect(() => {
-    if (!isLivePreviewEnabled || !target) return
+    // An empty `url` is the provider before it has resolved one. Composing
+    // against the last document's default instead is how the panel would end
+    // up on another global's origin.
+    if (!isLivePreviewEnabled || !target || !url) return
 
-    if (url && url !== composedRef.current) defaultUrlRef.current = url
-    const base = defaultUrlRef.current
-    if (!base) return
+    if (url !== lastComposedUrl) serverResolvedUrl = url
+    if (!serverResolvedUrl) return
 
-    const composed = composeTargetUrl(base, target)
+    const composed = composeTargetUrl(serverResolvedUrl, target)
     if (!composed || composed === url) return
 
-    composedRef.current = composed
+    lastComposedUrl = composed
+    repointed.current = true
     setURL(composed)
   }, [isLivePreviewEnabled, setURL, target, url])
 
   useEffect(
     () => () => {
-      const restore = defaultUrlRef.current
-      if (restore) setUrlRef.current(restore)
+      // Only what this instance moved, and never a falsy URL — `setURL` reads
+      // that as "close the panel".
+      if (repointed.current && serverResolvedUrl) setUrlRef.current(serverResolvedUrl)
     },
     [],
   )

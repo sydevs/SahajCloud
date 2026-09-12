@@ -590,6 +590,7 @@ describe('buildTranslationTabs', () => {
           emails: {
             type: 'object',
             screenshot: '/shots/emails.png',
+            preview: { path: '/emails' },
             properties: {
               count: { type: 'string', description: 'C', plural: true, maxLength: 8, strict: true },
             },
@@ -598,7 +599,7 @@ describe('buildTranslationTabs', () => {
       }
       const emitted = getSchema(extended, 'emails')
       const serialized = JSON.stringify(emitted)
-      for (const keyword of ['plural', 'screenshot', 'strict']) {
+      for (const keyword of ['plural', 'preview', 'screenshot', 'strict']) {
         expect(serialized).not.toContain(`"${keyword}"`)
       }
       expect(Object.keys(emitted).sort()).toEqual([

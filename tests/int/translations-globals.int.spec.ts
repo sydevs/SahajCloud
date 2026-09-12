@@ -502,16 +502,14 @@ describe('Translations Globals Configuration', () => {
       return url({ locale: { code } } as never) as string
     }
 
-    /** Every `preview` a global's schema declares, by tab slug. */
+    /** Every `preview` a global's schema declares, by the field that carries it. */
     const declaredTargets = (slug: Slug): [string, PreviewTarget][] => {
       const tabsField = findGlobal(slug).fields[0] as TabsField
       return tabsField.tabs.flatMap((tab) => {
         const first = tab.fields[0]
-        const target =
-          first && first.type === 'ui'
-            ? ((first.admin?.custom as { previewTarget?: PreviewTarget } | undefined)?.previewTarget)
-            : undefined
-        return target ? [[String((first as { name?: string }).name), target] as [string, PreviewTarget]] : []
+        if (!first || first.type !== 'ui') return []
+        const custom = first.admin?.custom as { previewTarget?: PreviewTarget } | undefined
+        return custom?.previewTarget ? [[first.name, custom.previewTarget] as const] : []
       })
     }
 
@@ -522,8 +520,14 @@ describe('Translations Globals Configuration', () => {
 
     // A relative target resolves against this URL, so the trailing slash is
     // what keeps `map` under `/fr` instead of hoisting it to the site root.
-    it('wm-web-translations resolves a URL a relative target can extend', () => {
-      expect(new URL(previewUrl('wm-web-translations', 'fr')).pathname).toBe('/fr/')
+    // Asserted through the composition, not just the shape, because the slash
+    // is otherwise a character nobody would think to defend.
+    it('wm-web-translations composes a relative target under the edited locale', () => {
+      const base = previewUrl('wm-web-translations', 'fr')
+      const map = declaredTargets('wm-web-translations').find(([, target]) => target.path === 'map')
+      expect(map).toBeDefined()
+
+      expect(new URL(composeTargetUrl(base, map![1])!).pathname).toBe('/fr/map')
     })
 
     it.each(TARGETED)('%s declares targets that compose onto its own origin', (slug) => {
