@@ -1,0 +1,232 @@
+{
+  "_meta": {
+    "global": "wm-web-translations",
+    "locale": "en",
+    "source": "Extracted from sydevs/WeMeditateWeb@main — the literal each key replaces is listed in Appendix A of sydevs/SahajCloud#707. Screen-reader-only strings come from the inventory in sydevs/WeMeditateWeb#56.",
+    "schema_version": "post-#707 (12 tabs, 22 leaf groups, 140 declared keys)",
+    "shape": "Mirrors the global's API response: <tab>.<sub-group>.<key> for a nested tab, <tab>.<key> for a flat one (navigation, footer). A `plural: true` key is stored expanded — English populates `_one` and `_other` only, since English has no `few`/`many` form.",
+    "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form."
+  },
+
+  "common": {
+    "general": {
+      "loading": "Loading...",
+      "show_more": "Show More",
+      "site_title": "We Meditate",
+      "site_description": "Discover free guided meditations, music, and articles to learn and deepen your meditation practice."
+    },
+    "a11y": {
+      "dismiss": "Dismiss",
+      "close": "Close",
+      "previous": "Previous",
+      "next": "Next",
+      "show_more_items_one": "Show %{count} more item",
+      "show_more_items_other": "Show %{count} more items",
+      "breadcrumb": "Breadcrumb",
+      "opens_in_new_tab": "%{label} (opens in new tab)"
+    }
+  },
+
+  "navigation": {
+    "about_meditation": "About Meditation",
+    "featured_caption": "Inspiration comes from within"
+  },
+
+  "footer": {
+    "info": "Info",
+    "languages": "Languages",
+    "copyright": "© WeMeditate, %{year}"
+  },
+
+  "errors": {
+    "general": {
+      "heading": "Error",
+      "network_title": "Connection Issue",
+      "server_title": "Service Temporarily Unavailable",
+      "not_found_title": "Content Not Found",
+      "unknown_title": "Oops! Something went wrong",
+      "network_message": "Unable to connect to our content servers. Please check your internet connection and try again.",
+      "server_message": "Our content servers are experiencing issues. We're working to resolve this.",
+      "not_found_message": "This content is not available. It may have been moved or deleted.",
+      "unknown_message": "Something went wrong while loading this page. Please try again.",
+      "status_page_hint": "Check our %{link} for updates.",
+      "status_page_link": "status page",
+      "try_again": "Try Again",
+      "back_to_home": "Back to Home"
+    },
+    "a11y": {
+      "error_icon": "Error"
+    }
+  },
+
+  "article": {
+    "general": {
+      "written_by": "Written by %{name}",
+      "name_with_country": "%{name}, %{country}",
+      "meditating_years_one": "Meditating for %{count} year",
+      "meditating_years_other": "Meditating for %{count} years",
+      "reading_time_one": "%{count} minute read",
+      "reading_time_other": "%{count} minute read",
+      "about_the_author": "About the author",
+      "filter_all": "All",
+      "tag_wisdom": "Wisdom",
+      "tag_lifestyle": "Lifestyle",
+      "tag_creativity": "Creativity",
+      "tag_event": "Event",
+      "tag_technique": "Technique"
+    },
+    "a11y": {
+      "filter_label": "Filter content by tag"
+    }
+  },
+
+  "meditation": {
+    "general": {
+      "label": "Meditation",
+      "founder_name": "Shri Mataji Nirmala Devi",
+      "founder_role": "founder",
+      "voice": "Voice",
+      "music": "Music",
+      "change_music": "Change background music track",
+      "untitled": "Untitled Meditation",
+      "missing_audio": "This meditation is missing a required audio URL.",
+      "related_lectures": "Related lectures"
+    },
+    "a11y": {
+      "mute_voice": "Mute voice",
+      "unmute_voice": "Unmute voice",
+      "mute_music": "Mute music",
+      "unmute_music": "Unmute music",
+      "voice_volume": "Voice volume",
+      "music_volume": "Music volume",
+      "audio_settings": "Audio settings",
+      "shuffle_music": "Shuffle music track",
+      "related_lectures_loading": "Loading related lectures"
+    }
+  },
+
+  "lecture": {
+    "general": {
+      "missing_video": "This lecture is missing a playable video source.",
+      "related_meditations": "Related meditations"
+    },
+    "a11y": {
+      "related_meditations_loading": "Loading related meditations"
+    }
+  },
+
+  "map": {
+    "general": {
+      "online": "Online",
+      "classes_shown_one": "Showing %{shown} of %{count} class.",
+      "classes_shown_other": "Showing %{shown} of %{count} classes.",
+      "no_classes": "No meditation classes are listed here yet.",
+      "join_online": "Join online",
+      "visit_website": "Visit the website"
+    },
+    "a11y": {
+      "classes_heading": "Meditation classes",
+      "when": "When",
+      "where": "Where",
+      "languages": "Languages"
+    }
+  },
+
+  "forms": {
+    "general": {
+      "field_required": "%{field} is required",
+      "select_placeholder": "Select an option",
+      "submit_error": "An unexpected error occurred. Please try again.",
+      "thank_you": "Thank You!",
+      "submitted": "Your form has been submitted successfully.",
+      "submit": "Submit"
+    },
+    "a11y": {
+      "submitting": "Submitting form, please wait...",
+      "required_marker": "required"
+    }
+  },
+
+  "media": {
+    "general": {
+      "playlist": "Playlist",
+      "duration_minutes_one": "%{count} min",
+      "duration_minutes_other": "%{count} min",
+      "duration_seconds_one": "%{count} sec",
+      "duration_seconds_other": "%{count} sec",
+      "embed": "Embed",
+      "embed_title": "Embed “%{title}”",
+      "embed_player": "Embed this player",
+      "copy": "Copy",
+      "copied": "Copied!"
+    },
+    "a11y": {
+      "play": "Play",
+      "pause": "Pause",
+      "previous_track": "Previous track",
+      "next_track": "Next track",
+      "toggle_shuffle": "Toggle shuffle",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "volume": "Volume",
+      "play_item": "Play %{title}",
+      "view_image": "View image",
+      "view_image_alt": "View image: %{alt}",
+      "embed_code": "Embed code",
+      "zoom_in": "Zoom in",
+      "zoom_out": "Zoom out"
+    }
+  },
+
+  "location": {
+    "general": {
+      "search_placeholder": "Search for a location...",
+      "change": "Change",
+      "getting_coordinates": "Getting coordinates...",
+      "searching": "Searching...",
+      "type_to_search": "Type to search for a location",
+      "no_results": "No results found",
+      "suggestions_failed": "Failed to fetch location suggestions",
+      "coordinates_failed": "Failed to retrieve location coordinates",
+      "nearby": "Nearby",
+      "getting_location": "Getting location...",
+      "current_location": "Current Location",
+      "geolocation_unsupported": "Geolocation is not supported by your browser",
+      "permission_denied": "Location access denied",
+      "position_unavailable": "Location unavailable",
+      "timed_out": "Location request timed out",
+      "location_failed": "Unable to retrieve location"
+    },
+    "a11y": {
+      "search_label": "Search for a location",
+      "selected_label": "Selected location",
+      "change_label": "Change location"
+    }
+  },
+
+  "blocks": {
+    "general": {
+      "chakras": "Chakras",
+      "channels": "Channels",
+      "learn_more": "Learn More →",
+      "hours": "Hours",
+      "minutes": "Minutes",
+      "seconds": "Seconds"
+    },
+    "a11y": {
+      "enter_fullscreen": "Enter fullscreen",
+      "exit_fullscreen": "Exit fullscreen",
+      "learn_more_about": "Learn more about %{title}",
+      "previous_slide": "Previous slide",
+      "next_slide": "Next slide",
+      "previous_column": "Previous: %{title}",
+      "next_column": "Next: %{title}",
+      "go_to_column": "Go to column %{number}: %{title}",
+      "quote": "Quote",
+      "table_of_contents": "Table of contents",
+      "share_region": "Social media sharing options",
+      "share_group": "Share on social media",
+      "share_on": "Share on %{platform}"
+    }
+  }
+}

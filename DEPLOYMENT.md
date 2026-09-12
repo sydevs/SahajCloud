@@ -160,6 +160,27 @@ See [`src/migrations/AGENTS.md`](./src/migrations/AGENTS.md) for the full workfl
 non-interactive attempt sequence, the outcome table, the out-of-order snapshot trap, and how to
 reshape a migration that has already deployed to a PR preview.
 
+### ⚠ Post-deploy step: republish the WeMeditate App translations (#709)
+
+`20260909_161243_wm_app_localize_status_available_locales` moves
+`wm-app-translations._status` into `wm_app_translations_locales`, adding the column with
+`DEFAULT 'draft'`. It does **not** carry the previous whole-global status across, so **every
+locale of the app's live translations lands unpublished on that deploy** — English included.
+
+**English being in that set is what makes the app go fully blank, not partially.** A client's
+published read returns nothing for every locale, and `clientEnglishFallback` cannot mask it:
+its English read passes `draft: false` too, so it has nothing to merge from.
+
+Republish each locale in the admin with **"Publish in \<Locale\>"**, one per locale that was
+published before. Do **not** use "Publish all locales" — it publishes the empty locales as
+well, and `availableLocales` then accepts a language with no strings in it
+(`src/globals/AGENTS.md`). Until that is done, API clients reading published content get
+blanks, and `wm-app-config` cannot be saved with any non-English `availableLocales` — the gate
+this migration ships refuses an unpublished locale by design.
+
+Do this immediately after the deploy that applies it. The two web-project globals took the
+same reset in #705, where a seed republished them; this one is live content and has no seed.
+
 ---
 
 ## Environment Variables

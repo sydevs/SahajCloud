@@ -30,6 +30,7 @@ pages, required), `featuredPages` (hasMany 2–3), `featuredArticles`
 `classPages` / `knowledgePages` / `infoPages` (hasMany, max 5).
 
 **WeMeditate App** (admin group: WeMeditate App, tabs: First Meditation) —
+`availableLocales` (above the tabs, #709),
 `selfRealizationMeditation` (localized relationship to meditations),
 `postRealizationLecture` (localized relationship to lecture-clips),
 `vibeCheckTracks` (localized array. Each item has an `identifier` select
@@ -43,11 +44,12 @@ plus required `audio`/`subtitles` uploads).
 
 ### `availableLocales` — the language set, gated on published translations
 
-`availableLocalesField({ translationsSlug, surface })`
+`availableLocalesField({ translationsSlug, description })`
 (`src/fields/availableLocalesField.ts`) is the **source of truth for which
-languages a project offers** (#645, rewritten by #705): the SEO endpoint
-reads it for every atlas page's `hreflang` cluster. It replaced
-`sy-atlas-config.languages`, an unvalidated array of `{ code }` rows.
+languages a project offers** (#645, rewritten by #705, mounted on all three
+config globals by #709): the SEO endpoint reads it for every atlas page's
+`hreflang` cluster. It replaced `sy-atlas-config.languages`, an unvalidated
+array of `{ code }` rows.
 
 Two invariants, both enforced in the field because a stored value that
 breaks either is a wrong `hreflang` on every page:
@@ -64,7 +66,8 @@ Payload validates the merged document on **every** save of the global — not
 only when someone edits this field — and the migration that adds per-locale
 `_status` lands every locale as `draft`. Gating English would leave both
 config globals unsaveable after deploy, with an error telling the operator to
-publish the one locale they cannot deselect.
+publish the one locale they cannot deselect. The same holds for
+`wm-app-config` since #709.
 
 ⚠ **`locale: 'all'` is load-bearing.** A single-locale read resolves
 `_status` through the English fallback, so an untranslated locale reports
@@ -76,11 +79,13 @@ map answers correctly.
 anything is published. `en` stays required with it set. It is unreachable
 over REST: Payload hard-codes `context: {}` on every REST request.
 
-⚠ **Every partial write to either config global must now carry
+⚠ **Every partial write to any of the three config globals must carry
 `availableLocales`.** Payload merges the stored value into the field's
 sibling data and validates it, so a `required` field with no stored value
-refuses a write that never mentioned it. `seeds/wemeditate/import.ts` and two
-integration suites each needed a line for this.
+refuses a write that never mentioned it. `seeds/wemeditate/import.ts` and four
+integration suites each needed a line for this. `['en']` alone needs no
+`skipAvailableLocalesCheck` — the field returns early once the gated set is
+empty, above the check that reads stored data.
 
 **An unconfigured column answers `['en']`** (`readAvailableLocales`,
 `src/lib/translations/availableLocales.ts`), not the ten launch locales the
@@ -113,7 +118,8 @@ All translations globals share a tab-based structure, built by
 `buildTranslationTabs()` from a `translationsSchema.json` co-located with
 the global. Versions: max 3.
 
-- WeMeditate Web tabs: Common, Navigation
+- WeMeditate Web tabs: Common, Navigation, Footer, Errors, Article,
+  Meditation, Lecture, Map, Forms, Media, Location, Blocks
 - WeMeditate App tabs: Daily, Path, Explore, Profile, Meditation
 - Sahaj Atlas tabs: Common, Countries, Search, Filters, Online, Event,
   Calendar, Registration, Share, Compact, Emails
@@ -126,10 +132,27 @@ own. The catalogue itself lives in the widget
 widget can read it — Appendix A of #706 is the old-to-new mapping, kept as
 the cross-repo record of what each key was called.
 
-Three things distinguish `sy-atlas-translations` and `wm-web-translations`
-from `wm-app-translations` (#705):
+The Web tabs are in the site's **reading order**, not grouped by data type —
+a translator works down a page. Every tab that carries screen-reader-only
+copy declares explicit `general` + `a11y` sub-groups (#707), so the visible
+strings stay together and the invisible ones start collapsed. `navigation`
+and `footer` have none, so they stay flat.
 
-- **Per-locale publish status.** Both set
+Two conventions hold across that schema, and adding a key means honouring
+both:
+
+- **An `a11y` key's description begins "Not shown on screen; read by screen
+  readers."** It is the only cue a translator has that nobody will ever see
+  the string, and the tone that follows from it is different.
+- **`%{count}` is reserved for the number that selects the plural form.** A
+  string needing a second number uses its own name — `map.classes_shown` is
+  `%{shown}` of `%{count}`, and only `%{count}` picks one/other.
+
+Three things are true of **all three** translations globals — #705 brought
+them to `sy-atlas-translations` and `wm-web-translations`, #709 to
+`wm-app-translations`:
+
+- **Per-locale publish status.** Each sets
   `versions.drafts.localizeStatus: true` (the object form — `drafts: true`
   sanitises the flag back to `false`), and `payload.config.ts` sets the
   root `experimental.localizeStatus`. Payload forces the flag off per
@@ -140,6 +163,15 @@ from `wm-app-translations` (#705):
   `updateGlobal({ locale: 'fr', publishSpecificLocale: 'fr', data: { _status: 'published' } })`.
   ⚠ "Publish all locales" includes empty ones, which `availableLocales`
   then accepts.
+  ⚠ The migration that moves `_status` into `<global>_locales` adds the
+  column with `DEFAULT 'draft'`, so **every locale lands unpublished** —
+  English included — and the previous whole-global status is not carried
+  across. English being in that set is what makes a client's published read
+  blank rather than partial: `clientEnglishFallback` reads English with
+  `draft: false` too, so it has nothing to merge from. For the two web
+  globals that was a seed step; for `wm-app-translations` it is live app
+  content, so an operator republishes each locale after that deploy, with
+  "Publish in \<Locale\>" rather than the all-locales button above.
 - **An English merge for API clients.** `clientEnglishFallback`
   (`src/lib/translations/clientEnglishFallback.ts`) is an `afterRead` hook
   that fills blank or missing keys from English when
@@ -149,8 +181,9 @@ from `wm-app-translations` (#705):
   it never throws.
 - **`_locales` is a reserved suffix, and it is matched exactly.** Drizzle
   keys the localized-values table on the literal `<table>_locales`, never
-  on a suffix, so `sy_atlas_config_available_locales` is safe. The `⚠`
-  box below is still the rule for naming a field.
+  on a suffix, so `sy_atlas_config_available_locales` and its two
+  siblings are safe. The `⚠` box below is still the rule for naming a
+  field.
 
 ### ⚠ Two Atlas groups hold live production data
 
@@ -260,6 +293,18 @@ one. A sub-group named `a11y` starts collapsed; everything else opens. This
 is presentational only — the data path and column name are unchanged, so no
 migration is involved. Mixing leaf keys and sub-groups at one level is
 deliberately unsupported: declare explicit `general` + `a11y` sub-groups.
+
+A sub-group's label is its slug in title case, which reads correctly for a
+slug made of words (`page_tags` → "Page Tags") and badly for one that is not
+(`a11y` → "A11y"). **`SUBGROUP_PRESENTATION`** in `translationsField.ts` is
+the one place that overrides it, and it carries the collapse rule beside the
+label so both facts about a slug stay together — `a11y` renders as
+"Accessibility" and starts closed. Only sub-groups read that table: a tab's
+label is always its slug in title case, whatever the slug. Add an entry there, never a label in a
+schema: a schema-side label would be re-declared in every global that used
+the slug, with nothing pinning the copies equal, and would leave the collapse
+rule stranded on the other side. Presentational only — the field name, data
+path, and column still come from the slug.
 
 ### Per-key character limit (`maxLength`, and `strict`)
 
