@@ -152,6 +152,8 @@ This is not Payload's default, and the default is the permissive one. `findVersi
 
 ⚠ **A `Where` from `update` must be translated before it reaches a versions query.** `update` returns a query over *documents*; every versions operation combines the access result straight into a query over the *versions* collection without remapping it, where a document's fields sit under `version.` and its id is `parent`. `appendVersionToQueryKey` (exported by `payload`, and what `replaceWithDraftIfAvailable` applies to the `read` result) is the mapping. Skip it and `{ id: { in: [7] } }` matches version *rows* by their own primary key — a wrong answer that still returns documents.
 
+⚠ **Both derivations fail closed when there is no `update` to delegate to.** `withVersionHistoryAccess` and `withUnlockAccess` write `() => false` rather than returning the config untouched — an *unset* key is refilled from Payload's defaults with the permissive `Boolean(user)`, which is exactly how #719 and #748 shipped. `createAccessConfig` always assigns `update` and every `access:` under `src/collections` is field-level, so neither branch is reachable through `accessPlugin` today. `tests/unit/access-derived-grants.spec.ts` reaches them directly, so the direction is asserted rather than assumed.
+
 Two consequences worth knowing:
 
 - **A read-only manager no longer sees the History tab.** `/api/access` computes `readVersions` from this same function, so the admin UI follows. That is the intended behaviour change, not a regression.

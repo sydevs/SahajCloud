@@ -185,21 +185,28 @@ export function withVersionHistoryAccess<T extends { readVersions?: Access; upda
   access: T,
 ): T {
   const { readVersions, update } = access
-  if (readVersions || !update) return access
+  if (readVersions) return access
 
   return {
     ...access,
-    // ⚠ Drop the id. `findVersionByID` passes the VERSION ROW's primary key,
-    // not the document's, so every id-sensitive branch of `update` would answer
-    // about the wrong document. Dropped, `update` answers at the list level and
-    // `findVersionByID` ANDs the row id back on itself.
-    readVersions: async ({ id: _versionRowId, ...args }) => {
-      const result = await update(args)
-      // ⚠ Translate the `Where`. `update` queries DOCUMENTS; this one runs over
-      // VERSIONS, where a document's fields sit under `version.` and its id is
-      // `parent`.
-      return hasWhereAccessResult(result) ? appendVersionToQueryKey(result) : result
-    },
+    // ⚠ Fail CLOSED when there is no `update` to delegate to. Returning `access`
+    // untouched instead would leave `readVersions` unset, and Payload refills an
+    // unset key with the permissive default this wrapper exists to remove.
+    // Unreachable today — `createAccessConfig` always assigns `update` — but the
+    // silence is exactly how #719 and #748 shipped.
+    readVersions: update
+      ? // ⚠ Drop the id. `findVersionByID` passes the VERSION ROW's primary key,
+        // not the document's, so every id-sensitive branch of `update` would
+        // answer about the wrong document. Dropped, `update` answers at the list
+        // level and `findVersionByID` ANDs the row id back on itself.
+        async ({ id: _versionRowId, ...args }) => {
+          const result = await update(args)
+          // ⚠ Translate the `Where`. `update` queries DOCUMENTS; this one runs
+          // over VERSIONS, where a document's fields sit under `version.` and
+          // its id is `parent`.
+          return hasWhereAccessResult(result) ? appendVersionToQueryKey(result) : result
+        }
+      : () => false,
   }
 }
 
@@ -218,17 +225,21 @@ export function withVersionHistoryAccess<T extends { readVersions?: Access; upda
  */
 export function withUnlockAccess<T extends { unlock?: Access; update?: Access }>(access: T): T {
   const { unlock, update } = access
-  if (unlock || !update) return access
+  if (unlock) return access
 
   return {
     ...access,
+    // ⚠ Fail CLOSED when there is no `update` to delegate to — see the same
+    // guard in `withVersionHistoryAccess`. Leaving `unlock` unset restores
+    // `Boolean(user)`, which is the whole bug #748 fixes.
+    //
     // ⚠ Drop the id. `unlockOperation` calls access with no `id` today, so
     // `update` already answers at the list level — dropping it keeps that true
     // if a future Payload passes one, rather than letting the self-access
     // bypass (`user.id === docId`) hand an account its own unlock.
     // No `Where` translation: unlock queries the auth collection itself, which
     // is what `update` already answers about.
-    unlock: ({ id: _id, ...args }) => update(args),
+    unlock: update ? ({ id: _id, ...args }) => update(args) : () => false,
   }
 }
 
