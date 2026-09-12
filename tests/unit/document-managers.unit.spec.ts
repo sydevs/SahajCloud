@@ -1,6 +1,6 @@
 import type { CollectionSlug, FlattenedField, Payload, PayloadRequest } from 'payload'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   getDocManagerFields,
@@ -104,6 +104,13 @@ describe('getDocManagerFields', () => {
   })
 })
 
+/**
+ * `memoizeOnRequest`'s own contract — sequential reuse, failure eviction, no
+ * sharing across requests — is pinned once against a single consumer in
+ * `pages-app-config-cache.spec.ts`. These two cases cover only what this module
+ * contributes: that the resolution is memoized at all, and that its key is
+ * complete. A wrong key here is an access-control leak, not a slow page.
+ */
 describe('resolveManagedDocIds is memoized per request', () => {
   const regionFields = {
     managersField: 'managers',
@@ -113,51 +120,36 @@ describe('resolveManagedDocIds is memoized per request', () => {
   }
 
   /**
-   * A request whose `payload.find` counts every call and answers the two
-   * queries one resolution makes: the roots (`where.or`, from
-   * `directManagerWhere`) and their breadcrumb descendants.
+   * A request whose `payload.find` answers the two queries one resolution
+   * makes: the roots (`where.or`, from `directManagerWhere`) and their
+   * breadcrumb descendants. Returns the spy separately so assertions stay
+   * typed instead of reaching through the cast request.
    */
-  function countingReq() {
-    const calls: Record<string, unknown>[] = []
-    const req = {
-      context: {},
-      payload: {
-        find: async ({ where }: { where: Record<string, any> }) => {
-          calls.push(where)
-          if (where.or) return { docs: [{ id: 1 }] }
-          return { docs: [{ id: 2 }] }
-        },
-      },
-    } as unknown as PayloadRequest
-    return { req, calls }
+  function makeReq() {
+    const find = vi.fn(async ({ where }: { where: Record<string, any> }) =>
+      where.or ? { docs: [{ id: 1 }] } : { docs: [{ id: 2 }] },
+    )
+    const req = { context: {}, payload: { find } } as unknown as PayloadRequest
+    return { req, find }
   }
 
-  it('collapses concurrent resolutions to one load — the `/api/access` shape', async () => {
-    const { req, calls } = countingReq()
+  it('collapses concurrent resolutions to one load', async () => {
+    const { req, find } = makeReq()
 
-    // `getEntityPermissions` fires every operation in one Promise.all with
-    // byte-identical args. Each would otherwise issue its own pair of queries.
     const results = await Promise.all(
       Array.from({ length: 6 }, () => resolveManagedDocIds(req, 'regions', 99, regionFields)),
     )
 
-    expect(calls).toHaveLength(2)
-    expect(calls.filter((where) => 'or' in where)).toHaveLength(1)
+    // Six callers, one roots query and one descendants query between them.
+    expect(find).toHaveBeenCalledTimes(2)
+    expect(find).toHaveBeenCalledWith(
+      expect.objectContaining({ collection: 'regions', where: { or: [{ managers: { in: [99] } }] } }),
+    )
     for (const ids of results) expect(ids.sort()).toEqual([1, 2])
   })
 
-  it('collapses sequential resolutions on the same request', async () => {
-    const { req, calls } = countingReq()
-
-    await resolveManagedDocIds(req, 'regions', 99, regionFields)
-    await resolveManagedDocIds(req, 'regions', 99, regionFields)
-    await resolveManagedDocIds(req, 'regions', 99, regionFields)
-
-    expect(calls).toHaveLength(2)
-  })
-
   it('keys on collection and user, so neither answers for the other', async () => {
-    const { req, calls } = countingReq()
+    const { req, find } = makeReq()
 
     await Promise.all([
       resolveManagedDocIds(req, 'regions', 99, regionFields),
@@ -166,40 +158,7 @@ describe('resolveManagedDocIds is memoized per request', () => {
     ])
 
     // Three distinct keys, two queries each — nothing shared between them.
-    expect(calls).toHaveLength(6)
-  })
-
-  it('does not share a memo across requests', async () => {
-    const first = countingReq()
-    const second = countingReq()
-
-    await resolveManagedDocIds(first.req, 'regions', 99, regionFields)
-    await resolveManagedDocIds(second.req, 'regions', 99, regionFields)
-
-    expect(first.calls).toHaveLength(2)
-    expect(second.calls).toHaveLength(2)
-  })
-
-  it('evicts a failed load so a later read in the same request retries', async () => {
-    let attempt = 0
-    const req = {
-      context: {},
-      payload: {
-        find: async ({ where }: { where: Record<string, any> }) => {
-          if (where.or) {
-            attempt += 1
-            if (attempt === 1) throw new Error('connection lost')
-            return { docs: [{ id: 1 }] }
-          }
-          return { docs: [] }
-        },
-      },
-    } as unknown as PayloadRequest
-
-    await expect(resolveManagedDocIds(req, 'regions', 99, regionFields)).rejects.toThrow(
-      'connection lost',
-    )
-    await expect(resolveManagedDocIds(req, 'regions', 99, regionFields)).resolves.toEqual([1])
+    expect(find).toHaveBeenCalledTimes(6)
   })
 })
 
