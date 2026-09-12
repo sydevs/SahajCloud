@@ -33,7 +33,7 @@ import type { CollectionAfterReadHook, CollectionConfig } from 'payload'
 import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 
 /** True for a collection whose `_status` is stored per locale. */
-export function hasLocalizedStatus(collection: CollectionConfig): boolean {
+function hasLocalizedStatus(collection: CollectionConfig): boolean {
   const versions = collection.versions
   if (!versions || typeof versions !== 'object') return false
   const drafts = versions.drafts
