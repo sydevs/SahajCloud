@@ -50,11 +50,11 @@ const verified: VerifiedEmbed = {
  * to the embed's default route.
  */
 describe('the sample URL the picker shows', () => {
-  const model = (v: VerifiedEmbed) =>
+  const model = (v: VerifiedEmbed, pathProbe?: CanonicalVerification['pathProbe']) =>
     buildPickerModel({
       embedMetadata: { [`https://${v.domain}${v.mount}`]: { ...healthy, routing: v.routing } },
       embed: `https://${v.domain}${v.mount}`,
-      verification: { verified: v, failureCount: 0, attempts: [] },
+      verification: { verified: v, failureCount: 0, attempts: [], ...(pathProbe && { pathProbe }) },
       now,
     }).selected
 
@@ -78,9 +78,20 @@ describe('the sample URL the picker shows', () => {
     )
   })
 
-  it('builds a path-routed sample without a query at all', () => {
-    expect(model({ ...verified, routing: 'path' })?.sampleUrl).toBe(
+  // The preview follows the *derived* verdict, because that is what
+  // `canonicalOwnerFrom` reads when it builds the real thing (#644).
+  it('builds a path-routed sample once the probe has promoted the client', () => {
+    const promoted = { at: '2026-08-18T03:00:00.000Z', verdict: 'path' as const, strikes: 0 }
+    expect(model(verified, promoted)?.sampleUrl).toBe(
       'https://sahajayoga.nl/locatelessons/events/12345',
+    )
+  })
+
+  // The circularity #644 removed: `verified.routing` is the widget repeating
+  // what its script tag asked for, and it may no longer shape a URL.
+  it('ignores a `path` self-report the probe has not confirmed', () => {
+    expect(model({ ...verified, routing: 'path' })?.sampleUrl).toBe(
+      'https://sahajayoga.nl/locatelessons/?atlas=/events/12345',
     )
   })
 })

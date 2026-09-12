@@ -188,6 +188,9 @@ describe('atlasSeo endpoint', () => {
           },
           failureCount: 0,
           attempts: [],
+          // The URL shape is the probe's verdict, not the widget's self-report
+          // beside it (#644) — a `path` owner is one the probe has promoted.
+          pathProbe: { at: '2026-08-18T00:00:00.000Z', verdict: 'path', strikes: 0 },
         },
       },
       _status: 'published',
