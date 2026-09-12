@@ -183,7 +183,7 @@ async function walkDescendantsViaParent(
   return [...found]
 }
 
-/** Ids of the roots the user directly manages plus every descendant of those roots. */
+/** Uncached. Callers go through `resolveManagedDocIds`. */
 async function loadManagedDocIds(
   req: PayloadRequest,
   collection: ContentSlug,
@@ -226,33 +226,30 @@ async function loadManagedDocIds(
  * Ids of the roots the user directly manages plus every descendant, resolved at
  * most **once per `(collection, userId)` per request**.
  *
- * Payload evaluates every access operation independently and dedups nothing
- * between them, so the uncached load ran 3–4 times per `/api/access` call and up
- * to 12 times per document edit view — `getEntityPermissions` fires every
- * operation in one `Promise.all` with byte-identical args, and
- * `getDocumentPermissions` repeats the whole set four times for a drafts+trash
- * collection. Payload's own `whereQueryCache` cannot help: it only runs with
- * `fetchData: true`, and `/api/access` passes `false`.
+ * Why it is memoized at all: "Document-level manager access" in
+ * `docs/rules/access.md` (#749). The key belongs here rather than at the two
+ * call sites (`accessConfigs.ts`, `regionSubtreeAccess.ts`) so both share one
+ * entry — they resolve the identical set for `regions`, and they normalize the
+ * user id differently, which one shared template literal settles.
  *
- * `memoizeOnRequest` stores the **promise**, so the concurrent callers inside
- * that `Promise.all` collapse to one query instead of stampeding. `fields` is
- * absent from the key on purpose — it is derived from `collection` and already
- * `WeakMap`-cached by `getDocManagerFields`.
+ * `fields` is deliberately out of the key: it is a pure function of
+ * `collection`, already `WeakMap`-cached by `getDocManagerFields`.
  *
  * ⚠ **The memo pins the managed set for the life of `req`.** A request that
- * writes `Regions.managers` or `Pages.managers` and then makes a *second* access
- * decision on the same `req` reads the pre-write set. Payload evaluates access
- * before the write, and the only `overrideAccess: false` writes in `src/`
- * (`Events/endpoints/verifyEventAction.ts`, `registerForEvent.ts`) are single
- * writes touching no manager field — so the window is narrow, but it does not
- * exist in the uncached code.
+ * writes a `managers` field and then makes a *second* access decision on the
+ * same `req` reads the pre-write set. Payload evaluates access before the write,
+ * and the only `overrideAccess: false` writes in `src/`
+ * (`Events/endpoints/verifyEventAction.ts`, `registerForEvent.ts`) touch no
+ * manager field — so the window is narrow, but it is new.
  *
- * ⚠ **Do not lift this memo to the `update`/`readVersions` wrappers.** They
- * return different shapes (a raw `Where` vs an `appendVersionToQueryKey`'d one),
- * and it must not wrap `hasPermission` either: manager roles are per-locale
- * (#665) and `localeIsolatedReq` shares `req.context` by reference across locale
- * copies, so a locale-insensitive key there would hand one locale's roles to
- * another. This load is safe on that count — it queries non-localized
+ * ⚠ **Do not lift this memo to the access function.** That answer depends on
+ * `id` and `data`, which this key does not carry: `createAccessConfig` returns a
+ * boolean about one document when `id` is set, `withVersionHistoryAccess` strips
+ * `id` so the two calls must disagree, and `scopeRegionSubtreeWrite` branches on
+ * `data.parent` / `data.region`. It also resolves `roleScopeFromLocale`, and
+ * `localeIsolatedReq` shares `req.context` by reference across locale copies, so
+ * a locale-insensitive key there would hand one locale's roles to another
+ * (#665). This load is safe on that count — it queries non-localized
  * relationship fields and reads only `doc.id`.
  */
 export function resolveManagedDocIds(
