@@ -19485,18 +19485,6 @@
       "name": "wm_web_translations_locales",
       "schema": "",
       "columns": {
-        "common_general": {
-          "name": "common_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "common_a11y": {
-          "name": "common_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "navigation": {
           "name": "navigation",
           "type": "jsonb",
@@ -19505,114 +19493,6 @@
         },
         "footer": {
           "name": "footer",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "errors_general": {
-          "name": "errors_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "errors_a11y": {
-          "name": "errors_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "article_general": {
-          "name": "article_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "article_a11y": {
-          "name": "article_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "meditation_general": {
-          "name": "meditation_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "meditation_a11y": {
-          "name": "meditation_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lecture_general": {
-          "name": "lecture_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lecture_a11y": {
-          "name": "lecture_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "map_general": {
-          "name": "map_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "map_a11y": {
-          "name": "map_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "forms_general": {
-          "name": "forms_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "forms_a11y": {
-          "name": "forms_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "media_general": {
-          "name": "media_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "media_a11y": {
-          "name": "media_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "location_general": {
-          "name": "location_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "location_a11y": {
-          "name": "location_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "blocks_general": {
-          "name": "blocks_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "blocks_a11y": {
-          "name": "blocks_a11y",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -19854,18 +19734,6 @@
       "name": "_wm_web_translations_v_locales",
       "schema": "",
       "columns": {
-        "version_common_general": {
-          "name": "version_common_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_common_a11y": {
-          "name": "version_common_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "version_navigation": {
           "name": "version_navigation",
           "type": "jsonb",
@@ -19874,114 +19742,6 @@
         },
         "version_footer": {
           "name": "version_footer",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_errors_general": {
-          "name": "version_errors_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_errors_a11y": {
-          "name": "version_errors_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_article_general": {
-          "name": "version_article_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_article_a11y": {
-          "name": "version_article_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_meditation_general": {
-          "name": "version_meditation_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_meditation_a11y": {
-          "name": "version_meditation_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_lecture_general": {
-          "name": "version_lecture_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_lecture_a11y": {
-          "name": "version_lecture_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_map_general": {
-          "name": "version_map_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_map_a11y": {
-          "name": "version_map_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_forms_general": {
-          "name": "version_forms_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_forms_a11y": {
-          "name": "version_forms_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_media_general": {
-          "name": "version_media_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_media_a11y": {
-          "name": "version_media_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_location_general": {
-          "name": "version_location_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_location_a11y": {
-          "name": "version_location_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_blocks_general": {
-          "name": "version_blocks_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_blocks_a11y": {
-          "name": "version_blocks_a11y",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -22639,12 +22399,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "seo": {
-          "name": "seo",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "emails": {
           "name": "emails",
           "type": "jsonb",
@@ -23076,12 +22830,6 @@
         },
         "version_compact": {
           "name": "version_compact",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_seo": {
-          "name": "version_seo",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -28975,6 +28723,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "50154eee-6093-4ae2-b07e-d6435723d50f",
+  "id": "61c04807-0175-43af-8f7d-3e1e389202ac",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }
