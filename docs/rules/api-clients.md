@@ -196,6 +196,26 @@ The default is applied by the `excludeFinishedEvents` beforeOperation hook on Ev
 
 > Existing clients see fewer docs from `GET /api/events`. This is deliberate, and published on the geojson operation's OpenAPI `description` (the generated `/api/events` path has no description seam to annotate).
 
+## Client read contract: which languages a document is published in (#718)
+
+`pages` and `app-cards` set `versions.drafts.localizeStatus`, so `_status` is stored **per locale**. Publishing German says nothing about French, and one read answers which languages a document is live in:
+
+```
+GET /api/pages?locale=all&select[_status]=true
+→ { "docs": [ { "id": 12, "_status": { "en": "published", "de": "draft" } } ] }
+```
+
+Read the map by this rule: **a locale is published only when it says `published`.** A locale that was never translated has no row at all and is simply **absent** from the map — a page published in English alone reports `{ "en": "published" }` and nothing else. Absent is not published. Do not derive the answer from the site's locale set, or from which locales have *any* version.
+
+Five things to know:
+
+- **`locale=all` is what makes it a map.** A single-locale read resolves `_status` through the English fallback, so an untranslated locale reports itself published and the answer is wrong in the permissive direction. This is the same trap `availableLocalesField` documents for the translations globals.
+- **It costs no extra query.** The Postgres adapter joins `_locales` unfiltered on every localized read, so a 25-row list at `locale=all` is still one query. That is why there is no `publishedLocales` field — a collection `afterRead` computing one would have to re-read each row at `locale: 'all'`, 25 reads on a 25-row list. Pinned by `tests/int/pages-localize-status.int.spec.ts`.
+- **`payload-types.ts` still types `_status` as a single string.** Payload generates the resolved shape, not the `locale=all` one, so a consumer reading the map casts. The map is the contract; the generated type has not caught up.
+- **The published-only filter is now per locale.** A client restricted to published documents reads a locale only where that locale's row says `published`. The filter is SQL, so it sees rows, not the fallback the bullet above describes: an unpublished translation is unreachable, and so is a locale that was never translated, because it has no row for the filter to match.
+- ⚠ **That second case fires on existing data, not only on a deliberate unpublish — and it is intended.** The migration copies each document's old status into every locale row that *exists*, and an untranslated locale has none, so a page published in English alone returns nothing at `?locale=de` where Payload's English fallback used to serve it. **Decided on #765: an unpublished locale should 404, and a page must not serve English text under a German URL.** Do not add a fallback, here or in a consumer. A consumer that wants to link the locales a page *is* live in reads the map above ([WeMeditateWeb#81](https://github.com/sydevs/WeMeditateWeb/issues/81)). Note Payload's own `localizeStatus` migration template behaves the same way: it `UPDATE`s locale rows and never inserts one.
+- ⚠ **A `locale=all` read returns every locale's content, unpublished locales included.** The filter matches *documents* — a document published in any locale — and does not narrow the locales in the response. So a cross-locale read is not a publish gate: read one locale at a time when the answer must respect publish state. This is deliberate (#765). Content here is not sensitive to read; write, edit and delete are what the roles guard. Pinned by `tests/int/pages-localize-status.int.spec.ts`.
+
 ## Origin / Referer enforcement
 
 `validateClientOriginHook` is the usage plugin's second beforeOperation gate, run **first** on every non-excluded collection, ahead of the query-param gate and rate accounting. It covers standard client reads and the custom Atlas endpoints, whose internal `payload.find`/`create` calls forward the client `req`.

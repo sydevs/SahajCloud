@@ -56,6 +56,26 @@ export interface PublicUrlFieldsOptions {
   label?: string
 }
 
+/**
+ * Is this document published, for the locale being read?
+ *
+ * `_status` is a **string** without `versions.drafts.localizeStatus`, and a
+ * per-locale **map** with it (`pages`, `app-cards`). Handle both: the map can
+ * still be unresolved here, because Payload hoists a localized value down to
+ * the requested locale in the same `afterRead` field pass that runs this hook,
+ * so field order decides which shape arrives.
+ *
+ * At `locale: 'all'` no single locale is being asked about, so any published
+ * locale counts.
+ */
+function isPublished(status: unknown, locale: string | undefined): boolean {
+  if (typeof status === 'string') return status === 'published'
+  if (typeof status !== 'object' || status === null) return false
+  const map = status as Record<string, unknown>
+  if (!locale || locale === 'all') return Object.values(map).includes('published')
+  return map[locale] === 'published'
+}
+
 /** Shared per-read inputs for a field's afterRead hook. */
 interface HookConfig {
   buildPath: PublicUrlFieldsOptions['buildPath']
@@ -81,7 +101,7 @@ function computeHook(
     // unpublished / draft / expired doc has no public page. Built in (rather
     // than left to each call site) so no draft-enabled collection can leak one;
     // opt out with `requirePublished: false` for collections with no `_status`.
-    if (requirePublished && data?._status !== 'published') return null
+    if (requirePublished && !isPublished(data?._status, req.locale)) return null
     // A URL platform with no base configured can never resolve — skip the work.
     if (!isPath && base === undefined) return null
 

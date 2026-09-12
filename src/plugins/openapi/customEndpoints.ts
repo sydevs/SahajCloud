@@ -267,6 +267,10 @@ const eventGeoJsonParameters: OpenAPIParameter[] = [
     name: 'locale',
     in: 'query',
     required: false,
+    // `all` is deliberately absent: `events` has no localized field, so a
+    // cross-locale read of this endpoint resolves to the same feature
+    // collection. The `locale` parameter on the collection reads documents it
+    // (`clientReadParametersDocs.ts`), which is where a consumer looks.
     description: 'Locale for localized fields. Defaults to the request locale.',
     schema: { type: 'string', enum: LOCALES.map((l) => l.code) },
   },
