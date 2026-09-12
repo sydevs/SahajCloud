@@ -4,7 +4,7 @@ import { useAuth } from '@payloadcms/ui'
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
 import type { ProjectSlug } from '@/payload-types'
-import { getProjectsFromRoles } from '@/plugins/access'
+import { getProjectsFromRoles } from '@/plugins/access/config'
 
 interface ProjectContextType {
   currentProject: ProjectSlug | null

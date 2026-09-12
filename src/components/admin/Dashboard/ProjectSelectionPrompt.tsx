@@ -4,7 +4,7 @@ import { useAuth } from '@payloadcms/ui'
 import { TriangleAlert } from 'lucide-react'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
-import { getProjectLabel, getProjectsFromRoles } from '@/plugins/access'
+import { getProjectLabel, getProjectsFromRoles } from '@/plugins/access/config'
 
 import ProjectSelector from '../ProjectSelector'
 

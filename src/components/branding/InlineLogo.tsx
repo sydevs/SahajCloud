@@ -1,7 +1,7 @@
 'use client'
 
 import { useProject } from '@/contexts/ProjectContext'
-import { getProjectLabel } from '@/plugins/access'
+import { getProjectLabel } from '@/plugins/access/config'
 
 import Icon from './Icon'
 
