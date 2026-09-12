@@ -330,9 +330,20 @@ describe('atlas SEO root endpoint (OpenAPI)', () => {
       'AtlasSeoEventCard',
       'AtlasSeoEventContent',
       'AtlasSeoRegionContent',
+      'AtlasSeoRootContent',
     ]) {
       expect(CUSTOM_ENDPOINT_SCHEMAS[schema], `${schema} is not registered`).toBeDefined()
     }
+  })
+
+  // The union in `responseTypes.ts` gained a third member (#739). A published
+  // enum that still names two would tell a consumer to treat `root` as invalid.
+  it('publishes all three route kinds, with a nullable id for the root', () => {
+    const response = CUSTOM_ENDPOINT_SCHEMAS['AtlasSeoResponse'] as {
+      properties: { type: { enum: string[] }; id: { type: string[] } }
+    }
+    expect(response.properties.type.enum).toEqual(['root', 'region', 'event'])
+    expect(response.properties.id.type).toContain('null')
   })
 
   it('takes a required `route` and an optional `locale`, and nothing else', () => {

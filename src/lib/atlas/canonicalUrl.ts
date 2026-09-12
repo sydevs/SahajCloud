@@ -142,6 +142,36 @@ export function canonicalUrlBase(target: CanonicalTarget): string | null {
 }
 
 /**
+ * The URL of the page the widget is mounted on — the canonical for the atlas
+ * **root**, where no region or event path is appended (#739).
+ *
+ * **Routing mode does not enter into it.** `path` and `query` differ only in
+ * how the widget expresses a route *below* the root; with no route to express,
+ * both shapes reduce to the same thing — the mount page itself. So this
+ * deliberately has no branch, where {@link canonicalUrlBase} needs one.
+ *
+ * The mount's trailing slash is preserved for the same reason `query` routing
+ * preserves it: `/locatelessons/` and `/locatelessons` are different URLs, and
+ * the mount records the one the verified embed actually lives on. A mount
+ * carrying a query string is kept whole — that query is part of the page's
+ * address (`/?p=42`), not a route we are appending to.
+ *
+ * Returns `null` on anything we would not publish: a host that is not a bare
+ * host, or a mount that is not a path. Never a fragment — see
+ * {@link canonicalUrlBase}.
+ */
+export function canonicalMountUrl(target: CanonicalTarget): string | null {
+  const origin = trimTrailingSlash(target.origin ?? '')
+  if (!origin || /[?#\s]/.test(origin)) return null
+
+  const mount = target.mount ?? '/'
+  if (mount !== '' && !mount.startsWith('/')) return null
+  if (/[#\s]/.test(mount)) return null
+
+  return `${origin}${mount === '' ? '/' : mount}`
+}
+
+/**
  * Compose a full canonical URL, or `null` when either the target or the path
  * cannot make one.
  *

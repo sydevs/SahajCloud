@@ -531,10 +531,15 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'covers the region **and every region beneath it** (so a city page includes ' +
         'classes at its shared venues), capped at 50 with the true total in ' +
         '`content.eventCount`; finished classes are excluded, as they are from ' +
-        '`GET /api/events/geojson`. A route naming neither a region nor an event — ' +
-        'the atlas root, or a bare `/search` — is a `404`: you own your landing ' +
-        'page’s metadata, and there is no document here to describe it with. ' +
-        'Sets `Cache-Control: public, max-age=300, s-maxage=300`.',
+        '`GET /api/events/geojson`. **The atlas root is answered too**: `/` and ' +
+        'every bare view route (`/search`, `/calendar`, `/filters`, `/online`, ' +
+        '`/share`) return one document, of `type: "root"`, with `id: null`, ' +
+        '`route: "/"` and empty `breadcrumbs`. Its title and description are ' +
+        'written by an operator in the CMS, and its `canonical` is your own ' +
+        'verified embed page — use them or write your own. A `404` now means the ' +
+        'string is **not a route we will read** (too long, carrying a query or ' +
+        'fragment, too many segments) or names a region or class that does not ' +
+        'exist. Sets `Cache-Control: public, max-age=300, s-maxage=300`.',
       operationId: 'atlasSeo',
       parameters: [
         {
@@ -560,7 +565,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       ],
       responses: {
         '200': {
-          description: 'Metadata and content for the resolved region or event.',
+          description: 'Metadata and content for the resolved root, region or event.',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/AtlasSeoResponse' },
@@ -573,9 +578,11 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
             'the client’s `allowedDomains`.',
         ),
         '404': errorResponse(
-          'The route names no region or event — an unknown slug, an unpublished or ' +
-            'missing event, or a route that resolves to neither (the atlas root, a ' +
-            'bare view route).',
+          'Either the route names a region or class that does not exist — an unknown ' +
+            'slug, an unpublished or missing event — or the string is not a route we ' +
+            'will read: past the length or segment ceiling, or carrying a query, ' +
+            'fragment or whitespace. The atlas root and bare view routes are **not** ' +
+            'in this set; they are answered with `type: "root"`.',
         ),
         '500': errorResponse('The metadata could not be built.'),
       },
@@ -1448,6 +1455,21 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       },
     },
   },
+  /** The body content of the atlas landing page — `content` when `type` is `root`. */
+  AtlasSeoRootContent: {
+    type: 'object',
+    required: ['paragraphs'],
+    properties: {
+      paragraphs: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'The landing page’s description as plain-text blocks — the same shape an ' +
+          'event’s `content.paragraphs` uses, so one renderer serves both. Empty ' +
+          'when no description has been written in this locale.',
+      },
+    },
+  },
   /**
    * `GET /api/atlas/seo` success body. Keep in lockstep with `AtlasSeoResponse`
    * in `src/endpoints/responseTypes.ts` — a discriminated union on `type`, so a
@@ -1471,20 +1493,25 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       'content',
     ],
     properties: {
-      type: { type: 'string', enum: ['region', 'event'] },
-      id: { type: 'integer' },
+      type: { type: 'string', enum: ['root', 'region', 'event'] },
+      id: {
+        type: ['integer', 'null'],
+        description: 'The document’s id, or `null` on a root route, which names no document.',
+      },
       route: {
         type: 'string',
         description:
           'The normalized route this answer describes — the document’s own path, ' +
-          'so a legacy or stale prefix is answered with the route it should use.',
+          'so a legacy or stale prefix is answered with the route it should use. ' +
+          '`/` for the atlas root, whichever bare view route you asked about.',
       },
       locale: { type: 'string' },
       title: {
         type: 'string',
         description:
           'The document’s own name — a region’s is qualified by its country, since ' +
-          'region names collide across the tree. Append your own site name; we ' +
+          'region names collide across the tree. On a root route it is the title an ' +
+          'operator wrote for the landing page. Append your own site name; we ' +
           'compose no prose, because nothing here is translated and an invented ' +
           'sentence would be English in somebody else’s `<head>`.',
       },
@@ -1492,15 +1519,17 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
         type: ['string', 'null'],
         description:
           'Plain-text meta description, bounded to ~160 characters. `null` on a ' +
-          'region route — a region carries no description in the CMS. For an event ' +
-          'with no description of its own, this falls back to its schedule and ' +
-          'address, which are data rather than prose.',
+          'region route — a region carries no description in the CMS — and `null` on ' +
+          'a root route in any locale an operator has not written one for, rather ' +
+          'than the English one. For an event with no description of its own, this ' +
+          'falls back to its schedule and address, which are data rather than prose.',
       },
       canonical: {
         type: ['string', 'null'],
         description:
           'The document’s own `webUrl`, read and never recomputed, and locale-free. ' +
-          '`null` when no owning client can publish one.',
+          'On a root route it is your own verified embed page, with no route ' +
+          'appended. `null` when no owning client can publish one.',
       },
       alternates: {
         type: 'array',
@@ -1527,14 +1556,19 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       breadcrumbs: {
         type: 'array',
         items: { $ref: '#/components/schemas/AtlasSeoBreadcrumb' },
-        description: 'Region ancestry, root first, ending at this page.',
+        description:
+          'Region ancestry, root first, ending at this page. Empty on a root route, ' +
+          'which has no ancestry.',
       },
       content: {
         oneOf: [
+          { $ref: '#/components/schemas/AtlasSeoRootContent' },
           { $ref: '#/components/schemas/AtlasSeoRegionContent' },
           { $ref: '#/components/schemas/AtlasSeoEventContent' },
         ],
-        description: 'Keyed by `type`: a region’s listing, or an event’s facts.',
+        description:
+          'Keyed by `type`: the landing page’s paragraphs, a region’s listing, or ' +
+          'an event’s facts.',
       },
     },
   },

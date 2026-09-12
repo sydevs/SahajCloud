@@ -15,6 +15,7 @@ import type { CanonicalTarget } from '@/lib/atlas/canonicalUrl'
 import {
   ATLAS_QUERY_PARAM,
   buildCanonicalUrl,
+  canonicalMountUrl,
   canonicalTargetForHost,
   canonicalUrlBase,
 } from '@/lib/atlas/canonicalUrl'
@@ -173,5 +174,64 @@ describe('canonicalTargetForHost rejects anything that is not a bare host', () =
     expect(
       canonicalTargetForHost({ domain: undefined as unknown as string }),
     ).toBeNull()
+  })
+})
+
+/**
+ * The atlas root's canonical (#739) — the mount page itself, with no route
+ * appended. The endpoint publishes this for `/` and every bare view route.
+ */
+describe('canonicalMountUrl', () => {
+  // Routing mode describes how a route *below* the root is expressed. With no
+  // route to express, both shapes are the same page, so a branch here would be
+  // two answers to one question.
+  it('answers the same URL whatever the routing mode', () => {
+    const query = canonicalMountUrl({
+      origin: 'https://sahajayoga.nl',
+      mount: '/locatelessons/',
+      routing: 'query',
+    })
+    const path = canonicalMountUrl({
+      origin: 'https://sahajayoga.nl',
+      mount: '/locatelessons/',
+      routing: 'path',
+    })
+    expect(query).toBe('https://sahajayoga.nl/locatelessons/')
+    expect(path).toBe(query)
+  })
+
+  // `/locatelessons/` and `/locatelessons` are different URLs, and the mount
+  // records the one the verified embed actually lives on.
+  it('preserves the mount’s trailing slash', () => {
+    expect(
+      canonicalMountUrl({ origin: 'https://x.example', mount: '/map', routing: 'path' }),
+    ).toBe('https://x.example/map')
+    expect(
+      canonicalMountUrl({ origin: 'https://x.example', mount: '/map/', routing: 'path' }),
+    ).toBe('https://x.example/map/')
+  })
+
+  it('keeps a query string that is part of the page’s own address', () => {
+    // `/?p=42` is how some hosts address a page. It is the mount, not a route
+    // we are appending to, so it survives whole.
+    expect(
+      canonicalMountUrl({ origin: 'https://host.example', mount: '/?p=42', routing: 'query' }),
+    ).toBe('https://host.example/?p=42')
+  })
+
+  it('treats an empty mount as the site root', () => {
+    expect(canonicalMountUrl({ origin: 'https://x.example/', mount: '', routing: 'query' })).toBe(
+      'https://x.example/',
+    )
+  })
+
+  it.each([
+    ['a mount that is not a path', { origin: 'https://x.example', mount: 'map' }],
+    ['a fragment in the mount', { origin: 'https://x.example', mount: '/map#top' }],
+    ['whitespace in the mount', { origin: 'https://x.example', mount: '/ma p' }],
+    ['a missing origin', { origin: '', mount: '/map' }],
+    ['a query in the origin', { origin: 'https://x.example?a=1', mount: '/map' }],
+  ])('refuses %s rather than publishing it', (_label, target) => {
+    expect(canonicalMountUrl({ ...target, routing: 'query' } as CanonicalTarget)).toBeNull()
   })
 })

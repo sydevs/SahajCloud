@@ -4,6 +4,7 @@ import { breadcrumbList, compactNode, jsonLdEscape, jsonLdGraph } from '@/endpoi
 import {
   buildEventSeo,
   buildRegionSeo,
+  buildRootSeo,
   eventCard,
   hreflangAlternates,
   truncateAtWord,
@@ -401,5 +402,80 @@ describe('buildRegionSeo', () => {
 
   it('spells og:locale the way Open Graph does', () => {
     expect(buildRegionSeo({ ...base, locale: 'pt-BR' }).openGraph['og:locale']).toBe('pt_BR')
+  })
+})
+
+describe('buildRootSeo', () => {
+  const base = {
+    title: 'Free Meditation Classes',
+    description: 'Find a free weekly meditation class near you, taught by local volunteers.',
+    canonical: 'https://sahajayoga.nl/locatelessons/',
+    locale: 'en' as const,
+    locales: ENABLED,
+  }
+
+  // `/search` and `/` describe one page, so both must answer with one
+  // normalized route — a host comparing it against its canonical has to see
+  // the two agree.
+  it('normalizes the route and carries no document id', () => {
+    const seo = buildRootSeo(base)
+    expect(seo.type).toBe('root')
+    expect(seo.route).toBe('/')
+    expect(seo.id).toBeNull()
+  })
+
+  it('describes the atlas as a WebSite, not a Place or an Event', () => {
+    const graph = JSON.parse(buildRootSeo(base).jsonLd)['@graph'] as Record<string, never>[]
+    expect(graph).toHaveLength(1)
+    expect(graph[0]['@type']).toBe('WebSite')
+    expect(graph[0].url).toBe(base.canonical)
+    expect(graph[0].name).toBe(base.title)
+  })
+
+  // A trail of one rung tells a crawler nothing it does not already have,
+  // which is the rule every other route follows too.
+  it('emits no breadcrumbs at all', () => {
+    const seo = buildRootSeo(base)
+    expect(seo.breadcrumbs).toEqual([])
+    const graph = JSON.parse(seo.jsonLd)['@graph'] as Record<string, never>[]
+    expect(graph.some((node) => node['@type'] === 'BreadcrumbList')).toBe(false)
+  })
+
+  // Deliberate, and the whole reason this copy is localized: an English
+  // sentence in a Dutch site's <head> is worse than no sentence at all.
+  it('omits the description, and og:description with it, when a locale has none', () => {
+    const seo = buildRootSeo({ ...base, description: null, locale: 'nl' })
+    expect(seo.description).toBeNull()
+    expect(seo.openGraph['og:description']).toBeUndefined()
+    if (seo.type !== 'root') throw new Error('expected the root')
+    expect(seo.content.paragraphs).toEqual([])
+  })
+
+  it('carries the description into the body content a host renders', () => {
+    const seo = buildRootSeo(base)
+    if (seo.type !== 'root') throw new Error('expected the root')
+    expect(seo.content.paragraphs).toEqual([base.description])
+    expect(seo.openGraph['og:description']).toBe(base.description)
+  })
+
+  it('bounds the meta description at what a result page shows', () => {
+    const seo = buildRootSeo({ ...base, description: 'word '.repeat(60).trim() })
+    expect(seo.description?.length).toBeLessThanOrEqual(160)
+    expect(seo.description?.endsWith('…')).toBe(true)
+  })
+
+  it('publishes the same hreflang cluster a region gets', () => {
+    const seo = buildRootSeo(base)
+    expect(seo.alternates.map((row) => row.hreflang)).toEqual([...ENABLED, 'x-default'])
+    // The canonical is locale-free, so x-default is it, unchanged.
+    expect(seo.alternates.at(-1)?.href).toBe(base.canonical)
+  })
+
+  it('drops the hreflang cluster when no canonical could be published', () => {
+    const seo = buildRootSeo({ ...base, canonical: null })
+    expect(seo.alternates).toEqual([])
+    expect(seo.openGraph['og:url']).toBeUndefined()
+    const graph = JSON.parse(seo.jsonLd)['@graph'] as Record<string, never>[]
+    expect(graph[0].url).toBeUndefined()
   })
 })
