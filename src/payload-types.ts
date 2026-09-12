@@ -2248,6 +2248,10 @@ export interface Client {
      */
     embed?: string | null;
     verification?: ClientCanonicalVerification;
+    /**
+     * Derived, never chosen: “Path segment” once the CMS has seen this host serve the atlas under the embed’s own subtree, “Query parameter” otherwise.
+     */
+    effectiveRouting?: ('query' | 'path') | null;
     nextVerifyAt?: string | null;
   };
   embedMetadata?: ClientEmbedMetadata;
@@ -2336,6 +2340,11 @@ export interface ClientCanonicalVerification {
     at: string;
   } | null;
   failureCount: number;
+  pathProbe?: {
+    at: string;
+    verdict: 'query' | 'path';
+    strikes: number;
+  };
   attempts: {
     at: string;
     status: 'verified' | 'failed' | 'inconclusive';
@@ -4599,6 +4608,7 @@ export interface ClientsSelect<T extends boolean = true> {
         enabled?: T;
         embed?: T;
         verification?: T;
+        effectiveRouting?: T;
         nextVerifyAt?: T;
       };
   embedMetadata?: T;
@@ -10201,6 +10211,8 @@ export interface TaskVerifyEmbeds {
     failed: number;
     inconclusive: number;
     disabled: number;
+    pathPromoted: number;
+    pathDemoted: number;
   };
 }
 /**

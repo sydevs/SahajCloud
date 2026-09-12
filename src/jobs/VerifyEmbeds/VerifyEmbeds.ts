@@ -2,11 +2,16 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import type {
   CanonicalVerification,
+  PathProbeResult,
   VerificationResult,
 } from '@/lib/clients/verification'
-import { nextVerificationState } from '@/lib/clients/verification'
+import {
+  effectiveRouting,
+  nextPathProbeState,
+  nextVerificationState,
+} from '@/lib/clients/verification'
 import type { RenderDeps } from '@/lib/embedVerification/browserRendering'
-import { verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
+import { probePathRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import type { Client } from '@/payload-types'
 import { getPgPool, quotedDbSchema } from '@/plugins/usage'
 
@@ -26,6 +31,9 @@ import { getPgPool, quotedDbSchema } from '@/plugins/usage'
  * - **`inconclusive` changes nothing.** Our token lapsing or a bot challenge is not evidence about
  *   their embed; it advances the watermark by an hour and leaves the counter and last-good snapshot
  *   alone. `nextVerificationState` owns that rule.
+ * - **The path probe never reaches `disable`.** It carries its own counter and its own limit
+ *   (#644). A routing negative means the embed is present and publishing in `?atlas=` shape, not
+ *   that it is gone, so sharing the failure budget would take a working canonical out of service.
  * - **Writes go through raw SQL, not `payload.update`.** The usage plugin increments
  *   `usage_daily_requests` on these same rows on its own connection; holding one inside a request
  *   transaction is what deadlocked `POST /api/clients/report` (fixed in 1554fcb1).
@@ -48,6 +56,10 @@ interface VerifyResult {
   inconclusive: number
   /** Services whose canonical ownership was switched off this run. */
   disabled: number
+  /** Services the path probe moved onto `path` URLs this run. */
+  pathPromoted: number
+  /** Services returned to `?atlas=` URLs after repeated negative probes. */
+  pathDemoted: number
 }
 
 /** Persist one service's outcome. Raw SQL — see the note above. */
@@ -139,6 +151,32 @@ async function notifyDisabled(
 /** Injectable so tests can drive the ladder without a browser or a Cloudflare account. */
 export interface VerifyEmbedsDeps extends RenderDeps {
   verify?: (mountKey: string) => Promise<VerificationResult>
+  probe?: (mountKey: string) => Promise<PathProbeResult>
+}
+
+/**
+ * Whether to probe this owner for path routing, and what a skipped probe means.
+ *
+ * Gated on the mount run's own outcome, so the render budget stays bounded at
+ * three per enabled owner — and at **one** for an owner whose mount is not
+ * working, which is the common failing case:
+ *
+ * | mount outcome  | probe                                                        |
+ * | -------------- | ------------------------------------------------------------ |
+ * | `verified`     | render the token path, and the control if that one carries    |
+ * | `failed`       | a negative, spending no render — the widget is not on the page at all, so the subtree cannot be serving it |
+ * | `inconclusive` | nothing happens, exactly as the mount ladder does             |
+ */
+async function probeForOutcome(
+  mount: string,
+  outcome: VerificationResult,
+  probe: (mountKey: string) => Promise<PathProbeResult>,
+): Promise<PathProbeResult> {
+  if (outcome.status === 'inconclusive') return { status: 'inconclusive', detail: outcome.reason }
+  if (outcome.status === 'failed') {
+    return { status: 'negative', detail: `Mount verification failed: ${outcome.reason}` }
+  }
+  return probe(mount)
 }
 
 export async function runVerifyEmbeds(args: {
@@ -149,6 +187,7 @@ export async function runVerifyEmbeds(args: {
 }): Promise<VerifyResult> {
   const { payload, req, now = new Date(), deps = {} } = args
   const verify = deps.verify ?? ((mount: string) => verifyEmbed(mount, deps))
+  const probe = deps.probe ?? ((mount: string) => probePathRouting(mount, deps))
 
   const result: VerifyResult = {
     processed: 0,
@@ -156,6 +195,8 @@ export async function runVerifyEmbeds(args: {
     failed: 0,
     inconclusive: 0,
     disabled: 0,
+    pathPromoted: 0,
+    pathDemoted: 0,
   }
 
   const pool = getPgPool(req)
@@ -173,15 +214,20 @@ export async function runVerifyEmbeds(args: {
     const outcome = await verify(mount)
     result[outcome.status === 'verified' ? 'verified' : outcome.status]++
 
-    const transition = nextVerificationState({
-      current: client.canonical?.verification as CanonicalVerification | null,
-      result: outcome,
+    const current = client.canonical?.verification as CanonicalVerification | null
+    const transition = nextVerificationState({ current, result: outcome, now })
+
+    // The routing verdict folds into the same object, so one owner is still one
+    // write. It never touches `failureCount`, and so can never reach `disable`.
+    const verification = nextPathProbeState({
+      current: transition.verification,
+      result: await probeForOutcome(mount, outcome, probe),
       now,
     })
 
     try {
       await pool.query(updateSql(schema), [
-        JSON.stringify(transition.verification),
+        JSON.stringify(verification),
         transition.nextVerifyAt,
         transition.disable,
         client.id,
@@ -193,6 +239,21 @@ export async function runVerifyEmbeds(args: {
         error: error instanceof Error ? error.message : String(error),
       })
       continue
+    }
+
+    // Counted after the write, not before: an owner whose row could not be
+    // persisted has not changed its verdict, whatever the fold said.
+    const before = effectiveRouting(current)
+    const after = effectiveRouting(verification)
+    if (before !== after) {
+      result[after === 'path' ? 'pathPromoted' : 'pathDemoted']++
+      payload.logger.info({
+        msg: 'VerifyEmbeds: canonical routing verdict changed',
+        clientId: client.id,
+        mount,
+        from: before,
+        to: after,
+      })
     }
 
     if (transition.disable) {
@@ -223,6 +284,8 @@ export const VerifyEmbeds: TaskConfig<'verifyEmbeds'> = {
     { name: 'failed', type: 'number', required: true },
     { name: 'inconclusive', type: 'number', required: true },
     { name: 'disabled', type: 'number', required: true },
+    { name: 'pathPromoted', type: 'number', required: true },
+    { name: 'pathDemoted', type: 'number', required: true },
   ],
   schedule: [{ cron: '0 3 * * *', queue: 'nightly' }],
   handler: async ({ req }) => {

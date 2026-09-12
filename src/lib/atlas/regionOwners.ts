@@ -3,6 +3,7 @@ import type { PayloadRequest } from 'payload'
 
 import type { RoutingMode } from '@/lib/clients/canonical'
 import { isValidCanonicalDomain } from '@/lib/clients/canonical'
+import { effectiveRouting } from '@/lib/clients/verification'
 import { serverEnv } from '@/lib/env'
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
@@ -58,8 +59,11 @@ interface ClientRow {
       verified?: {
         domain?: string | null
         mount?: string | null
+        /** What the widget reported about itself. Read by nothing that shapes a URL (#644). */
         routing?: RoutingMode | null
       } | null
+      /** What the CMS observed about the host's own server — the routing verdict. */
+      pathProbe?: { verdict?: RoutingMode | null } | null
     } | null
   } | null
 }
@@ -151,7 +155,10 @@ function canonicalOwnerFrom(row: ClientRow): CanonicalOwner | undefined {
     clientId: row.id,
     domain: verified.domain,
     mount: verified.mount ?? '/',
-    routing: verified.routing ?? 'query',
+    // Derived, not reported (#644). `verified.routing` is the widget repeating
+    // what its script tag asked for; the probe is what the host's server
+    // actually does. See `effectiveRouting`.
+    routing: effectiveRouting(row.canonical?.verification),
   }
 }
 

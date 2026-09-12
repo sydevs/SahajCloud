@@ -2,7 +2,7 @@ import { buildCanonicalUrl, canonicalTargetForHost } from '@/lib/atlas/canonical
 import type { RoutingMode } from '@/lib/clients/canonical'
 import type { EmbedMetadata, EmbedMountRecord } from '@/lib/clients/embedMetadata'
 import type { CanonicalVerification, VerifiedEmbed } from '@/lib/clients/verification'
-import { splitMountKey } from '@/lib/clients/verification'
+import { effectiveRouting, splitMountKey } from '@/lib/clients/verification'
 
 /**
  * Turns the two stored facts — what the widget reported, and what the CMS has
@@ -178,8 +178,10 @@ function summarise(args: {
   // the picker already renders as "no example", and that is the truth: the
   // resolver would refuse this embed too.
   if (isVerifiedForThisEmbed && verified) {
-    routing = verified.routing
-    const target = canonicalTargetForHost(verified)
+    // The derived verdict, not `verified.routing` — the preview has to be the
+    // shape the resolver emits, and that is what `canonicalOwnerFrom` reads (#644).
+    routing = effectiveRouting(verification)
+    const target = canonicalTargetForHost({ ...verified, routing })
     sampleUrl = target && buildCanonicalUrl(target, SAMPLE_ATLAS_PATH)
   } else if (mount) {
     const split = splitMountKey(embed)

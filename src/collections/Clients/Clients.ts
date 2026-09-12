@@ -3,9 +3,15 @@ import type { CollectionConfig } from 'payload'
 
 import { colorField, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
-import { CANONICAL_DOMAIN_PATTERN, ROUTING_MODES } from '@/lib/clients/canonical'
-import { embedMetadataJsonSchema } from '@/lib/clients/embedMetadata'
 import {
+  CANONICAL_DOMAIN_PATTERN,
+  ROUTING_MODE_OPTIONS,
+  ROUTING_MODES,
+} from '@/lib/clients/canonical'
+import { embedMetadataJsonSchema } from '@/lib/clients/embedMetadata'
+import type { CanonicalVerification } from '@/lib/clients/verification'
+import {
+  effectiveRouting,
   VERIFICATION_FAILURE_REASONS,
   VERIFICATION_INCONCLUSIVE_REASONS,
 } from '@/lib/clients/verification'
@@ -59,6 +65,20 @@ const canonicalVerificationSchema: JSONSchema4 = {
       },
     },
     failureCount: { type: 'number', minimum: 0 },
+    // Optional, and outside `required` above, because this object is closed and
+    // Payload validates it on *every* save of the document: a required key here
+    // would strand every row written before #644. Its own inner shape is closed,
+    // since `nextPathProbeState` is its only writer.
+    pathProbe: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['at', 'verdict', 'strikes'],
+      properties: {
+        at: { type: 'string' },
+        verdict: { enum: [...ROUTING_MODES] },
+        strikes: { type: 'number', minimum: 0 },
+      },
+    },
     attempts: {
       type: 'array',
       // Deliberately no `maxItems`: json-schema-to-typescript renders a bounded
@@ -261,6 +281,35 @@ export const Clients: CollectionConfig = {
                       'What the CMS last confirmed by loading the page itself. Only a verified embed ever yields a canonical URL.',
                   },
                 }),
+                {
+                  // How the widget should express its state in this host's URL,
+                  // derived from what the probe observed (#644). Virtual: no
+                  // stored column, computed on read from `verification`.
+                  //
+                  // It rides the `canonical` group the widget already selects
+                  // (`GET /api/clients/me`), so it reaches the client with no
+                  // change to the select, the endpoint, or its permissions.
+                  name: 'effectiveRouting',
+                  type: 'select',
+                  virtual: true,
+                  options: ROUTING_MODE_OPTIONS,
+                  label: 'Effective Routing',
+                  admin: {
+                    readOnly: true,
+                    condition: canonicalEnabled,
+                    description:
+                      'Derived, never chosen: “Path segment” once the CMS has seen this host serve the atlas under the embed’s own subtree, “Query parameter” otherwise.',
+                  },
+                  hooks: {
+                    afterRead: [
+                      ({ siblingData }) =>
+                        effectiveRouting(
+                          (siblingData as { verification?: CanonicalVerification | null } | null)
+                            ?.verification,
+                        ),
+                    ],
+                  },
+                },
                 {
                   name: 'nextVerifyAt',
                   type: 'date',

@@ -1,3 +1,4 @@
+import type { RoutingMode } from '@/lib/clients/canonical'
 import type { ClientCanonicalVerification } from '@/payload-types'
 
 /**
@@ -67,8 +68,30 @@ export type VerifiedEmbed = NonNullable<CanonicalVerification['verified']>
 /** One attempt, newest first in {@link CanonicalVerification.attempts}. */
 export type VerificationAttempt = CanonicalVerification['attempts'][number]
 
+/**
+ * What the path-routing probe last observed, and how many times in a row it
+ * came back negative. Job-written, and a **sibling** of `verified` rather than
+ * part of it (#644).
+ *
+ * `verified` is null until the mount verification first succeeds, and the
+ * routing verdict has to survive that null — the widget should path-route
+ * wherever the host serves the subtree, whether or not it is publishing
+ * canonical URLs yet.
+ */
+export type PathProbe = NonNullable<CanonicalVerification['pathProbe']>
+
 /** Consecutive definitive failures before canonical ownership is switched off. */
 export const CANONICAL_FAILURE_LIMIT = 3
+
+/**
+ * Consecutive negative probes before a client on `path` is returned to `query`.
+ *
+ * **Its own constant and its own counter, never `failureCount`.** That one
+ * becomes `disable` — canonical ownership switched off, plus an email to the
+ * service's manager. A routing negative means the embed is *present and
+ * publishing*, just in the uglier `?atlas=` shape, so it must never reach it.
+ */
+export const PATH_PROBE_FAILURE_LIMIT = 3
 
 /** How many attempts are retained. The log shares a row — it cannot grow forever. */
 export const MAX_VERIFICATION_ATTEMPTS = 10
@@ -78,6 +101,18 @@ export const VERIFY_INTERVAL_MS = 24 * 60 * 60 * 1000
 
 /** Retry sooner when we learned nothing — the fault is likely ours and transient. */
 export const VERIFY_INCONCLUSIVE_RETRY_MS = 60 * 60 * 1000
+
+/**
+ * What one path-routing probe concluded.
+ *
+ * The same three-way split as {@link VerificationResult}, for the same reason:
+ * `negative` is evidence about the host's server, `inconclusive` means we could
+ * not look and must change nothing.
+ */
+export interface PathProbeResult {
+  status: 'positive' | 'negative' | 'inconclusive'
+  detail?: string
+}
 
 /** What one verification run concluded. */
 export type VerificationResult =
@@ -142,7 +177,9 @@ export function nextVerificationState(args: {
 
   if (result.status === 'verified') {
     return {
-      verification: { verified: result.embed, failureCount: 0, attempts },
+      // Spread `previous` first: `pathProbe` is a sibling this function does not
+      // own, and a success must not clear the routing verdict beside it.
+      verification: { ...previous, verified: result.embed, failureCount: 0, attempts },
       nextVerifyAt: new Date(now.getTime() + VERIFY_INTERVAL_MS).toISOString(),
       disable: false,
     }
@@ -158,6 +195,63 @@ export function nextVerificationState(args: {
     nextVerifyAt: new Date(now.getTime() + backoff).toISOString(),
     disable: failureCount >= CANONICAL_FAILURE_LIMIT,
   }
+}
+
+/**
+ * Fold one probe's result into the stored state, and hand back the whole
+ * verification so a caller persists one object.
+ *
+ * **Asymmetric on purpose, because the failures are asymmetric.** A wrong
+ * `path` breaks every deep link and puts 404s in the sitemap. A wrong `query`
+ * only produces uglier URLs that still work. So:
+ *
+ * - **positive** — promote at once, and reset the strike count.
+ * - **negative** — count a strike, and demote only on the
+ *   {@link PATH_PROBE_FAILURE_LIMIT}th in a row. The count is capped there, so
+ *   a host that has been gone for a month does not accumulate forever.
+ * - **inconclusive** — change nothing at all, exactly as the mount ladder does.
+ */
+export function nextPathProbeState(args: {
+  current: CanonicalVerification | null | undefined
+  result: PathProbeResult
+  now: Date
+}): CanonicalVerification {
+  const { current, result, now } = args
+  const previous = current ?? EMPTY_VERIFICATION
+  if (result.status === 'inconclusive') return previous
+
+  const at = now.toISOString()
+  if (result.status === 'positive') {
+    return { ...previous, pathProbe: { at, verdict: 'path', strikes: 0 } }
+  }
+
+  const strikes = Math.min((previous.pathProbe?.strikes ?? 0) + 1, PATH_PROBE_FAILURE_LIMIT)
+  const verdict =
+    strikes >= PATH_PROBE_FAILURE_LIMIT ? 'query' : (previous.pathProbe?.verdict ?? 'query')
+  return { ...previous, pathProbe: { at, verdict, strikes } }
+}
+
+/**
+ * How the widget should express its state in the host page's URL — the one
+ * answer every URL shaper reads.
+ *
+ * `path` only where the probe has seen the host serve our atlas under the
+ * mount's own subtree; `query` otherwise, which is what nearly every client
+ * publishes today and is a perfectly good canonical (see `canonicalUrl.ts`).
+ *
+ * **Deliberately not `verified.routing`.** That field is still written from the
+ * widget's readiness marker, which copies the script parameter — the widget
+ * telling us what it was asked to do, not what the host's server actually
+ * supports. It stays on the record as the honest thing it is, and shapes no
+ * URL. (#644)
+ *
+ * The parameter is structural rather than `CanonicalVerification`, so the
+ * resolver's own narrowed row shape passes without a cast.
+ */
+export function effectiveRouting(
+  verification: { pathProbe?: { verdict?: RoutingMode | null } | null } | null | undefined,
+): RoutingMode {
+  return verification?.pathProbe?.verdict ?? 'query'
 }
 
 /**

@@ -1,7 +1,12 @@
 import type { Endpoint } from 'payload'
 
-import { nextVerificationState } from '@/lib/clients/verification'
-import { verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
+import type { RoutingMode } from '@/lib/clients/canonical'
+import {
+  effectiveRouting,
+  nextPathProbeState,
+  nextVerificationState,
+} from '@/lib/clients/verification'
+import { probePathRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import { requireActiveManager } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
 
@@ -11,6 +16,8 @@ interface VerifyEmbedResponse {
   reason?: string
   /** Human sentence for the admin panel to render verbatim. */
   message: string
+  /** What this service's canonical URLs are shaped like after the check. */
+  routing: RoutingMode
 }
 
 const MESSAGES: Record<VerifyEmbedResponse['status'], (reason?: string) => string> = {
@@ -36,6 +43,11 @@ const MESSAGES: Record<VerifyEmbedResponse['status'], (reason?: string) => strin
  * run fold into the stored state identically — including the rule that an `inconclusive` result
  * changes nothing. **This endpoint never disables canonical ownership**, though: three strikes is a
  * judgement about a pattern over days, and one impatient click should not be able to reach it.
+ *
+ * **The path probe is the opposite case, and its demote does apply here** (#644). Demoting to
+ * `query` degrades URLs that keep working, where disabling ownership removes them — so three
+ * clicks is an operator's same-minute way back to `?atlas=` when a host has stopped serving the
+ * subtree, with evidence rather than an assertion. That is why no routing override field exists.
  */
 export const verifyEmbedOnDemand: Endpoint = {
   path: '/:id/verify-embed',
@@ -69,12 +81,28 @@ export const verifyEmbedOnDemand: Endpoint = {
       )
     }
 
+    const now = new Date()
     const result = await verifyEmbed(mount)
     const transition = nextVerificationState({
       current: client.canonical?.verification ?? null,
       result,
-      now: new Date(),
+      now,
     })
+
+    // Same gate as the job: a failed mount is a routing negative spending no
+    // render, and an inconclusive one changes nothing.
+    const verification = nextPathProbeState({
+      current: transition.verification,
+      result:
+        result.status === 'verified'
+          ? await probePathRouting(mount)
+          : { status: result.status === 'failed' ? 'negative' : 'inconclusive' },
+      now,
+    })
+
+    // `effectiveRouting` is virtual — computed on the read above, and never a
+    // value to write back. Dropped by name rather than trusted to be ignored.
+    const { effectiveRouting: _derived, ...canonical } = client.canonical ?? {}
 
     await req.payload.update({
       collection: 'clients',
@@ -82,8 +110,8 @@ export const verifyEmbedOnDemand: Endpoint = {
       // `disable` is deliberately ignored here — see the note above.
       data: {
         canonical: {
-          ...client.canonical,
-          verification: transition.verification,
+          ...canonical,
+          verification,
           nextVerifyAt: transition.nextVerifyAt,
         },
       },
@@ -95,6 +123,7 @@ export const verifyEmbedOnDemand: Endpoint = {
       status: result.status,
       ...(reason ? { reason } : {}),
       message: MESSAGES[result.status](reason),
+      routing: effectiveRouting(verification),
     }
     return Response.json(body, { status: 200 })
   },
