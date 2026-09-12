@@ -151,8 +151,17 @@ export interface PathProbeDeps extends RenderDeps {
  * running widget, which looks identical to a working rewrite until you ask it
  * for a path outside the mount.
  *
- * The control render is spent only when the first one came back positive, so a
- * host that plainly does not path-route costs one render, not two.
+ * **Both renders start together, and the verdict logic below is unchanged** —
+ * it still reads the probe first, so only the latency differs. Sequentially the
+ * promote path was three 45s renders end to end (mount, probe, control), and
+ * Cloudflare abandons an origin response at 100s: the one "Verify now" press
+ * that actually promoted a service answered the operator with a 524, after the
+ * row had already been written. Overlapping the two probe renders keeps the
+ * worst case under that ceiling.
+ *
+ * The cost is one render on a host that fails the probe, where the control used
+ * to be skipped. #644 budgets three per enabled owner, and that is what this
+ * spends.
  */
 export async function probePathRouting(
   mountKey: string,
@@ -165,10 +174,12 @@ export async function probePathRouting(
 
   const render = deps.render ?? ((url: string) => renderPage(url, `[${READY_ATTR}]`, deps))
 
-  const probeVerdict = probeRenderVerdict(urls.probe, await render(urls.probe))
+  const [probeRender, controlRender] = await Promise.all([render(urls.probe), render(urls.control)])
+
+  const probeVerdict = probeRenderVerdict(urls.probe, probeRender)
   if (probeVerdict.status !== 'positive') return probeVerdict
 
-  const controlVerdict = probeRenderVerdict(urls.control, await render(urls.control))
+  const controlVerdict = probeRenderVerdict(urls.control, controlRender)
   // An inconclusive control is not evidence either way — we could not establish
   // that the host *stops* serving the widget outside the mount.
   if (controlVerdict.status === 'inconclusive') return controlVerdict

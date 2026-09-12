@@ -259,10 +259,39 @@ describe('probePathRouting', () => {
     await expect(result).resolves.toMatchObject({ status: 'negative' })
   })
 
-  it('is negative, and spends no control render, when the prefixed path has no marker', async () => {
+  it('is negative when the prefixed path has no marker', async () => {
     const { result, seen } = probe({})
     await expect(result).resolves.toMatchObject({ status: 'negative' })
-    expect(seen).toEqual([PROBE_URL])
+    // The control render is spent here too, where it used to be skipped. That
+    // is what buys the overlap below, and #644 budgets three renders an owner.
+    expect(seen).toEqual([PROBE_URL, CONTROL_URL])
+  })
+
+  /**
+   * The latency property, not a verdict property — and the reason the verdict
+   * logic above is worth re-reading rather than rewriting.
+   *
+   * Sequentially the promote path ran mount, probe and control end to end at
+   * 45s each (`browserRendering.ts`), and Cloudflare abandons an origin
+   * response at 100s — so "Verify now" answered a 524 on the very press that
+   * promoted the service, after the row was already written. Overlapping the
+   * two probe renders puts the worst case under that ceiling.
+   */
+  it('starts both probe renders before either resolves', async () => {
+    let inFlight = 0
+    let peak = 0
+    const result = await probePathRouting(MOUNT, {
+      token: () => TOKEN,
+      render: async (url) => {
+        inFlight++
+        peak = Math.max(peak, inFlight)
+        await Promise.resolve()
+        inFlight--
+        return url === PROBE_URL ? marked : blank
+      },
+    })
+    expect(peak).toBe(2)
+    expect(result).toEqual({ status: 'positive' })
   })
 
   // The same split the mount verifier rests on: their server, or our sight.
