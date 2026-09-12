@@ -121,6 +121,16 @@ export const logRejectedCredential = (
 }
 
 /**
+ * The status `requireActiveClient` denies with.
+ *
+ * ⚠ **Inlined, not a parameter.** The guard is the only caller and returns
+ * exactly this, so an options object would be a knob with one value.
+ * `logRejectedCredential` still takes a status, because the error hook passes
+ * whatever the response carried.
+ */
+const GUARD_DENIAL_STATUS = 403
+
+/**
  * Report a denial that never throws, so no `afterError` hook will.
  *
  * Safe to call on **every** denial: it returns at once unless a credential was
@@ -141,10 +151,9 @@ export const logRejectedCredential = (
  * returns the config untouched without one. `Sentry.captureMessage` is a no-op
  * on an uninitialised SDK, and the WARN line is the half a local run can see.
  */
-export const reportRejectedCredential = (
-  req: PayloadRequest,
-  { status = 403 }: { status?: number } = {},
-): void => {
+export const reportRejectedCredential = (req: PayloadRequest): void => {
+  const status = GUARD_DENIAL_STATUS
+
   try {
     const rejected = detectRejectedCredential(req)
     if (!rejected) return
