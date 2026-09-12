@@ -86,25 +86,41 @@ describe('parseAtlasRoute', () => {
     })
   })
 
-  describe('routes that name nothing', () => {
+  describe('routes that resolve to the atlas root', () => {
     it.each([
       ['the atlas root', '/'],
       ['an empty string', ''],
       ['a bare search view', '/search'],
+      ['a bare calendar view', '/calendar'],
       ['a bare filters view', '/filters'],
+      ['a bare online view', '/online'],
+      ['a bare share view', '/share'],
+      ['several stacked view segments', '/search/filters'],
       ['nothing but legacy prefixes', '/events/areas'],
-    ])('returns null for %s', (_label, route) => {
-      // Not a failure: the host owns its own landing page's metadata, and there
-      // is no document here to describe it with.
-      expect(parseAtlasRoute(route)).toBeNull()
+    ])('resolves %s to the root', (_label, route) => {
+      // A view of the root is still the root (#739), and these are the routes
+      // most hosts mount — the landing page needs metadata of its own.
+      expect(parseAtlasRoute(route)).toEqual({ kind: 'root' })
     })
 
+  })
+
+  // "Names nothing" and "is not a route" must not collapse into one answer:
+  // the first is the root, the second is still a 404 (#739).
+  describe('strings that are not routes at all', () => {
     it.each([
       ['a query string spliced in', '/gb/london?utm_source=x'],
       ['a fragment', '/gb/london#!/x'],
       ['whitespace', '/gb/lon don'],
     ])('refuses %s rather than guessing which half was meant', (_label, route) => {
       expect(parseAtlasRoute(route)).toBeNull()
+    })
+
+    it('refuses a query or fragment on an otherwise empty route', () => {
+      // Without this, `/?utm_source=x` would reduce to zero segments and be
+      // answered as the landing page — a malformed URL given a real page.
+      expect(parseAtlasRoute('/?utm_source=x')).toBeNull()
+      expect(parseAtlasRoute('/#x')).toBeNull()
     })
   })
 
@@ -123,6 +139,13 @@ describe('parseAtlasRoute', () => {
       expect(
         parseAtlasRoute(`/${Array.from({ length: 5 }, (_, i) => `s${i}`).join('/')}`),
       ).not.toBeNull()
+    })
+
+    it('measures the cap before dropping view segments, so nonsense stays a 404', () => {
+      // Filtering first would reduce this to zero segments and answer it as the
+      // landing page. The cap is about how much string we will read, not about
+      // what survives reading it.
+      expect(parseAtlasRoute(`/${Array.from({ length: 13 }, () => 'search').join('/')}`)).toBeNull()
     })
   })
 })

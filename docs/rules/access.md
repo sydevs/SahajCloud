@@ -23,7 +23,7 @@ The `accessPlugin` gives every collection access control automatically. A collec
 | `bypassPermissions.ts` | Shared bypass function |
 | `accessPlugin.ts` | Main orchestration |
 | `permissions.ts` | `hasPermission`, `hasAnyPermission` |
-| `accessConfigs.ts` | Access configuration factories, plus `withVersionHistoryAccess` |
+| `accessConfigs.ts` | Access configuration factories, plus `withDerivedGrants` (the derived keys, below) |
 | `fieldAccess.ts` | Field-level access for translatable collections |
 | `visibility.ts` | Admin UI visibility (`createHidden`) |
 | `filterAvailableLocales.ts` | Admin locale-selector filtering |
@@ -144,15 +144,33 @@ A `managers` (hasMany) or `manager` relationship to `managers` on any collection
 
 Wired into `createAccessConfig` on an explicit slug allowlist (`{ regions, events }`), not field introspection, since create/delete are security-sensitive and a stray `managers` field elsewhere must not silently widen access.
 
-### Version history is edit authority (#719)
+### Derived grants: one pass, one table (#719, #748)
 
-`withVersionHistoryAccess` derives **`readVersions`** from the collection's own `update` function, on every collection and global the plugin touches. Anyone who may edit a collection reads its version history. Nobody else.
+Two access keys are **derived from `update`** rather than computed from the role tables, because both are edit authority wearing another name: `readVersions` (version history, #719) and `unlock` (clearing a login lockout, #748). `withDerivedGrants(access, keys)` writes them in one pass, and `DERIVED_GRANTS` in `accessConfigs.ts` is the table of what differs between them — today, only whether the `Where` needs translating.
 
-It wraps the **merged** access config in `accessPlugin.ts`, after `...collection.access` / `...global.access` — not inside `createAccessConfig`. An entity that overrides `update` gets that override in its version history too, and one that sets its own `readVersions` keeps it. Deriving it a step earlier would bind `readVersions` to an `update` the override had already replaced, which is the drift the delegation exists to prevent.
+They are one function because they share one failure, one guard, and one hazard. Both shipped by going **unwritten**, both must drop `args.id` before delegating, and both fail closed when there is no `update`. Two copies of that drift: a fix to one is a fix somebody must remember to port.
+
+It wraps the **merged** access config in `accessPlugin.ts`, after `...collection.access` / `...global.access` — **not inside `createAccessConfig`**, which is the obvious-looking home and the wrong one. `createAccessConfig` runs *before* a collection's own `access` overrides are spread in, so a grant derived there binds to an `update` the override then replaces — silently, and in the permissive direction whenever the override is the narrower function. Deriving from the merged config is what makes "whoever may edit this entity" true of the entity as configured, and it is why a collection that sets its own `readVersions` or `unlock` keeps it.
+
+A global has no `unlock` — its access keys are `read`, `update`, `readVersions` — so the globals call site asks for that one key. Nothing else about the pass differs.
+
+⚠ **Both derivations fail closed when there is no `update` to delegate to.** They write `() => false` rather than returning the config untouched — an *unset* key is refilled with the permissive `Boolean(user)` (from Payload's collection defaults for `unlock`, from `executeAccess`'s fallback for `readVersions`), which is exactly how #719 and #748 shipped. `createAccessConfig` always assigns `update` and every `access:` under `src/collections` is field-level, so the branch is unreachable through `accessPlugin` today. `tests/unit/access-derived-grants.spec.ts` reaches it directly, so the direction is asserted rather than assumed.
+
+⚠ **`args.id` is dropped before delegating, and must be.** `findVersionByID` calls access with the *version row's* primary key, not the document's — two independent sequences that happen to overlap. Forwarded to `update`, every id-sensitive branch answers about the wrong document: the self-access bypass hands a client row `N` of `_clients_v` because its own id is `N`, and `userManagesDocument` grants any row whose number matches a page the caller manages. Dropping it makes `update` answer at the list level, which `findVersionByID` then ANDs with `{ id: { equals: <row> } }` itself. `unlockOperation` passes no `id` at all today; dropping it keeps that true if a future Payload passes one.
+
+### The one key still unwritten: `admin`
+
+A collection's access keys are `create`, `read`, `update`, `delete`, `readVersions`, `unlock`, and **`admin`**. The plugin now writes all but the last, and `admin` does **not** belong in the table above:
+
+- **No client key reaches it.** `canAccessAdmin` reads `access.admin` on `config.admin.user`'s collection alone (`managers`), and `getAccessResults` computes `canAccessAdmin` only for that same collection. A `clients` key is refused by slug before any access function runs.
+- **`update` is not its authority.** It answers "may this person open the admin panel", not "may they edit this record". Deriving it from `update` on `managers` would lock every non-admin manager out of the panel entirely, since no role grants `update` there.
+- **Its fallback is not the same fallback.** Unset, `canAccessAdmin` grants any user of the admin collection, and `getAccessResults` reports `isLoggedIn`. That is a narrower default than `Boolean(user)` on a public endpoint, and changing it is a UI-access decision, not this fix.
+
+The gap worth naming: an **inactive** manager still loads the admin shell, then finds every collection denied. That is its own ticket, not a derived grant.
+
+### What version history exposed (#719)
 
 This is not Payload's default, and the default is the permissive one. `findVersions`, `findVersionByID` and `countVersions` consult `access.readVersions` alone — the published-only constraint in the `read` branch never runs for them. With `readVersions` unset, `executeAccess` falls back to "is anyone logged in", which an API key satisfies, so every draft on `pages`, `meditations`, `app-cards`, `events`, `clients` and the three translations globals was readable by any published client key — including one that cannot read the collection at all.
-
-⚠ **`args.id` is dropped before delegating, and must be.** `findVersionByID` calls access with the *version row's* primary key, not the document's — two independent sequences that happen to overlap. Forwarded to `update`, every id-sensitive branch answers about the wrong document: the self-access bypass hands a client row `N` of `_clients_v` because its own id is `N`, and `userManagesDocument` grants any row whose number matches a page the caller manages. Dropping it makes `update` answer at the list level, which `findVersionByID` then ANDs with `{ id: { equals: <row> } }` itself.
 
 ⚠ **A `Where` from `update` must be translated before it reaches a versions query.** `update` returns a query over *documents*; every versions operation combines the access result straight into a query over the *versions* collection without remapping it, where a document's fields sit under `version.` and its id is `parent`. `appendVersionToQueryKey` (exported by `payload`, and what `replaceWithDraftIfAvailable` applies to the `read` result) is the mapping. Skip it and `{ id: { in: [7] } }` matches version *rows* by their own primary key — a wrong answer that still returns documents.
 
@@ -160,6 +178,20 @@ Two consequences worth knowing:
 
 - **A read-only manager no longer sees the History tab.** `/api/access` computes `readVersions` from this same function, so the admin UI follows. That is the intended behaviour change, not a regression.
 - **Live preview is untouched.** It reads drafts through `find`/`findByID` with `draft: true`, which resolves against `read` and the preview-secret branch — never through a versions operation.
+
+### What the login lockout exposed (#748)
+
+Whoever may edit an account may clear its login lockout. Nobody else.
+
+Payload fills an *omitted* `unlock` from its collection defaults (`collections/config/defaults.js`) with `defaultAccess` — `Boolean(user)` — which a published client's API key satisfies. `unlockOperation` is the only reader, and `POST /:collection/unlock` is registered for every auth collection, so any client key could reset a locked manager's failed-attempt counter and defeat the brute-force lockout (`maxLoginAttempts: 5`, `lockTime: 10 min`). `clients` was already denied structurally by `disableLocalStrategy: true`, which throws `Forbidden` before the access check; `managers` was the live target.
+
+⚠ **Nothing else needs the grant.** A lockout expires by itself once `lockUntil` passes, and a successful login then calls `resetLoginAttempts` with no access check. `unlock` is only the administrative shortcut that clears a lockout early, so denying it costs a non-admin nothing.
+
+One difference from `readVersions`, and it is the whole `DERIVED_GRANTS` table: `unlock` queries the **auth collection itself**, which is what `update` already answers about, so its `Where` passes through untranslated.
+
+**A non-admin manager no longer sees the admin panel's Force unlock button.** `getAccessResults` computes `unlock` for every auth collection with a `maxLoginAttempts`, and the auth edit view renders `force-unlock` only when that result is true — so the UI follows this function, exactly as the History tab followed `readVersions` in #719. That is the intended behaviour change, not a regression: before it, every logged-in manager saw the button.
+
+Document locking is unrelated: that is the `payload-locked-documents` collection with its own access config, and it never reads `access.unlock`.
 
 ### Self-access
 

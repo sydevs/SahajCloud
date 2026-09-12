@@ -169,38 +169,91 @@ export function createAccessConfig(
 }
 
 /**
- * Derive `readVersions` from `update`: version history is EDIT authority, not
- * read authority (#719).
+ * The access keys this plugin DERIVES from `update` rather than computes from
+ * the role tables — the operations that are EDIT authority wearing another
+ * name: version history (#719) and clearing a login lockout (#748).
  *
- * Payload's fallback for an *unset* `readVersions` is the permissive one — "is
- * anyone logged in" — which an API key satisfies. Why `update` is the authority
- * to delegate to, and what was readable before: "Version history is edit
- * authority" in `docs/rules/access.md`.
+ * They share one failure. Left unwritten, Payload answers each from a
+ * permissive default — `Boolean(user)` for `unlock`, from its collection
+ * defaults, and the same `defaultAccess` fallback in `executeAccess` for an
+ * unset `readVersions` — which a published client's API key satisfies. So
+ * they share one derivation, and the differences between them fit in this
+ * table.
  *
- * ⚠ Wrap the MERGED access config, after any per-entity override. Deriving this
- * inside `createAccessConfig` binds `readVersions` to an `update` the override
- * has already replaced.
+ * `admin` is the one collection access key left unwritten, and it does NOT
+ * belong here: it gates the admin panel for `config.admin.user` alone, so no
+ * client key reaches it, and `update` is not its authority. See "The one key
+ * still unwritten" in `docs/rules/access.md`.
  */
-export function withVersionHistoryAccess<T extends { readVersions?: Access; update?: Access }>(
-  access: T,
-): T {
-  const { readVersions, update } = access
-  if (readVersions || !update) return access
+type DerivedGrantKey = 'readVersions' | 'unlock'
 
-  return {
-    ...access,
-    // ⚠ Drop the id. `findVersionByID` passes the VERSION ROW's primary key,
-    // not the document's, so every id-sensitive branch of `update` would answer
-    // about the wrong document. Dropped, `update` answers at the list level and
-    // `findVersionByID` ANDs the row id back on itself.
-    readVersions: async ({ id: _versionRowId, ...args }) => {
-      const result = await update(args)
-      // ⚠ Translate the `Where`. `update` queries DOCUMENTS; this one runs over
-      // VERSIONS, where a document's fields sit under `version.` and its id is
-      // `parent`.
-      return hasWhereAccessResult(result) ? appendVersionToQueryKey(result) : result
-    },
+type DerivedGrant = {
+  /**
+   * Rewrite a `Where` from `update` — which queries DOCUMENTS — onto the
+   * collection this operation actually runs over. Absent means the operation
+   * queries the same documents `update` already answers about.
+   */
+  translateWhere?: (where: Where) => Where
+}
+
+const DERIVED_GRANTS: Record<DerivedGrantKey, DerivedGrant> = {
+  // ⚠ A versions query runs over VERSION ROWS, where a document's fields sit
+  // under `version.` and its id is `parent`. Skip the translation and
+  // `{ id: { in: [7] } }` matches version rows by their own primary key — a
+  // wrong answer that still returns documents.
+  readVersions: { translateWhere: appendVersionToQueryKey },
+  // `unlock` queries the auth collection itself, which is what `update`
+  // already answers about. No translation.
+  unlock: {},
+}
+
+/**
+ * Derive each named grant from the config's own `update`, unless it is already
+ * set. Whoever may edit an entity reads its version history and clears its
+ * login lockout. Nobody else.
+ *
+ * Why `update` is the authority, and what each key exposed before: "Version
+ * history is edit authority" and "Unlocking an account is edit authority" in
+ * `docs/rules/access.md`.
+ *
+ * ⚠ Wrap the MERGED access config, after any per-entity override. Deriving
+ * inside `createAccessConfig` binds the grant to an `update` the override has
+ * already replaced — which is the drift the delegation exists to prevent.
+ */
+export function withDerivedGrants<
+  T extends Partial<Record<DerivedGrantKey, Access>> & { update?: Access },
+>(access: T, keys: readonly DerivedGrantKey[]): T {
+  const { update } = access
+  const derived: Partial<Record<DerivedGrantKey, Access>> = {}
+
+  for (const key of keys) {
+    if (access[key]) continue
+    const { translateWhere } = DERIVED_GRANTS[key]
+
+    // ⚠ Fail CLOSED when there is no `update` to delegate to. Returning the
+    // config untouched instead leaves the key unset, and Payload refills an
+    // unset key with the permissive default this function exists to remove.
+    // Unreachable today — `createAccessConfig` always assigns `update` — but
+    // that silence is exactly how #719 and #748 shipped.
+    derived[key] = update
+      ? // ⚠ Drop the id. `findVersionByID` passes the VERSION ROW's primary
+        // key, not the document's, so every id-sensitive branch of `update`
+        // would answer about the wrong document. `unlockOperation` passes no
+        // id at all, and dropping it keeps that true if a future Payload
+        // passes one, rather than letting the self-access bypass
+        // (`user.id === docId`) hand an account its own unlock. Dropped,
+        // `update` answers at the list level, and `findVersionByID` ANDs the
+        // row id back on itself.
+        async ({ id: _id, ...args }) => {
+          const result = await update(args)
+          return translateWhere && hasWhereAccessResult(result)
+            ? translateWhere(result)
+            : result
+        }
+      : () => false
   }
+
+  return { ...access, ...derived }
 }
 
 /**
