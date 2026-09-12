@@ -35,7 +35,7 @@ import { clientEntries, reachableFiles, SRC } from '../utils/importGraph'
 const KNOWN_OFFENDERS = new Map([
   [
     'lib/env/server.ts',
-    'reached only via ProjectSelector → the @/plugins/access barrel (#770)',
+    'reached by 14 client entries, all via @/plugins/access → @/lib/env (#770)',
   ],
 ])
 

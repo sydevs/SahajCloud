@@ -122,6 +122,16 @@ function sourceFiles(dir: string = SRC, out: string[] = []): string[] {
  * Derived, never listed. A hand-written entry list is the failure mode both
  * guards exist to prevent — a new client component gets no guard at all until
  * someone remembers to add it, which is how #760 survived.
+ *
+ * ⚠ `client-bundle-safety.spec.ts` still passes its own four entries, and
+ * switching it to this function is #770's job, not a one-line swap. Measured on
+ * this branch: across all 92 entries its `SERVER_ONLY` matcher finds **zero**
+ * offenders, because it matches the import *specifier* and the real edge is the
+ * `@/lib/env` barrel, which is not on that list. Match on the resolved file
+ * instead and **14** entries go red, every one through the same chain —
+ * `@/plugins/access → accessConfigs → @/lib/utilities/previewSecret →
+ * @/lib/env`. So the swap needs that guard's matcher changed and 14 offenders
+ * fixed or exempted, which is a second guard's verdicts, not this ticket's.
  */
 export function clientEntries(): string[] {
   const useClient = sourceFiles().filter((file) =>
