@@ -1,4 +1,4 @@
-import type { JSONField, TaskConfig, Where } from 'payload'
+import type { TaskConfig, Where } from 'payload'
 
 import pMap from 'p-map'
 import pRetry from 'p-retry'
@@ -11,19 +11,6 @@ type SyncResult = {
   synced: number
   failed: number
   skippedNoVimeoId: number
-}
-
-const LECTURE_IDS_SCHEMA_URI = 'urn:sahajcloud:schema:sync-lecture-metadata-ids'
-
-const lectureIdsJsonSchema: NonNullable<JSONField['jsonSchema']> = {
-  uri: LECTURE_IDS_SCHEMA_URI,
-  fileMatch: [LECTURE_IDS_SCHEMA_URI],
-  schema: {
-    $id: LECTURE_IDS_SCHEMA_URI,
-    title: 'SyncLectureMetadataIds',
-    type: 'array',
-    items: { type: 'integer' },
-  },
 }
 
 const PAGINATION_LIMIT = 1000
@@ -48,13 +35,13 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
   retries: 2,
   inputSchema: [
     {
-      // Optional narrowing for a manual run. The schema generates the input's
-      // type, replacing a hand-written `SyncLectureMetadataInput` — it is not a
-      // runtime check, so the handler still tests `Array.isArray` below.
+      // Optional narrowing for a manual run. Payload feeds `inputSchema` only
+      // to `generateJobsJSONSchemas`, so this is what types the input, not a
+      // runtime check — the handler still tests `Array.isArray` below.
       name: 'lectureIds',
-      type: 'json',
+      type: 'number',
+      hasMany: true,
       required: false,
-      jsonSchema: lectureIdsJsonSchema,
     },
   ],
   outputSchema: [
@@ -78,9 +65,10 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
     }
 
     const lectureIds = input?.lectureIds
-    // Whether this run is scoped is decided once. `input` is an unvalidated
-    // `json` field, so a second test of it can disagree with this one — and
-    // that is how the query and the log line came to describe different runs.
+    // Whether this run is scoped is decided once. `inputSchema` types the
+    // input but nothing validates it at runtime, so a second test of it can
+    // disagree with this one — and that is how the query and the log line
+    // came to describe different runs.
     const scopedIds = Array.isArray(lectureIds) && lectureIds.length > 0 ? lectureIds : null
 
     // Only full lectures own NV `metadata`; clips reference their parent and

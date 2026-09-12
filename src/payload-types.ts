@@ -652,7 +652,6 @@ export type MeditationFrames = {
   timestamp: number;
   [k: string]: unknown;
 }[];
-export type SyncLectureMetadataIds = number[];
 export type TableOfContentsHeadings = {
   slug: string;
   text: string;
@@ -1113,7 +1112,7 @@ export interface Video {
   title: string;
   subtitles?: Subtitles;
   tags: 'testimonial' | 'workshop' | 'event' | 'technique';
-  fileMetadata?: FileMetadata1;
+  fileMetadata?: FileMetadata;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1125,13 +1124,6 @@ export interface Video {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-}
-export interface FileMetadata1 {
-  /**
-   * The filename as uploaded, before the adapter replaced it with a provider id.
-   */
-  originalFilename?: string;
-  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1946,24 +1938,7 @@ export interface Registration {
         | 'nl'
       )
     | null;
-  questions?: {
-    /**
-     * Have you practised Sahaja Yoga meditation before?
-     */
-    experience?: string;
-    /**
-     * How did you hear about this event?
-     */
-    referral?: string;
-    /**
-     * What are you hoping to get out of this?
-     */
-    aspirations?: string;
-    /**
-     * Do you have any questions for us?
-     */
-    questions?: string;
-  };
+  questions?: RegistrationQuestions;
   uuid: string;
   mailingListSubscribedAt?: string | null;
   remindersUnsubscribedAt?: string | null;
@@ -2401,6 +2376,24 @@ export interface ClientAbuseScore {
     current: number;
   };
 }
+export interface RegistrationQuestions {
+  /**
+   * Have you practised Sahaja Yoga meditation before?
+   */
+  experience?: string;
+  /**
+   * How did you hear about this event?
+   */
+  referral?: string;
+  /**
+   * What are you hoping to get out of this?
+   */
+  aspirations?: string;
+  /**
+   * Do you have any questions for us?
+   */
+  questions?: string;
+}
 export interface EventSystemMeta {
   communityFeedback?: {
     /**
@@ -2554,7 +2547,7 @@ export interface Song {
    * Include this song in random selection in meditations. Auto-set to false on creation when the song has the vocals tag, then manually editable.
    */
   includeForMeditations?: boolean | null;
-  fileMetadata?: FileMetadata2;
+  fileMetadata?: FileMetadata;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -2592,13 +2585,6 @@ export interface Album {
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
-}
-export interface FileMetadata2 {
-  /**
-   * The filename as uploaded, before the adapter replaced it with a provider id.
-   */
-  originalFilename?: string;
-  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3497,7 +3483,7 @@ export interface Frame {
       )[]
     | null;
   duration?: number | null;
-  fileMetadata?: FileMetadata3;
+  fileMetadata?: FileMetadata;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -3509,13 +3495,6 @@ export interface Frame {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-}
-export interface FileMetadata3 {
-  /**
-   * The filename as uploaded, before the adapter replaced it with a provider id.
-   */
-  originalFilename?: string;
-  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3612,53 +3591,14 @@ export interface EventSubmission {
  */
 export interface UserMessage {
   id: number;
-  screeningResult?: {
-    /**
-     * `ok`, or why the message was classified spam.
-     */
-    verdict: 'ok' | 'disposable_email' | 'invalid_email' | 'no_mx_records' | 'repeat_sender' | 'duplicate_body';
-    /**
-     * Everything an admin needs, as complete sentences. Each says what happened and what follows from it. A delivered message normally has none.
-     */
-    notes?: string[];
-    /**
-     * A technical detail kept for triage and NOT rendered — an MX lookup that came back inconclusive, or the mail transport’s own error string. Discarding it would leave nothing to look at when delivery goes wrong.
-     */
-    diagnostic?: string;
-    /**
-     * When screening reached this verdict (ISO 8601).
-     */
-    screenedAt: string;
-  };
+  screeningResult?: UserMessageScreeningResult;
   subject?: string | null;
   message: string;
   /**
    * Optional. Becomes the Reply-To of the message we email out.
    */
   senderEmail?: string | null;
-  context?: {
-    /**
-     * Route the sender was on, e.g. `/events/london-meetup`.
-     */
-    path?: string;
-    /**
-     * Absolute URL of the host page embedding the widget.
-     */
-    hostUrl?: string;
-    /**
-     * Locale the sender was browsing in.
-     */
-    locale?: string;
-    /**
-     * Error text/stack the sender was reporting, when the message is a crash report.
-     */
-    error?: string;
-    /**
-     * The sender's user-agent string.
-     */
-    userAgent?: string;
-    [k: string]: unknown;
-  };
+  context?: UserMessageContext;
   client?: (number | null) | Client;
   user?: (number | null) | User;
   status: 'screening' | 'delivered' | 'spam' | 'failed';
@@ -3666,6 +3606,47 @@ export interface UserMessage {
   deliveredAt?: string | null;
   updatedAt: string;
   createdAt: string;
+}
+export interface UserMessageScreeningResult {
+  /**
+   * `ok`, or why the message was classified spam.
+   */
+  verdict: 'ok' | 'disposable_email' | 'invalid_email' | 'no_mx_records' | 'repeat_sender' | 'duplicate_body';
+  /**
+   * Everything an admin needs, as complete sentences. Each says what happened and what follows from it. A delivered message normally has none.
+   */
+  notes?: string[];
+  /**
+   * A technical detail kept for triage and NOT rendered — an MX lookup that came back inconclusive, or the mail transport’s own error string. Discarding it would leave nothing to look at when delivery goes wrong.
+   */
+  diagnostic?: string;
+  /**
+   * When screening reached this verdict (ISO 8601).
+   */
+  screenedAt: string;
+}
+export interface UserMessageContext {
+  /**
+   * Route the sender was on, e.g. `/events/london-meetup`.
+   */
+  path?: string;
+  /**
+   * Absolute URL of the host page embedding the widget.
+   */
+  hostUrl?: string;
+  /**
+   * Locale the sender was browsing in.
+   */
+  locale?: string;
+  /**
+   * Error text/stack the sender was reporting, when the message is a crash report.
+   */
+  error?: string;
+  /**
+   * The sender's user-agent string.
+   */
+  userAgent?: string;
+  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -8725,7 +8706,8 @@ export interface CollectionsWidget {
  */
 export interface TaskCleanupOrphanedMedia {
   input: {
-    testDateRange?: CleanupTestDateRange;
+    rangeStart?: string | null;
+    rangeEnd?: string | null;
     maxOperations?: number | null;
   };
   output: {
@@ -8736,10 +8718,6 @@ export interface TaskCleanupOrphanedMedia {
     skippedImages: number;
     errors: number;
   };
-}
-export interface CleanupTestDateRange {
-  rangeStart: string;
-  rangeEnd: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -8837,7 +8815,7 @@ export interface TaskSendSessionReminders {
  */
 export interface TaskSyncLectureMetadata {
   input: {
-    lectureIds?: SyncLectureMetadataIds;
+    lectureIds?: number[] | null;
   };
   output: {
     totalProcessed: number;

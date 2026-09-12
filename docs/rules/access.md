@@ -130,6 +130,10 @@ Managers and API clients both read their role's project plus every shared collec
 
 A `managers` (hasMany) or `manager` relationship to `managers` on any collection grants those managers **read and update** on its documents, with no role needed. A self-referential `parent` field lets a document inherit managers from its ancestors, via the nested-docs `breadcrumbs` trail. Fields are found by introspecting `flattenedFields` (`documentManagers.ts`) — no slug is hardcoded. Any collection that adds such a field is covered (today: Pages via "Page Editors", Regions, Clients). Read and update only, never create or delete — and only after the query-free check has failed.
 
+`resolveManagedDocIds` — the managed-set resolution both this fallback and the region-subtree scoping below run — is memoized per request, keyed on `(collection, userId)` (#749). Payload evaluates each access operation independently and dedups nothing between them: `getEntityPermissions` fires every operation of a collection in one `Promise.all` with byte-identical args, and its `whereQueryCache` cannot help because that only runs with `fetchData: true`, which `/api/access` does not pass. Measured, one `/api/access` call as an `atlas-manager` went from 12 `regions` queries to 2.
+
+**It collapses the list-level resolutions only.** `createAccessConfig`'s single-document `update` branch (`id` present) routes to `userManagesDocument` instead, which is still unmemoized — so a document edit view, where `getDocumentPermissions` repeats the whole operation set four times for a drafts+trash collection, still pays that path per evaluation. The `resolveManagedDocIds` JSDoc owns the two hazards a per-request memo opens: the staleness window it pins, and why it must not be lifted to the access function. Read it before you widen the key.
+
 ### Region-subtree write scoping (Atlas managers)
 
 `atlas-manager` is the one role granting **create, update, and delete** on `events` and `regions`. `regionSubtreeAccess.ts` narrows every such grant to the manager's **owned-region subtree**: the regions listing them in `managers`, plus every descendant via `breadcrumbs`.
