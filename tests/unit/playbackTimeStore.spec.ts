@@ -6,6 +6,11 @@
  * The store backs `usePlaybackTime` and must survive component remounts
  * so a frame inserted while audio is paused (after a tab switch) lands
  * at the actual playhead, not 0:00 — the bug from #328.
+ *
+ * It also answers to exactly one origin, published from the live-preview
+ * iframe. This playhead is the timestamp a newly inserted frame is written at,
+ * so accepting `PLAYBACK_TIME_UPDATE` from anywhere let any page that can
+ * reach this window decide where a frame lands (#708).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -13,13 +18,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   __resetPlaybackTimeStoreForTests,
   getCachedPlaybackTime,
+  previewOriginOf,
+  setPlaybackTimeOrigin,
   subscribePlaybackTime,
 } from '@/components/admin/FrameEditor/playbackTimeStore'
 
-const dispatchPlaybackUpdate = (currentTime: unknown) => {
+const PREVIEW_ORIGIN = 'https://preview.example'
+
+const dispatchPlaybackUpdate = (currentTime: unknown, origin: string = PREVIEW_ORIGIN) => {
   window.dispatchEvent(
     new MessageEvent('message', {
       data: { type: 'PLAYBACK_TIME_UPDATE', currentTime },
+      origin,
     }),
   )
 }
@@ -27,6 +37,7 @@ const dispatchPlaybackUpdate = (currentTime: unknown) => {
 describe('playbackTimeStore', () => {
   beforeEach(() => {
     __resetPlaybackTimeStoreForTests()
+    setPlaybackTimeOrigin(PREVIEW_ORIGIN)
   })
 
   afterEach(() => {
@@ -93,12 +104,13 @@ describe('playbackTimeStore', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         data: { type: 'payload-live-preview', ready: true },
+        origin: PREVIEW_ORIGIN,
       }),
     )
     window.dispatchEvent(
-      new MessageEvent('message', { data: 'string-payload' }),
+      new MessageEvent('message', { data: 'string-payload', origin: PREVIEW_ORIGIN }),
     )
-    window.dispatchEvent(new MessageEvent('message', { data: null }))
+    window.dispatchEvent(new MessageEvent('message', { data: null, origin: PREVIEW_ORIGIN }))
 
     expect(cb).not.toHaveBeenCalled()
     expect(getCachedPlaybackTime()).toBe(0)
@@ -115,6 +127,54 @@ describe('playbackTimeStore', () => {
 
     expect(cb).not.toHaveBeenCalled()
     expect(getCachedPlaybackTime()).toBe(0)
+  })
+
+  describe('origin gate', () => {
+    it('ignores a PLAYBACK_TIME_UPDATE from a foreign origin', () => {
+      const cb = vi.fn()
+      subscribePlaybackTime(cb)
+
+      dispatchPlaybackUpdate(120, 'https://evil.example')
+
+      expect(cb).not.toHaveBeenCalled()
+      expect(getCachedPlaybackTime()).toBe(0)
+    })
+
+    it('fails closed: accepts nothing until an origin is published', () => {
+      setPlaybackTimeOrigin(null)
+      const cb = vi.fn()
+      subscribePlaybackTime(cb)
+
+      dispatchPlaybackUpdate(120)
+
+      expect(cb).not.toHaveBeenCalled()
+      expect(getCachedPlaybackTime()).toBe(0)
+    })
+
+    it('follows the iframe when the preview is repointed at another origin', () => {
+      const cb = vi.fn()
+      subscribePlaybackTime(cb)
+      setPlaybackTimeOrigin(previewOriginOf('https://other.example/preview?secret=x'))
+
+      dispatchPlaybackUpdate(30, PREVIEW_ORIGIN)
+      expect(cb).not.toHaveBeenCalled()
+
+      dispatchPlaybackUpdate(30, 'https://other.example')
+      expect(cb).toHaveBeenCalledExactlyOnceWith(30)
+    })
+  })
+
+  describe('previewOriginOf', () => {
+    it('reads the origin of an iframe src', () => {
+      expect(previewOriginOf('https://preview.example/preview?secret=x')).toBe(PREVIEW_ORIGIN)
+    })
+
+    it.each([null, undefined, '', 'not a url', 'data:text/html,x', 'javascript:alert(1)'])(
+      'returns null for %s, so nothing is accepted',
+      (src) => {
+        expect(previewOriginOf(src)).toBeNull()
+      },
+    )
   })
 
   it('attaches the window listener only once across many subscribers', () => {

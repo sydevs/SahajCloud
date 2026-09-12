@@ -14,7 +14,7 @@ export {
 } from './utils'
 
 // Hooks
-export { usePlaybackTime, useSeekToTime, useLivePreviewAuto, useAvailableFrames } from './hooks'
+export { usePlaybackTime, useSeekToTime, useAvailableFrames } from './hooks'
 
 // Styles
 export { baseStyles, listManagerStyles, inserterStyles } from './styles'

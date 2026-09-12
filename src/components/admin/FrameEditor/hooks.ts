@@ -8,6 +8,8 @@ import type { Frame } from '@/payload-types'
 
 import {
   getCachedPlaybackTime,
+  previewOriginOf,
+  setPlaybackTimeOrigin,
   subscribePlaybackTime,
 } from './playbackTimeStore'
 import { framesByNarratorKey } from './utils'
@@ -20,9 +22,20 @@ import { framesByNarratorKey } from './utils'
  * Add New tabs each render in their own subtree and unmount when
  * inactive. Without the singleton, switching tabs while audio was paused
  * would reset the playhead state to 0.
+ *
+ * It also publishes the origin the store accepts messages from. The store has
+ * no React context to read, and this hook mounts wherever the playhead is
+ * read, so the two facts stay together. `url` is a dependency because the
+ * iframe's `src` follows it — re-reading the element after Payload repoints
+ * the panel is how the allowed origin stays current.
  */
 export const usePlaybackTime = (): number => {
   const [time, setTime] = useState<number>(getCachedPlaybackTime)
+  const { iframeRef, url } = useLivePreviewContext()
+
+  useEffect(() => {
+    setPlaybackTimeOrigin(previewOriginOf(iframeRef.current?.src ?? url))
+  }, [iframeRef, url])
 
   useEffect(() => {
     setTime(getCachedPlaybackTime())
@@ -35,31 +48,25 @@ export const usePlaybackTime = (): number => {
 /**
  * Hook to send seek commands to the live preview iframe
  * Sends SEEK_TO_TIME messages via PostMessage API
+ *
+ * The iframe comes from the live-preview context's own `iframeRef`. The
+ * `document.querySelector('iframe[src*="/preview/embed"]')` this replaced was
+ * standing in for that ref, and matched on a URL shape only the We Meditate
+ * preview happens to use.
  */
 export const useSeekToTime = (): ((timestamp: number) => void) => {
-  const seekToTime = useCallback((timestamp: number) => {
-    // Find the PayloadCMS live preview iframe
-    const iframe = document.querySelector<HTMLIFrameElement>('iframe[src*="/preview/embed"]')
+  const { iframeRef } = useLivePreviewContext()
 
-    if (iframe?.contentWindow && iframe.src) {
-      // Derive target origin from iframe src (secure, no env needed)
-      const targetOrigin = new URL(iframe.src).origin
+  return useCallback(
+    (timestamp: number) => {
+      const iframe = iframeRef.current
+      const targetOrigin = previewOriginOf(iframe?.src)
+
+      if (!iframe?.contentWindow || !targetOrigin) return
       iframe.contentWindow.postMessage({ type: 'SEEK_TO_TIME', timestamp }, targetOrigin)
-    }
-  }, [])
-
-  return seekToTime
-}
-
-/**
- * Hook to auto-enable live preview when component mounts
- */
-export const useLivePreviewAuto = (): void => {
-  const { setIsLivePreviewing } = useLivePreviewContext()
-
-  useEffect(() => {
-    setIsLivePreviewing(true)
-  }, [setIsLivePreviewing])
+    },
+    [iframeRef],
+  )
 }
 
 /**
