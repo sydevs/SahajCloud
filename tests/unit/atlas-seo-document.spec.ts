@@ -458,10 +458,16 @@ describe('buildRootSeo', () => {
     expect(seo.openGraph['og:description']).toBe(base.description)
   })
 
-  it('bounds the meta description at what a result page shows', () => {
-    const seo = buildRootSeo({ ...base, description: 'word '.repeat(60).trim() })
+  // The bound is on the `<meta>` value alone, as it is for an event — the CMS
+  // limit on `root_description` is advisory, so a longer one must still render
+  // whole as body copy rather than visibly cut off.
+  it('bounds the meta description without truncating the body copy', () => {
+    const long = 'word '.repeat(60).trim()
+    const seo = buildRootSeo({ ...base, description: long })
     expect(seo.description?.length).toBeLessThanOrEqual(160)
     expect(seo.description?.endsWith('…')).toBe(true)
+    if (seo.type !== 'root') throw new Error('expected the root')
+    expect(seo.content.paragraphs).toEqual([long])
   })
 
   it('publishes the same hreflang cluster a region gets', () => {

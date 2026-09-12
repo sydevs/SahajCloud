@@ -412,10 +412,12 @@ async function eventSeo(
  *   metadata of its own. Its title and description are operator-written on
  *   `sy-atlas-translations`, and its `canonical` is the caller's own verified
  *   mount page — a host remains free to ignore both and write its own.
- * - A **404 now means the string is not a route we will read**: over
- *   {@link MAX_ATLAS_ROUTE_LENGTH}, carrying a query, fragment or whitespace,
- *   over the segment cap, or naming a region or event that does not exist.
- *   "Names nothing" and "is not a route" are deliberately different answers.
+ * - A **404 now means the string is not a route we will read** — carrying a
+ *   query, fragment or whitespace, or over the segment cap — or names a region
+ *   or event that does not exist. "Names nothing" and "is not a route" are
+ *   deliberately different answers. A route past
+ *   {@link MAX_ATLAS_ROUTE_LENGTH} is a **400**: the query schema refuses it
+ *   before the parser sees it, as it does an empty one.
  * - A root route's `description` is `null` in any locale the operator has not
  *   written one for — the same rule a region follows. Its `title` falls back to
  *   English and then to a constant, because `<title>` is mandatory markup and a

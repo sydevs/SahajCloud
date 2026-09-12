@@ -338,6 +338,16 @@ describe('atlas SEO root endpoint (OpenAPI)', () => {
 
   // The union in `responseTypes.ts` gained a third member (#739). A published
   // enum that still names two would tell a consumer to treat `root` as invalid.
+  // An event's content also carries a `paragraphs` array, so an open root shape
+  // would match two branches of the `content` oneOf and a strict validator
+  // would reject a correct event response.
+  it('closes every content shape, so the oneOf stays unambiguous', () => {
+    for (const schema of ['AtlasSeoRootContent', 'AtlasSeoRegionContent', 'AtlasSeoEventContent']) {
+      const shape = CUSTOM_ENDPOINT_SCHEMAS[schema] as { additionalProperties?: boolean }
+      expect(shape.additionalProperties, `${schema} is open`).toBe(false)
+    }
+  })
+
   it('publishes all three route kinds, with a nullable id for the root', () => {
     const response = CUSTOM_ENDPOINT_SCHEMAS['AtlasSeoResponse'] as {
       properties: { type: { enum: string[] }; id: { type: string[] } }

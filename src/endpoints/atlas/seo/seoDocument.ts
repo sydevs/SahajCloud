@@ -457,6 +457,11 @@ export function buildEventSeo(input: EventSeoInput): AtlasSeoResponse {
  */
 export function buildRootSeo(input: RootSeoInput): AtlasSeoResponse {
   const { title, canonical, locale, locales } = input
+  // The bound applies to the `<meta>` value alone, exactly as it does for an
+  // event: `content.paragraphs` keeps the operator's full sentence, since
+  // `root_description`'s own limit is advisory and a host renders that text as
+  // body copy rather than a snippet.
+  const paragraphs = input.description ? [input.description] : []
   const description = truncateAtWord(input.description ?? '', META_DESCRIPTION_MAX) || null
 
   return {
@@ -484,7 +489,7 @@ export function buildRootSeo(input: RootSeoInput): AtlasSeoResponse {
       ]),
     ),
     breadcrumbs: [],
-    content: { paragraphs: description ? [description] : [] },
+    content: { paragraphs },
   }
 }
 

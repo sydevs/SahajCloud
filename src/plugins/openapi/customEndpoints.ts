@@ -537,9 +537,10 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         '`route: "/"` and empty `breadcrumbs`. Its title and description are ' +
         'written by an operator in the CMS, and its `canonical` is your own ' +
         'verified embed page — use them or write your own. A `404` now means the ' +
-        'string is **not a route we will read** (too long, carrying a query or ' +
-        'fragment, too many segments) or names a region or class that does not ' +
-        'exist. Sets `Cache-Control: public, max-age=300, s-maxage=300`.',
+        'string is **not a route we will read** (carrying a query or fragment, or ' +
+        'too many segments) or names a region or class that does not exist; a ' +
+        'route past the 512-character ceiling is a `400`, refused by the query ' +
+        'schema. Sets `Cache-Control: public, max-age=300, s-maxage=300`.',
       operationId: 'atlasSeo',
       parameters: [
         {
@@ -580,9 +581,10 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         '404': errorResponse(
           'Either the route names a region or class that does not exist — an unknown ' +
             'slug, an unpublished or missing event — or the string is not a route we ' +
-            'will read: past the length or segment ceiling, or carrying a query, ' +
-            'fragment or whitespace. The atlas root and bare view routes are **not** ' +
-            'in this set; they are answered with `type: "root"`.',
+            'will read: past the segment ceiling, or carrying a query, fragment or ' +
+            'whitespace. A route past the length ceiling is a `400` instead. The ' +
+            'atlas root and bare view routes are **not** in this set; they are ' +
+            'answered with `type: "root"`.',
         ),
         '500': errorResponse('The metadata could not be built.'),
       },
@@ -1455,9 +1457,17 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       },
     },
   },
-  /** The body content of the atlas landing page — `content` when `type` is `root`. */
+  /**
+   * The body content of the atlas landing page — `content` when `type` is `root`.
+   *
+   * `additionalProperties: false` is load-bearing here, not tidiness: an
+   * event's `content` also carries a `paragraphs` array, so an open shape would
+   * match two branches of `AtlasSeoResponse.content`'s `oneOf` and a strict
+   * validator would reject a correct event response.
+   */
   AtlasSeoRootContent: {
     type: 'object',
+    additionalProperties: false,
     required: ['paragraphs'],
     properties: {
       paragraphs: {
