@@ -47,7 +47,7 @@ import { withoutEnglishFallback } from '@/lib/translations/clientEnglishFallback
 export const ROOT_TITLE_FALLBACK = 'Free Meditation Classes'
 
 /** Two strings out of seven groups, so the read names the one it wants. */
-const SEO_GROUP_SELECT: SelectType = { seo: true } as never
+const SEO_GROUP_SELECT: SelectType = { seo: true }
 
 /** The landing page's copy for one locale. */
 export interface RootSeoStrings {
