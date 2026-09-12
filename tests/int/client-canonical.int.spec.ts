@@ -100,10 +100,23 @@ describe('client canonical ownership + embed metadata', () => {
       expect(condition?.({})).toBe(false)
     })
 
-    it('no longer declares legacyConfig, or the three hand-typed canonical fields', () => {
-      for (const gone of ['legacyConfig', 'domain', 'mount', 'routing']) {
+    it('no longer declares legacyConfig, or the hand-typed canonical fields', () => {
+      for (const gone of ['legacyConfig', 'domain', 'mount']) {
         expect(findField(Clients.fields as unknown[], gone)).toBeNull()
       }
+    })
+
+    it('declares canonical.routing derived and untypeable, never an operator setting', () => {
+      // The hand-typed `routing` field was deleted in #633, and #644 gives the
+      // name back to the derived verdict. What the deletion actually protected
+      // is that nobody can assert a routing mode — so that is what this pins,
+      // rather than the absence of the name. `virtual` is the whole guarantee:
+      // no stored column, so a write has nowhere to land, whatever the admin
+      // panel or a client sends.
+      const routing = findField(Clients.fields as unknown[], 'routing')
+      expect(routing?.virtual).toBe(true)
+      expect((routing?.admin as { readOnly?: boolean } | undefined)?.readOnly).toBe(true)
+      expect(routing?.hooks).toBeDefined()
     })
   })
 
@@ -859,7 +872,7 @@ describe('client canonical ownership + embed metadata', () => {
         verdict: 'path',
         failedAttempts: 0,
       })
-      expect(doc.canonical?.effectiveRouting).toBe('path')
+      expect(doc.canonical?.routing).toBe('path')
     })
 
     /**
@@ -871,17 +884,17 @@ describe('client canonical ownership + embed metadata', () => {
     it('demotes only on the third consecutive negative, and never disables ownership', async () => {
       const id = await createOwner('Probe Demote', 'probe-demote', PROBE_MOUNT)
       await runProbing({ mount: verified, probe: positive, now: daysAfter(50) })
-      expect((await read(id)).canonical?.effectiveRouting).toBe('path')
+      expect((await read(id)).canonical?.routing).toBe('path')
 
       await runProbing({ mount: verified, probe: negative, now: daysAfter(51) })
       await runProbing({ mount: verified, probe: negative, now: daysAfter(52) })
       let doc = await read(id)
-      expect(doc.canonical?.effectiveRouting).toBe('path')
+      expect(doc.canonical?.routing).toBe('path')
       expect(doc.canonical?.verification?.routingProbe?.failedAttempts).toBe(2)
 
       await runProbing({ mount: verified, probe: negative, now: daysAfter(53) })
       doc = await read(id)
-      expect(doc.canonical?.effectiveRouting).toBe('query')
+      expect(doc.canonical?.routing).toBe('query')
       // The embed is present and publishing — in `?atlas=` shape, which is a
       // real canonical. Nothing about ownership may have moved.
       expect(doc.canonical?.enabled).toBe(true)
@@ -943,7 +956,7 @@ describe('client canonical ownership + embed metadata', () => {
 
       const doc = await read(id)
       expect(doc.canonical?.verification?.verified ?? null).toBeNull()
-      expect(doc.canonical?.effectiveRouting).toBe('path')
+      expect(doc.canonical?.routing).toBe('path')
     })
 
     // The column is closed (`additionalProperties: false`) and validated on
@@ -977,7 +990,7 @@ describe('client canonical ownership + embed metadata', () => {
       // Saved unmodified, and a `path` self-report shapes nothing.
       const doc = await read(id)
       expect(doc.canonical?.verification?.verified?.routing).toBe('path')
-      expect(doc.canonical?.effectiveRouting).toBe('query')
+      expect(doc.canonical?.routing).toBe('query')
 
       // And it saves again untouched, which is what a closed column makes fragile.
       await expect(

@@ -2251,7 +2251,7 @@ export interface Client {
     /**
      * Derived, never chosen: “Path segment” once the CMS has seen this host serve the atlas under the embed’s own subtree, “Query parameter” otherwise.
      */
-    effectiveRouting?: ('query' | 'path') | null;
+    routing?: ('query' | 'path') | null;
     nextVerifyAt?: string | null;
   };
   embedMetadata?: ClientEmbedMetadata;
@@ -4608,7 +4608,7 @@ export interface ClientsSelect<T extends boolean = true> {
         enabled?: T;
         embed?: T;
         verification?: T;
-        effectiveRouting?: T;
+        routing?: T;
         nextVerifyAt?: T;
       };
   embedMetadata?: T;

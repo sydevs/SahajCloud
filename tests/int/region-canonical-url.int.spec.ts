@@ -222,7 +222,7 @@ describe('per-region canonical webUrl', () => {
           id: londonClient.id,
           data: {
             canonical: {
-              // Spread whole, `effectiveRouting` included: a virtual field is
+              // Spread whole, `routing` included: a virtual field is
               // ignored on write, and this is the pin for that.
               ...londonClient.canonical,
               verification: {

@@ -289,11 +289,11 @@ export const Clients: CollectionConfig = {
                   // It rides the `canonical` group the widget already selects
                   // (`GET /api/clients/me`), so it reaches the client with no
                   // change to the select, the endpoint, or its permissions.
-                  name: 'effectiveRouting',
+                  name: 'routing',
                   type: 'select',
                   virtual: true,
                   options: ROUTING_MODE_OPTIONS,
-                  label: 'Effective Routing',
+                  label: 'Routing',
                   admin: {
                     readOnly: true,
                     condition: canonicalEnabled,

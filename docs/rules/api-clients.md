@@ -27,7 +27,7 @@ Two Atlas white-label fields, split across the **Config** and **SEO** tabs. `can
 | `canonical.enabled` | checkbox, default false — every other field is `admin.condition`-gated on it |
 | `canonical.embed` | required when enabled. Which reported mount owns the URLs, chosen from a picker, never typed |
 | `canonical.verification` | json, admin-readonly — written only by the CMS: the verified snapshot, a consecutive-failure count, a bounded attempt log, and the `routingProbe` routing verdict |
-| `canonical.effectiveRouting` | virtual select, admin-readonly — the derived routing shape (#644, below). No stored column |
+| `canonical.routing` | virtual select, admin-readonly — the derived routing shape (#644, below). No stored column |
 | `canonical.nextVerifyAt` | date, indexed, hidden — the verification job's watermark, a real column so it stays a cheap predicate |
 
 `validateCanonicalOwnership` (beforeChange) enforces this: enabling requires `region` and `canonical.embed`, and a second enabled client on a region is rejected, naming the incumbent. It watches `region` too, so moving an enabled client onto an owned region can't dodge the check, and skips when nothing the rule reads has moved. Uniqueness checks against **committed** state, so a conflicting draft is caught only on publish.
@@ -51,7 +51,7 @@ Two Atlas white-label fields, split across the **Config** and **SEO** tabs. `can
 
 ### Routing is derived, never configured (#644)
 
-Nothing lets an operator — or a script tag — say how a client's URLs are shaped. `effectiveRouting(verification)` (`src/lib/clients/verification.ts`) is the one answer, read by `canonicalOwnerFrom`, by the admin picker's preview, and by the widget through the virtual `canonical.effectiveRouting` field on `GET /api/clients/me`.
+Nothing lets an operator — or a script tag — say how a client's URLs are shaped. `effectiveRouting(verification)` (`src/lib/clients/verification.ts`) is the one answer, read by `canonicalOwnerFrom`, by the admin picker's preview, and by the widget through the virtual `canonical.routing` field on `GET /api/clients/me`.
 
 It reads **`verification.routingProbe`**, a sibling of `verified`, not `verified.routing`. That field is still written from the readiness marker, which copies the widget's own script parameter — the widget repeating what it was asked to do. Shaping a public URL from it was circular. It stays on the record as the honest thing it is, and shapes nothing.
 
