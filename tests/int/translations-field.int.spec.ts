@@ -129,7 +129,8 @@ describe('buildTranslationTabs', () => {
     })
 
     // Accessibility strings are long, rarely edited, and would push the visible
-    // copy off the screen.
+    // copy off the screen. The label is "Accessibility", not `toWords('a11y')`'s
+    // "A11y" — both come from SUBGROUP_PRESENTATION in `src/fields/translationsField.ts`.
     it('starts an a11y sub-group collapsed, and every other sub-group open', () => {
       const schema: TranslationsSchema = {
         type: 'object',
@@ -155,8 +156,25 @@ describe('buildTranslationTabs', () => {
       }
       expect(group.fields.map((f) => [f.label, f.admin?.initCollapsed])).toEqual([
         ['General', false],
-        ['A11y', true],
+        ['Accessibility', true],
       ])
+    })
+
+    // SUBGROUP_PRESENTATION is named for sub-groups and documented as
+    // sub-group-only (`src/globals/AGENTS.md`), so a tab must not read it. A
+    // shared helper made the two indistinguishable, and nothing said so.
+    it('never applies SUBGROUP_PRESENTATION to a top-level tab', () => {
+      const schema: TranslationsSchema = {
+        type: 'object',
+        properties: {
+          a11y: {
+            type: 'object',
+            properties: { marker: { type: 'string', description: 'm' } },
+          },
+        },
+      }
+
+      expect(buildTranslationTabs(schema, 'test')[0].label).toBe('A11y')
     })
 
     it('emits TranslationsRow as the Field component, with schemaEntries + globalSlug in admin.custom', () => {

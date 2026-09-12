@@ -5,12 +5,15 @@
  * - The tabs field is the first (and only) top-level field in each global.
  * - The tabs structure preserves Title-Case labels per global.
  * - Each leaf group emits one JSON field. richText keys live as siblings.
- * - Nested tabs (wm-app-translations, sy-atlas-translations) are wrapped in a
- *   Payload group named after the tab slug so the API response is namespaced:
- *   `{ onboarding: { welcome: {…} } }` instead of `{ onboarding_welcome: {…} }`.
- * - wm-web has no group wrappers. Sy-atlas mixes leaf tabs (Countries, Online,
- *   Calendar, Share, Compact, Emails) with nested tabs (Common, Search,
- *   Filters, Event, Registration) that do.
+ * - Nested tabs (all three globals) are wrapped in a Payload group named after
+ *   the tab slug so the API response is namespaced: `{ onboarding: { welcome:
+ *   {…} } }` instead of `{ onboarding_welcome: {…} }`.
+ * - Sy-atlas and wm-web both mix leaf tabs with nested ones. Sy-atlas's leaf
+ *   tabs are Countries, Online, Calendar, Share, Compact and Emails; Common,
+ *   Search, Filters, Event and Registration nest (#706). Since #707 every
+ *   wm-web tab carrying screen-reader-only copy declares `general` + `a11y`
+ *   sub-groups, so its field names repeat across tabs and only the
+ *   `<group>.<field>` PAIR identifies a leaf group.
  * - richText fields inside nested tabs keep the sub-slug prefix (the group
  *   wrapper supplies the tab namespace), so the field name is
  *   `welcome_legal_disclaimer` and the API path is
@@ -21,9 +24,12 @@
  *   write, and an API client reading a partly translated locale gets English
  *   for the blanks.
  */
-import type { Field, Payload, TabsField } from 'payload'
+import type { Field, JSONField, Payload, TabsField } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
+import type { SchemaEntry } from '@/fields/translationsField'
+import { PLURAL_CATEGORIES } from '@/lib/translations/pluralCategories'
 
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -78,16 +84,74 @@ describe('Translations Globals Configuration', () => {
     return out
   }
 
+  /**
+   * Every leaf group's JSON field, keyed by its API path: `<group>.<field>`
+   * inside a nested tab, `<field>` in a flat one. That path is also the column
+   * name with `_` for the dot, so it is the identity a leaf group has
+   * everywhere it matters.
+   */
+  function jsonFields(slug: Slug): Array<{ field: JSONField; path: string }> {
+    const tabsField = findGlobal(slug).fields[0] as TabsField
+    const out: Array<{ field: JSONField; path: string }> = []
+    for (const tab of tabsField.tabs) {
+      for (const field of tab.fields) {
+        // Payload's `group` is a union — an unnamed group has no `name`, and
+        // the wrapper this builder emits is always named after its tab.
+        if (field.type === 'group' && 'name' in field) {
+          for (const child of collectFieldsByPredicate(field.fields, (f) => f.type === 'json')) {
+            out.push({ field: child as JSONField, path: `${field.name}.${(child as JSONField).name}` })
+          }
+        } else if (field.type === 'json') {
+          out.push({ field, path: field.name })
+        }
+      }
+    }
+    return out
+  }
+
+  const jsonFieldPaths = (slug: Slug) => jsonFields(slug).map((entry) => entry.path)
+
+  function leafJsonField(slug: Slug, path: string): JSONField {
+    const match = jsonFields(slug).find((entry) => entry.path === path)
+    if (!match) throw new Error(`No JSON field ${path} on ${slug}`)
+    return match.field
+  }
+
+  /** Every sub-group collapsible, across every nested tab. */
+  function collapsibles(slug: Slug) {
+    const tabsField = findGlobal(slug).fields[0] as TabsField
+    return tabsField.tabs.flatMap((tab) =>
+      tab.fields.flatMap((field) =>
+        field.type === 'group' ? field.fields.filter((f) => f.type === 'collapsible') : [],
+      ),
+    ) as Array<{ admin?: { initCollapsed?: boolean }; label: unknown }>
+  }
+
   it.each(TRANSLATION_GLOBAL_SLUGS)('%s has the tabs field as the only top-level field', (slug) => {
     const global = findGlobal(slug)
     expect(global.fields[0]?.type).toBe('tabs')
   })
 
   describe('Tab structure', () => {
-    it('wm-web-translations has Common, Navigation, Footer, Page Tags, Errors tabs', () => {
+    // The order is the reading order of the site, not an accident of the
+    // schema file — a translator works down the page, not down a data model.
+    it('wm-web-translations has the twelve #707 tabs, in order', () => {
       const tabsField = findGlobal('wm-web-translations').fields[0] as TabsField
       const labels = tabsField.tabs.map((t) => t.label)
-      expect(labels).toEqual(['Common', 'Navigation', 'Footer', 'Page Tags', 'Errors'])
+      expect(labels).toEqual([
+        'Common',
+        'Navigation',
+        'Footer',
+        'Errors',
+        'Article',
+        'Meditation',
+        'Lecture',
+        'Map',
+        'Forms',
+        'Media',
+        'Location',
+        'Blocks',
+      ])
     })
 
     // One tab per widget view since #706 — Region is gone (RegionView owns no
@@ -112,25 +176,42 @@ describe('Translations Globals Configuration', () => {
   })
 
   describe('Per-leaf-group JSON fields + richText siblings', () => {
-    it('wm-web-translations emits a JSON field named after each leaf slug', () => {
-      const tabsField = findGlobal('wm-web-translations').fields[0] as TabsField
-      const jsonFields = tabsField.tabs.flatMap((t) =>
-        collectFieldsByPredicate(t.fields, (f) => f.type === 'json'),
-      ) as Array<{ name: string }>
-      const names = jsonFields.map((f) => f.name)
-      expect(names).toContain('common')
-      expect(names).toContain('navigation')
-      expect(names).toContain('footer')
-      expect(names).toContain('page_tags')
-      expect(names).toContain('errors')
+    // `general` and `a11y` repeat across ten tabs, so a bare name proves
+    // nothing. The pair is what maps to the `<tab>_<sub>` column, and asserting
+    // the exact set is what catches a sub-group dropped from the schema.
+    it('wm-web-translations emits one JSON field per leaf group, namespaced by tab', () => {
+      expect(jsonFieldPaths('wm-web-translations')).toEqual([
+        'common.general',
+        'common.a11y',
+        'navigation',
+        'footer',
+        'errors.general',
+        'errors.a11y',
+        'article.general',
+        'article.a11y',
+        'meditation.general',
+        'meditation.a11y',
+        'lecture.general',
+        'lecture.a11y',
+        'map.general',
+        'map.a11y',
+        'forms.general',
+        'forms.a11y',
+        'media.general',
+        'media.a11y',
+        'location.general',
+        'location.a11y',
+        'blocks.general',
+        'blocks.a11y',
+      ])
     })
 
     it('sy-atlas-translations emits a JSON field named after each leaf slug', () => {
       const tabsField = findGlobal('sy-atlas-translations').fields[0] as TabsField
-      const jsonFields = tabsField.tabs.flatMap((t) =>
+      const fields = tabsField.tabs.flatMap((t) =>
         collectFieldsByPredicate(t.fields, (f) => f.type === 'json'),
       ) as Array<{ name: string }>
-      const names = jsonFields.map((f) => f.name)
+      const names = fields.map((f) => f.name)
       // Leaf tabs emit a field named after the tab (`countries`, `share`).
       // Nested tabs emit one field per sub-group, so `chrome` legitimately
       // appears three times — once each under Common, Search and Filters.
@@ -175,10 +256,10 @@ describe('Translations Globals Configuration', () => {
 
     it('wm-app-translations uses namespaced sub-group field names (no tab prefix, no `strings` sub-field)', () => {
       const tabsField = findGlobal('wm-app-translations').fields[0] as TabsField
-      const jsonFields = tabsField.tabs.flatMap((t) =>
+      const fields = tabsField.tabs.flatMap((t) =>
         collectFieldsByPredicate(t.fields, (f) => f.type === 'json'),
       ) as Array<{ name: string }>
-      const names = jsonFields.map((f) => f.name)
+      const names = fields.map((f) => f.name)
       expect(names).toContain('welcome')
       expect(names).toContain('name')
       expect(names).not.toContain('strings')
@@ -198,12 +279,43 @@ describe('Translations Globals Configuration', () => {
       expect(names).not.toContain('onboarding_welcome_legal_disclaimer')
     })
 
-    it('wm-web has no group wrappers', () => {
+    it('wm-web wraps each nested tab in one group of collapsibles, and leaves the flat two alone', () => {
       const tabsField = findGlobal('wm-web-translations').fields[0] as TabsField
-      const groups = tabsField.tabs.flatMap((t) =>
-        collectFieldsByPredicate(t.fields, (f) => f.type === 'group'),
-      )
-      expect(groups).toHaveLength(0)
+      const flatTabs = new Set(['Navigation', 'Footer'])
+      for (const tab of tabsField.tabs) {
+        const label = String(tab.label)
+        const groups = tab.fields.filter((f) => f.type === 'group') as Array<{
+          type: 'group'
+          fields: Field[]
+        }>
+        if (flatTabs.has(label)) {
+          expect(groups, label).toHaveLength(0)
+          continue
+        }
+        expect(groups, label).toHaveLength(1)
+        expect(groups[0]!.fields.every((f) => f.type === 'collapsible'), label).toBe(true)
+      }
+    })
+
+    // `a11y` is long, rarely edited, and would push the visible copy off the
+    // screen. It is the one sub-group that starts closed.
+    it('wm-web opens the General collapsible and closes Accessibility', () => {
+      const groups = collapsibles('wm-web-translations')
+
+      // Derived, not a hand-maintained 20: two sub-groups per nested tab, and
+      // its only job is to prove the walk found something to assert on.
+      const nestedTabs = jsonFieldPaths('wm-web-translations').filter((path) => path.includes('.'))
+      expect(groups.length).toBe(nestedTabs.length)
+      expect(groups.length).toBeGreaterThan(0)
+
+      for (const group of groups) {
+        const label = String(group.label)
+        // "Accessibility", not the slug — `toWords('a11y')` gives "A11y",
+        // which is a shorthand a translator should not have to decode. The
+        // label and the collapse rule both come from SUBGROUP_PRESENTATION.
+        expect(['General', 'Accessibility']).toContain(label)
+        expect(group.admin?.initCollapsed, label).toBe(label === 'Accessibility')
+      }
     })
 
     it('wm-app-translations wraps each nested-tab in a single group of collapsibles', () => {
@@ -242,6 +354,50 @@ describe('Translations Globals Configuration', () => {
           expect(groups, label).toHaveLength(0)
         }
       }
+    })
+  })
+
+  // A plural key is declared once and stored four times. The two sides read
+  // different things off it — the admin renders the ONE declared key as a
+  // grouped row, and the column stores the whole CLDR family — so a builder
+  // that expanded in both places, or neither, would still look plausible.
+  describe('plural keys expand for storage and stay collapsed for the admin', () => {
+    it.each([
+      ['map', 'general', 'classes_shown'],
+      ['media', 'general', 'duration_minutes'],
+    ])('%s.%s.%s', (groupName, fieldName, key) => {
+      const field = leafJsonField('wm-web-translations', `${groupName}.${fieldName}`)
+
+      const entries = (field.admin?.custom?.schemaEntries ?? []) as SchemaEntry[]
+      const entry = entries.find((candidate) => candidate.key === key)
+      expect(entry, `${key} in schemaEntries`).toBeDefined()
+      expect(entry!.plural).toBe(true)
+      // The admin gets the declared key, never the expanded ones — it renders
+      // one row of per-category inputs from `plural`.
+      expect(entries.map((candidate) => candidate.key)).not.toContain(`${key}_one`)
+
+      const properties = (field.jsonSchema?.schema as { properties: Record<string, unknown> })
+        .properties
+      for (const category of PLURAL_CATEGORIES) {
+        expect(Object.keys(properties), `${key}_${category}`).toContain(`${key}_${category}`)
+      }
+      expect(Object.keys(properties)).not.toContain(key)
+    })
+
+    // `strict` is what turns a budget into a save gate, and it has to survive
+    // the plural expansion to reach every stored form.
+    it('carries a strict limit onto every expanded form of duration_minutes', () => {
+      const field = leafJsonField('wm-web-translations', 'media.general')
+      const properties = (
+        field.jsonSchema?.schema as {
+          properties: Record<string, { maxLength?: number }>
+        }
+      ).properties
+      for (const category of PLURAL_CATEGORIES) {
+        expect(properties[`duration_minutes_${category}`]?.maxLength).toBe(18)
+      }
+      // An advisory limit stays out of the schema, so it never blocks a save.
+      expect(properties.playlist).not.toHaveProperty('maxLength')
     })
   })
 

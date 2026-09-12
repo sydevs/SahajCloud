@@ -3,99 +3,802 @@
   "properties": {
     "common": {
       "type": "object",
-      "description": "Common UI strings used throughout the application",
+      "description": "Strings the site reuses on every page",
       "properties": {
-        "loading": {
-          "type": "string",
-          "description": "Loading indicator text shown while content is being fetched."
+        "general": {
+          "type": "object",
+          "description": "Visible on screen",
+          "properties": {
+            "loading": {
+              "type": "string",
+              "description": "Shown beside a spinner while content is still loading."
+            },
+            "show_more": {
+              "type": "string",
+              "description": "Button that reveals the rest of a truncated grid of cards."
+            },
+            "site_title": {
+              "type": "string",
+              "description": "The browser tab title on any page that carries no title of its own. Also the site name search engines show."
+            },
+            "site_description": {
+              "type": "string",
+              "description": "The search-result and social-preview summary for any page that carries no description of its own. Around 160 characters reads best."
+            }
+          },
+          "additionalProperties": false
         },
-        "error": {
-          "type": "string",
-          "description": "Generic error message shown when something goes wrong."
-        },
-        "retry": {
-          "type": "string",
-          "description": "Button text to retry a failed action."
+        "a11y": {
+          "type": "object",
+          "description": "Not shown on screen; read by screen readers",
+          "properties": {
+            "dismiss": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that closes a notification banner."
+            },
+            "close": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that closes the full-screen image viewer."
+            },
+            "previous": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that moves back one item in a carousel or image viewer."
+            },
+            "next": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that moves forward one item in a carousel or image viewer."
+            },
+            "show_more_items": {
+              "type": "string",
+              "plural": true,
+              "description": "Not shown on screen; read by screen readers. Describes the \"Show More\" button. `%{count}` = how many further items it reveals, and selects the plural form."
+            },
+            "breadcrumb": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the trail of parent links above a page title."
+            },
+            "opens_in_new_tab": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Warns that a link opens a new browser tab. `%{label}` = the destination's own name (a social network, untranslated)."
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
     },
     "navigation": {
       "type": "object",
-      "description": "Navigation menu labels and links",
+      "description": "Header menu labels",
       "properties": {
         "about_meditation": {
           "type": "string",
-          "description": "Primary navigation link opening the \"About Meditation\" knowledge section."
+          "description": "Header menu item opening the section that explains meditation. Repeated as a footer column heading."
         },
-        "learn_more": {
+        "featured_caption": {
           "type": "string",
-          "description": "Navigation link to educational content and resources."
-        },
-        "come_meditate": {
-          "type": "string",
-          "description": "Call-to-action navigation link inviting users to start meditating."
-        },
-        "languages": {
-          "type": "string",
-          "description": "Label for the language selector in the header/navigation."
-        },
-        "classes_near_me": {
-          "type": "string",
-          "description": "Action link inviting users to find in-person meditation classes near their location (frontend: \"Classes near me\")."
+          "description": "Caption under the featured image inside an open header menu. A short evocative line, not a sentence."
         }
       },
       "additionalProperties": false
     },
     "footer": {
       "type": "object",
-      "description": "Footer section headings and labels",
+      "description": "Footer headings and the copyright line",
       "properties": {
         "info": {
           "type": "string",
-          "description": "Heading for the footer's \"Info\" column, which lists informational pages (about, contact, privacy, etc.) (frontend: \"Info\")."
-        }
-      },
-      "additionalProperties": false
-    },
-    "page_tags": {
-      "type": "object",
-      "description": "Category labels for page tags, shown as pills/facets on article and content-index listings; mirrors the frontend `PAGE_TAG_LABELS`",
-      "properties": {
-        "wisdom": {
-          "type": "string",
-          "description": "Category label for pages tagged \"Wisdom\" (frontend: \"Wisdom\")."
+          "description": "Heading of the footer column listing informational pages (about, contact, privacy)."
         },
-        "lifestyle": {
+        "languages": {
           "type": "string",
-          "description": "Category label for pages tagged \"Lifestyle\" (frontend: \"Lifestyle\")."
+          "maxLength": 20,
+          "description": "Label of the footer's language picker."
         },
-        "creativity": {
+        "copyright": {
           "type": "string",
-          "description": "Category label for pages tagged \"Creativity\" (frontend: \"Creativity\")."
-        },
-        "event": {
-          "type": "string",
-          "description": "Category label for pages tagged \"Event\" (frontend: \"Event\")."
-        },
-        "technique": {
-          "type": "string",
-          "description": "Category label for pages tagged \"Technique\" (frontend: \"Technique\")."
+          "description": "The copyright line at the very bottom. `%{year}` = the current year. Keep the © symbol."
         }
       },
       "additionalProperties": false
     },
     "errors": {
       "type": "object",
-      "description": "User-facing error messages shown when content cannot be played",
+      "description": "What a visitor sees when a page cannot load",
       "properties": {
-        "meditation_missing_audio": {
-          "type": "string",
-          "description": "Error shown on a meditation page when the meditation has no playable audio source (frontend: \"This meditation is missing a required audio URL.\")."
+        "general": {
+          "type": "object",
+          "description": "Visible on screen",
+          "properties": {
+            "heading": {
+              "type": "string",
+              "description": "Heading above an error shown in place of a meditation or lecture player."
+            },
+            "network_title": {
+              "type": "string",
+              "description": "Error heading when the visitor's device cannot reach the site's servers."
+            },
+            "server_title": {
+              "type": "string",
+              "description": "Error heading when the servers are reachable but failing."
+            },
+            "not_found_title": {
+              "type": "string",
+              "description": "Error heading when the requested page or content does not exist."
+            },
+            "unknown_title": {
+              "type": "string",
+              "description": "Error heading for a failure that fits none of the other cases."
+            },
+            "network_message": {
+              "type": "string",
+              "description": "Explanation under `network_title`. Asks the visitor to check their internet connection."
+            },
+            "server_message": {
+              "type": "string",
+              "description": "Explanation under `server_title`. Says the problem is ours and is being worked on."
+            },
+            "not_found_message": {
+              "type": "string",
+              "description": "Explanation under `not_found_title`. Says the content may have moved or been deleted."
+            },
+            "unknown_message": {
+              "type": "string",
+              "description": "Explanation under `unknown_title`. Asks the visitor to try again."
+            },
+            "status_page_hint": {
+              "type": "string",
+              "description": "Line pointing at the service status page. `%{link}` = a link whose text is `status_page_link`."
+            },
+            "status_page_link": {
+              "type": "string",
+              "description": "The clickable words inside `status_page_hint`. Translate as a noun phrase, not a sentence."
+            },
+            "try_again": {
+              "type": "string",
+              "description": "Button that reloads the page after an error."
+            },
+            "back_to_home": {
+              "type": "string",
+              "description": "Button that leaves an error page for the home page."
+            }
+          },
+          "additionalProperties": false
         },
-        "lecture_missing_video": {
-          "type": "string",
-          "description": "Error shown on a lecture page when the lecture has no playable video source (frontend: \"This lecture is missing a playable video source.\")."
+        "a11y": {
+          "type": "object",
+          "description": "Not shown on screen; read by screen readers",
+          "properties": {
+            "error_icon": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the warning icon above an error message."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "article": {
+      "type": "object",
+      "description": "Article pages, their author box, and the article index filters",
+      "properties": {
+        "general": {
+          "type": "object",
+          "description": "Visible on screen",
+          "properties": {
+            "written_by": {
+              "type": "string",
+              "description": "Byline above an article's author box. `%{name}` = the author's name, rendered in italics."
+            },
+            "name_with_country": {
+              "type": "string",
+              "description": "An author's name and country on one line. `%{name}` = the author's name, `%{country}` = their country. Adjust the separator to suit the language."
+            },
+            "meditating_years": {
+              "type": "string",
+              "plural": true,
+              "description": "How long an author has meditated, in their author box. `%{count}` = number of years, and selects the plural form."
+            },
+            "reading_time": {
+              "type": "string",
+              "plural": true,
+              "description": "Estimated time to read an article. `%{count}` = number of minutes, and selects the plural form."
+            },
+            "about_the_author": {
+              "type": "string",
+              "description": "Heading above an author's biography at the end of an article."
+            },
+            "filter_all": {
+              "type": "string",
+              "maxLength": 12,
+              "strict": true,
+              "description": "The filter chip that clears every tag and shows all articles. Sits in a row of chips, so it must stay short."
+            },
+            "tag_wisdom": {
+              "type": "string",
+              "description": "Name of the \"Wisdom\" article category, shown as a filter chip and on article cards."
+            },
+            "tag_lifestyle": {
+              "type": "string",
+              "description": "Name of the \"Lifestyle\" article category, shown as a filter chip and on article cards."
+            },
+            "tag_creativity": {
+              "type": "string",
+              "description": "Name of the \"Creativity\" article category, shown as a filter chip and on article cards."
+            },
+            "tag_event": {
+              "type": "string",
+              "description": "Name of the \"Event\" article category, shown as a filter chip and on article cards."
+            },
+            "tag_technique": {
+              "type": "string",
+              "description": "Name of the \"Technique\" article category, shown as a filter chip and on article cards."
+            }
+          },
+          "additionalProperties": false
+        },
+        "a11y": {
+          "type": "object",
+          "description": "Not shown on screen; read by screen readers",
+          "properties": {
+            "filter_label": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the row of tag filter chips above an article index."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "meditation": {
+      "type": "object",
+      "description": "The guided-meditation player and its page",
+      "properties": {
+        "general": {
+          "type": "object",
+          "description": "Visible on screen",
+          "properties": {
+            "label": {
+              "type": "string",
+              "maxLength": 20,
+              "description": "Word marking the current track as a guided meditation, shown above its title."
+            },
+            "founder_name": {
+              "type": "string",
+              "description": "The name of the founder whose portrait appears in the player. A personal name — transliterate rather than translate."
+            },
+            "founder_role": {
+              "type": "string",
+              "description": "The word under the founder's name describing who she was. Lowercase in English."
+            },
+            "voice": {
+              "type": "string",
+              "description": "Label of the volume slider for the spoken guidance."
+            },
+            "music": {
+              "type": "string",
+              "description": "Label of the volume slider for the background music."
+            },
+            "change_music": {
+              "type": "string",
+              "description": "Tooltip on the button that swaps the background music for another track."
+            },
+            "untitled": {
+              "type": "string",
+              "description": "Stands in for a meditation's title when it has none."
+            },
+            "missing_audio": {
+              "type": "string",
+              "description": "Shown in place of the player when a meditation has no audio to play."
+            },
+            "related_lectures": {
+              "type": "string",
+              "description": "Heading above the talks suggested at the end of a meditation."
+            }
+          },
+          "additionalProperties": false
+        },
+        "a11y": {
+          "type": "object",
+          "description": "Not shown on screen; read by screen readers",
+          "properties": {
+            "mute_voice": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that silences the spoken guidance."
+            },
+            "unmute_voice": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the same button once the guidance is silenced."
+            },
+            "mute_music": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that silences the background music."
+            },
+            "unmute_music": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the same button once the music is silenced."
+            },
+            "voice_volume": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the slider controlling the spoken guidance."
+            },
+            "music_volume": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the slider controlling the background music."
+            },
+            "audio_settings": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the panel holding the volume sliders."
+            },
+            "shuffle_music": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that picks a different background track at random."
+            },
+            "related_lectures_loading": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Announced while the suggested talks are still loading."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "lecture": {
+      "type": "object",
+      "description": "Video talk pages",
+      "properties": {
+        "general": {
+          "type": "object",
+          "description": "Visible on screen",
+          "properties": {
+            "missing_video": {
+              "type": "string",
+              "description": "Shown in place of the video player when a talk has no video to play."
+            },
+            "related_meditations": {
+              "type": "string",
+              "description": "Heading above the meditations suggested at the end of a talk."
+            }
+          },
+          "additionalProperties": false
+        },
+        "a11y": {
+          "type": "object",
+          "description": "Not shown on screen; read by screen readers",
+          "properties": {
+            "related_meditations_loading": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Announced while the suggested meditations are still loading."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "map": {
+      "type": "object",
+      "description": "The class listings under /map, which crawlers and visitors without JavaScript read",
+      "properties": {
+        "general": {
+          "type": "object",
+          "description": "Visible on screen",
+          "properties": {
+            "online": {
+              "type": "string",
+              "maxLength": 12,
+              "strict": true,
+              "description": "Marks a class that meets over video rather than in a venue. Sits in a narrow badge, so an over-long translation will not save."
+            },
+            "classes_shown": {
+              "type": "string",
+              "plural": true,
+              "description": "Says how much of a region's class list is on the page. `%{shown}` = how many are listed, `%{count}` = how many exist in total and selects the plural form."
+            },
+            "no_classes": {
+              "type": "string",
+              "description": "Shown instead of a class list when a region has none yet."
+            },
+            "join_online": {
+              "type": "string",
+              "description": "Link that takes a visitor to an online class's meeting room."
+            },
+            "visit_website": {
+              "type": "string",
+              "description": "Link that takes a visitor to a class's own website."
+            }
+          },
+          "additionalProperties": false
+        },
+        "a11y": {
+          "type": "object",
+          "description": "Not shown on screen; read by screen readers",
+          "properties": {
+            "classes_heading": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the list of classes on a region page."
+            },
+            "when": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Introduces a class's day and time."
+            },
+            "where": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Introduces a class's address."
+            },
+            "languages": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Introduces the languages a class is taught in."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "forms": {
+      "type": "object",
+      "description": "Chrome shared by every form the site renders",
+      "properties": {
+        "general": {
+          "type": "object",
+          "description": "Visible on screen",
+          "properties": {
+            "field_required": {
+              "type": "string",
+              "description": "Validation message under a mandatory field left empty. `%{field}` = that field's own label, which the editor writes and which is translated separately."
+            },
+            "select_placeholder": {
+              "type": "string",
+              "description": "Shown in a dropdown before the visitor picks anything."
+            },
+            "submit_error": {
+              "type": "string",
+              "description": "Shown when sending a form fails for a reason the site cannot name."
+            },
+            "thank_you": {
+              "type": "string",
+              "description": "Heading of the confirmation screen after a form is sent."
+            },
+            "submitted": {
+              "type": "string",
+              "description": "Line under `thank_you` confirming the form arrived."
+            },
+            "submit": {
+              "type": "string",
+              "description": "The button that sends a form, unless the editor gave it its own label."
+            }
+          },
+          "additionalProperties": false
+        },
+        "a11y": {
+          "type": "object",
+          "description": "Not shown on screen; read by screen readers",
+          "properties": {
+            "submitting": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Announced while a form is being sent."
+            },
+            "required_marker": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Replaces the asterisk marking a mandatory field. One word."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "media": {
+      "type": "object",
+      "description": "The music player, content cards, images, and the embed popover",
+      "properties": {
+        "general": {
+          "type": "object",
+          "description": "Visible on screen",
+          "properties": {
+            "playlist": {
+              "type": "string",
+              "description": "Heading above the list of tracks in the music player."
+            },
+            "duration_minutes": {
+              "type": "string",
+              "plural": true,
+              "maxLength": 18,
+              "strict": true,
+              "description": "A length in minutes, on a card or under a talk. `%{count}` = number of minutes, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words."
+            },
+            "duration_seconds": {
+              "type": "string",
+              "plural": true,
+              "maxLength": 18,
+              "strict": true,
+              "description": "A length in seconds, for anything under a minute. `%{count}` = number of seconds, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words."
+            },
+            "embed": {
+              "type": "string",
+              "description": "Button that opens the panel for putting this player on another website."
+            },
+            "embed_title": {
+              "type": "string",
+              "description": "Heading of that panel when the item has a title. `%{title}` = the item's own title. Use the quotation marks your language uses."
+            },
+            "embed_player": {
+              "type": "string",
+              "description": "Heading of that panel when the item has no title."
+            },
+            "copy": {
+              "type": "string",
+              "description": "Button that copies the embed code to the clipboard."
+            },
+            "copied": {
+              "type": "string",
+              "description": "Replaces `copy` for a moment after the code is copied."
+            }
+          },
+          "additionalProperties": false
+        },
+        "a11y": {
+          "type": "object",
+          "description": "Not shown on screen; read by screen readers",
+          "properties": {
+            "play": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that starts playback."
+            },
+            "pause": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the same button during playback."
+            },
+            "previous_track": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that goes back to the previous track."
+            },
+            "next_track": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that skips to the next track."
+            },
+            "toggle_shuffle": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that turns random order on or off."
+            },
+            "mute": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that silences the player."
+            },
+            "unmute": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the same button once the player is silenced."
+            },
+            "volume": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the player's volume slider."
+            },
+            "play_item": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the play button on a card. `%{title}` = that item's own title."
+            },
+            "view_image": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that opens an image full screen, when the image has no caption."
+            },
+            "view_image_alt": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. The same button when the image has a caption. `%{alt}` = that caption, which the editor writes."
+            },
+            "embed_code": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the box holding the embed code."
+            },
+            "zoom_in": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that enlarges an image in the full-screen viewer."
+            },
+            "zoom_out": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that shrinks an image in the full-screen viewer."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "location": {
+      "type": "object",
+      "description": "The place-search box and its \"near me\" option",
+      "properties": {
+        "general": {
+          "type": "object",
+          "description": "Visible on screen",
+          "properties": {
+            "search_placeholder": {
+              "type": "string",
+              "description": "Shown in the empty search box, before the visitor types a place."
+            },
+            "change": {
+              "type": "string",
+              "description": "Button that clears the chosen place and reopens the search box."
+            },
+            "getting_coordinates": {
+              "type": "string",
+              "description": "Shown while the site looks up the exact position of the place just chosen."
+            },
+            "searching": {
+              "type": "string",
+              "description": "Shown while place suggestions are being fetched."
+            },
+            "type_to_search": {
+              "type": "string",
+              "description": "Hint in the empty suggestion list, inviting the visitor to start typing."
+            },
+            "no_results": {
+              "type": "string",
+              "description": "Shown when no place matches what the visitor typed."
+            },
+            "suggestions_failed": {
+              "type": "string",
+              "description": "Error shown when the place suggestions cannot be fetched."
+            },
+            "coordinates_failed": {
+              "type": "string",
+              "description": "Error shown when the position of the chosen place cannot be fetched."
+            },
+            "nearby": {
+              "type": "string",
+              "description": "The option that searches around the visitor's own position instead of a typed place."
+            },
+            "getting_location": {
+              "type": "string",
+              "description": "Shown while the browser is working out where the visitor is."
+            },
+            "current_location": {
+              "type": "string",
+              "description": "Stands in for a place name once the visitor's own position is used."
+            },
+            "geolocation_unsupported": {
+              "type": "string",
+              "description": "Error shown when the visitor's browser cannot report a position at all."
+            },
+            "permission_denied": {
+              "type": "string",
+              "description": "Error shown when the visitor refused the browser's request for their position."
+            },
+            "position_unavailable": {
+              "type": "string",
+              "description": "Error shown when the browser tried but could not work out a position."
+            },
+            "timed_out": {
+              "type": "string",
+              "description": "Error shown when working out the visitor's position took too long."
+            },
+            "location_failed": {
+              "type": "string",
+              "description": "Error shown when finding the visitor's position failed for some other reason."
+            }
+          },
+          "additionalProperties": false
+        },
+        "a11y": {
+          "type": "object",
+          "description": "Not shown on screen; read by screen readers",
+          "properties": {
+            "search_label": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the place-search input."
+            },
+            "selected_label": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the box showing the place already chosen."
+            },
+            "change_label": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that changes the chosen place."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "blocks": {
+      "type": "object",
+      "description": "Blocks an editor drops into a page: the subtle-system diagram, countdowns, carousels, quotes, contents lists, and sharing",
+      "properties": {
+        "general": {
+          "type": "object",
+          "description": "Visible on screen",
+          "properties": {
+            "chakras": {
+              "type": "string",
+              "maxLength": 20,
+              "description": "Tab of the subtle-system diagram showing the energy centres. A Sanskrit term — keep it if your language uses it."
+            },
+            "channels": {
+              "type": "string",
+              "maxLength": 20,
+              "description": "Tab of the subtle-system diagram showing the energy channels."
+            },
+            "learn_more": {
+              "type": "string",
+              "description": "Link from a chakra or channel to its full explanation. Keep the trailing arrow."
+            },
+            "hours": {
+              "type": "string",
+              "description": "Label under the hours figure of a countdown."
+            },
+            "minutes": {
+              "type": "string",
+              "description": "Label under the minutes figure of a countdown."
+            },
+            "seconds": {
+              "type": "string",
+              "description": "Label under the seconds figure of a countdown."
+            }
+          },
+          "additionalProperties": false
+        },
+        "a11y": {
+          "type": "object",
+          "description": "Not shown on screen; read by screen readers",
+          "properties": {
+            "enter_fullscreen": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that opens the subtle-system diagram full screen."
+            },
+            "exit_fullscreen": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the same button while the diagram fills the screen."
+            },
+            "learn_more_about": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the \"Learn More\" link. `%{title}` = the chakra or channel it leads to."
+            },
+            "previous_slide": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that goes back one slide in a carousel."
+            },
+            "next_slide": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that advances one slide in a carousel."
+            },
+            "previous_column": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that scrolls to the previous column. `%{title}` = that column's heading."
+            },
+            "next_column": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the button that scrolls to the next column. `%{title}` = that column's heading."
+            },
+            "go_to_column": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names a dot that jumps to one column. `%{number}` = its position, `%{title}` = its heading."
+            },
+            "quote": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names a pull-quote block that carries no heading."
+            },
+            "table_of_contents": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the in-page contents list when it carries no heading."
+            },
+            "share_region": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the whole sharing area at the end of a page."
+            },
+            "share_group": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the row of sharing buttons inside that area."
+            },
+            "share_on": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names one sharing button. `%{platform}` = the network's own name, untranslated."
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
