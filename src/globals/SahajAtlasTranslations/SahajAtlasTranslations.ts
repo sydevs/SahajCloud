@@ -10,9 +10,23 @@ export const SahajAtlasTranslations: GlobalConfig = {
   slug: 'sy-atlas-translations',
   admin: {
     group: 'Sahaj Atlas',
-    // The widget's live-preview boot route, which renders the base view. A tab
-    // declaring a `preview` in the schema repoints the panel at that view
+    // The widget's own root, which renders the base view. A tab declaring a
+    // `preview` in the schema repoints the panel at that view
     // (`previewTargetField`), keeping this origin and this query.
+    //
+    // ⚠ **Not `/preview`.** That boot route wants a document: with no
+    // `collection` and `id` the widget renders `PreviewFallback` — "Save this
+    // document to preview it." over a click-swallowing `fixed inset-0`
+    // (SahajAtlasWeb `components/preview/PreviewController.tsx`). Eight
+    // untargeted tabs sit on this URL, and every targeted tab restores to it,
+    // so it has to be a view the widget actually draws. `locale` rides along
+    // because the widget detects it from the query string first
+    // (`i18nDetectionOptions.order`, `LOCALE_PARAM`).
+    //
+    // A repointed panel therefore shows PUBLISHED translations, here and on
+    // every target: `readPreviewParams` returns null off `/preview`, so no
+    // path a target composes opens a draft session. sydevs/SahajAtlasWeb#198
+    // is the route that would.
     //
     // ⚠ **This reads `locale` and never `data`.** Payload re-resolves the URL
     // whenever the server-rendered value changes and overwrites whatever the
@@ -22,7 +36,7 @@ export const SahajAtlasTranslations: GlobalConfig = {
     // when the tab's component re-composes anyway.
     livePreview: {
       url: ({ locale }) =>
-        `${serverEnv.SAHAJATLAS_URL}/preview?secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`,
+        `${serverEnv.SAHAJATLAS_URL}/?secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`,
       // Phone-sized frame, matching the Events and Regions previews — the
       // widget's drawer layout is designed against it.
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],

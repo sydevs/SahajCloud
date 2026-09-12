@@ -518,6 +518,15 @@ describe('Translations Globals Configuration', () => {
       expect(new URL(previewUrl(slug)).searchParams.get('secret')).toBeTruthy()
     })
 
+    // This URL is what the eight untargeted tabs show, and what every targeted
+    // tab restores to. A consumer's `/preview` boot route wants a `collection`
+    // and an `id`: given neither, SahajAtlasWeb renders "Save this document to
+    // preview it." over a click-swallowing `fixed inset-0`, and WeMeditateWeb
+    // answers 403. So a global points at a view that renders with no document.
+    it.each(TARGETED)('%s points at a view, not a document-less preview route', (slug) => {
+      expect(new URL(previewUrl(slug)).pathname).not.toMatch(/(^|\/)preview\/?$/)
+    })
+
     // A relative target resolves against this URL, so the trailing slash is
     // what keeps `map` under `/fr` instead of hoisting it to the site root.
     // Asserted through the composition, not just the shape, because the slash
