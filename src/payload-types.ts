@@ -5310,6 +5310,30 @@ export interface WmWebTranslationsErrorsStrings {
  */
 export interface WmAppConfig {
   id: number;
+  /**
+   * Languages the WeMeditate app is offered in. Drives the app’s language picker. A language can only be selected once the WeMeditate App translations are published in it — publish that global in the language first. Publishing all locales at once includes empty ones, so publish deliberately.
+   */
+  availableLocales: (
+    | 'en'
+    | 'es'
+    | 'de'
+    | 'it'
+    | 'fr'
+    | 'ru'
+    | 'ro'
+    | 'cs'
+    | 'uk'
+    | 'el'
+    | 'hy'
+    | 'pl'
+    | 'pt-BR'
+    | 'fa'
+    | 'bg'
+    | 'tr'
+    | 'en-AU'
+    | 'hu'
+    | 'nl'
+  )[];
   classesPage: number | Page;
   liveMeditationsPage: number | Page;
   /**
@@ -9117,6 +9141,7 @@ export interface WmWebTranslationsSelect<T extends boolean = true> {
  * via the `definition` "wm-app-config_select".
  */
 export interface WmAppConfigSelect<T extends boolean = true> {
+  availableLocales?: T;
   classesPage?: T;
   liveMeditationsPage?: T;
   explorePage?: T;

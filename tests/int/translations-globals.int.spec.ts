@@ -251,18 +251,19 @@ describe('Translations Globals Configuration', () => {
   })
 
   // The root `experimental.localizeStatus` flag alone changes nothing: Payload
-  // forces it off per entity unless the global also asks for it. So the two
-  // web-project globals must differ from `wm-app-translations` here, and a
-  // suite whose test config forgot the root flag would see all three the same.
+  // forces it off per entity unless the global also asks for it. #709 opted
+  // `wm-app-translations` in, so all three now read `true` — and that is still
+  // what catches a test config missing the root flag, because without it
+  // Payload would sanitise all three back to `false` however they are written.
   describe('per-locale publish status', () => {
-    it('is on for the two web-project globals and off for wm-app-translations', () => {
+    it('is on for all three translations globals', () => {
       const localizeStatus = (slug: Slug) => {
         const versions = findGlobal(slug).versions as { drafts?: { localizeStatus?: boolean } }
         return versions.drafts?.localizeStatus === true
       }
       expect(localizeStatus('sy-atlas-translations')).toBe(true)
       expect(localizeStatus('wm-web-translations')).toBe(true)
-      expect(localizeStatus('wm-app-translations')).toBe(false)
+      expect(localizeStatus('wm-app-translations')).toBe(true)
     })
 
     it('publishing one locale leaves the others unpublished', async () => {
