@@ -40,3 +40,21 @@ export const railwayEnvironmentName = (): string | undefined =>
  */
 export const deploymentEnvironment = (): string | undefined =>
   railwayEnvironmentName() ?? process.env.NODE_ENV
+
+/**
+ * The same name, for code that runs in the **browser**, which reads no
+ * environment at runtime. `next.config.mjs`'s `env` block inlines the value at
+ * build time and this reads it back — why that shape, and why `clientEnv`
+ * cannot carry the key, is in `docs/environment.md` →
+ * `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` (#737).
+ *
+ * ⚠ **Both reads must stay literal `process.env.<KEY>` member expressions.**
+ * Next's DefinePlugin substitutes those and nothing else, so destructuring or
+ * a computed key silently yields `undefined` here.
+ *
+ * The `?? process.env.NODE_ENV` keeps this honest outside a Next build — the
+ * unit lane, and any consumer Next did not compile — where nothing inlines the
+ * key at all.
+ */
+export const clientDeploymentEnvironment = (): string | undefined =>
+  process.env.NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT ?? process.env.NODE_ENV

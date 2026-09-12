@@ -24,6 +24,8 @@
 import type { ContentSlug } from './types'
 import type { CollectionSlug, FlattenedField, Payload, PayloadRequest, Where } from 'payload'
 
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
+
 export interface DocManagerFields {
   /** Name of the hasMany relationship → managers, if present. */
   managersField: string | null
@@ -181,8 +183,8 @@ async function walkDescendantsViaParent(
   return [...found]
 }
 
-/** Ids of the roots the user directly manages plus every descendant of those roots. */
-export async function resolveManagedDocIds(
+/** Uncached. Callers go through `resolveManagedDocIds`. */
+async function loadManagedDocIds(
   req: PayloadRequest,
   collection: ContentSlug,
   userId: number | string,
@@ -218,6 +220,47 @@ export async function resolveManagedDocIds(
   }
 
   return [...new Set([...rootIds, ...descendantIds])]
+}
+
+/**
+ * Ids of the roots the user directly manages plus every descendant, resolved at
+ * most **once per `(collection, userId)` per request**.
+ *
+ * Why it is memoized at all: "Document-level manager access" in
+ * `docs/rules/access.md` (#749). The key belongs here rather than at the two
+ * call sites (`accessConfigs.ts`, `regionSubtreeAccess.ts`) so both share one
+ * entry — they resolve the identical set for `regions`, and they normalize the
+ * user id differently, which one shared template literal settles.
+ *
+ * `fields` is deliberately out of the key: it is a pure function of
+ * `collection`, already `WeakMap`-cached by `getDocManagerFields`.
+ *
+ * ⚠ **The memo pins the managed set for the life of `req`.** A request that
+ * writes a `managers` field and then makes a *second* access decision on the
+ * same `req` reads the pre-write set. Payload evaluates access before the write,
+ * and the only `overrideAccess: false` writes in `src/`
+ * (`Events/endpoints/verifyEventAction.ts`, `registerForEvent.ts`) touch no
+ * manager field — so the window is narrow, but it is new.
+ *
+ * ⚠ **Do not lift this memo to the access function.** That answer depends on
+ * `id` and `data`, which this key does not carry: `createAccessConfig` returns a
+ * boolean about one document when `id` is set, `withVersionHistoryAccess` strips
+ * `id` so the two calls must disagree, and `scopeRegionSubtreeWrite` branches on
+ * `data.parent` / `data.region`. It also resolves `roleScopeFromLocale`, and
+ * `localeIsolatedReq` shares `req.context` by reference across locale copies, so
+ * a locale-insensitive key there would hand one locale's roles to another
+ * (#665). This load is safe on that count — it queries non-localized
+ * relationship fields and reads only `doc.id`.
+ */
+export function resolveManagedDocIds(
+  req: PayloadRequest,
+  collection: ContentSlug,
+  userId: number | string,
+  fields: DocManagerFields,
+): Promise<number[]> {
+  return memoizeOnRequest(req, `managedDocIds:${collection}:${userId}`, () =>
+    loadManagedDocIds(req, collection, userId, fields),
+  )
 }
 
 /** Walk up the `parent` chain from a loaded doc, cycle-guarded. */

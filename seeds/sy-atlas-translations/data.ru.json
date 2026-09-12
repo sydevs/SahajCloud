@@ -1,0 +1,276 @@
+{
+  "_meta": {
+    "global": "sy-atlas-translations",
+    "locale": "ru",
+    "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/ru/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
+    "schema_version": "post-#706 (11 tabs, 33 leaf groups, grouped by widget view)",
+    "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
+    "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
+  },
+  "common": {
+    "chrome": {
+      "back": "Назад",
+      "back_to": "Назад к %{title}",
+      "close": "Закрыть",
+      "explore": "Обзор",
+      "loading": "Загрузка…",
+      "cancel": "Отмена",
+      "widget_label": "Бесплатные занятия медитацией",
+      "all_classes_free": "Все занятия бесплатны"
+    },
+    "settings": {
+      "title": "Настройки",
+      "theme_auto": "Системная (авто)",
+      "theme_dark": "Тёмная тема",
+      "theme_light": "Светлая тема"
+    },
+    "errors": {
+      "generic": "Что-то пошло не так.",
+      "retry": "Повторить",
+      "offline": "Похоже, вы не в сети.",
+      "server": "На наших серверах сейчас неполадки.",
+      "not_found": "Мы не нашли то, что вы искали.",
+      "not_found_event": "Мы не нашли это событие.",
+      "not_found_region": "Мы не нашли это место.",
+      "config": "Atlas настроен на этой странице неверно.",
+      "unavailable": "К этой программе сейчас нельзя присоединиться.",
+      "share_unavailable": "Для этой медитации пока нет ссылки, которой можно поделиться.",
+      "captcha_blocked": "Этот Атлас не может работать на этой странице: его проверка безопасности заблокирована.",
+      "no_events": "События не найдены.",
+      "back_to_region": "Показать события: %{region}",
+      "near_city": "Показать события рядом: %{city}",
+      "browse_countries": "Показать все страны",
+      "search_label": "Или найдите место"
+    },
+    "report": {
+      "title": "Сообщить о проблеме",
+      "description": "Расскажите, что не так, и мы передадим это команде.",
+      "message_label": "Что пошло не так?",
+      "message_placeholder": "Опишите, что вы делали и что выглядело неправильно.",
+      "email_label": "Эл. почта",
+      "email_help": "Необязательно — мы сможем ответить, только если вы её укажете.",
+      "email_placeholder": "vy@example.com",
+      "submit": "Отправить сообщение",
+      "sent": "Спасибо — ваше сообщение уже в пути к команде.",
+      "blocked": "Проверка безопасности не загрузилась, поэтому эту форму нельзя отправить."
+    },
+    "report_errors": {
+      "email": "Введите корректный адрес эл. почты.",
+      "message": "Напишите не менее %{min} символов.",
+      "message_max": "Не более %{max} символов.",
+      "send_failed": "Ваше сообщение не отправлено. Дождитесь обновления проверки безопасности и повторите попытку.",
+      "captcha": "Проверку безопасности нужно пройти заново. Дождитесь её обновления и отправьте ещё раз.",
+      "disposable_email": "Этот почтовый сервис не принимается. Укажите адрес, на который мы сможем ответить, или оставьте поле пустым.",
+      "urls_not_allowed": "Ссылки в сообщении не разрешены. Удалите их и отправьте ещё раз."
+    },
+    "map": {
+      "find_my_location": "Найти моё местоположение",
+      "location_not_available": "Местоположение недоступно"
+    },
+    "feedback": {
+      "confirmed_title": "Спасибо за подтверждение",
+      "confirmed_body": "Мы сообщим другим, что это занятие продолжается.",
+      "denied_title": "Спасибо, что сообщили",
+      "denied_body": "Мы проверим и обновим эту запись. Извините за ошибку.",
+      "nearby": "Посмотреть другие занятия поблизости",
+      "below": "Другие занятия поблизости перечислены ниже."
+    }
+  },
+  "countries": {
+    "title": "Бесплатные занятия медитацией"
+  },
+  "search": {
+    "chrome": {
+      "title": "Поиск",
+      "placeholder": "Искать события рядом с…"
+    },
+    "results": {
+      "more": "Показать ещё",
+      "farther": "Показать удалённые события",
+      "showing": "Показано %{shown} из %{total} событий",
+      "no_nearby": "Нет событий в радиусе %{km} км."
+    },
+    "sort": {
+      "label": "Сортировка",
+      "recommended": "Рекомендуемые",
+      "closest": "Ближайшие",
+      "soonest": "Ближайшие по времени"
+    },
+    "country_site": {
+      "title": "Занятия в %{country} пока не указаны.",
+      "cta": "Перейти на сайт %{country}"
+    },
+    "nearby_prompt": {
+      "title": "Ищете занятия рядом: %{city}?",
+      "dismiss": "Скрыть"
+    }
+  },
+  "filters": {
+    "chrome": {
+      "title": "Фильтры",
+      "apply": "Применить",
+      "clear": "Сбросить все",
+      "clear_one": "Сбросить",
+      "remove": "Удалить %{label}",
+      "any_time": "Любое время",
+      "no_results": "Нет событий, соответствующих вашим фильтрам."
+    },
+    "format": {
+      "label": "Формат",
+      "any": "Любой",
+      "offline": "Очно",
+      "online": "Онлайн"
+    },
+    "cadence": {
+      "label": "Периодичность",
+      "any": "Любая",
+      "daily": "Ежедневно",
+      "weekly": "Еженедельно",
+      "monthly": "Ежемесячно",
+      "once": "Разовое"
+    },
+    "days": {
+      "label": "День недели"
+    },
+    "time": {
+      "label": "Время суток",
+      "morning": "Утро",
+      "afternoon": "День",
+      "evening": "Вечер",
+      "night": "Ночь"
+    },
+    "language": {
+      "label": "Язык",
+      "all": "Все языки",
+      "empty": "Нет доступных языков"
+    },
+    "dates": {
+      "label": "Дата",
+      "from": "С",
+      "to": "По",
+      "pill_from": "С %{date}",
+      "pill_until": "До %{date}",
+      "pill_range": "%{start} – %{end}"
+    },
+    "region": {
+      "label": "Регион",
+      "all": "Все регионы",
+      "search": "Поиск регионов…",
+      "empty": "Регионы не найдены"
+    }
+  },
+  "online": {
+    "title": "Онлайн-занятия"
+  },
+  "event": {
+    "display": {
+      "about": "Об этом занятии",
+      "free_meditation_class": "Бесплатный урок медитации",
+      "chip_full": "Мест нет",
+      "chip_today": "Сегодня",
+      "chip_ended": "Завершено",
+      "chip_starts": "Начало: %{date}",
+      "started_on": "Идёт с %{date}",
+      "first_session": "Первое занятие: %{date}",
+      "next_session": "Следующее занятие: %{date}",
+      "event_ended": "Это мероприятие завершилось",
+      "event_full": "Свободных мест нет",
+      "registration_closed": "Регистрация закрыта",
+      "registration_required": "Требуется регистрация",
+      "registration_external": "Регистрация на это мероприятие проходит на другом сайте",
+      "online_joining_note": "Ссылку на встречу мы пришлём вам по электронной почте",
+      "contact_to_join_full": "Всё же свяжитесь с организатором",
+      "contact_to_join_late": "Свяжитесь с организатором, чтобы присоединиться позже",
+      "contact_for_timing": "Свяжитесь с организатором, чтобы узнать время",
+      "online": "Онлайн",
+      "hosted_from": "Ведущий из %{city}",
+      "time_in_place": "%{time} (%{city})",
+      "distance_away": "в %{distance}",
+      "distance_from_place": "%{distance} от %{place}",
+      "distance_from_search": "%{distance} от искомого места",
+      "type_class": "Занятия",
+      "type_class_daily": "Ежедневные занятия",
+      "type_class_weekly": "Еженедельные занятия",
+      "type_class_fortnightly": "Занятия раз в две недели",
+      "type_class_monthly": "Ежемесячные занятия",
+      "type_course": "Курс",
+      "type_oneoff": "Разовое мероприятие",
+      "sessions_count_one": "%{count} занятие",
+      "sessions_count_few": "%{count} занятия",
+      "sessions_count_many": "%{count} занятий",
+      "sessions_count_other": "%{count} занятия",
+      "see_nearby": "Показать мероприятия рядом",
+      "register_now": "Зарегистрируйтесь сейчас"
+    },
+    "actions": {
+      "contact": "Связаться",
+      "directions": "Маршрут",
+      "website": "Сайт",
+      "share": "Поделиться",
+      "add_calendar": "В календарь",
+      "download_ics": "Скачать файл .ics",
+      "view_photo": "Посмотреть фото",
+      "pause_slideshow": "Приостановить слайд-шоу"
+    },
+    "recurrence": {
+      "daily": "Каждый день",
+      "daily_n": "Каждые %{interval} дн.",
+      "weekly_1": "Каждый %{weekday}",
+      "weekly_2": "Каждый второй %{weekday}",
+      "weekly_n": "Раз в %{interval} нед.: %{weekday}",
+      "weekly_multi": "Еженедельно: %{weekdays}",
+      "monthly_1st": "1-й %{weekday} каждого месяца",
+      "monthly_2nd": "2-й %{weekday} каждого месяца",
+      "monthly_3rd": "3-й %{weekday} каждого месяца",
+      "monthly_4th": "4-й %{weekday} каждого месяца",
+      "monthly_last": "Последний %{weekday} каждого месяца",
+      "monthly_date": "Ежемесячно, %{day}-го числа"
+    }
+  },
+  "calendar": {
+    "title": "Календарь",
+    "previous": "Назад",
+    "next": "Вперёд",
+    "pick_date": "Выбрать дату",
+    "view_month": "Месяц",
+    "view_week": "Неделя",
+    "view_list": "Список"
+  },
+  "registration": {
+    "form": {
+      "name": "Ваше имя",
+      "email": "Ваш адрес электронной почты",
+      "starting_date": "Дата начала",
+      "show_more_dates": "Показать больше дат",
+      "submit": "Зарегистрироваться",
+      "okay": "Хорошо",
+      "followup": "Вскоре вы получите подтверждение по электронной почте",
+      "invite_friend": "Пригласи друга с собой",
+      "online_notice": "Ссылка на этот курс будет отправлена ​​вам по электронной почте.",
+      "online_notice_title": "Онлайн-сессия",
+      "privacy_policy": "Отправляя сообщение, вы подтверждаете, что соглашаетесь получать последующие сообщения об этом и подобных событиях в соответствии с нашей политикой конфиденциальности.",
+      "error_title": "Что-то пошло не так",
+      "captcha_retry": "Проверку безопасности нужно пройти заново. Дождитесь её обновления и зарегистрируйтесь ещё раз."
+    },
+    "errors": {
+      "email": "Введите действительный адрес электронной почты",
+      "name": "Введите свое полное имя",
+      "starting_at": "Выберите дату начала"
+    },
+    "questions": {
+      "experience": "Практиковали ли вы раньше медитацию Сахаджа-йога?",
+      "referral": "Как вы узнали об этом мероприятии?",
+      "aspirations": "Что вы надеетесь получить от этого?",
+      "questions": "У вас есть вопросы к нам?"
+    }
+  },
+  "share": {
+    "share_on": "Поделиться в %{platform}",
+    "native": "Поделиться…",
+    "copy_link": "Копировать ссылку",
+    "copied": "Скопировано"
+  },
+  "compact": {
+    "open": "Найдите занятие рядом с вами"
+  }
+}

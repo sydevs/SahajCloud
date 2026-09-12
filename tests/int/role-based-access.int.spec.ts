@@ -3,6 +3,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import fs from 'fs'
 import path from 'path'
 
+import { getAccessResults } from 'payload'
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
 import type { Event, Region } from '@/payload-types'
@@ -530,6 +531,40 @@ describe('Role-Based Access Control', () => {
         parent: otherCity.id,
       })
       otherVenueId = otherVenue.id
+    })
+
+    it('resolves the owned-region subtree once across one /api/access evaluation (#749)', async () => {
+      // `getAccessResults` IS what `GET /api/access` calls. It fires every
+      // operation of every collection — including the `readVersions` #719
+      // added — in one `Promise.all` with byte-identical args, and dedups
+      // nothing between them. Uncached, `resolveManagedDocIds` ran once per
+      // operation that reached it.
+      const req = {
+        payload,
+        user: managerUser(atlasManager),
+        locale: 'en',
+        context: {},
+        headers: new Headers() as PayloadRequest['headers'],
+      } as PayloadRequest
+
+      const findSpy = vi.spyOn(payload, 'find')
+      try {
+        await getAccessResults({ req })
+
+        // The roots query (`directManagerWhere` → a bare `or`) and the
+        // breadcrumb-descendant query are the two `resolveManagedDocIds` makes
+        // per (collection, user). Each must appear exactly once.
+        const regionFinds = findSpy.mock.calls
+          .map(([args]) => args)
+          .filter((args) => args.collection === 'regions')
+        const rootFinds = regionFinds.filter((args) => Array.isArray(args.where?.or))
+        const descendantFinds = regionFinds.filter((args) => 'breadcrumbs.doc' in (args.where ?? {}))
+
+        expect(rootFinds).toHaveLength(1)
+        expect(descendantFinds).toHaveLength(1)
+      } finally {
+        findSpy.mockRestore()
+      }
     })
 
     it('exposes the role as project-scoped: read everywhere, write only on events/regions', () => {
@@ -1996,11 +2031,12 @@ describe('Role-Based Access Control', () => {
       //
       // NOT `web-translator` on `meditations`, the obvious pairing with the
       // test above. Payload maps `findVersions` onto the `read` hook operation,
-      // so `filterMeditationsByLocale` appends `{ locale: { equals } }` to the
+      // so `filterMeditationsByLocale` appended `{ locale: { equals } }` to the
       // versions query, where that path does not exist — meditations'
-      // `findVersions` throws QueryError for EVERY caller, `overrideAccess:
-      // true` included. A `rejects.toThrow()` there passes without the fix
-      // (filed separately).
+      // `findVersions` threw QueryError for EVERY caller, `overrideAccess:
+      // true` included, so a `rejects.toThrow()` there passed for the wrong
+      // reason. Fixed in #745; `app-cards` stays the fixture here because it is
+      // still the cleaner read-but-not-edit pairing.
       const editor = await testData.createManager(payload, {
         name: 'Read-Only Editor for Version History Test',
         roles: { en: ['meditations-editor'] },
