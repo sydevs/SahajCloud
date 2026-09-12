@@ -1,11 +1,5 @@
 import type { CollectionBeforeOperationHook } from 'payload'
 
-/**
- * The hook argument this helper reads. Derived rather than restated, because
- * the `operation` a `beforeOperation` hook receives is a wider union than the
- * exported `HookOperationType` — it still carries the internal spellings
- * (`deleteByID`, `find`) that the hook signature admits.
- */
 type BeforeOperationArgs = Parameters<CollectionBeforeOperationHook>[0]
 
 /**
@@ -20,10 +14,8 @@ type BeforeOperationArgs = Parameters<CollectionBeforeOperationHook>[0]
  * and its id is `parent`. Naming a document field there fails query validation
  * with `The following path cannot be queried`, before the read runs and
  * regardless of `overrideAccess`. That 400 broke the admin version-history tab
- * for meditations (#745).
- *
- * `'id' in args` does not answer this question: it separates `findByID` from
- * `find`, not a versions read from either.
+ * for meditations (#745). `src/collections/AGENTS.md` carries the rule for the
+ * next hook author.
  *
  * The two kinds are told apart by the **`draft` argument**. Every `find` and
  * `findByID` call site passes it — the Local API and the REST handler are the
@@ -41,11 +33,9 @@ type BeforeOperationArgs = Parameters<CollectionBeforeOperationHook>[0]
  * hook never reaches the `draft` test — hence the `read` gate here rather than
  * at each call site.
  *
- * This reads a Payload-internal argument shape, so it is pinned by an
- * integration test against a real Payload rather than by a unit test that would
- * agree with itself: `tests/int/meditations.int.spec.ts` and
- * `tests/int/events.int.spec.ts` both call `findVersions` through the running
- * app. A Payload upgrade that changes the shape turns those red.
+ * This reads a Payload-internal argument shape, so an upgrade could change it.
+ * The pin is a real `findVersions` in `tests/int/meditations.int.spec.ts` and
+ * `tests/int/events.int.spec.ts`, not a unit test that would agree with itself.
  */
 export function isVersionsRead(
   operation: BeforeOperationArgs['operation'],

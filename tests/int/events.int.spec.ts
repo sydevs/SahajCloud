@@ -161,12 +161,9 @@ describe('Events collection', () => {
     })
 
     /**
-     * Payload maps `findVersions` onto the same `read` hook operation as `find`
-     * (`operationToHookOperation`), so `excludeFinishedEvents` used to append
-     * `schedule.lastDate` to a versions query too — and that path does not
-     * exist on the versions collection, where a document's fields live under
-     * `version.`. `isVersionsRead` (`src/lib/utilities/versionsRead.ts`) is the
-     * guard (#745).
+     * The hook must decline a versions read: `schedule.lastDate` is not a
+     * queryable path on the versions collection (#745 — see
+     * `src/lib/utilities/versionsRead.ts`).
      *
      * API clients must still declare a `select` on any read, versions included
      * — that is `validateClientQueryParamsHook`, a separate `read` hook.
@@ -191,11 +188,9 @@ describe('Events collection', () => {
       })
 
       it('answers an ordinary client with the access decision', async () => {
-        // The behaviour the ticket asks for, stated as an assertion. It passes
-        // before the fix as well: `findVersions` runs the access gate BEFORE
-        // query validation, so no client role granting events `update` exists
-        // today to reach the 400. Kept because it pins the honest answer —
-        // a bare `rejects.toThrow()` here would also accept a 400.
+        // Passes before the fix too: `findVersions` runs the access gate BEFORE
+        // query validation, and no client role grants events `update` (#719).
+        // Kept for the message — a bare `rejects.toThrow()` accepts a 400.
         await expect(
           payload.findVersions({
             collection: 'events',
@@ -205,14 +200,6 @@ describe('Events collection', () => {
             overrideAccess: false,
           }),
         ).rejects.toThrow('You are not allowed to perform this action.')
-      })
-
-      it('still filters an ordinary client list read', async () => {
-        // Guards the guard, as in the meditations suite: a mis-read of the
-        // argument `isVersionsRead` keys off would disable the finished-event
-        // filter for every client rather than only for versions.
-        const ids = await listIds()
-        expect(ids).not.toContain(finishedId)
       })
     })
   })

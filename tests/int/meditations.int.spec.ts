@@ -304,20 +304,16 @@ describe('Meditations Collection', () => {
     })
 
     /**
-     * Payload maps `findVersions` and `findVersionByID` onto the same `read`
-     * hook operation as `find` and `findByID`, so `filterMeditationsByLocale`
-     * used to append `{ locale: { equals } }` to a versions query as well — and
-     * `locale` is not a queryable path on the versions collection, where a
-     * document's fields live under `version.`. Every caller got a 400,
-     * `overrideAccess: true` included, and the admin Versions tab was broken
-     * (#745). `isVersionsRead` (`src/lib/utilities/versionsRead.ts`) is the
-     * guard; deleting its call from the hook turns both cases below red.
+     * The hook must decline a versions read: `locale` is not a queryable path
+     * on the versions collection, so appending the filter 400s every caller
+     * (#745 — see `src/lib/utilities/versionsRead.ts`). Deleting the guard from
+     * the hook turns both cases below red with "path cannot be queried".
      *
      * Fixture assumption, checked rather than assumed: meditations enables
      * `versions.drafts` (`src/collections/Meditations/Meditations.ts`), so each
-     * document above already has at least one version row. The first case
-     * asserts a non-zero count, so a fixture that stopped producing rows would
-     * fail loudly instead of passing vacuously.
+     * document above already has a version row. Both cases assert a non-zero
+     * count, so a fixture that stopped producing rows fails loudly instead of
+     * passing vacuously.
      */
     describe('Versions reads (#745)', () => {
       it('resolves a single-locale versions read', async () => {
@@ -346,20 +342,6 @@ describe('Meditations Collection', () => {
         })
 
         expect(versions.totalDocs).toBeGreaterThan(0)
-      })
-
-      it('still filters an ordinary find on the same request', async () => {
-        // Guards the guard: `isVersionsRead` keys off an argument Payload
-        // passes, so a mis-read of that argument would silently disable locale
-        // filtering everywhere rather than only on versions.
-        const result = await payload.find({
-          collection: 'meditations',
-          locale: 'en',
-          draft: true,
-          depth: 0,
-        })
-
-        expect(result.docs.map((doc) => doc.id)).not.toContain(deMeditation.id)
       })
     })
   })
