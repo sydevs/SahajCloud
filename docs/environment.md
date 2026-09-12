@@ -52,6 +52,8 @@ Neither URL takes a trailing slash, since both are used as prefixes and compared
 
 Zod validates every variable at module load, in `src/lib/env.ts`, into `serverEnv` (secrets, API keys) and `clientEnv` (`NEXT_PUBLIC_*` only, exposed to the browser). To add one: add it to the right schema with a Zod rule, update `.env.example`, and run `pnpm generate:types` if needed.
 
+**One `NEXT_PUBLIC_*` key is deliberately absent from both**: `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` is written by the build, never by a person, and a browser cannot read it through `clientEnv` at all — see [set by the build, never by hand](#next_public_deployment_environment--set-by-the-build-never-by-hand) below. So `ClientEnvSchema` is the index of public variables you set, not of every public variable that exists.
+
 A missing `PAYLOAD_SECRET` or `DATABASE_URL` stops the app from starting. A missing Cloudflare credential in dev falls back to local storage. Production requires all four: `PAYLOAD_SECRET`, `DATABASE_URL`, the Cloudflare credentials, and `RESEND_API_KEY`.
 
 ## Railway Configuration
