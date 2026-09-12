@@ -53,6 +53,8 @@ content collection.
 | `sy-atlas-config` / `wm-web-config` | `availableLocales`: English always required, the publish gate refusing then accepting, every unpublished locale named, `skipAvailableLocalesCheck` relaxing only the publish check | `available-locales` + unit: `available-locales.spec.ts` |
 | `wemeditate-web/*`            | Translation pattern (covered transitively)                  | `translations-globals`                       |
 | `sahaj-atlas/*`               | Translation pattern (covered transitively)                  | `translations-globals`                       |
+| `sy-atlas-translations` schema | One tab per widget view: the 11 tabs and the ordered 33-name JSON field set, the three groups that mirror code (`registration.questions` ≡ `EVENT_REGISTRATION_QUESTIONS` in order, `event.title` ≡ `EVENT_TITLE_SLOTS`, `emails` ≡ `EMAIL_STRING_DEFAULTS`), every `strict` key carrying a `maxLength`, and a strict key over budget refused on write | `translations-globals` + unit: `atlas-translations-schema.spec.ts` |
+| `sy-atlas-translations` seeds | The ten locale files against the declared keys, English covering every widget-facing key, no invented `%{x}` placeholder, and neither live-data group present | unit: `atlas-translations-schema.spec.ts` |
 
 ## Custom endpoints
 
@@ -102,6 +104,7 @@ content collection.
 | The subtitles Zod parser and JSON Schema agree on one fixture set, and part company only where the importer strips  | unit: `subtitles.spec.ts` |
 | The three auth outcomes a captured error can carry, and the rules that keep an API key out of Sentry and the log (#734) | unit: `sentry-auth-attempt.spec.ts` |
 | `sentryPlugin`'s own `afterError` wiring — level, fingerprint and the WARN mirror actually reached, and a `context` callback shaped like the real config's not dropping the fingerprint | unit: `sentry-credential-rejected.spec.ts` |
+| `pnpm seed translations` on the Atlas global: ten locales published individually, the two live-data groups preserved across a re-run, an untranslated key omitted rather than blanked, and a locale's own plural family stored | `seeds/tests/atlas-translations-import.test.ts` |
 
 ## Gaps
 

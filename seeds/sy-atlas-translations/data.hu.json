@@ -1,0 +1,274 @@
+{
+  "_meta": {
+    "global": "sy-atlas-translations",
+    "locale": "hu",
+    "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/hu/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
+    "schema_version": "post-#706 (11 tabs, 33 leaf groups, grouped by widget view)",
+    "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
+    "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
+  },
+  "common": {
+    "chrome": {
+      "back": "Vissza",
+      "back_to": "Vissza ide: %{title}",
+      "close": "Bezárás",
+      "explore": "Felfedezés",
+      "loading": "Loading…",
+      "cancel": "Mégse",
+      "widget_label": "Ingyenes meditációs órák",
+      "all_classes_free": "Minden óra ingyenes"
+    },
+    "settings": {
+      "title": "Beállítások",
+      "theme_auto": "Rendszer (automatikus)",
+      "theme_dark": "Sötét téma",
+      "theme_light": "Világos téma"
+    },
+    "errors": {
+      "generic": "Valami hiba történt.",
+      "retry": "Újrapróbálkozás",
+      "offline": "Úgy tűnik, nincs internetkapcsolat.",
+      "server": "A szervereinknek jelenleg gondjaik vannak.",
+      "not_found": "Nem találjuk, amit keresel.",
+      "not_found_event": "Nem találjuk ezt az eseményt.",
+      "not_found_region": "Nem találjuk ezt a helyet.",
+      "config": "Az Atlas nincs megfelelően beállítva ezen az oldalon.",
+      "unavailable": "Ehhez a programhoz jelenleg nem lehet csatlakozni.",
+      "share_unavailable": "Ehhez a meditációhoz még nincs megosztható link.",
+      "captcha_blocked": "Ez az Atlasz nem tud működni ezen az oldalon: a biztonsági ellenőrzését blokkolták.",
+      "no_events": "Nem található esemény.",
+      "back_to_region": "Események itt: %{region}",
+      "near_city": "Események %{city} közelében",
+      "browse_countries": "Összes ország megtekintése",
+      "search_label": "Vagy keress egy helyet"
+    },
+    "report": {
+      "title": "Hiba jelentése",
+      "description": "Írja meg, mi a probléma, és továbbítjuk a csapatnak.",
+      "message_label": "Mi a probléma?",
+      "message_placeholder": "Írja le, mit csinált, és mi tűnt hibásnak.",
+      "email_label": "E-mail",
+      "email_help": "Nem kötelező — csak akkor tudunk válaszolni, ha megadja.",
+      "email_placeholder": "on@pelda.hu",
+      "submit": "Jelentés küldése",
+      "sent": "Köszönjük — a jelentése úton van a csapathoz.",
+      "blocked": "A biztonsági ellenőrzést nem sikerült betölteni, ezért ez az űrlap nem küldhető el."
+    },
+    "report_errors": {
+      "email": "Adjon meg érvényes e-mail-címet.",
+      "message": "Írjon legalább %{min} karaktert.",
+      "message_max": "Kérjük, maradjon %{max} karakter alatt.",
+      "send_failed": "A jelentésed nem lett elküldve. Várd meg, amíg a biztonsági ellenőrzés frissül, majd próbáld újra.",
+      "captcha": "A biztonsági ellenőrzést újra el kell végezni. Várd meg, amíg frissül, majd küldd el újra.",
+      "disposable_email": "Ezt az e-mail-szolgáltatót nem fogadjuk el. Adj meg olyan címet, amelyre válaszolhatunk, vagy hagyd üresen.",
+      "urls_not_allowed": "Az üzenetben nem engedélyezettek a linkek. Távolítsd el őket, és küldd el újra."
+    },
+    "map": {
+      "find_my_location": "Helyzetem megkeresése",
+      "location_not_available": "A helymeghatározás nem érhető el"
+    },
+    "feedback": {
+      "confirmed_title": "Köszönjük a megerősítést",
+      "confirmed_body": "Jelezzük másoknak, hogy ez az alkalom továbbra is megtartásra kerül.",
+      "denied_title": "Köszönjük a jelzést",
+      "denied_body": "Átnézzük és frissítjük ezt a hirdetést. Elnézést a hibáért.",
+      "nearby": "További közeli alkalmak megtekintése",
+      "below": "További közeli alkalmakat lentebb talál."
+    }
+  },
+  "countries": {
+    "title": "Free Meditation Classes"
+  },
+  "search": {
+    "chrome": {
+      "title": "Keresés",
+      "placeholder": "Események keresése a közelben…"
+    },
+    "results": {
+      "more": "Több megjelenítése",
+      "farther": "Távoli események megjelenítése",
+      "showing": "%{shown} / %{total} esemény megjelenítve",
+      "no_nearby": "Nincs esemény %{km} km-en belül."
+    },
+    "sort": {
+      "label": "Rendezés",
+      "recommended": "Ajánlott",
+      "closest": "Legközelebbi",
+      "soonest": "Leghamarabb"
+    },
+    "country_site": {
+      "title": "%{country} területén még nincsenek meghirdetett tanfolyamok.",
+      "cta": "%{country} weboldalának megnyitása"
+    },
+    "nearby_prompt": {
+      "title": "Órákat keresel %{city} közelében?",
+      "dismiss": "Elrejtés"
+    }
+  },
+  "filters": {
+    "chrome": {
+      "title": "Szűrők",
+      "apply": "Alkalmaz",
+      "clear": "Összes törlése",
+      "clear_one": "Törlés",
+      "remove": "%{label} eltávolítása",
+      "any_time": "Bármikor",
+      "no_results": "Egyetlen esemény sem felel meg a szűrőidnek."
+    },
+    "format": {
+      "label": "Forma",
+      "any": "Bármely",
+      "offline": "Személyesen",
+      "online": "Online"
+    },
+    "cadence": {
+      "label": "Gyakoriság",
+      "any": "Bármely",
+      "daily": "Naponta",
+      "weekly": "Hetente",
+      "monthly": "Havonta",
+      "once": "Egyszeri"
+    },
+    "days": {
+      "label": "A hét napja"
+    },
+    "time": {
+      "label": "Napszak",
+      "morning": "Reggel",
+      "afternoon": "Délután",
+      "evening": "Este",
+      "night": "Éjszaka"
+    },
+    "language": {
+      "label": "Nyelv",
+      "all": "Minden nyelv",
+      "empty": "Nincsenek elérhető nyelvek"
+    },
+    "dates": {
+      "label": "Dátum",
+      "from": "Ettől",
+      "to": "Eddig",
+      "pill_from": "Ettől: %{date}",
+      "pill_until": "Eddig: %{date}",
+      "pill_range": "%{start} – %{end}"
+    },
+    "region": {
+      "label": "Régió",
+      "all": "Minden régió",
+      "search": "Régiók keresése…",
+      "empty": "Nincsenek régiók"
+    }
+  },
+  "online": {
+    "title": "Online órák"
+  },
+  "event": {
+    "display": {
+      "about": "Erről a foglalkozásról",
+      "free_meditation_class": "Free Meditation Class",
+      "chip_full": "Betelt",
+      "chip_today": "Ma",
+      "chip_ended": "Véget ért",
+      "chip_starts": "Kezdés: %{date}",
+      "started_on": "Elkezdődött: %{date}",
+      "first_session": "Első alkalom: %{date}",
+      "next_session": "Következő alkalom: %{date}",
+      "event_ended": "Ez az esemény véget ért",
+      "event_full": "Ez az esemény betelt",
+      "registration_closed": "A regisztráció lezárult",
+      "registration_required": "Regisztráció szükséges",
+      "registration_external": "Erre az eseményre egy másik webhelyen lehet regisztrálni",
+      "online_joining_note": "A találkozó linkjét e-mailben küldjük el",
+      "contact_to_join_full": "A részvételhez keresse a szervezőt",
+      "contact_to_join_late": "Későbbi csatlakozáshoz keresse a szervezőt",
+      "contact_for_timing": "Contact host for timings",
+      "online": "Online",
+      "hosted_from": "Hosted from %{city}",
+      "time_in_place": "%{time} (%{city})",
+      "distance_away": "%{distance} távolságra",
+      "distance_from_place": "%{distance} innen: %{place}",
+      "distance_from_search": "%{distance} a keresett helytől",
+      "type_class": "Foglalkozás",
+      "type_class_daily": "Napi foglalkozás",
+      "type_class_weekly": "Heti foglalkozás",
+      "type_class_fortnightly": "Kéthetenkénti foglalkozás",
+      "type_class_monthly": "Havi foglalkozás",
+      "type_course": "Tanfolyam",
+      "type_oneoff": "Egyszeri esemény",
+      "sessions_count_one": "%{count} alkalom",
+      "sessions_count_other": "%{count} alkalom",
+      "see_nearby": "Közeli események megtekintése",
+      "register_now": "Register Now"
+    },
+    "actions": {
+      "contact": "Kapcsolat",
+      "directions": "Útvonal",
+      "website": "Weboldal",
+      "share": "Megosztás",
+      "add_calendar": "Naptárba",
+      "download_ics": ".ics fájl letöltése",
+      "view_photo": "Fénykép megtekintése",
+      "pause_slideshow": "Diavetítés szüneteltetése"
+    },
+    "recurrence": {
+      "daily": "Every Day",
+      "daily_n": "%{interval} naponta",
+      "weekly_1": "Every %{weekday}",
+      "weekly_2": "Every 2nd %{weekday}",
+      "weekly_n": "%{interval} hetente: %{weekday}",
+      "weekly_multi": "Hetente: %{weekdays}",
+      "monthly_1st": "1st %{weekday} of Every Month",
+      "monthly_2nd": "2nd %{weekday} of Every Month",
+      "monthly_3rd": "3rd %{weekday} of Every Month",
+      "monthly_4th": "4th %{weekday} of Every Month",
+      "monthly_last": "Last %{weekday} of Every Month",
+      "monthly_date": "Havonta, a hónap %{day}. napján"
+    }
+  },
+  "calendar": {
+    "title": "Naptár",
+    "previous": "Előző",
+    "next": "Következő",
+    "pick_date": "Dátum kiválasztása",
+    "view_month": "Hónap",
+    "view_week": "Hét",
+    "view_list": "Lista"
+  },
+  "registration": {
+    "form": {
+      "name": "Your name",
+      "email": "Your email",
+      "starting_date": "Starting date",
+      "show_more_dates": "További időpontok megjelenítése",
+      "submit": "Register",
+      "okay": "Okay",
+      "followup": "You will receive an email confirmation shortly",
+      "invite_friend": "Invite a friend along",
+      "online_notice": "The link to this class will be emailed to you.",
+      "online_notice_title": "Online Session",
+      "privacy_policy": "By submitting you confirm you agree to receive follow up messages about this and similar events, in accordance with our privacy policy.",
+      "error_title": "Valami hiba történt",
+      "captcha_retry": "A biztonsági ellenőrzést újra el kell végezni. Várd meg, amíg frissül, majd regisztrálj még egyszer."
+    },
+    "errors": {
+      "email": "Enter a valid email",
+      "name": "Enter your full name",
+      "starting_at": "Select your starting date"
+    },
+    "questions": {
+      "experience": "Gyakorolt már Sahaja Yoga meditációt?",
+      "referral": "Honnan hallott erről az eseményről?",
+      "aspirations": "Mit remél ettől?",
+      "questions": "Van kérdése hozzánk?"
+    }
+  },
+  "share": {
+    "share_on": "Megosztás itt: %{platform}",
+    "native": "Megosztás…",
+    "copy_link": "Link másolása",
+    "copied": "Másolva"
+  },
+  "compact": {
+    "open": "Találjon egy tanfolyamot a közelében"
+  }
+}
