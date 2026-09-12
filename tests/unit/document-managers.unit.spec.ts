@@ -145,7 +145,9 @@ describe('resolveManagedDocIds is memoized per request', () => {
     expect(find).toHaveBeenCalledWith(
       expect.objectContaining({ collection: 'regions', where: { or: [{ managers: { in: [99] } }] } }),
     )
-    for (const ids of results) expect(ids.sort()).toEqual([1, 2])
+    // Copy before sorting: all six entries are the same memoized array, and
+    // `resolveManagedDocIds` no longer hands each caller a fresh one.
+    for (const ids of results) expect([...ids].sort()).toEqual([1, 2])
   })
 
   it('keys on collection and user, so neither answers for the other', async () => {
