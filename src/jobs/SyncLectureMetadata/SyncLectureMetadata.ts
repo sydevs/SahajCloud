@@ -2,9 +2,7 @@ import type { TaskConfig, Where } from 'payload'
 
 import pMap from 'p-map'
 import pRetry from 'p-retry'
-import { z } from 'zod'
 
-import { jsonField } from '@/fields/jsonField'
 import { buildLectureMetadata } from '@/lib/lectures/nirmalaVidya'
 import { extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/lectures/nirmalaVidyaApi'
 
@@ -36,15 +34,15 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
   label: 'Sync Lecture Metadata',
   retries: 2,
   inputSchema: [
-    jsonField({
-      // Optional narrowing for a manual run. The schema generates the input's
-      // type, replacing a hand-written `SyncLectureMetadataInput` — it is not a
-      // runtime check, so the handler still tests `Array.isArray` below.
+    {
+      // Optional narrowing for a manual run. Payload feeds `inputSchema` only
+      // to `generateJobsJSONSchemas`, so this is what types the input, not a
+      // runtime check — the handler still tests `Array.isArray` below.
       name: 'lectureIds',
+      type: 'number',
+      hasMany: true,
       required: false,
-      schemaTitle: 'SyncLectureMetadataIds',
-      schema: z.array(z.int()),
-    }),
+    },
   ],
   outputSchema: [
     { name: 'totalProcessed', type: 'number', required: true },
@@ -67,9 +65,10 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
     }
 
     const lectureIds = input?.lectureIds
-    // Whether this run is scoped is decided once. `input` is an unvalidated
-    // `json` field, so a second test of it can disagree with this one — and
-    // that is how the query and the log line came to describe different runs.
+    // Whether this run is scoped is decided once. `inputSchema` types the
+    // input but nothing validates it at runtime, so a second test of it can
+    // disagree with this one — and that is how the query and the log line
+    // came to describe different runs.
     const scopedIds = Array.isArray(lectureIds) && lectureIds.length > 0 ? lectureIds : null
 
     // Only full lectures own NV `metadata`; clips reference their parent and

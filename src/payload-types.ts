@@ -652,7 +652,6 @@ export type MeditationFrames = {
   timestamp: number;
   [k: string]: unknown;
 }[];
-export type SyncLectureMetadataIds = number[];
 export type TableOfContentsHeadings = {
   slug: string;
   text: string;
@@ -8819,7 +8818,7 @@ export interface TaskSendSessionReminders {
  */
 export interface TaskSyncLectureMetadata {
   input: {
-    lectureIds?: SyncLectureMetadataIds;
+    lectureIds?: number[] | null;
   };
   output: {
     totalProcessed: number;
