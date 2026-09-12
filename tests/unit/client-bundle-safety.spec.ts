@@ -1,9 +1,10 @@
 import { existsSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
-import { clientEntries, findInImportGraph, SRC } from '../utils/importGraph'
+import { clientEntries, findInImportGraph, sourceFiles, sourceOf, SRC } from '../utils/importGraph'
 
 /**
  * Nothing an admin **client** component imports may reach server-only code.
@@ -88,6 +89,39 @@ describe('admin client components stay out of the server bundle', () => {
         'components/admin/UserMessages/UserMessageStatus.tsx',
       ]),
     )
+  })
+
+  // The entry set comes from a hand-rolled scan for a leading `'use client'`,
+  // and a directive shape that scan misreads does not merely weaken one guard:
+  // the file leaves the entry set, so this spec and
+  // `public-env-substitution.spec.ts` both go quiet about it. No count can see
+  // one file leave, so TypeScript's own parser is the oracle — it reports the
+  // directive prologue whatever comments precede it.
+  it('misses no file TypeScript reads as a client entry', () => {
+    const declared = sourceFiles()
+      .map((file) => ({ file, source: sourceOf(file) }))
+      .filter(({ source }) => source.includes('use client'))
+      .filter(({ file, source }) => {
+        const parsed = ts.createSourceFile(
+          file,
+          source,
+          ts.ScriptTarget.Latest,
+          false,
+          file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+        )
+        const first = parsed.statements[0]
+        return (
+          !!first &&
+          ts.isExpressionStatement(first) &&
+          ts.isStringLiteral(first.expression) &&
+          first.expression.text === 'use client'
+        )
+      })
+      .map(({ file }) => relative(SRC, file))
+
+    const derived = new Set(entries)
+    expect(declared.filter((file) => !derived.has(file))).toEqual([])
+    expect(declared.length).toBeGreaterThan(50)
   })
 
   // A `SERVER_ONLY` key naming a module that does not exist is a row of this
