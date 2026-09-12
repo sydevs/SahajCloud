@@ -11,11 +11,14 @@ type BeforeOperationArgs = Parameters<CollectionBeforeOperationHook>[0]
  * **`src/collections/AGENTS.md` carries the rule**: which hooks need this, when
  * to decline a filter rather than translate it, and what to pin.
  *
- * The two kinds are told apart by the **`draft` argument**, which every `find`
- * and `findByID` call site passes and neither versions read does. That table is
- * the one part of the rule which cannot live anywhere else — derived from
- * `payload/dist/collections/operations/utilities/types.js` →
- * `operationToHookOperation` and all four operations' callers, read at 3.86.0:
+ * The two kinds are told apart by the **`draft` argument**, and Payload's own
+ * code decides that, not ours: the four document-read call sites name `draft` as
+ * a literal key — so it is present even when the value is `undefined`, as a REST
+ * query without `?draft=` gives — and the four versions call sites never name
+ * it. That table is the one part of the rule which cannot live anywhere else —
+ * derived at 3.86.0 from `operationToHookOperation`
+ * (`payload/dist/collections/operations/utilities/types.js`) and all eight
+ * callers under `collections/{endpoints,operations/local}/`:
  *
  * | operation         | hook operation | `id` | `draft` |
  * | ----------------- | -------------- | ---- | ------- |
