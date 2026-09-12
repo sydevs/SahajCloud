@@ -3,24 +3,16 @@ import type { Field, JSONField } from 'payload'
 import { json as jsonFieldValidation } from 'payload/shared'
 import { describe, expect, it } from 'vitest'
 
-import { AppCards, VIEW_SCHEDULE_SCHEMA_URI } from '@/collections/AppCards/AppCards'
+import { AppCards } from '@/collections/AppCards/AppCards'
 import { Clients } from '@/collections/Clients/Clients'
 import { Events } from '@/collections/Events/Events'
 import { Lectures } from '@/collections/Lectures/Lectures'
 import { Managers } from '@/collections/Managers/Managers'
-import { Meditations, TAG_ASSIGNMENTS_SCHEMA_URI } from '@/collections/Meditations/Meditations'
+import { Meditations } from '@/collections/Meditations/Meditations'
 import { Videos } from '@/collections/Videos/Videos'
-import { FILE_METADATA_SCHEMA_URI } from '@/fields'
 import { WeMeditateAppStatus } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
-import { EVENT_QUALITY_REPORT_SCHEMA_URI } from '@/lib/eventQuality'
-import { LECTURE_METADATA_SCHEMA_URI } from '@/lib/lectures/nirmalaVidya'
-import { MEDITATION_FRAMES_SCHEMA_URI, NODE_WEIGHTS_SCHEMA_URI } from '@/lib/meditations/frames'
 import { TableOfContentsBlock } from '@/lib/richEditor/blocks/TableOfContentsBlock'
-import { UPCOMING_DATES_SCHEMA_URI } from '@/lib/schedule/scheduleHooks'
-import { READINESS_REPORT_SCHEMA_URI } from '@/lib/status/virtualReadinessField'
-import { SUBTITLES_SCHEMA_URI } from '@/lib/utilities/subtitles'
 import type { ClientAbuseScore, ReadinessReport } from '@/payload-types'
-import { ABUSE_SCORE_SCHEMA_URI } from '@/plugins/usage'
 
 /**
  * #659: every JSON column that can state its shape now declares a `jsonSchema`,
@@ -60,11 +52,14 @@ function jsonField(fields: Field[], name: string): JSONField {
 const req = { t: (key: string) => key } as never
 
 function runSchema(field: JSONField, value: unknown): true | string {
-  return jsonFieldValidation(value as never, {
-    ...field,
-    req,
-    required: false,
-  } as never) as true | string
+  return jsonFieldValidation(
+    value as never,
+    {
+      ...field,
+      req,
+      required: false,
+    } as never,
+  ) as true | string
 }
 
 /** Call the field's own `validate`, which is what a save actually runs. */
@@ -83,7 +78,7 @@ describe('subtitles', () => {
   const field = jsonField(Videos.fields, 'subtitles')
 
   it('is wired onto the column', () => {
-    expect(field.jsonSchema?.uri).toBe(SUBTITLES_SCHEMA_URI)
+    expect(field.jsonSchema?.schema.title).toBe('Subtitles')
     // The hand-rolled Zod validator it replaced is gone, so the built-in one
     // (which is what runs the schema) is installed.
     expect(field.validate).toBeUndefined()
@@ -127,7 +122,7 @@ describe('fileMetadata', () => {
   const field = jsonField(Videos.fields, 'fileMetadata')
 
   it('is wired onto the column', () => {
-    expect(field.jsonSchema?.uri).toBe(FILE_METADATA_SCHEMA_URI)
+    expect(field.jsonSchema?.schema.title).toBe('FileMetadata')
   })
 
   it('types the key every writer sets, without closing the shape', () => {
@@ -143,7 +138,7 @@ describe('Lectures.metadata', () => {
   const field = jsonField(Lectures.fields, 'metadata')
 
   it('is wired onto the column', () => {
-    expect(field.jsonSchema?.uri).toBe(LECTURE_METADATA_SCHEMA_URI)
+    expect(field.jsonSchema?.schema.title).toBe('LectureMetadata')
   })
 
   it('accepts what buildLectureMetadata produces', () => {
@@ -197,9 +192,9 @@ describe('Managers.notificationPreferences', () => {
     // signature is usable at a dynamic key — which is what deleted the
     // hand-written aliases and their four consumer casts. The value stays
     // open, for the same reason the top level does.
-    expect(
-      runFieldValidate(field, { a_retired_type: { frequency: 'Never', extra: 'kept' } }),
-    ).toBe(true)
+    expect(runFieldValidate(field, { a_retired_type: { frequency: 'Never', extra: 'kept' } })).toBe(
+      true,
+    )
     expect(runFieldValidate(field, { a_retired_type: 'Never' })).not.toBe(true)
   })
 
@@ -220,8 +215,8 @@ describe('Meditations', () => {
   const weights = jsonField(Meditations.fields, 'subtleSystemNodeWeights')
 
   it('wires both columns', () => {
-    expect(frames.jsonSchema?.uri).toBe(MEDITATION_FRAMES_SCHEMA_URI)
-    expect(weights.jsonSchema?.uri).toBe(NODE_WEIGHTS_SCHEMA_URI)
+    expect(frames.jsonSchema?.schema.title).toBe('MeditationFrames')
+    expect(weights.jsonSchema?.schema.title).toBe('MeditationNodeWeights')
   })
 
   it('composes the built-in validator on frames rather than replacing it', () => {
@@ -270,10 +265,10 @@ describe('Meditations', () => {
 describe('virtual columns', () => {
   it('types AppCards.viewSchedule as the hook returns it', () => {
     const field = jsonField(AppCards.fields, 'viewSchedule')
-    expect(field.jsonSchema?.uri).toBe(VIEW_SCHEDULE_SCHEMA_URI)
-    expect(runSchema(field, { timezone: 'Europe/Amsterdam', schedule: { '00:00': 'default' } })).toBe(
-      true,
-    )
+    expect(field.jsonSchema?.schema.title).toBe('AppCardViewSchedule')
+    expect(
+      runSchema(field, { timezone: 'Europe/Amsterdam', schedule: { '00:00': 'default' } }),
+    ).toBe(true)
     // A view name the hook cannot emit, and the timezone the hook always sets.
     expect(runSchema(field, { timezone: 'UTC', schedule: { '00:00': 'unknown' } })).not.toBe(true)
     expect(runSchema(field, { schedule: { '00:00': 'default' } })).not.toBe(true)
@@ -281,7 +276,7 @@ describe('virtual columns', () => {
 
   it('types Clients.usage.abuseScore as `ClientAbuseScore`', () => {
     const field = jsonField(Clients.fields, 'abuseScore')
-    expect(field.jsonSchema?.uri).toBe(ABUSE_SCORE_SCHEMA_URI)
+    expect(field.jsonSchema?.schema.title).toBe('ClientAbuseScore')
     const score: ClientAbuseScore = {
       score: 42,
       level: 'elevated',
@@ -295,7 +290,7 @@ describe('virtual columns', () => {
 
   it('keeps both arms of Events.qualityReport discriminated', () => {
     const field = jsonField(Events.fields, 'qualityReport')
-    expect(field.jsonSchema?.uri).toBe(EVENT_QUALITY_REPORT_SCHEMA_URI)
+    expect(field.jsonSchema?.schema.title).toBe('EventQualityReport')
     expect(runSchema(field, { skipped: true, reason: 'unpublished' })).toBe(true)
     expect(
       runSchema(field, {
@@ -312,7 +307,7 @@ describe('virtual columns', () => {
 
   it('types the Meditations virtual join columns', () => {
     const field = jsonField(Meditations.fields, 'asMorningMeditation')
-    expect(field.jsonSchema?.uri).toBe(TAG_ASSIGNMENTS_SCHEMA_URI)
+    expect(field.jsonSchema?.schema.title).toBe('TagAssignments')
     expect(runSchema(field, [{ id: 7, title: 'Morning' }])).toBe(true)
     // The hook selects exactly these two keys off a numeric primary key, and
     // `TagAssignmentField` hands the id straight to `useDocumentDrawer`.
@@ -322,14 +317,14 @@ describe('virtual columns', () => {
 
   it('types schedule.upcomingDates as ISO strings', () => {
     const field = jsonField(Events.fields, 'upcomingDates')
-    expect(field.jsonSchema?.uri).toBe(UPCOMING_DATES_SCHEMA_URI)
+    expect(field.jsonSchema?.schema.title).toBe('ScheduleUpcomingDates')
     expect(runSchema(field, ['2026-09-07T18:00:00.000Z'])).toBe(true)
     expect(runSchema(field, [1757269200000])).not.toBe(true)
   })
 
   it('types a readiness section as `ReadinessReport`, groups discriminated', () => {
     const field = jsonField(WeMeditateAppStatus.fields, 'appCards')
-    expect(field.jsonSchema?.uri).toBe(READINESS_REPORT_SCHEMA_URI)
+    expect(field.jsonSchema?.schema.title).toBe('ReadinessReport')
     const report: ReadinessReport = {
       groups: [
         {
@@ -356,7 +351,9 @@ describe('virtual columns', () => {
         groups: [{ type: 'errored', key: 'x', error: 'boom', passing: true, counter: null }],
       }),
     ).not.toBe(true)
-    expect(runSchema(field, { ...report, groups: [{ type: 'documents', key: 'x' }] })).not.toBe(true)
+    expect(runSchema(field, { ...report, groups: [{ type: 'documents', key: 'x' }] })).not.toBe(
+      true,
+    )
   })
 })
 
