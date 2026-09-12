@@ -50,7 +50,9 @@ Neither URL takes a trailing slash, since both are used as prefixes and compared
 
 ## Environment Variable Validation
 
-Zod validates every variable at module load, in `src/lib/env.ts`, into `serverEnv` (secrets, API keys) and `clientEnv` (`NEXT_PUBLIC_*` only, exposed to the browser). To add one: add it to the right schema with a Zod rule, update `.env.example`, and run `pnpm generate:types` if needed.
+Zod validates every variable in `src/lib/env/`: `ClientEnvSchema` (`src/lib/env/client.ts`) declares the `NEXT_PUBLIC_*` ones, and `ServerEnvSchema` (`src/lib/env/server.ts`) extends it with the secrets and API keys. Server code reads the lot through `serverEnv`, which parses lazily and caches. To add one: add it to the right schema with a Zod rule, update `.env.example`, and run `pnpm generate:types` if needed.
+
+⚠ **`serverEnv` is server-only, and there is no browser equivalent.** Browser code reads a `NEXT_PUBLIC_*` value as a **literal `process.env.<KEY>` member expression**, which is the only form Next substitutes at build time. A `clientEnv` object used to exist, parsed from a bare `process.env`; in a browser that is the empty stub from `next/dist/compiled/process`, so every key read through it was `undefined` and `Sentry.init` never ran client-side at all (#760). Anything that parses, destructures, or indexes `process.env` gives the browser nothing.
 
 A missing `PAYLOAD_SECRET` or `DATABASE_URL` stops the app from starting. A missing Cloudflare credential in dev falls back to local storage. Production requires all four: `PAYLOAD_SECRET`, `DATABASE_URL`, the Cloudflare credentials, and `RESEND_API_KEY`.
 
