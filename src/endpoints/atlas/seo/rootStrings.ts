@@ -11,12 +11,13 @@
  *
  * ## Two fallbacks, deliberately asymmetric
  *
- * - **`title` falls back to English, then to a constant.** `<title>` is
- *   mandatory markup and `AtlasSeoResponse` types it as a string: a blank one
- *   is a page a crawler cannot name at all, which is worse than one named in
- *   the wrong language. The constant also means the endpoint answers the root
- *   on the day it deploys, before any operator has typed anything — the same
- *   role `EMAIL_STRING_DEFAULTS` plays for this global's `emails` group.
+ * - **`title` falls back within the locale first.** `<title>` is mandatory
+ *   markup and `AtlasSeoResponse` types it as a string, so it must resolve to
+ *   something. It resolves to the locale's own `common.free_meditation_classes`
+ *   — the widget's name for itself, already seeded in ten locales — before it
+ *   looks at English, so a locale nobody has written `seo.root_title` for is
+ *   named in its own language rather than in ours. English, and then the
+ *   constant, are reached only by a locale carrying neither string.
  * - **`description` never falls back.** A locale with no description gets
  *   `null`, exactly as a region does, and the host writes its own line in its
  *   own language. An untranslated English sentence in a Dutch site's `<head>`
@@ -37,17 +38,17 @@ import { DEFAULT_LOCALE } from '@/lib/locales'
 import { withoutEnglishFallback } from '@/lib/translations/clientEnglishFallback'
 
 /**
- * The `<title>` used when no locale, English included, has one on file.
+ * The `<title>` used when neither the locale nor English names the atlas at
+ * all — no `seo.root_title`, and no `common.free_meditation_classes` either.
  *
- * Deliberately a name rather than a sentence — it is what the atlas *is*, in
- * the words the widget's own `common.free_meditation_classes` key already uses,
- * so an operator overwriting it is refining copy rather than replacing a
- * placeholder.
+ * It is the English wording of that same key, so the constant is a last resort
+ * rather than a second voice: reaching it means the global is empty, which is
+ * only true of a brand-new database.
  */
 export const ROOT_TITLE_FALLBACK = 'Free Meditation Classes'
 
-/** Two strings out of seven groups, so the read names the one it wants. */
-const SEO_GROUP_SELECT: SelectType = { seo: true }
+/** Two groups out of seven, so the read names the ones it wants. */
+const ROOT_COPY_SELECT: SelectType = { common: true, seo: true }
 
 /** The landing page's copy for one locale. */
 export interface RootSeoStrings {
@@ -55,6 +56,14 @@ export interface RootSeoStrings {
   title: string
   /** The locale's own description, or `null`. Never English's. */
   description: string | null
+}
+
+/** One locale's raw copy — the two groups the chain reads, each blank or absent. */
+export interface RootCopy {
+  /** The widget's own UI strings, seeded in every locale. */
+  common: Record<string, unknown> | null
+  /** The landing page's operator-written copy. Empty everywhere until someone writes it. */
+  seo: Record<string, unknown> | null
 }
 
 /** A trimmed non-empty string, or `null` — blank and absent mean the same here. */
@@ -65,37 +74,48 @@ function text(value: unknown): string | null {
 }
 
 /**
+ * The best name one locale can offer: what the operator wrote for the landing
+ * page, then what the widget already calls itself in that language.
+ *
+ * Both come from the same locale, so neither borrows another language's words.
+ */
+function titleIn(copy: RootCopy | null): string | null {
+  return text(copy?.seo?.root_title) ?? text(copy?.common?.free_meditation_classes)
+}
+
+/**
  * The fallback chain, as a pure function of what the two reads returned.
  *
  * Exported so the asymmetry above is unit-testable without a database — it is
- * the whole decision this module exists to make, and the `null` English group
+ * the whole decision this module exists to make, and the `null` English copy
  * (a read that failed, rather than a locale that is blank) is the case a test
  * would otherwise never reach.
  */
 export function resolveRootStrings(
-  group: Record<string, unknown> | null,
-  english: Record<string, unknown> | null,
+  copy: RootCopy | null,
+  english: RootCopy | null,
 ): RootSeoStrings {
-  const description = text(group?.root_description)
   return {
-    title: text(group?.root_title) ?? text(english?.root_title) ?? ROOT_TITLE_FALLBACK,
-    description,
+    title: titleIn(copy) ?? titleIn(english) ?? ROOT_TITLE_FALLBACK,
+    description: text(copy?.seo?.root_description),
   }
 }
 
+/** A group as read back, or `null` when the locale carries none. */
+function group(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : null
+}
+
 /**
- * The raw `seo` group for one locale, with every fallback disabled, or `null`
- * when the read failed.
+ * The raw `common` and `seo` groups for one locale, with every fallback
+ * disabled, or `null` when the read failed.
  *
  * Never throws: a landing page falling back to its default title is a far
- * better outcome than a 500 on somebody else's page render. `null` is kept
- * distinct from `{}` so a failed read does not read as "this locale is blank"
- * and send the caller off to retry the same broken read in English.
+ * better outcome than a 500 on somebody else's page render. A failed read is
+ * kept distinct from a blank locale so it does not send the caller off to
+ * retry the same broken read in English.
  */
-async function readSeoGroup(
-  req: PayloadRequest,
-  locale: LocaleCode,
-): Promise<Record<string, unknown> | null> {
+async function readRootCopy(req: PayloadRequest, locale: LocaleCode): Promise<RootCopy | null> {
   try {
     const global = await req.payload.findGlobal({
       slug: 'sy-atlas-translations',
@@ -103,13 +123,13 @@ async function readSeoGroup(
       fallbackLocale: false,
       depth: 0,
       draft: false,
-      select: SEO_GROUP_SELECT,
+      select: ROOT_COPY_SELECT,
       overrideAccess: true,
       // A copy carrying the opt-out — the helper says why it must be a copy.
       req: withoutEnglishFallback(req),
     })
-    const group = (global as { seo?: unknown }).seo
-    return group && typeof group === 'object' ? (group as Record<string, unknown>) : {}
+    const { common, seo } = global as { common?: unknown; seo?: unknown }
+    return { common: group(common), seo: group(seo) }
   } catch (error) {
     req.payload.logger.debug({
       msg: 'atlasSeo: root copy read failed; using defaults',
@@ -123,17 +143,17 @@ async function readSeoGroup(
 /**
  * The landing page's title and description for `locale`.
  *
- * English is read only when the requested locale returned no title of its own,
- * so the common case — a translated locale, or English itself — costs one
- * query, and a failed read costs one rather than two.
+ * English is read only when the requested locale names the atlas in neither of
+ * its two groups, so the common case — any seeded locale, or English itself —
+ * costs one query, and a failed read costs one rather than two.
  */
 export async function getRootSeoStrings(
   req: PayloadRequest,
   locale: LocaleCode,
 ): Promise<RootSeoStrings> {
-  const group = await readSeoGroup(req, locale)
-  if (locale === DEFAULT_LOCALE || group === null || text(group.root_title)) {
-    return resolveRootStrings(group, group)
+  const copy = await readRootCopy(req, locale)
+  if (locale === DEFAULT_LOCALE || copy === null || titleIn(copy)) {
+    return resolveRootStrings(copy, copy)
   }
-  return resolveRootStrings(group, await readSeoGroup(req, DEFAULT_LOCALE))
+  return resolveRootStrings(copy, await readRootCopy(req, DEFAULT_LOCALE))
 }

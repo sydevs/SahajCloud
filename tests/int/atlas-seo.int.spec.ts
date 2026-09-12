@@ -641,21 +641,38 @@ describe('atlasSeo endpoint', () => {
     const EN_TITLE = 'Free Meditation Classes'
     const EN_DESCRIPTION = 'Find a free weekly meditation class near you, taught by volunteers.'
     const FR_TITLE = 'Cours de méditation gratuits'
+    const DE_WIDGET_NAME = 'Kostenlose Meditationskurse'
 
-    const publishRootCopy = (locale: 'en' | 'fr', data: Record<string, string>) =>
+    const publishRootCopy = (
+      locale: 'de' | 'en' | 'fr',
+      data: { common?: Record<string, string>; seo?: Record<string, string> },
+    ) =>
       payload.updateGlobal({
         slug: 'sy-atlas-translations',
         locale,
         publishSpecificLocale: locale,
-        data: { seo: data, _status: 'published' } as never,
+        data: { ...data, _status: 'published' } as never,
         overrideAccess: true,
       })
 
     beforeAll(async () => {
-      await publishRootCopy('en', { root_title: EN_TITLE, root_description: EN_DESCRIPTION })
+      await publishRootCopy('en', {
+        seo: { root_title: EN_TITLE, root_description: EN_DESCRIPTION },
+      })
       // French gets a title and deliberately no description, which is the case
       // the `description: null` rule exists for.
-      await publishRootCopy('fr', { root_title: FR_TITLE })
+      await publishRootCopy('fr', { seo: { root_title: FR_TITLE } })
+      // German gets no landing copy at all, only the widget's own name for
+      // itself — the state every locale is in until an operator writes one.
+      //
+      // ⚠ `seo: {}` is load-bearing. `publishSpecificLocale` publishes the
+      // draft as that locale READS, and a draft read falls back to English, so
+      // omitting `seo` here writes the English landing copy into the German
+      // column and the fixture stops representing an untranslated locale.
+      await publishRootCopy('de', {
+        common: { free_meditation_classes: DE_WIDGET_NAME },
+        seo: {},
+      })
     })
 
     it('answers the root with a title, a description and a canonical', async () => {
@@ -699,10 +716,21 @@ describe('atlasSeo endpoint', () => {
       expect(body.title).not.toBe(EN_TITLE)
     })
 
-    // `<title>` is mandatory markup, so it is the one field that does fall back
-    // — a page a crawler cannot name is worse than one named in English.
-    it('falls back to the English title in a locale with no copy at all', async () => {
+    // The reviewer's call on #769. `seo` ships empty in all ten locales and
+    // `common` does not, so this — not the English title — is what a host
+    // mounting the root actually gets today.
+    it('names the atlas in the locale’s own words when no landing title exists', async () => {
       const { body } = await callSeo({ route: '/', locale: 'de' })
+      expect(body.title).toBe(DE_WIDGET_NAME)
+      expect(body.title).not.toBe(EN_TITLE)
+      expect(body.description).toBeNull()
+    })
+
+    // `<title>` is mandatory markup, so it is the one field that does fall back
+    // — a page a crawler cannot name is worse than one named in English. Dutch
+    // carries neither string, which is the only state that reaches English.
+    it('falls back to the English title in a locale with no copy at all', async () => {
+      const { body } = await callSeo({ route: '/', locale: 'nl' })
       expect(body.title).toBe(EN_TITLE)
       expect(body.description).toBeNull()
     })
