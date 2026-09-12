@@ -254,6 +254,56 @@ describe('per-locale publish status', () => {
       expect(publishedLocales((doc as { _status?: StatusMap })._status ?? {})).toEqual(['en'])
     })
 
+    /**
+     * The rollout consequence, pinned rather than argued. A never-translated
+     * locale has no row in `pages_locales`, so the published-only clause — SQL,
+     * which sees rows and not the fallback — matches nothing there. The page is
+     * unreachable in that locale even though nobody unpublished it.
+     *
+     * ⚠ This fires on **existing** data, not on a deliberate unpublish. The
+     * migration copies each document's old status into every locale row that
+     * exists, and there is none to copy into here. Payload's own
+     * `localizeStatus` template has the same property: it `UPDATE`s locale rows
+     * and never inserts one. WeMeditateWeb's `getPageBySlug` reads `pages` at
+     * the visitor's locale and 404s on an empty result, so an English-only page
+     * stops serving German the day this deploys — the fallback used to render
+     * it (WeMeditateWeb#81).
+     *
+     * Measured, not inferred: the client read below returns 0 docs while the
+     * English one returns the page.
+     */
+    it('serves a never-translated locale to nobody, published elsewhere or not', async () => {
+      const page = await testData.createPage(payload, { title: 'English only, untranslated' })
+      await publish(page.id, 'en')
+
+      // German was never written, so it is absent from the map — not 'draft'.
+      const map = await statusMap(payload, page.id)
+      expect(publishedLocales(map)).toEqual(['en'])
+      expect(map.de).toBeUndefined()
+
+      const asClientDe = await payload.find({
+        collection: 'pages',
+        locale: 'de',
+        depth: 0,
+        where: { id: { equals: page.id } },
+        select: { id: true, title: true } as never,
+        overrideAccess: false,
+        req: { ...clientReq } as never,
+      })
+      expect(asClientDe.docs).toHaveLength(0)
+
+      const asClientEn = await payload.find({
+        collection: 'pages',
+        locale: 'en',
+        depth: 0,
+        where: { id: { equals: page.id } },
+        select: { id: true, title: true } as never,
+        overrideAccess: false,
+        req: { ...clientReq } as never,
+      })
+      expect(asClientEn.docs).toHaveLength(1)
+    })
+
     it('leaves a manager cross-locale read untouched', async () => {
       const page = await testData.createPage(payload, { title: 'Manager sees all' })
       await publish(page.id, 'en')
