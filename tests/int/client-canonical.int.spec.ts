@@ -7,7 +7,7 @@ import { clientEmbedReport } from '@/collections/Clients/endpoints/report'
 import { verifyEmbedOnDemand } from '@/collections/Clients/endpoints/verifyEmbed'
 import { runVerifyEmbeds } from '@/jobs/VerifyEmbeds/VerifyEmbeds'
 import { MAX_EMBED_MOUNTS } from '@/lib/clients/embedMetadata'
-import type { PathProbeResult, VerificationResult } from '@/lib/clients/verification'
+import type { RoutingProbeResult, VerificationResult } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
@@ -354,7 +354,7 @@ describe('client canonical ownership + embed metadata', () => {
             attempts: [],
             // The URL *shape* comes from the probe's verdict, not from the
             // widget's self-report beside it (#644).
-            pathProbe: { at: '2026-08-18T00:00:00.000Z', verdict: 'path', failedAttempts: 0 },
+            routingProbe: { at: '2026-08-18T00:00:00.000Z', verdict: 'path', failedAttempts: 0 },
           },
         },
       } as never,
@@ -812,7 +812,7 @@ describe('client canonical ownership + embed metadata', () => {
       expect(doc.docs[0]?.canonical?.verification ?? null).toBeNull()
     })
 
-    // ── The path-routing probe (#644) ───────────────────────────────────────
+    // ── The routing probe (#644) ───────────────────────────────────────
 
     /**
      * The job with both renders stubbed, recording every mount the probe was
@@ -821,7 +821,7 @@ describe('client canonical ownership + embed metadata', () => {
      */
     const runProbing = async (args: {
       mount: VerificationResult
-      probe: PathProbeResult
+      probe: RoutingProbeResult
       now: Date
     }) => {
       const probed: string[] = []
@@ -841,8 +841,8 @@ describe('client canonical ownership + embed metadata', () => {
     }
 
     const PROBE_MOUNT = 'https://probe.example/classes'
-    const positive: PathProbeResult = { status: 'positive' }
-    const negative: PathProbeResult = { status: 'negative' }
+    const positive: RoutingProbeResult = { status: 'positive' }
+    const negative: RoutingProbeResult = { status: 'negative' }
 
     it('promotes a service to path routing on a single positive probe', async () => {
       const id = await createOwner('Probe Promote', 'probe-promote', PROBE_MOUNT)
@@ -855,7 +855,7 @@ describe('client canonical ownership + embed metadata', () => {
       expect(probed).toContain(PROBE_MOUNT)
       expect(output.pathPromoted).toBeGreaterThanOrEqual(1)
       const doc = await read(id)
-      expect(doc.canonical?.verification?.pathProbe).toMatchObject({
+      expect(doc.canonical?.verification?.routingProbe).toMatchObject({
         verdict: 'path',
         failedAttempts: 0,
       })
@@ -877,7 +877,7 @@ describe('client canonical ownership + embed metadata', () => {
       await runProbing({ mount: verified, probe: negative, now: daysAfter(52) })
       let doc = await read(id)
       expect(doc.canonical?.effectiveRouting).toBe('path')
-      expect(doc.canonical?.verification?.pathProbe?.failedAttempts).toBe(2)
+      expect(doc.canonical?.verification?.routingProbe?.failedAttempts).toBe(2)
 
       await runProbing({ mount: verified, probe: negative, now: daysAfter(53) })
       doc = await read(id)
@@ -896,7 +896,7 @@ describe('client canonical ownership + embed metadata', () => {
       // The widget is not on the page at all, so the subtree cannot be serving it.
       expect(probed).not.toContain(PROBE_MOUNT)
       const doc = await read(id)
-      expect(doc.canonical?.verification?.pathProbe).toMatchObject({
+      expect(doc.canonical?.verification?.routingProbe).toMatchObject({
         verdict: 'query',
         failedAttempts: 1,
       })
@@ -905,7 +905,7 @@ describe('client canonical ownership + embed metadata', () => {
     it('leaves the verdict and the strike count alone on an inconclusive run', async () => {
       const id = await createOwner('Probe Inconclusive', 'probe-inconclusive', PROBE_MOUNT)
       await runProbing({ mount: verified, probe: positive, now: daysAfter(70) })
-      const before = (await read(id)).canonical?.verification?.pathProbe
+      const before = (await read(id)).canonical?.verification?.routingProbe
 
       const { probed } = await runProbing({
         mount: inconclusive,
@@ -913,7 +913,7 @@ describe('client canonical ownership + embed metadata', () => {
         now: daysAfter(71),
       })
       expect(probed).not.toContain(PROBE_MOUNT)
-      expect((await read(id)).canonical?.verification?.pathProbe).toEqual(before)
+      expect((await read(id)).canonical?.verification?.routingProbe).toEqual(before)
     })
 
     /**
@@ -934,7 +934,7 @@ describe('client canonical ownership + embed metadata', () => {
               verified: null,
               failureCount: 0,
               attempts: [],
-              pathProbe: { at: '2026-09-12T03:00:00.000Z', verdict: 'path', failedAttempts: 0 },
+              routingProbe: { at: '2026-09-12T03:00:00.000Z', verdict: 'path', failedAttempts: 0 },
             },
           },
         },
@@ -947,7 +947,7 @@ describe('client canonical ownership + embed metadata', () => {
     })
 
     // The column is closed (`additionalProperties: false`) and validated on
-    // every save of the document, so a required `pathProbe` would have stranded
+    // every save of the document, so a required `routingProbe` would have stranded
     // every row written before this shipped.
     it('still saves a service whose verification predates the probe', async () => {
       const id = await createOwner('Probe Legacy Row', 'probe-legacy', PROBE_MOUNT)
@@ -1014,7 +1014,7 @@ describe('client canonical ownership + embed metadata', () => {
               verified: null,
               failureCount: 0,
               attempts: [],
-              pathProbe: { at: '2026-09-12T03:00:00.000Z', verdict: 'path', failedAttempts: 0 },
+              routingProbe: { at: '2026-09-12T03:00:00.000Z', verdict: 'path', failedAttempts: 0 },
             },
           },
         },
@@ -1042,7 +1042,7 @@ describe('client canonical ownership + embed metadata', () => {
         depth: 0,
         overrideAccess: true,
       })
-      expect(doc.canonical?.verification?.pathProbe).toMatchObject({
+      expect(doc.canonical?.verification?.routingProbe).toMatchObject({
         verdict: 'path',
         failedAttempts: 0,
       })

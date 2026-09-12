@@ -50,11 +50,16 @@ const verified: VerifiedEmbed = {
  * to the embed's default route.
  */
 describe('the sample URL the picker shows', () => {
-  const model = (v: VerifiedEmbed, pathProbe?: CanonicalVerification['pathProbe']) =>
+  const model = (v: VerifiedEmbed, routingProbe?: CanonicalVerification['routingProbe']) =>
     buildPickerModel({
       embedMetadata: { [`https://${v.domain}${v.mount}`]: { ...healthy, routing: v.routing } },
       embed: `https://${v.domain}${v.mount}`,
-      verification: { verified: v, failureCount: 0, attempts: [], ...(pathProbe && { pathProbe }) },
+      verification: {
+        verified: v,
+        failureCount: 0,
+        attempts: [],
+        ...(routingProbe && { routingProbe }),
+      },
       now,
     }).selected
 
@@ -127,7 +132,7 @@ describe('the sample URL the picker shows', () => {
         verified: null,
         failureCount: 0,
         attempts: [],
-        pathProbe: { at: '2026-08-18T03:00:00.000Z', verdict: 'path', failedAttempts: 0 },
+        routingProbe: { at: '2026-08-18T03:00:00.000Z', verdict: 'path', failedAttempts: 0 },
       },
       now,
     }).selected

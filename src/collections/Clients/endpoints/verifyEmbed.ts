@@ -3,14 +3,10 @@ import type { Endpoint } from 'payload'
 import type { RoutingMode } from '@/lib/clients/canonical'
 import {
   effectiveRouting,
-  nextPathProbeState,
+  nextRoutingProbeState,
   nextVerificationState,
 } from '@/lib/clients/verification'
-import {
-  probeForOutcome,
-  probePathRouting,
-  verifyEmbed,
-} from '@/lib/embedVerification/verifyEmbed'
+import { probeForOutcome, probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import { requireActiveManager } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
 
@@ -48,7 +44,7 @@ const MESSAGES: Record<VerifyEmbedResponse['status'], (reason?: string) => strin
  * changes nothing. **This endpoint never disables canonical ownership**, though: three strikes is a
  * judgement about a pattern over days, and one impatient click should not be able to reach it.
  *
- * **The path probe is the opposite case, and its demote does apply here** (#644). Demoting to
+ * **The routing probe is the opposite case, and its demote does apply here** (#644). Demoting to
  * `query` degrades URLs that keep working, where disabling ownership removes them — so three
  * clicks is an operator's same-minute way back to `?atlas=`, with evidence rather than an
  * assertion. That is why no routing override field exists.
@@ -95,9 +91,9 @@ export const verifyEmbedOnDemand: Endpoint = {
 
     // `probeForOutcome` is the job's gate, shared rather than restated, so a
     // button press and a scheduled run spend the same renders.
-    const verification = nextPathProbeState({
+    const verification = nextRoutingProbeState({
       current: transition.verification,
-      result: await probeForOutcome(mount, result, probePathRouting),
+      result: await probeForOutcome(mount, result, probeRouting),
       now,
     })
 

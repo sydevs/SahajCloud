@@ -2,7 +2,7 @@ import type { RenderDeps, RenderResult } from './browserRendering'
 
 import { randomBytes } from 'node:crypto'
 
-import type { PathProbeResult, VerificationResult } from '@/lib/clients/verification'
+import type { RoutingProbeResult, VerificationResult } from '@/lib/clients/verification'
 import { splitMountKey } from '@/lib/clients/verification'
 
 import { renderPage } from './browserRendering'
@@ -95,7 +95,7 @@ export async function verifyEmbed(
 }
 
 /**
- * The two URLs the path-routing probe loads, or `null` when this mount cannot
+ * The two URLs the routing probe loads, or `null` when this mount cannot
  * path-route at all.
  *
  * **One derivation, and both halves come off the mount key.** That is what
@@ -108,7 +108,7 @@ export async function verifyEmbed(
  * refuses that combination outright. Spending a render to learn what the URL
  * builder already knows would be waste.
  */
-export function pathProbeUrls(
+export function routingProbeUrls(
   mountKey: string,
   token: string,
 ): { probe: string; control: string } | null {
@@ -133,7 +133,7 @@ function probeToken(): string {
 }
 
 /** Injectable so a test can pin the token, and drive both renders without an account. */
-export interface PathProbeDeps extends RenderDeps {
+export interface RoutingProbeDeps extends RenderDeps {
   token?: () => string
   render?: (url: string) => Promise<RenderResult>
 }
@@ -163,11 +163,11 @@ export interface PathProbeDeps extends RenderDeps {
  * to be skipped. #644 budgets three per enabled owner, and that is what this
  * spends.
  */
-export async function probePathRouting(
+export async function probeRouting(
   mountKey: string,
-  deps: PathProbeDeps = {},
-): Promise<PathProbeResult> {
-  const urls = pathProbeUrls(mountKey, (deps.token ?? probeToken)())
+  deps: RoutingProbeDeps = {},
+): Promise<RoutingProbeResult> {
+  const urls = routingProbeUrls(mountKey, (deps.token ?? probeToken)())
   if (!urls) {
     return { status: 'negative', detail: `Mount cannot carry path routing: ${mountKey}` }
   }
@@ -202,7 +202,7 @@ export async function probePathRouting(
  * Cloudflare error-code fixtures. A parallel `switch` here could drift from it
  * silently, and only one of the two would be under test.
  */
-function probeRenderVerdict(url: string, render: RenderResult): PathProbeResult {
+function probeRenderVerdict(url: string, render: RenderResult): RoutingProbeResult {
   const result = resultFromRender(url, render)
   if (result.status === 'verified') return { status: 'positive' }
   return {
@@ -231,8 +231,8 @@ function probeRenderVerdict(url: string, render: RenderResult): PathProbeResult 
 export async function probeForOutcome(
   mountKey: string,
   outcome: VerificationResult,
-  probe: (mountKey: string) => Promise<PathProbeResult>,
-): Promise<PathProbeResult> {
+  probe: (mountKey: string) => Promise<RoutingProbeResult>,
+): Promise<RoutingProbeResult> {
   if (outcome.status === 'inconclusive') return { status: 'inconclusive', detail: outcome.reason }
   if (outcome.status === 'failed') {
     return { status: 'negative', detail: `Mount verification failed: ${outcome.reason}` }

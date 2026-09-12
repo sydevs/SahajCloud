@@ -2,20 +2,16 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import type {
   CanonicalVerification,
-  PathProbeResult,
+  RoutingProbeResult,
   VerificationResult,
 } from '@/lib/clients/verification'
 import {
   effectiveRouting,
-  nextPathProbeState,
+  nextRoutingProbeState,
   nextVerificationState,
 } from '@/lib/clients/verification'
 import type { RenderDeps } from '@/lib/embedVerification/browserRendering'
-import {
-  probeForOutcome,
-  probePathRouting,
-  verifyEmbed,
-} from '@/lib/embedVerification/verifyEmbed'
+import { probeForOutcome, probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import type { Client } from '@/payload-types'
 import { getPgPool, quotedDbSchema } from '@/plugins/usage'
 
@@ -35,7 +31,7 @@ import { getPgPool, quotedDbSchema } from '@/plugins/usage'
  * - **`inconclusive` changes nothing.** Our token lapsing or a bot challenge is not evidence about
  *   their embed; it advances the watermark by an hour and leaves the counter and last-good snapshot
  *   alone. `nextVerificationState` owns that rule.
- * - **The path probe never reaches `disable`.** It carries its own counter and its own limit
+ * - **The routing probe never reaches `disable`.** It carries its own counter and its own limit
  *   (#644). A routing negative means the embed is present and publishing in `?atlas=` shape, not
  *   that it is gone, so sharing the failure budget would take a working canonical out of service.
  * - **Writes go through raw SQL, not `payload.update`.** The usage plugin increments
@@ -60,7 +56,7 @@ interface VerifyResult {
   inconclusive: number
   /** Services whose canonical ownership was switched off this run. */
   disabled: number
-  /** Services the path probe moved onto `path` URLs this run. */
+  /** Services the routing probe moved onto `path` URLs this run. */
   pathPromoted: number
   /** Services returned to `?atlas=` URLs after repeated negative probes. */
   pathDemoted: number
@@ -155,7 +151,7 @@ async function notifyDisabled(
 /** Injectable so tests can drive the ladder without a browser or a Cloudflare account. */
 export interface VerifyEmbedsDeps extends RenderDeps {
   verify?: (mountKey: string) => Promise<VerificationResult>
-  probe?: (mountKey: string) => Promise<PathProbeResult>
+  probe?: (mountKey: string) => Promise<RoutingProbeResult>
 }
 
 export async function runVerifyEmbeds(args: {
@@ -166,7 +162,7 @@ export async function runVerifyEmbeds(args: {
 }): Promise<VerifyResult> {
   const { payload, req, now = new Date(), deps = {} } = args
   const verify = deps.verify ?? ((mount: string) => verifyEmbed(mount, deps))
-  const probe = deps.probe ?? ((mount: string) => probePathRouting(mount, deps))
+  const probe = deps.probe ?? ((mount: string) => probeRouting(mount, deps))
 
   const result: VerifyResult = {
     processed: 0,
@@ -199,7 +195,7 @@ export async function runVerifyEmbeds(args: {
     // The routing verdict folds into the same object, so one owner is still one
     // write. It never touches `failureCount`, and so can never reach `disable`.
     const probeResult = await probeForOutcome(mount, outcome, probe)
-    const verification = nextPathProbeState({
+    const verification = nextRoutingProbeState({
       current: transition.verification,
       result: probeResult,
       now,

@@ -79,7 +79,7 @@ export const CANONICAL_FAILURE_LIMIT = 3
  * service's manager. A routing negative means the embed is *present and
  * publishing*, just in the uglier `?atlas=` shape, so it must never reach it.
  */
-export const PATH_PROBE_FAILURE_LIMIT = 3
+export const ROUTING_PROBE_FAILURE_LIMIT = 3
 
 /** How many attempts are retained. The log shares a row — it cannot grow forever. */
 export const MAX_VERIFICATION_ATTEMPTS = 10
@@ -91,13 +91,13 @@ export const VERIFY_INTERVAL_MS = 24 * 60 * 60 * 1000
 export const VERIFY_INCONCLUSIVE_RETRY_MS = 60 * 60 * 1000
 
 /**
- * What one path-routing probe concluded.
+ * What one routing probe concluded.
  *
  * The same three-way split as {@link VerificationResult}, for the same reason:
  * `negative` is evidence about the host's server, `inconclusive` means we could
  * not look and must change nothing.
  */
-export interface PathProbeResult {
+export interface RoutingProbeResult {
   status: 'positive' | 'negative' | 'inconclusive'
   detail?: string
 }
@@ -165,7 +165,7 @@ export function nextVerificationState(args: {
 
   if (result.status === 'verified') {
     return {
-      // Spread `previous` first: `pathProbe` is a sibling this function does not
+      // Spread `previous` first: `routingProbe` is a sibling this function does not
       // own, and a success must not clear the routing verdict beside it.
       verification: { ...previous, verified: result.embed, failureCount: 0, attempts },
       nextVerifyAt: new Date(now.getTime() + VERIFY_INTERVAL_MS).toISOString(),
@@ -195,13 +195,13 @@ export function nextVerificationState(args: {
  *
  * - **positive** — promote at once, and reset the failed-attempt count.
  * - **negative** — count a failed attempt, and demote only on the
- *   {@link PATH_PROBE_FAILURE_LIMIT}th in a row. The count is capped there, so
+ *   {@link ROUTING_PROBE_FAILURE_LIMIT}th in a row. The count is capped there, so
  *   a host that has been gone for a month does not accumulate forever.
  * - **inconclusive** — change nothing at all, exactly as the mount ladder does.
  */
-export function nextPathProbeState(args: {
+export function nextRoutingProbeState(args: {
   current: CanonicalVerification | null | undefined
-  result: PathProbeResult
+  result: RoutingProbeResult
   now: Date
 }): CanonicalVerification {
   const { current, result, now } = args
@@ -210,16 +210,18 @@ export function nextPathProbeState(args: {
 
   const at = now.toISOString()
   if (result.status === 'positive') {
-    return { ...previous, pathProbe: { at, verdict: 'path', failedAttempts: 0 } }
+    return { ...previous, routingProbe: { at, verdict: 'path', failedAttempts: 0 } }
   }
 
   const failedAttempts = Math.min(
-    (previous.pathProbe?.failedAttempts ?? 0) + 1,
-    PATH_PROBE_FAILURE_LIMIT,
+    (previous.routingProbe?.failedAttempts ?? 0) + 1,
+    ROUTING_PROBE_FAILURE_LIMIT,
   )
   const verdict =
-    failedAttempts >= PATH_PROBE_FAILURE_LIMIT ? 'query' : (previous.pathProbe?.verdict ?? 'query')
-  return { ...previous, pathProbe: { at, verdict, failedAttempts } }
+    failedAttempts >= ROUTING_PROBE_FAILURE_LIMIT
+      ? 'query'
+      : (previous.routingProbe?.verdict ?? 'query')
+  return { ...previous, routingProbe: { at, verdict, failedAttempts } }
 }
 
 /**
@@ -240,9 +242,9 @@ export function nextPathProbeState(args: {
  * resolver's own narrowed row shape passes without a cast.
  */
 export function effectiveRouting(
-  verification: { pathProbe?: { verdict?: RoutingMode | null } | null } | null | undefined,
+  verification: { routingProbe?: { verdict?: RoutingMode | null } | null } | null | undefined,
 ): RoutingMode {
-  return verification?.pathProbe?.verdict ?? 'query'
+  return verification?.routingProbe?.verdict ?? 'query'
 }
 
 /**

@@ -68,8 +68,8 @@ const canonicalVerificationSchema: JSONSchema4 = {
     // Optional, and outside `required` above, because this object is closed and
     // Payload validates it on *every* save of the document: a required key here
     // would strand every row written before #644. Its own inner shape is closed,
-    // since `nextPathProbeState` is its only writer.
-    pathProbe: {
+    // since `nextRoutingProbeState` is its only writer.
+    routingProbe: {
       type: 'object',
       additionalProperties: false,
       required: ['at', 'verdict', 'failedAttempts'],
@@ -308,7 +308,9 @@ export const Clients: CollectionConfig = {
                         effectiveRouting(
                           (
                             siblingData as {
-                              verification?: { pathProbe?: { verdict?: RoutingMode | null } | null }
+                              verification?: {
+                                routingProbe?: { verdict?: RoutingMode | null } | null
+                              }
                             } | null
                           )?.verification,
                         ),

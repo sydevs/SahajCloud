@@ -2340,7 +2340,7 @@ export interface ClientCanonicalVerification {
     at: string;
   } | null;
   failureCount: number;
-  pathProbe?: {
+  routingProbe?: {
     at: string;
     verdict: 'query' | 'path';
     failedAttempts: number;

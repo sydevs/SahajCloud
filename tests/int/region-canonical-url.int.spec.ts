@@ -53,7 +53,7 @@ describe('per-region canonical webUrl', () => {
    * which reported mount is the candidate, so both have to be set for a client
    * to actually own anything (#633's trust boundary, consumed by #634).
    *
-   * **The routing shape comes from `pathProbe`, a sibling of `verified`** (#644).
+   * **The routing shape comes from `routingProbe`, a sibling of `verified`** (#644).
    * `verified.routing` is what the widget said about itself, and it shapes no
    * URL — so a `path` owner here is one the probe has promoted, which is the
    * only way a client gets path-shaped canonical URLs.
@@ -78,7 +78,7 @@ describe('per-region canonical webUrl', () => {
           verified: { domain, mount, routing, widgetVersion: 2, at: '2026-08-18T00:00:00.000Z' },
           failureCount: 0,
           attempts: [],
-          pathProbe: { at: '2026-08-18T00:00:00.000Z', verdict: routing, failedAttempts: 0 },
+          routingProbe: { at: '2026-08-18T00:00:00.000Z', verdict: routing, failedAttempts: 0 },
         },
       },
       _status: 'published',
@@ -201,7 +201,7 @@ describe('per-region canonical webUrl', () => {
      * The shape follows the probe's verdict, not the widget's self-report (#644).
      *
      * `verified.routing` stays `path` throughout here, so a URL that changed
-     * shape can only have read `pathProbe`. This is the circularity the ticket
+     * shape can only have read `routingProbe`. This is the circularity the ticket
      * removed: the marker copies the script tag's parameter, which is a request,
      * not an observation of the host's server.
      */
@@ -227,7 +227,7 @@ describe('per-region canonical webUrl', () => {
               ...londonClient.canonical,
               verification: {
                 ...verification,
-                pathProbe: { at: '2026-09-12T03:00:00.000Z', verdict, failedAttempts: 0 },
+                routingProbe: { at: '2026-09-12T03:00:00.000Z', verdict, failedAttempts: 0 },
               },
             },
           } as never,

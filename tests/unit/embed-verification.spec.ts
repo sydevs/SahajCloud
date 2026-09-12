@@ -1,6 +1,6 @@
 import type {
   CanonicalVerification,
-  PathProbeResult,
+  RoutingProbeResult,
   VerificationResult,
 } from '../../src/lib/clients/verification'
 import type { RenderResult } from '../../src/lib/embedVerification/browserRendering'
@@ -11,16 +11,16 @@ import { buildCanonicalUrl, canonicalTargetForHost } from '../../src/lib/atlas/c
 import {
   effectiveRouting,
   EMPTY_VERIFICATION,
-  nextPathProbeState,
+  nextRoutingProbeState,
   nextVerificationState,
-  PATH_PROBE_FAILURE_LIMIT,
+  ROUTING_PROBE_FAILURE_LIMIT,
   splitMountKey,
 } from '../../src/lib/clients/verification'
 import { classifyRenderError } from '../../src/lib/embedVerification/browserRendering'
 import { parseReadinessMarker, READY_ATTR } from '../../src/lib/embedVerification/readinessMarker'
 import {
-  pathProbeUrls,
-  probePathRouting,
+  routingProbeUrls,
+  probeRouting,
   resultFromRender,
   verifyEmbed,
 } from '../../src/lib/embedVerification/verifyEmbed'
@@ -189,7 +189,7 @@ describe('resultFromRender', () => {
   })
 })
 
-// ── The path-routing probe (#644) ───────────────────────────────────────────
+// ── The routing probe (#644) ───────────────────────────────────────────
 
 const TOKEN = 'sahaj-atlas-probe-deadbeef'
 const PROBE_URL = `${MOUNT}${TOKEN}`
@@ -210,23 +210,25 @@ const renderer = (answers: Record<string, RenderResult>) => {
   }
 }
 
-describe('pathProbeUrls', () => {
+describe('routingProbeUrls', () => {
   it('derives both URLs from the mount key, and from nothing else', () => {
-    expect(pathProbeUrls(MOUNT, TOKEN)).toEqual({ probe: PROBE_URL, control: CONTROL_URL })
+    expect(routingProbeUrls(MOUNT, TOKEN)).toEqual({ probe: PROBE_URL, control: CONTROL_URL })
   })
 
   it('keeps a root mount from emitting a doubled slash', () => {
-    expect(pathProbeUrls('https://example.org/', TOKEN)?.probe).toBe(`https://example.org/${TOKEN}`)
+    expect(routingProbeUrls('https://example.org/', TOKEN)?.probe).toBe(
+      `https://example.org/${TOKEN}`,
+    )
   })
 
   // `canonicalUrlBase` already refuses path routing for a mount carrying a
   // query, so spending a render to learn the same thing would be waste.
   it('refuses a WordPress permalink mount, which cannot path-route at all', () => {
-    expect(pathProbeUrls('https://site.example/?p=123', TOKEN)).toBeNull()
+    expect(routingProbeUrls('https://site.example/?p=123', TOKEN)).toBeNull()
   })
 
   it.each(['data:text/html,<html>', 'file:///etc/passwd', 'not-a-url'])('refuses %s', (mount) => {
-    expect(pathProbeUrls(mount, TOKEN)).toBeNull()
+    expect(routingProbeUrls(mount, TOKEN)).toBeNull()
   })
 
   /**
@@ -238,14 +240,14 @@ describe('pathProbeUrls', () => {
   it('probes the URL a promoted client would publish', () => {
     const split = splitMountKey(MOUNT)!
     const target = canonicalTargetForHost(split, 'path')!
-    expect(pathProbeUrls(MOUNT, TOKEN)?.probe).toBe(buildCanonicalUrl(target, `/${TOKEN}`))
+    expect(routingProbeUrls(MOUNT, TOKEN)?.probe).toBe(buildCanonicalUrl(target, `/${TOKEN}`))
   })
 })
 
-describe('probePathRouting', () => {
+describe('probeRouting', () => {
   const probe = (answers: Record<string, RenderResult>) => {
     const { render, seen } = renderer(answers)
-    return { result: probePathRouting(MOUNT, { token: () => TOKEN, render }), seen }
+    return { result: probeRouting(MOUNT, { token: () => TOKEN, render }), seen }
   }
 
   it('is positive when the prefixed path carries the marker and the origin root does not', async () => {
@@ -283,7 +285,7 @@ describe('probePathRouting', () => {
   it('starts both probe renders before either resolves', async () => {
     let inFlight = 0
     let peak = 0
-    const result = await probePathRouting(MOUNT, {
+    const result = await probeRouting(MOUNT, {
       token: () => TOKEN,
       render: async (url) => {
         inFlight++
@@ -320,7 +322,7 @@ describe('probePathRouting', () => {
 
   it('never sends a browser at a URL that is not derived from the mount', async () => {
     let called = false
-    const result = await probePathRouting('javascript:alert(1)', {
+    const result = await probeRouting('javascript:alert(1)', {
       render: async () => {
         called = true
         return marked
@@ -331,16 +333,16 @@ describe('probePathRouting', () => {
   })
 })
 
-describe('the path-probe ladder', () => {
+describe('the routing-probe ladder', () => {
   const now = new Date('2026-09-12T03:00:00.000Z')
   const fold = (
     current: CanonicalVerification | null,
-    status: PathProbeResult['status'],
-  ): CanonicalVerification => nextPathProbeState({ current, result: { status }, now })
+    status: RoutingProbeResult['status'],
+  ): CanonicalVerification => nextRoutingProbeState({ current, result: { status }, now })
 
   it('promotes on a single positive', () => {
     const next = fold(null, 'positive')
-    expect(next.pathProbe).toEqual({ at: now.toISOString(), verdict: 'path', failedAttempts: 0 })
+    expect(next.routingProbe).toEqual({ at: now.toISOString(), verdict: 'path', failedAttempts: 0 })
     expect(effectiveRouting(next)).toBe('path')
   })
 
@@ -353,12 +355,12 @@ describe('the path-probe ladder', () => {
 
     state = fold(state, 'negative')
     expect(effectiveRouting(state)).toBe('query')
-    expect(state.pathProbe?.failedAttempts).toBe(PATH_PROBE_FAILURE_LIMIT)
+    expect(state.routingProbe?.failedAttempts).toBe(ROUTING_PROBE_FAILURE_LIMIT)
   })
 
   it('resets the strike count on the next positive', () => {
     const demoted = fold(fold(fold(fold(null, 'positive'), 'negative'), 'negative'), 'negative')
-    expect(fold(demoted, 'positive').pathProbe).toMatchObject({
+    expect(fold(demoted, 'positive').routingProbe).toMatchObject({
       verdict: 'path',
       failedAttempts: 0,
     })
@@ -378,11 +380,11 @@ describe('the path-probe ladder', () => {
       state = nextVerificationState({ current: state, result: failed, now }).verification
     }
     expect(state.failureCount).toBe(3)
-    expect(state.pathProbe).toMatchObject({ verdict: 'path', failedAttempts: 0 })
+    expect(state.routingProbe).toMatchObject({ verdict: 'path', failedAttempts: 0 })
 
     const probed = fold(state, 'negative')
     expect(probed.failureCount).toBe(3)
-    expect(probed.pathProbe?.failedAttempts).toBe(1)
+    expect(probed.routingProbe?.failedAttempts).toBe(1)
   })
 
   // A success rebuilds the object, and the verdict is a sibling it does not own.
@@ -415,7 +417,7 @@ describe('effectiveRouting', () => {
   // should path-route as soon as the host serves the subtree, whether or not
   // the mount verification has ever succeeded.
   it('answers path for a client whose mount has never verified', () => {
-    const state = nextPathProbeState({
+    const state = nextRoutingProbeState({
       current: EMPTY_VERIFICATION,
       result: { status: 'positive' },
       now: new Date('2026-09-12T03:00:00.000Z'),

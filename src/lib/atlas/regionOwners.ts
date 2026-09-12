@@ -23,7 +23,7 @@ import { getRegionTree } from './regionTree'
  * `sahajayoga.org.uk`.
  *
  * **The host and mount come from `canonical.verification.verified`, and the
- * routing shape from the `pathProbe` verdict beside it — never from the
+ * routing shape from the `routingProbe` verdict beside it — never from the
  * declaration itself.** `canonical.embed` only *nominates*
  * one of the mounts the widget reported, and the report endpoint is
  * reachable by anyone holding a published key from an allowed origin
@@ -64,7 +64,7 @@ interface ClientRow {
         routing?: RoutingMode | null
       } | null
       /** What the CMS observed about the host's own server — the routing verdict. */
-      pathProbe?: { verdict?: RoutingMode | null } | null
+      routingProbe?: { verdict?: RoutingMode | null } | null
     } | null
   } | null
 }
