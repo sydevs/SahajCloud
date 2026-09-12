@@ -2343,7 +2343,7 @@ export interface ClientCanonicalVerification {
   pathProbe?: {
     at: string;
     verdict: 'query' | 'path';
-    strikes: number;
+    failedAttempts: number;
   };
   attempts: {
     at: string;

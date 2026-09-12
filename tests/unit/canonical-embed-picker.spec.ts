@@ -81,7 +81,7 @@ describe('the sample URL the picker shows', () => {
   // The preview follows the *derived* verdict, because that is what
   // `canonicalOwnerFrom` reads when it builds the real thing (#644).
   it('builds a path-routed sample once the probe has promoted the client', () => {
-    const promoted = { at: '2026-08-18T03:00:00.000Z', verdict: 'path' as const, strikes: 0 }
+    const promoted = { at: '2026-08-18T03:00:00.000Z', verdict: 'path' as const, failedAttempts: 0 }
     expect(model(verified, promoted)?.sampleUrl).toBe(
       'https://sahajayoga.nl/locatelessons/events/12345',
     )
@@ -127,7 +127,7 @@ describe('the sample URL the picker shows', () => {
         verified: null,
         failureCount: 0,
         attempts: [],
-        pathProbe: { at: '2026-08-18T03:00:00.000Z', verdict: 'path', strikes: 0 },
+        pathProbe: { at: '2026-08-18T03:00:00.000Z', verdict: 'path', failedAttempts: 0 },
       },
       now,
     }).selected

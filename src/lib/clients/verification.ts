@@ -193,8 +193,8 @@ export function nextVerificationState(args: {
  * `path` breaks every deep link and puts 404s in the sitemap. A wrong `query`
  * only produces uglier URLs that still work. So:
  *
- * - **positive** — promote at once, and reset the strike count.
- * - **negative** — count a strike, and demote only on the
+ * - **positive** — promote at once, and reset the failed-attempt count.
+ * - **negative** — count a failed attempt, and demote only on the
  *   {@link PATH_PROBE_FAILURE_LIMIT}th in a row. The count is capped there, so
  *   a host that has been gone for a month does not accumulate forever.
  * - **inconclusive** — change nothing at all, exactly as the mount ladder does.
@@ -210,13 +210,16 @@ export function nextPathProbeState(args: {
 
   const at = now.toISOString()
   if (result.status === 'positive') {
-    return { ...previous, pathProbe: { at, verdict: 'path', strikes: 0 } }
+    return { ...previous, pathProbe: { at, verdict: 'path', failedAttempts: 0 } }
   }
 
-  const strikes = Math.min((previous.pathProbe?.strikes ?? 0) + 1, PATH_PROBE_FAILURE_LIMIT)
+  const failedAttempts = Math.min(
+    (previous.pathProbe?.failedAttempts ?? 0) + 1,
+    PATH_PROBE_FAILURE_LIMIT,
+  )
   const verdict =
-    strikes >= PATH_PROBE_FAILURE_LIMIT ? 'query' : (previous.pathProbe?.verdict ?? 'query')
-  return { ...previous, pathProbe: { at, verdict, strikes } }
+    failedAttempts >= PATH_PROBE_FAILURE_LIMIT ? 'query' : (previous.pathProbe?.verdict ?? 'query')
+  return { ...previous, pathProbe: { at, verdict, failedAttempts } }
 }
 
 /**

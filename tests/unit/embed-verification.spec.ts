@@ -31,7 +31,8 @@ const pageWith = (attrValue: string) =>
   `<!doctype html><html lang="nl" ${READY_ATTR}="${attrValue}"><body>…</body></html>`
 
 // The contract published by sydevs/SahajAtlasWeb (src/lib/readiness.ts).
-const MARKER = '{&quot;v&quot;:2,&quot;routing&quot;:&quot;query&quot;,&quot;topLevel&quot;:true,&quot;urlWritable&quot;:true}'
+const MARKER =
+  '{&quot;v&quot;:2,&quot;routing&quot;:&quot;query&quot;,&quot;topLevel&quot;:true,&quot;urlWritable&quot;:true}'
 
 describe('parseReadinessMarker', () => {
   it('reads the marker the widget publishes', () => {
@@ -82,8 +83,10 @@ describe('classifyRenderError', () => {
   const LIVE = {
     selectorTimeout: {
       code: 6002,
-      message: 'A timeout was reached. Check gotoOptions/waitForSelector/waitForTimeout/actionTimeout options.',
-      detail: 'Waiting for selector `[data-sahaj-atlas-ready]` failed: Waiting failed: 8000ms exceeded',
+      message:
+        'A timeout was reached. Check gotoOptions/waitForSelector/waitForTimeout/actionTimeout options.',
+      detail:
+        'Waiting for selector `[data-sahaj-atlas-ready]` failed: Waiting failed: 8000ms exceeded',
     },
     deadDomain: {
       code: 5006,
@@ -337,7 +340,7 @@ describe('the path-probe ladder', () => {
 
   it('promotes on a single positive', () => {
     const next = fold(null, 'positive')
-    expect(next.pathProbe).toEqual({ at: now.toISOString(), verdict: 'path', strikes: 0 })
+    expect(next.pathProbe).toEqual({ at: now.toISOString(), verdict: 'path', failedAttempts: 0 })
     expect(effectiveRouting(next)).toBe('path')
   })
 
@@ -350,12 +353,15 @@ describe('the path-probe ladder', () => {
 
     state = fold(state, 'negative')
     expect(effectiveRouting(state)).toBe('query')
-    expect(state.pathProbe?.strikes).toBe(PATH_PROBE_FAILURE_LIMIT)
+    expect(state.pathProbe?.failedAttempts).toBe(PATH_PROBE_FAILURE_LIMIT)
   })
 
   it('resets the strike count on the next positive', () => {
     const demoted = fold(fold(fold(fold(null, 'positive'), 'negative'), 'negative'), 'negative')
-    expect(fold(demoted, 'positive').pathProbe).toMatchObject({ verdict: 'path', strikes: 0 })
+    expect(fold(demoted, 'positive').pathProbe).toMatchObject({
+      verdict: 'path',
+      failedAttempts: 0,
+    })
   })
 
   it('changes nothing at all on an inconclusive probe', () => {
@@ -372,11 +378,11 @@ describe('the path-probe ladder', () => {
       state = nextVerificationState({ current: state, result: failed, now }).verification
     }
     expect(state.failureCount).toBe(3)
-    expect(state.pathProbe).toMatchObject({ verdict: 'path', strikes: 0 })
+    expect(state.pathProbe).toMatchObject({ verdict: 'path', failedAttempts: 0 })
 
     const probed = fold(state, 'negative')
     expect(probed.failureCount).toBe(3)
-    expect(probed.pathProbe?.strikes).toBe(1)
+    expect(probed.pathProbe?.failedAttempts).toBe(1)
   })
 
   // A success rebuilds the object, and the verdict is a sibling it does not own.

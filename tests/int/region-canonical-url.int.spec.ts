@@ -78,7 +78,7 @@ describe('per-region canonical webUrl', () => {
           verified: { domain, mount, routing, widgetVersion: 2, at: '2026-08-18T00:00:00.000Z' },
           failureCount: 0,
           attempts: [],
-          pathProbe: { at: '2026-08-18T00:00:00.000Z', verdict: routing, strikes: 0 },
+          pathProbe: { at: '2026-08-18T00:00:00.000Z', verdict: routing, failedAttempts: 0 },
         },
       },
       _status: 'published',
@@ -227,7 +227,7 @@ describe('per-region canonical webUrl', () => {
               ...londonClient.canonical,
               verification: {
                 ...verification,
-                pathProbe: { at: '2026-09-12T03:00:00.000Z', verdict, strikes: 0 },
+                pathProbe: { at: '2026-09-12T03:00:00.000Z', verdict, failedAttempts: 0 },
               },
             },
           } as never,
@@ -538,7 +538,6 @@ describe('per-region canonical webUrl', () => {
 
       await setFallback(Number(fallbackId))
       try {
-
         const readParis = (limit: number) => () =>
           payload.find({
             collection: 'events',

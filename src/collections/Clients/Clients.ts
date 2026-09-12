@@ -72,11 +72,11 @@ const canonicalVerificationSchema: JSONSchema4 = {
     pathProbe: {
       type: 'object',
       additionalProperties: false,
-      required: ['at', 'verdict', 'strikes'],
+      required: ['at', 'verdict', 'failedAttempts'],
       properties: {
         at: { type: 'string' },
         verdict: { enum: [...ROUTING_MODES] },
-        strikes: { type: 'number', minimum: 0 },
+        failedAttempts: { type: 'number', minimum: 0 },
       },
     },
     attempts: {

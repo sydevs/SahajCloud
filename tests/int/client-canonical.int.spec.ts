@@ -354,7 +354,7 @@ describe('client canonical ownership + embed metadata', () => {
             attempts: [],
             // The URL *shape* comes from the probe's verdict, not from the
             // widget's self-report beside it (#644).
-            pathProbe: { at: '2026-08-18T00:00:00.000Z', verdict: 'path', strikes: 0 },
+            pathProbe: { at: '2026-08-18T00:00:00.000Z', verdict: 'path', failedAttempts: 0 },
           },
         },
       } as never,
@@ -855,7 +855,10 @@ describe('client canonical ownership + embed metadata', () => {
       expect(probed).toContain(PROBE_MOUNT)
       expect(output.pathPromoted).toBeGreaterThanOrEqual(1)
       const doc = await read(id)
-      expect(doc.canonical?.verification?.pathProbe).toMatchObject({ verdict: 'path', strikes: 0 })
+      expect(doc.canonical?.verification?.pathProbe).toMatchObject({
+        verdict: 'path',
+        failedAttempts: 0,
+      })
       expect(doc.canonical?.effectiveRouting).toBe('path')
     })
 
@@ -874,7 +877,7 @@ describe('client canonical ownership + embed metadata', () => {
       await runProbing({ mount: verified, probe: negative, now: daysAfter(52) })
       let doc = await read(id)
       expect(doc.canonical?.effectiveRouting).toBe('path')
-      expect(doc.canonical?.verification?.pathProbe?.strikes).toBe(2)
+      expect(doc.canonical?.verification?.pathProbe?.failedAttempts).toBe(2)
 
       await runProbing({ mount: verified, probe: negative, now: daysAfter(53) })
       doc = await read(id)
@@ -893,7 +896,10 @@ describe('client canonical ownership + embed metadata', () => {
       // The widget is not on the page at all, so the subtree cannot be serving it.
       expect(probed).not.toContain(PROBE_MOUNT)
       const doc = await read(id)
-      expect(doc.canonical?.verification?.pathProbe).toMatchObject({ verdict: 'query', strikes: 1 })
+      expect(doc.canonical?.verification?.pathProbe).toMatchObject({
+        verdict: 'query',
+        failedAttempts: 1,
+      })
     })
 
     it('leaves the verdict and the strike count alone on an inconclusive run', async () => {
@@ -928,7 +934,7 @@ describe('client canonical ownership + embed metadata', () => {
               verified: null,
               failureCount: 0,
               attempts: [],
-              pathProbe: { at: '2026-09-12T03:00:00.000Z', verdict: 'path', strikes: 0 },
+              pathProbe: { at: '2026-09-12T03:00:00.000Z', verdict: 'path', failedAttempts: 0 },
             },
           },
         },
@@ -1008,7 +1014,7 @@ describe('client canonical ownership + embed metadata', () => {
               verified: null,
               failureCount: 0,
               attempts: [],
-              pathProbe: { at: '2026-09-12T03:00:00.000Z', verdict: 'path', strikes: 0 },
+              pathProbe: { at: '2026-09-12T03:00:00.000Z', verdict: 'path', failedAttempts: 0 },
             },
           },
         },
@@ -1036,7 +1042,10 @@ describe('client canonical ownership + embed metadata', () => {
         depth: 0,
         overrideAccess: true,
       })
-      expect(doc.canonical?.verification?.pathProbe).toMatchObject({ verdict: 'path', strikes: 0 })
+      expect(doc.canonical?.verification?.pathProbe).toMatchObject({
+        verdict: 'path',
+        failedAttempts: 0,
+      })
     })
   })
 })
