@@ -130,18 +130,28 @@ the canonical picker imported `@/lib/clients/canonical`, which imported the
 `pg` into the browser bundle. The fix was a deep import
 (`@/plugins/usage/originEnforcement`). The guard is
 `tests/unit/client-bundle-safety.spec.ts`, which walks the real import
-graph from each admin client component. Add new client entry points to its
-list.
+graph from every browser entry. Nothing to add when you write a client
+component — it is covered on the first run.
+
+⚠ **It reached that state only in #770, and the two defects it had are the
+two a graph guard tends to have.** Its entries were a hand-written list of
+four, and it matched the import **specifier** a caller wrote. The edge into
+`@/lib/env/server` is `@/lib/env`'s own `./server`, which no caller ever
+writes, so the guard was green from #633 to #770 with 14 browser entries
+reaching it — 12 of them through the `@/plugins/access` barrel, cut by
+pointing those imports at the pure `@/plugins/access/config` leaf. Both
+halves matter: derived entries alone still miss the edge, and file matching
+alone still misses the entry. The walk also stops at a `'use server'`
+module, because Next compiles one to a client reference and never bundles
+its body.
 
 **A second guard walks the same graph for a different rule.**
 `tests/unit/public-env-substitution.spec.ts` checks that browser code reads
 `process.env` only as a literal `process.env.<KEY>` member expression — the
 one form Next substitutes. `clientEnv` did not, so every `NEXT_PUBLIC_*`
 value was `undefined` in the browser and client Sentry never initialized
-(#760). Unlike the list above, its entry points are **derived**: every
-`'use client'` file plus `instrumentation-client.ts`, via `clientEntries()`
-in `tests/utils/importGraph.ts`, which both specs share. So a new client
-component is covered by that one automatically.
+(#760). It derives its entries the same way, from `clientEntries()` in
+`tests/utils/importGraph.ts`, which both specs share.
 
 **This is the one home for that story.** The code sites carry a one-line
 pointer here, so there is nothing to update in six places when it changes.
