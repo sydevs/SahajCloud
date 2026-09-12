@@ -46,6 +46,10 @@ describe('admin client components stay out of the server bundle', () => {
     // the collection — and with it the hooks, the mailer and `node:crypto` —
     // into the admin bundle.
     'components/admin/UserMessages/UserMessageStatus.tsx',
+    // Reads its declaration out of `@/fields/previewTargetField`, which is a
+    // field factory — the half of `src/fields` that configs import. That module
+    // is types and a plain object literal for exactly this reason.
+    'components/admin/PreviewTarget/PreviewTarget.tsx',
   ]
 
   it.each(entries)('%s imports nothing server-only', (relative) => {
