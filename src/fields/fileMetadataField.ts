@@ -1,6 +1,8 @@
 import type { JSONField } from 'payload'
 
-export const FILE_METADATA_SCHEMA_URI = 'urn:sahajcloud:schema:file-metadata'
+import { z } from 'zod'
+
+import { jsonField } from './jsonField'
 
 /**
  * The sidebar `fileMetadata` column shared by the four upload collections
@@ -17,31 +19,20 @@ export const FILE_METADATA_SCHEMA_URI = 'urn:sahajcloud:schema:file-metadata'
  * type, which is what `BaseImporter` and `MediaUploader` read.
  */
 export function fileMetadataField(options: { description?: string } = {}): JSONField {
-  return {
+  return jsonField({
     name: 'fileMetadata',
-    type: 'json',
+    schemaTitle: 'FileMetadata',
+    schema: z.looseObject({
+      originalFilename: z
+        .string()
+        .optional()
+        .describe('The filename as uploaded, before the adapter replaced it with a provider id.'),
+    }),
     defaultValue: {},
-    jsonSchema: {
-      uri: FILE_METADATA_SCHEMA_URI,
-      fileMatch: [FILE_METADATA_SCHEMA_URI],
-      schema: {
-        $id: FILE_METADATA_SCHEMA_URI,
-        title: 'FileMetadata',
-        type: 'object',
-        additionalProperties: true,
-        properties: {
-          originalFilename: {
-            type: 'string',
-            description:
-              'The filename as uploaded, before the adapter replaced it with a provider id.',
-          },
-        },
-      },
-    },
     admin: {
       position: 'sidebar',
       readOnly: true,
       ...(options.description ? { description: options.description } : {}),
     },
-  }
+  })
 }

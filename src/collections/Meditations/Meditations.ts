@@ -1,14 +1,16 @@
 import type { CollectionConfig, JSONField, JSONFieldValidation, Validate } from 'payload'
 
 import { json as jsonFieldValidation } from 'payload/shared'
+import { z } from 'zod'
 
 import { hideUntilCreated, mediaField } from '@/fields'
+import { jsonField } from '@/fields/jsonField'
 import { LOCALES } from '@/lib/locales'
 import {
   getFrameDiagnosticsLogContext,
   hasFrameNormalizationIssues,
-  meditationFramesFieldSchema,
-  meditationNodeWeightsFieldSchema,
+  meditationFramesSchema,
+  meditationNodeWeightsSchema,
   normalizeMeditationFrames,
   normalizeMeditationFramesForStorage,
 } from '@/lib/meditations/frames'
@@ -25,6 +27,25 @@ import { invalidateMeditationNodeWeights } from './hooks/invalidateMeditationNod
 import { recomputeMeditationNodeWeights } from './hooks/recomputeMeditationNodeWeights'
 
 /**
+ * What `virtualJoinField`'s hook returns: the user-choices rows pointing at
+ * this meditation, reduced to what `TagAssignmentField` renders.
+ *
+ * Closed because the hook below is the only writer and the column is virtual —
+ * nothing stores it, so no row exists under an earlier shape. The four call
+ * sites share one `$id`, so Payload emits `TagAssignments`, `TagAssignments1`,
+ * … — one interface per usage, same shape.
+ */
+const tagAssignmentsSchema = z.array(
+  z.strictObject({
+    // Narrower than `MeditationFrames`'s id on purpose: nothing posts this
+    // column back, so the only writer is the hook below, which reads a
+    // numeric `user-choices` primary key.
+    id: z.int().describe('The UserChoice document id.'),
+    title: z.string().describe('The tag title, in the read locale.'),
+  }),
+)
+
+/**
  * Factory for afterRead hooks that find UserChoices referencing this meditation
  * for a specific timing field. Returns an array of { id, title } objects.
  *
@@ -39,78 +60,46 @@ import { recomputeMeditationNodeWeights } from './hooks/recomputeMeditationNodeW
  * Each call maps 1:1 to this native join field config:
  *   { type: 'join', collection: 'user-choices', on: '<onField>' }
  */
-export const TAG_ASSIGNMENTS_SCHEMA_URI = 'urn:sahajcloud:schema:meditation-tag-assignments'
-
-/**
- * What `virtualJoinField`'s hook returns: the user-choices rows pointing at
- * this meditation, reduced to what `TagAssignmentField` renders.
- *
- * Closed because the hook below is the only writer and the column is virtual —
- * nothing stores it, so no row exists under an earlier shape. The four call
- * sites share one `$id`, so Payload emits `TagAssignments`, `TagAssignments1`,
- * … — one interface per usage, same shape.
- */
-const tagAssignmentsFieldSchema: JSONField['jsonSchema'] = {
-  uri: TAG_ASSIGNMENTS_SCHEMA_URI,
-  fileMatch: [TAG_ASSIGNMENTS_SCHEMA_URI],
-  schema: {
-    $id: TAG_ASSIGNMENTS_SCHEMA_URI,
-    title: 'TagAssignments',
-    type: 'array',
-    items: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'title'],
-      properties: {
-        // Narrower than `MeditationFrames`'s id on purpose: nothing posts this
-        // column back, so the only writer is the hook below, which reads a
-        // numeric `user-choices` primary key.
-        id: { type: 'integer', description: 'The UserChoice document id.' },
-        title: { type: 'string', description: 'The tag title, in the read locale.' },
-      },
+const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField =>
+  jsonField({
+    // Virtual: written by the hook below, never stored. The schema exists for the
+    // generated type. See `src/collections/AGENTS.md`.
+    name,
+    virtual: true,
+    schemaTitle: 'TagAssignments',
+    schema: tagAssignmentsSchema,
+    admin: {
+      readOnly: true,
+      // Like a real join, this resolves nothing until the doc exists — hide on create.
+      condition: hideUntilCreated,
+      components: { Field: '@/components/admin/TagAssignmentField' },
     },
-  },
-}
-
-const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField => ({
-  // Virtual: written by the hook below, never stored. The schema exists for the
-  // generated type. See `src/collections/AGENTS.md`.
-  name,
-  type: 'json',
-  virtual: true,
-  jsonSchema: tagAssignmentsFieldSchema,
-  admin: {
-    readOnly: true,
-    // Like a real join, this resolves nothing until the doc exists — hide on create.
-    condition: hideUntilCreated,
-    components: { Field: '@/components/admin/TagAssignmentField' },
-  },
-  hooks: {
-    afterRead: [
-      async ({ data, req }) => {
-        if (!data?.id) return []
-        try {
-          const result = await req.payload.find({
-            collection: 'user-choices',
-            where: { [on]: { equals: data.id }, isParent: { not_equals: true } },
-            select: { title: true },
-            locale: req.locale || 'en',
-            depth: 0,
-            limit: 50,
-          })
-          return result.docs.map((tag) => ({ id: tag.id, title: tag.title }))
-        } catch (error) {
-          req.payload.logger.warn({
-            msg: `Failed to fetch tag assignments for meditation ${data.id}`,
-            field: on,
-            error: error instanceof Error ? error.message : String(error),
-          })
-          return []
-        }
-      },
-    ],
-  },
-})
+    hooks: {
+      afterRead: [
+        async ({ data, req }) => {
+          if (!data?.id) return []
+          try {
+            const result = await req.payload.find({
+              collection: 'user-choices',
+              where: { [on]: { equals: data.id }, isParent: { not_equals: true } },
+              select: { title: true },
+              locale: req.locale || 'en',
+              depth: 0,
+              limit: 50,
+            })
+            return result.docs.map((tag) => ({ id: tag.id, title: tag.title }))
+          } catch (error) {
+            req.payload.logger.warn({
+              msg: `Failed to fetch tag assignments for meditation ${data.id}`,
+              field: on,
+              error: error instanceof Error ? error.message : String(error),
+            })
+            return []
+          }
+        },
+      ],
+    },
+  })
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
@@ -262,20 +251,20 @@ export const Meditations: CollectionConfig = {
                 hidden: true,
               },
             },
-            {
+            jsonField({
               // Cached `{ slug → on-screen seconds }` map for the meditation's
               // frames. Drives the topical-overlap ranking in
               // `/api/meditations/:id/related-lectures`. Recomputed by the
               // `recomputeMeditationNodeWeights` afterChange hook on Meditations
               // and cascaded from Frames via `cascadeFrameNodeChange`.
               name: 'subtleSystemNodeWeights',
-              type: 'json',
-              jsonSchema: meditationNodeWeightsFieldSchema,
+              schemaTitle: 'MeditationNodeWeights',
+              schema: meditationNodeWeightsSchema,
               admin: {
                 readOnly: true,
                 hidden: true,
               },
-            },
+            }),
             {
               name: 'durationMinutes',
               type: 'number',
@@ -394,10 +383,10 @@ export const Meditations: CollectionConfig = {
                   label: 'Frames',
                   description: 'Remove or re-order frames',
                   fields: [
-                    {
+                    jsonField({
                       name: 'frames',
-                      type: 'json',
-                      jsonSchema: meditationFramesFieldSchema,
+                      schemaTitle: 'MeditationFrames',
+                      schema: meditationFramesSchema,
                       admin: {
                         // afterRead runs a frames query per row to enrich keyframes.
                         disableListColumn: true,
@@ -493,7 +482,7 @@ export const Meditations: CollectionConfig = {
                           },
                         ],
                       },
-                    },
+                    }),
                   ],
                 },
                 {

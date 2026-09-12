@@ -23,12 +23,13 @@ import {
   systemMetaField,
   urlField,
 } from '@/fields'
+import { jsonField } from '@/fields/jsonField'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { getRegionWebPaths } from '@/lib/atlas/regionTree'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
 import {
-  eventQualityReportFieldSchema,
+  eventQualityReportZodSchema,
   EVENT_QUALITY_CHECK_METADATA,
   SKIP_REASON_LABELS,
 } from '@/lib/eventQuality'
@@ -623,7 +624,7 @@ export const Events: CollectionConfig = {
         },
       ],
     },
-    {
+    jsonField({
       // Advisory listing-quality recommendations (#609), shown in the
       // sidebar above Legacy Data. Computed on read, so opening the event is
       // already fresh. There is deliberately no refresh control: one would
@@ -637,9 +638,9 @@ export const Events: CollectionConfig = {
       // Virtual: written by the hook below, never stored. The schema mirrors
       // `EventQualityReport` in `@/lib/eventQuality`. See `src/collections/AGENTS.md`.
       name: 'qualityReport',
-      type: 'json',
       virtual: true,
-      jsonSchema: eventQualityReportFieldSchema,
+      schemaTitle: 'EventQualityReport',
+      schema: eventQualityReportZodSchema,
       label: false,
       admin: {
         position: 'sidebar',
@@ -653,7 +654,7 @@ export const Events: CollectionConfig = {
         },
       },
       hooks: { afterRead: [computeEventQualityReport] },
-    },
+    }),
     {
       // Every machine-maintained value on the document, in one collapsed
       // drawer. None of these fields are editable. Hooks and the nightly job
@@ -726,8 +727,7 @@ export const Events: CollectionConfig = {
           admin: { readOnly: true, description: 'Check-set version the count was stamped from.' },
         },
         systemMetaField({
-          uri: 'urn:sahajcloud:schema:event-system-meta',
-          title: 'EventSystemMeta',
+          schemaTitle: 'EventSystemMeta',
           namespaces: { communityFeedback: communityFeedbackJsonSchema },
           admin: {
             // Raw internal state. Useful when debugging why an event was

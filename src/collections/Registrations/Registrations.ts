@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { legacyMigrationFields, logField } from '@/fields'
+import { jsonField } from '@/fields/jsonField'
 import { DEFAULT_LOCALE, getLocaleOptions } from '@/lib/locales'
 import { registrationQuestionsJsonSchema } from '@/lib/registrations/questions'
 
@@ -86,23 +87,19 @@ export const Registrations: CollectionConfig = {
         },
       ],
     },
-    {
+    jsonField({
       name: 'questions',
-      type: 'json',
       // Typed + validated by a JSON Schema derived from EVENT_REGISTRATION_QUESTIONS:
       // Payload generates the `questions` TS type AND validates on write (an unknown
       // key or non-string answer throws a ValidationError → 400 at the register
       // endpoint, surfaced verbatim rather than a 500).
-      jsonSchema: {
-        uri: 'urn:sahajcloud:schema:registration-questions',
-        fileMatch: ['urn:sahajcloud:schema:registration-questions'],
-        schema: registrationQuestionsJsonSchema,
-      },
+      schemaTitle: 'RegistrationQuestions',
+      schema: registrationQuestionsJsonSchema,
       admin: {
         description:
           "Raw registrant answers, keyed by the event's enabled registration questions (EVENT_REGISTRATION_QUESTIONS — experience, referral, aspirations, questions).",
       },
-    },
+    }),
     {
       // unique already creates a (unique) index — no separate index: true needed.
       name: 'uuid',

@@ -1,7 +1,8 @@
 import type { CollectionConfig } from 'payload'
 
 import { fileMetadataField, mediaField } from '@/fields'
-import { subtitlesFieldSchema } from '@/lib/utilities/subtitles'
+import { jsonField } from '@/fields/jsonField'
+import { subtitlesSchema } from '@/lib/utilities/subtitles'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { getCloudflareStreamThumbnailUrl } from '@/plugins/storage/cloudflareStreamAdapter'
 import {
@@ -58,14 +59,14 @@ export const Videos: CollectionConfig = {
         description: 'Video title shown to users',
       },
     },
-    {
+    jsonField({
       name: 'subtitles',
-      type: 'json',
+      schemaTitle: 'Subtitles',
+      schema: subtitlesSchema,
       admin: {
         description: 'Subtitle cues: [{ startTimeMs, endTimeMs, durationMs?, content }]',
       },
-      jsonSchema: subtitlesFieldSchema,
-    },
+    }),
     {
       name: 'tags',
       type: 'select',

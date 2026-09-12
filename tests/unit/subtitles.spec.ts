@@ -1,7 +1,8 @@
 import { json as jsonFieldValidation } from 'payload/shared'
 import { describe, expect, it } from 'vitest'
 
-import { subtitlesFieldSchema, subtitlesZodSchema } from '@/lib/utilities/subtitles'
+import { jsonField } from '@/fields/jsonField'
+import { subtitlesSchema, subtitlesZodSchema } from '@/lib/utilities/subtitles'
 
 /**
  * The Zod schema and the JSON Schema describe the same cues for two different
@@ -15,12 +16,22 @@ import { subtitlesFieldSchema, subtitlesZodSchema } from '@/lib/utilities/subtit
  */
 const req = { t: (key: string) => key } as never
 
+/** What every `subtitles` column declares, built the one way a field may. */
+const subtitlesJsonSchema = jsonField({
+  name: 'subtitles',
+  schemaTitle: 'Subtitles',
+  schema: subtitlesSchema,
+}).jsonSchema
+
 const acceptedByJsonSchema = (value: unknown): boolean =>
-  jsonFieldValidation(value as never, {
-    jsonSchema: subtitlesFieldSchema,
-    req,
-    required: false,
-  } as never) === true
+  jsonFieldValidation(
+    value as never,
+    {
+      jsonSchema: subtitlesJsonSchema,
+      req,
+      required: false,
+    } as never,
+  ) === true
 
 const accepted: unknown[] = [
   [{ startTimeMs: 0, endTimeMs: 1500, durationMs: 1500, content: 'Hello' }],
