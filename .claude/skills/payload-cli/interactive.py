@@ -71,7 +71,11 @@ STALL_SECONDS = float(os.environ.get('PAYLOAD_PTY_STALL_SECONDS', '240'))
 # chalk colours the column and table names, so the escapes sit inside the
 # prompt: `Is \x1b[1m\x1b[34mcommon_chrome\x1b[39m\x1b[22m column in …`.
 # `\w+` cannot span them, so every rename prompt went unmatched.
-ANSI = re.compile(r'\x1b\[[0-9;]*[A-Za-z]')
+# `?` is in the parameter class for the private-mode sequences a prompt
+# library wraps a select in — `\x1b[?25l` / `\x1b[?25h`. Left in, the
+# cursor-show after a `?` stops QUESTION_LINE matching that line, and an
+# unanswerable prompt hangs again.
+ANSI = re.compile(r'\x1b\[[0-9;?]*[A-Za-z]')
 RENAME_PROMPT = re.compile(r'Is (\w+) column in (\w+) table created or renamed')
 DATALOSS_PROMPT = 'Accept warnings and push schema to database?'
 # Any line that ends in a question mark. Used only to tell an unanswered

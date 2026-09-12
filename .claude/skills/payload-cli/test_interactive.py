@@ -85,8 +85,11 @@ def test_answers_a_coloured_prompt():
 
 def test_gives_up_on_a_prompt_it_cannot_parse():
     """An unparseable prompt ends the run, rather than waiting for `timeout`."""
+    # `\x1b[?25h` is the cursor-show a prompt library emits after a select.
+    # It sits after the `?`, so an ANSI pattern that cannot take `?` leaves
+    # it in the text and QUESTION_LINE stops matching the line.
     proc, log = run(
-        'process.stdout.write("Is the schema quite ready?\\n")\n'
+        'process.stdout.write("Is the schema quite ready?\\x1b[?25h\\n")\n'
         'setInterval(() => 0, 100000)\n',
         env=dict(PAYLOAD_PTY_STALL_SECONDS='3'),
         timeout=60,
