@@ -60,8 +60,6 @@ interface ClientRow {
       verified?: {
         domain?: string | null
         mount?: string | null
-        /** What the widget reported about itself. Read by nothing that shapes a URL (#644). */
-        routing?: RoutingMode | null
       } | null
       /** What the CMS observed about the host's own server — the routing verdict. */
       routingProbe?: { verdict?: RoutingMode | null } | null
@@ -156,8 +154,7 @@ function canonicalOwnerFrom(row: ClientRow): CanonicalOwner | undefined {
     clientId: row.id,
     domain: verified.domain,
     mount: verified.mount ?? '/',
-    // Derived, not reported (#644). `verified.routing` is the widget repeating
-    // what its script tag asked for; the probe is what the host's server
+    // Derived, not reported (#644): the probe is what the host's server
     // actually does. See `effectiveRouting`.
     routing: effectiveRouting(row.canonical?.verification),
   }

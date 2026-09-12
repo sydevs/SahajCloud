@@ -30,7 +30,6 @@ const healthy = {
 const verified: VerifiedEmbed = {
   domain: 'sahajayoga.nl',
   mount: '/locatelessons/',
-  routing: 'query',
   widgetVersion: 2,
   at: '2026-08-17T03:00:00.000Z',
 }
@@ -50,9 +49,16 @@ const verified: VerifiedEmbed = {
  * to the embed's default route.
  */
 describe('the sample URL the picker shows', () => {
-  const model = (v: VerifiedEmbed, routingProbe?: CanonicalVerification['routingProbe']) =>
+  const model = (
+    v: VerifiedEmbed,
+    routingProbe?: CanonicalVerification['routingProbe'],
+    // What the widget reported for this mount. It lives in `embedMetadata` and
+    // nowhere else since #644's review — the verified snapshot no longer keeps a
+    // copy — and the preview must ignore it.
+    reported: 'query' | 'path' = 'query',
+  ) =>
     buildPickerModel({
-      embedMetadata: { [`https://${v.domain}${v.mount}`]: { ...healthy, routing: v.routing } },
+      embedMetadata: { [`https://${v.domain}${v.mount}`]: { ...healthy, routing: reported } },
       embed: `https://${v.domain}${v.mount}`,
       verification: {
         verified: v,
@@ -92,10 +98,10 @@ describe('the sample URL the picker shows', () => {
     )
   })
 
-  // The circularity #644 removed: `verified.routing` is the widget repeating
-  // what its script tag asked for, and it may no longer shape a URL.
+  // The circularity #644 removed: the report is the widget repeating what its
+  // script tag asked for, and it may no longer shape a URL.
   it('ignores a `path` self-report the probe has not confirmed', () => {
-    expect(model({ ...verified, routing: 'path' })?.sampleUrl).toBe(
+    expect(model(verified, undefined, 'path')?.sampleUrl).toBe(
       'https://sahajayoga.nl/locatelessons/?atlas=/events/12345',
     )
   })

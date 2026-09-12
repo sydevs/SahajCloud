@@ -232,11 +232,11 @@ export function nextRoutingProbeState(args: {
  * mount's own subtree; `query` otherwise, which is what nearly every client
  * publishes today and is a perfectly good canonical (see `canonicalUrl.ts`).
  *
- * **Deliberately not `verified.routing`.** That field is still written from the
- * widget's readiness marker, which copies the script parameter — the widget
- * telling us what it was asked to do, not what the host's server actually
- * supports. It stays on the record as the honest thing it is, and shapes no
- * URL. (#644)
+ * **There is no second answer to disagree with it.** `verified.routing` — the
+ * readiness marker's copy of the widget's own script parameter — is no longer
+ * written at all, so the record carries the observation and nothing else. The
+ * widget's report is still kept as a report, per mount, in `embedMetadata`.
+ * (#644)
  *
  * The parameter is structural rather than `CanonicalVerification`, so the
  * resolver's own narrowed row shape passes without a cast.

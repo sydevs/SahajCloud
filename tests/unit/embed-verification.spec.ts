@@ -153,15 +153,22 @@ describe('verifyEmbed scheme guard', () => {
 })
 
 describe('resultFromRender', () => {
-  it('verifies from the rendered marker, taking routing from the page', () => {
+  it('verifies from the rendered marker', () => {
     const result = resultFromRender(MOUNT, { ok: true, html: pageWith(MARKER) })
     expect(result.status).toBe('verified')
     expect(result.status === 'verified' && result.embed).toMatchObject({
       domain: 'sahajayoga.nl',
       mount: '/locatelessons/',
-      routing: 'query',
       widgetVersion: 2,
     })
+  })
+
+  // The marker carries `routing`, and the snapshot deliberately drops it: it is
+  // the widget repeating its own script parameter, and `routingProbe` is the
+  // only answer (#644). Recorded twice, the wrong one gets read.
+  it('records no routing of its own from the marker', () => {
+    const result = resultFromRender(MOUNT, { ok: true, html: pageWith(MARKER) })
+    expect(result.status === 'verified' && 'routing' in result.embed).toBe(false)
   })
 
   it('keeps a WordPress permalink in the verified mount', () => {

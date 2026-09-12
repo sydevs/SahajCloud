@@ -56,9 +56,10 @@ export function resultFromRender(mountKey: string, render: RenderResult): Verifi
     embed: {
       domain: parts.domain,
       mount: parts.mount,
-      // Read off the rendered page, not off the client's report — this is what makes routing
-      // server-attested rather than self-reported.
-      routing: marker.routing,
+      // No `routing` here. The marker's copy is the widget repeating its own script parameter,
+      // and `routingProbe` now answers that question from the host's server (#644). Recording it
+      // twice only invites the wrong read — the widget's report is still kept, as a report, in
+      // `embedMetadata`.
       widgetVersion: marker.v,
       at: new Date().toISOString(),
     },

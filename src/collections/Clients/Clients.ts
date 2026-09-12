@@ -55,10 +55,15 @@ const canonicalVerificationSchema: JSONSchema4 = {
     verified: {
       type: ['object', 'null'],
       additionalProperties: false,
-      required: ['domain', 'mount', 'routing', 'widgetVersion', 'at'],
+      required: ['domain', 'mount', 'widgetVersion', 'at'],
       properties: {
         domain: domainSchema,
         mount: { type: 'string' },
+        // Legacy, and no longer written: the widget's own self-report, which
+        // `routingProbe` replaced (#644). Kept as an optional property, not
+        // deleted, because this object is closed and Payload validates it on
+        // *every* save — dropping it here would make every row verified before
+        // this change unsaveable until the job rewrote its snapshot.
         routing: { enum: [...ROUTING_MODES] },
         widgetVersion: { type: 'number' },
         at: { type: 'string' },

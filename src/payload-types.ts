@@ -2335,7 +2335,7 @@ export interface ClientCanonicalVerification {
   verified: {
     domain: string;
     mount: string;
-    routing: 'query' | 'path';
+    routing?: 'query' | 'path';
     widgetVersion: number;
     at: string;
   } | null;
