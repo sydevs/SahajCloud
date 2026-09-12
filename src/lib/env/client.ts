@@ -1,20 +1,40 @@
 /**
- * Client Environment Variable Validation
+ * The `NEXT_PUBLIC_*` variables — a **schema**, not an accessor.
  *
- * This module provides type-safe client environment variable validation using Zod.
- * Only NEXT_PUBLIC_* variables that are intentionally exposed to the browser.
+ * `ServerEnvSchema` extends this one, so the server validates these four
+ * alongside its own secrets and reads them as `serverEnv.NEXT_PUBLIC_*`.
  *
- * **IMPORTANT**: This file is safe to import from client-side code.
- * For server-only variables, use `@/lib/env` (which imports from ./server).
+ * ⚠ **There is deliberately no `clientEnv` value here.** There used to be, as
+ * `ClientEnvSchema.parse(process.env)`, and in a browser it parsed an empty
+ * object: Next substitutes **literal `process.env.<KEY>` member expressions**
+ * and nothing else, so a bare `process.env` is the empty stub from
+ * `next/dist/compiled/process`. Every key read through it was `undefined` in
+ * the browser, which is why `Sentry.init` never ran there at all (#760).
  *
- * **Usage**:
+ * **Browser code reads a literal member expression instead** — as
+ * `src/lib/contact/index.ts`, `src/lib/mapbox/geocoder.ts` and
+ * `AddressSearchField.tsx` already do:
+ *
  * ```typescript
- * import { clientEnv } from '@/lib/env/client'
- *
- * const logLevel = clientEnv.NEXT_PUBLIC_LOG_LEVEL
+ * const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
  * ```
+ *
+ * Re-exporting a parsed object from here would only re-arm the same trap: the
+ * enumeration it would have to parse can drift from this schema silently, and
+ * the drift looks like working config.
  */
 import { z } from 'zod'
+
+/**
+ * The log levels `NEXT_PUBLIC_LOG_LEVEL` accepts, in order of verbosity.
+ *
+ * The schema below is built from this list, and `clientLogger` narrows its
+ * literal `process.env.NEXT_PUBLIC_LOG_LEVEL` read against it — so the browser
+ * gets the vocabulary without pulling zod in, and the two cannot drift.
+ */
+export const LOG_LEVELS = ['silent', 'error', 'warn', 'info', 'debug'] as const
+
+export type LogLevel = (typeof LOG_LEVELS)[number]
 
 /**
  * Client-side environment variables schema
@@ -37,7 +57,7 @@ export const ClientEnvSchema = z.object({
    *
    * @default 'silent' (client), varies by NODE_ENV (server)
    */
-  NEXT_PUBLIC_LOG_LEVEL: z.enum(['silent', 'error', 'warn', 'info', 'debug']).optional(),
+  NEXT_PUBLIC_LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
 
   /**
    * Public Mapbox access token, used by the address-autocomplete field
@@ -57,30 +77,3 @@ export const ClientEnvSchema = z.object({
 
 // Type inference for TypeScript
 export type ClientEnv = z.infer<typeof ClientEnvSchema>
-
-/**
- * Validated client-side environment variables
- *
- * Throws validation error on module import if environment is invalid.
- * Provides type-safe access to all client-accessible environment variables.
- */
-export const clientEnv = (() => {
-  try {
-    return ClientEnvSchema.parse(process.env)
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      // Note: Using console.error here is intentional for fail-fast behavior
-      // This code runs at module load time, before any logging system is available
-      // eslint-disable-next-line no-console
-      console.error('❌ Environment validation error (client):')
-      // eslint-disable-next-line no-console
-      console.error(error.issues)
-      // eslint-disable-next-line no-console
-      console.error('\nCheck your .env file and compare with .env.example for required variables.')
-      throw new Error(
-        'Invalid client environment variables. Check the error details above and verify your .env file matches .env.example requirements.',
-      )
-    }
-    throw error
-  }
-})()
