@@ -20,20 +20,20 @@ const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
 // Reporting is a deployment's job, and a Railway deploy builds with
 // NODE_ENV=production (#733). A local production build still reports — gating
 // that too needs the deployment name in the browser, which #737 inlines.
-const reportsErrors = process.env.NODE_ENV === 'production'
+const isProduction = process.env.NODE_ENV === 'production'
 
-// This is the ONE browser `Sentry.init` in the app. `ErrorBoundary` captures
-// through the client it installs here rather than initializing a second one:
-// a second `init` replaces the first on the current scope, taking the router
-// instrumentation below with it.
-if (dsn && reportsErrors) {
+// This is the ONE browser `Sentry.init` in the app. `ErrorBoundary`,
+// `global-error.tsx` and `clientLogger` capture through the client it installs
+// rather than each initializing their own: a second `init` replaces the first
+// on the current scope, taking the router instrumentation below with it.
+if (dsn && isProduction) {
   Sentry.init({
     dsn,
     environment: process.env.NODE_ENV,
     // Disable performance tracing, only capture errors
     tracesSampleRate: 0,
   })
-} else if (process.env.NODE_ENV === 'development') {
+} else if (!isProduction) {
   // eslint-disable-next-line no-console
   console.info('[Sentry] Client-side error tracking disabled outside a deployment')
 }

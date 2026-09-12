@@ -1,6 +1,10 @@
 'use client'
 
-import * as Sentry from '@sentry/react'
+// ⚠ `@sentry/nextjs`, never `@sentry/react`. Sentry keys its global client by
+// SDK version (`core/carrier.js`: `__SENTRY__[SDK_VERSION]`), and this repo
+// resolves two copies — `@sentry/nextjs` carries its own `@sentry/react`. A
+// capture through the other copy reads an empty carrier and is dropped.
+import * as Sentry from '@sentry/nextjs'
 import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 
 interface ErrorBoundaryState {
@@ -13,26 +17,11 @@ interface ErrorBoundaryProps {
   fallback?: ComponentType<{ error: Error; reset: () => void }>
 }
 
-/**
- * This boundary reports through the browser client that
- * `src/instrumentation-client.ts` installs. It does **not** call `Sentry.init`
- * itself: a second `init` replaces the first on the current scope, so the one
- * that ran last would decide the DSN, the environment tag and the router
- * instrumentation for the whole page.
- *
- * It used to, and the duplicate was invisible only because neither `init` ever
- * ran — both gated on a DSN that read `undefined` in every browser (#760).
- *
- * `getClient()` is undefined until that init runs, which is the honest test for
- * "is anything listening": off in development, off wherever no DSN is set.
- */
+/** Undefined until `src/instrumentation-client.ts` runs `Sentry.init`. */
 const sentryIsListening = () => Sentry.getClient() !== undefined
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props)
-    this.state = { hasError: false }
-  }
+  state: ErrorBoundaryState = { hasError: false }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return {
@@ -51,7 +40,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
         },
       })
     } else {
-      // Log to console in development (avoid logger to prevent any side effects)
+      // Nothing is listening — development, or a deploy with no DSN. Console,
+      // not `clientLogger`, to keep the error path free of side effects.
       // eslint-disable-next-line no-console
       console.error('Admin interface error caught by boundary:', error, {
         componentStack: errorInfo.componentStack,
