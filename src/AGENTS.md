@@ -78,7 +78,9 @@ No loose files at the root — every file lives in a named folder:
   `previewSecret`, `gender`, `subtitles`, `weightedSample`, `isRecord`,
   `requestMemo` — collapses a per-request load to one in-flight promise,
   `localeIsolatedReq` — gives a nested cross-locale read a copy so it can't
-  repoint the caller's request)
+  repoint the caller's request, `versionsRead` — tells a `beforeOperation`
+  hook whether its `read` is a versions read, which cannot carry a document
+  `where`)
 - `locales/` — locale config (`@/lib/locales` resolves to `locales/index.ts`)
 - `richEditor/` — Lexical editor presets + `blocks/` (the editor's block
   set) + `lexicalHooks`

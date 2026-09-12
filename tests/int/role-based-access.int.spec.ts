@@ -1996,11 +1996,12 @@ describe('Role-Based Access Control', () => {
       //
       // NOT `web-translator` on `meditations`, the obvious pairing with the
       // test above. Payload maps `findVersions` onto the `read` hook operation,
-      // so `filterMeditationsByLocale` appends `{ locale: { equals } }` to the
+      // so `filterMeditationsByLocale` appended `{ locale: { equals } }` to the
       // versions query, where that path does not exist — meditations'
-      // `findVersions` throws QueryError for EVERY caller, `overrideAccess:
-      // true` included. A `rejects.toThrow()` there passes without the fix
-      // (filed separately).
+      // `findVersions` threw QueryError for EVERY caller, `overrideAccess:
+      // true` included, so a `rejects.toThrow()` there passed for the wrong
+      // reason. Fixed in #745; `app-cards` stays the fixture here because it is
+      // still the cleaner read-but-not-edit pairing.
       const editor = await testData.createManager(payload, {
         name: 'Read-Only Editor for Version History Test',
         roles: { en: ['meditations-editor'] },
