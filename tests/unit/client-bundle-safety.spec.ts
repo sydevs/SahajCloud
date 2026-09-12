@@ -1,8 +1,8 @@
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { findInImportGraph, SRC } from '../utils/importGraph'
+import { clientEntries, findInImportGraph, SRC } from '../utils/importGraph'
 
 /**
  * Nothing an admin **client** component imports may reach server-only code.
@@ -20,40 +20,55 @@ import { findInImportGraph, SRC } from '../utils/importGraph'
  * `public-env-substitution.spec.ts`.
  */
 
-/** Barrels and modules that drag Node-only dependencies in with them. */
+/**
+ * Modules that drag Node-only dependencies in with them, as src-relative
+ * **files**.
+ *
+ * Matching the import *specifier* is what made this guard unfailable: the edge
+ * into `lib/env/server.ts` is `@/lib/env`'s own `./server`, a specifier no
+ * caller writes and no list can enumerate. So the walk resolves each specifier
+ * and this matches the file it lands on (#770). The chain in the failure
+ * message still reports specifiers, which is what a reader needs to find the
+ * import to cut.
+ */
 const SERVER_ONLY = [
-  { spec: '@/plugins/usage', reason: 're-exports the pg pool (getPgPool/quotedDbSchema)' },
-  { spec: '@/plugins/usage/db', reason: 'imports pg directly' },
-  { spec: '@/lib/env/server', reason: 'validates and holds server secrets' },
-  { spec: '@/jobs/VerifyEmbeds/browserRendering', reason: 'holds Cloudflare credentials' },
+  { file: 'plugins/usage/index.ts', reason: 're-exports the pg pool (getPgPool/quotedDbSchema)' },
+  { file: 'plugins/usage/db.ts', reason: 'imports pg directly' },
+  { file: 'lib/env/server.ts', reason: 'validates and holds server secrets' },
+  { file: 'jobs/VerifyEmbeds/browserRendering.ts', reason: 'holds Cloudflare credentials' },
 ]
 
 /** Depth-first walk from a client entry, returning the first offending path. */
 function findServerOnlyImport(entry: string): { chain: string[]; reason: string } | null {
-  return findInImportGraph(entry, (spec) => {
-    const hit = SERVER_ONLY.find((entryPoint) => entryPoint.spec === spec)
+  return findInImportGraph(entry, (_spec, file) => {
+    if (!file) return null
+    const hit = SERVER_ONLY.find((entryPoint) => entryPoint.file === relative(SRC, file))
     return hit ? { reason: hit.reason } : null
   })
 }
 
 describe('admin client components stay out of the server bundle', () => {
-  const entries = [
-    'components/admin/CanonicalEmbedPicker/CanonicalEmbedPicker.tsx',
-    'components/admin/CanonicalEmbedPicker/Description.tsx',
-    'components/admin/CanonicalEmbedPicker/model.ts',
-    // Reaches into `@/collections/UserMessages/*` for its status vocabulary and
-    // verdict shape. Those are leaf modules precisely so this import cannot drag
-    // the collection — and with it the hooks, the mailer and `node:crypto` —
-    // into the admin bundle.
-    'components/admin/UserMessages/UserMessageStatus.tsx',
-  ]
+  // Derived, never listed. A hand-written list guards only what someone
+  // remembered to add — it held four entries while 88 others went unwatched.
+  //
+  // Among them, `components/admin/UserMessages/UserMessageStatus.tsx` reaches
+  // into `@/collections/UserMessages/*` for its status vocabulary and verdict
+  // shape. Those are leaf modules precisely so this import cannot drag the
+  // collection — and with it the hooks, the mailer and `node:crypto` — into the
+  // admin bundle.
+  const entries = clientEntries().map((file) => relative(SRC, file))
 
-  it.each(entries)('%s imports nothing server-only', (relative) => {
-    const found = findServerOnlyImport(join(SRC, relative))
-    expect(
-      found,
-      found ? `${found.chain.join(' → ')}\n  (${found.reason})` : '',
-    ).toBeNull()
+  it.each(entries)('%s imports nothing server-only', (entry) => {
+    const found = findServerOnlyImport(join(SRC, entry))
+    expect(found, found ? `${found.chain.join(' → ')}\n  (${found.reason})` : '').toBeNull()
+  })
+
+  // Without this, an entry set that silently came back empty passes every case
+  // above by having no cases at all.
+  it('derives the browser entries rather than listing them', () => {
+    expect(entries.length).toBeGreaterThan(50)
+    expect(entries).toContain('instrumentation-client.ts')
+    expect(entries).toContain('components/admin/UserMessages/UserMessageStatus.tsx')
   })
 
   // Proves the walker actually traverses rather than passing vacuously: the

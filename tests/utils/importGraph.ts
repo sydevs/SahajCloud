@@ -59,13 +59,27 @@ function importsOf(file: string): string[] {
 }
 
 /**
- * Depth-first walk from `entry`. `onSpec` sees every specifier reached; the
- * first non-null return wins, carrying the import chain that led there — so a
- * failure message can name the path, not just the offender.
+ * True when `file` opens with the `'use server'` directive.
+ *
+ * Next compiles such a module to a client *reference* — an id the browser posts
+ * back to the server. The body, and everything it imports, stays out of the
+ * browser bundle, so the walk must not follow it (#770).
+ */
+function isServerActionModule(file: string): boolean {
+  return /^\s*(?:\/\*[\s\S]*?\*\/\s*)?['"]use server['"]/.test(readFileSync(file, 'utf8'))
+}
+
+/**
+ * Depth-first walk from `entry`. `onSpec` sees every specifier reached **and
+ * the file it resolves to** — a specifier alone cannot answer "does this reach
+ * module X", because the edge into X is usually a barrel's own relative import,
+ * never the specifier a caller wrote. The first non-null return wins, carrying
+ * the import chain that led there — so a failure message can name the path, not
+ * just the offender.
  */
 function walk<T>(
   entry: string,
-  onSpec?: (spec: string) => T | null,
+  onSpec?: (spec: string, file: string | null) => T | null,
 ): { hit: (T & { chain: string[] }) | null; files: string[] } {
   const seen = new Set<string>()
   const stack: { file: string; chain: string[] }[] = [{ file: entry, chain: [entry] }]
@@ -76,20 +90,25 @@ function walk<T>(
     seen.add(file)
 
     for (const spec of importsOf(file)) {
-      const found = onSpec?.(spec)
+      const next = resolveSpec(spec, file)
+
+      const found = onSpec?.(spec, next)
       if (found) return { hit: { ...found, chain: [...chain, spec] }, files: [...seen] }
 
-      const next = resolveSpec(spec, file)
-      if (next) stack.push({ file: next, chain: [...chain, spec] })
+      if (next && !isServerActionModule(next)) stack.push({ file: next, chain: [...chain, spec] })
     }
   }
   return { hit: null, files: [...seen] }
 }
 
-/** The first specifier reached from `entry` that `onSpec` claims, with its chain. */
+/**
+ * The first specifier reached from `entry` that `onSpec` claims, with its chain.
+ * `onSpec` receives the resolved file alongside the specifier — `null` when the
+ * specifier resolves nowhere under `src/` (a package, a CSS import).
+ */
 export function findInImportGraph<T>(
   entry: string,
-  onSpec: (spec: string) => T | null,
+  onSpec: (spec: string, file: string | null) => T | null,
 ): (T & { chain: string[] }) | null {
   return walk(entry, onSpec).hit
 }
@@ -123,15 +142,11 @@ function sourceFiles(dir: string = SRC, out: string[] = []): string[] {
  * guards exist to prevent — a new client component gets no guard at all until
  * someone remembers to add it, which is how #760 survived.
  *
- * ⚠ `client-bundle-safety.spec.ts` still passes its own four entries, and
- * switching it to this function is #770's job, not a one-line swap. Measured on
- * this branch: across all 92 entries its `SERVER_ONLY` matcher finds **zero**
- * offenders, because it matches the import *specifier* and the real edge is the
- * `@/lib/env` barrel, which is not on that list. Match on the resolved file
- * instead and **14** entries go red, every one through the same chain —
- * `@/plugins/access → accessConfigs → @/lib/utilities/previewSecret →
- * @/lib/env`. So the swap needs that guard's matcher changed and 14 offenders
- * fixed or exempted, which is a second guard's verdicts, not this ticket's.
+ * Both guards read from here now. `client-bundle-safety.spec.ts` used to walk
+ * four hand-written entries and match import *specifiers*, so it stayed green
+ * from #633 to #770 with 14 entries reaching `@/lib/env/server` — every one
+ * through `@/plugins/access → accessConfigs → @/lib/utilities/previewSecret →
+ * @/lib/env`, an edge no specifier on its list ever named.
  */
 export function clientEntries(): string[] {
   const useClient = sourceFiles().filter((file) =>
