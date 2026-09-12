@@ -1,5 +1,4 @@
-import type { JSONSchema4 } from 'json-schema'
-import type { JSONField } from 'payload'
+import { z } from 'zod'
 
 import type { NirmalaVidyaVideoData } from '@/lib/lectures/nirmalaVidyaApi'
 import type { LocaleCode } from '@/lib/locales'
@@ -33,8 +32,6 @@ export function apiLanguageToLocale(apiCode: string): LocaleCode | null {
 // Metadata Shape
 // =============================================================================
 
-export const LECTURE_METADATA_SCHEMA_URI = 'urn:sahajcloud:schema:lecture-metadata'
-
 /**
  * Shape stored in `Lectures.metadata`. All NV-sourced data is bundled here so
  * the /api/lectures/for-audience response can expose the full subtitle map and
@@ -53,41 +50,27 @@ export const LECTURE_METADATA_SCHEMA_URI = 'urn:sahajcloud:schema:lecture-metada
  * make a row written under an earlier shape unsaveable.
  *
  */
-export const lectureMetadataJsonSchema: JSONSchema4 = {
-  $id: LECTURE_METADATA_SCHEMA_URI,
-  title: 'LectureMetadata',
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    title: { type: 'string' },
-    thumbnailUrl: { type: ['string', 'null'] },
-    hlsUrl: { type: 'string' },
-    subtitles: {
-      type: 'object',
-      // Keyed by CMS locale code, but left open on the key: the locale set
-      // moves, and retiring one must not strand every lecture still holding a
-      // track for it. `apiLanguageToLocale` is what keeps the keys valid on
-      // write — it returns null for anything `LOCALES` does not name.
-      additionalProperties: { type: 'string' },
-      description: 'Subtitle track URL per CMS locale, from the NV API language codes.',
-    },
-    duration: { type: ['number', 'null'] },
-    lastSyncedAt: { type: 'string' },
-  },
-}
-
-/** The field-level wrapper Payload wants — see `Lectures.metadata`. */
-export const lectureMetadataFieldSchema: JSONField['jsonSchema'] = {
-  uri: LECTURE_METADATA_SCHEMA_URI,
-  fileMatch: [LECTURE_METADATA_SCHEMA_URI],
-  schema: lectureMetadataJsonSchema,
-}
+export const lectureMetadataSchema = z.strictObject({
+  title: z.string().optional(),
+  thumbnailUrl: z.string().nullable().optional(),
+  hlsUrl: z.string().optional(),
+  subtitles: z
+    // Keyed by CMS locale code, but left open on the key: the locale set
+    // moves, and retiring one must not strand every lecture still holding a
+    // track for it. `apiLanguageToLocale` is what keeps the keys valid on
+    // write — it returns null for anything `LOCALES` does not name.
+    .record(z.string(), z.string())
+    .optional()
+    .describe('Subtitle track URL per CMS locale, from the NV API language codes.'),
+  duration: z.number().nullable().optional(),
+  lastSyncedAt: z.string().optional(),
+})
 
 /**
  * Build a LectureMetadata object from an NV API response. Used by both the
  * create-time beforeChange hook and the monthly SyncLectureMetadata task.
  *
- * `LectureMetadata` is the interface `lectureMetadataJsonSchema` above
+ * `LectureMetadata` is the interface `lectureMetadataSchema` above
  * generates — imported from `@/payload-types`, not restated here.
  */
 export function buildLectureMetadata(videoData: NirmalaVidyaVideoData): LectureMetadata {
