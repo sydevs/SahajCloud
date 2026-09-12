@@ -28,6 +28,13 @@ export const SahajAtlasTranslations: GlobalConfig = {
     // path a target composes opens a draft session. sydevs/SahajAtlasWeb#198
     // is the route that would.
     //
+    // ⚠ **And so this URL carries no `secret`.** A preview secret is only ever
+    // read on the route that also scrubs it from the address bar at boot
+    // (`capturePreview` — "the secret lives only in memory"). Off that route
+    // nothing reads it and nothing removes it, so it would sit in the panel's
+    // URL for the whole editing session, for no reader. Add it back with the
+    // route that reads it, not before.
+    //
     // ⚠ **This reads `locale` and never `data`.** Payload re-resolves the URL
     // whenever the server-rendered value changes and overwrites whatever the
     // panel is showing (`@payloadcms/ui/dist/providers/LivePreview/index.js:100-104`),
@@ -36,7 +43,7 @@ export const SahajAtlasTranslations: GlobalConfig = {
     // when the tab's component re-composes anyway.
     livePreview: {
       url: ({ locale }) =>
-        `${serverEnv.SAHAJATLAS_URL}/?secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`,
+        `${serverEnv.SAHAJATLAS_URL}/?locale=${locale.code}`,
       // Phone-sized frame, matching the Events and Regions previews — the
       // widget's drawer layout is designed against it.
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],

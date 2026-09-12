@@ -515,7 +515,20 @@ describe('Translations Globals Configuration', () => {
 
     it.each(TARGETED)('%s resolves its URL from the locale alone', (slug) => {
       expect(previewUrl(slug, 'fr')).not.toBe(previewUrl(slug, 'de'))
-      expect(new URL(previewUrl(slug)).searchParams.get('secret')).toBeTruthy()
+    })
+
+    // A preview secret is read only on the route that also scrubs it from the
+    // address bar at boot — SahajAtlasWeb's `/preview`, WeMeditateWeb's
+    // `pages/preview/`. Neither of these URLs is one, and neither is any path
+    // their tabs compose, so a secret here would sit in the panel's URL for a
+    // whole editing session with nothing reading it.
+    it.each(TARGETED)('%s carries no preview secret', (slug) => {
+      const secret = process.env.SAHAJCLOUD_PREVIEW_SECRET
+      // Guarded: an empty secret fails the containment check for every URL,
+      // and an unset one passes it for any — it would search for "undefined".
+      expect(secret).toBeTruthy()
+      expect(new URL(previewUrl(slug)).searchParams.get('secret')).toBeNull()
+      expect(previewUrl(slug)).not.toContain(secret!)
     })
 
     // This URL is what the eight untargeted tabs show, and what every targeted
@@ -548,10 +561,23 @@ describe('Translations Globals Configuration', () => {
         const composed = composeTargetUrl(base, target)
         expect(composed, `${name} composed to nothing`).not.toBeNull()
         expect(new URL(composed!).origin).toBe(new URL(base).origin)
-        expect(new URL(composed!).searchParams.get('secret')).toBe(
-          new URL(base).searchParams.get('secret'),
-        )
       }
+    })
+
+    // The base's query rides along verbatim, so a repoint never loses the
+    // locale being edited. Asserted on the Atlas because that is where the
+    // locale IS a query parameter — wm-web carries it in the path, checked
+    // above. Dropping `secret` left `locale` the only parameter either sends,
+    // so without this case nothing would notice the carry-forward going.
+    it('sy-atlas-translations keeps the edited locale across a repoint', () => {
+      const base = previewUrl('sy-atlas-translations', 'de')
+      expect(new URL(base).searchParams.get('locale')).toBe('de')
+
+      const targets = declaredTargets('sy-atlas-translations')
+      expect(targets.length).toBeGreaterThan(0)
+
+      for (const [name, target] of targets)
+        expect(new URL(composeTargetUrl(base, target)!).searchParams.get('locale'), name).toBe('de')
     })
 
     // The mobile app has no web surface to preview, so it gains neither.

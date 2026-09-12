@@ -5,9 +5,15 @@ import { originOf, parseUrl } from '@/lib/utilities/url'
  * The URL one {@link PreviewTarget} wants, built by rewriting the
  * server-resolved default rather than composing a new URL.
  *
- * That direction is why a declaration can hold neither an origin nor the
- * preview secret, as `previewTargetField` explains: both come from the
+ * That direction is why a declaration can hold neither an origin nor a
+ * credential, as `previewTargetField` explains: the origin comes from the
  * default, and only the path and query the target names change.
+ *
+ * The default's own query rides along verbatim, and this function stays
+ * incurious about what is in it. Which parameters a repointed path can still
+ * use is the declaring global's business — no translations global sends a
+ * preview secret, precisely because the paths their tabs compose never read
+ * one (`translations-globals.int.spec.ts`).
  *
  * `path` resolves against the default exactly as a browser would resolve an
  * `href`, which is what lets a locale-prefixed site declare `map` and keep its

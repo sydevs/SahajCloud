@@ -7,19 +7,20 @@ import type { UIField } from 'payload'
  * client field config, so a callback cannot cross (see
  * `AddressSearchField.tsx:196`). Everything here is JSON.
  *
- * **It carries no origin and no preview secret.** The declaration ships to the
+ * **It carries no origin and no credential.** The declaration ships to the
  * browser, and `SAHAJCLOUD_PREVIEW_SECRET` is server-only
  * (`@/lib/utilities/previewSecret`). So a target never composes a URL from
  * scratch: `composeTargetUrl` rewrites the server-resolved default the global
- * already supplies, keeping its origin and its existing query — the secret and
- * the locale included.
+ * already supplies, keeping its origin and its existing query — the edited
+ * locale included. No global sends a preview secret to a view path, because
+ * only a `/preview` route reads one.
  */
 export interface PreviewTarget {
   /**
    * The view to show, resolved against the global's own live-preview URL.
    *
    * A leading `/` replaces that URL's whole path (`/search` on an Atlas base of
-   * `…/preview` gives `…/search`). Anything else resolves relatively, which is
+   * `…/` gives `…/search`). Anything else resolves relatively, which is
    * how a locale-prefixed site keeps its prefix (`map` on a base of `…/fr/`
    * gives `…/fr/map`). An absolute URL is refused: it would change the origin.
    *

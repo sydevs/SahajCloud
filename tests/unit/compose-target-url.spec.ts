@@ -6,8 +6,12 @@
  *
  * 1. **The origin and the query survive.** The composed URL is what the Live
  *    Preview iframe loads, and the default it is built from is the only place
- *    the preview `secret` exists — the declaration on the tab never carries it.
- *    Drop the query and the preview silently stops unlocking drafts.
+ *    the query exists — the declaration on the tab carries no origin and no
+ *    credential. Drop the query and the panel loses the locale being edited.
+ *    The `secret` below is a stand-in for any parameter the default sends: no
+ *    global sends one today, because nothing reads it off a view path
+ *    (`translations-globals.int.spec.ts` holds that), and the composer is
+ *    deliberately incurious either way.
  * 2. **A target can never move the preview off that origin.** The declaration
  *    reaches the browser through `admin.custom`, so this is the check standing
  *    between a schema edit and an arbitrary page loaded inside the admin.
@@ -16,7 +20,7 @@ import { describe, expect, it } from 'vitest'
 
 import { composeTargetUrl } from '@/components/admin/PreviewTarget/composeTargetUrl'
 
-const ATLAS = 'https://atlas.example/preview?secret=s3cret&locale=fr'
+const ATLAS = 'https://atlas.example/?secret=s3cret&locale=fr'
 const WEB = 'https://web.example/fr/?secret=s3cret'
 
 describe('composeTargetUrl', () => {
@@ -35,7 +39,7 @@ describe('composeTargetUrl', () => {
       )
     })
 
-    it('keeps the origin and the secret of the server-resolved default', () => {
+    it('keeps the origin and the query of the server-resolved default', () => {
       const composed = new URL(composeTargetUrl(ATLAS, { path: '/calendar' })!)
 
       expect(composed.origin).toBe('https://atlas.example')
@@ -53,10 +57,13 @@ describe('composeTargetUrl', () => {
     })
 
     it('lets a declared param override one of the default’s', () => {
-      const composed = new URL(composeTargetUrl(ATLAS, { params: { locale: 'de' } })!)
+      // On the locale-prefixed base, so the path assertion still has something
+      // to catch: a params-only target must leave the whole path alone, and a
+      // root-path base could not tell that apart from replacing it with `/`.
+      const composed = new URL(composeTargetUrl(`${WEB}&locale=fr`, { params: { locale: 'de' } })!)
 
       expect(composed.searchParams.get('locale')).toBe('de')
-      expect(composed.pathname).toBe('/preview')
+      expect(composed.pathname).toBe('/fr/')
     })
   })
 

@@ -19,9 +19,14 @@ export const WeMeditateWebTranslations: GlobalConfig = {
     // **ends in a slash**, because a tab's `preview.path` resolves against it:
     // `map` under `…/fr/` is `…/fr/map`, and under `…/fr` it would be `…/map`,
     // silently dropping the locale the translator is editing.
+    //
+    // ⚠ **And no `secret`.** WeMeditateWeb reads one under `pages/preview/`
+    // alone, where it is required and a miss is a 403. A published page never
+    // reads it and never strips it, so it would ride the panel's URL — into
+    // Sentry's session replay, which this site runs — for no reader. See the
+    // Sahaj Atlas global.
     livePreview: {
-      url: ({ locale }) =>
-        `${serverEnv.WEMEDITATE_WEB_URL}/${locale.code}/?secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}`,
+      url: ({ locale }) => `${serverEnv.WEMEDITATE_WEB_URL}/${locale.code}/`,
     },
   },
   versions: {
