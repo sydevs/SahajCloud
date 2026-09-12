@@ -130,18 +130,36 @@ the canonical picker imported `@/lib/clients/canonical`, which imported the
 `pg` into the browser bundle. The fix was a deep import
 (`@/plugins/usage/originEnforcement`). The guard is
 `tests/unit/client-bundle-safety.spec.ts`, which walks the real import
-graph from each admin client component. Add new client entry points to its
-list.
+graph from every browser entry. Nothing to add when you write a client
+component — it is covered on the first run.
+
+⚠ **From client code, import `@/plugins/access/config`, `/adminOnly` or
+`/types` — never the `@/plugins/access` barrel.** The barrel re-exports those
+pure leaves, but it also pulls `accessPlugin`, `fieldAccess`, `accessConfigs`
+and `permissions`, and through them `@/lib/env/server`. Server code keeps
+using the barrel.
+
+**That rule is enforced, and was not for four months.** The guard's entries
+were a hand-written list of four, and it matched the import **specifier** a
+caller wrote — but the edge into `@/lib/env/server` is `@/lib/env`'s own
+`./server`, which no caller ever writes. So it was green from #633 to #770
+with 14 browser entries reaching it, 12 through that barrel. #770 fixed both
+halves, and both matter: derived entries alone still miss the edge, and file
+matching alone still misses the entry. The barrel is also a `SERVER_ONLY` row
+in its own right, so the rule above holds even if the barrel stops reaching
+`@/lib/env/server` — the weight is the cost, not just the Node dependency. The
+walk also stops at a `'use server'` module, because Next compiles one to a
+client reference and never bundles its body. `@/lib/status` is the same barrel
+shape, not yet cut — `ReadinessGroup` pulls nine modules through it for one
+function.
 
 **A second guard walks the same graph for a different rule.**
 `tests/unit/public-env-substitution.spec.ts` checks that browser code reads
 `process.env` only as a literal `process.env.<KEY>` member expression — the
 one form Next substitutes. `clientEnv` did not, so every `NEXT_PUBLIC_*`
 value was `undefined` in the browser and client Sentry never initialized
-(#760). Unlike the list above, its entry points are **derived**: every
-`'use client'` file plus `instrumentation-client.ts`, via `clientEntries()`
-in `tests/utils/importGraph.ts`, which both specs share. So a new client
-component is covered by that one automatically.
+(#760). It derives its entries the same way, from `clientEntries()` in
+`tests/utils/importGraph.ts`, which both specs share.
 
 **This is the one home for that story.** The code sites carry a one-line
 pointer here, so there is nothing to update in six places when it changes.

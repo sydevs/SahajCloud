@@ -30,14 +30,12 @@ import { clientEntries, reachableFiles, SRC } from '../utils/importGraph'
  *
  * Exempting a *file* here does not hide a new offender: reaching server-only
  * code from a client entry is `client-bundle-safety.spec.ts`'s rule, and
- * `@/lib/env/server` is on its list.
+ * `lib/env/server.ts` is on its list.
+ *
+ * Empty since #770 cut the `@/plugins/access` barrel out of client code. Its
+ * one entry was `lib/env/server.ts`, which no browser entry reaches now.
  */
-const KNOWN_OFFENDERS = new Map([
-  [
-    'lib/env/server.ts',
-    'reached by 14 client entries, all via @/plugins/access → @/lib/env (#770)',
-  ],
-])
+const KNOWN_OFFENDERS = new Map<string, string>()
 
 interface Offence {
   file: string

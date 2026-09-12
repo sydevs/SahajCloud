@@ -1,10 +1,6 @@
 import type { ProjectSlug } from '@/payload-types'
-import { isCollectionVisibleInProject } from '@/plugins/access'
-
-// The plugin's `ContentSlug` isn't re-exported from its barrel; borrow the
-// parameter type so the cast below stays tied to the function without a
-// deep import into the access plugin's internals.
-type ContentSlug = Parameters<typeof isCollectionVisibleInProject>[0]
+import { isCollectionVisibleInProject } from '@/plugins/access/config'
+import type { ContentSlug } from '@/plugins/access/types'
 
 /** The `collections`/`globals` segment of an admin pathname → the content slug. */
 const CONTENT_SLUG_PATTERN = /\/(?:collections|globals)\/([^/]+)/
