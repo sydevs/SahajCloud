@@ -181,14 +181,16 @@ function summarise(args: {
     // The derived verdict, not `verified.routing` — the preview has to be the
     // shape the resolver emits, and that is what `canonicalOwnerFrom` reads (#644).
     routing = effectiveRouting(verification)
-    const target = canonicalTargetForHost({ ...verified, routing })
+    const target = canonicalTargetForHost(verified, routing)
     sampleUrl = target && buildCanonicalUrl(target, SAMPLE_ATLAS_PATH)
   } else if (mount) {
     const split = splitMountKey(embed)
     if (split) {
+      // The *reported* mode, and marked provisional — this branch is showing an
+      // operator the shape of a mount nothing has verified or probed yet.
       routing = mount.routing
       sampleIsProvisional = true
-      const target = canonicalTargetForHost({ ...split, routing: mount.routing })
+      const target = canonicalTargetForHost(split, mount.routing)
       sampleUrl = target && buildCanonicalUrl(target, SAMPLE_ATLAS_PATH)
     }
   }

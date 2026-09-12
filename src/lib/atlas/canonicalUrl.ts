@@ -67,17 +67,24 @@ export const ATLAS_QUERY_PARAM = 'atlas'
  * Deliberately *not* fixed by having `splitMountKey` drop the port: the
  * verifier loads the mount URL itself, so dropping it would verify `:8080` and
  * publish `:443` — a page we never looked at.
+ *
+ * **`routing` is a separate argument, and required, on purpose** (#644). The
+ * host record carries a `routing` key of its own — what the widget said about
+ * itself — and while this function read it off the same object, passing a
+ * `VerifiedEmbed` straight in compiled and quietly shaped a public URL from
+ * that self-report. That was the circularity #644 removed, and a comment is not
+ * what should be holding it: every caller now has to say where its routing
+ * verdict came from, and `effectiveRouting` is the only thing that answers.
  */
-export function canonicalTargetForHost(host: {
-  domain: string
-  mount?: string | null
-  routing?: RoutingMode | null
-}): CanonicalTarget | null {
+export function canonicalTargetForHost(
+  host: { domain: string; mount?: string | null },
+  routing: RoutingMode,
+): CanonicalTarget | null {
   if (!isValidCanonicalDomain(host?.domain)) return null
   return {
     origin: `https://${host.domain}`,
     mount: host.mount ?? '/',
-    routing: host.routing ?? 'query',
+    routing,
   }
 }
 

@@ -11,7 +11,11 @@ import {
   nextVerificationState,
 } from '@/lib/clients/verification'
 import type { RenderDeps } from '@/lib/embedVerification/browserRendering'
-import { probePathRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
+import {
+  probeForOutcome,
+  probePathRouting,
+  verifyEmbed,
+} from '@/lib/embedVerification/verifyEmbed'
 import type { Client } from '@/payload-types'
 import { getPgPool, quotedDbSchema } from '@/plugins/usage'
 
@@ -154,31 +158,6 @@ export interface VerifyEmbedsDeps extends RenderDeps {
   probe?: (mountKey: string) => Promise<PathProbeResult>
 }
 
-/**
- * Whether to probe this owner for path routing, and what a skipped probe means.
- *
- * Gated on the mount run's own outcome, so the render budget stays bounded at
- * three per enabled owner — and at **one** for an owner whose mount is not
- * working, which is the common failing case:
- *
- * | mount outcome  | probe                                                        |
- * | -------------- | ------------------------------------------------------------ |
- * | `verified`     | render the token path, and the control if that one carries    |
- * | `failed`       | a negative, spending no render — the widget is not on the page at all, so the subtree cannot be serving it |
- * | `inconclusive` | nothing happens, exactly as the mount ladder does             |
- */
-async function probeForOutcome(
-  mount: string,
-  outcome: VerificationResult,
-  probe: (mountKey: string) => Promise<PathProbeResult>,
-): Promise<PathProbeResult> {
-  if (outcome.status === 'inconclusive') return { status: 'inconclusive', detail: outcome.reason }
-  if (outcome.status === 'failed') {
-    return { status: 'negative', detail: `Mount verification failed: ${outcome.reason}` }
-  }
-  return probe(mount)
-}
-
 export async function runVerifyEmbeds(args: {
   payload: Payload
   req: PayloadRequest
@@ -219,9 +198,10 @@ export async function runVerifyEmbeds(args: {
 
     // The routing verdict folds into the same object, so one owner is still one
     // write. It never touches `failureCount`, and so can never reach `disable`.
+    const probeResult = await probeForOutcome(mount, outcome, probe)
     const verification = nextPathProbeState({
       current: transition.verification,
-      result: await probeForOutcome(mount, outcome, probe),
+      result: probeResult,
       now,
     })
 
@@ -253,6 +233,9 @@ export async function runVerifyEmbeds(args: {
         mount,
         from: before,
         to: after,
+        // The stored verdict keeps no reason — the log is the only place an
+        // operator can see *why* their URLs changed shape.
+        reason: probeResult.detail,
       })
     }
 

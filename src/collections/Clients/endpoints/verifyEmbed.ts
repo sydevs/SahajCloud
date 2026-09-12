@@ -6,7 +6,11 @@ import {
   nextPathProbeState,
   nextVerificationState,
 } from '@/lib/clients/verification'
-import { probePathRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
+import {
+  probeForOutcome,
+  probePathRouting,
+  verifyEmbed,
+} from '@/lib/embedVerification/verifyEmbed'
 import { requireActiveManager } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
 
@@ -46,8 +50,8 @@ const MESSAGES: Record<VerifyEmbedResponse['status'], (reason?: string) => strin
  *
  * **The path probe is the opposite case, and its demote does apply here** (#644). Demoting to
  * `query` degrades URLs that keep working, where disabling ownership removes them — so three
- * clicks is an operator's same-minute way back to `?atlas=` when a host has stopped serving the
- * subtree, with evidence rather than an assertion. That is why no routing override field exists.
+ * clicks is an operator's same-minute way back to `?atlas=`, with evidence rather than an
+ * assertion. That is why no routing override field exists.
  */
 export const verifyEmbedOnDemand: Endpoint = {
   path: '/:id/verify-embed',
@@ -89,20 +93,13 @@ export const verifyEmbedOnDemand: Endpoint = {
       now,
     })
 
-    // Same gate as the job: a failed mount is a routing negative spending no
-    // render, and an inconclusive one changes nothing.
+    // `probeForOutcome` is the job's gate, shared rather than restated, so a
+    // button press and a scheduled run spend the same renders.
     const verification = nextPathProbeState({
       current: transition.verification,
-      result:
-        result.status === 'verified'
-          ? await probePathRouting(mount)
-          : { status: result.status === 'failed' ? 'negative' : 'inconclusive' },
+      result: await probeForOutcome(mount, result, probePathRouting),
       now,
     })
-
-    // `effectiveRouting` is virtual — computed on the read above, and never a
-    // value to write back. Dropped by name rather than trusted to be ignored.
-    const { effectiveRouting: _derived, ...canonical } = client.canonical ?? {}
 
     await req.payload.update({
       collection: 'clients',
@@ -110,7 +107,7 @@ export const verifyEmbedOnDemand: Endpoint = {
       // `disable` is deliberately ignored here — see the note above.
       data: {
         canonical: {
-          ...canonical,
+          ...client.canonical,
           verification,
           nextVerifyAt: transition.nextVerifyAt,
         },

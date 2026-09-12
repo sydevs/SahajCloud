@@ -222,8 +222,9 @@ describe('per-region canonical webUrl', () => {
           id: londonClient.id,
           data: {
             canonical: {
+              // Spread whole, `effectiveRouting` included: a virtual field is
+              // ignored on write, and this is the pin for that.
               ...londonClient.canonical,
-              effectiveRouting: undefined,
               verification: {
                 ...verification,
                 pathProbe: { at: '2026-09-12T03:00:00.000Z', verdict, strikes: 0 },
@@ -537,6 +538,7 @@ describe('per-region canonical webUrl', () => {
 
       await setFallback(Number(fallbackId))
       try {
+
         const readParis = (limit: number) => () =>
           payload.find({
             collection: 'events',

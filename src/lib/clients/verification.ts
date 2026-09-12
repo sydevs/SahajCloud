@@ -68,18 +68,6 @@ export type VerifiedEmbed = NonNullable<CanonicalVerification['verified']>
 /** One attempt, newest first in {@link CanonicalVerification.attempts}. */
 export type VerificationAttempt = CanonicalVerification['attempts'][number]
 
-/**
- * What the path-routing probe last observed, and how many times in a row it
- * came back negative. Job-written, and a **sibling** of `verified` rather than
- * part of it (#644).
- *
- * `verified` is null until the mount verification first succeeds, and the
- * routing verdict has to survive that null — the widget should path-route
- * wherever the host serves the subtree, whether or not it is publishing
- * canonical URLs yet.
- */
-export type PathProbe = NonNullable<CanonicalVerification['pathProbe']>
-
 /** Consecutive definitive failures before canonical ownership is switched off. */
 export const CANONICAL_FAILURE_LIMIT = 3
 
@@ -256,7 +244,10 @@ export function effectiveRouting(
 
 /**
  * Canonical URLs are built by `@/lib/atlas/canonicalUrl` — `buildCanonicalUrl`
- * over a `canonicalTargetForHost(verified)` target.
+ * over a `canonicalTargetForHost(verified, effectiveRouting(verification))`
+ * target. The routing argument is separate and required precisely so that
+ * `canonicalTargetForHost(verified)`, which would shape a URL from the widget's
+ * self-report, no longer compiles (#644).
  *
  * There used to be a second builder here, and the two disagreed in a way that
  * mattered: this one emitted the Atlas path with its leading slash stripped and

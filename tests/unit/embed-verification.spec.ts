@@ -7,12 +7,14 @@ import type { RenderResult } from '../../src/lib/embedVerification/browserRender
 
 import { describe, expect, it } from 'vitest'
 
+import { buildCanonicalUrl, canonicalTargetForHost } from '../../src/lib/atlas/canonicalUrl'
 import {
   effectiveRouting,
   EMPTY_VERIFICATION,
   nextPathProbeState,
   nextVerificationState,
   PATH_PROBE_FAILURE_LIMIT,
+  splitMountKey,
 } from '../../src/lib/clients/verification'
 import { classifyRenderError } from '../../src/lib/embedVerification/browserRendering'
 import { parseReadinessMarker, READY_ATTR } from '../../src/lib/embedVerification/readinessMarker'
@@ -29,8 +31,7 @@ const pageWith = (attrValue: string) =>
   `<!doctype html><html lang="nl" ${READY_ATTR}="${attrValue}"><body>…</body></html>`
 
 // The contract published by sydevs/SahajAtlasWeb (src/lib/readiness.ts).
-const MARKER =
-  '{&quot;v&quot;:2,&quot;routing&quot;:&quot;query&quot;,&quot;topLevel&quot;:true,&quot;urlWritable&quot;:true}'
+const MARKER = '{&quot;v&quot;:2,&quot;routing&quot;:&quot;query&quot;,&quot;topLevel&quot;:true,&quot;urlWritable&quot;:true}'
 
 describe('parseReadinessMarker', () => {
   it('reads the marker the widget publishes', () => {
@@ -81,10 +82,8 @@ describe('classifyRenderError', () => {
   const LIVE = {
     selectorTimeout: {
       code: 6002,
-      message:
-        'A timeout was reached. Check gotoOptions/waitForSelector/waitForTimeout/actionTimeout options.',
-      detail:
-        'Waiting for selector `[data-sahaj-atlas-ready]` failed: Waiting failed: 8000ms exceeded',
+      message: 'A timeout was reached. Check gotoOptions/waitForSelector/waitForTimeout/actionTimeout options.',
+      detail: 'Waiting for selector `[data-sahaj-atlas-ready]` failed: Waiting failed: 8000ms exceeded',
     },
     deadDomain: {
       code: 5006,
@@ -225,6 +224,18 @@ describe('pathProbeUrls', () => {
 
   it.each(['data:text/html,<html>', 'file:///etc/passwd', 'not-a-url'])('refuses %s', (mount) => {
     expect(pathProbeUrls(mount, TOKEN)).toBeNull()
+  })
+
+  /**
+   * A promotion is only sound if the page we probed is the page we will
+   * publish. The probe derives its URL from the mount key and the builder
+   * derives the canonical from the stored host — two paths to the same string,
+   * so pin them together rather than trusting the comment that says they agree.
+   */
+  it('probes the URL a promoted client would publish', () => {
+    const split = splitMountKey(MOUNT)!
+    const target = canonicalTargetForHost(split, 'path')!
+    expect(pathProbeUrls(MOUNT, TOKEN)?.probe).toBe(buildCanonicalUrl(target, `/${TOKEN}`))
   })
 })
 

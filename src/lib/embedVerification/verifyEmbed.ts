@@ -135,7 +135,7 @@ function probeToken(): string {
 /** Injectable so a test can pin the token, and drive both renders without an account. */
 export interface PathProbeDeps extends RenderDeps {
   token?: () => string
-  render?: (url: string, waitForSelector: string) => Promise<RenderResult>
+  render?: (url: string) => Promise<RenderResult>
 }
 
 /**
@@ -163,12 +163,12 @@ export async function probePathRouting(
     return { status: 'negative', detail: `Mount cannot carry path routing: ${mountKey}` }
   }
 
-  const render = deps.render ?? ((url: string, selector: string) => renderPage(url, selector, deps))
+  const render = deps.render ?? ((url: string) => renderPage(url, `[${READY_ATTR}]`, deps))
 
-  const probeVerdict = probeRenderVerdict(await render(urls.probe, `[${READY_ATTR}]`))
+  const probeVerdict = probeRenderVerdict(urls.probe, await render(urls.probe))
   if (probeVerdict.status !== 'positive') return probeVerdict
 
-  const controlVerdict = probeRenderVerdict(await render(urls.control, `[${READY_ATTR}]`))
+  const controlVerdict = probeRenderVerdict(urls.control, await render(urls.control))
   // An inconclusive control is not evidence either way — we could not establish
   // that the host *stops* serving the widget outside the mount.
   if (controlVerdict.status === 'inconclusive') return controlVerdict
@@ -184,20 +184,47 @@ export async function probePathRouting(
 /**
  * One probe render, in the probe's vocabulary.
  *
- * Same split as {@link resultFromRender}: a page that answered and carried no
- * marker is evidence about the host, everything we could not look at is not.
+ * Deliberately a **renaming** of {@link resultFromRender} rather than a second
+ * classifier. The split it makes — the page answered and carried no marker
+ * (evidence about their server) versus we could not look (evidence about
+ * nothing) — is the one the whole design rests on, and it is pinned by the live
+ * Cloudflare error-code fixtures. A parallel `switch` here could drift from it
+ * silently, and only one of the two would be under test.
  */
-function probeRenderVerdict(render: RenderResult): PathProbeResult {
-  if (render.ok) {
-    return parseReadinessMarker(render.html)
-      ? { status: 'positive' }
-      : { status: 'negative', detail: 'No readiness marker under the probed path.' }
+function probeRenderVerdict(url: string, render: RenderResult): PathProbeResult {
+  const result = resultFromRender(url, render)
+  if (result.status === 'verified') return { status: 'positive' }
+  return {
+    status: result.status === 'failed' ? 'negative' : 'inconclusive',
+    detail: result.detail,
   }
-  switch (render.kind) {
-    case 'navigation':
-    case 'selector-timeout':
-      return { status: 'negative', detail: render.detail }
-    default:
-      return { status: 'inconclusive', detail: render.detail }
+}
+
+/**
+ * Whether to probe this owner at all, and what a skipped probe means.
+ *
+ * Gated on the mount run's own outcome, which is what bounds the render budget
+ * at three per enabled owner — and at **one** for an owner whose mount is not
+ * working, the common failing case:
+ *
+ * | mount outcome  | probe                                                      |
+ * | -------------- | ---------------------------------------------------------- |
+ * | `verified`     | render the token path, and the control if that one carries |
+ * | `failed`       | a negative, spending no render — the widget is not on the page at all, so the subtree cannot be serving it |
+ * | `inconclusive` | nothing happens, exactly as the mount ladder does           |
+ *
+ * Shared by the nightly job and the on-demand endpoint, so a button press and a
+ * scheduled run spend the same renders and fold in the same verdict. The probe
+ * is a parameter because the job injects a stub for it.
+ */
+export async function probeForOutcome(
+  mountKey: string,
+  outcome: VerificationResult,
+  probe: (mountKey: string) => Promise<PathProbeResult>,
+): Promise<PathProbeResult> {
+  if (outcome.status === 'inconclusive') return { status: 'inconclusive', detail: outcome.reason }
+  if (outcome.status === 'failed') {
+    return { status: 'negative', detail: `Mount verification failed: ${outcome.reason}` }
   }
+  return probe(mountKey)
 }

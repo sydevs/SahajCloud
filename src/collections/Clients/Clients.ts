@@ -3,13 +3,13 @@ import type { CollectionConfig } from 'payload'
 
 import { colorField, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
+import type { RoutingMode } from '@/lib/clients/canonical'
 import {
   CANONICAL_DOMAIN_PATTERN,
   ROUTING_MODE_OPTIONS,
   ROUTING_MODES,
 } from '@/lib/clients/canonical'
 import { embedMetadataJsonSchema } from '@/lib/clients/embedMetadata'
-import type { CanonicalVerification } from '@/lib/clients/verification'
 import {
   effectiveRouting,
   VERIFICATION_FAILURE_REASONS,
@@ -303,9 +303,14 @@ export const Clients: CollectionConfig = {
                   hooks: {
                     afterRead: [
                       ({ siblingData }) =>
+                        // `effectiveRouting` takes the shape structurally, so the
+                        // group's own data satisfies it with no cast to a named type.
                         effectiveRouting(
-                          (siblingData as { verification?: CanonicalVerification | null } | null)
-                            ?.verification,
+                          (
+                            siblingData as {
+                              verification?: { pathProbe?: { verdict?: RoutingMode | null } | null }
+                            } | null
+                          )?.verification,
                         ),
                     ],
                   },

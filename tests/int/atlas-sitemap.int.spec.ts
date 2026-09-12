@@ -170,8 +170,8 @@ describe('atlasSitemap endpoint', () => {
           },
           failureCount: 0,
           attempts: [],
-          // The URL shape is the probe's verdict, not the widget's self-report
-          // beside it (#644) — a `path` owner is one the probe has promoted.
+          // The shape is the derived verdict, never `verified.routing` — see
+          // `effectiveRouting`.
           pathProbe: { at: '2026-08-18T00:00:00.000Z', verdict: args.routing, strikes: 0 },
         },
       },
