@@ -28,6 +28,8 @@ import type { Field, JSONField, Payload, TabsField } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { composeTargetUrl } from '@/components/admin/PreviewTarget/composeTargetUrl'
+import type { PreviewTarget } from '@/fields/previewTargetField'
 import type { SchemaEntry } from '@/fields/translationsField'
 import { PLURAL_CATEGORIES } from '@/lib/translations/pluralCategories'
 
@@ -480,6 +482,69 @@ describe('Translations Globals Configuration', () => {
     it('rejects an array, which the built-in validator alone lets through', async () => {
       await expect(write({ compact: [] })).rejects.toThrow()
       await expect(write({ compact: ['a'] })).rejects.toThrow()
+    })
+  })
+  /**
+   * Live preview per tab (#708). The panel's URL is resolved on the server and
+   * cannot see which tab is open, so each targeted tab carries a zero-height
+   * `ui` field that repoints it on mount.
+   */
+  describe('live preview targets', () => {
+    const TARGETED = ['sy-atlas-translations', 'wm-web-translations'] as const
+
+    /** The global's own URL, resolved for one locale and nothing else. */
+    const previewUrl = (slug: Slug, code = 'fr'): string => {
+      const url = findGlobal(slug).admin?.livePreview?.url
+      if (typeof url !== 'function') throw new Error(`${slug} resolves no live-preview URL`)
+      // Deliberately called with no document: a URL that reached for `data`
+      // would throw here, and mid-edit it would re-resolve and clobber the
+      // repoint instead.
+      return url({ locale: { code } } as never) as string
+    }
+
+    /** Every `preview` a global's schema declares, by tab slug. */
+    const declaredTargets = (slug: Slug): [string, PreviewTarget][] => {
+      const tabsField = findGlobal(slug).fields[0] as TabsField
+      return tabsField.tabs.flatMap((tab) => {
+        const first = tab.fields[0]
+        const target =
+          first && first.type === 'ui'
+            ? ((first.admin?.custom as { previewTarget?: PreviewTarget } | undefined)?.previewTarget)
+            : undefined
+        return target ? [[String((first as { name?: string }).name), target] as [string, PreviewTarget]] : []
+      })
+    }
+
+    it.each(TARGETED)('%s resolves its URL from the locale alone', (slug) => {
+      expect(previewUrl(slug, 'fr')).not.toBe(previewUrl(slug, 'de'))
+      expect(new URL(previewUrl(slug)).searchParams.get('secret')).toBeTruthy()
+    })
+
+    // A relative target resolves against this URL, so the trailing slash is
+    // what keeps `map` under `/fr` instead of hoisting it to the site root.
+    it('wm-web-translations resolves a URL a relative target can extend', () => {
+      expect(new URL(previewUrl('wm-web-translations', 'fr')).pathname).toBe('/fr/')
+    })
+
+    it.each(TARGETED)('%s declares targets that compose onto its own origin', (slug) => {
+      const base = previewUrl(slug)
+      const targets = declaredTargets(slug)
+      expect(targets.length).toBeGreaterThan(0)
+
+      for (const [name, target] of targets) {
+        const composed = composeTargetUrl(base, target)
+        expect(composed, `${name} composed to nothing`).not.toBeNull()
+        expect(new URL(composed!).origin).toBe(new URL(base).origin)
+        expect(new URL(composed!).searchParams.get('secret')).toBe(
+          new URL(base).searchParams.get('secret'),
+        )
+      }
+    })
+
+    // The mobile app has no web surface to preview, so it gains neither.
+    it('wm-app-translations declares no live preview and no target', () => {
+      expect(findGlobal('wm-app-translations').admin?.livePreview).toBeUndefined()
+      expect(declaredTargets('wm-app-translations')).toHaveLength(0)
     })
   })
 })
