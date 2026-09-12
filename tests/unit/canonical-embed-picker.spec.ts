@@ -94,6 +94,46 @@ describe('the sample URL the picker shows', () => {
       'https://sahajayoga.nl/locatelessons/?atlas=/events/12345',
     )
   })
+
+  const KEY = 'https://sahajayoga.nl/locatelessons/'
+
+  /**
+   * The same rule on the *provisional* branch, which read the report until
+   * #644's review: a fresh embed reporting `path` previewed a path-routed
+   * sample, flipped to `?atlas=` the moment verification succeeded, then flipped
+   * back on the first positive probe — three shapes for one unchanged host.
+   */
+  it('ignores a `path` self-report on a mount nothing has verified', () => {
+    const selected = buildPickerModel({
+      embedMetadata: { [KEY]: { ...healthy, routing: 'path' } },
+      embed: KEY,
+      verification: null,
+      now,
+    }).selected
+    expect(selected?.sampleIsProvisional).toBe(true)
+    expect(selected?.routing).toBe('query')
+    expect(selected?.sampleUrl).toBe('https://sahajayoga.nl/locatelessons/?atlas=/events/12345')
+  })
+
+  // And it follows the verdict where there is one, with `verified` still null —
+  // the state `effectiveRouting` exists to be able to answer for (#644). The
+  // sample stays marked provisional: nothing has verified this mount, which is
+  // a separate fact from which shape it will publish.
+  it('previews a path sample for a probed mount whose verification is null', () => {
+    const selected = buildPickerModel({
+      embedMetadata: { [KEY]: { ...healthy, routing: 'query' } },
+      embed: KEY,
+      verification: {
+        verified: null,
+        failureCount: 0,
+        attempts: [],
+        pathProbe: { at: '2026-08-18T03:00:00.000Z', verdict: 'path', strikes: 0 },
+      },
+      now,
+    }).selected
+    expect(selected?.sampleIsProvisional).toBe(true)
+    expect(selected?.sampleUrl).toBe('https://sahajayoga.nl/locatelessons/events/12345')
+  })
 })
 
 describe('nextVerificationState', () => {

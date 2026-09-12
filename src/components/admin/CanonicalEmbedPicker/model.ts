@@ -186,11 +186,17 @@ function summarise(args: {
   } else if (mount) {
     const split = splitMountKey(embed)
     if (split) {
-      // The *reported* mode, and marked provisional — this branch is showing an
-      // operator the shape of a mount nothing has verified or probed yet.
-      routing = mount.routing
+      // The derived verdict here too, so the sample only ever moves when the
+      // verdict moves. This branch used to read `mount.routing` — the widget's
+      // report of its own script parameter — which showed a fresh embed `path`,
+      // flipped it to `?atlas=` the moment verification succeeded, then flipped
+      // it back on the first positive probe: three shapes for one unchanged
+      // host. It was also the last read of a script-URL routing value left in
+      // this repo (#644). Still marked provisional: nothing has verified this
+      // mount, which is a separate fact from which shape it will publish.
+      routing = effectiveRouting(verification)
       sampleIsProvisional = true
-      const target = canonicalTargetForHost(split, mount.routing)
+      const target = canonicalTargetForHost(split, routing)
       sampleUrl = target && buildCanonicalUrl(target, SAMPLE_ATLAS_PATH)
     }
   }
