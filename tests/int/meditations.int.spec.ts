@@ -303,11 +303,42 @@ describe('Meditations Collection', () => {
       expect(result.docs.map((doc) => doc.id)).not.toContain(deMeditation.id)
     })
 
+    it('filters a find that leaves `draft` to Payload', async () => {
+      // The guard's FALSE branch, and the only case here that pins it. Every
+      // other case in this block passes `draft: true` by hand, which makes
+      // `'draft' in args` true whatever Payload does — but the argument the
+      // guard reads is the one Payload's own `find` supplies. If an upgrade
+      // stopped supplying it, locale filtering would switch off silently for
+      // ordinary reads, and only this case would notice.
+      //
+      // Published fixtures, because a `find` without `draft` sees published
+      // documents only, and the four above are drafts. Both halves matter: the
+      // German one must be excluded BY THE FILTER, not by being a draft.
+      const publishedCs = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        { label: 'Published Czech Meditation', locale: 'cs', _status: 'published' },
+      )
+      const publishedDe = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        { label: 'Published German Meditation', locale: 'de', _status: 'published' },
+      )
+
+      const result = await payload.find({ collection: 'meditations', locale: 'cs', depth: 0 })
+      const ids = result.docs.map((doc) => doc.id)
+
+      expect(ids).toContain(publishedCs.id)
+      expect(ids).not.toContain(publishedDe.id)
+    })
+
     /**
-     * The hook must decline a versions read: `locale` is not a queryable path
+     * The hook must decline a `findVersions`: `locale` is not a queryable path
      * on the versions collection, so appending the filter 400s every caller
      * (#745 — see `src/lib/utilities/versionsRead.ts`). Deleting the guard from
      * the hook turns both cases below red with "path cannot be queried".
+     * `findVersionByID` never reached that 400 — it carries an `id`, which the
+     * hook already skipped.
      *
      * Fixture assumption, checked rather than assumed: meditations enables
      * `versions.drafts` (`src/collections/Meditations/Meditations.ts`), so each

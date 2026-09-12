@@ -75,6 +75,10 @@ describe('Events collection', () => {
       runningId = running.id
     })
 
+    // ⚠ Deliberately passes no `draft`, so Payload supplies it. That is the
+    // argument `isVersionsRead` keys off (#745): adding `draft` here would make
+    // the cases below stop pinning the guard's false branch, and a Payload
+    // upgrade that stopped supplying it would switch this filter off unnoticed.
     const listIds = async (args: Record<string, unknown> = {}) => {
       const { docs } = await payload.find({
         collection: 'events',

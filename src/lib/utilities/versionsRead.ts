@@ -17,6 +17,10 @@ type BeforeOperationArgs = Parameters<CollectionBeforeOperationHook>[0]
  * for meditations (#745). `src/collections/AGENTS.md` carries the rule for the
  * next hook author.
  *
+ * In practice only `findVersions` reached that 400: both hooks using this
+ * already exited on `'id' in args`, which `findVersionByID` carries. The helper
+ * still answers for both, so a hook that does not check `id` is covered too.
+ *
  * The two kinds are told apart by the **`draft` argument**. Every `find` and
  * `findByID` call site passes it — the Local API and the REST handler are the
  * only two callers of each operation, and the Local API defaults it to `false`
@@ -33,9 +37,13 @@ type BeforeOperationArgs = Parameters<CollectionBeforeOperationHook>[0]
  * hook never reaches the `draft` test — hence the `read` gate here rather than
  * at each call site.
  *
- * This reads a Payload-internal argument shape, so an upgrade could change it.
- * The pin is a real `findVersions` in `tests/int/meditations.int.spec.ts` and
- * `tests/int/events.int.spec.ts`, not a unit test that would agree with itself.
+ * This reads a Payload-internal argument shape, so an upgrade could change it,
+ * and the dangerous direction is silent: a `find` that stopped carrying `draft`
+ * would switch both filters off rather than fail. Both branches are pinned
+ * against a real Payload rather than by a unit test that would agree with
+ * itself — `findVersions` resolving, and a `find` that leaves `draft` to
+ * Payload still being filtered, in `tests/int/meditations.int.spec.ts` and
+ * `tests/int/events.int.spec.ts`.
  */
 export function isVersionsRead(
   operation: BeforeOperationArgs['operation'],

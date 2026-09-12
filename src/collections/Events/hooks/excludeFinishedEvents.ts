@@ -23,7 +23,9 @@ import { andWhere, notFinishedWhere } from '../lifecycle/finished'
  *   `filterMeditationsByLocale`). `findByID` is deliberately untouched:
  *   `GET /api/events/{id}` still resolves a finished event, which is the whole
  *   point of keeping it published. A versions read is untouched because
- *   `schedule.lastDate` is not a queryable path there (#745);
+ *   `schedule.lastDate` is not a queryable path there — `findVersions` is the
+ *   one that reached that 400, since `findVersionByID` already exited on its
+ *   `id` (#745);
  * - the caller is an API client (`req.user.collection === 'clients'`, cf.
  *   `requireActiveClient`) serving its own query — admin, the Atlas manager
  *   sidebar, job reads, and an endpoint's internal `asTrustedReq` lookups are all
