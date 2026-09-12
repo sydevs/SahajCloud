@@ -14,11 +14,14 @@ import { withUnlockAccess, withVersionHistoryAccess } from '@/plugins/access/acc
  * through `accessPlugin` today. It is reachable here, which is the point.
  */
 
+type VersionAccess = { readVersions?: Access; update?: Access }
+type UnlockAccess = { unlock?: Access; update?: Access }
+
 const args = {} as AccessArgs
 
 describe('withVersionHistoryAccess', () => {
   it('delegates readVersions to update', async () => {
-    const wrapped = withVersionHistoryAccess({ update: (() => true) as Access })
+    const wrapped = withVersionHistoryAccess<VersionAccess>({ update: (() => true) as Access })
     expect(await wrapped.readVersions!(args)).toBe(true)
   })
 
@@ -29,7 +32,7 @@ describe('withVersionHistoryAccess', () => {
   })
 
   it('denies when there is no update to delegate to', async () => {
-    const wrapped = withVersionHistoryAccess<{ readVersions?: Access; update?: Access }>({})
+    const wrapped = withVersionHistoryAccess<VersionAccess>({})
     expect(wrapped.readVersions).toBeDefined()
     expect(await wrapped.readVersions!(args)).toBe(false)
   })
@@ -38,7 +41,7 @@ describe('withVersionHistoryAccess', () => {
 describe('withUnlockAccess', () => {
   it('delegates unlock to update, without the id', async () => {
     let seen: AccessArgs | undefined
-    const wrapped = withUnlockAccess({
+    const wrapped = withUnlockAccess<UnlockAccess>({
       update: ((a: AccessArgs) => {
         seen = a
         return true
@@ -54,7 +57,7 @@ describe('withUnlockAccess', () => {
   })
 
   it('denies when there is no update to delegate to', async () => {
-    const wrapped = withUnlockAccess<{ unlock?: Access; update?: Access }>({})
+    const wrapped = withUnlockAccess<UnlockAccess>({})
     expect(wrapped.unlock).toBeDefined()
     expect(await wrapped.unlock!(args)).toBe(false)
   })
