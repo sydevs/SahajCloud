@@ -56,6 +56,34 @@ export interface PublicUrlFieldsOptions {
   label?: string
 }
 
+/**
+ * Is this document published, for the locale being read?
+ *
+ * `_status` arrives in one of two shapes, and a field `afterRead` hook sees
+ * both. A **string** is a collection without `versions.drafts.localizeStatus`,
+ * where publish state is all-or-nothing. A **map** is a collection with it
+ * (`pages`, `app-cards` since #718), where the answer is per locale.
+ *
+ * ⚠ The map reaches this hook **unresolved**, which is why the old bare
+ * `!== 'published'` check silently nulled every public URL on `pages` the
+ * moment the flag went on. Payload hoists a localized value down to the
+ * requested locale in the same `afterRead` field pass that runs this hook
+ * (`fields/hooks/afterRead/promise.js`), so whether `_status` is already a
+ * string here depends on field order — not something a caller should have to
+ * know. Handling both shapes is the fix, not reordering fields.
+ *
+ * At `locale: 'all'` no single locale is being asked about, so any published
+ * locale counts: the alternative nulls the field for every document on a
+ * `locale=all` read.
+ */
+function isPublished(status: unknown, locale: string | undefined): boolean {
+  if (typeof status === 'string') return status === 'published'
+  if (typeof status !== 'object' || status === null) return false
+  const map = status as Record<string, unknown>
+  if (!locale || locale === 'all') return Object.values(map).includes('published')
+  return map[locale] === 'published'
+}
+
 /** Shared per-read inputs for a field's afterRead hook. */
 interface HookConfig {
   buildPath: PublicUrlFieldsOptions['buildPath']
@@ -81,7 +109,7 @@ function computeHook(
     // unpublished / draft / expired doc has no public page. Built in (rather
     // than left to each call site) so no draft-enabled collection can leak one;
     // opt out with `requirePublished: false` for collections with no `_status`.
-    if (requirePublished && data?._status !== 'published') return null
+    if (requirePublished && !isPublished(data?._status, req.locale)) return null
     // A URL platform with no base configured can never resolve — skip the work.
     if (!isPath && base === undefined) return null
 
