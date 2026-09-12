@@ -10,6 +10,8 @@
  */
 import * as Sentry from '@sentry/nextjs'
 
+import { clientDeploymentEnvironment } from '@/lib/env/deploymentEnvironment'
+
 // ⚠ A literal member expression — the only form Next substitutes (#760, and
 // `src/AGENTS.md`). Never read a NEXT_PUBLIC_* value any other way.
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
@@ -17,8 +19,9 @@ const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
 // ⚠ `.env` is git-tracked and carries the real DSN, so the read alone would
 // start sending every developer's local browser errors to the live project.
 // Reporting is a deployment's job, and a Railway deploy builds with
-// NODE_ENV=production (#733). A local production build still reports — gating
-// that too needs the deployment name in the browser, which #737 inlines.
+// NODE_ENV=production (#733). A local production build still reports — the
+// deployment name now reaches the browser, so gating on it too is possible,
+// but it is a reporting decision rather than #737's tagging fix.
 const isProduction = process.env.NODE_ENV === 'production'
 
 // This is the ONE browser `Sentry.init` in the app. `ErrorBoundary`,
@@ -28,7 +31,7 @@ const isProduction = process.env.NODE_ENV === 'production'
 if (dsn && isProduction) {
   Sentry.init({
     dsn,
-    environment: process.env.NODE_ENV,
+    environment: clientDeploymentEnvironment(),
     // Disable performance tracing, only capture errors
     tracesSampleRate: 0,
   })
