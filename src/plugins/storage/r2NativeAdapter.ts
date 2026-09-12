@@ -108,8 +108,8 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
 
     handleDelete: async ({ filename }) => {
       // Preview isolation: a non-production deployment must never delete a production object.
-      // A cloned preview database references real prod filenames, and those carry no preview marker.
-      // This check does nothing in production.
+      // A production key carries no preview marker; see docs/rules/storage.md for how one
+      // reaches a preview at all. This check does nothing in production.
       if (await shouldRefusePreviewDelete('R2', filename, () => isPreviewOwnedKey(filename))) {
         return
       }

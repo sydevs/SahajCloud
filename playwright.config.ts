@@ -17,7 +17,10 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: 1,
-  reporter: process.env.CI ? 'github' : 'html',
+  // The second reporter turns a skip into a failure whenever PREVIEW_URL is
+  // set. See tests/e2e/_helpers/failOnSkipReporter.ts for why a skip must not
+  // pass, and tests/AGENTS.md § "Smoke specs" for the lane's rules.
+  reporter: [[process.env.CI ? 'github' : 'html'], ['./tests/e2e/_helpers/failOnSkipReporter.ts']],
   use: {
     baseURL: process.env.PREVIEW_URL ?? 'http://localhost:3000',
     trace: 'on-first-retry',

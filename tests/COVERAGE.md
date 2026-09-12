@@ -111,9 +111,9 @@ closed by `tests/int/frames-by-narrator.int.spec.ts`. The previous gap on
 
 ## Smoke specs (`tests/e2e/`) and dedup analysis
 
-Tier 3 smoke specs run against the per-PR Railway preview environment with
-cloned production data. They cover REST API, auth, and deployment as one
-cohesive flow.
+Tier 3 smoke specs run against the per-PR Railway preview environment, which
+carries no content — each spec builds its own fixtures (`tests/AGENTS.md`).
+They cover REST API, auth, and deployment as one cohesive flow.
 
 | Spec                            | REST paths exercised                                                          |
 | ---------------------------------- | ---------------------------------------------------------------------------------- |

@@ -1,53 +1,58 @@
+import type { SmokeDoc } from './_helpers/fixtures'
+
 import { readFileSync } from 'node:fs'
 
-import { expect, test } from '@playwright/test'
-
-import { authHeaders, ensureAdmin } from './_helpers/preview'
+import { createAlbum, createImage, expectOk } from './_helpers/fixtures'
 import { runId } from './_helpers/runId'
-
-type Doc = { id: number | string }
-type ListResponse<T> = { docs: T[] }
+import { expect, test } from './_helpers/smokeTest'
 
 const audio = readFileSync('tests/files/audio-42s.mp3')
 
-test('create, update, and delete a Song against preview', async ({ request }, testInfo) => {
-  const token = await ensureAdmin(request)
-  const headers = authHeaders(token)
-
-  const albumsRes = await request.get('/api/albums?limit=1', { headers })
-  expect(albumsRes.ok()).toBe(true)
-  const { docs: albums } = (await albumsRes.json()) as ListResponse<Doc>
-  // A fresh per-PR preview DB has no seeded content — skip rather than fail.
-  test.skip(!albums[0]?.id, 'preview DB has no seeded album')
-
+/**
+ * The Song fixture is an Image plus an Album: `songs.album` is `required: true`
+ * and `albums.artwork` is an upload relation to `images`
+ * (`src/collections/Songs/Songs.ts`, `src/collections/Albums/Albums.ts`).
+ *
+ * The spec used to read `/api/albums` and skip when it came back empty — see
+ * `_helpers/fixtures.ts` for why that condition held on every PR.
+ */
+test('create, update, and delete a Song against preview', async ({
+  request,
+  headers,
+  trash,
+}, testInfo) => {
   const title = `smoke-${runId()}-song-r${testInfo.retry}`
-  const payload = { title, album: albums[0].id }
 
-  // Payload REST upload convention: `_payload` carries the JSON doc, `file` carries the binary.
-  // https://payloadcms.com/docs/rest-api/overview#uploads
+  const artwork = await createImage(request, headers, `${title}-artwork`)
+  trash.track('images', artwork.id)
+  const album = await createAlbum(request, headers, {
+    title: `${title}-album`,
+    artist: `${title}-artist`,
+    artwork: artwork.id,
+  })
+  trash.track('albums', album.id)
+
   const createRes = await request.post('/api/songs', {
     headers,
     multipart: {
-      _payload: JSON.stringify(payload),
+      _payload: JSON.stringify({ title, album: album.id }),
       file: { name: `${title}.mp3`, mimeType: 'audio/mpeg', buffer: audio },
     },
   })
-  expect(createRes.ok(), `create failed: ${createRes.status()} ${await createRes.text()}`).toBe(
-    true,
-  )
-  const created = (await createRes.json()) as { doc: Doc & { title: string } }
+  await expectOk(createRes, 'song create')
+  const created = (await createRes.json()) as { doc: SmokeDoc & { title: string } }
   expect(created.doc.title).toBe(title)
-  const id = created.doc.id
+  const id = trash.track('songs', created.doc.id)
 
   const newTitle = `${title}-updated`
   const updateRes = await request.patch(`/api/songs/${id}`, {
-    headers: { ...headers, 'content-type': 'application/json' },
+    headers,
     data: { title: newTitle },
   })
-  expect(updateRes.ok()).toBe(true)
+  await expectOk(updateRes, 'song update')
 
   const deleteRes = await request.delete(`/api/songs/${id}`, { headers })
-  expect(deleteRes.ok()).toBe(true)
+  await expectOk(deleteRes, 'song delete')
 
   const after = await request.get(`/api/songs/${id}`, { headers })
   expect(after.status()).toBe(404)
