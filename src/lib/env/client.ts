@@ -25,16 +25,7 @@
  */
 import { z } from 'zod'
 
-/**
- * The log levels `NEXT_PUBLIC_LOG_LEVEL` accepts, in order of verbosity.
- *
- * The schema below is built from this list, and `clientLogger` narrows its
- * literal `process.env.NEXT_PUBLIC_LOG_LEVEL` read against it — so the browser
- * gets the vocabulary without pulling zod in, and the two cannot drift.
- */
-export const LOG_LEVELS = ['silent', 'error', 'warn', 'info', 'debug'] as const
-
-export type LogLevel = (typeof LOG_LEVELS)[number]
+import { LOG_LEVELS } from './logLevels'
 
 /**
  * Client-side environment variables schema

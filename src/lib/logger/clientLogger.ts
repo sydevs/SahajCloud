@@ -14,9 +14,10 @@
  * clientLogger.error('Upload failed', error, { component: 'FileUploader' })
  * ```
  */
-import * as Sentry from '@sentry/react'
+// ⚠ `@sentry/nextjs`, never `@sentry/react` — see `src/components/ErrorBoundary.tsx`.
+import * as Sentry from '@sentry/nextjs'
 
-import { LOG_LEVELS, type LogLevel } from '@/lib/env/client'
+import { LOG_LEVELS, type LogLevel } from '@/lib/env/logLevels'
 
 type LogContext = Record<string, unknown>
 
@@ -25,14 +26,9 @@ type LogContext = Record<string, unknown>
 // pinned this logger to its 'silent' fallback in every browser (#760).
 const rawLevel = process.env.NEXT_PUBLIC_LOG_LEVEL
 
-// Narrowed against the same list the schema is built from. An unset or
-// unrecognized value means 'silent' — the server rejects a bad one at boot, so
-// this fallback is for a browser that was handed one anyway.
-const configuredLevel: LogLevel = LOG_LEVELS.includes(rawLevel as LogLevel)
-  ? (rawLevel as LogLevel)
-  : 'silent'
-
-const currentLevelIndex: number = LOG_LEVELS.indexOf(configuredLevel)
+// `-1` — unset, or a value the server would have rejected at boot — clamps to
+// index 0, which is 'silent'.
+const currentLevelIndex = Math.max(0, LOG_LEVELS.indexOf(rawLevel as LogLevel))
 
 /**
  * Check if a message at the given level should be logged
