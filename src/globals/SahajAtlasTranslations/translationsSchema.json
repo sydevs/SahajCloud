@@ -3,201 +3,851 @@
   "properties": {
     "common": {
       "type": "object",
-      "description": "Common UI strings shared across the Sahaj Atlas app — labels, loading states, and map filter toggles.",
+      "description": "Chrome shared by every view — the drawer stack, settings, error fallbacks, the report form, map controls, and the post-event feedback banner.",
       "properties": {
-        "events": {
-          "type": "string",
-          "description": "Generic plural noun for meditation events, used in counts and labels (e.g. \"3 events\")."
+        "chrome": {
+          "type": "object",
+          "description": "Drawer, peek-strip, and widget-wide controls.",
+          "properties": {
+            "back": {
+              "type": "string",
+              "description": "Peek-strip name for the root drawer, shown when a deeper view is open."
+            },
+            "back_to": {
+              "type": "string",
+              "description": "Peek-strip name that names its target view. `%{title}` = the parent view’s title."
+            },
+            "close": {
+              "type": "string",
+              "description": "Close control on every drawer, the report modal, the compact dialog, and the feedback banner."
+            },
+            "explore": {
+              "type": "string",
+              "description": "Accessible label (aria-label) of the collapsed base drawer’s toggle."
+            },
+            "loading": {
+              "type": "string",
+              "description": "Screen-reader label of every loading spinner."
+            },
+            "cancel": {
+              "type": "string",
+              "description": "Cancel button, shared by the registration form and the report form."
+            },
+            "widget_label": {
+              "type": "string",
+              "description": "Landmark name (role=\"region\") of the widget root, and the compact card’s heading. Must never be blank — it is how a screen-reader user finds the widget."
+            },
+            "all_classes_free": {
+              "type": "string",
+              "description": "Subtitle under the Region, Online, and Registration headers."
+            }
+          },
+          "additionalProperties": false
         },
-        "free_meditation_class": {
-          "type": "string",
-          "description": "Singular label for a free meditation class; used in headings and map markers."
+        "settings": {
+          "type": "object",
+          "description": "The settings drawer: theme choice.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Accessible label (aria-label) of the settings cog, and the settings drawer heading."
+            },
+            "theme_auto": {
+              "type": "string",
+              "description": "Theme row: follow the operating system’s light/dark setting."
+            },
+            "theme_dark": {
+              "type": "string",
+              "description": "Theme row: always dark."
+            },
+            "theme_light": {
+              "type": "string",
+              "description": "Theme row: always light."
+            }
+          },
+          "additionalProperties": false
         },
-        "free_meditation_classes": {
-          "type": "string",
-          "description": "Plural label for free meditation classes; used in page headings and section titles."
+        "errors": {
+          "type": "object",
+          "description": "Failure copy and the onward links offered beside it. Each key maps to one ERROR_POLICY kind in the widget.",
+          "properties": {
+            "generic": {
+              "type": "string",
+              "description": "Fallback message for an unclassified failure (ERROR_POLICY.unknown)."
+            },
+            "retry": {
+              "type": "string",
+              "description": "Retry action on an error fallback."
+            },
+            "offline": {
+              "type": "string",
+              "description": "Message when the browser reports no network (ERROR_POLICY.offline)."
+            },
+            "server": {
+              "type": "string",
+              "description": "Message for a 5xx response from the API (ERROR_POLICY.server)."
+            },
+            "not_found": {
+              "type": "string",
+              "description": "Message for an unrecognised route (ERROR_POLICY['not-found'])."
+            },
+            "not_found_event": {
+              "type": "string",
+              "description": "Message shown when an event link points at an event that no longer exists."
+            },
+            "not_found_region": {
+              "type": "string",
+              "description": "Message shown when a region link points at a place that no longer exists."
+            },
+            "config": {
+              "type": "string",
+              "description": "Message when the host page embedded the widget without a usable API key (ERROR_POLICY.config)."
+            },
+            "unavailable": {
+              "type": "string",
+              "description": "Default reason shown in the registration-blocked row when no more specific reason applies."
+            },
+            "share_unavailable": {
+              "type": "string",
+              "description": "Message in the Share view when the event has no shareable URL."
+            },
+            "captcha_blocked": {
+              "type": "string",
+              "description": "Message when the host page’s Content-Security-Policy blocked the Turnstile security check."
+            },
+            "no_events": {
+              "type": "string",
+              "description": "Empty-list message in the Region and Online views, when the place itself has no events."
+            },
+            "back_to_region": {
+              "type": "string",
+              "description": "Onward link back to the containing region. `%{region}` = region name."
+            },
+            "near_city": {
+              "type": "string",
+              "description": "Onward link to events near the visitor. `%{city}` = detected city name."
+            },
+            "browse_countries": {
+              "type": "string",
+              "description": "Onward link to the country list — the last rung of every error fallback."
+            },
+            "search_label": {
+              "type": "string",
+              "description": "Placeholder of the geocoder offered inside an error fallback."
+            }
+          },
+          "additionalProperties": false
         },
-        "language_selector": {
-          "type": "string",
-          "description": "Accessible label (aria-label) for the language-picker dropdown in the navbar."
+        "report": {
+          "type": "object",
+          "description": "The report-an-issue form: settings row, modal heading, fields, and its two end states.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Settings row, error-fallback action, and the report modal’s heading."
+            },
+            "description": {
+              "type": "string",
+              "description": "Introductory line under the report modal’s heading."
+            },
+            "message_label": {
+              "type": "string",
+              "description": "Label of the message textarea."
+            },
+            "message_placeholder": {
+              "type": "string",
+              "description": "Placeholder of the message textarea."
+            },
+            "email_label": {
+              "type": "string",
+              "description": "Label of the optional email field."
+            },
+            "email_help": {
+              "type": "string",
+              "description": "Helper text under the email field, explaining it is optional."
+            },
+            "email_placeholder": {
+              "type": "string",
+              "description": "Placeholder of the email field — an example address."
+            },
+            "submit": {
+              "type": "string",
+              "description": "Submit button of the report form."
+            },
+            "sent": {
+              "type": "string",
+              "description": "Thank-you state shown after the report is accepted."
+            },
+            "blocked": {
+              "type": "string",
+              "description": "Shown in place of the form when the security check could not load at all."
+            }
+          },
+          "additionalProperties": false
         },
-        "loading": {
-          "type": "string",
-          "description": "Generic loading indicator shown while content is being fetched."
+        "report_errors": {
+          "type": "object",
+          "description": "Validation messages and server refusals for the report form.",
+          "properties": {
+            "email": {
+              "type": "string",
+              "description": "Validation: the email field holds something that is not an address."
+            },
+            "message": {
+              "type": "string",
+              "description": "Validation: the message is too short. `%{min}` = minimum character count."
+            },
+            "message_max": {
+              "type": "string",
+              "description": "Validation: the message is too long. `%{max}` = maximum character count."
+            },
+            "send_failed": {
+              "type": "string",
+              "description": "Refusal: the security check was unavailable, or the send failed for an unnamed reason."
+            },
+            "captcha": {
+              "type": "string",
+              "description": "Refusal: the security check expired and must be redone before sending."
+            },
+            "disposable_email": {
+              "type": "string",
+              "description": "Refusal: the email address belongs to a disposable-address provider."
+            },
+            "urls_not_allowed": {
+              "type": "string",
+              "description": "Refusal: the message contains links, which are rejected as spam."
+            }
+          },
+          "additionalProperties": false
         },
-        "show_online_classes": {
-          "type": "string",
-          "description": "Map filter toggle label (off state) — invites the user to include online-only classes."
+        "map": {
+          "type": "object",
+          "description": "Labels on the map’s own controls.",
+          "properties": {
+            "find_my_location": {
+              "type": "string",
+              "description": "Label of the geolocate control."
+            },
+            "location_not_available": {
+              "type": "string",
+              "description": "Label of the geolocate control once the browser has refused or failed to supply a location."
+            }
+          },
+          "additionalProperties": false
         },
-        "showing_online_classes": {
-          "type": "string",
-          "description": "Map filter toggle label (on state) — indicates online classes are currently shown."
+        "feedback": {
+          "type": "object",
+          "description": "The banner shown after a registrant answers the post-event follow-up email, on the Event and Region views.",
+          "properties": {
+            "confirmed_title": {
+              "type": "string",
+              "maxLength": 40,
+              "strict": true,
+              "description": "Banner heading after the registrant confirms the class took place."
+            },
+            "confirmed_body": {
+              "type": "string",
+              "description": "Banner body after the registrant confirms the class took place."
+            },
+            "denied_title": {
+              "type": "string",
+              "maxLength": 40,
+              "strict": true,
+              "description": "Banner heading after the registrant reports the class could not be found."
+            },
+            "denied_body": {
+              "type": "string",
+              "description": "Banner body after the registrant reports the class could not be found."
+            },
+            "nearby": {
+              "type": "string",
+              "description": "Banner link to other nearby classes, on the Event and Region views."
+            },
+            "below": {
+              "type": "string",
+              "description": "Banner line pointing at the list already on screen, on the Region view."
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
     },
-    "region": {
+    "countries": {
       "type": "object",
-      "description": "Copy for region, location, and venue landing pages.",
+      "description": "The base view: the list of countries the atlas covers.",
       "properties": {
-        "locations": {
+        "title": {
+          "type": "string",
+          "description": "Heading of the base drawer, and the drawer stack’s document title."
+        }
+      },
+      "additionalProperties": false
+    },
+    "search": {
+      "type": "object",
+      "description": "The Search view: the geocoder, the paged result list, and the sort menu.",
+      "properties": {
+        "chrome": {
           "type": "object",
-          "description": "Headings and result-count lines on a location/region landing page.",
+          "description": "The search header itself.",
           "properties": {
             "title": {
               "type": "string",
-              "description": "Heading on a location/region landing page. `%{location}` = region or place name."
+              "description": "Search view heading, and its peek-strip name."
             },
-            "description_one": {
+            "placeholder": {
               "type": "string",
-              "description": "Singular result-count line under a location heading. `%{count}` = 1, `%{location}` = region name."
-            },
-            "description_other": {
-              "type": "string",
-              "description": "Plural result-count line under a location heading. `%{count}` = number, `%{location}` = region name."
+              "description": "Placeholder of the geocoder input, in every header that carries one."
             }
           },
           "additionalProperties": false
         },
-        "venues": {
+        "results": {
           "type": "object",
-          "description": "Headings and result-count lines on a venue landing page.",
+          "description": "The paged result list under a search.",
           "properties": {
-            "title": {
+            "more": {
               "type": "string",
-              "description": "Heading on a venue landing page. `%{venue}` = venue name."
+              "description": "Button that reveals the next page of results."
             },
-            "description_one": {
+            "farther": {
               "type": "string",
-              "description": "Singular result-count line under a venue heading. `%{count}` = 1, `%{venue}` = venue name."
+              "description": "Button that widens the search radius beyond the nearby band."
             },
-            "description_other": {
+            "showing": {
               "type": "string",
-              "description": "Plural result-count line under a venue heading. `%{count}` = number, `%{venue}` = venue name."
+              "description": "Result-count line. `%{shown}` = results rendered, `%{total}` = results found."
+            },
+            "no_nearby": {
+              "type": "string",
+              "description": "Message when a search found nothing inside the radius (ERROR_POLICY['no-nearby']). `%{km}` = radius in kilometres."
             }
           },
           "additionalProperties": false
+        },
+        "sort": {
+          "type": "object",
+          "description": "The result sort menu. Each option key is looked up dynamically by its sort id.",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Label of the sort menu."
+            },
+            "recommended": {
+              "type": "string",
+              "description": "Sort option: the default blend of distance and imminence."
+            },
+            "closest": {
+              "type": "string",
+              "description": "Sort option: nearest first."
+            },
+            "soonest": {
+              "type": "string",
+              "description": "Sort option: next to start first."
+            }
+          },
+          "additionalProperties": false
+        },
+        "country_site": {
+          "type": "object",
+          "description": "Shown when a search lands in a country the atlas does not list, and that country runs its own website (ERROR_POLICY['country-site']).",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Message that the country has no listings here yet. `%{country}` = country name."
+            },
+            "cta": {
+              "type": "string",
+              "description": "Onward link to that country’s own website. `%{country}` = country name."
+            }
+          },
+          "additionalProperties": false
+        },
+        "nearby_prompt": {
+          "type": "object",
+          "description": "The header prompt offering to jump to the visitor’s own city.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Prompt question. `%{city}` = detected city name."
+            },
+            "dismiss": {
+              "type": "string",
+              "description": "Control that hides the prompt for this visit."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "filters": {
+      "type": "object",
+      "description": "The Filter view: its chrome, and one sub-group per filter control.",
+      "properties": {
+        "chrome": {
+          "type": "object",
+          "description": "The filter drawer’s own heading, actions, and chips.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Filter view heading, and its peek-strip name."
+            },
+            "apply": {
+              "type": "string",
+              "description": "Button that closes the drawer and applies the selection."
+            },
+            "clear": {
+              "type": "string",
+              "description": "Action that clears every filter at once."
+            },
+            "clear_one": {
+              "type": "string",
+              "description": "Action that clears a single filter section."
+            },
+            "remove": {
+              "type": "string",
+              "description": "Accessible label of an active-filter chip’s remove button. `%{label}` = the filter’s own label."
+            },
+            "any_time": {
+              "type": "string",
+              "description": "Chip text when no time-of-day filter is set."
+            },
+            "no_results": {
+              "type": "string",
+              "description": "Empty-list message when the filters, rather than the place, excluded everything."
+            }
+          },
+          "additionalProperties": false
+        },
+        "format": {
+          "type": "object",
+          "description": "Filter: in-person or online.",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Section label of the format filter."
+            },
+            "any": {
+              "type": "string",
+              "description": "Format option: no preference."
+            },
+            "offline": {
+              "type": "string",
+              "description": "Format option: classes with a physical venue."
+            },
+            "online": {
+              "type": "string",
+              "description": "Format option: classes held online."
+            }
+          },
+          "additionalProperties": false
+        },
+        "cadence": {
+          "type": "object",
+          "description": "Filter: how often a class repeats.",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Section label of the frequency filter."
+            },
+            "any": {
+              "type": "string",
+              "description": "Frequency option: no preference."
+            },
+            "daily": {
+              "type": "string",
+              "description": "Frequency option: repeats every day."
+            },
+            "weekly": {
+              "type": "string",
+              "description": "Frequency option: repeats weekly."
+            },
+            "monthly": {
+              "type": "string",
+              "description": "Frequency option: repeats monthly."
+            },
+            "once": {
+              "type": "string",
+              "description": "Frequency option: a single occasion, not a series."
+            }
+          },
+          "additionalProperties": false
+        },
+        "days": {
+          "type": "object",
+          "description": "Filter: which weekdays a class runs on. The day names themselves come from the browser, not from here.",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Section label of the day-of-week filter."
+            }
+          },
+          "additionalProperties": false
+        },
+        "time": {
+          "type": "object",
+          "description": "Filter: time of day.",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Section label of the time-of-day filter."
+            },
+            "morning": {
+              "type": "string",
+              "description": "Time-of-day option: morning."
+            },
+            "afternoon": {
+              "type": "string",
+              "description": "Time-of-day option: afternoon."
+            },
+            "evening": {
+              "type": "string",
+              "description": "Time-of-day option: evening."
+            },
+            "night": {
+              "type": "string",
+              "description": "Time-of-day option: night."
+            }
+          },
+          "additionalProperties": false
+        },
+        "language": {
+          "type": "object",
+          "description": "Filter: the language a class is held in. The language names themselves come from the browser.",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Section label of the language filter."
+            },
+            "all": {
+              "type": "string",
+              "description": "Language option: no preference."
+            },
+            "empty": {
+              "type": "string",
+              "description": "Shown when no class in view declares a language."
+            }
+          },
+          "additionalProperties": false
+        },
+        "dates": {
+          "type": "object",
+          "description": "Filter: a date range, and the chips that summarise it.",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Section label of the date filter."
+            },
+            "from": {
+              "type": "string",
+              "description": "Label of the range’s start input."
+            },
+            "to": {
+              "type": "string",
+              "description": "Label of the range’s end input."
+            },
+            "pill_from": {
+              "type": "string",
+              "description": "Chip for an open-ended range with a start. `%{date}` = start date."
+            },
+            "pill_until": {
+              "type": "string",
+              "description": "Chip for an open-ended range with an end. `%{date}` = end date."
+            },
+            "pill_range": {
+              "type": "string",
+              "description": "Chip for a closed range. `%{start}` = start date, `%{end}` = end date."
+            }
+          },
+          "additionalProperties": false
+        },
+        "region": {
+          "type": "object",
+          "description": "Filter: narrow the list to one region.",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Section label of the region filter."
+            },
+            "all": {
+              "type": "string",
+              "description": "Region option: no preference."
+            },
+            "search": {
+              "type": "string",
+              "description": "Placeholder of the region search input."
+            },
+            "empty": {
+              "type": "string",
+              "description": "Shown when the region search matches nothing."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "online": {
+      "type": "object",
+      "description": "The Online view: classes held online, which belong to no place.",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Online view heading, its row on the Countries list, its link on a Region, and its peek-strip name."
         }
       },
       "additionalProperties": false
     },
     "event": {
       "type": "object",
-      "description": "Copy for event details, recurrence schedules, and timezone conversion.",
+      "description": "One event: how it is described, the actions offered on it, its schedule, and its auto-generated CMS title.",
       "properties": {
-        "details": {
+        "display": {
           "type": "object",
-          "description": "Labels and actions shown on an event's detail view (directions, contact, distance, online badges).",
+          "description": "Everything that describes an event — the status chip, the when-line, the where-line, distances, the type label, and the registration slot. Shared by the list card, the Event view, and the Calendar entry.",
           "properties": {
+            "about": {
+              "type": "string",
+              "description": "Section heading above the event description."
+            },
+            "free_meditation_class": {
+              "type": "string",
+              "description": "Suffix appended after the event title in the standalone page <title>."
+            },
+            "chip_full": {
+              "type": "string",
+              "maxLength": 14,
+              "strict": true,
+              "description": "Status chip: the event has no places left."
+            },
+            "chip_today": {
+              "type": "string",
+              "maxLength": 14,
+              "strict": true,
+              "description": "Status chip and when-line: the next session is today."
+            },
+            "chip_ended": {
+              "type": "string",
+              "maxLength": 14,
+              "strict": true,
+              "description": "Status chip: the event is over."
+            },
+            "chip_starts": {
+              "type": "string",
+              "description": "Status chip for an event that has not begun. `%{date}` = start date."
+            },
+            "started_on": {
+              "type": "string",
+              "description": "Status chip and when-line for a series already under way. `%{date}` = start date."
+            },
+            "first_session": {
+              "type": "string",
+              "description": "When-line for a course that has not begun. `%{date}` = first session’s date and time."
+            },
+            "next_session": {
+              "type": "string",
+              "description": "When-line for a series under way. `%{date}` = next session’s date and time."
+            },
+            "event_ended": {
+              "type": "string",
+              "description": "When-line and registration-blocked message for a finished event."
+            },
+            "event_full": {
+              "type": "string",
+              "maxLength": 36,
+              "strict": true,
+              "description": "Microcopy and registration-blocked message when the event has no places left."
+            },
+            "registration_closed": {
+              "type": "string",
+              "description": "Register-slot label and blocked message when registration has closed."
+            },
+            "registration_required": {
+              "type": "string",
+              "description": "Microcopy on a course, saying a place must be booked in advance."
+            },
+            "registration_external": {
+              "type": "string",
+              "description": "Refusal shown when registration is handled on another website."
+            },
+            "online_joining_note": {
+              "type": "string",
+              "description": "Microcopy on an online class, saying the joining link arrives by email."
+            },
+            "contact_to_join_full": {
+              "type": "string",
+              "maxLength": 40,
+              "strict": true,
+              "description": "Helper under a full event, offering the host as a way in."
+            },
+            "contact_to_join_late": {
+              "type": "string",
+              "description": "Helper under a series already under way, offering the host as a way in."
+            },
             "contact_for_timing": {
               "type": "string",
-              "description": "Shown instead of a schedule when an event has no fixed time; prompts the user to contact the host."
-            },
-            "contact_host": {
-              "type": "string",
-              "description": "Label/action to contact the event host."
-            },
-            "get_directions": {
-              "type": "string",
-              "description": "Button that opens map directions to the event venue."
-            },
-            "hosted_from": {
-              "type": "string",
-              "description": "Host-location label for an online event. `%{city}` = host city."
-            },
-            "km": {
-              "type": "string",
-              "description": "Distance-unit suffix (kilometres) shown next to an event's distance from the user."
-            },
-            "more_info": {
-              "type": "string",
-              "description": "Link/button to expand or open fuller event details."
+              "description": "When-line for a listing with no schedule, and the message shown when registration is hidden."
             },
             "online": {
               "type": "string",
-              "description": "Short badge indicating an online event."
+              "description": "Where-line badge, and the Calendar entry badge, for an online class."
             },
-            "online_class": {
+            "hosted_from": {
               "type": "string",
-              "description": "Fuller label for an online class."
+              "description": "Where-line for an online class, naming the host’s city. `%{city}` = host city."
             },
-            "starting_on": {
+            "time_in_place": {
               "type": "string",
-              "description": "Event start-date label. `%{date}` = formatted start date."
+              "description": "Viewer-local time under the where-line. `%{time}` = local time, `%{city}` = the event’s city."
             },
-            "starting_soon": {
+            "distance_away": {
               "type": "string",
-              "description": "Label for an event whose start is imminent."
+              "description": "List card distance from the visitor. `%{distance}` = formatted distance."
             },
-            "tel": {
+            "distance_from_place": {
               "type": "string",
-              "description": "Telephone-link label for the host's number. `%{phoneNumber}` = phone number."
+              "description": "List card distance from a named place. `%{distance}` = formatted distance, `%{place}` = place name."
+            },
+            "distance_from_search": {
+              "type": "string",
+              "description": "List card distance from the searched point. `%{distance}` = formatted distance."
+            },
+            "type_class": {
+              "type": "string",
+              "description": "Type label: a class with no stated cadence."
+            },
+            "type_class_daily": {
+              "type": "string",
+              "description": "Type label: a class held every day."
+            },
+            "type_class_weekly": {
+              "type": "string",
+              "description": "Type label: a class held weekly."
+            },
+            "type_class_fortnightly": {
+              "type": "string",
+              "description": "Type label: a class held every second week."
+            },
+            "type_class_monthly": {
+              "type": "string",
+              "description": "Type label: a class held monthly."
+            },
+            "type_course": {
+              "type": "string",
+              "description": "Type label: a limited run of sessions."
+            },
+            "type_oneoff": {
+              "type": "string",
+              "description": "Type label: a single occasion."
+            },
+            "sessions_count": {
+              "type": "string",
+              "plural": true,
+              "description": "Session count beside a course’s schedule, entered per plural form. `%{count}` = number of sessions."
+            },
+            "see_nearby": {
+              "type": "string",
+              "description": "Register-slot link offered when this event cannot be joined."
+            },
+            "register_now": {
+              "type": "string",
+              "description": "Label of the register button in the register slot."
+            }
+          },
+          "additionalProperties": false
+        },
+        "actions": {
+          "type": "object",
+          "description": "The circular action buttons on an event, and the controls inside its image carousel.",
+          "properties": {
+            "contact": {
+              "type": "string",
+              "description": "Action circle that opens the host’s contact details; also the fallback contact label."
+            },
+            "directions": {
+              "type": "string",
+              "description": "Action circle that opens directions to the venue."
+            },
+            "website": {
+              "type": "string",
+              "description": "Action circle that opens the event’s own website."
+            },
+            "share": {
+              "type": "string",
+              "description": "Action circle that opens the Share view."
+            },
+            "add_calendar": {
+              "type": "string",
+              "description": "Add-to-calendar action, offered on the registration thank-you screen."
+            },
+            "download_ics": {
+              "type": "string",
+              "description": "Add-to-calendar menu item that downloads an .ics file."
             },
             "view_photo": {
               "type": "string",
-              "description": "Button/link that opens the event's photo in the lightbox."
+              "description": "Image carousel: open the photo full size."
+            },
+            "pause_slideshow": {
+              "type": "string",
+              "description": "Image carousel: stop it advancing on its own."
             }
           },
           "additionalProperties": false
         },
         "recurrence": {
           "type": "object",
-          "description": "Human-readable recurrence labels. Rendered via t('recurrence.<type>', { weekday }). English uses the simple weekly/monthly forms; other locales use the detailed weekly_1/2 + monthly_* forms. `%{weekday}` = localized day name.",
+          "description": "Human-readable schedules. The weekday and list separators come from the browser — only the sentence around them is translated.",
           "properties": {
             "daily": {
               "type": "string",
-              "description": "Recurrence label for an event that repeats every day."
+              "description": "Repeats every day."
             },
-            "weekly": {
+            "daily_n": {
               "type": "string",
-              "description": "Weekly recurrence, simple form (English). `%{weekday}` = day name."
-            },
-            "monthly": {
-              "type": "string",
-              "description": "Monthly recurrence, simple form (English)."
+              "description": "Repeats every few days. `%{interval}` = number of days."
             },
             "weekly_1": {
               "type": "string",
-              "description": "Weekly recurrence, every week — detailed form used by non-English locales. `%{weekday}` = day name."
+              "description": "Repeats every week on one weekday. `%{weekday}` = localized day name."
             },
             "weekly_2": {
               "type": "string",
-              "description": "Weekly recurrence, every second week. `%{weekday}` = day name."
+              "description": "Repeats every second week. `%{weekday}` = localized day name."
+            },
+            "weekly_n": {
+              "type": "string",
+              "description": "Repeats every few weeks. `%{interval}` = number of weeks, `%{weekday}` = localized day name."
+            },
+            "weekly_multi": {
+              "type": "string",
+              "description": "Repeats on several weekdays. `%{weekdays}` = a browser-formatted list of day names."
             },
             "monthly_1st": {
               "type": "string",
-              "description": "Monthly recurrence on the 1st given weekday of the month. `%{weekday}` = day name."
+              "description": "Repeats on the first given weekday of each month. `%{weekday}` = localized day name."
             },
             "monthly_2nd": {
               "type": "string",
-              "description": "Monthly recurrence on the 2nd given weekday of the month. `%{weekday}` = day name."
+              "description": "Repeats on the second given weekday of each month. `%{weekday}` = localized day name."
             },
             "monthly_3rd": {
               "type": "string",
-              "description": "Monthly recurrence on the 3rd given weekday of the month. `%{weekday}` = day name."
+              "description": "Repeats on the third given weekday of each month. `%{weekday}` = localized day name."
             },
             "monthly_4th": {
               "type": "string",
-              "description": "Monthly recurrence on the 4th given weekday of the month. `%{weekday}` = day name."
+              "description": "Repeats on the fourth given weekday of each month. `%{weekday}` = localized day name."
             },
             "monthly_last": {
               "type": "string",
-              "description": "Monthly recurrence on the last given weekday of the month. `%{weekday}` = day name."
+              "description": "Repeats on the last given weekday of each month. `%{weekday}` = localized day name."
             },
-            "no_recurrence": {
+            "monthly_date": {
               "type": "string",
-              "description": "Fallback when an event has no fixed schedule (formerly the `null` key)."
-            }
-          },
-          "additionalProperties": false
-        },
-        "timing": {
-          "type": "object",
-          "description": "Copy for event timing and timezone conversion.",
-          "properties": {
-            "converted_to": {
-              "type": "string",
-              "description": "Tooltip shown when an event time is converted to the viewer's timezone. `%{timezone}` = tz name, `%{offset}` = UTC offset."
+              "description": "Repeats on a fixed day number each month. `%{day}` = day of the month."
             }
           },
           "additionalProperties": false
@@ -232,111 +882,146 @@
       },
       "additionalProperties": false
     },
+    "calendar": {
+      "type": "object",
+      "description": "The Calendar view’s own header. The grid’s dates and day names come from the browser.",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Calendar view heading, and its peek-strip name."
+        },
+        "previous": {
+          "type": "string",
+          "description": "Control that steps back one month, week, or page."
+        },
+        "next": {
+          "type": "string",
+          "description": "Control that steps forward one month, week, or page."
+        },
+        "pick_date": {
+          "type": "string",
+          "description": "Control that opens the date picker."
+        },
+        "view_month": {
+          "type": "string",
+          "description": "View switch: the month grid."
+        },
+        "view_week": {
+          "type": "string",
+          "description": "View switch: the week grid."
+        },
+        "view_list": {
+          "type": "string",
+          "description": "View switch: the agenda list."
+        }
+      },
+      "additionalProperties": false
+    },
     "registration": {
       "type": "object",
-      "description": "Copy for the event registration form — fields, validation errors, and optional questions.",
+      "description": "The registration form: its fields, its validation messages, and the optional questions an event may ask.",
       "properties": {
         "form": {
           "type": "object",
-          "description": "Labels, placeholders, notices, and CTAs in the registration form/modal.",
+          "description": "Headings, field labels, notices, and buttons in the registration form.",
           "properties": {
-            "cancel": {
+            "title": {
               "type": "string",
-              "description": "Cancel button in the registration form/modal."
-            },
-            "email": {
-              "type": "string",
-              "description": "Label/placeholder for the email input."
-            },
-            "followup": {
-              "type": "string",
-              "description": "Confirmation note shown after registering."
-            },
-            "invite_friend": {
-              "type": "string",
-              "description": "Option encouraging the user to bring a guest."
-            },
-            "mailing_list_consent": {
-              "type": "string",
-              "description": "Consent checkbox label for the events mailing list."
+              "description": "Registration view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
             },
             "name": {
               "type": "string",
-              "description": "Label/placeholder for the name input."
+              "description": "Label of the name field."
             },
-            "okay": {
+            "email": {
               "type": "string",
-              "description": "Acknowledgement button (e.g. dismisses the thank-you state)."
-            },
-            "online_notice": {
-              "type": "string",
-              "description": "Notice for online classes explaining the join link is emailed."
-            },
-            "online_notice_title": {
-              "type": "string",
-              "description": "Heading for the online-session notice."
-            },
-            "privacy_policy": {
-              "type": "string",
-              "description": "Consent/disclaimer text shown near the submit button."
-            },
-            "register_now": {
-              "type": "string",
-              "description": "Primary CTA to open the registration form."
+              "description": "Label of the email field."
             },
             "starting_date": {
               "type": "string",
-              "description": "Label for the starting-date selector."
+              "description": "Label of the starting-date chooser."
+            },
+            "show_more_dates": {
+              "type": "string",
+              "description": "Control that reveals further start dates."
             },
             "submit": {
               "type": "string",
-              "description": "Submit button for the registration form."
+              "description": "Submit button of the registration form."
             },
-            "thank_you": {
+            "okay": {
               "type": "string",
-              "description": "Success message shown after a successful registration."
+              "description": "Acknowledgement button that dismisses the thank-you screen."
+            },
+            "followup": {
+              "type": "string",
+              "description": "Thank-you screen line promising a confirmation email."
+            },
+            "invite_friend": {
+              "type": "string",
+              "description": "Thank-you screen line encouraging the registrant to bring someone."
+            },
+            "online_notice": {
+              "type": "string",
+              "description": "Notice on an online class, saying the joining link arrives by email."
+            },
+            "online_notice_title": {
+              "type": "string",
+              "description": "Heading of the online-class notice."
+            },
+            "privacy_policy": {
+              "type": "string",
+              "description": "Consent text beside the submit button."
+            },
+            "error_title": {
+              "type": "string",
+              "description": "Heading of the form’s error state."
+            },
+            "captcha_retry": {
+              "type": "string",
+              "description": "Refusal: the security check expired and must be redone before registering."
             }
           },
           "additionalProperties": false
         },
         "errors": {
           "type": "object",
-          "description": "Validation error messages for the registration form fields.",
+          "description": "Validation messages for the registration form’s three required fields.",
           "properties": {
             "email": {
               "type": "string",
-              "description": "Validation error for an invalid/empty email field."
+              "description": "Validation: the email field holds something that is not an address."
             },
             "name": {
               "type": "string",
-              "description": "Validation error for an empty/invalid name field."
+              "description": "Validation: the name field is empty or incomplete."
             },
             "starting_at": {
               "type": "string",
-              "description": "Validation error when no starting date is chosen."
+              "description": "Validation: no starting date was chosen."
             }
           },
           "additionalProperties": false
         },
         "questions": {
           "type": "object",
-          "description": "Optional registration questions, rendered via t('questions.<key>'); the set shown per event varies.",
+          "description": "The optional questions an event may ask a registrant. These keys are exactly EVENT_REGISTRATION_QUESTIONS (src/lib/registrations/questions.ts), in order — a unit spec pins them.",
           "properties": {
-            "aspirations": {
-              "type": "string",
-              "description": "Registration question: what the attendee hopes to get out of the event. Matches `aspirations` in EVENT_REGISTRATION_QUESTIONS."
-            },
             "experience": {
               "type": "string",
-              "description": "Registration question: whether the attendee has practised Sahaja Yoga before. Matches `experience` in EVENT_REGISTRATION_QUESTIONS."
-            },
-            "questions": {
-              "type": "string",
-              "description": "Registration question: anything the attendee wants to ask before coming. Matches `questions` in EVENT_REGISTRATION_QUESTIONS."
+              "description": "Question `experience`: whether the registrant has meditated with Sahaja Yoga before."
             },
             "referral": {
               "type": "string",
-              "description": "Registration question: how the attendee heard about this event. Matches `referral` in EVENT_REGISTRATION_QUESTIONS."
+              "description": "Question `referral`: how the registrant heard about the event."
+            },
+            "aspirations": {
+              "type": "string",
+              "description": "Question `aspirations`: what the registrant hopes to get out of it."
+            },
+            "questions": {
+              "type": "string",
+              "description": "Question `questions`: anything the registrant wants to ask beforehand."
             }
           },
           "additionalProperties": false
@@ -346,11 +1031,38 @@
     },
     "share": {
       "type": "object",
-      "description": "Copy for the event share action.",
+      "description": "The Share view: the share targets offered for one event.",
       "properties": {
-        "action": {
+        "title": {
           "type": "string",
-          "description": "Label for the share action/button on an event; seeds the forthcoming Share view (renamed from `details.share`)."
+          "description": "Share view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
+        },
+        "share_on": {
+          "type": "string",
+          "description": "Label of one share target. `%{platform}` = the platform’s name."
+        },
+        "native": {
+          "type": "string",
+          "description": "Label of the device’s own share sheet."
+        },
+        "copy_link": {
+          "type": "string",
+          "description": "Action that copies the event link to the clipboard."
+        },
+        "copied": {
+          "type": "string",
+          "description": "Confirmation shown after the link is copied."
+        }
+      },
+      "additionalProperties": false
+    },
+    "compact": {
+      "type": "object",
+      "description": "The compact card, rendered where the host’s box is too small for the interface itself.",
+      "properties": {
+        "open": {
+          "type": "string",
+          "description": "The card’s one button, which opens the atlas."
         }
       },
       "additionalProperties": false

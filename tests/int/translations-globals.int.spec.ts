@@ -8,8 +8,9 @@
  * - Nested tabs (wm-app-translations, sy-atlas-translations) are wrapped in a
  *   Payload group named after the tab slug so the API response is namespaced:
  *   `{ onboarding: { welcome: {…} } }` instead of `{ onboarding_welcome: {…} }`.
- * - wm-web has no group wrappers. Sy-atlas mixes leaf tabs (Common, Share) with
- *   nested tabs (Region, Event, Registration) that do.
+ * - wm-web has no group wrappers. Sy-atlas mixes leaf tabs (Countries, Online,
+ *   Calendar, Share, Compact, Emails) with nested tabs (Common, Search,
+ *   Filters, Event, Registration) that do.
  * - richText fields inside nested tabs keep the sub-slug prefix (the group
  *   wrapper supplies the tab namespace), so the field name is
  *   `welcome_legal_disclaimer` and the API path is
@@ -89,10 +90,24 @@ describe('Translations Globals Configuration', () => {
       expect(labels).toEqual(['Common', 'Navigation', 'Footer', 'Page Tags', 'Errors'])
     })
 
-    it('sy-atlas-translations has Common, Region, Event, Registration, Share, Emails tabs', () => {
+    // One tab per widget view since #706 — Region is gone (RegionView owns no
+    // key of its own), and the seven views that had no CMS home now have one.
+    it('sy-atlas-translations has one tab per widget view', () => {
       const tabsField = findGlobal('sy-atlas-translations').fields[0] as TabsField
       const labels = tabsField.tabs.map((t) => t.label)
-      expect(labels).toEqual(['Common', 'Region', 'Event', 'Registration', 'Share', 'Emails'])
+      expect(labels).toEqual([
+        'Common',
+        'Countries',
+        'Search',
+        'Filters',
+        'Online',
+        'Event',
+        'Calendar',
+        'Registration',
+        'Share',
+        'Compact',
+        'Emails',
+      ])
     })
   })
 
@@ -116,23 +131,46 @@ describe('Translations Globals Configuration', () => {
         collectFieldsByPredicate(t.fields, (f) => f.type === 'json'),
       ) as Array<{ name: string }>
       const names = jsonFields.map((f) => f.name)
-      // Leaf tabs emit a field named after the tab (`common`, `share`). Nested
-      // tabs emit one field per sub-group. Assert the full set so a dropped
-      // sub-group (for example, event.recurrence, registration.errors) is caught.
-      expect(names).toEqual(
-        expect.arrayContaining([
-          'common',
-          'locations',
-          'venues',
-          'details',
-          'recurrence',
-          'timing',
-          'form',
-          'errors',
-          'questions',
-          'share',
-        ]),
-      )
+      // Leaf tabs emit a field named after the tab (`countries`, `share`).
+      // Nested tabs emit one field per sub-group, so `chrome` legitimately
+      // appears three times — once each under Common, Search and Filters.
+      // Assert the full ordered set, so a dropped sub-group is caught rather
+      // than absorbed by a name a sibling tab happens to share.
+      expect(names).toEqual([
+        'chrome',
+        'settings',
+        'errors',
+        'report',
+        'report_errors',
+        'map',
+        'feedback',
+        'countries',
+        'chrome',
+        'results',
+        'sort',
+        'country_site',
+        'nearby_prompt',
+        'chrome',
+        'format',
+        'cadence',
+        'days',
+        'time',
+        'language',
+        'dates',
+        'region',
+        'online',
+        'display',
+        'actions',
+        'recurrence',
+        'title',
+        'calendar',
+        'form',
+        'errors',
+        'questions',
+        'share',
+        'compact',
+        'emails',
+      ])
     })
 
     it('wm-app-translations uses namespaced sub-group field names (no tab prefix, no `strings` sub-field)', () => {
@@ -184,9 +222,9 @@ describe('Translations Globals Configuration', () => {
       }
     })
 
-    it('sy-atlas-translations wraps nested tabs (Region, Event, Registration) in a single group of collapsibles', () => {
+    it('sy-atlas-translations wraps every nested tab in a single group of collapsibles', () => {
       const tabsField = findGlobal('sy-atlas-translations').fields[0] as TabsField
-      const nestedTabs = new Set(['Region', 'Event', 'Registration'])
+      const nestedTabs = new Set(['Common', 'Search', 'Filters', 'Event', 'Registration'])
       for (const tab of tabsField.tabs) {
         const label = String(tab.label)
         const groups = tab.fields.filter((f) => f.type === 'group') as Array<{
@@ -199,7 +237,8 @@ describe('Translations Globals Configuration', () => {
           expect(groups, label).toHaveLength(1)
           expect(groups[0]!.fields.every((f) => f.type === 'collapsible'), label).toBe(true)
         } else {
-          // Leaf tabs (Common, Share) have no group wrapper.
+          // Leaf tabs (Countries, Online, Calendar, Share, Compact, Emails)
+          // have no group wrapper.
           expect(groups, label).toHaveLength(0)
         }
       }
@@ -226,7 +265,7 @@ describe('Translations Globals Configuration', () => {
         slug: 'sy-atlas-translations',
         locale: 'fr',
         publishSpecificLocale: 'fr',
-        data: { _status: 'published', common: { loading: 'Chargement…' } } as never,
+        data: { _status: 'published', countries: { title: 'Cours de méditation gratuits' } } as never,
         overrideAccess: true,
       })
 
@@ -257,24 +296,33 @@ describe('Translations Globals Configuration', () => {
       })
 
     it('rejects a key the schema does not declare', async () => {
-      await expect(write({ common: { mystery: 'nope' } })).rejects.toThrow()
+      await expect(write({ compact: { mystery: 'nope' } })).rejects.toThrow()
     })
 
     it('rejects a non-string value for a declared key', async () => {
-      await expect(write({ common: { loading: 42 } })).rejects.toThrow()
+      await expect(write({ compact: { open: 42 } })).rejects.toThrow()
     })
 
     it('accepts a partial object, and null', async () => {
-      await expect(write({ common: { loading: 'Loading…' } })).resolves.toBeDefined()
-      await expect(write({ common: null })).resolves.toBeDefined()
+      await expect(write({ compact: { open: 'Find a class near you' } })).resolves.toBeDefined()
+      await expect(write({ compact: null })).resolves.toBeDefined()
+    })
+
+    // #706 turned seven advisory budgets strict, so the limit is emitted into
+    // the column's JSON Schema and Payload refuses the write itself.
+    it('rejects a strict key over its maxLength', async () => {
+      await expect(
+        write({ event: { display: { chip_full: 'Completely full up' } } }),
+      ).rejects.toThrow()
+      await expect(write({ event: { display: { chip_full: 'Full' } } })).resolves.toBeDefined()
     })
 
     // Payload's built-in validator short-circuits on an "empty" value and
     // counts `[]` as empty, so the schema never sees it. The composed check
     // ahead of the delegation is what refuses it.
     it('rejects an array, which the built-in validator alone lets through', async () => {
-      await expect(write({ common: [] })).rejects.toThrow()
-      await expect(write({ common: ['a'] })).rejects.toThrow()
+      await expect(write({ compact: [] })).rejects.toThrow()
+      await expect(write({ compact: ['a'] })).rejects.toThrow()
     })
   })
 })

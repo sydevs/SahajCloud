@@ -1,0 +1,276 @@
+{
+  "_meta": {
+    "global": "sy-atlas-translations",
+    "locale": "uk",
+    "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/uk/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
+    "schema_version": "post-#706 (11 tabs, 33 leaf groups, grouped by widget view)",
+    "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
+    "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
+  },
+  "common": {
+    "chrome": {
+      "back": "Назад",
+      "back_to": "Назад до %{title}",
+      "close": "Закрити",
+      "explore": "Огляд",
+      "loading": "Завантаження…",
+      "cancel": "Скасувати",
+      "widget_label": "Безкоштовні заняття медитацією",
+      "all_classes_free": "Усі заняття безкоштовні"
+    },
+    "settings": {
+      "title": "Налаштування",
+      "theme_auto": "Системна (авто)",
+      "theme_dark": "Темна тема",
+      "theme_light": "Світла тема"
+    },
+    "errors": {
+      "generic": "Щось пішло не так.",
+      "retry": "Спробувати ще раз",
+      "offline": "Схоже, ви не в мережі.",
+      "server": "На наших серверах зараз негаразди.",
+      "not_found": "Ми не знайшли те, що ви шукали.",
+      "not_found_event": "Ми не знайшли цю подію.",
+      "not_found_region": "Ми не знайшли це місце.",
+      "config": "Atlas налаштовано на цій сторінці неправильно.",
+      "unavailable": "До цієї програми зараз не можна долучитися.",
+      "share_unavailable": "Для цієї медитації поки немає посилання, яким можна поділитися.",
+      "captcha_blocked": "Цей Атлас не може працювати на цій сторінці: його перевірку безпеки заблоковано.",
+      "no_events": "Події не знайдено.",
+      "back_to_region": "Показати події: %{region}",
+      "near_city": "Показати події поблизу: %{city}",
+      "browse_countries": "Показати всі країни",
+      "search_label": "Або знайдіть місце"
+    },
+    "report": {
+      "title": "Повідомити про проблему",
+      "description": "Розкажіть, що не так, і ми передамо це команді.",
+      "message_label": "Що пішло не так?",
+      "message_placeholder": "Опишіть, що ви робили і що виглядало неправильно.",
+      "email_label": "Ел. пошта",
+      "email_help": "Необов'язково — ми зможемо відповісти, лише якщо ви її вкажете.",
+      "email_placeholder": "vy@example.com",
+      "submit": "Надіслати повідомлення",
+      "sent": "Дякуємо — ваше повідомлення вже в дорозі до команди.",
+      "blocked": "Перевірку безпеки не вдалося завантажити, тому цю форму не можна надіслати."
+    },
+    "report_errors": {
+      "email": "Введіть коректну адресу ел. пошти.",
+      "message": "Напишіть щонайменше %{min} символів.",
+      "message_max": "Не більше %{max} символів.",
+      "send_failed": "Ваше повідомлення не надіслано. Зачекайте на оновлення перевірки безпеки та спробуйте ще раз.",
+      "captcha": "Перевірку безпеки потрібно пройти ще раз. Зачекайте на її оновлення та надішліть знову.",
+      "disposable_email": "Цей поштовий сервіс не приймається. Вкажіть адресу, на яку ми зможемо відповісти, або залиште поле порожнім.",
+      "urls_not_allowed": "Посилання в повідомленні не дозволені. Видаліть їх і надішліть ще раз."
+    },
+    "map": {
+      "find_my_location": "Знайти моє місцезнаходження",
+      "location_not_available": "Місцезнаходження недоступне"
+    },
+    "feedback": {
+      "confirmed_title": "Дякуємо за підтвердження",
+      "confirmed_body": "Ми повідомимо іншим, що це заняття триває.",
+      "denied_title": "Дякуємо, що повідомили",
+      "denied_body": "Ми перевіримо та оновимо цей запис. Вибачте за помилку.",
+      "nearby": "Переглянути інші заняття поблизу",
+      "below": "Інші заняття поблизу наведено нижче."
+    }
+  },
+  "countries": {
+    "title": "Безкоштовні заняття з медитації"
+  },
+  "search": {
+    "chrome": {
+      "title": "Пошук",
+      "placeholder": "Шукати події поблизу…"
+    },
+    "results": {
+      "more": "Показати ще",
+      "farther": "Показати віддалені події",
+      "showing": "Показано %{shown} з %{total} подій",
+      "no_nearby": "Немає подій у радіусі %{km} км."
+    },
+    "sort": {
+      "label": "Сортування",
+      "recommended": "Рекомендовані",
+      "closest": "Найближчі",
+      "soonest": "Найближчі за часом"
+    },
+    "country_site": {
+      "title": "Заняття в %{country} ще не додано.",
+      "cta": "Перейти на сайт %{country}"
+    },
+    "nearby_prompt": {
+      "title": "Шукаєте заняття поблизу: %{city}?",
+      "dismiss": "Сховати"
+    }
+  },
+  "filters": {
+    "chrome": {
+      "title": "Фільтри",
+      "apply": "Застосувати",
+      "clear": "Очистити все",
+      "clear_one": "Очистити",
+      "remove": "Видалити %{label}",
+      "any_time": "Будь-який час",
+      "no_results": "Немає подій, що відповідають вашим фільтрам."
+    },
+    "format": {
+      "label": "Формат",
+      "any": "Будь-який",
+      "offline": "Особисто",
+      "online": "Онлайн"
+    },
+    "cadence": {
+      "label": "Періодичність",
+      "any": "Будь-яка",
+      "daily": "Щодня",
+      "weekly": "Щотижня",
+      "monthly": "Щомісяця",
+      "once": "Одноразово"
+    },
+    "days": {
+      "label": "День тижня"
+    },
+    "time": {
+      "label": "Час доби",
+      "morning": "Ранок",
+      "afternoon": "День",
+      "evening": "Вечір",
+      "night": "Ніч"
+    },
+    "language": {
+      "label": "Мова",
+      "all": "Усі мови",
+      "empty": "Немає доступних мов"
+    },
+    "dates": {
+      "label": "Дата",
+      "from": "Від",
+      "to": "До",
+      "pill_from": "Від %{date}",
+      "pill_until": "До %{date}",
+      "pill_range": "%{start} – %{end}"
+    },
+    "region": {
+      "label": "Регіон",
+      "all": "Усі регіони",
+      "search": "Пошук регіонів…",
+      "empty": "Регіони не знайдено"
+    }
+  },
+  "online": {
+    "title": "Онлайн-заняття"
+  },
+  "event": {
+    "display": {
+      "about": "Про це заняття",
+      "free_meditation_class": "Безкоштовний курс медитації",
+      "chip_full": "Місць немає",
+      "chip_today": "Сьогодні",
+      "chip_ended": "Завершено",
+      "chip_starts": "Початок: %{date}",
+      "started_on": "Триває з %{date}",
+      "first_session": "Перше заняття: %{date}",
+      "next_session": "Наступне заняття: %{date}",
+      "event_ended": "Цей захід завершився",
+      "event_full": "Вільних місць немає",
+      "registration_closed": "Реєстрацію закрито",
+      "registration_required": "Потрібна реєстрація",
+      "registration_external": "Реєстрація на цей захід відбувається на іншому сайті",
+      "online_joining_note": "Посилання на зустріч надішлемо вам електронною поштою",
+      "contact_to_join_full": "Усе ж зв'яжіться з організатором",
+      "contact_to_join_late": "Зв'яжіться з організатором, щоб приєднатися пізніше",
+      "contact_for_timing": "Зв'яжіться з господарем для уточнення часу",
+      "online": "Онлайн",
+      "hosted_from": "Організовано з %{city}",
+      "time_in_place": "%{time} (%{city})",
+      "distance_away": "за %{distance}",
+      "distance_from_place": "%{distance} від %{place}",
+      "distance_from_search": "%{distance} від шуканого місця",
+      "type_class": "Заняття",
+      "type_class_daily": "Щоденні заняття",
+      "type_class_weekly": "Щотижневі заняття",
+      "type_class_fortnightly": "Заняття раз на два тижні",
+      "type_class_monthly": "Щомісячні заняття",
+      "type_course": "Курс",
+      "type_oneoff": "Разовий захід",
+      "sessions_count_one": "%{count} заняття",
+      "sessions_count_few": "%{count} заняття",
+      "sessions_count_many": "%{count} занять",
+      "sessions_count_other": "%{count} заняття",
+      "see_nearby": "Переглянути заходи поруч",
+      "register_now": "Зареєструватися зараз"
+    },
+    "actions": {
+      "contact": "Зв'язатися",
+      "directions": "Маршрут",
+      "website": "Сайт",
+      "share": "Поділитися",
+      "add_calendar": "До календаря",
+      "download_ics": "Завантажити файл .ics",
+      "view_photo": "Переглянути фото",
+      "pause_slideshow": "Призупинити слайдшоу"
+    },
+    "recurrence": {
+      "daily": "Кожен день",
+      "daily_n": "Кожні %{interval} дн.",
+      "weekly_1": "Кожен %{weekday}",
+      "weekly_2": "Кожен 2-й %{weekday}",
+      "weekly_n": "Раз на %{interval} тиж.: %{weekday}",
+      "weekly_multi": "Щотижня: %{weekdays}",
+      "monthly_1st": "1-й %{weekday} кожного місяця",
+      "monthly_2nd": "2-й %{weekday} кожного місяця",
+      "monthly_3rd": "3-й %{weekday} кожного місяця",
+      "monthly_4th": "4-й %{weekday} кожного місяця",
+      "monthly_last": "Останній %{weekday} кожного місяця",
+      "monthly_date": "Щомісяця, %{day}-го числа"
+    }
+  },
+  "calendar": {
+    "title": "Календар",
+    "previous": "Назад",
+    "next": "Вперед",
+    "pick_date": "Вибрати дату",
+    "view_month": "Місяць",
+    "view_week": "Тиждень",
+    "view_list": "Список"
+  },
+  "registration": {
+    "form": {
+      "name": "Ваше ім'я",
+      "email": "Ваш email",
+      "starting_date": "Дата початку",
+      "show_more_dates": "Показати більше дат",
+      "submit": "Зареєструватися",
+      "okay": "Гаразд",
+      "followup": "Незабаром ви отримаєте підтвердження електронною поштою",
+      "invite_friend": "Запросіть друга разом",
+      "online_notice": "Посилання на цей курс буде надіслано вам електронною поштою.",
+      "online_notice_title": "Онлайн-сесія",
+      "privacy_policy": "Надсилаючи, ви підтверджуєте, що погоджуєтесь отримувати подальші повідомлення про цю та подібні події відповідно до нашої політики конфіденційності.",
+      "error_title": "Щось пішло не так",
+      "captcha_retry": "Перевірку безпеки потрібно пройти ще раз. Зачекайте на її оновлення та зареєструйтеся знову."
+    },
+    "errors": {
+      "email": "Введіть дійсну електронну адресу",
+      "name": "Введіть своє повне ім'я",
+      "starting_at": "Виберіть дату початку"
+    },
+    "questions": {
+      "experience": "Чи практикували ви раніше медитацію Сахаджа-йога?",
+      "referral": "Як ви дізналися про цю подію?",
+      "aspirations": "Що ви сподіваєтеся отримати від цього?",
+      "questions": "Чи є у вас запитання до нас?"
+    }
+  },
+  "share": {
+    "share_on": "Поділитися в %{platform}",
+    "native": "Поділитися…",
+    "copy_link": "Копіювати посилання",
+    "copied": "Скопійовано"
+  },
+  "compact": {
+    "open": "Знайдіть заняття поблизу"
+  }
+}

@@ -101,6 +101,36 @@ automatically — printing per-batch progress as it goes.
 | meditations | `pnpm seed meditations` | Run `tags` + `wemeditate` first, data.json | meditations, frames, music, narrators |
 | tags        | `pnpm seed tags`        | None                                       | user-choices, music-tags              |
 | atlas       | `pnpm seed atlas`       | The 8 JSON dumps in `seeds/atlas/data/`    | managers, regions, users, events, registrations, clients |
+| translations | `pnpm seed translations` | None                                      | the three translations globals (see below) |
+
+### `translations` — and the ten Atlas locales it publishes
+
+One script, three globals. `wm-app-translations` gets real English copy from
+`seeds/wm-app-translations/data.en.json`; `wm-web-translations` still gets
+example strings derived from its schema key names.
+
+`sy-atlas-translations` is different (#706). It reads one file per widget
+locale from `seeds/sy-atlas-translations/data.<locale>.json` — `cs de en es
+fr hu nl pt-BR ru uk` — and **publishes each locale on its own**. That is
+the point of the script, not a side effect: `sy-atlas-config.availableLocales`
+refuses a locale whose translations are not published (#705), so nothing an
+operator does in the admin can offer a language until this has run.
+
+Three properties to preserve when you touch it:
+
+- **Publishing needs `_status: 'published'` in the data.**
+  `publishSpecificLocale` selects Payload's single-locale branch but does not
+  decide the status. Without it the write lands and the locale stays `draft`.
+- **`publishAllLocales` is not an option here.** It scopes itself through
+  `filterAvailableLocales`, which answers `['en']` for a request with no
+  user — every seed request.
+- **`emails` and `event.title` hold live production data.** No seed file
+  carries them, and English alone fills a key that is blank today. See
+  `src/globals/AGENTS.md`.
+
+A key a locale has no translation for is **omitted, never blank**: the
+client-read English merge serves English for it, and a blank would defeat
+that merge.
 
 **Seed order** for a full seed:
 

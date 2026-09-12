@@ -205,12 +205,12 @@ describe('availableLocales', () => {
 
   describe('the API-client English fallback', () => {
     beforeAll(async () => {
-      await publishAtlasLocale('en', { common: { loading: 'Loading…' } })
+      await publishAtlasLocale('en', { countries: { title: 'Free Meditation Classes' } })
       await payload.updateGlobal({
         slug: 'sy-atlas-translations',
         locale: 'de',
         publishSpecificLocale: 'de',
-        data: { _status: 'published', common: {} } as never,
+        data: { _status: 'published', countries: {} } as never,
         overrideAccess: true,
       })
     })
@@ -223,23 +223,23 @@ describe('availableLocales', () => {
         depth: 0,
         overrideAccess: true,
         ...(asClient ? { req: { ...clientReq } as never } : {}),
-      }) as unknown as Promise<{ common?: Record<string, string> | null }>
+      }) as unknown as Promise<{ countries?: Record<string, string> | null }>
 
     it('fills a blank key from English for an API client', async () => {
       const german = await readAtlas('de', true)
-      expect(german.common?.loading).toBe('Loading…')
+      expect(german.countries?.title).toBe('Free Meditation Classes')
     })
 
     // A manager must keep seeing which keys are empty — otherwise the admin and
     // the status report both claim a locale is fully translated.
     it('leaves a manager read untouched', async () => {
       const german = await readAtlas('de', false)
-      expect(german.common?.loading).toBeUndefined()
+      expect(german.countries?.title).toBeUndefined()
     })
 
     it('leaves an English read untouched', async () => {
       const english = await readAtlas('en', true)
-      expect(english.common?.loading).toBe('Loading…')
+      expect(english.countries?.title).toBe('Free Meditation Classes')
     })
   })
 
