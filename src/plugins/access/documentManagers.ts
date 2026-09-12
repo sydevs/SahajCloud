@@ -24,6 +24,8 @@
 import type { ContentSlug } from './types'
 import type { CollectionSlug, FlattenedField, Payload, PayloadRequest, Where } from 'payload'
 
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
+
 export interface DocManagerFields {
   /** Name of the hasMany relationship → managers, if present. */
   managersField: string | null
@@ -182,7 +184,7 @@ async function walkDescendantsViaParent(
 }
 
 /** Ids of the roots the user directly manages plus every descendant of those roots. */
-export async function resolveManagedDocIds(
+async function loadManagedDocIds(
   req: PayloadRequest,
   collection: ContentSlug,
   userId: number | string,
@@ -218,6 +220,50 @@ export async function resolveManagedDocIds(
   }
 
   return [...new Set([...rootIds, ...descendantIds])]
+}
+
+/**
+ * Ids of the roots the user directly manages plus every descendant, resolved at
+ * most **once per `(collection, userId)` per request**.
+ *
+ * Payload evaluates every access operation independently and dedups nothing
+ * between them, so the uncached load ran 3–4 times per `/api/access` call and up
+ * to 12 times per document edit view — `getEntityPermissions` fires every
+ * operation in one `Promise.all` with byte-identical args, and
+ * `getDocumentPermissions` repeats the whole set four times for a drafts+trash
+ * collection. Payload's own `whereQueryCache` cannot help: it only runs with
+ * `fetchData: true`, and `/api/access` passes `false`.
+ *
+ * `memoizeOnRequest` stores the **promise**, so the concurrent callers inside
+ * that `Promise.all` collapse to one query instead of stampeding. `fields` is
+ * absent from the key on purpose — it is derived from `collection` and already
+ * `WeakMap`-cached by `getDocManagerFields`.
+ *
+ * ⚠ **The memo pins the managed set for the life of `req`.** A request that
+ * writes `Regions.managers` or `Pages.managers` and then makes a *second* access
+ * decision on the same `req` reads the pre-write set. Payload evaluates access
+ * before the write, and the only `overrideAccess: false` writes in `src/`
+ * (`Events/endpoints/verifyEventAction.ts`, `registerForEvent.ts`) are single
+ * writes touching no manager field — so the window is narrow, but it does not
+ * exist in the uncached code.
+ *
+ * ⚠ **Do not lift this memo to the `update`/`readVersions` wrappers.** They
+ * return different shapes (a raw `Where` vs an `appendVersionToQueryKey`'d one),
+ * and it must not wrap `hasPermission` either: manager roles are per-locale
+ * (#665) and `localeIsolatedReq` shares `req.context` by reference across locale
+ * copies, so a locale-insensitive key there would hand one locale's roles to
+ * another. This load is safe on that count — it queries non-localized
+ * relationship fields and reads only `doc.id`.
+ */
+export function resolveManagedDocIds(
+  req: PayloadRequest,
+  collection: ContentSlug,
+  userId: number | string,
+  fields: DocManagerFields,
+): Promise<number[]> {
+  return memoizeOnRequest(req, `managedDocIds:${collection}:${userId}`, () =>
+    loadManagedDocIds(req, collection, userId, fields),
+  )
 }
 
 /** Walk up the `parent` chain from a loaded doc, cycle-guarded. */

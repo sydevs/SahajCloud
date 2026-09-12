@@ -3,6 +3,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import fs from 'fs'
 import path from 'path'
 
+import { getAccessResults } from 'payload'
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
 import type { Event, Region } from '@/payload-types'
@@ -530,6 +531,40 @@ describe('Role-Based Access Control', () => {
         parent: otherCity.id,
       })
       otherVenueId = otherVenue.id
+    })
+
+    it('resolves the owned-region subtree once across one /api/access evaluation (#749)', async () => {
+      // `getAccessResults` IS what `GET /api/access` calls. It fires every
+      // operation of every collection — including the `readVersions` #719
+      // added — in one `Promise.all` with byte-identical args, and dedups
+      // nothing between them. Uncached, `resolveManagedDocIds` ran once per
+      // operation that reached it.
+      const req = {
+        payload,
+        user: managerUser(atlasManager),
+        locale: 'en',
+        context: {},
+        headers: new Headers() as PayloadRequest['headers'],
+      } as PayloadRequest
+
+      const findSpy = vi.spyOn(payload, 'find')
+      try {
+        await getAccessResults({ req })
+
+        // The roots query (`directManagerWhere` → a bare `or`) and the
+        // breadcrumb-descendant query are the two `resolveManagedDocIds` makes
+        // per (collection, user). Each must appear exactly once.
+        const regionFinds = findSpy.mock.calls
+          .map(([args]) => args)
+          .filter((args) => args.collection === 'regions')
+        const rootFinds = regionFinds.filter((args) => Array.isArray(args.where?.or))
+        const descendantFinds = regionFinds.filter((args) => 'breadcrumbs.doc' in (args.where ?? {}))
+
+        expect(rootFinds).toHaveLength(1)
+        expect(descendantFinds).toHaveLength(1)
+      } finally {
+        findSpy.mockRestore()
+      }
     })
 
     it('exposes the role as project-scoped: read everywhere, write only on events/regions', () => {

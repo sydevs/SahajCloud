@@ -104,6 +104,105 @@ describe('getDocManagerFields', () => {
   })
 })
 
+describe('resolveManagedDocIds is memoized per request', () => {
+  const regionFields = {
+    managersField: 'managers',
+    managerField: null,
+    parentField: 'parent',
+    hasBreadcrumbs: true,
+  }
+
+  /**
+   * A request whose `payload.find` counts every call and answers the two
+   * queries one resolution makes: the roots (`where.or`, from
+   * `directManagerWhere`) and their breadcrumb descendants.
+   */
+  function countingReq() {
+    const calls: Record<string, unknown>[] = []
+    const req = {
+      context: {},
+      payload: {
+        find: async ({ where }: { where: Record<string, any> }) => {
+          calls.push(where)
+          if (where.or) return { docs: [{ id: 1 }] }
+          return { docs: [{ id: 2 }] }
+        },
+      },
+    } as unknown as PayloadRequest
+    return { req, calls }
+  }
+
+  it('collapses concurrent resolutions to one load — the `/api/access` shape', async () => {
+    const { req, calls } = countingReq()
+
+    // `getEntityPermissions` fires every operation in one Promise.all with
+    // byte-identical args. Each would otherwise issue its own pair of queries.
+    const results = await Promise.all(
+      Array.from({ length: 6 }, () => resolveManagedDocIds(req, 'regions', 99, regionFields)),
+    )
+
+    expect(calls).toHaveLength(2)
+    expect(calls.filter((where) => 'or' in where)).toHaveLength(1)
+    for (const ids of results) expect(ids.sort()).toEqual([1, 2])
+  })
+
+  it('collapses sequential resolutions on the same request', async () => {
+    const { req, calls } = countingReq()
+
+    await resolveManagedDocIds(req, 'regions', 99, regionFields)
+    await resolveManagedDocIds(req, 'regions', 99, regionFields)
+    await resolveManagedDocIds(req, 'regions', 99, regionFields)
+
+    expect(calls).toHaveLength(2)
+  })
+
+  it('keys on collection and user, so neither answers for the other', async () => {
+    const { req, calls } = countingReq()
+
+    await Promise.all([
+      resolveManagedDocIds(req, 'regions', 99, regionFields),
+      resolveManagedDocIds(req, 'pages', 99, regionFields),
+      resolveManagedDocIds(req, 'regions', 100, regionFields),
+    ])
+
+    // Three distinct keys, two queries each — nothing shared between them.
+    expect(calls).toHaveLength(6)
+  })
+
+  it('does not share a memo across requests', async () => {
+    const first = countingReq()
+    const second = countingReq()
+
+    await resolveManagedDocIds(first.req, 'regions', 99, regionFields)
+    await resolveManagedDocIds(second.req, 'regions', 99, regionFields)
+
+    expect(first.calls).toHaveLength(2)
+    expect(second.calls).toHaveLength(2)
+  })
+
+  it('evicts a failed load so a later read in the same request retries', async () => {
+    let attempt = 0
+    const req = {
+      context: {},
+      payload: {
+        find: async ({ where }: { where: Record<string, any> }) => {
+          if (where.or) {
+            attempt += 1
+            if (attempt === 1) throw new Error('connection lost')
+            return { docs: [{ id: 1 }] }
+          }
+          return { docs: [] }
+        },
+      },
+    } as unknown as PayloadRequest
+
+    await expect(resolveManagedDocIds(req, 'regions', 99, regionFields)).rejects.toThrow(
+      'connection lost',
+    )
+    await expect(resolveManagedDocIds(req, 'regions', 99, regionFields)).resolves.toEqual([1])
+  })
+})
+
 describe('parent-walk fallback (no breadcrumbs) terminates on cycles', () => {
   const parentFields = {
     managersField: 'managers',
