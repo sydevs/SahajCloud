@@ -159,6 +159,62 @@ describe('Events collection', () => {
       })
       expect(docs.map((doc) => doc.id)).toContain(finishedId)
     })
+
+    /**
+     * Payload maps `findVersions` onto the same `read` hook operation as `find`
+     * (`operationToHookOperation`), so `excludeFinishedEvents` used to append
+     * `schedule.lastDate` to a versions query too — and that path does not
+     * exist on the versions collection, where a document's fields live under
+     * `version.`. `isVersionsRead` (`src/lib/utilities/versionsRead.ts`) is the
+     * guard (#745).
+     *
+     * API clients must still declare a `select` on any read, versions included
+     * — that is `validateClientQueryParamsHook`, a separate `read` hook.
+     */
+    describe('versions reads (#745)', () => {
+      const versionSelect = { version: true } as const
+
+      it('resolves when the access gate is bypassed', async () => {
+        // The regression pin. `overrideAccess: true` skips the access gate, so
+        // this is the one shape that reaches query validation as a client — an
+        // internal read forwarding a client's `req`. Deleting the guard from
+        // the hook turns this red with "path cannot be queried".
+        const versions = await payload.findVersions({
+          collection: 'events',
+          select: versionSelect,
+          depth: 0,
+          user: clientUser as never,
+          overrideAccess: true,
+        })
+
+        expect(versions.totalDocs).toBeGreaterThan(0)
+      })
+
+      it('answers an ordinary client with the access decision', async () => {
+        // The behaviour the ticket asks for, stated as an assertion. It passes
+        // before the fix as well: `findVersions` runs the access gate BEFORE
+        // query validation, so no client role granting events `update` exists
+        // today to reach the 400. Kept because it pins the honest answer —
+        // a bare `rejects.toThrow()` here would also accept a 400.
+        await expect(
+          payload.findVersions({
+            collection: 'events',
+            select: versionSelect,
+            depth: 0,
+            user: clientUser as never,
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow('You are not allowed to perform this action.')
+      })
+
+      it('still filters an ordinary client list read', async () => {
+        // Guards the guard, as in the meditations suite: a mis-read of the
+        // argument `isVersionsRead` keys off would disable the finished-event
+        // filter for every client rather than only for versions.
+        const ids = await listIds()
+        expect(ids).not.toContain(finishedId)
+      })
+    })
   })
 
   describe('website field', () => {

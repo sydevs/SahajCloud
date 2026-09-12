@@ -1,5 +1,6 @@
 import type { CollectionBeforeOperationHook, Where } from 'payload'
 
+import { isVersionsRead } from '@/lib/utilities/versionsRead'
 import { isTrustedReq } from '@/plugins/usage/hooks'
 
 import { andWhere, notFinishedWhere } from '../lifecycle/finished'
@@ -16,11 +17,15 @@ import { andWhere, notFinishedWhere } from '../lifecycle/finished'
  *
  * Applies only when:
  *
- * - the operation is a list read. Payload maps both `find` and `findByID` to the
- *   `read` hook operation, so they're told apart by `findByID`'s `id` arg (same
- *   trick as `filterMeditationsByLocale`). `findByID` is deliberately untouched:
+ * - the operation is a list read. Payload maps `find`, `findByID` **and both
+ *   versions reads** to the `read` hook operation, so they're told apart by
+ *   `findByID`'s `id` arg and by `isVersionsRead` (same trick as
+ *   `filterMeditationsByLocale`). `findByID` is deliberately untouched:
  *   `GET /api/events/{id}` still resolves a finished event, which is the whole
- *   point of keeping it published;
+ *   point of keeping it published. A versions read is untouched because
+ *   `schedule.lastDate` is not a queryable path on the versions collection —
+ *   appending it turns a client's versions read into a 400 where the access
+ *   gate's 403 is the honest answer (#745);
  * - the caller is an API client (`req.user.collection === 'clients'`, cf.
  *   `requireActiveClient`) serving its own query — admin, the Atlas manager
  *   sidebar, job reads, and an endpoint's internal `asTrustedReq` lookups are all
@@ -36,6 +41,8 @@ import { andWhere, notFinishedWhere } from '../lifecycle/finished'
  */
 export const excludeFinishedEvents: CollectionBeforeOperationHook = ({ operation, args }) => {
   if (operation !== 'read' && operation !== 'count') return args
+  // A versions read arrives as `read` too, and cannot carry this filter.
+  if (isVersionsRead(operation, args)) return args
   // `findByID` arrives as `read` too, but carries an `id` — leave it alone.
   if ('id' in args) return args
   if (args.req?.user?.collection !== 'clients') return args

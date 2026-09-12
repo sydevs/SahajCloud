@@ -302,6 +302,66 @@ describe('Meditations Collection', () => {
       expect(result.docs.map((doc) => doc.id)).not.toContain(csMeditation.id)
       expect(result.docs.map((doc) => doc.id)).not.toContain(deMeditation.id)
     })
+
+    /**
+     * Payload maps `findVersions` and `findVersionByID` onto the same `read`
+     * hook operation as `find` and `findByID`, so `filterMeditationsByLocale`
+     * used to append `{ locale: { equals } }` to a versions query as well — and
+     * `locale` is not a queryable path on the versions collection, where a
+     * document's fields live under `version.`. Every caller got a 400,
+     * `overrideAccess: true` included, and the admin Versions tab was broken
+     * (#745). `isVersionsRead` (`src/lib/utilities/versionsRead.ts`) is the
+     * guard; deleting its call from the hook turns both cases below red.
+     *
+     * Fixture assumption, checked rather than assumed: meditations enables
+     * `versions.drafts` (`src/collections/Meditations/Meditations.ts`), so each
+     * document above already has at least one version row. The first case
+     * asserts a non-zero count, so a fixture that stopped producing rows would
+     * fail loudly instead of passing vacuously.
+     */
+    describe('Versions reads (#745)', () => {
+      it('resolves a single-locale versions read', async () => {
+        const versions = await payload.findVersions({
+          collection: 'meditations',
+          locale: 'en',
+          where: { parent: { equals: enMeditation1.id } },
+          depth: 0,
+          overrideAccess: true,
+        })
+
+        expect(versions.totalDocs).toBeGreaterThan(0)
+        expect(versions.docs.every((row) => Number(row.parent) === enMeditation1.id)).toBe(true)
+      })
+
+      it('does not scope a versions read to the request locale', async () => {
+        // The other half of the same guard: the hook must decline the versions
+        // read, not translate its filter. A German meditation's versions stay
+        // reachable from an English request, the way `findByID` already is.
+        const versions = await payload.findVersions({
+          collection: 'meditations',
+          locale: 'en',
+          where: { parent: { equals: deMeditation.id } },
+          depth: 0,
+          overrideAccess: true,
+        })
+
+        expect(versions.totalDocs).toBeGreaterThan(0)
+      })
+
+      it('still filters an ordinary find on the same request', async () => {
+        // Guards the guard: `isVersionsRead` keys off an argument Payload
+        // passes, so a mis-read of that argument would silently disable locale
+        // filtering everywhere rather than only on versions.
+        const result = await payload.find({
+          collection: 'meditations',
+          locale: 'en',
+          draft: true,
+          depth: 0,
+        })
+
+        expect(result.docs.map((doc) => doc.id)).not.toContain(deMeditation.id)
+      })
+    })
   })
 
   describe('Type field', () => {
