@@ -42,10 +42,13 @@ Permission flow, in order:
 Worth knowing: **implicit read access** lets managers and clients read
 everything in their role's project, plus collections in no project.
 **Manager roles are per-locale** (uses `req.locale`). **Client roles apply
-uniformly across all locales.** **Version history follows `update`, not
-`read`** — `withVersionHistoryAccess` derives `readVersions` from the
-collection's edit authority, so a read-only role reaches no drafts through
-`/api/{collection}/versions` (#719, see `docs/rules/access.md`).
+uniformly across all locales.** **Version history and a login
+lockout both follow `update`, not `read`** — `withDerivedGrants` derives
+`readVersions` and `unlock` from the collection's edit authority in one
+pass, so a read-only role reaches no drafts through
+`/api/{collection}/versions` (#719) and no API key can reset a locked
+account's failed-attempt counter through `/api/{collection}/unlock`
+(#748). See `docs/rules/access.md`.
 
 Full RBAC details: see `docs/rules/access.md` (loads when editing
 `src/plugins/access/`).
@@ -703,7 +706,7 @@ in this repo, and the choice is not about which edit is smaller:
   widens, and `findByID` has never carried these filters either.
 - A filter that **decides authority** is **translated**, never declined,
   because declining it would widen who may read a version row.
-  `withVersionHistoryAccess` (`src/plugins/access/accessConfigs.ts`)
+  `withDerivedGrants` (`src/plugins/access/accessConfigs.ts`)
   rewrites `update`'s `Where` onto `version.` with Payload's own
   `appendVersionToQueryKey` for exactly that reason.
 

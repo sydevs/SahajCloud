@@ -14,7 +14,7 @@
 import type { BypassPermissionFunction, ContentSlug } from './types'
 import type { CollectionSlug, Config } from 'payload'
 
-import { createAccessConfig, withVersionHistoryAccess } from './accessConfigs'
+import { createAccessConfig, withDerivedGrants } from './accessConfigs'
 import { getProjectSlugs, getRoleSlugs, isTranslatableCollection } from './config'
 import { applyFieldAccessForTranslatableCollections } from './fieldAccess'
 import { withLocalizedRoleAuth } from './localizedRolesAuth'
@@ -84,12 +84,17 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
         return {
           ...collection,
           // Apply role-based access control (preserve existing overrides).
-          // `readVersions` is derived from the MERGED `update`, so an override
-          // carries into version history too — see accessConfigs.ts (#719).
-          access: withVersionHistoryAccess({
-            ...createAccessConfig(slug, ['read', 'create', 'update', 'delete'], bypassPermissions),
-            ...collection.access,
-          }),
+          // `readVersions` and `unlock` are derived from the MERGED `update` by
+          // one table-driven pass, so an override carries into version history
+          // and into the login-lockout reset too — see accessConfigs.ts
+          // (#719, #748).
+          access: withDerivedGrants(
+            {
+              ...createAccessConfig(slug, ['read', 'create', 'update', 'delete'], bypassPermissions),
+              ...collection.access,
+            },
+            ['readVersions', 'unlock'],
+          ),
           admin: {
             ...collection.admin,
             // Respect existing hidden config, otherwise apply project-based visibility
@@ -127,13 +132,18 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
         return {
           ...global,
           // Apply role-based access control (preserve existing overrides).
-          // Globals get `readVersions` the same way: the three translations
+          // Globals go through the same derivation: the three translations
           // globals carry drafts, and their version history is edit authority
           // like every collection's (#719, see accessConfigs.ts).
-          access: withVersionHistoryAccess({
-            ...createAccessConfig(slug, ['read', 'update'], bypassPermissions),
-            ...global.access,
-          }),
+          access: withDerivedGrants(
+            {
+              ...createAccessConfig(slug, ['read', 'update'], bypassPermissions),
+              ...global.access,
+            },
+            // A global has no `unlock` — its access keys are read, update and
+            // readVersions, and only the last is derived.
+            ['readVersions'],
+          ),
           admin: {
             ...global.admin,
             // Apply project-based visibility
