@@ -5,7 +5,12 @@ import type { Endpoint, PayloadRequest, SelectType } from 'payload'
 import { APIError } from 'payload'
 import { z } from 'zod'
 
-import { getCanonicalUrlForRegion } from '@/lib/atlas/regionOwners'
+import { canonicalMountUrl } from '@/lib/atlas/canonicalUrl'
+import {
+  canonicalOwnerForClient,
+  canonicalTargetFor,
+  getCanonicalUrlForRegion,
+} from '@/lib/atlas/regionOwners'
 import { descendantRegionIds, getRegionTree } from '@/lib/atlas/regionTree'
 import { parseQuery, requireActiveClient } from '@/lib/endpoints'
 import type { LocaleCode } from '@/lib/locales'
@@ -17,7 +22,8 @@ import { assertClientOriginAllowed } from '@/plugins/usage'
 
 import { getAtlasLocales } from './atlasLocales'
 import { MAX_ATLAS_ROUTE_LENGTH, parseAtlasRoute } from './atlasRoute'
-import { buildEventSeo, buildRegionSeo, eventCard, seoImages } from './seoDocument'
+import { getRootSeoStrings } from './rootStrings'
+import { buildEventSeo, buildRegionSeo, buildRootSeo, eventCard, seoImages } from './seoDocument'
 
 /**
  * How many classes a region's listing carries.
@@ -130,6 +136,50 @@ async function regionBreadcrumbs(
       url: await getCanonicalUrlForRegion(req, ancestorId),
     })),
   )
+}
+
+/**
+ * The canonical URL for the atlas root: **the caller's own mount page** (#739).
+ *
+ * Every other route resolves its canonical through region ownership, because
+ * the document decides who speaks for it. The root names no document, so the
+ * only page it can describe is the one asking — the host that mounted the
+ * widget and is rendering its landing page right now. That page's address is
+ * already on the caller's `clients` record, put there by the verification job,
+ * and `canonicalOwnerForClient` is the one definition of when we will publish
+ * it: eligible (canonically enabled, published) and a host we are willing to
+ * name. Trusting `req.user` instead would make a `canonical` group that auth
+ * happens not to attach read as "owns nothing", published, with nothing
+ * failing.
+ *
+ * Falling through to the We Meditate surface is deliberate, and is **not** the
+ * region path's fallback chain: the #652 fallback client speaks for regions
+ * nobody claims, and somebody else's landing page is not one of those. A host
+ * that cannot publish a canonical of its own gets the surface that indexes the
+ * atlas, never another client's page.
+ */
+async function rootCanonical(req: PayloadRequest): Promise<string | null> {
+  const owner = await canonicalOwnerForClient(req, req.user?.id)
+  return canonicalMountUrl(canonicalTargetFor(owner))
+}
+
+/**
+ * Answer the atlas root — `/`, and every bare view route (#739).
+ *
+ * The only branch here that reads no region and no event. Its copy is the
+ * operator's, from `sy-atlas-translations` (see `./rootStrings`), and its
+ * canonical is the caller's own mount page (see {@link rootCanonical}).
+ */
+async function rootSeo(req: PayloadRequest, locale: LocaleCode): Promise<AtlasSeoResponse> {
+  // Three independent reads — the copy, the enabled locales, the caller's own
+  // record — so they overlap rather than queue.
+  const [strings, locales, canonical] = await Promise.all([
+    getRootSeoStrings(req, locale),
+    getAtlasLocales(req),
+    rootCanonical(req),
+  ])
+
+  return buildRootSeo({ ...strings, canonical, locale, locales })
 }
 
 /** Answer a route that named a region. */
@@ -354,9 +404,24 @@ async function eventSeo(
  * - `og:site_name` is deliberately absent: the host knows what site it is.
  * - A region's `content.events` covers **the region and everything beneath it**,
  *   capped at 50; `content.eventCount` is the true total.
- * - A route naming neither a region nor an event — the atlas root, a bare
- *   `/search` — is a **404**. The host owns its own landing page's metadata;
- *   there is no document here to describe it with.
+ * - **The atlas root is answered, not refused** (#739). `/` and every bare view
+ *   route (`/search`, `/calendar`, `/filters`, `/online`, `/share`) return one
+ *   document, of `type: 'root'`, with `id: null`, `route: '/'` and empty
+ *   `breadcrumbs`. Those are the routes most hosts mount, so refusing them left
+ *   the one page a host links from its own nav as the only page with no
+ *   metadata of its own. Its title and description are operator-written on
+ *   `sy-atlas-translations`, and its `canonical` is the caller's own verified
+ *   mount page — a host remains free to ignore both and write its own.
+ * - A **404 now means the string is not a route we will read** — carrying a
+ *   query, fragment or whitespace, or over the segment cap — or names a region
+ *   or event that does not exist. "Names nothing" and "is not a route" are
+ *   deliberately different answers. A route past
+ *   {@link MAX_ATLAS_ROUTE_LENGTH} is a **400**: the query schema refuses it
+ *   before the parser sees it, as it does an empty one.
+ * - A root route's `description` is `null` in any locale the operator has not
+ *   written one for — the same rule a region follows. Its `title` falls back to
+ *   English and then to a constant, because `<title>` is mandatory markup and a
+ *   blank one is worse than one in the wrong language.
  *
  * Registered at the config root rather than on a collection because the route
  * may name a region *or* an event, so no collection owns it — which means the
@@ -388,13 +453,17 @@ export const atlasSeo: Endpoint = {
     const locale: LocaleCode = parsed.data.locale ?? DEFAULT_LOCALE
 
     const target = parseAtlasRoute(parsed.data.route)
-    if (!target) return errorResponse('That route does not name a region or an event.', 404)
+    if (!target) return errorResponse('That is not a valid atlas route.', 404)
 
     try {
+      // The root always resolves, so it returns before the not-found check —
+      // only a lookup can come back empty.
       const seo =
-        target.kind === 'region'
-          ? await regionSeo(req, target, locale)
-          : await eventSeo(req, target, locale)
+        target.kind === 'root'
+          ? await rootSeo(req, locale)
+          : target.kind === 'region'
+            ? await regionSeo(req, target, locale)
+            : await eventSeo(req, target, locale)
       if (!seo) return errorResponse('That route does not name a region or an event.', 404)
 
       return Response.json(seo, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })

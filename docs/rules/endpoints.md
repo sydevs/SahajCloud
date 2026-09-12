@@ -64,6 +64,8 @@ A third case, `POST /api/contact-admin`, once justified itself as "stored nowher
 src/endpoints/atlas/seo/        →  GET /api/atlas/seo
 ├── index.ts                       the Endpoint (exports `atlasSeo`)
 ├── atlasRoute.ts                  route parsing
+├── atlasLocales.ts                the operator-owned locale set
+├── rootStrings.ts                 the landing page's own copy
 ├── jsonLd.ts                      JSON-LD builders + escaping
 └── seoDocument.ts                 the response shaper
 ```

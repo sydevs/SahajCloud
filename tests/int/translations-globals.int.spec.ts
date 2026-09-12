@@ -9,10 +9,10 @@
  *   the tab slug so the API response is namespaced: `{ onboarding: { welcome:
  *   {…} } }` instead of `{ onboarding_welcome: {…} }`.
  * - Sy-atlas and wm-web both mix leaf tabs with nested ones. Sy-atlas's leaf
- *   tabs are Countries, Online, Calendar, Share, Compact and Emails; Common,
- *   Search, Filters, Event and Registration nest (#706). Since #707 every
- *   wm-web tab carrying screen-reader-only copy declares `general` + `a11y`
- *   sub-groups, so its field names repeat across tabs and only the
+ *   tabs are Countries, Online, Calendar, Share, Compact, Seo and Emails;
+ *   Common, Search, Filters, Event and Registration nest (#706). Since #707
+ *   every wm-web tab carrying screen-reader-only copy declares `general` +
+ *   `a11y` sub-groups, so its field names repeat across tabs and only the
  *   `<group>.<field>` PAIR identifies a leaf group.
  * - richText fields inside nested tabs keep the sub-slug prefix (the group
  *   wrapper supplies the tab namespace), so the field name is
@@ -156,7 +156,10 @@ describe('Translations Globals Configuration', () => {
 
     // One tab per widget view since #706 — Region is gone (RegionView owns no
     // key of its own), and the seven views that had no CMS home now have one.
-    it('sy-atlas-translations has one tab per widget view', () => {
+    // `Seo` and `Emails` are the two exceptions: no widget view reads either.
+    // `Seo` holds the atlas landing page's own `<head>` copy (#739) — the one
+    // group here a visitor never sees, read by crawlers and link previews.
+    it('sy-atlas-translations has one tab per widget view, plus Seo and Emails', () => {
       const tabsField = findGlobal('sy-atlas-translations').fields[0] as TabsField
       const labels = tabsField.tabs.map((t) => t.label)
       expect(labels).toEqual([
@@ -170,6 +173,7 @@ describe('Translations Globals Configuration', () => {
         'Registration',
         'Share',
         'Compact',
+        'Seo',
         'Emails',
       ])
     })
@@ -250,6 +254,7 @@ describe('Translations Globals Configuration', () => {
         'questions',
         'share',
         'compact',
+        'seo',
         'emails',
       ])
     })

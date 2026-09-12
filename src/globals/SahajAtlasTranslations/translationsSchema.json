@@ -1067,6 +1067,23 @@
       },
       "additionalProperties": false
     },
+    "seo": {
+      "type": "object",
+      "description": "Page metadata for the atlas landing page, served by `GET /api/atlas/seo` for `/` and every bare view route. Written into a host page's `<head>`, so it is read by search engines and by anyone who shares the link — not by a visitor using the widget.",
+      "properties": {
+        "root_title": {
+          "type": "string",
+          "description": "`<title>` for the atlas landing page, e.g. \"Free Meditation Classes\". A result page shows roughly 60 characters.",
+          "maxLength": 60
+        },
+        "root_description": {
+          "type": "string",
+          "description": "`<meta name=\"description\">` for the atlas landing page — one or two sentences about what a visitor finds there. Left blank, the endpoint sends no description in this locale rather than an English one, and the host writes its own.",
+          "maxLength": 160
+        }
+      },
+      "additionalProperties": false
+    },
     "emails": {
       "type": "object",
       "description": "Chrome for emails the CMS sends to registrants. Event data (title, address, times) is never translated — only the surrounding copy is.",

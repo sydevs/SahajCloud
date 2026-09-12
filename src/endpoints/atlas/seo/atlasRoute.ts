@@ -58,10 +58,15 @@ const MAX_EVENT_ID = 2147483647
 
 /**
  * What a route names. A discriminated union rather than a struct with two
- * nullable keys, so the endpoint's two read paths narrow exhaustively and a
+ * nullable keys, so the endpoint's read paths narrow exhaustively and a
  * region can never be handed an event's lookup.
  *
- * **Both variants are keyed by the terminal segment alone**, which is the
+ * `root` is the atlas landing page — an empty route (`/`) or a bare view route
+ * (`/search`, `/calendar`), which is a view *of* the root and so resolves to
+ * the same document (#739). It carries no key because there is nothing to look
+ * up: its copy is operator-written, on `sy-atlas-translations`.
+ *
+ * **The region and event variants are keyed by the terminal segment alone**, which is the
  * widget's own rule (`resolvePath`): a region slug is globally unique, and an
  * event id needs no ancestry. Everything before the terminal segment is
  * *ancestry*, and ancestry is exactly the part of a URL that goes stale — a
@@ -70,7 +75,10 @@ const MAX_EVENT_ID = 2147483647
  * `canonical` in the answer tell the host the URL it should redirect to.
  * Refusing it would 404 every link into a restructured subtree instead.
  */
-export type AtlasRouteTarget = { kind: 'region'; slug: string } | { kind: 'event'; id: number }
+export type AtlasRouteTarget =
+  | { kind: 'root' }
+  | { kind: 'region'; slug: string }
+  | { kind: 'event'; id: number }
 
 /** Decode one segment, tolerating a malformed `%` escape (returns it unchanged). */
 function safeDecode(segment: string): string {
@@ -82,11 +90,19 @@ function safeDecode(segment: string): string {
 }
 
 /**
- * The region/event a route names, or `null` when it names neither — the atlas
- * root (`/`), a bare view route (`/search`), or anything unparseable.
+ * What a route names — a region, an event, or the atlas root — or `null` when
+ * the string is not a route at all.
  *
- * `null` is a real answer, not a failure: the host owns the metadata for its own
- * atlas landing page, and there is no document here to describe it with.
+ * **"Names nothing" and "is not a route" are different answers** (#739). A
+ * route that reduces to no segments is the root: `/`, and every bare view route
+ * (`/search`, `/calendar`, `/filters`, `/online`, `/share`), since a view of
+ * the root is still the root. Those are the routes most hosts mount, so they
+ * are the ones that most need metadata of their own.
+ *
+ * `null` stays reserved for a string we refuse to read: over
+ * {@link MAX_ATLAS_ROUTE_LENGTH}, carrying a query, fragment or whitespace, or
+ * over the segment cap. Those remain a 404 — collapsing them into the root
+ * would answer a malformed URL with a real page.
  */
 export function parseAtlasRoute(route: string): AtlasRouteTarget | null {
   if (typeof route !== 'string' || route.length > MAX_ATLAS_ROUTE_LENGTH) return null
@@ -95,13 +111,16 @@ export function parseAtlasRoute(route: string): AtlasRouteTarget | null {
   // Refuse rather than guess which half was meant.
   if (/[?#\s]/.test(route)) return null
 
-  const segments = route
-    .split('/')
-    .filter(Boolean)
-    .map(safeDecode)
-    .filter((segment) => !RESERVED_SEGMENTS.has(segment.toLowerCase()))
+  const raw = route.split('/').filter(Boolean).map(safeDecode)
+  // The cap is measured **before** reserved words are dropped, so a route of
+  // twenty `/search` segments stays unparseable rather than reducing to the
+  // root. "Names nothing" and "is not a route" must not collapse into one
+  // answer, and a caller sending us nonsense has not named a landing page.
+  if (raw.length > MAX_ATLAS_ROUTE_SEGMENTS) return null
 
-  if (segments.length === 0 || segments.length > MAX_ATLAS_ROUTE_SEGMENTS) return null
+  const segments = raw.filter((segment) => !RESERVED_SEGMENTS.has(segment.toLowerCase()))
+  // Nothing left is the atlas root: `/` itself, and every bare view route.
+  if (segments.length === 0) return { kind: 'root' }
 
   const terminal = segments[segments.length - 1]
   if (/^\d+$/.test(terminal)) {

@@ -112,7 +112,9 @@ function collapsePlurals(keys: Iterable<string>): Set<string> {
 }
 
 describe('atlas translations schema', () => {
-  it('has the eleven view tabs, in order', () => {
+  // Eleven widget views, plus the two groups no widget view reads: `seo` is the
+  // atlas landing page's `<head>` copy (#739), `emails` is registrant mail.
+  it('has the eleven view tabs, then seo and emails, in order', () => {
     expect(Object.keys(schema.properties ?? {})).toEqual([
       'common',
       'countries',
@@ -124,6 +126,7 @@ describe('atlas translations schema', () => {
       'registration',
       'share',
       'compact',
+      'seo',
       'emails',
     ])
   })
@@ -189,7 +192,7 @@ describe('atlas translations schema', () => {
 
   // Every other assertion here filters a list. This one states its size, so
   // none of them can pass by walking an empty schema.
-  it('declares 193 widget-facing keys across 33 leaf groups', () => {
+  it('declares 193 widget-facing keys across 34 leaf groups', () => {
     const leafGroups = (node: Node): number =>
       Object.values(node.properties ?? {}).some(isNode)
         ? Object.values(node.properties ?? {})
@@ -197,10 +200,14 @@ describe('atlas translations schema', () => {
             .reduce((n, child) => n + leafGroups(child), 0)
         : 1
 
-    expect(leafGroups(schema)).toBe(33)
+    expect(leafGroups(schema)).toBe(34)
     expect(
-      declaredKeys().filter((key) => !key.startsWith('emails.') && !key.startsWith('event.title.'))
-        .length,
+      declaredKeys().filter(
+        (key) =>
+          !key.startsWith('emails.') &&
+          !key.startsWith('event.title.') &&
+          !key.startsWith('seo.'),
+      ).length,
     ).toBe(193)
   })
 
@@ -246,6 +253,9 @@ describe('atlas translations seeds', () => {
         !seeded.has(key) &&
         !key.startsWith('emails.') &&
         !key.startsWith('event.title.') &&
+        // Operator-written landing copy (#739), blank in every locale until
+        // someone writes it. A seeded value would be a guess in a `<head>`.
+        !key.startsWith('seo.') &&
         !/_(few|many)$/.test(key),
     )
     expect(missing).toEqual([])

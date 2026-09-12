@@ -450,12 +450,35 @@ describe('atlasSeo endpoint', () => {
     it.each([
       ['an unknown region slug', '/atlantis'],
       ['an event id that does not exist', '/99999'],
-      ['the atlas root', '/'],
-      ['a bare view route', '/search'],
     ])('answers 404 for %s', async (_label, route) => {
       const { status, body } = await callSeo({ route })
       expect(status).toBe(404)
       expect(body.errors?.[0]?.message).toContain('does not name')
+    })
+
+    // "Names nothing" and "is not a route" are different answers (#739): the
+    // first is now the landing page, the second is still a refusal. Without
+    // these, widening the parse to admit the root could quietly swallow a
+    // malformed URL and answer it with a real page.
+    it.each([
+      ['a route carrying a query string', '/?utm_source=newsletter'],
+      ['a route carrying a fragment', '/#top'],
+      ['a route past the segment cap', `/${Array.from({ length: 13 }, () => 'search').join('/')}`],
+    ])('answers 404 for %s', async (_label, route) => {
+      const { status, body } = await callSeo({ route })
+      expect(status).toBe(404)
+      expect(body.errors?.[0]?.message).toContain('not a valid atlas route')
+    })
+
+    // The query schema's own bounds answer before the parser ever sees the
+    // string, so these two are 400s rather than 404s — "you sent something
+    // malformed", not "there is no such page". Asserted so widening the parse
+    // cannot quietly turn either into a root route.
+    it.each([
+      ['an empty route', ''],
+      ['a route past the length ceiling', `/${'a'.repeat(600)}`],
+    ])('answers 400 for %s, on the schema and before parsing', async (_label, route) => {
+      expect((await callSeo({ route })).status).toBe(400)
     })
 
     it('answers 404 for an unpublished event, the same as for a missing one', async () => {
@@ -603,6 +626,161 @@ describe('atlasSeo endpoint', () => {
     it('adds exactly one events read for a region route', async () => {
       const counts = await countFinds(() => callSeo({ route: '/united-kingdom' }))
       expect(counts).toEqual({ regions: 2, clients: 1, events: 1 })
+    })
+  })
+
+  /**
+   * The atlas root (#739) — `/` and every bare view route.
+   *
+   * These are the routes most hosts mount, so before this the one page a host
+   * links from its own nav was the only page with no metadata of its own. The
+   * copy is operator-written on `sy-atlas-translations`, which is why this
+   * block writes that global first.
+   */
+  describe('the atlas root', () => {
+    const EN_TITLE = 'Free Meditation Classes'
+    const EN_DESCRIPTION = 'Find a free weekly meditation class near you, taught by volunteers.'
+    const FR_TITLE = 'Cours de méditation gratuits'
+    const DE_WIDGET_NAME = 'Kostenlose Meditationskurse'
+
+    const publishRootCopy = (
+      locale: 'de' | 'en' | 'fr',
+      data: { common?: { chrome?: Record<string, string> }; seo?: Record<string, string> },
+    ) =>
+      payload.updateGlobal({
+        slug: 'sy-atlas-translations',
+        locale,
+        publishSpecificLocale: locale,
+        data: { ...data, _status: 'published' } as never,
+        overrideAccess: true,
+      })
+
+    beforeAll(async () => {
+      await publishRootCopy('en', {
+        seo: { root_title: EN_TITLE, root_description: EN_DESCRIPTION },
+      })
+      // French gets a title and deliberately no description, which is the case
+      // the `description: null` rule exists for.
+      await publishRootCopy('fr', { seo: { root_title: FR_TITLE } })
+      // German gets no landing copy at all, only the widget's own name for
+      // itself — the state every locale is in until an operator writes one.
+      //
+      // ⚠ `seo: {}` is load-bearing. `publishSpecificLocale` publishes the
+      // draft as that locale READS, and a draft read falls back to English, so
+      // omitting `seo` here writes the English landing copy into the German
+      // column and the fixture stops representing an untranslated locale.
+      await publishRootCopy('de', {
+        common: { chrome: { widget_label: DE_WIDGET_NAME } },
+        seo: {},
+      })
+    })
+
+    it('answers the root with a title, a description and a canonical', async () => {
+      const { status, body } = await callSeo({ route: '/' })
+      expect(status).toBe(200)
+      expect(body.type).toBe('root')
+      expect(body.id).toBeNull()
+      expect(body.title).toBe(EN_TITLE)
+      expect(body.description).toBe(EN_DESCRIPTION)
+      expect(body.canonical).toBeTruthy()
+      expect(body.breadcrumbs).toEqual([])
+    })
+
+    // A view of the root is still the root, so a host that mounts the widget at
+    // `/search` must get the same document — and the same canonical — as one
+    // that mounts it at `/`.
+    it.each(['/search', '/calendar', '/filters', '/online', '/share'])(
+      'answers %s with the same document as the root',
+      async (route) => {
+        const [root, view] = await Promise.all([callSeo({ route: '/' }), callSeo({ route })])
+        expect(view.status).toBe(200)
+        expect(view.body).toEqual(root.body)
+        expect(view.body.route).toBe('/')
+      },
+    )
+
+    it('renders the copy of the locale asked for', async () => {
+      const { body } = await callSeo({ route: '/', locale: 'fr' })
+      expect(body.title).toBe(FR_TITLE)
+      expect(body.openGraph['og:locale']).toBe('fr')
+    })
+
+    // The rule #646 set for regions, kept here: untranslated English in a
+    // Dutch site's <head> is worse than no sentence at all. The global's own
+    // `clientEnglishFallback` hook would happily supply one, so this is also
+    // what proves the endpoint reads around it.
+    it('sends no description in a locale that has none, rather than the English one', async () => {
+      const { body } = await callSeo({ route: '/', locale: 'fr' })
+      expect(body.description).toBeNull()
+      expect(body.openGraph['og:description']).toBeUndefined()
+      expect(body.title).not.toBe(EN_TITLE)
+    })
+
+    // The reviewer's call on #769. `seo` ships empty in all ten locales and
+    // `common` does not, so this — not the English title — is what a host
+    // mounting the root actually gets today.
+    it('names the atlas in the locale’s own words when no landing title exists', async () => {
+      const { body } = await callSeo({ route: '/', locale: 'de' })
+      expect(body.title).toBe(DE_WIDGET_NAME)
+      expect(body.title).not.toBe(EN_TITLE)
+      expect(body.description).toBeNull()
+    })
+
+    // `<title>` is mandatory markup, so it is the one field that does fall back
+    // — a page a crawler cannot name is worse than one named in English. Dutch
+    // carries neither string, which is the only state that reaches English.
+    it('falls back to the English title in a locale with no copy at all', async () => {
+      const { body } = await callSeo({ route: '/', locale: 'nl' })
+      expect(body.title).toBe(EN_TITLE)
+      expect(body.description).toBeNull()
+    })
+
+    it('carries the same hreflang cluster shape a region gets, locale-free', async () => {
+      const { body } = await callSeo({ route: '/' })
+      expect(body.alternates.at(-1)).toEqual({ hreflang: 'x-default', href: body.canonical })
+      expect(body.canonical).not.toContain('locale=')
+      for (const row of body.alternates.slice(0, -1)) {
+        expect(row.href).toBe(`${body.canonical}?locale=${row.hreflang}`)
+      }
+    })
+
+    it('publishes JSON-LD that parses and needs no second escape', async () => {
+      const { body } = await callSeo({ route: '/' })
+      const graph = JSON.parse(body.jsonLd) as { '@graph': { '@type': string; url?: string }[] }
+      expect(graph['@graph'][0]['@type']).toBe('WebSite')
+      expect(graph['@graph'][0].url).toBe(body.canonical)
+      expect(body.jsonLd).not.toContain('<')
+    })
+
+    // The canonical is the caller's own verified embed page, read off the
+    // `clients` row rather than off whatever auth attached to the request.
+    it('publishes the calling client’s own mount page, with no route appended', async () => {
+      const owner = await payload.find({
+        collection: 'clients',
+        where: { name: { equals: 'UK Atlas Client' } },
+        limit: 1,
+        depth: 0,
+        overrideAccess: true,
+      })
+      const ownerUser = {
+        id: owner.docs[0].id,
+        collection: 'clients',
+        _status: 'published',
+        roles: ['sahaj-atlas-client'],
+      } as TestUser
+
+      const { body } = await callSeo({ route: '/' }, ownerUser)
+      expect(body.canonical).toBe(`https://${OWNER_DOMAIN}${OWNER_MOUNT}`)
+    })
+
+    // A caller that owns no canonical falls through to the We Meditate
+    // surface, exactly as a region nothing claims does — one rule for "what
+    // URL do we publish when this host cannot publish one".
+    it('falls back to the We Meditate surface for a client that owns nothing', async () => {
+      const { body } = await callSeo({ route: '/' })
+      expect(body.canonical).toBe(
+        `${serverEnv.WEMEDITATE_WEB_URL}${serverEnv.WEMEDITATE_ATLAS_BASE_PATH}`,
+      )
     })
   })
 

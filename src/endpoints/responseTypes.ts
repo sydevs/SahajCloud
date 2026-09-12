@@ -132,6 +132,19 @@ export type AtlasSeoRegionContent = {
   eventCount: number
 }
 
+/**
+ * The body content of the atlas landing page (#739).
+ *
+ * The root names no document, so its copy is operator-written on the
+ * `sy-atlas-translations` global rather than read off a region or an event.
+ * `paragraphs` carries the same plain-text-per-block shape an event's content
+ * uses, so a host renders every route through one code path — it holds the
+ * operator's description when there is one, and is empty when there is not.
+ */
+export type AtlasSeoRootContent = {
+  paragraphs: string[]
+}
+
 /** Fields every atlas SEO answer carries, whatever the route resolved to. */
 type AtlasSeoBase = {
   /** The normalized route this answer describes — view segments dropped. */
@@ -170,6 +183,7 @@ type AtlasSeoBase = {
  * fields are `null` on any given route.
  */
 export type AtlasSeoResponse =
+  | (AtlasSeoBase & { type: 'root'; id: null; content: AtlasSeoRootContent })
   | (AtlasSeoBase & { type: 'region'; id: number; content: AtlasSeoRegionContent })
   | (AtlasSeoBase & { type: 'event'; id: number; content: AtlasSeoEventContent })
 
