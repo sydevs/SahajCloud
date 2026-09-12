@@ -531,9 +531,11 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'covers the region **and every region beneath it** (so a city page includes ' +
         'classes at its shared venues), capped at 50 with the true total in ' +
         '`content.eventCount`; finished classes are excluded, as they are from ' +
-        '`GET /api/events/geojson`. **The atlas root is answered too**: `/` and ' +
-        'every bare view route (`/search`, `/calendar`, `/filters`, `/online`, ' +
-        '`/share`) return one document, of `type: "root"`, with `id: null`, ' +
+        '`GET /api/events/geojson`. **The atlas root is answered too**, and the ' +
+        'rule is that a route naming no document is the root: `/` itself, and any ' +
+        'route left empty once view segments and legacy prefixes are dropped ' +
+        '(`/search`, `/register`, `/events/areas`, …). Each returns one document, ' +
+        'of `type: "root"`, with `id: null`, ' +
         '`route: "/"` and empty `breadcrumbs`. Its title and description are ' +
         'written by an operator in the CMS, and its `canonical` is your own ' +
         'verified embed page — use them or write your own. A `404` now means the ' +
