@@ -1,20 +1,85 @@
+import type { JSONSchema4 } from 'json-schema'
 import type { CollectionConfig } from 'payload'
 
 import { colorField, legacyMigrationFields } from '@/fields'
+import { jsonField } from '@/fields/jsonField'
+import { CANONICAL_DOMAIN_PATTERN, ROUTING_MODES } from '@/lib/clients/canonical'
 import { embedMetadataJsonSchema } from '@/lib/clients/embedMetadata'
 import {
-  CANONICAL_VERIFICATION_SCHEMA_URI,
-  canonicalVerificationJsonSchema,
+  VERIFICATION_FAILURE_REASONS,
+  VERIFICATION_INCONCLUSIVE_REASONS,
 } from '@/lib/clients/verification'
 import { getLanguageOptions } from '@/lib/locales'
 import { getRoleOptions } from '@/plugins/access'
-import { abuseScoreFieldSchema, calculateAbuseScore } from '@/plugins/usage'
+import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
 import { validateCanonicalOwnership } from './hooks/validateCanonicalOwnership'
 import { validateClientData } from './hooks/validateClientData'
+
+/**
+ * The bare-host rule the admin field used to enforce with
+ * `canonicalDomainValidate`. It lives on the schema because the host is now
+ * job-written rather than typed — the guard belongs where the write happens.
+ */
+const domainSchema: JSONSchema4 = {
+  type: 'string',
+  pattern: CANONICAL_DOMAIN_PATTERN.source,
+  minLength: 1,
+}
+
+/**
+ * What `canonical.verification` holds. Payload generates
+ * `ClientCanonicalVerification` from this **and** compiles it to a validator
+ * that runs on write; the three aliases in `@/lib/clients/verification` derive
+ * from the generated type, so this shape is their single source (#671).
+ *
+ * **Raw JSON Schema rather than Zod**, because the shape is assembled as data:
+ * three properties are `enum`s spliced from that module's exported const
+ * arrays. Round-tripping those through Zod only to convert them back buys
+ * nothing.
+ */
+const canonicalVerificationSchema: JSONSchema4 = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['verified', 'failureCount', 'attempts'],
+  properties: {
+    verified: {
+      type: ['object', 'null'],
+      additionalProperties: false,
+      required: ['domain', 'mount', 'routing', 'widgetVersion', 'at'],
+      properties: {
+        domain: domainSchema,
+        mount: { type: 'string' },
+        routing: { enum: [...ROUTING_MODES] },
+        widgetVersion: { type: 'number' },
+        at: { type: 'string' },
+      },
+    },
+    failureCount: { type: 'number', minimum: 0 },
+    attempts: {
+      type: 'array',
+      // Deliberately no `maxItems`: json-schema-to-typescript renders a bounded
+      // array as an exploded tuple union (one variant per length), which adds
+      // ~200 lines to payload-types.ts for no safety we don't already have.
+      // `nextVerificationState` is what trims the ring.
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['at', 'status'],
+        properties: {
+          at: { type: 'string' },
+          status: { enum: ['verified', 'failed', 'inconclusive'] },
+          reason: {
+            enum: [...VERIFICATION_FAILURE_REASONS, ...VERIFICATION_INCONCLUSIVE_REASONS],
+          },
+        },
+      },
+    },
+  },
+}
 
 /**
  * Canonical ownership is one master switch: with it off the feature is off, and every field it
@@ -181,25 +246,21 @@ export const Clients: CollectionConfig = {
                       'Which of the embeds this service reported owns the canonical URLs. Domain, mount and routing all come from this one choice.',
                   },
                 },
-                {
+                jsonField({
                   name: 'verification',
-                  type: 'json',
                   label: 'Verification',
                   // Written only by the VerifyEmbeds job (and verify-on-demand) from
                   // what was observed on the live page — never by a client report, so
                   // a forged report can nominate a mount but never reshape a public URL.
-                  jsonSchema: {
-                    uri: CANONICAL_VERIFICATION_SCHEMA_URI,
-                    fileMatch: [CANONICAL_VERIFICATION_SCHEMA_URI],
-                    schema: canonicalVerificationJsonSchema,
-                  },
+                  schemaTitle: 'ClientCanonicalVerification',
+                  schema: canonicalVerificationSchema,
                   admin: {
                     readOnly: true,
                     condition: canonicalEnabled,
                     description:
                       'What the CMS last confirmed by loading the page itself. Only a verified embed ever yields a canonical URL.',
                   },
-                },
+                }),
                 {
                   name: 'nextVerifyAt',
                   type: 'date',
@@ -218,28 +279,20 @@ export const Clients: CollectionConfig = {
               label: 'Reported Embeds',
               admin: { initCollapsed: true },
               fields: [
-                {
+                jsonField({
                   // Observed data, not configuration — written only by
                   // `POST /api/clients/report`, hence read-only here. One record per
                   // mount, keyed by origin + pathname; see ./embedMetadata.ts.
                   name: 'embedMetadata',
-                  type: 'json',
                   label: 'Discovered Embeds',
-                  jsonSchema: {
-                    uri: 'urn:sahajcloud:schema:client-embed-metadata',
-                    fileMatch: ['urn:sahajcloud:schema:client-embed-metadata'],
-                    schema: {
-                      $id: 'urn:sahajcloud:schema:client-embed-metadata',
-                      title: 'ClientEmbedMetadata',
-                      ...embedMetadataJsonSchema,
-                    },
-                  },
+                  schemaTitle: 'ClientEmbedMetadata',
+                  schema: embedMetadataJsonSchema,
                   admin: {
                     readOnly: true,
                     description:
                       'What the widget reported about each page it is installed on. Reported, never configured — the legacy hand-maintained embed type was wrong in the field.',
                   },
-                },
+                }),
               ],
             },
           ],
@@ -332,13 +385,13 @@ export const Clients: CollectionConfig = {
         position: 'sidebar',
       },
       fields: [
-        {
+        jsonField({
           // Virtual: written by the hook below, never stored. The schema generates
           // `ClientAbuseScore`. See `src/collections/AGENTS.md`.
           name: 'abuseScore',
-          type: 'json',
           virtual: true,
-          jsonSchema: abuseScoreFieldSchema,
+          schemaTitle: 'ClientAbuseScore',
+          schema: abuseScoreSchema,
           hooks: {
             afterRead: [
               ({ siblingData }) => {
@@ -354,7 +407,7 @@ export const Clients: CollectionConfig = {
               Cell: '@/components/admin/AbuseScore/AbuseScoreCell',
             },
           },
-        },
+        }),
         {
           name: 'dailyRequests',
           type: 'number',

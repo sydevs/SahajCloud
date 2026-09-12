@@ -93,6 +93,16 @@ Server logging uses a custom console-backed logger (`src/lib/logger/workerSafeLo
 
 A value Postgres cannot cast (SQLSTATE `22P02`) used to surface as an unhandled 500. `@/plugins/databaseErrors` now maps it, in Payload's root `afterError` hook, to a 400 naming the bad value, and stops it reaching Sentry. Every other error class is untouched. This covers Payload's own REST routes only. A custom endpoint that catches its own errors — `src/collections/Events/endpoints/geojson.ts` is the one that does — must call `mapPostgresCastError` itself.
 
+### A rejected credential is not anonymous traffic (#734)
+
+The same root `afterError` hook classifies a captured sub-500 error by what its `Authorization` header did (`src/plugins/sentry/authAttempt.ts`). No header is an anonymous read and keeps today's `warning` level and default grouping. A header that authenticated is an ordinary access-control denial, also unchanged. A header present with no `req.user` means **every strategy refused the credential** — always a broken integration — so it is captured at `error`, under its own Sentry fingerprint, and mirrored to the application log at WARN so Railway alone answers it.
+
+Attribution is the auth scheme, the collection slug, the `User-Agent`, `cf-connecting-ip`, and a 12-hex truncated SHA-256 of the key. **Never the key, or any substring of one.** The IP goes on Sentry's `user.ip_address`, the one field `sendDefaultPii: false` and the project's *Prevent Storing of IP Addresses* setting both act on — in an `extra` it would be opaque context that no scrubber reaches and no setting turns off. Trust it only as far as the edge: a request that skips Cloudflare can set that header to anything, so the key fingerprint, not the IP, is what names an integration. The scheme comes from an allowlist, because a malformed header's first word can be the credential itself; the collection is checked against `req.payload.collections`, because it reaches a grouping fingerprint and an unchecked word would let any caller open a Sentry issue per value it invents. Grouping is by collection, not by key fingerprint, for the same reason — the fingerprint is a tag, which segments within the group.
+
+⚠ **The `error` level is caller-triggerable, and that is accepted.** Any anonymous caller can raise a captured 400/403/404 to `error` by sending a junk `Authorization` header. Grouping is bounded by the collection check, so the cost is event quota and alert noise rather than issue sprawl. Mute it with a Sentry-side rule on the `auth_outcome` tag, not by dropping the level — the level is what distinguishes the signal.
+
+⚠ **This sees only what Payload's error handler sees.** A custom endpoint that denies by *returning* a 403 `Response` — everything behind `requireActiveClient` — never reaches the hook, so a rejected key there is still invisible. #743 tracks it. A 500 is deliberately left alone: the caller's credential is not what is wrong with it.
+
 ### What an error body discloses (#684)
 
 `config.debug` (`!isProduction`) controls the response body, not logging: with it on, `routeError` attaches `response.stack` and the real error message. It was `true` everywhere until #684, so production once returned a database error's full statement and bound parameters. Server logs and Sentry are unaffected either way.

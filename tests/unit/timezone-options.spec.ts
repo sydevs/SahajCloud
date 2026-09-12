@@ -98,6 +98,50 @@ describe('SUPPORTED_TIMEZONES', () => {
     expect(digestOf(viaRaw.map((o) => o.value))).toBe(PINNED_DIGEST)
   })
 
+  /**
+   * `Intl` is the oracle for these 27 and only these 27 (#729). It is unsafe
+   * for MEMBERSHIP — that is the whole reason this module reads `rawTimeZones`
+   * — but a POSIX `Etc/GMT*` zone is a fixed offset with no DST and no ICU
+   * naming history, so every host formats it identically.
+   */
+  // Any instant works — a POSIX `Etc/GMT*` zone has no DST — so pin one.
+  const INSTANT = new Date(Date.UTC(2026, 0, 1))
+
+  const realOffsetOf = (zone: string) => {
+    const name = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'longOffset' })
+      .formatToParts(INSTANT)
+      .find((p) => p.type === 'timeZoneName')?.value
+    // Some ICU versions render a zero offset as a bare `GMT`.
+    return name === 'GMT' ? '+00:00' : name?.replace(/^GMT/, '')
+  }
+
+  it('labels every Etc/GMT* zone with its real offset, not the inverted POSIX name', () => {
+    // POSIX inverts the sign in the name: `Etc/GMT-3` is UTC+3. Reading that
+    // sign straight through labelled all 27 with the opposite offset, so an
+    // operator picking `(UTC-03:00) Etc/GMT-3` for São Paulo set UTC+03:00.
+    const etc = options.filter((o) => o.value.startsWith('Etc/GMT'))
+    expect(etc.length).toBe(27)
+
+    for (const { value, label } of etc) {
+      const offset = realOffsetOf(value)
+      // A zone Intl declined to format would otherwise pass vacuously.
+      expect(offset).toMatch(/^[+-]\d{2}:00$/)
+      expect(label).toBe(`(UTC${offset}) ${value}`)
+    }
+  })
+
+  it('pins the measured labels literally, so the case above cannot mirror a flip', () => {
+    // The Intl case derives its expectation. These do not, so a sign flip in
+    // BOTH the module and the oracle still goes red here.
+    const labelOf = (value: string) => options.find((o) => o.value === value)?.label
+
+    expect(labelOf('Etc/GMT-14')).toBe('(UTC+14:00) Etc/GMT-14')
+    expect(labelOf('Etc/GMT-3')).toBe('(UTC+03:00) Etc/GMT-3')
+    expect(labelOf('Etc/GMT')).toBe('(UTC+00:00) Etc/GMT')
+    expect(labelOf('Etc/GMT+3')).toBe('(UTC-03:00) Etc/GMT+3')
+    expect(labelOf('Etc/GMT+12')).toBe('(UTC-12:00) Etc/GMT+12')
+  })
+
   it('returns the bundled IANA zone set', () => {
     expect(options.length).toBeGreaterThan(40)
   })

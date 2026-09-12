@@ -115,6 +115,19 @@ query:  https://{domain}{mount}{?|&}atlas={webPath}
 5. `usageTrackingBeforeOperationHook` counts one use per top-level client read, skipping internal relationship-population sub-reads (`depth >= 1`) so those don't over-count (#559).
 6. The increment is a single atomic Postgres UPDATE.
 
+### A key that authenticates nothing is reported as its own signal (#734)
+
+A key matching no `clients` row is denied, correctly — but it used to be reported exactly like an anonymous read, so a dead integration looked like background noise for three months. A sub-500 error whose `Authorization` header failed to authenticate now reaches Sentry at `error` level, under its own fingerprint, and the same denial is written to the application log at WARN:
+
+```
+sentryPlugin: API credential presented and rejected
+  status, url, outcome, authCollection, authScheme, keyFingerprint, userAgent, ip
+```
+
+`keyFingerprint` is a 12-hex truncated SHA-256 — enough to tell two broken integrations apart, and never the key. Search Sentry by the `key_fingerprint` tag to find every request from one credential. An anonymous 403 is unchanged.
+
+⚠ **This covers Payload's own routes only.** A custom endpoint behind `requireActiveClient` returns its 403 rather than throwing, so it never reaches the hook. SahajCloud#743 tracks that half. Detail: `docs/architecture.md`.
+
 ## Security
 
 Access is permission-based via `accessPlugin` — a client needs an explicit permission for everything, gets **no delete access, ever**, and cannot reach `Managers` or `Clients` at all. Only an active client can authenticate. Keys are encrypted with `PAYLOAD_SECRET`. GraphQL is disabled.

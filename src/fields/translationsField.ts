@@ -1,3 +1,4 @@
+import type { JsonFieldOptions } from './jsonField'
 import type {
   CollapsibleField,
   Field,
@@ -12,6 +13,9 @@ import { json as validateJson, toWords } from 'payload/shared'
 
 import { basicRichTextEditor } from '@/lib/richEditor'
 import { pluralStorageKeys } from '@/lib/translations/pluralCategories'
+
+
+import { jsonField } from './jsonField'
 
 // ============================================================================
 // Types
@@ -152,8 +156,6 @@ function pascalCase(...segments: (string | undefined)[]): string {
     .join('')
 }
 
-const SCHEMA_URI_BASE = 'https://sahajcloud.dev/schemas/translations'
-
 /**
  * The JSON Schema for one leaf group's strings blob.
  *
@@ -174,7 +176,7 @@ const SCHEMA_URI_BASE = 'https://sahajcloud.dev/schemas/translations'
  *   at boot — so `plural`, `screenshot` and `strict` must never leak in.
  *   A plural key contributes its expanded CLDR family instead of itself.
  */
-export function stringsJsonSchema({
+export function stringsSchema({
   allowAdditional,
   fieldName,
   globalSlug,
@@ -186,11 +188,11 @@ export function stringsJsonSchema({
   globalSlug: string
   parentGroup?: string
   stringProps: [string, StringPropertySchema][]
-}): NonNullable<JSONField['jsonSchema']> {
-  const uri = [SCHEMA_URI_BASE, globalSlug, parentGroup, fieldName].filter(Boolean).join('/')
-  const title = `${pascalCase(globalSlug, parentGroup, fieldName)}Strings`
+}): Pick<JsonFieldOptions, 'schema' | 'schemaTitle'> {
+  const schemaTitle = `${pascalCase(globalSlug, parentGroup, fieldName)}Strings`
 
-  const properties: Record<string, { type: 'string'; description?: string; maxLength?: number }> = {}
+  const properties: Record<string, { type: 'string'; description?: string; maxLength?: number }> =
+    {}
   for (const [key, prop] of stringProps) {
     const property = {
       type: 'string' as const,
@@ -204,12 +206,12 @@ export function stringsJsonSchema({
     }
   }
 
+  // Raw JSON Schema rather than Zod: `properties` is assembled as data from the
+  // group's own entries, so building it in Zod only to convert it back would be
+  // a round trip.
   return {
-    uri,
-    fileMatch: [uri],
+    schemaTitle,
     schema: {
-      $id: uri,
-      title,
       type: 'object',
       additionalProperties: allowAdditional,
       properties,
@@ -259,18 +261,17 @@ function createStringsJsonField(
     plural: prop.plural === true ? true : undefined,
   }))
 
-  return {
+  return jsonField({
     name: fieldName,
-    type: 'json',
-    localized: true,
-    label: false,
-    jsonSchema: stringsJsonSchema({
+    ...stringsSchema({
       allowAdditional: group.additionalProperties === true,
       fieldName,
       globalSlug,
       parentGroup,
       stringProps,
     }),
+    localized: true,
+    label: false,
     admin: {
       components: { Field: '@/components/admin/TranslationsRow' },
       custom: {
@@ -283,7 +284,7 @@ function createStringsJsonField(
       if (Array.isArray(value)) return 'Value must be a JSON object'
       return validateJson(value, args)
     },
-  }
+  })
 }
 
 /**

@@ -53,14 +53,14 @@ const ProjectSelector = () => {
     const allowedProjects =
       user?.type === 'admin'
         ? allProjects.map((p) => p.value) // Admins see all projects
-        : (getProjectsFromRoles(user?.roles) as ProjectSlug[])
+        : getProjectsFromRoles(user?.roles)
 
     // Add projects the user has access to
     allowedProjects.forEach((projectValue) => {
       const projectConfig = allProjects.find((p) => p.value === projectValue)
       if (projectConfig) {
         options.push({
-          value: projectConfig.value as ProjectSlug,
+          value: projectConfig.value,
           label: projectConfig.label,
         })
       }

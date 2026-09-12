@@ -51,10 +51,24 @@ export type RegionLevel = 'country' | 'region' | 'city' | 'venue'
 ```
 
 This also covers **JSON-schema columns**: a `jsonSchema` field generates an
-interface, named after the schema's `title` (`LectureMetadata`) or, with no
-title, its `$id` (`HttpsSahajcloudDevSchemas…Json`). A hand-written interface
-next to that schema is the same restatement, one level down — import the
-generated one instead, as `nirmalaVidya.ts` and `lectureShape.ts` do.
+interface named after the schema's `title` (`LectureMetadata`). A
+hand-written interface next to that schema is the same restatement, one
+level down — import the generated one instead, as `nirmalaVidya.ts` and
+`lectureShape.ts` do.
+
+**Declare the column with `jsonField` (`src/fields/jsonField.ts`), its shape
+in Zod, inline at the field** — the one way to declare a JSON column, and the
+reason no `*_SCHEMA_URI` constant exists to import.
+It derives the schema's `uri`, `fileMatch` and `$id` from `schemaTitle`, so
+that is the only name in play, and it is what the generated interface is
+called. Rules and Zod idioms: `src/collections/AGENTS.md`, "A JSON column
+declares its shape".
+
+⚠ **A Zod type used this way types the column, not a parser.** `z.infer` of
+it is a second definition of the same shape — read the column's type off
+`@/payload-types` like any other. The one place both exist is
+`subtitles.ts`, where one cue literal serves a strict parser for foreign
+data and a loose column schema, and the comment there says so.
 
 ### A derived alias stays local, and is never re-exported
 
@@ -92,7 +106,7 @@ Some things are **not** restatements — don't "fix" them:
 - **A deliberate narrowing at a boundary.** A writer that only ever
   produces a subset may declare the subset — the Atlas importer's
   `ScheduleInput.endingType` is `'until'` where the column is `'count' |
-  'until'`, because the importer writes no `count` endings.
+'until'`, because the importer writes no `count` endings.
 - **A shape a `localized` field cannot generate.** Payload generates the
   single-locale type for a localized field, so a value carrying every
   locale at once is not spellable from it. `TypedAuthUser.roles` is
@@ -199,11 +213,11 @@ export {} // Makes this a module file
 
 `export {}` is required — it is what makes `declare global` take effect.
 
-| Approach that does not work | Why |
-| ----------------------------------------------- | --------------------------------------- |
+| Approach that does not work                       | Why                                      |
+| ------------------------------------------------- | ---------------------------------------- |
 | Adding a root-level `.d.ts` to tsconfig `include` | The Next.js TypeScript plugin ignores it |
-| A triple-slash reference to a root file | Not resolved by the Next.js build |
-| `declare interface` outside `declare global {}` | Does not become global in a module file |
+| A triple-slash reference to a root file           | Not resolved by the Next.js build        |
+| `declare interface` outside `declare global {}`   | Does not become global in a module file  |
 
 Use this pattern to migrate away from deprecated `@types/*` packages, to
 declare third-party globals or build-time constants, or for any external
