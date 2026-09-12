@@ -28,6 +28,8 @@ import type { Field, JSONField, Payload, TabsField } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { composeTargetUrl } from '@/components/admin/PreviewTarget/composeTargetUrl'
+import type { PreviewTarget } from '@/fields/previewTargetField'
 import type { SchemaEntry } from '@/fields/translationsField'
 import { PLURAL_CATEGORIES } from '@/lib/translations/pluralCategories'
 
@@ -485,6 +487,108 @@ describe('Translations Globals Configuration', () => {
     it('rejects an array, which the built-in validator alone lets through', async () => {
       await expect(write({ compact: [] })).rejects.toThrow()
       await expect(write({ compact: ['a'] })).rejects.toThrow()
+    })
+  })
+  /**
+   * Live preview per tab (#708). The panel's URL is resolved on the server and
+   * cannot see which tab is open, so each targeted tab carries a zero-height
+   * `ui` field that repoints it on mount.
+   */
+  describe('live preview targets', () => {
+    const TARGETED = ['sy-atlas-translations', 'wm-web-translations'] as const
+
+    /** The global's own URL, resolved for one locale and nothing else. */
+    const previewUrl = (slug: Slug, code = 'fr'): string => {
+      const url = findGlobal(slug).admin?.livePreview?.url
+      if (typeof url !== 'function') throw new Error(`${slug} resolves no live-preview URL`)
+      // Deliberately called with no document: a URL that reached for `data`
+      // would throw here, and mid-edit it would re-resolve and clobber the
+      // repoint instead.
+      return url({ locale: { code } } as never) as string
+    }
+
+    /** Every `preview` a global's schema declares, by the field that carries it. */
+    const declaredTargets = (slug: Slug): [string, PreviewTarget][] => {
+      const tabsField = findGlobal(slug).fields[0] as TabsField
+      return tabsField.tabs.flatMap((tab) => {
+        const first = tab.fields[0]
+        if (!first || first.type !== 'ui') return []
+        const custom = first.admin?.custom as { previewTarget?: PreviewTarget } | undefined
+        return custom?.previewTarget ? [[first.name, custom.previewTarget] as const] : []
+      })
+    }
+
+    it.each(TARGETED)('%s resolves its URL from the locale alone', (slug) => {
+      expect(previewUrl(slug, 'fr')).not.toBe(previewUrl(slug, 'de'))
+    })
+
+    // A preview secret is read only on the route that also scrubs it from the
+    // address bar at boot — SahajAtlasWeb's `/preview`, WeMeditateWeb's
+    // `pages/preview/`. Neither of these URLs is one, and neither is any path
+    // their tabs compose, so a secret here would sit in the panel's URL for a
+    // whole editing session with nothing reading it.
+    it.each(TARGETED)('%s carries no preview secret', (slug) => {
+      const secret = process.env.SAHAJCLOUD_PREVIEW_SECRET
+      // Guarded: an empty secret fails the containment check for every URL,
+      // and an unset one passes it for any — it would search for "undefined".
+      expect(secret).toBeTruthy()
+      expect(new URL(previewUrl(slug)).searchParams.get('secret')).toBeNull()
+      expect(previewUrl(slug)).not.toContain(secret!)
+    })
+
+    // This URL is what the eight untargeted tabs show, and what every targeted
+    // tab restores to. A consumer's `/preview` boot route wants a `collection`
+    // and an `id`: given neither, SahajAtlasWeb renders "Save this document to
+    // preview it." over a click-swallowing `fixed inset-0`, and WeMeditateWeb
+    // answers 403. So a global points at a view that renders with no document.
+    it.each(TARGETED)('%s points at a view, not a document-less preview route', (slug) => {
+      expect(new URL(previewUrl(slug)).pathname).not.toMatch(/(^|\/)preview\/?$/)
+    })
+
+    // A relative target resolves against this URL, so the trailing slash is
+    // what keeps `map` under `/fr` instead of hoisting it to the site root.
+    // Asserted through the composition, not just the shape, because the slash
+    // is otherwise a character nobody would think to defend.
+    it('wm-web-translations composes a relative target under the edited locale', () => {
+      const base = previewUrl('wm-web-translations', 'fr')
+      const map = declaredTargets('wm-web-translations').find(([, target]) => target.path === 'map')
+      expect(map).toBeDefined()
+
+      expect(new URL(composeTargetUrl(base, map![1])!).pathname).toBe('/fr/map')
+    })
+
+    it.each(TARGETED)('%s declares targets that compose onto its own origin', (slug) => {
+      const base = previewUrl(slug)
+      const targets = declaredTargets(slug)
+      expect(targets.length).toBeGreaterThan(0)
+
+      for (const [name, target] of targets) {
+        const composed = composeTargetUrl(base, target)
+        expect(composed, `${name} composed to nothing`).not.toBeNull()
+        expect(new URL(composed!).origin).toBe(new URL(base).origin)
+      }
+    })
+
+    // The base's query rides along verbatim, so a repoint never loses the
+    // locale being edited. Asserted on the Atlas because that is where the
+    // locale IS a query parameter — wm-web carries it in the path, checked
+    // above. Dropping `secret` left `locale` the only parameter either sends,
+    // so without this case nothing would notice the carry-forward going.
+    it('sy-atlas-translations keeps the edited locale across a repoint', () => {
+      const base = previewUrl('sy-atlas-translations', 'de')
+      expect(new URL(base).searchParams.get('locale')).toBe('de')
+
+      const targets = declaredTargets('sy-atlas-translations')
+      expect(targets.length).toBeGreaterThan(0)
+
+      for (const [name, target] of targets)
+        expect(new URL(composeTargetUrl(base, target)!).searchParams.get('locale'), name).toBe('de')
+    })
+
+    // The mobile app has no web surface to preview, so it gains neither.
+    it('wm-app-translations declares no live preview and no target', () => {
+      expect(findGlobal('wm-app-translations').admin?.livePreview).toBeUndefined()
+      expect(declaredTargets('wm-app-translations')).toHaveLength(0)
     })
   })
 })

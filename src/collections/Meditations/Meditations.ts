@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { hideUntilCreated, mediaField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
+import { previewTargetField } from '@/fields/previewTargetField'
 import { LOCALES } from '@/lib/locales'
 import {
   getFrameDiagnosticsLogContext,
@@ -383,6 +384,11 @@ export const Meditations: CollectionConfig = {
                   label: 'Frames',
                   description: 'Remove or re-order frames',
                   fields: [
+                    // Both frame tabs open the panel on arrival: a frame is
+                    // edited against the audio playing in it. `autoOpen` with
+                    // no `path` leaves the preview URL alone — the collection's
+                    // own `livePreview.url` is already the right page.
+                    previewTargetField({ autoOpen: true }, 'frames__preview_target'),
                     jsonField({
                       name: 'frames',
                       schemaTitle: 'MeditationFrames',
@@ -489,6 +495,7 @@ export const Meditations: CollectionConfig = {
                   label: 'Add New',
                   description: 'Add new frames to the meditation',
                   fields: [
+                    previewTargetField({ autoOpen: true }, 'frame_inserter__preview_target'),
                     {
                       name: 'frameInserter',
                       type: 'ui',

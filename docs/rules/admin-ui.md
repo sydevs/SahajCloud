@@ -74,9 +74,25 @@ For those, carry the render-ready shape in a field and let postMessage deliver i
 
 Two mechanics worth knowing:
 
-- **Open the panel with `livePreview.openByDefault: true`** (Payload 3.86+), not a mount effect. It applies server-side while building the document view, only until the user toggles the panel — after that their stored `editViewType` preference wins. A `setIsLivePreviewing(true)` effect can't honour that, and re-opened the panel every time a reviewer closed it. `EventSubmissions` was ported off exactly such an effect. `FrameEditor` still uses one, because it arms preview on a *tab*, not the document.
+- **Open the panel with `livePreview.openByDefault: true`** (Payload 3.86+), not a mount effect. It applies server-side while building the document view, only until the user toggles the panel — after that their stored `editViewType` preference wins. A `setIsLivePreviewing(true)` effect can't honour that, and re-opened the panel every time a reviewer closed it. `EventSubmissions` was ported off exactly such an effect. A *tab* still needs the client, and declares `autoOpen` instead — see below.
 - A field that only carries data to the iframe wants `admin.hidden: true`, not a component rendering `null` — Payload renders it as a `HiddenField`, so the value still sits in form state (what `reduceFieldsToValues` posts) while nothing takes up space on the page.
 - A **virtual** field's value computes on read, so it never recomputes as the user types — the right trade only when the document isn't editable, as in the submission-review case.
+
+## Repointing the preview per tab — `previewTargetField`
+
+`admin.livePreview.url` receives `{ collectionConfig, data, globalConfig, locale, payload, req }` and runs on the server, so it can never see which tab is open. `previewTargetField(target, name)` (`src/fields/previewTargetField.ts`) is the seam that can: a zero-height `ui` field whose component repoints the panel through `useLivePreviewContext().setURL`. Declare it on a tab and it applies while that tab is open — `TabsField` mounts only the active tab's content.
+
+Five rules, each of which cost something to learn:
+
+- **Tab granularity only.** A sub-group renders as a collapsible, and a collapsed collapsible still mounts its fields, so a target inside one fires for every sub-group at once.
+- **`admin.custom`, never top-level `custom`** — Payload strips the latter from the client field config. And because it is serialized, the declaration is data: `{ path?, params?, autoOpen? }`, never a callback.
+- **A targeted global's `livePreview.url` reads `locale` and never `data`.** Payload overwrites the panel's URL whenever the server-resolved one changes, so a data-dependent URL re-resolves mid-edit and clobbers the repoint. `tests/int/translations-globals.int.spec.ts` calls each URL with no document, which is how that stays true.
+- **The declaration carries no origin and no credential.** It ships to the browser. `composeTargetUrl` rewrites the server-resolved default instead — keeping its origin and its query, the edited `locale` included — and refuses any target that would land on another origin. A relative `path` resolves against that default, which is how a locale-prefixed site keeps its prefix; an absolute one replaces the whole path.
+- **A targeted global's URL is a view, and sends no preview secret.** Both facts are the same fact: a consumer's `/preview` boot route wants a `collection` and an `id`, and it is also the only route that reads a `secret` — and the only one that scrubs it from the address bar. Point a global there with no document and the panel shows "Save this document to preview it." over a click-swallowing overlay on every untargeted tab, with a live credential parked in the URL beside it. So both translations globals point at a rendered page (the Atlas root, the site's home page in the edited locale) and send only `locale`. A repointed panel therefore shows **published** copy; sydevs/SahajAtlasWeb#198 and sydevs/WeMeditateWeb#80 are the routes that would open a draft session from a view path, and the secret goes back when one of them lands. `tests/int/translations-globals.int.spec.ts` holds both halves.
+
+The component renders `null` rather than taking `admin.hidden: true`: a hidden field renders Payload's own `HiddenField`, and this one exists to run an effect, not to carry a value into form state.
+
+Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`, read on top-level groups only) and on the Meditations frame tabs, which declare `autoOpen` with no path.
 
 ## Styling — PayloadCMS CSS variables
 
@@ -268,7 +284,7 @@ Page, video, and image tags are inline enum selects, not separate collections.
 
 ## Frame editor
 
-`src/components/admin/FrameEditor/` manages audio-synced frames on the Meditations collection, integrated with Live Preview. `FrameListManager` (edit/reorder/remove) and `FrameInserter` (browse/insert at the current playback time) sit under a Video tab's Manage/Insert sub-tabs. `useLivePreviewContext` auto-opens the preview panel. A `PLAYBACK_TIME_UPDATE` postMessage from the iframe drives the active-frame highlight. Inserting at an occupied timestamp replaces rather than throws.
+`src/components/admin/FrameEditor/` manages audio-synced frames on the Meditations collection, integrated with Live Preview. `FrameListManager` (edit/reorder/remove) and `FrameInserter` (browse/insert at the current playback time) sit under a Video tab's Manage/Insert sub-tabs. Both tabs declare `autoOpen` through `previewTargetField`, which replaced a `useLivePreviewAuto` mount effect. A `PLAYBACK_TIME_UPDATE` postMessage from the iframe drives the active-frame highlight — **accepted from the preview iframe's origin only**, because that playhead is the timestamp a newly inserted frame is written at. Each subscription names the origin it will hear from (`usePlaybackTime`, reading `iframeRef`), so the permission belongs to a mounted component instead of to a flag someone has to clear; with no iframe there is no subscription. The same `iframeRef` carries `SEEK_TO_TIME` back. Inserting at an occupied timestamp replaces rather than throws.
 
 Frames filter by narrator gender automatically, with category pills for the visible library. Collection-level validation on Meditations: timestamps are non-negative integers (rounded on save) with no duplicates, at least one frame is required when audio exists (on update), and frames are required to set `publishAt`. A `beforeChange` hook sorts frames by timestamp. `afterRead` enriches each with its Frame collection details. Shared helpers in `utils.ts`: `formatTime`, `parseTime`, `validateTimestamp`, `getCategoryLabel`.
 
