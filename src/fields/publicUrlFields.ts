@@ -59,22 +59,14 @@ export interface PublicUrlFieldsOptions {
 /**
  * Is this document published, for the locale being read?
  *
- * `_status` arrives in one of two shapes, and a field `afterRead` hook sees
- * both. A **string** is a collection without `versions.drafts.localizeStatus`,
- * where publish state is all-or-nothing. A **map** is a collection with it
- * (`pages`, `app-cards` since #718), where the answer is per locale.
- *
- * ⚠ The map reaches this hook **unresolved**, which is why the old bare
- * `!== 'published'` check silently nulled every public URL on `pages` the
- * moment the flag went on. Payload hoists a localized value down to the
- * requested locale in the same `afterRead` field pass that runs this hook
- * (`fields/hooks/afterRead/promise.js`), so whether `_status` is already a
- * string here depends on field order — not something a caller should have to
- * know. Handling both shapes is the fix, not reordering fields.
+ * `_status` is a **string** without `versions.drafts.localizeStatus`, and a
+ * per-locale **map** with it (`pages`, `app-cards`). Handle both: the map can
+ * still be unresolved here, because Payload hoists a localized value down to
+ * the requested locale in the same `afterRead` field pass that runs this hook,
+ * so field order decides which shape arrives.
  *
  * At `locale: 'all'` no single locale is being asked about, so any published
- * locale counts: the alternative nulls the field for every document on a
- * `locale=all` read.
+ * locale counts.
  */
 function isPublished(status: unknown, locale: string | undefined): boolean {
   if (typeof status === 'string') return status === 'published'
