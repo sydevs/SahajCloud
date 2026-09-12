@@ -160,7 +160,15 @@ export const reportRejectedCredential = (req: PayloadRequest): void => {
 
     // Logged before the capture: it is the signal that needs no DSN, no
     // network, and no initialised SDK.
-    logRejectedCredential(req, rejected, { status, source: 'requireActiveClient' })
+    //
+    // ⚠ **Its own `try`, on purpose.** Sharing the outer one would let a
+    // `logger.warn` that throws cost the Sentry event too — and the event is
+    // the half that survives a deploy nobody is tailing.
+    try {
+      logRejectedCredential(req, rejected, { status, source: 'requireActiveClient' })
+    } catch {
+      // Deliberately silent, for the reason the outer `catch` gives.
+    }
 
     Sentry.withScope((scope) => {
       scope.setLevel('error')

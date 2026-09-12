@@ -194,6 +194,19 @@ describe('reporting never costs the caller its 403', () => {
     expect(() => requireActiveClient(req)).not.toThrow()
     expect(requireActiveClient(req)?.status).toBe(403)
   })
+
+  it('still captures the event when the log transport throws', () => {
+    // The log runs first and in its own `try`. Sharing one would make a broken
+    // transport cost the Sentry event as well — silently, since the 403 assert
+    // above passes either way.
+    logger.warn.mockImplementationOnce(() => {
+      throw new Error('transport closed')
+    })
+
+    requireActiveClient(buildRequest(`clients API-Key ${KEY}`))
+
+    expect(sentry.captureMessage).toHaveBeenCalledOnce()
+  })
 })
 
 describe('a published client', () => {
