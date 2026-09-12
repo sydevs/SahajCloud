@@ -110,6 +110,15 @@ export function createAccessConfig(
           !hasValidPreviewSecret(req) // External connections must use preview secret
         ) {
           // Restrict to published only unless all requirements are met.
+          //
+          // ⚠ On `pages` and `app-cards` this clause is now **per locale**:
+          // `versions.drafts.localizeStatus` moved `_status` into their
+          // `_locales` tables, and Drizzle scopes the same `Where` to the
+          // requested locale. The clause is unchanged and load-bearing — with
+          // it removed, a read at `?locale=de` returns the German text of a
+          // locale the editor unpublished (measured, #718). It also means a
+          // page published in English alone returns nothing at `?locale=de`,
+          // which is the point rather than a regression.
           return { _status: { equals: 'published' } }
         }
 

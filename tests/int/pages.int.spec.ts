@@ -393,6 +393,26 @@ describe('Pages Collection', () => {
       expect(fetched.webUrl).toBe(`https://wemeditate.com/${page.slug}`)
     })
 
+    /**
+     * ⚠ These two publish Czech explicitly. Since #718 `pages` carries a
+     * per-locale `_status`, so creating a page `published` publishes the
+     * *default* locale alone — and the publish gate in `publicUrlFields` then
+     * nulls the URL for every other locale. These cases are about the path
+     * SHAPE for a non-English locale, so they publish the locale they read.
+     * The gate itself is the case below.
+     */
+    const publishLocale = (id: number | string, locale: 'cs', title: string) =>
+      payload.update({
+        collection: 'pages',
+        id,
+        locale,
+        publishSpecificLocale: locale,
+        // `title` is required and localized, so publishing a locale that has
+        // no title of its own is refused — the fallback does not satisfy
+        // validation.
+        data: { title, _status: 'published' } as never,
+      })
+
     it('Non-English page with tag returns base/locale/tag/slug', async () => {
       vi.stubEnv('WEMEDITATE_WEB_URL', 'https://wemeditate.com')
       const page = await testData.createPage(payload, {
@@ -400,6 +420,7 @@ describe('Pages Collection', () => {
         tags: ['wisdom'],
         _status: 'published',
       })
+      await publishLocale(page.id, 'cs', 'Ceska stranka')
       const fetched = await payload.findByID({ collection: 'pages', id: page.id, locale: 'cs' })
       expect(fetched.webUrl).toBe(`https://wemeditate.com/cs/wisdom/${page.slug}`)
     })
@@ -410,8 +431,33 @@ describe('Pages Collection', () => {
         title: 'Czech Untagged Page',
         _status: 'published',
       })
+      await publishLocale(page.id, 'cs', 'Ceska stranka bez stitku')
       const fetched = await payload.findByID({ collection: 'pages', id: page.id, locale: 'cs' })
       expect(fetched.webUrl).toBe(`https://wemeditate.com/cs/${page.slug}`)
+    })
+
+    /**
+     * The gate is now per locale (#718). A page live in English alone
+     * advertises no Czech URL — which is the point: WeMeditateWeb builds its
+     * `hreflang` cluster from exactly this, and a URL here would promise a
+     * crawler a Czech page that does not exist.
+     *
+     * This case went green against the old bare `_status !== 'published'`
+     * check for the wrong reason — that check nulled the URL in EVERY locale,
+     * English included — so it is paired with the English assertion.
+     */
+    it('exposes no URL for a locale the page is not published in', async () => {
+      vi.stubEnv('WEMEDITATE_WEB_URL', 'https://wemeditate.com')
+      const page = await testData.createPage(payload, {
+        title: 'English Only Page',
+        _status: 'published',
+      })
+
+      const czech = await payload.findByID({ collection: 'pages', id: page.id, locale: 'cs' })
+      expect(czech.webUrl).toBeNull()
+
+      const english = await payload.findByID({ collection: 'pages', id: page.id, locale: 'en' })
+      expect(english.webUrl).toBe(`https://wemeditate.com/${page.slug}`)
     })
 
     it('returns null when WEMEDITATE_WEB_URL is not set', async () => {
