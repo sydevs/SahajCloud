@@ -216,17 +216,21 @@ describe('per-locale publish status', () => {
     })
 
     /**
-     * The access clause filters DOCUMENTS, not the locales in the response, so
-     * `?locale=all` is not gated by it — a published-only client would
-     * otherwise read the German text of a locale the editor took down. Closed
-     * by `withPublishedLocaleRedaction`: a cross-locale client read answers
-     * which locales are published and nothing else.
+     * A cross-locale read carries every locale's value, including one the
+     * editor has unpublished — the access clause filters DOCUMENTS, not the
+     * locales in the response.
      *
-     * This one found a real leak. Its sibling above only asked for `?locale=de`
-     * and passed while `?locale=all` — the read this whole ticket tells
-     * consumers to use — handed the content over.
+     * ⚠ That is a decision, not an oversight. An earlier revision of this
+     * branch redacted every key but `_status` and `id` on such a read. The
+     * reviewer removed it: content here is not sensitive to read, only to
+     * write, edit and delete, and the filtering would cost more than it bought
+     * (#765). This case pins the accepted behaviour so the next reader meets
+     * the decision instead of re-deriving the gap and re-plugging it.
+     *
+     * The sibling case above is what still gates content: read one locale at a
+     * time and an unpublished locale is unreachable.
      */
-    it('hands a client no content at all on a cross-locale read', async () => {
+    it('hands a client every locale on a cross-locale read, unpublished included', async () => {
       const page = await testData.createPage(payload, { title: 'Visible EN' })
       await publish(page.id, 'en')
       await publish(page.id, 'de', 'Zurueckgezogen DE')
@@ -245,12 +249,12 @@ describe('per-locale publish status', () => {
       expect(crossLocale.docs).toHaveLength(1)
       const doc = crossLocale.docs[0] as Record<string, unknown>
 
-      // The unpublished German title is gone — and so is the published English
-      // one, which is the blunt part of the rule rather than an accident.
-      expect(doc.title).toBeUndefined()
-      expect(Object.keys(doc).sort()).toEqual(['_status', 'id'])
+      // Nothing is stripped: the title arrives as a map, German included.
+      const titles = doc.title as Record<string, unknown>
+      expect(titles.en).toBe('Visible EN')
+      expect(Object.keys(titles)).toContain('de')
 
-      // The contract itself still answers.
+      // The contract itself still answers, and still says German is not live.
       expect(publishedLocales((doc as { _status?: StatusMap })._status ?? {})).toEqual(['en'])
     })
 
@@ -302,20 +306,6 @@ describe('per-locale publish status', () => {
         req: { ...clientReq } as never,
       })
       expect(asClientEn.docs).toHaveLength(1)
-    })
-
-    it('leaves a manager cross-locale read untouched', async () => {
-      const page = await testData.createPage(payload, { title: 'Manager sees all' })
-      await publish(page.id, 'en')
-
-      const asManager = await payload.findByID({
-        collection: 'pages',
-        id: page.id,
-        locale: 'all',
-        depth: 0,
-        overrideAccess: true,
-      })
-      expect((asManager as { title?: unknown }).title).toBeDefined()
     })
 
     it('never serves a page no locale has published', async () => {

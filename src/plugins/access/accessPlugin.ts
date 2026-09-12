@@ -18,7 +18,6 @@ import { createAccessConfig, withVersionHistoryAccess } from './accessConfigs'
 import { getProjectSlugs, getRoleSlugs, isTranslatableCollection } from './config'
 import { applyFieldAccessForTranslatableCollections } from './fieldAccess'
 import { withLocalizedRoleAuth } from './localizedRolesAuth'
-import { withPublishedLocaleRedaction } from './publishedLocaleRedaction'
 import { createHidden } from './visibility'
 
 // Re-export permission functions for public API
@@ -81,11 +80,7 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
         // An auth collection whose `roles` field is localized needs its roles
         // re-read at every locale during authentication, or the per-locale model
         // below is evaluating a flat, default-locale array (#665).
-        // A collection storing `_status` per locale must not hand a
-        // published-only client another locale's content through `locale=all`
-        // — the access clause filters documents, not the locales in the
-        // response (#718).
-        const collection = withPublishedLocaleRedaction(withLocalizedRoleAuth(original))
+        const collection = withLocalizedRoleAuth(original)
         return {
           ...collection,
           // Apply role-based access control (preserve existing overrides).
