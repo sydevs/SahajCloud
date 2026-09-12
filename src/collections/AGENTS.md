@@ -654,12 +654,73 @@ single-locale document:
 req.locale } }` to `find`/`count` operations.
 - `findByID` returns the specific doc regardless of locale.
 - `locale=all` bypasses filtering.
+- A **versions read** bypasses filtering too — see the rule below.
 
 ```bash
 GET /api/user-choices?locale=en
 GET /api/meditations?locale=cs    # Czech meditations only
 GET /api/songs?locale=cs
 ```
+
+### A `read` beforeOperation hook also fires on a versions read
+
+Payload maps `find`, `findByID`, `findVersions` and `findVersionByID` onto
+the single `read` hook operation. So a `beforeOperation` hook guarding on
+`operation === 'read'` runs on `GET /api/{collection}/versions` too, and
+any `where` it appends is applied to the **versions** collection — where a
+document's own fields live under `version.` and its id is `parent`.
+
+Naming a document field there fails query validation with `The following
+path cannot be queried`, **before** the read runs and regardless of
+`overrideAccess`. In #745 that broke the admin version-history tab for
+meditations for every caller.
+
+`'id' in args` does not answer this question — it separates `findByID`
+from `find`, not a versions read from either. Use `isVersionsRead`, whose
+own doc comment carries the argument table it derives this from:
+
+```typescript
+import { isVersionsRead } from '@/lib/utilities/versionsRead'
+
+export const myHook: CollectionBeforeOperationHook = ({ operation, args }) => {
+  if (operation !== 'read' && operation !== 'count') return args
+  if (isVersionsRead(operation, args)) return args   // cannot carry a document filter
+  if ('id' in args) return args                      // findByID
+  // …append the where…
+}
+```
+
+`count` and `countVersions` map to their own hook operations, so a
+counting hook needs no extra guard. In practice only `findVersions`
+reaches the 400 in a hook that already skips `findByID`, since
+`findVersionByID` carries an `id` too.
+
+**Decline or translate? Ask what the `where` decides.** Both answers exist
+in this repo, and the choice is not about which edit is smaller:
+
+- A filter that **scopes a listing** — `locale`, finished events — is
+  **declined**. A versions read is not that listing, nobody's authority
+  widens, and `findByID` has never carried these filters either.
+- A filter that **decides authority** is **translated**, never declined,
+  because declining it would widen who may read a version row.
+  `withVersionHistoryAccess` (`src/plugins/access/accessConfigs.ts`)
+  rewrites `update`'s `Where` onto `version.` with Payload's own
+  `appendVersionToQueryKey` for exactly that reason.
+
+The two hooks that append a `where` — `filterMeditationsByLocale` and
+`excludeFinishedEvents` — are the only ones that needed this, and both are
+covered by integration specs that go red when the guard is deleted
+(`tests/int/meditations.int.spec.ts`, `tests/int/events.int.spec.ts`).
+Other `read` hooks still fire on a versions read and are meant to:
+`validateClientQueryParamsHook` (an API client must declare `select` there
+too), `usageTrackingBeforeOperationHook`, and `ensureWebPathDeps`, which
+mutates `select` rather than `where`.
+
+⚠ **The guard fails silently in the dangerous direction.** It reads an
+argument Payload supplies, so if an upgrade stopped supplying it the
+filter would switch off for ordinary reads instead of erroring. Pin both
+branches when you add a consumer: a `findVersions` that resolves, and a
+`find` that leaves `draft` to Payload and is still filtered.
 
 ## Pages collection
 

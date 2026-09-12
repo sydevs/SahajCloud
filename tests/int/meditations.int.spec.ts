@@ -302,6 +302,128 @@ describe('Meditations Collection', () => {
       expect(result.docs.map((doc) => doc.id)).not.toContain(csMeditation.id)
       expect(result.docs.map((doc) => doc.id)).not.toContain(deMeditation.id)
     })
+
+    it('filters a find that leaves `draft` to Payload', async () => {
+      // The guard's FALSE branch, and the only case here that pins it. Every
+      // other case in this block passes `draft: true` by hand, which makes
+      // `'draft' in args` true whatever Payload does — but the argument the
+      // guard reads is the one Payload's own `find` supplies. If an upgrade
+      // stopped supplying it, locale filtering would switch off silently for
+      // ordinary reads, and only this case would notice.
+      //
+      // Published fixtures, because a `find` without `draft` sees published
+      // documents only, and the four above are drafts. Both halves matter: the
+      // German one must be excluded BY THE FILTER, not by being a draft.
+      const publishedCs = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        { label: 'Published Czech Meditation', locale: 'cs', _status: 'published' },
+      )
+      const publishedDe = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        { label: 'Published German Meditation', locale: 'de', _status: 'published' },
+      )
+
+      const result = await payload.find({ collection: 'meditations', locale: 'cs', depth: 0 })
+      const ids = result.docs.map((doc) => doc.id)
+
+      expect(ids).toContain(publishedCs.id)
+      expect(ids).not.toContain(publishedDe.id)
+    })
+
+    /**
+     * The hook must decline a `findVersions`: `locale` is not a queryable path
+     * on the versions collection, so appending the filter 400s every caller
+     * (#745 — see `src/lib/utilities/versionsRead.ts`). Deleting the guard from
+     * the hook turns every case below red with "path cannot be queried".
+     * `findVersionByID` never reached that 400 — it carries an `id`, which the
+     * hook already skipped.
+     *
+     * Fixture assumption, checked rather than assumed: meditations enables
+     * `versions.drafts` (`src/collections/Meditations/Meditations.ts`), so each
+     * document above already has a version row. Every case asserts a non-zero
+     * count, so a fixture that stopped producing rows fails loudly instead of
+     * passing vacuously.
+     */
+    describe('Versions reads (#745)', () => {
+      it('resolves for a manager with the access gate on', async () => {
+        // AC 1 of #745, and the shape the bug was reported on: the admin
+        // version-history tab, which reads as its logged-in manager. The two
+        // cases below pass `overrideAccess: true`, so they pin query validation
+        // while skipping `readVersions` entirely.
+        //
+        // `meditations-editor` grants meditations `update`, which
+        // `withVersionHistoryAccess` derives `readVersions` from
+        // (`src/plugins/access/accessConfigs.ts`). That grant is unconditional,
+        // so this case does NOT pin the `Where` translation beside it —
+        // verified by disabling it and watching this stay green.
+        // `role-based-access.int.spec.ts` pins the translation, on `pages`.
+        const editor = await testData.createManager(payload, {
+          name: 'Meditations Editor for Version History Test',
+          roles: { en: ['meditations-editor'] },
+        })
+
+        const versions = await payload.findVersions({
+          collection: 'meditations',
+          locale: 'en',
+          where: { parent: { equals: enMeditation1.id } },
+          depth: 0,
+          user: editor,
+          overrideAccess: false,
+        })
+
+        expect(versions.totalDocs).toBeGreaterThan(0)
+        expect(versions.docs.every((row) => Number(row.parent) === enMeditation1.id)).toBe(true)
+
+        // The gate is genuinely running, not skipped: a manager with no
+        // meditations grant is refused the same read. Without this, a
+        // `readVersions` that had stopped being consulted would look identical.
+        const outsider = await testData.createManager(payload, {
+          name: 'Path Editor for Version History Test',
+          roles: { en: ['path-editor'] },
+        })
+
+        await expect(
+          payload.findVersions({
+            collection: 'meditations',
+            locale: 'en',
+            where: { parent: { equals: enMeditation1.id } },
+            depth: 0,
+            user: outsider,
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow('You are not allowed to perform this action.')
+      })
+
+      it('resolves a single-locale versions read', async () => {
+        const versions = await payload.findVersions({
+          collection: 'meditations',
+          locale: 'en',
+          where: { parent: { equals: enMeditation1.id } },
+          depth: 0,
+          overrideAccess: true,
+        })
+
+        expect(versions.totalDocs).toBeGreaterThan(0)
+        expect(versions.docs.every((row) => Number(row.parent) === enMeditation1.id)).toBe(true)
+      })
+
+      it('does not scope a versions read to the request locale', async () => {
+        // The other half of the same guard: the hook must decline the versions
+        // read, not translate its filter. A German meditation's versions stay
+        // reachable from an English request, the way `findByID` already is.
+        const versions = await payload.findVersions({
+          collection: 'meditations',
+          locale: 'en',
+          where: { parent: { equals: deMeditation.id } },
+          depth: 0,
+          overrideAccess: true,
+        })
+
+        expect(versions.totalDocs).toBeGreaterThan(0)
+      })
+    })
   })
 
   describe('Type field', () => {

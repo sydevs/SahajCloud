@@ -1,5 +1,7 @@
 import type { CollectionBeforeOperationHook, Where } from 'payload'
 
+import { isVersionsRead } from '@/lib/utilities/versionsRead'
+
 /**
  * beforeOperation hook that filters meditations by their `locale` select field.
  *
@@ -9,6 +11,7 @@ import type { CollectionBeforeOperationHook, Where } from 'payload'
  * when `find` or `count` operations include a locale parameter.
  *
  * Skipped for:
+ * - versions reads — `locale` is not a queryable path there (#745)
  * - `findByID` operations (always return the specific document)
  * - `locale=all` requests (return all locales)
  * - Non-read operations (create, update, delete, etc.)
@@ -16,6 +19,11 @@ import type { CollectionBeforeOperationHook, Where } from 'payload'
 export const filterMeditationsByLocale: CollectionBeforeOperationHook = ({ operation, args }) => {
   // Only filter find, count, and deprecated 'read' operations
   if (operation !== 'find' && operation !== 'count' && operation !== 'read') {
+    return args
+  }
+
+  // A versions read arrives as `read` too, and cannot carry a document filter.
+  if (isVersionsRead(operation, args)) {
     return args
   }
 
