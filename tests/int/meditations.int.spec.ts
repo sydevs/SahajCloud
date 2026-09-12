@@ -336,17 +336,66 @@ describe('Meditations Collection', () => {
      * The hook must decline a `findVersions`: `locale` is not a queryable path
      * on the versions collection, so appending the filter 400s every caller
      * (#745 — see `src/lib/utilities/versionsRead.ts`). Deleting the guard from
-     * the hook turns both cases below red with "path cannot be queried".
+     * the hook turns every case below red with "path cannot be queried".
      * `findVersionByID` never reached that 400 — it carries an `id`, which the
      * hook already skipped.
      *
      * Fixture assumption, checked rather than assumed: meditations enables
      * `versions.drafts` (`src/collections/Meditations/Meditations.ts`), so each
-     * document above already has a version row. Both cases assert a non-zero
+     * document above already has a version row. Every case asserts a non-zero
      * count, so a fixture that stopped producing rows fails loudly instead of
      * passing vacuously.
      */
     describe('Versions reads (#745)', () => {
+      it('resolves for a manager with the access gate on', async () => {
+        // AC 1 of #745, and the shape the bug was reported on: the admin
+        // version-history tab, which reads as its logged-in manager. The two
+        // cases below pass `overrideAccess: true`, so they pin query validation
+        // while skipping `readVersions` entirely.
+        //
+        // `meditations-editor` grants meditations `update`, which
+        // `withVersionHistoryAccess` derives `readVersions` from
+        // (`src/plugins/access/accessConfigs.ts`). That grant is unconditional,
+        // so this case does NOT pin the `Where` translation beside it —
+        // verified by disabling it and watching this stay green.
+        // `role-based-access.int.spec.ts` pins the translation, on `pages`.
+        const editor = await testData.createManager(payload, {
+          name: 'Meditations Editor for Version History Test',
+          roles: { en: ['meditations-editor'] },
+        })
+
+        const versions = await payload.findVersions({
+          collection: 'meditations',
+          locale: 'en',
+          where: { parent: { equals: enMeditation1.id } },
+          depth: 0,
+          user: editor,
+          overrideAccess: false,
+        })
+
+        expect(versions.totalDocs).toBeGreaterThan(0)
+        expect(versions.docs.every((row) => Number(row.parent) === enMeditation1.id)).toBe(true)
+
+        // The gate is genuinely running, not skipped: a manager with no
+        // meditations grant is refused the same read. Without this, a
+        // `readVersions` that had stopped being consulted would look identical.
+        const outsider = await testData.createManager(payload, {
+          name: 'Path Editor for Version History Test',
+          roles: { en: ['path-editor'] },
+        })
+
+        await expect(
+          payload.findVersions({
+            collection: 'meditations',
+            locale: 'en',
+            where: { parent: { equals: enMeditation1.id } },
+            depth: 0,
+            user: outsider,
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow('You are not allowed to perform this action.')
+      })
+
       it('resolves a single-locale versions read', async () => {
         const versions = await payload.findVersions({
           collection: 'meditations',
