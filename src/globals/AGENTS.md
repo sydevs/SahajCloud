@@ -116,7 +116,16 @@ the global. Versions: max 3.
 - WeMeditate Web tabs: Common, Navigation, Footer, Errors, Article,
   Meditation, Lecture, Map, Forms, Media, Location, Blocks
 - WeMeditate App tabs: Daily, Path, Explore, Profile, Meditation
-- Sahaj Atlas tabs: Common, Region, Event, Registration, Share, Emails
+- Sahaj Atlas tabs: Common, Countries, Search, Filters, Online, Event,
+  Calendar, Registration, Share, Compact, Emails
+
+The Atlas set is **one tab per widget view** (#706), and the key inside it
+belongs to the component that owns it, not to whichever view reads it
+first. There is deliberately no Region tab: `RegionView` owns no key of its
+own. The catalogue itself lives in the widget
+(`sydevs/SahajAtlasWeb`), so a key added there needs a home here before the
+widget can read it — Appendix A of #706 is the old-to-new mapping, kept as
+the cross-repo record of what each key was called.
 
 The Web tabs are in the site's **reading order**, not grouped by data type —
 a translator works down a page. Every tab that carries screen-reader-only
@@ -159,6 +168,17 @@ from `wm-app-translations` (#705):
   keys the localized-values table on the literal `<table>_locales`, never
   on a suffix, so `sy_atlas_config_available_locales` is safe. The `⚠`
   box below is still the rule for naming a field.
+
+### ⚠ Two Atlas groups hold live production data
+
+`emails` (registrant mail) and `event.title` (the CMS auto-titles) are the
+only translations anywhere that an editor has actually written. Everything
+else is seeded copy. So `seeds/translations/import.ts` never sends either
+group for any locale but English, and for English it fills only a key that
+is **blank** — writing the whole merged group back, because a JSON column is
+replaced wholesale and sending just the blanks would delete the values
+beside them. #706's migration leaves both columns untouched in both
+directions. Keep that property when you change either.
 
 The Atlas `Emails` group is read **server-side** by `resolveEmailStrings()`
 (`src/lib/translations/emailStrings.ts`), which supplies localized chrome
@@ -229,7 +249,7 @@ descriptive.
 ### The JSON column declares its own shape
 
 Each leaf group's JSON field carries a `jsonSchema` built by
-`stringsJsonSchema` (#705), so Payload generates a named
+`stringsSchema` (#705), so Payload generates a named
 `<Global><Parent><Leaf>Strings` interface instead of the
 `{ [k: string]: unknown } | … | null` union, and Ajv enforces the shape on
 write.

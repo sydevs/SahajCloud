@@ -1,10 +1,11 @@
 import type { CollectionConfig } from 'payload'
 
 import { mediaField } from '@/fields'
+import { jsonField } from '@/fields/jsonField'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { QuoteBlock } from '@/lib/richEditor/blocks'
 import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexicalHooks'
-import { subtitlesFieldSchema } from '@/lib/utilities/subtitles'
+import { subtitlesSchema } from '@/lib/utilities/subtitles'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
@@ -70,17 +71,17 @@ export const Lessons: CollectionConfig = {
                     description: 'Image or video for this panel.',
                   },
                 },
-                {
+                jsonField({
                   name: 'subtitles',
-                  type: 'json',
                   label: 'Subtitles',
+                  schemaTitle: 'Subtitles',
+                  schema: subtitlesSchema,
                   admin: {
                     condition: (_, siblingData) => !!siblingData?.media,
                     description:
                       'Subtitles for video media: [{ startTimeMs, endTimeMs, durationMs?, content }].',
                   },
-                  jsonSchema: subtitlesFieldSchema,
-                },
+                }),
               ],
             },
           ],
@@ -129,16 +130,16 @@ export const Lessons: CollectionConfig = {
                 description: 'Audio introduction to this lesson.',
               },
             },
-            {
+            jsonField({
               name: 'introSubtitles',
-              type: 'json',
               label: 'Intro Subtitles',
+              schemaTitle: 'Subtitles',
+              schema: subtitlesSchema,
               admin: {
                 description:
                   'Subtitles for intro audio: [{ startTimeMs, endTimeMs, durationMs?, content }].',
               },
-              jsonSchema: subtitlesFieldSchema,
-            },
+            }),
           ],
         },
         // ===== DEEP DIVE ===== //

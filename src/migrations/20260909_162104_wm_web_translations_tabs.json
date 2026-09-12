@@ -22353,26 +22353,146 @@
       "name": "sy_atlas_translations_locales",
       "schema": "",
       "columns": {
-        "common": {
-          "name": "common",
+        "common_chrome": {
+          "name": "common_chrome",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "region_locations": {
-          "name": "region_locations",
+        "common_settings": {
+          "name": "common_settings",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "region_venues": {
-          "name": "region_venues",
+        "common_errors": {
+          "name": "common_errors",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "event_details": {
-          "name": "event_details",
+        "common_report": {
+          "name": "common_report",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "common_report_errors": {
+          "name": "common_report_errors",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "common_map": {
+          "name": "common_map",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "common_feedback": {
+          "name": "common_feedback",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "countries": {
+          "name": "countries",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "search_chrome": {
+          "name": "search_chrome",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "search_results": {
+          "name": "search_results",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "search_sort": {
+          "name": "search_sort",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "search_country_site": {
+          "name": "search_country_site",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "search_nearby_prompt": {
+          "name": "search_nearby_prompt",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filters_chrome": {
+          "name": "filters_chrome",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filters_format": {
+          "name": "filters_format",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filters_cadence": {
+          "name": "filters_cadence",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filters_days": {
+          "name": "filters_days",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filters_time": {
+          "name": "filters_time",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filters_language": {
+          "name": "filters_language",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filters_dates": {
+          "name": "filters_dates",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filters_region": {
+          "name": "filters_region",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "online": {
+          "name": "online",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "event_display": {
+          "name": "event_display",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "event_actions": {
+          "name": "event_actions",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -22383,14 +22503,14 @@
           "primaryKey": false,
           "notNull": false
         },
-        "event_timing": {
-          "name": "event_timing",
+        "event_title": {
+          "name": "event_title",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "event_title": {
-          "name": "event_title",
+        "calendar": {
+          "name": "calendar",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -22415,6 +22535,12 @@
         },
         "share": {
           "name": "share",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "compact": {
+          "name": "compact",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -22662,26 +22788,146 @@
       "name": "_sy_atlas_translations_v_locales",
       "schema": "",
       "columns": {
-        "version_common": {
-          "name": "version_common",
+        "version_common_chrome": {
+          "name": "version_common_chrome",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "version_region_locations": {
-          "name": "version_region_locations",
+        "version_common_settings": {
+          "name": "version_common_settings",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "version_region_venues": {
-          "name": "version_region_venues",
+        "version_common_errors": {
+          "name": "version_common_errors",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "version_event_details": {
-          "name": "version_event_details",
+        "version_common_report": {
+          "name": "version_common_report",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_common_report_errors": {
+          "name": "version_common_report_errors",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_common_map": {
+          "name": "version_common_map",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_common_feedback": {
+          "name": "version_common_feedback",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_countries": {
+          "name": "version_countries",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_search_chrome": {
+          "name": "version_search_chrome",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_search_results": {
+          "name": "version_search_results",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_search_sort": {
+          "name": "version_search_sort",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_search_country_site": {
+          "name": "version_search_country_site",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_search_nearby_prompt": {
+          "name": "version_search_nearby_prompt",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_filters_chrome": {
+          "name": "version_filters_chrome",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_filters_format": {
+          "name": "version_filters_format",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_filters_cadence": {
+          "name": "version_filters_cadence",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_filters_days": {
+          "name": "version_filters_days",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_filters_time": {
+          "name": "version_filters_time",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_filters_language": {
+          "name": "version_filters_language",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_filters_dates": {
+          "name": "version_filters_dates",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_filters_region": {
+          "name": "version_filters_region",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_online": {
+          "name": "version_online",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_event_display": {
+          "name": "version_event_display",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_event_actions": {
+          "name": "version_event_actions",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -22692,14 +22938,14 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_event_timing": {
-          "name": "version_event_timing",
+        "version_event_title": {
+          "name": "version_event_title",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "version_event_title": {
-          "name": "version_event_title",
+        "version_calendar": {
+          "name": "version_calendar",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -22724,6 +22970,12 @@
         },
         "version_share": {
           "name": "version_share",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_compact": {
+          "name": "version_compact",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false

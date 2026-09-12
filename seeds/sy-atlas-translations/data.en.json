@@ -1,0 +1,276 @@
+{
+  "_meta": {
+    "global": "sy-atlas-translations",
+    "locale": "en",
+    "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/en/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
+    "schema_version": "post-#706 (11 tabs, 33 leaf groups, grouped by widget view)",
+    "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
+    "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
+  },
+  "common": {
+    "chrome": {
+      "back": "Back",
+      "back_to": "Back to %{title}",
+      "close": "Close",
+      "explore": "Explore",
+      "loading": "Loading…",
+      "cancel": "Cancel",
+      "widget_label": "Free meditation classes",
+      "all_classes_free": "All classes are free"
+    },
+    "settings": {
+      "title": "Settings",
+      "theme_auto": "System (Auto)",
+      "theme_dark": "Dark Theme",
+      "theme_light": "Light Theme"
+    },
+    "errors": {
+      "generic": "Something went wrong.",
+      "retry": "Try again",
+      "offline": "You appear to be offline.",
+      "server": "Our servers are having trouble right now.",
+      "not_found": "We couldn't find what you were looking for.",
+      "not_found_event": "We couldn't find that event.",
+      "not_found_region": "We couldn't find that place.",
+      "config": "This Atlas isn't set up correctly on this page.",
+      "unavailable": "This program can’t be joined right now.",
+      "share_unavailable": "There is no link to share for this meditation yet.",
+      "captcha_blocked": "This Atlas can't run on this page: its security check was blocked.",
+      "no_events": "No events found.",
+      "back_to_region": "See events in %{region}",
+      "near_city": "See events near %{city}",
+      "browse_countries": "Browse all countries",
+      "search_label": "Or search for a place"
+    },
+    "report": {
+      "title": "Report an issue",
+      "description": "Tell us what's wrong and we'll pass it on to the team.",
+      "message_label": "What went wrong?",
+      "message_placeholder": "Describe what you were doing and what looked wrong.",
+      "email_label": "Email",
+      "email_help": "Optional — we can only reply if you leave one.",
+      "email_placeholder": "you@example.com",
+      "submit": "Send report",
+      "sent": "Thank you — your report is on its way to the team.",
+      "blocked": "The security check couldn't load, so this form can't be sent."
+    },
+    "report_errors": {
+      "email": "Enter a valid email address.",
+      "message": "Please write at least %{min} characters.",
+      "message_max": "Please keep it under %{max} characters.",
+      "send_failed": "Your report wasn't sent. Wait for the security check to refresh, then try again.",
+      "captcha": "The security check needs doing again. Wait for it to refresh, then send once more.",
+      "disposable_email": "That email provider is not accepted. Use an address we can reply to, or leave it blank.",
+      "urls_not_allowed": "Links are not allowed in the message. Please remove them and send again."
+    },
+    "map": {
+      "find_my_location": "Find my location",
+      "location_not_available": "Location not available"
+    },
+    "feedback": {
+      "confirmed_title": "Thank you for confirming",
+      "confirmed_body": "We will let other users know this class is still running.",
+      "denied_title": "Thank you for telling us",
+      "denied_body": "We will review this listing and update it. Sorry for the mistake.",
+      "nearby": "See other classes nearby",
+      "below": "You can find other nearby classes below."
+    }
+  },
+  "countries": {
+    "title": "Free Meditation Classes"
+  },
+  "search": {
+    "chrome": {
+      "title": "Search",
+      "placeholder": "Search for events near…"
+    },
+    "results": {
+      "more": "Show more",
+      "farther": "Show distant events",
+      "showing": "Showing %{shown} of %{total} events",
+      "no_nearby": "No events within %{km} km."
+    },
+    "sort": {
+      "label": "Sort",
+      "recommended": "Recommended",
+      "closest": "Closest",
+      "soonest": "Soonest"
+    },
+    "country_site": {
+      "title": "No classes listed in %{country} yet.",
+      "cta": "Visit the %{country} website"
+    },
+    "nearby_prompt": {
+      "title": "Looking for classes near %{city}?",
+      "dismiss": "Dismiss"
+    }
+  },
+  "filters": {
+    "chrome": {
+      "title": "Filters",
+      "apply": "Apply",
+      "clear": "Clear all",
+      "clear_one": "Clear",
+      "remove": "Remove %{label}",
+      "any_time": "Any time",
+      "no_results": "No events match your filters."
+    },
+    "format": {
+      "label": "Format",
+      "any": "Any",
+      "offline": "In person",
+      "online": "Online"
+    },
+    "cadence": {
+      "label": "Frequency",
+      "any": "Any",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "once": "One-time"
+    },
+    "days": {
+      "label": "Day of week"
+    },
+    "time": {
+      "label": "Time of day",
+      "morning": "Morning",
+      "afternoon": "Afternoon",
+      "evening": "Evening",
+      "night": "Night"
+    },
+    "language": {
+      "label": "Language",
+      "all": "All languages",
+      "empty": "No languages available"
+    },
+    "dates": {
+      "label": "Date",
+      "from": "From",
+      "to": "To",
+      "pill_from": "From %{date}",
+      "pill_until": "Until %{date}",
+      "pill_range": "%{start} – %{end}"
+    },
+    "region": {
+      "label": "Region",
+      "all": "All regions",
+      "search": "Search regions…",
+      "empty": "No regions found"
+    }
+  },
+  "online": {
+    "title": "Online Classes"
+  },
+  "event": {
+    "display": {
+      "about": "About this class",
+      "free_meditation_class": "Free Meditation Class",
+      "chip_full": "Full",
+      "chip_today": "Today",
+      "chip_ended": "Ended",
+      "chip_starts": "Starts %{date}",
+      "started_on": "Started %{date}",
+      "first_session": "First session: %{date}",
+      "next_session": "Next session: %{date}",
+      "event_ended": "This event has ended",
+      "event_full": "This event is full",
+      "registration_closed": "Registration closed",
+      "registration_required": "Registration required",
+      "registration_external": "Registration for this event happens on another website",
+      "online_joining_note": "Meeting link will be sent to you by email",
+      "contact_to_join_full": "Contact the host to join anyway",
+      "contact_to_join_late": "Contact the host to join late",
+      "contact_for_timing": "Contact host for timings",
+      "online": "Online",
+      "hosted_from": "Hosted from %{city}",
+      "time_in_place": "%{time} in %{city}",
+      "distance_away": "%{distance} away",
+      "distance_from_place": "%{distance} from %{place}",
+      "distance_from_search": "%{distance} from the searched location",
+      "type_class": "Class",
+      "type_class_daily": "Daily class",
+      "type_class_weekly": "Weekly class",
+      "type_class_fortnightly": "Fortnightly class",
+      "type_class_monthly": "Monthly class",
+      "type_course": "Course",
+      "type_oneoff": "One-off event",
+      "sessions_count_one": "%{count} session",
+      "sessions_count_other": "%{count} sessions",
+      "see_nearby": "See nearby events",
+      "register_now": "Register Now"
+    },
+    "actions": {
+      "contact": "Contact",
+      "directions": "Directions",
+      "website": "Website",
+      "share": "Share",
+      "add_calendar": "Add to calendar",
+      "download_ics": "Download .ics file",
+      "view_photo": "View photo",
+      "pause_slideshow": "Pause slideshow"
+    },
+    "recurrence": {
+      "daily": "Every Day",
+      "daily_n": "Every %{interval} days",
+      "weekly_1": "Every %{weekday}",
+      "weekly_2": "Every 2nd %{weekday}",
+      "weekly_n": "Every %{interval} weeks on %{weekday}",
+      "weekly_multi": "Every %{weekdays}",
+      "monthly_1st": "1st %{weekday} of every month",
+      "monthly_2nd": "2nd %{weekday} of every month",
+      "monthly_3rd": "3rd %{weekday} of every month",
+      "monthly_4th": "4th %{weekday} of every month",
+      "monthly_last": "Last %{weekday} of every month",
+      "monthly_date": "On day %{day} of every month"
+    }
+  },
+  "calendar": {
+    "title": "Calendar",
+    "previous": "Previous",
+    "next": "Next",
+    "pick_date": "Pick a date",
+    "view_month": "Month",
+    "view_week": "Week",
+    "view_list": "List"
+  },
+  "registration": {
+    "form": {
+      "title": "Register for Meditation",
+      "name": "Your name",
+      "email": "Your email",
+      "starting_date": "Starting date",
+      "show_more_dates": "Show more dates",
+      "submit": "Register",
+      "okay": "Okay",
+      "followup": "You will receive an email confirmation shortly",
+      "invite_friend": "Invite a friend along",
+      "online_notice": "The link to this class will be emailed to you.",
+      "online_notice_title": "Online Session",
+      "privacy_policy": "By submitting you confirm you agree to receive follow up messages about this and similar events, in accordance with our privacy policy.",
+      "error_title": "Something went wrong",
+      "captcha_retry": "The security check needs doing again. Wait for it to refresh, then register once more."
+    },
+    "errors": {
+      "email": "Enter a valid email",
+      "name": "Enter your full name",
+      "starting_at": "Select your starting date"
+    },
+    "questions": {
+      "experience": "Have you practised Sahaja Yoga meditation before?",
+      "referral": "How did you hear about this event?",
+      "aspirations": "What are you hoping to get out of this?",
+      "questions": "Do you have any questions for us?"
+    }
+  },
+  "share": {
+    "title": "Share Meditation",
+    "share_on": "Share on %{platform}",
+    "native": "Share…",
+    "copy_link": "Copy link",
+    "copied": "Copied"
+  },
+  "compact": {
+    "open": "Find a class near you"
+  }
+}

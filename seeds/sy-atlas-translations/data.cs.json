@@ -1,0 +1,276 @@
+{
+  "_meta": {
+    "global": "sy-atlas-translations",
+    "locale": "cs",
+    "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/cs/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
+    "schema_version": "post-#706 (11 tabs, 33 leaf groups, grouped by widget view)",
+    "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
+    "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
+  },
+  "common": {
+    "chrome": {
+      "back": "Zpět",
+      "back_to": "Zpět na %{title}",
+      "close": "Zavřít",
+      "explore": "Prozkoumat",
+      "loading": "Načítání…",
+      "cancel": "Zrušit",
+      "widget_label": "Bezplatné meditační kurzy",
+      "all_classes_free": "Všechny lekce jsou zdarma"
+    },
+    "settings": {
+      "title": "Nastavení",
+      "theme_auto": "Systémový (auto)",
+      "theme_dark": "Tmavý motiv",
+      "theme_light": "Světlý motiv"
+    },
+    "errors": {
+      "generic": "Něco se pokazilo.",
+      "retry": "Zkusit znovu",
+      "offline": "Zdá se, že jste offline.",
+      "server": "Naše servery mají momentálně potíže.",
+      "not_found": "Nepodařilo se najít, co hledáte.",
+      "not_found_event": "Tuto událost se nepodařilo najít.",
+      "not_found_region": "Toto místo se nepodařilo najít.",
+      "config": "Atlas není na této stránce správně nastaven.",
+      "unavailable": "Tento program teď není možné navštívit.",
+      "share_unavailable": "Pro tuto meditaci zatím není odkaz ke sdílení.",
+      "captcha_blocked": "Tento Atlas na této stránce nefunguje: jeho bezpečnostní kontrola byla zablokována.",
+      "no_events": "Nebyly nalezeny žádné události.",
+      "back_to_region": "Zobrazit události: %{region}",
+      "near_city": "Zobrazit události poblíž: %{city}",
+      "browse_countries": "Procházet všechny země",
+      "search_label": "Nebo vyhledejte místo"
+    },
+    "report": {
+      "title": "Nahlásit problém",
+      "description": "Napište nám, co je špatně, a my to předáme týmu.",
+      "message_label": "Co se pokazilo?",
+      "message_placeholder": "Popište, co jste dělali a co vypadalo špatně.",
+      "email_label": "E-mail",
+      "email_help": "Nepovinné — odpovědět můžeme jen tehdy, pokud jej vyplníte.",
+      "email_placeholder": "vy@example.com",
+      "submit": "Odeslat hlášení",
+      "sent": "Děkujeme — vaše hlášení je na cestě k týmu.",
+      "blocked": "Bezpečnostní kontrolu se nepodařilo načíst, takže tento formulář nelze odeslat."
+    },
+    "report_errors": {
+      "email": "Zadejte platnou e-mailovou adresu.",
+      "message": "Napište prosím alespoň %{min} znaků.",
+      "message_max": "Zkraťte prosím text pod %{max} znaků.",
+      "send_failed": "Vaše hlášení nebylo odesláno. Počkejte na obnovení bezpečnostní kontroly a zkuste to znovu.",
+      "captcha": "Bezpečnostní kontrolu je třeba provést znovu. Počkejte na její obnovení a odešlete znovu.",
+      "disposable_email": "Tento poskytovatel e-mailu není přijímán. Použijte adresu, na kterou vám můžeme odpovědět, nebo ji nechte prázdnou.",
+      "urls_not_allowed": "Ve zprávě nejsou povoleny odkazy. Odeberte je prosím a odešlete znovu."
+    },
+    "map": {
+      "find_my_location": "Najít mou polohu",
+      "location_not_available": "Poloha není dostupná"
+    },
+    "feedback": {
+      "confirmed_title": "Děkujeme za potvrzení",
+      "confirmed_body": "Dáme ostatním vědět, že tato lekce stále probíhá.",
+      "denied_title": "Děkujeme za upozornění",
+      "denied_body": "Tento záznam prověříme a upravíme. Omlouváme se za chybu.",
+      "nearby": "Zobrazit další lekce v okolí",
+      "below": "Další lekce v okolí najdete níže."
+    }
+  },
+  "countries": {
+    "title": "Bezplatné kurzy meditace"
+  },
+  "search": {
+    "chrome": {
+      "title": "Hledat",
+      "placeholder": "Hledat události poblíž…"
+    },
+    "results": {
+      "more": "Zobrazit více",
+      "farther": "Zobrazit vzdálené události",
+      "showing": "Zobrazeno %{shown} z %{total} událostí",
+      "no_nearby": "Žádné události do %{km} km."
+    },
+    "sort": {
+      "label": "Seřadit",
+      "recommended": "Doporučené",
+      "closest": "Nejbližší",
+      "soonest": "Nejdříve"
+    },
+    "country_site": {
+      "title": "V %{country} zatím nejsou uvedeny žádné kurzy.",
+      "cta": "Přejít na web %{country}"
+    },
+    "nearby_prompt": {
+      "title": "Hledáte kurzy poblíž: %{city}?",
+      "dismiss": "Skrýt"
+    }
+  },
+  "filters": {
+    "chrome": {
+      "title": "Filtry",
+      "apply": "Použít",
+      "clear": "Vymazat vše",
+      "clear_one": "Vymazat",
+      "remove": "Odebrat %{label}",
+      "any_time": "Kdykoli",
+      "no_results": "Žádné události neodpovídají vašim filtrům."
+    },
+    "format": {
+      "label": "Formát",
+      "any": "Libovolný",
+      "offline": "Osobně",
+      "online": "Online"
+    },
+    "cadence": {
+      "label": "Frekvence",
+      "any": "Libovolná",
+      "daily": "Denně",
+      "weekly": "Týdně",
+      "monthly": "Měsíčně",
+      "once": "Jednorázově"
+    },
+    "days": {
+      "label": "Den v týdnu"
+    },
+    "time": {
+      "label": "Denní doba",
+      "morning": "Ráno",
+      "afternoon": "Odpoledne",
+      "evening": "Večer",
+      "night": "Noc"
+    },
+    "language": {
+      "label": "Jazyk",
+      "all": "Všechny jazyky",
+      "empty": "Nejsou dostupné žádné jazyky"
+    },
+    "dates": {
+      "label": "Datum",
+      "from": "Od",
+      "to": "Do",
+      "pill_from": "Od %{date}",
+      "pill_until": "Do %{date}",
+      "pill_range": "%{start} – %{end}"
+    },
+    "region": {
+      "label": "Region",
+      "all": "Všechny regiony",
+      "search": "Hledat regiony…",
+      "empty": "Žádné regiony nenalezeny"
+    }
+  },
+  "online": {
+    "title": "Online kurzy"
+  },
+  "event": {
+    "display": {
+      "about": "O této lekci",
+      "free_meditation_class": "Kurz meditace zdarma",
+      "chip_full": "Obsazeno",
+      "chip_today": "Dnes",
+      "chip_ended": "Ukončeno",
+      "chip_starts": "Začíná %{date}",
+      "started_on": "Zahájeno %{date}",
+      "first_session": "První lekce: %{date}",
+      "next_session": "Další lekce: %{date}",
+      "event_ended": "Tato akce již skončila",
+      "event_full": "Tato akce je obsazená",
+      "registration_closed": "Registrace uzavřena",
+      "registration_required": "Nutná registrace",
+      "registration_external": "Registrace na tuto akci probíhá na jiném webu",
+      "online_joining_note": "Odkaz na setkání vám pošleme e-mailem",
+      "contact_to_join_full": "Zkuste kontaktovat pořadatele",
+      "contact_to_join_late": "Pro pozdější připojení kontaktujte pořadatele",
+      "contact_for_timing": "Kontaktujte hostitele pro načasování",
+      "online": "Online",
+      "hosted_from": "Hostováno z %{city}",
+      "time_in_place": "%{time} (%{city})",
+      "distance_away": "%{distance} daleko",
+      "distance_from_place": "%{distance} od %{place}",
+      "distance_from_search": "%{distance} od hledaného místa",
+      "type_class": "Lekce",
+      "type_class_daily": "Denní lekce",
+      "type_class_weekly": "Týdenní lekce",
+      "type_class_fortnightly": "Lekce jednou za dva týdny",
+      "type_class_monthly": "Měsíční lekce",
+      "type_course": "Kurz",
+      "type_oneoff": "Jednorázová akce",
+      "sessions_count_one": "%{count} lekce",
+      "sessions_count_few": "%{count} lekce",
+      "sessions_count_many": "%{count} lekce",
+      "sessions_count_other": "%{count} lekcí",
+      "see_nearby": "Zobrazit akce v okolí",
+      "register_now": "Zaregistrujte se nyní"
+    },
+    "actions": {
+      "contact": "Kontakt",
+      "directions": "Trasa",
+      "website": "Web",
+      "share": "Sdílet",
+      "add_calendar": "Přidat do kalendáře",
+      "download_ics": "Stáhnout soubor .ics",
+      "view_photo": "Zobrazit fotku",
+      "pause_slideshow": "Pozastavit prezentaci"
+    },
+    "recurrence": {
+      "daily": "Každý den",
+      "daily_n": "Každých %{interval} dní",
+      "weekly_1": "Každý %{weekday}",
+      "weekly_2": "Každý 2. %{weekday}",
+      "weekly_n": "Každých %{interval} týdnů: %{weekday}",
+      "weekly_multi": "Týdně: %{weekdays}",
+      "monthly_1st": "1. %{weekday} každého měsíce",
+      "monthly_2nd": "2. %{weekday} každého měsíce",
+      "monthly_3rd": "3. %{weekday} každého měsíce",
+      "monthly_4th": "4. %{weekday} každého měsíce",
+      "monthly_last": "Poslední %{weekday} každého měsíce",
+      "monthly_date": "Měsíčně %{day}. den"
+    }
+  },
+  "calendar": {
+    "title": "Kalendář",
+    "previous": "Předchozí",
+    "next": "Další",
+    "pick_date": "Vybrat datum",
+    "view_month": "Měsíc",
+    "view_week": "Týden",
+    "view_list": "Seznam"
+  },
+  "registration": {
+    "form": {
+      "name": "Vaše jméno",
+      "email": "Váš email",
+      "starting_date": "Datum zahájení",
+      "show_more_dates": "Zobrazit další termíny",
+      "submit": "Rejstřík",
+      "okay": "Dobře",
+      "followup": "Brzy obdržíte potvrzení e-mailem",
+      "invite_friend": "Pozvěte přítele",
+      "online_notice": "Odkaz na tento kurz vám bude zaslán e-mailem.",
+      "online_notice_title": "Online relace",
+      "privacy_policy": "Odesláním potvrzujete, že souhlasíte s přijímáním následných zpráv o této a podobných událostech v souladu s našimi zásadami ochrany osobních údajů.",
+      "error_title": "Něco se pokazilo",
+      "captcha_retry": "Bezpečnostní kontrolu je třeba provést znovu. Počkejte na její obnovení a poté se zaregistrujte ještě jednou."
+    },
+    "errors": {
+      "email": "Zadejte platný e-mail",
+      "name": "Zadejte své celé jméno",
+      "starting_at": "Vyberte datum zahájení"
+    },
+    "questions": {
+      "experience": "Praktikovali jste již meditaci Sahadža jóga?",
+      "referral": "Jak jste se o této akci dozvěděli?",
+      "aspirations": "Co si od toho slibujete?",
+      "questions": "Máte na nás nějaké dotazy?"
+    }
+  },
+  "share": {
+    "share_on": "Sdílet na %{platform}",
+    "native": "Sdílet…",
+    "copy_link": "Kopírovat odkaz",
+    "copied": "Zkopírováno"
+  },
+  "compact": {
+    "open": "Najděte kurz ve svém okolí"
+  }
+}

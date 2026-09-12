@@ -6,7 +6,7 @@ import { Pill, useDocumentInfo, useField } from '@payloadcms/ui'
 import { PillProps } from '@payloadcms/ui/elements/Pill'
 import React, { useMemo } from 'react'
 
-import type { ProjectSlug, RoleSlug } from '@/payload-types'
+import type { RoleSlug } from '@/payload-types'
 import type { PermissionLevel } from '@/plugins/access'
 import {
   getPermissionsForRole,
@@ -66,7 +66,7 @@ export const PermissionsTable: FieldClientComponent = () => {
           ...new Set(
             roles
               .map((roleSlug) => getRoleProject(roleSlug))
-              .filter((project): project is ProjectSlug => project !== undefined),
+              .filter((project) => project !== undefined),
           ),
         ]
 
