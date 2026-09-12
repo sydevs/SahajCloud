@@ -46,6 +46,9 @@ uniformly across all locales.** **Version history follows `update`, not
 `read`** — `withVersionHistoryAccess` derives `readVersions` from the
 collection's edit authority, so a read-only role reaches no drafts through
 `/api/{collection}/versions` (#719, see `docs/rules/access.md`).
+**A login lockout follows `update` too** — `withUnlockAccess` derives
+`unlock` the same way, so no API key can reset a locked account's
+failed-attempt counter through `/api/{collection}/unlock` (#748).
 
 Full RBAC details: see `docs/rules/access.md` (loads when editing
 `src/plugins/access/`).

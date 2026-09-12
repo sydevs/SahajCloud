@@ -14,7 +14,7 @@
 import type { BypassPermissionFunction, ContentSlug } from './types'
 import type { CollectionSlug, Config } from 'payload'
 
-import { createAccessConfig, withVersionHistoryAccess } from './accessConfigs'
+import { createAccessConfig, withUnlockAccess, withVersionHistoryAccess } from './accessConfigs'
 import { getProjectSlugs, getRoleSlugs, isTranslatableCollection } from './config'
 import { applyFieldAccessForTranslatableCollections } from './fieldAccess'
 import { withLocalizedRoleAuth } from './localizedRolesAuth'
@@ -84,12 +84,15 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
         return {
           ...collection,
           // Apply role-based access control (preserve existing overrides).
-          // `readVersions` is derived from the MERGED `update`, so an override
-          // carries into version history too — see accessConfigs.ts (#719).
-          access: withVersionHistoryAccess({
-            ...createAccessConfig(slug, ['read', 'create', 'update', 'delete'], bypassPermissions),
-            ...collection.access,
-          }),
+          // `readVersions` and `unlock` are derived from the MERGED `update`, so
+          // an override carries into version history and into the login-lockout
+          // reset too — see accessConfigs.ts (#719, #748).
+          access: withUnlockAccess(
+            withVersionHistoryAccess({
+              ...createAccessConfig(slug, ['read', 'create', 'update', 'delete'], bypassPermissions),
+              ...collection.access,
+            }),
+          ),
           admin: {
             ...collection.admin,
             // Respect existing hidden config, otherwise apply project-based visibility

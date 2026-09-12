@@ -23,7 +23,7 @@ The `accessPlugin` gives every collection access control automatically. A collec
 | `bypassPermissions.ts` | Shared bypass function |
 | `accessPlugin.ts` | Main orchestration |
 | `permissions.ts` | `hasPermission`, `hasAnyPermission` |
-| `accessConfigs.ts` | Access configuration factories, plus `withVersionHistoryAccess` |
+| `accessConfigs.ts` | Access configuration factories, plus `withVersionHistoryAccess` and `withUnlockAccess` |
 | `fieldAccess.ts` | Field-level access for translatable collections |
 | `visibility.ts` | Admin UI visibility (`createHidden`) |
 | `filterAvailableLocales.ts` | Admin locale-selector filtering |
@@ -156,6 +156,20 @@ Two consequences worth knowing:
 
 - **A read-only manager no longer sees the History tab.** `/api/access` computes `readVersions` from this same function, so the admin UI follows. That is the intended behaviour change, not a regression.
 - **Live preview is untouched.** It reads drafts through `find`/`findByID` with `draft: true`, which resolves against `read` and the preview-secret branch — never through a versions operation.
+
+### Unlocking an account is edit authority (#748)
+
+`withUnlockAccess` derives **`unlock`** from the collection's own `update` function, on every collection the plugin touches. Whoever may edit an account may clear its login lockout. Nobody else.
+
+It wraps the **merged** access config in `accessPlugin.ts`, for the same reason `withVersionHistoryAccess` does: an override of `update` must carry into the unlock grant, and a collection that sets its own `unlock` keeps it.
+
+Payload fills an *omitted* `unlock` from its collection defaults (`collections/config/defaults.js`) with `defaultAccess` — `Boolean(user)` — which a published client's API key satisfies. `unlockOperation` is the only reader, and `POST /:collection/unlock` is registered for every auth collection, so any client key could reset a locked manager's failed-attempt counter and defeat the brute-force lockout (`maxLoginAttempts: 5`, `lockTime: 10 min`). `clients` was already denied structurally by `disableLocalStrategy: true`, which throws `Forbidden` before the access check; `managers` was the live target.
+
+⚠ **Nothing else needs the grant.** A lockout expires by itself once `lockUntil` passes, and a successful login then calls `resetLoginAttempts` with no access check. `unlock` is only the administrative shortcut that clears a lockout early, so denying it costs a non-admin nothing.
+
+Two differences from `withVersionHistoryAccess`, both simplifications: `unlock` queries the **auth collection itself**, so a `Where` needs no `appendVersionToQueryKey` translation. And `unlockOperation` calls access with no `id` at all — the id is dropped anyway, so a future Payload that passes one cannot reach the self-access bypass and hand an account its own unlock.
+
+Document locking is unrelated: that is the `payload-locked-documents` collection with its own access config, and it never reads `access.unlock`.
 
 ### Self-access
 

@@ -204,6 +204,35 @@ export function withVersionHistoryAccess<T extends { readVersions?: Access; upda
 }
 
 /**
+ * Derive `unlock` from `update`: clearing a login lockout is EDIT authority,
+ * not "is anyone logged in" (#748).
+ *
+ * Payload fills an *omitted* `unlock` from its collection defaults with
+ * `defaultAccess` — `Boolean(user)` — which a published client's API key
+ * satisfies, so any client key could `POST /api/managers/unlock` and reset a
+ * locked manager's failed-attempt counter. Why `update` is the authority:
+ * "Unlocking an account is edit authority" in `docs/rules/access.md`.
+ *
+ * ⚠ Wrap the MERGED access config, after any per-collection override — the same
+ * rule `withVersionHistoryAccess` follows, and for the same reason.
+ */
+export function withUnlockAccess<T extends { unlock?: Access; update?: Access }>(access: T): T {
+  const { unlock, update } = access
+  if (unlock || !update) return access
+
+  return {
+    ...access,
+    // ⚠ Drop the id. `unlockOperation` calls access with no `id` today, so
+    // `update` already answers at the list level — dropping it keeps that true
+    // if a future Payload passes one, rather than letting the self-access
+    // bypass (`user.id === docId`) hand an account its own unlock.
+    // No `Where` translation: unlock queries the auth collection itself, which
+    // is what `update` already answers about.
+    unlock: ({ id: _id, ...args }) => update(args),
+  }
+}
+
+/**
  * Create access config for field-level access control
  * Used for non-localized fields in translatable collections
  *
