@@ -645,7 +645,7 @@ describe('atlasSeo endpoint', () => {
 
     const publishRootCopy = (
       locale: 'de' | 'en' | 'fr',
-      data: { common?: Record<string, string>; seo?: Record<string, string> },
+      data: { common?: { chrome?: Record<string, string> }; seo?: Record<string, string> },
     ) =>
       payload.updateGlobal({
         slug: 'sy-atlas-translations',
@@ -670,7 +670,7 @@ describe('atlasSeo endpoint', () => {
       // omitting `seo` here writes the English landing copy into the German
       // column and the fixture stops representing an untranslated locale.
       await publishRootCopy('de', {
-        common: { free_meditation_classes: DE_WIDGET_NAME },
+        common: { chrome: { widget_label: DE_WIDGET_NAME } },
         seo: {},
       })
     })

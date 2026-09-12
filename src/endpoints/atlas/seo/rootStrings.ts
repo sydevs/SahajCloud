@@ -13,7 +13,7 @@
  *
  * - **`title` falls back within the locale first.** `<title>` is mandatory
  *   markup and `AtlasSeoResponse` types it as a string, so it must resolve to
- *   something. It resolves to the locale's own `common.free_meditation_classes`
+ *   something. It resolves to the locale's own `common.chrome.widget_label`
  *   — the widget's name for itself, already seeded in ten locales — before it
  *   looks at English, so a locale nobody has written `seo.root_title` for is
  *   named in its own language rather than in ours. English, and then the
@@ -39,16 +39,22 @@ import { withoutEnglishFallback } from '@/lib/translations/clientEnglishFallback
 
 /**
  * The `<title>` used when neither the locale nor English names the atlas at
- * all — no `seo.root_title`, and no `common.free_meditation_classes` either.
+ * all — no `seo.root_title`, and no `common.chrome.widget_label` either.
  *
- * It is the English wording of that same key, so the constant is a last resort
- * rather than a second voice: reaching it means the global is empty, which is
- * only true of a brand-new database.
+ * It is that same key's English wording, title-cased, so the constant is a last
+ * resort rather than a second voice: reaching it means the global is empty,
+ * which is only true of a brand-new database.
  */
 export const ROOT_TITLE_FALLBACK = 'Free Meditation Classes'
 
-/** Two groups out of seven, so the read names the ones it wants. */
-const ROOT_COPY_SELECT: SelectType = { common: true, seo: true }
+/**
+ * Two columns out of thirty-three, so the read names the ones it wants.
+ *
+ * `common` is a group of collapsibles since #706, so the select descends into
+ * it rather than taking all seven of its columns — `chrome` is the only one
+ * that names the atlas.
+ */
+const ROOT_COPY_SELECT: SelectType = { common: { chrome: true }, seo: true }
 
 /** The landing page's copy for one locale. */
 export interface RootSeoStrings {
@@ -60,7 +66,7 @@ export interface RootSeoStrings {
 
 /** One locale's raw copy — the two groups the chain reads, each blank or absent. */
 export interface RootCopy {
-  /** The widget's own UI strings, seeded in every locale. */
+  /** The widget's own chrome strings, seeded in every locale (`{ chrome: {…} }`). */
   common: Record<string, unknown> | null
   /** The landing page's operator-written copy. Empty everywhere until someone writes it. */
   seo: Record<string, unknown> | null
@@ -80,7 +86,7 @@ function text(value: unknown): string | null {
  * Both come from the same locale, so neither borrows another language's words.
  */
 function titleIn(copy: RootCopy | null): string | null {
-  return text(copy?.seo?.root_title) ?? text(copy?.common?.free_meditation_classes)
+  return text(copy?.seo?.root_title) ?? text(group(copy?.common?.chrome)?.widget_label)
 }
 
 /**

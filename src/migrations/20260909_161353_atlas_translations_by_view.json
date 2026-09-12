@@ -22341,12 +22341,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "seo": {
-          "name": "seo",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "emails": {
           "name": "emails",
           "type": "jsonb",
@@ -22778,12 +22772,6 @@
         },
         "version_compact": {
           "name": "version_compact",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_seo": {
-          "name": "version_seo",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -28652,6 +28640,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "7fe0b726-97cd-4393-8d11-236cd77638d2",
+  "id": "9057797c-b6ad-44c3-b74e-44edb7d23efe",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

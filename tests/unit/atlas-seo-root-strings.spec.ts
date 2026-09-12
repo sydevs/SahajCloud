@@ -18,18 +18,23 @@ import {
  * language, which is the rule #646 set for regions.
  */
 describe('resolveRootStrings', () => {
-  const copy = (seo: Record<string, unknown> | null, common: Record<string, unknown> | null = null): RootCopy => ({
-    common,
+  // `common` is a group of collapsibles since #706, and the chain reads exactly
+  // one of them, so the helper takes the `chrome` strings and nests them.
+  const copy = (
+    seo: Record<string, unknown> | null,
+    chrome: Record<string, unknown> | null = null,
+  ): RootCopy => ({
+    common: chrome === null ? null : { chrome },
     seo,
   })
 
   const en = copy(
     { root_title: 'Free Meditation Classes', root_description: 'Find a class near you.' },
-    { free_meditation_classes: 'Free Meditation Classes' },
+    { widget_label: 'Free Meditation Classes' },
   )
   const fr = copy(
     { root_title: 'Cours de méditation', root_description: 'Trouvez un cours.' },
-    { free_meditation_classes: 'Cours de méditation gratuits' },
+    { widget_label: 'Cours de méditation gratuits' },
   )
 
   it('prefers the locale’s own copy over English', () => {
@@ -40,17 +45,17 @@ describe('resolveRootStrings', () => {
   })
 
   // The reviewer's call on #769: a locale nobody has written `seo.root_title`
-  // for is named in its own language, not in ours. `common` is seeded in ten
+  // for is named in its own language, not in ours. `common.chrome` is seeded in ten
   // locales where `seo` is empty everywhere, so this is the live path today.
   it('names the atlas in the locale’s own words before it looks at English', () => {
-    const untitled = copy(null, { free_meditation_classes: 'Cours de méditation gratuits' })
+    const untitled = copy(null, { widget_label: 'Cours de méditation gratuits' })
     expect(resolveRootStrings(untitled, en).title).toBe('Cours de méditation gratuits')
   })
 
   it('falls back to English only when the locale names the atlas nowhere', () => {
     expect(resolveRootStrings(copy({}, {}), en).title).toBe('Free Meditation Classes')
     // English's own widget string answers when nobody wrote a landing title.
-    expect(resolveRootStrings(copy(null), copy(null, { free_meditation_classes: 'Classes' })).title).toBe(
+    expect(resolveRootStrings(copy(null), copy(null, { widget_label: 'Classes' })).title).toBe(
       'Classes',
     )
     expect(resolveRootStrings(copy({}, {}), copy({}, {})).title).toBe(ROOT_TITLE_FALLBACK)
@@ -63,7 +68,7 @@ describe('resolveRootStrings', () => {
     expect(resolveRootStrings(copy({}, {}), en).description).toBeNull()
     expect(resolveRootStrings(copy({ root_title: 'Cours' }), en).description).toBeNull()
     // Nor does the widget string leak into a description — it only names.
-    expect(resolveRootStrings(copy(null, { free_meditation_classes: 'Cours' }), en).description).toBeNull()
+    expect(resolveRootStrings(copy(null, { widget_label: 'Cours' }), en).description).toBeNull()
   })
 
   // Blank and absent have to mean the same thing: a translator who cleared a
@@ -75,7 +80,7 @@ describe('resolveRootStrings', () => {
   ])('treats %s as no copy at all', (_label, value) => {
     const blank = copy(
       { root_title: value, root_description: value },
-      { free_meditation_classes: value },
+      { widget_label: value },
     )
     const resolved = resolveRootStrings(blank, en)
     expect(resolved.title).toBe('Free Meditation Classes')
@@ -87,7 +92,7 @@ describe('resolveRootStrings', () => {
       title: 'Atlas',
       description: 'Hi.',
     })
-    expect(resolveRootStrings(copy(null, { free_meditation_classes: '  Cours  ' }), en).title).toBe(
+    expect(resolveRootStrings(copy(null, { widget_label: '  Cours  ' }), en).title).toBe(
       'Cours',
     )
   })

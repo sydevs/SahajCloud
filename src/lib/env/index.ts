@@ -5,25 +5,25 @@
  * For backwards compatibility, importing from `@/lib/env` works for server code.
  *
  * **IMPORTANT**: This module should ONLY be imported from server-side code.
- * For client-side code, use `@/lib/env/client` instead.
+ * `serverEnv` throws when it is read in a browser bundle.
  *
  * **Architecture**:
- * - `@/lib/env/client` - Client-accessible variables (NEXT_PUBLIC_* prefix)
- * - `@/lib/env/server` - Server-only variables (includes all client vars)
+ * - `@/lib/env/client` - the `NEXT_PUBLIC_*` schema, which the server schema extends
+ * - `@/lib/env/server` - every variable, client ones included, validated lazily
  * - `@/lib/env` (this file) - Barrel export for server (backwards compatible)
  *
  * **Usage**:
  * ```typescript
- * // Server-side
+ * // Server-side — including the NEXT_PUBLIC_* values, which are validated here
  * import { serverEnv } from '@/lib/env'
  * const secret = serverEnv.PAYLOAD_SECRET
+ * const logLevel = serverEnv.NEXT_PUBLIC_LOG_LEVEL
  *
- * // Client-side - use the client module directly
- * import { clientEnv } from '@/lib/env/client'
- * const logLevel = clientEnv.NEXT_PUBLIC_LOG_LEVEL
+ * // Browser — a literal member expression, the only form Next substitutes (#760)
+ * const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
  * ```
  */
 
 // Re-export everything from server module for backwards compatibility
-export { clientEnv, serverEnv } from './server'
+export { serverEnv } from './server'
 export type { ClientEnv, ServerEnv } from './server'
