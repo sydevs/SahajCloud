@@ -215,6 +215,59 @@ describe('per-locale publish status', () => {
       expect(asClientEn.docs.map((d) => (d as { title?: string }).title)).toEqual(['Secret EN'])
     })
 
+    /**
+     * The access clause filters DOCUMENTS, not the locales in the response, so
+     * `?locale=all` is not gated by it — a published-only client would
+     * otherwise read the German text of a locale the editor took down. Closed
+     * by `withPublishedLocaleRedaction`: a cross-locale client read answers
+     * which locales are published and nothing else.
+     *
+     * This one found a real leak. Its sibling above only asked for `?locale=de`
+     * and passed while `?locale=all` — the read this whole ticket tells
+     * consumers to use — handed the content over.
+     */
+    it('hands a client no content at all on a cross-locale read', async () => {
+      const page = await testData.createPage(payload, { title: 'Visible EN' })
+      await publish(page.id, 'en')
+      await publish(page.id, 'de', 'Zurueckgezogen DE')
+      await unpublish(page.id, 'de')
+
+      const crossLocale = await payload.find({
+        collection: 'pages',
+        locale: 'all',
+        depth: 0,
+        where: { id: { equals: page.id } },
+        select: { title: true, _status: true } as never,
+        overrideAccess: false,
+        req: { ...clientReq } as never,
+      })
+
+      expect(crossLocale.docs).toHaveLength(1)
+      const doc = crossLocale.docs[0] as Record<string, unknown>
+
+      // The unpublished German title is gone — and so is the published English
+      // one, which is the blunt part of the rule rather than an accident.
+      expect(doc.title).toBeUndefined()
+      expect(Object.keys(doc).sort()).toEqual(['_status', 'id'])
+
+      // The contract itself still answers.
+      expect(publishedLocales((doc as { _status?: StatusMap })._status ?? {})).toEqual(['en'])
+    })
+
+    it('leaves a manager cross-locale read untouched', async () => {
+      const page = await testData.createPage(payload, { title: 'Manager sees all' })
+      await publish(page.id, 'en')
+
+      const asManager = await payload.findByID({
+        collection: 'pages',
+        id: page.id,
+        locale: 'all',
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect((asManager as { title?: unknown }).title).toBeDefined()
+    })
+
     it('never serves a page no locale has published', async () => {
       const page = await testData.createPage(payload, { title: 'Unpublished' })
 
