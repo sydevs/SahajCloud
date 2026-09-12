@@ -42,23 +42,19 @@ export const deploymentEnvironment = (): string | undefined =>
   railwayEnvironmentName() ?? process.env.NODE_ENV
 
 /**
- * The same name, for code that runs in the **browser**.
- *
- * ⚠ **A browser bundle reads no environment at runtime.** `RAILWAY_*` never
- * reaches it, so `deploymentEnvironment()` would answer `undefined` there and
- * Sentry would apply its `production` default — #733's defect again (#737).
- * `next.config.mjs`'s `env` block inlines the deployment name under
- * `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` at build time, and this reads it back.
+ * The same name, for code that runs in the **browser**, which reads no
+ * environment at runtime. `next.config.mjs`'s `env` block inlines the value at
+ * build time and this reads it back — why that shape, and why `clientEnv`
+ * cannot carry the key, is in `docs/environment.md` →
+ * `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` (#737).
  *
  * ⚠ **Both reads must stay literal `process.env.<KEY>` member expressions.**
- * Next's DefinePlugin substitutes those, and nothing else: bare `process.env`
- * is an empty object in the browser (`next/dist/compiled/process`), which is
- * why this cannot go through `clientEnv` or any destructuring.
+ * Next's DefinePlugin substitutes those and nothing else, so destructuring or
+ * a computed key silently yields `undefined` here.
  *
- * Off-Railway the config falls through to `NODE_ENV`, so a local run still
- * reports `development`. The `?? process.env.NODE_ENV` here is what keeps this
- * honest outside a Next build — the unit lane, and any consumer Next did not
- * compile — where nothing inlines the key at all.
+ * The `?? process.env.NODE_ENV` keeps this honest outside a Next build — the
+ * unit lane, and any consumer Next did not compile — where nothing inlines the
+ * key at all.
  */
 export const clientDeploymentEnvironment = (): string | undefined =>
   process.env.NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT ?? process.env.NODE_ENV
