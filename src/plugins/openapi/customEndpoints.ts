@@ -267,8 +267,14 @@ const eventGeoJsonParameters: OpenAPIParameter[] = [
     name: 'locale',
     in: 'query',
     required: false,
-    description: 'Locale for localized fields. Defaults to the request locale.',
-    schema: { type: 'string', enum: LOCALES.map((l) => l.code) },
+    description:
+      'Locale for localized fields. Defaults to the request locale.\n\n' +
+      '`all` returns every locale instead of resolving one: each localized field ' +
+      'comes back as a `{ locale: value }` map rather than a single value, and no ' +
+      'English fallback is applied. On `pages` and `app-cards` that includes ' +
+      '`_status`, which is how a consumer asks which languages a document is ' +
+      'published in — see `docs/rules/api-clients.md`.',
+    schema: { type: 'string', enum: [...LOCALES.map((l) => l.code), 'all'] },
   },
 ]
 
