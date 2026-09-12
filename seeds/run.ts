@@ -97,7 +97,10 @@ const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
 // DataSource.localPath exactly.
 const SCRIPT_DATA_FILES: Partial<Record<ScriptName, string[]>> = {
   'wm-app-translations': ['seeds/wm-app-translations/data.en.json'],
-  translations: ['seeds/wm-app-translations/data.en.json'],
+  translations: [
+    'seeds/wm-app-translations/data.en.json',
+    'seeds/wm-web-translations/data.en.json',
+  ],
   // Atlas reads all 8 dumps via loadJsonData (keyed by these exact paths).
   // The standalone build excludes seeds/, so the CLI uploads them for remote seeding.
   atlas: [

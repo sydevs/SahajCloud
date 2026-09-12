@@ -103,20 +103,26 @@ automatically — printing per-batch progress as it goes.
 | atlas       | `pnpm seed atlas`       | The 8 JSON dumps in `seeds/atlas/data/`    | managers, regions, users, events, registrations, clients |
 | translations | `pnpm seed translations` | None                                      | the three translations globals (see below) |
 
-### `translations` — and the ten Atlas locales it publishes
+### `translations` — real copy everywhere, and the locales it publishes
 
-One script, three globals. `wm-app-translations` gets real English copy from
-`seeds/wm-app-translations/data.en.json`; `wm-web-translations` still gets
-example strings derived from its schema key names.
+One script, three globals, and no generated strings left in any of them.
+`wm-app-translations` and `wm-web-translations` both get real English copy
+from their own `data.en.json`. #706 and #707 replaced the last two callers
+of `generateExampleData`, so that generator is gone.
 
-`sy-atlas-translations` is different (#706). It reads one file per widget
-locale from `seeds/sy-atlas-translations/data.<locale>.json` — `cs de en es
-fr hu nl pt-BR ru uk` — and **publishes each locale on its own**. That is
-the point of the script, not a side effect: `sy-atlas-config.availableLocales`
-refuses a locale whose translations are not published (#705), so nothing an
-operator does in the admin can offer a language until this has run.
+`sy-atlas-translations` reads one file per widget locale from
+`seeds/sy-atlas-translations/data.<locale>.json` — `cs de en es fr hu nl
+pt-BR ru uk` — and **publishes each locale on its own**. That is the point
+of the script, not a side effect: `sy-atlas-config.availableLocales` refuses
+a locale whose translations are not published (#705), so nothing an operator
+does in the admin can offer a language until this has run.
 
-Three properties to preserve when you touch it:
+**`wm-web-translations` is published in English too** (#707), so the CMS's
+own answer to "is English published?" matches the copy it holds. Its
+`_status` is a per-locale column (`localizeStatus`, #705), so publishing
+English leaves every other locale a draft.
+
+Four properties to preserve when you touch it:
 
 - **Publishing needs `_status: 'published'` in the data.**
   `publishSpecificLocale` selects Payload's single-locale branch but does not
@@ -127,6 +133,24 @@ Three properties to preserve when you touch it:
 - **`emails` and `event.title` hold live production data.** No seed file
   carries them, and English alone fills a key that is blank today. See
   `src/globals/AGENTS.md`.
+- **Do not copy the publish onto `wm-app-translations`.** One `_status`
+  covers every locale there, so publishing it would claim 19 translated
+  languages from an English-only file.
+
+⚠ **Two things the wm-web publish does not do**, both easy to assume:
+
+- It is not what lets `wm-web-config.availableLocales` offer `en`. English is
+  **exempt** from that field's publish gate by design — gating the one locale
+  nobody can deselect would deadlock the save (`src/fields/availableLocalesField.ts`).
+  The gate gates every *other* locale.
+- It does not change what a read returns. A global read comes back identical
+  whether `draft` is true, false, or unset. The publish sets state.
+
+A `plural: true` key is stored as its CLDR family (`<key>_one`/`_few`/
+`_many`/`_other`), and since #705 the column's JSON Schema declares exactly
+those names — so seed data must write the expanded keys, never the declared
+one. English populates `_one` and `_other`; it has no `few` or `many` form,
+and `pluralize()` falls back to `other`.
 
 A key a locale has no translation for is **omitted, never blank**: the
 client-read English merge serves English for it, and a blank would defeat

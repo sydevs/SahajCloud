@@ -118,7 +118,8 @@ All translations globals share a tab-based structure, built by
 `buildTranslationTabs()` from a `translationsSchema.json` co-located with
 the global. Versions: max 3.
 
-- WeMeditate Web tabs: Common, Navigation
+- WeMeditate Web tabs: Common, Navigation, Footer, Errors, Article,
+  Meditation, Lecture, Map, Forms, Media, Location, Blocks
 - WeMeditate App tabs: Daily, Path, Explore, Profile, Meditation
 - Sahaj Atlas tabs: Common, Countries, Search, Filters, Online, Event,
   Calendar, Registration, Share, Compact, Emails
@@ -130,6 +131,22 @@ own. The catalogue itself lives in the widget
 (`sydevs/SahajAtlasWeb`), so a key added there needs a home here before the
 widget can read it — Appendix A of #706 is the old-to-new mapping, kept as
 the cross-repo record of what each key was called.
+
+The Web tabs are in the site's **reading order**, not grouped by data type —
+a translator works down a page. Every tab that carries screen-reader-only
+copy declares explicit `general` + `a11y` sub-groups (#707), so the visible
+strings stay together and the invisible ones start collapsed. `navigation`
+and `footer` have none, so they stay flat.
+
+Two conventions hold across that schema, and adding a key means honouring
+both:
+
+- **An `a11y` key's description begins "Not shown on screen; read by screen
+  readers."** It is the only cue a translator has that nobody will ever see
+  the string, and the tone that follows from it is different.
+- **`%{count}` is reserved for the number that selects the plural form.** A
+  string needing a second number uses its own name — `map.classes_shown` is
+  `%{shown}` of `%{count}`, and only `%{count}` picks one/other.
 
 Three things are true of **all three** translations globals — #705 brought
 them to `sy-atlas-translations` and `wm-web-translations`, #709 to
@@ -276,6 +293,18 @@ one. A sub-group named `a11y` starts collapsed; everything else opens. This
 is presentational only — the data path and column name are unchanged, so no
 migration is involved. Mixing leaf keys and sub-groups at one level is
 deliberately unsupported: declare explicit `general` + `a11y` sub-groups.
+
+A sub-group's label is its slug in title case, which reads correctly for a
+slug made of words (`page_tags` → "Page Tags") and badly for one that is not
+(`a11y` → "A11y"). **`SUBGROUP_PRESENTATION`** in `translationsField.ts` is
+the one place that overrides it, and it carries the collapse rule beside the
+label so both facts about a slug stay together — `a11y` renders as
+"Accessibility" and starts closed. Only sub-groups read that table: a tab's
+label is always its slug in title case, whatever the slug. Add an entry there, never a label in a
+schema: a schema-side label would be re-declared in every global that used
+the slug, with nothing pinning the copies equal, and would leave the collapse
+rule stranded on the other side. Presentational only — the field name, data
+path, and column still come from the slug.
 
 ### Per-key character limit (`maxLength`, and `strict`)
 
