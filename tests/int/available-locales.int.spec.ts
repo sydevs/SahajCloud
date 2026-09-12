@@ -1,6 +1,6 @@
 /**
- * `availableLocales` on the two config globals, and the API-client English
- * merge that makes offering a locale safe (#705).
+ * `availableLocales` on all three config globals, and the API-client English
+ * merge that makes offering a locale safe (#705, extended to the app by #709).
  *
  * Both need a database, and for the same reason: the field's answer depends on
  * a *stored* per-locale `_status`, and the merge's on a stored English row. The
@@ -85,14 +85,17 @@ describe('availableLocales', () => {
       overrideAccess: true,
     })
 
-  const publishAtlasLocale = (locale: TypedLocale, data: Record<string, unknown> = {}) =>
+  const publishLocale = (slug: string, locale: TypedLocale, data: Record<string, unknown> = {}) =>
     payload.updateGlobal({
-      slug: 'sy-atlas-translations',
+      slug: slug as Parameters<typeof payload.updateGlobal>[0]['slug'],
       locale,
       publishSpecificLocale: locale,
       data: { _status: 'published', ...data } as never,
       overrideAccess: true,
     })
+
+  const publishAtlasLocale = (locale: TypedLocale, data: Record<string, unknown> = {}) =>
+    publishLocale('sy-atlas-translations', locale, data)
 
   describe('the English invariant', () => {
     // Every other locale falls back to English, so a set without it describes a
@@ -109,7 +112,7 @@ describe('availableLocales', () => {
 
     // The deadlock the exemption exists for. The migration lands every locale
     // as `draft`, and Payload validates the merged document on every save — so
-    // gating English would make both config globals unsaveable on deploy, while
+    // gating English would make every config global unsaveable on deploy, while
     // telling the operator to publish the one locale they cannot deselect.
     it('accepts English with nothing published, and with the publish check ON', async () => {
       await payload.updateGlobal({
@@ -203,6 +206,52 @@ describe('availableLocales', () => {
     })
   })
 
+  // #709 mounts the same field on the third surface. The case that matters is
+  // not that the field exists — it is that it gates on `wm-app-translations`,
+  // the global that only opted into per-locale `_status` in that issue. Before
+  // it did, `unpublishedLocales` read a plain string and answered
+  // all-or-nothing, so a locale published anywhere would have passed here.
+  describe('the wm-app config carries the same field', () => {
+    const setApp = (locales: string[]) =>
+      payload.updateGlobal({
+        slug: 'wm-app-config',
+        data: { availableLocales: locales } as never,
+        overrideAccess: true,
+      })
+
+    const publishAppLocale = (locale: TypedLocale, data: Record<string, unknown> = {}) =>
+      publishLocale('wm-app-translations', locale, data)
+
+    // The English invariant is deliberately not re-asserted per mount. It is
+    // checked above the `translationsSlug` read in `availableLocalesField.ts`,
+    // so it cannot differ by surface — which is why the `wm-web` block above
+    // carries only its gating case too.
+
+    it('gates on its own translations global, not the atlas one', async () => {
+      // Italian published on the ATLAS translations must not count for the app.
+      // English is exempt from the gate, so this needs a locale that is gated.
+      await publishAtlasLocale('it')
+      expect(await localesError(() => setApp(['en', 'it']))).toMatch(/Italian/)
+
+      await publishAppLocale('it')
+      // The 14 required page relationships still refuse this bare write, so the
+      // claim is that `availableLocales` stops objecting — not that the write
+      // succeeds. Filling those in would test Payload's `required`, not this.
+      expect(await localesErrorOrNull(() => setApp(['en', 'it']))).toBeNull()
+    })
+
+    // The case above passes whether or not `wm-app-translations` sets
+    // `localizeStatus` — verified by reverting the flag and watching all 18
+    // tests stay green. With one status for the whole global, publishing
+    // Italian publishes everything, so this is what tells the two apart:
+    // Italian is published by the case above, Spanish is not.
+    it('publishing one locale does not open the gate for another', async () => {
+      expect(await localesError(() => setApp(['en', 'it', 'es']))).toMatch(/Spanish/)
+      await publishAppLocale('es')
+      expect(await localesErrorOrNull(() => setApp(['en', 'it', 'es']))).toBeNull()
+    })
+  })
+
   describe('the API-client English fallback', () => {
     beforeAll(async () => {
       await publishAtlasLocale('en', { countries: { title: 'Free Meditation Classes' } })
@@ -241,12 +290,45 @@ describe('availableLocales', () => {
       const english = await readAtlas('en', true)
       expect(english.countries?.title).toBe('Free Meditation Classes')
     })
+
+    // The app global gained the hook in #709. Its schema nests sub-groups, so
+    // the merge has to reach `daily.common.retry` — a key inside a JSON field
+    // inside a group — where the atlas cases above only exercise a top-level
+    // leaf. A merge that only handled `groupField: null` would pass every
+    // assertion above and still leave the app blank.
+    it('fills a blank key inside a nested group for wm-app-translations', async () => {
+      const writeApp = (locale: TypedLocale, daily: Record<string, unknown>) =>
+        payload.updateGlobal({
+          slug: 'wm-app-translations',
+          locale,
+          publishSpecificLocale: locale,
+          data: { _status: 'published', daily } as never,
+          overrideAccess: true,
+        })
+
+      await writeApp('en', { common: { retry: 'Try again' } })
+      await writeApp('de', { common: {} })
+
+      const read = (asClient: boolean) =>
+        payload.findGlobal({
+          slug: 'wm-app-translations',
+          locale: 'de',
+          fallbackLocale: false,
+          depth: 0,
+          overrideAccess: true,
+          ...(asClient ? { req: { ...clientReq } as never } : {}),
+        }) as unknown as Promise<{ daily?: { common?: Record<string, string> | null } }>
+
+      expect((await read(true)).daily?.common?.retry).toBe('Try again')
+      expect((await read(false)).daily?.common?.retry).toBeUndefined()
+    })
   })
 
   /**
    * The one acceptance criterion the local API cannot answer.
    *
-   * Both config globals gained a sub-table (`<global>_available_locales`), and
+   * All three config globals gained a sub-table (`<global>_available_locales`),
+   * and
    * the `languages` → `locales` collision this field replaces was a **read-time
    * Drizzle failure** — the config compiled, the local API was never reached,
    * and only a REST read surfaced it. So these go through `handleEndpoints`
@@ -275,6 +357,16 @@ describe('availableLocales', () => {
     // concern only.
     it('returns 200 for an unconfigured wm-web-config', async () => {
       const { status, body } = await rest('/api/globals/wm-web-config')
+      expect(status).toBe(200)
+      expect(body.errors).toBeUndefined()
+    })
+
+    // `wm_app_config_available_locales` is the one sub-table this issue adds,
+    // so it is the one the block above did not exercise over REST. Same shape
+    // as `wm-web-config`: its 14 required page relationships are unset here, so
+    // the claim is that the new sub-table does not break the read.
+    it('returns 200 for an unconfigured wm-app-config', async () => {
+      const { status, body } = await rest('/api/globals/wm-app-config')
       expect(status).toBe(200)
       expect(body.errors).toBeUndefined()
     })

@@ -43,10 +43,15 @@ describe('WeMeditateAppConfig Global', () => {
   let lecture: Lecture
   let audioFile: File
   let vttFile: File
-  // Every page relationship in the "Pages" tab is `required`, so updateGlobal
-  // rejects unless all of them are present. Build the set from the source list
-  // (one shared placeholder page) so it never drifts as pages are added.
-  let requiredPages: Record<string, number>
+  // Every page relationship in the "Pages" tab is `required`, and so is
+  // `availableLocales` (#709), so updateGlobal rejects unless all of them are
+  // present. Build the page set from the source list (one shared placeholder
+  // page) so it never drifts as pages are added.
+  //
+  // `['en']` needs no `skipAvailableLocalesCheck`: the field returns early once
+  // the gated set — every locale but English — is empty, above the publish
+  // check that needs stored data (`src/fields/availableLocalesField.ts`).
+  let requiredConfig: Record<string, unknown>
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
@@ -63,9 +68,10 @@ describe('WeMeditateAppConfig Global', () => {
     const placeholderPage = await testData.createPage(payload, {
       title: 'Required Page Placeholder',
     })
-    requiredPages = Object.fromEntries(
-      APP_REQUIRED_PAGE_FIELDS.map((name) => [name, placeholderPage.id]),
-    ) as Record<string, number>
+    requiredConfig = {
+      ...Object.fromEntries(APP_REQUIRED_PAGE_FIELDS.map((name) => [name, placeholderPage.id])),
+      availableLocales: ['en'],
+    }
   })
 
   afterAll(async () => {
@@ -77,9 +83,14 @@ describe('WeMeditateAppConfig Global', () => {
       const globalConfig = payload.globals.config.find((g) => g.slug === 'wm-app-config')
       expect(globalConfig).toBeDefined()
 
-      // Top-level should be a tabs field
-      const tabsField = globalConfig!.fields[0]
-      expect(tabsField.type).toBe('tabs')
+      // `availableLocales` sits above the tabs (#709), so find the tabs field
+      // rather than indexing it — this assertion used to read `fields[0]`.
+      const topLevel = globalConfig!.fields
+      expect(topLevel.map((f) => ('name' in f ? f.name : f.type))).toContain('availableLocales')
+
+      // `!` rather than a `toBeDefined()` beside it: if no tabs field is found,
+      // reading `.type` below throws and fails this case loudly anyway.
+      const tabsField = topLevel.find((f) => f.type === 'tabs')!
 
       if (tabsField.type === 'tabs') {
         expect(tabsField.tabs).toHaveLength(3)
@@ -107,7 +118,7 @@ describe('WeMeditateAppConfig Global', () => {
     it('can be set and retrieved', async () => {
       await payload.updateGlobal({
         slug: 'wm-app-config',
-        data: { selfRealizationMeditation: meditation.id, ...requiredPages },
+        data: { selfRealizationMeditation: meditation.id, ...requiredConfig },
       })
 
       const config = (await payload.findGlobal({
@@ -122,7 +133,7 @@ describe('WeMeditateAppConfig Global', () => {
     it('can be set and resolves correctly', async () => {
       await payload.updateGlobal({
         slug: 'wm-app-config',
-        data: { postRealizationLecture: lecture.id, ...requiredPages },
+        data: { postRealizationLecture: lecture.id, ...requiredConfig },
       })
 
       const config = (await payload.findGlobal({
@@ -140,7 +151,7 @@ describe('WeMeditateAppConfig Global', () => {
       await payload.updateGlobal({
         slug: 'wm-app-config',
         data: {
-          ...requiredPages,
+          ...requiredConfig,
           vibeCheckTracks: [
             {
               identifier: 'BH-COOL',
@@ -187,7 +198,7 @@ describe('WeMeditateAppConfig Global', () => {
         slug: 'wm-app-config',
         locale: 'en',
         data: {
-          ...requiredPages,
+          ...requiredConfig,
           selfRealizationMeditation: enMeditation.id,
           postRealizationLecture: enLecture.id,
           vibeCheckTracks: [
@@ -201,7 +212,7 @@ describe('WeMeditateAppConfig Global', () => {
         slug: 'wm-app-config',
         locale: 'cs',
         data: {
-          ...requiredPages,
+          ...requiredConfig,
           selfRealizationMeditation: csMeditation.id,
           postRealizationLecture: csLecture.id,
           vibeCheckTracks: [

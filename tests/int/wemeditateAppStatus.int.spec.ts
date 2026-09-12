@@ -103,10 +103,12 @@ function articleWithLectureLink(lectureId: number) {
 describe('WeMeditateAppStatus Global', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  // Every page relationship in the config's "Pages" tab is `required`, so
-  // updateGlobal rejects unless all are present. Build the set from the source
-  // list (one shared placeholder page) so it never drifts as pages are added.
-  let requiredAppPages: Record<string, number>
+  // Every page relationship in the config's "Pages" tab is `required`, and so
+  // is `availableLocales` (#709), so updateGlobal rejects unless all are
+  // present. Build the page set from the source list (one shared placeholder
+  // page) so it never drifts as pages are added. `['en']` clears the publish
+  // gate on its own — see the note in `wm-app-config.int.spec.ts`.
+  let requiredAppConfig: Record<string, unknown>
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -116,9 +118,10 @@ describe('WeMeditateAppStatus Global', () => {
     const placeholderPage = await testData.createPage(payload, {
       title: 'Required Page Placeholder',
     })
-    requiredAppPages = Object.fromEntries(
-      APP_REQUIRED_PAGE_FIELDS.map((name) => [name, placeholderPage.id]),
-    ) as Record<string, number>
+    requiredAppConfig = {
+      ...Object.fromEntries(APP_REQUIRED_PAGE_FIELDS.map((name) => [name, placeholderPage.id])),
+      availableLocales: ['en'],
+    }
   })
 
   afterAll(async () => {
@@ -285,7 +288,7 @@ describe('WeMeditateAppStatus Global', () => {
       await payload.updateGlobal({
         slug: 'wm-app-config',
         data: {
-          ...requiredAppPages,
+          ...requiredAppConfig,
           classesPage: publishedCorePage.id,
           lecturesPage: draftCorePage.id,
         },
@@ -370,7 +373,7 @@ describe('WeMeditateAppStatus Global', () => {
       await payload.updateGlobal({
         slug: 'wm-app-config',
         locale: 'en',
-        data: { ...requiredAppPages, selfRealizationMeditation: med.id },
+        data: { ...requiredAppConfig, selfRealizationMeditation: med.id },
       })
       const report = await run(appConfigSection, payload)
       const group = report.groups.find((g) => g.key === 'self-realization-meditation')
