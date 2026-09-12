@@ -21,9 +21,8 @@ import { LOG_LEVELS, type LogLevel } from '@/lib/env/logLevels'
 
 type LogContext = Record<string, unknown>
 
-// ⚠ A literal `process.env.<KEY>` member expression, not `clientEnv`. Next
-// substitutes only this form, so reading the level off a bare `process.env`
-// pinned this logger to its 'silent' fallback in every browser (#760).
+// ⚠ A literal member expression — the only form Next substitutes (#760, and
+// `src/AGENTS.md`). Read any other way, this logger stays 'silent' forever.
 const rawLevel = process.env.NEXT_PUBLIC_LOG_LEVEL
 
 // `-1` — unset, or a value the server would have rejected at boot — clamps to

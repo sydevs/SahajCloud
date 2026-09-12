@@ -139,6 +139,15 @@ value was `undefined` in the browser and client Sentry never initialized
 in `tests/utils/importGraph.ts`, which both specs share. So a new client
 component is covered by that one automatically.
 
+**This is the one home for that story.** The code sites carry a one-line
+pointer here, so there is nothing to update in six places when it changes.
+And do not restore a `clientEnv`-shaped accessor in another form: the
+enumerated `runtimeEnv` object t3-env uses would work, but its enumeration
+can drift from `ClientEnvSchema` silently, and that drift looks exactly like
+working config — the same failure, re-armed. `ServerEnvSchema` extends the
+client schema, so the server still validates all four variables and reads
+them as `serverEnv.NEXT_PUBLIC_*`.
+
 ⚠ **Import Sentry from `@sentry/nextjs`, never `@sentry/react`.** Sentry
 keys its global client by SDK version (`__SENTRY__[SDK_VERSION]`), and
 `@sentry/nextjs` carries its own pinned `@sentry/react`. A second top-level

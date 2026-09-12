@@ -4,24 +4,11 @@
  * `ServerEnvSchema` extends this one, so the server validates these four
  * alongside its own secrets and reads them as `serverEnv.NEXT_PUBLIC_*`.
  *
- * ⚠ **There is deliberately no `clientEnv` value here.** There used to be, as
- * `ClientEnvSchema.parse(process.env)`, and in a browser it parsed an empty
- * object: Next substitutes **literal `process.env.<KEY>` member expressions**
- * and nothing else, so a bare `process.env` is the empty stub from
- * `next/dist/compiled/process`. Every key read through it was `undefined` in
- * the browser, which is why `Sentry.init` never ran there at all (#760).
- *
- * **Browser code reads a literal member expression instead** — as
- * `src/lib/contact/index.ts`, `src/lib/mapbox/geocoder.ts` and
- * `AddressSearchField.tsx` already do:
- *
- * ```typescript
- * const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
- * ```
- *
- * Re-exporting a parsed object from here would only re-arm the same trap: the
- * enumeration it would have to parse can drift from this schema silently, and
- * the drift looks like working config.
+ * ⚠ **There is deliberately no `clientEnv` value here, and adding one back
+ * re-arms #760.** Browser code reads `process.env.NEXT_PUBLIC_<KEY>` as a
+ * literal member expression instead. Why, and why not an enumerated
+ * `runtimeEnv` object: `src/AGENTS.md`, "A second guard walks the same graph".
+ * `tests/unit/public-env-substitution.spec.ts` enforces it.
  */
 import { z } from 'zod'
 

@@ -10,9 +10,8 @@
  */
 import * as Sentry from '@sentry/nextjs'
 
-// ⚠ A literal `process.env.<KEY>` member expression, not `clientEnv`. Next
-// substitutes only this form, so reading the DSN off a bare `process.env` gave
-// `undefined` in every browser and no browser error was ever reported (#760).
+// ⚠ A literal member expression — the only form Next substitutes (#760, and
+// `src/AGENTS.md`). Never read a NEXT_PUBLIC_* value any other way.
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
 
 // ⚠ `.env` is git-tracked and carries the real DSN, so the read alone would
