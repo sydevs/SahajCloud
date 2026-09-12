@@ -107,10 +107,8 @@ async function runCleanupJob(payload: Payload): Promise<CleanupResult> {
   const result = await handler({
     req: mockReq,
     input: {
-      testDateRange: {
-        rangeStart: rangeStart.toISOString(),
-        rangeEnd: rangeEnd.toISOString(),
-      },
+      rangeStart: rangeStart.toISOString(),
+      rangeEnd: rangeEnd.toISOString(),
       maxOperations: 6,
     },
   })
