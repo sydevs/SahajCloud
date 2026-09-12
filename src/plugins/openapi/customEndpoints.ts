@@ -1523,7 +1523,9 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
         description:
           'The document’s own name — a region’s is qualified by its country, since ' +
           'region names collide across the tree. On a root route it is the title an ' +
-          'operator wrote for the landing page. Append your own site name; we ' +
+          'operator wrote for the landing page, or, in a locale nobody wrote one ' +
+          'for, that locale’s own name for the atlas rather than the English one. ' +
+          'Append your own site name; we ' +
           'compose no prose, because nothing here is translated and an invented ' +
           'sentence would be English in somebody else’s `<head>`.',
       },
