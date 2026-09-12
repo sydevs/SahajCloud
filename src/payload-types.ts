@@ -5221,88 +5221,727 @@ export interface WmWebConfig {
  */
 export interface WmWebTranslation {
   id: number;
-  common?: WmWebTranslationsCommonStrings;
+  common?: {
+    general?: WmWebTranslationsCommonGeneralStrings;
+    a11y?: WmWebTranslationsCommonA11YStrings;
+  };
   navigation?: WmWebTranslationsNavigationStrings;
   footer?: WmWebTranslationsFooterStrings;
-  page_tags?: WmWebTranslationsPageTagsStrings;
-  errors?: WmWebTranslationsErrorsStrings;
+  errors?: {
+    general?: WmWebTranslationsErrorsGeneralStrings;
+    a11y?: WmWebTranslationsErrorsA11YStrings;
+  };
+  article?: {
+    general?: WmWebTranslationsArticleGeneralStrings;
+    a11y?: WmWebTranslationsArticleA11YStrings;
+  };
+  meditation?: {
+    general?: WmWebTranslationsMeditationGeneralStrings;
+    a11y?: WmWebTranslationsMeditationA11YStrings;
+  };
+  lecture?: {
+    general?: WmWebTranslationsLectureGeneralStrings;
+    a11y?: WmWebTranslationsLectureA11YStrings;
+  };
+  map?: {
+    general?: WmWebTranslationsMapGeneralStrings;
+    a11y?: WmWebTranslationsMapA11YStrings;
+  };
+  forms?: {
+    general?: WmWebTranslationsFormsGeneralStrings;
+    a11y?: WmWebTranslationsFormsA11YStrings;
+  };
+  media?: {
+    general?: WmWebTranslationsMediaGeneralStrings;
+    a11y?: WmWebTranslationsMediaA11YStrings;
+  };
+  location?: {
+    general?: WmWebTranslationsLocationGeneralStrings;
+    a11y?: WmWebTranslationsLocationA11YStrings;
+  };
+  blocks?: {
+    general?: WmWebTranslationsBlocksGeneralStrings;
+    a11y?: WmWebTranslationsBlocksA11YStrings;
+  };
   _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
-export interface WmWebTranslationsCommonStrings {
+export interface WmWebTranslationsCommonGeneralStrings {
   /**
-   * Loading indicator text shown while content is being fetched.
+   * Shown beside a spinner while content is still loading.
    */
   loading?: string;
   /**
-   * Generic error message shown when something goes wrong.
+   * Button that reveals the rest of a truncated grid of cards.
    */
-  error?: string;
+  show_more?: string;
   /**
-   * Button text to retry a failed action.
+   * The browser tab title on any page that carries no title of its own. Also the site name search engines show.
    */
-  retry?: string;
+  site_title?: string;
+  /**
+   * The search-result and social-preview summary for any page that carries no description of its own. Around 160 characters reads best.
+   */
+  site_description?: string;
+}
+export interface WmWebTranslationsCommonA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the button that closes a notification banner.
+   */
+  dismiss?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that closes the full-screen image viewer.
+   */
+  close?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that moves back one item in a carousel or image viewer.
+   */
+  previous?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that moves forward one item in a carousel or image viewer.
+   */
+  next?: string;
+  /**
+   * Not shown on screen; read by screen readers. Describes the "Show More" button. `%{count}` = how many further items it reveals, and selects the plural form.
+   */
+  show_more_items_one?: string;
+  /**
+   * Not shown on screen; read by screen readers. Describes the "Show More" button. `%{count}` = how many further items it reveals, and selects the plural form.
+   */
+  show_more_items_few?: string;
+  /**
+   * Not shown on screen; read by screen readers. Describes the "Show More" button. `%{count}` = how many further items it reveals, and selects the plural form.
+   */
+  show_more_items_many?: string;
+  /**
+   * Not shown on screen; read by screen readers. Describes the "Show More" button. `%{count}` = how many further items it reveals, and selects the plural form.
+   */
+  show_more_items_other?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the trail of parent links above a page title.
+   */
+  breadcrumb?: string;
+  /**
+   * Not shown on screen; read by screen readers. Warns that a link opens a new browser tab. `%{label}` = the destination's own name (a social network, untranslated).
+   */
+  opens_in_new_tab?: string;
 }
 export interface WmWebTranslationsNavigationStrings {
   /**
-   * Primary navigation link opening the "About Meditation" knowledge section.
+   * Header menu item opening the section that explains meditation. Repeated as a footer column heading.
    */
   about_meditation?: string;
   /**
-   * Navigation link to educational content and resources.
+   * Caption under the featured image inside an open header menu. A short evocative line, not a sentence.
    */
-  learn_more?: string;
-  /**
-   * Call-to-action navigation link inviting users to start meditating.
-   */
-  come_meditate?: string;
-  /**
-   * Label for the language selector in the header/navigation.
-   */
-  languages?: string;
-  /**
-   * Action link inviting users to find in-person meditation classes near their location (frontend: "Classes near me").
-   */
-  classes_near_me?: string;
+  featured_caption?: string;
 }
 export interface WmWebTranslationsFooterStrings {
   /**
-   * Heading for the footer's "Info" column, which lists informational pages (about, contact, privacy, etc.) (frontend: "Info").
+   * Heading of the footer column listing informational pages (about, contact, privacy).
    */
   info?: string;
+  /**
+   * Label of the footer's language picker.
+   */
+  languages?: string;
+  /**
+   * The copyright line at the very bottom. `%{year}` = the current year. Keep the © symbol.
+   */
+  copyright?: string;
 }
-export interface WmWebTranslationsPageTagsStrings {
+export interface WmWebTranslationsErrorsGeneralStrings {
   /**
-   * Category label for pages tagged "Wisdom" (frontend: "Wisdom").
+   * Heading above an error shown in place of a meditation or lecture player.
    */
-  wisdom?: string;
+  heading?: string;
   /**
-   * Category label for pages tagged "Lifestyle" (frontend: "Lifestyle").
+   * Error heading when the visitor's device cannot reach the site's servers.
    */
-  lifestyle?: string;
+  network_title?: string;
   /**
-   * Category label for pages tagged "Creativity" (frontend: "Creativity").
+   * Error heading when the servers are reachable but failing.
    */
-  creativity?: string;
+  server_title?: string;
   /**
-   * Category label for pages tagged "Event" (frontend: "Event").
+   * Error heading when the requested page or content does not exist.
    */
-  event?: string;
+  not_found_title?: string;
   /**
-   * Category label for pages tagged "Technique" (frontend: "Technique").
+   * Error heading for a failure that fits none of the other cases.
    */
-  technique?: string;
+  unknown_title?: string;
+  /**
+   * Explanation under `network_title`. Asks the visitor to check their internet connection.
+   */
+  network_message?: string;
+  /**
+   * Explanation under `server_title`. Says the problem is ours and is being worked on.
+   */
+  server_message?: string;
+  /**
+   * Explanation under `not_found_title`. Says the content may have moved or been deleted.
+   */
+  not_found_message?: string;
+  /**
+   * Explanation under `unknown_title`. Asks the visitor to try again.
+   */
+  unknown_message?: string;
+  /**
+   * Line pointing at the service status page. `%{link}` = a link whose text is `status_page_link`.
+   */
+  status_page_hint?: string;
+  /**
+   * The clickable words inside `status_page_hint`. Translate as a noun phrase, not a sentence.
+   */
+  status_page_link?: string;
+  /**
+   * Button that reloads the page after an error.
+   */
+  try_again?: string;
+  /**
+   * Button that leaves an error page for the home page.
+   */
+  back_to_home?: string;
 }
-export interface WmWebTranslationsErrorsStrings {
+export interface WmWebTranslationsErrorsA11YStrings {
   /**
-   * Error shown on a meditation page when the meditation has no playable audio source (frontend: "This meditation is missing a required audio URL.").
+   * Not shown on screen; read by screen readers. Names the warning icon above an error message.
    */
-  meditation_missing_audio?: string;
+  error_icon?: string;
+}
+export interface WmWebTranslationsArticleGeneralStrings {
   /**
-   * Error shown on a lecture page when the lecture has no playable video source (frontend: "This lecture is missing a playable video source.").
+   * Byline above an article's author box. `%{name}` = the author's name, rendered in italics.
    */
-  lecture_missing_video?: string;
+  written_by?: string;
+  /**
+   * An author's name and country on one line. `%{name}` = the author's name, `%{country}` = their country. Adjust the separator to suit the language.
+   */
+  name_with_country?: string;
+  /**
+   * How long an author has meditated, in their author box. `%{count}` = number of years, and selects the plural form.
+   */
+  meditating_years_one?: string;
+  /**
+   * How long an author has meditated, in their author box. `%{count}` = number of years, and selects the plural form.
+   */
+  meditating_years_few?: string;
+  /**
+   * How long an author has meditated, in their author box. `%{count}` = number of years, and selects the plural form.
+   */
+  meditating_years_many?: string;
+  /**
+   * How long an author has meditated, in their author box. `%{count}` = number of years, and selects the plural form.
+   */
+  meditating_years_other?: string;
+  /**
+   * Estimated time to read an article. `%{count}` = number of minutes, and selects the plural form.
+   */
+  reading_time_one?: string;
+  /**
+   * Estimated time to read an article. `%{count}` = number of minutes, and selects the plural form.
+   */
+  reading_time_few?: string;
+  /**
+   * Estimated time to read an article. `%{count}` = number of minutes, and selects the plural form.
+   */
+  reading_time_many?: string;
+  /**
+   * Estimated time to read an article. `%{count}` = number of minutes, and selects the plural form.
+   */
+  reading_time_other?: string;
+  /**
+   * Heading above an author's biography at the end of an article.
+   */
+  about_the_author?: string;
+  /**
+   * The filter chip that clears every tag and shows all articles. Sits in a row of chips, so it must stay short.
+   */
+  filter_all?: string;
+  /**
+   * Name of the "Wisdom" article category, shown as a filter chip and on article cards.
+   */
+  tag_wisdom?: string;
+  /**
+   * Name of the "Lifestyle" article category, shown as a filter chip and on article cards.
+   */
+  tag_lifestyle?: string;
+  /**
+   * Name of the "Creativity" article category, shown as a filter chip and on article cards.
+   */
+  tag_creativity?: string;
+  /**
+   * Name of the "Event" article category, shown as a filter chip and on article cards.
+   */
+  tag_event?: string;
+  /**
+   * Name of the "Technique" article category, shown as a filter chip and on article cards.
+   */
+  tag_technique?: string;
+}
+export interface WmWebTranslationsArticleA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the row of tag filter chips above an article index.
+   */
+  filter_label?: string;
+}
+export interface WmWebTranslationsMeditationGeneralStrings {
+  /**
+   * Word marking the current track as a guided meditation, shown above its title.
+   */
+  label?: string;
+  /**
+   * The name of the founder whose portrait appears in the player. A personal name — transliterate rather than translate.
+   */
+  founder_name?: string;
+  /**
+   * The word under the founder's name describing who she was. Lowercase in English.
+   */
+  founder_role?: string;
+  /**
+   * Label of the volume slider for the spoken guidance.
+   */
+  voice?: string;
+  /**
+   * Label of the volume slider for the background music.
+   */
+  music?: string;
+  /**
+   * Tooltip on the button that swaps the background music for another track.
+   */
+  change_music?: string;
+  /**
+   * Stands in for a meditation's title when it has none.
+   */
+  untitled?: string;
+  /**
+   * Shown in place of the player when a meditation has no audio to play.
+   */
+  missing_audio?: string;
+  /**
+   * Heading above the talks suggested at the end of a meditation.
+   */
+  related_lectures?: string;
+}
+export interface WmWebTranslationsMeditationA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the button that silences the spoken guidance.
+   */
+  mute_voice?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the same button once the guidance is silenced.
+   */
+  unmute_voice?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that silences the background music.
+   */
+  mute_music?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the same button once the music is silenced.
+   */
+  unmute_music?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the slider controlling the spoken guidance.
+   */
+  voice_volume?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the slider controlling the background music.
+   */
+  music_volume?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the panel holding the volume sliders.
+   */
+  audio_settings?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that picks a different background track at random.
+   */
+  shuffle_music?: string;
+  /**
+   * Not shown on screen; read by screen readers. Announced while the suggested talks are still loading.
+   */
+  related_lectures_loading?: string;
+}
+export interface WmWebTranslationsLectureGeneralStrings {
+  /**
+   * Shown in place of the video player when a talk has no video to play.
+   */
+  missing_video?: string;
+  /**
+   * Heading above the meditations suggested at the end of a talk.
+   */
+  related_meditations?: string;
+}
+export interface WmWebTranslationsLectureA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Announced while the suggested meditations are still loading.
+   */
+  related_meditations_loading?: string;
+}
+export interface WmWebTranslationsMapGeneralStrings {
+  /**
+   * Marks a class that meets over video rather than in a venue. Sits in a narrow badge, so an over-long translation will not save.
+   */
+  online?: string;
+  /**
+   * Says how much of a region's class list is on the page. `%{shown}` = how many are listed, `%{count}` = how many exist in total and selects the plural form.
+   */
+  classes_shown_one?: string;
+  /**
+   * Says how much of a region's class list is on the page. `%{shown}` = how many are listed, `%{count}` = how many exist in total and selects the plural form.
+   */
+  classes_shown_few?: string;
+  /**
+   * Says how much of a region's class list is on the page. `%{shown}` = how many are listed, `%{count}` = how many exist in total and selects the plural form.
+   */
+  classes_shown_many?: string;
+  /**
+   * Says how much of a region's class list is on the page. `%{shown}` = how many are listed, `%{count}` = how many exist in total and selects the plural form.
+   */
+  classes_shown_other?: string;
+  /**
+   * Shown instead of a class list when a region has none yet.
+   */
+  no_classes?: string;
+  /**
+   * Link that takes a visitor to an online class's meeting room.
+   */
+  join_online?: string;
+  /**
+   * Link that takes a visitor to a class's own website.
+   */
+  visit_website?: string;
+}
+export interface WmWebTranslationsMapA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the list of classes on a region page.
+   */
+  classes_heading?: string;
+  /**
+   * Not shown on screen; read by screen readers. Introduces a class's day and time.
+   */
+  when?: string;
+  /**
+   * Not shown on screen; read by screen readers. Introduces a class's address.
+   */
+  where?: string;
+  /**
+   * Not shown on screen; read by screen readers. Introduces the languages a class is taught in.
+   */
+  languages?: string;
+}
+export interface WmWebTranslationsFormsGeneralStrings {
+  /**
+   * Validation message under a mandatory field left empty. `%{field}` = that field's own label, which the editor writes and which is translated separately.
+   */
+  field_required?: string;
+  /**
+   * Shown in a dropdown before the visitor picks anything.
+   */
+  select_placeholder?: string;
+  /**
+   * Shown when sending a form fails for a reason the site cannot name.
+   */
+  submit_error?: string;
+  /**
+   * Heading of the confirmation screen after a form is sent.
+   */
+  thank_you?: string;
+  /**
+   * Line under `thank_you` confirming the form arrived.
+   */
+  submitted?: string;
+  /**
+   * The button that sends a form, unless the editor gave it its own label.
+   */
+  submit?: string;
+}
+export interface WmWebTranslationsFormsA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Announced while a form is being sent.
+   */
+  submitting?: string;
+  /**
+   * Not shown on screen; read by screen readers. Replaces the asterisk marking a mandatory field. One word.
+   */
+  required_marker?: string;
+}
+export interface WmWebTranslationsMediaGeneralStrings {
+  /**
+   * Heading above the list of tracks in the music player.
+   */
+  playlist?: string;
+  /**
+   * A length in minutes, on a card or under a talk. `%{count}` = number of minutes, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_minutes_one?: string;
+  /**
+   * A length in minutes, on a card or under a talk. `%{count}` = number of minutes, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_minutes_few?: string;
+  /**
+   * A length in minutes, on a card or under a talk. `%{count}` = number of minutes, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_minutes_many?: string;
+  /**
+   * A length in minutes, on a card or under a talk. `%{count}` = number of minutes, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_minutes_other?: string;
+  /**
+   * A length in seconds, for anything under a minute. `%{count}` = number of seconds, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_seconds_one?: string;
+  /**
+   * A length in seconds, for anything under a minute. `%{count}` = number of seconds, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_seconds_few?: string;
+  /**
+   * A length in seconds, for anything under a minute. `%{count}` = number of seconds, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_seconds_many?: string;
+  /**
+   * A length in seconds, for anything under a minute. `%{count}` = number of seconds, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_seconds_other?: string;
+  /**
+   * Button that opens the panel for putting this player on another website.
+   */
+  embed?: string;
+  /**
+   * Heading of that panel when the item has a title. `%{title}` = the item's own title. Use the quotation marks your language uses.
+   */
+  embed_title?: string;
+  /**
+   * Heading of that panel when the item has no title.
+   */
+  embed_player?: string;
+  /**
+   * Button that copies the embed code to the clipboard.
+   */
+  copy?: string;
+  /**
+   * Replaces `copy` for a moment after the code is copied.
+   */
+  copied?: string;
+}
+export interface WmWebTranslationsMediaA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the button that starts playback.
+   */
+  play?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the same button during playback.
+   */
+  pause?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that goes back to the previous track.
+   */
+  previous_track?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that skips to the next track.
+   */
+  next_track?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that turns random order on or off.
+   */
+  toggle_shuffle?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that silences the player.
+   */
+  mute?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the same button once the player is silenced.
+   */
+  unmute?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the player's volume slider.
+   */
+  volume?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the play button on a card. `%{title}` = that item's own title.
+   */
+  play_item?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that opens an image full screen, when the image has no caption.
+   */
+  view_image?: string;
+  /**
+   * Not shown on screen; read by screen readers. The same button when the image has a caption. `%{alt}` = that caption, which the editor writes.
+   */
+  view_image_alt?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the box holding the embed code.
+   */
+  embed_code?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that enlarges an image in the full-screen viewer.
+   */
+  zoom_in?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that shrinks an image in the full-screen viewer.
+   */
+  zoom_out?: string;
+}
+export interface WmWebTranslationsLocationGeneralStrings {
+  /**
+   * Shown in the empty search box, before the visitor types a place.
+   */
+  search_placeholder?: string;
+  /**
+   * Button that clears the chosen place and reopens the search box.
+   */
+  change?: string;
+  /**
+   * Shown while the site looks up the exact position of the place just chosen.
+   */
+  getting_coordinates?: string;
+  /**
+   * Shown while place suggestions are being fetched.
+   */
+  searching?: string;
+  /**
+   * Hint in the empty suggestion list, inviting the visitor to start typing.
+   */
+  type_to_search?: string;
+  /**
+   * Shown when no place matches what the visitor typed.
+   */
+  no_results?: string;
+  /**
+   * Error shown when the place suggestions cannot be fetched.
+   */
+  suggestions_failed?: string;
+  /**
+   * Error shown when the position of the chosen place cannot be fetched.
+   */
+  coordinates_failed?: string;
+  /**
+   * The option that searches around the visitor's own position instead of a typed place.
+   */
+  nearby?: string;
+  /**
+   * Shown while the browser is working out where the visitor is.
+   */
+  getting_location?: string;
+  /**
+   * Stands in for a place name once the visitor's own position is used.
+   */
+  current_location?: string;
+  /**
+   * Error shown when the visitor's browser cannot report a position at all.
+   */
+  geolocation_unsupported?: string;
+  /**
+   * Error shown when the visitor refused the browser's request for their position.
+   */
+  permission_denied?: string;
+  /**
+   * Error shown when the browser tried but could not work out a position.
+   */
+  position_unavailable?: string;
+  /**
+   * Error shown when working out the visitor's position took too long.
+   */
+  timed_out?: string;
+  /**
+   * Error shown when finding the visitor's position failed for some other reason.
+   */
+  location_failed?: string;
+}
+export interface WmWebTranslationsLocationA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the place-search input.
+   */
+  search_label?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the box showing the place already chosen.
+   */
+  selected_label?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that changes the chosen place.
+   */
+  change_label?: string;
+}
+export interface WmWebTranslationsBlocksGeneralStrings {
+  /**
+   * Tab of the subtle-system diagram showing the energy centres. A Sanskrit term — keep it if your language uses it.
+   */
+  chakras?: string;
+  /**
+   * Tab of the subtle-system diagram showing the energy channels.
+   */
+  channels?: string;
+  /**
+   * Link from a chakra or channel to its full explanation. Keep the trailing arrow.
+   */
+  learn_more?: string;
+  /**
+   * Label under the hours figure of a countdown.
+   */
+  hours?: string;
+  /**
+   * Label under the minutes figure of a countdown.
+   */
+  minutes?: string;
+  /**
+   * Label under the seconds figure of a countdown.
+   */
+  seconds?: string;
+}
+export interface WmWebTranslationsBlocksA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the button that opens the subtle-system diagram full screen.
+   */
+  enter_fullscreen?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the same button while the diagram fills the screen.
+   */
+  exit_fullscreen?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the "Learn More" link. `%{title}` = the chakra or channel it leads to.
+   */
+  learn_more_about?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that goes back one slide in a carousel.
+   */
+  previous_slide?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that advances one slide in a carousel.
+   */
+  next_slide?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that scrolls to the previous column. `%{title}` = that column's heading.
+   */
+  previous_column?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that scrolls to the next column. `%{title}` = that column's heading.
+   */
+  next_column?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names a dot that jumps to one column. `%{number}` = its position, `%{title}` = its heading.
+   */
+  go_to_column?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names a pull-quote block that carries no heading.
+   */
+  quote?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the in-page contents list when it carries no heading.
+   */
+  table_of_contents?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the whole sharing area at the end of a page.
+   */
+  share_region?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the row of sharing buttons inside that area.
+   */
+  share_group?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names one sharing button. `%{platform}` = the network's own name, untranslated.
+   */
+  share_on?: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -5310,6 +5949,30 @@ export interface WmWebTranslationsErrorsStrings {
  */
 export interface WmAppConfig {
   id: number;
+  /**
+   * Languages the WeMeditate app is offered in. Drives the app’s language picker. A language can only be selected once the WeMeditate App translations are published in it — publish that global in the language first. Publishing all locales at once includes empty ones, so publish deliberately.
+   */
+  availableLocales: (
+    | 'en'
+    | 'es'
+    | 'de'
+    | 'it'
+    | 'fr'
+    | 'ru'
+    | 'ro'
+    | 'cs'
+    | 'uk'
+    | 'el'
+    | 'hy'
+    | 'pl'
+    | 'pt-BR'
+    | 'fa'
+    | 'bg'
+    | 'tr'
+    | 'en-AU'
+    | 'hu'
+    | 'nl'
+  )[];
   classesPage: number | Page;
   liveMeditationsPage: number | Page;
   /**
@@ -9091,11 +9754,68 @@ export interface WmWebConfigSelect<T extends boolean = true> {
  * via the `definition` "wm-web-translations_select".
  */
 export interface WmWebTranslationsSelect<T extends boolean = true> {
-  common?: T;
+  common?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
   navigation?: T;
   footer?: T;
-  page_tags?: T;
-  errors?: T;
+  errors?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  article?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  meditation?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  lecture?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  map?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  forms?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  media?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  location?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  blocks?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
   _status?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -9106,6 +9826,7 @@ export interface WmWebTranslationsSelect<T extends boolean = true> {
  * via the `definition` "wm-app-config_select".
  */
 export interface WmAppConfigSelect<T extends boolean = true> {
+  availableLocales?: T;
   classesPage?: T;
   liveMeditationsPage?: T;
   explorePage?: T;
