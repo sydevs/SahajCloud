@@ -39,7 +39,7 @@ Two Atlas white-label fields, split across the **Config** and **SEO** tabs. `can
 `canonical.embed` is only a nomination. A canonical URL is built from `canonical.verification.verified`, written **solely** by the CMS after it loads the page itself — a real browser is required, since the widget is JavaScript and fetching HTML would only prove a `<script>` tag exists.
 
 - **`src/lib/embedVerification/`** — a Cloudflare Browser Rendering client, the readiness-marker parser, and the render-to-result routine.
-- **The marker** is `data-sahaj-atlas-ready` on `<html>`, carrying `{ v, routing, topLevel, urlWritable }` (the cross-repo contract from sydevs/SahajAtlasWeb#153, #159). Reading `routing` off the rendered page makes verification server-attested, not self-reported.
+- **The marker** is `data-sahaj-atlas-ready` on `<html>`, carrying `{ v, routing, topLevel, urlWritable }` (the cross-repo contract from sydevs/SahajAtlasWeb#153, #159). Its `routing` records what the widget was asked to do, and shapes no URL — see "Routing is derived, never configured" below.
 - **`src/jobs/VerifyEmbeds`** runs nightly, watermarked on `nextVerifyAt`, bounded to enabled services. Three consecutive failures turn ownership off and notify `primaryContact`, via the atomic-SQL seam, not `payload.update`.
 - **`POST /api/clients/:id/verify-embed`** — manager-authenticated, the same routine on demand. It never disables.
 
