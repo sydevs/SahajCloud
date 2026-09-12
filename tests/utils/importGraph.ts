@@ -11,13 +11,13 @@
  * server-only code) and `public-env-substitution.spec.ts` (browser code may
  * read `process.env` only as a literal member expression).
  */
-import { readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
 export const SRC = resolve(__dirname, '../../src')
 
 /** Resolve an `@/…` or relative specifier to a file under src/, or null. */
-export function resolveSpec(spec: string, fromFile: string): string | null {
+function resolveSpec(spec: string, fromFile: string): string | null {
   const base = spec.startsWith('@/')
     ? join(SRC, spec.slice(2))
     : spec.startsWith('.')
@@ -31,38 +31,42 @@ export function resolveSpec(spec: string, fromFile: string): string | null {
     join(base, 'index.ts'),
     join(base, 'index.tsx'),
   ]) {
-    try {
-      readFileSync(candidate)
-      return candidate
-    } catch {
-      /* try the next shape */
-    }
+    if (existsSync(candidate)) return candidate
   }
   return null
 }
 
-/** Every specifier `file` imports, ignoring `import type` (erased at build). */
-export function importsOf(file: string): string[] {
+/**
+ * Every specifier `file` imports, in all three forms a bundler follows:
+ * `import … from 'x'`, the bare side-effect `import 'x'`, and dynamic
+ * `import('x')`. `import type` is excluded — it is erased at build.
+ */
+function importsOf(file: string): string[] {
   const source = readFileSync(file, 'utf8')
   const specs: string[] = []
-  const re = /^\s*(?:import|export)\s+(?!type\b)([^'"]*?)from\s*['"]([^'"]+)['"]/gm
-  let match: RegExpExecArray | null
-  while ((match = re.exec(source)) !== null) {
-    // `import { type A, b }` still emits a runtime import. `import type { A }` does not.
-    specs.push(match[2])
+
+  const patterns = [
+    // `import { type A, b } from 'x'` still emits a runtime import.
+    /^\s*(?:import|export)\s+(?!type\b)([^'"]*?)from\s*['"]([^'"]+)['"]/gm,
+    /^\s*import\s*['"]([^'"]+)['"]/gm,
+    /\bimport\(\s*['"]([^'"]+)['"]\s*\)/g,
+  ]
+  for (const re of patterns) {
+    let match: RegExpExecArray | null
+    while ((match = re.exec(source)) !== null) specs.push(match[2] ?? match[1])
   }
   return specs
 }
 
 /**
- * Depth-first walk from `entry`, calling `visit` for every (file, specifier)
- * pair reached. The first non-null return wins, with the import chain that led
- * there — so a failure message can name the path, not just the offender.
+ * Depth-first walk from `entry`. `onSpec` sees every specifier reached; the
+ * first non-null return wins, carrying the import chain that led there — so a
+ * failure message can name the path, not just the offender.
  */
-export function findInImportGraph<T>(
+function walk<T>(
   entry: string,
-  visit: (spec: string, chain: string[]) => T | null,
-): (T & { chain: string[] }) | null {
+  onSpec?: (spec: string) => T | null,
+): { hit: (T & { chain: string[] }) | null; files: string[] } {
   const seen = new Set<string>()
   const stack: { file: string; chain: string[] }[] = [{ file: entry, chain: [entry] }]
 
@@ -72,14 +76,22 @@ export function findInImportGraph<T>(
     seen.add(file)
 
     for (const spec of importsOf(file)) {
-      const hit = visit(spec, chain)
-      if (hit) return { ...hit, chain: [...chain, spec] }
+      const found = onSpec?.(spec)
+      if (found) return { hit: { ...found, chain: [...chain, spec] }, files: [...seen] }
 
       const next = resolveSpec(spec, file)
       if (next) stack.push({ file: next, chain: [...chain, spec] })
     }
   }
-  return null
+  return { hit: null, files: [...seen] }
+}
+
+/** The first specifier reached from `entry` that `onSpec` claims, with its chain. */
+export function findInImportGraph<T>(
+  entry: string,
+  onSpec: (spec: string) => T | null,
+): (T & { chain: string[] }) | null {
+  return walk(entry, onSpec).hit
 }
 
 /**
@@ -90,18 +102,30 @@ export function findInImportGraph<T>(
  * modules end up in this bundle".
  */
 export function reachableFiles(entry: string): string[] {
-  const seen = new Set<string>()
-  const stack = [entry]
+  return walk(entry).files
+}
 
-  while (stack.length > 0) {
-    const file = stack.pop()!
-    if (seen.has(file)) continue
-    seen.add(file)
-
-    for (const spec of importsOf(file)) {
-      const next = resolveSpec(spec, file)
-      if (next) stack.push(next)
-    }
+/** Every `.ts`/`.tsx` file under `src/`. */
+function sourceFiles(dir: string = SRC, out: string[] = []): string[] {
+  for (const item of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, item.name)
+    if (item.isDirectory()) sourceFiles(path, out)
+    else if (/\.tsx?$/.test(item.name)) out.push(path)
   }
-  return [...seen]
+  return out
+}
+
+/**
+ * The modules a browser executes: every `'use client'` file, plus the entries
+ * Next runs client-side by filename convention.
+ *
+ * Derived, never listed. A hand-written entry list is the failure mode both
+ * guards exist to prevent — a new client component gets no guard at all until
+ * someone remembers to add it, which is how #760 survived.
+ */
+export function clientEntries(): string[] {
+  const useClient = sourceFiles().filter((file) =>
+    /^\s*(?:\/\*[\s\S]*?\*\/\s*)?['"]use client['"]/.test(readFileSync(file, 'utf8')),
+  )
+  return [...useClient, join(SRC, 'instrumentation-client.ts')]
 }

@@ -4,49 +4,40 @@ import { join, relative } from 'node:path'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
-import { reachableFiles, SRC } from '../utils/importGraph'
+import { clientEntries, reachableFiles, SRC } from '../utils/importGraph'
 
 /**
  * Browser code may read `process.env` **only** as a literal `process.env.<KEY>`
- * member expression.
- *
- * Next's DefinePlugin substitutes that one form and nothing else. A bare
- * `process.env` in a browser bundle is the empty object from
- * `next/dist/compiled/process`, so anything that parses it, destructures it, or
- * indexes it with a computed key gets nothing — silently, and looking exactly
- * like configuration that works.
- *
- * That is not hypothetical. `clientEnv` was `ClientEnvSchema.parse(process.env)`
- * and every `NEXT_PUBLIC_*` value read through it was `undefined` in the
- * browser, so both client `Sentry.init` calls sat behind a DSN that could never
- * be truthy and no browser error was reported at all — on production or on any
- * preview, for as long as the module existed (#760).
+ * member expression — the one form Next's DefinePlugin substitutes. Anything
+ * that parses, destructures, or indexes it reads the empty stub from
+ * `next/dist/compiled/process` and gets nothing, silently (#760).
  *
  * ⚠ **No runtime test can catch this.** The unit lane runs in node, where
- * `process.env` is the real thing and the defective code passes. Only the shape
- * of the source distinguishes them, which is why this spec reads the AST.
+ * `process.env` is the real object, so the defective code passes. Only the
+ * shape of the source distinguishes them, which is why this spec reads the AST
+ * — and why a regex will not do: the modules it guards discuss `process.env`
+ * in prose, and a regex cannot tell a comment from code.
+ *
+ * It errs strict. `process.env['KEY']` is flagged although DefinePlugin does
+ * substitute a string-literal computed member, and `process.env?.KEY` is not
+ * flagged although it is not substituted. Neither shape appears in `src/`.
  */
 
 /**
- * The modules a browser actually executes, as graph entry points.
+ * Files reached from client code that still hold a bare `process.env`, with the
+ * ticket that will remove them. A backlog, not an approval — it should only
+ * shrink, in the spirit of `KNOWN_SINGLE_CONSUMER` in `lib-boundary.spec.ts`.
  *
- * `ProjectSelector.tsx` belongs here and is deliberately absent: it reaches
- * `@/lib/env/server` through the `@/plugins/access` barrel — the #633 shape
- * `client-bundle-safety.spec.ts` exists for, and a violation of that rule
- * rather than this one. Add it back when that import is fixed (#770).
+ * Exempting a *file* here does not hide a new offender: reaching server-only
+ * code from a client entry is `client-bundle-safety.spec.ts`'s rule, and
+ * `@/lib/env/server` is on its list.
  */
-const BROWSER_ENTRIES = [
-  // Next runs this on every page load in the browser.
-  'instrumentation-client.ts',
-  // `'use client'` components, and what they pull in.
-  'components/ErrorBoundary.tsx',
-  'components/admin/AddressSearchField/AddressSearchField.tsx',
-  'components/admin/CanonicalEmbedPicker/CanonicalEmbedPicker.tsx',
-  'components/admin/UserMessages/UserMessageStatus.tsx',
-  // Not an entry point of its own, but the other half of #760 and only ever
-  // imported by client components.
-  'lib/logger/clientLogger.ts',
-]
+const KNOWN_OFFENDERS = new Map([
+  [
+    'lib/env/server.ts',
+    'reached only via ProjectSelector → the @/plugins/access barrel (#770)',
+  ],
+])
 
 interface Offence {
   file: string
@@ -54,13 +45,7 @@ interface Offence {
   text: string
 }
 
-/**
- * Every `process.env` in `file` that is not a literal `process.env.<KEY>` read.
- *
- * Reading the AST rather than the text matters: this file and the modules it
- * guards both discuss `process.env` in prose, and a regex cannot tell a comment
- * from code.
- */
+/** Every `process.env` in `file` that is not a literal `process.env.<KEY>` read. */
 function nonLiteralEnvReads(file: string): Offence[] {
   const source = ts.createSourceFile(
     file,
@@ -100,9 +85,18 @@ function nonLiteralEnvReads(file: string): Offence[] {
   return offences
 }
 
+/** Every src/ module a browser can reach, deduplicated across entries. */
+function clientReachableFiles(): string[] {
+  const union = new Set<string>()
+  for (const entry of clientEntries()) for (const file of reachableFiles(entry)) union.add(file)
+  return [...union]
+}
+
 describe('browser code reads NEXT_PUBLIC_* as a literal member expression', () => {
-  it.each(BROWSER_ENTRIES)('nothing reachable from %s reads a bare process.env', (relativeEntry) => {
-    const offences = reachableFiles(join(SRC, relativeEntry)).flatMap(nonLiteralEnvReads)
+  it('nothing a browser reaches reads a bare process.env', () => {
+    const offences = clientReachableFiles()
+      .flatMap(nonLiteralEnvReads)
+      .filter((offence) => !KNOWN_OFFENDERS.has(offence.file))
 
     expect(
       offences,
@@ -112,23 +106,34 @@ describe('browser code reads NEXT_PUBLIC_* as a literal member expression', () =
     ).toEqual([])
   })
 
-  // Proves the scanner is not passing vacuously. `src/lib/env/server.ts` hands a
-  // bare `process.env` to zod on purpose — it is server-only, where that is the
-  // real object — so it is exactly the shape this spec rejects in the browser.
+  // Three controls. Without them this spec passes for reasons unrelated to the
+  // property: an entry set that silently came back empty, a walk that never
+  // leaves its entries, or a scanner that flags nothing at all.
+  it('finds the browser entries, including the ones this ticket touched', () => {
+    const entries = clientEntries().map((file) => relative(SRC, file))
+
+    expect(entries.length).toBeGreaterThan(50)
+    expect(entries).toContain('instrumentation-client.ts')
+    expect(entries).toContain('components/ErrorBoundary.tsx')
+    expect(entries).toContain('app/global-error.tsx')
+  })
+
+  it('walks past the entry files', () => {
+    const reached = clientReachableFiles().map((file) => relative(SRC, file))
+    const entries = new Set(clientEntries().map((file) => relative(SRC, file)))
+
+    // `model.ts` is two hops out, through CanonicalEmbedPicker.
+    expect(reached).toContain('components/admin/CanonicalEmbedPicker/model.ts')
+    expect(reached.filter((file) => !entries.has(file)).length).toBeGreaterThan(20)
+  })
+
+  // `src/lib/env/server.ts` hands a bare `process.env` to zod on purpose — it is
+  // server-only, where that is the real object — so it is exactly the shape this
+  // spec rejects in the browser, and the scanner must see it.
   it('flags a bare process.env where one legitimately exists', () => {
     const offences = nonLiteralEnvReads(join(SRC, 'lib/env/server.ts'))
 
     expect(offences.length).toBeGreaterThan(0)
     expect(offences.some((o) => o.text.includes('ServerEnvSchema.parse(process.env)'))).toBe(true)
-  })
-
-  // Proves the walk reaches past the entry file itself — and reaches the exact
-  // module #760 lived in. A `clientEnv` reintroduced there would be scanned.
-  it('walks past the entry file, into src/lib/env/client.ts', () => {
-    const reached = reachableFiles(join(SRC, 'lib/logger/clientLogger.ts')).map((file) =>
-      relative(SRC, file),
-    )
-
-    expect(reached).toContain('lib/env/client.ts')
   })
 })
