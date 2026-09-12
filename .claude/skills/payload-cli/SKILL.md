@@ -66,9 +66,15 @@ inherit. `grep` that file for results and for `[pty] answered …` lines, which 
 prompts it handled.
 
 **A prompt it cannot parse ends the run with exit 3**, quoting the last 200 characters it saw, so
-exit 124 now means something other than a stuck prompt. Two environment overrides:
-`PAYLOAD_PTY_STALL_SECONDS` (default 90) is how long an unanswered question may sit silent before
-that happens, and `PAYLOAD_PTY_CWD` runs the child outside the repo this file lives in.
+exit 124 now means something other than a stuck prompt. Only a question the driver never answered
+arms this — drizzle re-renders an answered prompt, and that echo sits in the buffer afterwards.
+Two environment overrides: `PAYLOAD_PTY_STALL_SECONDS` (default 240) is how long an unanswered
+question may sit silent before that happens, and `PAYLOAD_PTY_CWD` runs the child outside the repo
+this file lives in.
+
+⚠ **Keep that default above this repo's measured boot and below the caller's bound.** The command
+boots the whole Payload config before it reads the schema, at 2m08s twice — the reason
+`src/migrations/AGENTS.md` sets the caller's `timeout` to 300. At 90 a healthy slow boot exited 3.
 
 ### What it answers, and when that answer is wrong
 

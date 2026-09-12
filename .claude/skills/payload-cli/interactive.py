@@ -62,7 +62,11 @@ REPO_ROOT = os.environ.get('PAYLOAD_PTY_CWD') or os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 LOG_PATH = '/tmp/payload-pty.log'
-STALL_SECONDS = float(os.environ.get('PAYLOAD_PTY_STALL_SECONDS', '90'))
+# Above this repo's own measured silence, below the caller's bound. The
+# command boots the whole Payload config before it reads the schema, at
+# 2m08s twice (`src/migrations/AGENTS.md`), which is why the caller waits
+# 300s. A default under that turns a healthy slow boot into exit 3.
+STALL_SECONDS = float(os.environ.get('PAYLOAD_PTY_STALL_SECONDS', '240'))
 
 # chalk colours the column and table names, so the escapes sit inside the
 # prompt: `Is \x1b[1m\x1b[34mcommon_chrome\x1b[39m\x1b[22m column in …`.
