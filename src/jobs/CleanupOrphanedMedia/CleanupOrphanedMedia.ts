@@ -1,8 +1,5 @@
 import type { CollectionSlug, TaskConfig, Payload, PayloadRequest } from 'payload'
 
-import { z } from 'zod'
-
-import { jsonField } from '@/fields/jsonField'
 import type { ImageTag } from '@/types/tags'
 
 import {
@@ -52,16 +49,14 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
   label: 'Cleanup Orphaned Media',
   slug: 'cleanupOrphanedMedia',
   inputSchema: [
-    jsonField({
-      // Test-only injection point. The schema is what generates the input's
-      // type — nothing validates it at runtime, since Payload feeds
-      // `inputSchema` only to `generateJobsJSONSchemas`. It replaces a
-      // hand-written `TestDateRangeInput` and the cast that applied it.
-      name: 'testDateRange',
-      required: false,
-      schemaTitle: 'CleanupTestDateRange',
-      schema: z.strictObject({ rangeStart: z.string(), rangeEnd: z.string() }),
-    }),
+    // The cleanup span, normally derived from the month (see the handler).
+    // Both together override it; either alone is ignored. Only the integration
+    // spec passes them — a run with a hand-picked span is a run that skips the
+    // rotation, so there is no reason to offer one half of it in the admin.
+    // `inputSchema` types the input and nothing validates it at runtime, which
+    // is why the handler tests both before it trusts either.
+    { name: 'rangeStart', type: 'date', required: false },
+    { name: 'rangeEnd', type: 'date', required: false },
     {
       name: 'maxOperations',
       type: 'number',
@@ -114,12 +109,13 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
     let rangeEnd: Date
     let rangeLabel: string
 
-    // Check for test-injected date range
-    if (input?.testDateRange) {
-      const testRange = input.testDateRange
-      rangeStart = new Date(testRange.rangeStart)
-      rangeEnd = new Date(testRange.rangeEnd)
-      rangeLabel = 'test-range'
+    // A caller-supplied span overrides the rotation. Both halves are required
+    // together: one alone would silently pair a chosen bound with a rotated
+    // one, which is a third range nobody asked for.
+    if (input?.rangeStart && input?.rangeEnd) {
+      rangeStart = new Date(input.rangeStart)
+      rangeEnd = new Date(input.rangeEnd)
+      rangeLabel = 'explicit-range'
     } else {
       // Determine date range based on current month (rotates through 3 ranges)
       const currentMonth = new Date().getMonth() // 0-11

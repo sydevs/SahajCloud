@@ -57,8 +57,8 @@ describe('jsonField', () => {
     expect(schema.schema.title).toBe('MeditationFrames')
   })
 
-  it('refuses a title that derives no slug', () => {
-    expect(() => built('', z.string())).toThrow(/title is required/)
+  it('refuses a schemaTitle that derives no slug', () => {
+    expect(() => built('', z.string())).toThrow(/schemaTitle is required/)
   })
 
   it('overrides an $id or title a raw schema brought with it', () => {

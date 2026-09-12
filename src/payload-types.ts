@@ -8706,7 +8706,8 @@ export interface CollectionsWidget {
  */
 export interface TaskCleanupOrphanedMedia {
   input: {
-    testDateRange?: CleanupTestDateRange;
+    rangeStart?: string | null;
+    rangeEnd?: string | null;
     maxOperations?: number | null;
   };
   output: {
@@ -8717,10 +8718,6 @@ export interface TaskCleanupOrphanedMedia {
     skippedImages: number;
     errors: number;
   };
-}
-export interface CleanupTestDateRange {
-  rangeStart: string;
-  rangeEnd: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
