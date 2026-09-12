@@ -1,9 +1,10 @@
-import type { JSONSchema4 } from 'json-schema'
-import type { CollectionConfig, Field, FieldHook, JSONField } from 'payload'
+import type { CollectionConfig, Field, FieldHook } from 'payload'
 
 import { Temporal } from '@js-temporal/polyfill'
+import { z } from 'zod'
 
 import { mediaField, scheduleFields, urlField } from '@/fields'
+import { jsonField } from '@/fields/jsonField'
 import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
 import type { EventSchedule } from '@/types/schedule'
 
@@ -12,37 +13,6 @@ import { appCardsForAudience } from './endpoints/forAudience'
 const TIME_REGEX = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
 
 type ViewName = 'startingSoon' | 'liveNow' | 'default'
-
-export const VIEW_SCHEDULE_SCHEMA_URI = 'urn:sahajcloud:schema:app-card-view-schedule'
-
-/**
- * What `viewScheduleAfterRead` returns: a timezone plus a `HH:MM → view`
- * timeline, each key marking when that view takes over until the next one.
- *
- * Closed on both levels because the hook below is the only writer and the
- * column is virtual — there is no stored row under an earlier shape to strand.
- */
-const viewScheduleJsonSchema: JSONSchema4 = {
-  $id: VIEW_SCHEDULE_SCHEMA_URI,
-  title: 'AppCardViewSchedule',
-  type: 'object',
-  additionalProperties: false,
-  required: ['timezone', 'schedule'],
-  properties: {
-    timezone: { type: 'string', description: 'IANA zone the schedule keys are read in.' },
-    schedule: {
-      type: 'object',
-      description: 'HH:MM (24-hour UTC) → the view active from then until the next key.',
-      additionalProperties: { type: 'string', enum: ['startingSoon', 'liveNow', 'default'] },
-    },
-  },
-}
-
-const viewScheduleFieldSchema: JSONField['jsonSchema'] = {
-  uri: VIEW_SCHEDULE_SCHEMA_URI,
-  fileMatch: [VIEW_SCHEDULE_SCHEMA_URI],
-  schema: viewScheduleJsonSchema,
-}
 
 /**
  * afterRead hook: computes the view schedule spec for event-type app cards.
@@ -566,13 +536,20 @@ export const AppCards: CollectionConfig = {
         {
           label: 'Appearance',
           fields: [
-            {
+            jsonField({
               // Virtual: written by `viewScheduleAfterRead` above, never stored.
               // The schema exists for the generated type. See `src/collections/AGENTS.md`.
               name: 'viewSchedule',
-              type: 'json',
               virtual: true,
-              jsonSchema: viewScheduleFieldSchema,
+              // Closed on both levels because the hook is the only writer and the
+              // column is virtual — no stored row under an earlier shape to strand.
+              schemaTitle: 'AppCardViewSchedule',
+              schema: z.strictObject({
+                timezone: z.string().describe('IANA zone the schedule keys are read in.'),
+                schedule: z
+                  .record(z.string(), z.enum(['startingSoon', 'liveNow', 'default']))
+                  .describe('HH:MM (24-hour UTC) → the view active from then until the next key.'),
+              }),
               hooks: {
                 afterRead: [viewScheduleAfterRead],
               },
@@ -584,7 +561,7 @@ export const AppCards: CollectionConfig = {
                   Field: '@/components/admin/AppCardViewSchedule',
                 },
               },
-            },
+            }),
             {
               type: 'tabs',
               tabs: [

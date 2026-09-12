@@ -71,9 +71,6 @@ importers:
       '@sentry/nextjs':
         specifier: ^10.29.0
         version: 10.56.0(@opentelemetry/core@2.9.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(next@16.3.4(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.57.0)(@types/node@22.19.3)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(sass@1.77.4))(react@19.2.1)(webpack@5.107.2(esbuild@0.28.1))
-      '@sentry/react':
-        specifier: ^10.29.0
-        version: 10.30.0(react@19.2.1)
       '@touch4it/ical-timezones':
         specifier: ^1.9.0
         version: 1.9.0
@@ -1839,32 +1836,16 @@ packages:
   '@selderee/plugin-htmlparser2@0.11.0':
     resolution: {integrity: sha512-P33hHGdldxGabLFjPPpaTxVolMrzrcegejx+0GxjrIb9Zv48D8yAIA/QTDR2dFl7Uz7urX8aX6+5bCZslr+gWQ==}
 
-  '@sentry-internal/browser-utils@10.30.0':
-    resolution: {integrity: sha512-dVsHTUbvgaLNetWAQC6yJFnmgD0xUbVgCkmzNB7S28wIP570GcZ4cxFGPOkXbPx6dEBUfoOREeXzLqjJLtJPfg==}
-    engines: {node: '>=18'}
-
   '@sentry-internal/browser-utils@10.56.0':
     resolution: {integrity: sha512-I8tZWAFg8SZpD8BFUpglEtSTzhZjacmcThB5/Mlq/iFiiT8mBPG4ZWDWssSfmIBKvZywJZJ83uDA0+uiJU73Tw==}
-    engines: {node: '>=18'}
-
-  '@sentry-internal/feedback@10.30.0':
-    resolution: {integrity: sha512-+bnQZ6SNF265nTXrRlXTmq5Ila1fRfraDOAahlOT/VM4j6zqCvNZzmeDD9J6IbxiAdhlp/YOkrG3zbr5vgYo0A==}
     engines: {node: '>=18'}
 
   '@sentry-internal/feedback@10.56.0':
     resolution: {integrity: sha512-fkRR9JroESTIlErkht3OrH4DXKd/DbPozr2KLdX7boMo31hPu4cL9fuqzwOrwyDPRq9B4j+qEgIWB8JrTbgvmg==}
     engines: {node: '>=18'}
 
-  '@sentry-internal/replay-canvas@10.30.0':
-    resolution: {integrity: sha512-RIlIz+XQ4DUWaN60CjfmicJq2O2JRtDKM5lw0wB++M5ha0TBh6rv+Ojf6BDgiV3LOQ7lZvCM57xhmNUtrGmelg==}
-    engines: {node: '>=18'}
-
   '@sentry-internal/replay-canvas@10.56.0':
     resolution: {integrity: sha512-SDg2K0CAZT/TnhrixQGwXoi6ZsWUB+DQy3UUk0bSQm6c/5k5zFBpGOiughQN+DYsDilKREfPKmUEEnqvUjm1HQ==}
-    engines: {node: '>=18'}
-
-  '@sentry-internal/replay@10.30.0':
-    resolution: {integrity: sha512-Pj/fMIZQkXzIw6YWpxKWUE5+GXffKq6CgXwHszVB39al1wYz1gTIrTqJqt31IBLIihfCy8XxYddglR2EW0BVIQ==}
     engines: {node: '>=18'}
 
   '@sentry-internal/replay@10.56.0':
@@ -1878,10 +1859,6 @@ packages:
   '@sentry/babel-plugin-component-annotate@5.3.0':
     resolution: {integrity: sha512-p4q8gn8wcFqZGP/s2MnJCAAd8fTikaU6A0mM97RDHQgStcrYiaS0Sc5zUNfb1V+UOLPuvdEdL6MwyxfzjYJQTA==}
     engines: {node: '>= 18'}
-
-  '@sentry/browser@10.30.0':
-    resolution: {integrity: sha512-7M/IJUMLo0iCMLNxDV/OHTPI0WKyluxhCcxXJn7nrCcolu8A1aq9R8XjKxm0oTCO8ht5pz8bhGXUnYJj4eoEBA==}
-    engines: {node: '>=18'}
 
   '@sentry/browser@10.56.0':
     resolution: {integrity: sha512-80X3NmsGB6tLmfzXYdjzWWdVAdL5CRukGKLcRWIcNhgGjtskOmnzaGb93egEZGI5bUTbtONJ0oyscQ3Z9yoAtQ==}
@@ -1943,10 +1920,6 @@ packages:
     engines: {node: '>= 10'}
     hasBin: true
 
-  '@sentry/core@10.30.0':
-    resolution: {integrity: sha512-IfNuqIoGVO9pwphwbOptAEJJI1SCAfewS5LBU1iL7hjPBHYAnE8tCVzyZN+pooEkQQ47Q4rGanaG1xY8mjTT1A==}
-    engines: {node: '>=18'}
-
   '@sentry/core@10.56.0':
     resolution: {integrity: sha512-L+u1dIz5SANrmST5jhIwETtt4apILgKrylv12X4hKJU0PvZl+NorjeV/ty3MwzpKQPg6b6q6qMOSLc1rLpy3iQ==}
     engines: {node: '>=18'}
@@ -1993,12 +1966,6 @@ packages:
       '@opentelemetry/core': ^2.8.0
       '@opentelemetry/sdk-trace-base': ^1.30.1 || ^2.1.0
       '@opentelemetry/semantic-conventions': ^1.39.0
-
-  '@sentry/react@10.30.0':
-    resolution: {integrity: sha512-3co0QwAU9VrCVBWgpRf/4G19MwzR+DM0sDe9tgN7P3pv/tMlEHhnPFv88nPfuSa2W8uVCpHehvV+GnUPF4V7Ag==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      react: ^16.14.0 || 17.x || 18.x || 19.x
 
   '@sentry/react@10.56.0':
     resolution: {integrity: sha512-HfPLyvnrydfyjRXw9Q0GMzj7w2YtEwuC9z5RrPUfarA2qpA0/J8cfGLzyFX2v0jBmA/kkj6J1uBUoSVhCTxFHg==}
@@ -7703,36 +7670,18 @@ snapshots:
       domhandler: 5.0.3
       selderee: 0.11.0
 
-  '@sentry-internal/browser-utils@10.30.0':
-    dependencies:
-      '@sentry/core': 10.30.0
-
   '@sentry-internal/browser-utils@10.56.0':
     dependencies:
       '@sentry/core': 10.56.0
-
-  '@sentry-internal/feedback@10.30.0':
-    dependencies:
-      '@sentry/core': 10.30.0
 
   '@sentry-internal/feedback@10.56.0':
     dependencies:
       '@sentry/core': 10.56.0
 
-  '@sentry-internal/replay-canvas@10.30.0':
-    dependencies:
-      '@sentry-internal/replay': 10.30.0
-      '@sentry/core': 10.30.0
-
   '@sentry-internal/replay-canvas@10.56.0':
     dependencies:
       '@sentry-internal/replay': 10.56.0
       '@sentry/core': 10.56.0
-
-  '@sentry-internal/replay@10.30.0':
-    dependencies:
-      '@sentry-internal/browser-utils': 10.30.0
-      '@sentry/core': 10.30.0
 
   '@sentry-internal/replay@10.56.0':
     dependencies:
@@ -7744,14 +7693,6 @@ snapshots:
       '@sentry/core': 10.56.0
 
   '@sentry/babel-plugin-component-annotate@5.3.0': {}
-
-  '@sentry/browser@10.30.0':
-    dependencies:
-      '@sentry-internal/browser-utils': 10.30.0
-      '@sentry-internal/feedback': 10.30.0
-      '@sentry-internal/replay': 10.30.0
-      '@sentry-internal/replay-canvas': 10.30.0
-      '@sentry/core': 10.30.0
 
   '@sentry/browser@10.56.0':
     dependencies:
@@ -7818,8 +7759,6 @@ snapshots:
       - encoding
       - supports-color
 
-  '@sentry/core@10.30.0': {}
-
   '@sentry/core@10.56.0': {}
 
   '@sentry/nextjs@10.56.0(@opentelemetry/core@2.9.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(next@16.3.4(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.57.0)(@types/node@22.19.3)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(sass@1.77.4))(react@19.2.1)(webpack@5.107.2(esbuild@0.28.1))':
@@ -7882,13 +7821,6 @@ snapshots:
       '@opentelemetry/sdk-trace-base': 2.7.1(@opentelemetry/api@1.9.1)
       '@opentelemetry/semantic-conventions': 1.41.1
       '@sentry/core': 10.56.0
-
-  '@sentry/react@10.30.0(react@19.2.1)':
-    dependencies:
-      '@sentry/browser': 10.30.0
-      '@sentry/core': 10.30.0
-      hoist-non-react-statics: 3.3.2
-      react: 19.2.1
 
   '@sentry/react@10.56.0(react@19.2.1)':
     dependencies:

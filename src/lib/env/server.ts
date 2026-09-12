@@ -5,8 +5,9 @@
  * type-safe access to them. It extends the client environment with
  * server-only variables, such as secrets and API keys.
  *
- * Import this file only from server-side code.
- * For client-side code, use `@/lib/env/client` instead.
+ * Import this file only from server-side code. Browser code reads a
+ * `NEXT_PUBLIC_*` value as a literal `process.env.<KEY>` member expression
+ * instead — the only form Next substitutes (#760).
  *
  * Usage:
  * ```typescript
@@ -334,7 +335,7 @@ export function getServerEnv(): ServerEnv {
 
   if (typeof window !== 'undefined') {
     throw new Error(
-      'serverEnv was accessed in a browser bundle. Import clientEnv from "@/lib/env/client" for client-side code.',
+      'serverEnv was accessed in a browser bundle. Read a NEXT_PUBLIC_ value as a literal process.env.<KEY> instead.',
     )
   }
 
@@ -395,6 +396,6 @@ export const serverEnv = new Proxy({} as ServerEnv, {
   },
 })
 
-// Re-export client types and values, for convenience in server code.
+// Re-export the client type, for convenience in server code. There is no
+// `clientEnv` value to re-export — see the note at the top of `./client`.
 export type { ClientEnv } from './client'
-export { clientEnv } from './client'

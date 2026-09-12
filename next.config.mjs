@@ -88,6 +88,23 @@ const nextConfig = {
     // Next.js runs image optimization on the Node server, using sharp.
     // Cloudflare caches the optimized output at the edge.
   },
+  // Publish the deployment name to the browser bundle, which reads no
+  // environment at runtime. Next inlines every `env` key here as
+  // `process.env.<KEY>`. Why this needs no dashboard variable, and why a
+  // build-time value is the right shape:
+  // `docs/environment.md` → NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT.
+  //
+  // ⚠ This chain repeats `deploymentEnvironment()`
+  // (`src/lib/env/deploymentEnvironment.ts`) verbatim, because a `.mjs`
+  // config cannot import it. Keep the two identical:
+  // `tests/unit/client-deployment-environment.spec.ts` imports this file and
+  // asserts they agree. See #737.
+  env: {
+    NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT:
+      process.env.RAILWAY_ENVIRONMENT_NAME ??
+      process.env.RAILWAY_ENVIRONMENT ??
+      process.env.NODE_ENV,
+  },
   // External packages for server-side rendering
   serverExternalPackages: ['payload', 'jose'],
 }
