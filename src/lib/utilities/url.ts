@@ -1,20 +1,12 @@
 /**
- * Reading a URL out of a string that may not be one.
+ * Reading an origin out of a string that may not be a URL.
  *
- * Both callers are admin client code deciding whether to trust a URL the
- * browser handed them — the live-preview iframe's `src`, and a preview target
- * resolved against it — so the opaque-origin rule below is stated once.
+ * Parsing itself is `URL.parse` — the built-in that returns `null` instead of
+ * throwing (Node 22, and every browser the admin supports). Only the rule
+ * below is ours, and both callers are admin client code deciding whether to
+ * trust a URL the browser handed them — the live-preview iframe's `src`, and a
+ * preview target resolved against it — so it is stated once.
  */
-
-/** The parsed URL, or `null` when the value is not one. */
-export const parseUrl = (value: null | string | undefined, base?: string | URL): null | URL => {
-  if (!value && !base) return null
-  try {
-    return new URL(value ?? '', base)
-  } catch {
-    return null
-  }
-}
 
 /**
  * The origin of a URL string, or `null` when it has none to compare.
@@ -25,6 +17,6 @@ export const parseUrl = (value: null | string | undefined, base?: string | URL):
  * something, so an opaque one is reported as no origin at all.
  */
 export const originOf = (value: null | string | undefined): null | string => {
-  const origin = parseUrl(value)?.origin
+  const origin = URL.parse(value ?? '')?.origin
   return !origin || origin === 'null' ? null : origin
 }

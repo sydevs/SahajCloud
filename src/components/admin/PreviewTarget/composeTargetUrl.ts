@@ -1,5 +1,5 @@
 import type { PreviewTarget } from '@/fields/previewTargetField'
-import { originOf, parseUrl } from '@/lib/utilities/url'
+import { originOf } from '@/lib/utilities/url'
 
 /**
  * The URL one {@link PreviewTarget} wants, built by rewriting the
@@ -32,11 +32,11 @@ import { originOf, parseUrl } from '@/lib/utilities/url'
 export function composeTargetUrl(defaultUrl: string, target: PreviewTarget): string | null {
   if (!target.path && !target.params) return null
 
-  const base = parseUrl(defaultUrl)
+  const base = URL.parse(defaultUrl)
   const baseOrigin = originOf(defaultUrl)
   if (!base || !baseOrigin) return null
 
-  const next = parseUrl(target.path ?? '', base)
+  const next = URL.parse(target.path ?? '', base)
   if (!next || originOf(next.href) !== baseOrigin) return null
 
   const params = new URLSearchParams(base.search)
