@@ -183,44 +183,41 @@ describe('canonicalTargetForHost rejects anything that is not a bare host', () =
  */
 describe('canonicalMountUrl', () => {
   // Routing mode describes how a route *below* the root is expressed. With no
-  // route to express, both shapes are the same page, so a branch here would be
-  // two answers to one question.
-  it('answers the same URL whatever the routing mode', () => {
-    const query = canonicalMountUrl({
+  // route to express, both shapes are the same page — which the signature now
+  // states by taking no `routing` at all. A full target still passes, since
+  // that is what every caller holds.
+  it('ignores the routing mode a caller hands it', () => {
+    const asQuery: CanonicalTarget = {
       origin: 'https://sahajayoga.nl',
       mount: '/locatelessons/',
       routing: 'query',
-    })
-    const path = canonicalMountUrl({
-      origin: 'https://sahajayoga.nl',
-      mount: '/locatelessons/',
-      routing: 'path',
-    })
-    expect(query).toBe('https://sahajayoga.nl/locatelessons/')
-    expect(path).toBe(query)
+    }
+    const asPath: CanonicalTarget = { ...asQuery, routing: 'path' }
+    expect(canonicalMountUrl(asQuery)).toBe('https://sahajayoga.nl/locatelessons/')
+    expect(canonicalMountUrl(asPath)).toBe(canonicalMountUrl(asQuery))
   })
 
   // `/locatelessons/` and `/locatelessons` are different URLs, and the mount
   // records the one the verified embed actually lives on.
   it('preserves the mount’s trailing slash', () => {
-    expect(
-      canonicalMountUrl({ origin: 'https://x.example', mount: '/map', routing: 'path' }),
-    ).toBe('https://x.example/map')
-    expect(
-      canonicalMountUrl({ origin: 'https://x.example', mount: '/map/', routing: 'path' }),
-    ).toBe('https://x.example/map/')
+    expect(canonicalMountUrl({ origin: 'https://x.example', mount: '/map' })).toBe(
+      'https://x.example/map',
+    )
+    expect(canonicalMountUrl({ origin: 'https://x.example', mount: '/map/' })).toBe(
+      'https://x.example/map/',
+    )
   })
 
   it('keeps a query string that is part of the page’s own address', () => {
     // `/?p=42` is how some hosts address a page. It is the mount, not a route
     // we are appending to, so it survives whole.
-    expect(
-      canonicalMountUrl({ origin: 'https://host.example', mount: '/?p=42', routing: 'query' }),
-    ).toBe('https://host.example/?p=42')
+    expect(canonicalMountUrl({ origin: 'https://host.example', mount: '/?p=42' })).toBe(
+      'https://host.example/?p=42',
+    )
   })
 
   it('treats an empty mount as the site root', () => {
-    expect(canonicalMountUrl({ origin: 'https://x.example/', mount: '', routing: 'query' })).toBe(
+    expect(canonicalMountUrl({ origin: 'https://x.example/', mount: '' })).toBe(
       'https://x.example/',
     )
   })
@@ -232,6 +229,21 @@ describe('canonicalMountUrl', () => {
     ['a missing origin', { origin: '', mount: '/map' }],
     ['a query in the origin', { origin: 'https://x.example?a=1', mount: '/map' }],
   ])('refuses %s rather than publishing it', (_label, target) => {
-    expect(canonicalMountUrl({ ...target, routing: 'query' } as CanonicalTarget)).toBeNull()
+    expect(canonicalMountUrl(target)).toBeNull()
+  })
+
+  // `canonicalUrlBase` now builds on this, so the refusals above are its
+  // refusals too — one definition of "a host and mount we will publish",
+  // where the two functions previously carried a copy each.
+  it('is the prefix canonicalUrlBase composes onto', () => {
+    const target: CanonicalTarget = {
+      origin: 'https://sahajayoga.nl',
+      mount: '/locatelessons/',
+      routing: 'query',
+    }
+    expect(canonicalUrlBase(target)).toBe(
+      `${canonicalMountUrl(target)}?${ATLAS_QUERY_PARAM}=`,
+    )
+    expect(canonicalUrlBase({ ...target, mount: '/ma p' })).toBeNull()
   })
 })

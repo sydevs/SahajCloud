@@ -274,7 +274,7 @@ export function eventCard(
 export interface RootSeoInput {
   /** Operator-written title, already resolved to a non-empty string. */
   title: string
-  /** Operator-written description in this locale, or `null`. Never English's. */
+  /** Operator-written description, already resolved for this locale. */
   description: string | null
   /** The mount page's own URL, read from the client record — never rebuilt. */
   canonical: string | null
@@ -457,9 +457,7 @@ export function buildEventSeo(input: EventSeoInput): AtlasSeoResponse {
  */
 export function buildRootSeo(input: RootSeoInput): AtlasSeoResponse {
   const { title, canonical, locale, locales } = input
-  const description = input.description
-    ? truncateAtWord(input.description, META_DESCRIPTION_MAX)
-    : null
+  const description = truncateAtWord(input.description ?? '', META_DESCRIPTION_MAX) || null
 
   return {
     type: 'root',

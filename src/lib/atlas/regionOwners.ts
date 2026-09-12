@@ -189,7 +189,28 @@ async function loadCanonicalFallbackOwner(
     overrideAccess: true,
     req,
   })
-  const clientId = relationId(config.canonicalFallbackClient)
+  return canonicalOwnerForClient(req, relationId(config.canonicalFallbackClient))
+}
+
+/**
+ * One client as a {@link CanonicalOwner}, or `undefined` when it may not
+ * publish a canonical URL.
+ *
+ * Exported because two callers ask this about a client they already have in
+ * hand, rather than walking the region tree to find one: the #652 fallback
+ * client above, and `GET /api/atlas/seo`'s root route, which publishes the
+ * **calling** client's own mount page (#739). Both must mean the identical
+ * thing by "eligible" — `CANONICAL_ELIGIBLE` plus a host we are willing to
+ * publish — or the third caller this file's own comment warns about arrives
+ * with a rule of its own.
+ *
+ * The read is by id, one indexed row, and answers `undefined` rather than
+ * throwing for a missing, draft, or canonically-disabled client.
+ */
+export async function canonicalOwnerForClient(
+  req: PayloadRequest,
+  clientId: number | null | undefined,
+): Promise<CanonicalOwner | undefined> {
   if (clientId == null) return undefined
 
   const { docs } = await req.payload.find({

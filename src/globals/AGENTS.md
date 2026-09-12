@@ -138,13 +138,17 @@ from `wm-app-translations` (#705):
   purpose — the admin and the status report must keep showing which keys
   are empty. It never re-adds a field the caller's `select` stripped, and
   it never throws.
-  ⚠ **One reader deliberately steps around it.** `GET /api/atlas/seo` reads
-  the Atlas `seo` group with `fallbackLocale: false` and a user-less copy of
-  the request (`src/endpoints/atlas/seo/rootStrings.ts`, #739), because the
-  merge is right for widget chrome — a blank button label is a broken UI —
-  and wrong for a `<head>`, where an untranslated English sentence is worse
-  than no sentence. A new server-side reader of this global has to decide
-  which of those two it is.
+  ⚠ **A reader that wants the locale's true copy opts out**, with
+  `withoutEnglishFallback(req)` beside the hook (#739). `GET /api/atlas/seo`
+  does, for the atlas landing page's `seo` group: the merge is right for
+  widget chrome — a blank button label is a broken UI — and wrong for a
+  `<head>`, where an untranslated English sentence is worse than no sentence.
+  Pair it with `fallbackLocale: false`, which turns off Payload's own
+  per-field substitution. Say it in the request rather than stripping the
+  caller's user to make the hook's identity check answer `false`: identity is
+  the hook's proxy for intent, not the intent itself, and the read keeps its
+  real user for access control and every other hook. A new server-side reader
+  has to decide which of the two policies it wants.
 - **`_locales` is a reserved suffix, and it is matched exactly.** Drizzle
   keys the localized-values table on the literal `<table>_locales`, never
   on a suffix, so `sy_atlas_config_available_locales` is safe. The `⚠`

@@ -111,44 +111,39 @@ function trimTrailingSlash(value: string): string {
  * {@link buildCanonicalUrl} share one definition instead of two that could drift.
  *
  * Returns `null` when the parts cannot make a valid URL — an incomplete owner
- * record or a malformed mount. Never a broken URL, and **never a fragment**:
- * hash routing is gone from the widget with no back-compat, so nothing here may
- * emit `#!`.
+ * record or a malformed mount. Never a broken URL, and never a fragment: both
+ * refusals live in {@link canonicalMountUrl}, which this builds on, so the two
+ * cannot answer differently about the same host and mount.
  */
 export function canonicalUrlBase(target: CanonicalTarget): string | null {
-  const origin = trimTrailingSlash(target.origin ?? '')
-  if (!origin || /[?#\s]/.test(origin)) return null
-
-  const mount = target.mount ?? '/'
-  // The host is stated once, in `origin`; a mount that isn't a path would join
-  // into a URL resolving nowhere. A fragment is refused outright.
-  if (mount !== '' && !mount.startsWith('/')) return null
-  if (mount.includes('#')) return null
+  const page = canonicalMountUrl(target)
+  if (page === null) return null
 
   if (target.routing === 'path') {
     // A mount carrying a query string has no room for more path segments —
     // they would land after the `?` and read as part of the query value. That
     // combination is a misconfiguration, not something to paper over.
-    if (mount.includes('?')) return null
-    return `${origin}${trimTrailingSlash(mount)}`
+    if (page.includes('?')) return null
+    return trimTrailingSlash(page)
   }
 
-  // `query`: the mount is the page itself, so its trailing slash is preserved —
+  // `query`: the page is the mount itself, so its trailing slash is preserved —
   // `/locatelessons/` is a different URL from `/locatelessons`, and the mount
   // records which one the embed actually lives on.
-  const page = mount === '' ? '/' : mount
   const separator = page.includes('?') ? '&' : '?'
-  return `${origin}${page}${separator}${ATLAS_QUERY_PARAM}=`
+  return `${page}${separator}${ATLAS_QUERY_PARAM}=`
 }
 
 /**
- * The URL of the page the widget is mounted on — the canonical for the atlas
- * **root**, where no region or event path is appended (#739).
+ * The URL of the page the widget is mounted on — origin plus mount, and nothing
+ * appended. It is the canonical for the atlas **root** (#739), and the prefix
+ * every other canonical is built on, which is why {@link canonicalUrlBase}
+ * starts here rather than re-deriving it.
  *
  * **Routing mode does not enter into it.** `path` and `query` differ only in
  * how the widget expresses a route *below* the root; with no route to express,
- * both shapes reduce to the same thing — the mount page itself. So this
- * deliberately has no branch, where {@link canonicalUrlBase} needs one.
+ * both shapes reduce to the same thing — the mount page itself. The parameter
+ * says so in its own type.
  *
  * The mount's trailing slash is preserved for the same reason `query` routing
  * preserves it: `/locatelessons/` and `/locatelessons` are different URLs, and
@@ -157,13 +152,17 @@ export function canonicalUrlBase(target: CanonicalTarget): string | null {
  * address (`/?p=42`), not a route we are appending to.
  *
  * Returns `null` on anything we would not publish: a host that is not a bare
- * host, or a mount that is not a path. Never a fragment — see
- * {@link canonicalUrlBase}.
+ * host, or a mount that is not a path. **Never a fragment** — hash routing is
+ * gone from the widget with no back-compat, so nothing here may emit `#!`.
  */
-export function canonicalMountUrl(target: CanonicalTarget): string | null {
+export function canonicalMountUrl(target: Omit<CanonicalTarget, 'routing'>): string | null {
   const origin = trimTrailingSlash(target.origin ?? '')
   if (!origin || /[?#\s]/.test(origin)) return null
 
+  // The host is stated once, in `origin`; a mount that isn't a path would join
+  // into a URL resolving nowhere. A fragment is refused outright, and so is
+  // whitespace — the origin half has always refused both, and a mount is no
+  // more able to carry them into a public URL than a host is.
   const mount = target.mount ?? '/'
   if (mount !== '' && !mount.startsWith('/')) return null
   if (/[#\s]/.test(mount)) return null
