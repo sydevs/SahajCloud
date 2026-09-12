@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -36,7 +37,7 @@ const SERVER_ONLY = new Map(
     ['plugins/usage/index.ts', 're-exports the pg pool (getPgPool/quotedDbSchema)'],
     ['plugins/usage/db.ts', 'imports pg directly'],
     ['lib/env/server.ts', 'validates and holds server secrets'],
-    ['jobs/VerifyEmbeds/browserRendering.ts', 'holds Cloudflare credentials'],
+    ['lib/embedVerification/browserRendering.ts', 'holds Cloudflare credentials'],
   ].map(([file, reason]) => [join(SRC, file), reason]),
 )
 
@@ -65,9 +66,11 @@ describe('admin client components stay out of the server bundle', () => {
   })
 
   // Without this, an entry set that silently came back empty passes every case
-  // above by having no cases at all. It also pins the swap itself: the four
-  // entries this spec used to list by hand must still be covered.
-  it('derives entries that cover the four it used to list', () => {
+  // above by having no cases at all. It also pins the swap itself: the three
+  // `'use client'` files this spec used to list by hand are still entries. The
+  // fourth, `CanonicalEmbedPicker/model.ts`, carries no directive — it is not
+  // an entry and never was one, only a module reached from the picker.
+  it('derives entries that cover the ones it used to list', () => {
     expect(entries.length).toBeGreaterThan(50)
     expect(entries).toEqual(
       expect.arrayContaining([
@@ -76,6 +79,15 @@ describe('admin client components stay out of the server bundle', () => {
         'components/admin/UserMessages/UserMessageStatus.tsx',
       ]),
     )
+  })
+
+  // A `SERVER_ONLY` key naming a module that does not exist is a row of this
+  // guard that can never fire, and nothing else would say so: the walk simply
+  // never matches it. `@/jobs/VerifyEmbeds/browserRendering` was exactly that
+  // from #633 until #770 — the module had moved to `lib/embedVerification/`.
+  it('names modules that exist', () => {
+    const missing = [...SERVER_ONLY.keys()].filter((file) => !existsSync(file))
+    expect(missing.map((file) => relative(SRC, file))).toEqual([])
   })
 
   // Proves the walker actually traverses rather than passing vacuously: the
