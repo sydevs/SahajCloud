@@ -108,8 +108,9 @@ describe('seeding wm-web-translations', () => {
     expect(all._status.de).not.toBe('published')
   })
 
-  // `wm-app-translations` has ONE status for all its locales, so publishing it
-  // would claim 19 translated languages from an English-only file.
+  // The seed never publishes `wm-app-translations`. Its `_status` is per-locale
+  // too since #709, so this `locale: 'en'` read returns English's own status —
+  // an operator republishes each locale after the deploy, not the seed.
   it('leaves the app translations unpublished', async () => {
     const app = (await payload.findGlobal({
       slug: 'wm-app-translations',

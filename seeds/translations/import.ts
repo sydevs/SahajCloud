@@ -29,8 +29,9 @@
  * whether `draft` is true, false, or unset. The publish sets state, and state
  * is what an operator and the admin go by.
  *
- * `wm-app-translations` has one status for all locales, so it keeps the plain
- * update: publishing it here would claim 19 translated locales.
+ * `wm-app-translations` keeps the plain update. Its `_status` is per-locale
+ * too since #709, so a publish here would be safe — but its copy is live app
+ * content, and an operator republishes each locale after the deploy.
  *
  * Usage:
  *   pnpm seed:dev translations --dry-run

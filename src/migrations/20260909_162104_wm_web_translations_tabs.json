@@ -20079,6 +20079,89 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.wm_app_config_available_locales": {
+      "name": "wm_app_config_available_locales",
+      "schema": "",
+      "columns": {
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "enum_wm_app_config_available_locales",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "wm_app_config_available_locales_order_idx": {
+          "name": "wm_app_config_available_locales_order_idx",
+          "columns": [
+            {
+              "expression": "order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "wm_app_config_available_locales_parent_idx": {
+          "name": "wm_app_config_available_locales_parent_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "wm_app_config_available_locales_parent_fk": {
+          "name": "wm_app_config_available_locales_parent_fk",
+          "tableFrom": "wm_app_config_available_locales",
+          "tableTo": "wm_app_config",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.wm_app_config_vibe_check_tracks": {
       "name": "wm_app_config_vibe_check_tracks",
       "schema": "",
@@ -20965,14 +21048,6 @@
           "primaryKey": true,
           "notNull": true
         },
-        "_status": {
-          "name": "_status",
-          "type": "enum_wm_app_translations_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'draft'"
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp(3) with time zone",
@@ -20986,23 +21061,7 @@
           "notNull": false
         }
       },
-      "indexes": {
-        "wm_app_translations__status_idx": {
-          "name": "wm_app_translations__status_idx",
-          "columns": [
-            {
-              "expression": "_status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -21314,6 +21373,14 @@
           "primaryKey": false,
           "notNull": false
         },
+        "_status": {
+          "name": "_status",
+          "type": "enum_wm_app_translations_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'draft'"
+        },
         "id": {
           "name": "id",
           "type": "serial",
@@ -21335,6 +21402,27 @@
         }
       },
       "indexes": {
+        "wm_app_translations__status_idx": {
+          "name": "wm_app_translations__status_idx",
+          "columns": [
+            {
+              "expression": "_status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "_locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "wm_app_translations_locales_locale_parent_id_unique": {
           "name": "wm_app_translations_locales_locale_parent_id_unique",
           "columns": [
@@ -21388,14 +21476,6 @@
           "primaryKey": true,
           "notNull": true
         },
-        "version__status": {
-          "name": "version__status",
-          "type": "enum__wm_app_translations_v_version_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'draft'"
-        },
         "version_updated_at": {
           "name": "version_updated_at",
           "type": "timestamp(3) with time zone",
@@ -21443,21 +21523,6 @@
         }
       },
       "indexes": {
-        "_wm_app_translations_v_version_version__status_idx": {
-          "name": "_wm_app_translations_v_version_version__status_idx",
-          "columns": [
-            {
-              "expression": "version__status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "_wm_app_translations_v_created_at_idx": {
           "name": "_wm_app_translations_v_created_at_idx",
           "columns": [
@@ -21845,6 +21910,14 @@
           "primaryKey": false,
           "notNull": false
         },
+        "version__status": {
+          "name": "version__status",
+          "type": "enum__wm_app_translations_v_version_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'draft'"
+        },
         "id": {
           "name": "id",
           "type": "serial",
@@ -21866,6 +21939,27 @@
         }
       },
       "indexes": {
+        "_wm_app_translations_v_version_version__status_idx": {
+          "name": "_wm_app_translations_v_version_version__status_idx",
+          "columns": [
+            {
+              "expression": "version__status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "_locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "_wm_app_translations_v_locales_locale_parent_id_unique": {
           "name": "_wm_app_translations_v_locales_locale_parent_id_unique",
           "columns": [
@@ -28457,6 +28551,31 @@
         "published"
       ]
     },
+    "public.enum_wm_app_config_available_locales": {
+      "name": "enum_wm_app_config_available_locales",
+      "schema": "public",
+      "values": [
+        "en",
+        "es",
+        "de",
+        "it",
+        "fr",
+        "ru",
+        "ro",
+        "cs",
+        "uk",
+        "el",
+        "hy",
+        "pl",
+        "pt-BR",
+        "fa",
+        "bg",
+        "tr",
+        "en-AU",
+        "hu",
+        "nl"
+      ]
+    },
     "public.enum_wm_app_config_vibe_check_tracks_identifier": {
       "name": "enum_wm_app_config_vibe_check_tracks_identifier",
       "schema": "public",
@@ -28473,14 +28592,6 @@
     },
     "public.enum_wm_app_translations_status": {
       "name": "enum_wm_app_translations_status",
-      "schema": "public",
-      "values": [
-        "draft",
-        "published"
-      ]
-    },
-    "public.enum__wm_app_translations_v_version_status": {
-      "name": "enum__wm_app_translations_v_version_status",
       "schema": "public",
       "values": [
         "draft",
@@ -28510,6 +28621,14 @@
         "en-AU",
         "hu",
         "nl"
+      ]
+    },
+    "public.enum__wm_app_translations_v_version_status": {
+      "name": "enum__wm_app_translations_v_version_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "published"
       ]
     },
     "public.enum_wm_app_status_baseline_country": {
