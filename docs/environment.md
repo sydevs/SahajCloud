@@ -50,7 +50,11 @@ Neither URL takes a trailing slash, since both are used as prefixes and compared
 
 ## Environment Variable Validation
 
-Zod validates every variable at module load, in `src/lib/env.ts`, into `serverEnv` (secrets, API keys) and `clientEnv` (`NEXT_PUBLIC_*` only, exposed to the browser). To add one: add it to the right schema with a Zod rule, update `.env.example`, and run `pnpm generate:types` if needed.
+Zod validates every variable in `src/lib/env/`: `ClientEnvSchema` (`src/lib/env/client.ts`) declares the `NEXT_PUBLIC_*` ones, and `ServerEnvSchema` (`src/lib/env/server.ts`) extends it with the secrets and API keys. Server code reads the lot through `serverEnv`, which parses lazily and caches. To add one: add it to the right schema with a Zod rule, update `.env.example`, and run `pnpm generate:types` if needed.
+
+⚠ **`serverEnv` is server-only, and there is no browser equivalent.** Browser code reads a `NEXT_PUBLIC_*` value as a **literal `process.env.<KEY>` member expression**, which is the only form Next substitutes at build time. A `clientEnv` object used to exist, parsed from a bare `process.env`; in a browser that is the empty stub from `next/dist/compiled/process`, so every key read through it was `undefined` and `Sentry.init` never ran client-side at all (#760). Anything that parses, destructures, or indexes `process.env` gives the browser nothing.
+
+**One `NEXT_PUBLIC_*` key is deliberately absent from both**: `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` is written by the build, never by a person — see [set by the build, never by hand](#next_public_deployment_environment--set-by-the-build-never-by-hand) below. So `ClientEnvSchema` is the index of public variables you set, not of every public variable that exists.
 
 A missing `PAYLOAD_SECRET` or `DATABASE_URL` stops the app from starting. A missing Cloudflare credential in dev falls back to local storage. Production requires all four: `PAYLOAD_SECRET`, `DATABASE_URL`, the Cloudflare credentials, and `RESEND_API_KEY`.
 
@@ -65,6 +69,18 @@ A missing `PAYLOAD_SECRET` or `DATABASE_URL` stops the app from starting. A miss
 Production is detected by Railway's environment name, never `NODE_ENV`. Previews also run `NODE_ENV=production` — the same trap that once sent preview mail through Resend to real addresses. The gate also requires a Railway environment name at all. This keeps `onInit` inert in local dev, CI, and both test lanes. CI does hold the password as a secret, so a gate reading only that would write an admin into the integration lane's database.
 
 `PREVIEW_ADMIN_EMAIL` overrides the account address, defaulting to `contact@sydevelopers.com`. Environments forked before 2026-08-27 never got the variable, and keep whatever admin an early smoke run seeded.
+
+### `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` — set by the build, never by hand
+
+Error reports name the deployment they came from, so a PR preview's noise never reads as a production incident (#733). Server-side that is `deploymentEnvironment()` (`@/lib/env/deploymentEnvironment`), which reads `RAILWAY_ENVIRONMENT_NAME` at runtime.
+
+**A browser reads no environment at runtime**, so the client needs the name inlined at build time. `next.config.mjs`'s `env` block derives `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` from the same Railway variables and Next inlines it into the bundle; `clientDeploymentEnvironment()` reads it back (#737).
+
+Three consequences worth knowing:
+
+- **Do not set this variable in the Railway dashboard.** The `env` block overrides a same-named process variable, and each Railway environment builds separately, so every environment — including a preview created next month — publishes its own name with no setup.
+- **A bundle is fixed at build time.** That is correct here: a bundle only ever serves the deployment that built it.
+- **Read it as a literal `process.env.<KEY>` member expression.** That is the only form Next substitutes, so `clientDeploymentEnvironment()` reads the key directly — the rule the ⚠ above states for every public variable.
 
 ### Local Development
 

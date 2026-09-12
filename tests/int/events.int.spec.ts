@@ -75,6 +75,10 @@ describe('Events collection', () => {
       runningId = running.id
     })
 
+    // ⚠ Deliberately passes no `draft`, so Payload supplies it. That is the
+    // argument `isVersionsRead` keys off (#745): adding `draft` here would make
+    // the cases below stop pinning the guard's false branch, and a Payload
+    // upgrade that stopped supplying it would switch this filter off unnoticed.
     const listIds = async (args: Record<string, unknown> = {}) => {
       const { docs } = await payload.find({
         collection: 'events',
@@ -158,6 +162,49 @@ describe('Events collection', () => {
         overrideAccess: true,
       })
       expect(docs.map((doc) => doc.id)).toContain(finishedId)
+    })
+
+    /**
+     * The hook must decline a versions read: `schedule.lastDate` is not a
+     * queryable path on the versions collection (#745 — see
+     * `src/lib/utilities/versionsRead.ts`).
+     *
+     * API clients must still declare a `select` on any read, versions included
+     * — that is `validateClientQueryParamsHook`, a separate `read` hook.
+     */
+    describe('versions reads (#745)', () => {
+      const versionSelect = { version: true } as const
+
+      it('resolves when the access gate is bypassed', async () => {
+        // The regression pin. `overrideAccess: true` skips the access gate, so
+        // this is the one shape that reaches query validation as a client — an
+        // internal read forwarding a client's `req`. Deleting the guard from
+        // the hook turns this red with "path cannot be queried".
+        const versions = await payload.findVersions({
+          collection: 'events',
+          select: versionSelect,
+          depth: 0,
+          user: clientUser as never,
+          overrideAccess: true,
+        })
+
+        expect(versions.totalDocs).toBeGreaterThan(0)
+      })
+
+      it('answers an ordinary client with the access decision', async () => {
+        // Passes before the fix too: `findVersions` runs the access gate BEFORE
+        // query validation, and no client role grants events `update` (#719).
+        // Kept for the message — a bare `rejects.toThrow()` accepts a 400.
+        await expect(
+          payload.findVersions({
+            collection: 'events',
+            select: versionSelect,
+            depth: 0,
+            user: clientUser as never,
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow('You are not allowed to perform this action.')
+      })
     })
   })
 

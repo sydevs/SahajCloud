@@ -25,9 +25,9 @@ content collection.
 | `managers`            | `bypassPermissions`, locale-role inheritance, project-scoped visibility                                                                   | `role-based-access`, `project-visibility`, `client-hooks`      |
 | `albums`              | Cascade delete (album → songs). Soft-delete does NOT cascade                                                                              | `albums`                                                       |
 | `app-cards`           | Audience targeting / OR-match / AND-gate / cache headers (in the endpoint)                                                                | `app-cards-for-audience`, `collections-smoke` (reachability)   |
-| `events`              | `website` non-localization + URL validator wiring. Verification lifecycle, registration flow (incl. the Turnstile gate), GeoJSON endpoint, expiry state machine. `excludeFinishedEvents` beforeOperation, finished events off the geojson feed, `schedule.lastDate` backfill. `verifyOnSave` reviving a finished event when its schedule extends. Listing-quality report + stored `qualityOpenCount`, and the reminder email carrying that progress | `events`, `event-verification`, `event-registration`, `events-geojson`, `expire-events`, `event-quality`, `schedule-last-date-backfill` |
+| `events`              | `website` non-localization + URL validator wiring. Verification lifecycle, registration flow (incl. the Turnstile gate), GeoJSON endpoint, expiry state machine. `excludeFinishedEvents` beforeOperation (including declining a versions read, #745), finished events off the geojson feed, `schedule.lastDate` backfill. `verifyOnSave` reviving a finished event when its schedule extends. Listing-quality report + stored `qualityOpenCount`, and the reminder email carrying that progress | `events`, `event-verification`, `event-registration`, `events-geojson`, `expire-events`, `event-quality`, `schedule-last-date-backfill` |
 | `lessons`             | Lexical relationship cleanup, locale-specific meditation assignments, subtitle JSON                                                       | `lessons`                                                      |
-| `meditations`         | `filterMeditationsByLocale` beforeOperation, `extractAudioDuration` beforeChange, `durationMinutes` virtual, weight invalidation          | `meditations`, `meditation-duration`, `meditation-lectures`    |
+| `meditations`         | `filterMeditationsByLocale` beforeOperation (including declining a versions read, #745), `extractAudioDuration` beforeChange, `durationMinutes` virtual, weight invalidation          | `meditations`, `meditation-duration`, `meditation-lectures`    |
 | `pages`               | `webUrl` virtual, Lexical block relationship depth, stale-content stripping                                                               | `pages`                                                        |
 | `songs`               | `autoSetIncludeForMeditationsOnCreate` beforeChange                                                                                       | `meditations` (via `includeForMeditations` behavior)           |
 | `videos`              | `previewUrl` virtual, `subtitles` + `fileMetadata` JSON-Schema validation                                                                 | `videos`, unit: `json-field-schemas`                           |
@@ -53,6 +53,8 @@ content collection.
 | `sy-atlas-config` / `wm-web-config` / `wm-app-config` | `availableLocales`: English always required, the publish gate refusing then accepting, every unpublished locale named, `skipAvailableLocalesCheck` relaxing only the publish check, and each config global gating on its own translations global | `available-locales` + unit: `available-locales.spec.ts` |
 | `wemeditate-web/*`            | Translation pattern (covered transitively)                  | `translations-globals`                       |
 | `sahaj-atlas/*`               | Translation pattern (covered transitively)                  | `translations-globals`                       |
+| `sy-atlas-translations` schema | One tab per widget view: the 11 tabs and the ordered 33-name JSON field set, the three groups that mirror code (`registration.questions` ≡ `EVENT_REGISTRATION_QUESTIONS` in order, `event.title` ≡ `EVENT_TITLE_SLOTS`, `emails` ≡ `EMAIL_STRING_DEFAULTS`), every `strict` key carrying a `maxLength`, and a strict key over budget refused on write | `translations-globals` + unit: `atlas-translations-schema.spec.ts` |
+| `sy-atlas-translations` seeds | The ten locale files against the declared keys, English covering every widget-facing key, no invented `%{x}` placeholder, and neither live-data group present | unit: `atlas-translations-schema.spec.ts` |
 
 ## Custom endpoints
 
@@ -100,6 +102,9 @@ content collection.
 | JSON columns declare a `jsonSchema` on the real field config, and a custom `validate` composes the built-in one rather than replacing it (#659) | unit: `json-field-schemas.spec.ts` |
 | The six virtual JSON columns match what their `afterRead` hook returns, and `qualityReport`'s two arms stay discriminated (#659) | unit: `json-field-schemas.spec.ts` |
 | The subtitles Zod parser and JSON Schema agree on one fixture set, and part company only where the importer strips  | unit: `subtitles.spec.ts` |
+| The three auth outcomes a captured error can carry, and the rules that keep an API key out of Sentry and the log (#734) | unit: `sentry-auth-attempt.spec.ts` |
+| `sentryPlugin`'s own `afterError` wiring — level, fingerprint and the WARN mirror actually reached, and a `context` callback shaped like the real config's not dropping the fingerprint | unit: `sentry-credential-rejected.spec.ts` |
+| `pnpm seed translations` on the Atlas global: ten locales published individually, the two live-data groups preserved across a re-run, an untranslated key omitted rather than blanked, and a locale's own plural family stored | `seeds/tests/atlas-translations-import.test.ts` |
 
 ## Gaps
 

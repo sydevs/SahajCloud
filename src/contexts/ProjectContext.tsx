@@ -22,7 +22,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return
 
     // Compute allowed projects from user's roles
-    const allowedProjects = getProjectsFromRoles(user.roles) as ProjectSlug[]
+    const allowedProjects = getProjectsFromRoles(user.roles)
     const current = user.currentProject
 
     // Case 1: Admin with no project selected - use null (admin view)

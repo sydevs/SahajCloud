@@ -42,7 +42,10 @@ Permission flow, in order:
 Worth knowing: **implicit read access** lets managers and clients read
 everything in their role's project, plus collections in no project.
 **Manager roles are per-locale** (uses `req.locale`). **Client roles apply
-uniformly across all locales.**
+uniformly across all locales.** **Version history follows `update`, not
+`read`** — `withVersionHistoryAccess` derives `readVersions` from the
+collection's edit authority, so a read-only role reaches no drafts through
+`/api/{collection}/versions` (#719, see `docs/rules/access.md`).
 
 Full RBAC details: see `docs/rules/access.md` (loads when editing
 `src/plugins/access/`).
@@ -295,7 +298,7 @@ code that treats "plain object ⇒ a group to expand" renders the whole row.
 references to _name_, or a proposed manager came out as their id, roles,
 email, and every notification preference.
 
-## A JSON column declares its shape (#659)
+## A JSON column declares its shape (#659, #726)
 
 `type: 'json'` with no `jsonSchema` accepts anything and generates
 `{ [k: string]: unknown } | unknown[] | string | number | boolean | null`.
@@ -304,25 +307,70 @@ validator for writes **and** substitutes the schema into
 `payload-types.ts`, so the column's consumers stop restating its shape by
 hand.
 
+**`jsonField` (`src/fields/jsonField.ts`) is the one way to declare a JSON
+column.** It takes a `schemaTitle`, a shape, and the rest of the field, and
+derives `type`, `uri`, `fileMatch`, `$id` and `title` from the first two — nothing
+else may build a `jsonSchema` literal, and no `*_SCHEMA_URI` constant exists
+to import. It is the module's only export, so there is no bare `jsonSchema`
+to attach to a field that skipped it.
+
 ```typescript
-{
-  name: 'metadata',
-  type: 'json',
-  jsonSchema: {
-    uri: LECTURE_METADATA_SCHEMA_URI,
-    fileMatch: [LECTURE_METADATA_SCHEMA_URI],
-    schema: lectureMetadataJsonSchema,   // carries the same $id, plus a `title`
-  },
-}
+jsonField({
+  name: 'frames',
+  schemaTitle: 'MeditationFrames',
+  schema: z.array(z.looseObject({
+    id: z.union([z.int(), z.string()]).describe('The Frame document id.'),
+    timestamp: z.number().describe('Seconds into the meditation.'),
+  })),
+})
 ```
 
-Four things to know before you write one:
-
-- **A `title` names the generated interface**, and `$id` is the fallback.
-  Reuse one schema across several columns and Payload emits
-  `FileMetadata`, `FileMetadata1`, … — one per usage, same shape.
+- **Declare the shape in Zod, inline at the field**, so a reader sees the
+  column's shape where it is declared. `zod` is already a production
+  dependency. Emission targets `draft-7`, because **Ajv 8** is what
+  compiles the schema — not the `JSONSchema4` type the field is declared
+  as, which never reaches a validator. Target `draft-04` instead and Ajv
+  rejects the schema outright the first time someone writes `.positive()`,
+  `.gt()` or `.lt()`: draft-04 spells those as `exclusiveMinimum: true`,
+  and the save then fails naming a keyword nobody wrote.
+- **Zod idioms, and what each emits:** `z.strictObject` →
+  `additionalProperties: false`. `z.looseObject` → `additionalProperties:
+{}` (the same `[k: string]: unknown` as `true`). `z.literal(true)` →
+  `{ type: 'boolean', const: true }`, which keeps a discriminator.
+  `.describe()` → `description`, which becomes JSDoc on the generated
+  property. `z.int()` also emits the safe-integer bounds; the helper
+  strips them, because Ajv enforces them and a column that accepts `1e21`
+  today must keep doing so.
+- **A raw `JSONSchema4` `schema` is for a shape assembled as data** — a
+  `properties` map built by `Object.fromEntries` (`stringsSchema`), or
+  `enum`s spliced from an exported const array
+  (`Clients.canonical.verification`, `UserMessages.screeningResult`,
+  `Clients.embedMetadata`). Round-tripping such a shape through Zod only
+  to convert it back buys nothing. It is **not** a list of things Zod
+  cannot express: Zod reaches `maxProperties` through `.meta()`, and its
+  `enum`/`.nullable()` forms generate the same TypeScript as the bare
+  ones. Assembly, not expressiveness, is the test.
+- **Name a `schema` at module level only when it is too big to read beside
+  the field** — `ReadinessReport` and `EventQualityReport` — or when it
+  splices const arrays from elsewhere. Say which, in one line, above it.
+- **A schema belongs at its field, not in a module a client component
+  imports.** Declaring one pulls `zod` and a `toJSONSchema` call into
+  whatever chunk the module lands in, and an admin `'use client'`
+  component reaching it ships both to the browser to describe a shape only
+  the server validates. `Clients.canonical.verification` and
+  `Managers.notificationPreferences` sit at their fields for that reason.
+- **A `schemaTitle` names the generated interface**, and it is the only
+  thing a URI change cannot move. It is spelled `schemaTitle`, not `title`,
+  because every neighbouring key configures the admin field — `label` is
+  what a person sees, this one names a type. Payload names an interface off
+  the schema **object**, not the title, so equal-but-separate objects emit
+  `FileMetadata`, `FileMetadata1`, … — the same body under several names.
+  `jsonField` interns one object per distinct shape, so declaring a column
+  at its field costs nothing a shared constant used to buy. Two _different_
+  shapes sharing a title still silently merge into one;
+  `tests/unit/json-field-helper.spec.ts` fails when they do.
 - **Every property optional, unless nothing can hold the old shape.**
-  Payload validates the column on *every* save of the document, including
+  Payload validates the column on _every_ save of the document, including
   one that never touched it, so a `required` key or
   `additionalProperties: false` can make a row written under an earlier
   shape unsaveable. Close the shape only where a single internal writer
@@ -331,16 +379,25 @@ Four things to know before you write one:
   Payload's loose union verbatim. The column is still nullable in
   Postgres, and the validator skips `null`, `undefined`, `{}` and `[]`
   before reaching Ajv — so code that clears a column casts.
-  **`type: ['object', 'null']` puts it back, but only on a schema with no
-  `properties`** (`meditationNodeWeightsFieldSchema`). Add `properties`
-  and `generate:types` emits `X & (X | null)`, which is `X` again plus a
-  duplicated copy of the whole interface — so there the cast stays.
+  **`.nullable()` puts it back, and unlike the hand-written form it is
+  safe with `properties`.** Zod emits `anyOf: [ {…}, { type: 'null' } ]`,
+  which generates a clean `X | null`. The old hazard belonged to
+  `type: ['object', 'null']`, which emitted `X & (X | null)` — `X` again
+  plus a duplicate of the whole interface. Say a column is nullable when
+  it is, rather than casting at every reader.
 - **An open shape can still be typed.** `additionalProperties: true`
   generates `[k: string]: unknown`, so every consumer reading a dynamic
   key needs a hand-written alias to cast to — the second definition this
-  rule exists to delete. Give `additionalProperties` a schema instead
-  (`notificationPreferencesJsonSchema`): the value is described, the keys
-  stay open, and no row is stranded.
+  rule exists to delete. Give `additionalProperties` a schema instead —
+  `z.record(z.string(), <value shape>)`, as
+  `Managers.notificationPreferences` does: the value is described, the
+  keys stay open, and no row is stranded.
+- **Do not name the known keys beside an open value.** Per-key
+  `properties` validate exactly what the value shape already does, and
+  TypeScript refuses the combination: an optional named property includes
+  `undefined`, which is not assignable to an index signature that does
+  not, so `payload-types.ts` itself fails `tsc` with TS2411. Making those
+  keys `required` silences the compiler and strands every row missing one.
 - **Ajv runs in strict mode**, so only standard JSON Schema keywords may
   appear. A custom keyword throws at validate time, not at boot.
 
@@ -355,7 +412,7 @@ import { json as jsonFieldValidation } from 'payload/shared'
 validate: (value, options) => {
   const shape = jsonFieldValidation(value, options)
   if (shape !== true) return shape
-  return myCrossKeyRule(value)   // what no schema can state
+  return myCrossKeyRule(value) // what no schema can state
 }
 ```
 
@@ -372,7 +429,7 @@ definition.
 
 ### A virtual column takes a schema too, and it can be closed
 
-`virtual: true` changes what the schema is *for*, not whether to write one.
+`virtual: true` changes what the schema is _for_, not whether to write one.
 Nothing stores the column, so the Ajv validator has nothing to gate — but
 `generate:types` still reads the schema, and without one the column's type
 is the loose union above. "Typed at its source" types the **hook**, never
@@ -388,10 +445,12 @@ columns, and every readiness section all do.
 
 Two consequences worth knowing:
 
-- **Write a union as `oneOf`, not one object with optional keys.** `oneOf`
-  keeps the discriminator, so a reader narrowing on `qualityReport.skipped`
-  gets `checks` non-null. Merged into one object, both arms' keys become
-  optional and the narrowing is gone.
+- **Write a union as a union, not one object with optional keys.**
+  `z.union([...])` emits `anyOf` and keeps the discriminator, so a reader
+  narrowing on `qualityReport.skipped` gets `checks` non-null. Merged into
+  one object, both arms' keys become optional and the narrowing is gone.
+  `anyOf` and `oneOf` accept identically here, because the branches are
+  closed and discriminated, so at most one can ever match.
 - **The generated type still omits `null`.** A hook returning `null` — no
   future occurrence, no locale — is not expressible alongside `properties`
   (see the bullet above), so a consumer still null-checks.
@@ -439,11 +498,11 @@ carries ten such fields, and the rule the other way round rendered a
 fourteen-column table of raw enum values.
 
 | Key     | Meaning                                                                |
-| ------- | ------------------------------------------------------------------------ |
-| `at`    | ISO timestamp. Always the first column, and what the log sorts by.       |
-| `type`  | Stable slug (`session-reminder`, `verification`) — matched, not shown.   |
-| `key`   | Exactly-once key, scoped to `type`.                                      |
-| `cells` | What the columns read. Everything else is data.                          |
+| ------- | ---------------------------------------------------------------------- |
+| `at`    | ISO timestamp. Always the first column, and what the log sorts by.     |
+| `type`  | Stable slug (`session-reminder`, `verification`) — matched, not shown. |
+| `key`   | Exactly-once key, scoped to `type`.                                    |
+| `cells` | What the columns read. Everything else is data.                        |
 
 Nothing is hidden by not having a column: every row's trailing **⋯** opens
 the whole entry as JSON in a popover, which is where a reminder's stage,
@@ -556,14 +615,14 @@ Supported: `en`, `es`, `de`, `it`, `fr`, `ru`, `ro`, `cs`, `uk`, `el`, `hy`,
 `src/plugins/access/filterAvailableLocales.ts` controls which locales
 appear in the admin locale selector:
 
-| User                             | Locales shown                                                    |
-| ---------------------------------- | -------------------------------------------------------------------- |
-| Unauthenticated                  | English only (login page)                                          |
-| Admin managers                   | All 19                                                              |
-| API clients                      | All (the filter only applies to the admin UI)                      |
-| Regular managers                 | Exactly the locales where they have ≥ 1 role, most roles first     |
-| Managers with roles in no locale | English only                                                        |
-| Inactive managers                | English only                                                        |
+| User                             | Locales shown                                                  |
+| -------------------------------- | -------------------------------------------------------------- |
+| Unauthenticated                  | English only (login page)                                      |
+| Admin managers                   | All 19                                                         |
+| API clients                      | All (the filter only applies to the admin UI)                  |
+| Regular managers                 | Exactly the locales where they have ≥ 1 role, most roles first |
+| Managers with roles in no locale | English only                                                   |
+| Inactive managers                | English only                                                   |
 
 A manager with `{ en: ['translator'], cs: ['meditations-editor'] }` sees
 English + Czech, not German/French/etc.
@@ -592,15 +651,76 @@ single-locale document:
 - A `locale` select field with all 19 options, default `en`.
 - `filterMeditationsByLocale` (a beforeOperation hook in
   `src/collections/Meditations/hooks/`) adds `{ locale: { equals:
-  req.locale } }` to `find`/`count` operations.
+req.locale } }` to `find`/`count` operations.
 - `findByID` returns the specific doc regardless of locale.
 - `locale=all` bypasses filtering.
+- A **versions read** bypasses filtering too — see the rule below.
 
 ```bash
 GET /api/user-choices?locale=en
 GET /api/meditations?locale=cs    # Czech meditations only
 GET /api/songs?locale=cs
 ```
+
+### A `read` beforeOperation hook also fires on a versions read
+
+Payload maps `find`, `findByID`, `findVersions` and `findVersionByID` onto
+the single `read` hook operation. So a `beforeOperation` hook guarding on
+`operation === 'read'` runs on `GET /api/{collection}/versions` too, and
+any `where` it appends is applied to the **versions** collection — where a
+document's own fields live under `version.` and its id is `parent`.
+
+Naming a document field there fails query validation with `The following
+path cannot be queried`, **before** the read runs and regardless of
+`overrideAccess`. In #745 that broke the admin version-history tab for
+meditations for every caller.
+
+`'id' in args` does not answer this question — it separates `findByID`
+from `find`, not a versions read from either. Use `isVersionsRead`, whose
+own doc comment carries the argument table it derives this from:
+
+```typescript
+import { isVersionsRead } from '@/lib/utilities/versionsRead'
+
+export const myHook: CollectionBeforeOperationHook = ({ operation, args }) => {
+  if (operation !== 'read' && operation !== 'count') return args
+  if (isVersionsRead(operation, args)) return args   // cannot carry a document filter
+  if ('id' in args) return args                      // findByID
+  // …append the where…
+}
+```
+
+`count` and `countVersions` map to their own hook operations, so a
+counting hook needs no extra guard. In practice only `findVersions`
+reaches the 400 in a hook that already skips `findByID`, since
+`findVersionByID` carries an `id` too.
+
+**Decline or translate? Ask what the `where` decides.** Both answers exist
+in this repo, and the choice is not about which edit is smaller:
+
+- A filter that **scopes a listing** — `locale`, finished events — is
+  **declined**. A versions read is not that listing, nobody's authority
+  widens, and `findByID` has never carried these filters either.
+- A filter that **decides authority** is **translated**, never declined,
+  because declining it would widen who may read a version row.
+  `withVersionHistoryAccess` (`src/plugins/access/accessConfigs.ts`)
+  rewrites `update`'s `Where` onto `version.` with Payload's own
+  `appendVersionToQueryKey` for exactly that reason.
+
+The two hooks that append a `where` — `filterMeditationsByLocale` and
+`excludeFinishedEvents` — are the only ones that needed this, and both are
+covered by integration specs that go red when the guard is deleted
+(`tests/int/meditations.int.spec.ts`, `tests/int/events.int.spec.ts`).
+Other `read` hooks still fire on a versions read and are meant to:
+`validateClientQueryParamsHook` (an API client must declare `select` there
+too), `usageTrackingBeforeOperationHook`, and `ensureWebPathDeps`, which
+mutates `select` rather than `where`.
+
+⚠ **The guard fails silently in the dangerous direction.** It reads an
+argument Payload supplies, so if an upgrade stopped supplying it the
+filter would switch off for ordinary reads instead of erroring. Pin both
+branches when you add a consumer: a `findVersions` that resolves, and a
+`find` that leaves `draft` to Payload and is still filtered.
 
 ## Pages collection
 
@@ -624,14 +744,14 @@ Live preview integrates with the We Meditate Web frontend
 
 ### Page blocks (`src/lib/richEditor/blocks/`)
 
-| Block               | Notes                                                                                                                                                                                                                                                    |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `TextBoxBlock`      | `style` (splash / leftAligned / rightAligned / overlay), `title`/`text` (250-char limit, HTML stripped), `image`, `link`, `actionText`                                                                                                                 |
-| `ButtonBlock`       | `text` + `url`                                                                                                                                                                                                                                          |
-| `LayoutBlock`       | `style` (grid / columns / accordion) + `items` array (image, title, text, link)                                                                                                                                                                         |
-| `GalleryBlock`      | `title`, `collectionType` (media/meditations/pages), `items` (max 10, dynamic relationTo)                                                                                                                                                               |
-| `QuoteBlock`        | `title`, `text` (textarea, required), `credit`, `caption` (shown when credit exists)                                                                                                                                                                    |
-| `CatalogBlock`      | `items` relationship hasMany, min 3/max 6, supports meditations + pages                                                                                                                                                                                 |
+| Block               | Notes                                                                                                                                                                                                                                                     |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TextBoxBlock`      | `style` (splash / leftAligned / rightAligned / overlay), `title`/`text` (250-char limit, HTML stripped), `image`, `link`, `actionText`                                                                                                                    |
+| `ButtonBlock`       | `text` + `url`                                                                                                                                                                                                                                            |
+| `LayoutBlock`       | `style` (grid / columns / accordion) + `items` array (image, title, text, link)                                                                                                                                                                           |
+| `GalleryBlock`      | `title`, `collectionType` (media/meditations/pages), `items` (max 10, dynamic relationTo)                                                                                                                                                                 |
+| `QuoteBlock`        | `title`, `text` (textarea, required), `credit`, `caption` (shown when credit exists)                                                                                                                                                                      |
+| `CatalogBlock`      | `items` relationship hasMany, min 3/max 6, supports meditations + pages                                                                                                                                                                                   |
 | `ContentIndexBlock` | `type` select (meditations/pages/songs/lectures), `limit` (1–100), per-type filter fields (only the active filter survives, via `clearWhenTypeNot` hooks), virtual `apiEndpoint` (computed by `computeApiEndpoint` afterRead — `null` if `limit` invalid) |
 
 Custom block icons → see `src/lib/richEditor/blocks/AGENTS.md`.
@@ -888,11 +1008,11 @@ formatToParts → manual extraction → ZonedDateTime.from`. The
 ### Stored-value conventions
 
 | Field            | Stored values                                          | RFC 5545 alignment                                      |
-| ---------------- | -------------------------------------------------------- | ---------------------------------------------------------- |
-| `recurrenceType` | `'DAILY'`, `'WEEKLY'`, `'MONTHLY'`                       | matches `freq` directly                                     |
-| `weekdays`       | `'MO'`, `'TU'`, `'WE'`, `'TH'`, `'FR'`, `'SA'`, `'SU'`   | matches `byDay`                                              |
-| `weekdayOfMonth` | `'MO'`–`'SU'`                                            | matches RFC 5545 day codes                                   |
-| `weekNumber`     | `'1'`–`'4'`, `'-1'`                                      | combined with weekday for `byDay` (e.g., `1MO`, `-1FR`)      |
+| ---------------- | ------------------------------------------------------ | ------------------------------------------------------- |
+| `recurrenceType` | `'DAILY'`, `'WEEKLY'`, `'MONTHLY'`                     | matches `freq` directly                                 |
+| `weekdays`       | `'MO'`, `'TU'`, `'WE'`, `'TH'`, `'FR'`, `'SA'`, `'SU'` | matches `byDay`                                         |
+| `weekdayOfMonth` | `'MO'`–`'SU'`                                          | matches RFC 5545 day codes                              |
+| `weekNumber`     | `'1'`–`'4'`, `'-1'`                                    | combined with weekday for `byDay` (e.g., `1MO`, `-1FR`) |
 
 ### `ScheduleSummary` (afterInput component)
 

@@ -1,7 +1,8 @@
-import { readFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
+
+import { findInImportGraph, SRC } from '../utils/importGraph'
 
 /**
  * Nothing an admin **client** component imports may reach server-only code.
@@ -14,10 +15,10 @@ import { describe, expect, it } from 'vitest'
  * `@/plugins/usage` barrel, which re-exports the pg-pool seam.
  *
  * Walking the real import graph keeps the guard honest — asserting on a list of
- * "forbidden files" would go stale the moment someone adds a module.
+ * "forbidden files" would go stale the moment someone adds a module. The walk
+ * itself lives in `tests/utils/importGraph.ts`, shared with
+ * `public-env-substitution.spec.ts`.
  */
-
-const SRC = resolve(__dirname, '../../src')
 
 /** Barrels and modules that drag Node-only dependencies in with them. */
 const SERVER_ONLY = [
@@ -27,63 +28,12 @@ const SERVER_ONLY = [
   { spec: '@/jobs/VerifyEmbeds/browserRendering', reason: 'holds Cloudflare credentials' },
 ]
 
-/** Resolve an `@/…` or relative specifier to a file under src/, or null. */
-function resolveSpec(spec: string, fromFile: string): string | null {
-  const base = spec.startsWith('@/')
-    ? join(SRC, spec.slice(2))
-    : spec.startsWith('.')
-      ? resolve(dirname(fromFile), spec)
-      : null
-  if (!base) return null
-
-  for (const candidate of [
-    `${base}.ts`,
-    `${base}.tsx`,
-    join(base, 'index.ts'),
-    join(base, 'index.tsx'),
-  ]) {
-    try {
-      readFileSync(candidate)
-      return candidate
-    } catch {
-      /* try the next shape */
-    }
-  }
-  return null
-}
-
-/** Every specifier `file` imports, ignoring `import type` (erased at build). */
-function importsOf(file: string): string[] {
-  const source = readFileSync(file, 'utf8')
-  const specs: string[] = []
-  const re = /^\s*(?:import|export)\s+(?!type\b)([^'"]*?)from\s*['"]([^'"]+)['"]/gm
-  let match: RegExpExecArray | null
-  while ((match = re.exec(source)) !== null) {
-    // `import { type A, b }` still emits a runtime import. `import type { A }` does not.
-    specs.push(match[2])
-  }
-  return specs
-}
-
 /** Depth-first walk from a client entry, returning the first offending path. */
 function findServerOnlyImport(entry: string): { chain: string[]; reason: string } | null {
-  const seen = new Set<string>()
-  const stack: { file: string; chain: string[] }[] = [{ file: entry, chain: [entry] }]
-
-  while (stack.length > 0) {
-    const { file, chain } = stack.pop()!
-    if (seen.has(file)) continue
-    seen.add(file)
-
-    for (const spec of importsOf(file)) {
-      const hit = SERVER_ONLY.find((entryPoint) => entryPoint.spec === spec)
-      if (hit) return { chain: [...chain, spec], reason: hit.reason }
-
-      const next = resolveSpec(spec, file)
-      if (next) stack.push({ file: next, chain: [...chain, spec] })
-    }
-  }
-  return null
+  return findInImportGraph(entry, (spec) => {
+    const hit = SERVER_ONLY.find((entryPoint) => entryPoint.spec === spec)
+    return hit ? { reason: hit.reason } : null
+  })
 }
 
 describe('admin client components stay out of the server bundle', () => {
