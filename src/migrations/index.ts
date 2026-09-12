@@ -59,6 +59,7 @@ import * as migration_20260909_161243_wm_app_localize_status_available_locales f
 import * as migration_20260909_161353_atlas_translations_by_view from './20260909_161353_atlas_translations_by_view';
 import * as migration_20260909_161848_drop_wm_web_placeholder_tabs from './20260909_161848_drop_wm_web_placeholder_tabs';
 import * as migration_20260909_162104_wm_web_translations_tabs from './20260909_162104_wm_web_translations_tabs';
+import * as migration_20260912_031449_atlas_translations_seo_group from './20260912_031449_atlas_translations_seo_group';
 
 export const migrations = [
   {
@@ -365,5 +366,10 @@ export const migrations = [
     up: migration_20260909_162104_wm_web_translations_tabs.up,
     down: migration_20260909_162104_wm_web_translations_tabs.down,
     name: '20260909_162104_wm_web_translations_tabs',
+  },
+  {
+    up: migration_20260912_031449_atlas_translations_seo_group.up,
+    down: migration_20260912_031449_atlas_translations_seo_group.down,
+    name: '20260912_031449_atlas_translations_seo_group',
   },
 ];

@@ -14,6 +14,9 @@
  * would make the admin claim every key is translated, and the status report
  * would agree. The same guard keeps the admin's own English-reference fetch
  * (`useEnglishTranslation`) honest.
+ *
+ * A client read that wants the locale's true copy asks for it, with
+ * {@link withoutEnglishFallback}.
  */
 
 import type { LeafLookup, SchemaNode } from './schemaWalker'
@@ -119,8 +122,36 @@ function memoKey(slug: string): string {
   return `translations:english:${slug}`
 }
 
+/**
+ * `req.context` key marking a read that wants the locale's true copy.
+ *
+ * Identity is the hook's proxy for intent, and for widget chrome it is the
+ * right one — a blank button label is a broken UI, so an API client is merged
+ * into. A `<head>` is the opposite case: an untranslated English sentence there
+ * is worse than no sentence, so `GET /api/atlas/seo` opts out for the atlas
+ * landing page's copy (#739). Saying that in the request, rather than stripping
+ * the caller's user to make `shouldMerge` answer `false`, keeps the read's real
+ * identity for access control and every other hook.
+ */
+const SKIP_ENGLISH_FALLBACK = 'translations:skipEnglishFallback'
+
+/**
+ * The same request, opted out of the English merge. See
+ * {@link SKIP_ENGLISH_FALLBACK} for when this is the right answer.
+ *
+ * Built on `localeIsolatedReq`, which owns why a nested read gets a copy at
+ * all: these callers pass an explicit `locale`, and `createLocalReq` assigns
+ * that locale straight onto the request it is handed. One statement of that
+ * hazard, in one place.
+ */
+export function withoutEnglishFallback(req: PayloadRequest): PayloadRequest {
+  const isolated = localeIsolatedReq(req)
+  return { ...isolated, context: { ...isolated.context, [SKIP_ENGLISH_FALLBACK]: true } }
+}
+
 function shouldMerge(req: PayloadRequest | undefined): req is PayloadRequest {
   if (!req) return false
+  if (req.context?.[SKIP_ENGLISH_FALLBACK] === true) return false
   if (req.user?.collection !== 'clients') return false
   const locale = req.locale
   if (typeof locale !== 'string') return false

@@ -270,6 +270,19 @@ export function eventCard(
   }
 }
 
+/** Everything the endpoint resolved for the atlas root (#739). */
+export interface RootSeoInput {
+  /** Operator-written title, already resolved to a non-empty string. */
+  title: string
+  /** Operator-written description, already resolved for this locale. */
+  description: string | null
+  /** The mount page's own URL, read from the client record — never rebuilt. */
+  canonical: string | null
+  locale: string
+  /** Enabled atlas locales, for the hreflang cluster. */
+  locales: readonly string[]
+}
+
 /** Everything the endpoint resolved for an event route. */
 export interface EventSeoInput {
   event: Event
@@ -426,6 +439,57 @@ export function buildEventSeo(input: EventSeoInput): AtlasSeoResponse {
     jsonLd: jsonLdEscape(jsonLdGraph([eventNode(input, content), breadcrumbList(breadcrumbs)])),
     breadcrumbs,
     content,
+  }
+}
+
+/**
+ * The SEO answer for the atlas root — `/`, and every bare view route (#739).
+ *
+ * The one answer built from no document at all, so every value arrives already
+ * resolved: the title and description from the translations global (see
+ * `./rootStrings`), the canonical from the client's own verified embed. This
+ * still composes no prose — it only decides the *shape*.
+ *
+ * `WebSite` rather than `Place` or `Event`: the root is the atlas itself, not a
+ * location in it. There is no `BreadcrumbList`, because a trail of one rung
+ * tells a crawler nothing it does not already have — the same rule
+ * {@link breadcrumbList} applies everywhere else.
+ */
+export function buildRootSeo(input: RootSeoInput): AtlasSeoResponse {
+  const { title, canonical, locale, locales } = input
+  // The bound applies to the `<meta>` value alone, exactly as it does for an
+  // event: `content.paragraphs` keeps the operator's full sentence, since
+  // `root_description`'s own limit is advisory and a host renders that text as
+  // body copy rather than a snippet.
+  const paragraphs = input.description ? [input.description] : []
+  const description = truncateAtWord(input.description ?? '', META_DESCRIPTION_MAX) || null
+
+  return {
+    type: 'root',
+    // No document, so no id — `null` rather than a sentinel a consumer could
+    // mistake for a region.
+    id: null,
+    // The normalized route, so `/search` and `/` answer with the same string
+    // and a host comparing it against its canonical sees them agree.
+    route: '/',
+    locale,
+    title,
+    description,
+    canonical,
+    alternates: hreflangAlternates(canonical, locales),
+    openGraph: openGraph({ title, description, canonical, locale, image: null }),
+    jsonLd: jsonLdEscape(
+      jsonLdGraph([
+        compactNode({
+          '@type': 'WebSite',
+          name: title,
+          url: canonical ?? undefined,
+          description: description ?? undefined,
+        }),
+      ]),
+    ),
+    breadcrumbs: [],
+    content: { paragraphs },
   }
 }
 
