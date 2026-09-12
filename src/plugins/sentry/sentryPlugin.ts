@@ -16,12 +16,7 @@ import { mapPostgresCastError } from '@/lib/databaseErrors'
 import { serverEnv } from '@/lib/env'
 import { deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
 
-import {
-  detectRejectedCredential,
-  logRejectedCredential,
-  rejectedCredentialFingerprint,
-  rejectedCredentialTags,
-} from './credentialRejection'
+import { describeRejectedCredential } from './credentialRejection'
 
 /**
  * Context object for Sentry error capture
@@ -150,7 +145,17 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
               // A presented-and-rejected credential is a broken integration, not
               // traffic — but only below 500. The caller's credential is not what
               // is wrong with a 500, so nothing auth-related is computed there.
-              const rejected = status < 500 ? detectRejectedCredential(req) : null
+              //
+              // ⚠ This also writes the WARN mirror, and this plugin returns the
+              // config untouched when no `NEXT_PUBLIC_SENTRY_DSN` is set — so a
+              // deployment without one gets neither the event nor that line.
+              // Every deployed environment sets it; a local run that does not,
+              // will not see it. `requireActiveClient`'s path has no such gate
+              // (#743).
+              const rejected =
+                status < 500
+                  ? describeRejectedCredential(req, { status, source: 'sentryPlugin' })
+                  : null
 
               if (rejected) {
                 // ⚠ **Accepted risk: this level is caller-triggerable.** Any
@@ -166,19 +171,9 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
                 // IP Addresses" setting both act on that field alone; an `extra`
                 // is opaque context no scrubber reaches.
                 clientIp = rejected.ip
-                Object.assign(tags, rejectedCredentialTags(rejected))
+                Object.assign(tags, rejected.tags)
                 Object.assign(extra, { userAgent: rejected.userAgent })
-                fingerprint = rejectedCredentialFingerprint(rejected, status)
-
-                // Deliberately outside the custom `context` function below: that
-                // may reshape the report, but the denial itself still happened.
-                //
-                // ⚠ This plugin returns the config untouched when no
-                // `NEXT_PUBLIC_SENTRY_DSN` is set, so a deployment without one
-                // gets neither the event nor this line. Every deployed
-                // environment sets it; a local run that does not, will not see
-                // this. `requireActiveClient`'s path has no such gate (#743).
-                logRejectedCredential(req, rejected, { status, source: 'sentryPlugin' })
+                fingerprint = rejected.fingerprint
               }
 
               // The two arms are mutually exclusive: `clientIp` is set only on

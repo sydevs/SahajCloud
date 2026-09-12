@@ -126,7 +126,7 @@ API credential presented and rejected
 
 `keyFingerprint` is a 12-hex truncated SHA-256 — enough to tell two broken integrations apart, and never the key. Search Sentry by the `key_fingerprint` tag to find every request from one credential. An anonymous 403 is unchanged.
 
-**Both denial paths report it** (#743). Payload's error hook covers everything that throws; `requireActiveClient` covers the custom endpoints that deny by *returning* a 403 — `/api/atlas/seo` and `/api/atlas/sitemap` among them — which no hook ever sees. `source` says which one denied, and the message is one string on purpose: two spellings would split the log query. The guard's capture is deduped per key fingerprint, one event a minute per process, because its endpoints are public and the edge's 500 req/min is the only other bound — the WARN line still goes out every time. Detail: `docs/architecture.md`.
+**Both denial paths report it** (#743). Payload's error hook covers everything that throws; `requireActiveClient` covers the custom endpoints that deny by *returning* a 403 — `/api/atlas/seo` and `/api/atlas/sitemap` among them — which no hook ever sees. `source` says which one denied, and the message is one string on purpose: two spellings would split the log query. Every rejection reports, on both paths — mute the volume with a Sentry-side rule on `auth_outcome`, never in this process. Detail: `docs/architecture.md`.
 
 ## Security
 
