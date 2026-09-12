@@ -95,7 +95,10 @@ def test_gives_up_on_a_prompt_it_cannot_parse():
         timeout=60,
     )
     check('unparsed prompt: driver ended on its own', not proc.timed_out, 'it hung instead')
-    check('unparsed prompt: exits non-zero', proc.returncode != 0, str(proc.returncode))
+    # Not `!= 0`: a hang is killed, so that holds for the failure too and
+    # nothing can red it. 3 is the code `SKILL.md` and the migrations guide
+    # tell a caller to read.
+    check('unparsed prompt: exits 3', proc.returncode == 3, str(proc.returncode))
     check('unparsed prompt: says what went wrong', 'could not parse' in proc.stderr, proc.stderr)
     check('unparsed prompt: quotes what it saw', 'quite ready?' in proc.stderr, proc.stderr)
     check('unparsed prompt: records it in the log', 'gave up' in log, log[-400:])
