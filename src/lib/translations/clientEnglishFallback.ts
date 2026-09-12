@@ -136,12 +136,17 @@ function memoKey(slug: string): string {
 const SKIP_ENGLISH_FALLBACK = 'translations:skipEnglishFallback'
 
 /**
- * The same request, opted out of the English merge — a copy, so the caller's
- * own reads are unaffected. See {@link SKIP_ENGLISH_FALLBACK} for when this is
- * the right answer.
+ * The same request, opted out of the English merge. See
+ * {@link SKIP_ENGLISH_FALLBACK} for when this is the right answer.
+ *
+ * Built on `localeIsolatedReq`, which owns why a nested read gets a copy at
+ * all: these callers pass an explicit `locale`, and `createLocalReq` assigns
+ * that locale straight onto the request it is handed. One statement of that
+ * hazard, in one place.
  */
 export function withoutEnglishFallback(req: PayloadRequest): PayloadRequest {
-  return { ...req, context: { ...req.context, [SKIP_ENGLISH_FALLBACK]: true } }
+  const isolated = localeIsolatedReq(req)
+  return { ...isolated, context: { ...isolated.context, [SKIP_ENGLISH_FALLBACK]: true } }
 }
 
 function shouldMerge(req: PayloadRequest | undefined): req is PayloadRequest {

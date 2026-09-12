@@ -105,8 +105,7 @@ async function readSeoGroup(
       draft: false,
       select: SEO_GROUP_SELECT,
       overrideAccess: true,
-      // A copy carrying the opt-out, so the caller's own request keeps both its
-      // context and the locale Payload would otherwise assign onto it.
+      // A copy carrying the opt-out — the helper says why it must be a copy.
       req: withoutEnglishFallback(req),
     })
     const group = (global as { seo?: unknown }).seo
