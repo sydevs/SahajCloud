@@ -130,6 +130,8 @@ Managers and API clients both read their role's project plus every shared collec
 
 A `managers` (hasMany) or `manager` relationship to `managers` on any collection grants those managers **read and update** on its documents, with no role needed. A self-referential `parent` field lets a document inherit managers from its ancestors, via the nested-docs `breadcrumbs` trail. Fields are found by introspecting `flattenedFields` (`documentManagers.ts`) — no slug is hardcoded. Any collection that adds such a field is covered (today: Pages via "Page Editors", Regions, Clients). Read and update only, never create or delete — and only after the query-free check has failed.
 
+`resolveManagedDocIds` — the managed-set resolution both this fallback and the region-subtree scoping below run — is memoized per request, keyed on `(collection, userId)`. Payload evaluates each access operation independently and dedups nothing between them, so one `/api/access` call repeated the same two queries six times, and a document edit view up to twelve. ⚠ The memo pins the managed set for the life of `req`: a request that writes a `managers` field and then makes a *second* access decision on that same `req` reads the pre-write set. `documentManagers.ts` carries the full note, including why the memo must not be lifted to the `update`/`readVersions` wrappers or to `hasPermission`.
+
 ### Region-subtree write scoping (Atlas managers)
 
 `atlas-manager` is the one role granting **create, update, and delete** on `events` and `regions`. `regionSubtreeAccess.ts` narrows every such grant to the manager's **owned-region subtree**: the regions listing them in `managers`, plus every descendant via `breadcrumbs`.
