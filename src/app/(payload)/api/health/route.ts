@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+import { deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
+
 export async function GET() {
   try {
     // Basic health check - ensure the application is running
@@ -7,7 +9,9 @@ export async function GET() {
       status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      environment: process.env.NODE_ENV,
+      // The deployment name, not NODE_ENV (#733). Nothing reads this field
+      // today, so this is a consistency fix, not a behaviour one.
+      environment: deploymentEnvironment(),
       version: process.env.npm_package_version || 'unknown',
     }
 
