@@ -280,6 +280,23 @@ routes to the new instance → the previous instance keeps running until the new
 The Next.js build can warn about Payload's dynamic migration loading and Sentry's source-map
 processing — both are expected and do not affect the app.
 
+### ⚠ Post-deploy step: re-verify each canonical-owning client (#644)
+
+No row carries `canonical.verification.pathProbe` before the deploy that introduces it, so
+`effectiveRouting` answers `query` for every service until a probe has run. A service publishing
+`path`-shaped canonicals today therefore reshapes to `?atlas=` the moment that deploy lands.
+
+**Nothing backfills the verdict, by decision.** Backfilling from `verified.routing` would write
+the widget's own self-report into the field that shapes public URLs, which is the boundary #633
+drew — and every existing embed has to be re-verified by hand regardless.
+
+Press **Verify now** on each enabled canonical owner (Clients → the service → **SEO**) after the
+deploy. One positive probe promotes a host that serves the widget under the mount's subtree back
+to `path`. Left alone, the nightly `VerifyEmbeds` job gets there on its own `nextVerifyAt`
+watermark, which in backoff can be up to 8 days out. A host that serves the subtree but refuses
+headless renders stays on `query` — see "Routing is derived, never configured" in
+[`docs/rules/api-clients.md`](./docs/rules/api-clients.md).
+
 ## Verifying Deployments
 
 Beyond the health and API checks in step 5 above: log in to the admin panel, create a test
