@@ -100,6 +100,8 @@ content collection.
 | JSON columns declare a `jsonSchema` on the real field config, and a custom `validate` composes the built-in one rather than replacing it (#659) | unit: `json-field-schemas.spec.ts` |
 | The six virtual JSON columns match what their `afterRead` hook returns, and `qualityReport`'s two arms stay discriminated (#659) | unit: `json-field-schemas.spec.ts` |
 | The subtitles Zod parser and JSON Schema agree on one fixture set, and part company only where the importer strips  | unit: `subtitles.spec.ts` |
+| The three auth outcomes a captured error can carry, and the rules that keep an API key out of Sentry and the log (#734) | unit: `sentry-auth-attempt.spec.ts` |
+| `sentryPlugin`'s own `afterError` wiring — level, fingerprint and the WARN mirror actually reached, and a `context` callback shaped like the real config's not dropping the fingerprint | unit: `sentry-credential-rejected.spec.ts` |
 
 ## Gaps
 

@@ -212,7 +212,7 @@ descriptive.
 ### The JSON column declares its own shape
 
 Each leaf group's JSON field carries a `jsonSchema` built by
-`stringsJsonSchema` (#705), so Payload generates a named
+`stringsSchema` (#705), so Payload generates a named
 `<Global><Parent><Leaf>Strings` interface instead of the
 `{ [k: string]: unknown } | … | null` union, and Ajv enforces the shape on
 write.

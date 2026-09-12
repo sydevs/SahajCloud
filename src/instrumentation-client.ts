@@ -10,27 +10,34 @@
  */
 import * as Sentry from '@sentry/nextjs'
 
-import { clientEnv } from '@/lib/env/client'
 import { clientDeploymentEnvironment } from '@/lib/env/deploymentEnvironment'
 
-// Initialize Sentry for client-side errors only
-// Server-side errors are handled by the Sentry plugin
-//
-// ⚠ This branch is unreachable in a browser today: `clientEnv` parses a bare
-// `process.env`, which is an empty object there, so the DSN is always
-// undefined and Sentry never initializes client-side (#760).
-if (clientEnv.NEXT_PUBLIC_SENTRY_DSN) {
+// ⚠ A literal member expression — the only form Next substitutes (#760, and
+// `src/AGENTS.md`). Never read a NEXT_PUBLIC_* value any other way.
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
+
+// ⚠ `.env` is git-tracked and carries the real DSN, so the read alone would
+// start sending every developer's local browser errors to the live project.
+// Reporting is a deployment's job, and a Railway deploy builds with
+// NODE_ENV=production (#733). A local production build still reports — the
+// deployment name now reaches the browser, so gating on it too is possible,
+// but it is a reporting decision rather than #737's tagging fix.
+const isProduction = process.env.NODE_ENV === 'production'
+
+// This is the ONE browser `Sentry.init` in the app. `ErrorBoundary`,
+// `global-error.tsx` and `clientLogger` capture through the client it installs
+// rather than each initializing their own: a second `init` replaces the first
+// on the current scope, taking the router instrumentation below with it.
+if (dsn && isProduction) {
   Sentry.init({
-    dsn: clientEnv.NEXT_PUBLIC_SENTRY_DSN,
+    dsn,
     environment: clientDeploymentEnvironment(),
     // Disable performance tracing, only capture errors
     tracesSampleRate: 0,
   })
-} else if (process.env.NODE_ENV === 'development') {
+} else if (!isProduction) {
   // eslint-disable-next-line no-console
-  console.info(
-    '[Sentry] Client-side error tracking disabled (NEXT_PUBLIC_SENTRY_DSN not configured)',
-  )
+  console.info('[Sentry] Client-side error tracking disabled outside a deployment')
 }
 
 // Instrument App Router navigations (Sentry requires this export from the
