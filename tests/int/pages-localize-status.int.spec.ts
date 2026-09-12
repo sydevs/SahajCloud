@@ -259,19 +259,21 @@ describe('per-locale publish status', () => {
     })
 
     /**
-     * The rollout consequence, pinned rather than argued. A never-translated
+     * Decided behaviour, pinned so nobody re-plugs it. A never-translated
      * locale has no row in `pages_locales`, so the published-only clause — SQL,
      * which sees rows and not the fallback — matches nothing there. The page is
      * unreachable in that locale even though nobody unpublished it.
      *
-     * ⚠ This fires on **existing** data, not on a deliberate unpublish. The
+     * ⚠ This fires on **existing** data, not on a deliberate unpublish: the
      * migration copies each document's old status into every locale row that
-     * exists, and there is none to copy into here. Payload's own
-     * `localizeStatus` template has the same property: it `UPDATE`s locale rows
-     * and never inserts one. WeMeditateWeb's `getPageBySlug` reads `pages` at
-     * the visitor's locale and 404s on an empty result, so an English-only page
-     * stops serving German the day this deploys — the fallback used to render
-     * it (WeMeditateWeb#81).
+     * exists, and there is none to copy into here. WeMeditateWeb's
+     * `getPageBySlug` reads `pages` at the visitor's locale and 404s on an
+     * empty result, so an English-only page stops serving German the day this
+     * deploys. **That 404 is the answer we want** — review settled it on #765:
+     * an unpublished locale should not serve, and an English-only page must not
+     * fall back to a German URL. So no backfill inserts the missing rows, and
+     * no consumer restores the fallback. Payload's own `localizeStatus`
+     * template agrees: it `UPDATE`s locale rows and never inserts one.
      *
      * Measured, not inferred: the client read below returns 0 docs while the
      * English one returns the page.
