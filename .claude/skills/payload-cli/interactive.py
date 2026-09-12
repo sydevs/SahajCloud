@@ -32,7 +32,9 @@ Raw mode needs `\\r`, not `\\n`.
 
 A prompt this driver cannot parse ends the run with exit 3 and the last
 200 characters it saw, rather than waiting for the caller's `timeout` to
-decide. Exit 124 with an empty log means something else.
+decide. Exit 124 with an empty log means something else. The detector arms
+on an **unanswered** question only: drizzle re-renders a prompt after you
+answer it, so the echo sits in the buffer for the rest of the run.
 
 Environment overrides:
 
@@ -102,6 +104,28 @@ def give_up(text):
 
 
 seen: set[str] = set()
+
+
+def unanswered(text):
+    """The question lines in `text` this driver has not already answered.
+
+    Answering a prompt clears `buf`, but drizzle re-renders the prompt
+    afterwards and that echo lands straight back in it. The echo restarts
+    the silence clock, so it cannot trip the detector itself — but it stays
+    in `buf` armed, and the next genuinely quiet stretch (the migration
+    write, a slow boot) then gives up over a prompt we did answer. Match
+    each question line against what `seen` records instead.
+    """
+    answered = {p for p in seen if p not in ('phase2', 'dataloss')}
+    if 'dataloss' in seen:
+        answered.add(DATALOSS_PROMPT)
+    return [
+        line
+        for line in QUESTION_LINE.findall(text)
+        if not any(prompt in line for prompt in answered)
+    ]
+
+
 buf = b''
 last_output = time.monotonic()
 while proc.poll() is None:
@@ -109,12 +133,10 @@ while proc.poll() is None:
     if not ready:
         # A question we never answered, sitting silent, is the hang this
         # driver exists to prevent. Say so instead of waiting for the
-        # caller's `timeout`. Drizzle re-renders a prompt once it is
-        # answered, and that echo is output, so the clock restarts on
-        # it — only real silence gets here.
+        # caller's `timeout`.
         if buf and time.monotonic() - last_output > STALL_SECONDS:
             stalled = ANSI.sub('', buf.decode('utf-8', 'replace'))
-            if QUESTION_LINE.search(stalled):
+            if unanswered(stalled):
                 give_up(stalled)
         continue
     try:

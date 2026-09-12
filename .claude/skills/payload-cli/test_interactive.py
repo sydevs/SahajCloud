@@ -98,6 +98,20 @@ def test_gives_up_on_a_prompt_it_cannot_parse():
     check('unparsed prompt: records it in the log', 'gave up' in log, log[-400:])
 
 
+def test_does_not_give_up_on_a_prompt_it_answered():
+    """Drizzle re-renders an answered prompt, and the echo stays in `buf`."""
+    proc, log = run(
+        f'process.stdout.write("{COLOURED_PROMPT}\\n")\n'
+        f'process.stdin.once("data", () => process.stdout.write("{COLOURED_PROMPT}\\n"))\n'
+        'setTimeout(() => process.exit(0), 9000)\n',
+        env=dict(PAYLOAD_PTY_STALL_SECONDS='3'),
+        timeout=60,
+    )
+    check('answered echo: driver exits 0', proc.returncode == 0, proc.stderr)
+    check('answered echo: did not give up', 'gave up' not in proc.stderr, proc.stderr)
+    check('answered echo: log records no give-up', 'gave up' not in log, log[-400:])
+
+
 def test_honours_the_cwd_override():
     """PAYLOAD_PTY_CWD lets a copy of this driver run from outside the repo."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -114,6 +128,7 @@ def test_honours_the_cwd_override():
 for case in (
     test_answers_a_coloured_prompt,
     test_gives_up_on_a_prompt_it_cannot_parse,
+    test_does_not_give_up_on_a_prompt_it_answered,
     test_honours_the_cwd_override,
 ):
     case()
