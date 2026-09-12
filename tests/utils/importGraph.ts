@@ -37,12 +37,37 @@ function resolveSpec(spec: string, fromFile: string): string | null {
 }
 
 /**
+ * `file`'s source, read once per process. A walk revisits the same module from
+ * every edge that reaches it, and `src/` does not change while a spec runs.
+ */
+const sources = new Map<string, string>()
+function sourceOf(file: string): string {
+  let source = sources.get(file)
+  if (source === undefined) {
+    source = readFileSync(file, 'utf8')
+    sources.set(file, source)
+  }
+  return source
+}
+
+/**
+ * True when `file` opens with `directive`, allowing a leading block comment.
+ *
+ * One helper for both directives on purpose: `'use client'` picks the entry set
+ * and `'use server'` prunes the walk, so a fix to what counts as a directive
+ * must reach both, or the two disagree about the same file.
+ */
+function hasDirective(file: string, directive: 'use client' | 'use server'): boolean {
+  return new RegExp(`^\\s*(?:/\\*[\\s\\S]*?\\*/\\s*)?['"]${directive}['"]`).test(sourceOf(file))
+}
+
+/**
  * Every specifier `file` imports, in all three forms a bundler follows:
  * `import … from 'x'`, the bare side-effect `import 'x'`, and dynamic
  * `import('x')`. `import type` is excluded — it is erased at build.
  */
 function importsOf(file: string): string[] {
-  const source = readFileSync(file, 'utf8')
+  const source = sourceOf(file)
   const specs: string[] = []
 
   const patterns = [
@@ -56,17 +81,6 @@ function importsOf(file: string): string[] {
     while ((match = re.exec(source)) !== null) specs.push(match[2] ?? match[1])
   }
   return specs
-}
-
-/**
- * True when `file` opens with the `'use server'` directive.
- *
- * Next compiles such a module to a client *reference* — an id the browser posts
- * back to the server. The body, and everything it imports, stays out of the
- * browser bundle, so the walk must not follow it (#770).
- */
-function isServerActionModule(file: string): boolean {
-  return /^\s*(?:\/\*[\s\S]*?\*\/\s*)?['"]use server['"]/.test(readFileSync(file, 'utf8'))
 }
 
 /**
@@ -95,7 +109,12 @@ function walk<T>(
       const found = onSpec?.(spec, next)
       if (found) return { hit: { ...found, chain: [...chain, spec] }, files: [...seen] }
 
-      if (next && !isServerActionModule(next)) stack.push({ file: next, chain: [...chain, spec] })
+      // Next compiles a `'use server'` module to a client *reference* — an id
+      // the browser posts back. Its body, and everything it imports, stays out
+      // of the browser bundle, so the walk stops at the edge into it (#770).
+      if (next && !hasDirective(next, 'use server')) {
+        stack.push({ file: next, chain: [...chain, spec] })
+      }
     }
   }
   return { hit: null, files: [...seen] }
@@ -117,8 +136,9 @@ export function findInImportGraph<T>(
  * Every file under `src/` reachable from `entry`, including `entry` itself.
  *
  * A specifier that resolves nowhere under `src/` — a package, a CSS import — is
- * simply not in the result. That is the point: this answers "which of *our*
- * modules end up in this bundle".
+ * simply not in the result. Nor is a `'use server'` module or anything below
+ * it. That is the point: this answers "which of *our* modules end up in this
+ * bundle".
  */
 export function reachableFiles(entry: string): string[] {
   return walk(entry).files
@@ -138,19 +158,18 @@ function sourceFiles(dir: string = SRC, out: string[] = []): string[] {
  * The modules a browser executes: every `'use client'` file, plus the entries
  * Next runs client-side by filename convention.
  *
- * Derived, never listed. A hand-written entry list is the failure mode both
- * guards exist to prevent — a new client component gets no guard at all until
- * someone remembers to add it, which is how #760 survived.
+ * Derived, never listed, and read by both guards. A hand-written entry list is
+ * the failure mode they exist to prevent — a new client component gets no guard
+ * at all until someone remembers to add it. That is how #760 survived, and how
+ * #770 stayed green for four months. The story is in `src/AGENTS.md`.
  *
- * Both guards read from here now. `client-bundle-safety.spec.ts` used to walk
- * four hand-written entries and match import *specifiers*, so it stayed green
- * from #633 to #770 with 14 entries reaching `@/lib/env/server` — every one
- * through `@/plugins/access → accessConfigs → @/lib/utilities/previewSecret →
- * @/lib/env`, an edge no specifier on its list ever named.
+ * Memoized: `src/` does not change while a spec runs, and this reads every file
+ * under it.
  */
+let entries: string[] | null = null
 export function clientEntries(): string[] {
-  const useClient = sourceFiles().filter((file) =>
-    /^\s*(?:\/\*[\s\S]*?\*\/\s*)?['"]use client['"]/.test(readFileSync(file, 'utf8')),
-  )
-  return [...useClient, join(SRC, 'instrumentation-client.ts')]
+  if (entries) return entries
+  const useClient = sourceFiles().filter((file) => hasDirective(file, 'use client'))
+  entries = [...useClient, join(SRC, 'instrumentation-client.ts')]
+  return entries
 }

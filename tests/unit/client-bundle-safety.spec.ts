@@ -31,19 +31,20 @@ import { clientEntries, findInImportGraph, SRC } from '../utils/importGraph'
  * message still reports specifiers, which is what a reader needs to find the
  * import to cut.
  */
-const SERVER_ONLY = [
-  { file: 'plugins/usage/index.ts', reason: 're-exports the pg pool (getPgPool/quotedDbSchema)' },
-  { file: 'plugins/usage/db.ts', reason: 'imports pg directly' },
-  { file: 'lib/env/server.ts', reason: 'validates and holds server secrets' },
-  { file: 'jobs/VerifyEmbeds/browserRendering.ts', reason: 'holds Cloudflare credentials' },
-]
+const SERVER_ONLY = new Map(
+  [
+    ['plugins/usage/index.ts', 're-exports the pg pool (getPgPool/quotedDbSchema)'],
+    ['plugins/usage/db.ts', 'imports pg directly'],
+    ['lib/env/server.ts', 'validates and holds server secrets'],
+    ['jobs/VerifyEmbeds/browserRendering.ts', 'holds Cloudflare credentials'],
+  ].map(([file, reason]) => [join(SRC, file), reason]),
+)
 
 /** Depth-first walk from a client entry, returning the first offending path. */
 function findServerOnlyImport(entry: string): { chain: string[]; reason: string } | null {
   return findInImportGraph(entry, (_spec, file) => {
-    if (!file) return null
-    const hit = SERVER_ONLY.find((entryPoint) => entryPoint.file === relative(SRC, file))
-    return hit ? { reason: hit.reason } : null
+    const reason = file && SERVER_ONLY.get(file)
+    return reason ? { reason } : null
   })
 }
 
@@ -64,11 +65,17 @@ describe('admin client components stay out of the server bundle', () => {
   })
 
   // Without this, an entry set that silently came back empty passes every case
-  // above by having no cases at all.
-  it('derives the browser entries rather than listing them', () => {
+  // above by having no cases at all. It also pins the swap itself: the four
+  // entries this spec used to list by hand must still be covered.
+  it('derives entries that cover the four it used to list', () => {
     expect(entries.length).toBeGreaterThan(50)
-    expect(entries).toContain('instrumentation-client.ts')
-    expect(entries).toContain('components/admin/UserMessages/UserMessageStatus.tsx')
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        'components/admin/CanonicalEmbedPicker/CanonicalEmbedPicker.tsx',
+        'components/admin/CanonicalEmbedPicker/Description.tsx',
+        'components/admin/UserMessages/UserMessageStatus.tsx',
+      ]),
+    )
   })
 
   // Proves the walker actually traverses rather than passing vacuously: the
@@ -77,5 +84,21 @@ describe('admin client components stay out of the server bundle', () => {
     const found = findServerOnlyImport(join(SRC, 'collections/Clients/endpoints/report.ts'))
     expect(found).not.toBeNull()
     expect(found?.chain.at(-1)).toBe('@/plugins/usage')
+  })
+
+  // The `'use server'` stop is the one way this walk ends early, so it is the
+  // one way it could go vacuous again. Pinned in both directions: loosen it and
+  // real subtrees stop being walked; drop it and a server action's body is
+  // reported as if the browser downloaded it.
+  const verifyAction = 'app/(frontend)/events/verify/actions.ts'
+
+  it('does not follow a client entry into a server action', () => {
+    expect(findServerOnlyImport(join(SRC, 'app/(frontend)/events/verify/VerifyForm.tsx'))).toBeNull()
+  })
+
+  it('still walks a server action reached as an entry in its own right', () => {
+    const found = findServerOnlyImport(join(SRC, verifyAction))
+    expect(found).not.toBeNull()
+    expect(found?.chain.at(-1)).toBe('./server')
   })
 })

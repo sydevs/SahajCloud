@@ -1,12 +1,6 @@
 import type { ProjectSlug } from '@/payload-types'
 import { isCollectionVisibleInProject } from '@/plugins/access/config'
-
-// `@/plugins/access/config` is the pure config barrel — the plugin's own
-// `@/plugins/access` barrel drags `accessConfigs` and, through it,
-// `@/lib/env/server` into the admin bundle (#770). `ContentSlug` isn't among
-// what `config` re-exports; borrow the parameter type so the cast below stays
-// tied to the function.
-type ContentSlug = Parameters<typeof isCollectionVisibleInProject>[0]
+import type { ContentSlug } from '@/plugins/access/types'
 
 /** The `collections`/`globals` segment of an admin pathname → the content slug. */
 const CONTENT_SLUG_PATTERN = /\/(?:collections|globals)\/([^/]+)/
