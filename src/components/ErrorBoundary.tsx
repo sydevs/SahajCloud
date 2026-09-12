@@ -3,8 +3,6 @@
 import * as Sentry from '@sentry/react'
 import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 
-import { clientEnv } from '@/lib/env/client'
-
 interface ErrorBoundaryState {
   hasError: boolean
   error?: Error
@@ -15,50 +13,25 @@ interface ErrorBoundaryProps {
   fallback?: ComponentType<{ error: Error; reset: () => void }>
 }
 
-// Track Sentry initialization status globally (only initialize once)
-let sentryInitialized = false
-
-function initializeSentry() {
-  if (sentryInitialized) return
-
-  // Initialize Sentry for client-side error tracking (production only)
-  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
-    const dsn = clientEnv.NEXT_PUBLIC_SENTRY_DSN
-
-    if (dsn) {
-      Sentry.init({
-        dsn,
-        environment: process.env.NODE_ENV,
-
-        // Integrations for React error boundaries and browser tracking
-        integrations: [
-          Sentry.browserTracingIntegration(),
-          Sentry.replayIntegration({
-            maskAllText: false,
-            blockAllMedia: false,
-          }),
-        ],
-
-        // Performance monitoring sample rate (adjust as needed)
-        tracesSampleRate: 0.1,
-
-        // Session replay sample rate
-        replaysSessionSampleRate: 0.1,
-        replaysOnErrorSampleRate: 1.0,
-      })
-
-      sentryInitialized = true
-    }
-  }
-}
+/**
+ * This boundary reports through the browser client that
+ * `src/instrumentation-client.ts` installs. It does **not** call `Sentry.init`
+ * itself: a second `init` replaces the first on the current scope, so the one
+ * that ran last would decide the DSN, the environment tag and the router
+ * instrumentation for the whole page.
+ *
+ * It used to, and the duplicate was invisible only because neither `init` ever
+ * ran — both gated on a DSN that read `undefined` in every browser (#760).
+ *
+ * `getClient()` is undefined until that init runs, which is the honest test for
+ * "is anything listening": off in development, off wherever no DSN is set.
+ */
+const sentryIsListening = () => Sentry.getClient() !== undefined
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { hasError: false }
-
-    // Initialize Sentry on first ErrorBoundary mount
-    initializeSentry()
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
@@ -69,8 +42,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Capture exception with Sentry in production
-    if (process.env.NODE_ENV === 'production' && sentryInitialized) {
+    if (sentryIsListening()) {
       Sentry.captureException(error, {
         contexts: {
           react: {

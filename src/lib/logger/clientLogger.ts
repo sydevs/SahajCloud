@@ -16,16 +16,23 @@
  */
 import * as Sentry from '@sentry/react'
 
-import { clientEnv } from '@/lib/env/client'
+import { LOG_LEVELS, type LogLevel } from '@/lib/env/client'
 
 type LogContext = Record<string, unknown>
-type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug'
 
-// Log levels in order of verbosity (lower index = less verbose)
-const LOG_LEVELS: LogLevel[] = ['silent', 'error', 'warn', 'info', 'debug']
+// ⚠ A literal `process.env.<KEY>` member expression, not `clientEnv`. Next
+// substitutes only this form, so reading the level off a bare `process.env`
+// pinned this logger to its 'silent' fallback in every browser (#760).
+const rawLevel = process.env.NEXT_PUBLIC_LOG_LEVEL
 
-const configuredLevel = clientEnv.NEXT_PUBLIC_LOG_LEVEL || 'silent'
-const currentLevelIndex = LOG_LEVELS.indexOf(configuredLevel)
+// Narrowed against the same list the schema is built from. An unset or
+// unrecognized value means 'silent' — the server rejects a bad one at boot, so
+// this fallback is for a browser that was handed one anyway.
+const configuredLevel: LogLevel = LOG_LEVELS.includes(rawLevel as LogLevel)
+  ? (rawLevel as LogLevel)
+  : 'silent'
+
+const currentLevelIndex: number = LOG_LEVELS.indexOf(configuredLevel)
 
 /**
  * Check if a message at the given level should be logged
