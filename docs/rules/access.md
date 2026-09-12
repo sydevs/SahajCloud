@@ -171,6 +171,8 @@ Payload fills an *omitted* `unlock` from its collection defaults (`collections/c
 
 Two differences from `withVersionHistoryAccess`, both simplifications: `unlock` queries the **auth collection itself**, so a `Where` needs no `appendVersionToQueryKey` translation. And `unlockOperation` calls access with no `id` at all — the id is dropped anyway, so a future Payload that passes one cannot reach the self-access bypass and hand an account its own unlock.
 
+**A non-admin manager no longer sees the admin panel's Force unlock button.** `getAccessResults` computes `unlock` for every auth collection with a `maxLoginAttempts`, and the auth edit view renders `force-unlock` only when that result is true — so the UI follows this function, exactly as the History tab followed `readVersions` in #719. That is the intended behaviour change, not a regression: before it, every logged-in manager saw the button.
+
 Document locking is unrelated: that is the `payload-locked-documents` collection with its own access config, and it never reads `access.unlock`.
 
 ### Self-access
