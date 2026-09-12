@@ -89,10 +89,20 @@ describe('Translations Globals Configuration', () => {
       expect(labels).toEqual(['Common', 'Navigation', 'Footer', 'Page Tags', 'Errors'])
     })
 
-    it('sy-atlas-translations has Common, Region, Event, Registration, Share, Emails tabs', () => {
+    it('sy-atlas-translations has Common, Region, Event, Registration, Share, Seo, Emails tabs', () => {
       const tabsField = findGlobal('sy-atlas-translations').fields[0] as TabsField
       const labels = tabsField.tabs.map((t) => t.label)
-      expect(labels).toEqual(['Common', 'Region', 'Event', 'Registration', 'Share', 'Emails'])
+      // `Seo` holds the atlas landing page's own `<head>` copy (#739) — the one
+      // group here a visitor never sees, read by crawlers and link previews.
+      expect(labels).toEqual([
+        'Common',
+        'Region',
+        'Event',
+        'Registration',
+        'Share',
+        'Seo',
+        'Emails',
+      ])
     })
   })
 
