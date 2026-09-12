@@ -25,12 +25,10 @@ import { clientEntries, findInImportGraph, sourceFiles, sourceOf, SRC } from '..
 /**
  * Modules a browser entry may not reach, as src-relative **files**.
  *
- * Matching the import *specifier* is what made this guard unfailable: the edge
- * into `lib/env/server.ts` is `@/lib/env`'s own `./server`, a specifier no
- * caller writes and no list can enumerate. So the walk resolves each specifier
- * and this matches the file it lands on (#770). The chain in the failure
- * message still reports specifiers, which is what a reader needs to find the
- * import to cut.
+ * Files, not import specifiers: the edge into `lib/env/server.ts` is
+ * `@/lib/env`'s own `./server`, which no caller writes and no list can
+ * enumerate. The chain in the failure message still reports specifiers, which
+ * is what a reader needs to find the import to cut. Story in `src/AGENTS.md`.
  *
  * Two kinds of row. Most drag a Node-only dependency in with them. The access
  * barrel is here for its weight instead: it is the rule `src/AGENTS.md` states,
@@ -60,14 +58,7 @@ function findServerOnlyImport(entry: string): { chain: string[]; reason: string 
 }
 
 describe('admin client components stay out of the server bundle', () => {
-  // Derived, never listed. A hand-written list guards only what someone
-  // remembered to add — it held four entries while 88 others went unwatched.
-  //
-  // Among them, `components/admin/UserMessages/UserMessageStatus.tsx` reaches
-  // into `@/collections/UserMessages/*` for its status vocabulary and verdict
-  // shape. Those are leaf modules precisely so this import cannot drag the
-  // collection — and with it the hooks, the mailer and `node:crypto` — into the
-  // admin bundle.
+  // Derived, never listed — see the barrel rule in `src/AGENTS.md`.
   const entries = clientEntries().map((file) => relative(SRC, file))
 
   it.each(entries)('%s imports nothing server-only', (entry) => {
@@ -124,10 +115,9 @@ describe('admin client components stay out of the server bundle', () => {
     expect(declared.length).toBeGreaterThan(50)
   })
 
-  // A `SERVER_ONLY` key naming a module that does not exist is a row of this
-  // guard that can never fire, and nothing else would say so: the walk simply
-  // never matches it. `@/jobs/VerifyEmbeds/browserRendering` was exactly that
-  // from #633 until #770 — the module had moved to `lib/embedVerification/`.
+  // A `SERVER_ONLY` key naming a module that does not exist is a row that can
+  // never fire, and nothing else would say so: the walk simply never matches
+  // it. One row sat that way for four months after its module moved.
   it('names modules that exist', () => {
     const missing = [...SERVER_ONLY.keys()].filter((file) => !existsSync(file))
     expect(missing.map((file) => relative(SRC, file))).toEqual([])

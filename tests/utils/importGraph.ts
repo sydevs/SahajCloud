@@ -187,10 +187,9 @@ export function sourceFiles(dir: string = SRC, out: string[] = []): string[] {
  * The modules a browser executes: every `'use client'` file, plus the entries
  * Next runs client-side by filename convention.
  *
- * Derived, never listed, and read by both guards. A hand-written entry list is
- * the failure mode they exist to prevent — a new client component gets no guard
- * at all until someone remembers to add it. That is how #760 survived, and how
- * #770 stayed green for four months. The story is in `src/AGENTS.md`.
+ * Derived, never listed, and read by both guards — see the barrel rule in
+ * `src/AGENTS.md` for why a hand-written entry list is the failure mode they
+ * exist to prevent.
  *
  * Memoized: `src/` does not change while a spec runs, and this reads every file
  * under it.
