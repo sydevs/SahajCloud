@@ -1899,7 +1899,7 @@ describe('Role-Based Access Control', () => {
   })
 
   /**
-   * Version history is EDIT authority (#719) — see `withVersionHistoryAccess`
+   * Version history is EDIT authority (#719) — see `withDerivedGrants`
    * in `src/plugins/access/accessConfigs.ts` for what the rule is and why.
    *
    * Fixture assumptions, each checked against the real config rather than

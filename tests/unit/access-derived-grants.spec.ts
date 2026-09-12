@@ -1,8 +1,8 @@
-import type { Access, AccessArgs } from 'payload'
+import type { Access, AccessArgs, Where } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
-import { withUnlockAccess, withVersionHistoryAccess } from '@/plugins/access/accessConfigs'
+import { withDerivedGrants } from '@/plugins/access/accessConfigs'
 
 /**
  * `readVersions` (#719) and `unlock` (#748) are DERIVED from `update`. Both bugs
@@ -14,51 +14,73 @@ import { withUnlockAccess, withVersionHistoryAccess } from '@/plugins/access/acc
  * through `accessPlugin` today. It is reachable here, which is the point.
  */
 
-type VersionAccess = { readVersions?: Access; update?: Access }
-type UnlockAccess = { unlock?: Access; update?: Access }
+type DerivedAccess = { readVersions?: Access; unlock?: Access; update?: Access }
 
 const args = {} as AccessArgs
 
-describe('withVersionHistoryAccess', () => {
-  it('delegates readVersions to update', async () => {
-    const wrapped = withVersionHistoryAccess<VersionAccess>({ update: (() => true) as Access })
+const allow = (() => true) as Access
+const scopeTo = (where: Where) => (() => where) as unknown as Access
+
+describe('withDerivedGrants', () => {
+  it('delegates every named grant to update', async () => {
+    const wrapped = withDerivedGrants<DerivedAccess>({ update: allow }, ['readVersions', 'unlock'])
     expect(await wrapped.readVersions!(args)).toBe(true)
+    expect(await wrapped.unlock!(args)).toBe(true)
   })
 
-  it('keeps an explicit readVersions', () => {
-    const readVersions = (() => 'explicit') as unknown as Access
-    expect(withVersionHistoryAccess({ readVersions, update: (() => true) as Access }).readVersions)
-      .toBe(readVersions)
-  })
-
-  it('denies when there is no update to delegate to', async () => {
-    const wrapped = withVersionHistoryAccess<VersionAccess>({})
+  it('derives only the keys it is asked for', () => {
+    const wrapped = withDerivedGrants<DerivedAccess>({ update: allow }, ['readVersions'])
     expect(wrapped.readVersions).toBeDefined()
-    expect(await wrapped.readVersions!(args)).toBe(false)
+    // Globals have no `unlock`, so the globals call site asks for one key only.
+    expect(wrapped.unlock).toBeUndefined()
   })
-})
 
-describe('withUnlockAccess', () => {
-  it('delegates unlock to update, without the id', async () => {
+  it('keeps an explicit grant', () => {
+    const readVersions = (() => 'explicit') as unknown as Access
+    const unlock = (() => 'explicit') as unknown as Access
+    const wrapped = withDerivedGrants({ readVersions, unlock, update: allow }, [
+      'readVersions',
+      'unlock',
+    ])
+    expect(wrapped.readVersions).toBe(readVersions)
+    expect(wrapped.unlock).toBe(unlock)
+  })
+
+  it('drops the id before delegating', async () => {
     let seen: AccessArgs | undefined
-    const wrapped = withUnlockAccess<UnlockAccess>({
-      update: ((a: AccessArgs) => {
-        seen = a
-        return true
-      }) as Access,
-    })
+    const update = ((a: AccessArgs) => {
+      seen = a
+      return true
+    }) as Access
+    const wrapped = withDerivedGrants<DerivedAccess>({ update }, ['readVersions', 'unlock'])
+
     expect(await wrapped.unlock!({ ...args, id: 7 })).toBe(true)
+    expect(seen).not.toHaveProperty('id')
+
+    seen = undefined
+    expect(await wrapped.readVersions!({ ...args, id: 7 })).toBe(true)
     expect(seen).not.toHaveProperty('id')
   })
 
-  it('keeps an explicit unlock', () => {
-    const unlock = (() => 'explicit') as unknown as Access
-    expect(withUnlockAccess({ unlock, update: (() => true) as Access }).unlock).toBe(unlock)
+  it('translates a Where for readVersions and leaves unlock alone', async () => {
+    const where: Where = { id: { in: [7] } }
+    const wrapped = withDerivedGrants<DerivedAccess>({ update: scopeTo(where) }, [
+      'readVersions',
+      'unlock',
+    ])
+
+    // `appendVersionToQueryKey` remaps a document query onto version rows: a
+    // document's own id is `parent` there, and its fields sit under `version.`.
+    expect(await wrapped.readVersions!(args)).toEqual({ parent: { in: [7] } })
+    // `unlock` queries the auth collection itself, so the Where passes through.
+    expect(await wrapped.unlock!(args)).toEqual(where)
   })
 
   it('denies when there is no update to delegate to', async () => {
-    const wrapped = withUnlockAccess<UnlockAccess>({})
+    const wrapped = withDerivedGrants<DerivedAccess>({}, ['readVersions', 'unlock'])
+    expect(wrapped.readVersions).toBeDefined()
     expect(wrapped.unlock).toBeDefined()
+    expect(await wrapped.readVersions!(args)).toBe(false)
     expect(await wrapped.unlock!(args)).toBe(false)
   })
 })
