@@ -5724,6 +5724,134 @@ export interface WmWebTranslationsMediaGeneralStrings {
    * Replaces `copy` for a moment after the code is copied.
    */
   copied?: string;
+  /**
+   * Tooltip on the video player's settings button, which opens the gear menu.
+   */
+  video_settings?: string;
+  /**
+   * Tooltip on the video player's subtitles button while subtitles are showing.
+   */
+  video_closed_captions_on?: string;
+  /**
+   * Tooltip on the same button while subtitles are hidden.
+   */
+  video_closed_captions_off?: string;
+  /**
+   * Tooltip on the video player's button that jumps forward a few seconds.
+   */
+  video_seek_forward?: string;
+  /**
+   * Tooltip on the video player's button that jumps back a few seconds.
+   */
+  video_seek_backward?: string;
+  /**
+   * Tooltip on the video player's button that pops the video out into a small floating window.
+   */
+  video_enter_pip?: string;
+  /**
+   * Tooltip on the same button while the video already plays in that floating window.
+   */
+  video_exit_pip?: string;
+  /**
+   * Video settings menu: the row that lists the subtitle tracks this video offers.
+   */
+  video_captions?: string;
+  /**
+   * Video settings menu: the row that lists the picture qualities this video offers.
+   */
+  video_quality?: string;
+  /**
+   * Video settings menu: the row that sets how fast the video plays.
+   */
+  video_speed?: string;
+  /**
+   * Video settings menu: the row holding the sound options.
+   */
+  video_audio?: string;
+  /**
+   * Video settings menu: the row that lists the audio tracks this video offers.
+   */
+  video_track?: string;
+  /**
+   * Video settings menu: the slider that raises the volume past its normal maximum.
+   */
+  video_boost?: string;
+  /**
+   * Video settings menu: the row holding the screen-reader and keyboard options.
+   */
+  video_accessibility?: string;
+  /**
+   * Video settings menu: the switch that lets a screen reader announce playback changes.
+   */
+  video_announcements?: string;
+  /**
+   * Video settings menu: the switch that flashes an icon when a keyboard shortcut fires.
+   */
+  video_keyboard_animations?: string;
+  /**
+   * Video settings menu: the quality option that lets the player choose for itself.
+   */
+  video_auto?: string;
+  /**
+   * Video settings menu: the audio track the video ships with.
+   */
+  video_default?: string;
+  /**
+   * Video settings menu: the speed option that plays the video as recorded.
+   */
+  video_normal?: string;
+  /**
+   * Video settings menu: the subtitle option that shows no subtitles.
+   */
+  video_off?: string;
+  /**
+   * Video settings menu: the row that opens the subtitle appearance options.
+   */
+  video_caption_styles?: string;
+  /**
+   * Sample sentence in the subtitle appearance options, so the viewer sees each choice applied.
+   */
+  video_captions_look_like_this?: string;
+  /**
+   * Subtitle appearance options: the heading above the lettering choices.
+   */
+  video_font?: string;
+  /**
+   * Subtitle appearance options: the typeface the subtitles use.
+   */
+  video_family?: string;
+  /**
+   * Subtitle appearance options: how large the subtitle lettering is.
+   */
+  video_size?: string;
+  /**
+   * Subtitle appearance options: the heading above the subtitle lettering's own colour and opacity.
+   */
+  video_text?: string;
+  /**
+   * Subtitle appearance options: the heading above the band drawn behind the lettering.
+   */
+  video_text_background?: string;
+  /**
+   * Subtitle appearance options: the heading above the panel drawn behind the whole subtitle area.
+   */
+  video_display_background?: string;
+  /**
+   * Subtitle appearance options: the colour of the part its heading names. It appears under three headings.
+   */
+  video_color?: string;
+  /**
+   * Subtitle appearance options: how see-through the part its heading names is. It appears under three headings.
+   */
+  video_opacity?: string;
+  /**
+   * Subtitle appearance options: the shadow drawn behind the subtitle lettering.
+   */
+  video_shadow?: string;
+  /**
+   * Button that puts every subtitle appearance option back to its starting value.
+   */
+  video_reset?: string;
 }
 export interface WmWebTranslationsMediaA11YStrings {
   /**
@@ -5782,6 +5910,18 @@ export interface WmWebTranslationsMediaA11YStrings {
    * Not shown on screen; read by screen readers. Names the button that shrinks an image in the full-screen viewer.
    */
   zoom_out?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the video player's fullscreen button.
+   */
+  video_fullscreen?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the video player's button that pops the video into a small floating window.
+   */
+  video_pip?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the video player's progress bar, which scrubs through the video.
+   */
+  video_seek?: string;
 }
 export interface WmWebTranslationsLocationGeneralStrings {
   /**
