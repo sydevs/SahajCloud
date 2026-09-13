@@ -3,7 +3,11 @@
  *
  * Hooks for rate limiting and usage tracking.
  */
-import type { CollectionBeforeOperationHook, PayloadRequest } from 'payload'
+import type {
+  CollectionBeforeOperationHook,
+  GlobalBeforeOperationHook,
+  PayloadRequest,
+} from 'payload'
 
 import { APIError } from 'payload'
 
@@ -80,6 +84,63 @@ export function buildRateLimitKey(
   userId: string | null,
 ): string {
   return `user:${clientId}:${ip || 'no-ip'}:${userId || 'no-user-id'}`
+}
+
+// ============================================================================
+// GLOBAL ADAPTER
+// ============================================================================
+
+/**
+ * Re-types a collection `beforeOperation` hook as a global one, so the same
+ * four gates run on a global read (#710), and adds the one operation-shaped
+ * exemption a global needs.
+ *
+ * The two signatures differ in exactly one property: a collection hook gets
+ * `collection: SanitizedCollectionConfig`, a global hook gets
+ * `global: SanitizedGlobalConfig`. Every hook in this file reads only `args`,
+ * `operation` and `req` — never the config argument — so each is already
+ * structurally a valid global hook. (`args` is optional on the global
+ * signature and required on the collection one; payload always passes it.)
+ *
+ * Two things make it safe to share a body rather than write a second one:
+ *
+ * - **`operation` is the same literal.** A global read reports
+ *   `operation: 'read'`, like a collection's (payload's global
+ *   `HookOperationType` is `'countVersions' | 'read' | 'restoreVersion' |
+ *   'update'`, and `findOneOperation` passes `'read'`). The two gates that
+ *   return early unless `operation === 'read'` therefore fire, rather than
+ *   silently metering nothing.
+ * - **One definition, two surfaces.** Duplicating the bodies would let origin
+ *   enforcement or the `select` gate drift between a collection read and a
+ *   global read, which is exactly the divergence #710 exists to close.
+ *
+ * ## ⚠ The `overrideAccess` exemption, and why a global needs its own
+ *
+ * A collection hook skips an internal read through the numeric `currentDepth`
+ * payload attaches to relationship population. **A global read has no such
+ * signal** — `findGlobal` never sets `currentDepth` — and this codebase makes
+ * plenty of internal global reads that forward the caller's `req`:
+ * `clientEnglishFallback` re-reads its own global in English,
+ * `loadAppConfigOnce` reads `wm-app-config` while serving a page, and the
+ * atlas endpoints read `sy-atlas-config` for locales and canonical ownership.
+ * Without an exemption, each would be metered a second time, and the ones that
+ * pass no `select` would be refused 400 — silently disabling the English
+ * fallback for every client read of a translations global.
+ *
+ * `overrideAccess` separates the two exactly. Payload's REST handler for a
+ * global never passes it, so a client's own read arrives `false`; the local
+ * API defaults it to `true`, so every `payload.findGlobal()` in our server
+ * code arrives `true`. It is unsettable over REST, which is what makes it
+ * sound for the origin gate as well as the meter: an internal read runs on our
+ * authority, inside a top-level request the gates already cleared.
+ */
+export function asGlobalBeforeOperationHook(
+  hook: CollectionBeforeOperationHook,
+): GlobalBeforeOperationHook {
+  return (args) => {
+    if (args.overrideAccess !== false) return
+    return (hook as unknown as GlobalBeforeOperationHook)(args)
+  }
 }
 
 // ============================================================================
