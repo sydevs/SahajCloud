@@ -7,7 +7,7 @@ import type {
 
 import { CACHEABLE_GLOBALS, CACHEABLE_SLUGS } from './policy'
 import { purgeCloudflareCache } from './purge'
-import { revalidateConsumerCaches } from './revalidateConsumers'
+import { CONSUMER_CACHED_GLOBALS, revalidateConsumerCaches } from './revalidateConsumers'
 
 /**
  * `cachePlugin` — one cohesive edge-cache module for the public client-read
@@ -59,7 +59,14 @@ export function cachePlugin(config: Config): Config {
     }),
 
     globals: config.globals?.map((global) => {
-      if (!CACHEABLE_GLOBALS.has(global.slug)) return global
+      const isCacheable = CACHEABLE_GLOBALS.has(global.slug)
+      const isConsumerCached = CONSUMER_CACHED_GLOBALS.has(global.slug)
+      // The union, because the two invalidations answer to different sets.
+      // Attaching on `CACHEABLE_GLOBALS` alone would tie a consumer's KV purge
+      // to *our* edge-cacheability: dropping `wm-web-config` to DYNAMIC later
+      // would silently stop WeMeditateWeb's revalidation too, which has nothing
+      // to do with whether we cache the read at the edge.
+      if (!isCacheable && !isConsumerCached) return global
 
       const tag = global.slug
       // A global has no delete, so there is no afterDelete half. `afterChange`
@@ -67,8 +74,12 @@ export function cachePlugin(config: Config): Config {
       // most here: a client read is published-only and merged with English, so
       // publishing one locale changes what every client sees.
       const afterChange: GlobalAfterChangeHook = ({ doc, req }) => {
-        void purgeCloudflareCache({ tags: [tag] }, { logger: req.payload.logger })
-        void revalidateConsumerCaches(tag, { logger: req.payload.logger })
+        if (isCacheable) {
+          void purgeCloudflareCache({ tags: [tag] }, { logger: req.payload.logger })
+        }
+        if (isConsumerCached) {
+          void revalidateConsumerCaches(tag, { logger: req.payload.logger })
+        }
         return doc
       }
 

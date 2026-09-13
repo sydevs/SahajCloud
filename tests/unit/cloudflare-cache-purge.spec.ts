@@ -9,7 +9,11 @@ vi.mock('@/lib/env', () => ({
   },
 }))
 
+import type { Config } from 'payload'
+
 import { serverEnv } from '@/lib/env'
+import { cachePlugin } from '@/plugins/cache'
+import { CACHEABLE_GLOBALS } from '@/plugins/cache/policy'
 import { purgeCloudflareCache } from '@/plugins/cache/purge'
 import {
   CONSUMER_CACHED_GLOBALS,
@@ -171,5 +175,45 @@ describe('revalidateConsumerCaches (#710)', () => {
     const fetchFn = vi.fn().mockResolvedValue({ ok: false, status: 401 } as Response)
     expect(await revalidateConsumerCaches('wm-web-config', { fetchFn, logger })).toBe(false)
     expect(logger.warn).toHaveBeenCalled()
+  })
+})
+
+/**
+ * Which globals `cachePlugin` attaches its write hook to (#710).
+ *
+ * The two invalidations answer to different sets — the edge purge to
+ * `CACHEABLE_GLOBALS`, the consumer's KV drop to `CONSUMER_CACHED_GLOBALS` —
+ * so the attachment set is their union, not the first one.
+ *
+ * ⚠ Today `CONSUMER_CACHED_GLOBALS` is a subset of `CACHEABLE_GLOBALS`, so the
+ * union equals `CACHEABLE_GLOBALS` and this assertion cannot tell the union
+ * apart from it. It is written against the sets rather than a literal list for
+ * exactly the drift it guards: dropping `wm-web-config` to DYNAMIC later must
+ * not also silence WeMeditateWeb's revalidation, and this goes red the moment
+ * that change is made against the old wiring.
+ */
+describe('cachePlugin global hook attachment (#710)', () => {
+  const globalSlugs = [
+    ...new Set([...CACHEABLE_GLOBALS, ...CONSUMER_CACHED_GLOBALS, 'wm-app-status']),
+  ]
+
+  function hookedSlugs(): string[] {
+    const result = cachePlugin({
+      globals: globalSlugs.map((slug) => ({ slug, fields: [] })),
+    } as unknown as Config)
+    return (result.globals ?? [])
+      .filter((global) => (global.hooks?.afterChange?.length ?? 0) > 0)
+      .map((global) => global.slug)
+  }
+
+  it('attaches to the union of the cacheable and consumer-cached sets', () => {
+    const union = new Set([...CACHEABLE_GLOBALS, ...CONSUMER_CACHED_GLOBALS])
+    expect(hookedSlugs().sort()).toEqual([...union].sort())
+  })
+
+  it('leaves a global in neither set untouched', () => {
+    // `wm-app-status` is the real one: an operator readiness report, read in
+    // the admin over cookie auth, deliberately DYNAMIC.
+    expect(hookedSlugs()).not.toContain('wm-app-status')
   })
 })
