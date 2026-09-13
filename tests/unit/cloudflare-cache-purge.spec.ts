@@ -11,7 +11,10 @@ vi.mock('@/lib/env', () => ({
 
 import { serverEnv } from '@/lib/env'
 import { purgeCloudflareCache } from '@/plugins/cache/purge'
-import { revalidateConsumerCaches } from '@/plugins/cache/revalidateConsumers'
+import {
+  CONSUMER_CACHED_GLOBALS,
+  revalidateConsumerCaches,
+} from '@/plugins/cache/revalidateConsumers'
 
 const env = serverEnv as {
   CLOUDFLARE_ZONE_ID?: string
@@ -100,28 +103,27 @@ describe('revalidateConsumerCaches (#710)', () => {
     env.WEMEDITATE_REVALIDATE_SECRET = undefined
   })
 
-  it('POSTs the slug to the consumer endpoint with the shared secret', async () => {
-    configureRevalidate()
-    const fetchFn = vi.fn().mockResolvedValue({ ok: true } as Response)
-    expect(await revalidateConsumerCaches('wm-web-translations', { fetchFn, logger })).toBe(true)
-
-    const [url, init] = fetchFn.mock.calls[0] as [
-      string,
-      RequestInit & { headers: Record<string, string> },
-    ]
-    expect(url).toBe('https://wemeditate.example/api/cache/invalidate')
-    expect(init.method).toBe('POST')
-    expect(init.headers.Authorization).toBe('Bearer revalidate-secret-value-long')
-    // The consumer owns its own key format and locale set, so we send the
-    // slug and nothing else.
-    expect(JSON.parse(init.body as string)).toEqual({ globals: ['wm-web-translations'] })
+  it('covers exactly the two globals WeMeditateWeb keeps in KV', () => {
+    expect([...CONSUMER_CACHED_GLOBALS].sort()).toEqual(['wm-web-config', 'wm-web-translations'])
   })
 
-  it('fires for wm-web-config too', async () => {
+  it('POSTs each cached slug to the consumer endpoint with the shared secret', async () => {
     configureRevalidate()
-    const fetchFn = vi.fn().mockResolvedValue({ ok: true } as Response)
-    expect(await revalidateConsumerCaches('wm-web-config', { fetchFn, logger })).toBe(true)
-    expect(fetchFn).toHaveBeenCalledTimes(1)
+    for (const slug of CONSUMER_CACHED_GLOBALS) {
+      const fetchFn = vi.fn().mockResolvedValue({ ok: true } as Response)
+      expect(await revalidateConsumerCaches(slug, { fetchFn, logger })).toBe(true)
+
+      const [url, init] = fetchFn.mock.calls[0] as [
+        string,
+        RequestInit & { headers: Record<string, string> },
+      ]
+      expect(url).toBe('https://wemeditate.example/api/cache/invalidate')
+      expect(init.method).toBe('POST')
+      expect(init.headers.Authorization).toBe('Bearer revalidate-secret-value-long')
+      // The consumer owns its own key format and locale set, so we send the
+      // slug and nothing else.
+      expect(JSON.parse(init.body as string)).toEqual({ globals: [slug] })
+    }
   })
 
   it('does not fire for a global no consumer caches beyond the edge', async () => {

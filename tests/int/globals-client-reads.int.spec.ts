@@ -86,27 +86,14 @@ describe('client reads of a global (#710)', () => {
     await cleanup()
   })
 
-  describe('the operation literal a global read reports', () => {
-    it("reports `read`, so the two gates keyed on that literal fire", async () => {
-      // The one claim #710 could not settle from the checkout. Two of the four
-      // hooks return early unless `operation === 'read'`; were a global's
-      // literal spelled differently, metering would silently count nothing and
-      // the select gate would never refuse anything.
-      //
-      // Asserted through behaviour rather than by reading payload's types: the
-      // select gate below can only refuse this read if it saw `read`.
-      await expect(
-        payload.findGlobal({
-          slug: 'sy-atlas-config',
-          req: clientReq(),
-          overrideAccess: false,
-        }),
-      ).rejects.toThrow(/select/)
-    })
-  })
-
   describe('the select gate', () => {
     it('refuses a client global read carrying no select', async () => {
+      // This also settles the one claim #710 could not settle from the
+      // checkout: a global read reports `operation: 'read'`. Two of the four
+      // hooks return early unless it does, so this refusal is only reachable
+      // if the gate saw that literal — behaviour, rather than a reading of
+      // payload's types. Were it spelled differently, metering would silently
+      // count nothing and this read would succeed.
       await expect(
         payload.findGlobal({ slug: 'sy-atlas-config', req: clientReq(), overrideAccess: false }),
       ).rejects.toThrow(/select/)

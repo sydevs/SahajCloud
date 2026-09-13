@@ -58,30 +58,29 @@ describe('matchCacheableRead', () => {
 })
 
 describe('matchCacheableRead — globals (#710)', () => {
+  // The closed list, spelled out. A slug silently dropping out of
+  // CACHEABLE_GLOBALS is a read that stops being cached, with no symptom but a
+  // slow widget boot; one silently added is a read that starts being cached.
+  const EXPECTED_GLOBALS = [
+    'wm-web-config',
+    'wm-web-translations',
+    'wm-app-config',
+    'wm-app-translations',
+    'sy-atlas-config',
+    'sy-atlas-translations',
+  ]
+
+  it('is exactly the expected set, so the list and the matcher cannot drift', () => {
+    expect([...CACHEABLE_GLOBALS].sort()).toEqual([...EXPECTED_GLOBALS].sort())
+  })
+
   it('matches every cacheable global at the default TTL, tagged with its own slug', () => {
-    // The closed list, spelled out: a slug silently dropping out of
-    // CACHEABLE_GLOBALS is a read that stops being cached, with no other
-    // symptom than a slow widget boot.
-    for (const slug of [
-      'wm-web-config',
-      'wm-web-translations',
-      'wm-app-config',
-      'wm-app-translations',
-      'sy-atlas-config',
-      'sy-atlas-translations',
-    ]) {
+    for (const slug of EXPECTED_GLOBALS) {
       expect(matchCacheableRead(`/api/globals/${slug}`)).toEqual({
         sMaxAge: DEFAULT_SMAXAGE,
         tags: [slug],
       })
     }
-  })
-
-  it('covers exactly the CACHEABLE_GLOBALS set, so the two cannot drift', () => {
-    for (const slug of CACHEABLE_GLOBALS) {
-      expect(matchCacheableRead(`/api/globals/${slug}`)).not.toBeNull()
-    }
-    expect(CACHEABLE_GLOBALS.size).toBe(6)
   })
 
   it('tolerates a trailing slash', () => {
