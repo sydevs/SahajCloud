@@ -117,10 +117,42 @@ invalid-key reads (→ `403`), preview reads, and non-cacheable collections (`cl
 > A separate rule would not carry the `Authorization`-present condition, and would reopen the
 > same bypass.
 
-**Purge-on-write** (optional): set `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_CACHE_PURGE_TOKEN` to
-enable best-effort `Cache-Tag` purge when a cached collection is written (Cloudflare Enterprise
-tag-purge). Unset, purge is a no-op — on the Free plan, the per-collection `s-maxage` TTL is the
-invalidation path, so this is safe to leave unconfigured.
+**Purge-on-write**: set `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_CACHE_PURGE_TOKEN` (scoped to
+`Cache Purge` on this zone) to enable best-effort `Cache-Tag` purge when a cached collection or
+global is written. Unset, every purge is a **silent no-op** and the `s-maxage` TTL is the only
+invalidation.
+
+> **⚠️ Tag purge is not Enterprise-only, and this file said it was until #710.** Cloudflare
+> opened all five purge methods — everything, prefix, hostname, URL, tag — to **every plan** in
+> April 2025
+> ([changelog](https://developers.cloudflare.com/changelog/post/2025-04-01-purge-for-all/)).
+> Under the old belief these credentials read as optional polish for a plan we do not have, so
+> purge-on-write was plausibly dead in production for as long as the plan was not Enterprise:
+> `cachePlugin` POSTs `{ tags: [...] }`, Cloudflare refuses it, and `purgeCloudflareCache` logs a
+> warn and returns `false`. **Confirm both variables are set on the Railway production service,
+> and that the token's scope includes cache purge.** Limits are generous against our use: we
+> purge one tag per write, against a 100-tags-per-call ceiling.
+
+### Globals are cacheable reads too (#710)
+
+`GET /api/globals/<slug>` is edge-cacheable for the six client-read globals — `wm-web-config`,
+`wm-web-translations`, `wm-app-config`, `wm-app-translations`, `sy-atlas-config`,
+`sy-atlas-translations` — at `DEFAULT_SMAXAGE` (600s), tagged with the global's own slug.
+`wm-app-status` is excluded: it is an operator readiness report read over cookie auth.
+
+This needed **one `starts_with "/api/globals/"` term added to the existing Cache Rule's path
+group** — never a second rule, for the reason in the note above: a separate rule would not carry
+the `Authorization`-present condition and would reopen the cached-403 bypass.
+
+Cloudflare keys on the full query string, so `?locale=fr` and each client's own `select` shape
+are separate cache entries, and one tag purge covers all of them.
+
+**A second consumer cache sits beyond the edge.** WeMeditateWeb keeps a read-through Cloudflare
+KV layer at 24h for `web-config:*` and `web-translations:*`, which no tag purge can reach. A
+write to a `wm-web-*` global therefore also POSTs the slug to that site's own invalidation
+endpoint — set `WEMEDITATE_REVALIDATE_URL` and `WEMEDITATE_REVALIDATE_SECRET` to enable it. Both
+unset, the call is a no-op, exactly like the Cloudflare purge. SahajAtlasWeb needs nothing: its
+only cache beyond the edge is a per-session React Query window, which a reload clears.
 
 ---
 
@@ -204,7 +236,8 @@ Never paste a secret into git or email.
 - `CLOUDFLARE_R2_DELIVERY_URL` — public delivery URL, e.g. `https://assets.sydevelopers.com`
 - `CLOUDFLARE_IMAGES_DELIVERY_URL`, `CLOUDFLARE_STREAM_DELIVERY_URL`, `CLOUDFLARE_STREAM_WEBHOOK_SECRET`
 - `CLOUDFLARE_API_KEY` — one token for Images and Stream
-- `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_CACHE_PURGE_TOKEN` — optional, enable purge-on-write (see [Edge Cache](#edge-cache-cloudflare-cache-rule))
+- `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_CACHE_PURGE_TOKEN` — enable purge-on-write; unset, every purge is a silent no-op (see [Edge Cache](#edge-cache-cloudflare-cache-rule))
+- `WEMEDITATE_REVALIDATE_URL`, `WEMEDITATE_REVALIDATE_SECRET` — optional, let a `wm-web-*` global write invalidate WeMeditateWeb's own KV copies (#710)
 
 ### Sentry and Resend
 
