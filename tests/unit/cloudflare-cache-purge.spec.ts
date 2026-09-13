@@ -1,3 +1,5 @@
+import type { Config } from 'payload'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/env', () => ({
@@ -8,8 +10,6 @@ vi.mock('@/lib/env', () => ({
     WEMEDITATE_REVALIDATE_SECRET: undefined,
   },
 }))
-
-import type { Config } from 'payload'
 
 import { serverEnv } from '@/lib/env'
 import { cachePlugin } from '@/plugins/cache'
