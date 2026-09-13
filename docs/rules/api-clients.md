@@ -165,6 +165,8 @@ A collection hook skips an internal read through the numeric `currentDepth` payl
 
 **A spec exercising these gates must therefore pass `overrideAccess: false`** — unlike the collection specs, where `overrideAccess: true` is a convenience that changes nothing. Omit it and every gate correctly skips, leaving assertions that pass for the wrong reason. `tests/int/globals-client-reads.int.spec.ts` says this at its head.
 
+⚠ **Reproducing that value is not pinning it.** A spec that supplies the flag proves the adapter and says nothing about what payload hands it on a real request, so a default of `undefined` after a payload bump would no-op all four gates with the whole suite green. The same spec's `the REST default for overrideAccess` cases close that: they drive `handleEndpoints` with the client's API key and supply nothing. That pair is the only place the gates are observed reaching a real client request — keep it when the spec is reorganised.
+
 Caching and purge for the same reads are in `DEPLOYMENT.md`; the cacheable set is `CACHEABLE_GLOBALS` in `src/plugins/cache/policy.ts`.
 
 ## Query parameter validation

@@ -389,6 +389,11 @@ Two consequences when you add a global:
   fail-safe direction.
 - **Caching also needs a Cloudflare Cache Rule term**, already covering
   `/api/globals/` as a prefix. See `DEPLOYMENT.md`.
+- **A consumer's own cache is a second, independent set.** Add a slug to
+  `CONSUMER_CACHED_GLOBALS` (`src/plugins/cache/revalidateConsumers.ts`) only
+  when a consumer keeps its own copy beyond the edge. `cachePlugin` attaches
+  its write hook to the union of the two sets, so dropping a global to
+  DYNAMIC never silences the consumer's invalidation.
 
 Rules for the client contract: `docs/rules/api-clients.md`.
 
