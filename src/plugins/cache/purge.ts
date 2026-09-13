@@ -9,13 +9,12 @@ import { serverEnv } from '@/lib/env'
  * wired up yet. It never throws: a failed purge must not fail the content write
  * that triggered it (the edge TTL is the backstop invalidation).
  *
- * ⚠ **Tag purge is not Enterprise-only, and this file used to say it was.**
+ * ⚠ **Tag purge works on every Cloudflare plan**, not Enterprise alone —
  * Cloudflare opened all five purge methods to every plan in April 2025
  * (`https://developers.cloudflare.com/changelog/post/2025-04-01-purge-for-all/`).
- * That belief is why the credentials were treated as optional polish rather
- * than the invalidation path: unset, every purge here is a silent no-op and the
- * only invalidation is the TTL. Set both on any environment that fronts a Cache
- * Rule (#710).
+ * So these credentials are the invalidation path, not optional polish: unset,
+ * every purge here is a silent no-op and the TTL is the only invalidation. Set
+ * both on any environment that fronts a Cache Rule (#710).
  *
  * See `cachePlugin`'s write hooks (`index.ts`) for the callers and `./policy`
  * (`CACHEABLE_SLUGS`, `CACHEABLE_GLOBALS`) for the `Cache-Tag`s these

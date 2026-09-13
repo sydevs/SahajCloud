@@ -122,16 +122,14 @@ invalid-key reads (→ `403`), preview reads, and non-cacheable collections (`cl
 global is written. Unset, every purge is a **silent no-op** and the `s-maxage` TTL is the only
 invalidation.
 
-> **⚠️ Tag purge is not Enterprise-only, and this file said it was until #710.** Cloudflare
-> opened all five purge methods — everything, prefix, hostname, URL, tag — to **every plan** in
-> April 2025
+> **⚠️ Tag purge is not Enterprise-only.** Cloudflare opened all five purge methods —
+> everything, prefix, hostname, URL, tag — to **every plan** in April 2025
 > ([changelog](https://developers.cloudflare.com/changelog/post/2025-04-01-purge-for-all/)).
-> Under the old belief these credentials read as optional polish for a plan we do not have, so
-> purge-on-write was plausibly dead in production for as long as the plan was not Enterprise:
-> `cachePlugin` POSTs `{ tags: [...] }`, Cloudflare refuses it, and `purgeCloudflareCache` logs a
-> warn and returns `false`. **Confirm both variables are set on the Railway production service,
-> and that the token's scope includes cache purge.** Limits are generous against our use: we
-> purge one tag per write, against a 100-tags-per-call ceiling.
+> So these credentials are the invalidation path on our plan, not optional polish for one we do
+> not have. **Confirm both variables are set on the Railway production service, and that the
+> token's scope includes cache purge** — unset, `cachePlugin`'s purge logs a warn, returns
+> `false`, and the TTL is all that invalidates. Limits are generous against our use: we purge one
+> tag per write, against a 100-tags-per-call ceiling. (#710)
 
 ### Globals are cacheable reads too (#710)
 
