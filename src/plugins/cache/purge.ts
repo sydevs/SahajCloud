@@ -3,24 +3,32 @@ import { serverEnv } from '@/lib/env'
 /**
  * Best-effort Cloudflare edge-cache purge.
  *
- * Purges by `Cache-Tag` (Cloudflare Enterprise) or by exact `files` URL. It is a
- * no-op — returning `false` — unless both `CLOUDFLARE_ZONE_ID` and
- * `CLOUDFLARE_CACHE_PURGE_TOKEN` are set, so it's inert in dev, in preview, and
- * anywhere the edge cache isn't wired up yet. It never throws: a failed purge
- * must not fail the content write that triggered it (the edge TTL is the
- * backstop invalidation).
+ * Purges by `Cache-Tag` or by exact `files` URL. It is a no-op — returning
+ * `false` — unless both `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_CACHE_PURGE_TOKEN`
+ * are set, so it's inert in dev, in preview, and anywhere the edge cache isn't
+ * wired up yet. It never throws: a failed purge must not fail the content write
+ * that triggered it (the edge TTL is the backstop invalidation).
+ *
+ * ⚠ **Tag purge is not Enterprise-only, and this file used to say it was.**
+ * Cloudflare opened all five purge methods to every plan in April 2025
+ * (`https://developers.cloudflare.com/changelog/post/2025-04-01-purge-for-all/`).
+ * That belief is why the credentials were treated as optional polish rather
+ * than the invalidation path: unset, every purge here is a silent no-op and the
+ * only invalidation is the TTL. Set both on any environment that fronts a Cache
+ * Rule (#710).
  *
  * See `cachePlugin`'s write hooks (`index.ts`) for the callers and `./policy`
- * (`CACHEABLE_SLUGS`) for the `Cache-Tag`s these correspond to.
+ * (`CACHEABLE_SLUGS`, `CACHEABLE_GLOBALS`) for the `Cache-Tag`s these
+ * correspond to.
  */
 
 const CF_API_BASE = 'https://api.cloudflare.com/client/v4'
 const PURGE_TIMEOUT_MS = 5_000
 
 export interface CachePurgeInput {
-  /** `Cache-Tag` values to purge (Enterprise). Takes precedence over `files`. */
+  /** `Cache-Tag` values to purge. Takes precedence over `files`. */
   tags?: string[]
-  /** Absolute URLs to purge (works on all plans). */
+  /** Absolute URLs to purge. */
   files?: string[]
 }
 

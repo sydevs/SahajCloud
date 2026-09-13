@@ -16,9 +16,11 @@
  * lowest TTL among the collections it reads (see {@link resolveTtl}), so it never
  * outlives its freshest input. Clients only ever read published docs
  * (`createAccessConfig` constrains `clients` reads to `_status: published`), so
- * anything cacheable here is published-only. TTL is the invalidation backstop on
- * the Free plan (no tag purge); `cachePlugin`'s purge-on-write covers the
- * Enterprise path. Values are chosen conservatively against edit frequency (#555):
+ * anything cacheable here is published-only. `cachePlugin`'s purge-on-write is
+ * the primary invalidation — tag purge works on **every** Cloudflare plan since
+ * April 2025 (#710) — and the TTL is its backstop for when a purge call fails or
+ * the credentials are unset. Values are chosen conservatively against edit
+ * frequency (#555):
  *
  * | Collection                                                 | `s-maxage` | Rationale                         |
  * | ---------------------------------------------------------- | ---------- | --------------------------------- |
@@ -68,6 +70,31 @@ export type CacheableSlug = keyof typeof CACHE_TTLS
  * {@link CACHE_TTLS} so the two never drift.
  */
 export const CACHEABLE_SLUGS: ReadonlySet<string> = new Set(Object.keys(CACHE_TTLS))
+
+/**
+ * Cacheable **global** slugs — the client-read configuration and translation
+ * globals, every one of which a widget or site fetches on boot (#710). They all
+ * use {@link DEFAULT_SMAXAGE}; there is no per-global override, because these
+ * are edited at the same low frequency and nothing has asked for a second rate.
+ * Like {@link CACHEABLE_SLUGS}, this is also the set whose writes purge.
+ *
+ * The `Cache-Tag` is the global's own slug, exactly as it is for a collection.
+ * The two namespaces cannot collide — every global here is `wm-*` or `sy-*`,
+ * and no collection slug takes either prefix.
+ *
+ * ⚠ **`wm-app-status` is deliberately absent.** It is an operator readiness
+ * report, read in the admin over cookie auth, and it carries computed fields.
+ * It stays `DYNAMIC`, which is the fail-safe direction. Add a global here only
+ * when a client genuinely reads it and its contents are published-only.
+ */
+export const CACHEABLE_GLOBALS: ReadonlySet<string> = new Set([
+  'wm-web-config',
+  'wm-web-translations',
+  'wm-app-config',
+  'wm-app-translations',
+  'sy-atlas-config',
+  'sy-atlas-translations',
+])
 
 /**
  * Live-preview secret header. Mirrors `PREVIEW_SECRET_HEADER` in
@@ -131,11 +158,28 @@ export function buildCacheHeaders(opts: {
  * (non-numeric second segment, e.g. `/for-user`, `/geojson`) or 3-segment
  * (`/:id/songs`), so none collides with a bare findByID. Those self-manage their
  * headers via {@link publicReadCacheHeaders} in-handler.
+ *
+ * Also cacheable: `/api/globals/<slug>` for a slug in {@link CACHEABLE_GLOBALS}.
+ * This is a **second shape**, not a slug addition — a global read's second
+ * segment is the literal string `globals`, so adding one to `CACHEABLE_SLUGS`
+ * would match nothing. Exactly three segments: a versions read
+ * (`/api/globals/<slug>/versions`) carries drafts and must stay `DYNAMIC`.
  */
 export function matchCacheableRead(pathname: string): { sMaxAge: number; tags: string[] } | null {
   const segments = pathname.replace(/\/+$/, '').split('/').filter(Boolean)
-  // ['api', slug]  or  ['api', slug, numericId]
   if (segments[0] !== 'api') return null
+
+  // ['api', 'globals', globalSlug] — a global read, which has no list or
+  // findByID form. Checked before the collection shapes below, since a
+  // 3-segment path would otherwise fall through the numeric-id guard.
+  if (segments[1] === 'globals') {
+    if (segments.length !== 3) return null
+    const globalSlug = segments[2]
+    if (!CACHEABLE_GLOBALS.has(globalSlug)) return null
+    return { sMaxAge: DEFAULT_SMAXAGE, tags: [globalSlug] }
+  }
+
+  // ['api', slug]  or  ['api', slug, numericId]
   const isList = segments.length === 2
   const isFindById = segments.length === 3 && /^\d+$/.test(segments[2])
   if (!isList && !isFindById) return null
