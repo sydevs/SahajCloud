@@ -2,7 +2,7 @@ import { buildCanonicalUrl, canonicalTargetForHost } from '@/lib/atlas/canonical
 import type { RoutingMode } from '@/lib/clients/canonical'
 import type { EmbedMetadata, EmbedMountRecord } from '@/lib/clients/embedMetadata'
 import type { CanonicalVerification, VerifiedEmbed } from '@/lib/clients/verification'
-import { effectiveRouting, splitMountKey } from '@/lib/clients/verification'
+import { splitMountKey } from '@/lib/clients/verification'
 
 /**
  * Turns the two stored facts — what the widget reported, and what the CMS has
@@ -180,7 +180,7 @@ function summarise(args: {
   if (isVerifiedForThisEmbed && verified) {
     // The derived verdict, not `verified.routing` — the preview has to be the
     // shape the resolver emits, and that is what `canonicalOwnerFrom` reads (#644).
-    routing = effectiveRouting(verification)
+    routing = verification?.routingProbe?.verdict ?? 'query'
     const target = canonicalTargetForHost(verified, routing)
     sampleUrl = target && buildCanonicalUrl(target, SAMPLE_ATLAS_PATH)
   } else if (mount) {
@@ -194,7 +194,7 @@ function summarise(args: {
       // host. It was also the last read of a script-URL routing value left in
       // this repo (#644). Still marked provisional: nothing has verified this
       // mount, which is a separate fact from which shape it will publish.
-      routing = effectiveRouting(verification)
+      routing = verification?.routingProbe?.verdict ?? 'query'
       sampleIsProvisional = true
       const target = canonicalTargetForHost(split, routing)
       sampleUrl = target && buildCanonicalUrl(target, SAMPLE_ATLAS_PATH)

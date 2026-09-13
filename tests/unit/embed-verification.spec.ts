@@ -9,7 +9,6 @@ import { describe, expect, it } from 'vitest'
 
 import { buildCanonicalUrl, canonicalTargetForHost } from '../../src/lib/atlas/canonicalUrl'
 import {
-  effectiveRouting,
   EMPTY_VERIFICATION,
   nextRoutingProbeState,
   nextVerificationState,
@@ -350,18 +349,17 @@ describe('the routing-probe ladder', () => {
   it('promotes on a single positive', () => {
     const next = fold(null, 'positive')
     expect(next.routingProbe).toEqual({ at: now.toISOString(), verdict: 'path', failedAttempts: 0 })
-    expect(effectiveRouting(next)).toBe('path')
   })
 
   it('demotes on the third consecutive negative, not the first or the second', () => {
     let state = fold(null, 'positive')
     state = fold(state, 'negative')
-    expect(effectiveRouting(state)).toBe('path')
+    expect(state.routingProbe?.verdict).toBe('path')
     state = fold(state, 'negative')
-    expect(effectiveRouting(state)).toBe('path')
+    expect(state.routingProbe?.verdict).toBe('path')
 
     state = fold(state, 'negative')
-    expect(effectiveRouting(state)).toBe('query')
+    expect(state.routingProbe?.verdict).toBe('query')
     expect(state.routingProbe?.failedAttempts).toBe(ROUTING_PROBE_FAILURE_LIMIT)
   })
 
@@ -410,14 +408,17 @@ describe('the routing-probe ladder', () => {
       },
       now,
     }).verification
-    expect(effectiveRouting(verified)).toBe('path')
+    expect(verified.routingProbe?.verdict).toBe('path')
   })
 })
 
-describe('effectiveRouting', () => {
-  it('defaults to query with nothing observed', () => {
-    expect(effectiveRouting(null)).toBe('query')
-    expect(effectiveRouting(EMPTY_VERIFICATION)).toBe('query')
+describe('the stored verdict', () => {
+  // Nothing observed stores no verdict, so every reader supplies `?? 'query'`.
+  // That default is applied on the read path by the `canonical.routing`
+  // `afterRead` hook, pinned in `client-canonical.int.spec.ts` — there is no
+  // accessor here to pin it on (#644).
+  it('is absent until a probe has run', () => {
+    expect(EMPTY_VERIFICATION.routingProbe).toBeUndefined()
   })
 
   // Why the verdict sits beside `verified` rather than inside it: the widget
@@ -430,6 +431,6 @@ describe('effectiveRouting', () => {
       now: new Date('2026-09-12T03:00:00.000Z'),
     })
     expect(state.verified).toBeNull()
-    expect(effectiveRouting(state)).toBe('path')
+    expect(state.routingProbe?.verdict).toBe('path')
   })
 })

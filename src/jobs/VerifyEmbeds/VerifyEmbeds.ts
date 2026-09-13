@@ -5,11 +5,7 @@ import type {
   RoutingProbeResult,
   VerificationResult,
 } from '@/lib/clients/verification'
-import {
-  effectiveRouting,
-  nextRoutingProbeState,
-  nextVerificationState,
-} from '@/lib/clients/verification'
+import { nextRoutingProbeState, nextVerificationState } from '@/lib/clients/verification'
 import type { RenderDeps } from '@/lib/embedVerification/browserRendering'
 import { probeForOutcome, probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import type { Client } from '@/payload-types'
@@ -219,8 +215,10 @@ export async function runVerifyEmbeds(args: {
 
     // Counted after the write, not before: an owner whose row could not be
     // persisted has not changed its verdict, whatever the fold said.
-    const before = effectiveRouting(current)
-    const after = effectiveRouting(verification)
+    // Compared across this job's own raw UPDATE, so neither side has been read
+    // back through Payload and the `canonical.routing` default is applied here.
+    const before = current?.routingProbe?.verdict ?? 'query'
+    const after = verification.routingProbe?.verdict ?? 'query'
     if (before !== after) {
       result[after === 'path' ? 'pathPromoted' : 'pathDemoted']++
       payload.logger.info({

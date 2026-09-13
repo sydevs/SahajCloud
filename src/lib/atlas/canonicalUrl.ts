@@ -74,7 +74,8 @@ export const ATLAS_QUERY_PARAM = 'atlas'
  * `VerifiedEmbed` straight in compiled and quietly shaped a public URL from
  * that self-report. That was the circularity #644 removed, and a comment is not
  * what should be holding it: every caller now has to say where its routing
- * verdict came from, and `effectiveRouting` is the only thing that answers.
+ * verdict came from, and `verification.routingProbe.verdict` is the only thing
+ * that answers.
  */
 export function canonicalTargetForHost(
   host: { domain: string; mount?: string | null },

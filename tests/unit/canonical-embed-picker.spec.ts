@@ -127,7 +127,7 @@ describe('the sample URL the picker shows', () => {
   })
 
   // And it follows the verdict where there is one, with `verified` still null —
-  // the state `effectiveRouting` exists to be able to answer for (#644). The
+  // the state the verdict has to survive being read for (#644). The
   // sample stays marked provisional: nothing has verified this mount, which is
   // a separate fact from which shape it will publish.
   it('previews a path sample for a probed mount whose verification is null', () => {

@@ -3,7 +3,6 @@ import type { PayloadRequest } from 'payload'
 
 import type { RoutingMode } from '@/lib/clients/canonical'
 import { isValidCanonicalDomain } from '@/lib/clients/canonical'
-import { effectiveRouting } from '@/lib/clients/verification'
 import { serverEnv } from '@/lib/env'
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
@@ -155,8 +154,9 @@ function canonicalOwnerFrom(row: ClientRow): CanonicalOwner | undefined {
     domain: verified.domain,
     mount: verified.mount ?? '/',
     // Derived, not reported (#644): the probe is what the host's server
-    // actually does. See `effectiveRouting`.
-    routing: effectiveRouting(row.canonical?.verification),
+    // actually does. The resolver reads the row with its own `select`, which
+    // does not run the `canonical.routing` hook, so the default is applied here.
+    routing: row.canonical?.verification?.routingProbe?.verdict ?? 'query',
   }
 }
 

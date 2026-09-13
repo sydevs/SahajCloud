@@ -11,7 +11,6 @@ import {
 } from '@/lib/clients/canonical'
 import { embedMetadataJsonSchema } from '@/lib/clients/embedMetadata'
 import {
-  effectiveRouting,
   VERIFICATION_FAILURE_REASONS,
   VERIFICATION_INCONCLUSIVE_REASONS,
 } from '@/lib/clients/verification'
@@ -308,17 +307,16 @@ export const Clients: CollectionConfig = {
                   hooks: {
                     afterRead: [
                       ({ siblingData }) =>
-                        // `effectiveRouting` takes the shape structurally, so the
-                        // group's own data satisfies it with no cast to a named type.
-                        effectiveRouting(
-                          (
-                            siblingData as {
-                              verification?: {
-                                routingProbe?: { verdict?: RoutingMode | null } | null
-                              }
-                            } | null
-                          )?.verification,
-                        ),
+                        // The one place the `query` default is applied on a read
+                        // path: this hook is what the widget's `canonical.routing`
+                        // comes from (#644).
+                        (
+                          siblingData as {
+                            verification?: {
+                              routingProbe?: { verdict?: RoutingMode | null } | null
+                            }
+                          } | null
+                        )?.verification?.routingProbe?.verdict ?? 'query',
                     ],
                   },
                 },

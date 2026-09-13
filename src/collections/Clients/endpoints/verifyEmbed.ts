@@ -1,11 +1,7 @@
 import type { Endpoint } from 'payload'
 
 import type { RoutingMode } from '@/lib/clients/canonical'
-import {
-  effectiveRouting,
-  nextRoutingProbeState,
-  nextVerificationState,
-} from '@/lib/clients/verification'
+import { nextRoutingProbeState, nextVerificationState } from '@/lib/clients/verification'
 import { probeForOutcome, probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import { requireActiveManager } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
@@ -116,7 +112,9 @@ export const verifyEmbedOnDemand: Endpoint = {
       status: result.status,
       ...(reason ? { reason } : {}),
       message: MESSAGES[result.status](reason),
-      routing: effectiveRouting(verification),
+      // Answered from the object just written, never re-read through Payload,
+      // so the `canonical.routing` hook's default is applied here by hand (#644).
+      routing: verification.routingProbe?.verdict ?? 'query',
     }
     return Response.json(body, { status: 200 })
   },

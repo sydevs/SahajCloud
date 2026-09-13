@@ -1,4 +1,3 @@
-import type { RoutingMode } from '@/lib/clients/canonical'
 import type { ClientCanonicalVerification } from '@/payload-types'
 
 /**
@@ -225,8 +224,8 @@ export function nextRoutingProbeState(args: {
 }
 
 /**
- * How the widget should express its state in the host page's URL — the one
- * answer every URL shaper reads.
+ * **How to read the routing verdict:** `verification?.routingProbe?.verdict ??
+ * 'query'`, at the call site. There is deliberately no accessor wrapping it.
  *
  * `path` only where the probe has seen the host serve our atlas under the
  * mount's own subtree; `query` otherwise, which is what nearly every client
@@ -238,19 +237,14 @@ export function nextRoutingProbeState(args: {
  * widget's report is still kept as a report, per mount, in `embedMetadata`.
  * (#644)
  *
- * The parameter is structural rather than `CanonicalVerification`, so the
- * resolver's own narrowed row shape passes without a cast.
- */
-export function effectiveRouting(
-  verification: { routingProbe?: { verdict?: RoutingMode | null } | null } | null | undefined,
-): RoutingMode {
-  return verification?.routingProbe?.verdict ?? 'query'
-}
-
-/**
+ * The default belongs to the read path: the `canonical.routing` field's
+ * `afterRead` hook (`Clients.ts`) is what the widget reads, and it applies it
+ * once. The remaining sites hold a verification object they are about to
+ * write, or have just written, and never read through Payload at all.
+ *
  * Canonical URLs are built by `@/lib/atlas/canonicalUrl` — `buildCanonicalUrl`
- * over a `canonicalTargetForHost(verified, effectiveRouting(verification))`
- * target. The routing argument is separate and required precisely so that
+ * over a `canonicalTargetForHost(verified, routing)` target. The routing
+ * argument is separate and required precisely so that
  * `canonicalTargetForHost(verified)`, which would shape a URL from the widget's
  * self-report, no longer compiles (#644).
  *

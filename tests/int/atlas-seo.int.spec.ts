@@ -188,8 +188,7 @@ describe('atlasSeo endpoint', () => {
           },
           failureCount: 0,
           attempts: [],
-          // The shape is the derived verdict, never `verified.routing` — see
-          // `effectiveRouting`.
+          // The shape is the derived verdict, never `verified.routing` (#644).
           routingProbe: { at: '2026-08-18T00:00:00.000Z', verdict: 'path', failedAttempts: 0 },
         },
       },

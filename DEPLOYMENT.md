@@ -283,7 +283,7 @@ processing — both are expected and do not affect the app.
 ### ⚠ Post-deploy step: re-verify each canonical-owning client (#644)
 
 No row carries `canonical.verification.routingProbe` before the deploy that introduces it, so
-`effectiveRouting` answers `query` for every service until a probe has run. A service publishing
+`canonical.routing` answers `query` for every service until a probe has run. A service publishing
 `path`-shaped canonicals today therefore reshapes to `?atlas=` the moment that deploy lands.
 
 **Nothing backfills the verdict, by decision.** Backfilling from `verified.routing` would write
