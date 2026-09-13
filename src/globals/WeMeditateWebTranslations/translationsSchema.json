@@ -538,6 +538,22 @@
               "type": "string",
               "description": "Replaces `copy` for a moment after the code is copied."
             },
+            "video_play": {
+              "type": "string",
+              "description": "Tooltip on the video player's play button while the video is paused. It also names that button for screen readers."
+            },
+            "video_pause": {
+              "type": "string",
+              "description": "Tooltip on the same button while the video is playing."
+            },
+            "video_mute": {
+              "type": "string",
+              "description": "Tooltip on the video player's sound button while the video can be heard. It also names that button for screen readers."
+            },
+            "video_unmute": {
+              "type": "string",
+              "description": "Tooltip on the same button while the video is silenced."
+            },
             "video_settings": {
               "type": "string",
               "description": "Tooltip on the video player's settings button, which opens the gear menu."
@@ -565,6 +581,14 @@
             "video_exit_pip": {
               "type": "string",
               "description": "Tooltip on the same button while the video already plays in that floating window."
+            },
+            "video_enter_fullscreen": {
+              "type": "string",
+              "description": "Tooltip on the video player's button that makes the video fill the screen."
+            },
+            "video_exit_fullscreen": {
+              "type": "string",
+              "description": "Tooltip on the same button while the video already fills the screen."
             },
             "video_captions": {
               "type": "string",

@@ -5725,6 +5725,22 @@ export interface WmWebTranslationsMediaGeneralStrings {
    */
   copied?: string;
   /**
+   * Tooltip on the video player's play button while the video is paused. It also names that button for screen readers.
+   */
+  video_play?: string;
+  /**
+   * Tooltip on the same button while the video is playing.
+   */
+  video_pause?: string;
+  /**
+   * Tooltip on the video player's sound button while the video can be heard. It also names that button for screen readers.
+   */
+  video_mute?: string;
+  /**
+   * Tooltip on the same button while the video is silenced.
+   */
+  video_unmute?: string;
+  /**
    * Tooltip on the video player's settings button, which opens the gear menu.
    */
   video_settings?: string;
@@ -5752,6 +5768,14 @@ export interface WmWebTranslationsMediaGeneralStrings {
    * Tooltip on the same button while the video already plays in that floating window.
    */
   video_exit_pip?: string;
+  /**
+   * Tooltip on the video player's button that makes the video fill the screen.
+   */
+  video_enter_fullscreen?: string;
+  /**
+   * Tooltip on the same button while the video already fills the screen.
+   */
+  video_exit_fullscreen?: string;
   /**
    * Video settings menu: the row that lists the subtitle tracks this video offers.
    */
