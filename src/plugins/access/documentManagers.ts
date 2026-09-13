@@ -244,7 +244,7 @@ async function loadManagedDocIds(
  *
  * ⚠ **Do not lift this memo to the access function.** That answer depends on
  * `id` and `data`, which this key does not carry: `createAccessConfig` returns a
- * boolean about one document when `id` is set, `withVersionHistoryAccess` strips
+ * boolean about one document when `id` is set, `withDerivedGrants` strips
  * `id` so the two calls must disagree, and `scopeRegionSubtreeWrite` branches on
  * `data.parent` / `data.region`. It also resolves `roleScopeFromLocale`, and
  * `localeIsolatedReq` shares `req.context` by reference across locale copies, so

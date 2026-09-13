@@ -495,7 +495,11 @@ export const AppCards: CollectionConfig = {
     plural: 'App Cards',
   },
   versions: {
-    drafts: true,
+    // Object form, not `drafts: true` — that sanitises `localizeStatus` back to
+    // false. Per-locale publish state, same contract as `pages` (#718).
+    drafts: {
+      localizeStatus: true,
+    },
     maxPerDoc: 5,
   },
   disableDuplicate: true,

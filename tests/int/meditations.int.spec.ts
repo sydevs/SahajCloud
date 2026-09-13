@@ -354,7 +354,7 @@ describe('Meditations Collection', () => {
         // while skipping `readVersions` entirely.
         //
         // `meditations-editor` grants meditations `update`, which
-        // `withVersionHistoryAccess` derives `readVersions` from
+        // `withDerivedGrants` derives `readVersions` from
         // (`src/plugins/access/accessConfigs.ts`). That grant is unconditional,
         // so this case does NOT pin the `Where` translation beside it —
         // verified by disabling it and watching this stay green.

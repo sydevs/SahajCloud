@@ -8,7 +8,7 @@ import { InlineLogo } from '@/components/branding'
 import { useProject } from '@/contexts/ProjectContext'
 import { clientLogger } from '@/lib/logger/clientLogger'
 import type { ProjectSlug } from '@/payload-types'
-import { getProjectOptions, getProjectsFromRoles } from '@/plugins/access'
+import { getProjectOptions, getProjectsFromRoles } from '@/plugins/access/config'
 
 import { shouldRedirectToAdmin } from './utils'
 

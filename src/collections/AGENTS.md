@@ -42,10 +42,13 @@ Permission flow, in order:
 Worth knowing: **implicit read access** lets managers and clients read
 everything in their role's project, plus collections in no project.
 **Manager roles are per-locale** (uses `req.locale`). **Client roles apply
-uniformly across all locales.** **Version history follows `update`, not
-`read`** — `withVersionHistoryAccess` derives `readVersions` from the
-collection's edit authority, so a read-only role reaches no drafts through
-`/api/{collection}/versions` (#719, see `docs/rules/access.md`).
+uniformly across all locales.** **Version history and a login
+lockout both follow `update`, not `read`** — `withDerivedGrants` derives
+`readVersions` and `unlock` from the collection's edit authority in one
+pass, so a read-only role reaches no drafts through
+`/api/{collection}/versions` (#719) and no API key can reset a locked
+account's failed-attempt counter through `/api/{collection}/unlock`
+(#748). See `docs/rules/access.md`.
 
 Full RBAC details: see `docs/rules/access.md` (loads when editing
 `src/plugins/access/`).
@@ -703,7 +706,7 @@ in this repo, and the choice is not about which edit is smaller:
   widens, and `findByID` has never carried these filters either.
 - A filter that **decides authority** is **translated**, never declined,
   because declining it would widen who may read a version row.
-  `withVersionHistoryAccess` (`src/plugins/access/accessConfigs.ts`)
+  `withDerivedGrants` (`src/plugins/access/accessConfigs.ts`)
   rewrites `update`'s `Where` onto `version.` with Payload's own
   `appendVersionToQueryKey` for exactly that reason.
 
@@ -732,12 +735,47 @@ drafts (60 s autosave), version history (3/doc), scheduled publishing.
 - `title` (text, required, localized)
 - `slug` (auto-generated via `slugField`)
 - `content` (richText, localized) — Lexical editor with embedded blocks
-- `_status` (draft | published) — Payload drafts
+- `_status` (draft | published) — Payload drafts, **stored per locale**
 - `author` (relationship to authors, optional)
 - `tags` (relationship hasMany, optional)
 
-Per-locale publishing via the `publishSpecificLocale` API option (tracks
-`published_locale` in the versions table).
+### Publish state is per locale (#718)
+
+`pages` and `app-cards` set `versions.drafts.localizeStatus: true` — the
+object form, since `drafts: true` sanitises the flag back to `false`. The
+root `experimental.localizeStatus` is already set in `payload.config.ts`;
+Payload forces the flag off per entity without it. `_status` therefore
+lives in `pages_locales` / `app_cards_locales`, not the base table, and
+publishing German says nothing about French.
+
+```typescript
+await payload.update({
+  collection: 'pages',
+  id,
+  locale: 'de',
+  publishSpecificLocale: 'de',
+  data: { title: 'Deutscher Titel', _status: 'published' },
+})
+```
+
+Three consequences, each of which has already bitten:
+
+- **A field `afterRead` hook sees `_status` in either shape** — a plain
+  string on a collection without the flag, a `{ locale: status }` map on
+  one with it. The map arrives *unresolved*, because Payload hoists a
+  localized value down to the requested locale in the same afterRead field
+  pass that runs the hook, so field order decides. Handle both shapes;
+  `isPublished` in `src/fields/publicUrlFields.ts` is the one to copy. A
+  bare `_status !== 'published'` nulled every page's `webUrl`.
+- **`publishSpecificLocale` validates that locale's required fields.**
+  `title` is required and localized, so publishing a locale with no title
+  of its own is refused — the English fallback does not satisfy validation.
+- **The published-only access filter is now per locale.** A page published
+  in English alone returns nothing at `?locale=de` for an API client. That
+  is the point, not a regression, and it is what stops an unpublished
+  translation's text being readable. See `docs/rules/api-clients.md` for
+  the consumer contract and the `?locale=all` read that answers which
+  languages a document is live in.
 
 Live preview integrates with the We Meditate Web frontend
 (`WEMEDITATE_WEB_URL` env var).

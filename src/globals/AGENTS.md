@@ -122,7 +122,7 @@ the global. Versions: max 3.
   Meditation, Lecture, Map, Forms, Media, Location, Blocks
 - WeMeditate App tabs: Daily, Path, Explore, Profile, Meditation
 - Sahaj Atlas tabs: Common, Countries, Search, Filters, Online, Event,
-  Calendar, Registration, Share, Compact, Emails
+  Calendar, Registration, Share, Compact, Seo, Emails
 
 The Atlas set is **one tab per widget view** (#706), and the key inside it
 belongs to the component that owns it, not to whichever view reads it
@@ -131,6 +131,12 @@ own. The catalogue itself lives in the widget
 (`sydevs/SahajAtlasWeb`), so a key added there needs a home here before the
 widget can read it — Appendix A of #706 is the old-to-new mapping, kept as
 the cross-repo record of what each key was called.
+
+`Seo` and `Emails` are the two exceptions to that rule: no widget view
+reads either. `Seo` is the atlas landing page's `<head>` copy, read by
+`GET /api/atlas/seo` (#739). `Emails` is registrant mail, read by
+`resolveEmailStrings()`. Both are server-read, so a key added to either
+needs a server consumer, not a widget one.
 
 The Web tabs are in the site's **reading order**, not grouped by data type —
 a translator works down a page. Every tab that carries screen-reader-only
@@ -179,6 +185,17 @@ them to `sy-atlas-translations` and `wm-web-translations`, #709 to
   purpose — the admin and the status report must keep showing which keys
   are empty. It never re-adds a field the caller's `select` stripped, and
   it never throws.
+  ⚠ **A reader that wants the locale's true copy opts out**, with
+  `withoutEnglishFallback(req)` beside the hook (#739). `GET /api/atlas/seo`
+  does, for the atlas landing page's `seo` group: the merge is right for
+  widget chrome — a blank button label is a broken UI — and wrong for a
+  `<head>`, where an untranslated English sentence is worse than no sentence.
+  Pair it with `fallbackLocale: false`, which turns off Payload's own
+  per-field substitution. Say it in the request rather than stripping the
+  caller's user to make the hook's identity check answer `false`: identity is
+  the hook's proxy for intent, not the intent itself, and the read keeps its
+  real user for access control and every other hook. A new server-side reader
+  has to decide which of the two policies it wants.
 - **`_locales` is a reserved suffix, and it is matched exactly.** Drizzle
   keys the localized-values table on the literal `<table>_locales`, never
   on a suffix, so `sy_atlas_config_available_locales` and its two

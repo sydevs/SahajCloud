@@ -32,6 +32,12 @@ export const Pages: CollectionConfig = {
         interval: 60000, // 60 seconds
       },
       schedulePublish: true,
+      // `_status` is stored per locale, so publishing German says nothing about
+      // French. `?locale=all&select[_status]=true` then answers "which languages
+      // is this page live in?" in one query — the `hreflang` contract
+      // WeMeditateWeb reads (#718). Needs `experimental.localizeStatus` at the
+      // config root, or Payload sanitises this back to false.
+      localizeStatus: true,
     },
   },
   fields: [

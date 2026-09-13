@@ -8709,6 +8709,7 @@ export interface SyAtlasTranslation {
   };
   share?: SyAtlasTranslationsShareStrings;
   compact?: SyAtlasTranslationsCompactStrings;
+  seo?: SyAtlasTranslationsSeoStrings;
   emails?: SyAtlasTranslationsEmailsStrings;
   _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
@@ -9578,6 +9579,16 @@ export interface SyAtlasTranslationsCompactStrings {
    */
   open?: string;
 }
+export interface SyAtlasTranslationsSeoStrings {
+  /**
+   * `<title>` for the atlas landing page, e.g. "Free Meditation Classes". A result page shows roughly 60 characters.
+   */
+  root_title?: string;
+  /**
+   * `<meta name="description">` for the atlas landing page — one or two sentences about what a visitor finds there. Left blank, the endpoint sends no description in this locale rather than an English one, and the host writes its own.
+   */
+  root_description?: string;
+}
 export interface SyAtlasTranslationsEmailsStrings {
   /**
    * Subject line of the registration confirmation email. `%{event}` = event title.
@@ -10049,6 +10060,7 @@ export interface SyAtlasTranslationsSelect<T extends boolean = true> {
       };
   share?: T;
   compact?: T;
+  seo?: T;
   emails?: T;
   _status?: T;
   updatedAt?: T;
