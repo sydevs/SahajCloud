@@ -419,10 +419,11 @@ async function eventSeo(
  *   {@link MAX_ATLAS_ROUTE_LENGTH} is a **400**: the query schema refuses it
  *   before the parser sees it, as it does an empty one.
  * - A root route's `description` is `null` in any locale the operator has not
- *   written one for — the same rule a region follows. Its `title` falls back
- *   inside the locale first — to the widget's own name for itself — and only
- *   then to English and a constant, because `<title>` is mandatory markup and a
- *   blank one is worse than one in the wrong language.
+ *   written one for — the same rule a region follows. Its `title` is always a
+ *   non-blank string, because `<title>` is mandatory markup, and it exhausts
+ *   the locale's own words before it borrows another language's —
+ *   {@link getRootSeoStrings} owns that order, and `./rootStrings` is the only
+ *   place it is written down.
  *
  * Registered at the config root rather than on a collection because the route
  * may name a region *or* an event, so no collection owns it — which means the
