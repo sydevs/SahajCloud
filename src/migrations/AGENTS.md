@@ -89,6 +89,14 @@ in `pnpm-workspace.yaml`. Still unfixed upstream through 0.31.10, and
 either onto a release with a different drizzle-kit leaves the patch matching
 nothing, and this crash returns.
 
+⚠ **The whole Payload family carries exact versions for that reason, not just
+those two.** `@payloadcms/next`, `richtext-lexical`, `ui`, the plugins and
+`typescript-plugin` all pin `3.86.0`. Payload does not support a mixed-version
+family, so leaving the rest on carets meant one `pnpm update` could put
+`@payloadcms/next@3.87.x` beside a pinned `payload@3.86.0` — a break with no
+patch involved. Bump them together, in one commit, and re-check the patch key
+against the drizzle-kit that release pins.
+
 The patch does not remove the rename-vs-create **prompt**. That still needs an
 attended run, per the interactive-hang row above.
 
