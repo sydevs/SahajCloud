@@ -45,3 +45,13 @@ overrides:
   # (6.12.6 is the newest 6.x and already carries the $data fix), so it is left as-is.
   'yaml@^2.0.0': '^2.8.3'
   'brace-expansion@^1.0.0': '^1.1.13'
+
+patchedDependencies:
+  # `payload migrate:create` crashes with "Cannot read properties of undefined
+  # (reading 'columns')" whenever a migration renames a table that also has
+  # altered columns — which is every collection rename. applyPgSnapshotsDiff
+  # hands preparePgAlterColumns the raw `json1` snapshot instead of the
+  # rename-patched one, so the old table is looked up under its new name and
+  # comes back undefined. Still broken upstream through drizzle-kit 0.31.10,
+  # and @payloadcms/db-postgres pins 0.31.7 exactly, so patch rather than bump.
+  drizzle-kit@0.31.7: patches/drizzle-kit@0.31.7.patch
