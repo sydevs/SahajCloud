@@ -11,6 +11,7 @@ import {
   matchCacheableRead,
   PREVIEW_SECRET_HEADER,
   resolveTtl,
+  ttlForGlobal,
 } from '@/plugins/cache/policy'
 
 const API_KEY = 'clients API-Key abc123'
@@ -72,6 +73,22 @@ describe('matchCacheableRead — globals (#710)', () => {
 
   it('is exactly the expected set, so the list and the matcher cannot drift', () => {
     expect([...CACHEABLE_GLOBALS].sort()).toEqual([...EXPECTED_GLOBALS].sort())
+  })
+
+  it('is derived from CACHE_TTLS.globals, so the list has one home', () => {
+    // Every global slug is listed once, with its TTL, in CACHE_TTLS. A second
+    // literal set here is what this asserts against — not a drift in values.
+    expect([...CACHEABLE_GLOBALS].sort()).toEqual(Object.keys(CACHE_TTLS.globals).sort())
+  })
+
+  it('serves each global the TTL its CACHE_TTLS entry names', () => {
+    // All six sit at DEFAULT_SMAXAGE today, so this does not distinguish the
+    // map from a constant. It is the guard for the first per-global override:
+    // add one and a matcher still returning DEFAULT_SMAXAGE goes red.
+    for (const slug of EXPECTED_GLOBALS) {
+      expect(matchCacheableRead(`/api/globals/${slug}`)?.sMaxAge).toBe(ttlForGlobal(slug))
+    }
+    expect(ttlForGlobal('not-a-global')).toBe(DEFAULT_SMAXAGE)
   })
 
   it('matches every cacheable global at the default TTL, tagged with its own slug', () => {
@@ -257,11 +274,17 @@ describe('handleCacheMiddleware', () => {
 })
 
 describe('CACHEABLE_SLUGS (cacheable set = purge set)', () => {
-  it('is exactly the CACHE_TTLS keys, including images + albums', () => {
-    for (const slug of Object.keys(CACHE_TTLS)) {
+  it('is exactly the CACHE_TTLS.collections keys, including images + albums', () => {
+    for (const slug of Object.keys(CACHE_TTLS.collections)) {
       expect(CACHEABLE_SLUGS.has(slug)).toBe(true)
     }
-    expect(CACHEABLE_SLUGS.size).toBe(Object.keys(CACHE_TTLS).length)
+    expect(CACHEABLE_SLUGS.size).toBe(Object.keys(CACHE_TTLS.collections).length)
+  })
+
+  it('excludes the global slugs, which are a different URL shape', () => {
+    for (const slug of Object.keys(CACHE_TTLS.globals)) {
+      expect(CACHEABLE_SLUGS.has(slug)).toBe(false)
+    }
   })
 
   it('excludes collections that are never cached', () => {

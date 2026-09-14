@@ -9,51 +9,69 @@
  * via `@/plugins/cache/middleware` without dragging server-only code along.
  * Keep it dependency-free.
  *
- * ## Per-collection TTLs
+ * ## Per-slug TTLs
  *
- * `CACHE_TTLS` is the one place TTLs live. A built-in REST read of `/api/<slug>`
- * uses that slug's TTL directly; a custom endpoint's TTL is *derived* as the
- * lowest TTL among the collections it reads (see {@link resolveTtl}), so it never
- * outlives its freshest input. Clients only ever read published docs
- * (`createAccessConfig` constrains `clients` reads to `_status: published`), so
- * anything cacheable here is published-only. `cachePlugin`'s purge-on-write is
- * the primary invalidation — tag purge works on **every** Cloudflare plan since
- * April 2025 (#710) — and the TTL is its backstop for when a purge call fails or
- * the credentials are unset. Values are chosen conservatively against edit
- * frequency (#555):
+ * {@link CACHE_TTLS} is the one place a cacheable slug is listed and the one
+ * place its TTL lives, for collections and globals alike. Every other export
+ * here is derived from it, so the cacheable set and the purge set cannot drift.
+ * A built-in REST read uses its own slug's TTL; a custom endpoint's TTL is
+ * *derived* as the lowest TTL among the collections it reads (see
+ * {@link resolveTtl}), so it never outlives its freshest input.
  *
- * | Collection                                                 | `s-maxage` | Rationale                         |
- * | ---------------------------------------------------------- | ---------- | --------------------------------- |
- * | `audiences`, `events`, `pages`                             | 300s       | targeting/schedule/content churn  |
- * | `meditations`, `lectures`, `songs`, `app-cards`, `regions` | 600s       | content, edited occasionally      |
- * | `user-choices`                                             | 600s       | display metadata, renamed rarely  |
- * | `images`, `albums`                                         | 1800s      | media rarely changes; high volume |
+ * Clients only ever read published docs (`createAccessConfig` constrains
+ * `clients` reads to `_status: published`), so anything cacheable here is
+ * published-only. `cachePlugin`'s purge-on-write is the primary invalidation and
+ * the TTL is its backstop for when a purge call fails or the credentials are
+ * unset. Values are chosen conservatively against edit frequency (#555): 300s
+ * for targeting, schedule and content churn, 600s for content edited
+ * occasionally, 1800s for media.
  */
 
 /** Default edge TTL (`s-maxage`, seconds) for a cacheable read; per-collection overrides below. */
 export const DEFAULT_SMAXAGE = 600
 
 /**
- * Cacheable collections → edge TTL (`s-maxage`, seconds). The keys are the single
- * source of truth for **both** which built-in REST reads may be cached and (via
- * {@link CACHEABLE_SLUGS}) which collections purge on write; a custom endpoint's
- * TTL is derived from these by {@link resolveTtl}. Collections at
- * {@link DEFAULT_SMAXAGE} still list it explicitly so the cacheable set stays
- * self-evident. Collections **not** in this map stay `DYNAMIC`.
+ * Every cacheable slug → its edge TTL (`s-maxage`, seconds), split by the shape
+ * of the read it names. These keys are the single source of truth for **both**
+ * which built-in REST reads may be cached and which writes purge on change; a
+ * custom endpoint's TTL is derived from `collections` by {@link resolveTtl}.
+ *
+ * The two halves stay separate because they are two different URL shapes —
+ * `/api/<slug>` against `/api/globals/<slug>` — and only `collections` slugs may
+ * be tagged by a custom endpoint. A slug in neither half stays `DYNAMIC`. Slugs
+ * at {@link DEFAULT_SMAXAGE} still list it explicitly so both sets stay
+ * self-evident.
+ *
+ * `globals` holds the client-read configuration and translation globals, each
+ * fetched on boot by a widget or site (#710). ⚠ **`wm-app-status` is
+ * deliberately absent.** It is an operator readiness report, read in the admin
+ * over cookie auth, and it carries computed fields. `DYNAMIC` is the fail-safe
+ * direction. Add a global here only when a client genuinely reads it and its
+ * contents are published-only.
  */
 export const CACHE_TTLS = {
-  meditations: DEFAULT_SMAXAGE,
-  lectures: DEFAULT_SMAXAGE,
-  songs: DEFAULT_SMAXAGE,
-  'app-cards': DEFAULT_SMAXAGE,
-  regions: DEFAULT_SMAXAGE,
-  'user-choices': DEFAULT_SMAXAGE,
-  audiences: 300,
-  events: 300,
-  pages: 300,
-  images: 1800,
-  albums: 1800,
-} satisfies Record<string, number>
+  collections: {
+    meditations: DEFAULT_SMAXAGE,
+    lectures: DEFAULT_SMAXAGE,
+    songs: DEFAULT_SMAXAGE,
+    'app-cards': DEFAULT_SMAXAGE,
+    regions: DEFAULT_SMAXAGE,
+    'user-choices': DEFAULT_SMAXAGE,
+    audiences: 300,
+    events: 300,
+    pages: 300,
+    images: 1800,
+    albums: 1800,
+  },
+  globals: {
+    'wm-web-config': DEFAULT_SMAXAGE,
+    'wm-web-translations': DEFAULT_SMAXAGE,
+    'wm-app-config': DEFAULT_SMAXAGE,
+    'wm-app-translations': DEFAULT_SMAXAGE,
+    'sy-atlas-config': DEFAULT_SMAXAGE,
+    'sy-atlas-translations': DEFAULT_SMAXAGE,
+  },
+} satisfies { collections: Record<string, number>; globals: Record<string, number> }
 
 /**
  * A collection slug known to {@link CACHE_TTLS} — the only slugs a cacheable read
@@ -61,40 +79,22 @@ export const CACHE_TTLS = {
  * typo'd slugs at compile time and enforces that a custom endpoint only tags
  * collections that are themselves cacheable (so the purge graph stays complete).
  */
-export type CacheableSlug = keyof typeof CACHE_TTLS
+export type CacheableSlug = keyof typeof CACHE_TTLS.collections
 
 /**
  * Cacheable collection slugs — hence also the set whose writes purge the edge
  * cache. Every custom endpoint reads only collections that are themselves
- * cacheable built-in reads, so this set covers the purge graph too. Derived from
- * {@link CACHE_TTLS} so the two never drift.
+ * cacheable built-in reads, so this set covers the purge graph too.
  */
-export const CACHEABLE_SLUGS: ReadonlySet<string> = new Set(Object.keys(CACHE_TTLS))
+export const CACHEABLE_SLUGS: ReadonlySet<string> = new Set(Object.keys(CACHE_TTLS.collections))
 
 /**
- * Cacheable **global** slugs — the client-read configuration and translation
- * globals, every one of which a widget or site fetches on boot (#710). They all
- * use {@link DEFAULT_SMAXAGE}; there is no per-global override, because these
- * are edited at the same low frequency and nothing has asked for a second rate.
- * Like {@link CACHEABLE_SLUGS}, this is also the set whose writes purge.
- *
- * The `Cache-Tag` is the global's own slug, exactly as it is for a collection.
- * The two namespaces cannot collide — every global here is `wm-*` or `sy-*`,
- * and no collection slug takes either prefix.
- *
- * ⚠ **`wm-app-status` is deliberately absent.** It is an operator readiness
- * report, read in the admin over cookie auth, and it carries computed fields.
- * It stays `DYNAMIC`, which is the fail-safe direction. Add a global here only
- * when a client genuinely reads it and its contents are published-only.
+ * Cacheable global slugs — likewise the set whose writes purge. The `Cache-Tag`
+ * is the global's own slug, exactly as it is for a collection. The two
+ * namespaces cannot collide: every cacheable global is `wm-*` or `sy-*`, and no
+ * collection slug takes either prefix.
  */
-export const CACHEABLE_GLOBALS: ReadonlySet<string> = new Set([
-  'wm-web-config',
-  'wm-web-translations',
-  'wm-app-config',
-  'wm-app-translations',
-  'sy-atlas-config',
-  'sy-atlas-translations',
-])
+export const CACHEABLE_GLOBALS: ReadonlySet<string> = new Set(Object.keys(CACHE_TTLS.globals))
 
 /**
  * Live-preview secret header. Mirrors `PREVIEW_SECRET_HEADER` in
@@ -104,9 +104,14 @@ export const CACHEABLE_GLOBALS: ReadonlySet<string> = new Set([
  */
 export const PREVIEW_SECRET_HEADER = 'x-sahajcloud-preview-secret'
 
-/** TTL for a collection slug — its {@link CACHE_TTLS} override, else {@link DEFAULT_SMAXAGE}. */
+/** TTL for a collection slug — its {@link CACHE_TTLS} entry, else {@link DEFAULT_SMAXAGE}. */
 export function ttlForSlug(slug: string): number {
-  return (CACHE_TTLS as Record<string, number>)[slug] ?? DEFAULT_SMAXAGE
+  return (CACHE_TTLS.collections as Record<string, number>)[slug] ?? DEFAULT_SMAXAGE
+}
+
+/** TTL for a global slug — its {@link CACHE_TTLS} entry, else {@link DEFAULT_SMAXAGE}. */
+export function ttlForGlobal(slug: string): number {
+  return (CACHE_TTLS.globals as Record<string, number>)[slug] ?? DEFAULT_SMAXAGE
 }
 
 /**
@@ -173,7 +178,7 @@ export function matchCacheableRead(pathname: string): { sMaxAge: number; tags: s
     if (segments.length !== 3) return null
     const globalSlug = segments[2]
     if (!CACHEABLE_GLOBALS.has(globalSlug)) return null
-    return { sMaxAge: DEFAULT_SMAXAGE, tags: [globalSlug] }
+    return { sMaxAge: ttlForGlobal(globalSlug), tags: [globalSlug] }
   }
 
   // ['api', slug]  or  ['api', slug, numericId]

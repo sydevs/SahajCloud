@@ -82,8 +82,8 @@ covers both the custom client endpoints and the built-in REST collection reads:
   `slug ∈ {meditations, lectures, songs, app-cards, regions, audiences, events, pages, images,
   albums}`, plus root endpoints named individually (see the note below). Enumerated with `eq` /
   `starts_with`, since the Free plan has no regex `matches` operator.
-- **This list is deliberately narrower than `CACHE_TTLS`, and does not have to track it.**
-  `user-choices` sits in `CACHE_TTLS` so that slug is a `Cache-Tag` the lecture feeds may carry
+- **This list is deliberately narrower than `CACHE_TTLS.collections`, and does not have to track
+  it.** `user-choices` sits in `CACHE_TTLS` so that slug is a `Cache-Tag` the lecture feeds may carry
   and `cachePlugin` purges on write (#526) — the feeds embed a user choice's localized title, so
   a rename has to invalidate them. Caching `GET /api/user-choices` itself was never the point.
   Leaving it out of this rule just means that one read stays `DYNAMIC`, which is the fail-safe
@@ -135,8 +135,10 @@ invalidation.
 
 `GET /api/globals/<slug>` is edge-cacheable for the six client-read globals — `wm-web-config`,
 `wm-web-translations`, `wm-app-config`, `wm-app-translations`, `sy-atlas-config`,
-`sy-atlas-translations` — at `DEFAULT_SMAXAGE` (600s), tagged with the global's own slug.
-`wm-app-status` is excluded: it is an operator readiness report read over cookie auth.
+`sy-atlas-translations` — at `DEFAULT_SMAXAGE` (600s), tagged with the global's own slug. They are
+listed with their TTLs in `CACHE_TTLS.globals` (`src/plugins/cache/policy.ts`), the same one place
+the cacheable collections live. `wm-app-status` is excluded: it is an operator readiness report
+read over cookie auth.
 
 This needed **one `starts_with "/api/globals/"` term added to the existing Cache Rule's path
 group** — never a second rule, for the reason in the note above: a separate rule would not carry

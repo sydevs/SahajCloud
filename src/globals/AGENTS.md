@@ -384,9 +384,9 @@ caching: it is an operator report over cookie auth.
 Two consequences when you add a global:
 
 - **A new global gets the four gates automatically**, so a client reading it
-  must send `select`. It gets **no** caching until you add its slug to
-  `CACHEABLE_GLOBALS` (`src/plugins/cache/policy.ts`) — DYNAMIC is the
-  fail-safe direction.
+  must send `select`. It gets **no** caching until you add its slug and TTL to
+  `CACHE_TTLS.globals` (`src/plugins/cache/policy.ts`), which `CACHEABLE_GLOBALS`
+  derives from — DYNAMIC is the fail-safe direction.
 - **Caching also needs a Cloudflare Cache Rule term**, already covering
   `/api/globals/` as a prefix. See `DEPLOYMENT.md`.
 - **`CACHEABLE_GLOBALS` is the only set.** The Cloudflare edge is the one cache
