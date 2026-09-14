@@ -293,29 +293,73 @@ describe('atlas translations seeds', () => {
   // serves English for it openly; an English VALUE arrives at the merge
   // indistinguishable from a real translation.
   //
-  // Only `hu` is pinned. Four other locales hold English-identical values today
-  // (`cs` 1, `fr` 2, `de` 4, `nl` 6), every one a single word — `Filter`,
-  // `Region`, `Website`, `Contact` — that may be the right loanword. #782
-  // leaves those to a native reader rather than to this assertion.
+  // Every locale is pinned, not `hu` alone. The same defect sits in `nl`
+  // today: `registration.form.submit` is the English verb `Register`, on the
+  // button a Dutch visitor presses. An entry below is a CLAIM that the value
+  // is right in that language — a loanword, or a format string carrying no
+  // words at all. Adding one asks for that claim to be true.
   //
   // ⚠ Equality is the weak half of the check, and #782 is its own proof: five
   // `event.recurrence.monthly_*` values were English prose differing from
   // `data.en.json` only in capitalisation, so this comparison would have
   // passed them. It catches an English value COPIED from the English file, not
   // one typed by hand.
-  it('data.hu.json holds no English value but the three that are Hungarian too', () => {
-    const english = new Map(seedEntries(readSeed('en')) as Array<[string, string]>)
-    const untranslated = (seedEntries(readSeed('hu')) as Array<[string, string]>)
-      .filter(([key, value]) => english.get(key) === value)
-      .map(([key]) => key)
-      .sort()
-
-    expect(untranslated).toEqual([
-      // `Online` is the Hungarian word too, in both places it appears.
+  const ENGLISH_VALUES_ALLOWED: Record<
+    Exclude<(typeof SEED_LOCALES)[number], 'en'>,
+    string[]
+  > = {
+    // `%{start} – %{end}` is a format string with no word in it, so every
+    // locale shares it. `Online` is the same word in seven of these languages.
+    cs: [
       'event.display.online',
-      // A format string, byte-identical in all ten locales.
       'filters.dates.pill_range',
       'filters.format.online',
-    ])
-  })
+      // `Region` is the Czech word, not the English one.
+      'filters.region.label',
+    ],
+    de: [
+      'event.display.online',
+      // `%{time} in %{city}` — `in` is the German preposition too.
+      'event.display.time_in_place',
+      'filters.dates.pill_range',
+      'filters.format.label',
+      'filters.format.online',
+      'filters.region.label',
+      'registration.form.okay',
+    ],
+    es: ['filters.dates.pill_range'],
+    fr: ['filters.dates.label', 'filters.dates.pill_range', 'filters.format.label'],
+    hu: ['event.display.online', 'filters.dates.pill_range', 'filters.format.online'],
+    nl: [
+      'calendar.view_week',
+      'event.actions.contact',
+      'event.actions.website',
+      'event.display.online',
+      'event.display.time_in_place',
+      'filters.chrome.title',
+      'filters.dates.pill_range',
+      'filters.format.online',
+      // ⚠ NOT a loanword. Dutch for this button is `Aanmelden`, and this is
+      // #782's own defect in another file. Pinned so it is named, not hidden.
+      'registration.form.submit',
+    ],
+    'pt-BR': ['filters.dates.pill_range', 'filters.format.online'],
+    ru: ['filters.dates.pill_range'],
+    uk: ['filters.dates.pill_range'],
+  }
+
+  it.each(SEED_LOCALES.filter((locale) => locale !== 'en'))(
+    'data.%s.json holds no English value outside its allowlist',
+    (locale) => {
+      const english = new Map(seedEntries(readSeed('en')) as Array<[string, string]>)
+      const untranslated = (seedEntries(readSeed(locale)) as Array<[string, string]>)
+        .filter(([key, value]) => english.get(key) === value)
+        .map(([key]) => key)
+        .sort()
+
+      expect(untranslated).toEqual(
+        ENGLISH_VALUES_ALLOWED[locale as keyof typeof ENGLISH_VALUES_ALLOWED],
+      )
+    },
+  )
 })
