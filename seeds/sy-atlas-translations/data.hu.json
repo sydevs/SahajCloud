@@ -248,7 +248,7 @@
       "online_notice_title": "Online alkalom",
       "privacy_policy": "A beküldéssel hozzájárul ahhoz, hogy erről és a hasonló eseményekről további üzeneteket küldjünk Önnek, az adatvédelmi szabályzatunknak megfelelően.",
       "error_title": "Valami hiba történt",
-      "captcha_retry": "A biztonsági ellenőrzést újra el kell végezni. Várd meg, amíg frissül, majd regisztrálj még egyszer."
+      "captcha_retry": "A biztonsági ellenőrzést újra el kell végezni. Várja meg, amíg frissül, majd regisztráljon még egyszer."
     },
     "errors": {
       "email": "Adjon meg érvényes e-mail-címet",
