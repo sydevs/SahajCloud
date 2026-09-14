@@ -607,6 +607,191 @@
       },
       "additionalProperties": false
     },
+    "video": {
+      "type": "object",
+      "description": "The video player's controls, its settings menu, and the subtitle appearance options",
+      "properties": {
+        "general": {
+          "type": "object",
+          "description": "Visible on screen",
+          "properties": {
+            "play": {
+              "type": "string",
+              "description": "Tooltip on the video player's play button while the video is paused. It also names that button for screen readers."
+            },
+            "pause": {
+              "type": "string",
+              "description": "Tooltip on the same button while the video is playing."
+            },
+            "mute": {
+              "type": "string",
+              "description": "Tooltip on the video player's sound button while the video can be heard. It also names that button for screen readers."
+            },
+            "unmute": {
+              "type": "string",
+              "description": "Tooltip on the same button while the video is silenced."
+            },
+            "settings": {
+              "type": "string",
+              "description": "Tooltip on the video player's settings button, which opens the gear menu."
+            },
+            "closed_captions_on": {
+              "type": "string",
+              "description": "Tooltip on the video player's subtitles button while subtitles are showing."
+            },
+            "closed_captions_off": {
+              "type": "string",
+              "description": "Tooltip on the same button while subtitles are hidden."
+            },
+            "seek_forward": {
+              "type": "string",
+              "description": "Tooltip on the video player's button that jumps forward a few seconds."
+            },
+            "seek_backward": {
+              "type": "string",
+              "description": "Tooltip on the video player's button that jumps back a few seconds."
+            },
+            "enter_pip": {
+              "type": "string",
+              "description": "Tooltip on the video player's button that pops the video out into a small floating window."
+            },
+            "exit_pip": {
+              "type": "string",
+              "description": "Tooltip on the same button while the video already plays in that floating window."
+            },
+            "enter_fullscreen": {
+              "type": "string",
+              "description": "Tooltip on the video player's button that makes the video fill the screen."
+            },
+            "exit_fullscreen": {
+              "type": "string",
+              "description": "Tooltip on the same button while the video already fills the screen."
+            },
+            "captions": {
+              "type": "string",
+              "description": "Video settings menu: the row that lists the subtitle tracks this video offers."
+            },
+            "quality": {
+              "type": "string",
+              "description": "Video settings menu: the row that lists the picture qualities this video offers."
+            },
+            "speed": {
+              "type": "string",
+              "description": "Video settings menu: the row that sets how fast the video plays."
+            },
+            "audio": {
+              "type": "string",
+              "description": "Video settings menu: the row holding the sound options."
+            },
+            "track": {
+              "type": "string",
+              "description": "Video settings menu: the row that lists the audio tracks this video offers."
+            },
+            "boost": {
+              "type": "string",
+              "description": "Video settings menu: the slider that raises the volume past its normal maximum."
+            },
+            "accessibility": {
+              "type": "string",
+              "description": "Video settings menu: the row holding the screen-reader and keyboard options."
+            },
+            "announcements": {
+              "type": "string",
+              "description": "Video settings menu: the switch that lets a screen reader announce playback changes."
+            },
+            "keyboard_animations": {
+              "type": "string",
+              "description": "Video settings menu: the switch that flashes an icon when a keyboard shortcut fires."
+            },
+            "auto": {
+              "type": "string",
+              "description": "Video settings menu: the quality option that lets the player choose for itself."
+            },
+            "default": {
+              "type": "string",
+              "description": "Video settings menu: the audio track the video ships with."
+            },
+            "normal": {
+              "type": "string",
+              "description": "Video settings menu: the speed option that plays the video as recorded."
+            },
+            "off": {
+              "type": "string",
+              "description": "Video settings menu: the subtitle option that shows no subtitles."
+            },
+            "caption_styles": {
+              "type": "string",
+              "description": "Video settings menu: the row that opens the subtitle appearance options."
+            },
+            "captions_look_like_this": {
+              "type": "string",
+              "description": "Sample sentence in the subtitle appearance options, so the viewer sees each choice applied."
+            },
+            "font": {
+              "type": "string",
+              "description": "Subtitle appearance options: the heading above the lettering choices."
+            },
+            "family": {
+              "type": "string",
+              "description": "Subtitle appearance options: the typeface the subtitles use."
+            },
+            "size": {
+              "type": "string",
+              "description": "Subtitle appearance options: how large the subtitle lettering is."
+            },
+            "text": {
+              "type": "string",
+              "description": "Subtitle appearance options: the heading above the subtitle lettering's own colour and opacity."
+            },
+            "text_background": {
+              "type": "string",
+              "description": "Subtitle appearance options: the heading above the band drawn behind the lettering."
+            },
+            "display_background": {
+              "type": "string",
+              "description": "Subtitle appearance options: the heading above the panel drawn behind the whole subtitle area."
+            },
+            "color": {
+              "type": "string",
+              "description": "Subtitle appearance options: the colour of the part its heading names. It appears under three headings."
+            },
+            "opacity": {
+              "type": "string",
+              "description": "Subtitle appearance options: how see-through the part its heading names is. It appears under three headings."
+            },
+            "shadow": {
+              "type": "string",
+              "description": "Subtitle appearance options: the shadow drawn behind the subtitle lettering."
+            },
+            "reset": {
+              "type": "string",
+              "description": "Button that puts every subtitle appearance option back to its starting value."
+            }
+          },
+          "additionalProperties": false
+        },
+        "a11y": {
+          "type": "object",
+          "description": "Not shown on screen; read by screen readers",
+          "properties": {
+            "fullscreen": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the video player's fullscreen button."
+            },
+            "pip": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the video player's button that pops the video into a small floating window."
+            },
+            "seek": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the video player's progress bar, which scrubs through the video."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "location": {
       "type": "object",
       "description": "The place-search box and its \"near me\" option",

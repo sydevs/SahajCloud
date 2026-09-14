@@ -119,7 +119,7 @@ All translations globals share a tab-based structure, built by
 the global. Versions: max 3.
 
 - WeMeditate Web tabs: Common, Navigation, Footer, Errors, Article,
-  Meditation, Lecture, Map, Forms, Media, Location, Blocks
+  Meditation, Lecture, Map, Forms, Media, Video, Location, Blocks
 - WeMeditate App tabs: Daily, Path, Explore, Profile, Meditation
 - Sahaj Atlas tabs: Common, Countries, Search, Filters, Online, Event,
   Calendar, Registration, Share, Compact, Seo, Emails

@@ -3,7 +3,7 @@
     "global": "wm-web-translations",
     "locale": "en",
     "source": "Extracted from sydevs/WeMeditateWeb@main — the literal each key replaces is listed in Appendix A of sydevs/SahajCloud#707. Screen-reader-only strings come from the inventory in sydevs/WeMeditateWeb#56.",
-    "schema_version": "post-#707 (12 tabs, 22 leaf groups, 140 declared keys)",
+    "schema_version": "post-#707 (13 tabs, 24 leaf groups, 181 declared keys)",
     "shape": "Mirrors the global's API response: <tab>.<sub-group>.<key> for a nested tab, <tab>.<key> for a flat one (navigation, footer). A `plural: true` key is stored expanded — English populates `_one` and `_other` only, since English has no `few`/`many` form.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form."
   },
@@ -175,6 +175,54 @@
       "embed_code": "Embed code",
       "zoom_in": "Zoom in",
       "zoom_out": "Zoom out"
+    }
+  },
+
+  "video": {
+    "general": {
+      "play": "Play",
+      "pause": "Pause",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "settings": "Settings",
+      "closed_captions_on": "Closed-Captions On",
+      "closed_captions_off": "Closed-Captions Off",
+      "seek_forward": "Seek Forward",
+      "seek_backward": "Seek Backward",
+      "enter_pip": "Enter PiP",
+      "exit_pip": "Exit PiP",
+      "enter_fullscreen": "Enter Fullscreen",
+      "exit_fullscreen": "Exit Fullscreen",
+      "captions": "Captions",
+      "quality": "Quality",
+      "speed": "Speed",
+      "audio": "Audio",
+      "track": "Track",
+      "boost": "Boost",
+      "accessibility": "Accessibility",
+      "announcements": "Announcements",
+      "keyboard_animations": "Keyboard Animations",
+      "auto": "Auto",
+      "default": "Default",
+      "normal": "Normal",
+      "off": "Off",
+      "caption_styles": "Caption Styles",
+      "captions_look_like_this": "Captions look like this",
+      "font": "Font",
+      "family": "Family",
+      "size": "Size",
+      "text": "Text",
+      "text_background": "Text Background",
+      "display_background": "Display Background",
+      "color": "Color",
+      "opacity": "Opacity",
+      "shadow": "Shadow",
+      "reset": "Reset"
+    },
+    "a11y": {
+      "fullscreen": "Fullscreen",
+      "pip": "PiP",
+      "seek": "Seek"
     }
   },
 
