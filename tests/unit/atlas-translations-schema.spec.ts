@@ -247,10 +247,11 @@ describe('atlas translations seeds', () => {
   // it misses is a key nothing can render. `seo` is the one group no widget
   // view reads, and it is covered here anyway: the seed owns it, and English is
   // the one locale where a blank landing description is an omission rather than
-  // the deliberate `null` the endpoint answers with (#778). `few` and `many`
-  // are exempt: English has no such plural category, and a value there would be
-  // invented.
-  it('data.en.json covers every key the seed owns', () => {
+  // the deliberate `null` the endpoint answers with (#778). `emails` and
+  // `event.title` are seeded too, but from the English defaults the importer
+  // merges into blank keys, never from this file. `few` and `many` are exempt:
+  // English has no such plural category, and a value there would be invented.
+  it('data.en.json covers every key seeded from this file', () => {
     const seeded = new Set(seedEntries(readSeed('en')).map(([key]) => key))
     const missing = [...declared].filter(
       (key) =>
