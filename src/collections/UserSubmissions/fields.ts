@@ -77,8 +77,16 @@ const typeField: Field = {
 /**
  * The admin title, composed on create by `prepareUserSubmission`.
  *
- * Not client-writable: it is derived, and a submitter naming their own row
- * would put unreviewed text in an admin's list view.
+ * The column itself is never written by a client — `systemFieldAccess` denies
+ * it — so a submitter cannot name their own row outright.
+ *
+ * ⚠ **It is composed from submitter text all the same.** A contact subject is
+ * the form's title joined with the sender's own `subject` pair
+ * (`composeSubject`, `hooks/prepareUserSubmission.ts`), so unreviewed text does
+ * reach an admin's list view. That is bounded rather than trusted: the pair is
+ * URL-scanned by `urlScannablePairs`, capped by the `submissionData` bound, and
+ * the column truncates to 300. Treat the value as untrusted when you render it
+ * anywhere new.
  */
 const subjectField: Field = {
   name: 'subject',
