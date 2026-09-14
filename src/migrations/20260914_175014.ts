@@ -1,299 +1,32 @@
-import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
-
-export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
-  await db.execute(sql`
-   CREATE TYPE "public"."enum_wm_app_config_available_locales" AS ENUM('en', 'es', 'de', 'it', 'fr', 'ru', 'ro', 'cs', 'uk', 'el', 'hy', 'pl', 'pt-BR', 'fa', 'bg', 'tr', 'en-AU', 'hu', 'nl');
-  CREATE TABLE "wm_app_config_available_locales" (
-  	"order" integer NOT NULL,
-  	"parent_id" integer NOT NULL,
-  	"value" "enum_wm_app_config_available_locales",
-  	"id" serial PRIMARY KEY NOT NULL
-  );
-  
-  DROP INDEX "pages__status_idx";
-  DROP INDEX "_pages_v_version_version__status_idx";
-  DROP INDEX "app_cards__status_idx";
-  DROP INDEX "_app_cards_v_version_version__status_idx";
-  DROP INDEX "wm_app_translations__status_idx";
-  DROP INDEX "_wm_app_translations_v_version_version__status_idx";
-  ALTER TABLE "pages_locales" ADD COLUMN "_status" "enum_pages_status" DEFAULT 'draft';
-  ALTER TABLE "_pages_v_locales" ADD COLUMN "version__status" "enum__pages_v_version_status" DEFAULT 'draft';
-  ALTER TABLE "app_cards_locales" ADD COLUMN "_status" "enum_app_cards_status" DEFAULT 'draft';
-  ALTER TABLE "_app_cards_v_locales" ADD COLUMN "version__status" "enum__app_cards_v_version_status" DEFAULT 'draft';
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "common_general" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "common_a11y" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "errors_general" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "errors_a11y" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "article_general" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "article_a11y" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "meditation_general" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "meditation_a11y" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "lecture_general" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "lecture_a11y" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "map_general" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "map_a11y" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "forms_general" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "forms_a11y" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "media_general" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "media_a11y" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "video_general" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "video_a11y" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "location_general" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "location_a11y" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "blocks_general" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "blocks_a11y" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_common_general" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_common_a11y" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_errors_general" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_errors_a11y" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_article_general" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_article_a11y" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_meditation_general" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_meditation_a11y" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_lecture_general" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_lecture_a11y" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_map_general" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_map_a11y" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_forms_general" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_forms_a11y" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_media_general" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_media_a11y" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_video_general" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_video_a11y" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_location_general" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_location_a11y" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_blocks_general" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_blocks_a11y" jsonb;
-  ALTER TABLE "wm_app_translations_locales" ADD COLUMN "_status" "enum_wm_app_translations_status" DEFAULT 'draft';
-  ALTER TABLE "_wm_app_translations_v_locales" ADD COLUMN "version__status" "enum__wm_app_translations_v_version_status" DEFAULT 'draft';
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "common_chrome" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "common_settings" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "common_errors" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "common_report" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "common_report_errors" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "common_map" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "common_feedback" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "countries" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "search_chrome" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "search_results" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "search_sort" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "search_country_site" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "search_nearby_prompt" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "filters_chrome" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "filters_format" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "filters_cadence" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "filters_days" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "filters_time" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "filters_language" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "filters_dates" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "filters_region" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "online" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "event_display" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "event_actions" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "calendar" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "compact" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "seo" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_common_chrome" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_common_settings" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_common_errors" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_common_report" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_common_report_errors" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_common_map" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_common_feedback" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_countries" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_search_chrome" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_search_results" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_search_sort" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_search_country_site" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_search_nearby_prompt" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_filters_chrome" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_filters_format" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_filters_cadence" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_filters_days" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_filters_time" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_filters_language" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_filters_dates" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_filters_region" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_online" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_event_display" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_event_actions" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_calendar" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_compact" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_seo" jsonb;
-  ALTER TABLE "wm_app_config_available_locales" ADD CONSTRAINT "wm_app_config_available_locales_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."wm_app_config"("id") ON DELETE cascade ON UPDATE no action;
-  CREATE INDEX "wm_app_config_available_locales_order_idx" ON "wm_app_config_available_locales" USING btree ("order");
-  CREATE INDEX "wm_app_config_available_locales_parent_idx" ON "wm_app_config_available_locales" USING btree ("parent_id");
-  CREATE INDEX "pages__status_idx" ON "pages_locales" USING btree ("_status","_locale");
-  CREATE INDEX "_pages_v_version_version__status_idx" ON "_pages_v_locales" USING btree ("version__status","_locale");
-  CREATE INDEX "app_cards__status_idx" ON "app_cards_locales" USING btree ("_status","_locale");
-  CREATE INDEX "_app_cards_v_version_version__status_idx" ON "_app_cards_v_locales" USING btree ("version__status","_locale");
-  CREATE INDEX "wm_app_translations__status_idx" ON "wm_app_translations_locales" USING btree ("_status","_locale");
-  CREATE INDEX "_wm_app_translations_v_version_version__status_idx" ON "_wm_app_translations_v_locales" USING btree ("version__status","_locale");
-  ALTER TABLE "pages" DROP COLUMN "_status";
-  ALTER TABLE "_pages_v" DROP COLUMN "version__status";
-  ALTER TABLE "app_cards" DROP COLUMN "_status";
-  ALTER TABLE "_app_cards_v" DROP COLUMN "version__status";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "common";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "page_tags";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "errors";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_common";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_page_tags";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_errors";
-  ALTER TABLE "wm_app_translations" DROP COLUMN "_status";
-  ALTER TABLE "_wm_app_translations_v" DROP COLUMN "version__status";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "common";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "region_locations";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "region_venues";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "event_details";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "event_timing";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_common";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_region_locations";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_region_venues";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_event_details";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_event_timing";`)
+/**
+ * Snapshot resync. Deliberately no DDL — the `.json` beside this file is the
+ * whole point of the migration.
+ *
+ * ⚠ As generated, `up()` carried 142 statements and **every one of them was
+ * already applied** by an earlier migration in this chain: `20260705_160029`,
+ * `20260705_161112`, `20260909_161243`, `20260909_161353`, `20260909_161848`,
+ * `20260909_162104`, `20260911_235823`, `20260912_031449`, `20260913_212558`.
+ * Nothing in it was new. `migrate:create` diffs against the
+ * newest-by-timestamp snapshot, and `20260914_172100_user_submissions.json`
+ * was generated before `main` was merged in, so the diff re-emitted all of
+ * `main`'s 20260909–20260913 schema. Replaying it aborts the boot migration on
+ * its first statement (`CREATE TYPE … already exists`) — the out-of-order
+ * snapshot trap, #566, documented in `AGENTS.md`.
+ *
+ * `20260914_175014.json` was generated on the merged tree, so it carries both
+ * `user_submissions` and `main`'s schema. Keeping it as the highest-timestamp
+ * snapshot, with no DDL beneath it, is what heals the chain for the next
+ * `migrate:create`.
+ *
+ * Do not regenerate this file: with the same stale predecessor it re-emits the
+ * same duplicates. And note `push: !isProduction` in `src/payload.config.ts` —
+ * dev and CI sync the schema with Drizzle push and never replay this chain, so
+ * a green CI run says nothing about it. Only a Railway boot does.
+ */
+export async function up(): Promise<void> {
+  // No schema change.
 }
 
-export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
-  await db.execute(sql`
-   ALTER TABLE "wm_app_config_available_locales" DISABLE ROW LEVEL SECURITY;
-  DROP TABLE "wm_app_config_available_locales" CASCADE;
-  DROP INDEX "pages__status_idx";
-  DROP INDEX "_pages_v_version_version__status_idx";
-  DROP INDEX "app_cards__status_idx";
-  DROP INDEX "_app_cards_v_version_version__status_idx";
-  DROP INDEX "wm_app_translations__status_idx";
-  DROP INDEX "_wm_app_translations_v_version_version__status_idx";
-  ALTER TABLE "pages" ADD COLUMN "_status" "enum_pages_status" DEFAULT 'draft';
-  ALTER TABLE "_pages_v" ADD COLUMN "version__status" "enum__pages_v_version_status" DEFAULT 'draft';
-  ALTER TABLE "app_cards" ADD COLUMN "_status" "enum_app_cards_status" DEFAULT 'draft';
-  ALTER TABLE "_app_cards_v" ADD COLUMN "version__status" "enum__app_cards_v_version_status" DEFAULT 'draft';
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "common" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "page_tags" jsonb;
-  ALTER TABLE "wm_web_translations_locales" ADD COLUMN "errors" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_common" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_page_tags" jsonb;
-  ALTER TABLE "_wm_web_translations_v_locales" ADD COLUMN "version_errors" jsonb;
-  ALTER TABLE "wm_app_translations" ADD COLUMN "_status" "enum_wm_app_translations_status" DEFAULT 'draft';
-  ALTER TABLE "_wm_app_translations_v" ADD COLUMN "version__status" "enum__wm_app_translations_v_version_status" DEFAULT 'draft';
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "common" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "region_locations" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "region_venues" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "event_details" jsonb;
-  ALTER TABLE "sy_atlas_translations_locales" ADD COLUMN "event_timing" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_common" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_region_locations" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_region_venues" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_event_details" jsonb;
-  ALTER TABLE "_sy_atlas_translations_v_locales" ADD COLUMN "version_event_timing" jsonb;
-  CREATE INDEX "pages__status_idx" ON "pages" USING btree ("_status");
-  CREATE INDEX "_pages_v_version_version__status_idx" ON "_pages_v" USING btree ("version__status");
-  CREATE INDEX "app_cards__status_idx" ON "app_cards" USING btree ("_status");
-  CREATE INDEX "_app_cards_v_version_version__status_idx" ON "_app_cards_v" USING btree ("version__status");
-  CREATE INDEX "wm_app_translations__status_idx" ON "wm_app_translations" USING btree ("_status");
-  CREATE INDEX "_wm_app_translations_v_version_version__status_idx" ON "_wm_app_translations_v" USING btree ("version__status");
-  ALTER TABLE "pages_locales" DROP COLUMN "_status";
-  ALTER TABLE "_pages_v_locales" DROP COLUMN "version__status";
-  ALTER TABLE "app_cards_locales" DROP COLUMN "_status";
-  ALTER TABLE "_app_cards_v_locales" DROP COLUMN "version__status";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "common_general";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "common_a11y";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "errors_general";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "errors_a11y";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "article_general";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "article_a11y";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "meditation_general";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "meditation_a11y";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "lecture_general";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "lecture_a11y";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "map_general";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "map_a11y";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "forms_general";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "forms_a11y";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "media_general";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "media_a11y";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "video_general";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "video_a11y";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "location_general";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "location_a11y";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "blocks_general";
-  ALTER TABLE "wm_web_translations_locales" DROP COLUMN "blocks_a11y";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_common_general";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_common_a11y";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_errors_general";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_errors_a11y";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_article_general";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_article_a11y";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_meditation_general";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_meditation_a11y";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_lecture_general";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_lecture_a11y";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_map_general";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_map_a11y";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_forms_general";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_forms_a11y";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_media_general";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_media_a11y";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_video_general";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_video_a11y";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_location_general";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_location_a11y";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_blocks_general";
-  ALTER TABLE "_wm_web_translations_v_locales" DROP COLUMN "version_blocks_a11y";
-  ALTER TABLE "wm_app_translations_locales" DROP COLUMN "_status";
-  ALTER TABLE "_wm_app_translations_v_locales" DROP COLUMN "version__status";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "common_chrome";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "common_settings";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "common_errors";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "common_report";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "common_report_errors";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "common_map";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "common_feedback";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "countries";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "search_chrome";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "search_results";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "search_sort";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "search_country_site";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "search_nearby_prompt";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "filters_chrome";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "filters_format";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "filters_cadence";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "filters_days";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "filters_time";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "filters_language";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "filters_dates";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "filters_region";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "online";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "event_display";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "event_actions";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "calendar";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "compact";
-  ALTER TABLE "sy_atlas_translations_locales" DROP COLUMN "seo";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_common_chrome";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_common_settings";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_common_errors";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_common_report";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_common_report_errors";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_common_map";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_common_feedback";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_countries";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_search_chrome";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_search_results";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_search_sort";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_search_country_site";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_search_nearby_prompt";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_filters_chrome";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_filters_format";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_filters_cadence";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_filters_days";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_filters_time";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_filters_language";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_filters_dates";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_filters_region";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_online";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_event_display";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_event_actions";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_calendar";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_compact";
-  ALTER TABLE "_sy_atlas_translations_v_locales" DROP COLUMN "version_seo";
-  DROP TYPE "public"."enum_wm_app_config_available_locales";`)
+export async function down(): Promise<void> {
+  // Nothing to undo.
 }
