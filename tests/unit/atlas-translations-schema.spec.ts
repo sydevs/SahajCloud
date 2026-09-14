@@ -253,9 +253,6 @@ describe('atlas translations seeds', () => {
         !seeded.has(key) &&
         !key.startsWith('emails.') &&
         !key.startsWith('event.title.') &&
-        // Operator-written landing copy (#739), blank in every locale until
-        // someone writes it. A seeded value would be a guess in a `<head>`.
-        !key.startsWith('seo.') &&
         !/_(few|many)$/.test(key),
     )
     expect(missing).toEqual([])

@@ -270,5 +270,8 @@
   },
   "compact": {
     "open": "Trouver un cours près de chez vous"
+  },
+  "seo": {
+    "root_title": "Cours de méditation gratuits près de chez vous"
   }
 }
