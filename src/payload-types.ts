@@ -688,7 +688,6 @@ export type MeditationFrames = {
   timestamp: number;
   [k: string]: unknown;
 }[];
-export type SyncLectureMetadataIds = number[];
 export type TableOfContentsHeadings = {
   slug: string;
   text: string;
@@ -1148,7 +1147,7 @@ export interface Video {
   title: string;
   subtitles?: Subtitles;
   tags: 'testimonial' | 'workshop' | 'event' | 'technique';
-  fileMetadata?: FileMetadata1;
+  fileMetadata?: FileMetadata;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1160,13 +1159,6 @@ export interface Video {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-}
-export interface FileMetadata1 {
-  /**
-   * The filename as uploaded, before the adapter replaced it with a provider id.
-   */
-  originalFilename?: string;
-  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1970,24 +1962,7 @@ export interface Registration {
         | 'nl'
       )
     | null;
-  questions?: {
-    /**
-     * Have you practised Sahaja Yoga meditation before?
-     */
-    experience?: string;
-    /**
-     * How did you hear about this event?
-     */
-    referral?: string;
-    /**
-     * What are you hoping to get out of this?
-     */
-    aspirations?: string;
-    /**
-     * Do you have any questions for us?
-     */
-    questions?: string;
-  };
+  questions?: RegistrationQuestions;
   uuid: string;
   mailingListSubscribedAt?: string | null;
   remindersUnsubscribedAt?: string | null;
@@ -2480,6 +2455,10 @@ export interface Client {
      */
     embed?: string | null;
     verification?: ClientCanonicalVerification;
+    /**
+     * Derived, never chosen: “Path segment” once the CMS has seen this host serve the atlas under the embed’s own subtree, “Query parameter” otherwise.
+     */
+    routing?: ('query' | 'path') | null;
     nextVerifyAt?: string | null;
   };
   embedMetadata?: ClientEmbedMetadata;
@@ -2563,11 +2542,16 @@ export interface ClientCanonicalVerification {
   verified: {
     domain: string;
     mount: string;
-    routing: 'query' | 'path';
+    routing?: 'query' | 'path';
     widgetVersion: number;
     at: string;
   } | null;
   failureCount: number;
+  routingProbe?: {
+    at: string;
+    verdict: 'query' | 'path';
+    failedAttempts: number;
+  };
   attempts: {
     at: string;
     status: 'verified' | 'failed' | 'inconclusive';
@@ -2635,6 +2619,24 @@ export interface SubmissionScreeningResult {
    * When screening reached this verdict (ISO 8601).
    */
   screenedAt: string;
+}
+export interface RegistrationQuestions {
+  /**
+   * Have you practised Sahaja Yoga meditation before?
+   */
+  experience?: string;
+  /**
+   * How did you hear about this event?
+   */
+  referral?: string;
+  /**
+   * What are you hoping to get out of this?
+   */
+  aspirations?: string;
+  /**
+   * Do you have any questions for us?
+   */
+  questions?: string;
 }
 export interface EventSystemMeta {
   communityFeedback?: {
@@ -2789,7 +2791,7 @@ export interface Song {
    * Include this song in random selection in meditations. Auto-set to false on creation when the song has the vocals tag, then manually editable.
    */
   includeForMeditations?: boolean | null;
-  fileMetadata?: FileMetadata2;
+  fileMetadata?: FileMetadata;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -2827,13 +2829,6 @@ export interface Album {
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
-}
-export interface FileMetadata2 {
-  /**
-   * The filename as uploaded, before the adapter replaced it with a provider id.
-   */
-  originalFilename?: string;
-  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3732,7 +3727,7 @@ export interface Frame {
       )[]
     | null;
   duration?: number | null;
-  fileMetadata?: FileMetadata3;
+  fileMetadata?: FileMetadata;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -3744,13 +3739,6 @@ export interface Frame {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-}
-export interface FileMetadata3 {
-  /**
-   * The filename as uploaded, before the adapter replaced it with a provider id.
-   */
-  originalFilename?: string;
-  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3847,53 +3835,14 @@ export interface EventSubmission {
  */
 export interface UserMessage {
   id: number;
-  screeningResult?: {
-    /**
-     * `ok`, or why the message was classified spam.
-     */
-    verdict: 'ok' | 'disposable_email' | 'invalid_email' | 'no_mx_records' | 'repeat_sender' | 'duplicate_body';
-    /**
-     * Everything an admin needs, as complete sentences. Each says what happened and what follows from it. A delivered message normally has none.
-     */
-    notes?: string[];
-    /**
-     * A technical detail kept for triage and NOT rendered — an MX lookup that came back inconclusive, or the mail transport’s own error string. Discarding it would leave nothing to look at when delivery goes wrong.
-     */
-    diagnostic?: string;
-    /**
-     * When screening reached this verdict (ISO 8601).
-     */
-    screenedAt: string;
-  };
+  screeningResult?: UserMessageScreeningResult;
   subject?: string | null;
   message: string;
   /**
    * Optional. Becomes the Reply-To of the message we email out.
    */
   senderEmail?: string | null;
-  context?: {
-    /**
-     * Route the sender was on, e.g. `/events/london-meetup`.
-     */
-    path?: string;
-    /**
-     * Absolute URL of the host page embedding the widget.
-     */
-    hostUrl?: string;
-    /**
-     * Locale the sender was browsing in.
-     */
-    locale?: string;
-    /**
-     * Error text/stack the sender was reporting, when the message is a crash report.
-     */
-    error?: string;
-    /**
-     * The sender's user-agent string.
-     */
-    userAgent?: string;
-    [k: string]: unknown;
-  };
+  context?: UserMessageContext;
   client?: (number | null) | Client;
   user?: (number | null) | User;
   status: 'screening' | 'delivered' | 'spam' | 'failed';
@@ -3901,6 +3850,47 @@ export interface UserMessage {
   deliveredAt?: string | null;
   updatedAt: string;
   createdAt: string;
+}
+export interface UserMessageScreeningResult {
+  /**
+   * `ok`, or why the message was classified spam.
+   */
+  verdict: 'ok' | 'disposable_email' | 'invalid_email' | 'no_mx_records' | 'repeat_sender' | 'duplicate_body';
+  /**
+   * Everything an admin needs, as complete sentences. Each says what happened and what follows from it. A delivered message normally has none.
+   */
+  notes?: string[];
+  /**
+   * A technical detail kept for triage and NOT rendered — an MX lookup that came back inconclusive, or the mail transport’s own error string. Discarding it would leave nothing to look at when delivery goes wrong.
+   */
+  diagnostic?: string;
+  /**
+   * When screening reached this verdict (ISO 8601).
+   */
+  screenedAt: string;
+}
+export interface UserMessageContext {
+  /**
+   * Route the sender was on, e.g. `/events/london-meetup`.
+   */
+  path?: string;
+  /**
+   * Absolute URL of the host page embedding the widget.
+   */
+  hostUrl?: string;
+  /**
+   * Locale the sender was browsing in.
+   */
+  locale?: string;
+  /**
+   * Error text/stack the sender was reporting, when the message is a crash report.
+   */
+  error?: string;
+  /**
+   * The sender's user-agent string.
+   */
+  userAgent?: string;
+  [k: string]: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -4671,6 +4661,7 @@ export interface ClientsSelect<T extends boolean = true> {
         enabled?: T;
         embed?: T;
         verification?: T;
+        routing?: T;
         nextVerifyAt?: T;
       };
   embedMetadata?: T;
@@ -5299,88 +5290,899 @@ export interface WmWebConfig {
  */
 export interface WmWebTranslation {
   id: number;
-  common?: WmWebTranslationsCommonStrings;
+  common?: {
+    general?: WmWebTranslationsCommonGeneralStrings;
+    a11y?: WmWebTranslationsCommonA11YStrings;
+  };
   navigation?: WmWebTranslationsNavigationStrings;
   footer?: WmWebTranslationsFooterStrings;
-  page_tags?: WmWebTranslationsPageTagsStrings;
-  errors?: WmWebTranslationsErrorsStrings;
+  errors?: {
+    general?: WmWebTranslationsErrorsGeneralStrings;
+    a11y?: WmWebTranslationsErrorsA11YStrings;
+  };
+  article?: {
+    general?: WmWebTranslationsArticleGeneralStrings;
+    a11y?: WmWebTranslationsArticleA11YStrings;
+  };
+  meditation?: {
+    general?: WmWebTranslationsMeditationGeneralStrings;
+    a11y?: WmWebTranslationsMeditationA11YStrings;
+  };
+  lecture?: {
+    general?: WmWebTranslationsLectureGeneralStrings;
+    a11y?: WmWebTranslationsLectureA11YStrings;
+  };
+  map?: {
+    general?: WmWebTranslationsMapGeneralStrings;
+    a11y?: WmWebTranslationsMapA11YStrings;
+  };
+  forms?: {
+    general?: WmWebTranslationsFormsGeneralStrings;
+    a11y?: WmWebTranslationsFormsA11YStrings;
+  };
+  media?: {
+    general?: WmWebTranslationsMediaGeneralStrings;
+    a11y?: WmWebTranslationsMediaA11YStrings;
+  };
+  video?: {
+    general?: WmWebTranslationsVideoGeneralStrings;
+    a11y?: WmWebTranslationsVideoA11YStrings;
+  };
+  location?: {
+    general?: WmWebTranslationsLocationGeneralStrings;
+    a11y?: WmWebTranslationsLocationA11YStrings;
+  };
+  blocks?: {
+    general?: WmWebTranslationsBlocksGeneralStrings;
+    a11y?: WmWebTranslationsBlocksA11YStrings;
+  };
   _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
-export interface WmWebTranslationsCommonStrings {
+export interface WmWebTranslationsCommonGeneralStrings {
   /**
-   * Loading indicator text shown while content is being fetched.
+   * Shown beside a spinner while content is still loading.
    */
   loading?: string;
   /**
-   * Generic error message shown when something goes wrong.
+   * Button that reveals the rest of a truncated grid of cards.
    */
-  error?: string;
+  show_more?: string;
   /**
-   * Button text to retry a failed action.
+   * The browser tab title on any page that carries no title of its own. Also the site name search engines show.
    */
-  retry?: string;
+  site_title?: string;
+  /**
+   * The search-result and social-preview summary for any page that carries no description of its own. Around 160 characters reads best.
+   */
+  site_description?: string;
+}
+export interface WmWebTranslationsCommonA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the button that closes a notification banner.
+   */
+  dismiss?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that closes the full-screen image viewer.
+   */
+  close?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that moves back one item in a carousel or image viewer.
+   */
+  previous?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that moves forward one item in a carousel or image viewer.
+   */
+  next?: string;
+  /**
+   * Not shown on screen; read by screen readers. Describes the "Show More" button. `%{count}` = how many further items it reveals, and selects the plural form.
+   */
+  show_more_items_one?: string;
+  /**
+   * Not shown on screen; read by screen readers. Describes the "Show More" button. `%{count}` = how many further items it reveals, and selects the plural form.
+   */
+  show_more_items_few?: string;
+  /**
+   * Not shown on screen; read by screen readers. Describes the "Show More" button. `%{count}` = how many further items it reveals, and selects the plural form.
+   */
+  show_more_items_many?: string;
+  /**
+   * Not shown on screen; read by screen readers. Describes the "Show More" button. `%{count}` = how many further items it reveals, and selects the plural form.
+   */
+  show_more_items_other?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the trail of parent links above a page title.
+   */
+  breadcrumb?: string;
+  /**
+   * Not shown on screen; read by screen readers. Warns that a link opens a new browser tab. `%{label}` = the destination's own name (a social network, untranslated).
+   */
+  opens_in_new_tab?: string;
 }
 export interface WmWebTranslationsNavigationStrings {
   /**
-   * Primary navigation link opening the "About Meditation" knowledge section.
+   * Header menu item opening the section that explains meditation. Repeated as a footer column heading.
    */
   about_meditation?: string;
   /**
-   * Navigation link to educational content and resources.
+   * Caption under the featured image inside an open header menu. A short evocative line, not a sentence.
    */
-  learn_more?: string;
-  /**
-   * Call-to-action navigation link inviting users to start meditating.
-   */
-  come_meditate?: string;
-  /**
-   * Label for the language selector in the header/navigation.
-   */
-  languages?: string;
-  /**
-   * Action link inviting users to find in-person meditation classes near their location (frontend: "Classes near me").
-   */
-  classes_near_me?: string;
+  featured_caption?: string;
 }
 export interface WmWebTranslationsFooterStrings {
   /**
-   * Heading for the footer's "Info" column, which lists informational pages (about, contact, privacy, etc.) (frontend: "Info").
+   * Heading of the footer column listing informational pages (about, contact, privacy).
    */
   info?: string;
+  /**
+   * Label of the footer's language picker.
+   */
+  languages?: string;
+  /**
+   * The copyright line at the very bottom. `%{year}` = the current year. Keep the © symbol.
+   */
+  copyright?: string;
 }
-export interface WmWebTranslationsPageTagsStrings {
+export interface WmWebTranslationsErrorsGeneralStrings {
   /**
-   * Category label for pages tagged "Wisdom" (frontend: "Wisdom").
+   * Heading above an error shown in place of a meditation or lecture player.
    */
-  wisdom?: string;
+  heading?: string;
   /**
-   * Category label for pages tagged "Lifestyle" (frontend: "Lifestyle").
+   * Error heading when the visitor's device cannot reach the site's servers.
    */
-  lifestyle?: string;
+  network_title?: string;
   /**
-   * Category label for pages tagged "Creativity" (frontend: "Creativity").
+   * Error heading when the servers are reachable but failing.
    */
-  creativity?: string;
+  server_title?: string;
   /**
-   * Category label for pages tagged "Event" (frontend: "Event").
+   * Error heading when the requested page or content does not exist.
    */
-  event?: string;
+  not_found_title?: string;
   /**
-   * Category label for pages tagged "Technique" (frontend: "Technique").
+   * Error heading for a failure that fits none of the other cases.
    */
-  technique?: string;
+  unknown_title?: string;
+  /**
+   * Explanation under `network_title`. Asks the visitor to check their internet connection.
+   */
+  network_message?: string;
+  /**
+   * Explanation under `server_title`. Says the problem is ours and is being worked on.
+   */
+  server_message?: string;
+  /**
+   * Explanation under `not_found_title`. Says the content may have moved or been deleted.
+   */
+  not_found_message?: string;
+  /**
+   * Explanation under `unknown_title`. Asks the visitor to try again.
+   */
+  unknown_message?: string;
+  /**
+   * Line pointing at the service status page. `%{link}` = a link whose text is `status_page_link`.
+   */
+  status_page_hint?: string;
+  /**
+   * The clickable words inside `status_page_hint`. Translate as a noun phrase, not a sentence.
+   */
+  status_page_link?: string;
+  /**
+   * Button that reloads the page after an error.
+   */
+  try_again?: string;
+  /**
+   * Button that leaves an error page for the home page.
+   */
+  back_to_home?: string;
 }
-export interface WmWebTranslationsErrorsStrings {
+export interface WmWebTranslationsErrorsA11YStrings {
   /**
-   * Error shown on a meditation page when the meditation has no playable audio source (frontend: "This meditation is missing a required audio URL.").
+   * Not shown on screen; read by screen readers. Names the warning icon above an error message.
    */
-  meditation_missing_audio?: string;
+  error_icon?: string;
+}
+export interface WmWebTranslationsArticleGeneralStrings {
   /**
-   * Error shown on a lecture page when the lecture has no playable video source (frontend: "This lecture is missing a playable video source.").
+   * Byline above an article's author box. `%{name}` = the author's name, rendered in italics.
    */
-  lecture_missing_video?: string;
+  written_by?: string;
+  /**
+   * An author's name and country on one line. `%{name}` = the author's name, `%{country}` = their country. Adjust the separator to suit the language.
+   */
+  name_with_country?: string;
+  /**
+   * How long an author has meditated, in their author box. `%{count}` = number of years, and selects the plural form.
+   */
+  meditating_years_one?: string;
+  /**
+   * How long an author has meditated, in their author box. `%{count}` = number of years, and selects the plural form.
+   */
+  meditating_years_few?: string;
+  /**
+   * How long an author has meditated, in their author box. `%{count}` = number of years, and selects the plural form.
+   */
+  meditating_years_many?: string;
+  /**
+   * How long an author has meditated, in their author box. `%{count}` = number of years, and selects the plural form.
+   */
+  meditating_years_other?: string;
+  /**
+   * Estimated time to read an article. `%{count}` = number of minutes, and selects the plural form.
+   */
+  reading_time_one?: string;
+  /**
+   * Estimated time to read an article. `%{count}` = number of minutes, and selects the plural form.
+   */
+  reading_time_few?: string;
+  /**
+   * Estimated time to read an article. `%{count}` = number of minutes, and selects the plural form.
+   */
+  reading_time_many?: string;
+  /**
+   * Estimated time to read an article. `%{count}` = number of minutes, and selects the plural form.
+   */
+  reading_time_other?: string;
+  /**
+   * Heading above an author's biography at the end of an article.
+   */
+  about_the_author?: string;
+  /**
+   * The filter chip that clears every tag and shows all articles. Sits in a row of chips, so it must stay short.
+   */
+  filter_all?: string;
+  /**
+   * Name of the "Wisdom" article category, shown as a filter chip and on article cards.
+   */
+  tag_wisdom?: string;
+  /**
+   * Name of the "Lifestyle" article category, shown as a filter chip and on article cards.
+   */
+  tag_lifestyle?: string;
+  /**
+   * Name of the "Creativity" article category, shown as a filter chip and on article cards.
+   */
+  tag_creativity?: string;
+  /**
+   * Name of the "Event" article category, shown as a filter chip and on article cards.
+   */
+  tag_event?: string;
+  /**
+   * Name of the "Technique" article category, shown as a filter chip and on article cards.
+   */
+  tag_technique?: string;
+}
+export interface WmWebTranslationsArticleA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the row of tag filter chips above an article index.
+   */
+  filter_label?: string;
+}
+export interface WmWebTranslationsMeditationGeneralStrings {
+  /**
+   * Word marking the current track as a guided meditation, shown above its title.
+   */
+  label?: string;
+  /**
+   * The name of the founder whose portrait appears in the player. A personal name — transliterate rather than translate.
+   */
+  founder_name?: string;
+  /**
+   * The word under the founder's name describing who she was. Lowercase in English.
+   */
+  founder_role?: string;
+  /**
+   * Label of the volume slider for the spoken guidance.
+   */
+  voice?: string;
+  /**
+   * Label of the volume slider for the background music.
+   */
+  music?: string;
+  /**
+   * Tooltip on the button that swaps the background music for another track.
+   */
+  change_music?: string;
+  /**
+   * Stands in for a meditation's title when it has none.
+   */
+  untitled?: string;
+  /**
+   * Shown in place of the player when a meditation has no audio to play.
+   */
+  missing_audio?: string;
+  /**
+   * Heading above the talks suggested at the end of a meditation.
+   */
+  related_lectures?: string;
+}
+export interface WmWebTranslationsMeditationA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the button that silences the spoken guidance.
+   */
+  mute_voice?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the same button once the guidance is silenced.
+   */
+  unmute_voice?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that silences the background music.
+   */
+  mute_music?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the same button once the music is silenced.
+   */
+  unmute_music?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the slider controlling the spoken guidance.
+   */
+  voice_volume?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the slider controlling the background music.
+   */
+  music_volume?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the panel holding the volume sliders.
+   */
+  audio_settings?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that picks a different background track at random.
+   */
+  shuffle_music?: string;
+  /**
+   * Not shown on screen; read by screen readers. Announced while the suggested talks are still loading.
+   */
+  related_lectures_loading?: string;
+}
+export interface WmWebTranslationsLectureGeneralStrings {
+  /**
+   * Shown in place of the video player when a talk has no video to play.
+   */
+  missing_video?: string;
+  /**
+   * Heading above the meditations suggested at the end of a talk.
+   */
+  related_meditations?: string;
+}
+export interface WmWebTranslationsLectureA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Announced while the suggested meditations are still loading.
+   */
+  related_meditations_loading?: string;
+}
+export interface WmWebTranslationsMapGeneralStrings {
+  /**
+   * Marks a class that meets over video rather than in a venue. Sits in a narrow badge, so an over-long translation will not save.
+   */
+  online?: string;
+  /**
+   * Says how much of a region's class list is on the page. `%{shown}` = how many are listed, `%{count}` = how many exist in total and selects the plural form.
+   */
+  classes_shown_one?: string;
+  /**
+   * Says how much of a region's class list is on the page. `%{shown}` = how many are listed, `%{count}` = how many exist in total and selects the plural form.
+   */
+  classes_shown_few?: string;
+  /**
+   * Says how much of a region's class list is on the page. `%{shown}` = how many are listed, `%{count}` = how many exist in total and selects the plural form.
+   */
+  classes_shown_many?: string;
+  /**
+   * Says how much of a region's class list is on the page. `%{shown}` = how many are listed, `%{count}` = how many exist in total and selects the plural form.
+   */
+  classes_shown_other?: string;
+  /**
+   * Shown instead of a class list when a region has none yet.
+   */
+  no_classes?: string;
+  /**
+   * Link that takes a visitor to an online class's meeting room.
+   */
+  join_online?: string;
+  /**
+   * Link that takes a visitor to a class's own website.
+   */
+  visit_website?: string;
+}
+export interface WmWebTranslationsMapA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the list of classes on a region page.
+   */
+  classes_heading?: string;
+  /**
+   * Not shown on screen; read by screen readers. Introduces a class's day and time.
+   */
+  when?: string;
+  /**
+   * Not shown on screen; read by screen readers. Introduces a class's address.
+   */
+  where?: string;
+  /**
+   * Not shown on screen; read by screen readers. Introduces the languages a class is taught in.
+   */
+  languages?: string;
+}
+export interface WmWebTranslationsFormsGeneralStrings {
+  /**
+   * Validation message under a mandatory field left empty. `%{field}` = that field's own label, which the editor writes and which is translated separately.
+   */
+  field_required?: string;
+  /**
+   * Shown in a dropdown before the visitor picks anything.
+   */
+  select_placeholder?: string;
+  /**
+   * Shown when sending a form fails for a reason the site cannot name.
+   */
+  submit_error?: string;
+  /**
+   * Heading of the confirmation screen after a form is sent.
+   */
+  thank_you?: string;
+  /**
+   * Line under `thank_you` confirming the form arrived.
+   */
+  submitted?: string;
+  /**
+   * The button that sends a form, unless the editor gave it its own label.
+   */
+  submit?: string;
+}
+export interface WmWebTranslationsFormsA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Announced while a form is being sent.
+   */
+  submitting?: string;
+  /**
+   * Not shown on screen; read by screen readers. Replaces the asterisk marking a mandatory field. One word.
+   */
+  required_marker?: string;
+}
+export interface WmWebTranslationsMediaGeneralStrings {
+  /**
+   * Heading above the list of tracks in the music player.
+   */
+  playlist?: string;
+  /**
+   * A length in minutes, on a card or under a talk. `%{count}` = number of minutes, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_minutes_one?: string;
+  /**
+   * A length in minutes, on a card or under a talk. `%{count}` = number of minutes, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_minutes_few?: string;
+  /**
+   * A length in minutes, on a card or under a talk. `%{count}` = number of minutes, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_minutes_many?: string;
+  /**
+   * A length in minutes, on a card or under a talk. `%{count}` = number of minutes, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_minutes_other?: string;
+  /**
+   * A length in seconds, for anything under a minute. `%{count}` = number of seconds, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_seconds_one?: string;
+  /**
+   * A length in seconds, for anything under a minute. `%{count}` = number of seconds, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_seconds_few?: string;
+  /**
+   * A length in seconds, for anything under a minute. `%{count}` = number of seconds, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_seconds_many?: string;
+  /**
+   * A length in seconds, for anything under a minute. `%{count}` = number of seconds, and selects the plural form. Abbreviate — the slot is tiny, and the limit counts `%{count}` itself, so about nine characters are left for your own words.
+   */
+  duration_seconds_other?: string;
+  /**
+   * Button that opens the panel for putting this player on another website.
+   */
+  embed?: string;
+  /**
+   * Heading of that panel when the item has a title. `%{title}` = the item's own title. Use the quotation marks your language uses.
+   */
+  embed_title?: string;
+  /**
+   * Heading of that panel when the item has no title.
+   */
+  embed_player?: string;
+  /**
+   * Button that copies the embed code to the clipboard.
+   */
+  copy?: string;
+  /**
+   * Replaces `copy` for a moment after the code is copied.
+   */
+  copied?: string;
+}
+export interface WmWebTranslationsMediaA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the button that starts playback.
+   */
+  play?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the same button during playback.
+   */
+  pause?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that goes back to the previous track.
+   */
+  previous_track?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that skips to the next track.
+   */
+  next_track?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that turns random order on or off.
+   */
+  toggle_shuffle?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that silences the player.
+   */
+  mute?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the same button once the player is silenced.
+   */
+  unmute?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the player's volume slider.
+   */
+  volume?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the play button on a card. `%{title}` = that item's own title.
+   */
+  play_item?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that opens an image full screen, when the image has no caption.
+   */
+  view_image?: string;
+  /**
+   * Not shown on screen; read by screen readers. The same button when the image has a caption. `%{alt}` = that caption, which the editor writes.
+   */
+  view_image_alt?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the box holding the embed code.
+   */
+  embed_code?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that enlarges an image in the full-screen viewer.
+   */
+  zoom_in?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that shrinks an image in the full-screen viewer.
+   */
+  zoom_out?: string;
+}
+export interface WmWebTranslationsVideoGeneralStrings {
+  /**
+   * Tooltip on the video player's play button while the video is paused. It also names that button for screen readers.
+   */
+  play?: string;
+  /**
+   * Tooltip on the same button while the video is playing.
+   */
+  pause?: string;
+  /**
+   * Tooltip on the video player's sound button while the video can be heard. It also names that button for screen readers.
+   */
+  mute?: string;
+  /**
+   * Tooltip on the same button while the video is silenced.
+   */
+  unmute?: string;
+  /**
+   * Tooltip on the video player's settings button, which opens the gear menu.
+   */
+  settings?: string;
+  /**
+   * Tooltip on the video player's subtitles button while subtitles are showing.
+   */
+  closed_captions_on?: string;
+  /**
+   * Tooltip on the same button while subtitles are hidden.
+   */
+  closed_captions_off?: string;
+  /**
+   * Tooltip on the video player's button that jumps forward a few seconds.
+   */
+  seek_forward?: string;
+  /**
+   * Tooltip on the video player's button that jumps back a few seconds.
+   */
+  seek_backward?: string;
+  /**
+   * Tooltip on the video player's button that pops the video out into a small floating window.
+   */
+  enter_pip?: string;
+  /**
+   * Tooltip on the same button while the video already plays in that floating window.
+   */
+  exit_pip?: string;
+  /**
+   * Tooltip on the video player's button that makes the video fill the screen.
+   */
+  enter_fullscreen?: string;
+  /**
+   * Tooltip on the same button while the video already fills the screen.
+   */
+  exit_fullscreen?: string;
+  /**
+   * Video settings menu: the row that lists the subtitle tracks this video offers.
+   */
+  captions?: string;
+  /**
+   * Video settings menu: the row that lists the picture qualities this video offers.
+   */
+  quality?: string;
+  /**
+   * Video settings menu: the row that sets how fast the video plays.
+   */
+  speed?: string;
+  /**
+   * Video settings menu: the row holding the sound options.
+   */
+  audio?: string;
+  /**
+   * Video settings menu: the row that lists the audio tracks this video offers.
+   */
+  track?: string;
+  /**
+   * Video settings menu: the slider that raises the volume past its normal maximum.
+   */
+  boost?: string;
+  /**
+   * Video settings menu: the row holding the screen-reader and keyboard options.
+   */
+  accessibility?: string;
+  /**
+   * Video settings menu: the switch that lets a screen reader announce playback changes.
+   */
+  announcements?: string;
+  /**
+   * Video settings menu: the switch that flashes an icon when a keyboard shortcut fires.
+   */
+  keyboard_animations?: string;
+  /**
+   * Video settings menu: the quality option that lets the player choose for itself.
+   */
+  auto?: string;
+  /**
+   * Video settings menu: the audio track the video ships with.
+   */
+  default?: string;
+  /**
+   * Video settings menu: the speed option that plays the video as recorded.
+   */
+  normal?: string;
+  /**
+   * Video settings menu: the subtitle option that shows no subtitles.
+   */
+  off?: string;
+  /**
+   * Video settings menu: the row that opens the subtitle appearance options.
+   */
+  caption_styles?: string;
+  /**
+   * Sample sentence in the subtitle appearance options, so the viewer sees each choice applied.
+   */
+  captions_look_like_this?: string;
+  /**
+   * Subtitle appearance options: the heading above the lettering choices.
+   */
+  font?: string;
+  /**
+   * Subtitle appearance options: the typeface the subtitles use.
+   */
+  family?: string;
+  /**
+   * Subtitle appearance options: how large the subtitle lettering is.
+   */
+  size?: string;
+  /**
+   * Subtitle appearance options: the heading above the subtitle lettering's own colour and opacity.
+   */
+  text?: string;
+  /**
+   * Subtitle appearance options: the heading above the band drawn behind the lettering.
+   */
+  text_background?: string;
+  /**
+   * Subtitle appearance options: the heading above the panel drawn behind the whole subtitle area.
+   */
+  display_background?: string;
+  /**
+   * Subtitle appearance options: the colour of the part its heading names. It appears under three headings.
+   */
+  color?: string;
+  /**
+   * Subtitle appearance options: how see-through the part its heading names is. It appears under three headings.
+   */
+  opacity?: string;
+  /**
+   * Subtitle appearance options: the shadow drawn behind the subtitle lettering.
+   */
+  shadow?: string;
+  /**
+   * Button that puts every subtitle appearance option back to its starting value.
+   */
+  reset?: string;
+}
+export interface WmWebTranslationsVideoA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the video player's fullscreen button.
+   */
+  fullscreen?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the video player's button that pops the video into a small floating window.
+   */
+  pip?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the video player's progress bar, which scrubs through the video.
+   */
+  seek?: string;
+}
+export interface WmWebTranslationsLocationGeneralStrings {
+  /**
+   * Shown in the empty search box, before the visitor types a place.
+   */
+  search_placeholder?: string;
+  /**
+   * Button that clears the chosen place and reopens the search box.
+   */
+  change?: string;
+  /**
+   * Shown while the site looks up the exact position of the place just chosen.
+   */
+  getting_coordinates?: string;
+  /**
+   * Shown while place suggestions are being fetched.
+   */
+  searching?: string;
+  /**
+   * Hint in the empty suggestion list, inviting the visitor to start typing.
+   */
+  type_to_search?: string;
+  /**
+   * Shown when no place matches what the visitor typed.
+   */
+  no_results?: string;
+  /**
+   * Error shown when the place suggestions cannot be fetched.
+   */
+  suggestions_failed?: string;
+  /**
+   * Error shown when the position of the chosen place cannot be fetched.
+   */
+  coordinates_failed?: string;
+  /**
+   * The option that searches around the visitor's own position instead of a typed place.
+   */
+  nearby?: string;
+  /**
+   * Shown while the browser is working out where the visitor is.
+   */
+  getting_location?: string;
+  /**
+   * Stands in for a place name once the visitor's own position is used.
+   */
+  current_location?: string;
+  /**
+   * Error shown when the visitor's browser cannot report a position at all.
+   */
+  geolocation_unsupported?: string;
+  /**
+   * Error shown when the visitor refused the browser's request for their position.
+   */
+  permission_denied?: string;
+  /**
+   * Error shown when the browser tried but could not work out a position.
+   */
+  position_unavailable?: string;
+  /**
+   * Error shown when working out the visitor's position took too long.
+   */
+  timed_out?: string;
+  /**
+   * Error shown when finding the visitor's position failed for some other reason.
+   */
+  location_failed?: string;
+}
+export interface WmWebTranslationsLocationA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the place-search input.
+   */
+  search_label?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the box showing the place already chosen.
+   */
+  selected_label?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that changes the chosen place.
+   */
+  change_label?: string;
+}
+export interface WmWebTranslationsBlocksGeneralStrings {
+  /**
+   * Tab of the subtle-system diagram showing the energy centres. A Sanskrit term — keep it if your language uses it.
+   */
+  chakras?: string;
+  /**
+   * Tab of the subtle-system diagram showing the energy channels.
+   */
+  channels?: string;
+  /**
+   * Link from a chakra or channel to its full explanation. Keep the trailing arrow.
+   */
+  learn_more?: string;
+  /**
+   * Label under the hours figure of a countdown.
+   */
+  hours?: string;
+  /**
+   * Label under the minutes figure of a countdown.
+   */
+  minutes?: string;
+  /**
+   * Label under the seconds figure of a countdown.
+   */
+  seconds?: string;
+}
+export interface WmWebTranslationsBlocksA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the button that opens the subtle-system diagram full screen.
+   */
+  enter_fullscreen?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the same button while the diagram fills the screen.
+   */
+  exit_fullscreen?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the "Learn More" link. `%{title}` = the chakra or channel it leads to.
+   */
+  learn_more_about?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that goes back one slide in a carousel.
+   */
+  previous_slide?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that advances one slide in a carousel.
+   */
+  next_slide?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that scrolls to the previous column. `%{title}` = that column's heading.
+   */
+  previous_column?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button that scrolls to the next column. `%{title}` = that column's heading.
+   */
+  next_column?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names a dot that jumps to one column. `%{number}` = its position, `%{title}` = its heading.
+   */
+  go_to_column?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names a pull-quote block that carries no heading.
+   */
+  quote?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the in-page contents list when it carries no heading.
+   */
+  table_of_contents?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the whole sharing area at the end of a page.
+   */
+  share_region?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the row of sharing buttons inside that area.
+   */
+  share_group?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names one sharing button. `%{platform}` = the network's own name, untranslated.
+   */
+  share_on?: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -5388,6 +6190,30 @@ export interface WmWebTranslationsErrorsStrings {
  */
 export interface WmAppConfig {
   id: number;
+  /**
+   * Languages the WeMeditate app is offered in. Drives the app’s language picker. A language can only be selected once the WeMeditate App translations are published in it — publish that global in the language first. Publishing all locales at once includes empty ones, so publish deliberately.
+   */
+  availableLocales: (
+    | 'en'
+    | 'es'
+    | 'de'
+    | 'it'
+    | 'fr'
+    | 'ru'
+    | 'ro'
+    | 'cs'
+    | 'uk'
+    | 'el'
+    | 'hy'
+    | 'pl'
+    | 'pt-BR'
+    | 'fa'
+    | 'bg'
+    | 'tr'
+    | 'en-AU'
+    | 'hu'
+    | 'nl'
+  )[];
   classesPage: number | Page;
   liveMeditationsPage: number | Page;
   /**
@@ -8072,187 +8898,751 @@ export interface SyAtlasConfig {
  */
 export interface SyAtlasTranslation {
   id: number;
-  common?: SyAtlasTranslationsCommonStrings;
-  region?: {
-    locations?: SyAtlasTranslationsRegionLocationsStrings;
-    venues?: SyAtlasTranslationsRegionVenuesStrings;
+  common?: {
+    chrome?: SyAtlasTranslationsCommonChromeStrings;
+    settings?: SyAtlasTranslationsCommonSettingsStrings;
+    errors?: SyAtlasTranslationsCommonErrorsStrings;
+    report?: SyAtlasTranslationsCommonReportStrings;
+    report_errors?: SyAtlasTranslationsCommonReportErrorsStrings;
+    map?: SyAtlasTranslationsCommonMapStrings;
+    feedback?: SyAtlasTranslationsCommonFeedbackStrings;
   };
+  countries?: SyAtlasTranslationsCountriesStrings;
+  search?: {
+    chrome?: SyAtlasTranslationsSearchChromeStrings;
+    results?: SyAtlasTranslationsSearchResultsStrings;
+    sort?: SyAtlasTranslationsSearchSortStrings;
+    country_site?: SyAtlasTranslationsSearchCountrySiteStrings;
+    nearby_prompt?: SyAtlasTranslationsSearchNearbyPromptStrings;
+  };
+  filters?: {
+    chrome?: SyAtlasTranslationsFiltersChromeStrings;
+    format?: SyAtlasTranslationsFiltersFormatStrings;
+    cadence?: SyAtlasTranslationsFiltersCadenceStrings;
+    days?: SyAtlasTranslationsFiltersDaysStrings;
+    time?: SyAtlasTranslationsFiltersTimeStrings;
+    language?: SyAtlasTranslationsFiltersLanguageStrings;
+    dates?: SyAtlasTranslationsFiltersDatesStrings;
+    region?: SyAtlasTranslationsFiltersRegionStrings;
+  };
+  online?: SyAtlasTranslationsOnlineStrings;
   event?: {
-    details?: SyAtlasTranslationsEventDetailsStrings;
+    display?: SyAtlasTranslationsEventDisplayStrings;
+    actions?: SyAtlasTranslationsEventActionsStrings;
     recurrence?: SyAtlasTranslationsEventRecurrenceStrings;
-    timing?: SyAtlasTranslationsEventTimingStrings;
     title?: SyAtlasTranslationsEventTitleStrings;
   };
+  calendar?: SyAtlasTranslationsCalendarStrings;
   registration?: {
     form?: SyAtlasTranslationsRegistrationFormStrings;
     errors?: SyAtlasTranslationsRegistrationErrorsStrings;
     questions?: SyAtlasTranslationsRegistrationQuestionsStrings;
   };
   share?: SyAtlasTranslationsShareStrings;
+  compact?: SyAtlasTranslationsCompactStrings;
+  seo?: SyAtlasTranslationsSeoStrings;
   emails?: SyAtlasTranslationsEmailsStrings;
   _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
-export interface SyAtlasTranslationsCommonStrings {
+export interface SyAtlasTranslationsCommonChromeStrings {
   /**
-   * Generic plural noun for meditation events, used in counts and labels (e.g. "3 events").
+   * Peek-strip name for the root drawer, shown when a deeper view is open.
    */
-  events?: string;
+  back?: string;
   /**
-   * Singular label for a free meditation class; used in headings and map markers.
+   * Peek-strip name that names its target view. `%{title}` = the parent view’s title.
    */
-  free_meditation_class?: string;
+  back_to?: string;
   /**
-   * Plural label for free meditation classes; used in page headings and section titles.
+   * Close control on every drawer, the report modal, the compact dialog, and the feedback banner.
    */
-  free_meditation_classes?: string;
+  close?: string;
   /**
-   * Accessible label (aria-label) for the language-picker dropdown in the navbar.
+   * Accessible label (aria-label) of the collapsed base drawer’s toggle.
    */
-  language_selector?: string;
+  explore?: string;
   /**
-   * Generic loading indicator shown while content is being fetched.
+   * Screen-reader label of every loading spinner.
    */
   loading?: string;
   /**
-   * Map filter toggle label (off state) — invites the user to include online-only classes.
+   * Cancel button, shared by the registration form and the report form.
    */
-  show_online_classes?: string;
+  cancel?: string;
   /**
-   * Map filter toggle label (on state) — indicates online classes are currently shown.
+   * Landmark name (role="region") of the widget root, and the compact card’s heading. Must never be blank — it is how a screen-reader user finds the widget.
    */
-  showing_online_classes?: string;
+  widget_label?: string;
+  /**
+   * Subtitle under the Region, Online, and Registration headers.
+   */
+  all_classes_free?: string;
 }
-export interface SyAtlasTranslationsRegionLocationsStrings {
+export interface SyAtlasTranslationsCommonSettingsStrings {
   /**
-   * Heading on a location/region landing page. `%{location}` = region or place name.
+   * Accessible label (aria-label) of the settings cog, and the settings drawer heading.
    */
   title?: string;
   /**
-   * Singular result-count line under a location heading. `%{count}` = 1, `%{location}` = region name.
+   * Theme row: follow the operating system’s light/dark setting.
    */
-  description_one?: string;
+  theme_auto?: string;
   /**
-   * Plural result-count line under a location heading. `%{count}` = number, `%{location}` = region name.
+   * Theme row: always dark.
    */
-  description_other?: string;
+  theme_dark?: string;
+  /**
+   * Theme row: always light.
+   */
+  theme_light?: string;
 }
-export interface SyAtlasTranslationsRegionVenuesStrings {
+export interface SyAtlasTranslationsCommonErrorsStrings {
   /**
-   * Heading on a venue landing page. `%{venue}` = venue name.
+   * Fallback message for an unclassified failure (ERROR_POLICY.unknown).
+   */
+  generic?: string;
+  /**
+   * Retry action on an error fallback.
+   */
+  retry?: string;
+  /**
+   * Message when the browser reports no network (ERROR_POLICY.offline).
+   */
+  offline?: string;
+  /**
+   * Message for a 5xx response from the API (ERROR_POLICY.server).
+   */
+  server?: string;
+  /**
+   * Message for an unrecognised route (ERROR_POLICY['not-found']).
+   */
+  not_found?: string;
+  /**
+   * Message shown when an event link points at an event that no longer exists.
+   */
+  not_found_event?: string;
+  /**
+   * Message shown when a region link points at a place that no longer exists.
+   */
+  not_found_region?: string;
+  /**
+   * Message when the host page embedded the widget without a usable API key (ERROR_POLICY.config).
+   */
+  config?: string;
+  /**
+   * Default reason shown in the registration-blocked row when no more specific reason applies.
+   */
+  unavailable?: string;
+  /**
+   * Message in the Share view when the event has no shareable URL.
+   */
+  share_unavailable?: string;
+  /**
+   * Message when the host page’s Content-Security-Policy blocked the Turnstile security check.
+   */
+  captcha_blocked?: string;
+  /**
+   * Empty-list message in the Region and Online views, when the place itself has no events.
+   */
+  no_events?: string;
+  /**
+   * Onward link back to the containing region. `%{region}` = region name.
+   */
+  back_to_region?: string;
+  /**
+   * Onward link to events near the visitor. `%{city}` = detected city name.
+   */
+  near_city?: string;
+  /**
+   * Onward link to the country list — the last rung of every error fallback.
+   */
+  browse_countries?: string;
+  /**
+   * Placeholder of the geocoder offered inside an error fallback.
+   */
+  search_label?: string;
+}
+export interface SyAtlasTranslationsCommonReportStrings {
+  /**
+   * Settings row, error-fallback action, and the report modal’s heading.
    */
   title?: string;
   /**
-   * Singular result-count line under a venue heading. `%{count}` = 1, `%{venue}` = venue name.
+   * Introductory line under the report modal’s heading.
    */
-  description_one?: string;
+  description?: string;
   /**
-   * Plural result-count line under a venue heading. `%{count}` = number, `%{venue}` = venue name.
+   * Label of the message textarea.
    */
-  description_other?: string;
+  message_label?: string;
+  /**
+   * Placeholder of the message textarea.
+   */
+  message_placeholder?: string;
+  /**
+   * Label of the optional email field.
+   */
+  email_label?: string;
+  /**
+   * Helper text under the email field, explaining it is optional.
+   */
+  email_help?: string;
+  /**
+   * Placeholder of the email field — an example address.
+   */
+  email_placeholder?: string;
+  /**
+   * Submit button of the report form.
+   */
+  submit?: string;
+  /**
+   * Thank-you state shown after the report is accepted.
+   */
+  sent?: string;
+  /**
+   * Shown in place of the form when the security check could not load at all.
+   */
+  blocked?: string;
 }
-export interface SyAtlasTranslationsEventDetailsStrings {
+export interface SyAtlasTranslationsCommonReportErrorsStrings {
   /**
-   * Shown instead of a schedule when an event has no fixed time; prompts the user to contact the host.
+   * Validation: the email field holds something that is not an address.
    */
-  contact_for_timing?: string;
+  email?: string;
   /**
-   * Label/action to contact the event host.
+   * Validation: the message is too short. `%{min}` = minimum character count.
    */
-  contact_host?: string;
+  message?: string;
   /**
-   * Button that opens map directions to the event venue.
+   * Validation: the message is too long. `%{max}` = maximum character count.
    */
-  get_directions?: string;
+  message_max?: string;
   /**
-   * Host-location label for an online event. `%{city}` = host city.
+   * Refusal: the security check was unavailable, or the send failed for an unnamed reason.
    */
-  hosted_from?: string;
+  send_failed?: string;
   /**
-   * Distance-unit suffix (kilometres) shown next to an event's distance from the user.
+   * Refusal: the security check expired and must be redone before sending.
    */
-  km?: string;
+  captcha?: string;
   /**
-   * Link/button to expand or open fuller event details.
+   * Refusal: the email address belongs to a disposable-address provider.
    */
-  more_info?: string;
+  disposable_email?: string;
   /**
-   * Short badge indicating an online event.
+   * Refusal: the message contains links, which are rejected as spam.
+   */
+  urls_not_allowed?: string;
+}
+export interface SyAtlasTranslationsCommonMapStrings {
+  /**
+   * Label of the geolocate control.
+   */
+  find_my_location?: string;
+  /**
+   * Label of the geolocate control once the browser has refused or failed to supply a location.
+   */
+  location_not_available?: string;
+}
+export interface SyAtlasTranslationsCommonFeedbackStrings {
+  /**
+   * Banner heading after the registrant confirms the class took place.
+   */
+  confirmed_title?: string;
+  /**
+   * Banner body after the registrant confirms the class took place.
+   */
+  confirmed_body?: string;
+  /**
+   * Banner heading after the registrant reports the class could not be found.
+   */
+  denied_title?: string;
+  /**
+   * Banner body after the registrant reports the class could not be found.
+   */
+  denied_body?: string;
+  /**
+   * Banner link to other nearby classes, on the Event and Region views.
+   */
+  nearby?: string;
+  /**
+   * Banner line pointing at the list already on screen, on the Region view.
+   */
+  below?: string;
+}
+export interface SyAtlasTranslationsCountriesStrings {
+  /**
+   * Heading of the base drawer, and the drawer stack’s document title.
+   */
+  title?: string;
+}
+export interface SyAtlasTranslationsSearchChromeStrings {
+  /**
+   * Search view heading, and its peek-strip name.
+   */
+  title?: string;
+  /**
+   * Placeholder of the geocoder input, in every header that carries one.
+   */
+  placeholder?: string;
+}
+export interface SyAtlasTranslationsSearchResultsStrings {
+  /**
+   * Button that reveals the next page of results.
+   */
+  more?: string;
+  /**
+   * Button that widens the search radius beyond the nearby band.
+   */
+  farther?: string;
+  /**
+   * Result-count line. `%{shown}` = results rendered, `%{total}` = results found.
+   */
+  showing?: string;
+  /**
+   * Message when a search found nothing inside the radius (ERROR_POLICY['no-nearby']). `%{km}` = radius in kilometres.
+   */
+  no_nearby?: string;
+}
+export interface SyAtlasTranslationsSearchSortStrings {
+  /**
+   * Label of the sort menu.
+   */
+  label?: string;
+  /**
+   * Sort option: the default blend of distance and imminence.
+   */
+  recommended?: string;
+  /**
+   * Sort option: nearest first.
+   */
+  closest?: string;
+  /**
+   * Sort option: next to start first.
+   */
+  soonest?: string;
+}
+export interface SyAtlasTranslationsSearchCountrySiteStrings {
+  /**
+   * Message that the country has no listings here yet. `%{country}` = country name.
+   */
+  title?: string;
+  /**
+   * Onward link to that country’s own website. `%{country}` = country name.
+   */
+  cta?: string;
+}
+export interface SyAtlasTranslationsSearchNearbyPromptStrings {
+  /**
+   * Prompt question. `%{city}` = detected city name.
+   */
+  title?: string;
+  /**
+   * Control that hides the prompt for this visit.
+   */
+  dismiss?: string;
+}
+export interface SyAtlasTranslationsFiltersChromeStrings {
+  /**
+   * Filter view heading, and its peek-strip name.
+   */
+  title?: string;
+  /**
+   * Button that closes the drawer and applies the selection.
+   */
+  apply?: string;
+  /**
+   * Action that clears every filter at once.
+   */
+  clear?: string;
+  /**
+   * Action that clears a single filter section.
+   */
+  clear_one?: string;
+  /**
+   * Accessible label of an active-filter chip’s remove button. `%{label}` = the filter’s own label.
+   */
+  remove?: string;
+  /**
+   * Chip text when no time-of-day filter is set.
+   */
+  any_time?: string;
+  /**
+   * Empty-list message when the filters, rather than the place, excluded everything.
+   */
+  no_results?: string;
+}
+export interface SyAtlasTranslationsFiltersFormatStrings {
+  /**
+   * Section label of the format filter.
+   */
+  label?: string;
+  /**
+   * Format option: no preference.
+   */
+  any?: string;
+  /**
+   * Format option: classes with a physical venue.
+   */
+  offline?: string;
+  /**
+   * Format option: classes held online.
    */
   online?: string;
-  /**
-   * Fuller label for an online class.
-   */
-  online_class?: string;
-  /**
-   * Event start-date label. `%{date}` = formatted start date.
-   */
-  starting_on?: string;
-  /**
-   * Label for an event whose start is imminent.
-   */
-  starting_soon?: string;
-  /**
-   * Telephone-link label for the host's number. `%{phoneNumber}` = phone number.
-   */
-  tel?: string;
-  /**
-   * Button/link that opens the event's photo in the lightbox.
-   */
-  view_photo?: string;
 }
-export interface SyAtlasTranslationsEventRecurrenceStrings {
+export interface SyAtlasTranslationsFiltersCadenceStrings {
   /**
-   * Recurrence label for an event that repeats every day.
+   * Section label of the frequency filter.
+   */
+  label?: string;
+  /**
+   * Frequency option: no preference.
+   */
+  any?: string;
+  /**
+   * Frequency option: repeats every day.
    */
   daily?: string;
   /**
-   * Weekly recurrence, simple form (English). `%{weekday}` = day name.
+   * Frequency option: repeats weekly.
    */
   weekly?: string;
   /**
-   * Monthly recurrence, simple form (English).
+   * Frequency option: repeats monthly.
    */
   monthly?: string;
   /**
-   * Weekly recurrence, every week — detailed form used by non-English locales. `%{weekday}` = day name.
+   * Frequency option: a single occasion, not a series.
+   */
+  once?: string;
+}
+export interface SyAtlasTranslationsFiltersDaysStrings {
+  /**
+   * Section label of the day-of-week filter.
+   */
+  label?: string;
+}
+export interface SyAtlasTranslationsFiltersTimeStrings {
+  /**
+   * Section label of the time-of-day filter.
+   */
+  label?: string;
+  /**
+   * Time-of-day option: morning.
+   */
+  morning?: string;
+  /**
+   * Time-of-day option: afternoon.
+   */
+  afternoon?: string;
+  /**
+   * Time-of-day option: evening.
+   */
+  evening?: string;
+  /**
+   * Time-of-day option: night.
+   */
+  night?: string;
+}
+export interface SyAtlasTranslationsFiltersLanguageStrings {
+  /**
+   * Section label of the language filter.
+   */
+  label?: string;
+  /**
+   * Language option: no preference.
+   */
+  all?: string;
+  /**
+   * Shown when no class in view declares a language.
+   */
+  empty?: string;
+}
+export interface SyAtlasTranslationsFiltersDatesStrings {
+  /**
+   * Section label of the date filter.
+   */
+  label?: string;
+  /**
+   * Label of the range’s start input.
+   */
+  from?: string;
+  /**
+   * Label of the range’s end input.
+   */
+  to?: string;
+  /**
+   * Chip for an open-ended range with a start. `%{date}` = start date.
+   */
+  pill_from?: string;
+  /**
+   * Chip for an open-ended range with an end. `%{date}` = end date.
+   */
+  pill_until?: string;
+  /**
+   * Chip for a closed range. `%{start}` = start date, `%{end}` = end date.
+   */
+  pill_range?: string;
+}
+export interface SyAtlasTranslationsFiltersRegionStrings {
+  /**
+   * Section label of the region filter.
+   */
+  label?: string;
+  /**
+   * Region option: no preference.
+   */
+  all?: string;
+  /**
+   * Placeholder of the region search input.
+   */
+  search?: string;
+  /**
+   * Shown when the region search matches nothing.
+   */
+  empty?: string;
+}
+export interface SyAtlasTranslationsOnlineStrings {
+  /**
+   * Online view heading, its row on the Countries list, its link on a Region, and its peek-strip name.
+   */
+  title?: string;
+}
+export interface SyAtlasTranslationsEventDisplayStrings {
+  /**
+   * Section heading above the event description.
+   */
+  about?: string;
+  /**
+   * Suffix appended after the event title in the standalone page <title>.
+   */
+  free_meditation_class?: string;
+  /**
+   * Status chip: the event has no places left.
+   */
+  chip_full?: string;
+  /**
+   * Status chip and when-line: the next session is today.
+   */
+  chip_today?: string;
+  /**
+   * Status chip: the event is over.
+   */
+  chip_ended?: string;
+  /**
+   * Status chip for an event that has not begun. `%{date}` = start date.
+   */
+  chip_starts?: string;
+  /**
+   * Status chip and when-line for a series already under way. `%{date}` = start date.
+   */
+  started_on?: string;
+  /**
+   * When-line for a course that has not begun. `%{date}` = first session’s date and time.
+   */
+  first_session?: string;
+  /**
+   * When-line for a series under way. `%{date}` = next session’s date and time.
+   */
+  next_session?: string;
+  /**
+   * When-line and registration-blocked message for a finished event.
+   */
+  event_ended?: string;
+  /**
+   * Microcopy and registration-blocked message when the event has no places left.
+   */
+  event_full?: string;
+  /**
+   * Register-slot label and blocked message when registration has closed.
+   */
+  registration_closed?: string;
+  /**
+   * Microcopy on a course, saying a place must be booked in advance.
+   */
+  registration_required?: string;
+  /**
+   * Refusal shown when registration is handled on another website.
+   */
+  registration_external?: string;
+  /**
+   * Microcopy on an online class, saying the joining link arrives by email.
+   */
+  online_joining_note?: string;
+  /**
+   * Helper under a full event, offering the host as a way in.
+   */
+  contact_to_join_full?: string;
+  /**
+   * Helper under a series already under way, offering the host as a way in.
+   */
+  contact_to_join_late?: string;
+  /**
+   * When-line for a listing with no schedule, and the message shown when registration is hidden.
+   */
+  contact_for_timing?: string;
+  /**
+   * Where-line badge, and the Calendar entry badge, for an online class.
+   */
+  online?: string;
+  /**
+   * Where-line for an online class, naming the host’s city. `%{city}` = host city.
+   */
+  hosted_from?: string;
+  /**
+   * Viewer-local time under the where-line. `%{time}` = local time, `%{city}` = the event’s city.
+   */
+  time_in_place?: string;
+  /**
+   * List card distance from the visitor. `%{distance}` = formatted distance.
+   */
+  distance_away?: string;
+  /**
+   * List card distance from a named place. `%{distance}` = formatted distance, `%{place}` = place name.
+   */
+  distance_from_place?: string;
+  /**
+   * List card distance from the searched point. `%{distance}` = formatted distance.
+   */
+  distance_from_search?: string;
+  /**
+   * Type label: a class with no stated cadence.
+   */
+  type_class?: string;
+  /**
+   * Type label: a class held every day.
+   */
+  type_class_daily?: string;
+  /**
+   * Type label: a class held weekly.
+   */
+  type_class_weekly?: string;
+  /**
+   * Type label: a class held every second week.
+   */
+  type_class_fortnightly?: string;
+  /**
+   * Type label: a class held monthly.
+   */
+  type_class_monthly?: string;
+  /**
+   * Type label: a limited run of sessions.
+   */
+  type_course?: string;
+  /**
+   * Type label: a single occasion.
+   */
+  type_oneoff?: string;
+  /**
+   * Session count beside a course’s schedule, entered per plural form. `%{count}` = number of sessions.
+   */
+  sessions_count_one?: string;
+  /**
+   * Session count beside a course’s schedule, entered per plural form. `%{count}` = number of sessions.
+   */
+  sessions_count_few?: string;
+  /**
+   * Session count beside a course’s schedule, entered per plural form. `%{count}` = number of sessions.
+   */
+  sessions_count_many?: string;
+  /**
+   * Session count beside a course’s schedule, entered per plural form. `%{count}` = number of sessions.
+   */
+  sessions_count_other?: string;
+  /**
+   * Register-slot link offered when this event cannot be joined.
+   */
+  see_nearby?: string;
+  /**
+   * Label of the register button in the register slot.
+   */
+  register_now?: string;
+}
+export interface SyAtlasTranslationsEventActionsStrings {
+  /**
+   * Action circle that opens the host’s contact details; also the fallback contact label.
+   */
+  contact?: string;
+  /**
+   * Action circle that opens directions to the venue.
+   */
+  directions?: string;
+  /**
+   * Action circle that opens the event’s own website.
+   */
+  website?: string;
+  /**
+   * Action circle that opens the Share view.
+   */
+  share?: string;
+  /**
+   * Add-to-calendar action, offered on the registration thank-you screen.
+   */
+  add_calendar?: string;
+  /**
+   * Add-to-calendar menu item that downloads an .ics file.
+   */
+  download_ics?: string;
+  /**
+   * Image carousel: open the photo full size.
+   */
+  view_photo?: string;
+  /**
+   * Image carousel: stop it advancing on its own.
+   */
+  pause_slideshow?: string;
+}
+export interface SyAtlasTranslationsEventRecurrenceStrings {
+  /**
+   * Repeats every day.
+   */
+  daily?: string;
+  /**
+   * Repeats every few days. `%{interval}` = number of days.
+   */
+  daily_n?: string;
+  /**
+   * Repeats every week on one weekday. `%{weekday}` = localized day name.
    */
   weekly_1?: string;
   /**
-   * Weekly recurrence, every second week. `%{weekday}` = day name.
+   * Repeats every second week. `%{weekday}` = localized day name.
    */
   weekly_2?: string;
   /**
-   * Monthly recurrence on the 1st given weekday of the month. `%{weekday}` = day name.
+   * Repeats every few weeks. `%{interval}` = number of weeks, `%{weekday}` = localized day name.
+   */
+  weekly_n?: string;
+  /**
+   * Repeats on several weekdays. `%{weekdays}` = a browser-formatted list of day names.
+   */
+  weekly_multi?: string;
+  /**
+   * Repeats on the first given weekday of each month. `%{weekday}` = localized day name.
    */
   monthly_1st?: string;
   /**
-   * Monthly recurrence on the 2nd given weekday of the month. `%{weekday}` = day name.
+   * Repeats on the second given weekday of each month. `%{weekday}` = localized day name.
    */
   monthly_2nd?: string;
   /**
-   * Monthly recurrence on the 3rd given weekday of the month. `%{weekday}` = day name.
+   * Repeats on the third given weekday of each month. `%{weekday}` = localized day name.
    */
   monthly_3rd?: string;
   /**
-   * Monthly recurrence on the 4th given weekday of the month. `%{weekday}` = day name.
+   * Repeats on the fourth given weekday of each month. `%{weekday}` = localized day name.
    */
   monthly_4th?: string;
   /**
-   * Monthly recurrence on the last given weekday of the month. `%{weekday}` = day name.
+   * Repeats on the last given weekday of each month. `%{weekday}` = localized day name.
    */
   monthly_last?: string;
   /**
-   * Fallback when an event has no fixed schedule (formerly the `null` key).
+   * Repeats on a fixed day number each month. `%{day}` = day of the month.
    */
-  no_recurrence?: string;
-}
-export interface SyAtlasTranslationsEventTimingStrings {
-  /**
-   * Tooltip shown when an event time is converted to the viewer's timezone. `%{timezone}` = tz name, `%{offset}` = UTC offset.
-   */
-  converted_to?: string;
+  monthly_date?: string;
 }
 export interface SyAtlasTranslationsEventTitleStrings {
   /**
@@ -8272,101 +9662,163 @@ export interface SyAtlasTranslationsEventTitleStrings {
    */
   default?: string;
 }
+export interface SyAtlasTranslationsCalendarStrings {
+  /**
+   * Calendar view heading, and its peek-strip name.
+   */
+  title?: string;
+  /**
+   * Control that steps back one month, week, or page.
+   */
+  previous?: string;
+  /**
+   * Control that steps forward one month, week, or page.
+   */
+  next?: string;
+  /**
+   * Control that opens the date picker.
+   */
+  pick_date?: string;
+  /**
+   * View switch: the month grid.
+   */
+  view_month?: string;
+  /**
+   * View switch: the week grid.
+   */
+  view_week?: string;
+  /**
+   * View switch: the agenda list.
+   */
+  view_list?: string;
+}
 export interface SyAtlasTranslationsRegistrationFormStrings {
   /**
-   * Cancel button in the registration form/modal.
+   * Registration view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
    */
-  cancel?: string;
+  title?: string;
   /**
-   * Label/placeholder for the email input.
-   */
-  email?: string;
-  /**
-   * Confirmation note shown after registering.
-   */
-  followup?: string;
-  /**
-   * Option encouraging the user to bring a guest.
-   */
-  invite_friend?: string;
-  /**
-   * Consent checkbox label for the events mailing list.
-   */
-  mailing_list_consent?: string;
-  /**
-   * Label/placeholder for the name input.
+   * Label of the name field.
    */
   name?: string;
   /**
-   * Acknowledgement button (e.g. dismisses the thank-you state).
+   * Label of the email field.
    */
-  okay?: string;
+  email?: string;
   /**
-   * Notice for online classes explaining the join link is emailed.
-   */
-  online_notice?: string;
-  /**
-   * Heading for the online-session notice.
-   */
-  online_notice_title?: string;
-  /**
-   * Consent/disclaimer text shown near the submit button.
-   */
-  privacy_policy?: string;
-  /**
-   * Primary CTA to open the registration form.
-   */
-  register_now?: string;
-  /**
-   * Label for the starting-date selector.
+   * Label of the starting-date chooser.
    */
   starting_date?: string;
   /**
-   * Submit button for the registration form.
+   * Control that reveals further start dates.
+   */
+  show_more_dates?: string;
+  /**
+   * Submit button of the registration form.
    */
   submit?: string;
   /**
-   * Success message shown after a successful registration.
+   * Acknowledgement button that dismisses the thank-you screen.
    */
-  thank_you?: string;
+  okay?: string;
+  /**
+   * Thank-you screen line promising a confirmation email.
+   */
+  followup?: string;
+  /**
+   * Thank-you screen line encouraging the registrant to bring someone.
+   */
+  invite_friend?: string;
+  /**
+   * Notice on an online class, saying the joining link arrives by email.
+   */
+  online_notice?: string;
+  /**
+   * Heading of the online-class notice.
+   */
+  online_notice_title?: string;
+  /**
+   * Consent text beside the submit button.
+   */
+  privacy_policy?: string;
+  /**
+   * Heading of the form’s error state.
+   */
+  error_title?: string;
+  /**
+   * Refusal: the security check expired and must be redone before registering.
+   */
+  captcha_retry?: string;
 }
 export interface SyAtlasTranslationsRegistrationErrorsStrings {
   /**
-   * Validation error for an invalid/empty email field.
+   * Validation: the email field holds something that is not an address.
    */
   email?: string;
   /**
-   * Validation error for an empty/invalid name field.
+   * Validation: the name field is empty or incomplete.
    */
   name?: string;
   /**
-   * Validation error when no starting date is chosen.
+   * Validation: no starting date was chosen.
    */
   starting_at?: string;
 }
 export interface SyAtlasTranslationsRegistrationQuestionsStrings {
   /**
-   * Registration question: what the attendee hopes to get out of the event. Matches `aspirations` in EVENT_REGISTRATION_QUESTIONS.
-   */
-  aspirations?: string;
-  /**
-   * Registration question: whether the attendee has practised Sahaja Yoga before. Matches `experience` in EVENT_REGISTRATION_QUESTIONS.
+   * Question `experience`: whether the registrant has meditated with Sahaja Yoga before.
    */
   experience?: string;
   /**
-   * Registration question: anything the attendee wants to ask before coming. Matches `questions` in EVENT_REGISTRATION_QUESTIONS.
-   */
-  questions?: string;
-  /**
-   * Registration question: how the attendee heard about this event. Matches `referral` in EVENT_REGISTRATION_QUESTIONS.
+   * Question `referral`: how the registrant heard about the event.
    */
   referral?: string;
+  /**
+   * Question `aspirations`: what the registrant hopes to get out of it.
+   */
+  aspirations?: string;
+  /**
+   * Question `questions`: anything the registrant wants to ask beforehand.
+   */
+  questions?: string;
 }
 export interface SyAtlasTranslationsShareStrings {
   /**
-   * Label for the share action/button on an event; seeds the forthcoming Share view (renamed from `details.share`).
+   * Share view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
    */
-  action?: string;
+  title?: string;
+  /**
+   * Label of one share target. `%{platform}` = the platform’s name.
+   */
+  share_on?: string;
+  /**
+   * Label of the device’s own share sheet.
+   */
+  native?: string;
+  /**
+   * Action that copies the event link to the clipboard.
+   */
+  copy_link?: string;
+  /**
+   * Confirmation shown after the link is copied.
+   */
+  copied?: string;
+}
+export interface SyAtlasTranslationsCompactStrings {
+  /**
+   * The card’s one button, which opens the atlas.
+   */
+  open?: string;
+}
+export interface SyAtlasTranslationsSeoStrings {
+  /**
+   * `<title>` for the atlas landing page, e.g. "Free Meditation Classes". A result page shows roughly 60 characters.
+   */
+  root_title?: string;
+  /**
+   * `<meta name="description">` for the atlas landing page — one or two sentences about what a visitor finds there. Left blank, the endpoint sends no description in this locale rather than an English one, and the host writes its own.
+   */
+  root_description?: string;
 }
 export interface SyAtlasTranslationsEmailsStrings {
   /**
@@ -8554,11 +10006,74 @@ export interface WmWebConfigSelect<T extends boolean = true> {
  * via the `definition` "wm-web-translations_select".
  */
 export interface WmWebTranslationsSelect<T extends boolean = true> {
-  common?: T;
+  common?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
   navigation?: T;
   footer?: T;
-  page_tags?: T;
-  errors?: T;
+  errors?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  article?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  meditation?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  lecture?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  map?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  forms?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  media?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  video?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  location?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
+  blocks?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
   _status?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -8569,6 +10084,7 @@ export interface WmWebTranslationsSelect<T extends boolean = true> {
  * via the `definition` "wm-app-config_select".
  */
 export interface WmAppConfigSelect<T extends boolean = true> {
+  availableLocales?: T;
   classesPage?: T;
   liveMeditationsPage?: T;
   explorePage?: T;
@@ -8729,21 +10245,49 @@ export interface SyAtlasConfigSelect<T extends boolean = true> {
  * via the `definition` "sy-atlas-translations_select".
  */
 export interface SyAtlasTranslationsSelect<T extends boolean = true> {
-  common?: T;
-  region?:
+  common?:
     | T
     | {
-        locations?: T;
-        venues?: T;
+        chrome?: T;
+        settings?: T;
+        errors?: T;
+        report?: T;
+        report_errors?: T;
+        map?: T;
+        feedback?: T;
       };
+  countries?: T;
+  search?:
+    | T
+    | {
+        chrome?: T;
+        results?: T;
+        sort?: T;
+        country_site?: T;
+        nearby_prompt?: T;
+      };
+  filters?:
+    | T
+    | {
+        chrome?: T;
+        format?: T;
+        cadence?: T;
+        days?: T;
+        time?: T;
+        language?: T;
+        dates?: T;
+        region?: T;
+      };
+  online?: T;
   event?:
     | T
     | {
-        details?: T;
+        display?: T;
+        actions?: T;
         recurrence?: T;
-        timing?: T;
         title?: T;
       };
+  calendar?: T;
   registration?:
     | T
     | {
@@ -8752,6 +10296,8 @@ export interface SyAtlasTranslationsSelect<T extends boolean = true> {
         questions?: T;
       };
   share?: T;
+  compact?: T;
+  seo?: T;
   emails?: T;
   _status?: T;
   updatedAt?: T;
@@ -8784,7 +10330,8 @@ export interface CollectionsWidget {
  */
 export interface TaskCleanupOrphanedMedia {
   input: {
-    testDateRange?: CleanupTestDateRange;
+    rangeStart?: string | null;
+    rangeEnd?: string | null;
     maxOperations?: number | null;
   };
   output: {
@@ -8795,10 +10342,6 @@ export interface TaskCleanupOrphanedMedia {
     skippedImages: number;
     errors: number;
   };
-}
-export interface CleanupTestDateRange {
-  rangeStart: string;
-  rangeEnd: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -8896,7 +10439,7 @@ export interface TaskSendSessionReminders {
  */
 export interface TaskSyncLectureMetadata {
   input: {
-    lectureIds?: SyncLectureMetadataIds;
+    lectureIds?: number[] | null;
   };
   output: {
     totalProcessed: number;
@@ -8917,6 +10460,8 @@ export interface TaskVerifyEmbeds {
     failed: number;
     inconclusive: number;
     disabled: number;
+    pathPromoted: number;
+    pathDemoted: number;
   };
 }
 /**

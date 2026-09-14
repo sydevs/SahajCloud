@@ -14,6 +14,8 @@
  * a 400. See `docs/rules/api-clients.md` for the format contract.
  */
 
+import { LOCALES } from '@/lib/locales'
+
 const PARAMETER_BASE = {
   in: 'query' as const,
   required: false,
@@ -149,6 +151,32 @@ export const pageParameter = {
 }
 
 /**
+ * `locale` parameter. `all` is the one value worth documenting beyond the
+ * locale codes: it returns every locale as a `{ locale: value }` map instead of
+ * resolving one, with no English fallback. On `pages` and `app-cards` that
+ * includes `_status`, which is how a consumer asks which languages a document
+ * is published in (#718).
+ */
+export const localeParameter = {
+  ...PARAMETER_BASE,
+  name: 'locale',
+  schema: { type: 'string', enum: [...LOCALES.map((l) => l.code), 'all'] },
+  description: `Locale for localized fields. Defaults to the request locale.
+
+\`all\` returns every locale instead of resolving one: each localized field comes back as a \`{ locale: value }\` map, and no fallback is applied.
+
+On \`pages\` and \`app-cards\`, \`_status\` is stored per locale, so \`?locale=all&select[_status]=true\` answers which languages a document is published in:
+
+\`\`\`json
+{ "docs": [ { "id": 12, "_status": { "en": "published", "de": "draft" } } ] }
+\`\`\`
+
+A locale is published only when it says \`published\`. A locale that was never translated is **absent** from the map, not \`draft\`.
+
+⚠️ A client restricted to published documents reads \`_status\` and \`id\` only at \`locale=all\` — request content one locale at a time. See \`docs/rules/api-clients.md\`.`,
+}
+
+/**
  * Map of all client-read parameters by name. Used by `injectClientReadParameters`
  * in `specFilter.ts` to register reusable definitions under
  * `components.parameters` and to look up which ones to attach per HTTP method.
@@ -159,16 +187,17 @@ export const CLIENT_READ_PARAMETERS = {
   depth: depthParameter,
   limit: limitParameter,
   page: pageParameter,
+  locale: localeParameter,
 } as const
 
 /**
  * Parameter names to attach to collection LIST GET endpoints (`/api/{collection}`).
  * Includes pagination params since the endpoint returns a paginated result.
  */
-export const LIST_PARAMETERS = ['select', 'populate', 'depth', 'limit', 'page'] as const
+export const LIST_PARAMETERS = ['select', 'populate', 'depth', 'limit', 'page', 'locale'] as const
 
 /**
  * Parameter names to attach to findByID GET endpoints (`/api/{collection}/{id}`).
  * Excludes pagination since the response is a single doc.
  */
-export const FIND_BY_ID_PARAMETERS = ['select', 'populate', 'depth'] as const
+export const FIND_BY_ID_PARAMETERS = ['select', 'populate', 'depth', 'locale'] as const

@@ -81,8 +81,9 @@ describe('unpublishedLocales', () => {
   })
 
   // A global without `localizeStatus` stores one status for everything, so the
-  // answer is all-or-nothing. That keeps the field reusable on `wm-app-config`
-  // before that global opts in.
+  // answer is all-or-nothing. Since #709 every translations global sets the
+  // flag, so this branch has no caller — it is what lets the field mount on a
+  // new surface before that global opts in.
   it('reads a plain string status as all-or-nothing', () => {
     expect(unpublishedLocales('published', ['en', 'fr'])).toEqual([])
     expect(unpublishedLocales('draft', ['en', 'fr'])).toEqual(['en', 'fr'])

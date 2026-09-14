@@ -6,7 +6,8 @@
  * Captures client-side React errors and sends them to Sentry.
  * Server-side errors are handled by the Sentry plugin in payload.config.ts.
  */
-import * as Sentry from '@sentry/react'
+// ⚠ `@sentry/nextjs`, never `@sentry/react` — see `src/components/ErrorBoundary.tsx`.
+import * as Sentry from '@sentry/nextjs'
 import NextError from 'next/error'
 import { useEffect } from 'react'
 

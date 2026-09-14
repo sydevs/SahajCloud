@@ -1,7 +1,7 @@
 import type { SectionSpec, StatusGlobalSpec } from './spec'
 import type { GlobalConfig } from 'payload'
 
-import { adminOnlyCondition } from '@/plugins/access'
+import { adminOnlyCondition } from '@/plugins/access/adminOnly'
 
 import { runSection } from './runSection'
 import { virtualReadinessField, type ReadinessFieldAdminCustom } from './virtualReadinessField'

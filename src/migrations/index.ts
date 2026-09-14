@@ -55,6 +55,13 @@ import * as migration_20260902_224424_add_atlas_canonical_fallback_client from '
 import * as migration_20260905_130913_drop_manager_project_sentinel from './20260905_130913_drop_manager_project_sentinel';
 import * as migration_20260907_181403_reorder_timezone_enums from './20260907_181403_reorder_timezone_enums';
 import * as migration_20260907_213802_translations_localize_status_available_locales from './20260907_213802_translations_localize_status_available_locales';
+import * as migration_20260909_161243_wm_app_localize_status_available_locales from './20260909_161243_wm_app_localize_status_available_locales';
+import * as migration_20260909_161353_atlas_translations_by_view from './20260909_161353_atlas_translations_by_view';
+import * as migration_20260909_161848_drop_wm_web_placeholder_tabs from './20260909_161848_drop_wm_web_placeholder_tabs';
+import * as migration_20260909_162104_wm_web_translations_tabs from './20260909_162104_wm_web_translations_tabs';
+import * as migration_20260911_235823_pages_app_cards_localize_status from './20260911_235823_pages_app_cards_localize_status';
+import * as migration_20260912_031449_atlas_translations_seo_group from './20260912_031449_atlas_translations_seo_group';
+import * as migration_20260913_212558_wm_web_translations_video_tab from './20260913_212558_wm_web_translations_video_tab';
 import * as migration_20260914_172100_user_submissions from './20260914_172100_user_submissions';
 
 export const migrations = [
@@ -344,8 +351,43 @@ export const migrations = [
     name: '20260907_213802_translations_localize_status_available_locales',
   },
   {
+    up: migration_20260909_161243_wm_app_localize_status_available_locales.up,
+    down: migration_20260909_161243_wm_app_localize_status_available_locales.down,
+    name: '20260909_161243_wm_app_localize_status_available_locales',
+  },
+  {
+    up: migration_20260909_161353_atlas_translations_by_view.up,
+    down: migration_20260909_161353_atlas_translations_by_view.down,
+    name: '20260909_161353_atlas_translations_by_view',
+  },
+  {
+    up: migration_20260909_161848_drop_wm_web_placeholder_tabs.up,
+    down: migration_20260909_161848_drop_wm_web_placeholder_tabs.down,
+    name: '20260909_161848_drop_wm_web_placeholder_tabs',
+  },
+  {
+    up: migration_20260909_162104_wm_web_translations_tabs.up,
+    down: migration_20260909_162104_wm_web_translations_tabs.down,
+    name: '20260909_162104_wm_web_translations_tabs',
+  },
+  {
+    up: migration_20260911_235823_pages_app_cards_localize_status.up,
+    down: migration_20260911_235823_pages_app_cards_localize_status.down,
+    name: '20260911_235823_pages_app_cards_localize_status',
+  },
+  {
+    up: migration_20260912_031449_atlas_translations_seo_group.up,
+    down: migration_20260912_031449_atlas_translations_seo_group.down,
+    name: '20260912_031449_atlas_translations_seo_group',
+  },
+  {
+    up: migration_20260913_212558_wm_web_translations_video_tab.up,
+    down: migration_20260913_212558_wm_web_translations_video_tab.down,
+    name: '20260913_212558_wm_web_translations_video_tab',
+  },
+  {
     up: migration_20260914_172100_user_submissions.up,
     down: migration_20260914_172100_user_submissions.down,
-    name: '20260914_172100_user_submissions'
+    name: '20260914_172100_user_submissions',
   },
 ];

@@ -1,0 +1,274 @@
+{
+  "_meta": {
+    "global": "sy-atlas-translations",
+    "locale": "pt-BR",
+    "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/pt-BR/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
+    "schema_version": "post-#706 (11 tabs, 33 leaf groups, grouped by widget view)",
+    "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
+    "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
+  },
+  "common": {
+    "chrome": {
+      "back": "Voltar",
+      "back_to": "Voltar para %{title}",
+      "close": "Fechar",
+      "explore": "Explorar",
+      "loading": "Carregando",
+      "cancel": "Cancelar",
+      "widget_label": "Aulas de meditação gratuitas",
+      "all_classes_free": "Todas as aulas são gratuitas"
+    },
+    "settings": {
+      "title": "Configurações",
+      "theme_auto": "Sistema (automático)",
+      "theme_dark": "Tema escuro",
+      "theme_light": "Tema claro"
+    },
+    "errors": {
+      "generic": "Algo deu errado.",
+      "retry": "Tentar novamente",
+      "offline": "Você parece estar offline.",
+      "server": "Nossos servidores estão com problemas no momento.",
+      "not_found": "Não encontramos o que você procurava.",
+      "not_found_event": "Não encontramos esse evento.",
+      "not_found_region": "Não encontramos esse lugar.",
+      "config": "O Atlas não está configurado corretamente nesta página.",
+      "unavailable": "Não é possível participar deste programa no momento.",
+      "share_unavailable": "Ainda não há um link para compartilhar esta meditação.",
+      "captcha_blocked": "Este Atlas não pode funcionar nesta página: sua verificação de segurança foi bloqueada.",
+      "no_events": "Nenhum evento encontrado.",
+      "back_to_region": "Ver eventos em %{region}",
+      "near_city": "Ver eventos perto de %{city}",
+      "browse_countries": "Ver todos os países",
+      "search_label": "Ou busque um lugar"
+    },
+    "report": {
+      "title": "Relatar um problema",
+      "description": "Conte-nos o que está errado e repassaremos à equipe.",
+      "message_label": "O que deu errado?",
+      "message_placeholder": "Descreva o que você estava fazendo e o que pareceu errado.",
+      "email_label": "E-mail",
+      "email_help": "Opcional — só podemos responder se você preencher.",
+      "email_placeholder": "voce@exemplo.com",
+      "submit": "Enviar relato",
+      "sent": "Obrigado — seu relato está a caminho da equipe.",
+      "blocked": "A verificação de segurança não pôde ser carregada, portanto este formulário não pode ser enviado."
+    },
+    "report_errors": {
+      "email": "Digite um endereço de e-mail válido.",
+      "message": "Escreva pelo menos %{min} caracteres.",
+      "message_max": "Use menos de %{max} caracteres.",
+      "send_failed": "Seu relato não foi enviado. Aguarde a atualização da verificação de segurança e tente novamente.",
+      "captcha": "A verificação de segurança precisa ser refeita. Aguarde a atualização e envie novamente.",
+      "disposable_email": "Esse provedor de e-mail não é aceito. Use um endereço para o qual possamos responder, ou deixe em branco.",
+      "urls_not_allowed": "Não são permitidos links na mensagem. Remova-os e envie novamente."
+    },
+    "map": {
+      "find_my_location": "Encontrar minha localização",
+      "location_not_available": "Localização não disponível"
+    },
+    "feedback": {
+      "confirmed_title": "Obrigado por confirmar",
+      "confirmed_body": "Vamos avisar outras pessoas de que esta aula continua acontecendo.",
+      "denied_title": "Obrigado por nos avisar",
+      "denied_body": "Vamos revisar este anúncio e atualizá-lo. Desculpe pelo erro.",
+      "nearby": "Ver outras aulas por perto",
+      "below": "Outras aulas por perto estão listadas abaixo."
+    }
+  },
+  "countries": {
+    "title": "Aulas gratuitas de meditação"
+  },
+  "search": {
+    "chrome": {
+      "title": "Buscar",
+      "placeholder": "Buscar eventos perto de…"
+    },
+    "results": {
+      "more": "Mostrar mais",
+      "farther": "Mostrar eventos distantes",
+      "showing": "Mostrando %{shown} de %{total} eventos",
+      "no_nearby": "Nenhum evento num raio de %{km} km."
+    },
+    "sort": {
+      "label": "Ordenar",
+      "recommended": "Recomendados",
+      "closest": "Mais próximos",
+      "soonest": "Mais próximos no tempo"
+    },
+    "country_site": {
+      "title": "Ainda não há aulas cadastradas em %{country}.",
+      "cta": "Acessar o site de %{country}"
+    },
+    "nearby_prompt": {
+      "title": "Procurando aulas perto de %{city}?",
+      "dismiss": "Dispensar"
+    }
+  },
+  "filters": {
+    "chrome": {
+      "title": "Filtros",
+      "apply": "Aplicar",
+      "clear": "Limpar tudo",
+      "clear_one": "Limpar",
+      "remove": "Remover %{label}",
+      "any_time": "Qualquer horário",
+      "no_results": "Nenhum evento corresponde aos seus filtros."
+    },
+    "format": {
+      "label": "Formato",
+      "any": "Qualquer",
+      "offline": "Presencial",
+      "online": "Online"
+    },
+    "cadence": {
+      "label": "Frequência",
+      "any": "Qualquer",
+      "daily": "Diário",
+      "weekly": "Semanal",
+      "monthly": "Mensal",
+      "once": "Única vez"
+    },
+    "days": {
+      "label": "Dia da semana"
+    },
+    "time": {
+      "label": "Horário",
+      "morning": "Manhã",
+      "afternoon": "Tarde",
+      "evening": "Anoitecer",
+      "night": "Noite"
+    },
+    "language": {
+      "label": "Idioma",
+      "all": "Todos os idiomas",
+      "empty": "Nenhum idioma disponível"
+    },
+    "dates": {
+      "label": "Data",
+      "from": "De",
+      "to": "Até",
+      "pill_from": "A partir de %{date}",
+      "pill_until": "Até %{date}",
+      "pill_range": "%{start} – %{end}"
+    },
+    "region": {
+      "label": "Região",
+      "all": "Todas as regiões",
+      "search": "Buscar regiões…",
+      "empty": "Nenhuma região encontrada"
+    }
+  },
+  "online": {
+    "title": "Aulas on-line"
+  },
+  "event": {
+    "display": {
+      "about": "Sobre esta aula",
+      "free_meditation_class": "Aula de meditação gratuita",
+      "chip_full": "Lotado",
+      "chip_today": "Hoje",
+      "chip_ended": "Encerrado",
+      "chip_starts": "Começa em %{date}",
+      "started_on": "Começou em %{date}",
+      "first_session": "Primeira sessão: %{date}",
+      "next_session": "Próxima sessão: %{date}",
+      "event_ended": "Este evento foi encerrado",
+      "event_full": "Este evento está lotado",
+      "registration_closed": "Inscrições encerradas",
+      "registration_required": "Inscrição obrigatória",
+      "registration_external": "A inscrição neste evento é feita em outro site",
+      "online_joining_note": "O link da reunião será enviado para você por e-mail",
+      "contact_to_join_full": "Fale com o anfitrião mesmo assim",
+      "contact_to_join_late": "Fale com o anfitrião para entrar depois",
+      "contact_for_timing": "Entre em contato com o anfitrião para saber os horários",
+      "online": "On-line",
+      "hosted_from": "Hospedado em %{city}",
+      "time_in_place": "%{time} em %{city}",
+      "distance_away": "a %{distance}",
+      "distance_from_place": "a %{distance} de %{place}",
+      "distance_from_search": "%{distance} do local pesquisado",
+      "type_class": "Aula",
+      "type_class_daily": "Aula diária",
+      "type_class_weekly": "Aula semanal",
+      "type_class_fortnightly": "Aula quinzenal",
+      "type_class_monthly": "Aula mensal",
+      "type_course": "Curso",
+      "type_oneoff": "Evento único",
+      "sessions_count_one": "%{count} sessão",
+      "sessions_count_other": "%{count} sessões",
+      "see_nearby": "Ver eventos próximos",
+      "register_now": "Cadastre-se agora"
+    },
+    "actions": {
+      "contact": "Contato",
+      "directions": "Como chegar",
+      "website": "Site",
+      "share": "Compartilhar",
+      "add_calendar": "Adicionar à agenda",
+      "download_ics": "Baixar arquivo .ics",
+      "view_photo": "Ver foto",
+      "pause_slideshow": "Pausar a apresentação"
+    },
+    "recurrence": {
+      "daily": "Diariamente",
+      "daily_n": "A cada %{interval} dias",
+      "weekly_1": "Todo(a) %{weekday}",
+      "weekly_2": "A cada duas semanas: %{weekday}",
+      "weekly_n": "A cada %{interval} semanas: %{weekday}",
+      "weekly_multi": "Toda %{weekdays}",
+      "monthly_1st": "1º %{weekday} de cada mês",
+      "monthly_2nd": "2º %{weekday} de cada mês",
+      "monthly_3rd": "3º %{weekday} de cada mês",
+      "monthly_4th": "4º %{weekday} de cada mês",
+      "monthly_last": "Último(a) %{weekday} de cada mês",
+      "monthly_date": "Todo dia %{day} do mês"
+    }
+  },
+  "calendar": {
+    "title": "Calendário",
+    "previous": "Anterior",
+    "next": "Próximo",
+    "pick_date": "Escolher data",
+    "view_month": "Mês",
+    "view_week": "Semana",
+    "view_list": "Lista"
+  },
+  "registration": {
+    "form": {
+      "name": "Seu nome",
+      "email": "Seu e-mail",
+      "starting_date": "Data de início",
+      "show_more_dates": "Mostrar mais datas",
+      "submit": "Cadastre-se",
+      "okay": "OK",
+      "followup": "Você receberá um e-mail de confirmação em breve",
+      "invite_friend": "Convide um amigo junto",
+      "online_notice": "O link para esta aula será enviado para você por e-mail.",
+      "online_notice_title": "Sessão On-line",
+      "privacy_policy": "Ao enviar você confirma que concorda em receber mensagens de acompanhamento sobre este e eventos semelhantes, de acordo com nossa política de privacidade.",
+      "error_title": "Algo deu errado",
+      "captcha_retry": "A verificação de segurança precisa ser refeita. Aguarde a atualização e inscreva-se novamente."
+    },
+    "errors": {
+      "email": "Insira um e-mail válido",
+      "name": "Digite seu nome completo",
+      "starting_at": "Selecione sua data de início"
+    },
+    "questions": {
+      "experience": "Você já praticou a meditação Sahaja Yoga antes?",
+      "referral": "Como você ficou sabendo deste evento?",
+      "aspirations": "O que você espera obter disso?",
+      "questions": "Você tem alguma pergunta para nós?"
+    }
+  },
+  "share": {
+    "share_on": "Compartilhar no %{platform}",
+    "native": "Compartilhar…",
+    "copy_link": "Copiar link",
+    "copied": "Copiado"
+  },
+  "compact": {
+    "open": "Encontre uma aula perto de você"
+  }
+}

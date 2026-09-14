@@ -16,6 +16,8 @@ import { mapPostgresCastError } from '@/lib/databaseErrors'
 import { serverEnv } from '@/lib/env'
 import { deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
 
+import { describeRejectedCredential } from './credentialRejection'
+
 /**
  * Context object for Sentry error capture
  */
@@ -23,10 +25,22 @@ interface SentryContext {
   user?: {
     id?: string
     email?: string
+    /**
+     * The client IP. Sentry's own field for it, on purpose — the project's
+     * "Prevent Storing of IP Addresses" setting and the SDK's PII scrubbers
+     * both act on `user.ip_address` and neither can see an `extra`. Setting it
+     * here keeps the org's kill switch working without a redeploy.
+     */
+    ip_address?: string
   }
   tags?: Record<string, string | undefined>
   extra?: Record<string, unknown>
   level?: 'fatal' | 'error' | 'warning' | 'log' | 'info' | 'debug'
+  /**
+   * Overrides Sentry's default grouping. Set only where two errors that look
+   * alike are different incidents — leave it unset and Sentry groups as usual.
+   */
+  fingerprint?: string[]
 }
 
 export interface SentryPluginOptions {
@@ -118,23 +132,70 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
 
             // Capture 500+ errors and any explicitly configured status codes
             if (status >= 500 || captureErrors.includes(status)) {
+              const tags: Record<string, string | undefined> = {
+                environment: deploymentEnvironment(),
+                locale: req.locale,
+                collection: 'collection' in args ? String(args.collection?.slug) : undefined,
+              }
+              const extra: Record<string, unknown> = { status, url: req.url }
+              let level: SentryContext['level'] = status >= 500 ? 'error' : 'warning'
+              let fingerprint: string[] | undefined
+              let clientIp: string | undefined
+
+              // A presented-and-rejected credential is a broken integration, not
+              // traffic — but only below 500. The caller's credential is not what
+              // is wrong with a 500, so nothing auth-related is computed there.
+              //
+              // ⚠ This also writes the WARN mirror, and this plugin returns the
+              // config untouched when no `NEXT_PUBLIC_SENTRY_DSN` is set — so a
+              // deployment without one gets neither the event nor that line.
+              // Every deployed environment sets it; a local run that does not,
+              // will not see it. `requireActiveClient`'s path has no such gate
+              // (#743).
+              const rejected =
+                status < 500
+                  ? describeRejectedCredential(req, { status, source: 'sentryPlugin' })
+                  : null
+
+              if (rejected) {
+                // ⚠ **Accepted risk: this level is caller-triggerable.** Any
+                // anonymous caller can raise a captured 400/403/404 to `error`
+                // by sending a junk `Authorization` header. Grouping stays
+                // bounded by the collection check, so the cost is event quota
+                // and alert noise, never one Sentry issue per value. #734
+                // leaves routing to a Sentry-side rule on `auth_outcome`, which
+                // is where to mute this — not by dropping the level. (#734)
+                level = 'error'
+                // ⚠ **The IP belongs on `user.ip_address`, never in an `extra`.**
+                // `sendDefaultPii: false` and the project's "Prevent Storing of
+                // IP Addresses" setting both act on that field alone; an `extra`
+                // is opaque context no scrubber reaches.
+                clientIp = rejected.ip
+                Object.assign(tags, rejected.tags)
+                Object.assign(extra, { userAgent: rejected.userAgent })
+                fingerprint = rejected.fingerprint
+              }
+
+              // The two arms are mutually exclusive: `clientIp` is set only on
+              // the rejected branch, which requires no `req.user`. So a rejected
+              // caller's `user` carries the IP alone — the absent `id` is what
+              // still says nobody authenticated, and `auth_outcome` says so
+              // outright.
+              const user = req.user
+                ? {
+                    id: String(req.user.id),
+                    email: 'email' in req.user ? String(req.user.email) : undefined,
+                  }
+                : clientIp
+                  ? { ip_address: clientIp }
+                  : undefined
+
               const defaultContext: SentryContext = {
-                user: req.user
-                  ? {
-                      id: String(req.user.id),
-                      email: 'email' in req.user ? String(req.user.email) : undefined,
-                    }
-                  : undefined,
-                tags: {
-                  environment: deploymentEnvironment(),
-                  locale: req.locale,
-                  collection: 'collection' in args ? String(args.collection?.slug) : undefined,
-                },
-                extra: {
-                  status,
-                  url: req.url,
-                },
-                level: status >= 500 ? 'error' : 'warning',
+                user,
+                tags,
+                extra,
+                level,
+                fingerprint,
               }
 
               // Apply custom context if provided
@@ -157,6 +218,9 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
                 }
                 if (finalContext.level) {
                   scope.setLevel(finalContext.level)
+                }
+                if (finalContext.fingerprint) {
+                  scope.setFingerprint(finalContext.fingerprint)
                 }
                 Sentry.captureException(error)
               })

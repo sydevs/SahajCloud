@@ -1,18 +1,21 @@
-import type { JSONSchema4 } from 'json-schema'
-
 import type { ClientCanonicalVerification } from '@/payload-types'
-
-import { CANONICAL_DOMAIN_PATTERN, ROUTING_MODES } from './canonical'
 
 /**
  * The `canonical.verification` contract — what the CMS itself has confirmed
  * about the embed an operator nominated, and the ladder that takes a repeatedly
  * broken one out of service.
  *
- * Pure and side-effect free: the JSON Schema types + validates the column, and
- * {@link nextVerificationState} is the whole state machine. Nothing here loads a
- * page, reads a request, or touches Payload — so the three-strikes rule, the
- * `inconclusive` exemption and the backoff are unit-testable on their own.
+ * Pure and side-effect free: {@link nextVerificationState} is the whole state
+ * machine, and the column's JSON Schema — built from the const arrays below —
+ * sits at its field in `Clients.ts`. Nothing here loads a page, reads a request,
+ * or touches Payload, so the three-strikes rule, the `inconclusive` exemption
+ * and the backoff are unit-testable on their own.
+ *
+ * ⚠ **Keep this module free of heavy runtime imports.** `CanonicalEmbedPicker`
+ * is a `'use client'` component and value-imports {@link splitMountKey} from
+ * here, so a top-level import lands in an admin browser chunk. That is why the
+ * `jsonSchema` call moved to `Clients.ts` — declaring it here would ship `zod`
+ * to the browser to describe a shape only the server validates.
  *
  * **Why the server attests rather than the widget** (#633 follow-up): the report
  * endpoint is reachable by anyone holding a published key from an allowed
@@ -21,10 +24,6 @@ import { CANONICAL_DOMAIN_PATTERN, ROUTING_MODES } from './canonical'
  * `verified` below — written solely by the verification job from what it
  * observed on the live page — is what a canonical URL may be built from.
  */
-
-/** `$id` / `fileMatch` key Payload names the generated type from. */
-export const CANONICAL_VERIFICATION_SCHEMA_URI =
-  'urn:sahajcloud:schema:client-canonical-verification'
 
 /** Definitive failures — the embed is genuinely not working. These count. */
 export const VERIFICATION_FAILURE_REASONS = ['dns', 'http', 'marker-absent'] as const
@@ -51,7 +50,7 @@ export type VerificationInconclusiveReason = (typeof VERIFICATION_INCONCLUSIVE_R
  *
  * The chain is one-directional and worth stating, because it is easy to read the
  * wrong way round: the const arrays above are spliced into
- * {@link canonicalVerificationJsonSchema} below, Payload generates
+ * `canonicalVerificationFieldSchema` in `Clients.ts`, Payload generates
  * `ClientCanonicalVerification` from that schema's `title`, and these three
  * aliases derive from the generated type. So the arrays are the single source
  * and this file cannot drift from the column (#671).
@@ -71,6 +70,16 @@ export type VerificationAttempt = CanonicalVerification['attempts'][number]
 /** Consecutive definitive failures before canonical ownership is switched off. */
 export const CANONICAL_FAILURE_LIMIT = 3
 
+/**
+ * Consecutive negative probes before a client on `path` is returned to `query`.
+ *
+ * **Its own constant and its own counter, never `failureCount`.** That one
+ * becomes `disable` — canonical ownership switched off, plus an email to the
+ * service's manager. A routing negative means the embed is *present and
+ * publishing*, just in the uglier `?atlas=` shape, so it must never reach it.
+ */
+export const ROUTING_PROBE_FAILURE_LIMIT = 3
+
 /** How many attempts are retained. The log shares a row — it cannot grow forever. */
 export const MAX_VERIFICATION_ATTEMPTS = 10
 
@@ -80,60 +89,16 @@ export const VERIFY_INTERVAL_MS = 24 * 60 * 60 * 1000
 /** Retry sooner when we learned nothing — the fault is likely ours and transient. */
 export const VERIFY_INCONCLUSIVE_RETRY_MS = 60 * 60 * 1000
 
-const domainSchema: JSONSchema4 = {
-  type: 'string',
-  pattern: CANONICAL_DOMAIN_PATTERN.source,
-  minLength: 1,
-}
-
 /**
- * JSON Schema for the column. Payload generates the TS type from this **and**
- * compiles it to a validator that runs on write.
+ * What one routing probe concluded.
  *
- * The `domain` pattern is the same bare-host rule the admin field used to
- * enforce with `canonicalDomainValidate`. It moved here because the host is now
- * job-written rather than typed — the guard belongs where the write happens.
+ * The same three-way split as {@link VerificationResult}, for the same reason:
+ * `negative` is evidence about the host's server, `inconclusive` means we could
+ * not look and must change nothing.
  */
-export const canonicalVerificationJsonSchema: JSONSchema4 = {
-  $id: CANONICAL_VERIFICATION_SCHEMA_URI,
-  title: 'ClientCanonicalVerification',
-  type: 'object',
-  additionalProperties: false,
-  required: ['verified', 'failureCount', 'attempts'],
-  properties: {
-    verified: {
-      type: ['object', 'null'],
-      additionalProperties: false,
-      required: ['domain', 'mount', 'routing', 'widgetVersion', 'at'],
-      properties: {
-        domain: domainSchema,
-        mount: { type: 'string' },
-        routing: { enum: [...ROUTING_MODES] },
-        widgetVersion: { type: 'number' },
-        at: { type: 'string' },
-      },
-    },
-    failureCount: { type: 'number', minimum: 0 },
-    attempts: {
-      type: 'array',
-      // Deliberately no `maxItems`: json-schema-to-typescript renders a bounded
-      // array as an exploded tuple union (one variant per length), which adds
-      // ~200 lines to payload-types.ts for no safety we don't already have.
-      // `nextVerificationState` is what trims the ring.
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['at', 'status'],
-        properties: {
-          at: { type: 'string' },
-          status: { enum: ['verified', 'failed', 'inconclusive'] },
-          reason: {
-            enum: [...VERIFICATION_FAILURE_REASONS, ...VERIFICATION_INCONCLUSIVE_REASONS],
-          },
-        },
-      },
-    },
-  },
+export interface RoutingProbeResult {
+  status: 'positive' | 'negative' | 'inconclusive'
+  detail?: string
 }
 
 /** What one verification run concluded. */
@@ -199,7 +164,9 @@ export function nextVerificationState(args: {
 
   if (result.status === 'verified') {
     return {
-      verification: { verified: result.embed, failureCount: 0, attempts },
+      // Spread `previous` first: `routingProbe` is a sibling this function does not
+      // own, and a success must not clear the routing verdict beside it.
+      verification: { ...previous, verified: result.embed, failureCount: 0, attempts },
       nextVerifyAt: new Date(now.getTime() + VERIFY_INTERVAL_MS).toISOString(),
       disable: false,
     }
@@ -218,8 +185,68 @@ export function nextVerificationState(args: {
 }
 
 /**
+ * Fold one probe's result into the stored state, and hand back the whole
+ * verification so a caller persists one object.
+ *
+ * **Asymmetric on purpose, because the failures are asymmetric.** A wrong
+ * `path` breaks every deep link and puts 404s in the sitemap. A wrong `query`
+ * only produces uglier URLs that still work. So:
+ *
+ * - **positive** — promote at once, and reset the failed-attempt count.
+ * - **negative** — count a failed attempt, and demote only on the
+ *   {@link ROUTING_PROBE_FAILURE_LIMIT}th in a row. The count is capped there, so
+ *   a host that has been gone for a month does not accumulate forever.
+ * - **inconclusive** — change nothing at all, exactly as the mount ladder does.
+ */
+export function nextRoutingProbeState(args: {
+  current: CanonicalVerification | null | undefined
+  result: RoutingProbeResult
+  now: Date
+}): CanonicalVerification {
+  const { current, result, now } = args
+  const previous = current ?? EMPTY_VERIFICATION
+  if (result.status === 'inconclusive') return previous
+
+  const at = now.toISOString()
+  if (result.status === 'positive') {
+    return { ...previous, routingProbe: { at, verdict: 'path', failedAttempts: 0 } }
+  }
+
+  const failedAttempts = Math.min(
+    (previous.routingProbe?.failedAttempts ?? 0) + 1,
+    ROUTING_PROBE_FAILURE_LIMIT,
+  )
+  const verdict =
+    failedAttempts >= ROUTING_PROBE_FAILURE_LIMIT
+      ? 'query'
+      : (previous.routingProbe?.verdict ?? 'query')
+  return { ...previous, routingProbe: { at, verdict, failedAttempts } }
+}
+
+/**
+ * **How to read the routing verdict:** `verification?.routingProbe?.verdict ??
+ * 'query'`, at the call site. There is deliberately no accessor wrapping it.
+ *
+ * `path` only where the probe has seen the host serve our atlas under the
+ * mount's own subtree; `query` otherwise, which is what nearly every client
+ * publishes today and is a perfectly good canonical (see `canonicalUrl.ts`).
+ *
+ * **There is no second answer to disagree with it.** `verified.routing` — the
+ * readiness marker's copy of the widget's own script parameter — is no longer
+ * written at all, so the record carries the observation and nothing else. The
+ * widget's report is still kept as a report, per mount, in `embedMetadata`.
+ * (#644)
+ *
+ * The default belongs to the read path: the `canonical.routing` field's
+ * `afterRead` hook (`Clients.ts`) is what the widget reads, and it applies it
+ * once. The remaining sites hold a verification object they are about to
+ * write, or have just written, and never read through Payload at all.
+ *
  * Canonical URLs are built by `@/lib/atlas/canonicalUrl` — `buildCanonicalUrl`
- * over a `canonicalTargetForHost(verified)` target.
+ * over a `canonicalTargetForHost(verified, routing)` target. The routing
+ * argument is separate and required precisely so that
+ * `canonicalTargetForHost(verified)`, which would shape a URL from the widget's
+ * self-report, no longer compiles (#644).
  *
  * There used to be a second builder here, and the two disagreed in a way that
  * mattered: this one emitted the Atlas path with its leading slash stripped and

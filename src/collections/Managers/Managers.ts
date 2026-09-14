@@ -2,17 +2,17 @@ import type { CollectionConfig } from 'payload'
 
 import { json as jsonFieldValidation } from 'payload/shared'
 import { createElement } from 'react'
+import { z } from 'zod'
 
 import {
   buildDefaultNotificationPreferences,
-  NOTIFICATION_PREFERENCES_SCHEMA_URI,
   NOTIFICATION_TYPES,
-  notificationPreferencesJsonSchema,
   validateNotificationPreferences,
 } from '@/components/admin/NotificationPreferences/config'
 import { ResetPasswordEmail } from '@/emails/ResetPasswordEmail'
 import { VerifyEmail } from '@/emails/VerifyEmail'
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
+import { jsonField } from '@/fields/jsonField'
 import { getLanguageOptions } from '@/lib/locales'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
@@ -228,15 +228,25 @@ export const Managers: CollectionConfig = {
                 },
               ],
             },
-            {
+            jsonField({
               name: 'notificationPreferences',
-              type: 'json',
               defaultValue: buildDefaultNotificationPreferences(),
-              jsonSchema: {
-                uri: NOTIFICATION_PREFERENCES_SCHEMA_URI,
-                fileMatch: [NOTIFICATION_PREFERENCES_SCHEMA_URI],
-                schema: notificationPreferencesJsonSchema,
-              },
+              // Open keys, typed value. `NOTIFICATION_TYPES` stays the source
+              // of truth for which keys the admin renders, and the frequency is
+              // checked as a string rather than against `frequencyOptions`:
+              // retiring a type or an option must not strand the managers still
+              // on it. Why there are no per-key `properties`, and why the value
+              // is typed at all, are in `src/collections/AGENTS.md` under "A
+              // JSON column declares its shape".
+              schemaTitle: 'NotificationPreferences',
+              schema: z.record(
+                z.string(),
+                // The value stays open for the same reason the keys do.
+                z.looseObject({
+                  frequency: z.string().optional(),
+                  method: z.string().optional(),
+                }),
+              ),
               // Composed, not replaced: supplying `validate` takes over from the
               // built-in one, which is what runs the schema above. The extra
               // rule — a method is required unless the frequency is "Never" —
@@ -251,7 +261,7 @@ export const Managers: CollectionConfig = {
                 custom: { notificationTypes: NOTIFICATION_TYPES },
                 components: { Field: '@/components/admin/NotificationPreferences' },
               },
-            },
+            }),
             {
               // Watermark for the registration digest run: the start of the last
               // digest sent to this manager. The digest job covers registrations

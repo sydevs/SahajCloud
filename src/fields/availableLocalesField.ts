@@ -56,9 +56,9 @@ async function readPublishStatus(
  * Which of `locales` are not published, given whatever `_status` came back.
  *
  * A **map** is the `localizeStatus` shape: one status per locale. A plain
- * **string** is a global without the flag, where publish state is
- * all-or-nothing — so the field stays usable on `wm-app-config` later, before
- * that global opts in.
+ * **string** is the shape without that flag — all-or-nothing, and what a read
+ * returns if the root `experimental.localizeStatus` flag is ever off. All three
+ * translations globals set the flag, so that branch has no caller today.
  */
 export function unpublishedLocales(status: unknown, locales: LocaleCode[]): LocaleCode[] {
   if (typeof status === 'string') return status === 'published' ? [] : [...locales]
@@ -121,7 +121,7 @@ export function availableLocalesField({
       // without it — so gating it would be a deadlock rather than a gate. The
       // migration that adds per-locale `_status` lands every locale as `draft`,
       // and Payload validates the merged document on every save of the global.
-      // Gating English would make both config globals unsaveable on the deploy
+      // Gating English would make every config global unsaveable on the deploy
       // that ships this field, while the error told the operator to publish the
       // one locale they cannot deselect. Every other locale falls back to
       // English anyway.

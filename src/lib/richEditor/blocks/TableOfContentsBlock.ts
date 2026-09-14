@@ -1,6 +1,8 @@
 import type { Block } from 'payload'
 
-const TOC_HEADINGS_SCHEMA_URI = 'urn:sahajcloud:schema:toc-headings'
+import { z } from 'zod'
+
+import { jsonField } from '@/fields/jsonField'
 
 export const TableOfContentsBlock: Block = {
   slug: 'table-of-contents',
@@ -23,40 +25,28 @@ export const TableOfContentsBlock: Block = {
         description: 'Optional heading displayed above the list (e.g. "In this article")',
       },
     },
-    {
+    jsonField({
       name: 'headings',
-      type: 'json',
       // Written only by `TableOfContentsField`, which stores the subset of the
       // document's detected headings an author ticked. The schema mirrors that
       // component's `DetectedHeading`, which cannot be imported here — it lives
       // in a `'use client'` module, and this block config is server-side.
       // Entries stay open so a heading gaining a field does not make every
       // existing page unsaveable.
-      jsonSchema: {
-        uri: TOC_HEADINGS_SCHEMA_URI,
-        fileMatch: [TOC_HEADINGS_SCHEMA_URI],
-        schema: {
-          $id: TOC_HEADINGS_SCHEMA_URI,
-          title: 'TableOfContentsHeadings',
-          type: 'array',
-          items: {
-            type: 'object',
-            additionalProperties: true,
-            required: ['slug', 'text', 'level'],
-            properties: {
-              slug: { type: 'string' },
-              text: { type: 'string' },
-              level: { type: 'integer' },
-            },
-          },
-        },
-      },
+      schemaTitle: 'TableOfContentsHeadings',
+      schema: z.array(
+        z.looseObject({
+          slug: z.string(),
+          text: z.string(),
+          level: z.int(),
+        }),
+      ),
       admin: {
         description: 'Select headings above to include in the table of contents',
         components: {
           Field: '@/components/admin/TableOfContentsField',
         },
       },
-    },
+    }),
   ],
 }

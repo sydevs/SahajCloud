@@ -1,20 +1,18 @@
 /**
- * Client Environment Variable Validation
+ * The `NEXT_PUBLIC_*` variables — a **schema**, not an accessor.
  *
- * This module provides type-safe client environment variable validation using Zod.
- * Only NEXT_PUBLIC_* variables that are intentionally exposed to the browser.
+ * `ServerEnvSchema` extends this one, so the server validates these four
+ * alongside its own secrets and reads them as `serverEnv.NEXT_PUBLIC_*`.
  *
- * **IMPORTANT**: This file is safe to import from client-side code.
- * For server-only variables, use `@/lib/env` (which imports from ./server).
- *
- * **Usage**:
- * ```typescript
- * import { clientEnv } from '@/lib/env/client'
- *
- * const logLevel = clientEnv.NEXT_PUBLIC_LOG_LEVEL
- * ```
+ * ⚠ **There is deliberately no `clientEnv` value here, and adding one back
+ * re-arms #760.** Browser code reads `process.env.NEXT_PUBLIC_<KEY>` as a
+ * literal member expression instead. Why, and why not an enumerated
+ * `runtimeEnv` object: `src/AGENTS.md`, "A second guard walks the same graph".
+ * `tests/unit/public-env-substitution.spec.ts` enforces it.
  */
 import { z } from 'zod'
+
+import { LOG_LEVELS } from './logLevels'
 
 /**
  * Client-side environment variables schema
@@ -37,7 +35,7 @@ export const ClientEnvSchema = z.object({
    *
    * @default 'silent' (client), varies by NODE_ENV (server)
    */
-  NEXT_PUBLIC_LOG_LEVEL: z.enum(['silent', 'error', 'warn', 'info', 'debug']).optional(),
+  NEXT_PUBLIC_LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
 
   /**
    * Public Mapbox access token, used by the address-autocomplete field
@@ -57,30 +55,3 @@ export const ClientEnvSchema = z.object({
 
 // Type inference for TypeScript
 export type ClientEnv = z.infer<typeof ClientEnvSchema>
-
-/**
- * Validated client-side environment variables
- *
- * Throws validation error on module import if environment is invalid.
- * Provides type-safe access to all client-accessible environment variables.
- */
-export const clientEnv = (() => {
-  try {
-    return ClientEnvSchema.parse(process.env)
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      // Note: Using console.error here is intentional for fail-fast behavior
-      // This code runs at module load time, before any logging system is available
-      // eslint-disable-next-line no-console
-      console.error('❌ Environment validation error (client):')
-      // eslint-disable-next-line no-console
-      console.error(error.issues)
-      // eslint-disable-next-line no-console
-      console.error('\nCheck your .env file and compare with .env.example for required variables.')
-      throw new Error(
-        'Invalid client environment variables. Check the error details above and verify your .env file matches .env.example requirements.',
-      )
-    }
-    throw error
-  }
-})()

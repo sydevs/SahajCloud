@@ -64,16 +64,23 @@ No loose files at the root — every file lives in a named folder:
 
 - `env/` — environment-variable validation (broadly imported config), plus
   `deploymentEnvironment.ts`, which names the deployment (Railway environment
-  name, falling back to `NODE_ENV`). That one is deliberately **outside** the
+  name, falling back to `NODE_ENV`. Its `clientDeploymentEnvironment()` twin
+  reads the name `next.config.mjs` inlines for the browser, which reads no
+  environment at runtime). That one is deliberately **outside** the
   `@/lib/env` barrel and imported by its deep path: the barrel pulls in the
   validated `serverEnv` parse, and Sentry reads it during
-  `instrumentation.register()`, before that parse is safe to depend on
+  `instrumentation.register()`, before that parse is safe to depend on.
+  `logLevels.ts` sits outside the barrel for that reason and one more: it is
+  zod-free, so `clientLogger` takes the `NEXT_PUBLIC_LOG_LEVEL` vocabulary
+  without pulling the schema module into every browser chunk that carries it
 - `logger/` — `clientLogger`, `workerSafeLogger`
 - `utilities/` — purposeful cross-boundary helpers (`serverUrl`,
   `previewSecret`, `gender`, `subtitles`, `weightedSample`, `isRecord`,
   `requestMemo` — collapses a per-request load to one in-flight promise,
   `localeIsolatedReq` — gives a nested cross-locale read a copy so it can't
-  repoint the caller's request)
+  repoint the caller's request, `versionsRead` — tells a `beforeOperation`
+  hook whether its `read` is a versions read, which cannot carry a document
+  `where`)
 - `locales/` — locale config (`@/lib/locales` resolves to `locales/index.ts`)
 - `richEditor/` — Lexical editor presets + `blocks/` (the editor's block
   set) + `lexicalHooks`
@@ -123,8 +130,52 @@ the canonical picker imported `@/lib/clients/canonical`, which imported the
 `pg` into the browser bundle. The fix was a deep import
 (`@/plugins/usage/originEnforcement`). The guard is
 `tests/unit/client-bundle-safety.spec.ts`, which walks the real import
-graph from each admin client component. Add new client entry points to its
-list.
+graph from every browser entry. Nothing to add when you write a client
+component — it is covered on the first run.
+
+⚠ **From client code, import `@/plugins/access/config`, `/adminOnly` or
+`/types` — never the `@/plugins/access` barrel.** The barrel re-exports those
+pure leaves, but it also pulls `accessPlugin`, `fieldAccess`, `accessConfigs`
+and `permissions`, and through them `@/lib/env/server`. Server code keeps
+using the barrel.
+
+**That rule is enforced, and was not for four months.** The guard's entries
+were a hand-written list of four, and it matched the import **specifier** a
+caller wrote — but the edge into `@/lib/env/server` is `@/lib/env`'s own
+`./server`, which no caller ever writes. So it was green from #633 to #770
+with 14 browser entries reaching it, 12 through that barrel. #770 fixed both
+halves, and both matter: derived entries alone still miss the edge, and file
+matching alone still misses the entry. The barrel is also a `SERVER_ONLY` row
+in its own right, so the rule above holds even if the barrel stops reaching
+`@/lib/env/server` — the weight is the cost, not just the Node dependency. The
+walk also stops at a `'use server'` module, because Next compiles one to a
+client reference and never bundles its body. `@/lib/status` is the same barrel
+shape, not yet cut — `ReadinessGroup` pulls nine modules through it for one
+function.
+
+**A second guard walks the same graph for a different rule.**
+`tests/unit/public-env-substitution.spec.ts` checks that browser code reads
+`process.env` only as a literal `process.env.<KEY>` member expression — the
+one form Next substitutes. `clientEnv` did not, so every `NEXT_PUBLIC_*`
+value was `undefined` in the browser and client Sentry never initialized
+(#760). It derives its entries the same way, from `clientEntries()` in
+`tests/utils/importGraph.ts`, which both specs share.
+
+**This is the one home for that story.** The code sites carry a one-line
+pointer here, so there is nothing to update in six places when it changes.
+And do not restore a `clientEnv`-shaped accessor in another form: the
+enumerated `runtimeEnv` object t3-env uses would work, but its enumeration
+can drift from `ClientEnvSchema` silently, and that drift looks exactly like
+working config — the same failure, re-armed. `ServerEnvSchema` extends the
+client schema, so the server still validates all four variables and reads
+them as `serverEnv.NEXT_PUBLIC_*`.
+
+⚠ **Import Sentry from `@sentry/nextjs`, never `@sentry/react`.** Sentry
+keys its global client by SDK version (`__SENTRY__[SDK_VERSION]`), and
+`@sentry/nextjs` carries its own pinned `@sentry/react`. A second top-level
+copy resolves to a different version, so a capture through it reads an empty
+carrier and is dropped without error. That is why `@sentry/react` is not a
+direct dependency.
 
 ## Organization rules
 

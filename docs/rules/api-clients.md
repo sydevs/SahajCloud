@@ -26,7 +26,8 @@ Two Atlas white-label fields, split across the **Config** and **SEO** tabs. `can
 | --- | --- |
 | `canonical.enabled` | checkbox, default false — every other field is `admin.condition`-gated on it |
 | `canonical.embed` | required when enabled. Which reported mount owns the URLs, chosen from a picker, never typed |
-| `canonical.verification` | json, admin-readonly — written only by the CMS: the verified snapshot, a consecutive-failure count, a bounded attempt log |
+| `canonical.verification` | json, admin-readonly — written only by the CMS: the verified snapshot, a consecutive-failure count, a bounded attempt log, and the `routingProbe` routing verdict |
+| `canonical.routing` | virtual select, admin-readonly — the derived routing shape (#644, below). No stored column |
 | `canonical.nextVerifyAt` | date, indexed, hidden — the verification job's watermark, a real column so it stays a cheap predicate |
 
 `validateCanonicalOwnership` (beforeChange) enforces this: enabling requires `region` and `canonical.embed`, and a second enabled client on a region is rejected, naming the incumbent. It watches `region` too, so moving an enabled client onto an owned region can't dodge the check, and skips when nothing the rule reads has moved. Uniqueness checks against **committed** state, so a conflicting draft is caught only on publish.
@@ -38,7 +39,7 @@ Two Atlas white-label fields, split across the **Config** and **SEO** tabs. `can
 `canonical.embed` is only a nomination. A canonical URL is built from `canonical.verification.verified`, written **solely** by the CMS after it loads the page itself — a real browser is required, since the widget is JavaScript and fetching HTML would only prove a `<script>` tag exists.
 
 - **`src/lib/embedVerification/`** — a Cloudflare Browser Rendering client, the readiness-marker parser, and the render-to-result routine.
-- **The marker** is `data-sahaj-atlas-ready` on `<html>`, carrying `{ v, routing, topLevel, urlWritable }` (the cross-repo contract from sydevs/SahajAtlasWeb#153, #159). Reading `routing` off the rendered page makes verification server-attested, not self-reported.
+- **The marker** is `data-sahaj-atlas-ready` on `<html>`, carrying `{ v, routing, topLevel, urlWritable }` (the cross-repo contract from sydevs/SahajAtlasWeb#153, #159). Its `routing` says what the widget was asked to do, so the verifier no longer records it — see "Routing is derived, never configured" below.
 - **`src/jobs/VerifyEmbeds`** runs nightly, watermarked on `nextVerifyAt`, bounded to enabled services. Three consecutive failures turn ownership off and notify `primaryContact`, via the atomic-SQL seam, not `payload.update`.
 - **`POST /api/clients/:id/verify-embed`** — manager-authenticated, the same routine on demand. It never disables.
 
@@ -47,6 +48,23 @@ Two Atlas white-label fields, split across the **Config** and **SEO** tabs. `can
 **Exercised for real** by `pnpm tsx scripts/verify-embed-live.ts --self-test`, which drives all four outcomes against the live API — every unit test stubs the render. Its error codes (`6002` selector timeout, `5006` network/DNS, `10000` auth) are pinned in `tests/unit/embed-verification.spec.ts`. Prose matching is a fallback only, since the messages are generic enough to be misleading.
 
 **What the marker proves, precisely.** It detects an embed that is installed and *not working* — the one thing a client-sent report can never reveal. It does **not** prove the page is honest: the attribute carries no nonce, so any host running our script can hand-write it. The trust boundary stays `allowedDomains`. What the marker buys is that a stolen key can claim a mount on the client's domain, but can't make that domain serve a marker it doesn't control.
+
+### Routing is derived, never configured (#644)
+
+Nothing lets an operator — or a script tag — say how a client's URLs are shaped. **`verification.routingProbe.verdict`** (`src/lib/clients/verification.ts`) is the one answer, read by `canonicalOwnerFrom`, by the admin picker's preview, and by the widget through the virtual `canonical.routing` field on `GET /api/clients/me`.
+
+Read it at the call site, as `verification?.routingProbe?.verdict ?? 'query'` — there is no accessor to wrap it. The default belongs to the read path, and the `canonical.routing` field's `afterRead` hook is where it is applied for anything reading through Payload. The remaining sites never read the field: they hold the verification object they are about to write or have just written (`VerifyEmbeds`, the `verifyEmbed` endpoint), or they read the row through their own `select`, which does not run the hook (`canonicalOwnerFrom`, the picker).
+
+`routingProbe` is a sibling of `verified`, and it is the record's only routing answer. `verified.routing` — the readiness marker's copy of the widget's own script parameter — is no longer written: shaping a public URL from it was circular, and a second stored answer is a second thing to read by mistake. The widget's report is still kept as a report, per mount, in `embedMetadata`. The key stays in the verification schema as an optional legacy property, since that object is closed and validated on every save, so deleting it would strand every row verified before this change.
+
+- **The probe is a second render, not a new subsystem.** `probeRouting` loads `<mount>/<random-token>` and the control `<origin>/<random-token>`. A positive needs both: the marker under the prefix **and** its absence at the origin, which is what a host mounting the widget on its own 404 page fails. The token is random and never a real slug — a site can hand-build `/gb/london`, and one working page proves nothing about the subtree.
+- **The two probe renders start together, and that is a latency rule, not a verdict rule.** The verdict still reads the probe first and returns it unless positive. Sequentially the promote path was three renders end to end at `RENDER_TIMEOUT_MS` each, and Cloudflare abandons an origin response at 100s — so "Verify now" answered a 524 on the very press that promoted a service, after the row was written. The cost is the control render on a host that fails the probe, where it used to be skipped: an enabled owner now spends three renders (mount, token, control), which is the budget #644 sets, and one where the mount verification failed.
+- **Both URLs are derived from `canonical.embed` in one place** (`routingProbeUrls`), so an operator-typed string cannot reach the renderer by another route. A mount carrying a query string is a negative spending no render — `canonicalUrlBase` refuses that combination anyway.
+- **The ladder is asymmetric, because the failures are.** A wrong `path` 404s every deep link and puts dead URLs in the sitemap. A wrong `query` only produces uglier URLs that work. So: promote on one positive, demote only after `ROUTING_PROBE_FAILURE_LIMIT` consecutive negatives.
+- **Its own counter, never `failureCount`.** That one becomes `disable`, which switches canonical ownership off and emails the manager. A routing negative means the embed is present and publishing, so a shared counter would delete working public URLs over a URL-shape preference. `query` is a real canonical: the builder has a full arm for it, it is the default in both readers, and six `query` cases are pinned in `atlas-url-contract.json`.
+- **The verdict survives a null `verified`**, which is why it sits beside it: a client should path-route as soon as its host serves the subtree, whether or not it is publishing canonical URLs yet.
+- **"Verify now" may demote, where it may not disable.** Three presses return a client to `query` in a minute, with evidence — which is why there is no manual override field. The accepted cost: a host that serves the subtree but refuses headless renders (`bot-challenge`) stays on `query`, which is what it has today.
+- **Nothing backfills the verdict**, so every service reads `query` until it is probed, including one publishing `path` canonicals before the deploy. Backfilling from the marker's `routing` would re-introduce the self-report this rule removes, and each existing embed is re-verified by hand anyway. The operator step is in [`DEPLOYMENT.md`](../../DEPLOYMENT.md#-post-deploy-step-re-verify-each-canonical-owning-client-644).
 
 Vocabulary lives in `src/lib/clients/canonical.ts`, the verification contract in `src/lib/clients/verification.ts` — not the collection folder, since the job and the verifier both need it (`src/AGENTS.md` rule 4). `legacyConfig` was removed, not promoted: nothing backfills from it, since ownership now requires a verified reported embed.
 
@@ -114,6 +132,19 @@ query:  https://{domain}{mount}{?|&}atlas={webPath}
 4. Access middleware enforces read-only RBAC.
 5. `usageTrackingBeforeOperationHook` counts one use per top-level client read, skipping internal relationship-population sub-reads (`depth >= 1`) so those don't over-count (#559).
 6. The increment is a single atomic Postgres UPDATE.
+
+### A key that authenticates nothing is reported as its own signal (#734)
+
+A key matching no `clients` row is denied, correctly — but it used to be reported exactly like an anonymous read, so a dead integration looked like background noise for three months. A sub-500 error whose `Authorization` header failed to authenticate now reaches Sentry at `error` level, under its own fingerprint, and the same denial is written to the application log at WARN:
+
+```
+API credential presented and rejected
+  source, status, url, outcome, authCollection, authScheme, keyFingerprint, userAgent, ip
+```
+
+`keyFingerprint` is a 12-hex truncated SHA-256 — enough to tell two broken integrations apart, and never the key. Search Sentry by the `key_fingerprint` tag to find every request from one credential. An anonymous 403 is unchanged.
+
+**Both denial paths report it** (#743). Payload's error hook covers everything that throws; `requireActiveClient` covers the custom endpoints that deny by *returning* a 403 — `/api/atlas/seo` and `/api/atlas/sitemap` among them — which no hook ever sees. `source` says which one denied, and the message is one string on purpose: two spellings would split the log query. Every rejection reports, on both paths — mute the volume with a Sentry-side rule on `auth_outcome`, never in this process. Detail: `docs/architecture.md`.
 
 ## Security
 
@@ -198,6 +229,26 @@ A **finished** event (its schedule fully run out) stays `published`, since its A
 The default is applied by the `excludeFinishedEvents` beforeOperation hook on Events. The opt-out is a `where` naming `schedule.lastDate` by **dotted path only** (Payload rejects the nested-group form). `POST /api/events/{id}/register` refuses a finished event with **409** ("This event has ended"), since the published-only access filter no longer catches it.
 
 > Existing clients see fewer docs from `GET /api/events`. This is deliberate, and published on the geojson operation's OpenAPI `description` (the generated `/api/events` path has no description seam to annotate).
+
+## Client read contract: which languages a document is published in (#718)
+
+`pages` and `app-cards` set `versions.drafts.localizeStatus`, so `_status` is stored **per locale**. Publishing German says nothing about French, and one read answers which languages a document is live in:
+
+```
+GET /api/pages?locale=all&select[_status]=true
+→ { "docs": [ { "id": 12, "_status": { "en": "published", "de": "draft" } } ] }
+```
+
+Read the map by this rule: **a locale is published only when it says `published`.** A locale that was never translated has no row at all and is simply **absent** from the map — a page published in English alone reports `{ "en": "published" }` and nothing else. Absent is not published. Do not derive the answer from the site's locale set, or from which locales have *any* version.
+
+Five things to know:
+
+- **`locale=all` is what makes it a map.** A single-locale read resolves `_status` through the English fallback, so an untranslated locale reports itself published and the answer is wrong in the permissive direction. This is the same trap `availableLocalesField` documents for the translations globals.
+- **It costs no extra query.** The Postgres adapter joins `_locales` unfiltered on every localized read, so a 25-row list at `locale=all` is still one query. That is why there is no `publishedLocales` field — a collection `afterRead` computing one would have to re-read each row at `locale: 'all'`, 25 reads on a 25-row list. Pinned by `tests/int/pages-localize-status.int.spec.ts`.
+- **`payload-types.ts` still types `_status` as a single string.** Payload generates the resolved shape, not the `locale=all` one, so a consumer reading the map casts. The map is the contract; the generated type has not caught up.
+- **The published-only filter is now per locale.** A client restricted to published documents reads a locale only where that locale's row says `published`. The filter is SQL, so it sees rows, not the fallback the bullet above describes: an unpublished translation is unreachable, and so is a locale that was never translated, because it has no row for the filter to match.
+- ⚠ **That second case fires on existing data, not only on a deliberate unpublish — and it is intended.** The migration copies each document's old status into every locale row that *exists*, and an untranslated locale has none, so a page published in English alone returns nothing at `?locale=de` where Payload's English fallback used to serve it. **Decided on #765: an unpublished locale should 404, and a page must not serve English text under a German URL.** Do not add a fallback, here or in a consumer. A consumer that wants to link the locales a page *is* live in reads the map above ([WeMeditateWeb#81](https://github.com/sydevs/WeMeditateWeb/issues/81)). Note Payload's own `localizeStatus` migration template behaves the same way: it `UPDATE`s locale rows and never inserts one.
+- ⚠ **A `locale=all` read returns every locale's content, unpublished locales included.** The filter matches *documents* — a document published in any locale — and does not narrow the locales in the response. So a cross-locale read is not a publish gate: read one locale at a time when the answer must respect publish state. This is deliberate (#765). Content here is not sensitive to read; write, edit and delete are what the roles guard. Pinned by `tests/int/pages-localize-status.int.spec.ts`.
 
 ## Origin / Referer enforcement
 

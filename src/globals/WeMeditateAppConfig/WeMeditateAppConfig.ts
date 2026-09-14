@@ -1,5 +1,7 @@
 import type { GlobalConfig } from 'payload'
 
+import { availableLocalesField } from '@/fields/availableLocalesField'
+
 export const VIBE_CHECK_IDENTIFIERS = [
   { label: 'What You Feel - Start', value: 'WHAT-YOU-FEEL-START' },
   { label: 'What You Feel - Left', value: 'WHAT-YOU-FEEL-LEFT' },
@@ -43,6 +45,14 @@ export const WeMeditateAppConfig: GlobalConfig = {
   },
   label: 'Configuration',
   fields: [
+    availableLocalesField({
+      translationsSlug: 'wm-app-translations',
+      description:
+        'Languages the WeMeditate app is offered in. Drives the app’s language picker. ' +
+        'A language can only be selected once the WeMeditate App translations are published ' +
+        'in it — publish that global in the language first. Publishing all locales at once ' +
+        'includes empty ones, so publish deliberately.',
+    }),
     {
       type: 'tabs',
       tabs: [

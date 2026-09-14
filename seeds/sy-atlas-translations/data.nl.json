@@ -1,0 +1,274 @@
+{
+  "_meta": {
+    "global": "sy-atlas-translations",
+    "locale": "nl",
+    "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/nl/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
+    "schema_version": "post-#706 (11 tabs, 33 leaf groups, grouped by widget view)",
+    "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
+    "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
+  },
+  "common": {
+    "chrome": {
+      "back": "Terug",
+      "back_to": "Terug naar %{title}",
+      "close": "Sluiten",
+      "explore": "Verkennen",
+      "loading": "Laden…",
+      "cancel": "Annuleren",
+      "widget_label": "Gratis meditatielessen",
+      "all_classes_free": "Alle lessen zijn gratis"
+    },
+    "settings": {
+      "title": "Instellingen",
+      "theme_auto": "Systeem (automatisch)",
+      "theme_dark": "Donker thema",
+      "theme_light": "Licht thema"
+    },
+    "errors": {
+      "generic": "Er is iets misgegaan.",
+      "retry": "Opnieuw proberen",
+      "offline": "Je lijkt offline te zijn.",
+      "server": "Onze servers hebben op dit moment problemen.",
+      "not_found": "We konden niet vinden wat je zocht.",
+      "not_found_event": "We konden dat evenement niet vinden.",
+      "not_found_region": "We konden die plaats niet vinden.",
+      "config": "De Atlas is op deze pagina niet juist ingesteld.",
+      "unavailable": "Je kunt op dit moment niet deelnemen aan dit programma.",
+      "share_unavailable": "Er is nog geen link om deze meditatie te delen.",
+      "captcha_blocked": "Deze Atlas kan niet werken op deze pagina: de beveiligingscontrole is geblokkeerd.",
+      "no_events": "Geen evenementen gevonden.",
+      "back_to_region": "Evenementen in %{region} bekijken",
+      "near_city": "Evenementen in de buurt van %{city} bekijken",
+      "browse_countries": "Alle landen bekijken",
+      "search_label": "Of zoek een plaats"
+    },
+    "report": {
+      "title": "Een probleem melden",
+      "description": "Vertel ons wat er mis is, dan geven we het door aan het team.",
+      "message_label": "Wat ging er mis?",
+      "message_placeholder": "Beschrijf wat je deed en wat er mis leek te gaan.",
+      "email_label": "E-mail",
+      "email_help": "Optioneel — we kunnen alleen antwoorden als je dit invult.",
+      "email_placeholder": "jij@voorbeeld.nl",
+      "submit": "Melding versturen",
+      "sent": "Bedankt — je melding is onderweg naar het team.",
+      "blocked": "De beveiligingscontrole kon niet worden geladen, dus dit formulier kan niet worden verzonden."
+    },
+    "report_errors": {
+      "email": "Voer een geldig e-mailadres in.",
+      "message": "Schrijf minstens %{min} tekens.",
+      "message_max": "Blijf onder de %{max} tekens.",
+      "send_failed": "Je melding is niet verzonden. Wacht tot de beveiligingscontrole is vernieuwd en probeer het opnieuw.",
+      "captcha": "De veiligheidscontrole moet opnieuw. Wacht tot deze is vernieuwd en verstuur het opnieuw.",
+      "disposable_email": "Die e-mailprovider wordt niet geaccepteerd. Gebruik een adres waarop we kunnen antwoorden, of laat het leeg.",
+      "urls_not_allowed": "Links zijn niet toegestaan in het bericht. Verwijder ze en verstuur het opnieuw."
+    },
+    "map": {
+      "find_my_location": "Mijn locatie zoeken",
+      "location_not_available": "Locatie niet beschikbaar"
+    },
+    "feedback": {
+      "confirmed_title": "Bedankt voor je bevestiging",
+      "confirmed_body": "We laten anderen weten dat deze les nog doorgaat.",
+      "denied_title": "Bedankt voor het doorgeven",
+      "denied_body": "We controleren deze vermelding en werken hem bij. Excuses voor de fout.",
+      "nearby": "Bekijk andere lessen in de buurt",
+      "below": "Andere lessen in de buurt staan hieronder."
+    }
+  },
+  "countries": {
+    "title": "Gratis meditatielessen"
+  },
+  "search": {
+    "chrome": {
+      "title": "Zoeken",
+      "placeholder": "Zoek evenementen in de buurt van…"
+    },
+    "results": {
+      "more": "Meer tonen",
+      "farther": "Verre evenementen tonen",
+      "showing": "%{shown} van %{total} evenementen weergegeven",
+      "no_nearby": "Geen evenementen binnen %{km} km."
+    },
+    "sort": {
+      "label": "Sorteren",
+      "recommended": "Aanbevolen",
+      "closest": "Dichtstbijzijnd",
+      "soonest": "Eerstvolgende"
+    },
+    "country_site": {
+      "title": "Er zijn nog geen lessen vermeld in %{country}.",
+      "cta": "Bezoek de website van %{country}"
+    },
+    "nearby_prompt": {
+      "title": "Op zoek naar lessen in de buurt van %{city}?",
+      "dismiss": "Sluiten"
+    }
+  },
+  "filters": {
+    "chrome": {
+      "title": "Filters",
+      "apply": "Toepassen",
+      "clear": "Alles wissen",
+      "clear_one": "Wissen",
+      "remove": "%{label} verwijderen",
+      "any_time": "Elk tijdstip",
+      "no_results": "Geen evenementen komen overeen met je filters."
+    },
+    "format": {
+      "label": "Vorm",
+      "any": "Alle",
+      "offline": "Op locatie",
+      "online": "Online"
+    },
+    "cadence": {
+      "label": "Frequentie",
+      "any": "Alle",
+      "daily": "Dagelijks",
+      "weekly": "Wekelijks",
+      "monthly": "Maandelijks",
+      "once": "Eenmalig"
+    },
+    "days": {
+      "label": "Dag van de week"
+    },
+    "time": {
+      "label": "Tijdstip",
+      "morning": "Ochtend",
+      "afternoon": "Middag",
+      "evening": "Avond",
+      "night": "Nacht"
+    },
+    "language": {
+      "label": "Taal",
+      "all": "Alle talen",
+      "empty": "Geen talen beschikbaar"
+    },
+    "dates": {
+      "label": "Datum",
+      "from": "Van",
+      "to": "Tot",
+      "pill_from": "Vanaf %{date}",
+      "pill_until": "Tot %{date}",
+      "pill_range": "%{start} – %{end}"
+    },
+    "region": {
+      "label": "Regio",
+      "all": "Alle regio's",
+      "search": "Regio's zoeken…",
+      "empty": "Geen regio's gevonden"
+    }
+  },
+  "online": {
+    "title": "Online lessen"
+  },
+  "event": {
+    "display": {
+      "about": "Over deze les",
+      "free_meditation_class": "Gratis meditatieles",
+      "chip_full": "Vol",
+      "chip_today": "Vandaag",
+      "chip_ended": "Afgelopen",
+      "chip_starts": "Start %{date}",
+      "started_on": "Gestart op %{date}",
+      "first_session": "Eerste les: %{date}",
+      "next_session": "Volgende les: %{date}",
+      "event_ended": "Dit evenement is afgelopen",
+      "event_full": "Dit evenement is vol",
+      "registration_closed": "Aanmelden gesloten",
+      "registration_required": "Aanmelden verplicht",
+      "registration_external": "Aanmelden voor dit evenement gebeurt op een andere website",
+      "online_joining_note": "De deelnamelink wordt je per e-mail toegestuurd",
+      "contact_to_join_full": "Neem toch contact op met de organisator",
+      "contact_to_join_late": "Neem contact op met de organisator om later in te stromen",
+      "contact_for_timing": "Neem contact op met de gastheer voor de tijden",
+      "online": "Online",
+      "hosted_from": "Gehost vanuit %{city}",
+      "time_in_place": "%{time} in %{city}",
+      "distance_away": "%{distance} verderop",
+      "distance_from_place": "%{distance} vanaf %{place}",
+      "distance_from_search": "%{distance} van de gezochte locatie",
+      "type_class": "Les",
+      "type_class_daily": "Dagelijkse les",
+      "type_class_weekly": "Wekelijkse les",
+      "type_class_fortnightly": "Tweewekelijkse les",
+      "type_class_monthly": "Maandelijkse les",
+      "type_course": "Cursus",
+      "type_oneoff": "Eenmalig evenement",
+      "sessions_count_one": "%{count} les",
+      "sessions_count_other": "%{count} lessen",
+      "see_nearby": "Bekijk evenementen in de buurt",
+      "register_now": "Registreer nu"
+    },
+    "actions": {
+      "contact": "Contact",
+      "directions": "Route",
+      "website": "Website",
+      "share": "Delen",
+      "add_calendar": "In agenda",
+      "download_ics": ".ics-bestand downloaden",
+      "view_photo": "Foto bekijken",
+      "pause_slideshow": "Diavoorstelling pauzeren"
+    },
+    "recurrence": {
+      "daily": "Elke dag",
+      "daily_n": "Elke %{interval} dagen",
+      "weekly_1": "Elke %{weekday}",
+      "weekly_2": "Elke 2e %{weekday}",
+      "weekly_n": "Elke %{interval} weken op %{weekday}",
+      "weekly_multi": "Elke %{weekdays}",
+      "monthly_1st": "1e %{weekday} van elke maand",
+      "monthly_2nd": "2e %{weekday} van elke maand",
+      "monthly_3rd": "3e %{weekday} van elke maand",
+      "monthly_4th": "4e %{weekday} van elke maand",
+      "monthly_last": "Laatste %{weekday} van elke maand",
+      "monthly_date": "Maandelijks op dag %{day}"
+    }
+  },
+  "calendar": {
+    "title": "Kalender",
+    "previous": "Vorige",
+    "next": "Volgende",
+    "pick_date": "Datum kiezen",
+    "view_month": "Maand",
+    "view_week": "Week",
+    "view_list": "Lijst"
+  },
+  "registration": {
+    "form": {
+      "name": "Jouw naam",
+      "email": "Uw e-mail",
+      "starting_date": "Startdatum",
+      "show_more_dates": "Meer data tonen",
+      "submit": "Register",
+      "okay": "Oké",
+      "followup": "U ontvangt binnenkort een e-mailbevestiging",
+      "invite_friend": "Nodig een vriend uit",
+      "online_notice": "De link naar deze les wordt naar je gemaild.",
+      "online_notice_title": "Online sessie",
+      "privacy_policy": "Door uw bericht in te dienen, bevestigt u dat u akkoord gaat met het ontvangen van vervolgberichten over deze en soortgelijke evenementen, in overeenstemming met ons privacybeleid.",
+      "error_title": "Er ging iets mis",
+      "captcha_retry": "De beveiligingscontrole moet opnieuw worden gedaan. Wacht tot deze is vernieuwd en schrijf je dan nogmaals in."
+    },
+    "errors": {
+      "email": "Voer een geldig e-mailadres in",
+      "name": "Voer uw volledige naam in",
+      "starting_at": "Selecteer uw startdatum"
+    },
+    "questions": {
+      "experience": "Heb je eerder Sahaja Yoga meditatie beoefend?",
+      "referral": "Hoe heb je over dit evenement gehoord?",
+      "aspirations": "Wat hoop je hieruit te halen?",
+      "questions": "Heb je vragen aan ons?"
+    }
+  },
+  "share": {
+    "share_on": "Delen op %{platform}",
+    "native": "Delen…",
+    "copy_link": "Link kopiëren",
+    "copied": "Gekopieerd"
+  },
+  "compact": {
+    "open": "Vind een les bij jou in de buurt"
+  }
+}

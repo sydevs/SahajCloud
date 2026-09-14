@@ -45,7 +45,6 @@
     "@payloadcms/richtext-lexical": "^3.86.0",
     "@payloadcms/ui": "^3.86.0",
     "@sentry/nextjs": "^10.29.0",
-    "@sentry/react": "^10.29.0",
     "@touch4it/ical-timezones": "^1.9.0",
     "@types/styled-components": "^5.1.35",
     "@vvo/tzdb": "^6.198.0",

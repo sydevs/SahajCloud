@@ -1,13 +1,6 @@
-import { readFileSync } from 'node:fs'
-
-import { expect, test } from '@playwright/test'
-
-import { authHeaders, ensureAdmin } from './_helpers/preview'
+import { createImage, expectOk } from './_helpers/fixtures'
 import { runId } from './_helpers/runId'
-
-type Doc = { id: number | string; filename?: string }
-
-const image = readFileSync('tests/files/image-1050x700.png')
+import { expect, test } from './_helpers/smokeTest'
 
 // Exercises the Cloudflare Images upload path in smoke (issue #432 AC) and
 // verifies the preview/non-prod namespace end-to-end: an image uploaded against
@@ -15,24 +8,15 @@ const image = readFileSync('tests/files/image-1050x700.png')
 // and scheduled cleanup recognize it, and the preview can delete its own upload.
 test('upload + delete an Image against preview, namespaced for isolation', async ({
   request,
+  headers,
+  trash,
 }, testInfo) => {
-  const token = await ensureAdmin(request)
-  const headers = authHeaders(token)
-
   const label = `smoke-${runId()}-image-r${testInfo.retry}`
-  const createRes = await request.post('/api/images', {
-    headers,
-    multipart: {
-      _payload: JSON.stringify({ alt: label }),
-      file: { name: `${label}.png`, mimeType: 'image/png', buffer: image },
-    },
-  })
-  expect(createRes.ok(), `create failed: ${createRes.status()} ${await createRes.text()}`).toBe(
-    true,
-  )
-  const created = (await createRes.json()) as { doc: Doc }
-  const id = created.doc.id
-  const filename = created.doc.filename ?? ''
+  // PNG rather than the fixtures' default webp: this spec owns the extension
+  // assertion below, and the local-storage fallback keeps whatever we sent.
+  const created = await createImage(request, headers, label, { format: 'png' })
+  const id = trash.track('images', created.id)
+  const filename = created.filename ?? ''
 
   // Cloudflare Images IDs carry no file extension. The local-storage fallback
   // (no Cloudflare credentials) keeps ".png". Only assert the preview namespace
@@ -42,9 +26,10 @@ test('upload + delete an Image against preview, namespaced for isolation', async
   }
 
   // The preview may delete its OWN (preview-marked) upload. The guard only
-  // blocks deletes of unmarked, cloned-from-prod assets.
+  // blocks deletes of unmarked assets — production's. See `docs/rules/storage.md`
+  // for how a preview can reach one at all.
   const deleteRes = await request.delete(`/api/images/${id}`, { headers })
-  expect(deleteRes.ok()).toBe(true)
+  await expectOk(deleteRes, 'image delete')
 
   const after = await request.get(`/api/images/${id}`, { headers })
   expect(after.status()).toBe(404)

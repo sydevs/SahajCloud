@@ -6,9 +6,14 @@
  * entirely from this config, so adding/removing a type needs no component
  * change. The helpers are pure (no React, no Payload) so they can be reused
  * by the field's `defaultValue`/`validate` and unit-tested directly.
+ *
+ * ⚠ **Keep this module free of runtime imports.** `NotificationPreferencesField`
+ * is a `'use client'` component and value-imports from here, so anything added
+ * at the top level lands in an admin browser chunk. The column's `jsonSchema`
+ * lives beside its field in `Managers.ts` for that reason — declaring it here
+ * would ship `zod` and a `toJSONSchema` call to the browser to describe a shape
+ * only the server validates.
  */
-import type { JSONSchema4 } from 'json-schema'
-
 import type { NotificationPreferences } from '@/payload-types'
 
 export const NEVER_FREQUENCY = 'Never'
@@ -20,9 +25,6 @@ export interface NotificationType {
   description: string
   frequencyOptions: string[]
 }
-
-export const NOTIFICATION_PREFERENCES_SCHEMA_URI =
-  'urn:sahajcloud:schema:notification-preferences'
 
 export const NOTIFICATION_TYPES: NotificationType[] = [
   {
@@ -104,51 +106,6 @@ export function buildDefaultNotificationPreferences(
     }
   }
   return prefs
-}
-
-/**
- * The stored shape, wired onto `Managers.notificationPreferences` as its
- * `jsonSchema` — which both generates the TypeScript type and rejects a
- * preference whose frequency or method is not a string.
- *
- * **Open keys, typed value.** Every key is a notification-type key, and
- * retiring a type must not block a save: Payload validates this column on every
- * save of a manager, and the field component spreads an unknown key back, so a
- * closed shape would strand the row rather than let the admin clear it. Saying
- * what the *value* holds costs nothing and is what makes the generated
- * interface usable — `additionalProperties: true` generates
- * `[k: string]: unknown`, which is why every consumer reading
- * `prefs[key]?.method` used to need a hand-written alias to cast to. That alias
- * is the second definition #659 exists to delete.
- *
- * **There are deliberately no per-key `properties`.** They validated exactly
- * what this does, differing only in a `description`, and TypeScript refuses the
- * combination: an optional named property includes `undefined`, which is not
- * assignable to an index signature that does not, so `payload-types.ts` itself
- * fails `tsc` with TS2411. Requiring the four keys would fix the assignability
- * and strand every row missing one. `NOTIFICATION_TYPES` stays the source of
- * truth for which keys the admin renders, and the frequency is checked as a
- * string rather than against `frequencyOptions` — dropping an option would
- * otherwise strand every manager still on it.
- */
-export const notificationPreferencesJsonSchema: JSONSchema4 = {
-  $id: NOTIFICATION_PREFERENCES_SCHEMA_URI,
-  title: 'NotificationPreferences',
-  // Stays `'object'`. `type: ['object', 'null']` is the honest statement — the
-  // column is nullable — and it works on a schema with no `properties`
-  // (`meditationNodeWeightsFieldSchema`). Here it emits `X & (X | null)`, which
-  // is `X` again plus a duplicate of the whole interface. See
-  // `src/collections/AGENTS.md`.
-  type: 'object',
-  additionalProperties: {
-    type: 'object',
-    // The value stays open for the same reason the keys do.
-    additionalProperties: true,
-    properties: {
-      frequency: { type: 'string' },
-      method: { type: 'string' },
-    },
-  },
 }
 
 /**

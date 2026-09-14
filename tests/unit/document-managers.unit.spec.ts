@@ -1,6 +1,6 @@
 import type { CollectionSlug, FlattenedField, Payload, PayloadRequest } from 'payload'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   getDocManagerFields,
@@ -101,6 +101,66 @@ describe('getDocManagerFields', () => {
   it('returns no fields for globals / unknown collections (no flattenedFields)', () => {
     const fields = getDocManagerFields({ collections: {} } as unknown as Payload, 'wm-app-config')
     expect(hasDocManagerAccess(fields)).toBe(false)
+  })
+})
+
+/**
+ * `memoizeOnRequest`'s own contract — sequential reuse, failure eviction, no
+ * sharing across requests — is pinned once against a single consumer in
+ * `pages-app-config-cache.spec.ts`. These two cases cover only what this module
+ * contributes: that the resolution is memoized at all, and that its key is
+ * complete. A wrong key here is an access-control leak, not a slow page.
+ */
+describe('resolveManagedDocIds is memoized per request', () => {
+  const regionFields = {
+    managersField: 'managers',
+    managerField: null,
+    parentField: 'parent',
+    hasBreadcrumbs: true,
+  }
+
+  /**
+   * A request whose `payload.find` answers the two queries one resolution
+   * makes: the roots (`where.or`, from `directManagerWhere`) and their
+   * breadcrumb descendants. Returns the spy separately so assertions stay
+   * typed instead of reaching through the cast request.
+   */
+  function makeReq() {
+    const find = vi.fn(async ({ where }: { where: Record<string, any> }) =>
+      where.or ? { docs: [{ id: 1 }] } : { docs: [{ id: 2 }] },
+    )
+    const req = { context: {}, payload: { find } } as unknown as PayloadRequest
+    return { req, find }
+  }
+
+  it('collapses concurrent resolutions to one load', async () => {
+    const { req, find } = makeReq()
+
+    const results = await Promise.all(
+      Array.from({ length: 6 }, () => resolveManagedDocIds(req, 'regions', 99, regionFields)),
+    )
+
+    // Six callers, one roots query and one descendants query between them.
+    expect(find).toHaveBeenCalledTimes(2)
+    expect(find).toHaveBeenCalledWith(
+      expect.objectContaining({ collection: 'regions', where: { or: [{ managers: { in: [99] } }] } }),
+    )
+    // Copy before sorting: all six entries are the same memoized array, and
+    // `resolveManagedDocIds` no longer hands each caller a fresh one.
+    for (const ids of results) expect([...ids].sort()).toEqual([1, 2])
+  })
+
+  it('keys on collection and user, so neither answers for the other', async () => {
+    const { req, find } = makeReq()
+
+    await Promise.all([
+      resolveManagedDocIds(req, 'regions', 99, regionFields),
+      resolveManagedDocIds(req, 'pages', 99, regionFields),
+      resolveManagedDocIds(req, 'regions', 100, regionFields),
+    ])
+
+    // Three distinct keys, two queries each — nothing shared between them.
+    expect(find).toHaveBeenCalledTimes(6)
   })
 })
 

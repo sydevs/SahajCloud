@@ -13,8 +13,8 @@ export const WeMeditateWebTranslations: GlobalConfig = {
   versions: {
     max: 10,
     // Object form, not `drafts: true` — see the note on the Sahaj Atlas
-    // translations global. `wm-app-translations` deliberately keeps
-    // `drafts: true`, and so keeps one status for every locale.
+    // translations global. All three translations globals set this since
+    // #709.
     drafts: {
       localizeStatus: true,
     },

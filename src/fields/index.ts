@@ -19,7 +19,12 @@ export type {
 } from './publicUrlFields'
 
 // File metadata - the shared sidebar column on the four upload collections
-export { fileMetadataField, FILE_METADATA_SCHEMA_URI } from './fileMetadataField'
+export { fileMetadataField } from './fileMetadataField'
+
+// jsonField is deliberately NOT re-exported here. Importing it via this
+// barrel would drag translationsField (and the lexical editor with it) into
+// every light module that declares a JSON column. Use the deep path
+// `@/fields/jsonField`, as all its call sites do.
 
 // Color field - text field with hex color validation and color picker
 export { colorField } from './colorField'
@@ -40,13 +45,7 @@ export type { AvailableLocalesFieldOptions } from './availableLocalesField'
 
 // Schedule fields - group of datetime, timezone, and RRULE sub-fields
 // Delivery log — "did that email actually go out?", rendered for managers.
-export {
-  appendLogEntry,
-  asLog,
-  DEFAULT_LOG_LIMIT,
-  hasLogEntry,
-  logField,
-} from './logField'
+export { appendLogEntry, asLog, DEFAULT_LOG_LIMIT, hasLogEntry, logField } from './logField'
 export type { LogCell, LogColumn, LogEntry, LogFieldOptions } from './logField'
 
 export { scheduleFields } from './scheduleFields'

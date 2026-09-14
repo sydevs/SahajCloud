@@ -136,7 +136,7 @@ When `payload-oapi` ships native custom-endpoint support, delete the shim module
 
 - **API-key header format** — the plugin models OAuth2 password flow, not the `Authorization: clients API-Key <key>` shape this app uses in production.
 - **`/api/health` and webhook routes** are intentionally omitted — infrastructure, not part of the public client API.
-- **`select` / `populate` / `depth` / `limit` / `page`** are missing from the generated spec for auto-generated CRUD endpoints. `injectClientReadParameters()` in `specFilter.ts` fixes this: it registers definitions from `clientReadParametersDocs.ts` under `components.parameters` and `$ref`s them onto every collection list and findByID GET, skipping globals and custom subpaths (which have their own params). Added in #419, after #294 shipped with no documented bracket-notation contract.
+- **`select` / `populate` / `depth` / `limit` / `page` / `locale`** are missing from the generated spec for auto-generated CRUD endpoints. `injectClientReadParameters()` in `specFilter.ts` fixes this: it registers definitions from `clientReadParametersDocs.ts` under `components.parameters` and `$ref`s them onto every collection list and findByID GET, skipping globals and custom subpaths (which have their own params). Added in #419, after #294 shipped with no documented bracket-notation contract. `locale` joined it in #718, which is where `locale=all` and the per-locale `_status` map are documented — a custom endpoint's own `locale` parameter says nothing about them (`docs/rules/api-clients.md`).
 
 Review payload-oapi quarterly for native support of these.
 

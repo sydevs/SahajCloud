@@ -3,6 +3,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import fs from 'fs'
 import path from 'path'
 
+import { getAccessResults } from 'payload'
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
 import type { Event, Region } from '@/payload-types'
@@ -530,6 +531,40 @@ describe('Role-Based Access Control', () => {
         parent: otherCity.id,
       })
       otherVenueId = otherVenue.id
+    })
+
+    it('resolves the owned-region subtree once across one /api/access evaluation (#749)', async () => {
+      // `getAccessResults` IS what `GET /api/access` calls. It fires every
+      // operation of every collection — including the `readVersions` #719
+      // added — in one `Promise.all` with byte-identical args, and dedups
+      // nothing between them. Uncached, `resolveManagedDocIds` ran once per
+      // operation that reached it.
+      const req = {
+        payload,
+        user: managerUser(atlasManager),
+        locale: 'en',
+        context: {},
+        headers: new Headers() as PayloadRequest['headers'],
+      } as PayloadRequest
+
+      const findSpy = vi.spyOn(payload, 'find')
+      try {
+        await getAccessResults({ req })
+
+        // The roots query (`directManagerWhere` → a bare `or`) and the
+        // breadcrumb-descendant query are the two `resolveManagedDocIds` makes
+        // per (collection, user). Each must appear exactly once.
+        const regionFinds = findSpy.mock.calls
+          .map(([args]) => args)
+          .filter((args) => args.collection === 'regions')
+        const rootFinds = regionFinds.filter((args) => Array.isArray(args.where?.or))
+        const descendantFinds = regionFinds.filter((args) => 'breadcrumbs.doc' in (args.where ?? {}))
+
+        expect(rootFinds).toHaveLength(1)
+        expect(descendantFinds).toHaveLength(1)
+      } finally {
+        findSpy.mockRestore()
+      }
     })
 
     it('exposes the role as project-scoped: read everywhere, write only on events/regions', () => {
@@ -1863,7 +1898,7 @@ describe('Role-Based Access Control', () => {
   })
 
   /**
-   * Version history is EDIT authority (#719) — see `withVersionHistoryAccess`
+   * Version history is EDIT authority (#719) — see `withDerivedGrants`
    * in `src/plugins/access/accessConfigs.ts` for what the rule is and why.
    *
    * Fixture assumptions, each checked against the real config rather than
@@ -1995,11 +2030,12 @@ describe('Role-Based Access Control', () => {
       //
       // NOT `web-translator` on `meditations`, the obvious pairing with the
       // test above. Payload maps `findVersions` onto the `read` hook operation,
-      // so `filterMeditationsByLocale` appends `{ locale: { equals } }` to the
+      // so `filterMeditationsByLocale` appended `{ locale: { equals } }` to the
       // versions query, where that path does not exist — meditations'
-      // `findVersions` throws QueryError for EVERY caller, `overrideAccess:
-      // true` included. A `rejects.toThrow()` there passes without the fix
-      // (filed separately).
+      // `findVersions` threw QueryError for EVERY caller, `overrideAccess:
+      // true` included, so a `rejects.toThrow()` there passed for the wrong
+      // reason. Fixed in #745; `app-cards` stays the fixture here because it is
+      // still the cleaner read-but-not-edit pairing.
       const editor = await testData.createManager(payload, {
         name: 'Read-Only Editor for Version History Test',
         roles: { en: ['meditations-editor'] },
@@ -2285,6 +2321,122 @@ describe('Role-Based Access Control', () => {
 
       expect(previewed.id).toBe(unpublishedPage.id)
       expect(previewed._status).toBe('draft')
+    })
+  })
+
+  describe('Login-lockout reset (unlock)', () => {
+    let unlockAdmin: ManagerFixture
+
+    /**
+     * `loginAttempts` and `lockUntil` are Payload's own `hidden: true` auth
+     * fields (`auth/baseFields/accountLock.js`), so an ordinary read omits them
+     * and every assertion below would read `undefined` and pass for nothing.
+     */
+    const readLockState = (id: number) =>
+      payload.findByID({ collection: 'managers', id, depth: 0, showHiddenFields: true })
+
+    /**
+     * Payload generates one auth-operations shape per collection, so `unlock`'s
+     * `data` demands a `password` (`ManagerAuthOperations`) that
+     * `unlockOperation` never reads — it matches on `email`/`username` alone.
+     * One named cast, rather than a meaningless password in three calls.
+     */
+    const unlockData = (email: string) => ({ email }) as { email: string; password: string }
+
+    /**
+     * Lock a fresh manager by exhausting `maxLoginAttempts` (5, `Managers.ts`),
+     * and prove it locked before anyone unlocks it — an unlock that clears
+     * nothing would otherwise pass for the wrong reason.
+     */
+    const createLockedManager = async (name: string): Promise<ManagerFixture> => {
+      const manager = await testData.createManager(payload, { name })
+
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await expect(
+          payload.login({
+            collection: 'managers',
+            data: { email: manager.email, password: 'wrong-password' },
+          }),
+        ).rejects.toThrow()
+      }
+
+      const locked = await readLockState(manager.id)
+      expect(locked.lockUntil).toBeTruthy()
+
+      return manager
+    }
+
+    beforeAll(async () => {
+      unlockAdmin = await testData.createManager(payload, {
+        name: 'Admin for Unlock Test',
+        type: 'admin' as const,
+      })
+    })
+
+    it('denies a published client key', async () => {
+      // The live defect: `unlock` was unset, so Payload's collection default —
+      // "is anyone logged in" — answered, and an API key satisfies it. This
+      // client reads published content every day and holds no grant on
+      // `managers` at all.
+      const manager = await createLockedManager('Locked Manager for Client Unlock Test')
+      const client = await testData.createClient(payload, unlockAdmin.id, {
+        name: 'Web Client for Unlock Test',
+        roles: ['wemeditate-web-client'],
+        _status: 'published',
+      })
+
+      await expect(
+        payload.unlock({
+          collection: 'managers',
+          data: unlockData(manager.email),
+          // `unlock`'s local options carry no `user` key — `createLocalReq`
+          // reads `req.user` instead.
+          req: { user: client } as Partial<PayloadRequest>,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow('You are not allowed to perform this action.')
+
+      // Still locked. The rejection alone would also pass for an unlock that
+      // threw after clearing the counter.
+      const after = await readLockState(manager.id)
+      expect(after.lockUntil).toBeTruthy()
+    })
+
+    it('denies a manager who may not edit the collection', async () => {
+      // The derivation is from `update`, not from "is a manager". No role
+      // grants `update` on `managers`, so every non-admin manager is denied —
+      // including one who is otherwise a perfectly ordinary editor.
+      const manager = await createLockedManager('Locked Manager for Editor Unlock Test')
+      const editor = await testData.createManager(payload, {
+        name: 'Editor for Unlock Test',
+        roles: { en: ['meditations-editor'] },
+      })
+
+      await expect(
+        payload.unlock({
+          collection: 'managers',
+          data: unlockData(manager.email),
+          req: { user: editor } as Partial<PayloadRequest>,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow('You are not allowed to perform this action.')
+    })
+
+    it('still lets an admin manager clear a lockout', async () => {
+      const manager = await createLockedManager('Locked Manager for Admin Unlock Test')
+
+      await expect(
+        payload.unlock({
+          collection: 'managers',
+          data: unlockData(manager.email),
+          req: { user: unlockAdmin } as Partial<PayloadRequest>,
+          overrideAccess: false,
+        }),
+      ).resolves.toBe(true)
+
+      const unlocked = await readLockState(manager.id)
+      expect(unlocked.lockUntil).toBeFalsy()
+      expect(unlocked.loginAttempts).toBe(0)
     })
   })
 })

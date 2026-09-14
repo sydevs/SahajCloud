@@ -1,3 +1,4 @@
+import type { JsonFieldOptions } from './jsonField'
 import type {
   CollapsibleField,
   Field,
@@ -12,6 +13,9 @@ import { json as validateJson, toWords } from 'payload/shared'
 
 import { basicRichTextEditor } from '@/lib/richEditor'
 import { pluralStorageKeys } from '@/lib/translations/pluralCategories'
+
+
+import { jsonField } from './jsonField'
 
 // ============================================================================
 // Types
@@ -142,6 +146,40 @@ function createScreenshotField(
   }
 }
 
+/**
+ * Sub-group slugs the builder presents on its own terms, because the slug is a
+ * shorthand rather than words.
+ *
+ * Everything a sub-group's slug decides about its presentation lives in this
+ * one table. `toWords('a11y')` is "A11y", which tells a translator nothing —
+ * and accessibility strings are long, rarely edited, and would push the
+ * visible copy off the screen, so the group also starts closed. Splitting
+ * those two facts (a label in the schema, a collapse rule here) would leave a
+ * reader checking two places to learn how one group behaves, and every schema
+ * declaring the label again with nothing pinning the copies equal.
+ *
+ * Presentational only: the field name, data path, and column all still come
+ * from the slug.
+ */
+const SUBGROUP_PRESENTATION: Record<string, { initCollapsed: boolean; label: string }> = {
+  a11y: { initCollapsed: true, label: 'Accessibility' },
+}
+
+/** A slug in title case (`page_tags` -> `Page Tags`). Every tab's label. */
+function slugLabel(slug: string): string {
+  return toWords(slug.replace(/_/g, '-'))
+}
+
+/**
+ * A sub-group's presented name, else `slugLabel`.
+ *
+ * Only sub-groups read the table, so a tab that one day shares a slug with an
+ * entry keeps its own title-case label and its own open state.
+ */
+function subGroupLabel(slug: string): string {
+  return SUBGROUP_PRESENTATION[slug]?.label ?? slugLabel(slug)
+}
+
 /** `sy-atlas-translations` + `emails` -> `SyAtlasTranslationsEmails`. */
 function pascalCase(...segments: (string | undefined)[]): string {
   return segments
@@ -151,8 +189,6 @@ function pascalCase(...segments: (string | undefined)[]): string {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join('')
 }
-
-const SCHEMA_URI_BASE = 'https://sahajcloud.dev/schemas/translations'
 
 /**
  * The JSON Schema for one leaf group's strings blob.
@@ -174,7 +210,7 @@ const SCHEMA_URI_BASE = 'https://sahajcloud.dev/schemas/translations'
  *   at boot — so `plural`, `screenshot` and `strict` must never leak in.
  *   A plural key contributes its expanded CLDR family instead of itself.
  */
-export function stringsJsonSchema({
+export function stringsSchema({
   allowAdditional,
   fieldName,
   globalSlug,
@@ -186,11 +222,11 @@ export function stringsJsonSchema({
   globalSlug: string
   parentGroup?: string
   stringProps: [string, StringPropertySchema][]
-}): NonNullable<JSONField['jsonSchema']> {
-  const uri = [SCHEMA_URI_BASE, globalSlug, parentGroup, fieldName].filter(Boolean).join('/')
-  const title = `${pascalCase(globalSlug, parentGroup, fieldName)}Strings`
+}): Pick<JsonFieldOptions, 'schema' | 'schemaTitle'> {
+  const schemaTitle = `${pascalCase(globalSlug, parentGroup, fieldName)}Strings`
 
-  const properties: Record<string, { type: 'string'; description?: string; maxLength?: number }> = {}
+  const properties: Record<string, { type: 'string'; description?: string; maxLength?: number }> =
+    {}
   for (const [key, prop] of stringProps) {
     const property = {
       type: 'string' as const,
@@ -204,12 +240,12 @@ export function stringsJsonSchema({
     }
   }
 
+  // Raw JSON Schema rather than Zod: `properties` is assembled as data from the
+  // group's own entries, so building it in Zod only to convert it back would be
+  // a round trip.
   return {
-    uri,
-    fileMatch: [uri],
+    schemaTitle,
     schema: {
-      $id: uri,
-      title,
       type: 'object',
       additionalProperties: allowAdditional,
       properties,
@@ -259,18 +295,17 @@ function createStringsJsonField(
     plural: prop.plural === true ? true : undefined,
   }))
 
-  return {
+  return jsonField({
     name: fieldName,
-    type: 'json',
-    localized: true,
-    label: false,
-    jsonSchema: stringsJsonSchema({
+    ...stringsSchema({
       allowAdditional: group.additionalProperties === true,
       fieldName,
       globalSlug,
       parentGroup,
       stringProps,
     }),
+    localized: true,
+    label: false,
     admin: {
       components: { Field: '@/components/admin/TranslationsRow' },
       custom: {
@@ -283,7 +318,7 @@ function createStringsJsonField(
       if (Array.isArray(value)) return 'Value must be a JSON object'
       return validateJson(value, args)
     },
-  }
+  })
 }
 
 /**
@@ -395,12 +430,11 @@ export function buildTranslationTabs(
         // exactly as before and no migration is involved.
         const collapsibles: CollapsibleField[] = subgroups.map(([subSlug, subSchema]) => ({
           type: 'collapsible',
-          label: toWords(subSlug.replace(/_/g, '-')),
+          label: subGroupLabel(subSlug),
           admin: {
             ...(subSchema.description ? { description: subSchema.description } : {}),
-            // Accessibility strings are long, rarely edited, and would push
-            // the visible copy off the screen. Everything else opens.
-            initCollapsed: subSlug === 'a11y',
+            // Everything not named in SUBGROUP_PRESENTATION opens.
+            initCollapsed: SUBGROUP_PRESENTATION[subSlug]?.initCollapsed ?? false,
           },
           fields: createLeafFields(subSlug, subSchema, globalSlug, groupSlug),
         }))
@@ -411,14 +445,14 @@ export function buildTranslationTabs(
           fields: collapsibles,
         }
         return {
-          label: toWords(groupSlug.replace(/_/g, '-')),
+          label: slugLabel(groupSlug),
           description: groupSchema.description,
           fields: [groupField],
         }
       }
 
       return {
-        label: toWords(groupSlug.replace(/_/g, '-')),
+        label: slugLabel(groupSlug),
         description: groupSchema.description,
         fields: createLeafFields(groupSlug, groupSchema, globalSlug),
       }
