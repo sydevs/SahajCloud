@@ -61,6 +61,7 @@ import * as migration_20260909_161848_drop_wm_web_placeholder_tabs from './20260
 import * as migration_20260909_162104_wm_web_translations_tabs from './20260909_162104_wm_web_translations_tabs';
 import * as migration_20260911_235823_pages_app_cards_localize_status from './20260911_235823_pages_app_cards_localize_status';
 import * as migration_20260912_031449_atlas_translations_seo_group from './20260912_031449_atlas_translations_seo_group';
+import * as migration_20260913_212558_wm_web_translations_video_tab from './20260913_212558_wm_web_translations_video_tab';
 
 export const migrations = [
   {
@@ -377,5 +378,10 @@ export const migrations = [
     up: migration_20260912_031449_atlas_translations_seo_group.up,
     down: migration_20260912_031449_atlas_translations_seo_group.down,
     name: '20260912_031449_atlas_translations_seo_group',
+  },
+  {
+    up: migration_20260913_212558_wm_web_translations_video_tab.up,
+    down: migration_20260913_212558_wm_web_translations_video_tab.down,
+    name: '20260913_212558_wm_web_translations_video_tab'
   },
 ];

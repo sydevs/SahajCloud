@@ -2248,6 +2248,10 @@ export interface Client {
      */
     embed?: string | null;
     verification?: ClientCanonicalVerification;
+    /**
+     * Derived, never chosen: “Path segment” once the CMS has seen this host serve the atlas under the embed’s own subtree, “Query parameter” otherwise.
+     */
+    routing?: ('query' | 'path') | null;
     nextVerifyAt?: string | null;
   };
   embedMetadata?: ClientEmbedMetadata;
@@ -2331,11 +2335,16 @@ export interface ClientCanonicalVerification {
   verified: {
     domain: string;
     mount: string;
-    routing: 'query' | 'path';
+    routing?: 'query' | 'path';
     widgetVersion: number;
     at: string;
   } | null;
   failureCount: number;
+  routingProbe?: {
+    at: string;
+    verdict: 'query' | 'path';
+    failedAttempts: number;
+  };
   attempts: {
     at: string;
     status: 'verified' | 'failed' | 'inconclusive';
@@ -4599,6 +4608,7 @@ export interface ClientsSelect<T extends boolean = true> {
         enabled?: T;
         embed?: T;
         verification?: T;
+        routing?: T;
         nextVerifyAt?: T;
       };
   embedMetadata?: T;
@@ -5255,6 +5265,10 @@ export interface WmWebTranslation {
     general?: WmWebTranslationsMediaGeneralStrings;
     a11y?: WmWebTranslationsMediaA11YStrings;
   };
+  video?: {
+    general?: WmWebTranslationsVideoGeneralStrings;
+    a11y?: WmWebTranslationsVideoA11YStrings;
+  };
   location?: {
     general?: WmWebTranslationsLocationGeneralStrings;
     a11y?: WmWebTranslationsLocationA11YStrings;
@@ -5782,6 +5796,174 @@ export interface WmWebTranslationsMediaA11YStrings {
    * Not shown on screen; read by screen readers. Names the button that shrinks an image in the full-screen viewer.
    */
   zoom_out?: string;
+}
+export interface WmWebTranslationsVideoGeneralStrings {
+  /**
+   * Tooltip on the video player's play button while the video is paused. It also names that button for screen readers.
+   */
+  play?: string;
+  /**
+   * Tooltip on the same button while the video is playing.
+   */
+  pause?: string;
+  /**
+   * Tooltip on the video player's sound button while the video can be heard. It also names that button for screen readers.
+   */
+  mute?: string;
+  /**
+   * Tooltip on the same button while the video is silenced.
+   */
+  unmute?: string;
+  /**
+   * Tooltip on the video player's settings button, which opens the gear menu.
+   */
+  settings?: string;
+  /**
+   * Tooltip on the video player's subtitles button while subtitles are showing.
+   */
+  closed_captions_on?: string;
+  /**
+   * Tooltip on the same button while subtitles are hidden.
+   */
+  closed_captions_off?: string;
+  /**
+   * Tooltip on the video player's button that jumps forward a few seconds.
+   */
+  seek_forward?: string;
+  /**
+   * Tooltip on the video player's button that jumps back a few seconds.
+   */
+  seek_backward?: string;
+  /**
+   * Tooltip on the video player's button that pops the video out into a small floating window.
+   */
+  enter_pip?: string;
+  /**
+   * Tooltip on the same button while the video already plays in that floating window.
+   */
+  exit_pip?: string;
+  /**
+   * Tooltip on the video player's button that makes the video fill the screen.
+   */
+  enter_fullscreen?: string;
+  /**
+   * Tooltip on the same button while the video already fills the screen.
+   */
+  exit_fullscreen?: string;
+  /**
+   * Video settings menu: the row that lists the subtitle tracks this video offers.
+   */
+  captions?: string;
+  /**
+   * Video settings menu: the row that lists the picture qualities this video offers.
+   */
+  quality?: string;
+  /**
+   * Video settings menu: the row that sets how fast the video plays.
+   */
+  speed?: string;
+  /**
+   * Video settings menu: the row holding the sound options.
+   */
+  audio?: string;
+  /**
+   * Video settings menu: the row that lists the audio tracks this video offers.
+   */
+  track?: string;
+  /**
+   * Video settings menu: the slider that raises the volume past its normal maximum.
+   */
+  boost?: string;
+  /**
+   * Video settings menu: the row holding the screen-reader and keyboard options.
+   */
+  accessibility?: string;
+  /**
+   * Video settings menu: the switch that lets a screen reader announce playback changes.
+   */
+  announcements?: string;
+  /**
+   * Video settings menu: the switch that flashes an icon when a keyboard shortcut fires.
+   */
+  keyboard_animations?: string;
+  /**
+   * Video settings menu: the quality option that lets the player choose for itself.
+   */
+  auto?: string;
+  /**
+   * Video settings menu: the audio track the video ships with.
+   */
+  default?: string;
+  /**
+   * Video settings menu: the speed option that plays the video as recorded.
+   */
+  normal?: string;
+  /**
+   * Video settings menu: the subtitle option that shows no subtitles.
+   */
+  off?: string;
+  /**
+   * Video settings menu: the row that opens the subtitle appearance options.
+   */
+  caption_styles?: string;
+  /**
+   * Sample sentence in the subtitle appearance options, so the viewer sees each choice applied.
+   */
+  captions_look_like_this?: string;
+  /**
+   * Subtitle appearance options: the heading above the lettering choices.
+   */
+  font?: string;
+  /**
+   * Subtitle appearance options: the typeface the subtitles use.
+   */
+  family?: string;
+  /**
+   * Subtitle appearance options: how large the subtitle lettering is.
+   */
+  size?: string;
+  /**
+   * Subtitle appearance options: the heading above the subtitle lettering's own colour and opacity.
+   */
+  text?: string;
+  /**
+   * Subtitle appearance options: the heading above the band drawn behind the lettering.
+   */
+  text_background?: string;
+  /**
+   * Subtitle appearance options: the heading above the panel drawn behind the whole subtitle area.
+   */
+  display_background?: string;
+  /**
+   * Subtitle appearance options: the colour of the part its heading names. It appears under three headings.
+   */
+  color?: string;
+  /**
+   * Subtitle appearance options: how see-through the part its heading names is. It appears under three headings.
+   */
+  opacity?: string;
+  /**
+   * Subtitle appearance options: the shadow drawn behind the subtitle lettering.
+   */
+  shadow?: string;
+  /**
+   * Button that puts every subtitle appearance option back to its starting value.
+   */
+  reset?: string;
+}
+export interface WmWebTranslationsVideoA11YStrings {
+  /**
+   * Not shown on screen; read by screen readers. Names the video player's fullscreen button.
+   */
+  fullscreen?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the video player's button that pops the video into a small floating window.
+   */
+  pip?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the video player's progress bar, which scrubs through the video.
+   */
+  seek?: string;
 }
 export interface WmWebTranslationsLocationGeneralStrings {
   /**
@@ -9815,6 +9997,12 @@ export interface WmWebTranslationsSelect<T extends boolean = true> {
         general?: T;
         a11y?: T;
       };
+  video?:
+    | T
+    | {
+        general?: T;
+        a11y?: T;
+      };
   location?:
     | T
     | {
@@ -10213,6 +10401,8 @@ export interface TaskVerifyEmbeds {
     failed: number;
     inconclusive: number;
     disabled: number;
+    pathPromoted: number;
+    pathDemoted: number;
   };
 }
 /**
