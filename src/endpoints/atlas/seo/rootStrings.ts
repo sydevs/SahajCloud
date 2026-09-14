@@ -68,7 +68,7 @@ export interface RootSeoStrings {
 export interface RootCopy {
   /** The widget's own chrome strings, seeded in every locale (`{ chrome: {…} }`). */
   common: Record<string, unknown> | null
-  /** The landing page's operator-written copy. Empty everywhere until someone writes it. */
+  /** The landing page's copy. Seeded in ten locales (#778), blank in any other. */
   seo: Record<string, unknown> | null
 }
 
