@@ -74,6 +74,24 @@ Then classify the outcome:
 | Partial write | exit 124, lone `.json` (no `.ts`) | Delete the orphaned `.json`, then hand off as above |
 | Other error | exit ≥ 1 with output | Surface the error. Do not retry blindly |
 
+### A table rename crashes drizzle-kit — the patch is already applied
+
+`Cannot read properties of undefined (reading 'columns')`, exit ≥ 1, no files
+written, whenever a migration renames a table that also has altered columns —
+which is every collection rename. `applyPgSnapshotsDiff` hands
+`preparePgAlterColumns` the raw pre-rename snapshot, so the table is looked up
+under its new name and comes back undefined.
+
+`patches/drizzle-kit@0.31.7.patch` fixes it, wired through `patchedDependencies`
+in `pnpm-workspace.yaml`. Still unfixed upstream through 0.31.10, and
+`@payloadcms/db-postgres` pins drizzle-kit to exactly 0.31.7 — which is why
+`payload` and `@payloadcms/db-postgres` carry exact versions, not carets. Floating
+either onto a release with a different drizzle-kit leaves the patch matching
+nothing, and this crash returns.
+
+The patch does not remove the rename-vs-create **prompt**. That still needs an
+attended run, per the interactive-hang row above.
+
 ### "Migration created" has a false positive too — read the DDL first
 
 A migration whose every statement drops and recreates the five `*_tz` enum types
