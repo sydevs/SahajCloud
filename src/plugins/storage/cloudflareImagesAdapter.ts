@@ -163,8 +163,8 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
 
     handleDelete: async ({ filename: imageId }) => {
       // Preview isolation: a non-production deployment must never delete a
-      // production image (cloned preview DBs reference real prod image IDs,
-      // which carry no preview marker). No-op in production.
+      // production image — a production ID carries no preview marker. See
+      // docs/rules/storage.md for how one reaches a preview. No-op in production.
       if (
         await shouldRefusePreviewDelete('Cloudflare Images', imageId, () =>
           isPreviewOwnedKey(imageId),

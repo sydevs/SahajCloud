@@ -3,10 +3,11 @@
  *
  * Images, Stream, and R2 are account/bucket-scoped resources shared by EVERY
  * deployment of this app: production, Railway per-PR previews, staging, and
- * local dev all talk to the same Cloudflare account + R2 bucket. Cloned preview
- * databases reference real production asset IDs, so without isolation a preview
- * deploy could upload into — or, far worse, DELETE from — the production
- * namespace (issue #432).
+ * local dev all talk to the same Cloudflare account + R2 bucket. So without
+ * isolation a preview deploy could upload into — or, far worse, DELETE from —
+ * the production namespace (issue #432). A preview's own database holds no
+ * production rows, so it reaches a production asset ID only by some other
+ * route — see `docs/rules/storage.md`, which is where that fact is stated.
  *
  * Strategy ("Option B" — namespacing within the single account):
  *  - Non-production uploads carry a `preview-` marker: an object-ID/key prefix
@@ -108,7 +109,7 @@ export const isPreviewOwnedVideoMeta = (meta: Record<string, string> | null | un
 /**
  * Shared non-production delete guard for the storage adapters. Returns `true`
  * (and logs a warning) when this deployment must REFUSE to delete `key` because
- * it isn't preview-owned — protecting cloned production assets.
+ * it isn't preview-owned — protecting production assets.
  *
  * The isolation check short-circuits BEFORE `isPreviewOwned` runs, so:
  *  - production pays nothing (the guard is a no-op), and

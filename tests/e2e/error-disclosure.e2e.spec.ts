@@ -14,9 +14,9 @@ import { authHeaders, ensureAdmin } from './_helpers/preview'
  * against the real `payload.config.ts`, so these two requests read the shipped
  * value rather than a fixture's copy of it.
  *
- * ⚠ **Preview-only, and not for the usual reason.** The other smoke specs skip
- * when the preview DB has no seeded content. These skip when there is no
- * `PREVIEW_URL` at all, because the local fallback (`http://localhost:3000`) is
+ * ⚠ **These two are the only smoke specs that may skip at all.** They skip when
+ * there is no `PREVIEW_URL`, and `failOnSkipReporter` fails the run for any skip
+ * once there is one, because the local fallback (`http://localhost:3000`) is
  * a development server where `debug` is on *by design* — a redaction assertion
  * there would be correct and inapplicable at the same time. On the preview both
  * cases are unconditional: a skip would make the check vacuous, which is the one
