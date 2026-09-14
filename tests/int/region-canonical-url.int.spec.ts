@@ -47,11 +47,16 @@ describe('per-region canonical webUrl', () => {
   /**
    * Seed a client that owns a region.
    *
-   * The host/mount/routing a canonical URL is built from live in
+   * The host and mount a canonical URL is built from live in
    * `canonical.verification.verified` — job-written from what the CMS observed
    * on the live page — not in the declaration. `canonical.embed` only nominates
    * which reported mount is the candidate, so both have to be set for a client
    * to actually own anything (#633's trust boundary, consumed by #634).
+   *
+   * **The routing shape comes from `routingProbe`, a sibling of `verified`** (#644).
+   * `verified.routing` is what the widget said about itself, and it shapes no
+   * URL — so a `path` owner here is one the probe has promoted, which is the
+   * only way a client gets path-shaped canonical URLs.
    */
   const createOwner = async (args: {
     name: string
@@ -73,6 +78,7 @@ describe('per-region canonical webUrl', () => {
           verified: { domain, mount, routing, widgetVersion: 2, at: '2026-08-18T00:00:00.000Z' },
           failureCount: 0,
           attempts: [],
+          routingProbe: { at: '2026-08-18T00:00:00.000Z', verdict: routing, failedAttempts: 0 },
         },
       },
       _status: 'published',
@@ -189,6 +195,53 @@ describe('per-region canonical webUrl', () => {
       for (const url of [london.webUrl, camden.webUrl, camdenEvent.webUrl]) {
         expect(url).not.toContain(UK_DOMAIN)
       }
+    })
+
+    /**
+     * The shape follows the probe's verdict, not the widget's self-report (#644).
+     *
+     * `verified.routing` stays `path` throughout here, so a URL that changed
+     * shape can only have read `routingProbe`. This is the circularity the ticket
+     * removed: the marker copies the script tag's parameter, which is a request,
+     * not an observation of the host's server.
+     */
+    it('re-shapes a public URL when the probe verdict is demoted, with no other change', async () => {
+      const { docs } = await payload.find({
+        collection: 'clients',
+        where: { name: { equals: 'Sahaja Yoga London' } },
+        limit: 1,
+        overrideAccess: true,
+      })
+      const londonClient = docs[0]
+      const verification = londonClient.canonical!.verification!
+      expect(verification.verified?.routing).toBe('path')
+
+      const setVerdict = async (verdict: 'query' | 'path') => {
+        await payload.update({
+          collection: 'clients',
+          id: londonClient.id,
+          data: {
+            canonical: {
+              // Spread whole, `routing` included: a virtual field is
+              // ignored on write, and this is the pin for that.
+              ...londonClient.canonical,
+              verification: {
+                ...verification,
+                routingProbe: { at: '2026-09-12T03:00:00.000Z', verdict, failedAttempts: 0 },
+              },
+            },
+          } as never,
+          overrideAccess: true,
+        })
+      }
+
+      await setVerdict('query')
+      const demoted = await readRegion(region.london)
+      expect(demoted.webUrl).toBe(`https://${LONDON_DOMAIN}/map?atlas=/uk/england/greater-london`)
+
+      await setVerdict('path')
+      const restored = await readRegion(region.london)
+      expect(restored.webUrl).toBe(`https://${LONDON_DOMAIN}/map/uk/england/greater-london`)
     })
 
     it('falls back to We Meditate when no ancestor is owned', async () => {
@@ -485,7 +538,6 @@ describe('per-region canonical webUrl', () => {
 
       await setFallback(Number(fallbackId))
       try {
-
         const readParis = (limit: number) => () =>
           payload.find({
             collection: 'events',
