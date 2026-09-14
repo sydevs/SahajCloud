@@ -19,7 +19,6 @@ overrides:
   yaml@^2.0.0: ^2.8.3
   brace-expansion@^1.0.0: ^1.1.13
   undici: ^7.29.1
-  nodemailer: ^9.1.1
 
 importers:
 
@@ -234,7 +233,7 @@ importers:
         specifier: 26.1.0
         version: 26.1.0
       nodemailer:
-        specifier: ^9.1.1
+        specifier: ^9.0.3
         version: 9.1.1
       playwright:
         specifier: 1.57.0

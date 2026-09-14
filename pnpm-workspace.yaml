@@ -50,9 +50,3 @@ overrides:
   # degenerate private-cache directive) is reachable: undici is the HTTP client every
   # server-side fetch uses. Same major, patch-only.
   undici: '^7.29.1'
-  # `@payloadcms/email-nodemailer` declares `^9.0.1`, so this only flattens a stale
-  # duplicate onto a version its own range already allows — not a forced bump.
-  # GHSA-2x7j-588g-ccc2 (quadratic addressparser) is dev/preview-only here: production
-  # email goes through `resendAdapter()`, and nodemailer is reached only when SMTP_URL
-  # is set (Mailpit). Fixed anyway to keep `pnpm audit` a signal rather than noise.
-  nodemailer: '^9.1.1'
