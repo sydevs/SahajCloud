@@ -244,18 +244,20 @@ describe('atlas translations seeds', () => {
   })
 
   // English is the source the merge serves every other locale from, so a key
-  // it misses is a key nothing can render. `few` and `many` are exempt:
+  // it misses is a key nothing can render. `seo` is the one group no widget
+  // view reads, and it is covered here anyway: the seed owns it, and English is
+  // the one locale where a blank landing description is an omission rather than
+  // the deliberate `null` the endpoint answers with (#778). `emails` and
+  // `event.title` are seeded too, but from the English defaults the importer
+  // merges into blank keys, never from this file. `few` and `many` are exempt:
   // English has no such plural category, and a value there would be invented.
-  it('data.en.json covers every widget-facing key', () => {
+  it('data.en.json covers every key seeded from this file', () => {
     const seeded = new Set(seedEntries(readSeed('en')).map(([key]) => key))
     const missing = [...declared].filter(
       (key) =>
         !seeded.has(key) &&
         !key.startsWith('emails.') &&
         !key.startsWith('event.title.') &&
-        // Operator-written landing copy (#739), blank in every locale until
-        // someone writes it. A seeded value would be a guess in a `<head>`.
-        !key.startsWith('seo.') &&
         !/_(few|many)$/.test(key),
     )
     expect(missing).toEqual([])
@@ -283,6 +285,89 @@ describe('atlas translations seeds', () => {
 
       expect(invented).toEqual([])
       expect(entries.length).toBeGreaterThan(150)
+    },
+  )
+
+  // #782: 22 values in `data.hu.json` were the English string — the whole
+  // registration form, its three validation errors, and the country list's own
+  // heading. Nothing downstream could report it. `_meta.omitted_keys` says an
+  // untranslated key is OMITTED, never blank, so the English merge (#705)
+  // serves English for it openly; an English VALUE arrives at the merge
+  // indistinguishable from a real translation.
+  //
+  // Every locale is pinned, not `hu` alone. The same defect sits in `nl`
+  // today: `registration.form.submit` is the English verb `Register`, on the
+  // button a Dutch visitor presses. An entry below is a CLAIM that the value
+  // is right in that language — a loanword, or a format string carrying no
+  // words at all. Adding one asks for that claim to be true.
+  //
+  // The comparison folds case and trims, because #782 is its own proof that
+  // byte equality is too weak: five `event.recurrence.monthly_*` values were
+  // English prose differing from `data.en.json` in one capital letter
+  // (`of Every Month` against `of every month`), and rendered in English
+  // exactly as the other 22 did. Folding costs nothing — it matched no value
+  // byte equality did not already match, across all ten files.
+  const ENGLISH_VALUES_ALLOWED: Record<
+    Exclude<(typeof SEED_LOCALES)[number], 'en'>,
+    string[]
+  > = {
+    // `%{start} – %{end}` is a format string with no word in it, so every
+    // locale shares it. `Online` is the same word in seven of these languages.
+    cs: [
+      'event.display.online',
+      'filters.dates.pill_range',
+      'filters.format.online',
+      // `Region` is the Czech word, not the English one.
+      'filters.region.label',
+    ],
+    de: [
+      'event.display.online',
+      // `%{time} in %{city}` — `in` is the German preposition too.
+      'event.display.time_in_place',
+      'filters.dates.pill_range',
+      'filters.format.label',
+      'filters.format.online',
+      'filters.region.label',
+      'registration.form.okay',
+    ],
+    es: ['filters.dates.pill_range'],
+    fr: ['filters.dates.label', 'filters.dates.pill_range', 'filters.format.label'],
+    hu: ['event.display.online', 'filters.dates.pill_range', 'filters.format.online'],
+    nl: [
+      'calendar.view_week',
+      'event.actions.contact',
+      'event.actions.website',
+      'event.display.online',
+      'event.display.time_in_place',
+      'filters.chrome.title',
+      'filters.dates.pill_range',
+      'filters.format.online',
+      // ⚠ NOT a loanword. Dutch for this button is `Aanmelden`, and this is
+      // #782's own defect in another file. Pinned so it is named, not hidden.
+      'registration.form.submit',
+    ],
+    'pt-BR': ['filters.dates.pill_range', 'filters.format.online'],
+    ru: ['filters.dates.pill_range'],
+    uk: ['filters.dates.pill_range'],
+  }
+
+  it.each(SEED_LOCALES.filter((locale) => locale !== 'en'))(
+    'data.%s.json holds no English value outside its allowlist',
+    (locale) => {
+      const english = new Map(seedEntries(readSeed('en')) as Array<[string, string]>)
+      const fold = (value: string): string => value.trim().toLowerCase()
+
+      const untranslated = (seedEntries(readSeed(locale)) as Array<[string, string]>)
+        .filter(([key, value]) => {
+          const source = english.get(key)
+          return typeof source === 'string' && typeof value === 'string' && fold(source) === fold(value)
+        })
+        .map(([key]) => key)
+        .sort()
+
+      expect(untranslated).toEqual(
+        ENGLISH_VALUES_ALLOWED[locale as keyof typeof ENGLISH_VALUES_ALLOWED],
+      )
     },
   )
 })

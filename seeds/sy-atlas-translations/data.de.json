@@ -270,5 +270,9 @@
   },
   "compact": {
     "open": "Kurs in deiner Nähe finden"
+  },
+  "seo": {
+    "root_title": "Kostenlose Meditationskurse in deiner Nähe",
+    "root_description": "Finde Sahaja Yoga Meditationskurse und Veranstaltungen in deiner Nähe, vor Ort oder online, überall auf der Welt. Alle Kurse sind kostenlos."
   }
 }

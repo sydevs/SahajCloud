@@ -13,7 +13,7 @@
       "back_to": "Vissza ide: %{title}",
       "close": "Bezárás",
       "explore": "Felfedezés",
-      "loading": "Loading…",
+      "loading": "Betöltés…",
       "cancel": "Mégse",
       "widget_label": "Ingyenes meditációs órák",
       "all_classes_free": "Minden óra ingyenes"
@@ -77,7 +77,7 @@
     }
   },
   "countries": {
-    "title": "Free Meditation Classes"
+    "title": "Ingyenes meditációs órák"
   },
   "search": {
     "chrome": {
@@ -165,7 +165,7 @@
   "event": {
     "display": {
       "about": "Erről a foglalkozásról",
-      "free_meditation_class": "Free Meditation Class",
+      "free_meditation_class": "Ingyenes meditációs óra",
       "chip_full": "Betelt",
       "chip_today": "Ma",
       "chip_ended": "Véget ért",
@@ -181,9 +181,9 @@
       "online_joining_note": "A találkozó linkjét e-mailben küldjük el",
       "contact_to_join_full": "A részvételhez keresse a szervezőt",
       "contact_to_join_late": "Későbbi csatlakozáshoz keresse a szervezőt",
-      "contact_for_timing": "Contact host for timings",
+      "contact_for_timing": "Az időpontokért keresse a szervezőt",
       "online": "Online",
-      "hosted_from": "Hosted from %{city}",
+      "hosted_from": "Közvetítve innen: %{city}",
       "time_in_place": "%{time} (%{city})",
       "distance_away": "%{distance} távolságra",
       "distance_from_place": "%{distance} innen: %{place}",
@@ -198,7 +198,7 @@
       "sessions_count_one": "%{count} alkalom",
       "sessions_count_other": "%{count} alkalom",
       "see_nearby": "Közeli események megtekintése",
-      "register_now": "Register Now"
+      "register_now": "Regisztráljon most"
     },
     "actions": {
       "contact": "Kapcsolat",
@@ -211,17 +211,17 @@
       "pause_slideshow": "Diavetítés szüneteltetése"
     },
     "recurrence": {
-      "daily": "Every Day",
+      "daily": "Minden nap",
       "daily_n": "%{interval} naponta",
-      "weekly_1": "Every %{weekday}",
-      "weekly_2": "Every 2nd %{weekday}",
+      "weekly_1": "Hetente: %{weekday}",
+      "weekly_2": "Kéthetente: %{weekday}",
       "weekly_n": "%{interval} hetente: %{weekday}",
       "weekly_multi": "Hetente: %{weekdays}",
-      "monthly_1st": "1st %{weekday} of Every Month",
-      "monthly_2nd": "2nd %{weekday} of Every Month",
-      "monthly_3rd": "3rd %{weekday} of Every Month",
-      "monthly_4th": "4th %{weekday} of Every Month",
-      "monthly_last": "Last %{weekday} of Every Month",
+      "monthly_1st": "Havonta, az első %{weekday}",
+      "monthly_2nd": "Havonta, a második %{weekday}",
+      "monthly_3rd": "Havonta, a harmadik %{weekday}",
+      "monthly_4th": "Havonta, a negyedik %{weekday}",
+      "monthly_last": "Havonta, az utolsó %{weekday}",
       "monthly_date": "Havonta, a hónap %{day}. napján"
     }
   },
@@ -236,24 +236,24 @@
   },
   "registration": {
     "form": {
-      "name": "Your name",
-      "email": "Your email",
-      "starting_date": "Starting date",
+      "name": "Az Ön neve",
+      "email": "Az Ön e-mail-címe",
+      "starting_date": "Kezdés dátuma",
       "show_more_dates": "További időpontok megjelenítése",
-      "submit": "Register",
-      "okay": "Okay",
-      "followup": "You will receive an email confirmation shortly",
-      "invite_friend": "Invite a friend along",
-      "online_notice": "The link to this class will be emailed to you.",
-      "online_notice_title": "Online Session",
-      "privacy_policy": "By submitting you confirm you agree to receive follow up messages about this and similar events, in accordance with our privacy policy.",
+      "submit": "Regisztráció",
+      "okay": "Rendben",
+      "followup": "Hamarosan visszaigazoló e-mailt küldünk",
+      "invite_friend": "Hívjon el egy barátot is",
+      "online_notice": "Az órához tartozó linket e-mailben küldjük el Önnek.",
+      "online_notice_title": "Online alkalom",
+      "privacy_policy": "A beküldéssel hozzájárul ahhoz, hogy erről és a hasonló eseményekről további üzeneteket küldjünk Önnek, az adatvédelmi szabályzatunknak megfelelően.",
       "error_title": "Valami hiba történt",
-      "captcha_retry": "A biztonsági ellenőrzést újra el kell végezni. Várd meg, amíg frissül, majd regisztrálj még egyszer."
+      "captcha_retry": "A biztonsági ellenőrzést újra el kell végezni. Várja meg, amíg frissül, majd regisztráljon még egyszer."
     },
     "errors": {
-      "email": "Enter a valid email",
-      "name": "Enter your full name",
-      "starting_at": "Select your starting date"
+      "email": "Adjon meg érvényes e-mail-címet",
+      "name": "Adja meg a teljes nevét",
+      "starting_at": "Válassza ki a kezdés dátumát"
     },
     "questions": {
       "experience": "Gyakorolt már Sahaja Yoga meditációt?",
@@ -270,5 +270,9 @@
   },
   "compact": {
     "open": "Találjon egy tanfolyamot a közelében"
+  },
+  "seo": {
+    "root_title": "Ingyenes meditációs órák a közelében",
+    "root_description": "Találjon Sahaja Yoga meditációs tanfolyamokat és eseményeket a közelében, személyesen vagy online, bárhol a világon. Minden óra ingyenes."
   }
 }

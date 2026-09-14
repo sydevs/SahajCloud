@@ -45,8 +45,9 @@ describe('resolveRootStrings', () => {
   })
 
   // The reviewer's call on #769: a locale nobody has written `seo.root_title`
-  // for is named in its own language, not in ours. `common.chrome` is seeded in ten
-  // locales where `seo` is empty everywhere, so this is the live path today.
+  // for is named in its own language, not in ours. All ten seeded locales now
+  // carry one (#778), so this path answers for a locale the atlas seed does not
+  // cover, and for one an operator has blanked.
   it('names the atlas in the locale’s own words before it looks at English', () => {
     const untitled = copy(null, { widget_label: 'Cours de méditation gratuits' })
     expect(resolveRootStrings(untitled, en).title).toBe('Cours de méditation gratuits')

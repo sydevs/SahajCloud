@@ -409,7 +409,7 @@ async function eventSeo(
  *   document, of `type: 'root'`, with `id: null`, `route: '/'` and empty
  *   `breadcrumbs`. Those are the routes most hosts mount, so refusing them left
  *   the one page a host links from its own nav as the only page with no
- *   metadata of its own. Its title and description are operator-written on
+ *   metadata of its own. Its title and description are seeded on
  *   `sy-atlas-translations`, and its `canonical` is the caller's own verified
  *   mount page — a host remains free to ignore both and write its own.
  * - A **404 now means the string is not a route we will read** — carrying a
@@ -418,10 +418,13 @@ async function eventSeo(
  *   deliberately different answers. A route past
  *   {@link MAX_ATLAS_ROUTE_LENGTH} is a **400**: the query schema refuses it
  *   before the parser sees it, as it does an empty one.
- * - A root route's `description` is `null` in any locale the operator has not
- *   written one for — the same rule a region follows. Its `title` falls back to
- *   English and then to a constant, because `<title>` is mandatory markup and a
- *   blank one is worse than one in the wrong language.
+ * - A root route's `description` is `null` in any locale carrying none — the
+ *   same rule a region follows, and since #778 that is a locale outside the ten
+ *   the seed writes. Its `title` is always a
+ *   non-blank string, because `<title>` is mandatory markup, and it exhausts
+ *   the locale's own words before it borrows another language's —
+ *   {@link getRootSeoStrings} owns that order, and `./rootStrings` is the only
+ *   place it is written down.
  *
  * Registered at the config root rather than on a collection because the route
  * may name a region *or* an event, so no collection owns it — which means the

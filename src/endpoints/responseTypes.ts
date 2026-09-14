@@ -135,11 +135,11 @@ export type AtlasSeoRegionContent = {
 /**
  * The body content of the atlas landing page (#739).
  *
- * The root names no document, so its copy is operator-written on the
+ * The root names no document, so its copy is seeded on the
  * `sy-atlas-translations` global rather than read off a region or an event.
  * `paragraphs` carries the same plain-text-per-block shape an event's content
  * uses, so a host renders every route through one code path — it holds the
- * operator's description when there is one, and is empty when there is not.
+ * landing page's description when there is one, and is empty when there is not.
  */
 export type AtlasSeoRootContent = {
   paragraphs: string[]

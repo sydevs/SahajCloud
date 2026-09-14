@@ -270,5 +270,9 @@
   },
   "compact": {
     "open": "Encontre uma aula perto de você"
+  },
+  "seo": {
+    "root_title": "Aulas gratuitas de meditação perto de você",
+    "root_description": "Encontre aulas e eventos de meditação Sahaja Yoga perto de você, presenciais ou on-line, em qualquer lugar do mundo. Todas as aulas são gratuitas."
   }
 }
