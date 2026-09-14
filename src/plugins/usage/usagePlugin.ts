@@ -7,11 +7,12 @@
  * - beforeOperation: Usage tracking via an atomic Postgres UPDATE (counts once per top-level read)
  */
 
+import type { ClientReadGate } from './hooks'
 import type { CollectionSlug, Config } from 'payload'
 
 import { SYSTEM_EXCLUSIONS } from './constants'
 import {
-  asGlobalBeforeOperationHook,
+  onlyOnCallerAuthority,
   rateLimitHook,
   usageTrackingBeforeOperationHook,
   validateClientOriginHook,
@@ -28,8 +29,13 @@ import { resetUsageTask } from './tasks'
  * Declared once and applied to collections and globals alike (#710) — two
  * copies of this list would let the two surfaces drift apart in order, which
  * is a security difference, not a stylistic one.
+ *
+ * `ClientReadGate` is the shared argument shape both of payload's hook
+ * signatures satisfy, so this array registers on either surface with no cast.
+ * The global surface wraps each gate in `onlyOnCallerAuthority`, the one
+ * exemption a global needs — see `hooks.ts`.
  */
-const BEFORE_OPERATION_HOOKS = [
+const BEFORE_OPERATION_HOOKS: ClientReadGate[] = [
   validateClientOriginHook,
   validateClientQueryParamsHook,
   rateLimitHook,
@@ -89,7 +95,7 @@ export function usagePlugin(
         ...global.hooks,
         beforeOperation: [
           ...(global.hooks?.beforeOperation || []),
-          ...BEFORE_OPERATION_HOOKS.map(asGlobalBeforeOperationHook),
+          ...BEFORE_OPERATION_HOOKS.map(onlyOnCallerAuthority),
         ],
       },
     })),

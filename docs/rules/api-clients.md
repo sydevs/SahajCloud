@@ -155,9 +155,9 @@ For a client, that means three behaviour changes:
 - **It must send `select`**, or it is refused **400**, and **`populate`** at effective `depth > 1`. All three readers we can see already do.
 - **It is origin-enforced.** A client with a non-empty `allowedDomains` reading a global from an origin outside that list gets **403**.
 
-`usagePlugin` attaches the same four hook bodies through one adapter, `asGlobalBeforeOperationHook`, rather than a second copy — two copies would let origin enforcement or the select gate drift between the two surfaces.
+`usagePlugin` registers the same four gate bodies on both surfaces, rather than a second copy — two copies would let origin enforcement or the select gate drift between a collection read and a global read. There is no adapter and no cast: the gates are typed as `ClientReadGate`, the argument shape both of payload's `beforeOperation` signatures satisfy, so `tsc` checks each registration. The global surface wraps each in `onlyOnCallerAuthority`, the one exemption a global needs.
 
-### ⚠ The adapter's `overrideAccess` exemption
+### ⚠ The global surface's `overrideAccess` exemption
 
 A collection hook skips an internal read through the numeric `currentDepth` payload attaches to relationship population. **A global read has no such signal**, and this codebase makes several internal global reads that forward the caller's `req` — `clientEnglishFallback` re-reads its own global in English, `loadAppConfigOnce` reads `wm-app-config` while serving a page, and the atlas endpoints read `sy-atlas-config`. Ungated, each would be metered twice, and the ones passing no `select` would be refused 400 — which for the fallback is caught and logged at debug, silently blanking every untranslated key for every client.
 

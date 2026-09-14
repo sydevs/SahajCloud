@@ -18,7 +18,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
  * ## ⚠ `overrideAccess: false` is what makes these reads realistic
  *
  * It is not a convenience here, the way `overrideAccess: true` is in the
- * collection specs. The adapter (`asGlobalBeforeOperationHook`) uses this flag
+ * collection specs. The global wrapper (`onlyOnCallerAuthority`) uses this flag
  * as its internal-read exemption, so a spec that omitted it would read
  * `overrideAccess: true` — payload's local-API default — and every gate would
  * correctly skip, leaving four vacuous assertions.
@@ -251,7 +251,7 @@ describe('client reads of a global (#710)', () => {
    * handler supply it.
    *
    * That makes this the one place the four gates can be observed reaching a
-   * real client request. `asGlobalBeforeOperationHook` returns early unless the
+   * real client request. `onlyOnCallerAuthority` returns early unless the
    * flag is exactly `false`, so a default of `true` or `undefined` skips all
    * four — and the refusal below becomes a 200. No assertion elsewhere can see
    * that, which is how #710 could otherwise ship inert with a green suite.
