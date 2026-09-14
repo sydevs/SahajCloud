@@ -636,7 +636,7 @@ describe('atlasSeo endpoint', () => {
    *
    * These are the routes most hosts mount, so before this the one page a host
    * links from its own nav was the only page with no metadata of its own. The
-   * copy is operator-written on `sy-atlas-translations`, which is why this
+   * copy is seeded on `sy-atlas-translations`, which is why this
    * block writes that global first.
    */
   describe('the atlas root', () => {

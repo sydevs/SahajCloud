@@ -244,18 +244,20 @@ describe('atlas translations seeds', () => {
   })
 
   // English is the source the merge serves every other locale from, so a key
-  // it misses is a key nothing can render. `few` and `many` are exempt:
+  // it misses is a key nothing can render. `seo` is the one group no widget
+  // view reads, and it is covered here anyway: the seed owns it, and English is
+  // the one locale where a blank landing description is an omission rather than
+  // the deliberate `null` the endpoint answers with (#778). `emails` and
+  // `event.title` are seeded too, but from the English defaults the importer
+  // merges into blank keys, never from this file. `few` and `many` are exempt:
   // English has no such plural category, and a value there would be invented.
-  it('data.en.json covers every widget-facing key', () => {
+  it('data.en.json covers every key seeded from this file', () => {
     const seeded = new Set(seedEntries(readSeed('en')).map(([key]) => key))
     const missing = [...declared].filter(
       (key) =>
         !seeded.has(key) &&
         !key.startsWith('emails.') &&
         !key.startsWith('event.title.') &&
-        // Operator-written landing copy (#739), blank in every locale until
-        // someone writes it. A seeded value would be a guess in a `<head>`.
-        !key.startsWith('seo.') &&
         !/_(few|many)$/.test(key),
     )
     expect(missing).toEqual([])

@@ -4,10 +4,16 @@
  *
  * Everything else this endpoint answers describes a row: a region's name, an
  * event's title and description. The root describes the atlas itself, so its
- * title and meta description are **operator-written**, on the `seo` group of
+ * title and meta description live on the `seo` group of
  * `sy-atlas-translations`. That global was chosen over `sy-atlas-config`
  * because it is already localized, already seeded in ten locales, and already
  * the place a translator visits.
+ *
+ * ⚠ **That group is seed-owned, not operator-owned.**
+ * `pnpm seed translations` replaces the whole `seo` column, so copy typed into
+ * the admin lasts only until the next run (#778). New wording belongs in
+ * `seeds/sy-atlas-translations/data.<locale>.json`. Handing the group to an
+ * operator means giving it the `fillBlanks` treatment `emails` has first.
  *
  * ## Two fallbacks, deliberately asymmetric
  *
@@ -68,7 +74,7 @@ export interface RootSeoStrings {
 export interface RootCopy {
   /** The widget's own chrome strings, seeded in every locale (`{ chrome: {…} }`). */
   common: Record<string, unknown> | null
-  /** The landing page's operator-written copy. Empty everywhere until someone writes it. */
+  /** The landing page's copy. Seeded in ten locales (#778), blank in any other. */
   seo: Record<string, unknown> | null
 }
 
@@ -80,8 +86,8 @@ function text(value: unknown): string | null {
 }
 
 /**
- * The best name one locale can offer: what the operator wrote for the landing
- * page, then what the widget already calls itself in that language.
+ * The best name one locale can offer: the landing page's own title, then what
+ * the widget already calls itself in that language.
  *
  * Both come from the same locale, so neither borrows another language's words.
  */
