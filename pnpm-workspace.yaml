@@ -45,3 +45,8 @@ overrides:
   # (6.12.6 is the newest 6.x and already carries the $data fix), so it is left as-is.
   'yaml@^2.0.0': '^2.8.3'
   'brace-expansion@^1.0.0': '^1.1.13'
+  # `undici` is pinned exactly by payload@3.86.0 (`7.28.0`), so an in-range refresh
+  # cannot reach the patched build. GHSA-4cwx-7wf7-3272 (cross-user disclosure via a
+  # degenerate private-cache directive) is reachable: undici is the HTTP client every
+  # server-side fetch uses. Same major, patch-only.
+  undici: '^7.29.1'
