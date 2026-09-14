@@ -217,11 +217,11 @@
       "weekly_2": "Kéthetente: %{weekday}",
       "weekly_n": "%{interval} hetente: %{weekday}",
       "weekly_multi": "Hetente: %{weekdays}",
-      "monthly_1st": "1st %{weekday} of Every Month",
-      "monthly_2nd": "2nd %{weekday} of Every Month",
-      "monthly_3rd": "3rd %{weekday} of Every Month",
-      "monthly_4th": "4th %{weekday} of Every Month",
-      "monthly_last": "Last %{weekday} of Every Month",
+      "monthly_1st": "Havonta, az első %{weekday}",
+      "monthly_2nd": "Havonta, a második %{weekday}",
+      "monthly_3rd": "Havonta, a harmadik %{weekday}",
+      "monthly_4th": "Havonta, a negyedik %{weekday}",
+      "monthly_last": "Havonta, az utolsó %{weekday}",
       "monthly_date": "Havonta, a hónap %{day}. napján"
     }
   },
