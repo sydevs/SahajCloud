@@ -409,7 +409,7 @@ async function eventSeo(
  *   document, of `type: 'root'`, with `id: null`, `route: '/'` and empty
  *   `breadcrumbs`. Those are the routes most hosts mount, so refusing them left
  *   the one page a host links from its own nav as the only page with no
- *   metadata of its own. Its title and description are operator-written on
+ *   metadata of its own. Its title and description are seeded on
  *   `sy-atlas-translations`, and its `canonical` is the caller's own verified
  *   mount page — a host remains free to ignore both and write its own.
  * - A **404 now means the string is not a route we will read** — carrying a

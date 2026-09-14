@@ -64,7 +64,7 @@ const MAX_EVENT_ID = 2147483647
  * `root` is the atlas landing page — an empty route (`/`) or a bare view route
  * (`/search`, `/calendar`), which is a view *of* the root and so resolves to
  * the same document (#739). It carries no key because there is nothing to look
- * up: its copy is operator-written, on `sy-atlas-translations`.
+ * up: its copy is seeded, on `sy-atlas-translations`.
  *
  * **The region and event variants are keyed by the terminal segment alone**, which is the
  * widget's own rule (`resolvePath`): a region slug is globally unique, and an
