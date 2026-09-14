@@ -243,6 +243,21 @@ deploy (#566).
   highest-timestamp snapshot contains both branches' schema before
   generating the next migration.
 
+**Healing it: keep the snapshot, empty the DDL.** When every statement the
+run emitted is already applied — check each one against the whole chain, not
+a sample — the `.ts` is worthless and the `.json` is exactly what the chain
+needs, because it was generated on the merged tree. Replace `up`/`down` with
+empty bodies, say in a docblock which migrations already ship the DDL, and
+keep the file's timestamp so the snapshot stays newest.
+`20260914_175014.{ts,json}` is the worked example. Then prove it healed:
+`timeout 300 pnpm db:migrations:create <probe> --skip-empty < /dev/null`
+must write no files.
+
+⚠ **CI cannot catch a duplicate-DDL migration.** `push: !isProduction` in
+`src/payload.config.ts` means dev and the test lanes sync the schema with
+Drizzle push and never replay this chain. Only a Railway boot runs
+`prodMigrations`, so a green CI run is silent about the whole folder.
+
 When adding a required relationship field to an existing table, keep the SQL
 column nullable unless the migration also backfills every row before
 enforcing `NOT NULL` — old rows may still be hydrating after deploy.
