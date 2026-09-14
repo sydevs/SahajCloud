@@ -20,7 +20,9 @@ R2 uses the S3-compatible API (`@aws-sdk/client-s3`) with `R2_BUCKET`, `R2_ACCES
 
 ## Preview / non-production isolation
 
-Cloudflare Images and Stream are account-scoped, and R2 is one shared bucket, so **every deployment — production, Railway PR previews, staging, dev — reads and writes the same namespaces.** Preview databases are sanitized clones of production, so they reference real prod asset IDs. Without a guard, a preview deploy could upload into the prod namespace, or worse, **delete a production asset** (#432).
+Cloudflare Images and Stream are account-scoped, and R2 is one shared bucket, so **every deployment — production, Railway PR previews, staging, dev — reads and writes the same namespaces.** Without a guard, a preview deploy could upload into the prod namespace, or worse, **delete a production asset** (#432).
+
+⚠ **A preview database holds no production rows, and this paragraph is the one statement of that fact** (#704). Railway forks service configuration and variables, never volume data: a PR environment boots with migrations applied and no content rows at all. The guard still matters — a preview reaches a production asset ID by any route other than its own database (a key typed, pasted, restored from a dump, or a future seed), and the guard makes that harmless rather than merely unlikely. Cite this paragraph rather than restating it, so the claim lives in one place.
 
 `previewIsolation.ts` fixes this by namespacing within the single account, and is a **no-op in production**:
 
@@ -32,7 +34,7 @@ Cloudflare Images and Stream are account-scoped, and R2 is one shared bucket, so
 
 **"Is this production?" keys off the Railway environment name, not `NODE_ENV` and not the origin.** Railway previews run with `NODE_ENV=production`, and they inherit the shared `SAHAJCLOUD_URL` variable, so neither can tell prod and preview apart. `isProductionDeployment()` is true only when `RAILWAY_ENVIRONMENT_NAME` (fallback `RAILWAY_ENVIRONMENT`) equals `production` — PR previews are `pr-<number>` (see `RAILWAY_RUNBOOK.md`). It **fails safe**: any other or unknown name is treated as non-production, so the guard stays active. The only failure mode is prod self-isolating from a misnamed environment — loud, never destructive.
 
-**The delete guard is the safety mechanism.** In non-prod, each adapter's `handleDelete` refuses any asset without the preview marker, so a preview can never delete a cloned prod asset. Production short-circuits the guard and behaves exactly as before. Proven by `tests/unit/storageIsolationGuard.spec.ts`. The image upload path is smoke-tested in `tests/e2e/images.e2e.spec.ts`.
+**The delete guard is the safety mechanism.** In non-prod, each adapter's `handleDelete` refuses any asset without the preview marker, so a preview can never delete a production asset. Production short-circuits the guard and behaves exactly as before. Proven by `tests/unit/storageIsolationGuard.spec.ts`. The image upload path is smoke-tested in `tests/e2e/images.e2e.spec.ts`.
 
 ⚠ **An un-namespaced preview upload looks exactly like real prod data**, and can then be swept by cleanup or kept forever — the marker is the only thing that tells the two apart, so a new upload path must set it.
 
@@ -55,9 +57,13 @@ The script exits 1 with any of the required three missing — deliberately, sinc
 
 ### Manual safety verification (one-time, per #432 AC)
 
-1. In the preview admin, find an image whose `filename` has **no** `preview-` prefix (cloned from prod).
+A preview holds no unmarked row for this recipe to find, so make one (#704):
+
+1. On a preview, upload an image, then edit its `filename` in the preview's Postgres to drop the `preview-` prefix — that is what a production-owned row looks like to the guard.
 2. Delete it from the preview admin.
-3. Confirm the underlying Cloudflare image still resolves at `imagedelivery.net/<hash>/<id>/public` — the admin row is gone, but the shared prod asset survives.
+3. Confirm the underlying Cloudflare image still resolves at `imagedelivery.net/<hash>/<id>/public` — the admin row is gone, but the shared asset survives.
+
+`tests/unit/storageIsolationGuard.spec.ts` covers the same predicate without the setup, which is where to look first.
 
 ## Module layout (`src/plugins/storage/`)
 
