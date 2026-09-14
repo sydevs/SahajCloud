@@ -418,8 +418,9 @@ async function eventSeo(
  *   deliberately different answers. A route past
  *   {@link MAX_ATLAS_ROUTE_LENGTH} is a **400**: the query schema refuses it
  *   before the parser sees it, as it does an empty one.
- * - A root route's `description` is `null` in any locale the operator has not
- *   written one for — the same rule a region follows. Its `title` is always a
+ * - A root route's `description` is `null` in any locale carrying none — the
+ *   same rule a region follows, and since #778 that is a locale outside the ten
+ *   the seed writes. Its `title` is always a
  *   non-blank string, because `<title>` is mandatory markup, and it exhausts
  *   the locale's own words before it borrows another language's —
  *   {@link getRootSeoStrings} owns that order, and `./rootStrings` is the only
