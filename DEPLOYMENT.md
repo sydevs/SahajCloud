@@ -145,12 +145,13 @@ the `Authorization`-present condition and would reopen the cached-403 bypass.
 Cloudflare keys on the full query string, so `?locale=fr` and each client's own `select` shape
 are separate cache entries, and one tag purge covers all of them.
 
-**A second consumer cache sits beyond the edge.** WeMeditateWeb keeps a read-through Cloudflare
-KV layer at 24h for `web-config:*` and `web-translations:*`, which no tag purge can reach. A
-write to a `wm-web-*` global therefore also POSTs the slug to that site's own invalidation
-endpoint — set `WEMEDITATE_REVALIDATE_URL` and `WEMEDITATE_REVALIDATE_SECRET` to enable it. Both
-unset, the call is a no-op, exactly like the Cloudflare purge. SahajAtlasWeb needs nothing: its
-only cache beyond the edge is a per-session React Query window, which a reload clears.
+**The Cloudflare edge is the only cache this app invalidates**, deliberately. WeMeditateWeb still
+keeps a read-through Cloudflare KV layer at 24h for `web-config:*` and `web-translations:*`, which
+no tag purge can reach, so a `wm-web-*` edit can take up to a day to reach that site. The fix
+belongs there, not here: a Worker's `fetch()` to another Cloudflare zone reads through that zone's
+cache, so once the Cache Rule above covers `/api/globals/`, the KV copy is redundant and can go.
+SahajAtlasWeb needs nothing either way — its only cache beyond the edge is a per-session React
+Query window, which a reload clears.
 
 ---
 
@@ -235,7 +236,6 @@ Never paste a secret into git or email.
 - `CLOUDFLARE_IMAGES_DELIVERY_URL`, `CLOUDFLARE_STREAM_DELIVERY_URL`, `CLOUDFLARE_STREAM_WEBHOOK_SECRET`
 - `CLOUDFLARE_API_KEY` — one token for Images and Stream
 - `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_CACHE_PURGE_TOKEN` — enable purge-on-write; unset, every purge is a silent no-op (see [Edge Cache](#edge-cache-cloudflare-cache-rule))
-- `WEMEDITATE_REVALIDATE_URL`, `WEMEDITATE_REVALIDATE_SECRET` — optional, let a `wm-web-*` global write invalidate WeMeditateWeb's own KV copies (#710)
 
 ### Sentry and Resend
 

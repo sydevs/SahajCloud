@@ -7,7 +7,6 @@ import type {
 
 import { CACHEABLE_GLOBALS, CACHEABLE_SLUGS } from './policy'
 import { purgeCloudflareCache } from './purge'
-import { CONSUMER_CACHED_GLOBALS, revalidateConsumerCaches } from './revalidateConsumers'
 
 /**
  * `cachePlugin` — one cohesive edge-cache module for the public client-read
@@ -24,8 +23,8 @@ import { CONSUMER_CACHED_GLOBALS, revalidateConsumerCaches } from './revalidateC
  *     decorator (`./cacheHeaders`).
  * - **Purge-on-write** — the Payload plugin below (folded in from the former
  *   `cachePurge` plugin), best-effort Cloudflare purge for the collections and
- *   globals that back the cached reads, plus a consumer-side revalidation for
- *   the one consumer that keeps its own copy (`./revalidateConsumers`).
+ *   globals that back the cached reads. The Cloudflare edge is the only cache
+ *   this app invalidates: one cache, one invalidation point.
  *
  * NB: response-header emission for built-in reads lives in Next.js middleware,
  * not in this Payload plugin — Payload plugins can't hook HTTP response headers
@@ -59,14 +58,7 @@ export function cachePlugin(config: Config): Config {
     }),
 
     globals: config.globals?.map((global) => {
-      const isCacheable = CACHEABLE_GLOBALS.has(global.slug)
-      const isConsumerCached = CONSUMER_CACHED_GLOBALS.has(global.slug)
-      // The union, because the two invalidations answer to different sets.
-      // Attaching on `CACHEABLE_GLOBALS` alone would tie a consumer's KV purge
-      // to *our* edge-cacheability: dropping `wm-web-config` to DYNAMIC later
-      // would silently stop WeMeditateWeb's revalidation too, which has nothing
-      // to do with whether we cache the read at the edge.
-      if (!isCacheable && !isConsumerCached) return global
+      if (!CACHEABLE_GLOBALS.has(global.slug)) return global
 
       const tag = global.slug
       // A global has no delete, so there is no afterDelete half. `afterChange`
@@ -74,12 +66,7 @@ export function cachePlugin(config: Config): Config {
       // most here: a client read is published-only and merged with English, so
       // publishing one locale changes what every client sees.
       const afterChange: GlobalAfterChangeHook = ({ doc, req }) => {
-        if (isCacheable) {
-          void purgeCloudflareCache({ tags: [tag] }, { logger: req.payload.logger })
-        }
-        if (isConsumerCached) {
-          void revalidateConsumerCaches(tag, { logger: req.payload.logger })
-        }
+        void purgeCloudflareCache({ tags: [tag] }, { logger: req.payload.logger })
         return doc
       }
 

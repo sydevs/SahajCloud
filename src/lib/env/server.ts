@@ -141,22 +141,6 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   CLOUDFLARE_CACHE_PURGE_TOKEN: z.string().min(20).optional(),
 
   /**
-   * WeMeditateWeb's cache-invalidation endpoint, e.g.
-   * `https://wemeditate.com/api/cache/invalidate`.
-   * With `WEMEDITATE_REVALIDATE_SECRET`, a write to a `wm-web-*` global asks
-   * that site to drop its own KV copies. A tag purge cannot reach a consumer's
-   * KV, so without this pair its 24h TTL is the only invalidation.
-   * Optional — unset, the call is a no-op. See `src/plugins/cache`.
-   */
-  WEMEDITATE_REVALIDATE_URL: z.url().optional(),
-
-  /**
-   * Shared secret sent as `Authorization: Bearer …` to the URL above.
-   * Optional. Unset, consumer revalidation does nothing.
-   */
-  WEMEDITATE_REVALIDATE_SECRET: z.string().min(20).optional(),
-
-  /**
    * Cloudflare Images delivery URL.
    * Format: https://imagedelivery.net/<hash>
    */
