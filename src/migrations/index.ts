@@ -63,6 +63,7 @@ import * as migration_20260911_235823_pages_app_cards_localize_status from './20
 import * as migration_20260912_031449_atlas_translations_seo_group from './20260912_031449_atlas_translations_seo_group';
 import * as migration_20260913_212558_wm_web_translations_video_tab from './20260913_212558_wm_web_translations_video_tab';
 import * as migration_20260914_172100_user_submissions from './20260914_172100_user_submissions';
+import * as migration_20260914_175014 from './20260914_175014';
 
 export const migrations = [
   {
@@ -389,5 +390,10 @@ export const migrations = [
     up: migration_20260914_172100_user_submissions.up,
     down: migration_20260914_172100_user_submissions.down,
     name: '20260914_172100_user_submissions',
+  },
+  {
+    up: migration_20260914_175014.up,
+    down: migration_20260914_175014.down,
+    name: '20260914_175014'
   },
 ];
