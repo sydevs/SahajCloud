@@ -285,4 +285,37 @@ describe('atlas translations seeds', () => {
       expect(entries.length).toBeGreaterThan(150)
     },
   )
+
+  // #782: 22 values in `data.hu.json` were the English string — the whole
+  // registration form, its three validation errors, and the country list's own
+  // heading. Nothing downstream could report it. `_meta.omitted_keys` says an
+  // untranslated key is OMITTED, never blank, so the English merge (#705)
+  // serves English for it openly; an English VALUE arrives at the merge
+  // indistinguishable from a real translation.
+  //
+  // Only `hu` is pinned. Four other locales hold English-identical values today
+  // (`cs` 1, `fr` 2, `de` 4, `nl` 6), every one a single word — `Filter`,
+  // `Region`, `Website`, `Contact` — that may be the right loanword. #782
+  // leaves those to a native reader rather than to this assertion.
+  //
+  // ⚠ Equality is the weak half of the check, and #782 is its own proof: five
+  // `event.recurrence.monthly_*` values were English prose differing from
+  // `data.en.json` only in capitalisation, so this comparison would have
+  // passed them. It catches an English value COPIED from the English file, not
+  // one typed by hand.
+  it('data.hu.json holds no English value but the three that are Hungarian too', () => {
+    const english = new Map(seedEntries(readSeed('en')) as Array<[string, string]>)
+    const untranslated = (seedEntries(readSeed('hu')) as Array<[string, string]>)
+      .filter(([key, value]) => english.get(key) === value)
+      .map(([key]) => key)
+      .sort()
+
+    expect(untranslated).toEqual([
+      // `Online` is the Hungarian word too, in both places it appears.
+      'event.display.online',
+      // A format string, byte-identical in all ten locales.
+      'filters.dates.pill_range',
+      'filters.format.online',
+    ])
+  })
 })
