@@ -152,18 +152,15 @@ export function buildCacheHeaders(opts: {
  * Matches a pathname against the built-in cacheable-read shapes and returns its
  * `{ sMaxAge, tags }`, or `null` if not a cacheable built-in read.
  *
- * Cacheable: `/api/<slug>` (list) and `/api/<slug>/<numericId>` (findByID) for a
- * slug in {@link CACHEABLE_SLUGS}. The numeric-id guard is what keeps the custom
- * endpoints out of scope — every one of them is either `/api/<slug>/<name>`
- * (non-numeric second segment, e.g. `/for-user`, `/geojson`) or 3-segment
- * (`/:id/songs`), so none collides with a bare findByID. Those self-manage their
- * headers via {@link publicReadCacheHeaders} in-handler.
+ * Cacheable:
  *
- * Also cacheable: `/api/globals/<slug>` for a slug in {@link CACHEABLE_GLOBALS}.
- * This is a **second shape**, not a slug addition — a global read's second
- * segment is the literal string `globals`, so adding one to `CACHEABLE_SLUGS`
- * would match nothing. Exactly three segments: a versions read
- * (`/api/globals/<slug>/versions`) carries drafts and must stay `DYNAMIC`.
+ * - `/api/<slug>` (list) and `/api/<slug>/<numericId>` (findByID) for a slug in
+ *   {@link CACHEABLE_SLUGS}. The numeric-id guard keeps the custom endpoints out
+ *   of scope — each is `/api/<slug>/<name>` or 3-segment — so they self-manage
+ *   their headers via {@link publicReadCacheHeaders} in-handler.
+ * - `/api/globals/<slug>`, exactly three segments, for a slug in
+ *   {@link CACHEABLE_GLOBALS}. A versions read (`/api/globals/<slug>/versions`)
+ *   carries drafts and stays `DYNAMIC`.
  */
 export function matchCacheableRead(pathname: string): { sMaxAge: number; tags: string[] } | null {
   const segments = pathname.replace(/\/+$/, '').split('/').filter(Boolean)
