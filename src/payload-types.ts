@@ -9757,7 +9757,7 @@ export interface SyAtlasTranslationsSeoStrings {
    */
   root_title?: string;
   /**
-   * `<meta name="description">` for the atlas landing page — one or two sentences about what a visitor finds there. Left blank, the endpoint sends no description in this locale rather than an English one, and the host writes its own.
+   * `<meta name="description">` for the atlas landing page — one or two sentences about what a visitor finds there. Seeded in all ten locales. Blank in a locale, the endpoint sends no description there rather than an English one, and the host writes its own.
    */
   root_description?: string;
 }

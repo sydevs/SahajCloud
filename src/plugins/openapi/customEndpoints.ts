@@ -1526,9 +1526,9 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
         type: 'string',
         description:
           'The document’s own name — a region’s is qualified by its country, since ' +
-          'region names collide across the tree. On a root route it is the title an ' +
-          'operator wrote for the landing page, or, in a locale nobody wrote one ' +
-          'for, that locale’s own name for the atlas rather than the English one. ' +
+          'region names collide across the tree. On a root route it is the landing ' +
+          'page’s own seeded title, or, in a locale carrying none, that locale’s ' +
+          'own name for the atlas rather than the English one. ' +
           'Append your own site name; we ' +
           'compose no prose, because nothing here is translated and an invented ' +
           'sentence would be English in somebody else’s `<head>`.',
@@ -1538,8 +1538,8 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
         description:
           'Plain-text meta description, bounded to ~160 characters. `null` on a ' +
           'region route — a region carries no description in the CMS — and `null` on ' +
-          'a root route in any locale an operator has not written one for, rather ' +
-          'than the English one. For an event with no description of its own, this ' +
+          'a root route in any locale carrying no landing description of its own, ' +
+          'rather than the English one. For an event with no description of its own, this ' +
           'falls back to its schedule and address, which are data rather than prose.',
       },
       canonical: {

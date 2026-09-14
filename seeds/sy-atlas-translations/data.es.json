@@ -270,5 +270,9 @@
   },
   "compact": {
     "open": "Encuentra una clase cerca de ti"
+  },
+  "seo": {
+    "root_title": "Clases gratuitas de meditación cerca de ti",
+    "root_description": "Encuentra clases y eventos de meditación Sahaja Yoga cerca de ti, presenciales o en línea, en cualquier parte del mundo. Todas las clases son gratuitas."
   }
 }

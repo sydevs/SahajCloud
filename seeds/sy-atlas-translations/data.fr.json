@@ -270,5 +270,9 @@
   },
   "compact": {
     "open": "Trouver un cours près de chez vous"
+  },
+  "seo": {
+    "root_title": "Cours de méditation gratuits près de chez vous",
+    "root_description": "Trouvez des cours et des événements de méditation Sahaja Yoga près de chez vous, sur place ou en ligne, partout dans le monde. Tous les cours sont gratuits."
   }
 }
