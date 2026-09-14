@@ -10,11 +10,14 @@ import { CONTACT_EMAIL } from '@/lib/contact'
  * 1. **Strip `emails`.** The plugin's own `sendEmail` afterChange hook fires on
  *    create, before anything screens the submission, and sends through the raw
  *    `payload.sendEmail` rather than this repo's branded React Email templates.
- *    Removing the field is what disables it: `form.emails` is then `undefined`,
- *    so `sendEmail` takes its explicit "nothing to send" branch. That is a
- *    structural disable, not a suppression — no `beforeEmail` hook silently
- *    swallows a message anyone authored, because nothing can be authored.
- *    All delivery belongs to the queue (#695 Phase 2).
+ *    With no `emails` on a form, no email can be authored — so there is
+ *    provably none to send, and no `beforeEmail` hook silently swallows a
+ *    message anyone wrote. All delivery belongs to the queue (#695 Phase 2).
+ *
+ *    ⚠ Stripping the field does **not** disable the hook. `sendEmail` loads
+ *    `data.form` and spreads `data.submissionData` before it looks at `emails`,
+ *    so on a registration or proposal it throws first. `formsPlugin`
+ *    (`src/plugins/formBuilder/index.ts`) removes the hook, and states why.
  * 2. **Add `actionType`** and the two fields conditional on it, so a form
  *    declares what a submission against it *is* rather than leaving that to
  *    whichever client happens to post it.

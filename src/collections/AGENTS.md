@@ -593,7 +593,8 @@ Three things the wrapper does that the plugin options cannot:
   already strips the `emails` field, so nothing can be authored and the hook has
   provably nothing to send — but it still loads `data.form` and spreads
   `data.submissionData` on every create, and both are optional here, so it threw
-  and logged once per registration.
+  and logged once per registration. Stripping the field alone does not disable
+  it; `formsPlugin` states the full mechanism, and is the one place that does.
 - **Makes the `form` relationship per-type.** The plugin marks it
   unconditionally `required`; `contact` and `subscribe` need one, and the two
   types that name an `event` must not have one. The plugin's own existence check

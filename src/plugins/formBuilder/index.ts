@@ -11,45 +11,19 @@ import { prepareUserSubmission } from '@/collections/UserSubmissions/hooks/prepa
 import { CONTACT_EMAIL } from '@/lib/contact'
 
 /**
- * The form-builder plugin, configured once.
+ * The form-builder plugin, configured once, plus the two things its options
+ * cannot express: clearing the plugin's `access` block and dropping its
+ * `sendEmail` hook. Both are stated here and nowhere else.
  *
  * **One definition, shared with the test harness**, which builds its own
  * Payload config (`tests/utils/testHelpers.ts`) — a plugin configured in only
  * one of the two behaves differently under test than in production, which is
  * the trap `REGION_NESTED_DOCS_CONFIG` exists to avoid for nested-docs.
  *
- * Two things it does beyond registering the plugin:
- *
- * - **The submissions collection is renamed `user-submissions`** (#723). It is
- *   the one intake for every public write — contact, subscribe, registration,
- *   proposal — and not every one of those comes from an authored form, which is
- *   why the plugin's own name no longer fits. See
- *   `src/collections/UserSubmissions/`.
- * - **`formOverrides.fields` strips the plugin's `emails` array**, which
- *   structurally disables its create-time `sendEmail` hook: with no `emails` on
- *   the form, that hook takes its explicit "nothing to send" branch. A
- *   `beforeEmail` suppression would have silently swallowed a message somebody
- *   authored; removing the field means nothing can be authored in the first
- *   place. All delivery belongs to the queue (#695 Phase 2).
- *
  * ⚠ Register it **before** `accessPlugin`, which must be last so it sees the
  * collections this creates.
- */
-export const formsPlugin = (): Plugin => async (config) => {
-  const withForms = await formBuilder(config)
-
-  return {
-    ...withForms,
-    collections: withForms.collections?.map((collection) =>
-      collection.slug === 'user-submissions'
-        ? { ...collection, access: {}, hooks: { ...collection.hooks, afterChange: [] } }
-        : collection,
-    ),
-  }
-}
-
-/**
- * ⚠ **The plugin's own `access` block is cleared above, and without that every
+ *
+ * ⚠ **The plugin's own `access` block is cleared below, and without that every
  * access rule this repo writes for `user-submissions` is decorative.**
  *
  * `accessPlugin` composes `{ ...createAccessConfig(slug, …), ...collection.access }`
@@ -81,7 +55,7 @@ export const formsPlugin = (): Plugin => async (config) => {
  * `user-submissions`. Renaming the collection without changing them silently
  * restores the anonymous create above.
  *
- * ⚠ The plugin's `sendEmail` afterChange hook is removed above — as
+ * ⚠ The plugin's `sendEmail` afterChange hook is removed below — as
  * `afterChange: []`, which discards the whole array — and stripping `emails` is
  * not enough on its own. `sendEmail` is the only afterChange the plugin
  * registers and this repo adds none, so nothing else is lost today; a future
@@ -99,6 +73,33 @@ export const formsPlugin = (): Plugin => async (config) => {
  * no email can be authored, so there is provably nothing for it to send — the
  * concern behind "never suppress with `beforeEmail`" is a message somebody
  * wrote going missing, and none can be written. Delivery belongs to the queue.
+ */
+export const formsPlugin = (): Plugin => async (config) => {
+  const withForms = await formBuilder(config)
+
+  return {
+    ...withForms,
+    collections: withForms.collections?.map((collection) =>
+      collection.slug === 'user-submissions'
+        ? { ...collection, access: {}, hooks: { ...collection.hooks, afterChange: [] } }
+        : collection,
+    ),
+  }
+}
+
+/**
+ * The plugin's own options — everything expressible as configuration.
+ *
+ * **The submissions collection is renamed `user-submissions`** (#723). It is
+ * the one intake for every public write — contact, subscribe, registration,
+ * proposal — and not every one of those comes from an authored form, which is
+ * why the plugin's own name no longer fits. See
+ * `src/collections/UserSubmissions/`.
+ *
+ * `formOverrides.fields` strips the plugin's `emails` array. Why, and what that
+ * does and does not buy, is stated once in `src/collections/Forms/fields.ts`,
+ * which owns that list — it is **not** what disables `sendEmail`. `formsPlugin`
+ * above removes the hook.
  */
 const formBuilder = (config: Parameters<Plugin>[0]) =>
   formBuilderPlugin({
