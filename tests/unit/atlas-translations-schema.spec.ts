@@ -299,11 +299,12 @@ describe('atlas translations seeds', () => {
   // is right in that language — a loanword, or a format string carrying no
   // words at all. Adding one asks for that claim to be true.
   //
-  // ⚠ Equality is the weak half of the check, and #782 is its own proof: five
-  // `event.recurrence.monthly_*` values were English prose differing from
-  // `data.en.json` only in capitalisation, so this comparison would have
-  // passed them. It catches an English value COPIED from the English file, not
-  // one typed by hand.
+  // The comparison folds case and trims, because #782 is its own proof that
+  // byte equality is too weak: five `event.recurrence.monthly_*` values were
+  // English prose differing from `data.en.json` in one capital letter
+  // (`of Every Month` against `of every month`), and rendered in English
+  // exactly as the other 22 did. Folding costs nothing — it matched no value
+  // byte equality did not already match, across all ten files.
   const ENGLISH_VALUES_ALLOWED: Record<
     Exclude<(typeof SEED_LOCALES)[number], 'en'>,
     string[]
@@ -352,8 +353,13 @@ describe('atlas translations seeds', () => {
     'data.%s.json holds no English value outside its allowlist',
     (locale) => {
       const english = new Map(seedEntries(readSeed('en')) as Array<[string, string]>)
+      const fold = (value: string): string => value.trim().toLowerCase()
+
       const untranslated = (seedEntries(readSeed(locale)) as Array<[string, string]>)
-        .filter(([key, value]) => english.get(key) === value)
+        .filter(([key, value]) => {
+          const source = english.get(key)
+          return typeof source === 'string' && typeof value === 'string' && fold(source) === fold(value)
+        })
         .map(([key]) => key)
         .sort()
 
