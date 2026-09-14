@@ -794,6 +794,8 @@ export interface Config {
     };
     users: {
       submissions: 'user-submissions';
+      registrations: 'registrations';
+      submittedEvents: 'events';
     };
   };
   collectionsSelect: {
@@ -1995,6 +1997,16 @@ export interface User {
   email: string;
   submissions?: {
     docs?: (number | UserSubmission)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  registrations?: {
+    docs?: (number | Registration)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  submittedEvents?: {
+    docs?: (number | Event)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -4974,6 +4986,8 @@ export interface UsersSelect<T extends boolean = true> {
   name?: T;
   email?: T;
   submissions?: T;
+  registrations?: T;
+  submittedEvents?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;
