@@ -92,7 +92,9 @@ This only works because the authenticated user loads **four times**, not once. `
 | `wemeditate-app-client` | We Meditate mobile app |
 | `sahaj-atlas-client` | Sahaj Atlas application |
 
-The `-client` suffix disambiguates a client role from a project slug. Client roles are **not localized** — one set of roles applies across every locale. Clients are read-only by default, except `wemeditate-web`, which may also create form submissions. API clients see only published documents on draft-enabled collections.
+The `-client` suffix disambiguates a client role from a project slug. Client roles are **not localized** — one set of roles applies across every locale. Clients are read-only by default, except `wemeditate-web`, which may also create form submissions. API clients see only published documents on draft-enabled collections **and globals**.
+
+⚠ **"and globals" is load-bearing, and was false until it was fixed.** The published-only clause asks `entityHasDrafts` whether the entity carries drafts. That used to resolve the slug through `req.payload.collections[...]` alone — a map a global is not in — so it answered `false` for every global, the clause never fired on one, and an ordinary client API key plus `?draft=true` read unpublished copy out of all three translations globals with no preview secret. It now checks `req.payload.config.globals` too. `globals-client-reads.int.spec.ts` reproduces the leak and fails if that branch is removed.
 
 ## Permission checking
 
