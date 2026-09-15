@@ -4,14 +4,15 @@ import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
 import { hideUntilCreated, legacyMigrationFields, publicUrlFields, slugField } from '@/fields'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
-import { getRegionWebPaths } from '@/lib/atlas/regionTree'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { ownedRegionFilterOptions } from '@/plugins/access'
 
 import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
 import { withNonEmptySlug } from './nonEmptySlug'
+import { buildRegionWebPath } from './webPath'
 
 /**
  * The four geo levels of the Atlas region tree. Country, Region, and Area
@@ -112,10 +113,15 @@ export const Regions: CollectionConfig = {
     // edits streamed through Payload's postMessage sender.
     livePreview: {
       // An unsaved document has nothing to fetch yet. Returning null disables the panel.
-      url: ({ data, locale }) =>
-        data.id
-          ? `${serverEnv.SAHAJATLAS_URL}/preview?collection=regions&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`
-          : null,
+      // The region's own map path, shared with `webPath` through
+      // `buildRegionWebPath`.
+      url: async ({ data, locale, req }) =>
+        livePreviewUrl({
+          base: serverEnv.SAHAJATLAS_URL,
+          path: await buildRegionWebPath({ data, req }),
+          role: 'sahaj-atlas-client',
+          params: { locale: locale.code },
+        }),
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
     },
   },
@@ -459,12 +465,9 @@ export const Regions: CollectionConfig = {
       // Meditate surface. Not `SAHAJATLAS_URL`, which is `noindex` by policy.
       web: ({ data, req }) =>
         getCanonicalUrlBase(req, typeof data?.id === 'number' ? data.id : null),
-      buildPath: async ({ data, req }) => {
-        const id = data?.id
-        if (typeof id !== 'number') return null
-        const paths = await getRegionWebPaths(req)
-        return paths.get(id) ?? null
-      },
+      // Shared with the live-preview panel through `buildRegionWebPath`, so
+      // the published URL and the previewed one cannot drift.
+      buildPath: ({ data, req }) => buildRegionWebPath({ data, req }),
       requirePublished: false,
     }),
     ...legacyMigrationFields(),

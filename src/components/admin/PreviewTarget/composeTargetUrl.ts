@@ -11,9 +11,10 @@ import { originOf } from '@/lib/utilities/url'
  *
  * The default's own query rides along verbatim, and this function stays
  * incurious about what is in it. Which parameters a repointed path can still
- * use is the declaring global's business — no translations global sends a
- * preview secret, precisely because the paths their tabs compose never read
- * one (`translations-globals.int.spec.ts`).
+ * use is the declaring global's business — both translations globals now send
+ * a live-preview token, because every route reads and scrubs one, which is
+ * what re-earned it (`translations-globals.int.spec.ts`). That carry-forward
+ * is why a repointed tab still reaches drafts at all.
  *
  * `path` resolves against the default exactly as a browser would resolve an
  * `href`, which is what lets a locale-prefixed site declare `map` and keep its

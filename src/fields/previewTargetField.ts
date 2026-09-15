@@ -8,7 +8,7 @@ import type { UIField } from 'payload'
  * `AddressSearchField.tsx:196`). Everything here is JSON.
  *
  * **It carries no origin and no credential.** The declaration ships to the
- * browser, and `SAHAJCLOUD_PREVIEW_SECRET` is server-only
+ * browser, and the live-preview signing key is server-only
  * (`@/lib/utilities/previewSecret`). So a target never composes a URL from
  * scratch: `composeTargetUrl` rewrites the server-resolved default the global
  * already supplies, keeping its origin and its existing query — the edited

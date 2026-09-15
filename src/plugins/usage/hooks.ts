@@ -221,7 +221,7 @@ export const rateLimitHook: ClientReadGate = () => {
  * `select` parameter.
  *
  * Live-preview reads are also exempt. A request carrying the valid
- * `SAHAJCLOUD_PREVIEW_SECRET` header (see `hasValidPreviewSecret`) renders
+ * live-preview token header (see `hasValidPreviewSecret`) renders
  * the whole document, so forcing it to enumerate `select` and `populate` is
  * meaningless, and breaks the admin live preview.
  */

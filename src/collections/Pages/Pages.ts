@@ -3,6 +3,7 @@ import type { CollectionConfig } from 'payload'
 import { slugField, publicUrlFields } from '@/fields'
 import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import { serverEnv } from '@/lib/env'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 import { PAGE_TAGS } from '@/lib/pageTags'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { pageBlocks } from '@/lib/richEditor/blocks'
@@ -10,6 +11,7 @@ import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexic
 import { adminOnlyFieldAccess } from '@/plugins/access'
 
 import { loadAppConfigOnce } from './appConfigCache'
+import { buildPageWebPath } from './webPath'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
@@ -20,11 +22,16 @@ export const Pages: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', '_status'],
     livePreview: {
-      url: ({ data, locale }) => {
-        // `serverEnv`, not raw `process.env`: an unset variable fails at boot
-        // rather than interpolating `undefined` into the panel's URL.
-        return `${serverEnv.WEMEDITATE_WEB_URL}/${locale.code}/preview?collection=pages&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}`
-      },
+      // The real page, not a preview route: `buildPageWebPath` is the same
+      // composer `webPath` publishes, so the panel and the published URL
+      // cannot disagree. A page with no slug yet has no address, and lands on
+      // the explanation instead of a URL that 404s.
+      url: ({ data, locale }) =>
+        livePreviewUrl({
+          base: serverEnv.WEMEDITATE_WEB_URL,
+          path: buildPageWebPath({ slug: data?.slug, locale: locale.code }),
+          role: 'wemeditate-web-client',
+        }),
     },
   },
   versions: {
@@ -136,11 +143,13 @@ export const Pages: CollectionConfig = {
       web: () => (process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/` : null),
       app: 'wemeditate://',
       buildPath: ({ platform, data, req }) => {
-        const slug = typeof data?.slug === 'string' ? data.slug : null
-        if (!slug) return null
-        if (platform === 'app') return slug
-        const locale = req.locale && req.locale !== 'en' && req.locale !== 'all' ? req.locale : null
-        return [locale, slug].filter(Boolean).join('/')
+        // The app deep-links by bare slug; the web path is shared with the
+        // live-preview panel through `buildPageWebPath`, so the two cannot
+        // drift. See that module for why the locale is passed, not read.
+        if (platform === 'app') {
+          return typeof data?.slug === 'string' && data.slug.length > 0 ? data.slug : null
+        }
+        return buildPageWebPath({ slug: data?.slug, locale: req.locale })
       },
       // Both links already require published (publicUrlFields' built-in gate).
       // Beyond that, the web link needs no extra condition; the app link is

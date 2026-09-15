@@ -25,7 +25,6 @@ import {
 } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
-import { getRegionWebPaths } from '@/lib/atlas/regionTree'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
 import {
@@ -39,6 +38,7 @@ import {
   isPreAdoptionStage,
   isUnmanagedStage,
 } from '@/lib/eventVerification/stages'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { adminOnlyCondition, ownedRegionFilterOptions } from '@/plugins/access'
@@ -58,6 +58,7 @@ import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { syncEventFullness } from './hooks/syncFullness'
 import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
+import { buildEventWebPath } from './webPath'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
 
@@ -126,10 +127,18 @@ export const Events: CollectionConfig = {
     // translates it client-side.
     livePreview: {
       // An unsaved document has nothing to fetch yet. Returning null disables the panel.
-      url: ({ data, locale }) =>
-        data.id
-          ? `${serverEnv.SAHAJATLAS_URL}/preview?collection=events&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`
-          : null,
+      // The event's own map path, shared with `webPath` through
+      // `buildEventWebPath`. A draft with no region yet has nowhere to appear,
+      // and `region` is only nominally required — drafts skip validation — so
+      // that is a normal state, not an edge case.
+      url: async ({ data, locale, req }) =>
+        livePreviewUrl({
+          base: serverEnv.SAHAJATLAS_URL,
+          path: await buildEventWebPath({ data, req }),
+          role: 'sahaj-atlas-client',
+          params: { locale: locale.code },
+          reason: 'no-region',
+        }),
       // Phone-sized frame for the widget's bottom-sheet drawer layout.
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
     },
@@ -330,13 +339,9 @@ export const Events: CollectionConfig = {
             // `SAHAJATLAS_URL`, which is `noindex` by policy.
             ...publicUrlFields({
               web: ({ data, req }) => getCanonicalUrlBase(req, relationId(data?.region)),
-              buildPath: async ({ data, req }) => {
-                const regionId = relationId(data?.region)
-                const id = data?.id
-                if (regionId == null || typeof id !== 'number') return null
-                const regionPath = (await getRegionWebPaths(req)).get(regionId)
-                return regionPath != null ? `${regionPath}/${id}` : null
-              },
+              // Shared with the live-preview panel through `buildEventWebPath`,
+              // so the published URL and the previewed one cannot drift.
+              buildPath: ({ data, req }) => buildEventWebPath({ data, req }),
             }),
           ],
         },

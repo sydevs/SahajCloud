@@ -1,17 +1,31 @@
 import type { GlobalConfig } from 'payload'
 
 import { availableLocalesField } from '@/fields/availableLocalesField'
+import { serverEnv } from '@/lib/env'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 
 export const WeMeditateWebConfig: GlobalConfig = {
   slug: 'wm-web-config',
   admin: {
     group: 'WeMeditate Web',
     livePreview: {
-      url: ({ data, locale }) => {
-        const baseURL = process.env.WEMEDITATE_WEB_URL
-        const homePageId = typeof data.homePage === 'object' ? data.homePage?.id : data.homePage
-        return `${baseURL}/${locale.code}/preview?collection=pages&id=${homePageId}&secret=${process.env.SAHAJCLOUD_PREVIEW_SECRET}`
-      },
+      // The site root, which is what this global configures. It used to
+      // resolve `homePage` and preview that page by id — a data-dependent URL,
+      // which #708 established re-resolves on every save and clobbers a
+      // repointed panel. The root renders the home page anyway.
+      url: ({ locale }) =>
+        livePreviewUrl({
+          base: serverEnv.WEMEDITATE_WEB_URL,
+          // Trailing slash for the same reason as the translations global:
+          // a relative target must resolve under the locale, not beside it.
+          path: locale.code === 'en' ? '' : `${locale.code}/`,
+          role: 'wemeditate-web-client',
+          // Without this the consumer falls back to "the route's own primary
+          // document", and reads drafts for the home *page* rather than for
+          // the config global being edited. `wm-web-config` is a declared
+          // scope in WeMeditateWeb's closed set; this is its only emitter.
+          params: { scope: 'wm-web-config' },
+        }),
     },
   },
   label: 'Configuration',

@@ -248,12 +248,6 @@ const ServerEnvSchema = ClientEnvSchema.extend({
     .default('/map'),
 
   /**
-   * Shared secret that allows trusted server-side preview requests to read drafts.
-   * This should match the web frontend's SAHAJCLOUD_PREVIEW_SECRET value.
-   */
-  SAHAJCLOUD_PREVIEW_SECRET: z.string().min(16),
-
-  /**
    * Ed25519 private key that signs live-preview tokens: base64 of a private
    * JWK. A JWK carries the public `x` beside the private `d`, so this one
    * variable also yields the key that VERIFIES a token a consumer forwards

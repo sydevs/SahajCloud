@@ -2,6 +2,7 @@ import type { GlobalConfig } from 'payload'
 
 import { buildTranslationTabs, type TranslationsSchema } from '@/fields/translationsField'
 import { serverEnv } from '@/lib/env'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 import { clientEnglishFallback } from '@/lib/translations/clientEnglishFallback'
 
 import translationsSchema from './translationsSchema.json' with { type: 'json' }
@@ -26,7 +27,26 @@ export const WeMeditateWebTranslations: GlobalConfig = {
     // Sentry's session replay, which this site runs — for no reader. See the
     // Sahaj Atlas global.
     livePreview: {
-      url: ({ locale }) => `${serverEnv.WEMEDITATE_WEB_URL}/${locale.code}/`,
+      // Now carries the credential. #773 had to strip it: `/preview` was the
+      // only route that read *and* scrubbed one, so a secret sent anywhere
+      // else sat in the panel's URL for a whole editing session. Every route
+      // reads and scrubs a token now, which is what re-earns it — and a
+      // translator finally sees the string they are editing, rather than the
+      // published copy #776 was filed about.
+      //
+      // Reads `locale`, never `data`: a data-dependent URL re-resolves on save
+      // and clobbers a tab's repoint (#708).
+      url: ({ locale }) =>
+        livePreviewUrl({
+          base: serverEnv.WEMEDITATE_WEB_URL,
+          // ⚠ The trailing slash is load-bearing. A tab's relative target
+          // (`map`) resolves against this URL: under `/fr/` it becomes
+          // `/fr/map`, but under `/fr` it hoists to `/map` and the edited
+          // locale is silently lost.
+          path: locale.code === 'en' ? '' : `${locale.code}/`,
+          role: 'wemeditate-web-client',
+          params: { scope: 'wm-web-translations' },
+        }),
     },
   },
   versions: {
