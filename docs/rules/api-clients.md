@@ -167,13 +167,12 @@ Access is permission-based via `accessPlugin` — a client needs an explicit per
 
 One collection accepts every public write, discriminated by `type`: `contact`, `subscribe`, `registration`, `proposal` (#723). Turnstile, the disposable-email check and the URL scan apply to all four — the guard runs before anything reads `type`, so a policy relaxed for one type would be reachable by claiming to be that type.
 
-Three refusals are specific to it, each with a message naming what to fix:
+Two refusals are specific to it, each with a message naming what to fix:
 
 | `errors[0].code` | Status | Means |
 | --- | --- | --- |
 | `submission_data_invalid` | 400 | An unrecognised `type`, or a `submissionData` pair carrying a key this type does not accept, a duplicate key, a non-string value, or an over-long one. The message names the key |
 | `submission_type_mismatch` | 400 | The `type` disagrees with the form's `actionType`. The form is the authority on what a submission against it is |
-| `subscribe_target_forbidden` | **403** | A `subscribe` row named a form belonging to another client. Only the We Meditate roles may target any form |
 
 `urls_not_allowed` also reaches `submissionData`, with one deliberate exemption: `path`, `hostUrl`, `error`, `userAgent` and `locale` are never URL-scanned, because an issue report names the page it happened on.
 

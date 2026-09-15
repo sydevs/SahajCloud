@@ -1,7 +1,7 @@
 /**
  * The unified intake's create path (#723), per type, as an API client actually
- * performs it: write-guard plugin → `enforceSubscribeReach` →
- * `prepareUserSubmission` → field access → the per-type `form` validator.
+ * performs it: write-guard plugin → `prepareUserSubmission` → field access →
+ * the per-type `form` validator.
  *
  * These run with **`overrideAccess: false`** and a real published client, which
  * is the point: `overrideAccess: true` skips field-level access, so a spec using
@@ -374,21 +374,6 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
     })
   })
 
-  describe('subscribe role reach', () => {
-    it("refuses an atlas client subscribing against another client's form", async () => {
-      await expect(
-        send(
-          {
-            type: 'subscribe',
-            form: subscribeForm.id,
-            senderEmail: 'poached@example.com',
-          },
-          { as: () => otherClient },
-        ),
-      ).rejects.toThrow()
-    })
-  })
-
   describe('system fields', () => {
     it('stamps the client from the authenticated key, not the body', async () => {
       const doc = await send({
@@ -446,9 +431,9 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
     })
 
     it("refuses a type that disagrees with the form's actionType", async () => {
-      // The form is the authority on what a submission against it is. Without
-      // this, a restricted client posts against another client's subscribe form
-      // while calling the row a `contact`, and the reach check never runs.
+      // The form is the authority on what a submission against it is. A caller
+      // and a form disagreeing is a bug in the caller, and every per-type rule
+      // downstream keys on `type`.
       await expect(
         send({
           type: 'contact',

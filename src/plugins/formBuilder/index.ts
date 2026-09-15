@@ -6,7 +6,6 @@ import { validateProposal } from '@/collections/EventSubmissions/hooks/validateP
 import { formFields } from '@/collections/Forms/fields'
 import { validateFormAction } from '@/collections/Forms/hooks/validateFormAction'
 import { userSubmissionFields } from '@/collections/UserSubmissions/fields'
-import { enforceSubscribeReach } from '@/collections/UserSubmissions/hooks/enforceSubscribeReach'
 import { prepareUserSubmission } from '@/collections/UserSubmissions/hooks/prepareUserSubmission'
 import { CONTACT_EMAIL } from '@/lib/contact'
 
@@ -132,7 +131,7 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
       // when `event-submissions` is deleted; duplicating it now would give the
       // rule two definitions to reconcile at that merge.
       hooks: {
-        beforeValidate: [validateProposal, enforceSubscribeReach, prepareUserSubmission],
+        beforeValidate: [validateProposal, prepareUserSubmission],
       },
     },
   })(config)

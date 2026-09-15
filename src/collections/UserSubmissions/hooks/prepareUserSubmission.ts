@@ -93,9 +93,10 @@ export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
   const fromClient = req.user?.collection === 'clients'
 
   // The form is the authority on what a submission against it *is*. `type`
-  // arrives in the body, and the reach check keys on it — so without this a
-  // restricted client posts against another client's subscribe form while
-  // calling the row a `contact`, and `enforceSubscribeReach` never runs.
+  // arrives in the body and every per-type rule below keys on it — the allowed
+  // `submissionData` keys, the subject composition, the retention window — so a
+  // row calling itself a `contact` against a subscribe form is judged by the
+  // wrong rules throughout.
   // Refused rather than silently corrected: a caller and a form disagreeing
   // about what is being submitted is a bug in the caller, and quietly
   // rewriting it would hide it.
