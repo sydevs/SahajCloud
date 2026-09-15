@@ -9,7 +9,7 @@ import type { KeyframeData } from '@/types/frames'
 
 import styles from './FrameListManager.module.css'
 import { FrameThumbnail } from './FrameThumbnail'
-import { useLivePreviewAuto, usePlaybackTime, useSeekToTime } from './hooks'
+import { usePlaybackTime, useSeekToTime } from './hooks'
 import { baseStyles, listManagerStyles } from './styles'
 import { formatTime, getFrameDisplayLabel, parseTime, validateTimestamp } from './utils'
 
@@ -127,7 +127,6 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
   const frames = useMemo(() => value || [], [value])
 
   // Custom hooks for shared functionality
-  useLivePreviewAuto() // Auto-open live preview panel
   const currentPlaybackTime = usePlaybackTime() // Listen for playback time updates
   const seekToTime = useSeekToTime() // Send seek commands to live preview
 

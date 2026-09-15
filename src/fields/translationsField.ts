@@ -16,6 +16,7 @@ import { pluralStorageKeys } from '@/lib/translations/pluralCategories'
 
 
 import { jsonField } from './jsonField'
+import { previewTargetField, type PreviewTarget } from './previewTargetField'
 
 // ============================================================================
 // Types
@@ -70,6 +71,10 @@ type LeafPropertySchema = StringPropertySchema | RichTextPropertySchema
  * Non-JSON-Schema extensions consumed by the Payload admin builder:
  * - `screenshot` (group level): relative path or URL (image or Figma) shown
  *   above the translation rows for translator orientation.
+ * - `preview` (top-level group only): where the Live Preview panel points
+ *   while that tab is open, as a `PreviewTarget`. Declared beside the group
+ *   that describes the view, since the per-view URL belongs to the view. A
+ *   group with no `preview` leaves the panel on the global's default URL.
  * - `maxLength` (string-key level, see `StringPropertySchema`): soft per-key
  *   character limit surfaced as a reference + non-blocking over-length warning.
  * - `plural` (string-key level, see `StringPropertySchema`): expands one key
@@ -81,6 +86,12 @@ interface GroupSchema {
   properties?: Record<string, LeafPropertySchema | GroupSchema>
   additionalProperties?: boolean
   screenshot?: string
+  /**
+   * Read on a top-level group only — a sub-group renders as a collapsible,
+   * which mounts whether or not it is open, so it cannot tell the panel
+   * anything. See `previewTargetField`.
+   */
+  preview?: PreviewTarget
 }
 
 export interface TranslationsSchema {
@@ -417,6 +428,11 @@ export function buildTranslationTabs(
       const subgroups = Object.entries(groupProps).filter((entry): entry is [string, GroupSchema] =>
         isGroupSchema(entry[1]),
       )
+      // First in the tab, so the panel repoints as the tab opens rather than
+      // after the translator has scrolled.
+      const previewFields = groupSchema.preview
+        ? [previewTargetField(groupSchema.preview, `${groupSlug}__preview_target`)]
+        : []
 
       if (subgroups.length > 0) {
         // Wrap sub-group fields in a group named after the tab slug so the
@@ -447,14 +463,14 @@ export function buildTranslationTabs(
         return {
           label: slugLabel(groupSlug),
           description: groupSchema.description,
-          fields: [groupField],
+          fields: [...previewFields, groupField],
         }
       }
 
       return {
         label: slugLabel(groupSlug),
         description: groupSchema.description,
-        fields: createLeafFields(groupSlug, groupSchema, globalSlug),
+        fields: [...previewFields, ...createLeafFields(groupSlug, groupSchema, globalSlug)],
       }
     })
 }

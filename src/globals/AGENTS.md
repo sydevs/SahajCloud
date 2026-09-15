@@ -249,6 +249,14 @@ tab. Each leaf group emits:
   `<leafSlug>_<key>`, with a `RichTextReference` description showing the
   English reference value.
 
+A top-level group may also declare `preview` — where the Live Preview panel
+points while that tab is open (`{ path?, params?, autoOpen? }`, see
+`previewTargetField`). The builder injects it as the tab's first field, so a
+translator edits each string against the screen it appears on. It is read on
+a **top-level** group only: a sub-group is a collapsible, and a collapsed one
+still mounts its fields. A group with no `preview` leaves the panel on the
+global's own URL. Rules and traps: `docs/rules/admin-ui.md`.
+
 **Why JSON-per-leaf-group, not a column per key**: Postgres caps a function
 call at 100 arguments (`FUNC_MAX_ARGS`), and Drizzle hits this building
 `json_build_array()` to aggregate a global's localized columns.
@@ -298,8 +306,8 @@ write.
   that predates it, on a save that never touched translations.
 - **Only standard JSON Schema keywords may appear.** Payload runs Ajv 8 in
   strict mode, where an unknown keyword throws at *validate* time, not at
-  boot — so `plural`, `screenshot` and `strict` must never reach the
-  emitted schema. A plural key contributes its expanded CLDR family.
+  boot — so `plural`, `preview`, `screenshot` and `strict` must never reach
+  the emitted schema. A plural key contributes its expanded CLDR family.
 
 ### Sub-groups render as collapsibles
 

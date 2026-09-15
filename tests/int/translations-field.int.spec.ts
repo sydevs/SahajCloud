@@ -11,6 +11,9 @@
  * wm-app-translations has ~478 leaf keys, well past what a column-per-key
  * design allows. The shape carried over unchanged after the move to Postgres.
  */
+import type { Field } from 'payload'
+
+import { createClientField } from 'payload'
 import { describe, expect, it } from 'vitest'
 
 import { buildTranslationTabs, type SchemaEntry, type TranslationsSchema } from '@/fields'
@@ -418,6 +421,86 @@ describe('buildTranslationTabs', () => {
     })
   })
 
+  /**
+   * The preview target (#708). A tab's declaration is the only way the client
+   * learns which view a translator is looking at — `admin.livePreview.url` runs
+   * on the server and never sees the open tab.
+   */
+  describe('preview target field', () => {
+    const withPreview: TranslationsSchema = {
+      type: 'object',
+      properties: {
+        search: {
+          type: 'object',
+          preview: { path: '/search' },
+          properties: { title: { type: 'string', description: 't' } },
+        },
+        emails: {
+          type: 'object',
+          properties: { subject: { type: 'string', description: 's' } },
+        },
+        filters: {
+          type: 'object',
+          preview: { path: '/filters' },
+          properties: {
+            day: { type: 'object', properties: { label: { type: 'string', description: 'l' } } },
+          },
+        },
+      },
+    }
+
+    it('injects the field first in a tab that declares a preview', () => {
+      const [search] = buildTranslationTabs(withPreview, 'sy-atlas-translations')
+      const fields = search!.fields as Array<{ name: string; type: string }>
+
+      expect(fields[0]).toMatchObject({ name: 'search__preview_target', type: 'ui' })
+      expect(fields[1]).toMatchObject({ name: 'search', type: 'json' })
+    })
+
+    it('injects nothing in a tab that declares none', () => {
+      const [, emails] = buildTranslationTabs(withPreview, 'sy-atlas-translations')
+      const fields = emails!.fields as Array<{ name: string; type: string }>
+
+      expect(fields.some((field) => field.type === 'ui')).toBe(false)
+    })
+
+    // A nested tab wraps its sub-groups in a Payload group. The target still
+    // belongs to the tab, outside that wrapper — a collapsed sub-group mounts
+    // its own fields, so one placed inside would fire for every sub-group.
+    it('sits outside the group wrapper on a nested tab', () => {
+      const [, , filters] = buildTranslationTabs(withPreview, 'sy-atlas-translations')
+      const fields = filters!.fields as Array<{ name: string; type: string }>
+
+      expect(fields[0]).toMatchObject({ name: 'filters__preview_target', type: 'ui' })
+      expect(fields[1]).toMatchObject({ name: 'filters', type: 'group' })
+    })
+
+    it('reaches the browser under admin.custom, carrying data and no function', () => {
+      const [search] = buildTranslationTabs(withPreview, 'sy-atlas-translations')
+      const field = (search!.fields as Field[])[0]!
+
+      const toClient = (input: Field) =>
+        createClientField({
+          defaultIDType: 'number',
+          field: input,
+          i18n: { t: (key: string) => key } as never,
+          importMap: {},
+        }) as { admin?: { custom?: { previewTarget?: unknown } }; custom?: unknown }
+
+      expect(toClient(field).admin?.custom?.previewTarget).toEqual({ path: '/search' })
+
+      // Why it has to be `admin.custom`: the same declaration one level up is
+      // stripped on its way to the browser, and the component would find
+      // nothing.
+      expect(toClient({ ...field, custom: { previewTarget: { path: '/search' } } }).custom)
+        .toBeUndefined()
+
+      // Serialized, so it can hold data and never a function.
+      const custom = toClient(field).admin!.custom
+      expect(JSON.parse(JSON.stringify(custom))).toEqual(custom)
+    })
+  })
+
   describe('jsonSchema on the JSON field', () => {
     function getSchema(schema: TranslationsSchema, fieldName: string): JsonSchemaObject {
       const tabs = buildTranslationTabs(schema, 'sy-atlas-translations')
@@ -507,6 +590,7 @@ describe('buildTranslationTabs', () => {
           emails: {
             type: 'object',
             screenshot: '/shots/emails.png',
+            preview: { path: '/emails' },
             properties: {
               count: { type: 'string', description: 'C', plural: true, maxLength: 8, strict: true },
             },
@@ -515,7 +599,7 @@ describe('buildTranslationTabs', () => {
       }
       const emitted = getSchema(extended, 'emails')
       const serialized = JSON.stringify(emitted)
-      for (const keyword of ['plural', 'screenshot', 'strict']) {
+      for (const keyword of ['plural', 'preview', 'screenshot', 'strict']) {
         expect(serialized).not.toContain(`"${keyword}"`)
       }
       expect(Object.keys(emitted).sort()).toEqual([

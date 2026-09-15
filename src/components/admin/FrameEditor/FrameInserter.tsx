@@ -11,7 +11,7 @@ import type { KeyframeData } from '@/types/frames'
 
 import styles from './FrameInserter.module.css'
 import { FrameThumbnail } from './FrameThumbnail'
-import { useAvailableFrames, useLivePreviewAuto, usePlaybackTime } from './hooks'
+import { useAvailableFrames, usePlaybackTime } from './hooks'
 import { baseStyles, inserterStyles } from './styles'
 import {
   formatTime,
@@ -83,7 +83,6 @@ export const FrameInserter: UIFieldClientComponent = () => {
   const { value: narratorId } = useField<string>({ path: 'narrator' })
 
   // Custom hooks for shared functionality
-  useLivePreviewAuto() // Auto-open live preview panel
   const currentPlaybackTime = usePlaybackTime() // Listen for playback time updates
 
   // Fetch frames filtered by narrator's gender using custom endpoint
