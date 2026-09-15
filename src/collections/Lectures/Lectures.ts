@@ -4,7 +4,7 @@ import { mediaField, urlField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { serverEnv } from '@/lib/env'
 import { lectureMetadataSchema } from '@/lib/lectures/nirmalaVidya'
-import { livePreviewUrl } from '@/lib/livePreview/url'
+import { livePreviewUrl, wmWebLocalePath } from '@/lib/livePreview/url'
 import { LOCALES, getLocaleLabel } from '@/lib/locales'
 
 import { lecturesForAudience } from './endpoints/forAudience'
@@ -47,9 +47,11 @@ export const Lectures: CollectionConfig = {
       url: ({ data, locale }) =>
         livePreviewUrl({
           base: serverEnv.WEMEDITATE_WEB_URL,
-          path: typeof data?.id === 'number' ? `lectures/${data.id}` : null,
+          path:
+            typeof data?.id === 'number'
+              ? wmWebLocalePath(`lectures/${data.id}`, locale.code)
+              : null,
           role: 'wemeditate-web-client',
-          params: { locale: locale.code },
         }),
     },
   },

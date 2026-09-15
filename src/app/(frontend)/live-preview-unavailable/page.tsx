@@ -28,7 +28,7 @@ import React from 'react'
 const REASONS: Record<string, { title: string; body: string }> = {
   'no-key': {
     title: 'Live preview is not configured',
-    body: 'This environment has no live-preview signing key, so preview links cannot be issued. Set LIVE_PREVIEW_SIGNING_KEY on the service to enable it.',
+    body: 'This environment cannot issue preview links. An administrator needs to configure live-preview signing before the panel will work here.',
   },
   'no-path': {
     title: 'This document has no address yet',
@@ -45,11 +45,17 @@ const FALLBACK = {
   body: 'There is no page to preview for this document yet.',
 }
 
+/** Never a URL to point a crawler at, and it is reachable unauthenticated. */
+export const metadata = { robots: { index: false, follow: false } }
+
 export default async function LivePreviewUnavailablePage(props: {
   searchParams: Promise<{ reason?: string }>
 }) {
   const { reason } = await props.searchParams
-  const { title, body } = (reason && REASONS[reason]) || FALLBACK
+  // `Object.hasOwn`, not a truthiness check: `?reason=constructor` reaches the
+  // prototype chain, passes a truthy test, and destructures to two undefineds
+  // — a blank page instead of the fallback.
+  const { title, body } = reason && Object.hasOwn(REASONS, reason) ? REASONS[reason]! : FALLBACK
 
   return (
     <div

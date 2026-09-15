@@ -307,8 +307,14 @@ describe('Atlas collections', () => {
       // region-less event draft is ordinary, and it is exactly the document an
       // editor is most likely to be previewing. Returning `null` here would
       // close the panel AND persist "live preview off" as their preference.
-      const url = new URL(await resolve('events', { id: 999_999 }))
+      // Root-relative: Payload resolves it against the admin window, so it is
+      // same-origin wherever the admin is served. An absolute URL built from
+      // `SAHAJCLOUD_URL` was refused by the CSP on a Railway PR preview, which
+      // inherits the production value.
+      const raw = await resolve('events', { id: 999_999 })
+      expect(raw.startsWith('/')).toBe(true)
 
+      const url = new URL(raw, 'https://admin.example')
       expect(url.pathname).toBe('/live-preview-unavailable')
       expect(url.searchParams.get('reason')).toBe('no-region')
     })

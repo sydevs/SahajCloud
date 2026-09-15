@@ -27,10 +27,16 @@ describe('buildPageWebPath', () => {
     expect(buildPageWebPath({ slug: 'about', locale: null })).toBe('about')
   })
 
-  it('never emits a tag segment', () => {
-    // The defect this module exists to prevent: `/wisdom/about` is a 404 on
-    // every site that has ever served this content.
-    expect(buildPageWebPath({ slug: 'about', locale: 'en' })).not.toContain('/')
+  it('emits at most a locale segment and a slug — never a third', () => {
+    // The defect this module exists to prevent was a TAG segment, giving
+    // `/wisdom/about` — a 404 on every site that has ever served this content.
+    //
+    // The old version of this case asserted `not.toContain('/')` on an English
+    // path, which this function is structurally incapable of failing: it takes
+    // no tag, and a non-default locale legitimately contains a slash. Counting
+    // segments is what actually pins the shape.
+    expect(buildPageWebPath({ slug: 'about', locale: 'en' })!.split('/')).toHaveLength(1)
+    expect(buildPageWebPath({ slug: 'about', locale: 'cs' })!.split('/')).toHaveLength(2)
   })
 
   it('is null without a usable slug, so no caller builds a URL to nowhere', () => {

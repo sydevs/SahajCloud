@@ -1,5 +1,3 @@
-import { getServerUrl } from '@/lib/utilities/serverUrl'
-
 /**
  * Why a document could not be given a live-preview URL.
  *
@@ -19,8 +17,15 @@ export type LivePreviewUnavailableReason = 'no-key' | 'no-path' | 'no-region'
  * docblock for the full reasoning.
  */
 export function livePreviewUnavailableUrl(reason: LivePreviewUnavailableReason): string {
-  // `getServerUrl`, not `serverEnv.SAHAJCLOUD_URL` — that one is optional and
-  // derives from `PORT` locally, so reading it raw yields
-  // `undefined/live-preview-unavailable` on a dev machine.
-  return `${getServerUrl()}/live-preview-unavailable?reason=${reason}`
+  // ⚠ **Root-relative, not absolute.** Payload's `formatAbsoluteURL` resolves
+  // it against the admin window, so it is `'self'` by construction and the CSP
+  // `frame-src` admits it everywhere.
+  //
+  // An absolute URL built from `SAHAJCLOUD_URL` did not survive a Railway PR
+  // preview: previews inherit the shared production value, so the iframe
+  // pointed cross-origin from a `pr-<n>` host and was refused. That combined
+  // badly with the other half — a preview environment has no signing key, so
+  // EVERY panel resolves here, and the page that exists to avoid a blank panel
+  // would have produced one on every PR.
+  return `/live-preview-unavailable?reason=${reason}`
 }

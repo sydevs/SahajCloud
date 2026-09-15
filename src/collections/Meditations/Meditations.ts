@@ -7,7 +7,7 @@ import { hideUntilCreated, mediaField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { previewTargetField } from '@/fields/previewTargetField'
 import { serverEnv } from '@/lib/env'
-import { livePreviewUrl } from '@/lib/livePreview/url'
+import { livePreviewUrl, wmWebLocalePath } from '@/lib/livePreview/url'
 import { LOCALES } from '@/lib/locales'
 import {
   getFrameDiagnosticsLogContext,
@@ -161,9 +161,11 @@ export const Meditations: CollectionConfig = {
       url: ({ data, locale }) =>
         livePreviewUrl({
           base: serverEnv.WEMEDITATE_WEB_URL,
-          path: typeof data?.id === 'number' ? `meditations/${data.id}/embed` : null,
+          path:
+            typeof data?.id === 'number'
+              ? wmWebLocalePath(`meditations/${data.id}/embed`, locale.code)
+              : null,
           role: 'wemeditate-web-client',
-          params: { locale: locale.code },
         }),
       breakpoints: [
         {

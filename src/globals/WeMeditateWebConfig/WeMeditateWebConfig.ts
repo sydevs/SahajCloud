@@ -20,6 +20,11 @@ export const WeMeditateWebConfig: GlobalConfig = {
           // a relative target must resolve under the locale, not beside it.
           path: locale.code === 'en' ? '' : `${locale.code}/`,
           role: 'wemeditate-web-client',
+          // Without this the consumer falls back to "the route's own primary
+          // document", and reads drafts for the home *page* rather than for
+          // the config global being edited. `wm-web-config` is a declared
+          // scope in WeMeditateWeb's closed set; this is its only emitter.
+          params: { scope: 'wm-web-config' },
         }),
     },
   },

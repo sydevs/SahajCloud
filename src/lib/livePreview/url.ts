@@ -4,6 +4,25 @@ import { mintLivePreviewToken, type LivePreviewRole } from './token'
 import { livePreviewUnavailableUrl, type LivePreviewUnavailableReason } from './unavailable'
 
 /**
+ * Prefixes a WeMeditate Web path with its locale.
+ *
+ * ⚠ **WeMeditateWeb derives the locale from the PATH and nowhere else.**
+ * `pages/+onBeforeRoute.ts` matches `^/([a-z]{2}(?:-[A-Z]{2})?)(?:/(.*))?$`;
+ * nothing in that repo reads a `locale` query parameter. Passing one leaves a
+ * translator's panel silently rendering English while they edit another
+ * locale — no error, just the wrong copy.
+ *
+ * English takes no prefix: `/en/x` 301s to `/x`, so prefixing it costs a
+ * redirect for nothing.
+ *
+ * The atlas is the opposite and correctly keeps `?locale=` — it reads the
+ * parameter through i18next's `lookupQuerystring`.
+ */
+export function wmWebLocalePath(path: string, localeCode: string): string {
+  return localeCode === 'en' ? path : `${localeCode}/${path}`
+}
+
+/**
  * Composes the URL the Live Preview panel points at.
  *
  * Every `admin.livePreview.url` goes through here, so the shape of a preview
