@@ -10,6 +10,7 @@ import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexic
 import { adminOnlyFieldAccess } from '@/plugins/access'
 
 import { loadAppConfigOnce } from './appConfigCache'
+import { buildPageWebPath } from './webPath'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
@@ -136,11 +137,13 @@ export const Pages: CollectionConfig = {
       web: () => (process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/` : null),
       app: 'wemeditate://',
       buildPath: ({ platform, data, req }) => {
-        const slug = typeof data?.slug === 'string' ? data.slug : null
-        if (!slug) return null
-        if (platform === 'app') return slug
-        const locale = req.locale && req.locale !== 'en' && req.locale !== 'all' ? req.locale : null
-        return [locale, slug].filter(Boolean).join('/')
+        // The app deep-links by bare slug; the web path is shared with the
+        // live-preview panel through `buildPageWebPath`, so the two cannot
+        // drift. See that module for why the locale is passed, not read.
+        if (platform === 'app') {
+          return typeof data?.slug === 'string' && data.slug.length > 0 ? data.slug : null
+        }
+        return buildPageWebPath({ slug: data?.slug, locale: req.locale })
       },
       // Both links already require published (publicUrlFields' built-in gate).
       // Beyond that, the web link needs no extra condition; the app link is

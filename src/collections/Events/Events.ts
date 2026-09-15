@@ -25,7 +25,6 @@ import {
 } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
-import { getRegionWebPaths } from '@/lib/atlas/regionTree'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
 import {
@@ -58,6 +57,7 @@ import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { syncEventFullness } from './hooks/syncFullness'
 import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
+import { buildEventWebPath } from './webPath'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
 
@@ -330,13 +330,9 @@ export const Events: CollectionConfig = {
             // `SAHAJATLAS_URL`, which is `noindex` by policy.
             ...publicUrlFields({
               web: ({ data, req }) => getCanonicalUrlBase(req, relationId(data?.region)),
-              buildPath: async ({ data, req }) => {
-                const regionId = relationId(data?.region)
-                const id = data?.id
-                if (regionId == null || typeof id !== 'number') return null
-                const regionPath = (await getRegionWebPaths(req)).get(regionId)
-                return regionPath != null ? `${regionPath}/${id}` : null
-              },
+              // Shared with the live-preview panel through `buildEventWebPath`,
+              // so the published URL and the previewed one cannot drift.
+              buildPath: ({ data, req }) => buildEventWebPath({ data, req }),
             }),
           ],
         },
