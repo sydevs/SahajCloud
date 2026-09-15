@@ -11,7 +11,6 @@ import {
   MACHINE_SPAM_DAYS,
   PROPOSAL_DAYS,
   PURGE_WINDOWS,
-  RETENTION_DAYS,
 } from '@/jobs/PurgeSubmissions/retention'
 import { REPEAT_SENDER_MAX } from '@/jobs/ScreenSubmissions/senderHistory'
 
@@ -31,11 +30,30 @@ describe('Submission retention', () => {
     expect(MACHINE_SPAM_DAYS).toBeGreaterThan(PROPOSAL_DAYS)
   })
 
-  it('keeps a registration and a subscription forever', () => {
-    expect(RETENTION_DAYS.registration).toBeNull()
-    expect(RETENTION_DAYS.subscribe).toBeNull()
-    // The same two types, said the other way: they are what pin a `users` row.
+  /**
+   * ⚠ This asserts the **sweep**, not a table beside it. The version that
+   * asserted a `RETENTION_DAYS` table passed while the spam window deleted a
+   * `rejected` registration at 90 days, because nothing read the table. A
+   * window reaches a durable type by naming it, or by naming no type at all —
+   * so both shapes have to fail here.
+   */
+  it('lets no window reach a registration or a subscription', () => {
     expect([...DURABLE_TYPES].sort()).toEqual(['registration', 'subscribe'])
+
+    for (const window of PURGE_WINDOWS) {
+      const where = window.where(new Date().toISOString()) as {
+        type?: { equals?: string; in?: string[]; not_in?: string[] }
+      }
+
+      for (const durable of DURABLE_TYPES) {
+        const reachable =
+          where.type == null ||
+          where.type.equals === durable ||
+          (where.type.in?.includes(durable) ?? false) ||
+          (where.type.not_in != null && !where.type.not_in.includes(durable))
+        expect(reachable, `${window.name} may not select a ${durable} row`).toBe(false)
+      }
+    }
   })
 
   /**

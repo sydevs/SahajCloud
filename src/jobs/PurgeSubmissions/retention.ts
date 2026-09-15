@@ -34,8 +34,7 @@ export const MACHINE_SPAM_DAYS = 90
 export const PROPOSAL_DAYS = 30
 
 /**
- * What each type's retention is, in days, for a row that reached a terminal
- * state. `null` means **kept forever**, and both of those are deliberate:
+ * The types that are **kept forever**, whatever state they reach:
  *
  * - a **registration** is an attendance record, and an event's history is what
  *   a manager plans the next one from;
@@ -43,17 +42,23 @@ export const PROPOSAL_DAYS = 30
  *   person asked to be on a list, and deleting it would leave us holding the
  *   subscription with nothing to show for it.
  *
- * ⚠ `failed` is deliberately absent from every window below. It means we
- * accepted a submission, told the person nothing, and never delivered it — the
- * one state where deleting the row destroys the only record that anything went
- * wrong. It stays until a manager resolves it.
+ * That one fact answers two questions, which is why there is one list. No
+ * window below may select these types — the spam sweep names them in a
+ * `not_in` — and a row of one of them **pins** its `users` row against the
+ * orphan sweep, because deleting the person it names would leave an attendance
+ * record and a consent record pointing at nobody.
+ *
+ * ⚠ It was a table nothing read until #791's review. Stated as a policy beside
+ * a sweep that contradicted it, "kept forever" was untested and untrue: the
+ * spam window named no `type`, so a `rejected` registration went at 90 days.
+ * A statement of policy that nothing enforces is worse than none.
+ *
+ * ⚠ `failed` is deliberately absent from every window below, for a different
+ * reason. It means we accepted a submission, told the person nothing, and never
+ * delivered it — the one state where deleting the row destroys the only record
+ * that anything went wrong. It stays until a manager resolves it.
  */
-export const RETENTION_DAYS: Record<UserSubmission['type'], number | null> = {
-  contact: CONTACT_ACCEPTED_DAYS,
-  proposal: PROPOSAL_DAYS,
-  registration: null,
-  subscribe: null,
-}
+export const DURABLE_TYPES: readonly UserSubmission['type'][] = ['registration', 'subscribe']
 
 /** One sweep: what to delete, and what to call it in the log. */
 export interface PurgeWindow {
@@ -83,6 +88,10 @@ export const PURGE_WINDOWS: PurgeWindow[] = [
     name: 'machineSpam',
     days: MACHINE_SPAM_DAYS,
     where: (cutoff) => ({
+      // The one window that names no type otherwise, so it is the one that has
+      // to say which types it does not reach. Without this, "kept forever"
+      // lasted ninety days.
+      type: { not_in: [...DURABLE_TYPES] },
       status: { equals: 'rejected' },
       createdAt: { less_than: cutoff },
     }),
@@ -106,16 +115,6 @@ export const PURGE_WINDOWS: PurgeWindow[] = [
     }),
   },
 ]
-
-/**
- * The types whose rows **pin** a `users` row against the orphan sweep.
- *
- * A contact sender's personal data lives exactly as long as their message. A
- * registrant's and a subscriber's do not, because the row itself is kept
- * forever — deleting the person it names would leave an attendance record and a
- * consent record pointing at nobody.
- */
-export const DURABLE_TYPES: readonly UserSubmission['type'][] = ['registration', 'subscribe']
 
 /** Re-exported so the lower bound above is pinnable from one import. */
 export { HISTORY_WINDOW_HOURS }
