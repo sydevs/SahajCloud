@@ -61,6 +61,28 @@ export const BASE_SUBMISSION_KEYS = [
 ] as const
 
 /**
+ * The registrant's mailing-list opt-in.
+ *
+ * A `submissionData` pair rather than a column, and rather than the
+ * `mailingListSubscribedAt` timestamp it replaces: the consent record is a real
+ * subscribe-type **row**, with its own status, screening and retries, spawned by
+ * `spawnSubscribeFromRegistration`. This key is only the request saying which
+ * way the box was ticked, so nothing queries it and nothing reads it after the
+ * row exists.
+ *
+ * Any value `parseOptIn` reads as true counts — `'true'`, `'yes'`, `'on'`, `'1'`
+ * — because the pair arrives as text from an HTML form, where a checkbox's
+ * wire value is whatever the front end chose.
+ */
+export const SUBSCRIBE_OPT_IN = 'subscribe'
+
+/** Whether an opt-in pair's text means yes. Absent or anything else means no. */
+export function parseOptIn(value: string | undefined): boolean {
+  if (value == null) return false
+  return ['true', 'yes', 'on', '1'].includes(value.trim().toLowerCase())
+}
+
+/**
  * Keys a type adds to the base set, beyond whatever its form authored.
  *
  * `subscribe` adds none: an address plus a name is the whole of a subscription,
@@ -69,7 +91,7 @@ export const BASE_SUBMISSION_KEYS = [
 export const TYPE_SUBMISSION_KEYS: Record<UserSubmission['type'], readonly string[]> = {
   contact: ['subject', 'message'],
   subscribe: [],
-  registration: EVENT_REGISTRATION_QUESTIONS.map((question) => question.name),
+  registration: [...EVENT_REGISTRATION_QUESTIONS.map((question) => question.name), SUBSCRIBE_OPT_IN],
   proposal: ['note'],
 }
 

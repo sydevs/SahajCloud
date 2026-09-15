@@ -167,11 +167,22 @@ function perTypeForm(field: Field): Field {
   const formExists = field.validate as Validate | undefined
 
   const validate: Validate = async (value, options) => {
-    const type = (options?.data as { type?: UserSubmission['type'] } | undefined)?.type
+    const data = options?.data as
+      | { type?: UserSubmission['type']; event?: unknown }
+      | undefined
+    const type = data?.type
 
     if (type != null && !FORM_BACKED_TYPES.includes(type)) {
       return value == null ? true : `A ${type} submission names an event, not a form.`
     }
+
+    // A subscribe row spawned by a registration opt-in has no form of its own —
+    // nobody authored one, and the target list resolves from the provenance
+    // client at delivery time. It carries the registration's `event` instead,
+    // which is both the exemption's condition and the link back to the row that
+    // created it. A contact submission never qualifies: it has nowhere to go
+    // without a form's `recipient`.
+    if (type === 'subscribe' && value == null && data?.event != null) return true
 
     if (value == null) {
       return `A ${type ?? 'contact'} submission needs the form it was sent from.`
@@ -218,6 +229,10 @@ const statusField: Field = {
  * Nullable even for those two: a proposal for a brand-new event has no target
  * yet. Indexed because fullness counts, the reminder sweep and the feedback
  * roll-up all query it.
+ *
+ * A **subscribe** row carries one too when a registration opt-in spawned it —
+ * that is what links the consent record back to the registration it came from,
+ * and what exempts it from needing a form of its own (`perTypeForm`).
  */
 const eventField: Field = {
   name: 'event',
@@ -225,8 +240,9 @@ const eventField: Field = {
   relationTo: 'events',
   index: true,
   admin: {
-    condition: (data) => data?.type === 'registration' || data?.type === 'proposal',
-    description: 'The event this registration attends, or this proposal targets.',
+    condition: (data) => data?.type !== 'contact',
+    description:
+      'The event this registration attends, this proposal targets, or this subscription came from.',
   },
 }
 

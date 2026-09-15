@@ -29,6 +29,22 @@ export function isAdminManager(user: PayloadRequest['user']): boolean {
 export const adminOnlyFieldAccess: FieldAccess = ({ req }) => isAdminManager(req.user)
 
 /**
+ * Field-level access: a `clients`-collection caller may never read or write it.
+ *
+ * Deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong tool
+ * for a provider secret: a client's own managers must be able to configure
+ * their mailing list, and document-level manager access already decides which
+ * clients each manager sees at all.
+ *
+ * ⚠ **`clients` is not in `RESTRICTED_COLLECTIONS`**, so every published API
+ * client can read a whole Clients document over REST. Without this lock the
+ * atlas widget's public key would read every client's provider secret back.
+ * That is the reason the guard exists; it is not defence in depth.
+ */
+export const managersOnlyFieldAccess: FieldAccess = ({ req }) =>
+  req.user?.collection !== 'clients'
+
+/**
  * Admin-only admin-UI condition: hides the field from non-admin managers.
  *
  * Pair with `adminOnlyFieldAccess` on the same field to get both (a) visual

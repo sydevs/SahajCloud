@@ -10,14 +10,14 @@ import {
   type ScreeningResult,
 } from '@/collections/EventSubmissions/screening'
 import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
+import { hasMxRecords } from '@/lib/antiSpam/mxRecords'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { findManagerForRegion } from '@/lib/notifications/recipients'
+import { sendSubmissionReview } from '@/lib/notifications/sendSubmissionReview'
 import { relationId } from '@/lib/utilities/relationId'
 import type { EventSubmission } from '@/payload-types'
 
-import { hasMxRecords } from './emailChecks'
 import { findOrCreateCity } from './findOrCreateCity'
-import { sendSubmissionReview } from './sendSubmissionReview'
 
 /**
  * Resolve the submission's target region (new-event submissions only):
