@@ -25,7 +25,7 @@ const { verifyMock, mxMock, geocodeMock } = vi.hoisted(() => ({
 vi.mock('@/lib/turnstile/verifyTurnstile', () => ({
   verifyTurnstileToken: verifyMock,
 }))
-vi.mock('@/jobs/ScreenEventSubmissions/emailChecks', () => ({
+vi.mock('@/lib/antiSpam/mxRecords', () => ({
   hasMxRecords: mxMock,
 }))
 vi.mock('@/lib/mapbox/geocoder', async (importOriginal) => ({

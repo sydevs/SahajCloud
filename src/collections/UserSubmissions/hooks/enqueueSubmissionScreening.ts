@@ -1,17 +1,17 @@
 import { screeningKickHook } from '@/lib/jobs/screeningKick'
 
 /**
- * afterChange (create): queue the async screening task for a fresh submission.
+ * afterChange (create): queue screening for a fresh submission.
  *
  * The guard, the deferred kick and the autoRun safety net behind it all live in
- * `screeningKickHook`, shared with `user-messages` and `user-submissions`.
+ * `screeningKickHook`, shared with the two collections this one replaces.
  */
-export const enqueueScreening = screeningKickHook({
-  ready: 'screening',
-  label: 'enqueueScreening',
+export const enqueueSubmissionScreening = screeningKickHook({
+  ready: 'pending',
+  label: 'enqueueSubmissionScreening',
   queue: ({ doc, req }) =>
     req.payload.jobs.queue({
-      task: 'screenEventSubmission',
+      task: 'screenSubmission',
       input: { submissionId: doc.id },
       queue: 'screening',
       req,
