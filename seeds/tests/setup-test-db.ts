@@ -46,7 +46,7 @@ async function setupTestDatabase() {
       'authors',
       'clients',
       'forms',
-      'form-submissions',
+      'user-submissions',
     ]
 
     for (const collection of collectionNames) {

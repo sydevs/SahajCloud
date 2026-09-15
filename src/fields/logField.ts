@@ -1,5 +1,9 @@
 import type { JSONField } from 'payload'
 
+import { z } from 'zod'
+
+import { jsonField } from './jsonField'
+
 /**
  * An **activity log**: what happened to a document and when, in a table a
  * manager can read. Emails sent about it, but also anything else worth a
@@ -107,6 +111,55 @@ export function hasLogEntry(log: LogEntry[], type: string, key: string): boolean
   return log.some((entry) => entry.type === type && entry.key === key)
 }
 
+/**
+ * One cell. Mirrors {@link LogCell}.
+ */
+const logCellSchema = z.union([
+  z.string(),
+  z.strictObject({
+    label: z.string().describe('Muted, inline before the text.').optional(),
+    text: z.string(),
+    sub: z.string().describe('Muted line beneath the text.').optional(),
+  }),
+])
+
+/**
+ * The shape every activity log holds. Mirrors {@link LogEntry}.
+ *
+ * **Every property optional, and no `required` list**, even though
+ * `appendLogEntry` has always written all three of `at`, `type` and `cells`.
+ * Payload runs this validator on **every save of the document**, including one
+ * that never touches the log — so a `required` key makes any row holding an
+ * older entry permanently unsaveable, and this column predates the factory: it
+ * was Registrations' `reminderLog`, whose entries were reminders with no
+ * `cells` at all. Type checks on the properties that *are* present still
+ * apply, which is the half worth having; demanding presence is the half that
+ * strands a row. (Payload's type generation ignores `required` here anyway, so
+ * nothing is lost downstream.)
+ *
+ * `z.looseObject` is the machine data the doc comment describes: a reminder's
+ * stage and recipient, a verification's ten fields. It is genuinely open — each
+ * writer owns its own keys — so there is nothing to describe, and the generated
+ * `[k: string]: unknown` is the honest type.
+ */
+const activityLogSchema = z
+  .array(
+    z.looseObject({
+      at: z.string().describe('ISO 8601. The first column, and the sort key.').optional(),
+      type: z.string().describe('Stable slug — matched by jobs, never shown.').optional(),
+      key: z.string().describe('Exactly-once key, scoped to `type`.').optional(),
+      cells: z
+        .record(z.string(), logCellSchema)
+        .describe('What the columns read. Everything outside this is machine data.')
+        .optional(),
+    }),
+  )
+  // `appendLogEntry` trims to `DEFAULT_LOG_LIMIT` on every append, but that is
+  // the writers' discipline, not the column's. The bound belongs here too, or a
+  // single write that bypasses the helper stores an unbounded array. Generous
+  // enough that no legitimate log approaches it.
+  .max(500)
+
 export interface LogFieldOptions {
   /** Defaults to `activityLog`; override only when a document needs two logs. */
   name?: string
@@ -136,14 +189,33 @@ export function logField({
   columns,
   admin = {},
 }: LogFieldOptions): JSONField {
-  // No schema here yet, deliberately. #695 promotes `activityLog` to every
-  // submission type, on a path a client's action reaches, so it decides what
-  // this factory declares. Adding one now would give the column two definitions
-  // to reconcile at that merge. See #659's group B.
-  return {
+  return jsonField({
     name,
-    type: 'json',
     label,
+    // Declared here, once, so every consumer of the factory inherits it —
+    // `user-submissions.activityLog` included (#695 group B / #659). `jsonField`
+    // interns one object per distinct shape, so all three columns still share
+    // the single generated `ActivityLog` interface.
+    schemaTitle: 'ActivityLog',
+    schema: activityLogSchema,
+    // ⚠ `admin.readOnly` is the admin UI only, and the docblock's promise that
+    // this is "never writable through the API" was until now just that — a
+    // promise. It did not matter while `activityLog` sat on collections no API
+    // client could write; `user-submissions` accepts public creates, so a
+    // client could have posted a forged delivery history that the admin table
+    // renders as system-written fact.
+    //
+    // **Clients, not everyone.** `systemMetaField`'s flat `update: () => false`
+    // is wrong here: the admin verify action deliberately writes the log with
+    // `overrideAccess: false`, so that the manager's own permissions on the
+    // event are what gate it (`Events/lifecycle/verify.ts`). Denying every
+    // caller silently drops the entry from that write — the entry being the
+    // record of who verified the listing. Jobs and hooks pass `overrideAccess`
+    // and skip this either way.
+    access: {
+      create: ({ req }) => req.user?.collection !== 'clients',
+      update: ({ req }) => req.user?.collection !== 'clients',
+    },
     admin: {
       ...admin,
       readOnly: true,
@@ -151,5 +223,5 @@ export function logField({
       components: { Field: '@/components/admin/LogTable' },
       custom: { ...admin.custom, columns },
     },
-  }
+  })
 }

@@ -14,6 +14,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { SendPostEventFollowUps } from '@/jobs/RegistrationNotifications/SendPostEventFollowUps'
 import { readCommunityFeedback } from '@/lib/eventVerification/communityFeedback'
 import type { Event, Manager, Registration } from '@/payload-types'
+import { hasPermission } from '@/plugins/access'
 
 import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
@@ -103,6 +104,22 @@ describe('Event feedback (registrant voting)', () => {
       req: clientReq(uuid ?? registration.uuid),
     })
 
+  /**
+   * Vote the way the only real writer does — the CMS-hosted
+   * `/registrations/feedback` page's server action, which records the vote with
+   * `overrideAccess: true` behind a signed token and an explicit button press
+   * (`src/app/(frontend)/registrations/feedback/actions.ts`). The gate and the
+   * roll-up below are properties of that write, not of the client grant that
+   * #723 removed.
+   */
+  const vote = (registration: Registration, verdict: 'confirmed' | 'denied') =>
+    payload.update({
+      collection: 'registrations',
+      id: registration.id,
+      data: { eventFeedback: verdict } as never,
+      overrideAccess: true,
+    })
+
   const reloadEvent = (id: number) =>
     payload.findByID({
       collection: 'events',
@@ -112,44 +129,16 @@ describe('Event feedback (registrant voting)', () => {
       draft: true,
     }) as Promise<Event>
 
-  describe('uuid-possession access (built-in update)', () => {
-    it('records a vote when the request proves the registration uuid', async () => {
+  describe('no client write path (#723)', () => {
+    // The uuid-possession grant, its access branch, and the field whitelist
+    // beside it are gone. They were never on the path a vote takes: the
+    // CMS-hosted `/registrations/feedback` page records it with
+    // `overrideAccess`, which is what every case below this block exercises.
+    it('refuses a client vote even with the right uuid', async () => {
       const event = await createUnverifiedEvent()
       const registration = await createRegistration(event.id)
 
-      const updated = await voteAsClient(registration, 'confirmed')
-      expect(updated.eventFeedback).toBe('confirmed')
-    })
-
-    it('refuses a vote with a wrong or missing uuid', async () => {
-      const event = await createUnverifiedEvent()
-      const registration = await createRegistration(event.id)
-
-      await expect(voteAsClient(registration, 'confirmed', randomUUID())).rejects.toThrow()
-      await expect(
-        payload.update({
-          collection: 'registrations',
-          id: registration.id,
-          data: { eventFeedback: 'confirmed' } as never,
-          overrideAccess: false,
-          req: clientReq(undefined),
-        }),
-      ).rejects.toThrow()
-    })
-
-    it('whitelists the client patch to eventFeedback only', async () => {
-      const event = await createUnverifiedEvent()
-      const registration = await createRegistration(event.id, {
-        questions: { experience: 'None yet' },
-      })
-
-      await payload.update({
-        collection: 'registrations',
-        id: registration.id,
-        data: { eventFeedback: 'confirmed', questions: { experience: 'FORGED' } } as never,
-        overrideAccess: false,
-        req: clientReq(registration.uuid),
-      })
+      await expect(voteAsClient(registration, 'confirmed')).rejects.toThrow()
 
       const after = (await payload.findByID({
         collection: 'registrations',
@@ -157,8 +146,21 @@ describe('Event feedback (registrant voting)', () => {
         depth: 0,
         overrideAccess: true,
       })) as Registration
-      expect(after.eventFeedback).toBe('confirmed')
-      expect((after.questions as { experience?: string })?.experience).toBe('None yet')
+      expect(after.eventFeedback).toBeFalsy()
+    })
+
+    it('grants the atlas client no update on either intake', () => {
+      const clientUser = { id: 1, collection: 'clients', roles: ['sahaj-atlas-client'] } as never
+      // Contrast, so this cannot pass merely because the fixture is inert.
+      expect(
+        hasPermission({ user: clientUser, collection: 'user-submissions', operation: 'create' }),
+      ).toBe(true)
+      for (const collection of ['registrations', 'user-submissions'] as const) {
+        expect(
+          hasPermission({ user: clientUser, collection, operation: 'update' }),
+          `client should not update ${collection}`,
+        ).toBe(false)
+      }
     })
   })
 
@@ -173,7 +175,7 @@ describe('Event feedback (registrant voting)', () => {
         overrideAccess: true,
       })
 
-      await expect(voteAsClient(registration, 'denied')).rejects.toMatchObject({
+      await expect(vote(registration, 'denied')).rejects.toMatchObject({
         status: 409,
         data: { code: 'feedback_closed' },
       })
@@ -192,7 +194,7 @@ describe('Event feedback (registrant voting)', () => {
         overrideAccess: true,
       })
 
-      await expect(voteAsClient(registration, 'confirmed')).rejects.toMatchObject({
+      await expect(vote(registration, 'confirmed')).rejects.toMatchObject({
         status: 409,
         data: { code: 'feedback_closed' },
       })
@@ -205,8 +207,8 @@ describe('Event feedback (registrant voting)', () => {
       const first = await createRegistration(event.id)
       const second = await createRegistration(event.id)
 
-      await voteAsClient(first, 'confirmed')
-      await voteAsClient(second, 'denied')
+      await vote(first, 'confirmed')
+      await vote(second, 'denied')
 
       const after = await reloadEvent(event.id)
       const feedback = readCommunityFeedback(after.systemMeta)
@@ -222,7 +224,7 @@ describe('Event feedback (registrant voting)', () => {
       // (fullness + feedback sync hooks) and can deadlock in Postgres.
       for (let i = 0; i < 5; i++) {
         const registration = await createRegistration(event.id)
-        await voteAsClient(registration, 'denied')
+        await vote(registration, 'denied')
       }
 
       const after = await reloadEvent(event.id)
@@ -237,10 +239,10 @@ describe('Event feedback (registrant voting)', () => {
     it('keeps a mixed verdict published: 5 denials + 1 confirmation is not conclusive', async () => {
       const event = await createUnverifiedEvent()
       const confirmer = await createRegistration(event.id)
-      await voteAsClient(confirmer, 'confirmed')
+      await vote(confirmer, 'confirmed')
       for (let i = 0; i < 5; i++) {
         const registration = await createRegistration(event.id)
-        await voteAsClient(registration, 'denied')
+        await vote(registration, 'denied')
       }
 
       // wilson(1, 6).right ≈ 0.56 — the optimistic read still clears 0.5.
@@ -253,8 +255,8 @@ describe('Event feedback (registrant voting)', () => {
       const event = await createUnverifiedEvent()
       const registration = await createRegistration(event.id)
 
-      await voteAsClient(registration, 'denied')
-      await voteAsClient(registration, 'confirmed')
+      await vote(registration, 'denied')
+      await vote(registration, 'confirmed')
 
       const after = await reloadEvent(event.id)
       expect(readCommunityFeedback(after.systemMeta)).toMatchObject({

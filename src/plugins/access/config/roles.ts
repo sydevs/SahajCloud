@@ -78,6 +78,11 @@ const ROLES = {
       events: ['create', 'update', 'delete'] as PermissionLevel[],
       users: ['read'] as PermissionLevel[],
       'event-submissions': ['read', 'update'] as PermissionLevel[],
+      // `user-submissions` is restricted too, so this grant is what reaches it
+      // at all — and it is narrowed per row in `accessConfigs.ts`: a manager
+      // reads the contact rows addressed to them, plus proposals. It does NOT
+      // open registrations or subscriptions to them.
+      'user-submissions': ['read', 'update'] as PermissionLevel[],
     },
   },
 
@@ -88,8 +93,10 @@ const ROLES = {
     project: 'wemeditate-web' as const,
     permissions: {
       // All collections/globals get implicit read via project parameter
-      // Only explicit permissions needed for non-read operations
-      'form-submissions': ['create'] as PermissionLevel[],
+      // Only explicit permissions needed for non-read operations.
+      // Create-only, and that is the whole grant: `user-submissions` is
+      // restricted, so no read ever rides along with it.
+      'user-submissions': ['create'] as PermissionLevel[],
     },
   },
   'wemeditate-app-client': {
@@ -109,17 +116,21 @@ const ROLES = {
     // update proposals through the built-in create endpoint (guarded by the
     // write-guard plugin), but must never read submissions back — the
     // collection is restricted (submitter emails).
-    // `registrations: update` is the confirm/deny vote — scoped in
-    // accessConfigs to the one registration whose uuid the request proves
-    // possession of, and whitelisted to the `eventFeedback` field.
     // `user-messages` is create-ONLY for the same reason as event-submissions,
     // and is the ONLY grant that collection has anywhere: no manager role names
     // it, so reading one takes the admin bypass. They are unscreened messages
     // from strangers, about anything at all (#632).
+    // `user-submissions` is create-ONLY as well, for every one of its four
+    // types. There is deliberately **no update grant of any kind** (#723): the
+    // registrant confirm/deny vote it used to carry was never written by a
+    // client — the CMS-hosted `/registrations/feedback` page records it with
+    // `overrideAccess`, and always did — so the old `registrations: ['update']`
+    // grant, the uuid-scoped access branch, and the field whitelist beside it
+    // were an open write path nothing used.
     permissions: {
       'event-submissions': ['create'] as PermissionLevel[],
-      registrations: ['update'] as PermissionLevel[],
       'user-messages': ['create'] as PermissionLevel[],
+      'user-submissions': ['create'] as PermissionLevel[],
     },
   },
 } as const

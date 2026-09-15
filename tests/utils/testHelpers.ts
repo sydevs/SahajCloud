@@ -19,6 +19,7 @@ import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { accessPlugin, bypassPermissions } from '@/plugins/access'
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
+import { formsPlugin } from '@/plugins/formBuilder'
 import { usagePlugin } from '@/plugins/usage'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
@@ -135,6 +136,11 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
     },
     plugins: [
       usagePlugin({ enabled: true }),
+      // Form builder: creates `forms` and the unified `user-submissions`
+      // intake. Configured in one place, shared with the real config — a
+      // plugin configured in only one of the two behaves differently under
+      // test than in production (the trap nested-docs already taught us).
+      formsPlugin(),
       // Write Guard: anti-spam checks on client-originated writes (mirrors the
       // real payload.config.ts — the event-submission specs exercise it).
       writeGuardPlugin(),
