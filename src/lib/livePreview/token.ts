@@ -184,7 +184,25 @@ export async function mintLivePreviewToken(
   const pair = await getKeys(keyBase64)
   if (!pair) return null
 
-  const claims: LivePreviewClaims = { role, exp: nowSeconds + LIVE_PREVIEW_TOKEN_TTL_SECONDS }
+  // ⚠ **The expiry is bucketed, and that is what keeps the panel usable.**
+  //
+  // Ed25519 is deterministic, so the claims are a token's only source of
+  // variation. `nowSeconds + TTL` would differ between any two mints a second
+  // apart, so every re-resolve would produce a different URL — and Payload
+  // compares the URL by value and reassigns the iframe's `src` when it changes
+  // (`providers/LivePreview/index.js`, `if (incomingURL !== url)`). Since the
+  // URL re-resolves on every save, and `pages` autosaves every 60s, an editor
+  // would get a full iframe reload each minute: scroll position lost,
+  // `appIsReady` reset, the postMessage stream stalled until the consumer
+  // re-announces `ready`. That is the opposite of live.
+  //
+  // Bucketing makes consecutive mints inside a window byte-identical, so the
+  // URL is stable. A token then lives between one and two TTLs.
+  const bucket = Math.floor(nowSeconds / LIVE_PREVIEW_TOKEN_TTL_SECONDS)
+  const claims: LivePreviewClaims = {
+    role,
+    exp: (bucket + 2) * LIVE_PREVIEW_TOKEN_TTL_SECONDS,
+  }
   const body = base64UrlEncode(new TextEncoder().encode(JSON.stringify(claims)))
   const signature = await crypto.subtle.sign(
     ALGORITHM,

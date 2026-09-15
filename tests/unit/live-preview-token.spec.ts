@@ -24,6 +24,14 @@ function base64Json(value: unknown): string {
 
 const NOW = 1_800_000_000
 
+/**
+ * The expiry a mint at `now` produces. Bucketed, not `now + TTL`, so that two
+ * mints in the same window are byte-identical — see the `token stability`
+ * block for why that matters.
+ */
+const expectedExp = (now: number) =>
+  (Math.floor(now / LIVE_PREVIEW_TOKEN_TTL_SECONDS) + 2) * LIVE_PREVIEW_TOKEN_TTL_SECONDS
+
 let privateKeyBase64: string
 let otherPrivateKeyBase64: string
 let publicKeyRaw: Uint8Array
@@ -78,13 +86,71 @@ describe('mintLivePreviewToken', () => {
     expect(token).not.toContain(privateKeyBase64)
   })
 
-  it('stamps the role and an expiry one TTL ahead', async () => {
+  it('stamps the role and a bucketed expiry', async () => {
     const token = await mintLivePreviewToken('sahaj-atlas-client', privateKeyBase64, NOW)
     const claims = JSON.parse(
       Buffer.from(token!.split('.')[0]!, 'base64url').toString('utf8'),
     ) as Record<string, unknown>
 
-    expect(claims).toEqual({ role: 'sahaj-atlas-client', exp: NOW + LIVE_PREVIEW_TOKEN_TTL_SECONDS })
+    expect(claims).toEqual({ role: 'sahaj-atlas-client', exp: expectedExp(NOW) })
+  })
+})
+
+/**
+ * ⚠ **Stability is a feature, not an accident of the algorithm.**
+ *
+ * Payload compares the live-preview URL by value and reassigns the iframe's
+ * `src` whenever it changes. The URL re-resolves on every save, and `pages`
+ * autosaves every 60s — so a token that varied per mint would reload the panel
+ * every minute: scroll lost, `appIsReady` reset, the postMessage stream stalled
+ * until the consumer re-announces `ready`.
+ */
+describe('token stability', () => {
+  it('is byte-identical for two mints inside the same window', async () => {
+    const a = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
+    const b = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW + 59)
+
+    expect(a).toBe(b)
+  })
+
+  it('is still identical a full autosave interval later', async () => {
+    // 60s is `pages`' autosave interval — the exact case that would have
+    // reloaded the iframe once a minute.
+    const a = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
+    const b = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW + 60)
+
+    expect(a).toBe(b)
+  })
+
+  it('still expires, and lives at least one TTL from any mint', async () => {
+    // Bucketing must not turn a short-lived credential into a long-lived one.
+    // Worst case is the last second of a bucket: one TTL of life remains.
+    const atBucketEnd = (Math.floor(NOW / LIVE_PREVIEW_TOKEN_TTL_SECONDS) + 1) *
+      LIVE_PREVIEW_TOKEN_TTL_SECONDS - 1
+    const token = await mintLivePreviewToken(
+      'wemeditate-web-client',
+      privateKeyBase64,
+      atBucketEnd,
+    )
+
+    expect(
+      await verifyLivePreviewToken(
+        token!,
+        'wemeditate-web-client',
+        publicKeyRaw,
+        atBucketEnd + LIVE_PREVIEW_TOKEN_TTL_SECONDS - 1,
+      ),
+    ).toBe(true)
+
+    // And never more than two.
+    expect(
+      await verifyLivePreviewToken(
+        token!,
+        'wemeditate-web-client',
+        publicKeyRaw,
+        atBucketEnd + 2 * LIVE_PREVIEW_TOKEN_TTL_SECONDS,
+      ),
+    ).toBe(false)
   })
 })
 
@@ -106,8 +172,10 @@ describe('verifyLivePreviewToken', () => {
 
   it('refuses a token once it has expired, and at the exact expiry second', async () => {
     const token = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
-    expect(await verify(token!, 'wemeditate-web-client', NOW + LIVE_PREVIEW_TOKEN_TTL_SECONDS - 1)).toBe(true)
-    expect(await verify(token!, 'wemeditate-web-client', NOW + LIVE_PREVIEW_TOKEN_TTL_SECONDS)).toBe(false)
+    const exp = expectedExp(NOW)
+
+    expect(await verify(token!, 'wemeditate-web-client', exp - 1)).toBe(true)
+    expect(await verify(token!, 'wemeditate-web-client', exp)).toBe(false)
   })
 
   it('refuses a token whose claims were edited to extend it', async () => {
@@ -164,7 +232,7 @@ describe('verifyOwnLivePreviewToken', () => {
   it('refuses an expired token, and edited claims', async () => {
     const token = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
     expect(
-      await verifyOwnLivePreviewToken(token!, privateKeyBase64, NOW + LIVE_PREVIEW_TOKEN_TTL_SECONDS),
+      await verifyOwnLivePreviewToken(token!, privateKeyBase64, expectedExp(NOW)),
     ).toBeNull()
 
     const forged = Buffer.from(JSON.stringify({ role: 'wemeditate-web-client', exp: NOW + 9_999_999 })).toString(
