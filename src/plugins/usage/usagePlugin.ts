@@ -85,6 +85,15 @@ export function usagePlugin(
             // access layer unlocks drafts on the same signal. Verifying the
             // token is async while those readers are sync, so the one await
             // happens here and everything downstream reads a stamped boolean.
+            //
+            // ⚠ **This rides on the plugin's own `enabled` flag**, which is
+            // `!isE2ETest` in `payload.config.ts`. So `E2E_TEST=true` would
+            // unregister the resolver, every verdict would read false, and
+            // live preview would silently serve published content. Nothing
+            // sets that variable today — a repo-wide search finds it only at
+            // its own definition — so this is a latent coupling rather than a
+            // live defect. If E2E ever does set it, the resolver needs its own
+            // registration rather than a home inside a metering plugin.
             resolveLivePreviewHook,
             ...BEFORE_OPERATION_HOOKS,
           ],
