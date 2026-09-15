@@ -217,6 +217,36 @@ describe('Submission retention sweep', () => {
     })
 
     /**
+     * ⚠ The case above seeds `accepted` rows, and that is why it passed while
+     * the spam window deleted these two at 90 days: the window selects
+     * `rejected`, and named no `type` at all. A refused registration is
+     * flagged and kept — #724's own criterion — so "forever" has to be
+     * asserted in the status the bug actually reached.
+     */
+    it('keeps a refused registration and subscription forever too', async () => {
+      const registration = await seed({
+        type: 'registration',
+        form: undefined,
+        event: event.id,
+        senderEmail: 'refused-attendee@example.com',
+        status: 'rejected',
+      })
+      const subscription = await seed({
+        type: 'subscribe',
+        form: undefined,
+        event: event.id,
+        senderEmail: 'refused-subscriber@example.com',
+        status: 'rejected',
+      })
+      const anchor = Date.now()
+
+      await sweep(anchor, MACHINE_SPAM_DAYS * 10)
+
+      expect(await exists('user-submissions', registration.id)).toBe(true)
+      expect(await exists('user-submissions', subscription.id)).toBe(true)
+    })
+
+    /**
      * ⚠ `failed` means we accepted a submission, told the person nothing, and
      * never delivered it — the one state where deleting the row destroys the
      * only record that anything went wrong.
