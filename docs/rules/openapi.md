@@ -81,7 +81,7 @@ filterSpec(rawSpec, {
 
 **Excluded operations**: `DELETE` and `PATCH` are always hidden.
 
-**`ALLOW_POST_FOR`** lists the collections that may accept POST in the public spec: `form-submissions`, and the two public intakes `event-submissions` and `user-messages`.
+**`ALLOW_POST_FOR`** lists the collections that may accept POST in the public spec: the unified intake `user-submissions`, and the two public intakes it will replace, `event-submissions` and `user-messages`.
 
 **`ALLOW_POST_FOR` is necessary but not sufficient.** Two independent tiers can each mark a POST `x-internal`: clearing the create-specific one leaves the second untouched, since **any path whose collection is in no project is hidden**. Both public intakes sit in no project on purpose — that is what stops project membership granting implicit read to a project's roles — so both POSTs stay `x-internal` despite this list. Clients discover them through the generated types, not `/api/docs`.
 

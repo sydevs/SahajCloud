@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { slugField, publicUrlFields } from '@/fields'
 import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
+import { serverEnv } from '@/lib/env'
 import { PAGE_TAGS } from '@/lib/pageTags'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { pageBlocks } from '@/lib/richEditor/blocks'
@@ -20,8 +21,9 @@ export const Pages: CollectionConfig = {
     defaultColumns: ['title', '_status'],
     livePreview: {
       url: ({ data, locale }) => {
-        const baseURL = process.env.WEMEDITATE_WEB_URL
-        return `${baseURL}/${locale.code}/preview?collection=pages&id=${data.id}&secret=${process.env.SAHAJCLOUD_PREVIEW_SECRET}`
+        // `serverEnv`, not raw `process.env`: an unset variable fails at boot
+        // rather than interpolating `undefined` into the panel's URL.
+        return `${serverEnv.WEMEDITATE_WEB_URL}/${locale.code}/preview?collection=pages&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}`
       },
     },
   },
@@ -113,18 +115,32 @@ export const Pages: CollectionConfig = {
     },
     // Virtual deep links: public web URL + in-app URL (registered app pages
     // only). Both require the page to be published (gate built into
-    // publicUrlFields). Web path carries the optional locale + primary tag.
+    // publicUrlFields). Web path carries the optional locale, then the slug.
+    //
+    // ⚠ **No tag segment.** This used to emit `[locale, tag, slug]`, which no
+    // site has ever served. WeMeditateWeb routes a page at one segment —
+    // `ROUTE_BUILDERS.pages` is `'/' + slug` and `pages/[slug]/+route.ts`
+    // matches `^/([^/]+)/?$`, with its own spec pinning that a nested path does
+    // not match — and its sitemap publishes the same shape. The legacy Rails
+    // site does not serve it either: its articles live at `/articles/<slug>`
+    // and `wisdom` appears only as `/inspiration/wisdom`, a category index
+    // (checked against production, 2026-09-15). So every tagged page published
+    // a `webUrl` that 404s, while untagged ones worked — which is why it went
+    // unnoticed. `buildWebPath` below is also what the live-preview URL is
+    // built from, so the panel would have landed on those same 404s.
     ...publicUrlFields({
+      // Raw `process.env`, deliberately: this callback runs per read, so the
+      // late bind is what lets a spec stub the base with `vi.stubEnv`. The
+      // guard already degrades to `null` rather than interpolating `undefined`,
+      // which is the failure mode `serverEnv` exists to prevent elsewhere.
       web: () => (process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/` : null),
       app: 'wemeditate://',
       buildPath: ({ platform, data, req }) => {
         const slug = typeof data?.slug === 'string' ? data.slug : null
         if (!slug) return null
         if (platform === 'app') return slug
-        const tags = data?.tags
-        const tag = Array.isArray(tags) && tags.length > 0 ? (tags[0] as string) : null
         const locale = req.locale && req.locale !== 'en' && req.locale !== 'all' ? req.locale : null
-        return [locale, tag, slug].filter(Boolean).join('/')
+        return [locale, slug].filter(Boolean).join('/')
       },
       // Both links already require published (publicUrlFields' built-in gate).
       // Beyond that, the web link needs no extra condition; the app link is

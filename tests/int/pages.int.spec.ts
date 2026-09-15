@@ -372,7 +372,14 @@ describe('Pages Collection', () => {
       vi.unstubAllEnvs()
     })
 
-    it('English page with tag returns base/tag/slug', async () => {
+    /**
+     * ⚠ **A tag does not enter the path**, and used to. No site has ever served
+     * `/<tag>/<slug>`: WeMeditateWeb routes a page at one segment and publishes
+     * the same shape in its sitemap, and the legacy Rails site puts articles at
+     * `/articles/<slug>`. So a tagged page's `webUrl` 404'd while an untagged
+     * one worked. This case is the regression guard for that.
+     */
+    it('English page with a tag still returns base/slug — the tag is not a path segment', async () => {
       vi.stubEnv('WEMEDITATE_WEB_URL', 'https://wemeditate.com')
       const page = await testData.createPage(payload, {
         title: 'Shri Mataji Page',
@@ -380,7 +387,7 @@ describe('Pages Collection', () => {
         _status: 'published',
       })
       const fetched = await payload.findByID({ collection: 'pages', id: page.id, locale: 'en' })
-      expect(fetched.webUrl).toBe(`https://wemeditate.com/wisdom/${page.slug}`)
+      expect(fetched.webUrl).toBe(`https://wemeditate.com/${page.slug}`)
     })
 
     it('English page without tag returns base/slug', async () => {
@@ -413,7 +420,7 @@ describe('Pages Collection', () => {
         data: { title, _status: 'published' } as never,
       })
 
-    it('Non-English page with tag returns base/locale/tag/slug', async () => {
+    it('Non-English page with a tag returns base/locale/slug', async () => {
       vi.stubEnv('WEMEDITATE_WEB_URL', 'https://wemeditate.com')
       const page = await testData.createPage(payload, {
         title: 'Czech Tagged Page',
@@ -422,7 +429,7 @@ describe('Pages Collection', () => {
       })
       await publishLocale(page.id, 'cs', 'Ceska stranka')
       const fetched = await payload.findByID({ collection: 'pages', id: page.id, locale: 'cs' })
-      expect(fetched.webUrl).toBe(`https://wemeditate.com/cs/wisdom/${page.slug}`)
+      expect(fetched.webUrl).toBe(`https://wemeditate.com/cs/${page.slug}`)
     })
 
     it('Non-English page without tag returns base/locale/slug', async () => {

@@ -37,7 +37,10 @@ const PROJECTS = {
       'albums',
       'videos',
       'forms',
-      'form-submissions',
+      // `user-submissions` is deliberately NOT here. It replaced
+      // `form-submissions`, and it now holds unscreened stranger messages,
+      // registrant addresses and proposals — so it joins RESTRICTED_COLLECTIONS
+      // below instead, and every read of it takes an explicit grant.
       'authors',
       'lectures',
       'user-choices',
@@ -170,11 +173,19 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   unlike the two above **no manager role grants them either** — reading one is
  *   an admin-bypass-only act. Being in no project would otherwise make them
  *   "shared", i.e. readable by every role; this list is what prevents that.
+ * - `user-submissions` — the unified public intake (#723): contact messages,
+ *   subscriptions, registrations and proposals in one table, so it carries
+ *   every kind of personal data the three above hold between them. It was the
+ *   form-builder's `form-submissions`, which sat in the `wemeditate-web`
+ *   project and was therefore implicitly readable by every role in it; that
+ *   membership is gone. Clients may create and never read. A manager's read is
+ *   narrowed further, per row, in `accessConfigs.ts`.
  */
 const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'users',
   'event-submissions',
   'user-messages',
+  'user-submissions',
 ])
 
 /** Whether implicit (project/shared) read must never apply to this collection. */

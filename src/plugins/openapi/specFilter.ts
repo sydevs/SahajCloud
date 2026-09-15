@@ -56,7 +56,7 @@ export const CUSTOM_ENDPOINTS_ONLY_COLLECTIONS: ContentSlug[] = ['lectures', 'ap
 
 /**
  * HTTP operations excluded from public docs.
- * API clients only have read access (plus form-submissions POST).
+ * API clients only have read access (plus the public-intake POSTs).
  */
 export const EXCLUDED_OPERATIONS = ['delete', 'patch'] as const
 
@@ -65,7 +65,7 @@ export const EXCLUDED_OPERATIONS = ['delete', 'patch'] as const
  * These are collections where API clients can create new documents.
  */
 export const ALLOW_POST_FOR: CollectionSlug[] = [
-  'form-submissions',
+  'user-submissions',
   'event-submissions',
   'user-messages',
 ]
