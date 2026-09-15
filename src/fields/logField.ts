@@ -1,5 +1,8 @@
-import type { JSONSchema4 } from 'json-schema'
 import type { JSONField } from 'payload'
+
+import { z } from 'zod'
+
+import { jsonField } from './jsonField'
 
 /**
  * An **activity log**: what happened to a document and when, in a table a
@@ -108,26 +111,17 @@ export function hasLogEntry(log: LogEntry[], type: string, key: string): boolean
   return log.some((entry) => entry.type === type && entry.key === key)
 }
 
-export const ACTIVITY_LOG_SCHEMA_URI = 'urn:sahajcloud:schema:activity-log'
-
 /**
- * One cell, as JSON Schema. Mirrors {@link LogCell}.
+ * One cell. Mirrors {@link LogCell}.
  */
-const logCellJsonSchema: JSONSchema4 = {
-  oneOf: [
-    { type: 'string' },
-    {
-      type: 'object',
-      additionalProperties: false,
-      required: ['text'],
-      properties: {
-        label: { type: 'string', description: 'Muted, inline before the text.' },
-        text: { type: 'string' },
-        sub: { type: 'string', description: 'Muted line beneath the text.' },
-      },
-    },
-  ],
-}
+const logCellSchema = z.union([
+  z.string(),
+  z.strictObject({
+    label: z.string().describe('Muted, inline before the text.').optional(),
+    text: z.string(),
+    sub: z.string().describe('Muted line beneath the text.').optional(),
+  }),
+])
 
 /**
  * The shape every activity log holds. Mirrors {@link LogEntry}.
@@ -143,42 +137,28 @@ const logCellJsonSchema: JSONSchema4 = {
  * strands a row. (Payload's type generation ignores `required` here anyway, so
  * nothing is lost downstream.)
  *
- * `additionalProperties: true` is the machine data the doc comment describes:
- * a reminder's stage and recipient, a verification's ten fields. It is
- * genuinely open — each writer owns its own keys — so there is nothing to
- * describe, and the generated `[k: string]: unknown` is the honest type.
+ * `z.looseObject` is the machine data the doc comment describes: a reminder's
+ * stage and recipient, a verification's ten fields. It is genuinely open — each
+ * writer owns its own keys — so there is nothing to describe, and the generated
+ * `[k: string]: unknown` is the honest type.
  */
-export const activityLogJsonSchema: JSONSchema4 = {
-  $id: ACTIVITY_LOG_SCHEMA_URI,
-  title: 'ActivityLog',
-  type: 'array',
+const activityLogSchema = z
+  .array(
+    z.looseObject({
+      at: z.string().describe('ISO 8601. The first column, and the sort key.').optional(),
+      type: z.string().describe('Stable slug — matched by jobs, never shown.').optional(),
+      key: z.string().describe('Exactly-once key, scoped to `type`.').optional(),
+      cells: z
+        .record(z.string(), logCellSchema)
+        .describe('What the columns read. Everything outside this is machine data.')
+        .optional(),
+    }),
+  )
   // `appendLogEntry` trims to `DEFAULT_LOG_LIMIT` on every append, but that is
   // the writers' discipline, not the column's. The bound belongs here too, or a
   // single write that bypasses the helper stores an unbounded array. Generous
   // enough that no legitimate log approaches it.
-  maxItems: 500,
-  items: {
-    type: 'object',
-    additionalProperties: true,
-    properties: {
-      at: { type: 'string', description: 'ISO 8601. The first column, and the sort key.' },
-      type: { type: 'string', description: 'Stable slug — matched by jobs, never shown.' },
-      key: { type: 'string', description: 'Exactly-once key, scoped to `type`.' },
-      cells: {
-        type: 'object',
-        additionalProperties: logCellJsonSchema,
-        description: 'What the columns read. Everything outside this is machine data.',
-      },
-    },
-  },
-}
-
-/** The field-level wrapper Payload wants. Shared by every `logField` column. */
-export const activityLogFieldSchema: NonNullable<JSONField['jsonSchema']> = {
-  uri: ACTIVITY_LOG_SCHEMA_URI,
-  fileMatch: [ACTIVITY_LOG_SCHEMA_URI],
-  schema: activityLogJsonSchema,
-}
+  .max(500)
 
 export interface LogFieldOptions {
   /** Defaults to `activityLog`; override only when a document needs two logs. */
@@ -209,13 +189,15 @@ export function logField({
   columns,
   admin = {},
 }: LogFieldOptions): JSONField {
-  return {
+  return jsonField({
     name,
-    type: 'json',
     label,
     // Declared here, once, so every consumer of the factory inherits it —
-    // `user-submissions.activityLog` included (#695 group B / #659).
-    jsonSchema: activityLogFieldSchema,
+    // `user-submissions.activityLog` included (#695 group B / #659). `jsonField`
+    // interns one object per distinct shape, so all three columns still share
+    // the single generated `ActivityLog` interface.
+    schemaTitle: 'ActivityLog',
+    schema: activityLogSchema,
     // ⚠ `admin.readOnly` is the admin UI only, and the docblock's promise that
     // this is "never writable through the API" was until now just that — a
     // promise. It did not matter while `activityLog` sat on collections no API
@@ -241,5 +223,5 @@ export function logField({
       components: { Field: '@/components/admin/LogTable' },
       custom: { ...admin.custom, columns },
     },
-  }
+  })
 }
