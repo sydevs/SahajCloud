@@ -82,8 +82,8 @@ covers both the custom client endpoints and the built-in REST collection reads:
   `slug ∈ {meditations, lectures, songs, app-cards, regions, audiences, events, pages, images,
   albums}`, plus root endpoints named individually (see the note below). Enumerated with `eq` /
   `starts_with`, since the Free plan has no regex `matches` operator.
-- **This list is deliberately narrower than `CACHE_TTLS`, and does not have to track it.**
-  `user-choices` sits in `CACHE_TTLS` so that slug is a `Cache-Tag` the lecture feeds may carry
+- **This list is deliberately narrower than `CACHE_TTLS.collections`, and does not have to track
+  it.** `user-choices` sits in `CACHE_TTLS` so that slug is a `Cache-Tag` the lecture feeds may carry
   and `cachePlugin` purges on write (#526) — the feeds embed a user choice's localized title, so
   a rename has to invalidate them. Caching `GET /api/user-choices` itself was never the point.
   Leaving it out of this rule just means that one read stays `DYNAMIC`, which is the fail-safe
@@ -117,10 +117,43 @@ invalid-key reads (→ `403`), preview reads, and non-cacheable collections (`cl
 > A separate rule would not carry the `Authorization`-present condition, and would reopen the
 > same bypass.
 
-**Purge-on-write** (optional): set `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_CACHE_PURGE_TOKEN` to
-enable best-effort `Cache-Tag` purge when a cached collection is written (Cloudflare Enterprise
-tag-purge). Unset, purge is a no-op — on the Free plan, the per-collection `s-maxage` TTL is the
-invalidation path, so this is safe to leave unconfigured.
+**Purge-on-write**: set `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_CACHE_PURGE_TOKEN` (scoped to
+`Cache Purge` on this zone) to enable best-effort `Cache-Tag` purge when a cached collection or
+global is written. Unset, every purge is a **silent no-op** and the `s-maxage` TTL is the only
+invalidation.
+
+> **⚠️ Tag purge is not Enterprise-only.** Cloudflare opened all five purge methods —
+> everything, prefix, hostname, URL, tag — to **every plan** in April 2025
+> ([changelog](https://developers.cloudflare.com/changelog/post/2025-04-01-purge-for-all/)).
+> So these credentials are the invalidation path on our plan, not optional polish for one we do
+> not have. **Confirm both variables are set on the Railway production service, and that the
+> token's scope includes cache purge** — unset, `cachePlugin`'s purge logs a warn, returns
+> `false`, and the TTL is all that invalidates. Limits are generous against our use: we purge one
+> tag per write, against a 100-tags-per-call ceiling. (#710)
+
+### Globals are cacheable reads too (#710)
+
+`GET /api/globals/<slug>` is edge-cacheable for the six client-read globals — `wm-web-config`,
+`wm-web-translations`, `wm-app-config`, `wm-app-translations`, `sy-atlas-config`,
+`sy-atlas-translations` — at `DEFAULT_SMAXAGE` (600s), tagged with the global's own slug. They are
+listed with their TTLs in `CACHE_TTLS.globals` (`src/plugins/cache/policy.ts`), the same one place
+the cacheable collections live. `wm-app-status` is excluded: it is an operator readiness report
+read over cookie auth.
+
+This needed **one `starts_with "/api/globals/"` term added to the existing Cache Rule's path
+group** — never a second rule, for the reason in the note above: a separate rule would not carry
+the `Authorization`-present condition and would reopen the cached-403 bypass.
+
+Cloudflare keys on the full query string, so `?locale=fr` and each client's own `select` shape
+are separate cache entries, and one tag purge covers all of them.
+
+**The Cloudflare edge is the only cache this app invalidates**, deliberately. WeMeditateWeb still
+keeps a read-through Cloudflare KV layer at 24h for `web-config:*` and `web-translations:*`, which
+no tag purge can reach, so a `wm-web-*` edit can take up to a day to reach that site. The fix
+belongs there, not here: a Worker's `fetch()` to another Cloudflare zone reads through that zone's
+cache, so once the Cache Rule above covers `/api/globals/`, the KV copy is redundant and can go.
+SahajAtlasWeb needs nothing either way — its only cache beyond the edge is a per-session React
+Query window, which a reload clears.
 
 ---
 
@@ -204,7 +237,7 @@ Never paste a secret into git or email.
 - `CLOUDFLARE_R2_DELIVERY_URL` — public delivery URL, e.g. `https://assets.sydevelopers.com`
 - `CLOUDFLARE_IMAGES_DELIVERY_URL`, `CLOUDFLARE_STREAM_DELIVERY_URL`, `CLOUDFLARE_STREAM_WEBHOOK_SECRET`
 - `CLOUDFLARE_API_KEY` — one token for Images and Stream
-- `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_CACHE_PURGE_TOKEN` — optional, enable purge-on-write (see [Edge Cache](#edge-cache-cloudflare-cache-rule))
+- `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_CACHE_PURGE_TOKEN` — enable purge-on-write; unset, every purge is a silent no-op (see [Edge Cache](#edge-cache-cloudflare-cache-rule))
 
 ### Sentry and Resend
 

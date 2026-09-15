@@ -1,6 +1,11 @@
-import type { CollectionAfterChangeHook, CollectionAfterDeleteHook, Config } from 'payload'
+import type {
+  CollectionAfterChangeHook,
+  CollectionAfterDeleteHook,
+  Config,
+  GlobalAfterChangeHook,
+} from 'payload'
 
-import { CACHEABLE_SLUGS } from './policy'
+import { CACHEABLE_GLOBALS, CACHEABLE_SLUGS } from './policy'
 import { purgeCloudflareCache } from './purge'
 
 /**
@@ -17,8 +22,9 @@ import { purgeCloudflareCache } from './purge'
  *   - the 9 custom endpoints via the in-handler `publicReadCacheHeaders`
  *     decorator (`./cacheHeaders`).
  * - **Purge-on-write** — the Payload plugin below (folded in from the former
- *   `cachePurge` plugin), best-effort Cloudflare purge for the collections that
- *   back the cached reads.
+ *   `cachePurge` plugin), best-effort Cloudflare purge for the collections and
+ *   globals that back the cached reads. The Cloudflare edge is the only cache
+ *   this app invalidates: one cache, one invalidation point.
  *
  * NB: response-header emission for built-in reads lives in Next.js middleware,
  * not in this Payload plugin — Payload plugins can't hook HTTP response headers
@@ -47,6 +53,28 @@ export function cachePlugin(config: Config): Config {
           ...collection.hooks,
           afterChange: [...(collection.hooks?.afterChange ?? []), afterChange],
           afterDelete: [...(collection.hooks?.afterDelete ?? []), afterDelete],
+        },
+      }
+    }),
+
+    globals: config.globals?.map((global) => {
+      if (!CACHEABLE_GLOBALS.has(global.slug)) return global
+
+      const tag = global.slug
+      // A global has no delete, so there is no afterDelete half. `afterChange`
+      // covers `publishSpecificLocale` too, which is the write that matters
+      // most here: a client read is published-only and merged with English, so
+      // publishing one locale changes what every client sees.
+      const afterChange: GlobalAfterChangeHook = ({ doc, req }) => {
+        void purgeCloudflareCache({ tags: [tag] }, { logger: req.payload.logger })
+        return doc
+      }
+
+      return {
+        ...global,
+        hooks: {
+          ...global.hooks,
+          afterChange: [...(global.hooks?.afterChange ?? []), afterChange],
         },
       }
     }),

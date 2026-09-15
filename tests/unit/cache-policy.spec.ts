@@ -5,11 +5,13 @@ import { handleCacheMiddleware } from '@/plugins/cache/middleware'
 import {
   buildCacheHeaders,
   CACHE_TTLS,
+  CACHEABLE_GLOBALS,
   CACHEABLE_SLUGS,
   DEFAULT_SMAXAGE,
   matchCacheableRead,
   PREVIEW_SECRET_HEADER,
   resolveTtl,
+  ttlForGlobal,
 } from '@/plugins/cache/policy'
 
 const API_KEY = 'clients API-Key abc123'
@@ -53,6 +55,80 @@ describe('matchCacheableRead', () => {
 
   it('returns null for a non-numeric id segment', () => {
     expect(matchCacheableRead('/api/meditations/latest')).toBeNull()
+  })
+})
+
+describe('matchCacheableRead — globals (#710)', () => {
+  // The closed list, spelled out. A slug silently dropping out of
+  // CACHEABLE_GLOBALS is a read that stops being cached, with no symptom but a
+  // slow widget boot; one silently added is a read that starts being cached.
+  const EXPECTED_GLOBALS = [
+    'wm-web-config',
+    'wm-web-translations',
+    'wm-app-config',
+    'wm-app-translations',
+    'sy-atlas-config',
+    'sy-atlas-translations',
+  ]
+
+  it('is exactly the expected set, so the list and the matcher cannot drift', () => {
+    expect([...CACHEABLE_GLOBALS].sort()).toEqual([...EXPECTED_GLOBALS].sort())
+  })
+
+  it('is derived from CACHE_TTLS.globals, so the list has one home', () => {
+    // Every global slug is listed once, with its TTL, in CACHE_TTLS. A second
+    // literal set here is what this asserts against — not a drift in values.
+    expect([...CACHEABLE_GLOBALS].sort()).toEqual(Object.keys(CACHE_TTLS.globals).sort())
+  })
+
+  it('serves each global the TTL its CACHE_TTLS entry names', () => {
+    // All six sit at DEFAULT_SMAXAGE today, so this does not distinguish the
+    // map from a constant. It is the guard for the first per-global override:
+    // add one and a matcher still returning DEFAULT_SMAXAGE goes red.
+    for (const slug of EXPECTED_GLOBALS) {
+      expect(matchCacheableRead(`/api/globals/${slug}`)?.sMaxAge).toBe(ttlForGlobal(slug))
+    }
+    expect(ttlForGlobal('not-a-global')).toBe(DEFAULT_SMAXAGE)
+  })
+
+  it('matches every cacheable global at the default TTL, tagged with its own slug', () => {
+    for (const slug of EXPECTED_GLOBALS) {
+      expect(matchCacheableRead(`/api/globals/${slug}`)).toEqual({
+        sMaxAge: DEFAULT_SMAXAGE,
+        tags: [slug],
+      })
+    }
+  })
+
+  it('tolerates a trailing slash', () => {
+    expect(matchCacheableRead('/api/globals/sy-atlas-config/')).toEqual({
+      sMaxAge: DEFAULT_SMAXAGE,
+      tags: ['sy-atlas-config'],
+    })
+  })
+
+  it('returns null for wm-app-status — an operator report, deliberately DYNAMIC', () => {
+    expect(matchCacheableRead('/api/globals/wm-app-status')).toBeNull()
+  })
+
+  it('returns null for an unknown global slug', () => {
+    expect(matchCacheableRead('/api/globals/not-a-global')).toBeNull()
+  })
+
+  it('returns null for /api/globals alone, with or without a trailing slash', () => {
+    expect(matchCacheableRead('/api/globals')).toBeNull()
+    expect(matchCacheableRead('/api/globals/')).toBeNull()
+  })
+
+  it('returns null for a versions read — it carries drafts', () => {
+    expect(matchCacheableRead('/api/globals/sy-atlas-config/versions')).toBeNull()
+    expect(matchCacheableRead('/api/globals/sy-atlas-config/versions/42')).toBeNull()
+  })
+
+  it('does not treat `globals` as a collection slug', () => {
+    // The pre-#710 shape: were `globals` ever added to CACHEABLE_SLUGS, this
+    // would start matching and tag every global read `globals`.
+    expect(matchCacheableRead('/api/globals/12')).toBeNull()
   })
 })
 
@@ -141,14 +217,74 @@ describe('handleCacheMiddleware', () => {
       run('/api/users', { headers: { authorization: API_KEY } }).get('Cache-Control'),
     ).toBeNull()
   })
+
+  it('stamps the three headers on an authed global read (#710)', () => {
+    const headers = run('/api/globals/sy-atlas-config', { headers: { authorization: API_KEY } })
+    expect(headers.get('Cache-Control')).toBe('public, max-age=600, s-maxage=600')
+    expect(headers.get('Vary')).toBe('Authorization')
+    expect(headers.get('Cache-Tag')).toBe('sy-atlas-config')
+  })
+
+  it('stamps a global read carrying a select query string', () => {
+    // What a widget boot actually sends. Cloudflare keys on the full query
+    // string, so each client's select shape and each locale is its own entry,
+    // and one tag purge covers all of them.
+    const headers = run('/api/globals/sy-atlas-config?select[availableLocales]=true&locale=fr', {
+      headers: { authorization: API_KEY },
+    })
+    expect(headers.get('Cache-Control')).toBe('public, max-age=600, s-maxage=600')
+    expect(headers.get('Cache-Tag')).toBe('sy-atlas-config')
+  })
+
+  it('never public-caches a preview read of a global — it carries drafts', () => {
+    const headers = run('/api/globals/sy-atlas-translations', {
+      headers: { authorization: API_KEY, [PREVIEW_SECRET_HEADER]: 'shh' },
+    })
+    expect(headers.get('Cache-Control')).toBe('private, no-store')
+    expect(headers.get('Vary')).toBeNull()
+  })
+
+  it('leaves a manager cookie read of a global DYNAMIC', () => {
+    // No Authorization header: the admin authenticates by cookie, and a
+    // manager read is not published-only.
+    const headers = run('/api/globals/sy-atlas-translations')
+    expect(headers.get('Cache-Control')).toBeNull()
+    expect(headers.get('Vary')).toBeNull()
+  })
+
+  it('does not stamp wm-app-status, an unknown global, or a versions read', () => {
+    for (const path of [
+      '/api/globals/wm-app-status',
+      '/api/globals/not-a-global',
+      '/api/globals/sy-atlas-config/versions',
+    ]) {
+      expect(run(path, { headers: { authorization: API_KEY } }).get('Cache-Control')).toBeNull()
+    }
+  })
+
+  it('leaves a write to a global untouched', () => {
+    for (const method of ['POST', 'PATCH']) {
+      const headers = run('/api/globals/sy-atlas-config', {
+        method,
+        headers: { authorization: API_KEY },
+      })
+      expect(headers.get('Cache-Control')).toBeNull()
+    }
+  })
 })
 
 describe('CACHEABLE_SLUGS (cacheable set = purge set)', () => {
-  it('is exactly the CACHE_TTLS keys, including images + albums', () => {
-    for (const slug of Object.keys(CACHE_TTLS)) {
+  it('is exactly the CACHE_TTLS.collections keys, including images + albums', () => {
+    for (const slug of Object.keys(CACHE_TTLS.collections)) {
       expect(CACHEABLE_SLUGS.has(slug)).toBe(true)
     }
-    expect(CACHEABLE_SLUGS.size).toBe(Object.keys(CACHE_TTLS).length)
+    expect(CACHEABLE_SLUGS.size).toBe(Object.keys(CACHE_TTLS.collections).length)
+  })
+
+  it('excludes the global slugs, which are a different URL shape', () => {
+    for (const slug of Object.keys(CACHE_TTLS.globals)) {
+      expect(CACHEABLE_SLUGS.has(slug)).toBe(false)
+    }
   })
 
   it('excludes collections that are never cached', () => {

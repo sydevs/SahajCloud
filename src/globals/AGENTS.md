@@ -381,6 +381,29 @@ Selection at render time is server-side, via `pluralize()`
 `EMAIL_STRING_DEFAULTS` must define the same expanded family (English
 suffices. `few`/`many` fall back to `other`).
 
+## A client read of a global is edge-cached, metered, and purged (#710)
+
+`GET /api/globals/<slug>` is edge-cacheable for the six client-read globals
+(600s, tagged with the slug), runs the usage plugin's four gates, and purges
+on write — including on `publishSpecificLocale`, since a client read is
+published-only and merged with English. `wm-app-status` is excluded from
+caching: it is an operator report over cookie auth.
+
+Two consequences when you add a global:
+
+- **A new global gets the four gates automatically**, so a client reading it
+  must send `select`. It gets **no** caching until you add its slug and TTL to
+  `CACHE_TTLS.globals` (`src/plugins/cache/policy.ts`), which `CACHEABLE_GLOBALS`
+  derives from — DYNAMIC is the fail-safe direction.
+- **Caching also needs a Cloudflare Cache Rule term**, already covering
+  `/api/globals/` as a prefix. See `DEPLOYMENT.md`.
+- **`CACHEABLE_GLOBALS` is the only set.** The Cloudflare edge is the one cache
+  this app invalidates, so there is nothing else to add a slug to. A consumer
+  holding its own copy beyond the edge invalidates it itself, or drops it —
+  never by a call from here.
+
+Rules for the client contract: `docs/rules/api-clients.md`.
+
 ## Project visibility
 
 Globals are assigned to projects in `src/plugins/access/config/projects.ts`
