@@ -72,6 +72,24 @@ describe('Submission retention', () => {
     }
   })
 
+  /**
+   * The docblock above `PURGE_WINDOWS` claimed a declined proposal purges at 30
+   * days. It purges at 90, because a decline is `rejected` and only the spam
+   * window selects that. Pinned so the prose and the windows cannot part again.
+   */
+  it('leaves a declined proposal to the spam window, not the proposal window', () => {
+    const selects = (name: string) => {
+      const window = PURGE_WINDOWS.find((candidate) => candidate.name === name)
+      const where = window?.where(new Date().toISOString()) as {
+        status?: { equals?: string; in?: string[] }
+      }
+      return where.status?.in ?? (where.status?.equals ? [where.status.equals] : [])
+    }
+
+    expect(selects('proposals')).not.toContain('rejected')
+    expect(selects('machineSpam')).toContain('rejected')
+  })
+
   it('sweeps the longest window first, so the windows cannot overlap by accident', () => {
     const days = PURGE_WINDOWS.map((window) => window.days)
     expect(days[0]).toBe(Math.max(...days))

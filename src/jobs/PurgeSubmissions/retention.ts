@@ -76,12 +76,20 @@ export interface PurgeWindow {
  * longer window first makes the two provably disjoint by construction rather
  * than by reading both clauses together.
  *
- * ⚠ **Every spam window reads `status`, and that is not the contradiction it
- * looks like.** Abuse *counting* must read `screeningResult.verdict`, because a
+ * ⚠ **Every window reads `status`, and that is not the contradiction it looks
+ * like.** Abuse *counting* must read `screeningResult.verdict`, because a
  * manager's decline shares the `rejected` status. Retention is the opposite
- * question — "has anyone finished with this row" — and a manager-declined
- * proposal is finished with at 30 days exactly like a refused one. What the
+ * question — "has anyone finished with this row" — and what the
  * `screeningResult` rule protects is a sender's record, not a row's lifespan.
+ *
+ * ⚠ **So a declined proposal is kept 90 days, not 30**, and that is the price
+ * of the paragraph above rather than an oversight. `proposals` takes
+ * `accepted`; a decline is `rejected`, which only `machineSpam` selects. The
+ * sweep cannot separate the two, because the verdict that would separate them
+ * lives in a JSON column nothing can `where` on cheaply
+ * (`src/collections/AGENTS.md`). Erring long keeps the evidence a machine
+ * refusal is; erring short would delete it. An earlier draft of this comment
+ * claimed the 30 days the code never gave.
  */
 export const PURGE_WINDOWS: PurgeWindow[] = [
   {
