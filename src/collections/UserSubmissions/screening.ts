@@ -1,5 +1,3 @@
-import type { JSONSchema4 } from 'json-schema'
-
 /**
  * What screening recorded about a submission — one shape for all four types.
  *
@@ -38,42 +36,10 @@ export const SUBMISSION_VERDICTS = [
 export type SubmissionVerdict = (typeof SUBMISSION_VERDICTS)[number]
 
 /**
- * JSON Schema for the stored `screeningResult`. Payload generates the type from
- * it **and** compiles it to a write-time validator, so the shape has one
- * definition rather than a hand-kept alias beside a column that took anything.
- *
- * Closed (`additionalProperties: false`) because only the screening job writes
- * here — an unknown key is a bug in the job, never an older server meeting a
- * newer client. Nothing has been written under an earlier shape, because the
- * column is new.
+ * ⚠ **This module stays zero-dependency, and carries no schema.** It is a leaf
+ * so an admin component can name a verdict without pulling the collection's
+ * hooks — and a `zod` shape here would pull `zod` and a `toJSONSchema` call
+ * into whatever browser chunk imports it, to describe a column only the server
+ * validates (`src/collections/AGENTS.md`). The shape is declared in Zod at its
+ * field, in `fields.ts`, and it reads this list.
  */
-export const screeningResultJsonSchema: JSONSchema4 = {
-  $id: 'urn:sahajcloud:schema:submission-screening-result',
-  title: 'SubmissionScreeningResult',
-  type: 'object',
-  additionalProperties: false,
-  required: ['verdict', 'screenedAt'],
-  properties: {
-    // `description`, not a `//` comment: Payload renders these into the JSDoc on
-    // the generated type.
-    verdict: {
-      enum: [...SUBMISSION_VERDICTS],
-      description: '`ok`, or the first check that refused this submission.',
-    },
-    notes: {
-      type: 'array',
-      items: { type: 'string' },
-      description:
-        'Everything an admin needs, as complete sentences: what happened and what follows from it. An accepted submission normally has none.',
-    },
-    diagnostic: {
-      type: 'string',
-      description:
-        'A technical detail kept for triage and NOT rendered — an inconclusive MX lookup, or a transport’s own error string.',
-    },
-    screenedAt: {
-      type: 'string',
-      description: 'When screening reached this verdict (ISO 8601).',
-    },
-  },
-}

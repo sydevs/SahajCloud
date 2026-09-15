@@ -1,9 +1,11 @@
-import type { JSONSchema4 } from 'json-schema'
 import type { Field, FieldAccess, RelationshipField, Validate } from 'payload'
 
-import { logField } from '@/fields'
+import { z } from 'zod'
 
-import { screeningResultJsonSchema } from './screening'
+import { logField } from '@/fields'
+import { jsonField } from '@/fields/jsonField'
+
+import { SUBMISSION_VERDICTS } from './screening'
 import {
   FORM_BACKED_TYPES,
   STATUS_LABELS,
@@ -248,51 +250,59 @@ const eventFeedbackField: Field = {
  * address group, a schedule), and flattening it into a textarea would lose the
  * validation, the diff UI, and every typed read.
  */
-const proposedJsonSchema: JSONSchema4 = {
-  $id: 'urn:sahajcloud:schema:submission-proposed',
-  title: 'SubmissionProposal',
-  type: 'object',
-  // Bounds a public blob without naming its keys. A real proposal touches a
-  // handful of Events fields; nothing legitimate approaches this.
-  maxProperties: 60,
-  // `true`, not a value schema: a proposal nests (an address group, a
-  // schedule), so no single value type describes it. `true` generates
-  // `[k: string]: unknown`, which is what a consumer must narrow anyway.
-  additionalProperties: true,
-}
-
-const proposedField: Field = {
+const proposedField: Field = jsonField({
   name: 'proposed',
-  type: 'json',
-  jsonSchema: {
-    uri: 'urn:sahajcloud:schema:submission-proposed',
-    fileMatch: ['urn:sahajcloud:schema:submission-proposed'],
-    schema: proposedJsonSchema,
-  },
+  schemaTitle: 'SubmissionProposal',
+  // `z.looseObject`, not a value schema: a proposal nests (an address group, a
+  // schedule), so no single value type describes it. It emits
+  // `additionalProperties: {}` — the same `[k: string]: unknown` a consumer
+  // must narrow anyway. `.meta` carries the bound Zod has no method for: a real
+  // proposal touches a handful of Events fields, and nothing legitimate
+  // approaches 60.
+  schema: z.looseObject({}).meta({ maxProperties: 60 }),
   admin: {
     condition: (data) => data?.type === 'proposal',
     readOnly: true,
     description: 'The proposed Events field patch, exactly as submitted.',
   },
-}
+})
 
 /**
  * Screening's verdict — and the only place the machine's judgement is
  * recorded, now that `status` folds spam and a human decline into `rejected`.
  * Written by the (Phase 2) screening job alone.
+ *
+ * Closed (`z.strictObject`) because only that job writes here — an unknown key
+ * is a bug in the job, never an older server meeting a newer client — and
+ * `verdict`/`screenedAt` are required for the same reason: nothing has been
+ * written under an earlier shape, because the column is new.
  */
-const screeningResultField: Field = {
+const screeningResultField: Field = jsonField({
   name: 'screeningResult',
-  type: 'json',
   label: 'Screening',
-  jsonSchema: {
-    uri: 'urn:sahajcloud:schema:submission-screening-result',
-    fileMatch: ['urn:sahajcloud:schema:submission-screening-result'],
-    schema: screeningResultJsonSchema,
-  },
+  schemaTitle: 'SubmissionScreeningResult',
+  // `.describe()`, not a `//` comment: it becomes JSDoc on the generated type.
+  schema: z.strictObject({
+    verdict: z
+      .enum(SUBMISSION_VERDICTS)
+      .describe('`ok`, or the first check that refused this submission.'),
+    notes: z
+      .array(z.string())
+      .describe(
+        'Everything an admin needs, as complete sentences: what happened and what follows from it. An accepted submission normally has none.',
+      )
+      .optional(),
+    diagnostic: z
+      .string()
+      .describe(
+        'A technical detail kept for triage and NOT rendered — an inconclusive MX lookup, or a transport’s own error string.',
+      )
+      .optional(),
+    screenedAt: z.string().describe('When screening reached this verdict (ISO 8601).'),
+  }),
   access: systemFieldAccess,
   admin: { readOnly: true },
-}
+})
 
 /**
  * Everything recorded about this submission. Promoted to every type here: the
