@@ -88,6 +88,10 @@ export async function loadSenderHistory(args: {
       createdAt: { greater_than: since.toISOString() },
       id: { not_equals: submissionId },
     },
+    // ⚠ `status` is deliberately absent, and that is a second guard rather
+    // than a saving: with it unselected, a future edit that tried to count
+    // abuse off `status` would read `undefined` on every row and count
+    // nothing — a visible wrong answer instead of a quiet one.
     select: { screeningResult: true, submissionData: true },
     limit: HISTORY_SCAN_LIMIT,
     depth: 0,

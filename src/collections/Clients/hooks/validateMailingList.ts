@@ -3,6 +3,7 @@ import type { CollectionBeforeChangeHook } from 'payload'
 import { APIError } from 'payload'
 
 import { datacenterOf } from '@/lib/mailingList/providers/mailchimp'
+import { isMailingListConfigured } from '@/lib/mailingList/subscribe'
 import type { MailingListConfig } from '@/lib/mailingList/types'
 import { PROVIDER_TIMEOUT_MS } from '@/lib/mailingList/types'
 
@@ -31,6 +32,11 @@ export const validateMailingList: CollectionBeforeChangeHook = async ({
 }) => {
   const config = data?.mailingList as MailingListConfig | undefined
   if (!config?.enabled) return data
+
+  // Incomplete credentials are Payload's `required` to refuse, not ours.
+  // Pinging with a blank key would answer "that API key was refused", blaming
+  // the operator for a field they have not filled in yet.
+  if (!isMailingListConfigured(config)) return data
 
   const previous = (originalDoc?.mailingList ?? null) as MailingListConfig | null
   const changed = CREDENTIAL_KEYS.some((key) => config[key] !== previous?.[key])
