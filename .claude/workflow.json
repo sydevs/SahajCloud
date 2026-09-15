@@ -22,6 +22,10 @@
   ],
   "worktreeNotes": ".env is git-tracked, so it is already present. The dev server needs a distinct PORT (shared local Postgres via push: true).",
   "deployTarget": "Railway (+ per-PR preview)",
+  "previewUrl": {
+    "$comment": "Railway names a PR preview after the pull request NUMBER, so the host is known the moment the PR exists and cannot collide. finalize-pr writes deep links from it rather than waiting for the build. (why: sydevs/claude-workflow docs/why.md#construct-a-number-discover-a-slug)",
+    "pattern": "https://sahajcloud-sahajcloud-pr-{pr}.up.railway.app"
+  },
   "devServer": {
     "command": "pnpm devsafe",
     "basePort": 3000,
