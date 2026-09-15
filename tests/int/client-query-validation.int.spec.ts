@@ -4,6 +4,10 @@ import { sanitizePopulateParam, sanitizeSelectParam } from 'payload'
 import * as qs from 'qs-esm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+
+import { serverEnv } from '@/lib/env'
+import { mintLivePreviewToken } from '@/lib/livePreview/token'
+import { resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
 import type { Client, Image, Narrator, Page } from '@/payload-types'
 
 import { testData } from 'tests/utils/testData'
@@ -64,10 +68,9 @@ describe('Client query parameter validation', () => {
   })
 
   const clientReq = (): PayloadRequest =>
-    createClientAuthenticatedRequest(
-      String(testClient.id),
-      testClient.apiKey || 'test-key',
-    ) as PayloadRequest
+    createClientAuthenticatedRequest(String(testClient.id), testClient.apiKey || 'test-key', [
+      'wemeditate-web-client',
+    ]) as PayloadRequest
 
   // Access control is unrelated to this hook. Use overrideAccess so tests focus
   // purely on validation behavior, not on whether the test client has narrator
@@ -235,41 +238,54 @@ describe('Client query parameter validation', () => {
     })
   })
 
-  // Live-preview reads carry the SAHAJCLOUD_PREVIEW_SECRET header. They render
-  // the whole document, so the select/populate gate is skipped (see
-  // hasValidPreviewSecret in src/lib/utilities/previewSecret.ts). Without this bypass the
-  // admin live preview 400s because it does not enumerate select — the breakage
-  // introduced by #294.
+  // Live-preview reads carry a short-lived token in the
+  // `x-sahajcloud-preview-secret` header. They render the whole document, so
+  // the select/populate gate is skipped (see `hasValidPreviewSecret` in
+  // `src/lib/utilities/previewSecret.ts`). Without this bypass the admin live
+  // preview 400s because it does not enumerate select — the breakage #294
+  // introduced.
+  //
+  // ⚠ These reads go through `resolveLivePreviewHook` explicitly. In a real
+  // request Payload runs it as the first `beforeOperation` hook, before access
+  // resolves; a spec that called `payload.find` directly with only the header
+  // set would find the verdict unstamped and the bypass inert — which is
+  // exactly what should happen, and is what `hasValidPreviewSecret` failing
+  // closed means.
   describe('live preview bypass', () => {
-    const previewClientReq = (): PayloadRequest => {
+    const previewClientReq = async (token?: string): Promise<PayloadRequest> => {
       const req = clientReq()
-      req.headers.set('x-sahajcloud-preview-secret', process.env.SAHAJCLOUD_PREVIEW_SECRET || '')
+      const minted =
+        token ??
+        (await mintLivePreviewToken('wemeditate-web-client', serverEnv.LIVE_PREVIEW_SIGNING_KEY)) ??
+        'no-key-configured'
+      req.headers.set('x-sahajcloud-preview-secret', minted)
+      await resolveLivePreviewHook({ req })
       return req
     }
 
-    it('allows client find without select when the preview secret is present', async () => {
+    it('allows client find without select when a valid preview token is present', async () => {
       const result = await payload.find({
         collection: 'narrators',
-        req: previewClientReq(),
+        req: await previewClientReq(),
         overrideAccess: true,
       })
       expect(result.docs.length).toBeGreaterThan(0)
     })
 
-    it('allows client findByID at depth > 1 without select or populate when the preview secret is present', async () => {
+    it('allows client findByID at depth > 1 without select or populate when a valid preview token is present', async () => {
       const result = await payload.findByID({
         collection: 'narrators',
         id: narrator.id,
         depth: 2,
-        req: previewClientReq(),
+        req: await previewClientReq(),
         overrideAccess: true,
       })
       expect(result.id).toBe(narrator.id)
     })
 
-    it('still rejects when the preview secret is wrong', async () => {
+    it('still rejects when the preview token is not one this service issued', async () => {
       const req = clientReq()
-      req.headers.set('x-sahajcloud-preview-secret', 'not-the-real-secret')
+      req.headers.set('x-sahajcloud-preview-secret', 'not-a-real-token')
       await expect(
         payload.find({
           collection: 'narrators',

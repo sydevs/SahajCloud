@@ -21,10 +21,14 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { serverEnv } from '@/lib/env'
+import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
+import { resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
 
 import { testData } from '../utils/testData'
 import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
+
 
 /** The per-locale `_status` map, read the way a consumer reads it. */
 type StatusMap = Record<string, string | undefined>
@@ -409,9 +413,19 @@ describe('per-locale publish status', () => {
 
       const headers = new Headers()
       headers.set('authorization', `clients API-Key unused-in-local-api`)
-      headers.set(PREVIEW_SECRET_HEADER, process.env.SAHAJCLOUD_PREVIEW_SECRET ?? '')
+      // A minted token, not a shared secret. `resolveLivePreviewHook` is what
+      // Payload runs first in the `beforeOperation` chain; calling it here is
+      // what makes the request a preview, and without it this asserts the
+      // published path instead.
+      const token = await mintLivePreviewToken('wemeditate-web-client', serverEnv.LIVE_PREVIEW_SIGNING_KEY)
+      headers.set(PREVIEW_SECRET_HEADER, token ?? 'no-key-configured')
 
-      const previewReq = { ...clientReq, headers: headers as PayloadRequest['headers'] }
+      const previewReq = {
+        ...clientReq,
+        context: {},
+        headers: headers as PayloadRequest['headers'],
+      }
+      await resolveLivePreviewHook({ req: previewReq as never })
 
       const preview = await payload.find({
         collection: 'pages',
