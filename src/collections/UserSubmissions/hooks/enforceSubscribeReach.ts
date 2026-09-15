@@ -3,6 +3,7 @@ import type { CollectionBeforeValidateHook } from 'payload'
 import { APIError } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
+import type { RoleSlug } from '@/payload-types'
 
 /**
  * The roles that may name **any** client's subscribe form.
@@ -10,8 +11,19 @@ import { relationId } from '@/lib/utilities/relationId'
  * The We Meditate surfaces render forms for the whole platform, so a row of
  * theirs legitimately targets a list they do not own. Every other client may
  * only reach its own.
+ *
+ * ⚠ **Typed against the registry, not spelled as strings.** This is a security
+ * boundary holding a second copy of role knowledge that lives in
+ * `src/plugins/access/config/roles.ts`. `RoleSlug` is generated from that
+ * registry, so renaming a role there makes this file a build error rather than
+ * a gate that silently refuses writes it means to allow.
+ *
+ * `wemeditate-app-client` holds no `user-submissions` grant today, so it cannot
+ * reach this hook at all. It stays named because the exemption is about which
+ * surfaces the We Meditate platform renders forms for, not about which of them
+ * currently has a key.
  */
-const UNRESTRICTED_ROLES = ['wemeditate-web-client', 'wemeditate-app-client']
+const UNRESTRICTED_ROLES: readonly RoleSlug[] = ['wemeditate-web-client', 'wemeditate-app-client']
 
 /**
  * beforeValidate (create): a client may not subscribe an address to **another
@@ -48,7 +60,10 @@ export const enforceSubscribeReach: CollectionBeforeValidateHook = async ({
   if (formId == null) return data
 
   const roles = Array.isArray(req.user.roles) ? (req.user.roles as string[]) : []
-  if (roles.some((role) => UNRESTRICTED_ROLES.includes(role))) return data
+  // Asked from the allowlist's side, so the comparison stays typed: a
+  // `RoleSlug` is a `string`, and the reverse needs a cast that would undo the
+  // build error above.
+  if (UNRESTRICTED_ROLES.some((role) => roles.includes(role))) return data
 
   // Read without forwarding `req`: a form is committed state, and a nested read
   // that joins the caller's transaction takes the whole create down with it
