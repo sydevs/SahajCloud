@@ -50,7 +50,7 @@ Neither URL takes a trailing slash, since both are used as prefixes and compared
 
 ### The live-preview signing key
 
-- `LIVE_PREVIEW_SIGNING_KEY` — optional. Ed25519 **private** key, base64 PKCS8, that signs the short-lived token on a live-preview URL. Generate with `pnpm generate:preview-keypair`.
+- `LIVE_PREVIEW_SIGNING_KEY` — optional. Ed25519 **private** key that signs the short-lived token on a live-preview URL: base64 of a private JWK, which carries the public half beside the private one so this single variable also verifies a token forwarded back. Generate with `pnpm generate:preview-keypair`.
 
 The matching **public** key is committed into each consumer that verifies tokens (`PUBLIC__LIVE_PREVIEW_VERIFY_KEY` in WeMeditateWeb, `VITE_LIVE_PREVIEW_VERIFY_KEY` in SahajAtlasWeb). It is not a secret, and that is the point of signing rather than sharing a symmetric secret: SahajAtlasWeb ships as a public bundle, so any key it holds is published — a verification key being published costs nothing, a signing key being published is the whole vulnerability.
 
