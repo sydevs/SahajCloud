@@ -34,16 +34,24 @@ import { hasPermission } from './permissions'
 import { isRegionSubtreeCollection, scopeRegionSubtreeWrite } from './regionSubtreeAccess'
 
 /**
- * Check if a collection has drafts enabled
- * Uses req.payload to access collection config at runtime
+ * True when the entity named by `slug` has drafts enabled — collection **or**
+ * global. Read from the runtime config, not from a static list, so a new
+ * draft-enabled entity is covered the day it is added.
  *
- * @param req - PayloadRequest with access to payload instance
- * @param collectionSlug - Collection slug to check
- * @returns true if collection has drafts enabled
+ * ⚠ **Both branches are load-bearing.** This used to read
+ * `req.payload.collections[slug]` alone. A global is not in that map, so it
+ * answered `false` for every global, the published-only clause below never
+ * fired on one, and an ordinary client API key plus `?draft=true` read
+ * unpublished copy out of all three translations globals — no preview secret
+ * required. `globals-client-reads.int.spec.ts` reproduces that and fails if
+ * the globals branch is removed.
  */
-function collectionHasDrafts(req: PayloadRequest, collectionSlug: string): boolean {
-  const collection = req.payload.collections[collectionSlug as CollectionSlug]
-  return !!collection?.config?.versions?.drafts
+function entityHasDrafts(req: PayloadRequest, slug: string): boolean {
+  const collection = req.payload.collections[slug as CollectionSlug]
+  if (collection) return !!collection.config?.versions?.drafts
+
+  const global = req.payload.config.globals?.find((candidate) => candidate.slug === slug)
+  return !!global?.versions?.drafts
 }
 
 /**
@@ -114,7 +122,7 @@ export function createAccessConfig(
         if (
           operation === 'read' &&
           req.user?.collection === 'clients' &&
-          collectionHasDrafts(req, collection) &&
+          entityHasDrafts(req, collection) &&
           !hasValidPreviewSecret(req) // External connections must use preview secret
         ) {
           // Restrict to published only unless all requirements are met.
