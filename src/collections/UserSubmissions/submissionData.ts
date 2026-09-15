@@ -1,6 +1,5 @@
-import type { SubmissionType } from './types'
-
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
+import type { UserSubmission } from '@/payload-types'
 
 
 /**
@@ -67,7 +66,7 @@ export const BASE_SUBMISSION_KEYS = [
  * `subscribe` adds none: an address plus a name is the whole of a subscription,
  * and the address is a real column.
  */
-export const TYPE_SUBMISSION_KEYS: Record<SubmissionType, readonly string[]> = {
+export const TYPE_SUBMISSION_KEYS: Record<UserSubmission['type'], readonly string[]> = {
   contact: ['subject', 'message'],
   subscribe: [],
   registration: EVENT_REGISTRATION_QUESTIONS.map((question) => question.name),
@@ -82,7 +81,7 @@ export const TYPE_SUBMISSION_KEYS: Record<SubmissionType, readonly string[]> = {
  * whenever they like and a fixed list would refuse it the moment they did.
  */
 export function allowedSubmissionKeys(
-  type: SubmissionType,
+  type: UserSubmission['type'],
   formFieldNames: readonly string[] = [],
 ): Set<string> {
   return new Set<string>([

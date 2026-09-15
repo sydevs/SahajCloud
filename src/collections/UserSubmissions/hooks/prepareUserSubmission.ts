@@ -8,15 +8,15 @@ import { APIError } from 'payload'
 import { checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
 import { upsertUserByEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
-import type { Form } from '@/payload-types'
+import type { Form, UserSubmission } from '@/payload-types'
 
+import { FORM_BACKED_TYPES, SUBMISSION_TYPES, TYPE_LABELS } from '../fields'
 import {
   allowedSubmissionKeys,
   checkSubmissionData,
   readSubmissionValue,
   urlScannablePairs,
 } from '../submissionData'
-import { FORM_BACKED_TYPES, SUBMISSION_TYPES, TYPE_LABELS, type SubmissionType } from '../types'
 
 
 /** Said when an address has no usable local part (`"..."@example.org`). */
@@ -81,7 +81,7 @@ export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
   // went wrong.` and pages Sentry once per attempt, where the caller should
   // have got a 400 naming the field.
   const raw = typeof data.type === 'string' ? data.type : 'contact'
-  if (!SUBMISSION_TYPES.includes(raw as SubmissionType)) {
+  if (!SUBMISSION_TYPES.includes(raw as UserSubmission['type'])) {
     throw new APIError(
       `\`${raw}\` is not a submission type.`,
       400,
@@ -89,7 +89,7 @@ export const prepareUserSubmission: CollectionBeforeValidateHook = async ({
       true,
     )
   }
-  const type = raw as SubmissionType
+  const type = raw as UserSubmission['type']
   const fromClient = req.user?.collection === 'clients'
 
   // The form is the authority on what a submission against it *is*. `type`
@@ -227,7 +227,7 @@ async function composeSubject({
 }: {
   data: Record<string, unknown>
   req: Parameters<CollectionBeforeValidateHook>[0]['req']
-  type: SubmissionType
+  type: UserSubmission['type']
 }): Promise<string> {
   const sender = typeof data.senderEmail === 'string' ? data.senderEmail.trim() : ''
 

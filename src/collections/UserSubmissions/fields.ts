@@ -4,15 +4,64 @@ import { z } from 'zod'
 
 import { logField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
+import type { UserSubmission } from '@/payload-types'
 
-import {
-  FORM_BACKED_TYPES,
-  STATUS_LABELS,
-  SUBMISSION_STATUSES,
-  SUBMISSION_TYPES,
-  TYPE_LABELS,
-  type SubmissionType,
-} from './types'
+/**
+ * What a submission *is*. Every access rule, policy branch and retention window
+ * keys on this.
+ *
+ * `contact` and `subscribe` come from an authored `forms` document.
+ * `registration` and `proposal` name an `event` instead — nobody authors a form
+ * for them.
+ *
+ * The list is the runtime value `typeField` builds its select from, so the
+ * column is generated *from* it. Read the union back off
+ * `UserSubmission['type']` at a call site, never restated
+ * (`src/types/AGENTS.md`): an option added here without a `TYPE_LABELS` or
+ * `TYPE_SUBMISSION_KEYS` entry is then a compile error rather than an
+ * `undefined` at runtime.
+ */
+export const SUBMISSION_TYPES = ['contact', 'subscribe', 'registration', 'proposal'] as const
+
+/** The types that must carry a `form`. The other two carry an `event`. */
+export const FORM_BACKED_TYPES: readonly UserSubmission['type'][] = ['contact', 'subscribe']
+
+/** What each type is called wherever an admin meets it. */
+export const TYPE_LABELS: Record<UserSubmission['type'], string> = {
+  contact: 'Contact Message',
+  subscribe: 'Subscription',
+  registration: 'Registration',
+  proposal: 'Event Proposal',
+}
+
+/**
+ * One four-state vocabulary for every type, replacing three per-collection sets.
+ *
+ * `pending` → nothing has decided yet. That covers both "screening is still
+ * running" and "screening passed, a human has not looked" — the two are told
+ * apart by whether `screeningResult` exists, not by a fifth status.
+ *
+ * `accepted` / `rejected` are terminal decisions, whoever made them. A machine
+ * spam verdict and a human decline both land on `rejected`; which it was stays
+ * queryable in `screeningResult`, so abuse counting can read the machine
+ * verdict without counting a manager's judgement as a spam strike.
+ *
+ * `failed` is the retryable one, carried over from user-messages: the decision
+ * went fine and the delivery did not. It is not terminal, and it is the state
+ * nobody else would notice.
+ */
+const SUBMISSION_STATUSES = ['pending', 'accepted', 'rejected', 'failed'] as const
+
+/**
+ * What each status is called, in the list column and the `status` select alike.
+ * One definition, so a row and the document it opens never disagree.
+ */
+const STATUS_LABELS: Record<UserSubmission['status'], string> = {
+  pending: 'Pending',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+  failed: 'Failed',
+}
 
 /**
  * System/workflow fields must never be set by the submitting client. The
@@ -118,7 +167,7 @@ function perTypeForm(field: Field): Field {
   const formExists = field.validate as Validate | undefined
 
   const validate: Validate = async (value, options) => {
-    const type = (options?.data as { type?: SubmissionType } | undefined)?.type
+    const type = (options?.data as { type?: UserSubmission['type'] } | undefined)?.type
 
     if (type != null && !FORM_BACKED_TYPES.includes(type)) {
       return value == null ? true : `A ${type} submission names an event, not a form.`
@@ -150,7 +199,7 @@ const senderEmailField: Field = {
   admin: { description: 'Who sent this. Normalized, and what `user` is upserted from.' },
 }
 
-/** One four-state vocabulary for every type. See `types.ts` for what each means. */
+/** One four-state vocabulary for every type. `SUBMISSION_STATUSES` says what each means. */
 const statusField: Field = {
   name: 'status',
   type: 'select',
