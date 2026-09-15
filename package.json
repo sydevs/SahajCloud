@@ -24,6 +24,7 @@
     "generate:importmap": "payload generate:importmap",
     "generate:types": "payload generate:types && pnpm generate:statusConfig",
     "generate:statusConfig": "tsx scripts/generate-status-config.ts",
+    "generate:preview-keypair": "tsx scripts/generate-live-preview-keypair.ts",
     "payload": "payload",
     "db:migrate": "payload migrate",
     "db:migrations:create": "payload migrate:create"
