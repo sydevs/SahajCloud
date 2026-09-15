@@ -119,7 +119,7 @@ export const Regions: CollectionConfig = {
         livePreviewUrl({
           base: serverEnv.SAHAJATLAS_URL,
           path: await buildRegionWebPath({ data, req }),
-          audience: 'sy-atlas',
+          role: 'sahaj-atlas-client',
           params: { locale: locale.code },
         }),
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],

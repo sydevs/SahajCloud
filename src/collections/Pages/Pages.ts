@@ -30,7 +30,7 @@ export const Pages: CollectionConfig = {
         livePreviewUrl({
           base: serverEnv.WEMEDITATE_WEB_URL,
           path: buildPageWebPath({ slug: data?.slug, locale: locale.code }),
-          audience: 'wm-web',
+          role: 'wemeditate-web-client',
         }),
     },
   },

@@ -19,7 +19,7 @@ export const WeMeditateWebConfig: GlobalConfig = {
           // Trailing slash for the same reason as the translations global:
           // a relative target must resolve under the locale, not beside it.
           path: locale.code === 'en' ? '' : `${locale.code}/`,
-          audience: 'wm-web',
+          role: 'wemeditate-web-client',
         }),
     },
   },

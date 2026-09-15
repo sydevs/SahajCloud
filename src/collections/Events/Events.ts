@@ -135,7 +135,7 @@ export const Events: CollectionConfig = {
         livePreviewUrl({
           base: serverEnv.SAHAJATLAS_URL,
           path: await buildEventWebPath({ data, req }),
-          audience: 'sy-atlas',
+          role: 'sahaj-atlas-client',
           params: { locale: locale.code },
           reason: 'no-region',
         }),

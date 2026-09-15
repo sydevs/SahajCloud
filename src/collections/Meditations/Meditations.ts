@@ -162,7 +162,7 @@ export const Meditations: CollectionConfig = {
         livePreviewUrl({
           base: serverEnv.WEMEDITATE_WEB_URL,
           path: typeof data?.id === 'number' ? `meditations/${data.id}/embed` : null,
-          audience: 'wm-web',
+          role: 'wemeditate-web-client',
           params: { locale: locale.code },
         }),
       breakpoints: [

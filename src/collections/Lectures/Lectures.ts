@@ -48,7 +48,7 @@ export const Lectures: CollectionConfig = {
         livePreviewUrl({
           base: serverEnv.WEMEDITATE_WEB_URL,
           path: typeof data?.id === 'number' ? `lectures/${data.id}` : null,
-          audience: 'wm-web',
+          role: 'wemeditate-web-client',
           params: { locale: locale.code },
         }),
     },
