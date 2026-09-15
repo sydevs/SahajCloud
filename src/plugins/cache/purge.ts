@@ -3,24 +3,28 @@ import { serverEnv } from '@/lib/env'
 /**
  * Best-effort Cloudflare edge-cache purge.
  *
- * Purges by `Cache-Tag` (Cloudflare Enterprise) or by exact `files` URL. It is a
- * no-op — returning `false` — unless both `CLOUDFLARE_ZONE_ID` and
- * `CLOUDFLARE_CACHE_PURGE_TOKEN` are set, so it's inert in dev, in preview, and
- * anywhere the edge cache isn't wired up yet. It never throws: a failed purge
- * must not fail the content write that triggered it (the edge TTL is the
- * backstop invalidation).
+ * Purges by `Cache-Tag` or by exact `files` URL. It is a no-op — returning
+ * `false` — unless both `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_CACHE_PURGE_TOKEN`
+ * are set, so it's inert in dev, in preview, and anywhere the edge cache isn't
+ * wired up yet. It never throws: a failed purge must not fail the content write
+ * that triggered it (the edge TTL is the backstop invalidation).
+ *
+ * Set both variables on any environment that fronts a Cache Rule — see
+ * `DEPLOYMENT.md` § Edge Cache for which plans support tag purge, the token
+ * scope, and what an unset pair costs.
  *
  * See `cachePlugin`'s write hooks (`index.ts`) for the callers and `./policy`
- * (`CACHEABLE_SLUGS`) for the `Cache-Tag`s these correspond to.
+ * (`CACHEABLE_SLUGS`, `CACHEABLE_GLOBALS`) for the `Cache-Tag`s these
+ * correspond to.
  */
 
 const CF_API_BASE = 'https://api.cloudflare.com/client/v4'
 const PURGE_TIMEOUT_MS = 5_000
 
 export interface CachePurgeInput {
-  /** `Cache-Tag` values to purge (Enterprise). Takes precedence over `files`. */
+  /** `Cache-Tag` values to purge. Takes precedence over `files`. */
   tags?: string[]
-  /** Absolute URLs to purge (works on all plans). */
+  /** Absolute URLs to purge. */
   files?: string[]
 }
 

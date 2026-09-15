@@ -287,6 +287,7 @@
     "search": {
       "type": "object",
       "description": "The Search view: the geocoder, the paged result list, and the sort menu.",
+      "preview": { "path": "/search" },
       "properties": {
         "chrome": {
           "type": "object",
@@ -385,6 +386,7 @@
     "filters": {
       "type": "object",
       "description": "The Filter view: its chrome, and one sub-group per filter control.",
+      "preview": { "path": "/filters" },
       "properties": {
         "chrome": {
           "type": "object",
@@ -885,6 +887,7 @@
     "calendar": {
       "type": "object",
       "description": "The Calendar view’s own header. The grid’s dates and day names come from the browser.",
+      "preview": { "path": "/calendar" },
       "properties": {
         "title": {
           "type": "string",

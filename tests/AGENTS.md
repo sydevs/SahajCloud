@@ -35,6 +35,21 @@ schedule RRULE/DST computations, Lexical block migration helpers,
 `filterAvailableLocales`, `buildRateLimitKey`, seed pagination helpers,
 unify-index-blocks migration transforms.
 
+### Mounting an admin component in the unit lane
+
+The lane is node by default. A spec that needs a DOM opts in per file with a
+`// @vitest-environment jsdom` docblock on line 1 — `playbackTimeStore.spec.ts`
+for a `window` listener, `preview-target-component.spec.ts` for a mounted
+component. Mount with `createRoot` plus React's exported `act`; there is no
+Testing Library here, and adding one is not the fix for an awkward assertion.
+
+**Reach for it only when the behaviour lives between mounts.** Extract the pure
+part first — `composeTargetUrl` is a spec with no DOM at all — and keep jsdom
+for what that cannot express: what a component does on unmount, or when one
+instance hands over to the next. Mock the Payload provider at the boundary
+(`vi.mock('@payloadcms/ui')`), reproducing only the behaviours the component
+relies on, and say in the file which ones and where you read them.
+
 ### When to put a test in `tests/int/`
 
 Put it there when the test calls `createTestEnvironment()`, the code under
