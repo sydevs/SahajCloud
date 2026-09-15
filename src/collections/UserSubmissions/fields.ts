@@ -5,7 +5,6 @@ import { z } from 'zod'
 import { logField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 
-import { SUBMISSION_VERDICTS } from './screening'
 import {
   FORM_BACKED_TYPES,
   STATUS_LABELS,
@@ -268,9 +267,38 @@ const proposedField: Field = jsonField({
 })
 
 /**
+ * Why a submission was refused, or `ok`. One reason — the first check that hit.
+ *
+ * The union of what the two screening jobs recorded separately, minus the
+ * per-collection wording: the copy that made them un-shareable lived in the
+ * notes, and the notes are composed by the job, which knows the domain.
+ *
+ * A runtime list as well as the schema's enum, because the verdict is read back
+ * out of a JSON column — a value outside this list means the column holds
+ * something this code did not write. Read the **type** off
+ * `SubmissionScreeningResult['verdict']` in `@/payload-types`, which this list
+ * generates; there is no alias to import (`src/types/AGENTS.md`).
+ */
+export const SUBMISSION_VERDICTS = [
+  'ok',
+  'disposable_email',
+  'invalid_email',
+  'no_mx_records',
+  'repeat_sender',
+  'duplicate_body',
+  'content_rejected',
+] as const
+
+/**
  * Screening's verdict — and the only place the machine's judgement is
  * recorded, now that `status` folds spam and a human decline into `rejected`.
  * Written by the (Phase 2) screening job alone.
+ *
+ * **This column, not `status`, is where the machine verdict lives.** The four
+ * shared statuses fold a spam verdict and a human decline into one `rejected`,
+ * which is what lets every type share a vocabulary — so abuse counting reads
+ * `screeningResult.verdict` and never `status`, and a manager declining a
+ * proposal is not a spam strike against its sender.
  *
  * Closed (`z.strictObject`) because only that job writes here — an unknown key
  * is a bug in the job, never an older server meeting a newer client — and
