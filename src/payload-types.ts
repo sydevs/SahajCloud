@@ -2463,6 +2463,9 @@ export interface Client {
   mailingList?: {
     enabled?: boolean | null;
     provider?: ('mailchimp' | 'brevo' | 'klaviyo') | null;
+    /**
+     * Mailchimp’s Audience ID, Brevo’s numeric list id, or Klaviyo’s List ID.
+     */
     listId?: string | null;
     /**
      * The provider secret. Checked against the provider when you save, and never readable by an API client.
