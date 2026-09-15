@@ -3,6 +3,7 @@ import type { CollectionConfig } from 'payload'
 import { slugField, publicUrlFields } from '@/fields'
 import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import { serverEnv } from '@/lib/env'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 import { PAGE_TAGS } from '@/lib/pageTags'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { pageBlocks } from '@/lib/richEditor/blocks'
@@ -21,11 +22,16 @@ export const Pages: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', '_status'],
     livePreview: {
-      url: ({ data, locale }) => {
-        // `serverEnv`, not raw `process.env`: an unset variable fails at boot
-        // rather than interpolating `undefined` into the panel's URL.
-        return `${serverEnv.WEMEDITATE_WEB_URL}/${locale.code}/preview?collection=pages&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}`
-      },
+      // The real page, not a preview route: `buildPageWebPath` is the same
+      // composer `webPath` publishes, so the panel and the published URL
+      // cannot disagree. A page with no slug yet has no address, and lands on
+      // the explanation instead of a URL that 404s.
+      url: ({ data, locale }) =>
+        livePreviewUrl({
+          base: serverEnv.WEMEDITATE_WEB_URL,
+          path: buildPageWebPath({ slug: data?.slug, locale: locale.code }),
+          audience: 'wm-web',
+        }),
     },
   },
   versions: {

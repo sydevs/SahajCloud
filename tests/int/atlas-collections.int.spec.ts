@@ -1,6 +1,9 @@
-import type { Payload } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
+import type { Region } from '@/payload-types'
+
 
 import { createData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -236,35 +239,84 @@ describe('Atlas collections', () => {
   })
 
   // #575 — the Live Preview tab appears iff the sanitized collection config
-  // carries `admin.livePreview`. The URL must carry the collection, doc id,
-  // shared secret, and the edited locale so the Atlas widget can fetch the doc
-  // (drafts included) client-side.
+  // carries `admin.livePreview`.
+  //
+  // ⚠ **This block was rewritten when preview moved onto real paths.** It used
+  // to call `url()` with a bare `{ data: { id: 42 } }` and assert a literal
+  // `/preview?collection=…&id=…&secret=…`. Both halves are gone: the URL is now
+  // the document's own map path, composed by the same builder `webPath`
+  // publishes, and composing it reads the region tree — so the call needs a
+  // real `req` and real rows. A spec that kept passing a bare object would
+  // resolve no path and silently assert the "unavailable" page instead.
   describe('Live preview', () => {
-    it.each(['events', 'regions'] as const)(
-      '%s points the preview iframe at the Atlas widget',
-      async (slug) => {
-        const { livePreview } = payload.collections[slug].config.admin
-        if (typeof livePreview?.url !== 'function') {
-          throw new Error('expected livePreview.url to be a function')
-        }
-        const url = await livePreview.url({
-          data: { id: 42 },
-          locale: { code: 'cs' },
-        } as unknown as Parameters<typeof livePreview.url>[0])
-        expect(url).toBe(
-          `${process.env.SAHAJATLAS_URL}/preview?collection=${slug}&id=42&secret=${process.env.SAHAJCLOUD_PREVIEW_SECRET}&locale=cs`,
-        )
-        expect(livePreview.breakpoints).toEqual([
-          { label: 'Mobile', name: 'mobile', width: 390, height: 844 },
-        ])
+    let country: Region
 
-        // Unsaved docs (no id) get no URL — the preview panel stays disabled.
-        const unsaved = await livePreview.url({
-          data: {},
-          locale: { code: 'cs' },
-        } as Parameters<typeof livePreview.url>[0])
-        expect(unsaved).toBeNull()
-      },
-    )
+    beforeAll(async () => {
+      country = await payload.create({
+        collection: 'regions',
+        overrideAccess: true,
+        data: createData<'regions'>({
+          name: 'Preview Country',
+          level: 'country',
+          mapboxId: 'lp.country',
+          managers: [managerId],
+        }),
+      })
+    })
+
+    /** A request as the admin panel makes one: real payload, one locale. */
+    const req = () => ({ payload, locale: 'cs', context: {} }) as unknown as PayloadRequest
+
+    const resolve = async (slug: 'events' | 'regions', data: Record<string, unknown>) => {
+      const { livePreview } = payload.collections[slug].config.admin
+      if (typeof livePreview?.url !== 'function') {
+        throw new Error('expected livePreview.url to be a function')
+      }
+      return (await livePreview.url({
+        data,
+        locale: { code: 'cs' },
+        req: req(),
+      } as unknown as Parameters<typeof livePreview.url>[0])) as string
+    }
+
+    it('points a region at its own map path, with a token and the edited locale', async () => {
+      const url = new URL(await resolve('regions', { id: country.id }))
+
+      expect(url.origin).toBe(new URL(process.env.SAHAJATLAS_URL!).origin)
+      expect(url.pathname).toBe(`/${country.slug}`)
+      expect(url.searchParams.get('locale')).toBe('cs')
+      expect(url.searchParams.get('live-preview')).toBeTruthy()
+      // The retired shape, asserted absent so a revert is loud.
+      expect(url.searchParams.get('secret')).toBeNull()
+      expect(url.searchParams.get('collection')).toBeNull()
+    })
+
+    it('points an event at its region path plus its id', async () => {
+      // No Event row: the composer reads `data.region` and `data.id` and
+      // resolves the region tree, so a real event would only add a dozen
+      // required fields to satisfy and nothing to the assertion.
+      const url = new URL(await resolve('events', { id: 4242, region: country.id }))
+
+      expect(url.pathname).toBe(`/${country.slug}/4242`)
+      expect(url.searchParams.get('live-preview')).toBeTruthy()
+      expect(url.searchParams.get('locale')).toBe('cs')
+    })
+
+    it('sends an event with no region to the explanation, never to null', async () => {
+      // `region` is nominally required, but drafts skip validation — so a
+      // region-less event draft is ordinary, and it is exactly the document an
+      // editor is most likely to be previewing. Returning `null` here would
+      // close the panel AND persist "live preview off" as their preference.
+      const url = new URL(await resolve('events', { id: 999_999 }))
+
+      expect(url.pathname).toBe('/live-preview-unavailable')
+      expect(url.searchParams.get('reason')).toBe('no-region')
+    })
+
+    it.each(['events', 'regions'] as const)('%s keeps its phone breakpoint', (slug) => {
+      expect(payload.collections[slug].config.admin.livePreview?.breakpoints).toEqual([
+        { label: 'Mobile', name: 'mobile', width: 390, height: 844 },
+      ])
+    })
   })
 })

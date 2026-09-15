@@ -38,6 +38,7 @@ import {
   isPreAdoptionStage,
   isUnmanagedStage,
 } from '@/lib/eventVerification/stages'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { adminOnlyCondition, ownedRegionFilterOptions } from '@/plugins/access'
@@ -126,10 +127,18 @@ export const Events: CollectionConfig = {
     // translates it client-side.
     livePreview: {
       // An unsaved document has nothing to fetch yet. Returning null disables the panel.
-      url: ({ data, locale }) =>
-        data.id
-          ? `${serverEnv.SAHAJATLAS_URL}/preview?collection=events&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`
-          : null,
+      // The event's own map path, shared with `webPath` through
+      // `buildEventWebPath`. A draft with no region yet has nowhere to appear,
+      // and `region` is only nominally required — drafts skip validation — so
+      // that is a normal state, not an edge case.
+      url: async ({ data, locale, req }) =>
+        livePreviewUrl({
+          base: serverEnv.SAHAJATLAS_URL,
+          path: await buildEventWebPath({ data, req }),
+          audience: 'sy-atlas',
+          params: { locale: locale.code },
+          reason: 'no-region',
+        }),
       // Phone-sized frame for the widget's bottom-sheet drawer layout.
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
     },

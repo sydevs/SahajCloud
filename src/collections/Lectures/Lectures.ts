@@ -2,7 +2,9 @@ import type { CollectionConfig, Where } from 'payload'
 
 import { mediaField, urlField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
+import { serverEnv } from '@/lib/env'
 import { lectureMetadataSchema } from '@/lib/lectures/nirmalaVidya'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 import { LOCALES, getLocaleLabel } from '@/lib/locales'
 
 import { lecturesForAudience } from './endpoints/forAudience'
@@ -34,6 +36,22 @@ export const Lectures: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'type', 'thumbnail'],
+    // Lectures had no preview at all, while WeMeditateWeb has carried a
+    // `LecturePreview` component the whole time — reachable by nothing, because
+    // no `livePreview.url` ever pointed at it.
+    //
+    // ⚠ Lectures declare no `versions.drafts`, so this shows the saved document
+    // plus whatever the editor is typing, streamed over postMessage. There is
+    // no draft to read. Regions work the same way.
+    livePreview: {
+      url: ({ data, locale }) =>
+        livePreviewUrl({
+          base: serverEnv.WEMEDITATE_WEB_URL,
+          path: typeof data?.id === 'number' ? `lectures/${data.id}` : null,
+          audience: 'wm-web',
+          params: { locale: locale.code },
+        }),
+    },
   },
   hooks: {
     // resolveClipParent runs first so clip records have their parent resolved

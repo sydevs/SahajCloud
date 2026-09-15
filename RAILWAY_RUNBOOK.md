@@ -93,7 +93,7 @@ its validation:
 2. `DATABASE_URL`
 3. `WEMEDITATE_WEB_URL`
 4. `SAHAJATLAS_URL`
-5. `SAHAJCLOUD_PREVIEW_SECRET`
+5. `LIVE_PREVIEW_SIGNING_KEY` (optional — unset, live preview is not offered)
 
 The full variable reference — what each one does, and its footguns — lives in
 [DEPLOYMENT.md § Environment Variables](./DEPLOYMENT.md#environment-variables). For where to

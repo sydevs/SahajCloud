@@ -248,12 +248,6 @@ const ServerEnvSchema = ClientEnvSchema.extend({
     .default('/map'),
 
   /**
-   * Shared secret that allows trusted server-side preview requests to read drafts.
-   * This should match the web frontend's SAHAJCLOUD_PREVIEW_SECRET value.
-   */
-  SAHAJCLOUD_PREVIEW_SECRET: z.string().min(16),
-
-  /**
    * Ed25519 private key (base64 PKCS8) that signs live-preview tokens.
    *
    * Generate with `pnpm generate:preview-keypair`. The matching public key is

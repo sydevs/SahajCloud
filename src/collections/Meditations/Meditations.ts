@@ -6,6 +6,8 @@ import { z } from 'zod'
 import { hideUntilCreated, mediaField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { previewTargetField } from '@/fields/previewTargetField'
+import { serverEnv } from '@/lib/env'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 import { LOCALES } from '@/lib/locales'
 import {
   getFrameDiagnosticsLogContext,
@@ -149,10 +151,20 @@ export const Meditations: CollectionConfig = {
     // derives minutes from `duration` — still computes under the list select.
     defaultColumns: ['label', 'thumbnail', '_status', 'type', 'durationMinutes', 'duration'],
     livePreview: {
-      url: ({ data }) => {
-        const baseURL = process.env.WEMEDITATE_WEB_URL
-        return `${baseURL}/${data.locale}/preview/embed?collection=meditations&id=${data.id}&secret=${process.env.SAHAJCLOUD_PREVIEW_SECRET}`
-      },
+      // `/meditations/:id/embed` is a real, public, chrome-less route — the
+      // same one the site's own embed button links to. The retired
+      // `/preview/embed` was a second renderer kept approximately equal to it.
+      //
+      // ⚠ Reads the `locale` argument, not `data.locale`. This was the only
+      // site in the repo reading the field, and the two disagree whenever the
+      // panel is opened in a locale other than the document's own.
+      url: ({ data, locale }) =>
+        livePreviewUrl({
+          base: serverEnv.WEMEDITATE_WEB_URL,
+          path: typeof data?.id === 'number' ? `meditations/${data.id}/embed` : null,
+          audience: 'wm-web',
+          params: { locale: locale.code },
+        }),
       breakpoints: [
         {
           label: 'Mobile',
