@@ -444,6 +444,38 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       ).rejects.toThrow(/subscribe/)
     })
 
+    /**
+     * ⚠ The target list is resolved at **delivery** time from the form's
+     * `client`, so without this gate a create-only key could post a subscribe
+     * row naming another service's form and have the queue push addresses onto
+     * a list it has no relationship with — spending somebody else's quota and
+     * sender reputation. The row's own `client` column is stamped from the key
+     * and cannot be forged, but it is not what delivery reads when a form is
+     * named.
+     */
+    it('refuses a subscribe row naming another service’s form', async () => {
+      const foreignForm = (await payload.create({
+        collection: 'forms',
+        data: {
+          title: 'Another service’s newsletter',
+          actionType: 'subscribe',
+          client: otherClient.id,
+          confirmationType: 'redirect',
+          redirect: { url: '/thanks' },
+          fields: [{ blockType: 'email', name: 'email', label: 'Email' }],
+        } as never,
+        overrideAccess: true,
+      })) as Form
+
+      await expect(
+        send({
+          type: 'subscribe',
+          form: foreignForm.id,
+          senderEmail: 'poached@example.com',
+        }),
+      ).rejects.toThrow(/its own mailing list/)
+    })
+
     it('is immutable once the row exists', async () => {
       // Every access rule and retention window keys on `type`, and a manager
       // holds update. `admin.readOnly` is the admin UI only.
