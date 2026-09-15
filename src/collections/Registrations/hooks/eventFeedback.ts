@@ -1,8 +1,4 @@
-import type {
-  CollectionAfterChangeHook,
-  CollectionBeforeChangeHook,
-  CollectionBeforeValidateHook,
-} from 'payload'
+import type { CollectionAfterChangeHook, CollectionBeforeChangeHook } from 'payload'
 
 import { APIError } from 'payload'
 
@@ -13,40 +9,16 @@ import { asSystemReq, asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
  * Registrant confirm/deny voting on unverified events, carried on the
- * registration itself (possession of the registration `uuid` is the vote's
- * authentication — see `registrationFeedbackAccess` in the access plugin).
- */
-
-/**
- * beforeValidate: an API client updating a registration may write exactly one
- * field — `eventFeedback`. Every other field is reverted to its stored value
- * (the widget only ever sends the vote; anything more is a forged body, and a
- * 400 would leak which fields exist).
+ * registration itself.
  *
- * Reverted, not stripped: on update Payload hands this hook `data` already
- * merged with the original document, and the merged object IS what gets
- * validated — returning only `{ eventFeedback }` would fail the collection's
- * own required fields. So the whitelist is expressed as "original doc +
- * the vote".
+ * The vote's only writer is the CMS-hosted `/registrations/feedback` page,
+ * which records it with `overrideAccess` behind a signed token and an explicit
+ * button press. No API client writes here: the `registrations: ['update']`
+ * grant, its uuid-scoped access branch, and the field-whitelist hook that used
+ * to guard them were removed with #723, having never been on the path a vote
+ * actually takes. These two hooks survive because the page's write goes
+ * through them.
  */
-export const restrictClientRegistrationUpdate: CollectionBeforeValidateHook = ({
-  data,
-  operation,
-  originalDoc,
-  req,
-}) => {
-  if (operation !== 'update' || req.user?.collection !== 'clients') return data
-  const {
-    id: _id,
-    createdAt: _createdAt,
-    updatedAt: _updatedAt,
-    ...original
-  } = (originalDoc ?? {}) as Record<string, unknown>
-  return {
-    ...original,
-    eventFeedback: (data as { eventFeedback?: unknown } | undefined)?.eventFeedback,
-  }
-}
 
 /**
  * beforeChange: gate + stamp a vote. Votes are only open while the event is

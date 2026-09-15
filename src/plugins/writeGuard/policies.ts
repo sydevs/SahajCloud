@@ -70,6 +70,43 @@ export const DEFAULT_WRITE_GUARD_POLICIES: Partial<Record<CollectionSlug, WriteG
   registrations: {
     create: { turnstile: true, urlScanFields: ['questions'] },
   },
+  // The unified public intake (#723). One type-aware policy replaces what the
+  // three per-collection ones did, and it is deliberately the union of them
+  // rather than a per-type branch: the guard runs beforeValidate, on data whose
+  // `type` a forged body chooses, so a policy that relaxed a check for one type
+  // could be reached by claiming to be that type. Every path here is public, so
+  // every path gets every check.
+  'user-submissions': {
+    create: {
+      turnstile: true,
+      emailFields: ['senderEmail', 'proposed.contactEmail'],
+      // `proposed` is scanned the way `event-submissions` scanned it: by group,
+      // so the street line is covered as well as the venue name.
+      //
+      // ⚠ `submissionData` is deliberately **absent**, and is scanned by
+      // `prepareUserSubmission` instead. A path here is walked by
+      // `stringLeaves`, which flattens the whole `[{field, value}]` array — and
+      // that array now carries the crash-report context (`error`, `path`,
+      // `hostUrl`) that `user-messages` exempted on purpose, because a bug
+      // report legitimately names the page it happened on. A path cannot say
+      // "every pair except those three"; a hook that already knows each pair's
+      // key can, and it uses the same `checkNoUrls` and raises the same
+      // `urls_not_allowed` failure.
+      // ⚠ `subject` is deliberately absent, though `user-messages` scans it.
+      // There it is a client-writable column; here it carries
+      // `systemFieldAccess`, and Payload deletes an access-denied field in the
+      // *field* beforeValidate pass — which runs before this collection hook —
+      // so for the only callers this guard inspects the value is always gone.
+      // The subject a sender actually writes travels in `submissionData`, and
+      // `urlScannablePairs` covers it there.
+      urlScanFields: [
+        'proposed.description',
+        'proposed.contactName',
+        'proposed.address',
+        'proposed.title',
+      ],
+    },
+  },
   'user-messages': {
     create: {
       turnstile: true,

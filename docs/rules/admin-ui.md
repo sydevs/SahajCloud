@@ -275,7 +275,7 @@ Project assignments live in the internal `PROJECTS` constant (`config/projects.t
 | authors | ✅ | | |
 | audiences | | ✅ | |
 | user-choices, song-tags | ✅ | ✅ | |
-| forms, form-submissions | ✅ | | |
+| forms | ✅ | | |
 | we-meditate-web-settings | ✅ | | |
 | we-meditate-app-settings | | ✅ | |
 | sahaj-atlas-settings | | | ✅ |

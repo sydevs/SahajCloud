@@ -7,6 +7,7 @@ import { verifyEventFromToken } from '@/collections/Events/lifecycle/verify'
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 import { serverEnv } from '@/lib/env'
 import type { NotificationLogEntry } from '@/lib/eventVerification/log'
+import { buildReminderEntry, buildVerificationEntry } from '@/lib/eventVerification/log'
 import { signVerifyToken } from '@/lib/eventVerification/token'
 import type { Event, Manager } from '@/payload-types'
 
@@ -550,16 +551,22 @@ describe('Event verification lifecycle', () => {
       data: {
         verificationStage: 'escalated',
         nextCheckAt: daysAgo(1),
+        // Built with the real builders, not hand-written. The entries this
+        // used to spell out by hand omitted `type` and `cells`, which nothing
+        // that writes this column omits — so the crash it simulates was a
+        // state the app cannot actually reach, and a resume bug that depended
+        // on either key would have gone unnoticed here.
         activityLog: [
-          { kind: 'verification', at: daysAgo(40), by: null, method: 'import' },
-          {
-            kind: 'reminder',
+          buildVerificationEntry('import', null, daysAgo(40)),
+          buildReminderEntry({
             stage: 'escalated',
+            level: 'escalated',
+            role: 'manager',
             at: daysAgo(1),
             manager: { id: eventManager.id, name: 'Event Manager' },
             channel: 'email',
             destination: 'event-manager@example.com',
-          },
+          }),
         ] as NotificationLogEntry[],
       },
     })

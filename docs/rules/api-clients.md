@@ -163,6 +163,21 @@ Access is permission-based via `accessPlugin` — a client needs an explicit per
 
 ⚠ **The gate fails closed on our own misconfiguration, on purpose.** A captcha that silently disables itself on a missing secret is worse than none, since nothing would surface the misconfiguration. There is no dev/test bypass — point `TURNSTILE_SECRET_KEY` at Cloudflare's always-passes test key locally.
 
+### `POST /api/user-submissions` — the unified intake
+
+One collection accepts every public write, discriminated by `type`: `contact`, `subscribe`, `registration`, `proposal` (#723). Turnstile, the disposable-email check and the URL scan apply to all four — the guard runs before anything reads `type`, so a policy relaxed for one type would be reachable by claiming to be that type.
+
+Two refusals are specific to it, each with a message naming what to fix:
+
+| `errors[0].code` | Status | Means |
+| --- | --- | --- |
+| `submission_data_invalid` | 400 | An unrecognised `type`, or a `submissionData` pair carrying a key this type does not accept, a duplicate key, a non-string value, or an over-long one. The message names the key |
+| `submission_type_mismatch` | 400 | The `type` disagrees with the form's `actionType`. The form is the authority on what a submission against it is |
+
+`urls_not_allowed` also reaches `submissionData`, with one deliberate exemption: `path`, `hostUrl`, `error`, `userAgent` and `locale` are never URL-scanned, because an issue report names the page it happened on.
+
+Clients hold **create only**, with no update of any kind and no read at any depth or scope.
+
 ## A global read is a client read (#710)
 
 `GET /api/globals/<slug>` now carries everything a collection read does: the four `beforeOperation` gates, edge-cache headers, and purge-on-write. Before #710 the usage plugin mapped `config.collections` only, so a global read was unmetered, outside origin enforcement, and exempt from the `select` gate — while every atlas widget boot on every host page and every WeMeditateWeb request reads its config and its translations from one.

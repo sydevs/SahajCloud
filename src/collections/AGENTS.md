@@ -570,9 +570,38 @@ page content, tabbed admin UI. Configured in `src/payload.config.ts`.
 
 ### Form Builder (`@payloadcms/plugin-form-builder`)
 
-Auto-generates `forms` (admin group: Resources) and `form-submissions`
-(admin group: System). Default email `contact@sydevelopers.com`. Standard
-permission-based access.
+Configured in **`src/plugins/formBuilder`**, once — `payload.config.ts` and
+the test harness both call `formsPlugin()`, since a plugin configured in only
+one of the two behaves differently under test than in production.
+
+It generates `forms` (admin group: Content) and, renamed via
+`formSubmissionOverrides.slug`, **`user-submissions`** (admin group: System) —
+the one intake for every public write, typed by a `type` discriminator
+(`contact` / `subscribe` / `registration` / `proposal`). See
+`src/collections/UserSubmissions/`.
+
+Three things the wrapper does that the plugin options cannot:
+
+- **Clears the plugin's `access` block on `user-submissions`.** `accessPlugin`
+  composes `{ ...rbac, ...collection.access }`, so a collection's own access
+  wins — and the plugin always supplies `read: ({ req: { user } }) => !!user`,
+  which grants read to any authenticated user, every API client included. Left
+  in place it outranks the role table and `RESTRICTED_COLLECTIONS` alike.
+  `forms` keeps its plugin access (`read: () => true`), which is the intended
+  rule: a public site renders a form anonymously.
+- **Removes the plugin's `sendEmail` afterChange hook.** `formOverrides.fields`
+  already strips the `emails` field, so nothing can be authored and the hook has
+  provably nothing to send — but it still loads `data.form` and spreads
+  `data.submissionData` on every create, and both are optional here, so it threw
+  and logged once per registration. Stripping the field alone does not disable
+  it; `formsPlugin` states the full mechanism, and is the one place that does.
+- **Makes the `form` relationship per-type.** The plugin marks it
+  unconditionally `required`; `contact` and `subscribe` need one, and the two
+  types that name an `event` must not have one. The plugin's own existence check
+  is composed with, not replaced.
+
+Default email `contact@sydevelopers.com` (the fallback recipient for a contact
+form with none set).
 
 ### Slug generation (`slugField` from `payload`)
 
