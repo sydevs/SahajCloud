@@ -382,6 +382,7 @@
     "map": {
       "type": "object",
       "description": "The class listings under /map, which crawlers and visitors without JavaScript read",
+      "preview": { "path": "map" },
       "properties": {
         "general": {
           "type": "object",

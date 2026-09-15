@@ -94,6 +94,8 @@ content collection.
 | Content-Index block API endpoint generation (`computeApiEndpoint` virtual)                                     | `content-index-block`       |
 | Project-based admin visibility (`createHidden` from accessPlugin)                                              | `project-visibility`        |
 | Canonical Atlas URL shapes, pinned to the cross-repo `atlas-url-contract.json` fixture                         | unit: `atlas-canonical-url.spec.ts` |
+| Live-preview targets — URL composition keeps the origin and `secret` and refuses another origin. The restore across a tab switch. Every declared path is origin-free | unit: `compose-target-url.spec.ts`, `preview-target-component.spec.ts`, `preview-targets.spec.ts`, `translations-globals` |
+| Frame-editor playhead — `PLAYBACK_TIME_UPDATE` is accepted from the preview iframe's origin alone | unit: `playbackTimeStore.spec.ts` |
 | Canonical ownership precedence (nearest owning ancestor wins. Disabled/draft client owns nothing. We Meditate fallback) | unit: `atlas-region-owners.spec.ts`, `region-canonical-url` |
 | Canonical resolution cost — a `webUrl` read costs exactly two extra queries regardless of N                    | `region-canonical-url` |
 | `breadcrumbs[].url` backfill — roots-only resave repopulates the whole tree via the nested-docs cascade        | `region-breadcrumb-url-backfill` |
