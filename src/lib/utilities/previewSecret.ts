@@ -9,6 +9,18 @@
  * enforcement (`validateClientQueryParamsHook`, `assertClientOriginAllowed`),
  * and is never cached (`publicReadCacheHeaders`).
  *
+ * ## The token names a role, and the caller must hold it
+ *
+ * A token carries the API-client role that may redeem it. This hook matches it
+ * against `req.user.roles` on the authenticated key, so a token minted for the
+ * We Meditate Web client is refused when presented with the Sahaj Atlas key.
+ *
+ * ⚠ **That check is the reason the claim exists.** It first named the *site*
+ * — `wm-web` / `sy-atlas` — which only the consumer checked, against a constant
+ * it hardcoded, while this service accepted either. So a token leaked from one
+ * surface unlocked drafts on both. A role is matched against something the
+ * request proves.
+ *
  * ## This replaced a shared secret
  *
  * The header used to carry `SAHAJCLOUD_PREVIEW_SECRET` verbatim, and that value
@@ -68,12 +80,22 @@ export async function resolveLivePreviewHook({ req }: { req: PayloadRequest }): 
   if (req.context && LIVE_PREVIEW_VERDICT in req.context) return
 
   const token = req.headers?.get?.(PREVIEW_SECRET_HEADER)
-  const audience = token
+  const role = token
     ? await verifyOwnLivePreviewToken(token, serverEnv.LIVE_PREVIEW_SIGNING_KEY)
     : null
 
+  // A token this service issued, presented by a key that holds the role it
+  // names. Both halves are required: the signature proves origin, the role
+  // match proves the holder is the consumer it was minted for.
+  //
+  // `roles` is only ever a flat array on a client — the per-locale map shape in
+  // `TypedAuthUser` belongs to managers, and a manager never carries this
+  // header — so an array check is the whole narrowing needed.
+  const roles = (req.user as { roles?: unknown } | undefined)?.roles
+  const holdsRole = role !== null && Array.isArray(roles) && roles.includes(role)
+
   if (req.context) {
-    ;(req.context as Record<string, unknown>)[LIVE_PREVIEW_VERDICT] = audience !== null
+    ;(req.context as Record<string, unknown>)[LIVE_PREVIEW_VERDICT] = holdsRole
   }
 }
 

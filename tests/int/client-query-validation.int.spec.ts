@@ -68,10 +68,9 @@ describe('Client query parameter validation', () => {
   })
 
   const clientReq = (): PayloadRequest =>
-    createClientAuthenticatedRequest(
-      String(testClient.id),
-      testClient.apiKey || 'test-key',
-    ) as PayloadRequest
+    createClientAuthenticatedRequest(String(testClient.id), testClient.apiKey || 'test-key', [
+      'wemeditate-web-client',
+    ]) as PayloadRequest
 
   // Access control is unrelated to this hook. Use overrideAccess so tests focus
   // purely on validation behavior, not on whether the test client has narrator
@@ -257,7 +256,7 @@ describe('Client query parameter validation', () => {
       const req = clientReq()
       const minted =
         token ??
-        (await mintLivePreviewToken('wm-web', serverEnv.LIVE_PREVIEW_SIGNING_KEY)) ??
+        (await mintLivePreviewToken('wemeditate-web-client', serverEnv.LIVE_PREVIEW_SIGNING_KEY)) ??
         'no-key-configured'
       req.headers.set('x-sahajcloud-preview-secret', minted)
       await resolveLivePreviewHook({ req })

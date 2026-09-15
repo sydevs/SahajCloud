@@ -7,6 +7,7 @@ import {
   resetLivePreviewKeyCache,
   verifyLivePreviewToken,
   verifyOwnLivePreviewToken,
+  type LivePreviewRole,
 } from '@/lib/livePreview/token'
 
 /**
@@ -59,60 +60,60 @@ describe('mintLivePreviewToken', () => {
   it('returns null when no signing key is configured', async () => {
     // Not an error: an environment with no key renders the admin panel and
     // simply does not offer live preview.
-    expect(await mintLivePreviewToken('wm-web', undefined)).toBeNull()
+    expect(await mintLivePreviewToken('wemeditate-web-client', undefined)).toBeNull()
     resetLivePreviewKeyCache()
-    expect(await mintLivePreviewToken('wm-web', '')).toBeNull()
+    expect(await mintLivePreviewToken('wemeditate-web-client', '')).toBeNull()
   })
 
   it('returns null for a key that is not a usable Ed25519 JWK', async () => {
-    expect(await mintLivePreviewToken('wm-web', 'not-a-key')).toBeNull()
+    expect(await mintLivePreviewToken('wemeditate-web-client', 'not-a-key')).toBeNull()
     resetLivePreviewKeyCache()
-    expect(await mintLivePreviewToken('wm-web', base64Json({ kty: 'oct', k: 'nope' }))).toBeNull()
+    expect(await mintLivePreviewToken('wemeditate-web-client', base64Json({ kty: 'oct', k: 'nope' }))).toBeNull()
   })
 
   it('mints a two-part token that carries no readable secret', async () => {
-    const token = await mintLivePreviewToken('wm-web', privateKeyBase64, NOW)
+    const token = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
     expect(token).toBeTruthy()
     expect(token!.split('.')).toHaveLength(2)
     expect(token).not.toContain(privateKeyBase64)
   })
 
-  it('stamps the audience and an expiry one TTL ahead', async () => {
-    const token = await mintLivePreviewToken('sy-atlas', privateKeyBase64, NOW)
+  it('stamps the role and an expiry one TTL ahead', async () => {
+    const token = await mintLivePreviewToken('sahaj-atlas-client', privateKeyBase64, NOW)
     const claims = JSON.parse(
       Buffer.from(token!.split('.')[0]!, 'base64url').toString('utf8'),
     ) as Record<string, unknown>
 
-    expect(claims).toEqual({ aud: 'sy-atlas', exp: NOW + LIVE_PREVIEW_TOKEN_TTL_SECONDS })
+    expect(claims).toEqual({ role: 'sahaj-atlas-client', exp: NOW + LIVE_PREVIEW_TOKEN_TTL_SECONDS })
   })
 })
 
 describe('verifyLivePreviewToken', () => {
-  const verify = (token: string, aud: 'wm-web' | 'sy-atlas' = 'wm-web', now = NOW) =>
-    verifyLivePreviewToken(token, aud, publicKeyRaw, now)
+  const verify = (token: string, role: LivePreviewRole = 'wemeditate-web-client', now = NOW) =>
+    verifyLivePreviewToken(token, role, publicKeyRaw, now)
 
-  it('accepts a freshly minted token for its own audience', async () => {
-    const token = await mintLivePreviewToken('wm-web', privateKeyBase64, NOW)
+  it('accepts a freshly minted token for its own role', async () => {
+    const token = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
     expect(await verify(token!)).toBe(true)
   })
 
-  it('refuses a token minted for the other site', async () => {
+  it('refuses a token minted for a different client role', async () => {
     // The atlas must not accept a token issued to WeMeditateWeb, and vice
     // versa: one leaked URL should not unlock both surfaces.
-    const token = await mintLivePreviewToken('sy-atlas', privateKeyBase64, NOW)
-    expect(await verify(token!, 'wm-web')).toBe(false)
+    const token = await mintLivePreviewToken('sahaj-atlas-client', privateKeyBase64, NOW)
+    expect(await verify(token!, 'wemeditate-web-client')).toBe(false)
   })
 
   it('refuses a token once it has expired, and at the exact expiry second', async () => {
-    const token = await mintLivePreviewToken('wm-web', privateKeyBase64, NOW)
-    expect(await verify(token!, 'wm-web', NOW + LIVE_PREVIEW_TOKEN_TTL_SECONDS - 1)).toBe(true)
-    expect(await verify(token!, 'wm-web', NOW + LIVE_PREVIEW_TOKEN_TTL_SECONDS)).toBe(false)
+    const token = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
+    expect(await verify(token!, 'wemeditate-web-client', NOW + LIVE_PREVIEW_TOKEN_TTL_SECONDS - 1)).toBe(true)
+    expect(await verify(token!, 'wemeditate-web-client', NOW + LIVE_PREVIEW_TOKEN_TTL_SECONDS)).toBe(false)
   })
 
   it('refuses a token whose claims were edited to extend it', async () => {
-    const token = await mintLivePreviewToken('wm-web', privateKeyBase64, NOW)
+    const token = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
     const forged = Buffer.from(
-      JSON.stringify({ aud: 'wm-web', exp: NOW + 10_000_000 }),
+      JSON.stringify({ role: 'wemeditate-web-client', exp: NOW + 10_000_000 }),
       'utf8',
     ).toString('base64url')
 
@@ -120,8 +121,8 @@ describe('verifyLivePreviewToken', () => {
   })
 
   it('refuses a token signed by a different key', async () => {
-    const token = await mintLivePreviewToken('wm-web', privateKeyBase64, NOW)
-    expect(await verifyLivePreviewToken(token!, 'wm-web', otherPublicKeyRaw, NOW)).toBe(false)
+    const token = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
+    expect(await verifyLivePreviewToken(token!, 'wemeditate-web-client', otherPublicKeyRaw, NOW)).toBe(false)
   })
 
   it('refuses malformed input without throwing', async () => {
@@ -137,35 +138,36 @@ describe('verifyLivePreviewToken', () => {
  * back to the API, and the API must answer: did I issue this, and is it alive?
  */
 describe('verifyOwnLivePreviewToken', () => {
-  it('returns the audience a valid token was minted for', async () => {
-    const wm = await mintLivePreviewToken('wm-web', privateKeyBase64, NOW)
-    expect(await verifyOwnLivePreviewToken(wm!, privateKeyBase64, NOW)).toBe('wm-web')
+  it('returns the role a valid token was minted for', async () => {
+    const wm = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
+    expect(await verifyOwnLivePreviewToken(wm!, privateKeyBase64, NOW)).toBe('wemeditate-web-client')
 
     resetLivePreviewKeyCache()
-    const atlas = await mintLivePreviewToken('sy-atlas', privateKeyBase64, NOW)
-    expect(await verifyOwnLivePreviewToken(atlas!, privateKeyBase64, NOW)).toBe('sy-atlas')
+    const atlas = await mintLivePreviewToken('sahaj-atlas-client', privateKeyBase64, NOW)
+    expect(await verifyOwnLivePreviewToken(atlas!, privateKeyBase64, NOW)).toBe('sahaj-atlas-client')
   })
 
-  it('accepts either audience — each consumer forwards only its own', async () => {
-    // The CMS does not care which site a token was for; it cares that it
-    // issued it. Narrowing here would reject the atlas from its own preview.
-    const atlas = await mintLivePreviewToken('sy-atlas', privateKeyBase64, NOW)
+  it('accepts any known role — the caller is checked by the hook, not here', async () => {
+    // This half answers only "did I issue this, and for whom". Matching the
+    // role to the caller is `resolveLivePreviewHook`'s job, where the
+    // authenticated key is known.
+    const atlas = await mintLivePreviewToken('sahaj-atlas-client', privateKeyBase64, NOW)
     expect(await verifyOwnLivePreviewToken(atlas!, privateKeyBase64, NOW)).not.toBeNull()
   })
 
   it('refuses a token minted under a different key', async () => {
-    const foreign = await mintLivePreviewToken('wm-web', otherPrivateKeyBase64, NOW)
+    const foreign = await mintLivePreviewToken('wemeditate-web-client', otherPrivateKeyBase64, NOW)
     resetLivePreviewKeyCache()
     expect(await verifyOwnLivePreviewToken(foreign!, privateKeyBase64, NOW)).toBeNull()
   })
 
   it('refuses an expired token, and edited claims', async () => {
-    const token = await mintLivePreviewToken('wm-web', privateKeyBase64, NOW)
+    const token = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
     expect(
       await verifyOwnLivePreviewToken(token!, privateKeyBase64, NOW + LIVE_PREVIEW_TOKEN_TTL_SECONDS),
     ).toBeNull()
 
-    const forged = Buffer.from(JSON.stringify({ aud: 'wm-web', exp: NOW + 9_999_999 })).toString(
+    const forged = Buffer.from(JSON.stringify({ role: 'wemeditate-web-client', exp: NOW + 9_999_999 })).toString(
       'base64url',
     )
     expect(

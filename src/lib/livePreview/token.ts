@@ -19,7 +19,17 @@
  *
  * ## What the token binds
  *
- * `{ aud, exp }` — which site it is for, and when it dies. **Not the path.**
+ * `{ role, exp }` — which API-client role it is for, and when it dies.
+ *
+ * ⚠ **The role, not a site name, because a role is something the request can
+ * PROVE.** An audience claim naming `wm-web` or `sy-atlas` was checked only by
+ * the consumer, against a constant it hardcoded — while the CMS, which is what
+ * actually unlocks drafts, accepted either. So a token leaked from one surface
+ * unlocked drafts on both. A role is matched against `req.user.roles` on the
+ * authenticated client key, so a token minted for the web client is refused
+ * when presented with the atlas key.
+ *
+ * **Not the path.**
  * Path binding breaks on WeMeditateWeb's `/en/*` → `/*` redirect, on the
  * atlas's own in-app navigation, and on a slug renamed mid-edit — each a silent
  * preview failure rather than an error. With a 45-minute life, replay across
@@ -31,8 +41,17 @@
  * wants a session, not this.
  */
 
-/** The sites a token may be issued for. A token is valid for exactly one. */
-export type LivePreviewAudience = 'wm-web' | 'sy-atlas'
+import type { Client } from '@/payload-types'
+
+/**
+ * The API-client roles a token may be issued for. A token names exactly one,
+ * and the holder must present a key carrying it.
+ *
+ * Derived from the generated `Client['roles']` rather than restated, so a role
+ * added or renamed upstream is a compile error here rather than a token nobody
+ * can redeem.
+ */
+export type LivePreviewRole = NonNullable<Client['roles']>[number]
 
 /**
  * How long a freshly minted token lives.
@@ -49,10 +68,18 @@ const ALGORITHM = 'Ed25519'
 
 /** The claims a token carries. Kept small: it rides in a URL. */
 export interface LivePreviewClaims {
-  aud: LivePreviewAudience
+  /** The API-client role that may redeem this token. */
+  role: LivePreviewRole
   /** Expiry, as unix seconds. */
   exp: number
 }
+
+/** Every role a token may name, for narrowing an untrusted claim. */
+const LIVE_PREVIEW_ROLES: ReadonlySet<string> = new Set<LivePreviewRole>([
+  'wemeditate-web-client',
+  'wemeditate-app-client',
+  'sahaj-atlas-client',
+])
 
 function base64UrlEncode(bytes: Uint8Array): string {
   let binary = ''
@@ -150,14 +177,14 @@ export async function livePreviewPublicKey(
  * into the "unavailable" page rather than a broken URL or a thrown boot.
  */
 export async function mintLivePreviewToken(
-  aud: LivePreviewAudience,
+  role: LivePreviewRole,
   keyBase64: string | undefined,
   nowSeconds: number = Math.floor(Date.now() / 1000),
 ): Promise<string | null> {
   const pair = await getKeys(keyBase64)
   if (!pair) return null
 
-  const claims: LivePreviewClaims = { aud, exp: nowSeconds + LIVE_PREVIEW_TOKEN_TTL_SECONDS }
+  const claims: LivePreviewClaims = { role, exp: nowSeconds + LIVE_PREVIEW_TOKEN_TTL_SECONDS }
   const body = base64UrlEncode(new TextEncoder().encode(JSON.stringify(claims)))
   const signature = await crypto.subtle.sign(
     ALGORITHM,
@@ -182,7 +209,7 @@ export async function mintLivePreviewToken(
  */
 export async function verifyLivePreviewToken(
   token: string,
-  expectedAudience: LivePreviewAudience,
+  expectedRole: LivePreviewRole,
   publicKeyRaw: Uint8Array,
   nowSeconds: number = Math.floor(Date.now() / 1000),
 ): Promise<boolean> {
@@ -219,7 +246,7 @@ export async function verifyLivePreviewToken(
     return false
   }
 
-  if (claims.aud !== expectedAudience) return false
+  if (claims.role !== expectedRole) return false
   if (typeof claims.exp !== 'number' || claims.exp <= nowSeconds) return false
 
   return true
@@ -229,10 +256,13 @@ export async function verifyLivePreviewToken(
  * Verifies a token against **this service's own** configured key.
  *
  * This is the half the CMS itself needs. A consumer forwards the token it was
- * given back to the API, and the API has to answer one question: did I issue
- * this, and is it still alive? Which of the two sites it was issued for does
- * not matter here — each consumer only ever forwards its own — so this returns
- * the audience rather than checking it, and the caller may narrow further.
+ * given back to the API, and the API has to answer: did I issue this, is it
+ * still alive, and which role may redeem it?
+ *
+ * It returns the role rather than checking it, because the check belongs where
+ * the caller's identity is known — `resolveLivePreviewHook` matches it against
+ * `req.user.roles`. Returning it unchecked here would be the old audience bug
+ * again, one layer down.
  *
  * Returns `null` for every failure, and never reports which.
  */
@@ -240,7 +270,7 @@ export async function verifyOwnLivePreviewToken(
   token: string,
   keyBase64: string | undefined,
   nowSeconds: number = Math.floor(Date.now() / 1000),
-): Promise<LivePreviewAudience | null> {
+): Promise<LivePreviewRole | null> {
   const pair = await getKeys(keyBase64)
   if (!pair) return null
 
@@ -268,8 +298,8 @@ export async function verifyOwnLivePreviewToken(
     return null
   }
 
-  if (claims.aud !== 'wm-web' && claims.aud !== 'sy-atlas') return null
+  if (typeof claims.role !== 'string' || !LIVE_PREVIEW_ROLES.has(claims.role)) return null
   if (typeof claims.exp !== 'number' || claims.exp <= nowSeconds) return null
 
-  return claims.aud
+  return claims.role
 }
