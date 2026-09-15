@@ -2,9 +2,11 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import {
   LIVE_PREVIEW_TOKEN_TTL_SECONDS,
+  livePreviewPublicKey,
   mintLivePreviewToken,
   resetLivePreviewKeyCache,
   verifyLivePreviewToken,
+  verifyOwnLivePreviewToken,
 } from '@/lib/livePreview/token'
 
 /**
@@ -15,28 +17,37 @@ import {
  * that breaks a consumer breaks a case here first.
  */
 
-function base64(bytes: ArrayBuffer): string {
-  return Buffer.from(bytes).toString('base64')
+function base64Json(value: unknown): string {
+  return Buffer.from(JSON.stringify(value), 'utf8').toString('base64')
 }
 
 const NOW = 1_800_000_000
 
 let privateKeyBase64: string
+let otherPrivateKeyBase64: string
 let publicKeyRaw: Uint8Array
 let otherPublicKeyRaw: Uint8Array
+
+/** The configured-key format: base64 of the private JWK. */
+async function jwkKey(key: CryptoKey): Promise<string> {
+  return Buffer.from(JSON.stringify(await crypto.subtle.exportKey('jwk', key)), 'utf8').toString(
+    'base64',
+  )
+}
 
 beforeAll(async () => {
   const pair = (await crypto.subtle.generateKey({ name: 'Ed25519' }, true, [
     'sign',
     'verify',
   ])) as CryptoKeyPair
-  privateKeyBase64 = base64(await crypto.subtle.exportKey('pkcs8', pair.privateKey))
+  privateKeyBase64 = await jwkKey(pair.privateKey)
   publicKeyRaw = new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey))
 
   const other = (await crypto.subtle.generateKey({ name: 'Ed25519' }, true, [
     'sign',
     'verify',
   ])) as CryptoKeyPair
+  otherPrivateKeyBase64 = await jwkKey(other.privateKey)
   otherPublicKeyRaw = new Uint8Array(await crypto.subtle.exportKey('raw', other.publicKey))
 })
 
@@ -53,8 +64,10 @@ describe('mintLivePreviewToken', () => {
     expect(await mintLivePreviewToken('wm-web', '')).toBeNull()
   })
 
-  it('returns null for a key that is not a usable PKCS8 Ed25519 key', async () => {
+  it('returns null for a key that is not a usable Ed25519 JWK', async () => {
     expect(await mintLivePreviewToken('wm-web', 'not-a-key')).toBeNull()
+    resetLivePreviewKeyCache()
+    expect(await mintLivePreviewToken('wm-web', base64Json({ kty: 'oct', k: 'nope' }))).toBeNull()
   })
 
   it('mints a two-part token that carries no readable secret', async () => {
@@ -115,5 +128,68 @@ describe('verifyLivePreviewToken', () => {
     for (const bad of ['', '.', 'nodot', 'a.b', '....', 'YQ.YQ']) {
       expect(await verify(bad)).toBe(false)
     }
+  })
+})
+
+
+/**
+ * The half the CMS uses on itself. A consumer forwards the token it was given
+ * back to the API, and the API must answer: did I issue this, and is it alive?
+ */
+describe('verifyOwnLivePreviewToken', () => {
+  it('returns the audience a valid token was minted for', async () => {
+    const wm = await mintLivePreviewToken('wm-web', privateKeyBase64, NOW)
+    expect(await verifyOwnLivePreviewToken(wm!, privateKeyBase64, NOW)).toBe('wm-web')
+
+    resetLivePreviewKeyCache()
+    const atlas = await mintLivePreviewToken('sy-atlas', privateKeyBase64, NOW)
+    expect(await verifyOwnLivePreviewToken(atlas!, privateKeyBase64, NOW)).toBe('sy-atlas')
+  })
+
+  it('accepts either audience — each consumer forwards only its own', async () => {
+    // The CMS does not care which site a token was for; it cares that it
+    // issued it. Narrowing here would reject the atlas from its own preview.
+    const atlas = await mintLivePreviewToken('sy-atlas', privateKeyBase64, NOW)
+    expect(await verifyOwnLivePreviewToken(atlas!, privateKeyBase64, NOW)).not.toBeNull()
+  })
+
+  it('refuses a token minted under a different key', async () => {
+    const foreign = await mintLivePreviewToken('wm-web', otherPrivateKeyBase64, NOW)
+    resetLivePreviewKeyCache()
+    expect(await verifyOwnLivePreviewToken(foreign!, privateKeyBase64, NOW)).toBeNull()
+  })
+
+  it('refuses an expired token, and edited claims', async () => {
+    const token = await mintLivePreviewToken('wm-web', privateKeyBase64, NOW)
+    expect(
+      await verifyOwnLivePreviewToken(token!, privateKeyBase64, NOW + LIVE_PREVIEW_TOKEN_TTL_SECONDS),
+    ).toBeNull()
+
+    const forged = Buffer.from(JSON.stringify({ aud: 'wm-web', exp: NOW + 9_999_999 })).toString(
+      'base64url',
+    )
+    expect(
+      await verifyOwnLivePreviewToken(`${forged}.${token!.split('.')[1]}`, privateKeyBase64, NOW),
+    ).toBeNull()
+  })
+
+  it('refuses everything when no key is configured', async () => {
+    expect(await verifyOwnLivePreviewToken('anything', undefined, NOW)).toBeNull()
+  })
+})
+
+describe('livePreviewPublicKey', () => {
+  it('derives the same public key the consumers verify with', async () => {
+    // One configured variable yields both halves, so the key a consumer is
+    // handed cannot drift from the key that signs.
+    const derived = await livePreviewPublicKey(privateKeyBase64)
+    expect(derived).not.toBeNull()
+    expect(Buffer.from(derived!).toString('base64')).toBe(
+      Buffer.from(publicKeyRaw).toString('base64'),
+    )
+  })
+
+  it('is null when no key is configured', async () => {
+    expect(await livePreviewPublicKey(undefined)).toBeNull()
   })
 })

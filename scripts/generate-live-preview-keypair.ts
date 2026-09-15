@@ -26,9 +26,13 @@ async function main(): Promise<void> {
     'verify',
   ])) as CryptoKeyPair
 
-  const privateKey = Buffer.from(await crypto.subtle.exportKey('pkcs8', pair.privateKey)).toString(
-    'base64',
-  )
+  // JWK, not PKCS8: a JWK carries the public `x` beside the private `d`, so one
+  // variable gives SahajCloud both halves. It mints tokens AND verifies them
+  // again when a consumer forwards one back, and two separate variables would
+  // eventually drift apart in a way that looks exactly like a forged token.
+  const jwk = await crypto.subtle.exportKey('jwk', pair.privateKey)
+  const privateKey = Buffer.from(JSON.stringify(jwk), 'utf8').toString('base64')
+
   const publicKey = Buffer.from(await crypto.subtle.exportKey('raw', pair.publicKey)).toString(
     'base64',
   )
