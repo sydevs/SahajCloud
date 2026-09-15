@@ -4,6 +4,7 @@ import type { PayloadRequest, TaskConfig } from 'payload'
 import { appendLogEntry, asLog } from '@/fields'
 import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
 import { hasMxRecords } from '@/lib/antiSpam/mxRecords'
+import { kickQueue } from '@/lib/jobs/screeningKick'
 import type { UserSubmission } from '@/payload-types'
 
 import { screenProposalContent } from './contentScreening'
@@ -131,6 +132,18 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
       input: { submissionId },
       queue: 'screening',
       req,
+    })
+
+    // Kicked for the same reason the create hook kicks: this row is queued
+    // inside the job's own transaction, so without it delivery waits for the
+    // next autoRun. Harmless for the rows this phase serves — it is Phase 3,
+    // where a registrant's confirmation moves behind this queue, that would
+    // feel a fifteen-minute wait.
+    kickQueue({
+      payload,
+      queue: 'screening',
+      label: 'ScreenSubmissions',
+      context: { submissionId },
     })
 
     return { output: { verdict, status: 'pending' } }
