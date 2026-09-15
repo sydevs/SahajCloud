@@ -104,6 +104,13 @@ covers both the custom client endpoints and the built-in REST collection reads:
 - **Preview bypass**: excluding requests that carry `x-sahajcloud-preview-secret` keeps
   draft-bearing live-preview reads out of cache. The app also emits `private, no-store` for
   those, as defense in depth.
+- **Draft bypass**: the app emits `private, no-store` for any read carrying a truthy `?draft=`,
+  whether or not a preview secret rides with it (`isDraftRead` in `src/plugins/cache/policy.ts`).
+  Edge TTL is "Respect origin", so that alone keeps drafts out of cache. ⚠ **Recommended
+  hardening**: add `not http.request.uri.query contains "draft=true"` to this rule, so the bypass
+  does not depend solely on an origin header. The two conditions are independent — a caller may be
+  authorised for drafts without holding the preview secret, and `Vary: Authorization` would
+  otherwise replay that response to every request sharing the same API key.
 
 Everything else stays `cf-cache-status: DYNAMIC` at the origin: writes, unauthenticated or
 invalid-key reads (→ `403`), preview reads, and non-cacheable collections (`clients`, `managers`,

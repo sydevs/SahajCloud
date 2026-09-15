@@ -124,12 +124,39 @@ export function resolveTtl(tags: readonly string[]): number {
 }
 
 /**
+ * Values of a `draft` parameter that mean "no, give me published".
+ *
+ * Consumers pass the flag unconditionally — WeMeditateWeb sends
+ * `draft: isPreview`, which serialises to `draft=false` on every ordinary read
+ * — so treating the parameter's mere presence as a draft read would make the
+ * whole site uncacheable. Anything outside this set is treated as a draft read,
+ * so an unrecognised value fails closed.
+ */
+const NON_DRAFT_VALUES: ReadonlySet<string> = new Set(['', 'false', '0'])
+
+/**
+ * True when a read asks for drafts, and so must never be stored.
+ *
+ * ⚠ This is a **cache** control, not an access control — the access layer
+ * decides whether drafts come back at all (`createAccessConfig`'s
+ * published-only clause, which `entityHasDrafts` gates). This exists because
+ * the two can disagree: a request authorised to see drafts still must not have
+ * the response written to a shared edge cache, where `Vary: Authorization`
+ * would replay it to every other request sharing that API key.
+ */
+export function isDraftRead(searchParams: URLSearchParams): boolean {
+  const value = searchParams.get('draft')
+  if (value === null) return false
+  return !NON_DRAFT_VALUES.has(value.trim().toLowerCase())
+}
+
+/**
  * Response headers for a public, edge-cacheable client read — the single source
  * for the exact header strings, shared by the middleware and the in-handler
  * decorator so both surfaces emit byte-identical headers.
  *
- * A preview read (it may carry drafts) gets `private, no-store` so drafts are
- * never cached. Otherwise: `public` cache directives, `Vary: Authorization` so
+ * A preview read, or any read asking for drafts, gets `private, no-store` so
+ * unpublished content is never stored. Otherwise: `public` cache directives, `Vary: Authorization` so
  * Cloudflare keys a separate cached variant per API key (no cross-client leak;
  * pair with a Cache Rule's `vary.authorization = passthrough`), and an optional
  * `Cache-Tag`.
@@ -138,8 +165,9 @@ export function buildCacheHeaders(opts: {
   sMaxAge: number
   tags?: readonly string[]
   preview?: boolean
+  draft?: boolean
 }): Record<string, string> {
-  if (opts.preview) {
+  if (opts.preview || opts.draft) {
     return { 'Cache-Control': 'private, no-store' }
   }
 
