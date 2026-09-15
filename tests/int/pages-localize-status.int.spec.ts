@@ -417,7 +417,7 @@ describe('per-locale publish status', () => {
       // Payload runs first in the `beforeOperation` chain; calling it here is
       // what makes the request a preview, and without it this asserts the
       // published path instead.
-      const token = await mintLivePreviewToken('wm-web', serverEnv.LIVE_PREVIEW_SIGNING_KEY)
+      const token = await mintLivePreviewToken('wemeditate-web-client', serverEnv.LIVE_PREVIEW_SIGNING_KEY)
       headers.set(PREVIEW_SECRET_HEADER, token ?? 'no-key-configured')
 
       const previewReq = {
