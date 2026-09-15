@@ -1,13 +1,23 @@
+import type { Config } from 'payload'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/env', () => ({
-  serverEnv: { CLOUDFLARE_ZONE_ID: undefined, CLOUDFLARE_CACHE_PURGE_TOKEN: undefined },
+  serverEnv: {
+    CLOUDFLARE_ZONE_ID: undefined,
+    CLOUDFLARE_CACHE_PURGE_TOKEN: undefined,
+  },
 }))
 
 import { serverEnv } from '@/lib/env'
+import { cachePlugin } from '@/plugins/cache'
+import { CACHEABLE_GLOBALS } from '@/plugins/cache/policy'
 import { purgeCloudflareCache } from '@/plugins/cache/purge'
 
-const env = serverEnv as { CLOUDFLARE_ZONE_ID?: string; CLOUDFLARE_CACHE_PURGE_TOKEN?: string }
+const env = serverEnv as {
+  CLOUDFLARE_ZONE_ID?: string
+  CLOUDFLARE_CACHE_PURGE_TOKEN?: string
+}
 const logger = { warn: vi.fn(), debug: vi.fn() }
 
 function configure() {
@@ -74,5 +84,35 @@ describe('purgeCloudflareCache', () => {
     const fetchFn = vi.fn().mockResolvedValue({ ok: false, status: 403 } as Response)
     expect(await purgeCloudflareCache({ tags: ['meditations'] }, { fetchFn, logger })).toBe(false)
     expect(logger.warn).toHaveBeenCalled()
+  })
+})
+
+/**
+ * Which globals `cachePlugin` attaches its write hook to (#710).
+ *
+ * One set, `CACHEABLE_GLOBALS`: the Cloudflare edge is the only cache this app
+ * invalidates. The assertion is written against the set rather than a literal
+ * list, so adding a cacheable global cannot leave it unpurged.
+ */
+describe('cachePlugin global hook attachment (#710)', () => {
+  const globalSlugs = [...new Set([...CACHEABLE_GLOBALS, 'wm-app-status'])]
+
+  function hookedSlugs(): string[] {
+    const result = cachePlugin({
+      globals: globalSlugs.map((slug) => ({ slug, fields: [] })),
+    } as unknown as Config)
+    return (result.globals ?? [])
+      .filter((global) => (global.hooks?.afterChange?.length ?? 0) > 0)
+      .map((global) => global.slug)
+  }
+
+  it('attaches to exactly the cacheable globals', () => {
+    expect(hookedSlugs().sort()).toEqual([...CACHEABLE_GLOBALS].sort())
+  })
+
+  it('leaves a non-cacheable global untouched', () => {
+    // `wm-app-status` is the real one: an operator readiness report, read in
+    // the admin over cookie auth, deliberately DYNAMIC.
+    expect(hookedSlugs()).not.toContain('wm-app-status')
   })
 })

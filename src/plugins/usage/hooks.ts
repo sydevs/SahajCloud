@@ -3,7 +3,7 @@
  *
  * Hooks for rate limiting and usage tracking.
  */
-import type { CollectionBeforeOperationHook, PayloadRequest } from 'payload'
+import type { PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
@@ -83,6 +83,89 @@ export function buildRateLimitKey(
 }
 
 // ============================================================================
+// THE CLIENT-READ GATE SHAPE
+// ============================================================================
+
+/**
+ * What a client-read gate actually reads out of a `beforeOperation` argument.
+ *
+ * Payload's collection and global hook signatures differ only in the config
+ * they carry (`collection` vs `global`), which no gate in this file touches.
+ * Naming the shared subset is what lets one gate body serve both surfaces
+ * **without a cast**: every property here is present on both of payload's
+ * argument types, so a `ClientReadGate` is directly assignable to
+ * `CollectionBeforeOperationHook` and to `GlobalBeforeOperationHook`, and the
+ * compiler checks that at each registration site in `usagePlugin`.
+ *
+ * One definition, two surfaces, on purpose: two copies would let origin
+ * enforcement or the `select` gate drift between a collection read and a
+ * global read, which is the divergence #710 exists to close.
+ *
+ * `args` is optional because payload's global signature declares it so. Read
+ * it through {@link readOperationArgs}.
+ */
+export interface ClientReadGateArgs {
+  args?: unknown
+  /**
+   * A global read reports the same `'read'` literal a collection read does
+   * (payload's global `HookOperationType` is `'countVersions' | 'read' |
+   * 'restoreVersion' | 'update'`, and `findOneOperation` passes `'read'`), so
+   * the gates keyed on it fire on both surfaces rather than metering nothing.
+   */
+  operation: string
+  /** Whether access control is being overridden — see {@link onlyOnCallerAuthority}. */
+  overrideAccess?: boolean
+  req: PayloadRequest
+}
+
+/** A gate that runs before a client read, on either surface. */
+export type ClientReadGate = (args: ClientReadGateArgs) => void | Promise<void>
+
+/** The operation arguments these gates inspect, safe against an absent `args`. */
+function readOperationArgs(args: unknown): {
+  currentDepth?: unknown
+  depth?: unknown
+  populate?: unknown
+  select?: unknown
+} {
+  return (args ?? {}) as {
+    currentDepth?: unknown
+    depth?: unknown
+    populate?: unknown
+    select?: unknown
+  }
+}
+
+/**
+ * Run `gate` only for a read made on the **caller's own authority**, and skip
+ * one made on ours. Applied to the global surface (#710).
+ *
+ * A collection gate skips an internal read through the numeric `currentDepth`
+ * payload attaches to relationship population. **A global read has no such
+ * signal** — `findGlobal` never sets `currentDepth` — and this codebase makes
+ * plenty of internal global reads that forward the caller's `req`:
+ * `clientEnglishFallback` re-reads its own global in English,
+ * `loadAppConfigOnce` reads `wm-app-config` while serving a page, and the
+ * atlas endpoints read `sy-atlas-config` for locales and canonical ownership.
+ * Ungated, each would be metered a second time, and the ones passing no
+ * `select` would be refused 400 — silently disabling the English fallback for
+ * every client read of a translations global.
+ *
+ * `overrideAccess` separates the two exactly. Payload's REST handler for a
+ * global never passes it, so a client's own read arrives `false`; the local API
+ * defaults it to `true`, so every `payload.findGlobal()` in our server code
+ * arrives `true`. It is unsettable over REST, which is what makes it sound for
+ * the origin gate as well as the meter: an internal read runs on our authority,
+ * inside a top-level request the gates already cleared.
+ */
+export function onlyOnCallerAuthority(gate: ClientReadGate): ClientReadGate {
+  return (hookArgs) => {
+    if (hookArgs.overrideAccess !== false) return
+    return gate(hookArgs)
+  }
+}
+
+// ============================================================================
 // RATE LIMIT HOOK
 // ============================================================================
 
@@ -98,7 +181,7 @@ export function buildRateLimitKey(
  * TODO(railway): finalize the rate-limiter home — Cloudflare edge rules or
  * Redis (#466).
  */
-export const rateLimitHook: CollectionBeforeOperationHook = () => {
+export const rateLimitHook: ClientReadGate = () => {
   // Enforced at the Cloudflare edge. Intentionally a no-op here.
 }
 
@@ -142,11 +225,7 @@ export const rateLimitHook: CollectionBeforeOperationHook = () => {
  * the whole document, so forcing it to enumerate `select` and `populate` is
  * meaningless, and breaks the admin live preview.
  */
-export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
-  args,
-  operation,
-  req,
-}) => {
+export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation, req }) => {
   if (operation !== 'read' || req.user?.collection !== 'clients') {
     return
   }
@@ -167,12 +246,7 @@ export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
     return
   }
 
-  const findArgs = args as {
-    currentDepth?: unknown
-    select?: unknown
-    populate?: unknown
-    depth?: unknown
-  }
+  const findArgs = readOperationArgs(args)
 
   if (typeof findArgs.currentDepth === 'number') {
     return
@@ -317,8 +391,8 @@ export function assertClientOriginAllowed(req: PayloadRequest): void {
  *   are skipped. The already-validated top-level read carries the same
  *   origin, so re-evaluating would only double-log.
  */
-export const validateClientOriginHook: CollectionBeforeOperationHook = ({ args, req }) => {
-  if (typeof (args as { currentDepth?: unknown }).currentDepth === 'number') {
+export const validateClientOriginHook: ClientReadGate = ({ args, req }) => {
+  if (typeof readOperationArgs(args).currentDepth === 'number') {
     return
   }
 
@@ -359,7 +433,7 @@ const usageIncrementSql = (quotedSchema: string) => `
  *
  * This uses a single atomic Postgres UPDATE, for race-free increments. See #559.
  */
-export const usageTrackingBeforeOperationHook: CollectionBeforeOperationHook = async ({
+export const usageTrackingBeforeOperationHook: ClientReadGate = async ({
   args,
   operation,
   req,
@@ -373,7 +447,7 @@ export const usageTrackingBeforeOperationHook: CollectionBeforeOperationHook = a
   // currentDepth. These are implementation details of the top-level
   // request, and should not generate separate usage tracking. Only a
   // top-level read, with no currentDepth, should increment usage.
-  if (typeof (args as { currentDepth?: unknown }).currentDepth === 'number') {
+  if (typeof readOperationArgs(args).currentDepth === 'number') {
     return
   }
 

@@ -163,9 +163,33 @@ Access is permission-based via `accessPlugin` — a client needs an explicit per
 
 ⚠ **The gate fails closed on our own misconfiguration, on purpose.** A captcha that silently disables itself on a missing secret is worse than none, since nothing would surface the misconfiguration. There is no dev/test bypass — point `TURNSTILE_SECRET_KEY` at Cloudflare's always-passes test key locally.
 
+## A global read is a client read (#710)
+
+`GET /api/globals/<slug>` now carries everything a collection read does: the four `beforeOperation` gates, edge-cache headers, and purge-on-write. Before #710 the usage plugin mapped `config.collections` only, so a global read was unmetered, outside origin enforcement, and exempt from the `select` gate — while every atlas widget boot on every host page and every WeMeditateWeb request reads its config and its translations from one.
+
+For a client, that means three behaviour changes:
+
+- **It counts against the daily quota**, once per top-level read. A global that populates relationships (`wm-web-config` → `pages`) still costs exactly one: the nested reads carry a numeric `currentDepth` and are skipped.
+- **It must send `select`**, or it is refused **400**, and **`populate`** at effective `depth > 1`. All three readers we can see already do.
+- **It is origin-enforced.** A client with a non-empty `allowedDomains` reading a global from an origin outside that list gets **403**.
+
+`usagePlugin` registers the same four gate bodies on both surfaces, rather than a second copy — two copies would let origin enforcement or the select gate drift between a collection read and a global read. There is no adapter and no cast: the gates are typed as `ClientReadGate`, the argument shape both of payload's `beforeOperation` signatures satisfy, so `tsc` checks each registration. The global surface wraps each in `onlyOnCallerAuthority`, the one exemption a global needs.
+
+### ⚠ The global surface's `overrideAccess` exemption
+
+A collection hook skips an internal read through the numeric `currentDepth` payload attaches to relationship population. **A global read has no such signal**, and this codebase makes several internal global reads that forward the caller's `req` — `clientEnglishFallback` re-reads its own global in English, `loadAppConfigOnce` reads `wm-app-config` while serving a page, and the atlas endpoints read `sy-atlas-config`. Ungated, each would be metered twice, and the ones passing no `select` would be refused 400 — which for the fallback is caught and logged at debug, silently blanking every untranslated key for every client.
+
+`overrideAccess` separates the two exactly. Payload's REST handler for a global never passes it, so a client's own read arrives `false`; the local API defaults it to `true`, so every `payload.findGlobal()` in our server code arrives `true`. It cannot be set by a caller over REST, which is what makes it sound for the origin gate as well as the meter.
+
+**A spec exercising these gates must therefore pass `overrideAccess: false`** — unlike the collection specs, where `overrideAccess: true` is a convenience that changes nothing. Omit it and every gate correctly skips, leaving assertions that pass for the wrong reason. `tests/int/globals-client-reads.int.spec.ts` says this at its head.
+
+⚠ **Reproducing that value is not pinning it.** A spec that supplies the flag proves the adapter and says nothing about what payload hands it on a real request, so a default of `undefined` after a payload bump would no-op all four gates with the whole suite green. The same spec's `the REST default for overrideAccess` cases close that: they drive `handleEndpoints` with the client's API key and supply nothing. That pair is the only place the gates are observed reaching a real client request — keep it when the spec is reorganised.
+
+Caching and purge for the same reads are in `DEPLOYMENT.md`; the cacheable set is `CACHEABLE_GLOBALS` in `src/plugins/cache/policy.ts`.
+
 ## Query parameter validation
 
-An API client read must declare its data needs: `select` is required on every read, and `populate` is required whenever effective `depth > 1` (explicit or the server default). `validateClientQueryParamsHook` enforces this before rate limiting, so a malformed read costs no rate-limit slot. Managers, admin UI requests, and writes are unaffected.
+An API client read must declare its data needs: `select` is required on every read, and `populate` is required whenever effective `depth > 1` (explicit or the server default). `validateClientQueryParamsHook` enforces this before rate limiting, so a malformed read costs no rate-limit slot. Managers, admin UI requests, and writes are unaffected. It applies to a global read too (#710, above).
 
 ### Expected REST format (bracket notation)
 
@@ -248,7 +272,7 @@ The rule itself lives in `assertClientOriginAllowed(req)`. The hook is a thin wr
 
 **CORS**: `cors: { origins: '*', headers: ['x-sahajcloud-preview-secret'] }`. Per-client CORS is impossible, since a preflight is anonymous — the browser omits `Authorization`, so the server can't return a per-client allowlist at that point. The wildcard lets an embedded widget's preflight succeed on any host page. The real per-domain gate is this hook plus the API key. Payload omits `Access-Control-Allow-Credentials` for wildcard origins, so cookie-based admin sessions stay protected. The `headers` list **appends** to Payload's defaults (#575), so the live-preview widget's `x-sahajcloud-preview-secret` still clears preflight. Guarded by `tests/int/cors-config.int.spec.ts` and `tests/e2e/cors-preflight.e2e.spec.ts`.
 
-Tests: `tests/unit/origin-enforcement.spec.ts` (normalization and matching), `tests/int/client-origin-enforcement.int.spec.ts` (wiring through `payload.find` and the geojson/register endpoints).
+Tests: `tests/unit/origin-enforcement.spec.ts` (normalization and matching), `tests/int/client-origin-enforcement.int.spec.ts` (wiring through `payload.find` and the geojson/register endpoints), `tests/int/globals-client-reads.int.spec.ts` (the same gate on a global read).
 
 ## Usage monitoring
 
