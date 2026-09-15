@@ -3,6 +3,10 @@ import type { Payload, PayloadRequest } from 'payload'
 import { handleEndpoints } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+
+import { serverEnv } from '@/lib/env'
+import { mintLivePreviewToken } from '@/lib/livePreview/token'
+import { PREVIEW_SECRET_HEADER, resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
 import type { Client } from '@/payload-types'
 
 import { testData } from 'tests/utils/testData'
@@ -256,6 +260,107 @@ describe('client reads of a global (#710)', () => {
    * four — and the refusal below becomes a 200. No assertion elsewhere can see
    * that, which is how #710 could otherwise ship inert with a green suite.
    */
+  /**
+   * The published-only gate, on the **global** surface.
+   *
+   * `createAccessConfig` constrains a client read of a draft-enabled entity to
+   * `{ _status: { equals: 'published' } }` unless the request carries a valid
+   * preview secret. On a collection that clause fires. On a global it never
+   * has: `collectionHasDrafts` resolves the slug through
+   * `req.payload.collections[...]`, and a global is not in that map, so it
+   * answers `false` and the clause is skipped entirely.
+   *
+   * The three translations globals all declare `versions.drafts`, so an
+   * ordinary client key plus `?draft=true` reads unpublished copy.
+   *
+   * ⚠ #777 raised the stakes: `/api/globals/<slug>` is now edge-cacheable, and
+   * `matchCacheableRead` keys on the pathname while the middleware gates
+   * `no-store` on the preview-secret *header*. So this read is not merely
+   * leaked, it is storable — `public, s-maxage=600` against a shared API key.
+   */
+  describe('the published-only gate', () => {
+    const PUBLISHED = 'Published countries title'
+    const UNPUBLISHED = 'Unpublished draft countries title'
+
+    beforeAll(async () => {
+      await payload.updateGlobal({
+        slug: 'sy-atlas-translations',
+        locale: 'en',
+        data: { _status: 'published', countries: { title: PUBLISHED } } as never,
+        overrideAccess: true,
+      })
+      // Saved, never published. `draft: true` keeps it off the published row.
+      await payload.updateGlobal({
+        slug: 'sy-atlas-translations',
+        locale: 'en',
+        draft: true,
+        data: { _status: 'draft', countries: { title: UNPUBLISHED } } as never,
+        overrideAccess: true,
+      })
+    })
+
+    it('serves published copy to a client asking for draft: true', async () => {
+      const result = (await payload.findGlobal({
+        slug: 'sy-atlas-translations',
+        select: { countries: true },
+        depth: 0,
+        draft: true,
+        req: clientReq(),
+        overrideAccess: false,
+      })) as unknown as { countries?: { title?: string } }
+
+      expect(result.countries?.title).toBe(PUBLISHED)
+    })
+
+    it('serves the draft to a client holding a live-preview token', async () => {
+      // The other half of the gate. Without this, a change that simply refused
+      // every draft read would pass every other case in this block while
+      // breaking live preview outright.
+      const token = await mintLivePreviewToken('wm-web', serverEnv.LIVE_PREVIEW_SIGNING_KEY)
+      expect(token).toBeTruthy()
+
+      const req = clientReq()
+      req.headers.set(PREVIEW_SECRET_HEADER, token!)
+      await resolveLivePreviewHook({ req })
+
+      const result = (await payload.findGlobal({
+        slug: 'sy-atlas-translations',
+        select: { countries: true },
+        depth: 0,
+        draft: true,
+        req,
+        overrideAccess: false,
+      })) as unknown as { countries?: { title?: string } }
+
+      expect(result.countries?.title).toBe(UNPUBLISHED)
+    })
+
+    it('serves published copy when the token is not one this service issued', async () => {
+      const req = clientReq()
+      req.headers.set(PREVIEW_SECRET_HEADER, 'forged.token')
+      await resolveLivePreviewHook({ req })
+
+      const result = (await payload.findGlobal({
+        slug: 'sy-atlas-translations',
+        select: { countries: true },
+        depth: 0,
+        draft: true,
+        req,
+        overrideAccess: false,
+      })) as unknown as { countries?: { title?: string } }
+
+      expect(result.countries?.title).toBe(PUBLISHED)
+    })
+
+    it('serves published copy over REST with ?draft=true', async () => {
+      const { status, raw } = await restGet(
+        '/api/globals/sy-atlas-translations?select[countries]=true&depth=0&draft=true',
+      )
+      expect(status).toBe(200)
+      expect(raw).not.toContain(UNPUBLISHED)
+    })
+  })
+
   describe('the REST default for overrideAccess', () => {
     it('refuses a REST client global read carrying no select', async () => {
       const { status, raw } = await restGet('/api/globals/sy-atlas-config')

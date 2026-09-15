@@ -71,36 +71,74 @@ function base64UrlDecode(value: string): Uint8Array | null {
 }
 
 /**
- * Imports the signing key once per process.
+ * The configured key pair, imported once per process.
  *
- * Held as the promise, not the resolved key, so concurrent callers share one
+ * ⚠ **The key is a JWK, not PKCS8.** A PKCS8 private key cannot yield its own
+ * public half through Web Crypto, and this service needs both: it *mints*
+ * tokens for the panel and *verifies* them again when a consumer forwards one
+ * back. A JWK carries `x` (public) beside `d` (private), so one variable gives
+ * both and the two can never drift out of step — which two variables would
+ * eventually do, silently, in a way that looks exactly like a forged token.
+ *
+ * Held as the promise, not the resolved keys, so concurrent callers share one
  * import rather than racing several. A malformed or absent key resolves to
  * `null` and is cached as such — this is config, so retrying per request would
  * only repeat the same failure at request cost.
  */
-let signingKey: Promise<CryptoKey | null> | undefined
+interface LivePreviewKeys {
+  sign: CryptoKey
+  verify: CryptoKey
+}
 
-async function getSigningKey(privateKeyBase64: string | undefined): Promise<CryptoKey | null> {
-  if (!signingKey) {
-    signingKey = (async () => {
-      if (!privateKeyBase64) return null
-      const pkcs8 = base64UrlDecode(privateKeyBase64.replace(/\s/g, ''))
-      if (!pkcs8) return null
+let keys: Promise<LivePreviewKeys | null> | undefined
+
+async function getKeys(keyBase64: string | undefined): Promise<LivePreviewKeys | null> {
+  if (!keys) {
+    keys = (async () => {
+      if (!keyBase64) return null
+
+      let jwk: JsonWebKey
       try {
-        return await crypto.subtle.importKey('pkcs8', pkcs8 as BufferSource, ALGORITHM, false, [
-          'sign',
-        ])
+        jwk = JSON.parse(atob(keyBase64.replace(/\s/g, ''))) as JsonWebKey
+      } catch {
+        return null
+      }
+
+      try {
+        const sign = await crypto.subtle.importKey('jwk', jwk, ALGORITHM, false, ['sign'])
+        // The public half is the same JWK with the private scalar removed.
+        // `key_ops`/`ext` are dropped too: they describe the private key, and
+        // importing a verify key that still claims `sign` is refused.
+        const { d: _d, key_ops: _ops, ext: _ext, ...publicJwk } = jwk as JsonWebKey & { d?: string }
+        const verify = await crypto.subtle.importKey('jwk', publicJwk, ALGORITHM, true, ['verify'])
+
+        return { sign, verify }
       } catch {
         return null
       }
     })()
   }
-  return signingKey
+  return keys
 }
 
-/** Test seam: drops the cached key so a spec can swap the configured value. */
+/** Test seam: drops the cached keys so a spec can swap the configured value. */
 export function resetLivePreviewKeyCache(): void {
-  signingKey = undefined
+  keys = undefined
+}
+
+/**
+ * The raw 32-byte public key, for handing to a consumer that must verify.
+ *
+ * `null` when no key is configured — the same "live preview is simply not
+ * available" state every other entry point degrades to.
+ */
+export async function livePreviewPublicKey(
+  keyBase64: string | undefined,
+): Promise<Uint8Array | null> {
+  const pair = await getKeys(keyBase64)
+  if (!pair) return null
+
+  return new Uint8Array(await crypto.subtle.exportKey('raw', pair.verify))
 }
 
 /**
@@ -113,17 +151,17 @@ export function resetLivePreviewKeyCache(): void {
  */
 export async function mintLivePreviewToken(
   aud: LivePreviewAudience,
-  privateKeyBase64: string | undefined,
+  keyBase64: string | undefined,
   nowSeconds: number = Math.floor(Date.now() / 1000),
 ): Promise<string | null> {
-  const key = await getSigningKey(privateKeyBase64)
-  if (!key) return null
+  const pair = await getKeys(keyBase64)
+  if (!pair) return null
 
   const claims: LivePreviewClaims = { aud, exp: nowSeconds + LIVE_PREVIEW_TOKEN_TTL_SECONDS }
   const body = base64UrlEncode(new TextEncoder().encode(JSON.stringify(claims)))
   const signature = await crypto.subtle.sign(
     ALGORITHM,
-    key,
+    pair.sign,
     new TextEncoder().encode(body) as BufferSource,
   )
 
@@ -185,4 +223,53 @@ export async function verifyLivePreviewToken(
   if (typeof claims.exp !== 'number' || claims.exp <= nowSeconds) return false
 
   return true
+}
+
+/**
+ * Verifies a token against **this service's own** configured key.
+ *
+ * This is the half the CMS itself needs. A consumer forwards the token it was
+ * given back to the API, and the API has to answer one question: did I issue
+ * this, and is it still alive? Which of the two sites it was issued for does
+ * not matter here — each consumer only ever forwards its own — so this returns
+ * the audience rather than checking it, and the caller may narrow further.
+ *
+ * Returns `null` for every failure, and never reports which.
+ */
+export async function verifyOwnLivePreviewToken(
+  token: string,
+  keyBase64: string | undefined,
+  nowSeconds: number = Math.floor(Date.now() / 1000),
+): Promise<LivePreviewAudience | null> {
+  const pair = await getKeys(keyBase64)
+  if (!pair) return null
+
+  const [body, signature] = token.split('.')
+  if (!body || !signature) return null
+
+  const signatureBytes = base64UrlDecode(signature)
+  const claimsBytes = base64UrlDecode(body)
+  if (!signatureBytes || !claimsBytes) return null
+
+  const valid = await crypto.subtle.verify(
+    ALGORITHM,
+    pair.verify,
+    signatureBytes as BufferSource,
+    new TextEncoder().encode(body) as BufferSource,
+  )
+  if (!valid) return null
+
+  // Decoded only after the signature holds, so nothing downstream ever reads
+  // unauthenticated JSON.
+  let claims: LivePreviewClaims
+  try {
+    claims = JSON.parse(new TextDecoder().decode(claimsBytes)) as LivePreviewClaims
+  } catch {
+    return null
+  }
+
+  if (claims.aud !== 'wm-web' && claims.aud !== 'sy-atlas') return null
+  if (typeof claims.exp !== 'number' || claims.exp <= nowSeconds) return null
+
+  return claims.aud
 }

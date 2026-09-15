@@ -10,6 +10,8 @@
 import type { ClientReadGate } from './hooks'
 import type { CollectionSlug, Config } from 'payload'
 
+import { resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
+
 import { SYSTEM_EXCLUSIONS } from './constants'
 import {
   onlyOnCallerAuthority,
@@ -41,6 +43,23 @@ const BEFORE_OPERATION_HOOKS: ClientReadGate[] = [
   rateLimitHook,
   usageTrackingBeforeOperationHook,
 ]
+
+/**
+ * Resolves the live-preview verdict before any gate reads it.
+ *
+ * Runs ahead of {@link BEFORE_OPERATION_HOOKS} because two of those gates —
+ * origin enforcement and the `select` gate — exempt a preview read, and the
+ * access layer unlocks drafts on the same signal. Verifying the token is
+ * asynchronous while those readers are synchronous, so the one await happens
+ * here and everything downstream reads a stamped boolean.
+ *
+ * ⚠ **Not wrapped in `onlyOnCallerAuthority`**, unlike the gates. That wrapper
+ * skips a global read made on internal authority, which is right for metering
+ * and origin checks but wrong here: this resolves a fact about the request, and
+ * an unresolved verdict reads as "no preview". Resolving it always is cheaper
+ * to reason about than reasoning about when it was skipped.
+ */
+const RESOLVE_LIVE_PREVIEW: ClientReadGate = resolveLivePreviewHook
 
 /**
  * Usage Plugin for PayloadCMS
@@ -78,6 +97,7 @@ export function usagePlugin(
           ...collection.hooks,
           beforeOperation: [
             ...(collection.hooks?.beforeOperation || []),
+            RESOLVE_LIVE_PREVIEW,
             ...BEFORE_OPERATION_HOOKS,
           ],
         },
@@ -95,6 +115,7 @@ export function usagePlugin(
         ...global.hooks,
         beforeOperation: [
           ...(global.hooks?.beforeOperation || []),
+          RESOLVE_LIVE_PREVIEW,
           ...BEFORE_OPERATION_HOOKS.map(onlyOnCallerAuthority),
         ],
       },

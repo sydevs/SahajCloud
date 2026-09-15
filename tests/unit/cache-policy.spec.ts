@@ -8,6 +8,7 @@ import {
   CACHEABLE_GLOBALS,
   CACHEABLE_SLUGS,
   DEFAULT_SMAXAGE,
+  isDraftRead,
   matchCacheableRead,
   PREVIEW_SECRET_HEADER,
   resolveTtl,
@@ -145,6 +146,35 @@ describe('resolveTtl', () => {
   })
 })
 
+describe('isDraftRead', () => {
+  const read = (query: string) => isDraftRead(new URLSearchParams(query))
+
+  it('is false when the parameter is absent', () => {
+    expect(read('')).toBe(false)
+    expect(read('select[title]=true')).toBe(false)
+  })
+
+  it('is false for the values a consumer sends when it does NOT want drafts', () => {
+    // WeMeditateWeb passes `draft: isPreview` unconditionally, so every
+    // ordinary read serialises `draft=false`. Treating the parameter's mere
+    // presence as a draft read would make the whole site uncacheable.
+    expect(read('draft=false')).toBe(false)
+    expect(read('draft=0')).toBe(false)
+    expect(read('draft=')).toBe(false)
+  })
+
+  it('is true for a truthy draft flag, however it is cased', () => {
+    expect(read('draft=true')).toBe(true)
+    expect(read('draft=1')).toBe(true)
+    expect(read('draft=TRUE')).toBe(true)
+    expect(read('draft=%20true%20')).toBe(true)
+  })
+
+  it('fails closed on an unrecognised value', () => {
+    expect(read('draft=maybe')).toBe(true)
+  })
+})
+
 describe('buildCacheHeaders', () => {
   it('returns private, no-store for a preview read (never cache drafts)', () => {
     expect(buildCacheHeaders({ sMaxAge: 600, tags: ['meditations'], preview: true })).toEqual({
@@ -157,6 +187,16 @@ describe('buildCacheHeaders', () => {
       'Cache-Control': 'public, max-age=600, s-maxage=600',
       Vary: 'Authorization',
       'Cache-Tag': 'meditations,lectures',
+    })
+  })
+
+  it('returns private, no-store for a draft read with no preview secret', () => {
+    // The two flags are independent. The access layer decides whether drafts
+    // come back; this decides whether the response may be stored. A draft a
+    // caller is entitled to still must not land in a shared edge cache, where
+    // `Vary: Authorization` would replay it to every request on that API key.
+    expect(buildCacheHeaders({ sMaxAge: 600, tags: ['pages'], draft: true })).toEqual({
+      'Cache-Control': 'private, no-store',
     })
   })
 
@@ -188,6 +228,23 @@ describe('handleCacheMiddleware', () => {
     })
     expect(headers.get('Cache-Control')).toBe('private, no-store')
     expect(headers.get('Vary')).toBeNull()
+  })
+
+  it('never caches a ?draft=true read, even with no preview secret', () => {
+    const headers = run('/api/globals/wm-web-translations?draft=true', {
+      headers: { authorization: API_KEY },
+    })
+    expect(headers.get('Cache-Control')).toBe('private, no-store')
+    expect(headers.get('Vary')).toBeNull()
+    expect(headers.get('Cache-Tag')).toBeNull()
+  })
+
+  it('still caches a ?draft=false read — the shape every ordinary client sends', () => {
+    const headers = run('/api/globals/wm-web-translations?draft=false', {
+      headers: { authorization: API_KEY },
+    })
+    expect(headers.get('Cache-Control')).toBe(`public, max-age=${DEFAULT_SMAXAGE}, s-maxage=${DEFAULT_SMAXAGE}`)
+    expect(headers.get('Cache-Tag')).toBe('wm-web-translations')
   })
 
   it('leaves an unauthenticated (manager-cookie / anonymous) read DYNAMIC', () => {

@@ -6,6 +6,9 @@ import path from 'path'
 import { getAccessResults } from 'payload'
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
+import { serverEnv } from '@/lib/env'
+import { mintLivePreviewToken } from '@/lib/livePreview/token'
+import { PREVIEW_SECRET_HEADER, resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
 import type { Event, Region } from '@/payload-types'
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
 
@@ -50,19 +53,36 @@ vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
   }
 })
 
-function createTrustedPreviewRequest(
+/**
+ * A request as live preview makes one: a client key plus a short-lived token
+ * this service issued, forwarded in `x-sahajcloud-preview-secret`.
+ *
+ * ⚠ **`resolveLivePreviewHook` is awaited here on purpose.** In a real request
+ * Payload runs it as the first `beforeOperation` hook, before access resolves,
+ * and the gates read the verdict it stamps. A helper that only set the header
+ * would leave the verdict unstamped and every "trusted preview" case would
+ * quietly assert the *published* path instead — which is what failing closed
+ * means, and is not what these cases are for.
+ */
+async function createTrustedPreviewRequest(
   payload: Payload,
   user: PayloadRequest['user'],
-): PayloadRequest {
+): Promise<PayloadRequest> {
   const headers = new Headers()
-  headers.set('x-sahajcloud-preview-secret', process.env.SAHAJCLOUD_PREVIEW_SECRET || '')
+  const token = await mintLivePreviewToken('wm-web', serverEnv.LIVE_PREVIEW_SIGNING_KEY)
+  headers.set(PREVIEW_SECRET_HEADER, token ?? 'no-key-configured')
 
-  return {
+  const req = {
     payload,
     user,
     locale: 'en',
+    context: {},
     headers: headers as PayloadRequest['headers'],
   } as PayloadRequest
+
+  await resolveLivePreviewHook({ req })
+
+  return req
 }
 
 describe('Role-Based Access Control', () => {
@@ -1397,7 +1417,7 @@ describe('Role-Based Access Control', () => {
         user: { ...admin, collection: 'managers' },
       })
 
-      const previewReq = createTrustedPreviewRequest(
+      const previewReq = await createTrustedPreviewRequest(
         payload,
         client as unknown as PayloadRequest['user'],
       )
@@ -1640,7 +1660,7 @@ describe('Role-Based Access Control', () => {
         locale: 'en',
       })
 
-      const previewReq = createTrustedPreviewRequest(
+      const previewReq = await createTrustedPreviewRequest(
         payload,
         client as unknown as PayloadRequest['user'],
       )
@@ -2304,7 +2324,7 @@ describe('Role-Based Access Control', () => {
         roles: ['wemeditate-web-client'],
         _status: 'published',
       })
-      const previewReq = createTrustedPreviewRequest(
+      const previewReq = await createTrustedPreviewRequest(
         payload,
         client as unknown as PayloadRequest['user'],
       )
