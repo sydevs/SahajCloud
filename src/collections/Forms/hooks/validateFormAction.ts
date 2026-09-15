@@ -10,13 +10,6 @@ const EMAIL_BLOCKS = ['email'] as const
 /** The plugin's field blocks that can hold a message body a person types. */
 const MESSAGE_BLOCKS = ['textarea', 'text'] as const
 
-type FormBlock = NonNullable<Form['fields']>[number]
-
-function blockTypes(fields: Form['fields']): Set<string> {
-  if (!Array.isArray(fields)) return new Set()
-  return new Set(fields.map((block: FormBlock) => block.blockType).filter(Boolean))
-}
-
 /**
  * What each action needs from the authored field list, and from the form's own
  * configuration.
@@ -75,7 +68,9 @@ export const validateFormAction: CollectionBeforeValidateHook<Form> = ({
 
   if (!actionType) return data
 
-  const present = blockTypes(fields)
+  // Which blocks the author placed, as a set — the only thing this rule reads
+  // off the field list.
+  const present = new Set<string>(Array.isArray(fields) ? fields.map((block) => block.blockType) : [])
   const errors: { message: string; path: string }[] = []
 
   const hasEmail = EMAIL_BLOCKS.some((type) => present.has(type))
