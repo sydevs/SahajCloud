@@ -1,0 +1,20 @@
+diff --git a/api.js b/api.js
+index dff423b2e4b5d8d0446771151563e1679db99e98..33609583d341d700b3993ac3d5f50db642509bf0 100644
+--- a/api.js
++++ b/api.js
+@@ -39988,13 +39988,14 @@ var init_snapshotsDiffer = __esm({
+           to: { schema: schema6, table: tableName, column: it2.newColumnName }
+         };
+       });
++      const alterColumnsSnap1 = { ...json1, tables: columnsPatchedSnap1.tables };
+       const jsonTableAlternations = alteredTables.map((it2) => {
+         return preparePgAlterColumns(
+           it2.name,
+           it2.schema,
+           it2.altered,
+           json22,
+-          json1,
++          alterColumnsSnap1,
+           action
+         );
+       }).flat();

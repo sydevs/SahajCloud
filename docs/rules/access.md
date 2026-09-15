@@ -92,7 +92,7 @@ This only works because the authenticated user loads **four times**, not once. `
 | `wemeditate-app-client` | We Meditate mobile app |
 | `sahaj-atlas-client` | Sahaj Atlas application |
 
-The `-client` suffix disambiguates a client role from a project slug. Client roles are **not localized** — one set of roles applies across every locale. Clients are read-only by default, except `wemeditate-web`, which may also create form submissions. API clients see only published documents on draft-enabled collections **and globals**.
+The `-client` suffix disambiguates a client role from a project slug. Client roles are **not localized** — one set of roles applies across every locale. Clients are read-only by default. `wemeditate-web` and `sahaj-atlas` may additionally **create** `user-submissions` — create only, with no update of any kind. The registrant confirm/deny vote that once needed `registrations: ['update']`, a uuid-scoped access branch and a field-whitelist hook is written by the CMS-hosted `/registrations/feedback` page with `overrideAccess`, and always was, so all three were removed (#723). API clients see only published documents on draft-enabled collections **and globals**.
 
 ⚠ **"and globals" is load-bearing, and was false until it was fixed.** The published-only clause asks `entityHasDrafts` whether the entity carries drafts. That used to resolve the slug through `req.payload.collections[...]` alone — a map a global is not in — so it answered `false` for every global, the clause never fired on one, and an ordinary client API key plus `?draft=true` read unpublished copy out of all three translations globals with no preview secret. It now checks `req.payload.config.globals` too. `globals-client-reads.int.spec.ts` reproduces the leak and fails if that branch is removed.
 
@@ -203,13 +203,16 @@ A user can always read and update their own document in their auth collection.
 
 This cuts the opposite way from implicit read, above, and the obvious reading is wrong. `managers`, `clients`, and Payload's system collections sit in no project. They are reachable only by explicit permission or the admin bypass — because no role grants write on them, not because "no project" is restrictive. For read, "no project" means the opposite: shared, and readable by every role.
 
-**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the only way to stop that. A collection named there is skipped by implicit read, so only an explicit `read` grant, or the admin bypass, reaches it. It holds `users`, `event-submissions`, and `user-messages` — everything carrying personal data.
+**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the only way to stop that. A collection named there is skipped by implicit read, so only an explicit `read` grant, or the admin bypass, reaches it. It holds `users`, `event-submissions`, `user-messages`, and `user-submissions` — everything carrying personal data.
+
+⚠ **A collection's own `access` block outranks all of this**, because `accessPlugin` composes `{ ...createAccessConfig(slug, …), ...collection.access }` so a deliberate override is never clobbered. A plugin-created collection can therefore arrive with an `access` nobody here chose: the form-builder's submissions collection ships `read: ({ req: { user } }) => !!user`, which grants read to every authenticated user, API clients included. `src/plugins/formBuilder` clears it for `user-submissions` for exactly that reason. **Adding a collection to this list proves nothing on its own** — assert it by reading rows back through `overrideAccess: false`, as `tests/int/user-submissions-access.int.spec.ts` does. Asserting `hasPermission` alone would have passed while the hole was open.
 
 | Want | Do |
 | --- | --- |
 | Nobody reads it implicitly | Add it to `RESTRICTED_COLLECTIONS` |
 | A client may still create it | Grant `['create']` in that client's role |
 | **No manager role may read it** | Grant it in **no** role (`user-messages`) |
+| Only *some* rows, for a manager | Grant `read`, then narrow to a `Where` in `createAccessConfig` (`user-submissions`) |
 | Visible in `/api/docs` | Add it to a project's `collections` (`docs/rules/openapi.md`) |
 
 Both public intakes' POSTs are `x-internal` for exactly this reason: neither sits in a project.

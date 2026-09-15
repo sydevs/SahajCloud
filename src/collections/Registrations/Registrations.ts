@@ -5,11 +5,7 @@ import { jsonField } from '@/fields/jsonField'
 import { DEFAULT_LOCALE, getLocaleOptions } from '@/lib/locales'
 import { registrationQuestionsJsonSchema } from '@/lib/registrations/questions'
 
-import {
-  gateEventFeedback,
-  restrictClientRegistrationUpdate,
-  syncCommunityFeedback,
-} from './hooks/eventFeedback'
+import { gateEventFeedback, syncCommunityFeedback } from './hooks/eventFeedback'
 import { syncFullnessAfterChange, syncFullnessAfterDelete } from './hooks/syncFullness'
 
 /**
@@ -26,11 +22,9 @@ export const Registrations: CollectionConfig = {
   },
   // Keep the owning event's denormalized `registrationsFull` flag in step as
   // registrations come and go (see the event's registrationsFull field), and
-  // roll confirm/deny votes up onto the event (`syncCommunityFeedback`). A
-  // client update is whitelisted to the `eventFeedback` field and gated on the
-  // event still being published + unverified.
+  // roll confirm/deny votes up onto the event (`syncCommunityFeedback`). A vote
+  // is gated on the event still being published + unverified.
   hooks: {
-    beforeValidate: [restrictClientRegistrationUpdate],
     beforeChange: [gateEventFeedback],
     afterChange: [syncFullnessAfterChange, syncCommunityFeedback],
     afterDelete: [syncFullnessAfterDelete],

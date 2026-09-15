@@ -3,7 +3,6 @@ import { fileURLToPath } from 'url'
 
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
-import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { nestedDocsPlugin } from '@payloadcms/plugin-nested-docs'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
@@ -11,7 +10,6 @@ import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
-import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
@@ -22,6 +20,7 @@ import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/plugi
 import { cachePlugin } from '@/plugins/cache'
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/plugins/email'
+import { formsPlugin } from '@/plugins/formBuilder'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
 import { seedPreviewAdmin } from '@/plugins/previewAdmin'
 import { sentryPlugin } from '@/plugins/sentry'
@@ -299,16 +298,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         generateDescription: ({ doc }) => doc.content,
         tabbedUI: true,
       }),
-      // Form builder plugin (enabled in all environments)
-      formBuilderPlugin({
-        defaultToEmail: CONTACT_EMAIL,
-        formOverrides: {
-          admin: { group: 'Content', enableRichTextRelationship: true },
-        },
-        formSubmissionOverrides: {
-          admin: { group: 'System' },
-        },
-      }),
+      // Form builder plugin (enabled in all environments). Configured in
+      // `src/plugins/formBuilder`, shared with the test harness.
+      formsPlugin(),
       // Usage Plugin: Rate limiting and usage tracking (disabled in E2E tests)
       // Note: 'clients' is auto-excluded as a consumer collection; 'managers' excluded to skip admin users
       usagePlugin({ enabled: !isE2ETest, exclude: ['managers'] }),

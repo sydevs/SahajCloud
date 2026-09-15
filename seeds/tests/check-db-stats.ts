@@ -39,7 +39,7 @@ async function checkDatabaseStats() {
       'files',
       'pages',
       'forms',
-      'form-submissions',
+      'user-submissions',
     ]
 
     console.log('\nCollection Statistics:')

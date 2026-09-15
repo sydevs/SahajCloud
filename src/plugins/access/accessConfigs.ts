@@ -64,23 +64,31 @@ function isActiveNonAdminManager(user: PayloadRequest['user']): boolean {
 }
 
 /**
- * The registration uuid a client's vote request proves possession of —
- * `?registrationUuid=` (REST query) with a `req.query` fallback for
- * handler-forwarded requests.
- */
-/**
- * The `?registrationUuid=` a registrant proves possession of to vote.
+ * What of `user-submissions` a manager may see.
  *
- * `req.query` only — that *is* Payload's parsed query: `createPayloadRequest`
- * runs the search string through `qs-esm` and sets `query` alongside
- * `searchParams` on every REST request, so a second read of `searchParams`
- * could never see anything `query` had missed. It was here anyway, and the
- * spec's hand-built request couldn't tell: it set `query` and no
- * `searchParams`, so it only ever exercised the branch that survives.
+ * The role grant that reaches this restricted collection is collection-wide,
+ * and the collection now holds four different things in one table — so without
+ * this narrowing, granting a manager the proposals they review would also hand
+ * them every registrant's address and every stranger's message. The grant says
+ * *whether*; this says *which rows*.
+ *
+ * - **contact** rows, only where the form names them as its recipient. The
+ *   recipient lives on the form rather than the submission (one author's
+ *   decision, not four hundred rows'), so the clause reaches through the
+ *   relationship.
+ * - **proposal** rows, per the regional grant they already had on
+ *   `event-submissions` — reviewing them is the job.
+ *
+ * `registration` and `subscribe` rows appear for nobody but an admin. They are
+ * consent and attendance records, and no manager task reads them.
  */
-function extractRegistrationUuid(req: PayloadRequest): string | null {
-  const uuid = (req.query as Record<string, unknown> | undefined)?.registrationUuid
-  return typeof uuid === 'string' && uuid ? uuid : null
+function managerSubmissionScope(userId: number | string): Where {
+  return {
+    or: [
+      { and: [{ type: { equals: 'contact' } }, { 'form.recipient': { equals: userId } }] },
+      { type: { equals: 'proposal' } },
+    ],
+  }
 }
 
 /**
@@ -141,20 +149,11 @@ export function createAccessConfig(
           return scopeRegionSubtreeWrite({ req, collection, operation, id, data })
         }
 
-        // A client's registrations `update` grant (the confirm/deny vote) is
-        // scoped to the one registration whose unguessable `uuid` the caller
-        // proves it holds — `?registrationUuid=` on the request. No param, no
-        // access; a mismatched uuid resolves to Not Found. The uuid is the
-        // credential (it's only ever revealed in the register response), so no
-        // login is needed. See registrations' eventFeedback hooks for the
-        // field whitelist + vote gate this composes with.
-        if (
-          operation === 'update' &&
-          req.user?.collection === 'clients' &&
-          collection === 'registrations'
-        ) {
-          const uuid = extractRegistrationUuid(req)
-          return uuid ? { uuid: { equals: uuid } } : false
+        // A manager's `user-submissions` grant is collection-wide, but the
+        // collection holds four different things — so narrow it to the rows
+        // their job actually needs. See `managerSubmissionScope`.
+        if (collection === 'user-submissions' && isActiveNonAdminManager(req.user)) {
+          return managerSubmissionScope(req.user!.id)
         }
 
         return true

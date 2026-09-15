@@ -20,6 +20,9 @@ overrides:
   brace-expansion@^1.0.0: ^1.1.13
   undici: ^7.29.1
 
+patchedDependencies:
+  drizzle-kit@0.31.7: 49f331ce559c577bdd395ebf3982b096f0dbd1edf69e93a4d0671916d0432b54
+
 importers:
 
   .:
@@ -43,31 +46,31 @@ importers:
         specifier: ^1.5.1
         version: 1.5.1(mapbox-gl@3.24.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       '@payloadcms/db-postgres':
-        specifier: ^3.86.0
+        specifier: 3.86.0
         version: 3.86.0(@libsql/client@0.14.0)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.5.0)(payload@3.86.0(graphql@16.12.0)(typescript@5.7.3))
       '@payloadcms/email-nodemailer':
-        specifier: ^3.86.0
+        specifier: 3.86.0
         version: 3.86.0(payload@3.86.0(graphql@16.12.0)(typescript@5.7.3))
       '@payloadcms/next':
-        specifier: ^3.86.0
+        specifier: 3.86.0
         version: 3.86.0(@types/react@19.1.0)(graphql@16.12.0)(monaco-editor@0.55.1)(next@16.3.4(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.57.0)(@types/node@22.19.3)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(sass@1.77.4))(payload@3.86.0(graphql@16.12.0)(typescript@5.7.3))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(typescript@5.7.3)
       '@payloadcms/plugin-cloud-storage':
-        specifier: ^3.86.0
+        specifier: 3.86.0
         version: 3.86.0(@types/react@19.1.0)(monaco-editor@0.55.1)(next@16.3.4(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.57.0)(@types/node@22.19.3)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(sass@1.77.4))(payload@3.86.0(graphql@16.12.0)(typescript@5.7.3))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(typescript@5.7.3)
       '@payloadcms/plugin-form-builder':
-        specifier: ^3.86.0
+        specifier: 3.86.0
         version: 3.86.0(@types/react@19.1.0)(monaco-editor@0.55.1)(next@16.3.4(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.57.0)(@types/node@22.19.3)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(sass@1.77.4))(payload@3.86.0(graphql@16.12.0)(typescript@5.7.3))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(typescript@5.7.3)
       '@payloadcms/plugin-nested-docs':
-        specifier: ^3.86.0
+        specifier: 3.86.0
         version: 3.86.0(payload@3.86.0(graphql@16.12.0)(typescript@5.7.3))
       '@payloadcms/plugin-seo':
-        specifier: ^3.86.0
+        specifier: 3.86.0
         version: 3.86.0(@types/react@19.1.0)(monaco-editor@0.55.1)(next@16.3.4(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.57.0)(@types/node@22.19.3)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(sass@1.77.4))(payload@3.86.0(graphql@16.12.0)(typescript@5.7.3))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(typescript@5.7.3)
       '@payloadcms/richtext-lexical':
-        specifier: ^3.86.0
+        specifier: 3.86.0
         version: 3.86.0(@faceless-ui/modal@3.0.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(@faceless-ui/scroll-info@2.0.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(@payloadcms/next@3.86.0(@types/react@19.1.0)(graphql@16.12.0)(monaco-editor@0.55.1)(next@16.3.4(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.57.0)(@types/node@22.19.3)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(sass@1.77.4))(payload@3.86.0(graphql@16.12.0)(typescript@5.7.3))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(typescript@5.7.3))(@types/react@19.1.0)(monaco-editor@0.55.1)(next@16.3.4(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.57.0)(@types/node@22.19.3)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(sass@1.77.4))(payload@3.86.0(graphql@16.12.0)(typescript@5.7.3))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(typescript@5.7.3)(yjs@13.6.27)
       '@payloadcms/ui':
-        specifier: ^3.86.0
+        specifier: 3.86.0
         version: 3.86.0(@types/react@19.1.0)(monaco-editor@0.55.1)(next@16.3.4(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.57.0)(@types/node@22.19.3)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(sass@1.77.4))(payload@3.86.0(graphql@16.12.0)(typescript@5.7.3))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(typescript@5.7.3)
       '@sentry/nextjs':
         specifier: ^10.29.0
@@ -127,7 +130,7 @@ importers:
         specifier: ^8.0.0
         version: 8.0.0
       payload:
-        specifier: ^3.86.0
+        specifier: 3.86.0
         version: 3.86.0(graphql@16.12.0)(typescript@5.7.3)
       payload-oapi:
         specifier: ^0.2.5
@@ -179,7 +182,7 @@ importers:
         specifier: ^3.3.3
         version: 3.3.3
       '@payloadcms/typescript-plugin':
-        specifier: ^3.86.0
+        specifier: 3.86.0
         version: 3.86.0
       '@playwright/test':
         specifier: 1.57.0
@@ -7246,7 +7249,7 @@ snapshots:
       '@payloadcms/drizzle': 3.86.0(@libsql/client@0.14.0)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@7.6.13)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(payload@3.86.0(graphql@16.12.0)(typescript@5.7.3))(pg@8.20.0)
       '@types/pg': 8.20.0
       console-table-printer: 2.12.1
-      drizzle-kit: 0.31.7
+      drizzle-kit: 0.31.7(patch_hash=49f331ce559c577bdd395ebf3982b096f0dbd1edf69e93a4d0671916d0432b54)
       drizzle-orm: 0.45.2(@libsql/client@0.14.0)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@7.6.13)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(pg@8.20.0)
       payload: 3.86.0(graphql@16.12.0)(typescript@5.7.3)
       pg: 8.20.0
@@ -8990,7 +8993,7 @@ snapshots:
 
   dotenv@16.4.7: {}
 
-  drizzle-kit@0.31.7:
+  drizzle-kit@0.31.7(patch_hash=49f331ce559c577bdd395ebf3982b096f0dbd1edf69e93a4d0671916d0432b54):
     dependencies:
       '@drizzle-team/brocli': 0.10.2
       '@esbuild-kit/esm-loader': 2.6.5

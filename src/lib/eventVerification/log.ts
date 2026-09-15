@@ -37,6 +37,13 @@ interface LogDisplayCells {
   type: string
   /** Rendered columns. Everything else on the entry is data, not display. */
   cells: { activity: string; who: LogCell; delivery: LogCell }
+  /**
+   * The machine fields each entry adds — `kind`, `stage`, `manager`, and the
+   * rest. Declared, rather than left implicit, because `activityLog` now
+   * carries a `jsonSchema` whose entries are open by design (`logField`), and
+   * an interface with no index signature is not assignable to an open one.
+   */
+  [machine: string]: unknown
 }
 
 export interface VerificationLogEntry extends LogDisplayCells {

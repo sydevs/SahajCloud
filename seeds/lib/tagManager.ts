@@ -47,10 +47,18 @@ export class TagManager {
       return tagId
     }
 
-    // Create tag with title field
+    // Create tag with title field.
+    //
+    // The cast is what a `CollectionSlug`-typed variable costs: Payload derives
+    // `data` from the slug, so with the whole union in play it demands the
+    // required fields of *every* collection at once. This only type-checked
+    // before because `forms` happened to require nothing but `title`, and it
+    // stopped the moment `forms` gained a required `actionType` (#723). The
+    // caller supplies the rest through `additionalData`, which no signature
+    // here can relate to the slug it was passed.
     const tag = await this.payload.create({
       collection: tagCollection,
-      data: { title: tagName, ...additionalData },
+      data: { title: tagName, ...additionalData } as never,
     })
 
     const tagId = tag.id as number

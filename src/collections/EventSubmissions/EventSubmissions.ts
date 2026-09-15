@@ -259,7 +259,8 @@ export const EventSubmissions: CollectionConfig = {
           //
           // A real relationship, not a key inside `submitterInfo`: it is the
           // link `upsertUserByEmail` writes, and a Users join can only target a
-          // relationship column (cf. `Users.submittedEvents` on `events.submitter`).
+          // relationship column (cf. `Users.submissions` on
+          // `user-submissions.user`).
           name: 'submitter',
           type: 'relationship',
           relationTo: 'users',
