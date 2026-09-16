@@ -501,13 +501,16 @@ describe('Translations Globals Configuration', () => {
     const TARGETED = ['sy-atlas-translations', 'wm-web-translations'] as const
 
     /** The global's own URL, resolved for one locale and nothing else. */
-    const previewUrl = (slug: Slug, code = 'fr'): string => {
+    const previewUrl = async (slug: Slug, code = 'fr'): Promise<string> => {
       const url = findGlobal(slug).admin?.livePreview?.url
       if (typeof url !== 'function') throw new Error(`${slug} resolves no live-preview URL`)
       // Deliberately called with no document: a URL that reached for `data`
       // would throw here, and mid-edit it would re-resolve and clobber the
       // repoint instead.
-      return url({ locale: { code } } as never) as string
+      //
+      // Async since the credential became a minted token rather than a
+      // constant read from the environment.
+      return (await url({ locale: { code } } as never)) as string
     }
 
     /** Every `preview` a global's schema declares, by the field that carries it. */
@@ -521,22 +524,41 @@ describe('Translations Globals Configuration', () => {
       })
     }
 
-    it.each(TARGETED)('%s resolves its URL from the locale alone', (slug) => {
-      expect(previewUrl(slug, 'fr')).not.toBe(previewUrl(slug, 'de'))
+    it.each(TARGETED)('%s resolves its URL from the locale alone', async (slug) => {
+      const [fr, de] = await Promise.all([previewUrl(slug, 'fr'), previewUrl(slug, 'de')])
+      // Compared without the token, which differs per mint by design.
+      const withoutToken = (url: string) => {
+        const parsed = new URL(url)
+        parsed.searchParams.delete('live-preview')
+        return parsed.toString()
+      }
+      expect(withoutToken(fr)).not.toBe(withoutToken(de))
     })
 
-    // A preview secret is read only on the route that also scrubs it from the
-    // address bar at boot — SahajAtlasWeb's `/preview`, WeMeditateWeb's
-    // `pages/preview/`. Neither of these URLs is one, and neither is any path
-    // their tabs compose, so a secret here would sit in the panel's URL for a
-    // whole editing session with nothing reading it.
-    it.each(TARGETED)('%s carries no preview secret', (slug) => {
-      const secret = process.env.SAHAJCLOUD_PREVIEW_SECRET
-      // Guarded: an empty secret fails the containment check for every URL,
-      // and an unset one passes it for any — it would search for "undefined".
-      expect(secret).toBeTruthy()
-      expect(new URL(previewUrl(slug)).searchParams.get('secret')).toBeNull()
-      expect(previewUrl(slug)).not.toContain(secret!)
+    // ⚠ **This inverts what it used to assert.** #773 had to strip the
+    // credential, because a secret was read only on the one route that also
+    // scrubbed it from the address bar — so sending it anywhere else parked a
+    // permanent credential in the panel's URL for a whole editing session.
+    //
+    // Every route reads and scrubs a short-lived token now, and the token
+    // expires on its own, so the URL carries one again. That is what #776 was
+    // filed for: without it a translator previews published copy.
+    it.each(TARGETED)('%s carries a live-preview token', async (slug) => {
+      const url = new URL(await previewUrl(slug))
+      const token = url.searchParams.get('live-preview')
+
+      expect(token).toBeTruthy()
+      // A compact JWS — header, payload, signature — not a secret copied
+      // verbatim, and not a bespoke wire format either.
+      expect(token!.split('.')).toHaveLength(3)
+      expect(url.searchParams.get('secret')).toBeNull()
+    })
+
+    // The scope tells the consumer which document the panel is editing, so it
+    // reads drafts for the translations global rather than for whatever
+    // document the route happens to render.
+    it.each(TARGETED)('%s names its own scope', async (slug) => {
+      expect(new URL(await previewUrl(slug)).searchParams.get('scope')).toBe(slug)
     })
 
     // This URL is what the eight untargeted tabs show, and what every targeted
@@ -544,24 +566,24 @@ describe('Translations Globals Configuration', () => {
     // and an `id`: given neither, SahajAtlasWeb renders "Save this document to
     // preview it." over a click-swallowing `fixed inset-0`, and WeMeditateWeb
     // answers 403. So a global points at a view that renders with no document.
-    it.each(TARGETED)('%s points at a view, not a document-less preview route', (slug) => {
-      expect(new URL(previewUrl(slug)).pathname).not.toMatch(/(^|\/)preview\/?$/)
+    it.each(TARGETED)('%s points at a view, not a document-less preview route', async (slug) => {
+      expect(new URL(await previewUrl(slug)).pathname).not.toMatch(/(^|\/)preview\/?$/)
     })
 
     // A relative target resolves against this URL, so the trailing slash is
     // what keeps `map` under `/fr` instead of hoisting it to the site root.
     // Asserted through the composition, not just the shape, because the slash
     // is otherwise a character nobody would think to defend.
-    it('wm-web-translations composes a relative target under the edited locale', () => {
-      const base = previewUrl('wm-web-translations', 'fr')
+    it('wm-web-translations composes a relative target under the edited locale', async () => {
+      const base = await previewUrl('wm-web-translations', 'fr')
       const map = declaredTargets('wm-web-translations').find(([, target]) => target.path === 'map')
       expect(map).toBeDefined()
 
       expect(new URL(composeTargetUrl(base, map![1])!).pathname).toBe('/fr/map')
     })
 
-    it.each(TARGETED)('%s declares targets that compose onto its own origin', (slug) => {
-      const base = previewUrl(slug)
+    it.each(TARGETED)('%s declares targets that compose onto its own origin', async (slug) => {
+      const base = await previewUrl(slug)
       const targets = declaredTargets(slug)
       expect(targets.length).toBeGreaterThan(0)
 
@@ -577,8 +599,8 @@ describe('Translations Globals Configuration', () => {
     // locale IS a query parameter — wm-web carries it in the path, checked
     // above. Dropping `secret` left `locale` the only parameter either sends,
     // so without this case nothing would notice the carry-forward going.
-    it('sy-atlas-translations keeps the edited locale across a repoint', () => {
-      const base = previewUrl('sy-atlas-translations', 'de')
+    it('sy-atlas-translations keeps the edited locale across a repoint', async () => {
+      const base = await previewUrl('sy-atlas-translations', 'de')
       expect(new URL(base).searchParams.get('locale')).toBe('de')
 
       const targets = declaredTargets('sy-atlas-translations')

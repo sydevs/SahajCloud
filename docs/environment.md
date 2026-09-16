@@ -44,9 +44,25 @@ The "Admin Access" credentials in `AGENTS.md` are the local dev admin, unrelated
 
 - `WEMEDITATE_WEB_URL` — required. We Meditate preview URL, for Pages/Meditations live preview and the CSP `frame-src`.
 - `SAHAJATLAS_URL` — required. Sahaj Atlas preview URL, for the same purposes plus the `csrf` allowlist. Not a canonical base — the Atlas host is `noindex`, so `webUrl` never points at it.
+
+  ⚠ **This is `https://sahajatlas.com`, the replacement.** `atlas.sydevelopers.com` is the legacy service: it serves no `/preview` route, so live preview aimed there 404s. Production carried the legacy value (visible in the admin's own CSP `frame-src`), which is why atlas live preview did not work. Changing it moves the preview target, the CSP `frame-src` and the `csrf` allowlist together.
 - `WEMEDITATE_ATLAS_BASE_PATH` — optional, default `/map`. Feeds the fallback `webUrl` for a region no client owns: `WEMEDITATE_WEB_URL + WEMEDITATE_ATLAS_BASE_PATH + webPath`.
 
 Neither URL takes a trailing slash, since both are used as prefixes and compared against `Origin` headers. **Restart `next dev` after you change these** — `next.config.mjs` bakes the CSP allowlist at boot, so a stale server blocks the preview iframe (`ERR_BLOCKED_BY_CSP`).
+
+### The live-preview signing key
+
+- `LIVE_PREVIEW_SIGNING_KEY` — optional. Ed25519 **private** key that signs the short-lived token on a live-preview URL: base64 of a private JWK, which carries the public half beside the private one so this single variable also verifies a token forwarded back. Generate with `pnpm generate:preview-keypair`.
+
+The matching **public** key is committed into each consumer that verifies tokens (`PUBLIC__LIVE_PREVIEW_VERIFY_KEY` in WeMeditateWeb, `VITE_LIVE_PREVIEW_VERIFY_KEY` in SahajAtlasWeb). It is not a secret, and that is the point of signing rather than sharing a symmetric secret: SahajAtlasWeb ships as a public bundle, so any key it holds is published — a verification key being published costs nothing, a signing key being published is the whole vulnerability.
+
+The token carries `{ exp }` and nothing else. An audience claim naming the API-client role was dropped in #788: the client key on the request already decides which collections are readable, so the claim only narrowed which *surface* a leaked token unlocked drafts on, never what it could reach.
+
+This replaces putting `SAHAJCLOUD_PREVIEW_SECRET` on the URL. A long-lived symmetric secret in a URL leaks permanently to everything that reads a URL — browser history, `Referer`, Sentry session replay, and an analytics script that posts `location.href`. A token expires in 45 minutes on its own.
+
+**Unset, live preview is simply not offered**: `mintLivePreviewToken` returns `null` and the panel lands on the "unavailable" page. A fresh checkout or a preview deploy without the variable runs normally. That is deliberate — a missing key should not stop the CMS booting.
+
+⚠ **Rotating invalidates every outstanding token at once.** They live 45 minutes, so the blast radius is one editing session, but roll the consumers' public key in the same window or every panel shows the unavailable page until they catch up.
 
 ## Environment Variable Validation
 

@@ -261,7 +261,11 @@ A trusted internal handler forwarding a client `req` to `payload.find`/`findByID
 
 ### Live preview bypass
 
-Admin live preview loads the external We Meditate Web frontend, which fetches draft content back as a client, forwarding `SAHAJCLOUD_PREVIEW_SECRET` in `x-sahajcloud-preview-secret`. Since that request renders the whole document, `validateClientQueryParamsHook` skips it via `hasValidPreviewSecret(req)` — the same helper the access layer uses to unlock drafts. Rate limiting and usage tracking still apply.
+Admin live preview opens a consumer site with a short-lived Ed25519 token (an EdDSA JWS, signed and verified with `jose`) on the URL. The consumer forwards that token back here in `x-sahajcloud-preview-secret`, and a request carrying one this service issued is a trusted preview request. Since it renders the whole document, `validateClientQueryParamsHook` skips it via `isLivePreviewRequest(req)` — the same helper the access layer uses to unlock drafts. Rate limiting and usage tracking still apply.
+
+**The header name is unchanged, its contents are not.** It used to carry `SAHAJCLOUD_PREVIEW_SECRET` verbatim — a long-lived symmetric secret that also rode in the panel's URL, where browser history, `Referer`, Sentry session replay and an analytics script that posts `location.href` all read it. A public bundle like the atlas widget could never verify it either, since holding it means being able to mint it. The name stayed because the Cloudflare Cache Rule matches on it and the CORS allowlist names it, and neither cares what the value means.
+
+⚠ **The verdict is resolved once, ahead of the gates that read it.** Verifying a signature is asynchronous; three of the four readers are synchronous. `resolveLivePreviewHook` runs first in the `beforeOperation` chain and stamps the answer on `req.context`, which is safe because Payload awaits every `beforeOperation` hook before resolving access (`collections/operations/find.js`, `globals/operations/findOne.js`). It returns synchronously when the header is absent, which is almost every request, and leaves those unstamped. An unstamped request reads as **no preview** — failing closed is the only safe default for a flag whose job is to unlock drafts.
 
 ## Client read contract: finished events (#603)
 
@@ -312,7 +316,7 @@ The rule itself lives in `assertClientOriginAllowed(req)`. The hook is a thin wr
 
 **Matching** (`originEnforcement.ts`): both sides normalize to a bare host (scheme, userinfo, port, path, trailing dot stripped, lowercased). An exact host matches only itself. A `*.` wildcard matches any subdomain but not the apex, and blocks the injection `evil-example.org` against `*.example.org`.
 
-**Bypasses**: a valid live-preview secret, or an internal relationship-population read (reusing the top-level origin already validated). `asTrustedReq()` does **not** bypass this — its flag is a query-shape opt-out, not a security one.
+**Bypasses**: a valid live-preview token, or an internal relationship-population read (reusing the top-level origin already validated). `asTrustedReq()` does **not** bypass this — its flag is a query-shape opt-out, not a security one.
 
 **CORS**: `cors: { origins: '*', headers: ['x-sahajcloud-preview-secret'] }`. Per-client CORS is impossible, since a preflight is anonymous — the browser omits `Authorization`, so the server can't return a per-client allowlist at that point. The wildcard lets an embedded widget's preflight succeed on any host page. The real per-domain gate is this hook plus the API key. Payload omits `Access-Control-Allow-Credentials` for wildcard origins, so cookie-based admin sessions stay protected. The `headers` list **appends** to Payload's defaults (#575), so the live-preview widget's `x-sahajcloud-preview-secret` still clears preflight. Guarded by `tests/int/cors-config.int.spec.ts` and `tests/e2e/cors-preflight.e2e.spec.ts`.
 

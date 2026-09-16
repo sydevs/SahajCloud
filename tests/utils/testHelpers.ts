@@ -298,6 +298,8 @@ export async function waitForEmail(
 export function createClientAuthenticatedRequest(
   clientId: string,
   apiKey: string,
+  /** Roles the stub client holds, for role-scoped access checks. */
+  roles: string[] = [],
 ): Partial<PayloadRequest> {
   // Create a minimal request object for testing
   // The headers type in PayloadRequest is complex, so we use a type assertion
@@ -310,6 +312,7 @@ export function createClientAuthenticatedRequest(
       id: clientId,
       collection: 'clients' as const,
       _status: 'published',
+      roles,
     } as unknown as PayloadRequest['user'],
   }
 }

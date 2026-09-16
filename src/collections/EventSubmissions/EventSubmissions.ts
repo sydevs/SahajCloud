@@ -1,6 +1,7 @@
 import type { CollectionConfig, FieldAccess } from 'payload'
 
 import { serverEnv } from '@/lib/env/server'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 
 import { reviewSubmission } from './endpoints/review'
 import { computePreviewEvent, computeProposedChanges } from './hooks/computeReviewFields'
@@ -79,10 +80,23 @@ export const EventSubmissions: CollectionConfig = {
     // (`payload-live-preview`), and `previewEvent` carries the merged event in
     // that payload. See `computeReviewFields.ts`.
     livePreview: {
+      // ⚠ **The one preview that keeps a dedicated route.** Every other
+      // document is previewed at the page it will be published at; a proposal
+      // has no such page. `event-submissions` is create-only for API clients
+      // and a new-event proposal has no Event id, so the widget cannot fetch
+      // it back — the render-ready shape rides postMessage in `previewEvent`
+      // instead. Retiring `/preview` here needs that mechanism replaced, which
+      // #723's `user-submissions` unification owns.
       url: ({ data, locale }) =>
-        data.id
-          ? `${serverEnv.SAHAJATLAS_URL}/preview?collection=event-submissions&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}&locale=${locale.code}`
-          : null,
+        livePreviewUrl({
+          base: serverEnv.SAHAJATLAS_URL,
+          path: typeof data?.id === 'number' ? 'preview' : null,
+          params: {
+            collection: 'event-submissions',
+            id: String(data?.id ?? ''),
+            locale: locale.code,
+          },
+        }),
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
       // A reviewer is here to judge how a listing would look, so the panel is
       // open on arrival rather than a click away. Payload's own option (3.86):

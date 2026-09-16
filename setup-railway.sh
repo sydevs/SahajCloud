@@ -19,7 +19,6 @@ set -euo pipefail
 
 # ── Required secrets (export these before running, or the script aborts) ──────
 : "${PAYLOAD_SECRET:?export PAYLOAD_SECRET=<EXISTING prod value — MUST match, or client API keys break>}"
-: "${SAHAJCLOUD_PREVIEW_SECRET:?export SAHAJCLOUD_PREVIEW_SECRET=<existing prod value>}"
 : "${CLOUDFLARE_API_KEY:?export CLOUDFLARE_API_KEY=<CF API token for Images + Stream>}"
 : "${R2_ACCESS_KEY_ID:?export R2_ACCESS_KEY_ID=<R2 S3 token Access Key ID>}"
 : "${R2_SECRET_ACCESS_KEY:?export R2_SECRET_ACCESS_KEY=<R2 S3 token Secret Access Key>}"
@@ -32,7 +31,15 @@ set -euo pipefail
 R2_S3_ENDPOINT="${R2_S3_ENDPOINT:-}"
 CLOUDFLARE_STREAM_WEBHOOK_SECRET="${CLOUDFLARE_STREAM_WEBHOOK_SECRET:-}"
 DOCS_PASSWORD="${DOCS_PASSWORD:-}"
+# Live-preview token signing key (base64 of a private Ed25519 JWK).
+# Generate with: pnpm generate:preview-keypair
+# Leave unset and the CMS boots normally, simply offering no live preview.
+LIVE_PREVIEW_SIGNING_KEY="${LIVE_PREVIEW_SIGNING_KEY:-}"
 NIRMALA_VIDYA_API_KEY="${NIRMALA_VIDYA_API_KEY:-}"
+
+# ⚠ SAHAJATLAS_URL is sahajatlas.com, the Sahaj Atlas REPLACEMENT.
+# atlas.sydevelopers.com is the legacy service and serves no /preview route —
+# live preview pointed there 404s. Both hosts checked directly, 2026-09-15.
 
 # ── Non-secret config (from the old wrangler.toml) + the secrets above ───────
 railway variables \
@@ -43,13 +50,13 @@ railway variables \
   --set "CLOUDFLARE_R2_DELIVERY_URL=https://assets.sydevelopers.com" \
   --set "R2_BUCKET=sahajcloud" \
   --set "WEMEDITATE_WEB_URL=https://wemeditate.com" \
-  --set "SAHAJATLAS_URL=https://atlas.sydevelopers.com" \
+  --set "SAHAJATLAS_URL=https://sahajatlas.com" \
   --set "PAYLOAD_SECRET=$PAYLOAD_SECRET" \
-  --set "SAHAJCLOUD_PREVIEW_SECRET=$SAHAJCLOUD_PREVIEW_SECRET" \
   --set "CLOUDFLARE_API_KEY=$CLOUDFLARE_API_KEY" \
   --set "R2_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID" \
   --set "R2_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY" \
   --set "RESEND_API_KEY=$RESEND_API_KEY" \
+  --set "LIVE_PREVIEW_SIGNING_KEY=$LIVE_PREVIEW_SIGNING_KEY" \
   --set "NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN"
 
 # Optional ones — only set when provided

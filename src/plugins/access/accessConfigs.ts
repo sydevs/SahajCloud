@@ -21,7 +21,7 @@ import type {
 
 import { appendVersionToQueryKey, hasWhereAccessResult } from 'payload'
 
-import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
+import { isLivePreviewRequest } from '@/lib/utilities/previewSecret'
 
 import {
   getDocManagerFields,
@@ -123,7 +123,7 @@ export function createAccessConfig(
           operation === 'read' &&
           req.user?.collection === 'clients' &&
           entityHasDrafts(req, collection) &&
-          !hasValidPreviewSecret(req) // External connections must use preview secret
+          !isLivePreviewRequest(req)
         ) {
           // Restrict to published only unless all requirements are met.
           //
