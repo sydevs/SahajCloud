@@ -2,7 +2,6 @@ import type { PayloadRequest } from 'payload'
 
 import { createHash } from 'node:crypto'
 
-
 import { isMachineSpam } from './verdicts'
 
 /**
@@ -35,13 +34,6 @@ export const REPEAT_SENDER_MAX = 5
  */
 const HISTORY_SCAN_LIMIT = 50
 
-/** What one recent row contributes to the judgement. */
-interface HistoryRow {
-  id: number
-  screeningResult?: unknown
-  submissionData?: unknown
-}
-
 /** What the sender's recent history says about them. */
 export interface SenderHistory {
   /** Machine-refused submissions inside the window, excluding this one. */
@@ -59,9 +51,9 @@ export interface SenderHistory {
  * ⚠ **Both counts are computed in memory, deliberately.** The machine verdict
  * lives in a `type: 'json'` column, and a JSON path is not a cheap predicate —
  * so the query selects a bounded page of the sender's recent rows by the
- * indexed `user` and `createdAt` columns, and the two questions are answered
- * over that page. Filtering by `status` in SQL instead would be cheaper and
- * wrong: see `isMachineSpam`.
+ * indexed `user` and `createdAt` columns, and answers both questions over that
+ * page. Filtering by `status` in SQL instead would be cheaper and wrong: see
+ * `isMachineSpam`.
  *
  * ⚠ **The duplicate check is scoped to one sender**, unlike the cross-sender
  * check it descends from, which could see one payload blasted from many
@@ -70,7 +62,13 @@ export interface SenderHistory {
  * docblock. An anonymous submission carries no `user`, so it has no history
  * here at all and is judged by the address checks alone.
  */
-export async function loadSenderHistory(args: {
+export async function loadSenderHistory({
+  req,
+  submissionId,
+  userId,
+  since,
+  bodyHash,
+}: {
   req: PayloadRequest
   /** The row being screened. Excluded from its own history. */
   submissionId: number
@@ -79,8 +77,6 @@ export async function loadSenderHistory(args: {
   /** The body being screened, already digested. Absent skips the duplicate check. */
   bodyHash: string | null
 }): Promise<SenderHistory> {
-  const { req, submissionId, userId, since, bodyHash } = args
-
   const { docs } = await req.payload.find({
     collection: 'user-submissions',
     where: {
@@ -88,10 +84,10 @@ export async function loadSenderHistory(args: {
       createdAt: { greater_than: since.toISOString() },
       id: { not_equals: submissionId },
     },
-    // ⚠ `status` is deliberately absent, and that is a second guard rather
-    // than a saving: with it unselected, a future edit that tried to count
-    // abuse off `status` would read `undefined` on every row and count
-    // nothing — a visible wrong answer instead of a quiet one.
+    // ⚠ `status` is deliberately unselected, as a second guard rather than a
+    // saving: a future edit that tried to count abuse off `status` would read
+    // `undefined` on every row and count nothing — a visibly wrong answer
+    // instead of a quiet one.
     select: { screeningResult: true, submissionData: true },
     limit: HISTORY_SCAN_LIMIT,
     depth: 0,
@@ -100,12 +96,10 @@ export async function loadSenderHistory(args: {
     req,
   })
 
-  const rows = docs as HistoryRow[]
-
   return {
-    spamCount: rows.filter(isMachineSpam).length,
+    spamCount: docs.filter(isMachineSpam).length,
     duplicate:
-      bodyHash != null && rows.some((row) => hashSubmissionBody(row.submissionData) === bodyHash),
+      bodyHash != null && docs.some((doc) => hashSubmissionBody(doc.submissionData) === bodyHash),
   }
 }
 
@@ -119,6 +113,10 @@ export async function loadSenderHistory(args: {
  * Returns `null` when there is no free text to compare: a submission carrying
  * only a name and an address is not "the same message" as another one, and
  * hashing the empty string would make every such row a duplicate of every other.
+ *
+ * `BODY_KEYS` is the prose keys only. `name`, `locale` and the context keys are
+ * the same on every submission a person sends, so including them would make two
+ * unrelated submissions from one visitor hash alike.
  */
 export function hashSubmissionBody(entries: unknown): string | null {
   if (!Array.isArray(entries)) return null
@@ -139,11 +137,4 @@ export function hashSubmissionBody(entries: unknown): string | null {
   return createHash('sha256').update(pairs.join('\n')).digest('hex')
 }
 
-/**
- * Which pairs count as "the body".
- *
- * The prose keys only. `name`, `locale` and the context keys are the same on
- * every submission a person sends, so including them would make two unrelated
- * submissions from one visitor hash alike.
- */
 const BODY_KEYS: ReadonlySet<string> = new Set(['message', 'note', 'subject'])

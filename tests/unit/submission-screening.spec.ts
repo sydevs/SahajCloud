@@ -48,6 +48,20 @@ describe('isMachineSpam', () => {
     expect(isScreeningResult({ verdict: 'something_else' })).toBe(false)
     expect(isScreeningResult('ok')).toBe(false)
   })
+
+  /**
+   * The column's `jsonSchema` validates writes and generates the type; nothing
+   * re-validates on read, so the guard is what stands between a JSON column and
+   * a narrowed type. It must refuse everything that is not an object carrying a
+   * known verdict — a bare array included, since `typeof [] === 'object'`.
+   */
+  it('refuses anything that is not an object carrying a known verdict', () => {
+    expect(isScreeningResult(null)).toBe(false)
+    expect(isScreeningResult(undefined)).toBe(false)
+    expect(isScreeningResult([{ verdict: 'ok' }])).toBe(false)
+    expect(isScreeningResult({ screenedAt: '2026-09-15T00:00:00.000Z' })).toBe(false)
+    expect(isScreeningResult({ verdict: 'ok', screenedAt: '2026-09-15T00:00:00.000Z' })).toBe(true)
+  })
 })
 
 describe('hashSubmissionBody', () => {
@@ -115,12 +129,18 @@ describe('screenProposalContent', () => {
     expect(refusal).toContain('description')
   })
 
-  it('finds a link nested inside a group', () => {
+  /**
+   * ⚠ The case the flattening walker exists for. `checkNoUrls` tests only
+   * top-level string values, so handing it `proposed` raw returns `ok` here —
+   * a different verdict on the same input. A proposal is an Events field patch,
+   * and Events nests (`address`, `schedule`).
+   */
+  it('finds a link nested inside a group, and names the nested path', () => {
     // A bare domain on one of the TLDs the scan recognises — `.test` is
     // deliberately not one of them, so a spec using it would pass vacuously.
-    expect(
-      screenProposalContent({ address: { street: 'see buy-now.example.com' } }),
-    ).not.toBeNull()
+    const refusal = screenProposalContent({ address: { street: 'see buy-now.example.com' } })
+    expect(refusal).not.toBeNull()
+    expect(refusal).toContain('address.street')
   })
 
   /**

@@ -20,16 +20,21 @@ import { checkNoUrls } from '@/lib/antiSpam/antiSpamGuard'
  * Returns `null` when the content is acceptable, or the reason it was not.
  */
 export function screenProposalContent(proposed: unknown): string | null {
-  const leaves = stringLeaves(proposed)
-  if (Object.keys(leaves).length === 0) return null
-
-  const urls = checkNoUrls(leaves)
+  const urls = checkNoUrls(stringLeaves(proposed))
   return urls.ok ? null : urls.message
 }
 
 /**
- * Every string in a nested structure, keyed by its dotted path — the shape
- * `checkNoUrls` takes, so the reason it gives names the offending field.
+ * Flatten a proposal into `{ 'address.street': 'see buy-now.example.com' }` —
+ * the flat, dotted-path map `checkNoUrls` takes.
+ *
+ * ⚠ **This is what makes the scan reach a nested field at all, and it is the
+ * whole point of the function.** `checkNoUrls` tests `typeof value === 'string'`
+ * on the **top level** and looks no further, so handing it `proposed` raw would
+ * screen `title` and `description` and wave through a link in `address.street`
+ * or `schedule.notes`: `ok` on a patch that must be `content_rejected`. A
+ * proposal is an Events field patch, and Events nests. The dotted key is also
+ * what names the offending field in the reason the manager reads.
  *
  * Bounded by depth and by count: `proposed` is public input, and a walker with
  * neither bound is a stack overflow and an unbounded allocation waiting for
@@ -41,6 +46,9 @@ function stringLeaves(value: unknown, prefix = '', depth = 0): Record<string, st
   if (depth > MAX_DEPTH || value == null) return leaves
 
   if (typeof value === 'string') {
+    // An empty string can hold no URL, so keeping it would spend the MAX_LEAVES
+    // budget on values that cannot trip the scan and could crowd out one that
+    // does.
     if (value.trim() !== '') leaves[prefix || 'proposed'] = value
     return leaves
   }

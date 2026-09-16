@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 import { SUBMISSION_VERDICTS } from '@/collections/UserSubmissions/fields'
 import type { UserSubmission } from '@/payload-types'
 
@@ -38,18 +40,22 @@ export const VERDICT_NOTES: Record<SubmissionVerdict, string | null> = {
 /**
  * Whether a stored verdict is one this build wrote.
  *
- * The column is JSON, so a bad write could have left anything there — and this
- * function **asserts a type**, so it checks the verdict against the real set
- * rather than merely for being a string. An assertion that accepts values
- * outside the union is a lie the compiler then propagates everywhere.
+ * ⚠ **The column's `jsonSchema` cannot answer this, and that is why the check
+ * exists.** It compiles an Ajv validator that runs on **write**, and it
+ * generates the type above — but nothing re-validates on **read**, so a value
+ * that came back out of Postgres is `unknown` to Payload and to the compiler
+ * alike. A row written before the column had its present shape, or by any path
+ * that did not go through Payload, is exactly what this guards against.
+ *
+ * So the read side asserts in Zod, over `verdict` alone — the one key anything
+ * reads back, and the one whose value decides whether the row counts as abuse.
+ * The rest of the shape is the column's own schema's job; restating it here
+ * would be a second definition of it, drifting the day the column changes.
  */
+const screeningResultGuard = z.object({ verdict: z.enum(SUBMISSION_VERDICTS) })
+
 export function isScreeningResult(value: unknown): value is SubmissionScreeningResult {
-  if (typeof value !== 'object' || value === null) return false
-  // Read as `unknown` rather than through a cast: casting to the result type
-  // first would hand `includes` an already-narrowed value, and let TypeScript
-  // agree with an assumption nothing has checked yet.
-  const { verdict } = value as { verdict?: unknown }
-  return typeof verdict === 'string' && (SUBMISSION_VERDICTS as readonly string[]).includes(verdict)
+  return screeningResultGuard.safeParse(value).success
 }
 
 /**
@@ -65,9 +71,7 @@ export function isScreeningResult(value: unknown): value is SubmissionScreeningR
  *
  * A row with no verdict has not been screened yet, and is not a strike either.
  */
-export function isMachineSpam(submission: {
-  screeningResult?: unknown
-}): boolean {
+export function isMachineSpam(submission: { screeningResult?: unknown }): boolean {
   const result = submission.screeningResult
   return isScreeningResult(result) && result.verdict !== 'ok'
 }
