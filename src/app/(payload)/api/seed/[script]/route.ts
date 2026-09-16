@@ -370,9 +370,7 @@ export async function POST(
   })
 }
 
-/**
- * Return the importer class for the named script.
- */
+/** Return the importer class for the named script. */
 async function getImporter(
   script: ScriptName,
   payload: Awaited<ReturnType<typeof getPayload>>,
@@ -431,9 +429,7 @@ async function getImporter(
   }
 }
 
-/**
- * Return database counts for verification.
- */
+/** Return database counts for verification. */
 async function getDatabaseCounts(
   payload: Awaited<ReturnType<typeof getPayload>>,
   script: ScriptName,

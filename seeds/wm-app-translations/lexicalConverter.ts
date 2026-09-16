@@ -16,9 +16,7 @@
  * without booting Payload.
  */
 
-// ============================================================================
-// Public types (seed-side shape)
-// ============================================================================
+// --- Public types (seed-side shape) ---
 
 /**
  * A single inline segment inside a paragraph.
@@ -65,9 +63,7 @@ export function isSeedRichTextField(value: unknown): value is SeedRichTextField 
   )
 }
 
-// ============================================================================
-// Lexical output types
-// ============================================================================
+// --- Lexical output types ---
 
 export interface LexicalTextNode {
   type: 'text'
@@ -110,9 +106,7 @@ export interface LexicalRoot {
   }
 }
 
-// ============================================================================
-// Conversion
-// ============================================================================
+// --- Conversion ---
 
 /**
  * Lexical text-node `format` is a bitmask. The relevant bits for the
@@ -206,9 +200,7 @@ export function seedRichTextToLexical(field: SeedRichTextField, ctx: string): Le
   }
 }
 
-// ============================================================================
-// Leaf transformation
-// ============================================================================
+// --- Leaf transformation ---
 
 /**
  * One leaf-group entry as written in `data.<locale>.json`.
@@ -267,9 +259,7 @@ export function seedLeafToFieldValues(
   return { strings: Object.keys(stringsBlock).length > 0 ? { ...stringsBlock } : null, richText }
 }
 
-// ============================================================================
-// Schema-driven placement
-// ============================================================================
+// --- Schema-driven placement ---
 
 interface SchemaLeafProp {
   type: 'string' | 'richText'

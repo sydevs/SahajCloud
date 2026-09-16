@@ -67,9 +67,7 @@ function parseDateOnly(dateStr: string): Temporal.PlainDate | null {
   }
 }
 
-/**
- * Check whether the schedule sub-fields describe a recurring event.
- */
+/** Check whether the schedule sub-fields describe a recurring event. */
 function isRecurring(fields: Partial<EventSchedule>): boolean {
   return !!fields.recurrenceType && SUPPORTED_FREQ.has(fields.recurrenceType)
 }

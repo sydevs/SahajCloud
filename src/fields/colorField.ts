@@ -1,8 +1,6 @@
 import type { Condition, Field, FieldAccess, TextFieldSingleValidation } from 'payload'
 
-/**
- * Validates hex color format (#RRGGBB or #RGB)
- */
+/** Validates hex color format (#RRGGBB or #RGB) */
 const hexColorValidation: TextFieldSingleValidation = (value) => {
   if (!value) return true // Allow empty if not required
   const hexPattern = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/

@@ -11,9 +11,7 @@
 import type { VerificationStage } from '@/lib/eventVerification/stages'
 import type { Region } from '@/payload-types'
 
-// =============================================================================
-// Events
-// =============================================================================
+// --- Events ---
 
 /**
  * Display buckets for a manager's events, in the order they appear in the
@@ -129,9 +127,7 @@ export function sortEventsIntoBuckets(events: SidebarEventInput[]): SidebarEvent
     }))
 }
 
-// =============================================================================
-// Regions
-// =============================================================================
+// --- Regions ---
 
 /**
  * A region's level in the geographic tree (Country → Region → City → Venue).

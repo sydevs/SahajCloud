@@ -214,9 +214,7 @@ export const PermissionsTable: FieldClientComponent = () => {
   )
 }
 
-/**
- * Map permission operation to Pill style
- */
+/** Map permission operation to Pill style */
 function getOperationPillStyle(operation: PermissionLevel): PillProps['pillStyle'] {
   const styleMap: Record<PermissionLevel, PillProps['pillStyle']> = {
     read: undefined, // Grey

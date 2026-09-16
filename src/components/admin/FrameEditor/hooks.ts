@@ -65,9 +65,7 @@ export const useSeekToTime = (): ((timestamp: number) => void) => {
   )
 }
 
-/**
- * SWR fetcher with error handling and proper typing
- */
+/** SWR fetcher with error handling and proper typing */
 const frameFetcher = async (url: string): Promise<{ docs?: Frame[] }> => {
   const res = await fetch(url)
   if (!res.ok) {

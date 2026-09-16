@@ -1,6 +1,4 @@
-/**
- * Usage Plugin DB helpers
- */
+/** Usage Plugin DB helpers */
 import type { PayloadRequest } from 'payload'
 import type { Pool } from 'pg'
 

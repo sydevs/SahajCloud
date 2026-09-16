@@ -6,9 +6,7 @@
 import type { DetectedHeading } from '@/components/admin/TableOfContentsField'
 import type { Page } from '@/payload-types'
 
-/**
- * Generate unique ID for test entities
- */
+/** Generate unique ID for test entities */
 export function uniqueId(): string {
   return `${Date.now()}_${Math.random().toString(36).substring(7)}`
 }

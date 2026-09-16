@@ -20,7 +20,6 @@ describe('API', () => {
     cleanup = testEnv.cleanup
     adminUserId = testEnv.adminUser.id
 
-    // Create test user and client
     testClient = await testData.createClient(payload, adminUserId)
   })
 
@@ -356,7 +355,6 @@ describe('API', () => {
       })) as Client
       const initialDailyRequests = initialClient.usage?.dailyRequests || 0
 
-      // Create a client-authenticated request
       const clientReq = createClientAuthenticatedRequest(
         String(testClient.id),
         testClient.apiKey || 'test-key',

@@ -18,9 +18,7 @@ import { pluralStorageKeys } from '@/lib/translations/pluralCategories'
 import { jsonField } from './jsonField'
 import { previewTargetField, type PreviewTarget } from './previewTargetField'
 
-// ============================================================================
-// Types
-// ============================================================================
+// --- Types ---
 
 interface StringPropertySchema {
   type: 'string'
@@ -115,9 +113,7 @@ export interface SchemaEntry {
   plural?: boolean
 }
 
-// ============================================================================
-// Type guards
-// ============================================================================
+// --- Type guards ---
 
 function isGroupSchema(prop: LeafPropertySchema | GroupSchema | undefined): prop is GroupSchema {
   return !!prop && prop.type === 'object'
@@ -131,9 +127,7 @@ function isRichTextProp(prop: LeafPropertySchema | GroupSchema): prop is RichTex
   return prop.type === 'richText'
 }
 
-// ============================================================================
-// Helpers
-// ============================================================================
+// --- Helpers ---
 
 function createScreenshotField(
   groupSlug: string,
@@ -396,9 +390,7 @@ function createLeafFields(
   return [...(screenshot ? [screenshot] : []), ...fields]
 }
 
-// ============================================================================
-// Main: buildTranslationTabs
-// ============================================================================
+// --- Main: buildTranslationTabs ---
 
 /**
  * Converts a translations schema into PayloadCMS tabs configuration.

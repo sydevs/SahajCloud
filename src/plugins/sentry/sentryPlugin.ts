@@ -18,9 +18,7 @@ import { deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
 
 import { describeRejectedCredential } from './credentialRejection'
 
-/**
- * Context object for Sentry error capture
- */
+/** Context object for Sentry error capture */
 interface SentryContext {
   user?: {
     id?: string
@@ -56,9 +54,7 @@ export interface SentryPluginOptions {
    */
   debug?: boolean
 
-  /**
-   * Custom context function to enrich Sentry error context
-   */
+  /** Custom context function to enrich Sentry error context */
   context?: (args: { defaultContext: SentryContext; req: PayloadRequest }) => Partial<SentryContext>
 
   /**

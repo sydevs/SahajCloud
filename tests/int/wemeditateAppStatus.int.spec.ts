@@ -128,9 +128,7 @@ describe('WeMeditateAppStatus Global', () => {
     await cleanup()
   })
 
-  // ---------------------------------------------------------------------------
-  // Section 1 — UserChoices
-  // ---------------------------------------------------------------------------
+  // --- Section 1 — UserChoices ---
   describe('Section 1 — UserChoices', () => {
     it('featured choice with all timing meditations passes; missing one fails', async () => {
       const morningMed = await testData.createMeditation(payload, undefined, {
@@ -180,9 +178,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
   })
 
-  // ---------------------------------------------------------------------------
-  // Section 2 — Lessons
-  // ---------------------------------------------------------------------------
+  // --- Section 2 — Lessons ---
   describe('Section 2 — Lessons', () => {
     let fullLesson: Lesson
     let partialLesson: Lesson
@@ -268,9 +264,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
   })
 
-  // ---------------------------------------------------------------------------
-  // Section 4 — Pages (run before Section 3 because Section 3 uses lecture seeds)
-  // ---------------------------------------------------------------------------
+  // --- Section 4 — Pages (run before Section 3 because Section 3 uses lecture seeds) ---
   describe('Section 4 — Pages', () => {
     let publishedCorePage: Page
     let draftCorePage: Page
@@ -312,9 +306,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
   })
 
-  // ---------------------------------------------------------------------------
-  // Section 3 — Lectures
-  // ---------------------------------------------------------------------------
+  // --- Section 3 — Lectures ---
   describe('Section 3 — Lectures', () => {
     it('emits the three expected group keys', async () => {
       const report = await run(lecturesSection, payload)
@@ -348,9 +340,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
   })
 
-  // ---------------------------------------------------------------------------
-  // Section 5 — App Configuration
-  // ---------------------------------------------------------------------------
+  // --- Section 5 — App Configuration ---
   describe('Section 5 — App Configuration', () => {
     it('vibe-check-tracks emits a row per identifier with present/audio-set/subtitles-set', async () => {
       const report = await run(appConfigSection, payload)
@@ -387,9 +377,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
   })
 
-  // ---------------------------------------------------------------------------
-  // Section 6 — Translations
-  // ---------------------------------------------------------------------------
+  // --- Section 6 — Translations ---
   describe('Section 6 — Translations', () => {
     it('emits one aggregate per top-level schema tab', async () => {
       const report = await run(translationsSection, payload)
@@ -407,9 +395,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
   })
 
-  // ---------------------------------------------------------------------------
-  // Section 7 — App Cards
-  // ---------------------------------------------------------------------------
+  // --- Section 7 — App Cards ---
   describe('Section 7 — App Cards', () => {
     let launchCard: AppCard
     let otherCard: AppCard
@@ -494,9 +480,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
   })
 
-  // ---------------------------------------------------------------------------
-  // Locale fan-out — read with `locale: 'all'` returns null per virtual field
-  // ---------------------------------------------------------------------------
+  // --- Locale fan-out — read with `locale: 'all'` returns null per virtual field ---
   describe('locale fan-out', () => {
     it('returns null for each virtual field when locale is "all"', async () => {
       const report = (await payload.findGlobal({
@@ -535,9 +519,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
   })
 
-  // ---------------------------------------------------------------------------
-  // Configuration tab — admin-only access on launchCriticalAppCards
-  // ---------------------------------------------------------------------------
+  // --- Configuration tab — admin-only access on launchCriticalAppCards ---
   describe('Configuration tab access control', () => {
     let regularManager: Manager
     let regularManagerReq: { user: Manager }
@@ -568,9 +550,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
   })
 
-  // ---------------------------------------------------------------------------
-  // Spec invariant — runSection throws on undeclared check keys
-  // ---------------------------------------------------------------------------
+  // --- Spec invariant — runSection throws on undeclared check keys ---
   describe('runSection check-key invariant', () => {
     it('throws when a group evaluator emits a check key not declared in the section spec', async () => {
       const badSection: SectionSpec<WeMeditateAppStatusConfig, void> = {

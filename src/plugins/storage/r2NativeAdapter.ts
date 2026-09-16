@@ -34,9 +34,7 @@ export const getR2Url = (filename: string): string | undefined => {
   return `${deliveryUrl}/${filename}`
 }
 
-/**
- * Configuration for the R2 (S3 API) storage adapter.
- */
+/** Configuration for the R2 (S3 API) storage adapter. */
 export interface R2NativeConfig {
   /** S3 client for the R2 S3 endpoint. */
   client: S3Client

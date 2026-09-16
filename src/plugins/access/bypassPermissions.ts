@@ -17,9 +17,7 @@ import type { Client } from '@/payload-types'
 export const bypassPermissions: BypassPermissionFunction = (user, context) => {
   const { collection, operation, docId } = context
 
-  // =========================================================================
-  // MANAGER BYPASS (ordered by frequency for optimal short-circuiting)
-  // =========================================================================
+  // --- MANAGER BYPASS (ordered by frequency for optimal short-circuiting) ---
   if (user.collection === 'managers') {
     const managerType = (user as { type?: string }).type
 
@@ -35,9 +33,7 @@ export const bypassPermissions: BypassPermissionFunction = (user, context) => {
     // document's fields and a DB query, which this synchronous bypass cannot do.
   }
 
-  // =========================================================================
-  // CLIENT BYPASS (high volume, simple check)
-  // =========================================================================
+  // --- CLIENT BYPASS (high volume, simple check) ---
   if (user.collection === 'clients') {
     const client = user as unknown as Client
 
@@ -47,10 +43,7 @@ export const bypassPermissions: BypassPermissionFunction = (user, context) => {
     // Fall through to self-access check below
   }
 
-  // =========================================================================
-  // SELF-ACCESS (rare - users accessing their own document)
-  // Applies to both managers and clients, checked last
-  // =========================================================================
+  // --- SELF-ACCESS (rare - users accessing their own document) Applies to both managers and clients, checked last ---
   if (user.collection === collection && user.id === docId) {
     if (operation === 'read' || operation === 'update') {
       return 'allow'

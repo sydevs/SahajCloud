@@ -7,9 +7,7 @@
 import type { Logger } from './logger'
 import type { Payload } from 'payload'
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// --- Types ---
 
 export interface ConversionContext {
   payload: Payload
@@ -27,9 +25,7 @@ export interface ConversionContext {
   meditationRailsTitleMap: Map<number, string> // Rails meditation ID → title (without duration)
 }
 
-// ============================================================================
-// MEDITATION TITLE MAPPING
-// ============================================================================
+// --- Meditation title mapping ---
 // Hard-coded mapping from Rails meditation titles to PayloadCMS meditation titles
 // This handles cases where titles do not match exactly between the two systems
 const RAILS_TO_PAYLOAD_MEDITATION_TITLES: Record<string, string> = {
@@ -74,9 +70,7 @@ export interface LexicalNode {
   [key: string]: any
 }
 
-// ============================================================================
-// HTML TO LEXICAL TEXT CONVERSION
-// ============================================================================
+// --- Html to lexical text conversion ---
 
 interface TextFormat {
   bold: boolean
@@ -89,9 +83,7 @@ interface TextSegment {
   url?: string
 }
 
-/**
- * Parse HTML string into text segments with formatting
- */
+/** Parse HTML string into text segments with formatting */
 function parseHTMLToSegments(html: string): TextSegment[] {
   if (!html) return []
 
@@ -199,9 +191,7 @@ function parseHTMLToSegments(html: string): TextSegment[] {
   return segments
 }
 
-/**
- * Strip all HTML tags from string
- */
+/** Strip all HTML tags from string */
 function stripHTML(html: string): string {
   if (!html) return ''
   // Ensure the input is a string, even if it is accidentally something else
@@ -209,9 +199,7 @@ function stripHTML(html: string): string {
   return htmlString.replace(/<[^>]*>/g, '')
 }
 
-/**
- * Convert HTML string to Lexical text nodes
- */
+/** Convert HTML string to Lexical text nodes */
 export function htmlToLexicalText(html: string): LexicalNode[] {
   if (!html) return []
 
@@ -308,13 +296,9 @@ function getTextFormat(format: TextFormat): number {
   return formatNum
 }
 
-// ============================================================================
-// LEXICAL NODE CREATORS
-// ============================================================================
+// --- Lexical node creators ---
 
-/**
- * Create a Lexical paragraph node
- */
+/** Create a Lexical paragraph node */
 export function createParagraphNode(text: string): LexicalNode {
   return {
     type: 'paragraph',
@@ -327,9 +311,7 @@ export function createParagraphNode(text: string): LexicalNode {
   }
 }
 
-/**
- * Create a Lexical heading node
- */
+/** Create a Lexical heading node */
 export function createHeadingNode(text: string, tag: 'h1' | 'h2' | 'h3'): LexicalNode {
   return {
     type: 'heading',
@@ -342,9 +324,7 @@ export function createHeadingNode(text: string, tag: 'h1' | 'h2' | 'h3'): Lexica
   }
 }
 
-/**
- * Create a Lexical block node (for Payload blocks)
- */
+/** Create a Lexical block node (for Payload blocks) */
 export function createBlockNode(blockType: string, blockName: string, fields: any): LexicalNode {
   return {
     type: 'block',
@@ -358,9 +338,7 @@ export function createBlockNode(blockType: string, blockName: string, fields: an
   }
 }
 
-/**
- * Create a Lexical relationship node
- */
+/** Create a Lexical relationship node */
 export function createRelationshipNode(relationTo: string, value: number | string): LexicalNode {
   return {
     type: 'relationship',
@@ -370,9 +348,7 @@ export function createRelationshipNode(relationTo: string, value: number | strin
   }
 }
 
-/**
- * Create a Lexical upload node (inline image)
- */
+/** Create a Lexical upload node (inline image) */
 export function createUploadNode(
   mediaId: number | string,
   align: 'center' | 'left' | 'right' | 'wide',
@@ -413,20 +389,14 @@ export function determineAlign(
   return 'center'
 }
 
-/**
- * Generate a unique ID for blocks
- */
+/** Generate a unique ID for blocks */
 function generateId(): string {
   return Math.random().toString(36).substring(2, 11)
 }
 
-// ============================================================================
-// EDITORJS BLOCK CONVERTERS
-// ============================================================================
+// --- Editorjs block converters ---
 
-/**
- * Convert EditorJS paragraph block to Lexical
- */
+/** Convert EditorJS paragraph block to Lexical */
 export function convertParagraph(block: EditorJSBlock): LexicalNode {
   const { data } = block
   const text = data.text || ''
@@ -441,9 +411,7 @@ export function convertParagraph(block: EditorJSBlock): LexicalNode {
   return createParagraphNode(text)
 }
 
-/**
- * Convert EditorJS textbox block to TextBoxBlock or QuoteBlock
- */
+/** Convert EditorJS textbox block to TextBoxBlock or QuoteBlock */
 export function convertTextbox(
   block: EditorJSBlock,
   context: ConversionContext,
@@ -566,9 +534,7 @@ export function convertTextbox(
   return createBlockNode('textbox', 'Text Box', fields)
 }
 
-/**
- * Convert EditorJS layout block to LayoutBlock
- */
+/** Convert EditorJS layout block to LayoutBlock */
 export function convertLayout(
   block: EditorJSBlock,
   context: ConversionContext,
@@ -580,7 +546,6 @@ export function convertLayout(
     return null
   }
 
-  // Map style
   const styleMap: Record<string, string> = {
     columns: 'columns',
     accordion: 'accordion',
@@ -660,9 +625,7 @@ export function convertMedia(block: EditorJSBlock, context: ConversionContext): 
   })
 }
 
-/**
- * Convert media block items to individual upload nodes (for <3 items)
- */
+/** Convert media block items to individual upload nodes (for <3 items) */
 export function convertMediaToUploadNodes(
   block: EditorJSBlock,
   context: ConversionContext,
@@ -683,9 +646,7 @@ export function convertMediaToUploadNodes(
   return nodes
 }
 
-/**
- * Convert EditorJS action block to Form relationship or ButtonBlock
- */
+/** Convert EditorJS action block to Form relationship or ButtonBlock */
 export function convertAction(
   block: EditorJSBlock,
   context: ConversionContext,
@@ -759,9 +720,7 @@ export function convertVimeo(block: EditorJSBlock, context: ConversionContext): 
   return createRelationshipNode('lectures', lectureId)
 }
 
-/**
- * Convert EditorJS catalog block to relationship(s) or GalleryBlock
- */
+/** Convert EditorJS catalog block to relationship(s) or GalleryBlock */
 export async function convertCatalog(
   block: EditorJSBlock,
   context: ConversionContext,
@@ -849,9 +808,7 @@ export async function convertCatalog(
   })
 }
 
-/**
- * Convert catalog block items to individual relationship nodes (for 2 items)
- */
+/** Convert catalog block items to individual relationship nodes (for 2 items) */
 export async function convertCatalogToRelationshipNodes(
   block: EditorJSBlock,
   context: ConversionContext,
@@ -969,13 +926,9 @@ export function convertHeaderBlock(block: EditorJSBlock): LexicalNode | null {
   return createHeadingNode(text, tag)
 }
 
-// ============================================================================
-// MAIN CONVERSION FUNCTION
-// ============================================================================
+// --- Main conversion function ---
 
-/**
- * Convert EditorJS content to Lexical format
- */
+/** Convert EditorJS content to Lexical format */
 export async function convertEditorJSToLexical(
   content: EditorJSContent | null,
   context: ConversionContext,

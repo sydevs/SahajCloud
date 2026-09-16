@@ -279,9 +279,7 @@ async function processItems<T extends { id: number; filename?: string | null; cr
   }
 }
 
-/**
- * Phase A: Permanently delete items that are already in trash (have deletedAt set)
- */
+/** Phase A: Permanently delete items that are already in trash (have deletedAt set) */
 async function permanentlyDeleteTrashedItems(
   req: PayloadRequest,
   result: CleanupResult,
@@ -531,9 +529,7 @@ async function getAllReferencedIds(
   return referencedIds
 }
 
-/**
- * Scan a collection for references using discovered field paths.
- */
+/** Scan a collection for references using discovered field paths. */
 async function scanCollectionForReferences(
   payload: Payload,
   collectionSlug: string,

@@ -53,9 +53,7 @@ import {
   type TranslationsSchemaRoot,
 } from '../wm-app-translations/lexicalConverter'
 
-// ============================================================================
-// Preserving the two groups that hold live data
-// ============================================================================
+// --- Preserving the two groups that hold live data ---
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -87,9 +85,7 @@ function fillBlanks(
   return Object.keys(merged).length > 0 ? merged : undefined
 }
 
-// ============================================================================
-// Seed definitions
-// ============================================================================
+// --- Seed definitions ---
 
 const WM_APP_SEED_LOCAL_PATH = 'seeds/wm-app-translations/data.en.json'
 const WM_WEB_SEED_LOCAL_PATH = 'seeds/wm-web-translations/data.en.json'
@@ -135,9 +131,7 @@ type AtlasSeedFile = Record<string, unknown> & { _meta?: unknown }
  */
 type WmWebSeedFile = { _meta?: unknown } & Record<string, unknown>
 
-// ============================================================================
-// Importer
-// ============================================================================
+// --- Importer ---
 
 export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'Translations (all three globals; the atlas in ten locales)'
@@ -149,9 +143,7 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
     await this.seedAtlas()
   }
 
-  // --------------------------------------------------------------------------
-  // wm-app-translations: real English copy from data.en.json
-  // --------------------------------------------------------------------------
+  // --- wm-app-translations: real English copy from data.en.json ---
 
   private async seedWmApp(): Promise<void> {
     const slug = 'wm-app-translations'
@@ -178,9 +170,7 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
     await this.writeGlobal(slug, data, DEFAULT_LOCALE)
   }
 
-  // --------------------------------------------------------------------------
-  // wm-web-translations: real English copy from data.en.json
-  // --------------------------------------------------------------------------
+  // --- wm-web-translations: real English copy from data.en.json ---
 
   private async seedWmWeb(): Promise<void> {
     const { loadJsonData } = await import('../lib/dataLoader')
@@ -193,9 +183,7 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
     await this.writeGlobal('wm-web-translations', data, DEFAULT_LOCALE, true)
   }
 
-  // --------------------------------------------------------------------------
-  // sy-atlas-translations: the widget's own copy, ten locales, each published
-  // --------------------------------------------------------------------------
+  // --- sy-atlas-translations: the widget's own copy, ten locales, each published ---
 
   /**
    * Seeds one file per locale and publishes that locale on its own.
@@ -289,9 +277,7 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // --------------------------------------------------------------------------
-  // Shared write helper
-  // --------------------------------------------------------------------------
+  // --- Shared write helper ---
 
   /**
    * `publish` publishes the one locale being written, and nothing else.

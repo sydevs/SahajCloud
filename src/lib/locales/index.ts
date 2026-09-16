@@ -32,27 +32,19 @@ export const LOCALES = [
   { code: 'nl', label: 'Dutch' },
 ] as const
 
-/**
- * TypeScript type for locale codes
- */
+/** TypeScript type for locale codes */
 export type LocaleCode = (typeof LOCALES)[number]['code']
 
-/**
- * Default locale for the application
- */
+/** Default locale for the application */
 export const DEFAULT_LOCALE: LocaleCode = 'en'
 
-/**
- * Get locale label by code
- */
+/** Get locale label by code */
 export function getLocaleLabel(code: LocaleCode): string {
   const locale = LOCALES.find((l) => l.code === code)
   return locale?.label || code
 }
 
-/**
- * Validate if a string is a valid locale code
- */
+/** Validate if a string is a valid locale code */
 export function isValidLocale(code: string): code is LocaleCode {
   return LOCALES.some((l) => l.code === code)
 }
@@ -68,9 +60,7 @@ export function getLocaleOptions(): { label: string; value: LocaleCode }[] {
   return LOCALES.map(({ code, label }) => ({ label, value: code }))
 }
 
-/**
- * Special case labels for locales not in ISO 639-1 or needing override
- */
+/** Special case labels for locales not in ISO 639-1 or needing override */
 const LOCALE_LABEL_OVERRIDES: Record<string, string> = {
   'pt-BR': 'Brazilian Portuguese',
   'en-AU': 'Australian English',

@@ -65,9 +65,7 @@ export function isTrustedReq(req: PayloadRequest | undefined): boolean {
   return req?.context?.[SKIP_VALIDATION] === true
 }
 
-// ============================================================================
-// RATE LIMITING UTILITIES
-// ============================================================================
+// --- Rate limiting utilities ---
 
 /**
  * Builds a composite key for rate limiting.
@@ -82,9 +80,7 @@ export function buildRateLimitKey(
   return `user:${clientId}:${ip || 'no-ip'}:${userId || 'no-user-id'}`
 }
 
-// ============================================================================
-// THE CLIENT-READ GATE SHAPE
-// ============================================================================
+// --- The client-read gate shape ---
 
 /**
  * What a client-read gate actually reads out of a `beforeOperation` argument.
@@ -165,9 +161,7 @@ export function onlyOnCallerAuthority(gate: ClientReadGate): ClientReadGate {
   }
 }
 
-// ============================================================================
-// RATE LIMIT HOOK
-// ============================================================================
+// --- Rate limit hook ---
 
 /**
  * A beforeOperation hook slot for API client rate limiting.
@@ -185,9 +179,7 @@ export const rateLimitHook: ClientReadGate = () => {
   // Enforced at the Cloudflare edge. Intentionally a no-op here.
 }
 
-// ============================================================================
-// QUERY PARAMETER VALIDATION HOOK
-// ============================================================================
+// --- Query parameter validation hook ---
 
 /**
  * A beforeOperation hook that forces API clients to declare their data needs explicitly.
@@ -305,9 +297,7 @@ function describeStringPreview(value: unknown): string | null {
   return null
 }
 
-// ============================================================================
-// ORIGIN / REFERER ENFORCEMENT HOOK
-// ============================================================================
+// --- Origin / referer enforcement hook ---
 
 /**
  * Enforce a client's `Origin`/`Referer` allowlist. Throws `APIError(403)`
@@ -393,9 +383,7 @@ export const validateClientOriginHook: ClientReadGate = ({ args, req }) => {
   assertClientOriginAllowed(req)
 }
 
-// ============================================================================
-// USAGE TRACKING
-// ============================================================================
+// --- Usage tracking ---
 
 /**
  * An atomic Postgres UPDATE that increments usage counters. The `clients`

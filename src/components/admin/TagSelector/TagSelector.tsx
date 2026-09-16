@@ -3,9 +3,7 @@
 import React from 'react'
 import SVG from 'react-inlinesvg'
 
-/**
- * Tag option structure for TagSelector
- */
+/** Tag option structure for TagSelector */
 export interface TagOption {
   id: string | number
   title: string

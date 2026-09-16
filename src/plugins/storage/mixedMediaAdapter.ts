@@ -12,9 +12,7 @@ import type { Adapter, GeneratedAdapter } from '@payloadcms/plugin-cloud-storage
 
 import { getMimeCategory } from './mimeUtils'
 
-/**
- * Configuration for mixed media adapter
- */
+/** Configuration for mixed media adapter */
 export interface MixedMediaAdapterConfig {
   /** Map of MIME type prefixes to storage adapters (e.g., "image/" -> imagesAdapter) */
   routes: {

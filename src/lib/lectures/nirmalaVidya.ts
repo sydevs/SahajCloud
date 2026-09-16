@@ -5,9 +5,7 @@ import type { LocaleCode } from '@/lib/locales'
 import { isValidLocale } from '@/lib/locales'
 import type { LectureMetadata } from '@/payload-types'
 
-// =============================================================================
-// Language Code Mapping
-// =============================================================================
+// --- Language Code Mapping ---
 
 /**
  * Maps a Nirmala Vidya API language code to a CMS locale code.
@@ -28,9 +26,7 @@ export function apiLanguageToLocale(apiCode: string): LocaleCode | null {
   return null
 }
 
-// =============================================================================
-// Metadata Shape
-// =============================================================================
+// --- Metadata Shape ---
 
 /**
  * Shape stored in `Lectures.metadata`. All NV-sourced data is bundled here so

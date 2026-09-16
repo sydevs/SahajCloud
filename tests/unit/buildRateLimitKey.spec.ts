@@ -1,6 +1,4 @@
-/**
- * Rate Limiting Utility Tests
- */
+/** Rate Limiting Utility Tests */
 import { describe, expect, it } from 'vitest'
 
 import { buildRateLimitKey } from '@/plugins/usage'

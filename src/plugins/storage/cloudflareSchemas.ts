@@ -10,17 +10,13 @@
  */
 import { z } from 'zod'
 
-/**
- * Common Cloudflare API error schema
- */
+/** Common Cloudflare API error schema */
 export const CloudflareErrorSchema = z.object({
   code: z.number().optional(),
   message: z.string(),
 })
 
-/**
- * Base Cloudflare API response structure
- */
+/** Base Cloudflare API response structure */
 const CloudflareBaseResponseSchema = z.object({
   success: z.boolean(),
   errors: z.array(CloudflareErrorSchema).default([]),

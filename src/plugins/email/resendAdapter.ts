@@ -46,9 +46,7 @@ function toResendAttachments(
   return mapped.length > 0 ? mapped : undefined
 }
 
-/**
- * Flatten nodemailer's `Address | string` forms to the plain strings Resend takes.
- */
+/** Flatten nodemailer's `Address | string` forms to the plain strings Resend takes. */
 function toAddressList(value: SendEmailOptions['replyTo']): string[] | undefined {
   const entries = (Array.isArray(value) ? value : [value]).flatMap((entry) => {
     if (typeof entry === 'string') return [entry]

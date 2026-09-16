@@ -60,9 +60,7 @@ export const getCloudflareStreamThumbnailUrl = (
   return `${deliveryUrl}/${filename}/thumbnails/thumbnail.jpg?height=${height}`
 }
 
-/**
- * Configuration for Cloudflare Stream adapter
- */
+/** Configuration for Cloudflare Stream adapter */
 export interface CloudflareStreamConfig {
   /** Cloudflare account ID */
   accountId: string

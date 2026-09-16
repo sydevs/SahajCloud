@@ -13,9 +13,7 @@ import { usePlaybackTime, useSeekToTime } from './hooks'
 import { baseStyles, listManagerStyles } from './styles'
 import { formatTime, getFrameDisplayLabel, parseTime, validateTimestamp } from './utils'
 
-// ============================================================================
-// FrameItem Subcomponent
-// ============================================================================
+// --- FrameItem Subcomponent ---
 
 interface FrameItemProps {
   frame: KeyframeData
@@ -104,9 +102,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
   )
 }
 
-// ============================================================================
-// FrameListManager Component
-// ============================================================================
+// --- FrameListManager Component ---
 
 /**
  * FrameListManager - Custom field component for managing meditation frames
@@ -183,7 +179,6 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
       const updatedFrames = [...frames]
       updatedFrames[index] = { ...updatedFrames[index], timestamp: newTimestamp }
 
-      // Sort by timestamp
       updatedFrames.sort((a, b) => a.timestamp - b.timestamp)
       setValue(updatedFrames)
     },

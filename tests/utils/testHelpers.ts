@@ -224,9 +224,7 @@ export async function createTestEnvironment(options?: { debug?: boolean }): Prom
   return { payload, cleanup, adminUser, config }
 }
 
-/**
- * Creates an isolated test database and Payload instance with email support
- */
+/** Creates an isolated test database and Payload instance with email support */
 export async function createTestEnvironmentWithEmail(): Promise<{
   payload: Payload
   cleanup: () => Promise<void>
@@ -256,9 +254,7 @@ export async function createTestEnvironmentWithEmail(): Promise<{
   return { payload, cleanup, emailAdapter }
 }
 
-/**
- * Creates an authenticated request for testing
- */
+/** Creates an authenticated request for testing */
 export async function createAuthenticatedRequest(
   payload: Payload,
   userId: string,
@@ -275,9 +271,7 @@ export async function createAuthenticatedRequest(
   } as PayloadRequest
 }
 
-/**
- * Wait for an email to be captured by the EmailTestAdapter
- */
+/** Wait for an email to be captured by the EmailTestAdapter */
 /**
  * Waits for an email to be captured by the EmailTestAdapter
  * @param emailAdapter The email test adapter instance

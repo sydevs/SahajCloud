@@ -15,22 +15,16 @@
  * - Bypass logic via shared bypassPermissions function
  */
 
-// ============================================================================
-// PLUGIN (main export)
-// ============================================================================
+// --- PLUGIN (main export) ---
 
 export { accessPlugin, hasPermission, hasAnyPermission } from './accessPlugin'
 export type { AccessPluginOptions } from './accessPlugin'
 
-// ============================================================================
-// BYPASS FUNCTION (shared between accessPlugin and tests)
-// ============================================================================
+// --- BYPASS FUNCTION (shared between accessPlugin and tests) ---
 
 export { bypassPermissions } from './bypassPermissions'
 
-// ============================================================================
-// UTILITIES
-// ============================================================================
+// --- Utilities ---
 
 export { filterAvailableLocales } from './filterAvailableLocales'
 export {
@@ -50,9 +44,7 @@ export {
 export { restrictUploadToAdmin } from './restrictUploadToAdmin'
 export { ownedRegionFilterOptions } from './regionSubtreeAccess'
 
-// ============================================================================
-// HELPER FUNCTIONS (public API - consolidated from projects.ts and data.ts)
-// ============================================================================
+// --- HELPER FUNCTIONS (public API - consolidated from projects.ts and data.ts) ---
 
 export {
   // Type generation helpers
@@ -76,9 +68,7 @@ export {
   isCollectionVisibleInProject,
 } from './config'
 
-// ============================================================================
-// TYPES (public API)
-// ============================================================================
+// --- TYPES (public API) ---
 
 export type {
   BypassPermissionFunction,

@@ -7,9 +7,7 @@ import { useAllFormFields } from '@payloadcms/ui'
 import React, { useMemo } from 'react'
 import { toText } from 'rrule-temporal/totext'
 
-/**
- * Extracted schedule sub-field values from form state.
- */
+/** Extracted schedule sub-field values from form state. */
 interface ScheduleFormValues {
   firstDate?: string
   firstDate_tz?: string
@@ -47,9 +45,7 @@ function extractScheduleValues(formState: FormState, groupName: string): Schedul
   }
 }
 
-/**
- * Format a ZonedDateTime as an iCalendar local datetime string: YYYYMMDDTHHmmss
- */
+/** Format a ZonedDateTime as an iCalendar local datetime string: YYYYMMDDTHHmmss */
 function formatLocalDateTime(zdt: Temporal.ZonedDateTime): string {
   const Y = String(zdt.year).padStart(4, '0')
   const M = String(zdt.month).padStart(2, '0')
@@ -96,7 +92,6 @@ function buildIcalString(values: ScheduleFormValues): string | null {
     params.push(`BYDAY=${values.weekdays.join(',')}`)
   }
 
-  // Monthly recurrence
   if (values.recurrenceType === 'MONTHLY') {
     const monthlyMode = values.monthlyMode || 'date'
     if (monthlyMode === 'date') {

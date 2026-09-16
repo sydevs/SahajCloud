@@ -9,28 +9,18 @@ import {
 import { getMimeCategory } from './mimeUtils'
 import { getR2Url } from './r2NativeAdapter'
 
-/**
- * Get local PayloadCMS fallback URL for development
- */
+/** Get local PayloadCMS fallback URL for development */
 const getLocalFallbackUrl = (collection: CollectionSlug, filename: string): string =>
   `/api/${collection}/file/${filename}`
 
-// ============================================================================
-// Types
-// ============================================================================
+// --- Types ---
 
-/**
- * Storage adapter type for URL generation
- */
+/** Storage adapter type for URL generation */
 type StorageAdapter = 'cloudflare-images' | 'r2'
 
-/**
- * Options for creating a virtual URL field
- */
+/** Options for creating a virtual URL field */
 interface VirtualUrlFieldOptions {
-  /**
-   * The collection slug (used for development fallback URL)
-   */
+  /** The collection slug (used for development fallback URL) */
   collection: CollectionSlug
   /**
    * Storage adapter type
@@ -40,45 +30,27 @@ interface VirtualUrlFieldOptions {
   adapter: StorageAdapter
 }
 
-/**
- * Options for creating a preview URL field
- */
+/** Options for creating a preview URL field */
 interface PreviewUrlFieldOptions {
-  /**
-   * The collection slug (used for development fallback URL)
-   */
+  /** The collection slug (used for development fallback URL) */
   collection: CollectionSlug
-  /**
-   * Width for thumbnail transformation (default: 320)
-   */
+  /** Width for thumbnail transformation (default: 320) */
   width?: number
-  /**
-   * Height for thumbnail transformation (default: 320)
-   */
+  /** Height for thumbnail transformation (default: 320) */
   height?: number
-  /**
-   * Field name containing the full file URL for fallback link (default: 'url')
-   */
+  /** Field name containing the full file URL for fallback link (default: 'url') */
   fileUrlField?: string
 }
 
-/**
- * Options for creating a mixed media URL field (images, videos, and other files)
- */
+/** Options for creating a mixed media URL field (images, videos, and other files) */
 interface MixedMediaUrlFieldOptions {
-  /**
-   * The collection slug (used for development fallback URL)
-   */
+  /** The collection slug (used for development fallback URL) */
   collection: CollectionSlug
 }
 
-/**
- * Options for the video-only virtual URL fields (`hlsUrlField`, `mp4UrlField`).
- */
+/** Options for the video-only virtual URL fields (`hlsUrlField`, `mp4UrlField`). */
 interface VideoUrlFieldOptions {
-  /**
-   * The collection slug (used for development fallback URL)
-   */
+  /** The collection slug (used for development fallback URL) */
   collection: CollectionSlug
 }
 

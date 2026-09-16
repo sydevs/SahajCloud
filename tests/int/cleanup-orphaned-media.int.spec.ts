@@ -40,9 +40,7 @@ vi.mock('@/lib/lectures/nirmalaVidyaApi', async () => {
   }
 })
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// --- Types ---
 
 interface CleanupResult {
   permanentlyDeletedFiles: number
@@ -53,13 +51,9 @@ interface CleanupResult {
   errors: number
 }
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
+// --- Helper functions ---
 
-/**
- * Backdate createdAt to bypass grace period (24 hours)
- */
+/** Backdate createdAt to bypass grace period (24 hours) */
 async function backdateCreatedAt(
   payload: Payload,
   collection: 'files' | 'images',
@@ -135,9 +129,7 @@ async function runCleanupJobWithDefaultRange(payload: Payload): Promise<CleanupR
   return result.output
 }
 
-/**
- * Check if file exists in database (not trashed)
- */
+/** Check if file exists in database (not trashed) */
 async function fileExists(payload: Payload, id: number): Promise<boolean> {
   const result = await payload.find({
     collection: 'files',
@@ -147,9 +139,7 @@ async function fileExists(payload: Payload, id: number): Promise<boolean> {
   return result.docs.length > 0
 }
 
-/**
- * Check if image exists in database (not trashed)
- */
+/** Check if image exists in database (not trashed) */
 async function imageExists(payload: Payload, id: number): Promise<boolean> {
   const result = await payload.find({
     collection: 'images',
@@ -191,9 +181,7 @@ async function imageInTrash(payload: Payload, id: number): Promise<boolean> {
   return result.docs.length > 0
 }
 
-// ============================================================================
-// TEST SUITE
-// ============================================================================
+// --- Test suite ---
 
 describe('CleanupOrphanedMedia Job', () => {
   let payload: Payload
@@ -209,9 +197,7 @@ describe('CleanupOrphanedMedia Job', () => {
     await cleanup()
   })
 
-  // ==========================================================================
-  // PHASE A: PERMANENT DELETION
-  // ==========================================================================
+  // --- Phase a: permanent deletion ---
 
   describe('Phase A: Permanent Deletion', () => {
     it('permanently deletes trashed files', async () => {
@@ -227,7 +213,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Verify file is in trash
       expect(await fileInTrash(payload, file.id)).toBe(true)
 
-      // Run cleanup job
       const result = await runCleanupJob(payload)
 
       // Verify permanent deletion
@@ -257,7 +242,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Verify image is in trash
       expect(await imageInTrash(payload, image.id)).toBe(true)
 
-      // Run cleanup job
       const result = await runCleanupJob(payload)
 
       // Verify permanent deletion
@@ -275,9 +259,7 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
 
-  // ==========================================================================
-  // PHASE B: FILE ORPHAN DETECTION
-  // ==========================================================================
+  // --- Phase b: file orphan detection ---
 
   describe('Phase B: File Orphan Detection', () => {
     it('trashes orphaned files (no references)', async () => {
@@ -288,7 +270,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Verify file exists
       expect(await fileExists(payload, file.id)).toBe(true)
 
-      // Run cleanup job
       const result = await runCleanupJob(payload)
 
       // Verify file was trashed (not permanently deleted)
@@ -304,7 +285,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Create lesson with this file as introAudio
       await testData.createLesson(payload, { introAudio: file.id })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify file is preserved (not trashed)
@@ -313,7 +293,6 @@ describe('CleanupOrphanedMedia Job', () => {
     })
 
     it('preserves files referenced by lessons.panels[].media', async () => {
-      // Create a video file
       const videoFile = await testData.createFile(payload, {}, 'video-30s.mp4')
       await backdateCreatedAt(payload, 'files', videoFile.id)
 
@@ -330,7 +309,6 @@ describe('CleanupOrphanedMedia Job', () => {
         ],
       })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify file is preserved
@@ -339,9 +317,7 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
 
-  // ==========================================================================
-  // PHASE B: IMAGE ORPHAN DETECTION
-  // ==========================================================================
+  // --- Phase b: image orphan detection ---
 
   describe('Phase B: Image Orphan Detection', () => {
     it('trashes orphaned images (no references, only auto-generated orientation tags)', async () => {
@@ -354,7 +330,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Verify image exists (it should have auto-generated orientation tag)
       expect(await imageExists(payload, image.id)).toBe(true)
 
-      // Run cleanup job
       const result = await runCleanupJob(payload)
 
       // Verify image was trashed (orientation tags do not protect from cleanup)
@@ -367,11 +342,9 @@ describe('CleanupOrphanedMedia Job', () => {
       // Use a non-orientation tag to test preservation
       const preserveTag = 'thumbnail'
 
-      // Create an image with that tag
       const image = await testData.createMediaImage(payload, { tags: [preserveTag] })
       await backdateCreatedAt(payload, 'images', image.id)
 
-      // Run cleanup job
       const result = await runCleanupJob(payload)
 
       // Verify image was skipped (not trashed)
@@ -388,7 +361,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Create author with this photo (unique name to avoid slug collision)
       await testData.createAuthor(payload, { name: `Author ${uniqueId()}`, photo: image.id })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify image is preserved
@@ -401,10 +373,8 @@ describe('CleanupOrphanedMedia Job', () => {
       const image = await testData.createMediaImage(payload)
       await backdateCreatedAt(payload, 'images', image.id)
 
-      // Create lecture with this thumbnail
       await testData.createLecture(payload, { thumbnail: image.id })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify image is preserved
@@ -420,7 +390,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Create meditation with this thumbnail (auto-creates narrator)
       await testData.createMeditation(payload, { thumbnail: image.id })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify image is preserved
@@ -434,10 +403,8 @@ describe('CleanupOrphanedMedia Job', () => {
       const image = await testData.createMediaImage(payload)
       await backdateCreatedAt(payload, 'images', image.id)
 
-      // Create lesson with this icon
       await testData.createLesson(payload, { icon: image.id })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify image is preserved
@@ -455,7 +422,6 @@ describe('CleanupOrphanedMedia Job', () => {
         content: createLexicalWithTextBoxBlock(image.id),
       })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify image is preserved
@@ -473,7 +439,6 @@ describe('CleanupOrphanedMedia Job', () => {
         content: createLexicalWithLayoutBlock([image.id]),
       })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify image is preserved
@@ -495,7 +460,6 @@ describe('CleanupOrphanedMedia Job', () => {
         content: createLexicalWithGalleryBlock([image1.id, image2.id, image3.id]),
       })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify images are preserved
@@ -508,9 +472,7 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
 
-  // ==========================================================================
-  // GRACE PERIOD
-  // ==========================================================================
+  // --- Grace period ---
 
   describe('Grace Period', () => {
     it('skips files created within grace period', async () => {
@@ -520,7 +482,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Verify file exists
       expect(await fileExists(payload, file.id)).toBe(true)
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify file was NOT trashed (protected by grace period)
@@ -535,7 +496,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Verify image exists
       expect(await imageExists(payload, image.id)).toBe(true)
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify image was NOT trashed (protected by grace period)
@@ -544,9 +504,7 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
 
-  // ==========================================================================
-  // EDGE CASES
-  // ==========================================================================
+  // --- Edge cases ---
 
   describe('Edge Cases', () => {
     it('handles empty database gracefully', async () => {
@@ -574,7 +532,6 @@ describe('CleanupOrphanedMedia Job', () => {
       await testData.createAuthor(payload, { name: `Author ${uniqueId()}`, photo: image1.id })
       await testData.createLecture(payload, { thumbnail: image2.id })
 
-      // Run cleanup job
       const result = await runCleanupJob(payload)
 
       // Both images should be preserved
@@ -617,7 +574,6 @@ describe('CleanupOrphanedMedia Job', () => {
       const taggedImage = await testData.createMediaImage(payload, { tags: [skipTag] })
       await backdateCreatedAt(payload, 'images', taggedImage.id)
 
-      // Run cleanup job
       const result = await runCleanupJob(payload)
 
       // Verify counts
@@ -636,9 +592,7 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
 
-  // ==========================================================================
-  // DATE RANGE ROTATION
-  // ==========================================================================
+  // --- Date range rotation ---
 
   describe('Date Range Rotation', () => {
     it('processes 0-1 month range when month % 3 === 0', async () => {
@@ -796,9 +750,7 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
 
-  // ==========================================================================
-  // THROUGHPUT FIX: Pagination to exceed 250 cap
-  // ==========================================================================
+  // --- THROUGHPUT FIX: Pagination to exceed 250 cap ---
 
   describe('Phase B: Throughput (exceeds old 250 cap)', () => {
     it('trashes all orphans in window exceeding 250 limit via pagination', async () => {

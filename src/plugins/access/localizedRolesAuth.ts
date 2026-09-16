@@ -65,9 +65,7 @@ function withRoles<T extends AuthUser>(user: T, roles: LocalizedRoles): T {
   return { ...user, roles } as unknown as T
 }
 
-// ============================================================================
-// 1. THE AUTH STRATEGY: fixes `req.user` on every authenticated request
-// ============================================================================
+// --- 1. THE AUTH STRATEGY: fixes `req.user` on every authenticated request ---
 
 /**
  * Authenticate a JWT, and replace `roles` with the per-locale record.
@@ -130,9 +128,7 @@ function createLocalizedRolesStrategy(slug: string) {
   }
 }
 
-// ============================================================================
-// 2. THE AUTH RESPONSES: fix the user each one re-reads and returns
-// ============================================================================
+// --- 2. THE AUTH RESPONSES: fix the user each one re-reads and returns ---
 
 /**
  * Replace `roles` on an auth-response user with the per-locale record.
@@ -211,9 +207,7 @@ const afterLoginLocalizedRoles: NonNullable<
   return await withLocalizedRoles(user as AuthUserShape, req)
 }
 
-// ============================================================================
-// 3. THE ONE WIRING SITE
-// ============================================================================
+// --- 3. the one wiring site ---
 
 /**
  * Does this collection actually have the problem?

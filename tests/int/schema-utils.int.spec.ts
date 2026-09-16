@@ -18,9 +18,7 @@ import {
 } from '../utils/lexicalTestHelpers'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-// ============================================================================
-// TEST SUITE
-// ============================================================================
+// --- Test suite ---
 
 describe('Schema Introspection Utilities', () => {
   let payload: Payload
@@ -36,9 +34,7 @@ describe('Schema Introspection Utilities', () => {
     await cleanup()
   })
 
-  // ==========================================================================
-  // discoverReferencesForCollection
-  // ==========================================================================
+  // --- discoverReferencesForCollection ---
 
   describe('discoverReferencesForCollection', () => {
     it('discovers simple upload fields referencing files', () => {
@@ -143,9 +139,7 @@ describe('Schema Introspection Utilities', () => {
     })
   })
 
-  // ==========================================================================
-  // extractId
-  // ==========================================================================
+  // --- extractId ---
 
   describe('extractId', () => {
     it('extracts ID from number', () => {
@@ -172,9 +166,7 @@ describe('Schema Introspection Utilities', () => {
     })
   })
 
-  // ==========================================================================
-  // extractIdsFromDocument
-  // ==========================================================================
+  // --- extractIdsFromDocument ---
 
   describe('extractIdsFromDocument', () => {
     it('extracts ID from simple field path', () => {
@@ -269,9 +261,7 @@ describe('Schema Introspection Utilities', () => {
     })
   })
 
-  // ==========================================================================
-  // extractIdsFromLexicalContent
-  // ==========================================================================
+  // --- extractIdsFromLexicalContent ---
 
   describe('extractIdsFromLexicalContent', () => {
     it('extracts image ID from TextBoxBlock using generic traversal', () => {
@@ -359,9 +349,7 @@ describe('Schema Introspection Utilities', () => {
     })
   })
 
-  // ==========================================================================
-  // groupByCollection
-  // ==========================================================================
+  // --- groupByCollection ---
 
   describe('groupByCollection', () => {
     it('groups references by source collection', () => {
@@ -399,9 +387,7 @@ describe('Schema Introspection Utilities', () => {
     })
   })
 
-  // ==========================================================================
-  // Auto-Detection Test
-  // ==========================================================================
+  // --- Auto-Detection Test ---
 
   describe('Auto-Detection', () => {
     it('automatically discovers all known file references without hardcoding', () => {

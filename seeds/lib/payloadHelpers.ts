@@ -16,9 +16,7 @@ export class PayloadHelpers {
     this.logger = logger
   }
 
-  /**
-   * Reset collection by deleting documents matching a filter
-   */
+  /** Reset collection by deleting documents matching a filter */
   async resetCollection(
     collection: CollectionSlug,
     where?: Record<string, any>,
@@ -43,9 +41,7 @@ export class PayloadHelpers {
     return result.docs.length
   }
 
-  /**
-   * Reset collection by import tag
-   */
+  /** Reset collection by import tag */
   async resetCollectionByTag(
     collection: CollectionSlug,
     tagFieldName: string,
@@ -56,9 +52,7 @@ export class PayloadHelpers {
     })
   }
 
-  /**
-   * Create document with error handling
-   */
+  /** Create document with error handling */
   async createDocument(
     collection: CollectionSlug,
     data: Record<string, any>,
@@ -83,9 +77,7 @@ export class PayloadHelpers {
     }
   }
 
-  /**
-   * Update document with error handling
-   */
+  /** Update document with error handling */
   async updateDocument(
     collection: CollectionSlug,
     id: string,
@@ -112,9 +104,7 @@ export class PayloadHelpers {
     }
   }
 
-  /**
-   * Find or create document
-   */
+  /** Find or create document */
   async findOrCreate(
     collection: CollectionSlug,
     where: Record<string, any>,
