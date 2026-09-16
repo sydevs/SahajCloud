@@ -616,7 +616,12 @@ hides a field without stopping its hooks.
 
 And an option that takes a **value** rather than a function cannot branch at
 all, so it has to suit the three rather than the one: `openByDefault` is absent
-for that reason, not by oversight.
+for that reason, not by oversight. A **field** branches where an option cannot —
+`proposalPreviewTargetField` is a conditioned `previewTargetField` that opens
+the panel for `proposal` alone. That works because a false `admin.condition`
+returns before Payload attaches the custom component to form state, so the
+component never mounts. Reach for it whenever a collection-wide value would
+have to suit the wrong intake.
 
 Default email `contact@sydevelopers.com` (the fallback recipient for a contact
 form with none set).

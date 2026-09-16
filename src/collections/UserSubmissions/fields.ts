@@ -11,6 +11,7 @@ import { z } from 'zod'
 
 import { logField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
+import { previewTargetField } from '@/fields/previewTargetField'
 import type { UserSubmission } from '@/payload-types'
 
 import { computePreviewEvent, computeProposedChanges } from './hooks/computeReviewFields'
@@ -107,6 +108,7 @@ export function userSubmissionFields({ defaultFields }: { defaultFields: Field[]
     proposedField,
     proposedChangesField,
     previewEventField,
+    proposalPreviewTargetField,
     managerField,
     regionField,
     screeningResultField,
@@ -445,6 +447,30 @@ const previewEventField: Field = {
   access: reviewProjectionAccess,
   admin: { readOnly: true, hidden: true },
   hooks: { afterRead: [computePreviewEvent] },
+}
+
+const proposalPreviewTarget = previewTargetField({ autoOpen: true }, 'proposal__preview_target')
+
+/**
+ * Opens the Live Preview panel on arrival, for the one intake whose preview
+ * renders something.
+ *
+ * `admin.openByDefault` is the option that would say this, and it is a value
+ * rather than a function — collection-wide, so it would greet a contact,
+ * subscribe or registration row with the `not-reviewable` page. A field carries
+ * `admin.condition`, and a false one returns before Payload attaches the custom
+ * component to form state (`fieldSchemasToFormState/addFieldStatePromise.js`),
+ * so `PreviewTarget` never mounts for the other three.
+ *
+ * `type` is immutable after create, so this is settled per document rather than
+ * something the panel flips under an editor.
+ */
+const proposalPreviewTargetField: Field = {
+  ...proposalPreviewTarget,
+  admin: {
+    ...proposalPreviewTarget.admin,
+    condition: (data) => data?.type === 'proposal',
+  },
 }
 
 /**

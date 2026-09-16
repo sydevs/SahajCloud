@@ -178,7 +178,9 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
         // `openByDefault` is deliberately absent. It is collection-wide and
         // cannot branch on `type`, so opening it for the reviewer's benefit
         // would greet every contact, subscribe and registration row with that
-        // explanation page.
+        // explanation page. A conditioned `previewTargetField` opens the panel
+        // for `proposal` alone instead — `proposalPreviewTargetField` in
+        // `UserSubmissions/fields.ts`.
         livePreview: {
           url: ({ data, locale }) =>
             livePreviewUrl({
