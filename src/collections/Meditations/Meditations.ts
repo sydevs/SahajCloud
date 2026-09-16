@@ -165,7 +165,6 @@ export const Meditations: CollectionConfig = {
             typeof data?.id === 'number'
               ? wmWebLocalePath(`meditations/${data.id}/embed`, locale.code)
               : null,
-          role: 'wemeditate-web-client',
         }),
       breakpoints: [
         {

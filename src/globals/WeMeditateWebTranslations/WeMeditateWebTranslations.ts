@@ -44,7 +44,6 @@ export const WeMeditateWebTranslations: GlobalConfig = {
           // `/fr/map`, but under `/fr` it hoists to `/map` and the edited
           // locale is silently lost.
           path: locale.code === 'en' ? '' : `${locale.code}/`,
-          role: 'wemeditate-web-client',
           params: { scope: 'wm-web-translations' },
         }),
     },

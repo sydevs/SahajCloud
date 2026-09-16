@@ -548,8 +548,9 @@ describe('Translations Globals Configuration', () => {
       const token = url.searchParams.get('live-preview')
 
       expect(token).toBeTruthy()
-      // Two parts, payload and signature — not a secret copied verbatim.
-      expect(token!.split('.')).toHaveLength(2)
+      // A compact JWS — header, payload, signature — not a secret copied
+      // verbatim, and not a bespoke wire format either.
+      expect(token!.split('.')).toHaveLength(3)
       expect(url.searchParams.get('secret')).toBeNull()
     })
 

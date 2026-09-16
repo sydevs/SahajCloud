@@ -119,7 +119,6 @@ export const Regions: CollectionConfig = {
         livePreviewUrl({
           base: serverEnv.SAHAJATLAS_URL,
           path: await buildRegionWebPath({ data, req }),
-          role: 'sahaj-atlas-client',
           params: { locale: locale.code },
         }),
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
@@ -467,7 +466,7 @@ export const Regions: CollectionConfig = {
         getCanonicalUrlBase(req, typeof data?.id === 'number' ? data.id : null),
       // Shared with the live-preview panel through `buildRegionWebPath`, so
       // the published URL and the previewed one cannot drift.
-      buildPath: ({ data, req }) => buildRegionWebPath({ data, req }),
+      buildPath: buildRegionWebPath,
       requirePublished: false,
     }),
     ...legacyMigrationFields(),

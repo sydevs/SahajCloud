@@ -1,6 +1,6 @@
 import { serverEnv } from '@/lib/env'
 
-import { mintLivePreviewToken, type LivePreviewRole } from './token'
+import { mintLivePreviewToken } from './token'
 import { livePreviewUnavailableUrl, type LivePreviewUnavailableReason } from './unavailable'
 
 /**
@@ -59,7 +59,6 @@ export async function livePreviewUrl(opts: {
    * own key carries. Checked against `req.user.roles` when the consumer
    * forwards it back, so a token minted for one site cannot unlock the other.
    */
-  role: LivePreviewRole
   /** Extra query parameters — `locale`, `scope`, or a document reference. */
   params?: Record<string, string>
   /** Which explanation to show when `path` is null. */
@@ -69,7 +68,7 @@ export async function livePreviewUrl(opts: {
     return livePreviewUnavailableUrl(opts.reason ?? 'no-path')
   }
 
-  const token = await mintLivePreviewToken(opts.role, serverEnv.LIVE_PREVIEW_SIGNING_KEY)
+  const token = await mintLivePreviewToken(serverEnv.LIVE_PREVIEW_SIGNING_KEY)
   if (!token) {
     return livePreviewUnavailableUrl('no-key')
   }

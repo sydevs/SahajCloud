@@ -51,7 +51,6 @@ export const Lectures: CollectionConfig = {
             typeof data?.id === 'number'
               ? wmWebLocalePath(`lectures/${data.id}`, locale.code)
               : null,
-          role: 'wemeditate-web-client',
         }),
     },
   },

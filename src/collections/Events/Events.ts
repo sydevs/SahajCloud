@@ -135,7 +135,6 @@ export const Events: CollectionConfig = {
         livePreviewUrl({
           base: serverEnv.SAHAJATLAS_URL,
           path: await buildEventWebPath({ data, req }),
-          role: 'sahaj-atlas-client',
           params: { locale: locale.code },
           reason: 'no-region',
         }),
@@ -341,7 +340,7 @@ export const Events: CollectionConfig = {
               web: ({ data, req }) => getCanonicalUrlBase(req, relationId(data?.region)),
               // Shared with the live-preview panel through `buildEventWebPath`,
               // so the published URL and the previewed one cannot drift.
-              buildPath: ({ data, req }) => buildEventWebPath({ data, req }),
+              buildPath: buildEventWebPath,
             }),
           ],
         },

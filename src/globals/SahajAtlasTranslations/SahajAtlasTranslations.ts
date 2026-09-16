@@ -49,7 +49,6 @@ export const SahajAtlasTranslations: GlobalConfig = {
         livePreviewUrl({
           base: serverEnv.SAHAJATLAS_URL,
           path: '',
-          role: 'sahaj-atlas-client',
           params: { locale: locale.code, scope: 'sy-atlas-translations' },
         }),
       // Phone-sized frame, matching the Events and Regions previews — the

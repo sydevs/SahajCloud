@@ -91,7 +91,6 @@ export const EventSubmissions: CollectionConfig = {
         livePreviewUrl({
           base: serverEnv.SAHAJATLAS_URL,
           path: typeof data?.id === 'number' ? 'preview' : null,
-          role: 'sahaj-atlas-client',
           params: {
             collection: 'event-submissions',
             id: String(data?.id ?? ''),
