@@ -445,15 +445,14 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
     })
 
     /**
-     * ⚠ The target list is resolved at **delivery** time from the form's
-     * `client`, so without this gate a create-only key could post a subscribe
-     * row naming another service's form and have the queue push addresses onto
-     * a list it has no relationship with — spending somebody else's quota and
-     * sender reputation. The row's own `client` column is stamped from the key
-     * and cannot be forged, but it is not what delivery reads when a form is
-     * named.
+     * A client may name **another** service's subscribe form, deliberately
+     * (#791 review). A registration opt-in already spawns a subscribe row for
+     * whichever service runs the class, so cross-service subscription is
+     * reachable regardless, and a gate on the direct path would only make the
+     * two routes disagree. Asserted rather than left unpinned, so re-adding
+     * the gate is a red test rather than a silent narrowing.
      */
-    it('refuses a subscribe row naming another service’s form', async () => {
+    it('accepts a subscribe row naming another service’s form', async () => {
       const foreignForm = (await payload.create({
         collection: 'forms',
         data: {
@@ -467,13 +466,14 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
         overrideAccess: true,
       })) as Form
 
-      await expect(
-        send({
-          type: 'subscribe',
-          form: foreignForm.id,
-          senderEmail: 'poached@example.com',
-        }),
-      ).rejects.toThrow(/its own mailing list/)
+      const doc = await send({
+        type: 'subscribe',
+        form: foreignForm.id,
+        senderEmail: 'poached@example.com',
+      })
+
+      expect(doc.type).toBe('subscribe')
+      expect(typeof doc.form === 'object' ? doc.form?.id : doc.form).toBe(foreignForm.id)
     })
 
     it('is immutable once the row exists', async () => {
