@@ -13,11 +13,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import { SendPostEventFollowUps } from '@/jobs/RegistrationNotifications/SendPostEventFollowUps'
 import { readCommunityFeedback } from '@/lib/eventVerification/communityFeedback'
-import type { Event, Manager, Registration } from '@/payload-types'
+import type { Event, Manager, UserSubmission } from '@/payload-types'
 import { hasPermission } from '@/plugins/access'
 
 import { runTaskHandler } from '../utils/taskRunner'
-import { testData } from '../utils/testData'
+import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Event feedback (registrant voting)', () => {
@@ -52,28 +52,26 @@ describe('Event feedback (registrant voting)', () => {
     }) as Promise<Event>
   }
 
+  /**
+   * The registrant's address is the row's own `senderEmail` column and their
+   * name a `submissionData` pair — `prepareUserSubmission` upserts the `users`
+   * row from those, so the join is the derived copy and nothing here sets it.
+   */
   async function createRegistration(
     eventId: number,
-    overrides: Record<string, unknown> = {},
-  ): Promise<Registration> {
-    const user = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'Voter',
-        email: `voter-${randomUUID().slice(0, 8)}@example.com`,
-      },
-      overrideAccess: true,
-    })
+    overrides: FixtureOverrides<UserSubmission> = {},
+  ): Promise<UserSubmission> {
     return payload.create({
-      collection: 'registrations',
-      data: {
+      collection: 'user-submissions',
+      data: createData<'user-submissions'>({
+        type: 'registration',
         event: eventId,
-        user: user.id,
-        uuid: randomUUID(),
+        senderEmail: `voter-${randomUUID().slice(0, 8)}@example.com`,
+        submissionData: [{ field: 'name', value: 'Voter' }],
         ...overrides,
-      } as never,
+      }),
       overrideAccess: true,
-    }) as Promise<Registration>
+    }) as Promise<UserSubmission>
   }
 
   /** The Atlas widget's shape: a client user + the uuid it proves it holds. */
@@ -95,13 +93,13 @@ describe('Event feedback (registrant voting)', () => {
       context: {},
     }) as unknown as PayloadRequest
 
-  const voteAsClient = (registration: Registration, vote: 'confirmed' | 'denied', uuid?: string) =>
+  const voteAsClient = (registration: UserSubmission, vote: 'confirmed' | 'denied', uuid?: string) =>
     payload.update({
-      collection: 'registrations',
+      collection: 'user-submissions',
       id: registration.id,
       data: { eventFeedback: vote } as never,
       overrideAccess: false,
-      req: clientReq(uuid ?? registration.uuid),
+      req: clientReq(uuid ?? registration.uuid ?? undefined),
     })
 
   /**
@@ -112,9 +110,9 @@ describe('Event feedback (registrant voting)', () => {
    * roll-up below are properties of that write, not of the client grant that
    * #723 removed.
    */
-  const vote = (registration: Registration, verdict: 'confirmed' | 'denied') =>
+  const vote = (registration: UserSubmission, verdict: 'confirmed' | 'denied') =>
     payload.update({
-      collection: 'registrations',
+      collection: 'user-submissions',
       id: registration.id,
       data: { eventFeedback: verdict } as never,
       overrideAccess: true,
@@ -141,11 +139,11 @@ describe('Event feedback (registrant voting)', () => {
       await expect(voteAsClient(registration, 'confirmed')).rejects.toThrow()
 
       const after = (await payload.findByID({
-        collection: 'registrations',
+        collection: 'user-submissions',
         id: registration.id,
         depth: 0,
         overrideAccess: true,
-      })) as Registration
+      })) as UserSubmission
       expect(after.eventFeedback).toBeFalsy()
     })
 
@@ -295,11 +293,11 @@ describe('Event feedback (registrant voting)', () => {
       expect(message.html).toContain('/registrations/feedback?token=')
 
       const after = (await payload.findByID({
-        collection: 'registrations',
+        collection: 'user-submissions',
         id: registration.id,
         depth: 0,
         overrideAccess: true,
-      })) as Registration
+      })) as UserSubmission
       expect(after.followUpSentAt).toBeTruthy()
 
       sendEmail.mockClear()
@@ -321,12 +319,52 @@ describe('Event feedback (registrant voting)', () => {
       await runJob(runStart)
 
       const after = (await payload.findByID({
-        collection: 'registrations',
+        collection: 'user-submissions',
         id: registration.id,
         depth: 0,
         overrideAccess: true,
-      })) as Registration
+      })) as UserSubmission
       // No send, and the ledger stays open for future follow-up types.
+      expect(after.followUpSentAt ?? null).toBeNull()
+    })
+
+    it('skips a non-registration row carrying a past startingAt', async () => {
+      // `startingAt` is registration-shaped by an admin `condition` only, so
+      // the column holds one on any type — which is why `dueWhere` needs
+      // `activeRegistrationWhere` to be the type filter. A `subscribe` row
+      // naming an `event` and no form is the cheapest such row the collection
+      // accepts: `needsForm` exempts exactly that shape (it is what
+      // `spawnSubscribeFromRegistration` writes).
+      const event = await createUnverifiedEvent()
+      const elapsed = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      const subscriber = await payload.create({
+        collection: 'user-submissions',
+        data: createData<'user-submissions'>({
+          type: 'subscribe',
+          event: event.id,
+          senderEmail: `subscriber-${randomUUID().slice(0, 8)}@example.com`,
+          startingAt: elapsed,
+        }),
+        overrideAccess: true,
+      })
+      // Due alongside it, so the sweep demonstrably reached this event.
+      const registration = await createRegistration(event.id, { startingAt: elapsed })
+      const runStart = new Date()
+
+      await runJob(runStart)
+
+      const recipients = sendEmail.mock.calls.map(
+        (call: unknown[]) => (call[0] as { to: string }).to,
+      )
+      expect(recipients).toContain(registration.senderEmail)
+      expect(recipients).not.toContain(subscriber.senderEmail)
+
+      const after = (await payload.findByID({
+        collection: 'user-submissions',
+        id: subscriber.id,
+        depth: 0,
+        overrideAccess: true,
+      })) as UserSubmission
       expect(after.followUpSentAt ?? null).toBeNull()
     })
   })
