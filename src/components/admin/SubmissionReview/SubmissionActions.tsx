@@ -15,28 +15,30 @@ import {
 import { useRouter } from 'next/navigation'
 import React, { useCallback, useState } from 'react'
 
-import type { SubmissionStatus } from '@/collections/EventSubmissions/statuses'
 import {
-  OPEN_SUBMISSION_STATUSES,
-  REOPENABLE_STATUSES,
-} from '@/collections/EventSubmissions/statuses'
+  OPEN_REVIEW_STATUSES,
+  REOPENABLE_REVIEW_STATUSES,
+} from '@/collections/UserSubmissions/statuses'
+import type { UserSubmission } from '@/payload-types'
 
-import { eventSubmissionActionUrl } from './urls'
+import { submissionActionUrl } from './urls'
+
+type SubmissionStatus = UserSubmission['status']
 
 // The same sets the review op enforces server-side, from the leaf module both
 // can import — a button offered for a status `applyReview` would refuse is a
 // promise the UI can't keep.
-const OPEN = new Set<SubmissionStatus>(OPEN_SUBMISSION_STATUSES)
-const REOPENABLE = new Set<SubmissionStatus>(REOPENABLE_STATUSES)
+const OPEN = new Set<SubmissionStatus>(OPEN_REVIEW_STATUSES)
+const REOPENABLE = new Set<SubmissionStatus>(REOPENABLE_REVIEW_STATUSES)
 
 const CONFIRM: Partial<Record<Action, string>> = {
   reject: 'Reject this submission?',
   delete: 'Delete this submission? The event it created is not affected.',
 }
 
-const DONE: Record<Action, (status?: string) => string> = {
-  accept: (status) =>
-    status === 'created'
+const DONE: Record<Action, (outcome?: string) => string> = {
+  accept: (outcome) =>
+    outcome === 'created'
       ? 'Accepted — event created and published as unverified.'
       : 'Accepted — changes applied to the event.',
   reject: () => 'Submission rejected.',
@@ -45,27 +47,28 @@ const DONE: Record<Action, (status?: string) => string> = {
 }
 
 /**
- * Replaces the default Save button on an Event Submission with the actions
+ * Replaces the default Save button on a proposal submission with the actions
  * that actually apply to it. A submission is a proposal to judge, so "Save"
  * is only ever meaningful for the one editable field (`region`), and offering
  * it as the sole action on a resolved submission said nothing about what a
  * manager could do next:
  *
- * - **open** (`screening` / `pending`) — Accept / Reject.
+ * - **open** (`pending` / `failed`) — Accept / Reject.
  * - **shelved** (`spam` / `rejected`) — Reopen, returning it to pending. A
  *   screening false positive is otherwise unrecoverable from the admin.
- * - **applied** (`created` / `updated`) — Delete. The submission has served
+ * - **applied** (`accepted`) — Delete. The submission has served
  *   its purpose and the record is the manager's to discard; the event it
  *   created is untouched.
  *
  */
-const EventSubmissionActions: React.FC = () => {
+const SubmissionActions: React.FC = () => {
   const { id } = useDocumentInfo()
   const router = useRouter()
   const { submit } = useForm()
   const modified = useFormModified()
   const { code: locale } = useLocale()
   const status = useFormFields(([fields]) => fields?.status?.value as SubmissionStatus | undefined)
+  const type = useFormFields(([fields]) => fields?.type?.value as UserSubmission['type'] | undefined)
   const [busy, setBusy] = useState<Action | null>(null)
 
   const run = useCallback(
@@ -83,7 +86,7 @@ const EventSubmissionActions: React.FC = () => {
         // No locale, no request. Sending one without it resolves the default
         // locale server-side and reproduces the #701 403 silently — see
         // `eventSubmissionActionUrl`.
-        const url = eventSubmissionActionUrl(id, action, locale)
+        const url = submissionActionUrl(id, action, locale)
         if (!url) {
           toast.error('Could not apply that action.')
           return
@@ -101,16 +104,19 @@ const EventSubmissionActions: React.FC = () => {
                 body: JSON.stringify({ action }),
               })
         const body = (await response.json().catch(() => null)) as {
-          status?: string
+          outcome?: string
           errors?: { message?: string }[]
         } | null
         if (!response.ok) {
           toast.error(body?.errors?.[0]?.message ?? 'Could not apply that action.')
           return
         }
-        toast.success(DONE[action](body?.status))
+        // `outcome`, not `status`: one status vocabulary serves four intakes,
+        // so an accept is `accepted` whether it created a listing or patched
+        // one. Which it did is what the reviewer wants read back.
+        toast.success(DONE[action](body?.outcome))
         // A deleted submission has no page left to refresh.
-        if (action === 'delete') router.push('/admin/collections/event-submissions')
+        if (action === 'delete') router.push('/admin/collections/user-submissions')
         else router.refresh()
       } catch {
         toast.error('Could not apply that action.')
@@ -121,8 +127,9 @@ const EventSubmissionActions: React.FC = () => {
     [id, busy, router, submit, modified, locale],
   )
 
-  // An unsaved document has nothing to act on yet.
-  if (!id || !status) return <SaveButton />
+  // An unsaved document has nothing to act on yet, and only one of the four
+  // intakes has a review path — every other type keeps the ordinary Save.
+  if (!id || !status || type !== 'proposal') return <SaveButton />
 
   if (OPEN.has(status)) {
     return (
@@ -145,7 +152,7 @@ const EventSubmissionActions: React.FC = () => {
     )
   }
 
-  // `created` / `updated` — applied, and now just a record.
+  // `accepted` — applied, and now just a record.
   return (
     <Button onClick={() => run('delete')} buttonStyle="secondary" disabled={busy !== null}>
       {busy === 'delete' ? 'Deleting…' : 'Delete'}
@@ -153,4 +160,4 @@ const EventSubmissionActions: React.FC = () => {
   )
 }
 
-export default EventSubmissionActions
+export default SubmissionActions

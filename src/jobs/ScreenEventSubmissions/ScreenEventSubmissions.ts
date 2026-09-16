@@ -2,19 +2,19 @@ import type { FlattenedField, Payload, PayloadRequest, TaskConfig } from 'payloa
 
 import * as Sentry from '@sentry/nextjs'
 
-import { formatValue, labelForPath } from '@/collections/EventSubmissions/lifecycle/proposedChanges'
-import { buildReviewEmailLink } from '@/collections/EventSubmissions/lifecycle/review'
 import {
   emailVerdictNote,
   regionOutcomeNote,
   type ScreeningResult,
 } from '@/collections/EventSubmissions/screening'
+import { formatValue, labelForPath } from '@/collections/UserSubmissions/lifecycle/proposedChanges'
 import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
 import { hasMxRecords } from '@/lib/antiSpam/mxRecords'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { findManagerForRegion } from '@/lib/notifications/recipients'
 import { sendSubmissionReview } from '@/lib/notifications/sendSubmissionReview'
 import { relationId } from '@/lib/utilities/relationId'
+import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { EventSubmission } from '@/payload-types'
 
 import { findOrCreateCity } from './findOrCreateCity'
@@ -262,7 +262,7 @@ export const ScreenEventSubmissions: TaskConfig<'screenEventSubmission'> = {
         eventTitle,
         payload.collections?.events?.config?.flattenedFields,
       ),
-      reviewUrl: buildReviewEmailLink(submissionId),
+      reviewUrl: `${getServerUrl()}/admin/collections/event-submissions/${submissionId}`,
     })
 
     await payload.update({

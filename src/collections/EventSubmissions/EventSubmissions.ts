@@ -1,14 +1,10 @@
 import type { CollectionConfig, FieldAccess } from 'payload'
 
-import { serverEnv } from '@/lib/env/server'
-import { livePreviewUrl } from '@/lib/livePreview/url'
+import { validateProposal } from '@/collections/UserSubmissions/hooks/validateProposal'
 
-import { reviewSubmission } from './endpoints/review'
-import { computePreviewEvent, computeProposedChanges } from './hooks/computeReviewFields'
 import { enqueueScreening } from './hooks/enqueueScreening'
 import { prepareSubmission } from './hooks/prepareSubmission'
 import { submissionTitle } from './hooks/submissionTitle'
-import { validateProposal } from './hooks/validateProposal'
 import { STATUS_LABELS, SUBMISSION_STATUSES } from './statuses'
 
 export {
@@ -37,12 +33,12 @@ const systemFieldAccess: { create: FieldAccess; update: FieldAccess } = {
  *
  * A submission is a **proposal to judge, not a document to edit**. It carries
  * one `proposed` patch keyed by real Events field names — no mirrored schema,
- * no translation layer — and the review view renders that patch three ways: the
- * diff against the target (`proposedChanges`), the resulting listing
- * (`previewEvent`, via live preview), and Accept / Reject. The only editable
- * fields are `region` — screening can fail to resolve one, and a reviewer has
- * to be able to fix it before accepting — and `manager`, which adopts a
- * created event in the same act. Both apply to new events only.
+ * no translation layer.
+ *
+ * ⚠ **The review surface now lives on `user-submissions`** — the diff, the
+ * preview, Accept/Reject and the `/review` endpoint all moved with #796, onto
+ * `type: 'proposal'` rows. What is left here is the old intake, which #800
+ * deletes.
  *
  * `event` set ⇒ update proposal (and, after acceptance of a new-event
  * submission, the created event). `event` unset ⇒ new event.
@@ -64,46 +60,6 @@ export const EventSubmissions: CollectionConfig = {
     group: 'Classes',
     useAsTitle: 'title',
     defaultColumns: ['title', 'status', 'createdAt'],
-    components: {
-      edit: {
-        // Accept / Reject replace Save while the submission is open — nothing
-        // on the page is editable except `region`, so there is no form to save
-        // first (see the component).
-        SaveButton: '@/components/admin/EventSubmissions/EventSubmissionActions',
-      },
-    },
-    // Live Preview renders the event **as this submission would leave it**.
-    // Unlike the Events preview, the widget cannot fetch the document back —
-    // `event-submissions` is restricted to create-only for API clients, and a
-    // new-event submission has no Event id to fetch. It doesn't need to:
-    // Payload posts the document's form state into the iframe
-    // (`payload-live-preview`), and `previewEvent` carries the merged event in
-    // that payload. See `computeReviewFields.ts`.
-    livePreview: {
-      // ⚠ **The one preview that keeps a dedicated route.** Every other
-      // document is previewed at the page it will be published at; a proposal
-      // has no such page. `event-submissions` is create-only for API clients
-      // and a new-event proposal has no Event id, so the widget cannot fetch
-      // it back — the render-ready shape rides postMessage in `previewEvent`
-      // instead. Retiring `/preview` here needs that mechanism replaced, which
-      // #723's `user-submissions` unification owns.
-      url: ({ data, locale }) =>
-        livePreviewUrl({
-          base: serverEnv.SAHAJATLAS_URL,
-          path: typeof data?.id === 'number' ? 'preview' : null,
-          params: {
-            collection: 'event-submissions',
-            id: String(data?.id ?? ''),
-            locale: locale.code,
-          },
-        }),
-      breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
-      // A reviewer is here to judge how a listing would look, so the panel is
-      // open on arrival rather than a click away. Payload's own option (3.86):
-      // it applies only until the reviewer toggles the panel themselves, after
-      // which their stored preference wins — which a mount effect could not do.
-      openByDefault: true,
-    },
   },
   hooks: {
     beforeValidate: [validateProposal],
@@ -112,7 +68,6 @@ export const EventSubmissions: CollectionConfig = {
     beforeChange: [prepareSubmission, submissionTitle],
     afterChange: [enqueueScreening],
   },
-  endpoints: [reviewSubmission],
   fields: [
     {
       // Status banner + screening verdict. Mounted on the data it renders
@@ -127,7 +82,6 @@ export const EventSubmissions: CollectionConfig = {
       access: systemFieldAccess,
       admin: {
         readOnly: true,
-        components: { Field: '@/components/admin/EventSubmissions/EventSubmissionStatus' },
       },
     },
     {
@@ -138,36 +92,7 @@ export const EventSubmissions: CollectionConfig = {
       label: 'Submitted By',
       admin: {
         readOnly: true,
-        components: { Field: '@/components/admin/EventSubmissions/EventSubmissionSubmitter' },
       },
-    },
-    {
-      // The whole review: what would change, field by field. Virtual — it is a
-      // projection of `proposed` over a target event that can move underneath
-      // the submission.
-      name: 'proposedChanges',
-      type: 'json',
-      virtual: true,
-      label: 'Proposed Changes',
-      admin: {
-        readOnly: true,
-        components: { Field: '@/components/admin/EventSubmissions/EventSubmissionChanges' },
-      },
-      hooks: { afterRead: [computeProposedChanges] },
-    },
-    {
-      // The merged event, carried into the live-preview iframe via form state —
-      // which is the whole of its job, so it renders as nothing at all.
-      // `admin.hidden` puts it in the form without putting it on the page (a
-      // `HiddenField`), so the value still reaches the iframe.
-      name: 'previewEvent',
-      type: 'json',
-      virtual: true,
-      admin: {
-        readOnly: true,
-        hidden: true,
-      },
-      hooks: { afterRead: [computePreviewEvent] },
     },
     {
       // Set ⇒ this is an update proposal for that event (and the target of an

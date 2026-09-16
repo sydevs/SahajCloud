@@ -14,7 +14,7 @@ export type Action = 'accept' | 'reject' | 'reopen' | 'delete'
  * DELETE is not locale-gated today. It carries the locale anyway, so both
  * calls have one shape and one guard.
  */
-export const eventSubmissionActionUrl = (
+export const submissionActionUrl = (
   id: string | number,
   action: Action,
   locale: string | undefined,
@@ -22,6 +22,6 @@ export const eventSubmissionActionUrl = (
   if (!locale) return null
   const query = `?locale=${encodeURIComponent(locale)}`
   return action === 'delete'
-    ? `/api/event-submissions/${id}${query}`
-    : `/api/event-submissions/${id}/review${query}`
+    ? `/api/user-submissions/${id}${query}`
+    : `/api/user-submissions/${id}/review${query}`
 }

@@ -8,17 +8,18 @@ import { hasPermission, roleScopeFromLocale } from '@/plugins/access'
 import { applyReview, type ReviewAction } from '../lifecycle/review'
 
 /**
- * POST /api/event-submissions/:id/review — the admin Accept/Reject buttons'
- * backend (the EventSubmissionSaveButton component). Manager-only, gated on
- * the same `event-submissions: update` permission that lets a manager see the
+ * POST /api/user-submissions/:id/review — the admin Accept/Reject buttons'
+ * backend (the SubmissionReviewActions component). Manager-only, gated on the
+ * same `user-submissions: update` permission that lets a manager see the
  * collection at all — NOT a client endpoint, so it deliberately skips
  * `requireActiveClient` and is not published in the OpenAPI spec (same stance
  * as the events verify action).
  *
  * Body: `{ action: 'accept' | 'reject' | 'reopen' }`. Response:
- * `{ ok, status, eventId? }`. `reopen` returns a spam/rejected submission to
- * `pending` — every status transition stays in `applyReview` rather than
- * letting the admin form PATCH `status` directly.
+ * `{ ok, status, outcome, eventId? }`. `reopen` returns a spam/rejected
+ * submission to `pending` — every status transition stays in `applyReview`
+ * rather than letting the admin form PATCH `status` directly. A row whose
+ * `type` is not `proposal` is refused there, with a 409.
  */
 export const reviewSubmission: Endpoint = {
   path: '/:id/review',
@@ -32,7 +33,7 @@ export const reviewSubmission: Endpoint = {
     if (
       !hasPermission({
         user: req.user,
-        collection: 'event-submissions',
+        collection: 'user-submissions',
         operation: 'update',
         locale: roleScopeFromLocale(req.locale),
       })
@@ -65,7 +66,12 @@ export const reviewSubmission: Endpoint = {
         managerId: typeof req.user?.id === 'number' ? req.user.id : null,
         req,
       })
-      return Response.json({ ok: true, status: result.status, eventId: result.eventId ?? null })
+      return Response.json({
+        ok: true,
+        status: result.status,
+        outcome: result.outcome,
+        eventId: result.eventId ?? null,
+      })
     } catch (error) {
       if (error instanceof APIError) {
         const code = (error.data as { code?: string } | undefined)?.code

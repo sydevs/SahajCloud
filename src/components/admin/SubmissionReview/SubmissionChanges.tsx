@@ -8,7 +8,7 @@ import React from 'react'
 import type {
   DiffSegment,
   ProposedChange,
-} from '@/collections/EventSubmissions/lifecycle/proposedChanges'
+} from '@/collections/UserSubmissions/lifecycle/proposedChanges'
 
 import './styles.css'
 
@@ -146,7 +146,7 @@ function WordDiff({ change }: { change: ProposedChange }) {
  * `computeReviewFields.ts`). Keeping the diffing there leaves this component
  * free of logic and unit-testable without a DOM.
  */
-export const EventSubmissionChanges: FieldClientComponent = ({ field }) => {
+export const SubmissionChanges: FieldClientComponent = ({ field }) => {
   const { name, label } = field as JSONFieldClient
   const { value } = useField<ProposedChange[]>()
   const changes = Array.isArray(value) ? value : []
@@ -191,4 +191,4 @@ export const EventSubmissionChanges: FieldClientComponent = ({ field }) => {
   )
 }
 
-export default EventSubmissionChanges
+export default SubmissionChanges

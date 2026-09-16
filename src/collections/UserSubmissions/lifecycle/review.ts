@@ -2,61 +2,51 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
+import { appendLogEntry, asLog } from '@/fields'
 import { relationId } from '@/lib/utilities/relationId'
-import { getServerUrl } from '@/lib/utilities/serverUrl'
-import type { EventSubmission } from '@/payload-types'
+import type { UserSubmission } from '@/payload-types'
 
-import {
-  OPEN_SUBMISSION_STATUSES,
-  REOPENABLE_STATUSES,
-  type SubmissionStatus,
-} from '../statuses'
+import { OPEN_REVIEW_STATUSES, REOPENABLE_REVIEW_STATUSES } from '../statuses'
 import { newEventDefaults, type ProposedPatch } from './mergeProposal'
 
 /**
- * Shared review semantics for an event submission — the one place Accept and
- * Reject actually happen, called by the admin Accept/Reject buttons' endpoint.
- * Kept off the route/component layer so it's testable with a plain `payload`
- * instance.
+ * Shared review semantics for a `proposal` submission — the one place Accept
+ * and Reject actually happen, called by the admin Accept/Reject buttons'
+ * endpoint. Kept off the route/component layer so it's testable with a plain
+ * `payload` instance.
  */
 
 export type ReviewAction = 'accept' | 'reject' | 'reopen'
 
+/**
+ * What the decision did, as distinct from the row's status.
+ *
+ * `user-submissions` carries one five-state vocabulary for every type, so an
+ * accept is `accepted` whether it created a listing or patched one. The
+ * flavour a reviewer needs — and the toast wording — lives here and in the
+ * `activityLog` entry, not in a sixth status.
+ */
+export type ReviewOutcome = 'created' | 'updated' | 'rejected' | 'reopened' | 'already-decided'
 
 export interface ReviewResult {
-  /** The submission's terminal status after the review. */
-  status: SubmissionStatus
-  submission: EventSubmission
+  /** The submission's status after the review. */
+  status: UserSubmission['status']
+  /** What the decision did. */
+  outcome: ReviewOutcome
+  submission: UserSubmission
   /** The created/updated event id, on accept. */
   eventId?: number
 }
 
-// ---------------------------------------------------------------------------
-// Email link
-// ---------------------------------------------------------------------------
+const isOpen = (status: UserSubmission['status']) =>
+  (OPEN_REVIEW_STATUSES as readonly string[]).includes(status)
 
-/**
- * Where the notification email sends the manager: the submission's own admin
- * edit view, which is now the only review surface.
- *
- * There is no token here by design. The standalone `/submissions/review` page
- * existed so a manager could act while logged out, at the cost of a second
- * implementation of Accept/Reject and a second rendering of the submission.
- * With the review collapsed onto the admin view — where the diff and the live
- * preview are — a signed link would only reach a page that already requires a
- * session.
- */
-export function buildReviewEmailLink(submissionId: number): string {
-  return `${getServerUrl()}/admin/collections/event-submissions/${submissionId}`
-}
-
-// ---------------------------------------------------------------------------
-// The review operation
-// ---------------------------------------------------------------------------
+const isReopenable = (status: UserSubmission['status']) =>
+  (REOPENABLE_REVIEW_STATUSES as readonly string[]).includes(status)
 
 /**
  * Apply a review decision. Idempotent-ish: a submission already in a terminal
- * state is returned unchanged (`status` tells the caller what happened
+ * state is returned unchanged (`outcome` tells the caller what happened
  * before), so a re-clicked email link reads as "already handled" rather than
  * double-creating an event.
  *
@@ -83,17 +73,52 @@ export async function applyReview(args: {
   const { payload, submissionId, action, managerId, req, now = new Date() } = args
 
   const submission = (await payload.findByID({
-    collection: 'event-submissions',
+    collection: 'user-submissions',
     id: submissionId,
     depth: 0,
     overrideAccess: true,
     req,
-  })) as EventSubmission
+  })) as UserSubmission
+
+  // One table holds four intakes, so the review path has to say which one it
+  // acts on. Without this a `contact` row would reach `newEventDefaults` with
+  // no `proposed` and create an empty listing.
+  if (submission.type !== 'proposal') {
+    throw new APIError(
+      `A ${submission.type} submission is not reviewable.`,
+      409,
+      { code: 'not_reviewable' },
+      true,
+    )
+  }
+
+  /** Record the decision on the row's own log — `user-submissions` has one. */
+  const decide = (
+    status: UserSubmission['status'],
+    activity: string,
+    extra?: Record<string, unknown>,
+  ) =>
+    payload.update({
+      collection: 'user-submissions',
+      id: submissionId,
+      data: {
+        status,
+        ...extra,
+        activityLog: appendLogEntry(asLog(submission.activityLog), {
+          at: now.toISOString(),
+          type: 'review',
+          managerId,
+          cells: { activity },
+        }),
+      },
+      overrideAccess: true,
+      context: { skipWriteGuard: true },
+      req,
+    }) as Promise<UserSubmission>
 
   if (action === 'reopen') {
-    // A screening false positive, or a rejection a manager wants back. Clears
-    // the review stamp so the submission reads as genuinely pending again.
-    if (!REOPENABLE_STATUSES.includes(submission.status)) {
+    // A screening false positive, or a rejection a manager wants back.
+    if (!isReopenable(submission.status)) {
       throw new APIError(
         `A ${submission.status} submission cannot be reopened.`,
         409,
@@ -101,39 +126,17 @@ export async function applyReview(args: {
         true,
       )
     }
-    const reopened = (await payload.update({
-      collection: 'event-submissions',
-      id: submissionId,
-      data: { status: 'pending', reviewedBy: null, reviewedAt: null },
-      overrideAccess: true,
-      context: { skipWriteGuard: true },
-      req,
-    })) as EventSubmission
-    return { status: 'pending', submission: reopened }
+    const reopened = await decide('pending', 'Reopened for review')
+    return { status: 'pending', outcome: 'reopened', submission: reopened }
   }
 
-  if (!OPEN_SUBMISSION_STATUSES.includes(submission.status)) {
-    return { status: submission.status, submission }
+  if (!isOpen(submission.status)) {
+    return { status: submission.status, outcome: 'already-decided', submission }
   }
-
-  const stampReview = (status: SubmissionStatus, eventId?: number) =>
-    payload.update({
-      collection: 'event-submissions',
-      id: submissionId,
-      data: {
-        status,
-        ...(eventId != null ? { event: eventId } : {}),
-        reviewedBy: managerId,
-        reviewedAt: now.toISOString(),
-      },
-      overrideAccess: true,
-      context: { skipWriteGuard: true },
-      req,
-    }) as Promise<EventSubmission>
 
   if (action === 'reject') {
-    const updated = await stampReview('rejected')
-    return { status: 'rejected', submission: updated }
+    const updated = await decide('rejected', 'Rejected')
+    return { status: 'rejected', outcome: 'rejected', submission: updated }
   }
 
   const targetEventId = relationId(submission.event)
@@ -149,8 +152,8 @@ export async function applyReview(args: {
       context: { skipWriteGuard: true },
       req,
     })
-    const updated = await stampReview('updated', targetEventId)
-    return { status: 'updated', submission: updated, eventId: targetEventId }
+    const updated = await decide('accepted', `Accepted — changes applied to event #${targetEventId}`)
+    return { status: 'accepted', outcome: 'updated', submission: updated, eventId: targetEventId }
   }
 
   const hint = (submission.regionHint ?? {}) as Record<string, unknown>
@@ -179,7 +182,9 @@ export async function applyReview(args: {
       ...newEventDefaults(patch, assignedManagerId),
       ...patch,
       region: regionId,
-      submitter: relationId(submission.submitter),
+      // The submitter is `system.user` here — the same `upsertUserByEmail`
+      // result `event-submissions` stored under its own `submitter` column.
+      submitter: relationId(submission.user),
     } as never,
     overrideAccess: true,
     // `skipVerifyHook` means "don't open a verification cycle", which is right
@@ -191,6 +196,9 @@ export async function applyReview(args: {
     req,
   })
 
-  const updated = await stampReview('created', created.id as number)
-  return { status: 'created', submission: updated, eventId: created.id as number }
+  const eventId = created.id as number
+  const updated = await decide('accepted', `Accepted — event #${eventId} created`, {
+    event: eventId,
+  })
+  return { status: 'accepted', outcome: 'created', submission: updated, eventId }
 }

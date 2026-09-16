@@ -2,14 +2,18 @@ import type { Plugin } from 'payload'
 
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 
-import { validateProposal } from '@/collections/EventSubmissions/hooks/validateProposal'
+
 import { formFields } from '@/collections/Forms/fields'
 import { validateFormAction } from '@/collections/Forms/hooks/validateFormAction'
+import { reviewSubmission } from '@/collections/UserSubmissions/endpoints/review'
 import { userSubmissionFields } from '@/collections/UserSubmissions/fields'
 import { enqueueSubmissionScreening } from '@/collections/UserSubmissions/hooks/enqueueSubmissionScreening'
 import { prepareUserSubmission } from '@/collections/UserSubmissions/hooks/prepareUserSubmission'
 import { spawnSubscribeFromRegistration } from '@/collections/UserSubmissions/hooks/spawnSubscribeFromRegistration'
+import { validateProposal } from '@/collections/UserSubmissions/hooks/validateProposal'
 import { CONTACT_EMAIL } from '@/lib/contact'
+import { serverEnv } from '@/lib/env/server'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 
 /**
  * The form-builder plugin, configured once, plus the two things its options
@@ -43,6 +47,13 @@ import { CONTACT_EMAIL } from '@/lib/contact'
  *   Clearing it hands `update` to the roles that hold it, which is a real
  *   behaviour change from `form-submissions` and the reason `type`,
  *   `status` and the rest carry field-level access.
+ *
+ * ⚠ **The review endpoint is registered here, not in `formSubmissionOverrides`.**
+ * `user-submissions` is plugin-generated, so there is no `CollectionConfig`
+ * file to hang `endpoints` on, and this wrapper is the one merge whose
+ * behaviour this repo owns. It is deliberately absent from
+ * `CUSTOM_ENDPOINT_PATHS` — that opt-in is the only thing that would publish a
+ * manager-only action in the OpenAPI spec.
  *
  * `access: {}` hands the collection back to RBAC.
  * `tests/int/user-submissions-access.int.spec.ts` reads rows back through
@@ -96,6 +107,7 @@ export const formsPlugin = (): Plugin => async (config) => {
               ...collection.hooks,
               afterChange: [spawnSubscribeFromRegistration, enqueueSubmissionScreening],
             },
+            endpoints: [...(collection.endpoints || []), reviewSubmission],
           }
         : collection,
     ),
@@ -131,6 +143,40 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
         group: 'System',
         useAsTitle: 'subject',
         defaultColumns: ['subject', 'type', 'status', 'senderEmail', 'createdAt'],
+        components: {
+          edit: {
+            // Accept / Reject replace Save on a `proposal` row. The component
+            // renders the ordinary Save for every other type — this slot is
+            // collection-wide and only one intake has a review path.
+            SaveButton: '@/components/admin/SubmissionReview/SubmissionActions',
+          },
+        },
+        // Live Preview renders the event **as an accepted proposal would leave
+        // it**. The widget cannot fetch the row back — a new-event proposal has
+        // no Event id, and API clients hold create-only here — so Payload's own
+        // postMessage carries the merged event in `previewEvent` instead.
+        //
+        // ⚠ The one preview that keeps a dedicated route, for that reason.
+        // `path: null` on anything but an unaccepted proposal, so the other
+        // three intakes get no preview panel rather than a broken one.
+        livePreview: {
+          url: ({ data, locale }) =>
+            livePreviewUrl({
+              base: serverEnv.SAHAJATLAS_URL,
+              path: data?.type === 'proposal' && typeof data?.id === 'number' ? 'preview' : null,
+              params: {
+                collection: 'user-submissions',
+                id: String(data?.id ?? ''),
+                locale: locale.code,
+              },
+            }),
+          breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
+          // A reviewer is here to judge how a listing would look, so the panel
+          // is open on arrival. Payload's own option: it applies only until the
+          // reviewer toggles the panel themselves, after which their stored
+          // preference wins — which a mount effect could not do.
+          openByDefault: true,
+        },
       },
       fields: userSubmissionFields,
       // Order matters: the reach check refuses a forbidden target before

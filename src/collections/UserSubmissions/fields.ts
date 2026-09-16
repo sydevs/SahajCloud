@@ -13,6 +13,9 @@ import { logField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import type { UserSubmission } from '@/payload-types'
 
+import { computePreviewEvent, computeProposedChanges } from './hooks/computeReviewFields'
+import { STATUS_LABELS, SUBMISSION_STATUSES } from './statuses'
+
 /**
  * What a submission *is*. Every access rule, policy branch and retention window
  * keys on this.
@@ -39,39 +42,6 @@ export const TYPE_LABELS: Record<UserSubmission['type'], string> = {
   subscribe: 'Subscription',
   registration: 'Registration',
   proposal: 'Event Proposal',
-}
-
-/**
- * One five-state vocabulary for every type, replacing three per-collection sets.
- *
- * `pending` → nothing has decided yet. That covers both "screening is still
- * running" and "screening passed, a human has not looked" — the two are told
- * apart by whether `screeningResult` exists, not by a sixth status.
- *
- * `accepted` / `rejected` are terminal **human** decisions. `rejected` is a
- * manager's decline and nothing else.
- *
- * ⚠ `spam` is the machine's refusal, and it is a separate status precisely so
- * nothing has to re-derive who refused a row. Abuse counting selects it, and a
- * manager's decline is never a spam strike against the person who wrote in.
- * Which check refused stays in `screeningResult.verdict`, for the reader.
- *
- * `failed` is the retryable one, carried over from user-messages: the decision
- * went fine and the delivery did not. It is not terminal, and it is the state
- * nobody else would notice.
- */
-const SUBMISSION_STATUSES = ['pending', 'accepted', 'rejected', 'spam', 'failed'] as const
-
-/**
- * What each status is called, in the list column and the `status` select alike.
- * One definition, so a row and the document it opens never disagree.
- */
-const STATUS_LABELS: Record<UserSubmission['status'], string> = {
-  pending: 'Pending',
-  accepted: 'Accepted',
-  rejected: 'Rejected',
-  spam: 'Spam',
-  failed: 'Failed',
 }
 
 /**
@@ -111,11 +81,19 @@ export function userSubmissionFields({ defaultFields }: { defaultFields: Field[]
     startingAtField,
     eventFeedbackField,
     proposedField,
+    proposedChangesField,
+    previewEventField,
+    managerField,
+    regionField,
     screeningResultField,
     activityLogField,
     systemGroup,
   ]
 }
+
+/** A proposal that has not yet been accepted, i.e. one still naming no event. */
+const unresolvedProposal = (data?: { event?: unknown; type?: unknown }): boolean =>
+  data?.type === 'proposal' && !data?.event
 
 /** What this submission is. Every access rule and policy branch keys on it. */
 const typeField: Field = {
@@ -411,6 +389,80 @@ const proposedField: Field = jsonField({
 })
 
 /**
+ * The whole review: what would change, field by field. Virtual — it is a
+ * projection of `proposed` over a target event that can move underneath the
+ * submission, so a stored copy would go stale the moment a manager edited that
+ * event.
+ */
+const proposedChangesField: Field = {
+  name: 'proposedChanges',
+  type: 'json',
+  virtual: true,
+  label: 'Proposed Changes',
+  admin: {
+    condition: (data) => data?.type === 'proposal',
+    readOnly: true,
+    components: { Field: '@/components/admin/SubmissionReview/SubmissionChanges' },
+  },
+  hooks: { afterRead: [computeProposedChanges] },
+}
+
+/**
+ * The merged event, carried into the live-preview iframe via form state —
+ * which is the whole of its job, so it renders as nothing at all.
+ * `admin.hidden` puts it in the form without putting it on the page (a
+ * `HiddenField`), so the value still reaches the iframe.
+ */
+const previewEventField: Field = {
+  name: 'previewEvent',
+  type: 'json',
+  virtual: true,
+  admin: { readOnly: true, hidden: true },
+  hooks: { afterRead: [computePreviewEvent] },
+}
+
+/**
+ * Optional adoption, in the same act as accepting: a created event with a
+ * manager is verified on the spot (see `newEventDefaults`), and without one it
+ * goes on the map marked unverified until somebody takes it on.
+ *
+ * New events only — an update proposal's target already has whatever manager it
+ * has, and reassigning it is the Event's own business.
+ */
+const managerField: Field = {
+  name: 'manager',
+  type: 'relationship',
+  relationTo: 'managers',
+  access: systemFieldAccess,
+  admin: {
+    condition: unresolvedProposal,
+    description:
+      'Optional. The manager who will look after this event. Assign one to publish it as verified; leave blank and it goes on the map as unverified until a manager takes it on.',
+  },
+}
+
+/**
+ * Screening resolves it, but it can come back empty (an address that matched no
+ * city), and Accept refuses a new-event proposal without one — so the fix has
+ * to be reachable here.
+ *
+ * No `filterOptions`, deliberately: Payload validates it on save with a find
+ * that forwards the caller's `req`, and a client `req` trips the
+ * select-required client-query gate — every public create would 400.
+ */
+const regionField: Field = {
+  name: 'region',
+  type: 'relationship',
+  relationTo: 'regions',
+  access: systemFieldAccess,
+  admin: {
+    condition: unresolvedProposal,
+    description:
+      'The city or venue this event belongs to. Resolved by screening — correct it here if it came back empty or wrong.',
+  },
+}
+
+/**
  * Why a submission was refused, or `ok`. One reason — the first check that hit.
  *
  * The union of what the two screening jobs recorded separately, minus the
@@ -471,7 +523,13 @@ const screeningResultField: Field = jsonField({
     screenedAt: z.string().describe('When screening reached this verdict (ISO 8601).'),
   }),
   access: systemFieldAccess,
-  admin: { readOnly: true },
+  admin: {
+    readOnly: true,
+    // The banner IS the row's review state, so the component is mounted on the
+    // data it renders rather than on a `ui` field — it reads its own value
+    // instead of reaching across form state.
+    components: { Field: '@/components/admin/SubmissionReview/SubmissionStatus' },
+  },
 })
 
 /**
@@ -533,6 +591,26 @@ const systemGroup: Field = {
       index: true,
       access: systemFieldAccess,
       admin: { readOnly: true },
+    },
+    {
+      // Where the submitter said the event belongs, before screening resolved
+      // it: `{ country, state, anchorRegion }`. Inputs to region resolution,
+      // kept for triage afterwards.
+      //
+      // Open on purpose: it is a verbatim record of what the widget sent, and
+      // `review.ts` reads one key off it. Naming the keys beside an open value
+      // is what `src/collections/AGENTS.md` refuses.
+      ...jsonField({
+        name: 'regionHint',
+        schemaTitle: 'SubmissionRegionHint',
+        schema: z.looseObject({}).meta({ maxProperties: 20 }),
+        access: systemFieldAccess,
+        admin: {
+          condition: (data) => data?.type === 'proposal',
+          readOnly: true,
+          description: 'Region targeting as submitted (country / state / anchor).',
+        },
+      }),
     },
     {
       // The follow-up sweep's query filter. `activityLog` records *that* it was

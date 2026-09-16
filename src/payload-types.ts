@@ -2064,12 +2064,39 @@ export interface UserSubmission {
    */
   eventFeedback?: ('confirmed' | 'denied') | null;
   proposed?: SubmissionProposal;
+  proposedChanges?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  previewEvent?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Optional. The manager who will look after this event. Assign one to publish it as verified; leave blank and it goes on the map as unverified until a manager takes it on.
+   */
+  manager?: (number | null) | Manager;
+  /**
+   * The city or venue this event belongs to. Resolved by screening — correct it here if it came back empty or wrong.
+   */
+  region?: (number | null) | Region;
   screeningResult?: SubmissionScreeningResult;
   activityLog?: ActivityLog;
   uuid?: string | null;
   client?: (number | null) | Client;
   user?: (number | null) | User;
   unsubscribedAt?: string | null;
+  regionHint?: SubmissionRegionHint;
   followUpSentAt?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -2653,6 +2680,9 @@ export interface SubmissionScreeningResult {
    * When screening reached this verdict (ISO 8601).
    */
   screenedAt: string;
+}
+export interface SubmissionRegionHint {
+  [k: string]: unknown;
 }
 export interface RegistrationQuestions {
   /**
@@ -3790,24 +3820,6 @@ export interface EventSubmission {
     | boolean
     | null;
   submitterInfo?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  proposedChanges?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  previewEvent?:
     | {
         [k: string]: unknown;
       }
@@ -4977,8 +4989,6 @@ export interface EventsSelect<T extends boolean = true> {
 export interface EventSubmissionsSelect<T extends boolean = true> {
   screeningResult?: T;
   submitterInfo?: T;
-  proposedChanges?: T;
-  previewEvent?: T;
   event?: T;
   manager?: T;
   region?: T;
@@ -5194,12 +5204,17 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   startingAt_tz?: T;
   eventFeedback?: T;
   proposed?: T;
+  proposedChanges?: T;
+  previewEvent?: T;
+  manager?: T;
+  region?: T;
   screeningResult?: T;
   activityLog?: T;
   uuid?: T;
   client?: T;
   user?: T;
   unsubscribedAt?: T;
+  regionHint?: T;
   followUpSentAt?: T;
   updatedAt?: T;
   createdAt?: T;

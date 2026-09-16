@@ -1,17 +1,16 @@
 /**
- * The review endpoint's LOCALE gate, driven through Payload's real REST
- * pipeline (#701).
+ * The review endpoint's LOCALE gate and its type gate, driven through Payload's
+ * real REST pipeline (#701, #796).
  *
- * `event-submissions.int.spec.ts` exercises `applyReview` directly and never
- * touches `POST /api/event-submissions/:id/review`, so nothing observed how
- * `req.locale` is derived. That is where the bug lived: the admin's Accept /
- * Reject buttons sent no `?locale=`, Payload resolved the default locale, and
- * `hasPermission` read the reviewer's English roles — empty for a manager whose
- * roles live only in French, so every action answered 403.
+ * Nothing else touches `POST /api/user-submissions/:id/review`, so nothing else
+ * observes how `req.locale` is derived. That is where #701 lived: the admin's
+ * Accept / Reject buttons sent no `?locale=`, Payload resolved the default
+ * locale, and `hasPermission` read the reviewer's English roles — empty for a
+ * manager whose roles live only in French, so every action answered 403.
  *
- * A sibling file rather than a new suite in that spec, because `getPayload`
- * caches per config: a second `createTestEnvironment()` in one file returns the
- * FIRST instance (see `tests/AGENTS.md`).
+ * A sibling file rather than a new suite in the create spec, because
+ * `getPayload` caches per config: a second `createTestEnvironment()` in one
+ * file returns the FIRST instance (see `tests/AGENTS.md`).
  */
 import type { RestClient } from '../utils/restRequest'
 import type { Payload } from 'payload'
@@ -26,7 +25,7 @@ import { createRestClientAs } from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-describe('POST /api/event-submissions/:id/review — locale gate', () => {
+describe('POST /api/user-submissions/:id/review — locale and type gates', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let env: Awaited<ReturnType<typeof createTestEnvironment>>
@@ -43,16 +42,17 @@ describe('POST /api/event-submissions/:id/review — locale gate', () => {
    */
   const pendingSubmission = async (): Promise<number> => {
     const created = await payload.create({
-      collection: 'event-submissions',
+      collection: 'user-submissions',
       overrideAccess: true,
       data: {
-        submitterInfo: { name: 'Aria Visitor', email: 'aria@example.com' },
+        type: 'proposal',
+        senderEmail: 'aria@example.com',
         regionHint: { anchorRegion: cityId },
         proposed: { eventType: 'offline', address: { city: 'Novo Selo', street: '1 Main St' } },
       } as never,
     })
     await payload.update({
-      collection: 'event-submissions',
+      collection: 'user-submissions',
       id: created.id,
       overrideAccess: true,
       data: { region: cityId, status: 'pending' },
@@ -60,8 +60,18 @@ describe('POST /api/event-submissions/:id/review — locale gate', () => {
     return created.id
   }
 
+  /** A registration row — same table, no review path, and needs no form. */
+  const registrationSubmission = async (): Promise<number> => {
+    const created = await payload.create({
+      collection: 'user-submissions',
+      overrideAccess: true,
+      data: { type: 'registration', senderEmail: 'aria@example.com' } as never,
+    })
+    return created.id
+  }
+
   const review = (id: number, query = '') =>
-    rest(`/api/event-submissions/${id}/review${query}`, {
+    rest(`/api/user-submissions/${id}/review${query}`, {
       method: 'POST',
       json: { action: 'reject' },
     })
@@ -114,5 +124,13 @@ describe('POST /api/event-submissions/:id/review — locale gate', () => {
   it('allows it under the locale the reviewer holds roles in', async () => {
     const { status } = await review(await pendingSubmission(), '?locale=fr')
     expect(status).toBe(200)
+  })
+
+  // One table, four intakes: without the type gate another type would reach
+  // `newEventDefaults` with no `proposed` and mint an empty listing.
+  it('refuses a row whose type is not proposal', async () => {
+    const { status, body } = await review(await registrationSubmission(), '?locale=fr')
+    expect(status).toBe(409)
+    expect(JSON.stringify(body)).toContain('not_reviewable')
   })
 })

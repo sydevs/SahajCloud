@@ -14,14 +14,12 @@ import {
 } from '@payloadcms/ui'
 import React from 'react'
 
-import type { ScreeningResult } from '@/collections/EventSubmissions/screening'
-import {
-  OPEN_SUBMISSION_STATUSES,
-  STATUS_LABELS,
-  type SubmissionStatus,
-} from '@/collections/EventSubmissions/statuses'
+import { OPEN_REVIEW_STATUSES, STATUS_LABELS } from '@/collections/UserSubmissions/statuses'
+import type { SubmissionScreeningResult, UserSubmission } from '@/payload-types'
 
 import './styles.css'
+
+type SubmissionStatus = UserSubmission['status']
 
 /**
  * How loudly a status is drawn. There is deliberately no `warning`: the one
@@ -45,29 +43,27 @@ type Severity = 'info' | 'error' | 'success'
  * said the same thing twice.
  */
 const COPY: Record<SubmissionStatus, { severity: Severity; message?: string }> = {
-  screening: {
-    severity: 'info',
-    message: 'Checking the submitter’s details. This usually takes a few minutes.',
-  },
   pending: {
     severity: 'info',
     message: 'Compare the proposed changes with the preview, then accept or reject.',
   },
   spam: { severity: 'error' },
-  created: {
+  accepted: {
     severity: 'success',
     message:
       'This event is on the map, but the public sees it marked unverified. Give it a manager to have it verified.',
-  },
-  updated: {
-    severity: 'success',
-    message: 'The proposed changes were applied to the event.',
   },
   rejected: {
     // Red like spam: both are refusals, and a reviewer scanning the list
     // should read "this was turned down" at the same glance either way.
     severity: 'error',
     message: 'Nothing was created or changed.',
+  },
+  // The decision went fine and the review email did not send. Still open, so
+  // the banner has to say the row is actionable rather than broken.
+  failed: {
+    severity: 'info',
+    message: 'The review email could not be sent. Accept or reject it here.',
   },
 }
 
@@ -103,13 +99,13 @@ const BANNER_TYPE: Record<Severity, 'default' | 'error' | 'success'> = {
  * render only real strings rather than trusting the column's declared type.
  * A malformed row degrades to no notes instead of throwing the edit view.
  */
-function notesOf(result: ScreeningResult | null | undefined): string[] {
+function notesOf(result: SubmissionScreeningResult | null | undefined): string[] {
   const notes = result?.notes
   return Array.isArray(notes) ? notes.filter((note): note is string => typeof note === 'string') : []
 }
 
 /**
- * Status banner atop an Event Submission: what state it's in, what follows
+ * Status banner atop a proposal submission: what state it's in, what follows
  * from it, and whatever screening found.
  *
  * The notes are rendered verbatim — screening composes them as complete
@@ -123,28 +119,30 @@ function notesOf(result: ScreeningResult | null | undefined): string[] {
  * field, so it reads its own value through `useField` instead of reaching
  * across form state for it.
  */
-export const EventSubmissionStatus: FieldClientComponent = ({ field }) => {
+export const SubmissionStatus: FieldClientComponent = ({ field }) => {
   const { name, label } = field as JSONFieldClient
   const { id } = useDocumentInfo()
   const status = useFormFields(([fields]) => fields?.status?.value as SubmissionStatus | undefined)
   const hasManager = useFormFields(([fields]) => Boolean(fields?.manager?.value))
-  const { value } = useField<ScreeningResult | null>()
+  const type = useFormFields(([fields]) => fields?.type?.value as UserSubmission['type'] | undefined)
+  const { value } = useField<SubmissionScreeningResult | null>()
 
-  if (!id || !status || !COPY[status]) return null
+  // One table, four intakes. The banner speaks the review path's language, so
+  // it renders for the one type that has a review path.
+  if (!id || type !== 'proposal' || !status || !COPY[status]) return null
 
   const { severity } = COPY[status]
   const title = STATUS_LABELS[status]
   const Icon = ICONS[severity]
   const message =
-    status === 'created' && hasManager ? CREATED_WITH_MANAGER : COPY[status].message
+    status === 'accepted' && hasManager ? CREATED_WITH_MANAGER : COPY[status].message
   // Screening's notes tell the reviewer what to settle *before* deciding
   // ("check the Region below looks right"). Once the decision is made they are
   // spent advice about a field the page no longer even shows — an accepted
   // submission hides Region, because the event owns it now. Spam is the
   // exception: its note is the reason, which is the whole point of the banner.
-  const notes = OPEN_SUBMISSION_STATUSES.includes(status) || status === 'spam'
-    ? notesOf(value)
-    : []
+  const notes =
+    OPEN_REVIEW_STATUSES.includes(status) || status === 'spam' ? notesOf(value) : []
 
   return (
     <div className="field-type json read-only">
@@ -174,4 +172,4 @@ export const EventSubmissionStatus: FieldClientComponent = ({ field }) => {
   )
 }
 
-export default EventSubmissionStatus
+export default SubmissionStatus
