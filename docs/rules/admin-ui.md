@@ -68,9 +68,9 @@ iframeRef.current.contentWindow?.postMessage(
 )
 ```
 
-Most preview routes here ignore that and re-fetch by `?collection=…&id=…` instead — fine for Events/Regions/Pages, but a *choice*, not a requirement, and it costs preview on anything the frontend can't read: a **restricted** collection (API clients hold create-only on `event-submissions`), or a document with **no id to fetch** (a submission proposing a brand-new event).
+Most preview routes here ignore that and re-fetch by `?collection=…&id=…` instead — fine for Events/Regions/Pages, but a *choice*, not a requirement, and it costs preview on anything the frontend can't read: a **restricted** collection (API clients hold create-only on `user-submissions`), or a document with **no id to fetch** (a submission proposing a brand-new event).
 
-For those, carry the render-ready shape in a field and let postMessage deliver it: `EventSubmissions.previewEvent` is a virtual JSON field holding the merged event, and the widget renders from the message. Relationship hydration still fetches by id, so a referenced doc must stay readable by the client.
+For those, carry the render-ready shape in a field and let postMessage deliver it: `UserSubmissions.previewEvent` is a virtual JSON field holding the merged event, and the widget renders from the message. Relationship hydration still fetches by id, so a referenced doc must stay readable by the client.
 
 Two mechanics worth knowing:
 

@@ -481,7 +481,7 @@ logField({ description: 'Everything recorded about this registration.' })
 
 `name` and `label` default to `activityLog` / "Activity Log" and are
 overridable for a document that needs a second log. Both current consumers
-use the default: Events resets its log on every verification, Registrations
+use the default: Events resets its log on every verification, `user-submissions`
 accumulates.
 
 ### Columns are declared on the field
@@ -557,7 +557,7 @@ Three things worth knowing:
   lives, because it is the code that knows the domain.
 - **A log is a record, not a query filter.** Nothing can `where` on a JSON
   column cheaply, so a sweep that needs to _find_ documents still wants a
-  real dated column beside the log. `Registrations.followUpSentAt` is
+  real dated column beside the log. `UserSubmissions.followUpSentAt` is
   exactly that: the log says what happened, the column is what the query
   selects on.
 
@@ -599,6 +599,18 @@ Three things the wrapper does that the plugin options cannot:
   unconditionally `required`; `contact` and `subscribe` need one, and the two
   types that name an `event` must not have one. The plugin's own existence check
   is composed with, not replaced.
+- **Registers the proposal review surface.** `POST /api/user-submissions/:id/review`,
+  the Accept/Reject `SaveButton`, and the live-preview panel all hang off the
+  wrapper rather than `formSubmissionOverrides`, because a plugin-generated
+  collection has no `CollectionConfig` file to hang `endpoints` on and this
+  wrapper is the one merge this repo owns. The endpoint is deliberately absent
+  from `CUSTOM_ENDPOINT_PATHS` — that opt-in is the only thing that would
+  publish a manager-only action in the OpenAPI spec.
+
+⚠ **Every collection-wide admin slot here serves four intakes.** The review
+components gate on `type === 'proposal'` themselves and fall through to the
+ordinary Save otherwise; `livePreview.url` returns no path for the other three.
+A new slot owes the same branch.
 
 Default email `contact@sydevelopers.com` (the fallback recipient for a contact
 form with none set).

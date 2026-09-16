@@ -45,7 +45,7 @@ Three places to add an HTTP endpoint. Both Payload endpoint kinds are documented
 
 ### Atlas event read + registration contract
 
-`GET /api/events/geojson` and `POST /api/events/:id/register` back the Sahaj Atlas widget. A finished event stays published but drops off the feeds (#603/#604). `ExpireEvents` marks it `finished` without unpublishing, so `GET /api/events/:id` still renders an "Ended" panel. The public feeds exclude it via `excludeFinishedEvents`, keyed on `schedule.lastDate`. Registration is gated server-side (#599). The register endpoint refuses external-mode, ended, started-course, or full events with a `409` and a stable `code`. A denormalized `registrationsFull` boolean lets the widget show "Full" without a live count.
+`GET /api/events/geojson` and `POST /api/events/:id/register` back the Sahaj Atlas widget. A finished event stays published but drops off the feeds (#603/#604). `ExpireEvents` marks it `finished` without unpublishing, so `GET /api/events/:id` still renders an "Ended" panel. The public feeds exclude it via `excludeFinishedEvents`, keyed on `schedule.lastDate`. Registration is gated server-side (#599), and the gate now runs on the unified intake as well: a `POST /api/user-submissions` with `type: registration` refuses external-mode, ended, started-course or full events with a `409` and a stable `code` at `errors[].data.code`, exactly as the register endpoint does. A denormalized `registrationsFull` boolean lets the widget show "Full" without a live count; it counts `user-submissions` registration rows plus, until the register endpoint is deleted, the legacy `registrations` ones.
 
 ### Atlas SEO contract (`GET /api/atlas/seo`)
 
