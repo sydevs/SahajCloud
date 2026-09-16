@@ -10,6 +10,8 @@
 import type { ClientReadGate } from './hooks'
 import type { CollectionSlug, Config } from 'payload'
 
+import { resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
+
 import { SYSTEM_EXCLUSIONS } from './constants'
 import {
   onlyOnCallerAuthority,
@@ -41,6 +43,7 @@ const BEFORE_OPERATION_HOOKS: ClientReadGate[] = [
   rateLimitHook,
   usageTrackingBeforeOperationHook,
 ]
+
 
 /**
  * Usage Plugin for PayloadCMS
@@ -78,6 +81,14 @@ export function usagePlugin(
           ...collection.hooks,
           beforeOperation: [
             ...(collection.hooks?.beforeOperation || []),
+            // ⚠ **Registered first, and riding on this plugin's `enabled`
+            // flag** — `!isE2ETest` in `payload.config.ts`. `E2E_TEST=true`
+            // would unregister the resolver, every verdict would read false,
+            // and live preview would silently serve published content. Nothing
+            // sets that variable today, so this is a latent coupling rather
+            // than a defect; if E2E ever does, the resolver needs its own
+            // registration rather than a home inside a metering plugin.
+            resolveLivePreviewHook,
             ...BEFORE_OPERATION_HOOKS,
           ],
         },
@@ -95,6 +106,12 @@ export function usagePlugin(
         ...global.hooks,
         beforeOperation: [
           ...(global.hooks?.beforeOperation || []),
+          // ⚠ Deliberately NOT wrapped in `onlyOnCallerAuthority`, unlike the
+          // gates. That wrapper skips a global read made on internal authority,
+          // which is right for metering and origin checks and wrong here: this
+          // resolves a fact about the request, and an unresolved verdict reads
+          // as "no preview".
+          resolveLivePreviewHook,
           ...BEFORE_OPERATION_HOOKS.map(onlyOnCallerAuthority),
         ],
       },

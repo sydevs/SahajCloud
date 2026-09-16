@@ -254,6 +254,25 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   SAHAJCLOUD_PREVIEW_SECRET: z.string().min(16),
 
   /**
+   * Ed25519 private key that signs live-preview tokens: base64 of a private
+   * JWK. A JWK carries the public `x` beside the private `d`, so this one
+   * variable also yields the key that VERIFIES a token a consumer forwards
+   * back — two variables would eventually drift apart in a way that looks
+   * exactly like a forged token.
+   *
+   * Generate with `pnpm generate:preview-keypair`. The matching public key is
+   * committed into each consumer — it is not a secret, which is the point of
+   * signing rather than sharing a symmetric secret: the atlas ships as a public
+   * bundle, so any key it holds is published.
+   *
+   * **Optional on purpose.** Unset, `mintLivePreviewToken` returns `null` and
+   * the admin panel points live preview at its "unavailable" page. A fresh
+   * checkout, or a preview deploy that never had the variable, should run
+   * without live preview rather than fail to boot.
+   */
+  LIVE_PREVIEW_SIGNING_KEY: z.string().optional(),
+
+  /**
    * Sahaj Atlas frontend URL, for live preview.
    */
   SAHAJATLAS_URL: z.url(),

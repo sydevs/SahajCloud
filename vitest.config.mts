@@ -25,6 +25,11 @@ const sharedTestEnv: Record<string, string> = {
   DATABASE_URL: process.env.DATABASE_URL ?? DEFAULT_TEST_DATABASE_URL,
   PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
   SAHAJCLOUD_PREVIEW_SECRET: 'test-preview-secret-32-chars',
+  // A fixed Ed25519 signing key (base64 private JWK) so both lanes can mint a
+  // real live-preview token. Deterministic on purpose: a generated-per-run key
+  // would make a signature failure look like flake.
+  LIVE_PREVIEW_SIGNING_KEY:
+    'eyJrZXlfb3BzIjpbInNpZ24iXSwiZXh0Ijp0cnVlLCJjcnYiOiJFZDI1NTE5IiwiZCI6IjBMbzZTVWZ1SUhXT3RDT3M3cFNCTVJBS1ZQQzIzZ3JiMG1OaE9CY3JFeXciLCJ4IjoiUzZCMWxDQmpjbkVzamxub0dtenJTMGNyMzFPQm13VTY2VVhfMkpwSDlQdyIsImt0eSI6Ik9LUCIsImFsZyI6IkVkMjU1MTkifQ==',
   WEMEDITATE_WEB_URL: 'http://localhost:5173',
   SAHAJATLAS_URL: 'http://localhost:5174',
   NIRMALA_VIDYA_API_KEY: 'test-nirmala-vidya-api-key-placeholder',
