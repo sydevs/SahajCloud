@@ -41,7 +41,12 @@ export {
   rolesForAllLocales,
 } from './localizedRoles'
 export type { LocalizedRoles } from './localizedRoles'
-export { adminOnlyCondition, adminOnlyFieldAccess, isAdminManager } from './adminOnly'
+export {
+  adminOnlyCondition,
+  adminOnlyFieldAccess,
+  isAdminManager,
+  managersOnlyFieldAccess,
+} from './adminOnly'
 export { restrictUploadToAdmin } from './restrictUploadToAdmin'
 export { ownedRegionFilterOptions } from './regionSubtreeAccess'
 

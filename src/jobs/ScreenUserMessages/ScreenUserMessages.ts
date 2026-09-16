@@ -7,11 +7,11 @@ import {
 } from '@/collections/UserMessages/screening'
 import { SCREENABLE_STATUSES, type MessageStatus } from '@/collections/UserMessages/statuses'
 import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
+import { hasMxRecords } from '@/lib/antiSpam/mxRecords'
 import { sendUserMessage } from '@/lib/notifications/sendUserMessage'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserMessage } from '@/payload-types'
 
-import { hasMxRecords } from './emailChecks'
 import {
   countRecentFromSender,
   countRecentWithBody,

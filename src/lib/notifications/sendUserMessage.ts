@@ -36,15 +36,21 @@ export interface SendUserMessageArgs {
   context?: NonNullable<UserMessage['context']>
   /** When the message was received (ISO 8601). */
   receivedAt: string
+  /**
+   * Who reads it. Defaults to the system contact, which is what the widget's
+   * report-issue path (no authored form, so no `recipient`) still resolves to.
+   */
+  to?: string
 }
 
 export async function sendUserMessage(args: SendUserMessageArgs): Promise<void> {
   const { payload, clientName, message, subject, senderEmail, context, receivedAt } = args
+  const to = args.to?.trim() || CONTACT_EMAIL
 
   const brand = getEmailBrand()
 
   await payload.sendEmail({
-    to: CONTACT_EMAIL,
+    to,
     // `From` stays CONTACT_EMAIL — Resend verifies senders per domain, so we
     // can't send as the viewer. Their address rides on `Reply-To` instead, which
     // is what makes replying to this email answer them directly.

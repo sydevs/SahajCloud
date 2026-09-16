@@ -22,7 +22,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
 
 const { mxMock } = vi.hoisted(() => ({ mxMock: vi.fn() }))
 
-vi.mock('@/jobs/ScreenUserMessages/emailChecks', () => ({
+vi.mock('@/lib/antiSpam/mxRecords', () => ({
   hasMxRecords: mxMock,
 }))
 

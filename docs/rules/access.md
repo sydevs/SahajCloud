@@ -213,6 +213,12 @@ This cuts the opposite way from implicit read, above, and the obvious reading is
 
 ⚠ **A collection's own `access` block outranks all of this**, because `accessPlugin` composes `{ ...createAccessConfig(slug, …), ...collection.access }` so a deliberate override is never clobbered. A plugin-created collection can therefore arrive with an `access` nobody here chose: the form-builder's submissions collection ships `read: ({ req: { user } }) => !!user`, which grants read to every authenticated user, API clients included. `src/plugins/formBuilder` clears it for `user-submissions` for exactly that reason. **Adding a collection to this list proves nothing on its own** — assert it by reading rows back through `overrideAccess: false`, as `tests/int/user-submissions-access.int.spec.ts` does. Asserting `hasPermission` alone would have passed while the hole was open.
 
+### A field lock, for a collection that is not restricted
+
+`RESTRICTED_COLLECTIONS` is collection-wide, and sometimes only one field must be hidden from a client. `managersOnlyFieldAccess` (`@/plugins/access`) is that lock: it denies any caller whose `req.user.collection === 'clients'`, read and write alike.
+
+It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong tool for this: a client's own managers must be able to configure their service, and document-level manager access already decides which clients each manager sees. `Clients.mailingList` is the current consumer — `clients` is not restricted, so without the lock every published key could read every service's provider secret (`docs/rules/api-clients.md`). ⚠ **The field still appears in `payload-types.ts`.** The lock strips the value at runtime, not the shape from the generated type.
+
 | Want | Do |
 | --- | --- |
 | Nobody reads it implicitly | Add it to `RESTRICTED_COLLECTIONS` |

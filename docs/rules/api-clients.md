@@ -178,6 +178,35 @@ Two refusals are specific to it, each with a message naming what to fix:
 
 Clients hold **create only**, with no update of any kind and no read at any depth or scope.
 
+### What happens after the 201
+
+A create returns `status: pending`; screening and then delivery run on the queue. A client is never told the outcome — there is no status endpoint and no callback. The row's `activityLog` is the record, and a manager reads it in the admin.
+
+A **registration** carrying `subscribe` in its `submissionData` spawns a linked subscribe-type row in the same request, carrying the registration's own `event`. That row is the consent record, with its own status, screening and retries — there is no `mailingListSubscribedAt` timestamp, because a timestamp recorded that somebody had consented and delivered nothing.
+
+## Mailing-list configuration on `clients`
+
+A service that relays subscribe submissions names its own provider, under **Config → Mailing List**. Any service may run a list, whatever its roles.
+
+| Field | Notes |
+| --- | --- |
+| `mailingList.enabled` | The master switch. Every other field is `admin.condition`-gated on it, and `required` only while it is on |
+| `mailingList.provider` | `mailchimp` \| `brevo` \| `klaviyo` |
+| `mailingList.listId` | Mailchimp's Audience ID, Brevo's numeric list id, or Klaviyo's List ID |
+| `mailingList.apiKey` | The provider secret. Mailchimp's datacenter is read off the key's `-us14` suffix, so there is no second field for it |
+| `mailingList.doubleOptIn` | **Mailchimp only** — the one provider with a per-call lever. Brevo and Klaviyo each show their own read-only opt-in note under `provider` instead |
+
+⚠ **No API client can read any of it, at any depth.** `clients` is **not** in `RESTRICTED_COLLECTIONS`, so a published key can read a whole Clients document over REST — the group carries `managersOnlyFieldAccess` (`@/plugins/access`), and without that lock the atlas widget's public key would read every service's provider secret. The group still appears in `payload-types.ts`; the lock strips it at runtime, not from the generated type.
+
+**Credentials are checked when you save them**, by `validateMailingList`, which reads the named list and refuses the save with the provider's own words. Two bounds on that:
+
+- It runs **only when `provider`, `listId` or `apiKey` actually changed.** `clients` runs `versions: { drafts: true, maxPerDoc: 1 }`, so the hook fires on every draft and autosave — without the gate, an outage at Mailchimp would lock every client document in the CMS.
+- **A provider being unreachable never refuses a save.** An operator cannot fix somebody else's outage, so the credential goes in unproven and delivery is what finds out.
+
+Delivery resolves the target list **at delivery time**, from the subscribe form's `client` or, for a registration-spawned row, the provenance client. Nothing is stored on the row, so moving a service between providers does not strip pending rows.
+
+Each provider reports what it can actually justify: Mailchimp `subscribed` or `pending`, Brevo always `subscribed` (single opt-in only), Klaviyo always `accepted` — its subscribe job answers 202 with no per-profile result, so it can tell none of the three cases apart. ⚠ **An address that opted out is never re-added.** Mailchimp and Brevo each report it in their own words and the attempt is terminal, never retried; on Klaviyo the case cannot be detected inline, so the adapter uses the plain subscribe job and nothing that bypasses suppression.
+
 ## A global read is a client read (#710)
 
 `GET /api/globals/<slug>` now carries everything a collection read does: the four `beforeOperation` gates, edge-cache headers, and purge-on-write. Before #710 the usage plugin mapped `config.collections` only, so a global read was unmetered, outside origin enforcement, and exempt from the `select` gate — while every atlas widget boot on every host page and every WeMeditateWeb request reads its config and its translations from one.

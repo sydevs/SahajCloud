@@ -1,5 +1,5 @@
 import type { JSONSchema4 } from 'json-schema'
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, Field } from 'payload'
 
 import { colorField, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
@@ -15,7 +15,9 @@ import {
   VERIFICATION_INCONCLUSIVE_REASONS,
 } from '@/lib/clients/verification'
 import { getLanguageOptions } from '@/lib/locales'
-import { getRoleOptions } from '@/plugins/access'
+import type { MailingListProvider } from '@/lib/mailingList/types'
+import { MAILING_LIST_PROVIDERS } from '@/lib/mailingList/types'
+import { getRoleOptions, managersOnlyFieldAccess } from '@/plugins/access'
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
 import { clientEmbedReport } from './endpoints/report'
@@ -23,6 +25,7 @@ import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
 import { validateCanonicalOwnership } from './hooks/validateCanonicalOwnership'
 import { validateClientData } from './hooks/validateClientData'
+import { validateMailingList } from './hooks/validateMailingList'
 
 /**
  * The bare-host rule the admin field used to enforce with
@@ -112,6 +115,136 @@ const canonicalVerificationSchema: JSONSchema4 = {
  */
 const canonicalEnabled = (data: { canonical?: { enabled?: boolean | null } | null }): boolean =>
   Boolean(data?.canonical?.enabled)
+
+/** Same master-switch shape as `canonicalEnabled`, for the mailing-list group. */
+const mailingListEnabled = (data: { mailingList?: { enabled?: boolean | null } | null }): boolean =>
+  Boolean(data?.mailingList?.enabled)
+
+/** What each provider is called in the select. */
+const PROVIDER_LABELS: Record<MailingListProvider, string> = {
+  mailchimp: 'Mailchimp',
+  brevo: 'Brevo',
+  klaviyo: 'Klaviyo',
+}
+
+/**
+ * What opt-in actually does, per provider — the description under the provider
+ * select, switched by the chosen value (`SelectDescription`).
+ *
+ * **Only Mailchimp has a per-call lever**, so only Mailchimp gets the
+ * `doubleOptIn` checkbox. A checkbox rendered for all three would be a promise
+ * the CMS cannot keep on two of them: an operator who ticked it for Brevo
+ * would believe a confirmation email was going out when none was. These two
+ * notes are what stands in its place, and they are read-only because the
+ * behaviour they describe is not ours to change.
+ */
+const OPT_IN_NOTES: Record<MailingListProvider, string> = {
+  mailchimp: 'Opt-in is set per subscriber, by the checkbox below.',
+  brevo:
+    'Contacts are added immediately. Brevo double opt-in is not supported through this integration.',
+  klaviyo: 'Governed by this list’s opt-in setting in Klaviyo, not here.',
+}
+
+/**
+ * Where a client's mailing-list provider is configured.
+ *
+ * **Not conditioned on a role**, unlike the Sahaj Atlas collapsible above it:
+ * any service, whatever it does, may run a list.
+ *
+ * ⚠ **Every field carries `managersOnlyFieldAccess`, and that is the security
+ * boundary rather than a nicety.** `clients` is not in
+ * `RESTRICTED_COLLECTIONS`, so an API client can read a whole Clients document
+ * over REST — without the lock, the atlas widget's public key would read every
+ * client's provider secret. `admin.condition` covers only the UI.
+ *
+ * `required` plus a false `admin.condition` is the whole "required only when
+ * enabled" rule: Payload skips `required` while the condition is false. Same
+ * shape as `canonical.embed`.
+ */
+const mailingListGroup: Field = {
+  type: 'collapsible',
+  label: 'Mailing List',
+  admin: { initCollapsed: true },
+  fields: [
+    {
+      name: 'mailingList',
+      type: 'group',
+      label: false,
+      access: {
+        read: managersOnlyFieldAccess,
+        create: managersOnlyFieldAccess,
+        update: managersOnlyFieldAccess,
+      },
+      admin: {
+        description:
+          'Where subscribe submissions relayed by this service are delivered. Off by default, and nothing is pushed anywhere until it is switched on.',
+      },
+      fields: [
+        {
+          name: 'enabled',
+          type: 'checkbox',
+          defaultValue: false,
+          label: 'This service has a mailing list',
+        },
+        {
+          name: 'provider',
+          type: 'select',
+          required: true,
+          options: MAILING_LIST_PROVIDERS.map((value) => ({
+            label: PROVIDER_LABELS[value],
+            value,
+          })),
+          enumName: 'enum_clients_mailing_list_provider',
+          admin: {
+            condition: (data) => mailingListEnabled(data),
+            // The opt-in note for the chosen provider, in place of a checkbox
+            // two of the three cannot honour. See `OPT_IN_NOTES`.
+            custom: { descriptions: OPT_IN_NOTES },
+            components: { Description: '@/components/admin/SelectDescription' },
+          },
+        },
+        {
+          name: 'listId',
+          type: 'text',
+          label: 'List ID',
+          required: true,
+          admin: {
+            condition: (data) => mailingListEnabled(data),
+            // One sentence naming all three, rather than a per-provider hint:
+            // `admin.description`'s function form is handed `{ i18n, t }` and
+            // never the document, so it cannot see which provider is chosen.
+            description:
+              'Mailchimp’s Audience ID, Brevo’s numeric list id, or Klaviyo’s List ID.',
+          },
+        },
+        {
+          name: 'apiKey',
+          type: 'text',
+          label: 'API Key',
+          required: true,
+          admin: {
+            condition: (data) => mailingListEnabled(data),
+            description:
+              'The provider secret. Checked against the provider when you save, and never readable by an API client.',
+          },
+        },
+        {
+          name: 'doubleOptIn',
+          type: 'checkbox',
+          defaultValue: true,
+          label: 'Send a confirmation email before subscribing',
+          admin: {
+            // Mailchimp only — the one provider with a per-call lever.
+            condition: (data) =>
+              mailingListEnabled(data) && data?.mailingList?.provider === 'mailchimp',
+            description:
+              'Mailchimp adds the address as `pending` and emails it a confirmation link.',
+          },
+        },
+      ],
+    },
+  ],
+}
 
 export const Clients: CollectionConfig = {
   slug: 'clients',
@@ -223,6 +356,7 @@ export const Clients: CollectionConfig = {
                 },
               ],
             },
+            mailingListGroup,
           ],
         },
         {
@@ -534,6 +668,11 @@ export const Clients: CollectionConfig = {
   ],
   endpoints: [clientEmbedReport, verifyEmbedOnDemand],
   hooks: {
-    beforeChange: [validateClientData, ensureClientId, validateCanonicalOwnership],
+    beforeChange: [
+      validateClientData,
+      ensureClientId,
+      validateCanonicalOwnership,
+      validateMailingList,
+    ],
   },
 }

@@ -928,9 +928,12 @@ export interface Config {
   jobs: {
     tasks: {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
+      deliverSubmission: TaskDeliverSubmission;
       expireEvents: TaskExpireEvents;
+      purgeSubmissions: TaskPurgeSubmissions;
       purgeUserMessages: TaskPurgeUserMessages;
       screenEventSubmission: TaskScreenEventSubmission;
+      screenSubmission: TaskScreenSubmission;
       screenUserMessage: TaskScreenUserMessage;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
       sendRegistrationDigests: TaskSendRegistrationDigests;
@@ -2043,12 +2046,12 @@ export interface UserSubmission {
       }[]
     | null;
   /**
-   * Who sent this. Normalized, and what `user` is upserted from.
+   * Who sent this. Normalized.
    */
   senderEmail?: string | null;
-  status: 'pending' | 'accepted' | 'rejected' | 'failed';
+  status: 'pending' | 'accepted' | 'rejected' | 'spam' | 'failed';
   /**
-   * The event this registration attends, or this proposal targets.
+   * The event this registration attends, this proposal targets, or this subscription came from.
    */
   event?: (number | null) | Event;
   /**
@@ -2454,6 +2457,25 @@ export interface Client {
    * Atlas geographic scope for this service.
    */
   region?: (number | null) | Region;
+  /**
+   * Where subscribe submissions relayed by this service are delivered. Off by default, and nothing is pushed anywhere until it is switched on.
+   */
+  mailingList?: {
+    enabled?: boolean | null;
+    provider?: ('mailchimp' | 'brevo' | 'klaviyo') | null;
+    /**
+     * Mailchimp’s Audience ID, Brevo’s numeric list id, or Klaviyo’s List ID.
+     */
+    listId?: string | null;
+    /**
+     * The provider secret. Checked against the provider when you save, and never readable by an API client.
+     */
+    apiKey?: string | null;
+    /**
+     * Mailchimp adds the address as `pending` and emails it a confirmation link.
+     */
+    doubleOptIn?: boolean | null;
+  };
   /**
    * Declares that this service owns the canonical Atlas URLs for its region. Off by default, and nothing resolves differently until it is switched on.
    */
@@ -3976,9 +3998,12 @@ export interface PayloadJob {
         taskSlug:
           | 'inline'
           | 'cleanupOrphanedMedia'
+          | 'deliverSubmission'
           | 'expireEvents'
+          | 'purgeSubmissions'
           | 'purgeUserMessages'
           | 'screenEventSubmission'
+          | 'screenSubmission'
           | 'screenUserMessage'
           | 'sendPostEventFollowUps'
           | 'sendRegistrationDigests'
@@ -4023,9 +4048,12 @@ export interface PayloadJob {
     | (
         | 'inline'
         | 'cleanupOrphanedMedia'
+        | 'deliverSubmission'
         | 'expireEvents'
+        | 'purgeSubmissions'
         | 'purgeUserMessages'
         | 'screenEventSubmission'
+        | 'screenSubmission'
         | 'screenUserMessage'
         | 'sendPostEventFollowUps'
         | 'sendRegistrationDigests'
@@ -4667,6 +4695,15 @@ export interface ClientsSelect<T extends boolean = true> {
   supportEmail?: T;
   locale?: T;
   region?: T;
+  mailingList?:
+    | T
+    | {
+        enabled?: T;
+        provider?: T;
+        listId?: T;
+        apiKey?: T;
+        doubleOptIn?: T;
+      };
   canonical?:
     | T
     | {
@@ -10359,6 +10396,18 @@ export interface TaskCleanupOrphanedMedia {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskDeliverSubmission".
+ */
+export interface TaskDeliverSubmission {
+  input: {
+    submissionId: number;
+  };
+  output: {
+    status: string;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TaskExpireEvents".
  */
 export interface TaskExpireEvents {
@@ -10370,6 +10419,20 @@ export interface TaskExpireEvents {
     trashed: number;
     remindersSent: number;
     failed: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskPurgeSubmissions".
+ */
+export interface TaskPurgeSubmissions {
+  input: {
+    now?: string | null;
+    dryRun?: boolean | null;
+  };
+  output: {
+    deletedSubmissions: number;
+    deletedUsers: number;
   };
 }
 /**
@@ -10394,6 +10457,19 @@ export interface TaskScreenEventSubmission {
     submissionId: number;
   };
   output: {
+    status: string;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskScreenSubmission".
+ */
+export interface TaskScreenSubmission {
+  input: {
+    submissionId: number;
+  };
+  output: {
+    verdict: string;
     status: string;
   };
 }

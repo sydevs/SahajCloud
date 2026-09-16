@@ -6,7 +6,9 @@ import { validateProposal } from '@/collections/EventSubmissions/hooks/validateP
 import { formFields } from '@/collections/Forms/fields'
 import { validateFormAction } from '@/collections/Forms/hooks/validateFormAction'
 import { userSubmissionFields } from '@/collections/UserSubmissions/fields'
+import { enqueueSubmissionScreening } from '@/collections/UserSubmissions/hooks/enqueueSubmissionScreening'
 import { prepareUserSubmission } from '@/collections/UserSubmissions/hooks/prepareUserSubmission'
+import { spawnSubscribeFromRegistration } from '@/collections/UserSubmissions/hooks/spawnSubscribeFromRegistration'
 import { CONTACT_EMAIL } from '@/lib/contact'
 
 /**
@@ -80,7 +82,21 @@ export const formsPlugin = (): Plugin => async (config) => {
     ...withForms,
     collections: withForms.collections?.map((collection) =>
       collection.slug === 'user-submissions'
-        ? { ...collection, access: {}, hooks: { ...collection.hooks, afterChange: [] } }
+        ? {
+            ...collection,
+            access: {},
+            // The plugin's `sendEmail` is dropped by replacing the array, not by
+            // filtering it — see the docblock above. This repo's own afterChange
+            // hooks therefore have to be listed *here*, not in
+            // `formSubmissionOverrides`, where this replacement would discard
+            // them. Order matters: the spawned subscribe row is created inside
+            // the registration's transaction, so it exists before the queue kick
+            // below could ever run.
+            hooks: {
+              ...collection.hooks,
+              afterChange: [spawnSubscribeFromRegistration, enqueueSubmissionScreening],
+            },
+          }
         : collection,
     ),
   }
