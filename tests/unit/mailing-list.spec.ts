@@ -8,9 +8,11 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { MAILING_LIST_ADAPTERS, adapterFor } from '@/lib/mailingList/providers'
 import { datacenterOf } from '@/lib/mailingList/providers/mailchimp'
 import { isMailingListConfigured, subscribeToMailingList } from '@/lib/mailingList/subscribe'
 import type { MailingListConfig } from '@/lib/mailingList/types'
+import { MAILING_LIST_PROVIDERS } from '@/lib/mailingList/types'
 
 const MAILCHIMP: MailingListConfig = {
   enabled: true,
@@ -51,6 +53,25 @@ describe('isMailingListConfigured', () => {
   })
 })
 
+describe('the adapter registry', () => {
+  /**
+   * The extensibility contract: a provider the select offers with no adapter is
+   * a row nothing can deliver, and an adapter for one it no longer offers is
+   * dead code. Adding a provider means one adapter object and one entry here.
+   */
+  it('has exactly one adapter per provider the select offers', () => {
+    expect(Object.keys(MAILING_LIST_ADAPTERS).sort()).toEqual([...MAILING_LIST_PROVIDERS].sort())
+  })
+
+  it('answers nothing for a provider this build does not speak', () => {
+    expect(adapterFor('sendgrid')).toBeNull()
+    expect(adapterFor(null)).toBeNull()
+    // Not a prototype lookup: `toString` is on every object, and none of them
+    // can subscribe an address.
+    expect(adapterFor('toString')).toBeNull()
+  })
+})
+
 describe('datacenterOf', () => {
   it('reads the datacenter off the key', () => {
     expect(datacenterOf('abc123-us14')).toBe('us14')
@@ -77,6 +98,24 @@ describe('subscribeToMailingList', () => {
 
   it('calls no provider at all when the list is off', async () => {
     const result = await subscribe({ ...MAILCHIMP, enabled: false })
+    expect(result).toEqual(
+      expect.objectContaining({ ok: false, code: 'not_configured', retryable: false }),
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  /**
+   * A row can carry a provider this build has no adapter for — one written
+   * before the group existed, or by an `overrideAccess` writer. That is a
+   * configuration fact the delivery job records, not a crash.
+   */
+  it('records an unknown provider as terminal, rather than throwing', async () => {
+    // Cast through `unknown`: the union refuses this value, which is the point
+    // — only a row written outside the select can carry it.
+    const result = await subscribe({
+      ...MAILCHIMP,
+      provider: 'sendgrid',
+    } as unknown as MailingListConfig)
     expect(result).toEqual(
       expect.objectContaining({ ok: false, code: 'not_configured', retryable: false }),
     )
@@ -208,5 +247,68 @@ describe('subscribeToMailingList', () => {
       expect(raw).not.toContain('historical_import')
       expect(JSON.parse(raw).data.type).toBe('profile-subscription-bulk-create-job')
     })
+  })
+})
+
+/**
+ * The save-time credential check, which `validateMailingList` now reaches
+ * through the same registry.
+ */
+describe('verifyCredentials', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  const verify = (config: MailingListConfig) =>
+    MAILING_LIST_ADAPTERS[config.provider!].verifyCredentials(config, AbortSignal.timeout(1000))
+
+  /**
+   * ⚠ Every probe is a **read** of the named list. Validating by adding an
+   * address would put a real contact on a real list every time an operator
+   * edited a key, so no adapter may verify with a write.
+   */
+  it('reads the list back, and never writes', async () => {
+    for (const config of [MAILCHIMP, BREVO, KLAVIYO]) {
+      fetchMock.mockClear()
+      fetchMock.mockResolvedValue(answer(200))
+      await expect(verify(config)).resolves.toBeNull()
+
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+      expect(init?.method).toBeUndefined()
+      expect(init?.body).toBeUndefined()
+      expect(String(fetchMock.mock.calls[0]?.[0])).toContain('lists')
+    }
+  })
+
+  it('tells a refused key apart from a missing list', async () => {
+    fetchMock.mockResolvedValue(answer(401))
+    await expect(verify(BREVO)).resolves.toBe('that API key was refused.')
+
+    fetchMock.mockResolvedValue(answer(404))
+    await expect(verify(BREVO)).resolves.toBe('that list id does not exist on this account.')
+  })
+
+  /**
+   * An operator cannot fix a provider outage, so a 5xx must not become a
+   * refusal that blocks their save. The credential goes in unproven.
+   */
+  it('proves nothing from a 5xx, rather than refusing the save', async () => {
+    fetchMock.mockResolvedValue(answer(503))
+    await expect(verify(KLAVIYO)).resolves.toBeNull()
+  })
+
+  it('refuses what cannot form a request at all, before calling anything', async () => {
+    await expect(verify({ ...MAILCHIMP, apiKey: 'nosuffix' })).resolves.toContain('datacenter')
+    await expect(verify({ ...BREVO, listId: 'not-a-number' })).resolves.toContain(
+      'must be a number',
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

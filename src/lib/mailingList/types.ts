@@ -3,10 +3,19 @@ import type { Client } from '@/payload-types'
 /** The `mailingList` group as it sits on a Clients document. */
 export type MailingListConfig = NonNullable<Client['mailingList']>
 
-/** The three providers this repo speaks. */
-export const MAILING_LIST_PROVIDERS = ['mailchimp', 'brevo', 'klaviyo'] as const
+/**
+ * The providers this repo speaks, derived from the generated `Client` rather
+ * than restated here — `Clients.mailingList.provider` is the one declaration.
+ */
+export type MailingListProvider = NonNullable<MailingListConfig['provider']>
 
-export type MailingListProvider = (typeof MAILING_LIST_PROVIDERS)[number]
+/**
+ * The same list at runtime, which is what the select renders its options from.
+ * It cannot drift from the union above: `MAILING_LIST_ADAPTERS` is keyed on the
+ * union, so a provider offered here with no adapter — or an adapter for one no
+ * longer offered — fails to compile.
+ */
+export const MAILING_LIST_PROVIDERS = ['mailchimp', 'brevo', 'klaviyo'] as const
 
 /**
  * What one subscribe attempt produced.
@@ -63,6 +72,27 @@ export interface SubscribeArgs {
   source?: string
   /** Bounds every provider call. A hung third party must not hold a job open. */
   signal: AbortSignal
+}
+
+/**
+ * One provider, as everything outside `providers/` sees it.
+ *
+ * Adding a provider is one object implementing this plus one entry in
+ * `MAILING_LIST_ADAPTERS`. Nothing else branches on `config.provider`: the
+ * opt-in model, the error vocabulary and the shape of a credential check are
+ * all differences the adapter owns, and `MailingListResult` is what they agree
+ * on.
+ */
+export interface MailingListAdapter {
+  /** Push one address to the configured list. Never throws. */
+  subscribe(args: SubscribeArgs): Promise<MailingListResult>
+  /**
+   * Prove a saved credential resolves: the provider's own refusal message, or
+   * `null` when it is satisfied. Always a **read** of the named list — never a
+   * write, and never a subscribe. It may throw on a transport failure, because
+   * what an unreachable provider means is the caller's decision, not this one's.
+   */
+  verifyCredentials(config: MailingListConfig, signal: AbortSignal): Promise<string | null>
 }
 
 /** How long a provider has to answer before the attempt is abandoned. */

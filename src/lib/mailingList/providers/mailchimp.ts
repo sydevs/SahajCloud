@@ -1,5 +1,11 @@
-import type { MailingListResult, SubscribeArgs } from '../types'
+import type {
+  MailingListAdapter,
+  MailingListConfig,
+  MailingListResult,
+  SubscribeArgs,
+} from '../types'
 
+import { probeCredentials } from '../probe'
 import { transportFailure } from '../types'
 
 /**
@@ -22,7 +28,7 @@ export function datacenterOf(apiKey: string): string | null {
  * for an address that opted out, and re-adding it is exactly what gets a sender
  * blocklisted. That case is mapped terminal, never retried.
  */
-export async function subscribeMailchimp(args: SubscribeArgs): Promise<MailingListResult> {
+async function subscribeMailchimp(args: SubscribeArgs): Promise<MailingListResult> {
   const { config, email, name, locale, source, signal } = args
   const apiKey = config.apiKey ?? ''
   const dc = datacenterOf(apiKey)
@@ -43,8 +49,7 @@ export async function subscribeMailchimp(args: SubscribeArgs): Promise<MailingLi
       {
         method: 'POST',
         headers: {
-          // Mailchimp's documented Basic form: any username, the key as password.
-          Authorization: `Basic ${Buffer.from(`anystring:${apiKey}`).toString('base64')}`,
+          Authorization: authHeader(apiKey),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -112,4 +117,30 @@ export async function readError(response: Response): Promise<string> {
     // Fall through to the status line.
   }
   return `Mailchimp answered ${response.status}.`
+}
+
+/** Mailchimp's documented Basic form: any username, the key as password. */
+function authHeader(apiKey: string): string {
+  return `Basic ${Buffer.from(`anystring:${apiKey}`).toString('base64')}`
+}
+
+/** Read the named audience back — the cheapest proof the key and list resolve. */
+async function verifyMailchimp(
+  config: MailingListConfig,
+  signal: AbortSignal,
+): Promise<string | null> {
+  const apiKey = config.apiKey ?? ''
+  const dc = datacenterOf(apiKey)
+  if (!dc) return 'the API key carries no datacenter suffix (expected `…-us14`).'
+
+  return probeCredentials(
+    `https://${dc}.api.mailchimp.com/3.0/lists/${encodeURIComponent(config.listId ?? '')}`,
+    { Authorization: authHeader(apiKey) },
+    signal,
+  )
+}
+
+export const mailchimpAdapter: MailingListAdapter = {
+  subscribe: subscribeMailchimp,
+  verifyCredentials: verifyMailchimp,
 }

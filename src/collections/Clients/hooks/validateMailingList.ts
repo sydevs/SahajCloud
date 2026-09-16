@@ -2,7 +2,7 @@ import type { CollectionBeforeChangeHook } from 'payload'
 
 import { APIError } from 'payload'
 
-import { datacenterOf } from '@/lib/mailingList/providers/mailchimp'
+import { adapterFor, unknownProviderMessage } from '@/lib/mailingList/providers'
 import { isMailingListConfigured } from '@/lib/mailingList/subscribe'
 import type { MailingListConfig } from '@/lib/mailingList/types'
 import { PROVIDER_TIMEOUT_MS } from '@/lib/mailingList/types'
@@ -65,47 +65,18 @@ export const validateMailingList: CollectionBeforeChangeHook = async ({
  * Ask the provider whether this key and list resolve. Returns the provider's
  * own message on refusal, or `null` when it is satisfied.
  *
- * Every probe is a **read** of the named list — never a write, and never a
- * subscribe. Validating by adding an address would put a real contact on a real
- * list every time somebody edited a key.
+ * What to ask, and how, belongs to the adapter — every one of them asks it as a
+ * **read** of the named list, never a write and never a subscribe, since
+ * validating by adding an address would put a real contact on a real list every
+ * time somebody edited a key. This function owns only what a *save* should do
+ * with the answer.
  */
 async function checkCredentials(config: MailingListConfig): Promise<string | null> {
-  const signal = AbortSignal.timeout(PROVIDER_TIMEOUT_MS)
-  const apiKey = config.apiKey ?? ''
-  const listId = config.listId ?? ''
+  const adapter = adapterFor(config.provider)
+  if (!adapter) return unknownProviderMessage(config.provider)
 
   try {
-    switch (config.provider) {
-      case 'mailchimp': {
-        const dc = datacenterOf(apiKey)
-        if (!dc) return 'the API key carries no datacenter suffix (expected `…-us14`).'
-        return await probe(
-          `https://${dc}.api.mailchimp.com/3.0/lists/${encodeURIComponent(listId)}`,
-          { Authorization: `Basic ${Buffer.from(`anystring:${apiKey}`).toString('base64')}` },
-          signal,
-        )
-      }
-      case 'brevo': {
-        if (!Number.isInteger(Number(listId))) return 'the Brevo list id must be a number.'
-        return await probe(
-          `https://api.brevo.com/v3/contacts/lists/${encodeURIComponent(listId)}`,
-          { 'api-key': apiKey },
-          signal,
-        )
-      }
-      case 'klaviyo':
-        return await probe(
-          `https://a.klaviyo.com/api/lists/${encodeURIComponent(listId)}/`,
-          {
-            Authorization: `Klaviyo-API-Key ${apiKey}`,
-            revision: '2024-10-15',
-            accept: 'application/vnd.api+json',
-          },
-          signal,
-        )
-      default:
-        return `\`${String(config.provider)}\` is not a provider this build speaks.`
-    }
+    return await adapter.verifyCredentials(config, AbortSignal.timeout(PROVIDER_TIMEOUT_MS))
   } catch {
     // The provider being unreachable is **not** a reason to refuse the save.
     // An operator cannot fix a Mailchimp outage, and blocking their edit until
@@ -113,26 +84,4 @@ async function checkCredentials(config: MailingListConfig): Promise<string | nul
     // catch. The credential goes in unproven, and delivery is what finds out.
     return null
   }
-}
-
-/** One authenticated GET. Returns the provider's message, or `null` on 2xx. */
-async function probe(
-  url: string,
-  headers: Record<string, string>,
-  signal: AbortSignal,
-): Promise<string | null> {
-  const response = await fetch(url, { headers, signal })
-  if (response.ok) return null
-
-  if (response.status === 401 || response.status === 403) {
-    return 'that API key was refused.'
-  }
-  if (response.status === 404) {
-    return 'that list id does not exist on this account.'
-  }
-  // A 5xx reaches here rather than the catch above, so it is turned back into
-  // the same "cannot prove it, do not block" answer the catch gives.
-  if (response.status >= 500) return null
-
-  return `the provider answered ${response.status}.`
 }

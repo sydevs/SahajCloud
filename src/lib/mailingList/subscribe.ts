@@ -1,8 +1,6 @@
 import type { MailingListConfig, MailingListResult, SubscribeArgs } from './types'
 
-import { subscribeBrevo } from './providers/brevo'
-import { subscribeKlaviyo } from './providers/klaviyo'
-import { subscribeMailchimp } from './providers/mailchimp'
+import { adapterFor, unknownProviderMessage } from './providers'
 import { PROVIDER_TIMEOUT_MS } from './types'
 
 /**
@@ -22,9 +20,9 @@ export function isMailingListConfigured(
 /**
  * Push one address to whichever provider a client has configured.
  *
- * The dispatch is the whole of this function: every provider difference —
- * opt-in model, error vocabulary, whether a repeat address is an error —
- * belongs in its own adapter, and the `MailingListResult` union is what they
+ * The lookup is the whole of this function: every provider difference — opt-in
+ * model, error vocabulary, whether a repeat address is an error — belongs in
+ * its own `MailingListAdapter`, and the `MailingListResult` union is what they
  * agree on. A caller branches on the union, never on `config.provider`.
  *
  * ⚠ **This performs no captcha or origin check**, by design. It runs behind an
@@ -47,25 +45,19 @@ export async function subscribeToMailingList(
     }
   }
 
-  const signal = args.signal ?? AbortSignal.timeout(PROVIDER_TIMEOUT_MS)
-  const call = { ...args, config, signal }
-
-  switch (config.provider) {
-    case 'mailchimp':
-      return subscribeMailchimp(call)
-    case 'brevo':
-      return subscribeBrevo(call)
-    case 'klaviyo':
-      return subscribeKlaviyo(call)
-    default:
-      // Unreachable through the select, and deliberately not a throw: a row
-      // carrying a provider this build does not know is a configuration fact,
-      // and the delivery job records facts rather than crashing on them.
-      return {
-        ok: false,
-        code: 'not_configured',
-        message: `\`${String(config.provider)}\` is not a provider this build speaks.`,
-        retryable: false,
-      }
+  const adapter = adapterFor(config.provider)
+  if (!adapter) {
+    // Unreachable through the select, and deliberately not a throw: a row
+    // carrying a provider this build does not know is a configuration fact, and
+    // the delivery job records facts rather than crashing on them.
+    return {
+      ok: false,
+      code: 'not_configured',
+      message: unknownProviderMessage(config.provider),
+      retryable: false,
+    }
   }
+
+  const signal = args.signal ?? AbortSignal.timeout(PROVIDER_TIMEOUT_MS)
+  return adapter.subscribe({ ...args, config, signal })
 }

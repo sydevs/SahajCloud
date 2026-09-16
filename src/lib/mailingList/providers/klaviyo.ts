@@ -1,5 +1,11 @@
-import type { MailingListResult, SubscribeArgs } from '../types'
+import type {
+  MailingListAdapter,
+  MailingListConfig,
+  MailingListResult,
+  SubscribeArgs,
+} from '../types'
 
+import { probeCredentials } from '../probe'
 import { transportFailure } from '../types'
 
 /**
@@ -24,7 +30,7 @@ const KLAVIYO_REVISION = '2024-10-15'
  * governed by the list's own setting in Klaviyo, which is why `doubleOptIn` is
  * not rendered for this provider either.
  */
-export async function subscribeKlaviyo(args: SubscribeArgs): Promise<MailingListResult> {
+async function subscribeKlaviyo(args: SubscribeArgs): Promise<MailingListResult> {
   const { config, email, name, locale, signal } = args
 
   let response: Response
@@ -96,4 +102,25 @@ async function readError(response: Response): Promise<string> {
     // Fall through to the status line.
   }
   return `Klaviyo answered ${response.status}.`
+}
+
+/** Read the named list back, at the same revision every other request uses. */
+async function verifyKlaviyo(
+  config: MailingListConfig,
+  signal: AbortSignal,
+): Promise<string | null> {
+  return probeCredentials(
+    `https://a.klaviyo.com/api/lists/${encodeURIComponent(config.listId ?? '')}/`,
+    {
+      Authorization: `Klaviyo-API-Key ${config.apiKey ?? ''}`,
+      revision: KLAVIYO_REVISION,
+      accept: 'application/vnd.api+json',
+    },
+    signal,
+  )
+}
+
+export const klaviyoAdapter: MailingListAdapter = {
+  subscribe: subscribeKlaviyo,
+  verifyCredentials: verifyKlaviyo,
 }

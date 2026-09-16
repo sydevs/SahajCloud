@@ -1,5 +1,11 @@
-import type { MailingListResult, SubscribeArgs } from '../types'
+import type {
+  MailingListAdapter,
+  MailingListConfig,
+  MailingListResult,
+  SubscribeArgs,
+} from '../types'
 
+import { probeCredentials } from '../probe'
 import { transportFailure } from '../types'
 
 /**
@@ -14,7 +20,7 @@ import { transportFailure } from '../types'
  * `updateEnabled` makes a repeat address a no-op update rather than a 400, so
  * there is no already-a-member branch to write.
  */
-export async function subscribeBrevo(args: SubscribeArgs): Promise<MailingListResult> {
+async function subscribeBrevo(args: SubscribeArgs): Promise<MailingListResult> {
   const { config, email, name, locale, source, signal } = args
 
   const listId = Number(config.listId)
@@ -82,4 +88,21 @@ async function readError(response: Response): Promise<string> {
     // Fall through to the status line.
   }
   return `Brevo answered ${response.status}.`
+}
+
+/** Read the named list back. Brevo's list id is numeric, so that is checked first. */
+async function verifyBrevo(config: MailingListConfig, signal: AbortSignal): Promise<string | null> {
+  const listId = config.listId ?? ''
+  if (!Number.isInteger(Number(listId))) return 'the Brevo list id must be a number.'
+
+  return probeCredentials(
+    `https://api.brevo.com/v3/contacts/lists/${encodeURIComponent(listId)}`,
+    { 'api-key': config.apiKey ?? '' },
+    signal,
+  )
+}
+
+export const brevoAdapter: MailingListAdapter = {
+  subscribe: subscribeBrevo,
+  verifyCredentials: verifyBrevo,
 }
