@@ -24,7 +24,6 @@ const sharedTestEnv: Record<string, string> = {
   NODE_ENV: 'test',
   DATABASE_URL: process.env.DATABASE_URL ?? DEFAULT_TEST_DATABASE_URL,
   PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
-  SAHAJCLOUD_PREVIEW_SECRET: 'test-preview-secret-32-chars',
   // A fixed Ed25519 signing key (base64 private JWK) so both lanes can mint a
   // real live-preview token. Deterministic on purpose: a generated-per-run key
   // would make a signature failure look like flake.

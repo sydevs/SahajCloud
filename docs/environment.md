@@ -44,6 +44,8 @@ The "Admin Access" credentials in `AGENTS.md` are the local dev admin, unrelated
 
 - `WEMEDITATE_WEB_URL` — required. We Meditate preview URL, for Pages/Meditations live preview and the CSP `frame-src`.
 - `SAHAJATLAS_URL` — required. Sahaj Atlas preview URL, for the same purposes plus the `csrf` allowlist. Not a canonical base — the Atlas host is `noindex`, so `webUrl` never points at it.
+
+  ⚠ **This is `https://sahajatlas.com`, the replacement.** `atlas.sydevelopers.com` is the legacy service: it serves no `/preview` route, so live preview aimed there 404s. Production carried the legacy value (visible in the admin's own CSP `frame-src`), which is why atlas live preview did not work. Changing it moves the preview target, the CSP `frame-src` and the `csrf` allowlist together.
 - `WEMEDITATE_ATLAS_BASE_PATH` — optional, default `/map`. Feeds the fallback `webUrl` for a region no client owns: `WEMEDITATE_WEB_URL + WEMEDITATE_ATLAS_BASE_PATH + webPath`.
 
 Neither URL takes a trailing slash, since both are used as prefixes and compared against `Origin` headers. **Restart `next dev` after you change these** — `next.config.mjs` bakes the CSP allowlist at boot, so a stale server blocks the preview iframe (`ERR_BLOCKED_BY_CSP`).

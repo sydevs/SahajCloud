@@ -2,6 +2,7 @@ import type { GlobalConfig } from 'payload'
 
 import { buildTranslationTabs, type TranslationsSchema } from '@/fields/translationsField'
 import { serverEnv } from '@/lib/env'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 import { clientEnglishFallback } from '@/lib/translations/clientEnglishFallback'
 
 import translationsSchema from './translationsSchema.json' with { type: 'json' }
@@ -42,8 +43,14 @@ export const SahajAtlasTranslations: GlobalConfig = {
     // locale-dependent one changes only on a locale switch, which is exactly
     // when the tab's component re-composes anyway.
     livePreview: {
+      // Now carries the credential — see the note on the We Meditate Web
+      // translations global for why #773 had to strip it and what changed.
       url: ({ locale }) =>
-        `${serverEnv.SAHAJATLAS_URL}/?locale=${locale.code}`,
+        livePreviewUrl({
+          base: serverEnv.SAHAJATLAS_URL,
+          path: '',
+          params: { locale: locale.code, scope: 'sy-atlas-translations' },
+        }),
       // Phone-sized frame, matching the Events and Regions previews — the
       // widget's drawer layout is designed against it.
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],

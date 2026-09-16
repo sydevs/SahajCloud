@@ -37,6 +37,10 @@ DOCS_PASSWORD="${DOCS_PASSWORD:-}"
 LIVE_PREVIEW_SIGNING_KEY="${LIVE_PREVIEW_SIGNING_KEY:-}"
 NIRMALA_VIDYA_API_KEY="${NIRMALA_VIDYA_API_KEY:-}"
 
+# ⚠ SAHAJATLAS_URL is sahajatlas.com, the Sahaj Atlas REPLACEMENT.
+# atlas.sydevelopers.com is the legacy service and serves no /preview route —
+# live preview pointed there 404s. Both hosts checked directly, 2026-09-15.
+
 # ── Non-secret config (from the old wrangler.toml) + the secrets above ───────
 railway variables \
   --set "NODE_ENV=production" \
@@ -46,7 +50,7 @@ railway variables \
   --set "CLOUDFLARE_R2_DELIVERY_URL=https://assets.sydevelopers.com" \
   --set "R2_BUCKET=sahajcloud" \
   --set "WEMEDITATE_WEB_URL=https://wemeditate.com" \
-  --set "SAHAJATLAS_URL=https://atlas.sydevelopers.com" \
+  --set "SAHAJATLAS_URL=https://sahajatlas.com" \
   --set "PAYLOAD_SECRET=$PAYLOAD_SECRET" \
   --set "CLOUDFLARE_API_KEY=$CLOUDFLARE_API_KEY" \
   --set "R2_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID" \
