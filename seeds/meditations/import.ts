@@ -106,9 +106,7 @@ interface ImportedData {
 
 const CACHE_DIR = path.resolve(process.cwd(), 'seeds/cache/meditations')
 
-/**
- * Raw URL base for fetching seed media assets from the repo
- */
+/** Raw URL base for fetching seed media assets from the repo */
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/sydevs/SahajCloud/main'
 
 // --- Tag mapping constants ---
@@ -672,9 +670,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
   // --- File operations ---
 
-  /**
-   * Download a file, caching to disk for faster re-runs.
-   */
+  /** Download a file, caching to disk for faster re-runs. */
   private async downloadFile(storageKey: string, filename: string): Promise<Buffer | null> {
     const baseUrl = seedEnv.STORAGE_BASE_URL
     const fileUrl = `${baseUrl}/${storageKey}`
@@ -703,9 +699,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  /**
-   * Create FileData object from buffer for Payload upload
-   */
+  /** Create FileData object from buffer for Payload upload */
   private createFileData(buffer: Buffer, filename: string): FileData {
     return {
       data: buffer,

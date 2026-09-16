@@ -149,13 +149,9 @@ export function createTestLexicalContent(text: string = 'Test content'): Lexical
   }
 }
 
-/**
- * Test data factory functions for creating test entities with payload.create()
- */
+/** Test data factory functions for creating test entities with payload.create() */
 export const testData = {
-  /**
-   * Create an app card with image relationship
-   */
+  /** Create an app card with image relationship */
   async createAppCard(
     payload: Payload,
     overrides: FixtureOverrides<AppCard> = {},
@@ -198,9 +194,7 @@ export const testData = {
     })) as AppCard
   },
 
-  /**
-   * Create a narrator
-   */
+  /** Create a narrator */
   async createNarrator(payload: Payload, overrides = {}): Promise<Narrator> {
     return (await payload.create({
       collection: 'narrators',
@@ -212,9 +206,7 @@ export const testData = {
     })) as Narrator
   },
 
-  /**
-   * Create image media using sample file
-   */
+  /** Create image media using sample file */
   async createMediaImage(
     payload: Payload,
     overrides = {},
@@ -240,9 +232,7 @@ export const testData = {
     })) as Image
   },
 
-  /**
-   * Create an album with artwork image relationship
-   */
+  /** Create an album with artwork image relationship */
   async createAlbum(payload: Payload, overrides: FixtureOverrides<Album> = {}): Promise<Album> {
     // Generate unique title to avoid collisions
     const uniqueId = Math.random().toString(36).substring(7)
@@ -519,9 +509,7 @@ export const testData = {
     })) as Video
   },
 
-  /**
-   * Create a meditation with direct audio upload
-   */
+  /** Create a meditation with direct audio upload */
   async createMeditation(
     payload: Payload,
     deps?: { narrator?: number; thumbnail?: number },
@@ -636,9 +624,7 @@ export const testData = {
     })) as Song
   },
 
-  /**
-   * Create frame with image file (default) or video file
-   */
+  /** Create frame with image file (default) or video file */
   async createFrame(
     payload: Payload,
     overrides = {},
@@ -778,9 +764,7 @@ export const testData = {
     return { ...client, collection: 'clients' as const }
   },
 
-  /**
-   * Create a page
-   */
+  /** Create a page */
   async createPage(payload: Payload, overrides: FixtureOverrides<Page> = {}): Promise<Page> {
     // Generate unique title to avoid slug collisions
     const uniqueId = Math.random().toString(36).substring(7)
@@ -886,9 +870,7 @@ export const testData = {
     return lesson
   },
 
-  /**
-   * Create an author
-   */
+  /** Create an author */
   async createAuthor(payload: Payload, overrides: FixtureOverrides<Author> = {}): Promise<Author> {
     return (await payload.create({
       collection: 'authors',

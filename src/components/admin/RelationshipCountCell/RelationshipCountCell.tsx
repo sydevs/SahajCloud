@@ -2,25 +2,19 @@ import type { CollectionConfig, DefaultServerCellComponentProps, JoinField } fro
 
 import Link from 'next/link'
 
-/**
- * Join field cell data structure
- */
+/** Join field cell data structure */
 interface JoinFieldData {
   docs: Array<{ id: string | number }>
   totalDocs?: number
   limit?: number
 }
 
-/**
- * Custom props passed via serverProps in field configuration
- */
+/** Custom props passed via serverProps in field configuration */
 interface RelationshipCountCellServerProps {
   disableLink?: boolean
 }
 
-/**
- * Extract string label from PayloadCMS label type (string | function | object)
- */
+/** Extract string label from PayloadCMS label type (string | function | object) */
 function extractLabel(label: unknown): string | null {
   if (!label) return null
   if (typeof label === 'string') return label.toLowerCase()
@@ -30,9 +24,7 @@ function extractLabel(label: unknown): string | null {
   return null
 }
 
-/**
- * Get the display label for a count, using collection labels or field name
- */
+/** Get the display label for a count, using collection labels or field name */
 function getLabel(
   count: number,
   collectionLabels: CollectionConfig['labels'] | undefined,

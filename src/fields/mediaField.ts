@@ -17,9 +17,7 @@ export type MediaFieldOptions = {
   admin?: Partial<UploadField['admin']>
 }
 
-/**
- * Creates a standardized media upload field with ThumbnailCell component
- */
+/** Creates a standardized media upload field with ThumbnailCell component */
 export function mediaField(options: MediaFieldOptions): UploadField {
   const { name, label, required = false, localized = false, tagName, admin = {} } = options
 

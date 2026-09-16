@@ -28,9 +28,7 @@ function emptyAsUndefined<T extends z.ZodTypeAny>(schema: T) {
   return z.preprocess((value) => (value === '' ? undefined : value), schema.optional())
 }
 
-/**
- * Seed scripts environment variables schema
- */
+/** Seed scripts environment variables schema */
 const SeedEnvSchema = z.object({
   /**
    * Admin email for seed scripts authentication

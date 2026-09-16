@@ -228,9 +228,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
   // --- Main import logic ---
 
-  /**
-   * Reconstruct ID maps from database when resuming paginated import
-   */
+  /** Reconstruct ID maps from database when resuming paginated import */
   protected async reconstructIdMaps(): Promise<void> {
     await this.logger.info('Reconstructing ID maps from database...')
 

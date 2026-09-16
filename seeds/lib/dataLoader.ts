@@ -9,9 +9,7 @@ import * as path from 'path'
 
 import { safeBufferFrom } from './runtime'
 
-/**
- * Data source configuration for loading bundled data files
- */
+/** Data source configuration for loading bundled data files */
 export interface DataSource {
   /** Local filesystem path (required) */
   localPath: string
@@ -22,9 +20,7 @@ export interface DataSource {
   inlineContent?: string
 }
 
-/**
- * Options for fetching assets
- */
+/** Options for fetching assets */
 export interface AssetOptions {
   /** Local cache path (used in local dev, optional) */
   cachePath?: string

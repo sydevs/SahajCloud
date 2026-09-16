@@ -15,9 +15,7 @@ export async function rateLimitDelay(ms: number): Promise<void> {
   }
 }
 
-/**
- * Options for retry with exponential backoff
- */
+/** Options for retry with exponential backoff */
 export interface RetryOptions {
   /** Maximum number of retry attempts (default: 3) */
   maxRetries?: number

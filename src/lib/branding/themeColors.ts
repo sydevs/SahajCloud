@@ -94,9 +94,7 @@ function hexToHsl(hex: string): { h: number; s: number; l: number } {
   return { h: h * 360, s: s * 100, l: l * 100 }
 }
 
-/**
- * Convert HSL values to hex color
- */
+/** Convert HSL values to hex color */
 function hslToHex(h: number, s: number, l: number): string {
   const sNorm = s / 100
   const lNorm = l / 100

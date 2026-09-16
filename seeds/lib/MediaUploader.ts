@@ -320,9 +320,7 @@ export class MediaUploader {
     }
   }
 
-  /**
-   * Validate that existing media still exists and is accessible
-   */
+  /** Validate that existing media still exists and is accessible */
   private async validateExistingMedia(mediaId: number | string): Promise<boolean> {
     try {
       const media = await this.payload.findByID({
@@ -367,9 +365,7 @@ export class MediaUploader {
     }
   }
 
-  /**
-   * Upload new media file to Payload
-   */
+  /** Upload new media file to Payload */
   private async uploadNewMedia(
     localPath: string,
     options: MediaUploadOptions,
@@ -423,16 +419,12 @@ export class MediaUploader {
     }
   }
 
-  /**
-   * Get upload statistics
-   */
+  /** Get upload statistics */
   getStats(): { uploaded: number; reused: number } {
     return { ...this.stats }
   }
 
-  /**
-   * Clear the internal cache (useful for testing or reset operations)
-   */
+  /** Clear the internal cache (useful for testing or reset operations) */
   clearCache(): void {
     this.mediaCache.clear()
   }

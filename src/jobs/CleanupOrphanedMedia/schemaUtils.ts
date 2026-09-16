@@ -18,9 +18,7 @@ import type {
   UploadField,
 } from 'payload'
 
-/**
- * Represents a discovered field reference to a target collection
- */
+/** Represents a discovered field reference to a target collection */
 export interface FieldReference {
   /** Source collection slug (e.g., 'lessons') */
   collection: string
@@ -38,9 +36,7 @@ export interface FieldReference {
   blockSlug?: string
 }
 
-/**
- * Check if a relationTo value includes the target collection
- */
+/** Check if a relationTo value includes the target collection */
 function matchesTarget(relationTo: string | string[], targetCollection: string): boolean {
   if (Array.isArray(relationTo)) {
     return relationTo.includes(targetCollection)
@@ -399,9 +395,7 @@ export function extractIdsFromLexicalContent(content: unknown): Set<number> {
   return ids
 }
 
-/**
- * Group field references by source collection for efficient scanning.
- */
+/** Group field references by source collection for efficient scanning. */
 export function groupByCollection(references: FieldReference[]): Map<string, FieldReference[]> {
   const groups = new Map<string, FieldReference[]>()
 

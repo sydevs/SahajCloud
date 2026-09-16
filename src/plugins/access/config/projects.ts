@@ -91,9 +91,7 @@ const PROJECTS = {
   // rejects.
 } as const satisfies Record<ProjectSlug, unknown>
 
-/**
- * Admin view constants (for null project handling)
- */
+/** Admin view constants (for null project handling) */
 const ADMIN_VIEW_LABEL = 'Sahaj Cloud'
 const ADMIN_VIEW_ICON = '/images/sahaj-cloud.svg'
 const ADMIN_VIEW_EMAIL_ICON = '/images/sahaj-cloud.png'

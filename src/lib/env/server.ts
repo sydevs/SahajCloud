@@ -219,9 +219,7 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   SAHAJCLOUD_URL: z.url().optional(),
 
-  /**
-   * We Meditate Web frontend URL, for live preview.
-   */
+  /** We Meditate Web frontend URL, for live preview. */
   WEMEDITATE_WEB_URL: z.url(),
 
   /**
@@ -258,9 +256,7 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   LIVE_PREVIEW_SIGNING_KEY: z.string().optional(),
 
-  /**
-   * Sahaj Atlas frontend URL, for live preview.
-   */
+  /** Sahaj Atlas frontend URL, for live preview. */
   SAHAJATLAS_URL: z.url(),
 
   /**

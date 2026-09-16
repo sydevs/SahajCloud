@@ -19,9 +19,7 @@ export class TagManager {
     this.logger = logger
   }
 
-  /**
-   * Ensure import tag exists in a tag collection
-   */
+  /** Ensure import tag exists in a tag collection */
   async ensureTag(
     tagCollection: CollectionSlug,
     tagName: string,

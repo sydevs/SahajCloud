@@ -53,9 +53,7 @@ interface CleanupResult {
 
 // --- Helper functions ---
 
-/**
- * Backdate createdAt to bypass grace period (24 hours)
- */
+/** Backdate createdAt to bypass grace period (24 hours) */
 async function backdateCreatedAt(
   payload: Payload,
   collection: 'files' | 'images',
@@ -131,9 +129,7 @@ async function runCleanupJobWithDefaultRange(payload: Payload): Promise<CleanupR
   return result.output
 }
 
-/**
- * Check if file exists in database (not trashed)
- */
+/** Check if file exists in database (not trashed) */
 async function fileExists(payload: Payload, id: number): Promise<boolean> {
   const result = await payload.find({
     collection: 'files',
@@ -143,9 +139,7 @@ async function fileExists(payload: Payload, id: number): Promise<boolean> {
   return result.docs.length > 0
 }
 
-/**
- * Check if image exists in database (not trashed)
- */
+/** Check if image exists in database (not trashed) */
 async function imageExists(payload: Payload, id: number): Promise<boolean> {
   const result = await payload.find({
     collection: 'images',

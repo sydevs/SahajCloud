@@ -29,9 +29,7 @@ const rawLevel = process.env.NEXT_PUBLIC_LOG_LEVEL
 // index 0, which is 'silent'.
 const currentLevelIndex = Math.max(0, LOG_LEVELS.indexOf(rawLevel as LogLevel))
 
-/**
- * Check if a message at the given level should be logged
- */
+/** Check if a message at the given level should be logged */
 const shouldLog = (level: LogLevel): boolean => {
   const levelIndex = LOG_LEVELS.indexOf(level)
   return levelIndex <= currentLevelIndex && levelIndex > 0 // Never log 'silent'
@@ -44,9 +42,7 @@ const shouldLog = (level: LogLevel): boolean => {
  * Errors are always captured by Sentry in production regardless of log level.
  */
 export const clientLogger = {
-  /**
-   * Log debug information
-   */
+  /** Log debug information */
   debug(message: string, context?: LogContext) {
     if (shouldLog('debug')) {
       // eslint-disable-next-line no-console
@@ -54,9 +50,7 @@ export const clientLogger = {
     }
   },
 
-  /**
-   * Log informational messages
-   */
+  /** Log informational messages */
   info(message: string, context?: LogContext) {
     if (shouldLog('info')) {
       // eslint-disable-next-line no-console
@@ -64,9 +58,7 @@ export const clientLogger = {
     }
   },
 
-  /**
-   * Log warnings
-   */
+  /** Log warnings */
   warn(message: string, context?: LogContext) {
     if (shouldLog('warn')) {
       // eslint-disable-next-line no-console
@@ -74,9 +66,7 @@ export const clientLogger = {
     }
   },
 
-  /**
-   * Log errors - always captured by Sentry in production
-   */
+  /** Log errors - always captured by Sentry in production */
   error(message: string, error?: Error | unknown, context?: LogContext) {
     // Always capture errors with Sentry (regardless of log level)
     const errorToCapture = error instanceof Error ? error : new Error(message)

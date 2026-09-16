@@ -295,9 +295,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
 
   // --- Static factory for migrations ---
 
-  /**
-   * Run the importer from a migration with an external Payload instance
-   */
+  /** Run the importer from a migration with an external Payload instance */
   static async runFromMigration(payload: Payload): Promise<void> {
     const importer = new TagsImporter({
       dryRun: false,
@@ -419,9 +417,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
 
   // --- Svg processing helpers ---
 
-  /**
-   * Download SVG from URL or load from local file (local: prefix)
-   */
+  /** Download SVG from URL or load from local file (local: prefix) */
   private async downloadSvg(url: string, cacheFilename: string): Promise<string | null> {
     try {
       // Handle local files (local:filename.svg)
@@ -472,9 +468,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
     return svgContent.replace(hexColorRegex, 'currentColor')
   }
 
-  /**
-   * Create a file object from SVG content for Payload upload
-   */
+  /** Create a file object from SVG content for Payload upload */
   private createSvgFileObject(
     svgContent: string,
     filename: string,

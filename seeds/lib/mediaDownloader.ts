@@ -92,9 +92,7 @@ export class MediaDownloader {
     this.logger = logger
   }
 
-  /**
-   * Initialize cache directory
-   */
+  /** Initialize cache directory */
   async initialize(): Promise<void> {
     await fs.mkdir(this.cacheDir, { recursive: true })
   }
@@ -119,9 +117,7 @@ export class MediaDownloader {
     return path.basename(urlPath)
   }
 
-  /**
-   * Download image with disk caching
-   */
+  /** Download image with disk caching */
   async downloadAndConvertImage(url: string): Promise<DownloadResult> {
     // Normalize URL: Fix legacy domains and Google Storage URLs, then get original quality
     let normalizedUrl = url
@@ -192,9 +188,7 @@ export class MediaDownloader {
     }
   }
 
-  /**
-   * Create Media document in Payload
-   */
+  /** Create Media document in Payload */
   async createMediaDocument(
     payload: Payload,
     downloadResult: DownloadResult,
@@ -241,9 +235,7 @@ export class MediaDownloader {
     }
   }
 
-  /**
-   * Get download statistics
-   */
+  /** Get download statistics */
   getStats(): { downloaded: number } {
     return {
       downloaded: this.downloadedFiles.size,
@@ -312,9 +304,7 @@ export class MediaDownloader {
 
 // --- Media url extractor ---
 
-/**
- * Extract all media URLs from EditorJS content
- */
+/** Extract all media URLs from EditorJS content */
 export function extractMediaUrls(content: any, baseUrl: string): Set<string> {
   const urls = new Set<string>()
 
@@ -366,9 +356,7 @@ export function extractMediaUrls(content: any, baseUrl: string): Set<string> {
   return urls
 }
 
-/**
- * Build full media URL from file object
- */
+/** Build full media URL from file object */
 function buildMediaUrl(file: any, baseUrl: string): string | null {
   if (!file || !file.url) return null
 
@@ -381,9 +369,7 @@ function buildMediaUrl(file: any, baseUrl: string): string | null {
   return baseUrl + file.url
 }
 
-/**
- * Extract media URLs from author image
- */
+/** Extract media URLs from author image */
 export function extractAuthorImageUrl(imageData: any, baseUrl: string): string | null {
   if (!imageData) return null
 

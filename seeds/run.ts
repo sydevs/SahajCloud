@@ -154,9 +154,7 @@ function seedPostInit(token: string | null, inlineData?: Record<string, string>)
   }
 }
 
-/**
- * Format elapsed milliseconds as human-readable string (for example, "1m 30s")
- */
+/** Format elapsed milliseconds as human-readable string (for example, "1m 30s") */
 function formatElapsed(ms: number): string {
   const seconds = Math.floor(ms / 1000)
   const minutes = Math.floor(seconds / 60)
@@ -304,9 +302,7 @@ async function authenticate(baseUrl: string): Promise<string | null> {
   return token
 }
 
-/**
- * Parse SSE events from a ReadableStream
- */
+/** Parse SSE events from a ReadableStream */
 async function* parseSSE(
   stream: ReadableStream<Uint8Array>,
 ): AsyncGenerator<Record<string, unknown>> {
@@ -341,9 +337,7 @@ async function* parseSSE(
   }
 }
 
-/**
- * Document result from import event
- */
+/** Document result from import event */
 interface DocumentResult {
   collection: string
   identifier: string
@@ -352,9 +346,7 @@ interface DocumentResult {
   warnings?: string[]
 }
 
-/**
- * Display handler with state for collection headers
- */
+/** Display handler with state for collection headers */
 class ProgressDisplay {
   private currentCollection = ''
 
@@ -515,16 +507,12 @@ interface ScriptResult {
 // Shared display instance for tracking collection state
 const display = new ProgressDisplay()
 
-/**
- * Delay utility for rate limiting between paginated requests
- */
+/** Delay utility for rate limiting between paginated requests */
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-/**
- * Fetch script metadata from GET endpoint
- */
+/** Fetch script metadata from GET endpoint */
 async function fetchScriptMetadata(
   scriptName: ScriptName,
   baseUrl: string,
@@ -545,9 +533,7 @@ async function fetchScriptMetadata(
   return response.json()
 }
 
-/**
- * Run a single paginated request and return pagination result
- */
+/** Run a single paginated request and return pagination result */
 async function runPaginatedRequest(
   scriptName: ScriptName,
   collection: string,
@@ -609,9 +595,7 @@ async function runPaginatedRequest(
   return { success: errors.length === 0, errors, pagination }
 }
 
-/**
- * Run paginated import for collections that require it
- */
+/** Run paginated import for collections that require it */
 async function runPaginatedImport(
   scriptName: ScriptName,
   metadata: ScriptMetadata,
@@ -717,9 +701,7 @@ async function runPaginatedImport(
   return { script: scriptName, success, errors }
 }
 
-/**
- * Run a single seed script via the API
- */
+/** Run a single seed script via the API */
 async function runScript(
   scriptName: ScriptName,
   baseUrl: string,

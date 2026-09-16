@@ -120,9 +120,7 @@ export const depthParameter = {
 Pass \`depth=1\` or \`depth=0\` when you do not need nested relationship traversal. Keep \`depth\` as low as the client needs; deeper depths multiply query work.`,
 }
 
-/**
- * `limit` parameter. Default 10; cap at 100 for list endpoints.
- */
+/** `limit` parameter. Default 10; cap at 100 for list endpoints. */
 export const limitParameter = {
   ...PARAMETER_BASE,
   name: 'limit',
@@ -136,9 +134,7 @@ export const limitParameter = {
     'Maximum number of docs to return in the `docs` array. Defaults to 10. List endpoints typically cap at 100.',
 }
 
-/**
- * `page` parameter. 1-based.
- */
+/** `page` parameter. 1-based. */
 export const pageParameter = {
   ...PARAMETER_BASE,
   name: 'page',

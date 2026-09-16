@@ -16,9 +16,7 @@ import { testData } from '../utils/testData'
 // Build locales once for all tests
 const allLocales = buildPayloadLocales()
 
-/**
- * Helper to create a mock PayloadRequest with user
- */
+/** Helper to create a mock PayloadRequest with user */
 function createMockRequest(user: unknown): PayloadRequest {
   return {
     user,

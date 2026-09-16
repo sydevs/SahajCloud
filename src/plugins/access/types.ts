@@ -88,9 +88,7 @@ export type TypedAuthUser = TypedUser &
  */
 export type RoleScope = LocaleCode | 'union'
 
-/**
- * Arguments for permission checking
- */
+/** Arguments for permission checking */
 export interface PermissionCheckArgs {
   /** The authenticated user */
   user: TypedUser | null

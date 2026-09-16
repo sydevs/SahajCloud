@@ -158,9 +158,7 @@ interface WeMeditateData {
 const CACHE_DIR = path.resolve(process.cwd(), 'seeds/cache/wemeditate')
 const STORAGE_BASE_URL = 'https://assets.wemeditate.com/uploads/'
 
-/**
- * Raw URL base for fetching seed media assets from the repo
- */
+/** Raw URL base for fetching seed media assets from the repo */
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/sydevs/SahajCloud/main'
 
 /**
@@ -235,9 +233,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
   // --- Static factory for migrations ---
 
-  /**
-   * Run the importer from a migration with an external Payload instance
-   */
+  /** Run the importer from a migration with an external Payload instance */
   static async runFromMigration(payload: Payload): Promise<void> {
     const importer = new WeMeditateImporter({
       dryRun: false,
@@ -292,9 +288,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('✓ Image tags ready (inline enum values)')
   }
 
-  /**
-   * Pre-load all song tags into memory cache to avoid per-track queries
-   */
+  /** Pre-load all song tags into memory cache to avoid per-track queries */
   private async preloadSongTags(): Promise<void> {
     await this.logger.info('Pre-loading song tags...')
     const tags = await this.payload.find({
@@ -510,9 +504,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  /**
-   * Import a single page (used by both regular and paginated imports)
-   */
+  /** Import a single page (used by both regular and paginated imports) */
   private async importSinglePage(
     page: WeMeditateData['staticPages'][number],
     tableName: string,
@@ -635,9 +627,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     await this.importSinglePageContent(page, pageResult.doc.id, tableName)
   }
 
-  /**
-   * Import content for a single page (Phase 2 for paginated mode)
-   */
+  /** Import content for a single page (Phase 2 for paginated mode) */
   private async importSinglePageContent(
     page: WeMeditateData['staticPages'][number],
     pageId: number,
@@ -1066,9 +1056,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  /**
-   * Get placeholder image for albums without artwork.
-   */
+  /** Get placeholder image for albums without artwork. */
   private async getOrCreatePlaceholderImage(): Promise<{ localPath: string; buffer?: Buffer }> {
     const githubUrl = `${GITHUB_RAW_BASE}/seeds/wemeditate/preview.png`
 

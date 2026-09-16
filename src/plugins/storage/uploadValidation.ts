@@ -5,9 +5,7 @@
  * uploads conform to expected constraints.
  */
 
-/**
- * File size limits in bytes
- */
+/** File size limits in bytes */
 export const FILE_SIZE_LIMITS = {
   image: 10 * 1024 * 1024, // 10 MB for images
   video: 500 * 1024 * 1024, // 500 MB for videos
@@ -15,9 +13,7 @@ export const FILE_SIZE_LIMITS = {
   document: 20 * 1024 * 1024, // 20 MB for documents
 } as const
 
-/**
- * Allowed MIME types by category
- */
+/** Allowed MIME types by category */
 export const ALLOWED_MIME_TYPES = {
   image: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'],
   video: ['video/mp4', 'video/webm', 'video/quicktime'],

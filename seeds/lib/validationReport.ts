@@ -29,37 +29,27 @@ export class ValidationReport {
   private importName: string = ''
   private startTime: Date = new Date()
 
-  /**
-   * Add a warning message to the report
-   */
+  /** Add a warning message to the report */
   addWarning(message: string): void {
     this.warnings.push(message)
   }
 
-  /**
-   * Add an error message to the report
-   */
+  /** Add an error message to the report */
   addError(message: string): void {
     this.errors.push(message)
   }
 
-  /**
-   * Document a field mapping transformation
-   */
+  /** Document a field mapping transformation */
   addFieldMapping(sourceField: string, targetField: string, notes?: string): void {
     this.fieldMappings.push({ sourceField, targetField, notes })
   }
 
-  /**
-   * Set the records summary statistics
-   */
+  /** Set the records summary statistics */
   setRecordsSummary(summary: RecordsSummary): void {
     this.recordsSummary = summary
   }
 
-  /**
-   * Update records summary incrementally
-   */
+  /** Update records summary incrementally */
   incrementCreated(): void {
     this.recordsSummary.created++
   }
@@ -76,44 +66,32 @@ export class ValidationReport {
     this.recordsSummary.updated++
   }
 
-  /**
-   * Get the current summary
-   */
+  /** Get the current summary */
   getSummary(): RecordsSummary {
     return { ...this.recordsSummary }
   }
 
-  /**
-   * Get warning count
-   */
+  /** Get warning count */
   getWarningCount(): number {
     return this.warnings.length
   }
 
-  /**
-   * Get all warning messages
-   */
+  /** Get all warning messages */
   getWarnings(): string[] {
     return [...this.warnings]
   }
 
-  /**
-   * Get error count
-   */
+  /** Get error count */
   getErrorCount(): number {
     return this.errors.length
   }
 
-  /**
-   * Get all error messages
-   */
+  /** Get all error messages */
   getErrors(): string[] {
     return [...this.errors]
   }
 
-  /**
-   * Generate the validation report and write to file
-   */
+  /** Generate the validation report and write to file */
   async generate(outputPath: string, importName: string): Promise<string> {
     this.importName = importName
 
@@ -129,9 +107,7 @@ export class ValidationReport {
     return outputPath
   }
 
-  /**
-   * Calculate duration since start
-   */
+  /** Calculate duration since start */
   private calculateDuration(): string {
     const endTime = new Date()
     const durationMs = endTime.getTime() - this.startTime.getTime()
@@ -145,9 +121,7 @@ export class ValidationReport {
     return `${seconds}s`
   }
 
-  /**
-   * Build the markdown report content
-   */
+  /** Build the markdown report content */
   private buildReport(duration: string): string {
     const lines: string[] = []
 
@@ -215,9 +189,7 @@ export class ValidationReport {
     return lines.join('\n')
   }
 
-  /**
-   * Reset the report for reuse
-   */
+  /** Reset the report for reuse */
   reset(): void {
     this.warnings = []
     this.errors = []
