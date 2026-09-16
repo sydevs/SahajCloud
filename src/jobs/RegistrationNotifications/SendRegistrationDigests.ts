@@ -2,16 +2,18 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
+import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
+import { answersFrom } from '@/jobs/DeliverSubmissions/deliverRegistration'
 import type { RegistrationRecipient } from '@/lib/notifications'
 import { formatShortDate, resolveRegistrationRecipient } from '@/lib/notifications'
+import { activeRegistrationWhere } from '@/lib/registrations/active'
 import type { RegistrationAnswer } from '@/lib/registrations/questions'
 import { buildRegistrationAnswers } from '@/lib/registrations/questions'
 import { relationId } from '@/lib/utilities/relationId'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Event, Manager } from '@/payload-types'
 
-import { loadUsers } from './loadUsers'
 import { sendRegistrationDigest } from './sendRegistrationDigest'
 
 const PAGINATION_LIMIT = 200
@@ -39,7 +41,8 @@ interface DigestResult {
 
 interface DigestRow {
   eventId: number
-  userId: number
+  email: string
+  name: string | null
   startingAt?: string | null
   answers: RegistrationAnswer[]
 }
@@ -144,9 +147,10 @@ async function digestForManager(args: {
   let hasNextPage = true
   while (hasNextPage) {
     const batch = await payload.find({
-      collection: 'registrations',
+      collection: 'user-submissions',
       where: {
         and: [
+          activeRegistrationWhere,
           { event: { in: eventIds } },
           { createdAt: { greater_than: since.toISOString() } },
           { createdAt: { less_than_equal: runStart.toISOString() } },
@@ -155,22 +159,24 @@ async function digestForManager(args: {
       depth: 0,
       limit: PAGINATION_LIMIT,
       page,
-      select: { event: true, user: true, startingAt: true, questions: true },
+      // No `questions` column here — the answers are `submissionData` pairs, and
+      // `answersFrom` maps them into the shape `buildRegistrationAnswers` wants.
+      select: { event: true, senderEmail: true, startingAt: true, submissionData: true },
       sort: 'createdAt',
       overrideAccess: true,
       req,
     })
     for (const registration of batch.docs) {
       const eventId = relationId(registration.event)
-      const userId = relationId(registration.user)
-      if (eventId == null || userId == null || !eventById.has(eventId)) continue
+      if (eventId == null || !eventById.has(eventId)) continue
       rows.push({
         eventId,
-        userId,
+        // The row's own columns, not a `users` join: `prepareUserSubmission`
+        // seeds that row *from* these, so the join is the derived copy.
+        email: registration.senderEmail?.trim() ?? '',
+        name: readSubmissionValue(registration.submissionData, 'name') ?? null,
         startingAt: registration.startingAt ?? null,
-        answers: buildRegistrationAnswers(
-          registration.questions as Record<string, unknown> | null | undefined,
-        ),
+        answers: buildRegistrationAnswers(answersFrom(registration.submissionData)),
       })
     }
     hasNextPage = batch.hasNextPage
@@ -183,8 +189,6 @@ async function digestForManager(args: {
     await advanceWatermark(payload, req, manager.id, runStart)
     return
   }
-
-  const users = await loadUsers(payload, req, [...new Set(rows.map((row) => row.userId))])
 
   const rowsByEvent = new Map<number, DigestRow[]>()
   for (const row of rows) {
@@ -201,16 +205,12 @@ async function digestForManager(args: {
     groups.push({
       eventTitle: typeof event.title === 'string' ? event.title : `Event #${event.id}`,
       eventAdminUrl: `${getServerUrl()}/admin/collections/events/${event.id}`,
-      registrations: eventRows.map((row) => {
-        const user = users.get(row.userId)
-        const email = user?.email ?? ''
-        return {
-          registrantName: user?.name?.trim() || email || 'A registrant',
-          registrantEmail: email,
-          startDate: row.startingAt ? formatShortDate(row.startingAt) || null : null,
-          answers: row.answers,
-        }
-      }),
+      registrations: eventRows.map((row) => ({
+        registrantName: row.name?.trim() || row.email || 'A registrant',
+        registrantEmail: row.email,
+        startDate: row.startingAt ? formatShortDate(row.startingAt) || null : null,
+        answers: row.answers,
+      })),
     })
   }
 

@@ -151,7 +151,7 @@ async function notifyManager(args: {
  * because that function already sorts configured answers from extras and labels
  * each appropriately — restating the list here would give it two definitions.
  */
-function answersFrom(entries: unknown): Record<string, unknown> {
+export function answersFrom(entries: unknown): Record<string, unknown> {
   if (!Array.isArray(entries)) return {}
   const answers: Record<string, unknown> = {}
   for (const entry of entries as { field?: unknown; value?: unknown }[]) {

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { getPayload } from 'payload'
 
 import { verifyFeedbackToken } from '@/lib/registrations/feedbackLinks'
-import type { Event, Registration } from '@/payload-types'
+import type { Event, UserSubmission } from '@/payload-types'
 import { getProjectEmailIcon } from '@/plugins/access'
 import { getEmailBrand } from '@/plugins/email'
 
@@ -54,12 +54,12 @@ export default async function RegistrationFeedbackPage({
 
   const registration = (await payload
     .findByID({
-      collection: 'registrations',
-      id: result.claims.registrationId,
+      collection: 'user-submissions',
+      id: result.claims.submissionId,
       depth: 1,
       overrideAccess: true,
     })
-    .catch(() => null)) as Registration | null
+    .catch(() => null)) as UserSubmission | null
   if (!registration) notFound()
 
   const event = registration.event as Event | number

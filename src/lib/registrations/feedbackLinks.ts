@@ -5,16 +5,21 @@ import { signToken, verifyToken, type SignedTokenResult } from '@/lib/utilities/
  * Tokenized links for the post-event feedback page — "did this class take
  * place?". The token proves the email recipient owns the registration; the
  * page (SahajCloud-hosted, `/registrations/feedback`) writes the vote through
- * the normal Registrations update path, so the gate + sync hooks apply.
+ * the normal `user-submissions` update path, so the gate + sync hooks apply.
  */
 
-const FEEDBACK_TOKEN_KIND = 'registration-feedback'
+// ⚠ **The kind is versioned because the claim changed shape.** It used to
+// carry a `registrations` row id; it now carries a `user-submissions` one, and
+// the same integer addresses an unrelated row in the new table. `verifyFeedbackToken`
+// casts without checking the claim, so a rename alone would send `undefined`
+// to `findByID` rather than refusing. A new kind refuses at the signature.
+const FEEDBACK_TOKEN_KIND = 'submission-feedback'
 
 /** 30 days — a follow-up may sit unread; the vote gate re-checks the event anyway. */
 export const FEEDBACK_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 export interface FeedbackTokenClaims {
-  registrationId: number
+  submissionId: number
 }
 
 export function signFeedbackToken(
@@ -23,7 +28,7 @@ export function signFeedbackToken(
   now: Date = new Date(),
 ): Promise<string> {
   return signToken(
-    { registrationId: claims.registrationId },
+    { submissionId: claims.submissionId },
     { kind: FEEDBACK_TOKEN_KIND, ttlMs: FEEDBACK_TOKEN_TTL_MS },
     secret,
     now,
