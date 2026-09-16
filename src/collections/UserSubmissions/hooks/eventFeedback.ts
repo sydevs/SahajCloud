@@ -11,9 +11,10 @@ import { asSystemReq, asTrustedReq } from '@/plugins/usage/hooks'
  * Registrant confirm/deny voting on unverified events, carried on the
  * registration row itself.
  *
- * Both hooks run on every `user-submissions` write and both return early unless
- * `eventFeedback` actually moved — a column only a registration ever carries
- * (`fields.ts` conditions it on the type), so no type guard is needed on top.
+ * ⚠ Both hooks run on every `user-submissions` write, for all four intakes, so
+ * both open with a `type === 'registration'` guard. The vote check below it is
+ * not a substitute: on a create `previousDoc` is undefined, and
+ * `null === undefined` is false.
  *
  * The vote's only writer is the CMS-hosted `/registrations/feedback` page,
  * which records it with `overrideAccess` behind a signed token and an explicit
@@ -31,6 +32,7 @@ import { asSystemReq, asTrustedReq } from '@/plugins/usage/hooks'
  * Re-voting while open is allowed and simply overwrites (idempotent recount).
  */
 export const gateEventFeedback: CollectionBeforeChangeHook = async ({ data, originalDoc, req }) => {
+  if ((data?.type ?? originalDoc?.type) !== 'registration') return data
   const incoming = data?.eventFeedback
   if (incoming === undefined || incoming === originalDoc?.eventFeedback) return data
 
@@ -77,6 +79,13 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
   previousDoc,
   req,
 }) => {
+  // ⚠ The type guard is not redundant with the vote check below it. On a
+  // **create** `previousDoc` is undefined, so `null === undefined` is false and
+  // a row that never carried a vote still passes that check — which on the old
+  // single-purpose collection only ever meant a registration. Here it would fire
+  // on every proposal and every spawned subscribe row that names an event,
+  // paying for two counts and an Events write per create.
+  if (doc.type !== 'registration') return doc
   if (doc.eventFeedback === previousDoc?.eventFeedback) return doc
   const eventId = relationId(doc.event)
   if (eventId == null) return doc
