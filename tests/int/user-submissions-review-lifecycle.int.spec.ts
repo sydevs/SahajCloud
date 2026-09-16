@@ -168,6 +168,27 @@ describe('User submission review lifecycle', () => {
       expect(list.docs[0]?.proposedChanges).toBeNull()
       expect(list.docs[0]?.previewEvent).toBeNull()
     })
+
+    it('skips both projections on a registration, which names an event too', async () => {
+      // The `findMany` guard does not cover this one: a single read of a
+      // registration row would still pay an `events` findByID plus a diff over
+      // every Events field against an empty proposal. `SendPostEventFollowUps`
+      // reads each due row singly, and the feedback page reads twice per vote.
+      const target = await testData.createEvent(payload, { _status: 'published' })
+      const registration = (await payload.create({
+        collection: 'user-submissions',
+        data: createData<'user-submissions'>({
+          type: 'registration',
+          senderEmail: 'aria@example.com',
+          event: target.id,
+        }),
+        overrideAccess: true,
+      })) as UserSubmission
+
+      const fresh = await reload(registration.id)
+      expect(fresh.proposedChanges).toBeNull()
+      expect(fresh.previewEvent).toBeNull()
+    })
   })
 
   describe('reopen', () => {

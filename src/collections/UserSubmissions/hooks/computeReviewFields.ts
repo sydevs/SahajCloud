@@ -23,6 +23,12 @@ import { buildProposedChanges } from '../lifecycle/proposedChanges'
  *
  * Both skip list reads — 25 rows would mean 25 event lookups for values no list
  * column renders (the `findMany` guard, as in `computeEventQualityReport`).
+ *
+ * ⚠ **Both also guard on `type`.** One table holds four intakes, and a
+ * registration names an event too — so without it, every single-document read
+ * of a contact, subscribe or registration row pays an `events` findByID plus a
+ * diff over the whole Events `flattenedFields` against an empty proposal.
+ * `admin.condition` hides the fields; it does not stop the hooks.
  */
 
 /**
@@ -87,6 +93,7 @@ async function resolveManager(req: PayloadRequest, value: unknown): Promise<unkn
 /** `previewEvent` — the merged event, for the live-preview iframe. */
 export const computePreviewEvent: FieldHook = async ({ data, findMany, req }) => {
   if (findMany) return null
+  if (data?.type !== 'proposal') return null
 
   const proposed = data?.proposed as Record<string, unknown> | null | undefined
   const targetId = relationId(data?.event)
@@ -100,6 +107,7 @@ export const computePreviewEvent: FieldHook = async ({ data, findMany, req }) =>
 /** `proposedChanges` — the field-by-field diff the reviewer reads. */
 export const computeProposedChanges: FieldHook = async ({ data, findMany, req }) => {
   if (findMany) return null
+  if (data?.type !== 'proposal') return null
 
   const proposed = data?.proposed as Record<string, unknown> | null | undefined
   const targetId = relationId(data?.event)
