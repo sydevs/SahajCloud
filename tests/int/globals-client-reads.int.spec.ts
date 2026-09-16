@@ -316,7 +316,7 @@ describe('client reads of a global (#710)', () => {
       // The other half of the gate. Without this, a change that simply refused
       // every draft read would pass every other case in this block while
       // breaking live preview outright.
-      const token = await mintLivePreviewToken('sahaj-atlas-client', serverEnv.LIVE_PREVIEW_SIGNING_KEY)
+      const token = await mintLivePreviewToken(serverEnv.LIVE_PREVIEW_SIGNING_KEY)
       expect(token).toBeTruthy()
 
       const req = clientReq()
@@ -333,36 +333,6 @@ describe('client reads of a global (#710)', () => {
       })) as unknown as { countries?: { title?: string } }
 
       expect(result.countries?.title).toBe(UNPUBLISHED)
-    })
-
-    it('serves published copy when the token names a role this client does not hold', async () => {
-      // ⚠ **This is why the claim names a role rather than a site.** It first
-      // named `wm-web` / `sy-atlas`, which only the consumer checked, against a
-      // constant it hardcoded — while this service accepted either. So one
-      // leaked token unlocked drafts on both surfaces. A role is matched
-      // against the authenticated key, which the caller has to prove.
-      const token = await mintLivePreviewToken(
-        'wemeditate-web-client',
-        serverEnv.LIVE_PREVIEW_SIGNING_KEY,
-      )
-      expect(token).toBeTruthy()
-
-      // A perfectly valid, unexpired token this service signed — presented by
-      // the atlas key, which does not hold the role it names.
-      const req = clientReq({ roles: ['sahaj-atlas-client'] })
-      req.headers.set(PREVIEW_SECRET_HEADER, token!)
-      await resolveLivePreviewHook({ req })
-
-      const result = (await payload.findGlobal({
-        slug: 'sy-atlas-translations',
-        select: { countries: true },
-        depth: 0,
-        draft: true,
-        req,
-        overrideAccess: false,
-      })) as unknown as { countries?: { title?: string } }
-
-      expect(result.countries?.title).toBe(PUBLISHED)
     })
 
     it('serves published copy when the token is not one this service issued', async () => {

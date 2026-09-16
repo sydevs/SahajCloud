@@ -7,7 +7,6 @@ import {
   resetLivePreviewKeyCache,
   verifyLivePreviewToken,
   verifyOwnLivePreviewToken,
-  type LivePreviewRole,
 } from '@/lib/livePreview/token'
 
 /**
@@ -68,31 +67,32 @@ describe('mintLivePreviewToken', () => {
   it('returns null when no signing key is configured', async () => {
     // Not an error: an environment with no key renders the admin panel and
     // simply does not offer live preview.
-    expect(await mintLivePreviewToken('wemeditate-web-client', undefined)).toBeNull()
+    expect(await mintLivePreviewToken(undefined)).toBeNull()
     resetLivePreviewKeyCache()
-    expect(await mintLivePreviewToken('wemeditate-web-client', '')).toBeNull()
+    expect(await mintLivePreviewToken('')).toBeNull()
   })
 
   it('returns null for a key that is not a usable Ed25519 JWK', async () => {
-    expect(await mintLivePreviewToken('wemeditate-web-client', 'not-a-key')).toBeNull()
+    expect(await mintLivePreviewToken('not-a-key')).toBeNull()
     resetLivePreviewKeyCache()
-    expect(await mintLivePreviewToken('wemeditate-web-client', base64Json({ kty: 'oct', k: 'nope' }))).toBeNull()
+    expect(await mintLivePreviewToken(base64Json({ kty: 'oct', k: 'nope' }))).toBeNull()
   })
 
-  it('mints a two-part token that carries no readable secret', async () => {
-    const token = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
+  it('mints a compact JWS that carries no readable secret', async () => {
+    const token = await mintLivePreviewToken(privateKeyBase64, NOW)
     expect(token).toBeTruthy()
-    expect(token!.split('.')).toHaveLength(2)
+    expect(token!.split('.')).toHaveLength(3)
     expect(token).not.toContain(privateKeyBase64)
   })
 
-  it('stamps the role and a bucketed expiry', async () => {
-    const token = await mintLivePreviewToken('sahaj-atlas-client', privateKeyBase64, NOW)
-    const claims = JSON.parse(
-      Buffer.from(token!.split('.')[0]!, 'base64url').toString('utf8'),
-    ) as Record<string, unknown>
+  it('pins EdDSA in the header and carries a bucketed expiry as its only claim', async () => {
+    const token = await mintLivePreviewToken(privateKeyBase64, NOW)
+    const [header, payload] = token!.split('.')
+    const decode = (part: string) =>
+      JSON.parse(Buffer.from(part, 'base64url').toString('utf8')) as Record<string, unknown>
 
-    expect(claims).toEqual({ role: 'sahaj-atlas-client', exp: expectedExp(NOW) })
+    expect(decode(header!)).toEqual({ alg: 'EdDSA' })
+    expect(decode(payload!)).toEqual({ exp: expectedExp(NOW) })
   })
 })
 
@@ -107,8 +107,8 @@ describe('mintLivePreviewToken', () => {
  */
 describe('token stability', () => {
   it('is byte-identical for two mints inside the same window', async () => {
-    const a = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
-    const b = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW + 59)
+    const a = await mintLivePreviewToken(privateKeyBase64, NOW)
+    const b = await mintLivePreviewToken(privateKeyBase64, NOW + 59)
 
     expect(a).toBe(b)
   })
@@ -116,8 +116,8 @@ describe('token stability', () => {
   it('is still identical a full autosave interval later', async () => {
     // 60s is `pages`' autosave interval — the exact case that would have
     // reloaded the iframe once a minute.
-    const a = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
-    const b = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW + 60)
+    const a = await mintLivePreviewToken(privateKeyBase64, NOW)
+    const b = await mintLivePreviewToken(privateKeyBase64, NOW + 60)
 
     expect(a).toBe(b)
   })
@@ -125,18 +125,13 @@ describe('token stability', () => {
   it('still expires, and lives at least one TTL from any mint', async () => {
     // Bucketing must not turn a short-lived credential into a long-lived one.
     // Worst case is the last second of a bucket: one TTL of life remains.
-    const atBucketEnd = (Math.floor(NOW / LIVE_PREVIEW_TOKEN_TTL_SECONDS) + 1) *
-      LIVE_PREVIEW_TOKEN_TTL_SECONDS - 1
-    const token = await mintLivePreviewToken(
-      'wemeditate-web-client',
-      privateKeyBase64,
-      atBucketEnd,
-    )
+    const atBucketEnd =
+      (Math.floor(NOW / LIVE_PREVIEW_TOKEN_TTL_SECONDS) + 1) * LIVE_PREVIEW_TOKEN_TTL_SECONDS - 1
+    const token = await mintLivePreviewToken(privateKeyBase64, atBucketEnd)
 
     expect(
       await verifyLivePreviewToken(
         token!,
-        'wemeditate-web-client',
         publicKeyRaw,
         atBucketEnd + LIVE_PREVIEW_TOKEN_TTL_SECONDS - 1,
       ),
@@ -146,7 +141,6 @@ describe('token stability', () => {
     expect(
       await verifyLivePreviewToken(
         token!,
-        'wemeditate-web-client',
         publicKeyRaw,
         atBucketEnd + 2 * LIVE_PREVIEW_TOKEN_TTL_SECONDS,
       ),
@@ -155,96 +149,85 @@ describe('token stability', () => {
 })
 
 describe('verifyLivePreviewToken', () => {
-  const verify = (token: string, role: LivePreviewRole = 'wemeditate-web-client', now = NOW) =>
-    verifyLivePreviewToken(token, role, publicKeyRaw, now)
+  const verify = (token: string, now = NOW) => verifyLivePreviewToken(token, publicKeyRaw, now)
 
-  it('accepts a freshly minted token for its own role', async () => {
-    const token = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
+  it('accepts a freshly minted token', async () => {
+    const token = await mintLivePreviewToken(privateKeyBase64, NOW)
     expect(await verify(token!)).toBe(true)
   })
 
-  it('refuses a token minted for a different client role', async () => {
-    // The atlas must not accept a token issued to WeMeditateWeb, and vice
-    // versa: one leaked URL should not unlock both surfaces.
-    const token = await mintLivePreviewToken('sahaj-atlas-client', privateKeyBase64, NOW)
-    expect(await verify(token!, 'wemeditate-web-client')).toBe(false)
-  })
-
   it('refuses a token once it has expired, and at the exact expiry second', async () => {
-    const token = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
+    const token = await mintLivePreviewToken(privateKeyBase64, NOW)
     const exp = expectedExp(NOW)
 
-    expect(await verify(token!, 'wemeditate-web-client', exp - 1)).toBe(true)
-    expect(await verify(token!, 'wemeditate-web-client', exp)).toBe(false)
+    expect(await verify(token!, exp - 1)).toBe(true)
+    expect(await verify(token!, exp)).toBe(false)
   })
 
   it('refuses a token whose claims were edited to extend it', async () => {
-    const token = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
-    const forged = Buffer.from(
-      JSON.stringify({ role: 'wemeditate-web-client', exp: NOW + 10_000_000 }),
-      'utf8',
-    ).toString('base64url')
+    const token = await mintLivePreviewToken(privateKeyBase64, NOW)
+    const [header, , signature] = token!.split('.')
+    const forged = Buffer.from(JSON.stringify({ exp: NOW + 10_000_000 }), 'utf8').toString(
+      'base64url',
+    )
 
-    expect(await verify(`${forged}.${token!.split('.')[1]}`)).toBe(false)
+    expect(await verify(`${header}.${forged}.${signature}`)).toBe(false)
   })
 
   it('refuses a token signed by a different key', async () => {
-    const token = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
-    expect(await verifyLivePreviewToken(token!, 'wemeditate-web-client', otherPublicKeyRaw, NOW)).toBe(false)
+    const token = await mintLivePreviewToken(privateKeyBase64, NOW)
+    expect(await verifyLivePreviewToken(token!, otherPublicKeyRaw, NOW)).toBe(false)
+  })
+
+  it('refuses an unsigned token claiming `alg: none`', async () => {
+    // The algorithm is pinned on verify, so a token cannot nominate its own —
+    // the classic JWS downgrade, and the reason not to hand-roll this check.
+    const part = (value: unknown) =>
+      Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
+
+    expect(await verify(`${part({ alg: 'none' })}.${part({ exp: NOW + 10_000 })}.`)).toBe(false)
   })
 
   it('refuses malformed input without throwing', async () => {
-    for (const bad of ['', '.', 'nodot', 'a.b', '....', 'YQ.YQ']) {
+    for (const bad of ['', '.', 'nodot', 'a.b', '....', 'YQ.YQ', 'a.b.c']) {
       expect(await verify(bad)).toBe(false)
     }
   })
 })
-
 
 /**
  * The half the CMS uses on itself. A consumer forwards the token it was given
  * back to the API, and the API must answer: did I issue this, and is it alive?
  */
 describe('verifyOwnLivePreviewToken', () => {
-  it('returns the role a valid token was minted for', async () => {
-    const wm = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
-    expect(await verifyOwnLivePreviewToken(wm!, privateKeyBase64, NOW)).toBe('wemeditate-web-client')
-
-    resetLivePreviewKeyCache()
-    const atlas = await mintLivePreviewToken('sahaj-atlas-client', privateKeyBase64, NOW)
-    expect(await verifyOwnLivePreviewToken(atlas!, privateKeyBase64, NOW)).toBe('sahaj-atlas-client')
-  })
-
-  it('accepts any known role — the caller is checked by the hook, not here', async () => {
-    // This half answers only "did I issue this, and for whom". Matching the
-    // role to the caller is `resolveLivePreviewHook`'s job, where the
-    // authenticated key is known.
-    const atlas = await mintLivePreviewToken('sahaj-atlas-client', privateKeyBase64, NOW)
-    expect(await verifyOwnLivePreviewToken(atlas!, privateKeyBase64, NOW)).not.toBeNull()
+  it('accepts a token minted under the configured key', async () => {
+    const token = await mintLivePreviewToken(privateKeyBase64, NOW)
+    expect(await verifyOwnLivePreviewToken(token!, privateKeyBase64, NOW)).toBe(true)
   })
 
   it('refuses a token minted under a different key', async () => {
-    const foreign = await mintLivePreviewToken('wemeditate-web-client', otherPrivateKeyBase64, NOW)
+    const foreign = await mintLivePreviewToken(otherPrivateKeyBase64, NOW)
     resetLivePreviewKeyCache()
-    expect(await verifyOwnLivePreviewToken(foreign!, privateKeyBase64, NOW)).toBeNull()
+    expect(await verifyOwnLivePreviewToken(foreign!, privateKeyBase64, NOW)).toBe(false)
   })
 
   it('refuses an expired token, and edited claims', async () => {
-    const token = await mintLivePreviewToken('wemeditate-web-client', privateKeyBase64, NOW)
-    expect(
-      await verifyOwnLivePreviewToken(token!, privateKeyBase64, expectedExp(NOW)),
-    ).toBeNull()
+    const token = await mintLivePreviewToken(privateKeyBase64, NOW)
+    expect(await verifyOwnLivePreviewToken(token!, privateKeyBase64, expectedExp(NOW))).toBe(false)
 
-    const forged = Buffer.from(JSON.stringify({ role: 'wemeditate-web-client', exp: NOW + 9_999_999 })).toString(
+    const [header, , signature] = token!.split('.')
+    const forged = Buffer.from(JSON.stringify({ exp: NOW + 9_999_999 }), 'utf8').toString(
       'base64url',
     )
     expect(
-      await verifyOwnLivePreviewToken(`${forged}.${token!.split('.')[1]}`, privateKeyBase64, NOW),
-    ).toBeNull()
+      await verifyOwnLivePreviewToken(`${header}.${forged}.${signature}`, privateKeyBase64, NOW),
+    ).toBe(false)
   })
 
-  it('refuses everything when no key is configured', async () => {
-    expect(await verifyOwnLivePreviewToken('anything', undefined, NOW)).toBeNull()
+  it('refuses malformed input, and everything when no key is configured', async () => {
+    expect(await verifyOwnLivePreviewToken('anything', undefined, NOW)).toBe(false)
+    resetLivePreviewKeyCache()
+    expect(await verifyOwnLivePreviewToken('not.a.token', privateKeyBase64, NOW)).toBe(false)
   })
 })
 

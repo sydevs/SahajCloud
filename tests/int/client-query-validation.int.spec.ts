@@ -238,25 +238,19 @@ describe('Client query parameter validation', () => {
     })
   })
 
-  // Live-preview reads carry a short-lived token in the
-  // `x-sahajcloud-preview-secret` header. They render the whole document, so
-  // the select/populate gate is skipped (see `hasValidPreviewSecret` in
-  // `src/lib/utilities/previewSecret.ts`). Without this bypass the admin live
-  // preview 400s because it does not enumerate select — the breakage #294
-  // introduced.
+  // A live-preview read renders the whole document, so the select/populate
+  // gate is skipped. Without the bypass the admin panel 400s because it does
+  // not enumerate select — the breakage #294 introduced.
   //
-  // ⚠ These reads go through `resolveLivePreviewHook` explicitly. In a real
-  // request Payload runs it as the first `beforeOperation` hook, before access
-  // resolves; a spec that called `payload.find` directly with only the header
-  // set would find the verdict unstamped and the bypass inert — which is
-  // exactly what should happen, and is what `hasValidPreviewSecret` failing
-  // closed means.
+  // ⚠ These reads call `resolveLivePreviewHook` explicitly. Payload runs it as
+  // the first `beforeOperation` hook in a real request; a spec that only set
+  // the header would leave the verdict unstamped and the bypass inert.
   describe('live preview bypass', () => {
     const previewClientReq = async (token?: string): Promise<PayloadRequest> => {
       const req = clientReq()
       const minted =
         token ??
-        (await mintLivePreviewToken('wemeditate-web-client', serverEnv.LIVE_PREVIEW_SIGNING_KEY)) ??
+        (await mintLivePreviewToken(serverEnv.LIVE_PREVIEW_SIGNING_KEY)) ??
         'no-key-configured'
       req.headers.set('x-sahajcloud-preview-secret', minted)
       await resolveLivePreviewHook({ req })

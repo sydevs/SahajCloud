@@ -7,7 +7,7 @@ import type { PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
-import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
+import { isLivePreviewRequest } from '@/lib/utilities/previewSecret'
 import type { Client } from '@/payload-types'
 
 import { getPgPool, quotedDbSchema } from './db'
@@ -220,10 +220,8 @@ export const rateLimitHook: ClientReadGate = () => {
  * top-level request, and must not be rejected for lacking their own REST
  * `select` parameter.
  *
- * Live-preview reads are also exempt. A request carrying the valid
- * live-preview token header (see `hasValidPreviewSecret`) renders
- * the whole document, so forcing it to enumerate `select` and `populate` is
- * meaningless, and breaks the admin live preview.
+ * A verified live-preview read is also exempt: it renders the whole document,
+ * so forcing it to enumerate `select` and `populate` breaks the admin panel.
  */
 export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation, req }) => {
   if (operation !== 'read' || req.user?.collection !== 'clients') {
@@ -238,11 +236,8 @@ export const validateClientQueryParamsHook: ClientReadGate = ({ args, operation,
     return
   }
 
-  // A trusted live-preview read (with a valid preview secret) renders the
-  // whole document, and must not be forced to enumerate select or populate.
-  // This is the same trust signal that already unlocks drafts in
-  // createAccessConfig.
-  if (hasValidPreviewSecret(req)) {
+  // The same trust signal that unlocks drafts in `createAccessConfig`.
+  if (isLivePreviewRequest(req)) {
     return
   }
 
@@ -347,9 +342,8 @@ export function assertClientOriginAllowed(req: PayloadRequest): void {
     return
   }
 
-  // A trusted live-preview read renders the whole document from a known
-  // frontend. This is the same bypass the select/populate gate uses.
-  if (hasValidPreviewSecret(req)) {
+  // The same bypass the select/populate gate uses.
+  if (isLivePreviewRequest(req)) {
     return
   }
 

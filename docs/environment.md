@@ -56,7 +56,7 @@ Neither URL takes a trailing slash, since both are used as prefixes and compared
 
 The matching **public** key is committed into each consumer that verifies tokens (`PUBLIC__LIVE_PREVIEW_VERIFY_KEY` in WeMeditateWeb, `VITE_LIVE_PREVIEW_VERIFY_KEY` in SahajAtlasWeb). It is not a secret, and that is the point of signing rather than sharing a symmetric secret: SahajAtlasWeb ships as a public bundle, so any key it holds is published — a verification key being published costs nothing, a signing key being published is the whole vulnerability.
 
-The token names the **API-client role** that may redeem it, and `resolveLivePreviewHook` matches that against `req.user.roles` on the authenticated key. So a token minted for `wemeditate-web-client` is refused when presented with the Sahaj Atlas key. The claim first named the *site* instead, which only the consumer checked against a constant it hardcoded — while the CMS accepted either — so one leaked token unlocked drafts on both surfaces.
+The token carries `{ exp }` and nothing else. An audience claim naming the API-client role was dropped in #788: the client key on the request already decides which collections are readable, so the claim only narrowed which *surface* a leaked token unlocked drafts on, never what it could reach.
 
 This replaces putting `SAHAJCLOUD_PREVIEW_SECRET` on the URL. A long-lived symmetric secret in a URL leaks permanently to everything that reads a URL — browser history, `Referer`, Sentry session replay, and an analytics script that posts `location.href`. A token expires in 45 minutes on its own.
 

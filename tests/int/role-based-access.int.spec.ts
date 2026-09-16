@@ -69,7 +69,7 @@ async function createTrustedPreviewRequest(
   user: PayloadRequest['user'],
 ): Promise<PayloadRequest> {
   const headers = new Headers()
-  const token = await mintLivePreviewToken('wemeditate-web-client', serverEnv.LIVE_PREVIEW_SIGNING_KEY)
+  const token = await mintLivePreviewToken(serverEnv.LIVE_PREVIEW_SIGNING_KEY)
   headers.set(PREVIEW_SECRET_HEADER, token ?? 'no-key-configured')
 
   const req = {
