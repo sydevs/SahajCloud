@@ -3,8 +3,8 @@
  * afford, what they write, and what the pipeline does next.
  *
  * The task is invoked deterministically via `runTaskHandler` rather than
- * through the queue: `enqueueSubmissionScreening` suppresses its immediate kick
- * under `NODE_ENV === 'test'` precisely so specs can do this without a
+ * through the queue: `runScreeningQueueAfterCommit` suppresses the deferred
+ * queue run under `NODE_ENV === 'test'` precisely so specs can do this without a
  * background run racing their assertions.
  *
  * Two external dependencies are stubbed: the MX lookup, and `fetch` — the
