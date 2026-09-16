@@ -311,8 +311,9 @@ Two knock-on effects:
   back a `create` whose relationship target is trashed** (the API returns
   201 with a doc id, but the row never lands. Reproduced with a bare REST
   create), so trashed events stay out of the registration id-map and that
-  skip is visible instead of a phantom success. **`expectedCounts.registrations`
-  is 2004**.
+  skip is visible instead of a phantom success. **`expectedCounts['user-submissions']`
+  is 2004**, counted under `activeRegistrationWhere` rather than as a whole-
+  collection count — contact, subscribe and proposal rows share that table.
 - **`expectedCounts.regions` is 646** — 595 source geo nodes (34 country +
   101 region + 460 area, post-dedupe) plus 52 shared-venue nodes, less
   region:East (#42), whose invalid source coordinates fail validation on
