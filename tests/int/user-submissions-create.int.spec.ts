@@ -47,6 +47,23 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       context: {},
     }) as unknown as PayloadRequest
 
+  /**
+   * A published event a client may actually read. `testData.createEvent` leaves
+   * `_status` to Payload, so its events are drafts — invisible to a client, and
+   * since #797 that means `gateRegistration` answers 404 rather than letting the
+   * registration through.
+   */
+  const publishedEvent = async () => {
+    const event = await testData.createEvent(payload, { manager: manager.id })
+    return payload.update({
+      collection: 'events',
+      id: event.id,
+      data: { _status: 'published' },
+      context: { skipVerifyHook: true },
+      overrideAccess: true,
+    })
+  }
+
   const send = (
     data: Record<string, unknown>,
     options: { as?: () => Client; headers?: Record<string, string> } = {},
@@ -162,7 +179,7 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
     })
 
     it('accepts a registration submission, with an event and no form', async () => {
-      const event = await testData.createEvent(payload, { manager: manager.id })
+      const event = await publishedEvent()
       const doc = await send({
         type: 'registration',
         event: event.id,
@@ -417,7 +434,7 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       // The half no condition can carry: a false condition skips validation
       // rather than refusing a value, so this rule lives on `event`'s own
       // validator, whose condition is true for exactly the types it covers.
-      const event = await testData.createEvent(payload, { manager: manager.id })
+      const event = await publishedEvent()
       expect(
         await refusalFor(
           send({
@@ -645,6 +662,12 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       // published check a create-only client could name any event id and read
       // its title back out of `subject`, one row at a time, routing around the
       // published-only narrowing its own reads get.
+      //
+      // ⚠ Asserted on a **proposal**, not a registration. Since #797 a client
+      // registration naming an event it cannot read is refused 404 outright, so
+      // the registration shape no longer reaches `titleOf` at all — and a case
+      // that cannot reach the code it names is not covering it. A proposal is
+      // not gated, so it still is the shape that probes this.
       const draft = await testData.createEvent(payload, { manager: manager.id })
       await payload.update({
         collection: 'events',
@@ -654,9 +677,10 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       })
 
       const doc = await send({
-        type: 'registration',
+        type: 'proposal',
         event: draft.id,
         senderEmail: 'prober@example.com',
+        proposed: { title: 'Something else' },
       })
       expect(doc.subject).not.toContain(draft.title)
     })
@@ -688,6 +712,59 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
           submissionData: [{ field: 'message', value: 'A forged token.' }],
         }),
       ).rejects.toThrow()
+    })
+  })
+
+  describe('the review projections', () => {
+    // ⚠ Both are `virtual` fields with an `afterRead` hook, and Payload runs
+    // field `afterRead` hooks on the response of a **create** — with no
+    // `findMany` argument, so their own list-read guard does not fire there.
+    // `loadTargetEvent` reads the named event with `overrideAccess: true,
+    // draft: true, trash: true`, and `mergeProposal` returns the whole
+    // document. Without field-level `read` access denying clients, a published
+    // key could POST a proposal naming any event id and read that event back
+    // out of the 201 body — past the published-only filter (which applies on
+    // `read` alone), past the trash filter, and past the `select` requirement.
+    it('are absent from a client’s create response, even naming a draft event', async () => {
+      const draft = await testData.createEvent(payload, { manager: manager.id })
+      await payload.update({
+        collection: 'events',
+        id: draft.id,
+        data: { _status: 'draft' },
+        context: { skipVerifyHook: true },
+        overrideAccess: true,
+      })
+
+      const created = await send({
+        type: 'proposal',
+        event: draft.id,
+        senderEmail: 'prober@example.com',
+        proposed: { title: 'Anything' },
+      })
+
+      expect(created.previewEvent).toBeUndefined()
+      expect(created.proposedChanges).toBeUndefined()
+    })
+
+    it('are present for a manager, so the review page still works', async () => {
+      const event = await testData.createEvent(payload, { manager: manager.id })
+      const created = await payload.create({
+        collection: 'user-submissions',
+        data: {
+          type: 'proposal',
+          event: event.id,
+          senderEmail: 'proposer@example.com',
+          proposed: { title: 'A better title' },
+        } as never,
+        overrideAccess: true,
+      })
+
+      const asManager = await payload.findByID({
+        collection: 'user-submissions',
+        id: created.id,
+        overrideAccess: true,
+      })
+      expect(asManager.proposedChanges).toBeTruthy()
     })
   })
 })

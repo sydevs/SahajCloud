@@ -288,16 +288,17 @@ describe('Event listing quality', () => {
         onlineUrl: 'https://example.org/join',
         schedule: { firstDate: '2030-04-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
       })
-      const user = await payload.create({
-        collection: 'users',
-        data: { email: 'seeker@example.org', name: 'Seeker' } as never,
-      })
       const registration = await payload.create({
-        collection: 'registrations',
-        data: { event: event.id, user: user.id, uuid: `quality-${event.id}` } as never,
+        collection: 'user-submissions',
+        data: {
+          type: 'registration',
+          event: event.id,
+          senderEmail: 'seeker@example.org',
+          uuid: `quality-${event.id}`,
+        } as never,
       })
       const hydrated = await payload.findByID({
-        collection: 'registrations',
+        collection: 'user-submissions',
         id: registration.id,
         depth: 1,
       })

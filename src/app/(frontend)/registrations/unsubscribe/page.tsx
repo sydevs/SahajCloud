@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getPayload } from 'payload'
 
+import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import type { LocaleCode } from '@/lib/locales'
 import { readUnsubscribeToken } from '@/lib/registrations/unsubscribeToken'
 import { interpolate, resolveEmailStrings } from '@/lib/translations/emailStrings'
@@ -48,8 +49,8 @@ export default async function UnsubscribePage({
 
   const registration = await payload
     .findByID({
-      collection: 'registrations',
-      id: result.claims.registrationId,
+      collection: 'user-submissions',
+      id: result.claims.submissionId,
       depth: 1,
       overrideAccess: true,
     })
@@ -60,11 +61,13 @@ export default async function UnsubscribePage({
 
   const strings = await resolveEmailStrings({
     payload,
-    locale: registration.locale as LocaleCode | null,
+  // `locale` is a `submissionData` pair on this collection, not a column —
+    // `deliverRegistration` reads it the same way. Do not add a column for it.
+    locale: (readSubmissionValue(registration.submissionData, 'locale') ?? null) as LocaleCode | null,
   })
 
   // Already unsubscribed — show the done card straight away (the flow is idempotent).
-  if (registration.remindersUnsubscribedAt) {
+  if (registration.unsubscribedAt) {
     return (
       <UnsubscribeCard
         brand={brand}

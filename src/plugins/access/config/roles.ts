@@ -69,15 +69,13 @@ const ROLES = {
     // layer (regionSubtreeAccess.ts) — they are NOT collection-wide despite
     // appearing here. Regions get create+update; events also get delete (trash).
     //
-    // `users` and `event-submissions` are RESTRICTED collections (no shared
-    // implicit read — they carry personal data), so the reads managers need
-    // are granted explicitly: registrants show up inside registrations, and
-    // submissions are what a manager reviews/accepts.
+    // `users` is a RESTRICTED collection (no shared implicit read — it carries
+    // personal data), so the read a manager needs is granted explicitly:
+    // registrants show up inside an event's registrations.
     permissions: {
       regions: ['create', 'update'] as PermissionLevel[],
       events: ['create', 'update', 'delete'] as PermissionLevel[],
       users: ['read'] as PermissionLevel[],
-      'event-submissions': ['read', 'update'] as PermissionLevel[],
       // `user-submissions` is restricted too, so this grant is what reaches it
       // at all — and it is narrowed per row in `accessConfigs.ts`: a manager
       // reads the contact rows addressed to them, plus proposals. It does NOT
@@ -112,24 +110,17 @@ const ROLES = {
     description: 'Access for Sahaj Atlas application',
     project: 'sahaj-atlas' as const,
     // All collections/globals get implicit read via project parameter.
-    // `event-submissions` is create-ONLY: the widget submits new events and
-    // update proposals through the built-in create endpoint (guarded by the
-    // write-guard plugin), but must never read submissions back — the
-    // collection is restricted (submitter emails).
-    // `user-messages` is create-ONLY for the same reason as event-submissions,
-    // and is the ONLY grant that collection has anywhere: no manager role names
-    // it, so reading one takes the admin bypass. They are unscreened messages
-    // from strangers, about anything at all (#632).
-    // `user-submissions` is create-ONLY as well, for every one of its four
-    // types. There is deliberately **no update grant of any kind** (#723): the
+    // `user-submissions` is create-ONLY, for every one of its four types: the
+    // widget submits registrations, proposals and messages through the built-in
+    // create endpoint (guarded by the write-guard plugin), but must never read
+    // one back — the collection is restricted (sender addresses, free text).
+    // There is deliberately **no update grant of any kind** (#723): the
     // registrant confirm/deny vote it used to carry was never written by a
     // client — the CMS-hosted `/registrations/feedback` page records it with
     // `overrideAccess`, and always did — so the old `registrations: ['update']`
     // grant, the uuid-scoped access branch, and the field whitelist beside it
     // were an open write path nothing used.
     permissions: {
-      'event-submissions': ['create'] as PermissionLevel[],
-      'user-messages': ['create'] as PermissionLevel[],
       'user-submissions': ['create'] as PermissionLevel[],
     },
   },

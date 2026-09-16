@@ -79,7 +79,7 @@ Each script's collection metadata lives in `seeds/lib/expectedCounts.ts`:
 | atlas       | regions       | 646   | No         | managers                |
 | atlas       | users         | 1864  | Yes        | None                    |
 | atlas       | events        | 649   | Yes        | managers, regions       |
-| atlas       | registrations | 2004  | Yes        | events, users           |
+| atlas       | user-submissions | 2004 | Yes     | events, users           |
 | atlas       | clients       | 31    | No         | managers                |
 
 **Meditations note**: targeting `collection=meditations` also runs
@@ -100,7 +100,7 @@ automatically — printing per-batch progress as it goes.
 | wemeditate  | `pnpm seed wemeditate`  | data.json (pre-extracted)                  | pages, authors, page-tags, albums     |
 | meditations | `pnpm seed meditations` | Run `tags` + `wemeditate` first, data.json | meditations, frames, music, narrators |
 | tags        | `pnpm seed tags`        | None                                       | user-choices, music-tags              |
-| atlas       | `pnpm seed atlas`       | The 8 JSON dumps in `seeds/atlas/data/`    | managers, regions, users, events, registrations, clients |
+| atlas       | `pnpm seed atlas`       | The 8 JSON dumps in `seeds/atlas/data/`    | managers, regions, users, events, user-submissions, clients |
 | translations | `pnpm seed translations` | None                                      | the three translations globals (see below) |
 
 ### `translations` — real copy everywhere, and the locales it publishes

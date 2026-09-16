@@ -4,7 +4,6 @@ import { Audiences } from './Audiences/Audiences'
 import { Authors } from './Authors/Authors'
 import { Clients } from './Clients/Clients'
 import { Events } from './Events/Events'
-import { EventSubmissions } from './EventSubmissions/EventSubmissions'
 import { Files } from './Files/Files'
 import { Frames } from './Frames/Frames'
 import { Images } from './Images/Images'
@@ -15,12 +14,10 @@ import { Meditations } from './Meditations/Meditations'
 import { Narrators } from './Narrators/Narrators'
 import { Pages } from './Pages/Pages'
 import { Regions } from './Regions/Regions'
-import { Registrations } from './Registrations/Registrations'
 import { Songs } from './Songs/Songs'
 import { SongTags } from './SongTags/SongTags'
 import { SubtleSystemNodes } from './SubtleSystemNodes/SubtleSystemNodes'
 import { UserChoices } from './UserChoices/UserChoices'
-import { UserMessages } from './UserMessages/UserMessages'
 import { Users } from './Users/Users'
 import { Videos } from './Videos/Videos'
 
@@ -53,11 +50,7 @@ export const collections = [
   // Sahaj Atlas
   Regions,
   Events,
-  EventSubmissions,
-  Registrations,
   Users,
-  // System
-  UserMessages,
 ]
 
 export {
@@ -71,8 +64,6 @@ export {
   // Classes
   Regions,
   Events,
-  EventSubmissions,
-  Registrations,
   // Resources
   Lectures,
   Frames,
@@ -89,8 +80,6 @@ export {
   Managers,
   Clients,
   Users,
-  // System
-  UserMessages,
   // Project-specific
   AppCards,
 }

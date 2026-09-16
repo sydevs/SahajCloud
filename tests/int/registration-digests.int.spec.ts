@@ -1,9 +1,12 @@
 import type { EmailTestAdapter } from '../utils/emailTestAdapter'
+import type { FixtureOverrides } from '../utils/testData'
 import type { Payload } from 'payload'
+
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { SendRegistrationDigests } from '@/jobs/RegistrationNotifications/SendRegistrationDigests'
+import type { UserSubmission } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData } from '../utils/testData'
@@ -80,26 +83,31 @@ describe('SendRegistrationDigests job', () => {
     return event.id
   }
 
+  /**
+   * A registration is a `user-submissions` row. The address is the row's own
+   * `senderEmail` column; the name and the question answers are
+   * `submissionData` pairs, which is what `answersFrom` maps for the digest.
+   */
   async function register(
     eventId: number,
     name: string,
-    questions?: Record<string, unknown>,
+    answers: Record<string, string> = {},
+    overrides: FixtureOverrides<UserSubmission> = {},
   ): Promise<void> {
     const email = `${name.toLowerCase()}-${(seq += 1)}@example.com`
-    const user = await payload.create({
-      collection: 'users',
-      overrideAccess: true,
-      data: { name, email },
-    })
     await payload.create({
-      collection: 'registrations',
+      collection: 'user-submissions',
       overrideAccess: true,
-      data: {
+      data: createData<'user-submissions'>({
+        type: 'registration',
         event: eventId,
-        user: user.id,
-        uuid: `uuid-${email}`,
-        ...(questions ? { questions } : {}),
-      },
+        senderEmail: email,
+        submissionData: [
+          { field: 'name', value: name },
+          ...Object.entries(answers).map(([field, value]) => ({ field, value })),
+        ],
+        ...overrides,
+      }),
     })
   }
 
@@ -185,26 +193,12 @@ describe('SendRegistrationDigests job', () => {
   })
 
   it('still includes a registration whose registrant unsubscribed from reminders', async () => {
-    // The unsubscribe link covers registrant *reminders* only. Manager digests are
-    // controlled by notificationPreferences, not that flag (#589). So a registrant's
+    // `unsubscribedAt` covers registrant *reminders* only. Manager digests are
+    // controlled by notificationPreferences, not that column (#589). So a registrant's
     // reminder opt-out must NOT hide their registration from the manager's digest.
     const managerId = await createManager('unsub-digest@example.com', 'Daily Summary')
     const eventId = await createEvent(managerId, 'Unsub Digest Event')
-    const user = await payload.create({
-      collection: 'users',
-      overrideAccess: true,
-      data: { name: 'Grace', email: `grace-${(seq += 1)}@example.com` },
-    })
-    await payload.create({
-      collection: 'registrations',
-      overrideAccess: true,
-      data: {
-        event: eventId,
-        user: user.id,
-        uuid: `uuid-unsub-${user.id}`,
-        remindersUnsubscribedAt: new Date().toISOString(),
-      },
-    })
+    await register(eventId, 'Grace', {}, { unsubscribedAt: new Date().toISOString() })
 
     emailAdapter.clearCapturedEmails()
     await runDigests(payload)

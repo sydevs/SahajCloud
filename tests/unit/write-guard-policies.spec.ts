@@ -14,25 +14,25 @@ import { DEFAULT_WRITE_GUARD_POLICIES } from '@/plugins/writeGuard/policies'
  */
 describe('DEFAULT_WRITE_GUARD_POLICIES', () => {
   /**
-   * Every collection a client may create through. Registrations joined this
-   * list in #629, once the Atlas widget began sending the header
-   * (sydevs/SahajAtlasWeb#182).
+   * Every collection a client may create through. One intake since #800, and
+   * `users` is not on it: a client never creates one directly —
+   * `prepareUserSubmission` upserts it on the client's own `req`.
    */
-  const PUBLIC_CREATE_PATHS = [
-    'event-submissions',
-    'user-messages',
-    'registrations',
-    'user-submissions',
-  ] as const
+  const PUBLIC_CREATE_PATHS = ['user-submissions'] as const
 
   it.each(PUBLIC_CREATE_PATHS)('requires Turnstile on %s create', (slug) => {
     expect(DEFAULT_WRITE_GUARD_POLICIES[slug]?.create?.turnstile).toBe(true)
   })
 
-  it('scans the registration questions blob for URLs as well as gating it', () => {
-    // The captcha stops bulk automation. The URL scan is what stops a human
-    // spammer typing a link into a free-text answer. Neither replaces the other.
-    expect(DEFAULT_WRITE_GUARD_POLICIES.registrations?.create?.urlScanFields).toContain('questions')
+  it('leaves the answer pairs to prepareUserSubmission, not a path here', () => {
+    // The captcha stops bulk automation; the URL scan is what stops a human
+    // spammer typing a link into a free-text answer, and neither replaces the
+    // other. A `submissionData` path here would flatten the whole pair array
+    // and scan the crash-report keys that are exempt on purpose, so the hook
+    // that knows each pair's key owns that scan instead.
+    expect(DEFAULT_WRITE_GUARD_POLICIES['user-submissions']?.create?.urlScanFields).not.toContain(
+      'submissionData',
+    )
   })
 
   it('checks the sender address on the unified intake, for every type', () => {

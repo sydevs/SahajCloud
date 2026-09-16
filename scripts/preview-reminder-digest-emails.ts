@@ -362,7 +362,7 @@ async function main() {
       registrantName: s.registrantName ?? 'Jo Smith',
       registrantEmail: 'registrant@example.com',
       locale: s.locale ?? 'en',
-      registrationId: s.event.id,
+      submissionId: s.event.id,
       // The single occurrence to remind about: the class's next session.
       occurrenceIso: (s.event.schedule as { firstDate: string }).firstDate,
     })

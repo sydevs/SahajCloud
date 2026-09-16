@@ -1,11 +1,11 @@
 /**
- * Send an admin-facing user message on a viewer's behalf (`user-messages`, #632).
+ * Send an admin-facing user message on a viewer's behalf (#632).
  *
  * **Throws on failure, deliberately.** Under #602 the reason was that nothing
  * was persisted, so the email was the entire deliverable and the endpoint owed
  * the caller a 502. The message is now stored, and the caller is long gone by
  * the time this runs — but the throw still matters, because the *job* is now the
- * party that reacts to it: `screenUserMessage` catches it, records the row as
+ * party that reacts to it: `deliverContact` catches it, records the row as
  * `failed` so an admin can see it, and rethrows to earn a retry. Swallowing here
  * would turn a failed send into a silently "delivered" message.
  *
@@ -16,10 +16,13 @@ import type { Payload } from 'payload'
 
 import { createElement } from 'react'
 
-import { buildUserMessageDetails, UserMessageEmail } from '@/emails/UserMessageEmail'
+import {
+  buildUserMessageDetails,
+  UserMessageEmail,
+  type UserMessageContext,
+} from '@/emails/UserMessageEmail'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
-import type { UserMessage } from '@/payload-types'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
 export interface SendUserMessageArgs {
@@ -33,7 +36,7 @@ export interface SendUserMessageArgs {
   /** The sender's address; becomes `Reply-To` when present. */
   senderEmail?: string
   /** Caller-supplied context rendered into the details block. */
-  context?: NonNullable<UserMessage['context']>
+  context?: UserMessageContext
   /** When the message was received (ISO 8601). */
   receivedAt: string
   /**

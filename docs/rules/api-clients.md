@@ -282,7 +282,7 @@ A **finished** event (its schedule fully run out) stays `published`, since its A
 
 "Finished" means `schedule.lastDate` (the final occurrence's local end-of-day) is in the past — an event running today stays listed until midnight in its own timezone. A NULL `lastDate` (open-ended recurrence) and an `inactive` event are never finished. One definition, two expressions: `shouldFinish` in memory, `notFinishedWhere` as SQL, pinned to agree by `tests/unit/schedule-status.spec.ts`.
 
-The default is applied by the `excludeFinishedEvents` beforeOperation hook on Events. The opt-out is a `where` naming `schedule.lastDate` by **dotted path only** (Payload rejects the nested-group form). `POST /api/events/{id}/register` refuses a finished event with **409** ("This event has ended"), since the published-only access filter no longer catches it.
+The default is applied by the `excludeFinishedEvents` beforeOperation hook on Events. The opt-out is a `where` naming `schedule.lastDate` by **dotted path only** (Payload rejects the nested-group form). A `type: registration` create on `user-submissions` refuses a finished event with **409** ("This event has ended"), since the published-only access filter no longer catches it.
 
 > Existing clients see fewer docs from `GET /api/events`. This is deliberate, and published on the geojson operation's OpenAPI `description` (the generated `/api/events` path has no description seam to annotate).
 
@@ -320,7 +320,7 @@ The rule itself lives in `assertClientOriginAllowed(req)`. The hook is a thin wr
 
 **CORS**: `cors: { origins: '*', headers: ['x-sahajcloud-preview-secret'] }`. Per-client CORS is impossible, since a preflight is anonymous — the browser omits `Authorization`, so the server can't return a per-client allowlist at that point. The wildcard lets an embedded widget's preflight succeed on any host page. The real per-domain gate is this hook plus the API key. Payload omits `Access-Control-Allow-Credentials` for wildcard origins, so cookie-based admin sessions stay protected. The `headers` list **appends** to Payload's defaults (#575), so the live-preview widget's `x-sahajcloud-preview-secret` still clears preflight. Guarded by `tests/int/cors-config.int.spec.ts` and `tests/e2e/cors-preflight.e2e.spec.ts`.
 
-Tests: `tests/unit/origin-enforcement.spec.ts` (normalization and matching), `tests/int/client-origin-enforcement.int.spec.ts` (wiring through `payload.find` and the geojson/register endpoints), `tests/int/globals-client-reads.int.spec.ts` (the same gate on a global read).
+Tests: `tests/unit/origin-enforcement.spec.ts` (normalization and matching), `tests/int/client-origin-enforcement.int.spec.ts` (wiring through `payload.find`, the geojson endpoint and a registration create), `tests/int/globals-client-reads.int.spec.ts` (the same gate on a global read).
 
 ## Usage monitoring
 

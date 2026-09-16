@@ -2,10 +2,24 @@ import type { CSSProperties } from 'react'
 
 import { Hr, Link, Section, Text } from 'react-email'
 
-import type { UserMessage } from '@/payload-types'
 import type { EmailBrand } from '@/plugins/email'
 
 import { DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
+
+/**
+ * What the sender's client knew about where the message came from.
+ *
+ * Declared here rather than derived from a column: the five keys travel as
+ * `submissionData` pairs on `user-submissions` and are rebuilt for this
+ * template by `contextFromSubmissionData`, so this renderer owns the shape.
+ */
+export interface UserMessageContext {
+  path?: string
+  hostUrl?: string
+  locale?: string
+  error?: string
+  userAgent?: string
+}
 
 /** One label/value row in the details block. */
 export interface UserMessageDetail {
@@ -27,7 +41,7 @@ export function buildUserMessageDetails(args: {
   clientName: string
   /** When the message was received (ISO 8601). */
   receivedAt: string
-  context?: NonNullable<UserMessage['context']>
+  context?: UserMessageContext
 }): UserMessageDetail[] {
   const { clientName, receivedAt, context } = args
 
@@ -65,8 +79,8 @@ interface UserMessageEmailProps {
 }
 
 /**
- * Admin-facing message sent on a viewer's behalf, delivered by the
- * `screenUserMessage` job once a `user-messages` row passes screening (#632).
+ * Admin-facing message sent on a viewer's behalf, delivered by
+ * `DeliverSubmissions` once a contact submission passes screening (#632).
  *
  * Informational, not an alert — the same shape as `EventRegistrationEmail`: no
  * callout or deadline, a `DetailRow` fact table, and the shared `EmailLayout`

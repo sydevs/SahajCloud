@@ -56,11 +56,6 @@ import { default as default_d749fd4cc4f11cb94ed2d6b537f6015d } from '@/component
 import { default as default_d73215fe105de40829b40e0975052656 } from '@/components/admin/VerificationStageField'
 import { default as default_3db810cf95b8f600a49837ee6d29b565 } from '@/components/admin/LogTable'
 import { default as default_42fbdbfc3b16bbe7c43aa9f07c715c1c } from '@/components/admin/EventQualityPanel'
-import { default as default_8b69e6ea88d83799ec84e5cf9e71c246 } from '@/components/admin/EventSubmissions/EventSubmissionStatus'
-import { default as default_93de032a2c439140bbcbc60bbf0ac5c7 } from '@/components/admin/EventSubmissions/EventSubmissionSubmitter'
-import { default as default_52d2c1a1f8d858fe877927984eb0360b } from '@/components/admin/EventSubmissions/EventSubmissionChanges'
-import { default as default_69083c55f10983d6a93284b6710057b2 } from '@/components/admin/EventSubmissions/EventSubmissionActions'
-import { default as default_afd28e2ad38835771bbf44d22181f690 } from '@/components/admin/UserMessages/UserMessageStatus'
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ChecklistFeatureClient as ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { IndentFeatureClient as IndentFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -70,6 +65,9 @@ import { SuperscriptFeatureClient as SuperscriptFeatureClient_e70f5e05f09f93e00b
 import { SubscriptFeatureClient as SubscriptFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { StrikethroughFeatureClient as StrikethroughFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { UnderlineFeatureClient as UnderlineFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
+import { default as default_1362f9d401458600fb8b976a104ad7f3 } from '@/components/admin/SubmissionReview/SubmissionChanges'
+import { default as default_af29cb1ab17d55265c927ecaae54b307 } from '@/components/admin/SubmissionReview/SubmissionStatus'
+import { default as default_7f2d46ee1b409fcfce4d4804d79d7227 } from '@/components/admin/SubmissionReview/SubmissionActions'
 import { default as default_4e22aa57842837eff3a83b422834aab2 } from '@/components/admin/TranslationsRow'
 import { default as default_cbd7ea31609971bfa7093afb69bf75ad } from '@/components/admin/TabScreenshot'
 import { TranslationsRichTextField as TranslationsRichTextField_4e22aa57842837eff3a83b422834aab2 } from '@/components/admin/TranslationsRow'
@@ -146,11 +144,6 @@ export const importMap = {
   "@/components/admin/VerificationStageField#default": default_d73215fe105de40829b40e0975052656,
   "@/components/admin/LogTable#default": default_3db810cf95b8f600a49837ee6d29b565,
   "@/components/admin/EventQualityPanel#default": default_42fbdbfc3b16bbe7c43aa9f07c715c1c,
-  "@/components/admin/EventSubmissions/EventSubmissionStatus#default": default_8b69e6ea88d83799ec84e5cf9e71c246,
-  "@/components/admin/EventSubmissions/EventSubmissionSubmitter#default": default_93de032a2c439140bbcbc60bbf0ac5c7,
-  "@/components/admin/EventSubmissions/EventSubmissionChanges#default": default_52d2c1a1f8d858fe877927984eb0360b,
-  "@/components/admin/EventSubmissions/EventSubmissionActions#default": default_69083c55f10983d6a93284b6710057b2,
-  "@/components/admin/UserMessages/UserMessageStatus#default": default_afd28e2ad38835771bbf44d22181f690,
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#ChecklistFeatureClient": ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#IndentFeatureClient": IndentFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
@@ -160,6 +153,9 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#SubscriptFeatureClient": SubscriptFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#StrikethroughFeatureClient": StrikethroughFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#UnderlineFeatureClient": UnderlineFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
+  "@/components/admin/SubmissionReview/SubmissionChanges#default": default_1362f9d401458600fb8b976a104ad7f3,
+  "@/components/admin/SubmissionReview/SubmissionStatus#default": default_af29cb1ab17d55265c927ecaae54b307,
+  "@/components/admin/SubmissionReview/SubmissionActions#default": default_7f2d46ee1b409fcfce4d4804d79d7227,
   "@/components/admin/TranslationsRow#default": default_4e22aa57842837eff3a83b422834aab2,
   "@/components/admin/TabScreenshot#default": default_cbd7ea31609971bfa7093afb69bf75ad,
   "@/components/admin/TranslationsRow#TranslationsRichTextField": TranslationsRichTextField_4e22aa57842837eff3a83b422834aab2,

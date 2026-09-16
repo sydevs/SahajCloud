@@ -83,7 +83,7 @@ export function hasPermission(
     // Both managers and API clients get the same behavior:
     // - Collections in their role's project are readable
     // - Shared collections (not in any project) are readable by all
-    // - EXCEPT restricted collections (users, event-submissions): personal
+    // - EXCEPT restricted collections (users, user-submissions): personal
     //   data never rides the shared-read rule — explicit grant or admin only.
     if (operation === 'read' && !isRestrictedCollection(collection)) {
       const project = getRoleProject(role)

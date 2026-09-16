@@ -208,7 +208,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         },
         {
           // Safety net for the per-submission screening kick (see
-          // EventSubmissions/hooks/enqueueScreening): a submission whose
+          // UserSubmissions/hooks/enqueueSubmissionScreening): a submission whose
           // immediate run was lost to a crash waits at most 15 minutes.
           cron: '*/15 * * * *',
           queue: 'screening',

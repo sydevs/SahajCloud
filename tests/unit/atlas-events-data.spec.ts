@@ -350,6 +350,6 @@ describe('expected counts follow from the data', () => {
       (r) => (r.userId != null && unimportable.has(r.userId)) || !resolves(r.eventId),
     )
     expect(trashedOnImport.size).toBe(2) // #75 and #199
-    expect(EXPECTED_COUNTS.atlas.registrations).toBe(registrations.length - orphaned.length)
+    expect(EXPECTED_COUNTS.atlas['user-submissions']).toBe(registrations.length - orphaned.length)
   })
 })

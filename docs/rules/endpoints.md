@@ -56,7 +56,7 @@ endpoints: [atlasSeo, atlasSitemap],
 
 The bar is high. Two endpoints clear it: `GET /api/atlas/seo` takes a **route** that may name a region or an event, so no single collection owns it. `GET /api/atlas/sitemap` spans regions and events for the same reason, and its real unit is the **client's ownership** — a `clients` fact, not either collection's.
 
-A third case, `POST /api/contact-admin`, once justified itself as "stored nowhere, owned by nothing" — true only because it chose not to store anything. Once the feature needed spam screening, it needed a collection, so the endpoint was deleted and the intake became a plain create on `user-messages` (#632), recovering the origin checks and usage tracking it had skipped. Before reaching for a root endpoint, ask whether the resource is genuinely ownerless, or merely unpersisted. Prefer a collection endpoint whenever a collection plausibly owns the resource.
+A third case, `POST /api/contact-admin`, once justified itself as "stored nowhere, owned by nothing" — true only because it chose not to store anything. Once the feature needed spam screening, it needed a collection, so the endpoint was deleted and the intake became a plain create on a collection (#632, now `user-submissions`), recovering the origin checks and usage tracking it had skipped. Before reaching for a root endpoint, ask whether the resource is genuinely ownerless, or merely unpersisted. Prefer a collection endpoint whenever a collection plausibly owns the resource.
 
 **The folder path mirrors the URL.** A single-file endpoint sits at `src/endpoints/<name>.ts`. One that needs supporting modules gets a folder whose path *is* the URL, with the handler in `index.ts`:
 
@@ -142,7 +142,7 @@ See `docs/rules/openapi.md` for the full shim contract.
 Two Payload behaviors to know before writing such a hook:
 
 - **`find` and `findByID` both arrive as `operation: 'read'`.** Guarding on `'find'` matches nothing. Distinguish the single-doc read by the `id` arg: `if ('id' in args) return args`.
-- **Exempt an endpoint's own forwarded reads.** A handler using `asTrustedReq` is doing its own lookup and needs the true state — `POST /api/events/{id}/register` must tell "no such event" (404) from "this event has ended" (409). Check `isTrustedReq(req)` (from `@/plugins/usage/hooks`) and return early. Result-shaping hooks honour that flag. Security gates (`validateClientOriginHook`) deliberately don't.
+- **Exempt an endpoint's own forwarded reads.** A hook or handler using `asTrustedReq` is doing its own lookup and needs the true state — the registration gate on `user-submissions` must tell "no such event" (404) from "this event has ended" (409). Check `isTrustedReq(req)` (from `@/plugins/usage/hooks`) and return early. Result-shaping hooks honour that flag. Security gates (`validateClientOriginHook`) deliberately don't.
 
 **Shaped endpoints** return a fixed, hand-built structure (`GET /api/lectures/{id}/related-meditations`, `/related-lectures`). These take no `select` or `populate` — the field set is fixed — and publish the exact response schema instead. To trim a shaped response, add a **bounded** `select` over an explicit field allowlist (`GET /api/meditations/{id}/songs`), not a raw passthrough.
 

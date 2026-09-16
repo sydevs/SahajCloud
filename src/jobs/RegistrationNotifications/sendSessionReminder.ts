@@ -35,7 +35,7 @@ export async function sendSessionReminder(args: {
   registrantEmail: string
   locale?: LocaleCode | null
   /** Registration id — signed into the unsubscribe link. */
-  registrationId: number
+  submissionId: number
   /** ISO start of the occurrence being reminded about. */
   occurrenceIso: string
   req?: PayloadRequest
@@ -47,7 +47,7 @@ export async function sendSessionReminder(args: {
     registrantName,
     registrantEmail,
     locale,
-    registrationId,
+    submissionId,
     occurrenceIso,
     req,
   } = args
@@ -56,7 +56,7 @@ export async function sendSessionReminder(args: {
   const strings = await resolveEmailStrings({ payload, locale, req })
   const details = buildReminderEmailDetails(event, occurrenceIso)
   const unsubscribeUrl = buildUnsubscribeEmailLink(
-    await signUnsubscribeToken({ registrationId }, payload.secret),
+    await signUnsubscribeToken({ submissionId }, payload.secret),
   )
 
   const templateProps = { name: registrantName, brand, strings, details, unsubscribeUrl }

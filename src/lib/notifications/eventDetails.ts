@@ -2,6 +2,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import type { EventDetails } from '@/emails/EventVerificationEmail'
 import { asNotificationLog } from '@/lib/eventVerification/log'
+import { activeRegistrationWhere } from '@/lib/registrations/active'
 import type { Event } from '@/payload-types'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -178,9 +179,13 @@ export async function buildEventEmailDetails(args: {
   try {
     const cutoff = new Date(Date.now() - RECENT_REGISTRATION_DAYS * DAY_MS).toISOString()
     const { totalDocs } = await payload.count({
-      collection: 'registrations',
+      collection: 'user-submissions',
       where: {
-        and: [{ event: { equals: event.id } }, { createdAt: { greater_than_equal: cutoff } }],
+        and: [
+          activeRegistrationWhere,
+          { event: { equals: event.id } },
+          { createdAt: { greater_than_equal: cutoff } },
+        ],
       },
       overrideAccess: true,
       req,

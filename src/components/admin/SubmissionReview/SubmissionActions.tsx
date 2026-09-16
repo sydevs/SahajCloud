@@ -1,0 +1,163 @@
+'use client'
+
+import type { Action } from './urls'
+
+import {
+  Button,
+  SaveButton,
+  toast,
+  useDocumentInfo,
+  useForm,
+  useFormFields,
+  useFormModified,
+  useLocale,
+} from '@payloadcms/ui'
+import { useRouter } from 'next/navigation'
+import React, { useCallback, useState } from 'react'
+
+import {
+  OPEN_REVIEW_STATUSES,
+  REOPENABLE_REVIEW_STATUSES,
+} from '@/collections/UserSubmissions/statuses'
+import type { UserSubmission } from '@/payload-types'
+
+import { submissionActionUrl } from './urls'
+
+type SubmissionStatus = UserSubmission['status']
+
+// The same sets the review op enforces server-side, from the leaf module both
+// can import — a button offered for a status `applyReview` would refuse is a
+// promise the UI can't keep.
+const OPEN = new Set<SubmissionStatus>(OPEN_REVIEW_STATUSES)
+const REOPENABLE = new Set<SubmissionStatus>(REOPENABLE_REVIEW_STATUSES)
+
+const CONFIRM: Partial<Record<Action, string>> = {
+  reject: 'Reject this submission?',
+  delete: 'Delete this submission? The event it created is not affected.',
+}
+
+const DONE: Record<Action, (outcome?: string) => string> = {
+  accept: (outcome) =>
+    outcome === 'created'
+      ? 'Accepted — event created and published as unverified.'
+      : 'Accepted — changes applied to the event.',
+  reject: () => 'Submission rejected.',
+  reopen: () => 'Reopened — back to pending review.',
+  delete: () => 'Submission deleted.',
+}
+
+/**
+ * Replaces the default Save button on a proposal submission with the actions
+ * that actually apply to it. A submission is a proposal to judge, so "Save"
+ * is only ever meaningful for the one editable field (`region`), and offering
+ * it as the sole action on a resolved submission said nothing about what a
+ * manager could do next:
+ *
+ * - **open** (`pending` / `failed`) — Accept / Reject.
+ * - **shelved** (`spam` / `rejected`) — Reopen, returning it to pending. A
+ *   screening false positive is otherwise unrecoverable from the admin.
+ * - **applied** (`accepted`) — Delete. The submission has served
+ *   its purpose and the record is the manager's to discard; the event it
+ *   created is untouched.
+ *
+ */
+const SubmissionActions: React.FC = () => {
+  const { id } = useDocumentInfo()
+  const router = useRouter()
+  const { submit } = useForm()
+  const modified = useFormModified()
+  const { code: locale } = useLocale()
+  const status = useFormFields(([fields]) => fields?.status?.value as SubmissionStatus | undefined)
+  const type = useFormFields(([fields]) => fields?.type?.value as UserSubmission['type'] | undefined)
+  const [busy, setBusy] = useState<Action | null>(null)
+
+  const run = useCallback(
+    async (action: Action) => {
+      if (!id || busy) return
+      const confirmation = CONFIRM[action]
+      if (confirmation && !window.confirm(confirmation)) return
+      setBusy(action)
+      try {
+        // `region` is the one editable field, and correcting it only matters as
+        // part of accepting — so Accept persists it rather than a Save button
+        // asking the reviewer to do it in two steps. Nothing else on the page
+        // is editable, so a dirty form can only mean the region moved.
+        if (action === 'accept' && modified) await submit()
+        // No locale, no request. Sending one without it resolves the default
+        // locale server-side and reproduces the #701 403 silently — see
+        // `submissionActionUrl`.
+        const url = submissionActionUrl(id, action, locale)
+        if (!url) {
+          toast.error('Could not apply that action.')
+          return
+        }
+        const response =
+          action === 'delete'
+            ? await fetch(url, {
+                method: 'DELETE',
+                credentials: 'include',
+              })
+            : await fetch(url, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action }),
+              })
+        const body = (await response.json().catch(() => null)) as {
+          outcome?: string
+          errors?: { message?: string }[]
+        } | null
+        if (!response.ok) {
+          toast.error(body?.errors?.[0]?.message ?? 'Could not apply that action.')
+          return
+        }
+        // `outcome`, not `status`: one status vocabulary serves four intakes,
+        // so an accept is `accepted` whether it created a listing or patched
+        // one. Which it did is what the reviewer wants read back.
+        toast.success(DONE[action](body?.outcome))
+        // A deleted submission has no page left to refresh.
+        if (action === 'delete') router.push('/admin/collections/user-submissions')
+        else router.refresh()
+      } catch {
+        toast.error('Could not apply that action.')
+      } finally {
+        setBusy(null)
+      }
+    },
+    [id, busy, router, submit, modified, locale],
+  )
+
+  // An unsaved document has nothing to act on yet, and only one of the four
+  // intakes has a review path — every other type keeps the ordinary Save.
+  if (!id || !status || type !== 'proposal') return <SaveButton />
+
+  if (OPEN.has(status)) {
+    return (
+      <div style={{ display: 'flex', gap: 'calc(var(--base) * 0.4)' }}>
+        <Button onClick={() => run('reject')} buttonStyle="secondary" disabled={busy !== null}>
+          {busy === 'reject' ? 'Rejecting…' : 'Reject'}
+        </Button>
+        <Button onClick={() => run('accept')} disabled={busy !== null}>
+          {busy === 'accept' ? 'Accepting…' : 'Accept'}
+        </Button>
+      </div>
+    )
+  }
+
+  if (REOPENABLE.has(status)) {
+    return (
+      <Button onClick={() => run('reopen')} disabled={busy !== null}>
+        {busy === 'reopen' ? 'Reopening…' : 'Reopen'}
+      </Button>
+    )
+  }
+
+  // `accepted` — applied, and now just a record.
+  return (
+    <Button onClick={() => run('delete')} buttonStyle="secondary" disabled={busy !== null}>
+      {busy === 'delete' ? 'Deleting…' : 'Delete'}
+    </Button>
+  )
+}
+
+export default SubmissionActions

@@ -14,8 +14,8 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { eventSubmissionActionUrl } from '../../src/components/admin/EventSubmissions/urls'
 import { framesByNarratorKey } from '../../src/components/admin/FrameEditor/utils'
+import { submissionActionUrl } from '../../src/components/admin/SubmissionReview/urls'
 
 describe('framesByNarratorKey', () => {
   it('puts the locale in the request URL', () => {
@@ -42,33 +42,33 @@ describe('framesByNarratorKey', () => {
   })
 })
 
-describe('eventSubmissionActionUrl', () => {
+describe('submissionActionUrl', () => {
   it('sends the locale on the review op, which is role-gated', () => {
-    expect(eventSubmissionActionUrl(7, 'accept', 'fr')).toBe(
-      '/api/event-submissions/7/review?locale=fr',
+    expect(submissionActionUrl(7, 'accept', 'fr')).toBe(
+      '/api/user-submissions/7/review?locale=fr',
     )
-    expect(eventSubmissionActionUrl(7, 'reject', 'fr')).toBe(
-      '/api/event-submissions/7/review?locale=fr',
+    expect(submissionActionUrl(7, 'reject', 'fr')).toBe(
+      '/api/user-submissions/7/review?locale=fr',
     )
-    expect(eventSubmissionActionUrl(7, 'reopen', 'fr')).toBe(
-      '/api/event-submissions/7/review?locale=fr',
+    expect(submissionActionUrl(7, 'reopen', 'fr')).toBe(
+      '/api/user-submissions/7/review?locale=fr',
     )
   })
 
   it('sends it on DELETE too, so both calls have one shape', () => {
-    expect(eventSubmissionActionUrl(7, 'delete', 'fr')).toBe('/api/event-submissions/7?locale=fr')
+    expect(submissionActionUrl(7, 'delete', 'fr')).toBe('/api/user-submissions/7?locale=fr')
   })
 
   it('encodes the locale', () => {
-    expect(eventSubmissionActionUrl(7, 'accept', 'pt-BR')).toBe(
-      '/api/event-submissions/7/review?locale=pt-BR',
+    expect(submissionActionUrl(7, 'accept', 'pt-BR')).toBe(
+      '/api/user-submissions/7/review?locale=pt-BR',
     )
   })
 
   // `?locale=undefined` is rewritten to the default locale by `sanitizeLocales`,
   // so interpolating an absent code reproduces #701 with no visible failure.
   it('refuses to build a URL with no locale', () => {
-    expect(eventSubmissionActionUrl(7, 'accept', undefined)).toBeNull()
-    expect(eventSubmissionActionUrl(7, 'delete', '')).toBeNull()
+    expect(submissionActionUrl(7, 'accept', undefined)).toBeNull()
+    expect(submissionActionUrl(7, 'delete', '')).toBeNull()
   })
 })

@@ -31,7 +31,10 @@ import type { NextRequest } from 'next/server'
 
 import { getPayload } from 'payload'
 
+import { activeRegistrationWhere } from '@/lib/registrations/active'
+
 import config from '@payload-config'
+
 
 import {
   getScriptMetadata,
@@ -486,14 +489,16 @@ async function getDatabaseCounts(
           payload.count({ collection: 'regions' }),
           payload.count({ collection: 'users' }),
           payload.count({ collection: 'events' }),
-          payload.count({ collection: 'registrations' }),
+          // Filtered, not a whole-collection count: contact, subscribe and
+          // proposal rows share this table and would pass the check alone.
+          payload.count({ collection: 'user-submissions', where: activeRegistrationWhere }),
           payload.count({ collection: 'clients' }),
         ])
         counts['managers'] = managers.totalDocs
         counts['regions'] = regions.totalDocs
         counts['users'] = users.totalDocs
         counts['events'] = events.totalDocs
-        counts['registrations'] = registrations.totalDocs
+        counts['user-submissions'] = registrations.totalDocs
         counts['clients'] = clients.totalDocs
         break
       }

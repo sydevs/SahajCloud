@@ -4,6 +4,7 @@ import type { UnsubscribeOutcome } from './UnsubscribeCard'
 
 import { getPayload } from 'payload'
 
+import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import type { LocaleCode } from '@/lib/locales'
 import { readUnsubscribeToken } from '@/lib/registrations/unsubscribeToken'
 import { EMAIL_STRING_DEFAULTS, resolveEmailStrings } from '@/lib/translations/emailStrings'
@@ -40,21 +41,25 @@ export async function unsubscribeAction(
 
   try {
     const registration = await payload.findByID({
-      collection: 'registrations',
-      id: result.claims.registrationId,
+      collection: 'user-submissions',
+      id: result.claims.submissionId,
       depth: 0,
       overrideAccess: true,
     })
     const strings = await resolveEmailStrings({
       payload,
-      locale: registration.locale as LocaleCode | null,
+  // `locale` is a `submissionData` pair on this collection, not a column —
+    // `deliverRegistration` reads it the same way. Do not add a column for it.
+    locale: (readSubmissionValue(registration.submissionData, 'locale') ?? null) as LocaleCode | null,
     })
 
-    if (!registration.remindersUnsubscribedAt) {
+    // The column is `unsubscribedAt` here — deliberately generic, so a future
+    // subscribe-type unsubscribe reuses it.
+    if (!registration.unsubscribedAt) {
       await payload.update({
-        collection: 'registrations',
+        collection: 'user-submissions',
         id: registration.id,
-        data: { remindersUnsubscribedAt: new Date().toISOString() },
+        data: { unsubscribedAt: new Date().toISOString() },
         overrideAccess: true,
       })
     }
@@ -67,7 +72,7 @@ export async function unsubscribeAction(
   } catch (error) {
     payload.logger.warn({
       msg: 'unsubscribe page: failed to unsubscribe',
-      registrationId: result.claims.registrationId,
+      submissionId: result.claims.submissionId,
       error: error instanceof Error ? error.message : String(error),
     })
     return {

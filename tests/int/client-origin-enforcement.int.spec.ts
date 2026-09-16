@@ -13,7 +13,6 @@ vi.mock('@/lib/turnstile/verifyTurnstile', () => ({
 verifyMock.mockResolvedValue({ success: true })
 
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
-import { registerForEvent } from '@/collections/Events/endpoints/registerForEvent'
 
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -199,23 +198,35 @@ describe('client Origin/Referer enforcement', () => {
       expect(res.status).toBe(200)
     })
 
+    // Registration is a collection create since #800, so it is the hook's
+    // ordinary path rather than an endpoint's — kept here because this is where
+    // the Atlas widget's own write is covered.
+    const register = (req: PayloadRequest, email: string) =>
+      payload.create({
+        collection: 'user-submissions',
+        data: createData<'user-submissions'>({
+          type: 'registration',
+          event: eventId,
+          senderEmail: email,
+        }),
+        req,
+      })
+
     it('register: 403 for a disallowed origin', async () => {
-      const req = clientReq({ allowedDomains, origin: 'https://evil.org' })
-      req.routeParams = { id: String(eventId) }
-      req.json = async () => ({ email: 'reg@evil.org', name: 'Reg' })
-      const res = (await registerForEvent.handler(req)) as Response
-      expect(res.status).toBe(403)
+      await expect(
+        register(clientReq({ allowedDomains, origin: 'https://evil.org' }), 'reg@evil.org'),
+      ).rejects.toMatchObject({ status: 403 })
     })
 
-    it('register: 201 for an allowed origin', async () => {
-      const req = clientReq({ allowedDomains, origin: 'https://allowed.org' })
-      req.routeParams = { id: String(eventId) }
+    it('register: created for an allowed origin', async () => {
       // `example.com`, not `allowed.org`: the write-guard's disposable-email list
       // (mailchecker) happens to blacklist allowed.org, and this test is about
       // origins, not email screening.
-      req.json = async () => ({ email: 'reg@example.com', name: 'Reg' })
-      const res = (await registerForEvent.handler(req)) as Response
-      expect(res.status).toBe(201)
+      const doc = await register(
+        clientReq({ allowedDomains, origin: 'https://allowed.org' }),
+        'reg@example.com',
+      )
+      expect(doc.uuid).toBeTruthy()
     })
   })
 })

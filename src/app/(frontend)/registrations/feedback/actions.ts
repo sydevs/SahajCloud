@@ -13,18 +13,18 @@ import config from '@payload-config'
 import { feedbackDestination } from './destination'
 
 /**
- * Load just enough of the registration to decide where to send the reader.
+ * Load just enough of the registration row to decide where to send the reader.
  * The decision itself is `feedbackDestination` — pure, and unit-tested.
  */
 async function resolveDestination(
   payload: Payload,
-  registrationId: number,
+  submissionId: number,
   vote: 'confirmed' | 'denied',
 ): Promise<string | null> {
   const registration = await payload
     .findByID({
-      collection: 'registrations',
-      id: registrationId,
+      collection: 'user-submissions',
+      id: submissionId,
       // Depth 2: registration → event → region, so a denial reaches the
       // region's own URL without a second query.
       depth: 2,
@@ -46,7 +46,7 @@ export interface FeedbackOutcome extends VerifyOutcome {
 /**
  * Server Action backing the feedback page's Confirmed / Denied buttons.
  * Re-validates the token (never trust the client) and writes the vote through
- * the normal Registrations update path, so the eventFeedback gate (event still
+ * the normal `user-submissions` update path, so the eventFeedback gate (event still
  * published + unverified) and the community-feedback sync hook both apply.
  *
  * **The mutation lives only here, behind a POST.** Opening the emailed link
@@ -76,14 +76,14 @@ export async function submitFeedbackAction(
   let destination: string | null = null
   try {
     await payload.update({
-      collection: 'registrations',
-      id: claims.claims.registrationId,
+      collection: 'user-submissions',
+      id: claims.claims.submissionId,
       data: { eventFeedback: vote },
       overrideAccess: true,
     })
     // Resolved *after* the write, never before: a fifth denial unpublishes the
     // event, so the destination depends on what this very vote just did.
-    destination = await resolveDestination(payload, claims.claims.registrationId, vote)
+    destination = await resolveDestination(payload, claims.claims.submissionId, vote)
   } catch (error) {
     if (error instanceof APIError && error.status === 409) {
       return {
@@ -96,7 +96,7 @@ export async function submitFeedbackAction(
     }
     payload.logger.warn({
       msg: 'registration feedback page: vote failed',
-      registrationId: claims.claims.registrationId,
+      submissionId: claims.claims.submissionId,
       error: error instanceof Error ? error.message : String(error),
     })
     return {

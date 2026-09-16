@@ -75,12 +75,12 @@ This only works because the authenticated user loads **four times**, not once. `
 | --- | --- | --- |
 | `FrameEditor/utils.ts` → `/api/frames/by-narrator/:id` | **Yes** | The endpoint calls `hasPermission` at `req.locale` |
 | `ThumbnailCell/relationshipDocLoader.ts` → `/api/:collection` | **Yes** | The collection read gate does |
-| `EventSubmissions/urls.ts` → `/api/event-submissions/:id/review` | **Yes** | `applyReview`'s role check does |
+| `SubmissionReview/urls.ts` → `/api/user-submissions/:id/review` | **Yes** | `applyReview`'s role check does |
 | `ProjectSelector.tsx`, `ProjectContext.tsx` → `/api/managers/set-project` | No | Gated on `requireActiveManager`, then reads with `overrideAccess: true` — no per-locale check runs |
 | `CanonicalEmbedPicker/Description.tsx` → `/api/clients/:id/verify-embed` | No | Same shape, and `Clients.roles` is not localized |
 | `TranslationsRow/useEnglishTranslation.ts` → `?locale=en` | Pinned to `en` | It wants the English **text** for translators, not the caller's roles. Admin-only today |
 
-**Where the locale is required, build the URL in a pure module and return `null` without one** — `framesByNarratorKey` and `eventSubmissionActionUrl` both do. `useLocale()`'s context default is `{}`, so `code` is `string` to the compiler but can be `undefined` at runtime, and `?locale=undefined` is rewritten to the default locale by `sanitizeLocales` — the #701 403 again, silently. Refusing to build the URL turns that into a visible failure, and makes the call site testable without a browser.
+**Where the locale is required, build the URL in a pure module and return `null` without one** — `framesByNarratorKey` and `submissionActionUrl` both do. `useLocale()`'s context default is `{}`, so `code` is `string` to the compiler but can be `undefined` at runtime, and `?locale=undefined` is rewritten to the default locale by `sanitizeLocales` — the #701 403 again, silently. Refusing to build the URL turns that into a visible failure, and makes the call site testable without a browser.
 
 ⚠ **Never derive this scope by hand from `req.locale`. Call `roleScopeFromLocale`.** Written out per call site it drifts. Four hand-written copies once existed, and the fourth answered `?locale=all` with `'union'` where the rest denied it. Worse, `req.locale` is a request-supplied string, and `RoleScope` has a non-locale member. A cast lets `?locale=union` name the privileged scope and hand a manager every locale's roles at once. The helper accepts only a configured locale, so `?locale=all` now **denies** instead of leaking the flat array through. The admin UI never sends it. Only a hand-rolled API call can reach this path. Clients are unaffected — `Clients.roles` is not localized.
 
@@ -97,7 +97,7 @@ The `-client` suffix disambiguates a client role from a project slug. Client rol
 
 ⚠ **"and globals" is load-bearing, and was false until it was fixed.** The published-only clause asks `entityHasDrafts` whether the entity carries drafts. That used to resolve the slug through `req.payload.collections[...]` alone — a map a global is not in — so it answered `false` for every global, the clause never fired on one, and an ordinary client API key plus `?draft=true` read unpublished copy out of all three translations globals with no live-preview credential at all. It now checks `req.payload.config.globals` too. `globals-client-reads.int.spec.ts` reproduces the leak and fails if that branch is removed.
 =======
-The `-client` suffix disambiguates a client role from a project slug. Client roles are **not localized** — one set of roles applies across every locale. Clients are read-only by default. `wemeditate-web` and `sahaj-atlas` may additionally **create** `user-submissions` — create only, with no update of any kind. The registrant confirm/deny vote that once needed `registrations: ['update']`, a uuid-scoped access branch and a field-whitelist hook is written by the CMS-hosted `/registrations/feedback` page with `overrideAccess`, and always was, so all three were removed (#723). API clients see only published documents on draft-enabled collections **and globals**.
+The `-client` suffix disambiguates a client role from a project slug. Client roles are **not localized** — one set of roles applies across every locale. Clients are read-only by default. `wemeditate-web` and `sahaj-atlas` may additionally **create** `user-submissions` — create only, with no update of any kind. The registrant confirm/deny vote that once needed an `update` grant, a uuid-scoped access branch and a field-whitelist hook is written by the CMS-hosted `/registrations/feedback` page with `overrideAccess`, and always was, so all three were removed (#723). API clients see only published documents on draft-enabled collections **and globals**.
 
 ⚠ **"and globals" is load-bearing, and was false until it was fixed.** The published-only clause asks `entityHasDrafts` whether the entity carries drafts. That used to resolve the slug through `req.payload.collections[...]` alone — a map a global is not in — so it answered `false` for every global, the clause never fired on one, and an ordinary client API key plus `?draft=true` read unpublished copy out of all three translations globals with no preview secret. It now checks `req.payload.config.globals` too. `globals-client-reads.int.spec.ts` reproduces the leak and fails if that branch is removed.
 >>>>>>> origin/main
@@ -209,7 +209,7 @@ A user can always read and update their own document in their auth collection.
 
 This cuts the opposite way from implicit read, above, and the obvious reading is wrong. `managers`, `clients`, and Payload's system collections sit in no project. They are reachable only by explicit permission or the admin bypass — because no role grants write on them, not because "no project" is restrictive. For read, "no project" means the opposite: shared, and readable by every role.
 
-**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the only way to stop that. A collection named there is skipped by implicit read, so only an explicit `read` grant, or the admin bypass, reaches it. It holds `users`, `event-submissions`, `user-messages`, and `user-submissions` — everything carrying personal data.
+**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the only way to stop that. A collection named there is skipped by implicit read, so only an explicit `read` grant, or the admin bypass, reaches it. It holds `users` and `user-submissions` — everything carrying personal data.
 
 ⚠ **A collection's own `access` block outranks all of this**, because `accessPlugin` composes `{ ...createAccessConfig(slug, …), ...collection.access }` so a deliberate override is never clobbered. A plugin-created collection can therefore arrive with an `access` nobody here chose: the form-builder's submissions collection ships `read: ({ req: { user } }) => !!user`, which grants read to every authenticated user, API clients included. `src/plugins/formBuilder` clears it for `user-submissions` for exactly that reason. **Adding a collection to this list proves nothing on its own** — assert it by reading rows back through `overrideAccess: false`, as `tests/int/user-submissions-access.int.spec.ts` does. Asserting `hasPermission` alone would have passed while the hole was open.
 
@@ -223,7 +223,7 @@ It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong too
 | --- | --- |
 | Nobody reads it implicitly | Add it to `RESTRICTED_COLLECTIONS` |
 | A client may still create it | Grant `['create']` in that client's role |
-| **No manager role may read it** | Grant it in **no** role (`user-messages`) |
+| **No manager role may read it** | Grant it in **no** role |
 | Only *some* rows, for a manager | Grant `read`, then narrow to a `Where` in `createAccessConfig` (`user-submissions`) |
 | Visible in `/api/docs` | Add it to a project's `collections` (`docs/rules/openapi.md`) |
 

@@ -137,6 +137,15 @@ const KNOWN_SINGLE_CONSUMER = new Set<string>([
   // "justify it" one, and it is nobody's to move in a types refactor.
   '@/lib/richEditor/plainTextToLexical',
   '@/lib/utilities/weightedSample',
+  // The five below lost their second consumer when the three legacy intake
+  // collections and their jobs were deleted (#800). Each is general-purpose
+  // rather than one owner's private helper, so the question is where each
+  // belongs now, not whether it is justified — a move, decided on its own.
+  '@/lib/antiSpam/mxRecords',
+  '@/lib/eventTitle/autoTitle',
+  '@/lib/mapbox/geocoder',
+  '@/lib/notifications/sendSubmissionReview',
+  '@/lib/users/upsertUserByEmail',
 ])
 
 describe('src/lib holds shared code only', () => {

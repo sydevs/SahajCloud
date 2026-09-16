@@ -46,8 +46,8 @@ raw GitHub URL (same shape as `Events/endpoints/responseTypes.ts`).
 `src/endpoints/<name>.ts`. One with supporting modules is a folder whose
 path *is* the URL path, handler in `index.ts` (`src/endpoints/atlas/seo/` →
 `GET /api/atlas/seo`, #645. `src/endpoints/atlas/sitemap/` → `GET
-/api/atlas/sitemap`, #650). #632 turned another into the `user-messages`
-collection once its resource needed storing. Those supporting modules are
+/api/atlas/sitemap`, #650). #632 turned another into a collection once its
+resource needed storing — the intake `user-submissions` now carries. Those supporting modules are
 single-owner code and stay in the folder — putting them in `src/lib/` fails
 the one-consumer check below.
 
@@ -105,12 +105,12 @@ No loose files at the root — every file lives in a named folder:
   `pageTags/`, `cascadeDeletion/`, `eventTitle/` (the auto-title
   composition, split by purity: `compose.ts` is pure. `autoTitle.ts`
   resolves a title against the database and is shared by the Events title
-  hook and EventSubmissions), `eventQuality/` (the listing-quality check
+  hook and the proposal merge), `eventQuality/` (the listing-quality check
   registry + report builder, consumed by Events, the admin panel, and the
   ExpireEvents reminder emails — barrelled, with all user-facing wording in
   its `copy.ts`), `registrations/` (the `EVENT_REGISTRATION_QUESTIONS`
-  contract + `questions` validation, shared by Events, Registrations, and
-  the notification email, plus the `unsubscribeToken`/`unsubscribeUrl`
+  contract + `questions` validation, shared by Events, `user-submissions`,
+  and the notification email, plus the `unsubscribeToken`/`unsubscribeUrl`
   helpers)
 
 **Barrels.** A folder gets an `index.ts` barrel only when it presents one
@@ -209,7 +209,7 @@ as though it were general-purpose.
 
 This is why a job's supporting code lives in the job folder.
 `SendSessionReminders` owns `sendSessionReminder.ts` and
-`unsubscribeUrl.ts`. `ScreenEventSubmissions` owns `findOrCreateCity.ts`.
+`unsubscribeUrl.ts`.
 `recipients` stays in `src/lib/notifications` because both `ExpireEvents`
 and `registrationRecipient` also use it. The **view layer is untouched** —
 email templates stay in `src/emails/`, and a job's sender imports its

@@ -2,15 +2,16 @@ import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
+import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import { appendLogEntry, asLog, hasLogEntry, type LogEntry } from '@/fields'
 import type { LocaleCode } from '@/lib/locales'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
+import { activeRegistrationWhere } from '@/lib/registrations/active'
 import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 import type { EventSchedule } from '@/types/schedule'
 
-import { loadUsers } from './loadUsers'
 import { sendSessionReminder } from './sendSessionReminder'
 
 /** `type` slug for reminder entries in the registration's `activityLog`. */
@@ -120,8 +121,10 @@ async function loadClient(
 
 /** One registration with reminders due this run, resolved to bare ids. */
 interface DueRegistration {
-  registrationId: number
-  userId: number | null
+  submissionId: number
+  /** The registrant's address, off the row's own column — no `users` join. */
+  email: string | null
+  name: string | null
   clientId: number | null
   locale: LocaleCode | null
   log: LogEntry[]
@@ -152,14 +155,28 @@ async function remindForEvent(args: {
   let hasNextPage = true
   while (hasNextPage) {
     const batch = await payload.find({
-      collection: 'registrations',
+      collection: 'user-submissions',
+      // `activeRegistrationWhere` is what stops a spam-flagged row receiving
+      // reminders, and it carries the `type: registration` predicate this query
+      // needs anyway. Both new predicates are indexed; `remindersUnsubscribedAt`
+      // never was, so this gains an index rather than losing one.
       where: {
-        and: [{ event: { equals: event.id } }, { remindersUnsubscribedAt: { exists: false } }],
+        and: [
+          { event: { equals: event.id } },
+          { unsubscribedAt: { exists: false } },
+          activeRegistrationWhere,
+        ],
       },
       depth: 0,
       limit: PAGINATION_LIMIT,
       page,
-      select: { user: true, client: true, startingAt: true, locale: true, activityLog: true },
+      select: {
+        client: true,
+        startingAt: true,
+        senderEmail: true,
+        submissionData: true,
+        activityLog: true,
+      },
       overrideAccess: true,
       req,
     })
@@ -171,10 +188,16 @@ async function remindForEvent(args: {
       )
       if (due.length === 0) continue
       pending.push({
-        registrationId: registration.id,
-        userId: relationId(registration.user),
+        submissionId: registration.id,
+        // The address is the row's own column and the name is a submission
+        // pair — the authoritative copy `prepareUserSubmission` seeds the
+        // `users` row *from*. Reading the join would read a derived value one
+        // hop away. `deliverRegistration` addresses the registrant the same way.
+        email: registration.senderEmail?.trim() || null,
+        name: readSubmissionValue(registration.submissionData, 'name') ?? null,
         clientId: relationId(registration.client),
-        locale: (registration.locale as LocaleCode | null) ?? null,
+        locale: (readSubmissionValue(registration.submissionData, 'locale') ??
+          null) as LocaleCode | null,
         log,
         due,
       })
@@ -185,24 +208,21 @@ async function remindForEvent(args: {
   }
   if (pending.length === 0) return
 
-  const userIds = pending.map((item) => item.userId).filter((id): id is number => id != null)
-  const users = await loadUsers(payload, req, [...new Set(userIds)])
-
   for (const item of pending) {
-    const user = item.userId != null ? users.get(item.userId) : undefined
-    const registrantEmail = user?.email
+    const registrantEmail = item.email
     if (!registrantEmail) {
-      // A registration always has a user; a missing email is bad data, not a
-      // normal skip — log it so it's visible rather than silently dropped.
+      // ⚠ Still a real case. `senderEmail` is deliberately optional — an
+      // anonymous submission is allowed — so the guard moved from the join to
+      // the column rather than going away. Logged, never silently dropped.
       result.skipped++
       payload.logger.warn({
         msg: 'SendSessionReminders: registration has no email; skipping',
-        registrationId: item.registrationId,
+        submissionId: item.submissionId,
         eventId: event.id,
       })
       continue
     }
-    const registrantName = user.name?.trim() || registrantEmail
+    const registrantName = item.name?.trim() || registrantEmail
     const client = item.clientId ? await loadClient(payload, req, item.clientId, clientCache) : null
 
     let log = item.log
@@ -214,7 +234,7 @@ async function remindForEvent(args: {
         registrantName,
         registrantEmail,
         locale: item.locale,
-        registrationId: item.registrationId,
+        submissionId: item.submissionId,
         occurrenceIso: occurrence,
         req,
       })
@@ -231,8 +251,8 @@ async function remindForEvent(args: {
         },
       })
       await payload.update({
-        collection: 'registrations',
-        id: item.registrationId,
+        collection: 'user-submissions',
+        id: item.submissionId,
         data: { activityLog: log },
         overrideAccess: true,
         req,

@@ -370,82 +370,6 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
     },
   },
 
-  '/api/events/{id}/register': {
-    post: {
-      tags: ['Events'],
-      summary: 'Register a user for an event',
-      description:
-        'The Sahaj Atlas widget write path. Requires a published client key. Upserts ' +
-        'the registrant `user` by normalized email (elevated access, since `users` ' +
-        'is admin-only) and creates a `registration` with a fresh uuid. The event ' +
-        '(`:id`) must be one the client can read (published); an event the client ' +
-        'can read but whose state is closed to registration is refused with a `409` ' +
-        'and a machine-readable `errors[0].code` — `external_registration`, ' +
-        '`event_ended`, `registration_closed`, or `event_full`.\n\n' +
-        'Requires a solved Cloudflare Turnstile token in the `x-turnstile-token` ' +
-        'header. The token is transport metadata rather than document data, which ' +
-        'is why it is a header and not a body field.',
-      operationId: 'registerForEvent',
-      parameters: [
-        {
-          name: 'id',
-          in: 'path',
-          required: true,
-          description: 'ID of the event to register for.',
-          schema: { type: 'integer' },
-        },
-        {
-          name: 'x-turnstile-token',
-          in: 'header',
-          required: true,
-          description:
-            'A solved Cloudflare Turnstile token. Tokens are single-use, so a retry ' +
-            'after any error needs a freshly solved one — a replayed token is ' +
-            'rejected exactly like a forged one.',
-          schema: { type: 'string' },
-        },
-      ],
-      requestBody: {
-        required: true,
-        content: {
-          'application/json': {
-            schema: { $ref: '#/components/schemas/EventRegistrationRequest' },
-          },
-        },
-      },
-      responses: {
-        '201': {
-          description: 'Registration created.',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/EventRegistrationResponse' },
-            },
-          },
-        },
-        '400': errorResponse('Invalid event id, or request body failed validation.'),
-        '403': errorResponse(
-          'Caller is not a published API client, or the Turnstile token was missing, ' +
-            'forged, expired or already used — the latter carries ' +
-            '`errors[0].code: "captcha_failed"` and is retryable with a freshly ' +
-            'solved token.',
-        ),
-        '404': errorResponse('Event not found or not open for registration.'),
-        '409': errorResponse(
-          'Registration refused because the event state conflicts with registering. ' +
-            '`errors[0].code` is one of `external_registration`, `event_ended`, ' +
-            '`registration_closed`, or `event_full`. Distinct from 404: the event exists ' +
-            'and is readable (a finished event stays published), its state just conflicts.',
-        ),
-        '500': errorResponse(
-          'Turnstile verification could not be completed — the secret is unset or ' +
-            'Cloudflare was unreachable. `errors[0].code` is `captcha_unavailable`. ' +
-            'This is never a pass: a captcha gate that silently disables itself is ' +
-            'worse than no gate. Retry later.',
-        ),
-      },
-    },
-  },
-
   /**
    * Registered so the contract is written down and reachable from
    * `/api/openapi-raw.json`, but `clients` is in `ALWAYS_HIDDEN_COLLECTIONS`
@@ -1140,56 +1064,6 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       hasNextPage: { type: 'boolean' },
       prevPage: { type: ['integer', 'null'] },
       nextPage: { type: ['integer', 'null'] },
-    },
-  },
-  /** `POST /api/events/{id}/register` request body. */
-  EventRegistrationRequest: {
-    type: 'object',
-    required: ['email', 'name'],
-    properties: {
-      email: { type: 'string', format: 'email' },
-      name: { type: 'string', minLength: 1 },
-      startingAt: {
-        type: 'string',
-        format: 'date-time',
-        description: 'ISO 8601 datetime the registrant will attend.',
-      },
-      questions: {
-        type: 'object',
-        additionalProperties: true,
-        description: 'Raw registrant answers (questions / experience / aspirations / referral).',
-      },
-      subscribe: {
-        type: 'boolean',
-        description:
-          'Mailing-list consent (opt-in). When true, the registration is stamped with ' +
-          '`mailingListSubscribedAt`; absent/false records no consent.',
-      },
-      locale: {
-        type: 'string',
-        enum: [...LOCALES.map((locale) => locale.code)],
-        description:
-          "The registrant's language, used to localize the confirmation email (and later " +
-          'reminders). Must be one of the configured app locales; an unknown code is ' +
-          'rejected with a 400. Defaults to `en`.',
-      },
-    },
-  },
-  /** `POST /api/events/{id}/register` success body. */
-  EventRegistrationResponse: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['ok', 'registration'],
-    properties: {
-      ok: { type: 'boolean', enum: [true] },
-      registration: {
-        type: 'object',
-        required: ['id', 'uuid'],
-        properties: {
-          id: { type: 'integer' },
-          uuid: { type: 'string' },
-        },
-      },
     },
   },
   /**

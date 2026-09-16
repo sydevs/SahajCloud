@@ -2,15 +2,17 @@ import type { Payload, PayloadRequest, TaskConfig, Where } from 'payload'
 
 import { createElement } from 'react'
 
+import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import type { FollowUpSection } from '@/emails/PostEventFollowUpEmail'
 import { PostEventFollowUpEmail, postEventFollowUpText } from '@/emails/PostEventFollowUpEmail'
 import { appendLogEntry, asLog } from '@/fields'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import type { LocaleCode } from '@/lib/locales'
+import { activeRegistrationWhere } from '@/lib/registrations/active'
 import { buildFeedbackEmailLink, signFeedbackToken } from '@/lib/registrations/feedbackLinks'
 import { interpolate, resolveEmailStrings } from '@/lib/translations/emailStrings'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
-import type { Event, Registration, User } from '@/payload-types'
+import type { Event, UserSubmission } from '@/payload-types'
 import { getClientEmailBrand, getEmailBrand, renderEmail } from '@/plugins/email'
 
 const PAGINATION_LIMIT = 200
@@ -36,6 +38,12 @@ function dueWhere(now: Date): Where {
   const windowStart = new Date(now.getTime() - FOLLOW_UP_WINDOW_DAYS * 24 * 60 * 60 * 1000)
   return {
     and: [
+      // ⚠ **`activeRegistrationWhere` is load-bearing here, not an optimisation.**
+      // Nothing else in this `where` is a type filter: `startingAt` is
+      // registration-shaped by an admin `condition`, never by the column. Without
+      // it this sweep would find contact, subscribe and proposal rows carrying a
+      // past `startingAt` and mail their senders a feedback ask.
+      activeRegistrationWhere,
       { startingAt: { less_than: now.toISOString() } },
       { startingAt: { greater_than: windowStart.toISOString() } },
       { followUpSentAt: { exists: false } },
@@ -47,14 +55,20 @@ function dueWhere(now: Date): Where {
 async function sendFollowUp(
   payload: Payload,
   req: PayloadRequest,
-  registration: Registration,
+  registration: UserSubmission,
   now: Date,
 ): Promise<boolean> {
   const event = registration.event as Event | number
-  const user = registration.user as User | number
 
-  // Depth-1 load below populates both; a bare id means the relation is broken.
-  if (typeof event !== 'object' || typeof user !== 'object' || !user.email) return false
+  // The address is the row's own column and the name a submission pair — the
+  // authoritative copy, not the `users` value derived from it.
+  // `senderEmail` is deliberately optional (an anonymous submission is
+  // allowed), so an absent one is a skip, never a mail to nobody.
+  const registrantEmail = registration.senderEmail?.trim()
+  const registrantName = readSubmissionValue(registration.submissionData, 'name')
+
+  // Depth-1 load below populates the event; a bare id means the relation is broken.
+  if (typeof event !== 'object' || !registrantEmail) return false
 
   // Today's only follow-up content is the feedback ask, which applies solely
   // to unverified, still-published events. Anything else has no sections →
@@ -62,7 +76,7 @@ async function sendFollowUp(
   // still reach these registrations.
   const sections: FollowUpSection[] = []
   if (event.verificationStage === 'unverified' && event._status === 'published') {
-    const token = await signFeedbackToken({ registrationId: registration.id }, payload.secret, now)
+    const token = await signFeedbackToken({ submissionId: registration.id }, payload.secret, now)
     sections.push({
       type: 'feedback-ask',
       confirmUrl: buildFeedbackEmailLink(token, 'confirmed'),
@@ -78,20 +92,23 @@ async function sendFollowUp(
   const brand = client ? getClientEmailBrand(client) : getEmailBrand('sahaj-atlas')
   const strings = await resolveEmailStrings({
     payload,
-    locale: (registration.locale as LocaleCode | null) ?? null,
+    // `locale` is a submission pair now, not a column — `deliverRegistration`
+    // reads it the same way. Do not add a column for it.
+    locale: (readSubmissionValue(registration.submissionData, 'locale') ??
+      null) as LocaleCode | null,
     req,
   })
 
   const templateProps = {
     brand,
     strings,
-    registrantName: user.name || 'there',
+    registrantName: registrantName || 'there',
     eventTitle: typeof event.title === 'string' ? event.title : 'your class',
     sections,
   }
 
   await payload.sendEmail({
-    to: user.email,
+    to: registrantEmail,
     // `From` stays CONTACT_EMAIL — Resend verifies senders per domain, so we
     // can't send as the client; the display name carries the branding.
     from: `${headerDisplayName(brand.productName)} <${CONTACT_EMAIL}>`,
@@ -104,7 +121,7 @@ async function sendFollowUp(
   })
 
   await payload.update({
-    collection: 'registrations',
+    collection: 'user-submissions',
     id: registration.id,
     data: {
       // The watermark the sweep filters on, and the manager-readable record of
@@ -116,7 +133,7 @@ async function sendFollowUp(
         key: String(registration.id),
         cells: {
           activity: `Post-event follow-up for “${templateProps.eventTitle}”`,
-          sentTo: { label: 'email', text: user.email },
+          sentTo: { label: 'email', text: registrantEmail },
         },
       }),
     },
@@ -167,7 +184,7 @@ export const SendPostEventFollowUps: TaskConfig<'sendPostEventFollowUps'> = {
     const dueIds: number[] = []
     while (hasNextPage) {
       const batch = await payload.find({
-        collection: 'registrations',
+        collection: 'user-submissions',
         where: dueWhere(now),
         depth: 0,
         limit: PAGINATION_LIMIT,
@@ -184,18 +201,18 @@ export const SendPostEventFollowUps: TaskConfig<'sendPostEventFollowUps'> = {
       result.scanned++
       try {
         const registration = (await payload.findByID({
-          collection: 'registrations',
+          collection: 'user-submissions',
           id,
           depth: 1,
           overrideAccess: true,
           req,
-        })) as Registration
+        })) as UserSubmission
         if (await sendFollowUp(payload, req, registration, now)) result.sent++
       } catch (error) {
         result.failed++
         req.payload.logger.warn({
           msg: 'SendPostEventFollowUps: per-registration failure — continuing',
-          registrationId: id,
+          submissionId: id,
           error: error instanceof Error ? error.message : String(error),
         })
       }

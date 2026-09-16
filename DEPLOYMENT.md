@@ -257,7 +257,7 @@ Never paste a secret into git or email.
 ### Captcha (Cloudflare Turnstile)
 
 - `TURNSTILE_SECRET_KEY` — **required in production**. Server-side secret the write-guard plugin
-  checks on `POST /api/user-messages` and `POST /api/event-submissions` (token in the
+  checks on `POST /api/user-submissions`, the whole public write surface (token in the
   `x-turnstile-token` header). Validated at point of use, not at boot, so a missing key cannot
   take the app or a PR preview down — but the verifier then **fails closed**: it refuses the
   write with `500` and logs `antiSpamGuard: Turnstile verification could not be completed`,

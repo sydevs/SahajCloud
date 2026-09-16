@@ -1,6 +1,6 @@
 import type { CollectionBeforeChangeHook } from 'payload'
 
-import { isEventFull } from '@/lib/registrations/fullness'
+import { countActiveRegistrations, isEventFull } from '@/lib/registrations/fullness'
 
 /**
  * Keep the denormalized `registrationsFull` flag correct when a manager edits an
@@ -49,10 +49,9 @@ export const syncEventFullness: CollectionBeforeChangeHook = async ({
     registrationLimit !== originalDoc?.registrationLimit
   if (!capacityChanged) return data
 
-  const { totalDocs } = await req.payload.count({
-    collection: 'registrations',
-    where: { event: { equals: originalDoc.id } },
-    overrideAccess: true,
+  const { totalDocs } = await countActiveRegistrations({
+    payload: req.payload,
+    eventId: originalDoc.id as number,
     req,
   })
   data.registrationsFull = isEventFull(capacity, totalDocs)

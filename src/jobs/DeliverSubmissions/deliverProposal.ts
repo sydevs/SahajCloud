@@ -17,16 +17,14 @@ import { getServerUrl } from '@/lib/utilities/serverUrl'
  * **Routing is the target event's manager, then its region chain, then the
  * system contact.** An update proposal names an event, so its owner is the
  * person to ask; a managerless (unverified) target escalates up the region
- * chain, exactly as `ScreenEventSubmissions` does today.
+ * chain.
  *
- * ⚠ **A brand-new-event proposal routes to the system contact**, where
- * `event-submissions` resolves a region from a `regionHint` column and finds
- * the nearest manager up *that* chain. `user-submissions` has no `regionHint`
- * and no `region` column — the Phase 1 column table carries neither — so there
- * is nothing here to resolve a region from. Phase 3 is where the proposal
- * intake moves across and those columns arrive with it; until then the last
- * resort is the only resort for an untargeted proposal, and it is a person
- * rather than a dead end.
+ * ⚠ **A brand-new-event proposal routes to the system contact**, so it reaches
+ * a person rather than a dead end. It no longer has to: screening resolves the
+ * row's own `region` from its `regionHint`, so the nearest manager up *that*
+ * chain is now reachable here — the column gap that forced the last resort is
+ * closed. TODO: route an untargeted proposal by `submission.region` before
+ * falling back. It changes who is emailed, so it wants its own spec.
  */
 export async function deliverProposal({
   req,
@@ -116,12 +114,12 @@ async function routeTo(
 /**
  * The proposed patch as summary rows for the review email.
  *
- * ⚠ **Keys are rendered raw, not resolved to Events field labels.**
- * `event-submissions` labels them through its own `proposedChanges` formatter,
- * which is the admin diff's; reusing it would reach across a collection
- * boundary into code Phase 3 deletes. A key like `address.city` is legible on
- * its own, and the review link goes to the document, which renders the patch
- * properly.
+ * ⚠ **Keys are rendered raw, not resolved to Events field labels.** The admin
+ * diff labels them through `labelForPath`, which this job could now import —
+ * the collection that once owned it is gone. A key like `address.city` is
+ * legible on its own, and the review link goes to the document, which renders
+ * the patch properly, so the labels buy wording in one email and a second
+ * consumer for a formatter tied to the live Events config.
  */
 function proposalDetails(proposed: unknown): { label: string; value: string }[] {
   if (typeof proposed !== 'object' || proposed === null || Array.isArray(proposed)) return []

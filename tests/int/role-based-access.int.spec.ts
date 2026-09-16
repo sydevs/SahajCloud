@@ -590,7 +590,7 @@ describe('Role-Based Access Control', () => {
     it('exposes the role as project-scoped: read everywhere, write only on events/regions', () => {
       const user = managerUser(atlasManager)
       // Project-wide implicit read across the Atlas collections.
-      for (const collection of ['events', 'regions', 'registrations'] as const) {
+      for (const collection of ['events', 'regions', 'images'] as const) {
         expect(hasPermission({ user, collection, operation: 'read' }, bypassPermissions)).toBe(true)
       }
       // Role grants events CUD and regions CU (scoped at the access layer). No

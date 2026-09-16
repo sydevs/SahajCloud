@@ -245,14 +245,16 @@ async function persistSampleEvent(): Promise<SampleData> {
   // Seed a few recent registrations (best-effort) so the email's
   // "Registrations (last 30 days)" row is populated.
   try {
-    const seeker = await payload.create({
-      collection: 'users',
-      data: { name: 'Sample Seeker', email: `seeker.sample.${stamp}@example.com` },
-    })
     for (let i = 0; i < 8; i++) {
       await payload.create({
-        collection: 'registrations',
-        data: { event: event.id, user: seeker.id, uuid: `sample-reg-${stamp}-${i}` },
+        collection: 'user-submissions',
+        data: {
+          type: 'registration',
+          event: event.id,
+          senderEmail: `seeker.sample.${stamp}@example.com`,
+          status: 'accepted',
+          uuid: `sample-reg-${stamp}-${i}`,
+        },
       })
     }
   } catch {
