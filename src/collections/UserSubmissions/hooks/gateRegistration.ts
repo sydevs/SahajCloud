@@ -28,9 +28,10 @@ import { asTrustedReq } from '@/plugins/usage/hooks'
  * its URL scan.
  *
  * `skipRegistrationGate` is the escape for a Local API import of historical
- * rows, whose events have long since ended or gone external
- * (`seeds/atlas/import.ts`). It is honoured only because it cannot be set from
- * a request body — `req.context` is a server-side channel.
+ * rows, whose events have long since ended or gone external — the Atlas seed
+ * importer, #799. It is honoured only because it cannot be set from a request
+ * body: Payload initialises a REST request's `context` to `{}` and never merges
+ * a body key into it.
  */
 export const gateRegistration: CollectionBeforeValidateHook = async ({ data, operation, req }) => {
   if (operation !== 'create' || data?.type !== 'registration') return data

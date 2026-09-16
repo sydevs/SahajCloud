@@ -3,6 +3,7 @@ import type { CollectionAfterChangeHook, CollectionBeforeChangeHook } from 'payl
 import { APIError } from 'payload'
 
 import { computeCommunityVerdict } from '@/lib/eventVerification/communityFeedback'
+import { activeRegistrationWhere } from '@/lib/registrations/active'
 import { isRecord } from '@/lib/utilities/isRecord'
 import { relationId } from '@/lib/utilities/relationId'
 import { asSystemReq, asTrustedReq } from '@/plugins/usage/hooks'
@@ -94,10 +95,14 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
   const countVotes = (vote: 'confirmed' | 'denied') =>
     req.payload.count({
       collection: 'user-submissions',
+      // `activeRegistrationWhere`, not a bare `type` predicate: a row flagged
+      // `spam` after its follow-up token was minted frees its seat, so it must
+      // not keep a share of the power to unpublish the listing. Five denials
+      // past the Wilson bound flip the event to `denied` + draft.
       where: {
         and: [
           { event: { equals: eventId } },
-          { type: { equals: 'registration' } },
+          activeRegistrationWhere,
           { eventFeedback: { equals: vote } },
         ],
       },

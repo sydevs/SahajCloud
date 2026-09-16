@@ -58,6 +58,30 @@ const systemFieldAccess: { create: FieldAccess; update: FieldAccess } = {
 }
 
 /**
+ * ⚠ **A virtual review projection must also be unreadable by a client.**
+ *
+ * Payload runs a field `afterRead` hook on the response of a **create**, with
+ * no `findMany` argument — so the `if (findMany) return null` guard inside both
+ * projections does not fire there, and `admin.hidden` is not `hidden`, so
+ * nothing strips the value either. `loadTargetEvent` reads the named event with
+ * `overrideAccess: true, draft: true, trash: true`, and `mergeProposal` returns
+ * the whole document.
+ *
+ * Without this, a published client key could POST a `proposal` naming any event
+ * id and read that event straight back out of the 201 body — past the
+ * published-only access filter, which applies on `read` alone, past the trash
+ * filter, past project visibility, and past the client `select` requirement.
+ * `eventField` has no `filterOptions`, and Payload's relationship validator
+ * checks the id's *shape* only, so any integer is accepted.
+ *
+ * `read` is denied rather than the hooks being gated on the type, because the
+ * hooks run for all four intakes and one rule closes every one of them.
+ */
+const reviewProjectionAccess: { read: FieldAccess } = {
+  read: ({ req }) => req.user?.collection !== 'clients',
+}
+
+/**
  * The `user-submissions` field list, as `formSubmissionOverrides.fields` hands
  * it to us.
  *
@@ -399,6 +423,7 @@ const proposedChangesField: Field = {
   type: 'json',
   virtual: true,
   label: 'Proposed Changes',
+  access: reviewProjectionAccess,
   admin: {
     condition: (data) => data?.type === 'proposal',
     readOnly: true,
@@ -417,6 +442,7 @@ const previewEventField: Field = {
   name: 'previewEvent',
   type: 'json',
   virtual: true,
+  access: reviewProjectionAccess,
   admin: { readOnly: true, hidden: true },
   hooks: { afterRead: [computePreviewEvent] },
 }
