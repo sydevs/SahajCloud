@@ -52,11 +52,10 @@ export const Users: CollectionConfig = {
       },
     },
     {
-      // Kept beside `submissions`, not folded into it: it answers which
-      // proposals became real listings, which a join over submissions cannot
-      // — `events.submitter` is written when a proposal is accepted.
-      // Events this registrant sent in through the public submission flow
-      // (`events.submitter` is record-keeping only — no access implications).
+      // Events this registrant sent in through the public submission flow.
+      // Kept beside `submissions`, which cannot answer it: `events.submitter`
+      // is written when a proposal is accepted, so this is which proposals
+      // became listings. Record-keeping only — no access implications.
       name: 'submittedEvents',
       type: 'join',
       collection: 'events',
