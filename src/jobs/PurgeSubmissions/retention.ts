@@ -2,8 +2,6 @@ import type { Where } from 'payload'
 
 import type { UserSubmission } from '@/payload-types'
 
-import { HISTORY_WINDOW_HOURS } from '../ScreenSubmissions/senderHistory'
-
 /**
  * How long a **delivered contact message** is kept. Short on purpose: the row
  * persists only so screening has history to compare against.
