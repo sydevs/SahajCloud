@@ -4,22 +4,26 @@ import { syncEventRegistrationsFull } from '@/lib/registrations/fullness'
 import { relationId } from '@/lib/utilities/relationId'
 
 /**
- * Keep the owning event's denormalized `registrationsFull` flag in step after a
- * registration changes. A create can push the event to capacity; a re-assignment
- * to a different event frees a spot on the old one and may fill the new one. The
- * recompute writes only on a real flip (see `syncEventRegistrationsFull`).
+ * ⚠ **Temporary, and deleted with this collection by #800.**
+ *
+ * The real fullness hooks moved to `user-submissions` with #797. These two
+ * exist only because `POST /api/events/{id}/register` still writes here until
+ * #800, and the Atlas widget still posts there until sydevs/SahajAtlasWeb#195
+ * — so a seat taken through the live path must still flip the event's
+ * `registrationsFull` flag. `countActiveRegistrations` sums both tables for
+ * the same window; this is the other half of that bridge.
+ *
+ * Deliberately thin wrappers rather than the `user-submissions` hooks reused:
+ * those guard on `doc.type === 'registration'`, a column no row here has.
  */
-export const syncFullnessAfterChange: CollectionAfterChangeHook = async ({
+export const syncLegacyFullnessAfterChange: CollectionAfterChangeHook = async ({
   doc,
   previousDoc,
   operation,
   req,
 }) => {
   const eventId = relationId(doc.event)
-  if (eventId != null) {
-    await syncEventRegistrationsFull({ payload: req.payload, eventId, req })
-  }
-  // A moved registration frees a spot on its previous event too.
+  if (eventId != null) await syncEventRegistrationsFull({ payload: req.payload, eventId, req })
   if (operation === 'update') {
     const previousEventId = relationId(previousDoc?.event)
     if (previousEventId != null && previousEventId !== eventId) {
@@ -29,11 +33,8 @@ export const syncFullnessAfterChange: CollectionAfterChangeHook = async ({
   return doc
 }
 
-/** Free the owning event's capacity flag after a registration is deleted. */
-export const syncFullnessAfterDelete: CollectionAfterDeleteHook = async ({ doc, req }) => {
+export const syncLegacyFullnessAfterDelete: CollectionAfterDeleteHook = async ({ doc, req }) => {
   const eventId = relationId(doc.event)
-  if (eventId != null) {
-    await syncEventRegistrationsFull({ payload: req.payload, eventId, req })
-  }
+  if (eventId != null) await syncEventRegistrationsFull({ payload: req.payload, eventId, req })
   return doc
 }

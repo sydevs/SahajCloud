@@ -1,6 +1,8 @@
-import type { Payload, PayloadRequest } from 'payload'
+import type { Payload, PayloadRequest, Where } from 'payload'
 
 import { asTrustedReq } from '@/plugins/usage/hooks'
+
+import { activeRegistrationWhere } from './active'
 
 /** The event fields that decide capacity. */
 export interface EventFullnessInput {
@@ -24,6 +26,44 @@ export function isEventFull(event: EventFullnessInput, registrationCount: number
     typeof event.registrationLimit === 'number' &&
     registrationCount >= event.registrationLimit
   )
+}
+
+/**
+ * How many seats an event has taken: `user-submissions` rows of
+ * `type: registration` that still count (`activeRegistrationWhere`), so a
+ * `spam`, `rejected` or `failed` row frees its seat.
+ *
+ * One helper rather than the same `where` re-derived at each call site — the
+ * create gate, this file's flag sync and the Events capacity hook all ask the
+ * identical question, and three spellings of it is three chances to drift.
+ *
+ * ⚠ **It sums the old collection too, and that half is temporary.**
+ * `POST /api/events/{id}/register` still creates `registrations` rows until
+ * sydevs/SahajCloud#800 deletes it, and the Atlas widget still posts there
+ * until sydevs/SahajAtlasWeb#195 ships. Counting only the new table would make
+ * `registrationsFull` read 0 for every event registered through the live path
+ * — a limit silently stopping being enforced, which is worse than the four
+ * lines. Delete the second count with the collection, not before.
+ */
+export async function countActiveRegistrations(args: {
+  payload: Payload
+  eventId: number
+  req?: PayloadRequest
+}): Promise<{ totalDocs: number }> {
+  const { payload, eventId, req } = args
+  const where: Where = { and: [{ event: { equals: eventId } }, activeRegistrationWhere] }
+
+  const [unified, legacy] = await Promise.all([
+    payload.count({ collection: 'user-submissions', where, overrideAccess: true, req }),
+    payload.count({
+      collection: 'registrations',
+      where: { event: { equals: eventId } },
+      overrideAccess: true,
+      req,
+    }),
+  ])
+
+  return { totalDocs: unified.totalDocs + legacy.totalDocs }
 }
 
 /**
@@ -64,12 +104,7 @@ export async function syncEventRegistrationsFull(args: {
         req,
       })
       .catch(() => null),
-    payload.count({
-      collection: 'registrations',
-      where: { event: { equals: eventId } },
-      overrideAccess: true,
-      req,
-    }),
+    countActiveRegistrations({ payload, eventId, req }),
   ])
   if (!event) return
 

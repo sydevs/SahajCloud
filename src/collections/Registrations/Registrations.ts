@@ -5,8 +5,7 @@ import { jsonField } from '@/fields/jsonField'
 import { DEFAULT_LOCALE, getLocaleOptions } from '@/lib/locales'
 import { registrationQuestionsJsonSchema } from '@/lib/registrations/questions'
 
-import { gateEventFeedback, syncCommunityFeedback } from './hooks/eventFeedback'
-import { syncFullnessAfterChange, syncFullnessAfterDelete } from './hooks/syncFullness'
+import { syncLegacyFullnessAfterChange, syncLegacyFullnessAfterDelete } from './hooks/syncFullness'
 
 /**
  * Registrations — a registrant (User) signing up for an Event. Migrated from
@@ -20,14 +19,14 @@ export const Registrations: CollectionConfig = {
     defaultColumns: ['event', 'user', 'startingAt'],
     hidden: true,
   },
-  // Keep the owning event's denormalized `registrationsFull` flag in step as
-  // registrations come and go (see the event's registrationsFull field), and
-  // roll confirm/deny votes up onto the event (`syncCommunityFeedback`). A vote
-  // is gated on the event still being published + unverified.
+  // ⚠ The confirm/deny vote gate and the roll-up moved to `user-submissions`
+  // with #797 — the feedback page writes there now, and a token minted for a
+  // row here is refused at the signature. What stays is the fullness bridge:
+  // `POST /api/events/{id}/register` still writes here until #800, so a seat
+  // taken through the live path must still flip the event's flag.
   hooks: {
-    beforeChange: [gateEventFeedback],
-    afterChange: [syncFullnessAfterChange, syncCommunityFeedback],
-    afterDelete: [syncFullnessAfterDelete],
+    afterChange: [syncLegacyFullnessAfterChange],
+    afterDelete: [syncLegacyFullnessAfterDelete],
   },
   fields: [
     {

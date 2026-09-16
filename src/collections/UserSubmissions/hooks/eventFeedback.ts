@@ -9,7 +9,11 @@ import { asSystemReq, asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
  * Registrant confirm/deny voting on unverified events, carried on the
- * registration itself.
+ * registration row itself.
+ *
+ * Both hooks run on every `user-submissions` write and both return early unless
+ * `eventFeedback` actually moved — a column only a registration ever carries
+ * (`fields.ts` conditions it on the type), so no type guard is needed on top.
  *
  * The vote's only writer is the CMS-hosted `/registrations/feedback` page,
  * which records it with `overrideAccess` behind a signed token and an explicit
@@ -80,8 +84,14 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
   const trustedReq = asTrustedReq(req)
   const countVotes = (vote: 'confirmed' | 'denied') =>
     req.payload.count({
-      collection: 'registrations',
-      where: { and: [{ event: { equals: eventId } }, { eventFeedback: { equals: vote } }] },
+      collection: 'user-submissions',
+      where: {
+        and: [
+          { event: { equals: eventId } },
+          { type: { equals: 'registration' } },
+          { eventFeedback: { equals: vote } },
+        ],
+      },
       overrideAccess: true,
       req: trustedReq,
     })

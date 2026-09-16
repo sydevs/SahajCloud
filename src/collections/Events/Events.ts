@@ -508,10 +508,18 @@ export const Events: CollectionConfig = {
               })),
             },
             {
+              // ⚠ The `type` predicate is load-bearing. One table now holds
+              // four intakes and three of them can name an event, so without it
+              // this tab would list the event's proposals and its spawned
+              // subscribe rows alongside its registrants.
+              //
+              // Deliberately the bare type, not `activeRegistrationWhere`: a
+              // manager needs to see the row they flagged `spam`.
               name: 'registrations',
               type: 'join',
-              collection: 'registrations',
+              collection: 'user-submissions',
               on: 'event',
+              where: { type: { equals: 'registration' } },
               admin: { condition: hideUntilCreated },
             },
           ],

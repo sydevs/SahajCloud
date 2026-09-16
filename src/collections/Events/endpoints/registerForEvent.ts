@@ -12,6 +12,7 @@ import { resolveRegistrationRecipient } from '@/lib/notifications/registrationRe
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
+import { countActiveRegistrations } from '@/lib/registrations/fullness'
 import { evaluateRegistrationGate } from '@/lib/registrations/gating'
 import { buildRegistrationAnswers } from '@/lib/registrations/questions'
 import { resolveEmailStrings } from '@/lib/translations/emailStrings'
@@ -162,10 +163,11 @@ export const registerForEvent: Endpoint = {
       // concurrent registrations can overshoot the limit by a few — an acceptable
       // soft cap here (a meditation class, not ticketed inventory); a hard cap
       // would need a row lock or DB constraint.
-      const { totalDocs: registrationCount } = await req.payload.count({
-        collection: 'registrations',
-        where: { event: { equals: eventId } },
-        overrideAccess: true,
+      // The shared helper, so this endpoint and the `user-submissions` create
+      // gate count the same seats while both write paths are live (#797).
+      const { totalDocs: registrationCount } = await countActiveRegistrations({
+        payload: req.payload,
+        eventId,
         req,
       })
       const rejection = evaluateRegistrationGate({ event, registrationCount, now: new Date() })

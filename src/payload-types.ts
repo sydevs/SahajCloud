@@ -790,7 +790,7 @@ export interface Config {
       childrenVenues: 'regions';
     };
     events: {
-      registrations: 'registrations';
+      registrations: 'user-submissions';
     };
     users: {
       submissions: 'user-submissions';
@@ -1862,7 +1862,7 @@ export interface Event {
     questions?: boolean | null;
   };
   registrations?: {
-    docs?: (number | Registration)[];
+    docs?: (number | UserSubmission)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -1920,111 +1920,6 @@ export interface Event {
   createdAt: string;
   deletedAt?: string | null;
   _status?: ('draft' | 'published') | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "registrations".
- */
-export interface Registration {
-  id: number;
-  event: number | Event;
-  /**
-   * The registrant.
-   */
-  user: number | User;
-  /**
-   * When the registrant is attending.
-   */
-  startingAt?: string | null;
-  startingAt_tz?: SupportedTimezones;
-  /**
-   * The client service this registration came through. Brands and localizes the emails sent about it.
-   */
-  client?: (number | null) | Client;
-  /**
-   * The registrant's language. Emails about this registration are rendered in it.
-   */
-  locale?:
-    | (
-        | 'en'
-        | 'es'
-        | 'de'
-        | 'it'
-        | 'fr'
-        | 'ru'
-        | 'ro'
-        | 'cs'
-        | 'uk'
-        | 'el'
-        | 'hy'
-        | 'pl'
-        | 'pt-BR'
-        | 'fa'
-        | 'bg'
-        | 'tr'
-        | 'en-AU'
-        | 'hu'
-        | 'nl'
-      )
-    | null;
-  questions?: RegistrationQuestions;
-  uuid: string;
-  mailingListSubscribedAt?: string | null;
-  remindersUnsubscribedAt?: string | null;
-  activityLog?: ActivityLog;
-  /**
-   * Registrant’s verdict on an unverified event.
-   */
-  eventFeedback?: ('confirmed' | 'denied') | null;
-  followUpSentAt?: string | null;
-  legacyId?: number | null;
-  legacyData?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
- */
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  submissions?: {
-    docs?: (number | UserSubmission)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  registrations?: {
-    docs?: (number | Registration)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  submittedEvents?: {
-    docs?: (number | Event)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  legacyId?: number | null;
-  legacyData?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  updatedAt: string;
-  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2681,8 +2576,110 @@ export interface SubmissionScreeningResult {
    */
   screenedAt: string;
 }
-export interface SubmissionRegionHint {
-  [k: string]: unknown;
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "users".
+ */
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  submissions?: {
+    docs?: (number | UserSubmission)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  registrations?: {
+    docs?: (number | Registration)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  submittedEvents?: {
+    docs?: (number | Event)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "registrations".
+ */
+export interface Registration {
+  id: number;
+  event: number | Event;
+  /**
+   * The registrant.
+   */
+  user: number | User;
+  /**
+   * When the registrant is attending.
+   */
+  startingAt?: string | null;
+  startingAt_tz?: SupportedTimezones;
+  /**
+   * The client service this registration came through. Brands and localizes the emails sent about it.
+   */
+  client?: (number | null) | Client;
+  /**
+   * The registrant's language. Emails about this registration are rendered in it.
+   */
+  locale?:
+    | (
+        | 'en'
+        | 'es'
+        | 'de'
+        | 'it'
+        | 'fr'
+        | 'ru'
+        | 'ro'
+        | 'cs'
+        | 'uk'
+        | 'el'
+        | 'hy'
+        | 'pl'
+        | 'pt-BR'
+        | 'fa'
+        | 'bg'
+        | 'tr'
+        | 'en-AU'
+        | 'hu'
+        | 'nl'
+      )
+    | null;
+  questions?: RegistrationQuestions;
+  uuid: string;
+  mailingListSubscribedAt?: string | null;
+  remindersUnsubscribedAt?: string | null;
+  activityLog?: ActivityLog;
+  /**
+   * Registrant’s verdict on an unverified event.
+   */
+  eventFeedback?: ('confirmed' | 'denied') | null;
+  followUpSentAt?: string | null;
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
 }
 export interface RegistrationQuestions {
   /**
@@ -2701,6 +2698,9 @@ export interface RegistrationQuestions {
    * Do you have any questions for us?
    */
   questions?: string;
+}
+export interface SubmissionRegionHint {
+  [k: string]: unknown;
 }
 export interface EventSystemMeta {
   communityFeedback?: {

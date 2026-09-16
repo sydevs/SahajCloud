@@ -8,8 +8,14 @@ import { validateFormAction } from '@/collections/Forms/hooks/validateFormAction
 import { reviewSubmission } from '@/collections/UserSubmissions/endpoints/review'
 import { userSubmissionFields } from '@/collections/UserSubmissions/fields'
 import { enqueueSubmissionScreening } from '@/collections/UserSubmissions/hooks/enqueueSubmissionScreening'
+import { gateEventFeedback, syncCommunityFeedback } from '@/collections/UserSubmissions/hooks/eventFeedback'
+import { gateRegistration } from '@/collections/UserSubmissions/hooks/gateRegistration'
 import { prepareUserSubmission } from '@/collections/UserSubmissions/hooks/prepareUserSubmission'
 import { spawnSubscribeFromRegistration } from '@/collections/UserSubmissions/hooks/spawnSubscribeFromRegistration'
+import {
+  syncFullnessAfterChange,
+  syncFullnessAfterDelete,
+} from '@/collections/UserSubmissions/hooks/syncFullness'
 import { validateProposal } from '@/collections/UserSubmissions/hooks/validateProposal'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env/server'
@@ -105,7 +111,12 @@ export const formsPlugin = (): Plugin => async (config) => {
             // below could ever run.
             hooks: {
               ...collection.hooks,
-              afterChange: [spawnSubscribeFromRegistration, enqueueSubmissionScreening],
+              afterChange: [
+                spawnSubscribeFromRegistration,
+                syncFullnessAfterChange,
+                syncCommunityFeedback,
+                enqueueSubmissionScreening,
+              ],
             },
             endpoints: [...(collection.endpoints || []), reviewSubmission],
           }
@@ -193,7 +204,18 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
       // when `event-submissions` is deleted; duplicating it now would give the
       // rule two definitions to reconcile at that merge.
       hooks: {
-        beforeValidate: [validateProposal, prepareUserSubmission],
+        // `gateRegistration` before `prepareUserSubmission` — both are
+        // `beforeValidate`, and Payload runs every one of those ahead of every
+        // `beforeChange`, so a refusal has to live in this array to come first.
+        // See the hook for why the ordering is about cost rather than
+        // correctness.
+        beforeValidate: [validateProposal, gateRegistration, prepareUserSubmission],
+        // The vote gate is a `beforeChange`, and `afterDelete` is not one of the
+        // arrays the wrapper above replaces — so both belong here. Their
+        // `afterChange` siblings do not: listing them here would have the
+        // wrapper's whole-array replacement discard them.
+        beforeChange: [gateEventFeedback],
+        afterDelete: [syncFullnessAfterDelete],
       },
     },
   })(config)
