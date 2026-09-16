@@ -36,14 +36,6 @@ export function isEventFull(event: EventFullnessInput, registrationCount: number
  * One helper rather than the same `where` re-derived at each call site — the
  * create gate, this file's flag sync and the Events capacity hook all ask the
  * identical question, and three spellings of it is three chances to drift.
- *
- * ⚠ **It sums the old collection too, and that half is temporary.**
- * `POST /api/events/{id}/register` still creates `registrations` rows until
- * sydevs/SahajCloud#800 deletes it, and the Atlas widget still posts there
- * until sydevs/SahajAtlasWeb#195 ships. Counting only the new table would make
- * `registrationsFull` read 0 for every event registered through the live path
- * — a limit silently stopping being enforced, which is worse than the four
- * lines. Delete the second count with the collection, not before.
  */
 export async function countActiveRegistrations(args: {
   payload: Payload
@@ -53,24 +45,14 @@ export async function countActiveRegistrations(args: {
   const { payload, eventId, req } = args
   const where: Where = { and: [{ event: { equals: eventId } }, activeRegistrationWhere] }
 
-  const [unified, legacy] = await Promise.all([
-    payload.count({ collection: 'user-submissions', where, overrideAccess: true, req }),
-    payload.count({
-      collection: 'registrations',
-      where: { event: { equals: eventId } },
-      overrideAccess: true,
-      req,
-    }),
-  ])
-
-  return { totalDocs: unified.totalDocs + legacy.totalDocs }
+  return payload.count({ collection: 'user-submissions', where, overrideAccess: true, req })
 }
 
 /**
  * Recompute an event's denormalized `registrationsFull` flag from a live
  * registration count and persist it — only when it actually flips. Called from
- * the Registrations create/delete hooks so the flag the Atlas widget reads stays
- * O(1) on the feed (no per-event COUNT at read time).
+ * the `user-submissions` create/delete hooks so the flag the Atlas widget reads
+ * stays O(1) on the feed (no per-event COUNT at read time).
  *
  * The flag changes at most a couple of times over an event's life, so guarding
  * the write on a real change keeps version churn on the drafts-enabled Events

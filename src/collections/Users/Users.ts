@@ -36,16 +36,9 @@ export const Users: CollectionConfig = {
     {
       // Everything this person has ever sent us, of any kind — a contact
       // message, a subscription, a registration, an event proposal — in one
-      // place. It will replace the two joins below, which between them can
-      // only answer two of those four questions and make a sender's history
-      // look like two unrelated histories (#723).
-      //
-      // ⚠ It shows nothing yet, and the two below are not redundant until it
-      // does. Phase 1 adds the schema only: `registerForEvent` still creates
-      // `registrations`, and `event-submissions` still takes proposals, so
-      // nothing writes `user-submissions`. They are removed in Phase 3, with
-      // the collections they read — #723 is explicit that the old
-      // collections' behaviour does not change this phase.
+      // place, where the `registrations` join this replaced could answer one
+      // of those four questions and made a sender's history look like two
+      // unrelated histories (#723).
       //
       // A join can only target a relationship column, which is why
       // `user-submissions.user` is a real column on every type rather than a
@@ -59,15 +52,9 @@ export const Users: CollectionConfig = {
       },
     },
     {
-      name: 'registrations',
-      type: 'join',
-      collection: 'registrations',
-      on: 'user',
-      admin: {
-        condition: hideUntilCreated,
-      },
-    },
-    {
+      // Kept beside `submissions`, not folded into it: it answers which
+      // proposals became real listings, which a join over submissions cannot
+      // — `events.submitter` is written when a proposal is accepted.
       // Events this registrant sent in through the public submission flow
       // (`events.submitter` is record-keeping only — no access implications).
       name: 'submittedEvents',

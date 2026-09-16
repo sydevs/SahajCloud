@@ -347,7 +347,7 @@ jsonField({
 - **A raw `JSONSchema4` `schema` is for a shape assembled as data** — a
   `properties` map built by `Object.fromEntries` (`stringsSchema`), or
   `enum`s spliced from an exported const array
-  (`Clients.canonical.verification`, `UserMessages.screeningResult`,
+  (`Clients.canonical.verification`, `UserSubmissions.screeningResult`,
   `Clients.embedMetadata`). Round-tripping such a shape through Zod only
   to convert it back buys nothing. It is **not** a list of things Zod
   cannot express: Zod reaches `maxProperties` through `.meta()`, and its

@@ -740,10 +740,7 @@ export interface Config {
     'app-cards': AppCard;
     regions: Region;
     events: Event;
-    'event-submissions': EventSubmission;
-    registrations: Registration;
     users: User;
-    'user-messages': UserMessage;
     forms: Form;
     'user-submissions': UserSubmission;
     'payload-kv': PayloadKv;
@@ -794,7 +791,6 @@ export interface Config {
     };
     users: {
       submissions: 'user-submissions';
-      registrations: 'registrations';
       submittedEvents: 'events';
     };
   };
@@ -820,10 +816,7 @@ export interface Config {
     'app-cards': AppCardsSelect<false> | AppCardsSelect<true>;
     regions: RegionsSelect<false> | RegionsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
-    'event-submissions': EventSubmissionsSelect<false> | EventSubmissionsSelect<true>;
-    registrations: RegistrationsSelect<false> | RegistrationsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
-    'user-messages': UserMessagesSelect<false> | UserMessagesSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'user-submissions': UserSubmissionsSelect<false> | UserSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -931,10 +924,7 @@ export interface Config {
       deliverSubmission: TaskDeliverSubmission;
       expireEvents: TaskExpireEvents;
       purgeSubmissions: TaskPurgeSubmissions;
-      purgeUserMessages: TaskPurgeUserMessages;
-      screenEventSubmission: TaskScreenEventSubmission;
       screenSubmission: TaskScreenSubmission;
-      screenUserMessage: TaskScreenUserMessage;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
       sendRegistrationDigests: TaskSendRegistrationDigests;
       sendSessionReminders: TaskSendSessionReminders;
@@ -2589,11 +2579,6 @@ export interface User {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
-  registrations?: {
-    docs?: (number | Registration)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   submittedEvents?: {
     docs?: (number | Event)[];
     hasNextPage?: boolean;
@@ -2611,93 +2596,6 @@ export interface User {
     | null;
   updatedAt: string;
   createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "registrations".
- */
-export interface Registration {
-  id: number;
-  event: number | Event;
-  /**
-   * The registrant.
-   */
-  user: number | User;
-  /**
-   * When the registrant is attending.
-   */
-  startingAt?: string | null;
-  startingAt_tz?: SupportedTimezones;
-  /**
-   * The client service this registration came through. Brands and localizes the emails sent about it.
-   */
-  client?: (number | null) | Client;
-  /**
-   * The registrant's language. Emails about this registration are rendered in it.
-   */
-  locale?:
-    | (
-        | 'en'
-        | 'es'
-        | 'de'
-        | 'it'
-        | 'fr'
-        | 'ru'
-        | 'ro'
-        | 'cs'
-        | 'uk'
-        | 'el'
-        | 'hy'
-        | 'pl'
-        | 'pt-BR'
-        | 'fa'
-        | 'bg'
-        | 'tr'
-        | 'en-AU'
-        | 'hu'
-        | 'nl'
-      )
-    | null;
-  questions?: RegistrationQuestions;
-  uuid: string;
-  mailingListSubscribedAt?: string | null;
-  remindersUnsubscribedAt?: string | null;
-  activityLog?: ActivityLog;
-  /**
-   * Registrant’s verdict on an unverified event.
-   */
-  eventFeedback?: ('confirmed' | 'denied') | null;
-  followUpSentAt?: string | null;
-  legacyId?: number | null;
-  legacyData?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  updatedAt: string;
-  createdAt: string;
-}
-export interface RegistrationQuestions {
-  /**
-   * Have you practised Sahaja Yoga meditation before?
-   */
-  experience?: string;
-  /**
-   * How did you hear about this event?
-   */
-  referral?: string;
-  /**
-   * What are you hoping to get out of this?
-   */
-  aspirations?: string;
-  /**
-   * Do you have any questions for us?
-   */
-  questions?: string;
 }
 export interface SubmissionRegionHint {
   [k: string]: unknown;
@@ -3806,140 +3704,6 @@ export interface Frame {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "event-submissions".
- */
-export interface EventSubmission {
-  id: number;
-  screeningResult?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  submitterInfo?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * The event this submission proposes changes to. After acceptance it links the created event.
-   */
-  event?: (number | null) | Event;
-  /**
-   * Optional. The manager who will look after this event. Assign one to publish it as verified; leave blank and it goes on the map as unverified until a manager takes it on.
-   */
-  manager?: (number | null) | Manager;
-  /**
-   * The city or venue this event belongs to. Resolved by screening — correct it here if it came back empty or wrong.
-   */
-  region?: (number | null) | Region;
-  /**
-   * Generated from the proposal when the submission arrives.
-   */
-  title?: string | null;
-  /**
-   * The proposed Events field patch, exactly as submitted.
-   */
-  proposed?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  status: 'screening' | 'pending' | 'spam' | 'created' | 'updated' | 'rejected';
-  submitter?: (number | null) | User;
-  /**
-   * Region targeting as submitted (country / state / anchor).
-   */
-  regionHint?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  reviewedBy?: (number | null) | Manager;
-  reviewedAt?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "user-messages".
- */
-export interface UserMessage {
-  id: number;
-  screeningResult?: UserMessageScreeningResult;
-  subject?: string | null;
-  message: string;
-  /**
-   * Optional. Becomes the Reply-To of the message we email out.
-   */
-  senderEmail?: string | null;
-  context?: UserMessageContext;
-  client?: (number | null) | Client;
-  user?: (number | null) | User;
-  status: 'screening' | 'delivered' | 'spam' | 'failed';
-  bodyHash?: string | null;
-  deliveredAt?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-export interface UserMessageScreeningResult {
-  /**
-   * `ok`, or why the message was classified spam.
-   */
-  verdict: 'ok' | 'disposable_email' | 'invalid_email' | 'no_mx_records' | 'repeat_sender' | 'duplicate_body';
-  /**
-   * Everything an admin needs, as complete sentences. Each says what happened and what follows from it. A delivered message normally has none.
-   */
-  notes?: string[];
-  /**
-   * A technical detail kept for triage and NOT rendered — an MX lookup that came back inconclusive, or the mail transport’s own error string. Discarding it would leave nothing to look at when delivery goes wrong.
-   */
-  diagnostic?: string;
-  /**
-   * When screening reached this verdict (ISO 8601).
-   */
-  screenedAt: string;
-}
-export interface UserMessageContext {
-  /**
-   * Route the sender was on, e.g. `/events/london-meetup`.
-   */
-  path?: string;
-  /**
-   * Absolute URL of the host page embedding the widget.
-   */
-  hostUrl?: string;
-  /**
-   * Locale the sender was browsing in.
-   */
-  locale?: string;
-  /**
-   * Error text/stack the sender was reporting, when the message is a crash report.
-   */
-  error?: string;
-  /**
-   * The sender's user-agent string.
-   */
-  userAgent?: string;
-  [k: string]: unknown;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -4013,10 +3777,7 @@ export interface PayloadJob {
           | 'deliverSubmission'
           | 'expireEvents'
           | 'purgeSubmissions'
-          | 'purgeUserMessages'
-          | 'screenEventSubmission'
           | 'screenSubmission'
-          | 'screenUserMessage'
           | 'sendPostEventFollowUps'
           | 'sendRegistrationDigests'
           | 'sendSessionReminders'
@@ -4063,10 +3824,7 @@ export interface PayloadJob {
         | 'deliverSubmission'
         | 'expireEvents'
         | 'purgeSubmissions'
-        | 'purgeUserMessages'
-        | 'screenEventSubmission'
         | 'screenSubmission'
-        | 'screenUserMessage'
         | 'sendPostEventFollowUps'
         | 'sendRegistrationDigests'
         | 'sendSessionReminders'
@@ -4187,20 +3945,8 @@ export interface PayloadLockedDocument {
         value: number | Event;
       } | null)
     | ({
-        relationTo: 'event-submissions';
-        value: number | EventSubmission;
-      } | null)
-    | ({
-        relationTo: 'registrations';
-        value: number | Registration;
-      } | null)
-    | ({
         relationTo: 'users';
         value: number | User;
-      } | null)
-    | ({
-        relationTo: 'user-messages';
-        value: number | UserMessage;
       } | null)
     | ({
         relationTo: 'forms';
@@ -4984,77 +4730,15 @@ export interface EventsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "event-submissions_select".
- */
-export interface EventSubmissionsSelect<T extends boolean = true> {
-  screeningResult?: T;
-  submitterInfo?: T;
-  event?: T;
-  manager?: T;
-  region?: T;
-  title?: T;
-  proposed?: T;
-  status?: T;
-  submitter?: T;
-  regionHint?: T;
-  reviewedBy?: T;
-  reviewedAt?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "registrations_select".
- */
-export interface RegistrationsSelect<T extends boolean = true> {
-  event?: T;
-  user?: T;
-  startingAt?: T;
-  startingAt_tz?: T;
-  client?: T;
-  locale?: T;
-  questions?: T;
-  uuid?: T;
-  mailingListSubscribedAt?: T;
-  remindersUnsubscribedAt?: T;
-  activityLog?: T;
-  eventFeedback?: T;
-  followUpSentAt?: T;
-  legacyId?: T;
-  legacyData?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
   email?: T;
   submissions?: T;
-  registrations?: T;
   submittedEvents?: T;
   legacyId?: T;
   legacyData?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "user-messages_select".
- */
-export interface UserMessagesSelect<T extends boolean = true> {
-  screeningResult?: T;
-  subject?: T;
-  message?: T;
-  senderEmail?: T;
-  context?: T;
-  client?: T;
-  user?: T;
-  status?: T;
-  bodyHash?: T;
-  deliveredAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -10452,31 +10136,6 @@ export interface TaskPurgeSubmissions {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskPurgeUserMessages".
- */
-export interface TaskPurgeUserMessages {
-  input: {
-    now?: string | null;
-  };
-  output: {
-    deletedDelivered: number;
-    deletedSpam: number;
-  };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskScreenEventSubmission".
- */
-export interface TaskScreenEventSubmission {
-  input: {
-    submissionId: number;
-  };
-  output: {
-    status: string;
-  };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TaskScreenSubmission".
  */
 export interface TaskScreenSubmission {
@@ -10485,18 +10144,6 @@ export interface TaskScreenSubmission {
   };
   output: {
     verdict: string;
-    status: string;
-  };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskScreenUserMessage".
- */
-export interface TaskScreenUserMessage {
-  input: {
-    messageId: number;
-  };
-  output: {
     status: string;
   };
 }

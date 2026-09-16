@@ -147,18 +147,16 @@ describe('Event feedback (registrant voting)', () => {
       expect(after.eventFeedback).toBeFalsy()
     })
 
-    it('grants the atlas client no update on either intake', () => {
+    it('grants the atlas client no update on the intake', () => {
       const clientUser = { id: 1, collection: 'clients', roles: ['sahaj-atlas-client'] } as never
       // Contrast, so this cannot pass merely because the fixture is inert.
       expect(
         hasPermission({ user: clientUser, collection: 'user-submissions', operation: 'create' }),
       ).toBe(true)
-      for (const collection of ['registrations', 'user-submissions'] as const) {
-        expect(
-          hasPermission({ user: clientUser, collection, operation: 'update' }),
-          `client should not update ${collection}`,
-        ).toBe(false)
-      }
+      expect(
+        hasPermission({ user: clientUser, collection: 'user-submissions', operation: 'update' }),
+        'client should not update user-submissions',
+      ).toBe(false)
     })
   })
 

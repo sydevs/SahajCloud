@@ -51,7 +51,7 @@ There is no width prop: `Drawer` sets `width: calc(100% - (drawerDepth * var(--g
 
 `admin.hidden: true` removes a collection from the nav **and** unregisters its routes — `/admin/collections/<slug>/<id>` 404s. It does not make the documents unreachable: a `join` field on another collection still renders its rows and opens each in a document drawer, which never touches the route. Nested drawers work from there too.
 
-That combination is often what you want — reachable where it's explained, absent from the sidebar. `Registrations` is hidden for exactly this reason, opened from an Event's Registration tab. A 404 on the route is not evidence a field needs surfacing elsewhere — try the surfaces that already embed the document first.
+That combination is often what you want — reachable where it's explained, absent from the sidebar. An event's registrations are read this way, through the join on its Registrations tab rather than the collection's own list. A 404 on the route is not evidence a field needs surfacing elsewhere — try the surfaces that already embed the document first.
 
 **Building a custom field component?** Compose Payload's primitives instead of bespoke markup: `FieldLabel`, `FieldError`, `FieldDescription`, plus input fields (`TextField`, `SelectField`, `RelationshipField`, `UploadField`, `ArrayField`, `GroupField`, `BlocksField`, and more) and `RenderFields` (a whole field set). Hooks: `useField`, `useForm`, `useFormFields`, `useDocumentInfo`, `useConfig`, `useAuth`, `useTranslation`.
 
@@ -74,7 +74,7 @@ For those, carry the render-ready shape in a field and let postMessage deliver i
 
 Two mechanics worth knowing:
 
-- **Open the panel with `livePreview.openByDefault: true`** (Payload 3.86+), not a mount effect. It applies server-side while building the document view, only until the user toggles the panel — after that their stored `editViewType` preference wins. A `setIsLivePreviewing(true)` effect can't honour that, and re-opened the panel every time a reviewer closed it. `EventSubmissions` was ported off exactly such an effect. A *tab* still needs the client, and declares `autoOpen` instead — see below.
+- **Open the panel with `livePreview.openByDefault: true`** (Payload 3.86+), not a mount effect. It applies server-side while building the document view, only until the user toggles the panel — after that their stored `editViewType` preference wins. A `setIsLivePreviewing(true)` effect can't honour that, and re-opened the panel every time a reviewer closed it. The proposal review surface was ported off exactly such an effect. A *tab* still needs the client, and declares `autoOpen` instead — see below.
 - A field that only carries data to the iframe wants `admin.hidden: true`, not a component rendering `null` — Payload renders it as a `HiddenField`, so the value still sits in form state (what `reduceFieldsToValues` posts) while nothing takes up space on the page.
 - A **virtual** field's value computes on read, so it never recomputes as the user types — the right trade only when the document isn't editable, as in the submission-review case.
 

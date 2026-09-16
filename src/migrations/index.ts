@@ -67,6 +67,7 @@ import * as migration_20260914_175014 from './20260914_175014';
 import * as migration_20260915_162816_mailing_list_config from './20260915_162816_mailing_list_config';
 import * as migration_20260916_045509_spam_submission_status from './20260916_045509_spam_submission_status';
 import * as migration_20260916_140157_port_proposal_review from './20260916_140157_port_proposal_review';
+import * as migration_20260916_144804_drop_legacy_intake_collections from './20260916_144804_drop_legacy_intake_collections';
 
 export const migrations = [
   {
@@ -412,6 +413,11 @@ export const migrations = [
   {
     up: migration_20260916_140157_port_proposal_review.up,
     down: migration_20260916_140157_port_proposal_review.down,
-    name: '20260916_140157_port_proposal_review'
+    name: '20260916_140157_port_proposal_review',
+  },
+  {
+    up: migration_20260916_144804_drop_legacy_intake_collections.up,
+    down: migration_20260916_144804_drop_legacy_intake_collections.down,
+    name: '20260916_144804_drop_legacy_intake_collections'
   },
 ];

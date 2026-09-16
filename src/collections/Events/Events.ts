@@ -45,7 +45,6 @@ import { adminOnlyCondition, ownedRegionFilterOptions } from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
 
 import { eventsGeoJson } from './endpoints/geojson'
-import { registerForEvent } from './endpoints/registerForEvent'
 import { verifyEventAction } from './endpoints/verifyEventAction'
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
@@ -164,7 +163,7 @@ export const Events: CollectionConfig = {
     afterChange: [revalidateAtlasSidebarHook],
     afterDelete: [revalidateAtlasSidebarHook],
   },
-  endpoints: [verifyEventAction, eventsGeoJson, registerForEvent],
+  endpoints: [verifyEventAction, eventsGeoJson],
   fields: [
     {
       // A contextual banner above the tabs. It warns when the event is due

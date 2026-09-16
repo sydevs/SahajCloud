@@ -1,10 +1,15 @@
 /**
  * Response shapes for the public Atlas Events endpoints — `GET /api/events/geojson`
- * and `POST /api/events/register`. Exported and committed so the AtlasReact
- * frontend can sync them by raw GitHub URL, and kept in step with the OpenAPI
- * schemas in `src/plugins/openapi/customEndpoints.ts` (a tripwire test asserts
- * the runtime shape). Deliberately self-contained — no `@/` imports — so a
- * cross-repo fetch of this single file resolves cleanly.
+ * — plus the registration refusal codes, which outlived the endpoint that
+ * minted them. Exported and committed so the AtlasReact frontend can sync them
+ * by raw GitHub URL, and kept in step with the OpenAPI schemas in
+ * `src/plugins/openapi/customEndpoints.ts` (a tripwire test asserts the runtime
+ * shape). Deliberately self-contained — no `@/` imports — so a cross-repo fetch
+ * of this single file resolves cleanly.
+ *
+ * ⚠ **Keep this file at this path.** sydevs/SahajAtlasWeb's `pnpm types:cms`
+ * curls this exact raw URL with `curl -fsSL`, so a move or a delete 404s and
+ * takes the whole chain down with it — no `payload-types.ts` either.
  */
 
 /** GeoJSON Point. Coordinates are `[longitude, latitude]` (GeoJSON's lon-first axis order). */
@@ -45,18 +50,16 @@ export type EventFeatureCollection = {
   nextPage?: number | null
 }
 
-/** Confirmation returned by `POST /api/events/register`. */
-export type EventRegistrationResponse = {
-  ok: true
-  registration: { id: number; uuid: string }
-}
-
 /**
  * Machine-readable reason a registration was refused, so the Atlas widget maps
- * each rejection to its registration-state UI rather than parsing prose:
+ * each rejection to its registration-state UI rather than parsing prose.
  *
- * - `external_registration` — the event registers off-Atlas; the native
- *   endpoint doesn't accept it (the widget links out instead).
+ * Emitted by the `user-submissions` create gate since the register endpoint was
+ * deleted (#800). The codes are unchanged; where they sit in the body is not —
+ * see `EventRegistrationError`.
+ *
+ * - `external_registration` — the event registers off-Atlas, so the widget
+ *   links out instead of taking a registration.
  * - `event_ended` — the schedule has fully run out (a one-off past its date, or
  *   a course whose last session is behind us).
  * - `registration_closed` — a limited-run course has already started, so its run
@@ -72,9 +75,13 @@ export type EventRegistrationErrorCode =
   | 'event_full'
 
 /**
- * Error body for a refused registration — the existing `{ errors: [{ message }] }`
- * shape, extended with an optional stable `code` on the state-based refusals.
+ * Error body for a refused registration.
+ *
+ * ⚠ **The code moved to `errors[].data.code`.** It is Payload's own `APIError`
+ * envelope now, not one an endpoint composed, and Payload puts an error's extra
+ * data under `data`. sydevs/SahajAtlasWeb#171 reads both positions, so a client
+ * on either side of that change keeps working.
  */
 export type EventRegistrationError = {
-  errors: { message: string; code?: EventRegistrationErrorCode }[]
+  errors: { message: string; data?: { code?: EventRegistrationErrorCode } }[]
 }

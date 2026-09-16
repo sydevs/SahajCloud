@@ -1,7 +1,7 @@
 import type { PayloadRequest } from 'payload'
 
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
-import type { UserMessage } from '@/payload-types'
+import type { UserMessageContext } from '@/emails/UserMessageEmail'
 
 /** Said in an email subject when the relaying service cannot be resolved. */
 const UNKNOWN_CLIENT = 'Unknown service'
@@ -38,7 +38,8 @@ export async function clientNameFor(
  * Rebuild the `context` block the contact email renders, from the flat pairs it
  * now arrives as.
  *
- * `user-messages` carried these five as a typed JSON column; `user-submissions`
+ * The collection this replaced carried these five as a typed JSON column;
+ * `user-submissions`
  * flattens them into `submissionData`, because they are the same on every type
  * and none of them is queried. This is the one place that reverses the
  * flattening, so the email template keeps its existing shape rather than
@@ -52,7 +53,7 @@ export async function clientNameFor(
  */
 export function contextFromSubmissionData(
   entries: unknown,
-): NonNullable<UserMessage['context']> | undefined {
+): UserMessageContext | undefined {
   const context = {
     locale: readSubmissionValue(entries, 'locale'),
     path: readSubmissionValue(entries, 'path'),
@@ -64,5 +65,5 @@ export function contextFromSubmissionData(
   const present = Object.entries(context).filter(([, value]) => value != null && value !== '')
   // `undefined` rather than an object of five undefineds: the template renders a
   // details block per present key, and an empty one would print a bare heading.
-  return present.length > 0 ? (Object.fromEntries(present) as NonNullable<UserMessage['context']>) : undefined
+  return present.length > 0 ? (Object.fromEntries(present) as UserMessageContext) : undefined
 }
