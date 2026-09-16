@@ -298,11 +298,7 @@ export async function waitForEmail(
 export function createClientAuthenticatedRequest(
   clientId: string,
   apiKey: string,
-  /**
-   * Roles the stub client holds. Needed by anything exercising live preview:
-   * `resolveLivePreviewHook` matches the token's role against these, so a
-   * request with none is never a preview however valid its token.
-   */
+  /** Roles the stub client holds, for role-scoped access checks. */
   roles: string[] = [],
 ): Partial<PayloadRequest> {
   // Create a minimal request object for testing

@@ -413,11 +413,9 @@ describe('per-locale publish status', () => {
 
       const headers = new Headers()
       headers.set('authorization', `clients API-Key unused-in-local-api`)
-      // A minted token, not a shared secret. `resolveLivePreviewHook` is what
-      // Payload runs first in the `beforeOperation` chain; calling it here is
-      // what makes the request a preview, and without it this asserts the
-      // published path instead.
-      const token = await mintLivePreviewToken('wemeditate-web-client', serverEnv.LIVE_PREVIEW_SIGNING_KEY)
+      // ⚠ Calling `resolveLivePreviewHook` is what makes the request a
+      // preview. Without it this asserts the published path instead.
+      const token = await mintLivePreviewToken(serverEnv.LIVE_PREVIEW_SIGNING_KEY)
       headers.set(PREVIEW_SECRET_HEADER, token ?? 'no-key-configured')
 
       const previewReq = {
