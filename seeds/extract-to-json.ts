@@ -271,7 +271,6 @@ async function extractMeditationsData(): Promise<void> {
     console.log(`  ✓ Extracted: ${data.attachments.length} attachments`)
     console.log(`  ✓ Extracted: ${data.blobs.length} blobs`)
 
-    // Write to JSON
     await fs.writeFile(MEDITATIONS_JSON, JSON.stringify(data, null, 2))
     console.log(`\n✓ Written to: seeds/meditations/data.json`)
   } finally {
@@ -344,7 +343,6 @@ async function extractWeMeditateData(): Promise<void> {
     `)
     console.log(`  ✓ Extracted: ${tracks.rows.length} tracks`)
 
-    // Categories
     const categories = await client.query(`
       SELECT
         c.id,
@@ -481,7 +479,6 @@ async function extractWeMeditateData(): Promise<void> {
       treatmentThumbnails: treatmentThumbnails.rows,
     }
 
-    // Write to JSON
     await fs.writeFile(WEMEDITATE_JSON, JSON.stringify(data, null, 2))
     console.log(`\n✓ Written to: seeds/wemeditate/data.json`)
   } finally {

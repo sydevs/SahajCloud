@@ -213,7 +213,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Verify file is in trash
       expect(await fileInTrash(payload, file.id)).toBe(true)
 
-      // Run cleanup job
       const result = await runCleanupJob(payload)
 
       // Verify permanent deletion
@@ -243,7 +242,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Verify image is in trash
       expect(await imageInTrash(payload, image.id)).toBe(true)
 
-      // Run cleanup job
       const result = await runCleanupJob(payload)
 
       // Verify permanent deletion
@@ -272,7 +270,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Verify file exists
       expect(await fileExists(payload, file.id)).toBe(true)
 
-      // Run cleanup job
       const result = await runCleanupJob(payload)
 
       // Verify file was trashed (not permanently deleted)
@@ -288,7 +285,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Create lesson with this file as introAudio
       await testData.createLesson(payload, { introAudio: file.id })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify file is preserved (not trashed)
@@ -297,7 +293,6 @@ describe('CleanupOrphanedMedia Job', () => {
     })
 
     it('preserves files referenced by lessons.panels[].media', async () => {
-      // Create a video file
       const videoFile = await testData.createFile(payload, {}, 'video-30s.mp4')
       await backdateCreatedAt(payload, 'files', videoFile.id)
 
@@ -314,7 +309,6 @@ describe('CleanupOrphanedMedia Job', () => {
         ],
       })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify file is preserved
@@ -336,7 +330,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Verify image exists (it should have auto-generated orientation tag)
       expect(await imageExists(payload, image.id)).toBe(true)
 
-      // Run cleanup job
       const result = await runCleanupJob(payload)
 
       // Verify image was trashed (orientation tags do not protect from cleanup)
@@ -349,11 +342,9 @@ describe('CleanupOrphanedMedia Job', () => {
       // Use a non-orientation tag to test preservation
       const preserveTag = 'thumbnail'
 
-      // Create an image with that tag
       const image = await testData.createMediaImage(payload, { tags: [preserveTag] })
       await backdateCreatedAt(payload, 'images', image.id)
 
-      // Run cleanup job
       const result = await runCleanupJob(payload)
 
       // Verify image was skipped (not trashed)
@@ -370,7 +361,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Create author with this photo (unique name to avoid slug collision)
       await testData.createAuthor(payload, { name: `Author ${uniqueId()}`, photo: image.id })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify image is preserved
@@ -383,10 +373,8 @@ describe('CleanupOrphanedMedia Job', () => {
       const image = await testData.createMediaImage(payload)
       await backdateCreatedAt(payload, 'images', image.id)
 
-      // Create lecture with this thumbnail
       await testData.createLecture(payload, { thumbnail: image.id })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify image is preserved
@@ -402,7 +390,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Create meditation with this thumbnail (auto-creates narrator)
       await testData.createMeditation(payload, { thumbnail: image.id })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify image is preserved
@@ -416,10 +403,8 @@ describe('CleanupOrphanedMedia Job', () => {
       const image = await testData.createMediaImage(payload)
       await backdateCreatedAt(payload, 'images', image.id)
 
-      // Create lesson with this icon
       await testData.createLesson(payload, { icon: image.id })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify image is preserved
@@ -437,7 +422,6 @@ describe('CleanupOrphanedMedia Job', () => {
         content: createLexicalWithTextBoxBlock(image.id),
       })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify image is preserved
@@ -455,7 +439,6 @@ describe('CleanupOrphanedMedia Job', () => {
         content: createLexicalWithLayoutBlock([image.id]),
       })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify image is preserved
@@ -477,7 +460,6 @@ describe('CleanupOrphanedMedia Job', () => {
         content: createLexicalWithGalleryBlock([image1.id, image2.id, image3.id]),
       })
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify images are preserved
@@ -500,7 +482,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Verify file exists
       expect(await fileExists(payload, file.id)).toBe(true)
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify file was NOT trashed (protected by grace period)
@@ -515,7 +496,6 @@ describe('CleanupOrphanedMedia Job', () => {
       // Verify image exists
       expect(await imageExists(payload, image.id)).toBe(true)
 
-      // Run cleanup job
       await runCleanupJob(payload)
 
       // Verify image was NOT trashed (protected by grace period)
@@ -552,7 +532,6 @@ describe('CleanupOrphanedMedia Job', () => {
       await testData.createAuthor(payload, { name: `Author ${uniqueId()}`, photo: image1.id })
       await testData.createLecture(payload, { thumbnail: image2.id })
 
-      // Run cleanup job
       const result = await runCleanupJob(payload)
 
       // Both images should be preserved
@@ -595,7 +574,6 @@ describe('CleanupOrphanedMedia Job', () => {
       const taggedImage = await testData.createMediaImage(payload, { tags: [skipTag] })
       await backdateCreatedAt(payload, 'images', taggedImage.id)
 
-      // Run cleanup job
       const result = await runCleanupJob(payload)
 
       // Verify counts

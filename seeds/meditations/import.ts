@@ -168,7 +168,6 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
   restless: 'restless-thoughts',
   'restless, too many thoughts': 'restless-thoughts',
 
-  // Mind racing
   'mind racing': 'mind-racing',
   "mind is racing, can't relax": 'mind-racing',
   "can't relax": 'mind-racing',
@@ -183,7 +182,6 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
   agitated: 'wired-agitated',
   'wired and agitated': 'wired-agitated',
 
-  // Self-esteem
   insecure: 'low-self-esteem',
   'low self esteem': 'low-self-esteem',
   'feel insecure': 'low-self-esteem',
@@ -209,7 +207,6 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
   fine: 'feeling-fine',
   'feeling fine': 'feeling-fine',
 
-  // Energy boost
   'low energy': 'need-energy-boost',
   'need a boost': 'need-energy-boost',
   'low on energy': 'need-energy-boost',
@@ -219,7 +216,6 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
   'need to pause': 'need-to-pause',
   'overwhelmed, need to pause': 'need-to-pause',
 
-  // Spiritual
   spiritual: 'spiritual-experience',
   'deeper experience': 'spiritual-experience',
   'seeking deeper spiritual experience': 'spiritual-experience',
@@ -607,7 +603,6 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       await this.importSongs(data.musics, data.taggings, data.attachments, data.blobs)
     }
 
-    // Meditations
     if (!isPaginated || this.isCollectionTargeted('meditations')) {
       await this.importMeditations(
         data.meditations,

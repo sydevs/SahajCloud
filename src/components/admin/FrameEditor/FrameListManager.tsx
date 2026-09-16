@@ -179,7 +179,6 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
       const updatedFrames = [...frames]
       updatedFrames[index] = { ...updatedFrames[index], timestamp: newTimestamp }
 
-      // Sort by timestamp
       updatedFrames.sort((a, b) => a.timestamp - b.timestamp)
       setValue(updatedFrames)
     },

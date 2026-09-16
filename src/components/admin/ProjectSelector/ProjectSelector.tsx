@@ -46,7 +46,6 @@ const ProjectSelector = () => {
       })
     }
 
-    // Get all project options
     const allProjects = getProjectOptions()
 
     // Compute allowed projects from user's roles
@@ -121,7 +120,6 @@ const ProjectSelector = () => {
     }
   }
 
-  // Find the current option
   const selectedOption = projectOptions.find((opt) => opt.value === currentProject)
 
   return (

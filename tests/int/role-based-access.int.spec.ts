@@ -1251,20 +1251,17 @@ describe('Role-Based Access Control', () => {
     })
 
     it('client cannot access draft document by ID', async () => {
-      // Create admin manager
       const admin = await testData.createManager(payload, {
         name: 'Admin for Draft ID Test',
         type: 'admin' as const,
       })
 
-      // Create a client
       const client = await testData.createClient(payload, admin.id, {
         name: 'Test API Client for ID Test',
         roles: ['wemeditate-web-client'],
         _status: 'published',
       })
 
-      // Create a draft page
       const draftPage = await payload.create({
         collection: 'pages',
         data: createData<'pages'>({
@@ -1289,13 +1286,11 @@ describe('Role-Based Access Control', () => {
     })
 
     it('client can access published documents', async () => {
-      // Create admin manager
       const admin = await testData.createManager(payload, {
         name: 'Admin for Published Test',
         type: 'admin' as const,
       })
 
-      // Create a client
       const client = await testData.createClient(payload, admin.id, {
         name: 'Test API Client for Published Test',
         roles: ['wemeditate-web-client'],
@@ -1470,7 +1465,6 @@ describe('Role-Based Access Control', () => {
     })
 
     it('wemeditate-web-client cannot read app-cards', async () => {
-      // Create admin manager
       const admin = await testData.createManager(payload, {
         name: 'Admin for Web Client Cards Test',
         type: 'admin' as const,
@@ -1525,7 +1519,6 @@ describe('Role-Based Access Control', () => {
     })
 
     it('manager can access draft documents', async () => {
-      // Create admin manager
       const admin = await testData.createManager(payload, {
         name: 'Admin for Manager Draft Test',
         type: 'admin' as const,
@@ -1538,7 +1531,6 @@ describe('Role-Based Access Control', () => {
         roles: { en: ['web-translator'] },
       })
 
-      // Create a draft page
       const draftPage = await payload.create({
         collection: 'pages',
         data: createData<'pages'>({
@@ -1561,13 +1553,11 @@ describe('Role-Based Access Control', () => {
     })
 
     it('admin can access draft documents', async () => {
-      // Create admin manager
       const admin = await testData.createManager(payload, {
         name: 'Admin for Admin Draft Test',
         type: 'admin' as const,
       })
 
-      // Create a draft page
       const draftPage = await payload.create({
         collection: 'pages',
         data: createData<'pages'>({
@@ -1590,7 +1580,6 @@ describe('Role-Based Access Control', () => {
     })
 
     it('applies to meditations collection (another draft-enabled collection)', async () => {
-      // Create admin manager
       const admin = await testData.createManager(payload, {
         name: 'Admin for Meditation Draft Test',
         type: 'admin' as const,
@@ -1680,13 +1669,11 @@ describe('Role-Based Access Control', () => {
     })
 
     it('does not affect non-draft collections', async () => {
-      // Create admin manager
       const admin = await testData.createManager(payload, {
         name: 'Admin for Non-Draft Test',
         type: 'admin' as const,
       })
 
-      // Create a client
       const client = await testData.createClient(payload, admin.id, {
         name: 'Test API Client for Non-Draft Test',
         roles: ['wemeditate-web-client'],

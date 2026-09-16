@@ -48,7 +48,6 @@ export interface ImportEvent {
   // For 'start':
   script?: string
   dryRun?: boolean
-  // For 'document':
   document?: DocumentResult
   current?: number
   total?: number
@@ -111,7 +110,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   protected abstract readonly importName: string
   protected abstract readonly cacheDir: string
 
-  // Options
   protected options: TOptions
 
   // Track slug collisions for manual review

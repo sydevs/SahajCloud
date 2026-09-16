@@ -546,7 +546,6 @@ export function convertLayout(
     return null
   }
 
-  // Map style
   const styleMap: Record<string, string> = {
     columns: 'columns',
     accordion: 'accordion',

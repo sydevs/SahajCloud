@@ -92,7 +92,6 @@ function buildIcalString(values: ScheduleFormValues): string | null {
     params.push(`BYDAY=${values.weekdays.join(',')}`)
   }
 
-  // Monthly recurrence
   if (values.recurrenceType === 'MONTHLY') {
     const monthlyMode = values.monthlyMode || 'date'
     if (monthlyMode === 'date') {

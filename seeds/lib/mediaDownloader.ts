@@ -196,7 +196,6 @@ export class MediaDownloader {
     locale: string = 'all',
   ): Promise<string> {
     try {
-      // Read file
       const fileBuffer = await fs.readFile(downloadResult.localPath)
       const filename = path.basename(downloadResult.localPath)
 

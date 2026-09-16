@@ -623,7 +623,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       },
     )
 
-    // Import content for this page
     await this.importSinglePageContent(page, pageResult.doc.id, tableName)
   }
 

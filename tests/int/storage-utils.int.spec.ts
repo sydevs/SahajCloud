@@ -27,7 +27,6 @@ const getAfterReadHook = (field: Field): FieldHook | undefined => {
   return undefined
 }
 
-// Type for test hook data
 type TestHookData = { filename?: string; mimeType?: string; url?: string } | null
 
 // Helper to call a hook with test data (avoids `as never` casts throughout tests)

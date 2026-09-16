@@ -101,7 +101,6 @@ export class ValidationReport {
     // Ensure directory exists
     await fs.mkdir(path.dirname(outputPath), { recursive: true })
 
-    // Write report
     await fs.writeFile(outputPath, report, 'utf-8')
 
     return outputPath
@@ -132,7 +131,6 @@ export class ValidationReport {
     lines.push(`**Duration**: ${duration}`)
     lines.push('')
 
-    // Summary
     lines.push('## Summary')
     lines.push('')
     lines.push('| Metric | Count |')
@@ -154,7 +152,6 @@ export class ValidationReport {
     }
     lines.push('')
 
-    // Field Mappings
     if (this.fieldMappings.length > 0) {
       lines.push('## Field Mappings')
       lines.push('')
@@ -166,7 +163,6 @@ export class ValidationReport {
       lines.push('')
     }
 
-    // Errors
     if (this.errors.length > 0) {
       lines.push('## Errors')
       lines.push('')
@@ -176,7 +172,6 @@ export class ValidationReport {
       lines.push('')
     }
 
-    // Warnings
     if (this.warnings.length > 0) {
       lines.push('## Warnings')
       lines.push('')

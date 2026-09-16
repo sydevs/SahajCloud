@@ -34,7 +34,6 @@ describe('Meditations Collection', () => {
     testSongTag = await testData.createSongTag(payload)
     testAlbum = await testData.createAlbum(payload)
 
-    // Create test meditation
     testMeditation = await testData.createMeditation(
       payload,
       {
