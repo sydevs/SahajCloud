@@ -1,6 +1,8 @@
-import type { Payload, PayloadRequest } from 'payload'
+import type { Payload, PayloadRequest, Where } from 'payload'
 
 import { asTrustedReq } from '@/plugins/usage/hooks'
+
+import { activeRegistrationWhere } from './active'
 
 /** The event fields that decide capacity. */
 export interface EventFullnessInput {
@@ -27,10 +29,30 @@ export function isEventFull(event: EventFullnessInput, registrationCount: number
 }
 
 /**
+ * How many seats an event has taken: `user-submissions` rows of
+ * `type: registration` that still count (`activeRegistrationWhere`), so a
+ * `spam`, `rejected` or `failed` row frees its seat.
+ *
+ * One helper rather than the same `where` re-derived at each call site — the
+ * create gate, this file's flag sync and the Events capacity hook all ask the
+ * identical question, and three spellings of it is three chances to drift.
+ */
+export async function countActiveRegistrations(args: {
+  payload: Payload
+  eventId: number
+  req?: PayloadRequest
+}): Promise<{ totalDocs: number }> {
+  const { payload, eventId, req } = args
+  const where: Where = { and: [{ event: { equals: eventId } }, activeRegistrationWhere] }
+
+  return payload.count({ collection: 'user-submissions', where, overrideAccess: true, req })
+}
+
+/**
  * Recompute an event's denormalized `registrationsFull` flag from a live
  * registration count and persist it — only when it actually flips. Called from
- * the Registrations create/delete hooks so the flag the Atlas widget reads stays
- * O(1) on the feed (no per-event COUNT at read time).
+ * the `user-submissions` create/delete hooks so the flag the Atlas widget reads
+ * stays O(1) on the feed (no per-event COUNT at read time).
  *
  * The flag changes at most a couple of times over an event's life, so guarding
  * the write on a real change keeps version churn on the drafts-enabled Events
@@ -64,12 +86,7 @@ export async function syncEventRegistrationsFull(args: {
         req,
       })
       .catch(() => null),
-    payload.count({
-      collection: 'registrations',
-      where: { event: { equals: eventId } },
-      overrideAccess: true,
-      req,
-    }),
+    countActiveRegistrations({ payload, eventId, req }),
   ])
   if (!event) return
 

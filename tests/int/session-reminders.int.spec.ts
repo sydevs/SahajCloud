@@ -1,13 +1,23 @@
 import type { EmailTestAdapter } from '../utils/emailTestAdapter'
+import type { FixtureOverrides } from '../utils/testData'
 import type { Payload } from 'payload'
 
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { SendSessionReminders } from '@/jobs/RegistrationNotifications/SendSessionReminders'
+import { signUnsubscribeToken } from '@/lib/registrations/unsubscribeToken'
+import type { UserSubmission } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
+
+// `unsubscribeAction` reaches for the app config with `getPayload({ config })`.
+// Pointed at this suite's own sanitized config, the action writes to this
+// file's isolated schema instead of booting the real one.
+const { configRef } = vi.hoisted(() => ({ configRef: { current: undefined as unknown } }))
+vi.mock('@payload-config', () => ({ default: configRef.current }))
 
 // A daily class at 10:00 Europe/London (09:00 UTC in BST). With the run clock
 // pinned below, exactly one occurrence — 2026-07-20T09:00:00Z — falls in the
@@ -32,12 +42,18 @@ describe('SendSessionReminders job', () => {
   let regionId: number
   let managerId: number
   let seq = 0
+  let unsubscribeAction: (typeof import('@/app/(frontend)/registrations/unsubscribe/actions'))['unsubscribeAction']
 
   beforeAll(async () => {
     const env = await createTestEnvironmentWithEmail()
     payload = env.payload
     cleanup = env.cleanup
     emailAdapter = env.emailAdapter
+
+    configRef.current = payload.config
+    ;({ unsubscribeAction } = await import(
+      '@/app/(frontend)/registrations/unsubscribe/actions'
+    ))
 
     const region = await testData.createRegion(payload, { name: 'Rem City', slug: 'rem-city' })
     regionId = region.id
@@ -73,20 +89,27 @@ describe('SendSessionReminders job', () => {
     return event.id
   }
 
+  /**
+   * A registration is a `user-submissions` row: the address is the row's own
+   * `senderEmail` column, and the registrant's name is a `submissionData` pair.
+   * Neither is a `users` join — `prepareUserSubmission` seeds that row *from*
+   * these, so reading the join would read the derived copy.
+   */
   async function createRegistration(
     eventId: number,
     email: string,
-    data: Record<string, unknown> = {},
+    overrides: FixtureOverrides<UserSubmission> = {},
   ): Promise<number> {
-    const user = await payload.create({
-      collection: 'users',
-      overrideAccess: true,
-      data: { name: email.split('@')[0], email },
-    })
     const registration = await payload.create({
-      collection: 'registrations',
+      collection: 'user-submissions',
       overrideAccess: true,
-      data: { event: eventId, user: user.id, uuid: `uuid-${email}`, ...data },
+      data: createData<'user-submissions'>({
+        type: 'registration',
+        event: eventId,
+        senderEmail: email,
+        submissionData: [{ field: 'name', value: email.split('@')[0] }],
+        ...overrides,
+      }),
     })
     return registration.id
   }
@@ -125,8 +148,8 @@ describe('SendSessionReminders job', () => {
 
   it('does not remind an unsubscribed registration, and leaves the record intact', async () => {
     const eventId = await createEvent()
-    const registrationId = await createRegistration(eventId, 'unsubbed@example.com', {
-      remindersUnsubscribedAt: NOW.toISOString(),
+    const submissionId = await createRegistration(eventId, 'unsubbed@example.com', {
+      unsubscribedAt: NOW.toISOString(),
     })
 
     await runReminders(payload)
@@ -134,11 +157,23 @@ describe('SendSessionReminders job', () => {
 
     // Unsubscribing stops reminders without deleting the registration.
     const still = await payload.findByID({
-      collection: 'registrations',
-      id: registrationId,
+      collection: 'user-submissions',
+      id: submissionId,
       overrideAccess: true,
     })
-    expect(still.id).toBe(registrationId)
+    expect(still.id).toBe(submissionId)
+  })
+
+  it('does not remind a spam-flagged registration', async () => {
+    const eventId = await createEvent()
+    await createRegistration(eventId, 'flagged@example.com', { status: 'spam' })
+    // Active sibling on the same event: without it, a sweep that never reached
+    // this event would satisfy the assertion below for the wrong reason.
+    await createRegistration(eventId, 'unflagged@example.com')
+
+    await runReminders(payload)
+    expect(emailsTo('unflagged@example.com')).toHaveLength(1)
+    expect(emailsTo('flagged@example.com')).toHaveLength(0)
   })
 
   it('does not remind for an unpublished event', async () => {
@@ -147,6 +182,29 @@ describe('SendSessionReminders job', () => {
 
     await runReminders(payload)
     expect(emailsTo('draft-event@example.com')).toHaveLength(0)
+  })
+
+  it('unsubscribing through the page action stops the next sweep', async () => {
+    const eventId = await createEvent()
+    const submissionId = await createRegistration(eventId, 'page-unsub@example.com')
+    // Same event, never unsubscribed — the control that proves the sweep ran.
+    await createRegistration(eventId, 'page-control@example.com')
+
+    const formData = new FormData()
+    formData.set('token', await signUnsubscribeToken({ submissionId }, payload.secret))
+    const outcome = await unsubscribeAction(null, formData)
+    expect(outcome.tone).toBe('success')
+
+    const after = await payload.findByID({
+      collection: 'user-submissions',
+      id: submissionId,
+      overrideAccess: true,
+    })
+    expect(after.unsubscribedAt).toBeTruthy()
+
+    await runReminders(payload)
+    expect(emailsTo('page-control@example.com')).toHaveLength(1)
+    expect(emailsTo('page-unsub@example.com')).toHaveLength(0)
   })
 
   it('declares the single-run concurrency lock', () => {

@@ -38,6 +38,10 @@ const REASONS: Record<string, { title: string; body: string }> = {
     title: 'This event has no region yet',
     body: 'An event is previewed on its region’s map, so it needs one before there is anywhere to show it. Choose a region under Location, then save.',
   },
+  'not-reviewable': {
+    title: 'There is nothing to preview here',
+    body: 'Live preview shows the event an accepted proposal would leave behind. This submission is not a proposal, so there is no listing to draw.',
+  },
 }
 
 const FALLBACK = {

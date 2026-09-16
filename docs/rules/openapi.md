@@ -81,7 +81,7 @@ filterSpec(rawSpec, {
 
 **Excluded operations**: `DELETE` and `PATCH` are always hidden.
 
-**`ALLOW_POST_FOR`** lists the collections that may accept POST in the public spec: the unified intake `user-submissions`, and the two public intakes it will replace, `event-submissions` and `user-messages`.
+**`ALLOW_POST_FOR`** lists the collections that may accept POST in the public spec: `user-submissions`, the one public intake.
 
 **`ALLOW_POST_FOR` is necessary but not sufficient.** Two independent tiers can each mark a POST `x-internal`: clearing the create-specific one leaves the second untouched, since **any path whose collection is in no project is hidden**. Both public intakes sit in no project on purpose — that is what stops project membership granting implicit read to a project's roles — so both POSTs stay `x-internal` despite this list. Clients discover them through the generated types, not `/api/docs`.
 
@@ -111,7 +111,6 @@ To document one of them, change project membership plus `RESTRICTED_COLLECTIONS`
 | `GET /api/meditations/{id}/related-lectures` | `Meditations/endpoints/lectures.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
 | `GET /api/lectures/{id}/related-meditations` | `Lectures/endpoints/relatedMeditations.ts` | `#/components/schemas/MeditationCardData` (hand-authored) |
 | `GET /api/events/geojson` | `Events/endpoints/geojson.ts` | `#/components/schemas/EventFeatureCollection` (hand-authored) |
-| `POST /api/events/{id}/register` | `Events/endpoints/registerForEvent.ts` | `#/components/schemas/EventRegistrationResponse` (hand-authored) |
 | `GET /api/atlas/seo` | `src/endpoints/atlas/seo/` (root endpoint) | `#/components/schemas/AtlasSeoResponse` (hand-authored) |
 | `GET /api/atlas/sitemap` | `src/endpoints/atlas/sitemap/` (root endpoint) | `#/components/schemas/AtlasSitemapResponse` (hand-authored) |
 | `POST /api/clients/report` | `Clients/endpoints/report.ts` | `#/components/schemas/ClientEmbedReportResponse` (hand-authored) — **`x-internal`**, see below |
@@ -126,7 +125,7 @@ The route handler closes the gap with a `rootEndpointPaths` option, built by `ro
 
 **Derived from the live config, so there is no second list to keep in sync** — registering the endpoint in `payload.config.ts` is the only edit needed. The option defaults to `[]`, so an omitted call keeps the old hiding behavior. `tests/unit/openapi-custom-endpoints.spec.ts` pins both directions.
 
-`filterSpec` marks a POST `x-internal` only for the **auto-generated base-collection create** (`POST /api/{collection}`), unless the collection is in `ALLOW_POST_FOR`. A hand-authored custom POST subpath, such as `/api/events/{id}/register`, stays visible (`isBaseCollectionPath` guards this). The same spec file is the regression guard for both the Atlas paths and this POST rule.
+`filterSpec` marks a POST `x-internal` only for the **auto-generated base-collection create** (`POST /api/{collection}`), unless the collection is in `ALLOW_POST_FOR`. A hand-authored custom POST subpath, such as `/api/clients/report`, stays visible (`isBaseCollectionPath` guards this). The same spec file is the regression guard for both the Atlas paths and this POST rule.
 
 `/api/audiences/for-user` hand-authors six required query params in `customEndpoints.ts`: four progress fields (`pathProgress`, `meditationsPerWeek`, `totalMeditationsViewed`, `totalLecturesViewed`) plus `country` and `timezone`. The three data endpoints (`/lectures/for-audience`, `/app-cards/for-audience`, `/meditations/{id}/related-lectures`) instead take one pre-resolved `audiences` ID list, mirroring `audiencesQueryParamSchema` in `src/lib/audiences/audiencesQueryParam.ts` (#340).
 

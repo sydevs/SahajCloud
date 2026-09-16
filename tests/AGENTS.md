@@ -244,7 +244,7 @@ returned caller takes `(path, { method, json })` for a POST or DELETE.
 A spec that builds `req` by hand and hardcodes `locale: 'en'` cannot see a
 request that names no locale at all — Payload then resolves the *default*
 locale, and per-locale role gates deny anyone whose roles live elsewhere.
-That is #701, and `frames-by-narrator` / `event-submissions-review` cover it
+That is #701, and `frames-by-narrator` / `user-submissions-review` cover it
 by logging in a French-only manager and varying `?locale=`.
 
 Two things live only there, and both are why this exists (#684): **root

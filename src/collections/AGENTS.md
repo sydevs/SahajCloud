@@ -347,7 +347,7 @@ jsonField({
 - **A raw `JSONSchema4` `schema` is for a shape assembled as data** — a
   `properties` map built by `Object.fromEntries` (`stringsSchema`), or
   `enum`s spliced from an exported const array
-  (`Clients.canonical.verification`, `UserMessages.screeningResult`,
+  (`Clients.canonical.verification`, `UserSubmissions.screeningResult`,
   `Clients.embedMetadata`). Round-tripping such a shape through Zod only
   to convert it back buys nothing. It is **not** a list of things Zod
   cannot express: Zod reaches `maxProperties` through `.meta()`, and its
@@ -481,7 +481,7 @@ logField({ description: 'Everything recorded about this registration.' })
 
 `name` and `label` default to `activityLog` / "Activity Log" and are
 overridable for a document that needs a second log. Both current consumers
-use the default: Events resets its log on every verification, Registrations
+use the default: Events resets its log on every verification, `user-submissions`
 accumulates.
 
 ### Columns are declared on the field
@@ -557,7 +557,7 @@ Three things worth knowing:
   lives, because it is the code that knows the domain.
 - **A log is a record, not a query filter.** Nothing can `where` on a JSON
   column cheaply, so a sweep that needs to _find_ documents still wants a
-  real dated column beside the log. `Registrations.followUpSentAt` is
+  real dated column beside the log. `UserSubmissions.followUpSentAt` is
   exactly that: the log says what happened, the column is what the query
   selects on.
 
@@ -599,6 +599,29 @@ Three things the wrapper does that the plugin options cannot:
   unconditionally `required`; `contact` and `subscribe` need one, and the two
   types that name an `event` must not have one. The plugin's own existence check
   is composed with, not replaced.
+- **Registers the proposal review surface.** `POST /api/user-submissions/:id/review`,
+  the Accept/Reject `SaveButton`, and the live-preview panel all hang off the
+  wrapper rather than `formSubmissionOverrides`, because a plugin-generated
+  collection has no `CollectionConfig` file to hang `endpoints` on and this
+  wrapper is the one merge this repo owns. The endpoint is deliberately absent
+  from `CUSTOM_ENDPOINT_PATHS` — that opt-in is the only thing that would
+  publish a manager-only action in the OpenAPI spec.
+
+⚠ **Every collection-wide admin slot here serves four intakes.** The review
+components gate on `type === 'proposal'` themselves and fall through to the
+ordinary Save otherwise; `livePreview.url` sends the other three to the
+explanation page, with a reason that fits a row nobody reviews. A new slot owes
+the same branch — the field hooks behind one included, since `admin.condition`
+hides a field without stopping its hooks.
+
+And an option that takes a **value** rather than a function cannot branch at
+all, so it has to suit the three rather than the one: `openByDefault` is absent
+for that reason, not by oversight. A **field** branches where an option cannot —
+`proposalPreviewTargetField` is a conditioned `previewTargetField` that opens
+the panel for `proposal` alone. That works because a false `admin.condition`
+returns before Payload attaches the custom component to form state, so the
+component never mounts. Reach for it whenever a collection-wide value would
+have to suit the wrong intake.
 
 Default email `contact@sydevelopers.com` (the fallback recipient for a contact
 form with none set).

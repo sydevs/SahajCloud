@@ -47,9 +47,14 @@ describe('registrationsFull signal (#599)', () => {
 
   async function addRegistration(eventId: number): Promise<number> {
     const reg = await payload.create({
-      collection: 'registrations',
+      collection: 'user-submissions',
       overrideAccess: true,
-      data: { event: eventId, user: userId, uuid: randomUUID() },
+      data: {
+        type: 'registration',
+        event: eventId,
+        user: userId,
+        uuid: randomUUID(),
+      } as never,
     })
     return reg.id
   }
@@ -116,7 +121,7 @@ describe('registrationsFull signal (#599)', () => {
     const secondReg = await addRegistration(id)
     expect(await fullFlag(id)).toBe(true) // 2 of 2
 
-    await payload.delete({ collection: 'registrations', id: secondReg, overrideAccess: true })
+    await payload.delete({ collection: 'user-submissions', id: secondReg, overrideAccess: true })
     expect(await fullFlag(id)).toBeFalsy() // back to 1 of 2 → a spot freed
   })
 

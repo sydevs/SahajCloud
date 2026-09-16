@@ -4,7 +4,7 @@ Sahaj Atlas (`sydevs/AtlasReact`, the embeddable `<syatlas-map>` widget)
 uses SahajCloud as its backend: it reads collections/globals as raw
 Payload REST and calls the two custom endpoints below. The
 `sahaj-atlas-client` role plus the `sahaj-atlas` project grant read access
-to `regions`, `events`, `registrations`, `images`, `files`, and the
+to `regions`, `events`, `images`, `files`, and the
 `sy-atlas-config`/`sy-atlas-translations` globals (see
 `src/plugins/access/config/`). The full migration design lives in
 [MIGRATION_PLAN.md](MIGRATION_PLAN.md). The importer is
@@ -311,8 +311,9 @@ Two knock-on effects:
   back a `create` whose relationship target is trashed** (the API returns
   201 with a doc id, but the row never lands. Reproduced with a bare REST
   create), so trashed events stay out of the registration id-map and that
-  skip is visible instead of a phantom success. **`expectedCounts.registrations`
-  is 2004**.
+  skip is visible instead of a phantom success. **`expectedCounts['user-submissions']`
+  is 2004**, counted under `activeRegistrationWhere` rather than as a whole-
+  collection count — contact, subscribe and proposal rows share that table.
 - **`expectedCounts.regions` is 646** — 595 source geo nodes (34 country +
   101 region + 460 area, post-dedupe) plus 52 shared-venue nodes, less
   region:East (#42), whose invalid source coordinates fail validation on
@@ -514,7 +515,7 @@ _schedule_firstdate_tz`. Integration tests touching
 (`Europe/Berlin`, `Pacific/Auckland`, …).
 
 Mirroring the setting is the obvious fix but is **not** free: widening
-47 → 581 across the schedule + registrations enums (and their versions
+47 → 581 across the schedule + submission enums (and their versions
 tables) slows the per-suite schema push enough to time out ~9 suites at
 the 60 s limit. Closing this properly means either accepting that cost,
 curating a smaller list that still covers the Atlas zones, or seeding the
@@ -550,27 +551,13 @@ A thin GeoJSON wrapper over a standard published-events read
   names). Payload pagination metadata rides along as foreign members
   beside `features`.
 
-## `POST /api/events/:id/register`
-
-The widget write path (`:id` is the event id)
-([`src/collections/Events/endpoints/registerForEvent.ts`](../../src/collections/Events/endpoints/registerForEvent.ts)).
-The `sahaj-atlas-client` role is read-only and `users` is admin-only, so a
-frontend-only write is impossible — this endpoint owns it.
-
-- Gated by a **published** client key (`requireActiveClient`). Confirms
-  the event is one the client may read, upserts the registrant `user` by
-  normalized email (elevated, since `users` is admin-only), then creates
-  the `registration` (event + user + `startingAt` + `questions` + a fresh
-  `uuid`).
-- Rate-limit/abuse: the event-existence read counts toward usage tracking
-  and is rate-limited at the Cloudflare edge like every other client
-  request. Per-origin `allowedDomains` enforcement is deferred to **#509**.
-
 ## Response types & docs
 
 - Response shapes are committed in
   [`src/collections/Events/endpoints/responseTypes.ts`](../../src/collections/Events/endpoints/responseTypes.ts)
   (self-contained), so AtlasReact can sync them by raw GitHub URL.
-- Both endpoints appear in the Scalar docs (`/docs?project=sahaj-atlas`).
-  their OpenAPI paths and schemas live in
-  `src/plugins/openapi/customEndpoints.ts`.
+- `geojson` appears in the Scalar docs (`/docs?project=sahaj-atlas`); its
+  OpenAPI path and schemas live in `src/plugins/openapi/customEndpoints.ts`.
+  The widget's write path is a plain `POST /api/user-submissions` create with
+  `type: registration`, which the generated types carry rather than the spec —
+  `user-submissions` is in no project, so every path on it is `x-internal`.

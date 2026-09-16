@@ -94,7 +94,11 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     // a merge survivor (MERGED_EVENT_TARGETS in seeds/atlas/import.ts), and the
     // 1 on an event that imports straight into the trash — Payload silently
     // rolls back a create whose relationship target is trashed.
-    registrations: 2004,
+    //
+    // Counted under `activeRegistrationWhere`, not as a whole-collection count:
+    // `user-submissions` also holds contact, subscribe and proposal rows, and
+    // an unfiltered count would pass on those alone.
+    'user-submissions': 2004,
     clients: 31,
   },
 }
@@ -303,11 +307,11 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       naturalKey: 'legacyId',
     },
     {
-      slug: 'registrations',
+      slug: 'user-submissions',
       totalItems: 2034,
       requiresPagination: true,
       dependencies: ['events', 'users'],
-      naturalKey: 'legacyId',
+      naturalKey: 'uuid',
     },
     {
       slug: 'clients',

@@ -15,20 +15,19 @@ import {
 } from '../../src/plugins/openapi/specFilter'
 
 describe('Atlas events custom endpoints (OpenAPI)', () => {
-  it('registers geojson GET + register POST paths and their schemas', () => {
+  it('registers the geojson GET path and its schemas', () => {
     expect(CUSTOM_ENDPOINT_PATHS['/api/events/geojson']?.get).toBeDefined()
-    expect(
-      (CUSTOM_ENDPOINT_PATHS['/api/events/{id}/register'] as { post?: unknown }).post,
-    ).toBeDefined()
-    for (const schema of [
-      'EventFeatureCollection',
-      'EventFeature',
-      'GeoJsonPoint',
-      'EventRegistrationRequest',
-      'EventRegistrationResponse',
-    ]) {
+    for (const schema of ['EventFeatureCollection', 'EventFeature', 'GeoJsonPoint']) {
       expect(CUSTOM_ENDPOINT_SCHEMAS[schema]).toBeDefined()
     }
+  })
+
+  it('no longer publishes the register endpoint or its schemas', () => {
+    // Registration is a plain `POST /api/user-submissions` create since #800.
+    // A spec still advertising this path would send an integrator to a 404.
+    expect(CUSTOM_ENDPOINT_PATHS['/api/events/{id}/register']).toBeUndefined()
+    expect(CUSTOM_ENDPOINT_SCHEMAS.EventRegistrationRequest).toBeUndefined()
+    expect(CUSTOM_ENDPOINT_SCHEMAS.EventRegistrationResponse).toBeUndefined()
   })
 
   // The feed's contract has to be discoverable — an existing client that starts
@@ -47,52 +46,6 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
     expect(description).toContain('GET /api/events/{id}')
   })
 
-  it('documents the 409 state-based registration rejection codes', () => {
-    const post = (
-      CUSTOM_ENDPOINT_PATHS['/api/events/{id}/register'] as {
-        post?: { responses?: Record<string, { description?: string }> }
-      }
-    ).post
-    const conflict = post?.responses?.['409']
-    expect(conflict).toBeDefined()
-    // The widget maps each code to its registration-state UI, so the contract
-    // must name every one it can send.
-    for (const code of [
-      'external_registration',
-      'event_ended',
-      'registration_closed',
-      'event_full',
-    ]) {
-      expect(conflict?.description).toContain(code)
-    }
-  })
-
-  it('documents the optional subscribe consent flag on the register request body', () => {
-    const schema = CUSTOM_ENDPOINT_SCHEMAS.EventRegistrationRequest as {
-      required?: string[]
-      properties?: Record<string, { type?: string }>
-    }
-    expect(schema.properties?.subscribe?.type).toBe('boolean')
-    // Opt-in → optional, never in `required`.
-    expect(schema.required ?? []).not.toContain('subscribe')
-  })
-
-  it('documents the optional locale, enumerating the configured app locales', () => {
-    const schema = CUSTOM_ENDPOINT_SCHEMAS.EventRegistrationRequest as {
-      required?: string[]
-      properties?: Record<string, { enum?: string[]; type?: string }>
-    }
-    const locale = schema.properties?.locale
-
-    expect(locale?.type).toBe('string')
-    // Enumerated so a widget cannot send a language the CMS has no translation
-    // for. Sourced from LOCALES, so adding a locale updates the spec for free.
-    expect(locale?.enum).toContain('en')
-    expect(locale?.enum).toContain('pt-BR')
-    expect(locale?.enum).not.toContain('xx')
-    expect(schema.required ?? []).not.toContain('locale')
-  })
-
   describe('filterSpec POST visibility', () => {
     // Minimal spec: the auto-generated events CRUD plus the hand-authored custom
     // subpaths, filtered for the project that owns `events`.
@@ -105,12 +58,9 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
             get: { operationId: 'eventsList' },
             post: { operationId: 'eventsCreate' },
           },
-          '/api/user-messages': {
-            get: { operationId: 'userMessagesList' },
-            post: { operationId: 'userMessagesCreate' },
-          },
-          '/api/event-submissions': {
-            post: { operationId: 'eventSubmissionsCreate' },
+          '/api/user-submissions': {
+            get: { operationId: 'userSubmissionsList' },
+            post: { operationId: 'userSubmissionsCreate' },
           },
           ...CUSTOM_ENDPOINT_PATHS,
         },
@@ -133,10 +83,6 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
       return operation!
     }
 
-    it('keeps the hand-authored register POST visible', () => {
-      expect(op('/api/events/{id}/register', 'post')['x-internal']).toBeFalsy()
-    })
-
     it('hides the auto-generated base-collection POST (create)', () => {
       expect(op('/api/events', 'post')['x-internal']).toBe(true)
     })
@@ -146,20 +92,19 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
       expect(op('/api/events', 'get')['x-internal']).toBeFalsy()
     })
 
-    it('hides the user-messages POST — ALLOW_POST_FOR is necessary but not sufficient', () => {
-      // Two independent tiers can hide a POST, and `user-messages` clears only
-      // one of them. `ALLOW_POST_FOR` stops the create-specific rule from
+    it('hides the user-submissions POST — ALLOW_POST_FOR is necessary but not sufficient', () => {
+      // Two independent tiers can hide a POST, and the unified intake clears
+      // only one of them. `ALLOW_POST_FOR` stops the create-specific rule from
       // hiding it, but tier 2 hides every path whose collection is in no
-      // project — and `user-messages` is deliberately in none, because project
-      // membership is what grants implicit read to a project's roles.
+      // project — and `user-submissions` is deliberately in none, because
+      // project membership is what grants implicit read to a project's roles,
+      // and this collection carries every kind of personal data it takes in.
       //
       // So the public intake is discoverable from the generated types (which is
-      // how the Atlas SDK consumes it) rather than from /api/docs. This is the
-      // same position `event-submissions` has been in since #625 — asserted
-      // below so the two cannot silently diverge, and so anyone who wants this
-      // POST documented knows the change is project membership, not this list.
-      expect(op('/api/user-messages', 'post')['x-internal']).toBe(true)
-      expect(op('/api/event-submissions', 'post')['x-internal']).toBe(true)
+      // how the Atlas SDK consumes it) rather than from /api/docs. Anyone who
+      // wants this POST documented needs to change project membership, not this
+      // list — which would also open reads.
+      expect(op('/api/user-submissions', 'post')['x-internal']).toBe(true)
     })
   })
 })

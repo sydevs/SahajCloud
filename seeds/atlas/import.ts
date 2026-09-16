@@ -323,7 +323,9 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     await Promise.all([
       this.preloadCollection('managers', 'legacyId'),
       this.preloadCollection('events', 'legacyId'),
-      this.preloadCollection('registrations', 'legacyId'),
+      // `uuid` is the natural key here: `user-submissions` has no `legacyId`
+      // column, and the dump carries a uuid per registration.
+      this.preloadCollection('user-submissions', 'uuid'),
       this.preloadCollection('clients', 'legacyId'),
       // Users are NOT preloaded: they dedupe on a normalized (lowercased) email
       // and the dump has 166 case-insensitive duplicates, so upsert's
@@ -398,7 +400,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         }
       }
     }
-    if (need('registrations') || need('pictures')) await rebuildLegacyIdMap('events')
+    if (need('user-submissions') || need('pictures')) await rebuildLegacyIdMap('events')
 
     if (need('events') || need('clients')) {
       const regions = await this.payload.find({
@@ -414,7 +416,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       }
     }
 
-    if (need('registrations')) {
+    if (need('user-submissions')) {
       const data = await this.getData()
       const users = await this.payload.find({
         collection: 'users',
@@ -449,7 +451,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     if (targeted('regions')) await this.importRegions(data)
     if (targeted('users')) await this.importUsers(data)
     if (targeted('events')) await this.importEvents(data)
-    if (targeted('registrations')) await this.importRegistrations(data)
+    if (targeted('user-submissions')) await this.importRegistrations(data)
     if (targeted('clients')) await this.importClients(data)
     if (targeted('pictures')) await this.importPictures(data)
 
@@ -544,8 +546,8 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         data.events.filter((e) => e.venueId != null && !venueIds.has(e.venueId)).length,
       )
     }
-    if (t('registrations')) {
-      count('registrations', data.registrations.length)
+    if (t('user-submissions')) {
+      count('user-submissions', data.registrations.length)
       dangling(
         'registrations.event',
         data.registrations.filter(
@@ -1328,6 +1330,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const batch = this.paginateItems(data.registrations)
     const total = data.registrations.length
     const offset = this.options.pagination?.offset ?? 0
+    const registrants = new Map(data.users.map((user) => [user.legacyId, user]))
 
     for (let i = 0; i < batch.length; i++) {
       const reg = batch[i]
@@ -1335,9 +1338,10 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         this.idMaps.events.get(reg.eventId) ??
         this.idMaps.events.get(MERGED_EVENT_TARGETS[reg.eventId] ?? -1)
       const userId = this.idMaps.users.get(reg.userId)
-      if (eventId == null || userId == null) {
+      const registrant = registrants.get(reg.userId)
+      if (eventId == null || userId == null || registrant == null) {
         await this.skip(`registration ${reg.uuid}: event/user unresolved`, {
-          collection: 'registrations',
+          collection: 'user-submissions',
           identifier: reg.uuid,
           current: offset + i + 1,
           total,
@@ -1349,23 +1353,40 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         reg.timeZone,
         reg.timeZone ? supportedTimezone(reg.timeZone) : undefined,
       )
+      if (reg.mailingListSubscribedAt) {
+        // The consent is a subscribe-type row now, and one created here would
+        // screen and then deliver to a live provider — mailing a person who
+        // opted in years ago, from a seed run. One source row carries this.
+        this.addWarning(
+          `Registration ${reg.uuid}: mailing-list consent of ${reg.mailingListSubscribedAt} not imported. Record it by hand if the address is still wanted.`,
+        )
+      }
       try {
         await this.upsert(
-          'registrations',
-          { legacyId: { equals: reg.legacyId } },
+          'user-submissions',
+          { uuid: { equals: reg.uuid } },
           {
+            type: 'registration',
             event: eventId,
-            user: userId,
+            // `prepareUserSubmission` upserts the `users` row from this address
+            // and overwrites whatever `user` this passed, so passing one is
+            // pointless. The id map is still what decides importability.
+            senderEmail: registrant.email,
             startingAt: reg.startingAt ?? undefined,
             // Same enum column and the same raw dump string as `firstDate_tz`,
             // so it takes the same narrowing — it just never surfaced as a type
             // error, because `upsert` accepts a looser shape.
             startingAt_tz: reg.timeZone ? supportedTimezone(reg.timeZone) : undefined,
-            questions: reg.questions ?? undefined,
+            submissionData: registrationSubmissionData(reg, registrant),
             uuid: reg.uuid,
-            mailingListSubscribedAt: reg.mailingListSubscribedAt ?? undefined,
-            legacyId: reg.legacyId,
+            // An historical registration was confirmed when it happened.
+            // `accepted` is also what suppresses both queues: screening returns
+            // early for a row that is not `pending`, and delivery refuses one.
+            status: 'accepted',
           },
+          // These events ended, or went external, years ago, so every row here
+          // would trip the create gate. It runs on a client caller only, and a
+          // Local API import carries no client user, so it never reaches it.
           { identifier: reg.uuid, current: offset + i + 1, total },
         )
       } catch (error) {
@@ -1600,6 +1621,34 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
     return Object.keys(result).length > 0 ? result : undefined
   }
+}
+
+/**
+ * The registrant's answers as `submissionData` pairs, plus their name.
+ *
+ * `name` is a base key every type accepts, and it is what
+ * `prepareUserSubmission` reads to name the `users` row it upserts — without it
+ * a historical registrant is renamed after the local part of their address.
+ * There is deliberately no `locale` pair: the Atlas dump carries no locale for
+ * a registrant, and deriving one from the event's region would put an
+ * unevidenced value in a column the reminder emails read.
+ */
+export function registrationSubmissionData(
+  reg: Pick<AtlasRegistration, 'questions'>,
+  registrant: Pick<AtlasUser, 'name'>,
+): { field: string; value: string }[] {
+  const pairs: { field: string; value: string }[] = []
+  const name = registrant.name?.trim()
+  if (name) pairs.push({ field: 'name', value: name })
+
+  // The contract's order, not the dump's, so two rows with the same answers
+  // produce the same pairs.
+  for (const question of EVENT_REGISTRATION_QUESTIONS) {
+    const raw = reg.questions?.[question.name]
+    const value = typeof raw === 'string' ? raw.trim() : raw == null ? '' : String(raw)
+    if (value) pairs.push({ field: question.name, value })
+  }
+  return pairs
 }
 
 /** A throwaway strong password for an imported (passwordless) manager. */

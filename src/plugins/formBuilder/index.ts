@@ -2,14 +2,24 @@ import type { Plugin } from 'payload'
 
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 
-import { validateProposal } from '@/collections/EventSubmissions/hooks/validateProposal'
+
 import { formFields } from '@/collections/Forms/fields'
 import { validateFormAction } from '@/collections/Forms/hooks/validateFormAction'
+import { reviewSubmission } from '@/collections/UserSubmissions/endpoints/review'
 import { userSubmissionFields } from '@/collections/UserSubmissions/fields'
 import { enqueueSubmissionScreening } from '@/collections/UserSubmissions/hooks/enqueueSubmissionScreening'
+import { gateEventFeedback, syncCommunityFeedback } from '@/collections/UserSubmissions/hooks/eventFeedback'
+import { gateRegistration } from '@/collections/UserSubmissions/hooks/gateRegistration'
 import { prepareUserSubmission } from '@/collections/UserSubmissions/hooks/prepareUserSubmission'
 import { spawnSubscribeFromRegistration } from '@/collections/UserSubmissions/hooks/spawnSubscribeFromRegistration'
+import {
+  syncFullnessAfterChange,
+  syncFullnessAfterDelete,
+} from '@/collections/UserSubmissions/hooks/syncFullness'
+import { validateProposal } from '@/collections/UserSubmissions/hooks/validateProposal'
 import { CONTACT_EMAIL } from '@/lib/contact'
+import { serverEnv } from '@/lib/env/server'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 
 /**
  * The form-builder plugin, configured once, plus the two things its options
@@ -43,6 +53,13 @@ import { CONTACT_EMAIL } from '@/lib/contact'
  *   Clearing it hands `update` to the roles that hold it, which is a real
  *   behaviour change from `form-submissions` and the reason `type`,
  *   `status` and the rest carry field-level access.
+ *
+ * ⚠ **The review endpoint is registered here, not in `formSubmissionOverrides`.**
+ * `user-submissions` is plugin-generated, so there is no `CollectionConfig`
+ * file to hang `endpoints` on, and this wrapper is the one merge whose
+ * behaviour this repo owns. It is deliberately absent from
+ * `CUSTOM_ENDPOINT_PATHS` — that opt-in is the only thing that would publish a
+ * manager-only action in the OpenAPI spec.
  *
  * `access: {}` hands the collection back to RBAC.
  * `tests/int/user-submissions-access.int.spec.ts` reads rows back through
@@ -94,8 +111,14 @@ export const formsPlugin = (): Plugin => async (config) => {
             // below could ever run.
             hooks: {
               ...collection.hooks,
-              afterChange: [spawnSubscribeFromRegistration, enqueueSubmissionScreening],
+              afterChange: [
+                spawnSubscribeFromRegistration,
+                syncFullnessAfterChange,
+                syncCommunityFeedback,
+                enqueueSubmissionScreening,
+              ],
             },
+            endpoints: [...(collection.endpoints || []), reviewSubmission],
           }
         : collection,
     ),
@@ -131,23 +154,72 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
         group: 'System',
         useAsTitle: 'subject',
         defaultColumns: ['subject', 'type', 'status', 'senderEmail', 'createdAt'],
+        components: {
+          edit: {
+            // Accept / Reject replace Save on a `proposal` row. The component
+            // renders the ordinary Save for every other type — this slot is
+            // collection-wide and only one intake has a review path.
+            SaveButton: '@/components/admin/SubmissionReview/SubmissionActions',
+          },
+        },
+        // Live Preview renders the event **as an accepted proposal would leave
+        // it**. The widget cannot fetch the row back — a new-event proposal has
+        // no Event id, and API clients hold create-only here — so Payload's own
+        // postMessage carries the merged event in `previewEvent` instead.
+        //
+        // ⚠ The one preview that keeps a dedicated route, for that reason.
+        //
+        // ⚠ `path: null` does **not** close the panel — `livePreviewUrl` never
+        // returns a falsy URL, because Payload would persist that as the
+        // editor's preference for the whole collection. The other three
+        // intakes land on the explanation page instead, which is why they need
+        // a `reason` of their own: `no-path` tells a reader to fill in a slug.
+        //
+        // `openByDefault` is deliberately absent. It is collection-wide and
+        // cannot branch on `type`, so opening it for the reviewer's benefit
+        // would greet every contact, subscribe and registration row with that
+        // explanation page. A conditioned `previewTargetField` opens the panel
+        // for `proposal` alone instead — `proposalPreviewTargetField` in
+        // `UserSubmissions/fields.ts`.
+        livePreview: {
+          url: ({ data, locale }) =>
+            livePreviewUrl({
+              base: serverEnv.SAHAJATLAS_URL,
+              path: data?.type === 'proposal' && typeof data?.id === 'number' ? 'preview' : null,
+              params: {
+                collection: 'user-submissions',
+                id: String(data?.id ?? ''),
+                locale: locale.code,
+              },
+              reason: 'not-reviewable',
+            }),
+          breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
+        },
       },
       fields: userSubmissionFields,
       // Order matters: the reach check refuses a forbidden target before
       // `prepareUserSubmission` upserts a `users` row for its sender.
       //
-      // `validateProposal` is `event-submissions`' own gate, reused. `proposed`
-      // is a patch of real Events fields, so an ungated public POST stores what
-      // Phase 3's accept path would later apply to an Event with a manager's
+      // `proposed` is a patch of real Events fields, so an ungated public POST
+      // stores what the accept path later applies to an Event with a manager's
       // authority behind it — a submitter who could set `verificationStage` or
       // `registrationNotificationEmail` would be minting a verified listing, or
       // redirecting registrants' answers to an inbox of their choosing. The
       // gate derives its allowlist from the live Events config, so there is
-      // nothing here to keep in step. It moves to a shared home in Phase 3,
-      // when `event-submissions` is deleted; duplicating it now would give the
-      // rule two definitions to reconcile at that merge.
+      // nothing here to keep in step.
       hooks: {
-        beforeValidate: [validateProposal, prepareUserSubmission],
+        // `gateRegistration` before `prepareUserSubmission` — both are
+        // `beforeValidate`, and Payload runs every one of those ahead of every
+        // `beforeChange`, so a refusal has to live in this array to come first.
+        // See the hook for why the ordering is about cost rather than
+        // correctness.
+        beforeValidate: [validateProposal, gateRegistration, prepareUserSubmission],
+        // The vote gate is a `beforeChange`, and `afterDelete` is not one of the
+        // arrays the wrapper above replaces — so both belong here. Their
+        // `afterChange` siblings do not: listing them here would have the
+        // wrapper's whole-array replacement discard them.
+        beforeChange: [gateEventFeedback],
+        afterDelete: [syncFullnessAfterDelete],
       },
     },
   })(config)

@@ -82,7 +82,7 @@ const PROJECTS = {
     icon: '/images/sahaj-atlas.webp',
     emailIcon: '/images/sahaj-atlas.png',
     // `users` (registrants) is intentionally omitted — it stays admin-only.
-    collections: ['regions', 'events', 'registrations', 'images', 'files'],
+    collections: ['regions', 'events', 'images', 'files'],
     globals: ['sy-atlas-config', 'sy-atlas-translations'],
   },
   // `satisfies` pins the keys to the generated `ProjectSlug`, which
@@ -166,16 +166,9 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  * - `users` — Atlas registrants (names + emails). Was implicitly readable by
  *   any published API client before this list existed — including the Atlas
  *   widget's public key.
- * - `event-submissions` — public event submissions (submitter emails + notes).
- *   Clients may create them (explicit grant) but never read them back.
- * - `user-messages` — free-text messages from viewers (sender addresses + their
- *   words, unscreened). Clients may create them but never read them back, and
- *   unlike the two above **no manager role grants them either** — reading one is
- *   an admin-bypass-only act. Being in no project would otherwise make them
- *   "shared", i.e. readable by every role; this list is what prevents that.
  * - `user-submissions` — the unified public intake (#723): contact messages,
  *   subscriptions, registrations and proposals in one table, so it carries
- *   every kind of personal data the three above hold between them. It was the
+ *   every kind of personal data the collections it replaced held. It was the
  *   form-builder's `form-submissions`, which sat in the `wemeditate-web`
  *   project and was therefore implicitly readable by every role in it; that
  *   membership is gone. Clients may create and never read. A manager's read is
@@ -183,8 +176,6 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  */
 const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'users',
-  'event-submissions',
-  'user-messages',
   'user-submissions',
 ])
 
