@@ -27,16 +27,13 @@ import { asTrustedReq } from '@/plugins/usage/hooks'
  * the gate exists for. `prepareUserSubmission` splits on the same condition for
  * its URL scan.
  *
- * `skipRegistrationGate` is the escape for a Local API import of historical
- * rows, whose events have long since ended or gone external — the Atlas seed
- * importer, #799. It is honoured only because it cannot be set from a request
- * body: Payload initialises a REST request's `context` to `{}` and never merges
- * a body key into it.
+ * That one condition is also the importer's exemption. A Local API import of
+ * historical rows — the Atlas seed importer, #799 — carries no client user, so
+ * it never reaches the gate and needs no opt-out of its own.
  */
 export const gateRegistration: CollectionBeforeValidateHook = async ({ data, operation, req }) => {
   if (operation !== 'create' || data?.type !== 'registration') return data
   if (req.user?.collection !== 'clients') return data
-  if (req.context?.skipRegistrationGate) return data
 
   // Not `required` on a registration row, deliberately — a registration may be
   // recorded before its occurrence is resolved. No event, nothing to gate.

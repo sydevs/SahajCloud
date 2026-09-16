@@ -48,16 +48,16 @@ describe('registration gate on the unified create (#797)', () => {
   let manager: Manager
   let client: Client
 
-  const clientReq = (context: Record<string, unknown> = {}): PayloadRequest =>
+  const clientReq = (): PayloadRequest =>
     ({
       payload,
       headers: new Headers(VALID_TURNSTILE),
       user: { ...client, collection: 'clients' },
-      context,
+      context: {},
     }) as unknown as PayloadRequest
 
   /** Register as the Atlas widget does — a real client, real access. */
-  const register = (data: Record<string, unknown>, context?: Record<string, unknown>) =>
+  const register = (data: Record<string, unknown>) =>
     payload.create({
       collection: 'user-submissions',
       data: {
@@ -66,7 +66,7 @@ describe('registration gate on the unified create (#797)', () => {
         ...data,
       } as never,
       overrideAccess: false,
-      req: clientReq(context),
+      req: clientReq(),
     }) as Promise<UserSubmission>
 
   const createEvent = async (overrides: Record<string, unknown> = {}): Promise<Event> => {
@@ -212,13 +212,23 @@ describe('registration gate on the unified create (#797)', () => {
     await expect(takeSeat(event.id)).resolves.toMatchObject({ type: 'registration' })
   })
 
-  it('honours the importer’s skipRegistrationGate context flag', async () => {
-    // Historical Atlas rows sit on ended and external-mode events; the importer
-    // has to get past all four refusals. `req.context` is a server-side
-    // channel, so a request body can never set this.
+  it('does not gate a Local API import, which carries no client user', async () => {
+    // Historical Atlas rows sit on ended and external-mode events, and the
+    // importer (#799) has to get past all four refusals. The "not a client"
+    // condition above is the whole of its exemption — there is no context flag
+    // to set, and nothing here may manufacture a client user to need one.
     const event = await createEvent({ schedule: PAST_ONE_OFF, inactive: false })
+
     await expect(
-      register({ event: event.id }, { skipRegistrationGate: true }),
+      payload.create({
+        collection: 'user-submissions',
+        data: {
+          type: 'registration',
+          senderEmail: `importer-${randomUUID().slice(0, 8)}@example.com`,
+          event: event.id,
+        } as never,
+        overrideAccess: true,
+      }),
     ).resolves.toMatchObject({ type: 'registration' })
   })
 })
