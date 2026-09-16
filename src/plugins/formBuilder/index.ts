@@ -168,8 +168,17 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
         // postMessage carries the merged event in `previewEvent` instead.
         //
         // ⚠ The one preview that keeps a dedicated route, for that reason.
-        // `path: null` on anything but an unaccepted proposal, so the other
-        // three intakes get no preview panel rather than a broken one.
+        //
+        // ⚠ `path: null` does **not** close the panel — `livePreviewUrl` never
+        // returns a falsy URL, because Payload would persist that as the
+        // editor's preference for the whole collection. The other three
+        // intakes land on the explanation page instead, which is why they need
+        // a `reason` of their own: `no-path` tells a reader to fill in a slug.
+        //
+        // `openByDefault` is deliberately absent. It is collection-wide and
+        // cannot branch on `type`, so opening it for the reviewer's benefit
+        // would greet every contact, subscribe and registration row with that
+        // explanation page.
         livePreview: {
           url: ({ data, locale }) =>
             livePreviewUrl({
@@ -180,13 +189,9 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
                 id: String(data?.id ?? ''),
                 locale: locale.code,
               },
+              reason: 'not-reviewable',
             }),
           breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
-          // A reviewer is here to judge how a listing would look, so the panel
-          // is open on arrival. Payload's own option: it applies only until the
-          // reviewer toggles the panel themselves, after which their stored
-          // preference wins — which a mount effect could not do.
-          openByDefault: true,
         },
       },
       fields: userSubmissionFields,

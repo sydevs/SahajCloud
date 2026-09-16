@@ -191,6 +191,49 @@ describe('User submission review lifecycle', () => {
     })
   })
 
+  describe('live preview', () => {
+    const resolve = async (data: Record<string, unknown>) => {
+      const { livePreview } = payload.collections['user-submissions']!.config.admin
+      if (typeof livePreview?.url !== 'function') {
+        throw new Error('expected livePreview.url to be a function')
+      }
+      return (await livePreview.url({
+        data,
+        locale: { code: 'en' },
+        req: { payload, locale: 'en', context: {} },
+      } as unknown as Parameters<typeof livePreview.url>[0])) as string
+    }
+
+    it('points a proposal at the atlas preview route', async () => {
+      const url = new URL(await resolve({ id: 42, type: 'proposal' }))
+
+      expect(url.pathname).toBe('/preview')
+      expect(url.searchParams.get('id')).toBe('42')
+      expect(url.searchParams.get('live-preview')).toBeTruthy()
+    })
+
+    it.each(['contact', 'subscribe', 'registration'])(
+      'sends a %s row to an explanation that fits it',
+      async (type) => {
+        // A null path is a page, never a closed panel — `livePreviewUrl` cannot
+        // return falsy. So the reason has to fit the row: `no-path` would tell
+        // whoever opened it to go and fill in a slug.
+        const url = new URL(await resolve({ id: 42, type }), 'https://admin.example')
+
+        expect(url.pathname).toBe('/live-preview-unavailable')
+        expect(url.searchParams.get('reason')).toBe('not-reviewable')
+      },
+    )
+
+    it('leaves the panel closed on arrival', () => {
+      // The option is collection-wide and cannot branch on `type`, so opening
+      // it for the reviewer greets the other three intakes with that
+      // explanation page instead.
+      const { livePreview } = payload.collections['user-submissions']!.config.admin
+      expect(livePreview?.openByDefault).toBeFalsy()
+    })
+  })
+
   describe('reopen', () => {
     const shelve = async (status: 'spam' | 'rejected') => {
       const created = await createProposal({ country: countryId })
