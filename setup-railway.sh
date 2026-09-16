@@ -38,8 +38,9 @@ LIVE_PREVIEW_SIGNING_KEY="${LIVE_PREVIEW_SIGNING_KEY:-}"
 NIRMALA_VIDYA_API_KEY="${NIRMALA_VIDYA_API_KEY:-}"
 
 # ⚠ SAHAJATLAS_URL is sahajatlas.com, the Sahaj Atlas REPLACEMENT.
-# atlas.sydevelopers.com is the legacy service and serves no /preview route —
-# live preview pointed there 404s. Both hosts checked directly, 2026-09-15.
+# atlas.sydevelopers.com is the legacy service and serves none of the document
+# paths the Live Preview panel points at — preview aimed there 404s. Both hosts
+# checked directly, 2026-09-15.
 
 # ── Non-secret config (from the old wrangler.toml) + the secrets above ───────
 railway variables \

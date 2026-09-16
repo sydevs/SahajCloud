@@ -45,13 +45,17 @@ const nextConfig = {
     // variable to the build, so this step reads the real WEMEDITATE_WEB_URL
     // and SAHAJATLAS_URL values. This keeps the build-time frame-src in
     // sync with the runtime `livePreview.url`. Without this, the browser
-    // blocks the preview iframe under CSP. The literal URLs below are
-    // fallbacks for local and CI runs.
+    // blocks the preview iframe under CSP.
+    //
+    // ⚠ The literals below are what a local or CI build uses, and they must
+    // stay equal to the production values in `.env.example`. A wrong one is
+    // invisible: the build succeeds and the panel is simply blank.
+    // `tests/unit/csp-frame-src.spec.ts` pins them.
     const frameSources = [
       "'self'",
       'https://app.usefathom.com',
       process.env.WEMEDITATE_WEB_URL || 'https://wemeditate.com',
-      process.env.SAHAJATLAS_URL || 'https://atlas.sydevelopers.com',
+      process.env.SAHAJATLAS_URL || 'https://sahajatlas.com',
     ].join(' ')
 
     return [
