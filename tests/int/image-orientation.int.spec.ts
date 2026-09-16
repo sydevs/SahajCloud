@@ -63,7 +63,6 @@ describe('Image Orientation Detection', () => {
   })
 
   it('only runs on create operations (not update)', async () => {
-    // Create an image
     const image = await testData.createMediaImage(payload, {}, 'image-1050x700.jpg')
 
     // Clear tags

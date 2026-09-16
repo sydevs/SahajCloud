@@ -12,9 +12,7 @@ import {
 
 import { jsonField } from './jsonField'
 
-/**
- * Field factory options
- */
+/** Field factory options */
 export interface ScheduleFieldsOptions {
   /** Field name (default: 'schedule') */
   name?: string
@@ -39,9 +37,7 @@ export interface ScheduleFieldsOptions {
 /** Internal configuration for sub-field builders */
 type SubFieldConfig = Omit<ScheduleFieldsOptions, 'name' | 'label' | 'admin'>
 
-/**
- * Weekday options for the multi-select field
- */
+/** Weekday options for the multi-select field */
 const WEEKDAY_OPTIONS = [
   { label: 'Mon', value: 'MO' },
   { label: 'Tue', value: 'TU' },
@@ -52,18 +48,14 @@ const WEEKDAY_OPTIONS = [
   { label: 'Sun', value: 'SU' },
 ]
 
-/**
- * Recurrence type options
- */
+/** Recurrence type options */
 const RECURRENCE_OPTIONS = [
   { label: 'Daily', value: 'DAILY' },
   { label: 'Weekly', value: 'WEEKLY' },
   { label: 'Monthly', value: 'MONTHLY' },
 ]
 
-/**
- * Ending type options
- */
+/** Ending type options */
 const ENDING_OPTIONS = [
   { label: 'After', value: 'count' },
   { label: 'On Date', value: 'until' },
@@ -154,9 +146,7 @@ export function scheduleFields(options: ScheduleFieldsOptions = {}): Field {
 
 // ─── Row Builders ─────────────────────────────────────────────────────
 
-/**
- * Row 1: firstDate (with timezone picker) + optional endTime
- */
+/** Row 1: firstDate (with timezone picker) + optional endTime */
 function buildDateTimeRow({ required, hasEndTime }: SubFieldConfig): Field {
   return {
     type: 'row',
@@ -179,9 +169,7 @@ function buildDateTimeRow({ required, hasEndTime }: SubFieldConfig): Field {
   }
 }
 
-/**
- * End time text field with HH:MM validation and start-time comparison.
- */
+/** End time text field with HH:MM validation and start-time comparison. */
 function buildEndTimeField(): Field {
   return {
     name: 'endTime',
@@ -216,9 +204,7 @@ function buildEndTimeField(): Field {
   }
 }
 
-/**
- * Row 2: recurrenceType + interval + optional complex weekly/monthly fields
- */
+/** Row 2: recurrenceType + interval + optional complex weekly/monthly fields */
 function buildRecurrenceRow(config: SubFieldConfig): Field {
   return {
     type: 'row',
@@ -252,9 +238,7 @@ function buildRecurrenceRow(config: SubFieldConfig): Field {
   }
 }
 
-/**
- * Weekday multi-select for weekly recurrence (complexWeekly flag).
- */
+/** Weekday multi-select for weekly recurrence (complexWeekly flag). */
 function buildComplexWeeklyFields({ required }: SubFieldConfig): Field[] {
   return [
     {
@@ -271,9 +255,7 @@ function buildComplexWeeklyFields({ required }: SubFieldConfig): Field[] {
   ]
 }
 
-/**
- * Monthly mode fields: by date (monthDay) or by weekday (weekNumber + weekdayOfMonth).
- */
+/** Monthly mode fields: by date (monthDay) or by weekday (weekNumber + weekdayOfMonth). */
 function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
   return [
     {
@@ -349,9 +331,7 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
   ]
 }
 
-/**
- * Optional Row 3: ending conditions (count or until date).
- */
+/** Optional Row 3: ending conditions (count or until date). */
 function buildEndingRow({ required, hasEnding }: SubFieldConfig): Field[] {
   if (!hasEnding) return []
 
@@ -503,9 +483,7 @@ function buildLastDateField(): Field {
   }
 }
 
-/**
- * Virtual fields computed on read (not stored in database).
- */
+/** Virtual fields computed on read (not stored in database). */
 function buildVirtualFields(): Field[] {
   return [
     {
@@ -536,9 +514,7 @@ function buildVirtualFields(): Field[] {
 
 // ─── Composer ─────────────────────────────────────────────────────────
 
-/**
- * Build the sub-fields for the schedule group based on feature flags.
- */
+/** Build the sub-fields for the schedule group based on feature flags. */
 function buildScheduleSubFields(config: SubFieldConfig): Field[] {
   return [
     buildDateTimeRow(config),

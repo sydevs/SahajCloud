@@ -9,9 +9,7 @@ import * as path from 'path'
 
 import { safeBufferFrom } from './runtime'
 
-/**
- * Data source configuration for loading bundled data files
- */
+/** Data source configuration for loading bundled data files */
 export interface DataSource {
   /** Local filesystem path (required) */
   localPath: string
@@ -22,17 +20,13 @@ export interface DataSource {
   inlineContent?: string
 }
 
-/**
- * Options for fetching assets
- */
+/** Options for fetching assets */
 export interface AssetOptions {
   /** Local cache path (used in local dev, optional) */
   cachePath?: string
 }
 
-// ============================================================================
-// DATA FILE LOADING
-// ============================================================================
+// --- Data file loading ---
 
 /**
  * Load a data file (JSON, etc.) from the filesystem.
@@ -59,9 +53,7 @@ export async function loadJsonData<T>(source: DataSource): Promise<T> {
   return JSON.parse(content) as T
 }
 
-// ============================================================================
-// ASSET FETCHING
-// ============================================================================
+// --- Asset fetching ---
 
 /**
  * Fetch an asset (image, audio, etc.) with optional disk caching.
@@ -97,9 +89,7 @@ export async function fetchAsset(url: string, options?: AssetOptions): Promise<B
   return safeBufferFrom(await response.arrayBuffer())
 }
 
-// ============================================================================
-// CACHE UTILITIES
-// ============================================================================
+// --- Cache utilities ---
 
 /**
  * Check if a local cache file exists and has content.

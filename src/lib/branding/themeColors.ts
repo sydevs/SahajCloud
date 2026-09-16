@@ -11,9 +11,7 @@
 
 import type { ProjectSlug } from '@/payload-types'
 
-// =============================================================================
-// Brand Colors (Single Source of Truth)
-// =============================================================================
+// --- Brand Colors (Single Source of Truth) ---
 
 export interface BrandColors {
   /** Primary brand color (main accent) */
@@ -49,9 +47,7 @@ export const PROJECT_BRAND_COLORS: Record<ProjectSlug, BrandColors> = {
   },
 }
 
-// =============================================================================
-// Color Utility Functions
-// =============================================================================
+// --- Color Utility Functions ---
 
 /**
  * Convert hex color to HSL components
@@ -98,9 +94,7 @@ function hexToHsl(hex: string): { h: number; s: number; l: number } {
   return { h: h * 360, s: s * 100, l: l * 100 }
 }
 
-/**
- * Convert HSL values to hex color
- */
+/** Convert HSL values to hex color */
 function hslToHex(h: number, s: number, l: number): string {
   const sNorm = s / 100
   const lNorm = l / 100
@@ -194,9 +188,7 @@ export function shade(hex: string, ratio: number): string {
   return hslToHex(h, s, newL)
 }
 
-// =============================================================================
-// Scalar Theme Derivation
-// =============================================================================
+// --- Scalar Theme Derivation ---
 
 /**
  * Theme colors for Scalar API documentation

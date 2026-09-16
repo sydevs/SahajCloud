@@ -103,16 +103,12 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   },
 }
 
-/**
- * Get expected counts for a script
- */
+/** Get expected counts for a script */
 export function getExpectedCounts(script: ScriptName): ExpectedCounts {
   return EXPECTED_COUNTS[script] || {}
 }
 
-/**
- * Verify actual counts against expected minimums
- */
+/** Verify actual counts against expected minimums */
 export interface VerificationResult {
   collection: string
   actual: number
@@ -147,9 +143,7 @@ export function verifyCountsForScript(
   return { results, allPassed }
 }
 
-// ============================================================================
-// COLLECTION METADATA FOR PAGINATION
-// ============================================================================
+// --- Collection metadata for pagination ---
 
 /**
  * Collection metadata per script (in dependency order)
@@ -331,9 +325,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   ],
 }
 
-/**
- * Get metadata for a script including pagination info
- */
+/** Get metadata for a script including pagination info */
 export function getScriptMetadata(script: ScriptName): ScriptMetadata {
   const collections = COLLECTION_METADATA[script] || []
   const totalItems = collections.reduce((sum, c) => sum + c.totalItems, 0)
@@ -359,9 +351,7 @@ export function getScriptMetadata(script: ScriptName): ScriptMetadata {
   }
 }
 
-/**
- * Get metadata for a specific collection within a script
- */
+/** Get metadata for a specific collection within a script */
 export function getCollectionMetadata(
   script: ScriptName,
   collectionSlug: string,

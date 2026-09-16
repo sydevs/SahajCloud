@@ -5,9 +5,7 @@
  * and URL field factories to ensure consistent routing logic.
  */
 
-/**
- * Media category classification
- */
+/** Media category classification */
 export type MimeCategory = 'image' | 'video' | 'other'
 
 /**

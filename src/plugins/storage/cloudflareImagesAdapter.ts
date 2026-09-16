@@ -35,9 +35,7 @@ export const getCloudflareImagesUrl = (
   return `${deliveryUrl}/${filename}/${variant}`
 }
 
-/**
- * Configuration for Cloudflare Images adapter
- */
+/** Configuration for Cloudflare Images adapter */
 export interface CloudflareImagesConfig {
   /** Cloudflare account ID */
   accountId: string

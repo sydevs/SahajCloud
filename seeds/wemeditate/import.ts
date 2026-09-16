@@ -56,9 +56,7 @@ import {
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// ============================================================================
-// WEMEDITATE DATA TYPES (matching extraction script output)
-// ============================================================================
+// --- WEMEDITATE DATA TYPES (matching extraction script output) ---
 
 interface WeMeditateData {
   authors: Array<{
@@ -155,16 +153,12 @@ interface WeMeditateData {
   }>
 }
 
-// ============================================================================
-// CONFIGURATION
-// ============================================================================
+// --- Configuration ---
 
 const CACHE_DIR = path.resolve(process.cwd(), 'seeds/cache/wemeditate')
 const STORAGE_BASE_URL = 'https://assets.wemeditate.com/uploads/'
 
-/**
- * Raw URL base for fetching seed media assets from the repo
- */
+/** Raw URL base for fetching seed media assets from the repo */
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/sydevs/SahajCloud/main'
 
 /**
@@ -198,9 +192,7 @@ const LOCALES = [
   'tr',
 ] as const
 
-// ============================================================================
-// WEMEDITATE IMPORTER CLASS
-// ============================================================================
+// --- Wemeditate importer class ---
 
 export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'WeMeditate Rails Database'
@@ -239,13 +231,9 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   // Pre-cached song tags (slug → id) to avoid N+1 queries
   private songTagCache = new Map<string, number>()
 
-  // ============================================================================
-  // STATIC FACTORY FOR MIGRATIONS
-  // ============================================================================
+  // --- Static factory for migrations ---
 
-  /**
-   * Run the importer from a migration with an external Payload instance
-   */
+  /** Run the importer from a migration with an external Payload instance */
   static async runFromMigration(payload: Payload): Promise<void> {
     const importer = new WeMeditateImporter({
       dryRun: false,
@@ -255,9 +243,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     await importer.run()
   }
 
-  // ============================================================================
-  // LIFECYCLE
-  // ============================================================================
+  // --- Lifecycle ---
 
   protected async setup(): Promise<void> {
     // Load data from JSON
@@ -302,9 +288,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('✓ Image tags ready (inline enum values)')
   }
 
-  /**
-   * Pre-load all song tags into memory cache to avoid per-track queries
-   */
+  /** Pre-load all song tags into memory cache to avoid per-track queries */
   private async preloadSongTags(): Promise<void> {
     await this.logger.info('Pre-loading song tags...')
     const tags = await this.payload.find({
@@ -387,9 +371,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     )
   }
 
-  // ============================================================================
-  // MAIN IMPORT LOGIC
-  // ============================================================================
+  // --- Main import logic ---
 
   protected async import(): Promise<void> {
     if (this.options.dryRun) {
@@ -522,9 +504,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  /**
-   * Import a single page (used by both regular and paginated imports)
-   */
+  /** Import a single page (used by both regular and paginated imports) */
   private async importSinglePage(
     page: WeMeditateData['staticPages'][number],
     tableName: string,
@@ -643,13 +623,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       },
     )
 
-    // Import content for this page
     await this.importSinglePageContent(page, pageResult.doc.id, tableName)
   }
 
-  /**
-   * Import content for a single page (Phase 2 for paginated mode)
-   */
+  /** Import content for a single page (Phase 2 for paginated mode) */
   private async importSinglePageContent(
     page: WeMeditateData['staticPages'][number],
     pageId: number,
@@ -714,9 +691,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // AUTHORS IMPORT
-  // ============================================================================
+  // --- Authors import ---
 
   private async importAuthors(): Promise<void> {
     const authors = this.data.authors
@@ -867,9 +842,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // ID CONVERSION HELPER
-  // ============================================================================
+  // --- Id conversion helper ---
 
   /**
    * Convert ID to numeric type for consistent Map key handling.
@@ -880,9 +853,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     return typeof id === 'string' ? parseInt(id, 10) : Number(id)
   }
 
-  // ============================================================================
-  // ALBUMS IMPORT (from artists table)
-  // ============================================================================
+  // --- ALBUMS IMPORT (from artists table) ---
 
   private async importAlbums(): Promise<void> {
     // Artists in WeMeditate represent music albums
@@ -1084,9 +1055,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  /**
-   * Get placeholder image for albums without artwork.
-   */
+  /** Get placeholder image for albums without artwork. */
   private async getOrCreatePlaceholderImage(): Promise<{ localPath: string; buffer?: Buffer }> {
     const githubUrl = `${GITHUB_RAW_BASE}/seeds/wemeditate/preview.png`
 
@@ -1103,9 +1072,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // SONGS IMPORT (from tracks table)
-  // ============================================================================
+  // --- SONGS IMPORT (from tracks table) ---
 
   /**
    * Instrument filter to song tag slug mapping
@@ -1330,9 +1297,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // PAGES IMPORT
-  // ============================================================================
+  // --- Pages import ---
 
   private async importPages(tableName: string, _translationsTable: string): Promise<void> {
     const DEBUG = process.env.DEBUG_IMPORT === 'true'
@@ -1476,9 +1441,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // FORMS IMPORT
-  // ============================================================================
+  // --- Forms import ---
 
   private async importForms(): Promise<void> {
     await this.logger.info('\n=== Creating Shared Forms ===')
@@ -1548,9 +1511,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // MEDIA IMPORT
-  // ============================================================================
+  // --- Media import ---
 
   private async importMedia(): Promise<void> {
     await this.logger.info('\n=== Importing Media Files ===')
@@ -1943,9 +1904,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // LECTURES IMPORT
-  // ============================================================================
+  // --- Lectures import ---
 
   /**
    * Import one Lecture per unique vimeo_id encountered in page content.
@@ -2063,9 +2022,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     )
   }
 
-  // ============================================================================
-  // PAGES WITH CONTENT (Phase 2)
-  // ============================================================================
+  // --- PAGES WITH CONTENT (Phase 2) ---
 
   private async importPagesWithContent(
     tableName: string,
@@ -2176,9 +2133,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // HELPER METHODS
-  // ============================================================================
+  // --- Helper methods ---
 
   private async buildMeditationTitleMap(): Promise<void> {
     await this.logger.info('\n=== Building Meditation Maps ===')

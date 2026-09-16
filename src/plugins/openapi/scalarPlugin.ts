@@ -72,9 +72,7 @@ function generateThemeCss(theme: ScalarThemeColors | null): string {
     }`
 }
 
-/**
- * Generate project-selector options from the project metadata.
- */
+/** Generate project-selector options from the project metadata. */
 function getProjectSelectorOptions(): string {
   const options = getProjectOptions()
     .map((option) => `<option value="${option.value}">${option.label}</option>`)
@@ -84,9 +82,7 @@ function getProjectSelectorOptions(): string {
           ${options}`
 }
 
-/**
- * Generate the custom Scalar HTML, with branding and the project selector.
- */
+/** Generate the custom Scalar HTML, with branding and the project selector. */
 function generateScalarHtml(specUrl: string, project: ProjectSlug | null, baseUrl: string): string {
   const currentLogo = getProjectIcon(project)
   const projectTitle = getProjectLabel(project)

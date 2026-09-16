@@ -6,13 +6,9 @@
 
 import type { CollectionSlug } from 'payload'
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
+// --- Constants ---
 
-/**
- * Daily request threshold for high usage alerts.
- */
+/** Daily request threshold for high usage alerts. */
 export const HIGH_USAGE_THRESHOLD = 1000
 
 /**

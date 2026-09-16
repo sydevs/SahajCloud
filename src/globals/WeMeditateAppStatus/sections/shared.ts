@@ -3,10 +3,7 @@ import type { BasePayload, PayloadRequest, TypedLocale } from 'payload'
 import { isUploadAssigned, type CheckResult } from '@/lib/status'
 import { isRecord } from '@/lib/utilities/isRecord'
 
-// =============================================================================
-// Per-project status-global config (persisted on the wm-app-status Configuration
-// tab; extracted from the global's document by the virtualReadinessField factory).
-// =============================================================================
+// --- Per-project status-global config (persisted on the wm-app-status Configuration tab; extracted from the global's document by the virtualReadinessField factory). ---
 
 export const DEFAULT_BASELINE_COUNTRY = 'GB'
 const COUNTRY_CODE_RE = /^[A-Z]{2}$/
@@ -38,9 +35,7 @@ export function extractWeMeditateAppStatusConfig(data: unknown): WeMeditateAppSt
   return { baselineCountry: country, launchCriticalAppCardIds: launchCriticalIds }
 }
 
-// =============================================================================
-// Per-timing meditation fields on UserChoices.
-// =============================================================================
+// --- Per-timing meditation fields on UserChoices. ---
 
 export const PER_TIMING_FIELDS = {
   morning: 'morningMeditation',
@@ -61,11 +56,7 @@ export function meditationMatchesLocale(value: unknown, locale: string): boolean
   return value.locale === locale && value._status === 'published'
 }
 
-// =============================================================================
-// Request-scoped memoizer for wm-app-config — Sections 4 + 5 both read it.
-// Keyed on `${locale}:${depth}` so the two callers can request different
-// depths without colliding.
-// =============================================================================
+// --- Request-scoped memoizer for wm-app-config — Sections 4 + 5 both read it. Keyed on `${locale}:${depth}` so the two callers can request different depths without colliding. ---
 
 const APP_CONFIG_CACHE_KEY = 'wmAppConfigCache'
 
@@ -111,9 +102,7 @@ export async function getWmAppConfig(
   return configPromise
 }
 
-// =============================================================================
-// Lecture subtitle resolution — used by Section 3's lesson-referenced-subtitles.
-// =============================================================================
+// --- Lecture subtitle resolution — used by Section 3's lesson-referenced-subtitles. ---
 
 export function lectureHasSubtitlesForLocale(
   lecture: Record<string, unknown>,
@@ -143,10 +132,7 @@ export function lectureHasSubtitlesForLocale(
   return subs.some((s) => isRecord(s) && s.languageCode === locale && typeof s.url === 'string')
 }
 
-// =============================================================================
-// App-card per-document checks (Section 7) — shared between launch-critical
-// and other-cards groups since both apply the same four checks.
-// =============================================================================
+// --- App-card per-document checks (Section 7) — shared between launch-critical and other-cards groups since both apply the same four checks. ---
 
 export function appCardChecks(card: Record<string, unknown>): CheckResult[] {
   const defaultView = isRecord(card.default) ? (card.default as Record<string, unknown>) : null

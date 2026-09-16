@@ -1,8 +1,6 @@
 import type { CSSProperties } from 'react'
 
-// ============================================================================
-// Shared Base Styles
-// ============================================================================
+// --- Shared Base Styles ---
 
 export const baseStyles = {
   container: {
@@ -70,9 +68,7 @@ export const baseStyles = {
   } satisfies CSSProperties,
 }
 
-// ============================================================================
-// FrameListManager Styles
-// ============================================================================
+// --- FrameListManager Styles ---
 
 export const listManagerStyles = {
   frameList: {
@@ -150,9 +146,7 @@ export const listManagerStyles = {
   } satisfies CSSProperties,
 }
 
-// ============================================================================
-// FrameInserter Styles
-// ============================================================================
+// --- FrameInserter Styles ---
 
 export const inserterStyles = {
   container: {

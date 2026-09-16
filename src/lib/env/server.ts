@@ -32,9 +32,7 @@ import { ClientEnvSchema } from './client'
  * The server schema also includes every client environment variable.
  */
 const ServerEnvSchema = ClientEnvSchema.extend({
-  // ============================================
-  // REQUIRED - Core Application
-  // ============================================
+  // --- REQUIRED - Core Application ---
 
   /**
    * PayloadCMS encryption secret.
@@ -101,9 +99,7 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
 
-  // ============================================
-  // OPTIONAL: Cloudflare media services (Images, Stream), and R2 over S3
-  // ============================================
+  // --- OPTIONAL: Cloudflare media services (Images, Stream), and R2 over S3 ---
   //
   // Images and Stream stay on Cloudflare, over plain HTTPS APIs. The app now
   // reaches R2 through the S3-compatible API (see `src/plugins/storage`), not
@@ -196,9 +192,7 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   CLOUDFLARE_STREAM_WEBHOOK_SECRET: z.string().min(32).optional(),
 
-  // ============================================
-  // OPTIONAL: Email Services
-  // ============================================
+  // --- OPTIONAL: Email Services ---
 
   /**
    * Resend API key for transactional email.
@@ -217,9 +211,7 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   SMTP_URL: z.url().optional(),
 
-  // ============================================
-  // APPLICATION URLS
-  // ============================================
+  // --- Application urls ---
 
   /**
    * Sahaj Cloud server URL.
@@ -227,9 +219,7 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   SAHAJCLOUD_URL: z.url().optional(),
 
-  /**
-   * We Meditate Web frontend URL, for live preview.
-   */
+  /** We Meditate Web frontend URL, for live preview. */
   WEMEDITATE_WEB_URL: z.url(),
 
   /**
@@ -266,9 +256,7 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   LIVE_PREVIEW_SIGNING_KEY: z.string().optional(),
 
-  /**
-   * Sahaj Atlas frontend URL, for live preview.
-   */
+  /** Sahaj Atlas frontend URL, for live preview. */
   SAHAJATLAS_URL: z.url(),
 
   /**
@@ -305,9 +293,7 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   PORT: z.coerce.number().int().min(1).max(65535).optional().default(3000),
 
-  // ============================================
-  // OBSERVABILITY - Sentry performance tracing
-  // ============================================
+  // --- OBSERVABILITY - Sentry performance tracing ---
 
   /**
    * Sentry performance-tracing sample rate (0 to 1).

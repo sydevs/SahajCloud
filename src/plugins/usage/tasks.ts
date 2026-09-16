@@ -13,9 +13,7 @@ import type { Client } from '@/payload-types'
 import { HIGH_USAGE_THRESHOLD } from './constants'
 import { getPgPool, quotedDbSchema } from './db'
 
-// ============================================================================
-// ABUSE MILESTONES
-// ============================================================================
+// --- Abuse milestones ---
 
 /**
  * Thresholds for Sentry milestone reporting.
@@ -28,9 +26,7 @@ const ABUSE_MILESTONES = {
   PERSISTENT_ABUSER: 10,
 } as const
 
-// ============================================================================
-// ABUSE MILESTONE REPORTING
-// ============================================================================
+// --- Abuse milestone reporting ---
 
 interface AbuseMilestoneReport {
   clientId: string | number
@@ -122,9 +118,7 @@ async function reportAbuseMilestones(req: { payload: Payload }): Promise<void> {
   }
 }
 
-// ============================================================================
-// RESET USAGE TASK
-// ============================================================================
+// --- Reset usage task ---
 
 /**
  * Task that resets daily counters at midnight UTC.
@@ -145,9 +139,7 @@ export const resetUsageTask: TaskConfig<'resetUsage'> = {
   outputSchema: [],
   schedule: [{ cron: '0 0 * * *', queue: 'nightly' }],
   handler: async ({ req }) => {
-    // =========================================================================
-    // Step 1: Identify and report abuse milestones BEFORE updating counters
-    // =========================================================================
+    // --- Step 1: Identify and report abuse milestones BEFORE updating counters ---
     await reportAbuseMilestones(req)
 
     // Atomic Postgres reset with abuse tracking (single, race-free query).

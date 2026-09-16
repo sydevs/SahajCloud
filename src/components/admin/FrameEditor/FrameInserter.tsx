@@ -20,9 +20,7 @@ import {
   getSubtleSystemNodeLabel,
 } from './utils'
 
-// ============================================================================
-// FrameCard Subcomponent
-// ============================================================================
+// --- FrameCard Subcomponent ---
 
 interface FrameCardProps {
   frame: Frame
@@ -62,9 +60,7 @@ const FrameCard: React.FC<FrameCardProps> = ({
   )
 }
 
-// ============================================================================
-// FrameInserter Component
-// ============================================================================
+// --- FrameInserter Component ---
 
 /**
  * FrameInserter - UI component for browsing and inserting frames into meditations

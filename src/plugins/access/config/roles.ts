@@ -17,9 +17,7 @@ import type { ProjectSlug } from '@/payload-types'
 
 import { getAllProjectCollections, isCollectionVisibleInProject } from './projects'
 
-// =============================================================================
-// Internal Configuration (NOT exported - use helper functions)
-// =============================================================================
+// --- Internal Configuration (NOT exported - use helper functions) ---
 
 /**
  * Role Configuration
@@ -126,16 +124,12 @@ const ROLES = {
   },
 } as const
 
-// =============================================================================
-// Internal Type Alias
-// =============================================================================
+// --- Internal Type Alias ---
 
 /** Role slug type derived from ROLES constant */
 type InternalRoleSlug = keyof typeof ROLES
 
-// =============================================================================
-// Computed Lookup Tables (internal only, computed at module load)
-// =============================================================================
+// --- Computed Lookup Tables (internal only, computed at module load) ---
 
 /**
  * Collections that have at least one role with translate permission
@@ -154,9 +148,7 @@ const TRANSLATABLE_COLLECTIONS: Set<CollectionSlug> = (() => {
   return collections
 })()
 
-// =============================================================================
-// Type Generation Helper
-// =============================================================================
+// --- Type Generation Helper ---
 
 /**
  * Get array of role slugs for TypeScript type generation
@@ -166,9 +158,7 @@ export function getRoleSlugs(): InternalRoleSlug[] {
   return Object.keys(ROLES) as InternalRoleSlug[]
 }
 
-// =============================================================================
-// Role Helper Functions
-// =============================================================================
+// --- Role Helper Functions ---
 
 /**
  * Get the project associated with a role

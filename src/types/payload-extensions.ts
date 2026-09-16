@@ -68,9 +68,7 @@ export type PolymorphicRelation<T = unknown> =
  */
 export type DocumentData<T> = T extends { id: string | number } ? T : never
 
-/**
- * Type guard to check if a value is a PolymorphicRelation object
- */
+/** Type guard to check if a value is a PolymorphicRelation object */
 export function isPolymorphicRelation(
   value: unknown,
 ): value is { relationTo: CollectionSlug; value: string } {

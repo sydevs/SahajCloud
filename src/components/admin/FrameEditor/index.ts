@@ -13,10 +13,8 @@ export {
   isVideoFrame,
 } from './utils'
 
-// Hooks
 export { usePlaybackTime, useSeekToTime, useAvailableFrames } from './hooks'
 
-// Styles
 export { baseStyles, listManagerStyles, inserterStyles } from './styles'
 
 // Default exports for PayloadCMS component registration

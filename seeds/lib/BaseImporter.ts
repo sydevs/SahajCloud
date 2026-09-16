@@ -31,13 +31,9 @@ import {
 import { ValidationReport } from './validationReport'
 import configPromise from '../../src/payload.config'
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// --- Types ---
 
-/**
- * Result of importing a single document
- */
+/** Result of importing a single document */
 export interface DocumentResult {
   collection: string
   identifier: string
@@ -46,15 +42,12 @@ export interface DocumentResult {
   warnings?: string[]
 }
 
-/**
- * Import event sent via SSE
- */
+/** Import event sent via SSE */
 export interface ImportEvent {
   type: 'start' | 'document' | 'complete' | 'error' | 'info'
   // For 'start':
   script?: string
   dryRun?: boolean
-  // For 'document':
   document?: DocumentResult
   current?: number
   total?: number
@@ -65,9 +58,7 @@ export interface ImportEvent {
   timestamp: string
 }
 
-/**
- * Callback function for import events (used by API routes for SSE)
- */
+/** Callback function for import events (used by API routes for SSE) */
 export type OnProgressCallback = (data: Record<string, unknown>) => Promise<void>
 
 export interface BaseImportOptions {
@@ -106,9 +97,7 @@ export interface SlugCollision {
 export type PreloadedDoc = { id: string | number; [key: string]: unknown }
 export type PreloadCache = Map<string, PreloadedDoc>
 
-// ============================================================================
-// BASE IMPORTER CLASS
-// ============================================================================
+// --- Base importer class ---
 
 export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImportOptions> {
   // Core dependencies (initialized in run())
@@ -121,7 +110,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   protected abstract readonly importName: string
   protected abstract readonly cacheDir: string
 
-  // Options
   protected options: TOptions
 
   // Track slug collisions for manual review
@@ -143,9 +131,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     this.options = options
   }
 
-  // ============================================================================
-  // PUBLIC API
-  // ============================================================================
+  // --- Public api ---
 
   /**
    * Get the validation report for access to summary data
@@ -171,9 +157,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return this.currentOperation
   }
 
-  // ============================================================================
-  // PAGINATION METHODS
-  // ============================================================================
+  // --- Pagination methods ---
 
   /**
    * Get paginated slice of items
@@ -229,30 +213,22 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return pagination.collection === collection
   }
 
-  /**
-   * Get number of items processed in current batch
-   */
+  /** Get number of items processed in current batch */
   getProcessedCount(): number {
     return this.paginationState.processedCount
   }
 
-  /**
-   * Check if more items remain after current batch
-   */
+  /** Check if more items remain after current batch */
   hasMoreItems(): boolean {
     return this.paginationState.hasMore
   }
 
-  /**
-   * Get starting index for next batch
-   */
+  /** Get starting index for next batch */
   getNextOffset(): number {
     return this.paginationState.nextOffset
   }
 
-  /**
-   * Get current pagination options (if set)
-   */
+  /** Get current pagination options (if set) */
   getPaginationOptions(): PaginationOptions | undefined {
     return this.options.pagination
   }
@@ -314,9 +290,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     // Default: no-op. Subclasses override to reconstruct their specific maps.
   }
 
-  // ============================================================================
-  // PRELOAD METHODS (for skip/update mode optimization)
-  // ============================================================================
+  // --- PRELOAD METHODS (for skip/update mode optimization) ---
 
   /**
    * Bulk fetch a collection for skip/update decisions. See the Preload
@@ -446,13 +420,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return this.preloadCache.get(collection)?.has(naturalKeyValue) ?? false
   }
 
-  // ============================================================================
-  // LIFECYCLE METHODS
-  // ============================================================================
+  // --- Lifecycle methods ---
 
-  /**
-   * Main entry point - handles initialization, execution, and cleanup
-   */
+  /** Main entry point - handles initialization, execution, and cleanup */
   async run(): Promise<void> {
     console.log(`\n${'='.repeat(60)}`)
     console.log(`${this.importName} Import`)
@@ -514,21 +484,15 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     }
   }
 
-  /**
-   * Override to add custom setup logic (called after Payload initialized)
-   */
+  /** Override to add custom setup logic (called after Payload initialized) */
   protected async setup(): Promise<void> {
     // Default: no-op
   }
 
-  /**
-   * Override to implement the import logic
-   */
+  /** Override to implement the import logic */
   protected abstract import(): Promise<void>
 
-  /**
-   * Override to add custom cleanup logic
-   */
+  /** Override to add custom cleanup logic */
   protected async cleanup(): Promise<void> {
     // Only close the Payload database connection if this instance created it (not external)
     if (!this.externalPayload && this.payload?.db?.destroy) {
@@ -536,9 +500,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     }
   }
 
-  // ============================================================================
-  // INITIALIZATION
-  // ============================================================================
+  // --- Initialization ---
 
   private async setupCacheDirectory(): Promise<void> {
     await fs.mkdir(this.cacheDir, { recursive: true })
@@ -584,9 +546,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     await this.logger.success(`\nReport saved to: ${reportPath}`)
   }
 
-  // ============================================================================
-  // PROGRESS REPORTING
-  // ============================================================================
+  // --- Progress reporting ---
 
   /**
    * Send import event to callback (if provided)
@@ -657,9 +617,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     console.log(`  ${message}`)
   }
 
-  // ============================================================================
-  // IDEMPOTENT UPSERT OPERATIONS
-  // ============================================================================
+  // --- Idempotent upsert operations ---
 
   /**
    * Find or upsert a document by natural key(s)
@@ -1152,9 +1110,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return updatedCount
   }
 
-  /**
-   * Create a summary string from a natural key Where clause
-   */
+  /** Create a summary string from a natural key Where clause */
   private summarizeKey(key: Where): string {
     if (typeof key === 'object' && key !== null) {
       // Handle simple { field: { equals: value } } pattern
@@ -1246,9 +1202,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return undefined
   }
 
-  // ============================================================================
-  // RETRY & THROTTLING
-  // ============================================================================
+  // --- Retry & throttling ---
 
   /**
    * Small delay between database operations to reduce contention
@@ -1294,17 +1248,13 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     throw new Error('Retry failed') // Should never reach here
   }
 
-  /**
-   * Check if an error is a slug collision (UNIQUE constraint on slug)
-   */
+  /** Check if an error is a slug collision (UNIQUE constraint on slug) */
   private isSlugCollisionError(error: unknown): boolean {
     if (!(error instanceof Error)) return false
     return error.message.includes('UNIQUE constraint failed') && error.message.includes('slug')
   }
 
-  /**
-   * Write slug collisions to file for manual review
-   */
+  /** Write slug collisions to file for manual review */
   private async writeCollisionsFile(): Promise<void> {
     if (this.collisions.length === 0) return
 
@@ -1315,13 +1265,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     )
   }
 
-  // ============================================================================
-  // ERROR HANDLING
-  // ============================================================================
+  // --- Error handling ---
 
-  /**
-   * Add an error to the report and log it
-   */
+  /** Add an error to the report and log it */
   protected addError(context: string, error: Error | string): void {
     const message = error instanceof Error ? error.message : error
     const fullMessage = `${context}: ${message}`
@@ -1330,9 +1276,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     this.logger.error(fullMessage)
   }
 
-  /**
-   * Add a warning to the report and log it
-   */
+  /** Add a warning to the report and log it */
   protected addWarning(message: string): void {
     this.report.addWarning(message)
     this.logger.warn(message)
@@ -1366,13 +1310,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     }
   }
 
-  // ============================================================================
-  // SUMMARY PRINTING
-  // ============================================================================
+  // --- Summary printing ---
 
-  /**
-   * Print summary using ValidationReport data
-   */
+  /** Print summary using ValidationReport data */
   protected printSummary(): void {
     const summary = this.report.getSummary()
 
@@ -1404,9 +1344,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 }
 
-// ============================================================================
-// FACTORY FUNCTION
-// ============================================================================
+// --- Factory function ---
 
 /**
  * Helper to parse CLI args and create options object

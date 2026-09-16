@@ -6,13 +6,9 @@
  * multiple HTTP requests.
  */
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// --- Types ---
 
-/**
- * Options for paginated import execution
- */
+/** Options for paginated import execution */
 export interface PaginationOptions {
   /** Starting index for pagination */
   offset: number
@@ -22,9 +18,7 @@ export interface PaginationOptions {
   collection?: string
 }
 
-/**
- * Current pagination state for reporting
- */
+/** Current pagination state for reporting */
 export interface PaginationState {
   /** Number of items processed in this batch */
   processedCount: number
@@ -34,9 +28,7 @@ export interface PaginationState {
   nextOffset: number
 }
 
-/**
- * Metadata for a single collection within a script
- */
+/** Metadata for a single collection within a script */
 export interface CollectionMetadata {
   /** Collection slug */
   slug: string
@@ -54,9 +46,7 @@ export interface CollectionMetadata {
   batchSize?: number
 }
 
-/**
- * Metadata for an entire script
- */
+/** Metadata for an entire script */
 export interface ScriptMetadata {
   /** Collections in dependency order */
   collections: CollectionMetadata[]
@@ -68,9 +58,7 @@ export interface ScriptMetadata {
   recommendedBatchSize: number
 }
 
-/**
- * Pagination info included in completion events
- */
+/** Pagination info included in completion events */
 export interface PaginationResult {
   /** Starting index of this batch */
   offset: number
@@ -86,9 +74,7 @@ export interface PaginationResult {
   collection?: string
 }
 
-// ============================================================================
-// UTILITIES
-// ============================================================================
+// --- Utilities ---
 
 /**
  * Get default batch size based on upload requirements
@@ -123,9 +109,7 @@ export function calculatePaginationState(
   }
 }
 
-/**
- * Create initial pagination state (no items processed yet)
- */
+/** Create initial pagination state (no items processed yet) */
 export function createInitialPaginationState(): PaginationState {
   return {
     processedCount: 0,

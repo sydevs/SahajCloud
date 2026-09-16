@@ -1,9 +1,7 @@
 import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/lib/subtleSystem'
 import type { Frame, SubtleSystemNode } from '@/payload-types'
 
-/**
- * Format seconds to MM:SS display format
- */
+/** Format seconds to MM:SS display format */
 export const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60)
   const secs = seconds % 60
@@ -30,9 +28,7 @@ export const parseTime = (timeStr: string): number | null => {
   return mins * 60 + secs
 }
 
-/**
- * Validate a timestamp value
- */
+/** Validate a timestamp value */
 export const validateTimestamp = (
   timestamp: number,
   existingTimestamps: number[],
@@ -89,9 +85,7 @@ export const getFrameDisplayLabel = (
   return fallbackIndex !== undefined ? `Frame ${fallbackIndex + 1}` : `Frame ${frame.id}`
 }
 
-/**
- * Check if a frame is a video based on its mimeType
- */
+/** Check if a frame is a video based on its mimeType */
 export const isVideoFrame = (mimeType?: string | null): boolean => {
   return mimeType?.startsWith('video/') ?? false
 }

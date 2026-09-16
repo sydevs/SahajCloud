@@ -26,9 +26,7 @@ import * as path from 'path'
 
 import { Client } from 'pg'
 
-// ============================================================================
-// CONFIGURATION
-// ============================================================================
+// --- Configuration ---
 
 const MEDITATIONS_DB = 'temp_extract_meditations'
 const WEMEDITATE_DB = 'temp_extract_wemeditate'
@@ -39,9 +37,7 @@ const WEMEDITATE_BIN = path.resolve(process.cwd(), 'seeds/wemeditate/data.bin')
 const MEDITATIONS_JSON = path.resolve(process.cwd(), 'seeds/meditations/data.json')
 const WEMEDITATE_JSON = path.resolve(process.cwd(), 'seeds/wemeditate/data.json')
 
-// ============================================================================
-// TYPES (matching import script interfaces)
-// ============================================================================
+// --- TYPES (matching import script interfaces) ---
 
 interface MeditationsData {
   tags: Array<{ id: number; name: string }>
@@ -177,9 +173,7 @@ interface WeMeditateData {
   }>
 }
 
-// ============================================================================
-// DATABASE HELPERS
-// ============================================================================
+// --- Database helpers ---
 
 async function setupDatabase(dbName: string, dataBin: string): Promise<Client> {
   console.log(`\nSetting up ${dbName}...`)
@@ -219,9 +213,7 @@ async function cleanupDatabase(client: Client, dbName: string): Promise<void> {
   console.log(`  ✓ Cleaned up database: ${dbName}`)
 }
 
-// ============================================================================
-// MEDITATIONS EXTRACTION
-// ============================================================================
+// --- Meditations extraction ---
 
 async function extractMeditationsData(): Promise<void> {
   console.log('\n' + '='.repeat(60))
@@ -279,7 +271,6 @@ async function extractMeditationsData(): Promise<void> {
     console.log(`  ✓ Extracted: ${data.attachments.length} attachments`)
     console.log(`  ✓ Extracted: ${data.blobs.length} blobs`)
 
-    // Write to JSON
     await fs.writeFile(MEDITATIONS_JSON, JSON.stringify(data, null, 2))
     console.log(`\n✓ Written to: seeds/meditations/data.json`)
   } finally {
@@ -287,9 +278,7 @@ async function extractMeditationsData(): Promise<void> {
   }
 }
 
-// ============================================================================
-// WEMEDITATE EXTRACTION
-// ============================================================================
+// --- Wemeditate extraction ---
 
 async function extractWeMeditateData(): Promise<void> {
   console.log('\n' + '='.repeat(60))
@@ -354,7 +343,6 @@ async function extractWeMeditateData(): Promise<void> {
     `)
     console.log(`  ✓ Extracted: ${tracks.rows.length} tracks`)
 
-    // Categories
     const categories = await client.query(`
       SELECT
         c.id,
@@ -491,7 +479,6 @@ async function extractWeMeditateData(): Promise<void> {
       treatmentThumbnails: treatmentThumbnails.rows,
     }
 
-    // Write to JSON
     await fs.writeFile(WEMEDITATE_JSON, JSON.stringify(data, null, 2))
     console.log(`\n✓ Written to: seeds/wemeditate/data.json`)
   } finally {
@@ -499,9 +486,7 @@ async function extractWeMeditateData(): Promise<void> {
   }
 }
 
-// ============================================================================
-// MAIN
-// ============================================================================
+// --- Main ---
 
 async function main(): Promise<void> {
   console.log('=' .repeat(60))
