@@ -1,5 +1,12 @@
-import type { Field, FieldAccess, RelationshipField, Validate } from 'payload'
+import type {
+  Field,
+  FieldAccess,
+  RelationshipField,
+  RelationshipFieldSingleValidation,
+  Validate,
+} from 'payload'
 
+import { relationship as relationshipValidation } from 'payload/shared'
 import { z } from 'zod'
 
 import { logField } from '@/fields'
@@ -147,46 +154,65 @@ const subjectField: Field = {
 }
 
 /**
+ * When a submission must name a form: the two form-backed types, minus the one
+ * exemption.
+ *
+ * A subscribe row spawned by a registration opt-in has no form of its own —
+ * nobody authored one, and the target list resolves from the provenance client
+ * at delivery time. It carries the registration's `event` instead, which is
+ * both the exemption's condition and the link back to the row that created it
+ * (`hooks/spawnSubscribeFromRegistration.ts`). A contact submission never
+ * qualifies: it has nowhere to go without a form's `recipient`.
+ */
+function needsForm(data?: { event?: unknown; type?: unknown }): boolean {
+  const type = data?.type
+  if (typeof type !== 'string') return false
+  if (!(FORM_BACKED_TYPES as readonly string[]).includes(type)) return false
+  return !(type === 'subscribe' && data?.event != null)
+}
+
+/**
  * Turn the plugin's unconditionally-required `form` relationship into a
  * per-type one.
  *
- * `required: true` is dropped rather than kept, for two reasons that both bite:
- * a registration or proposal row has no form at all, and the column must be
- * nullable to hold one; and Payload's `required` is a column-level `NOT NULL`,
- * which cannot express "for two of four types". The rule moves into `validate`,
- * which sees the sibling `type`.
+ * **The requirement is `required` plus `admin.condition`, not a hand-written
+ * branch.** Both halves hold on the API path, which is the only path that
+ * matters here — this collection exists for public intake, and nothing arrives
+ * through the admin form:
  *
- * The plugin's own validator — a `findByID` proving the form exists — is
- * **composed with, not replaced**: supplying a validator replaces whatever was
- * there, and dropping that check would let a submission name a form id that
- * never existed (`src/collections/AGENTS.md`).
+ * - `admin.condition` is evaluated **server-side**, not only in the browser:
+ *   `payload/dist/fields/hooks/beforeChange/promise.js` computes
+ *   `passesCondition` and then `skipValidationFromHere = skipValidation ||
+ *   !passesCondition`. So a false condition skips `required` for a REST or
+ *   Local API write exactly as it hides the field in the admin. The sibling it
+ *   reads is already settled: field `beforeValidate` back-fills an omitted
+ *   `type` from the stored row (or from `defaultValue` on create) before this
+ *   runs, so a partial update is judged on the type the row actually has.
+ * - A `required` field **carrying a condition is not made `NOT NULL`**
+ *   (`@payloadcms/drizzle/dist/schema/traverseFields.js`: `if (!disableNotNull
+ *   && field.required && !field.admin?.condition)`). The column stays nullable
+ *   for the two types that never have a form, so this needs no migration —
+ *   which is what makes `required` usable here at all.
+ *
+ * What a condition cannot express is the **prohibition**: a false condition
+ * skips validation rather than refusing a value, so a registration POSTing a
+ * `form` would simply store it. That half lives on `eventField`, whose own
+ * condition is true for exactly the types it applies to.
+ *
+ * Two validators are **composed with, not replaced** — supplying a validator
+ * replaces whatever was there (`src/collections/AGENTS.md`). Payload's own
+ * relationship validation is what reads `required`, and the plugin's is a
+ * `findByID` proving the form exists; dropping either would let a submission
+ * skip the requirement, or name a form id that never existed.
  */
 function perTypeForm(field: Field): Field {
   if (!('name' in field) || field.name !== 'form' || field.type !== 'relationship') return field
 
   const formExists = field.validate as Validate | undefined
 
-  const validate: Validate = async (value, options) => {
-    const data = options?.data as
-      | { type?: UserSubmission['type']; event?: unknown }
-      | undefined
-    const type = data?.type
-
-    if (type != null && !FORM_BACKED_TYPES.includes(type)) {
-      return value == null ? true : `A ${type} submission names an event, not a form.`
-    }
-
-    // A subscribe row spawned by a registration opt-in has no form of its own —
-    // nobody authored one, and the target list resolves from the provenance
-    // client at delivery time. It carries the registration's `event` instead,
-    // which is both the exemption's condition and the link back to the row that
-    // created it. A contact submission never qualifies: it has nowhere to go
-    // without a form's `recipient`.
-    if (type === 'subscribe' && value == null && data?.event != null) return true
-
-    if (value == null) {
-      return `A ${type ?? 'contact'} submission needs the form it was sent from.`
-    }
+  const validate: RelationshipFieldSingleValidation = async (value, options) => {
+    const shape = await relationshipValidation(value, options)
+    if (shape !== true) return shape
 
     return formExists ? formExists(value, options) : true
   }
@@ -194,7 +220,13 @@ function perTypeForm(field: Field): Field {
   // `RelationshipField['validate']` is a union of the hasMany and single
   // signatures, and a function assignable to one is assignable to neither as
   // written. The cast picks the single form, which is what this field is.
-  return { ...field, required: false, index: true, validate } as RelationshipField
+  return {
+    ...field,
+    required: true,
+    index: true,
+    validate,
+    admin: { ...field.admin, condition: (data) => needsForm(data) },
+  } as RelationshipField
 }
 
 /**
@@ -207,7 +239,7 @@ const senderEmailField: Field = {
   name: 'senderEmail',
   type: 'email',
   index: true,
-  admin: { description: 'Who sent this. Normalized, and what `user` is upserted from.' },
+  admin: { description: 'Who sent this. Normalized.' },
 }
 
 /** One four-state vocabulary for every type. `SUBMISSION_STATUSES` says what each means. */
@@ -224,27 +256,70 @@ const statusField: Field = {
 }
 
 /**
+ * The other half of the form/event split — and the half no condition can carry.
+ *
+ * `needsForm` states when a form is **needed**, and `required` enforces it. It
+ * cannot state when one is **forbidden**: a false `admin.condition` skips
+ * validation rather than refusing a value, so a registration POSTing a `form`
+ * to the REST API would store it unchallenged. An API client is not the admin
+ * form, and this collection only ever meets API clients.
+ *
+ * So the prohibition is asserted here, on the field whose own condition is true
+ * for exactly the types it covers — everything but `contact`, which is the one
+ * type that may never name an event. `subscribe` reaches this and is let
+ * through: it may carry a form, an event, or (for a spawned row) an event
+ * alone.
+ *
+ * Payload's own relationship validation is composed rather than replaced, so
+ * the id-shape check that answers a malformed `event` with a 400 survives
+ * (`src/collections/AGENTS.md`).
+ */
+const eventPlacement: RelationshipFieldSingleValidation = async (value, options) => {
+  const shape = await relationshipValidation(value, options)
+  if (shape !== true) return shape
+
+  const data = options?.data as { form?: unknown; type?: UserSubmission['type'] } | undefined
+  const type = data?.type
+
+  if (type != null && !FORM_BACKED_TYPES.includes(type) && data?.form != null) {
+    return `A ${type} submission names an event, not a form.`
+  }
+
+  return true
+}
+
+/**
  * The event a registration attends, or a proposal targets.
  *
- * Nullable even for those two: a proposal for a brand-new event has no target
- * yet. Indexed because fullness counts, the reminder sweep and the feedback
- * roll-up all query it.
+ * **Nullable even for those two, and deliberately not `required`**: a proposal
+ * for a brand-new event has no target yet, which is the whole point of the
+ * type, and a registration may be recorded before its occurrence is resolved.
+ * `required` here — under any condition — would refuse both.
+ *
+ * Indexed because fullness counts, the reminder sweep and the feedback roll-up
+ * all query it.
  *
  * A **subscribe** row carries one too when a registration opt-in spawned it —
  * that is what links the consent record back to the registration it came from,
- * and what exempts it from needing a form of its own (`perTypeForm`).
+ * and what exempts it from needing a form of its own (`needsForm`).
+ *
+ * ⚠ **The condition is `type !== 'contact'`, not `… && !data?.form`.** Adding
+ * the form clause would switch `eventPlacement` off for precisely the rows it
+ * judges — one naming both a form and an event — and a skipped validator
+ * refuses nothing.
  */
 const eventField: Field = {
   name: 'event',
   type: 'relationship',
   relationTo: 'events',
   index: true,
+  validate: eventPlacement,
   admin: {
     condition: (data) => data?.type !== 'contact',
     description:
       'The event this registration attends, this proposal targets, or this subscription came from.',
   },
-}
+} as RelationshipField
 
 /**
  * When the registrant is attending.

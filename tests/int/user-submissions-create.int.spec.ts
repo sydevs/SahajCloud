@@ -189,7 +189,10 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       ).rejects.toThrow(/verificationStage/)
     })
 
-    it('accepts a proposal submission', async () => {
+    it('accepts a proposal submission, with neither a form nor an event', async () => {
+      // ⚠ This is why `event` carries no `required`, under any condition
+      // (#791 review): a proposal for a brand-new event has no target to name,
+      // and that is the whole point of the type. The subject says so too.
       const doc = await send({
         type: 'proposal',
         senderEmail: 'proposer@example.com',
@@ -198,6 +201,7 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       })
 
       expect(doc.type).toBe('proposal')
+      expect(doc.event).toBeFalsy()
       expect(doc.subject).toBe('New event proposal')
     })
   })
@@ -337,27 +341,108 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
     })
   })
 
+  /**
+   * ⚠ Every case here runs through the **API** path, and that is the point.
+   * The requirement is `required` plus `admin.condition` since the #791 review,
+   * and a condition is widely assumed to be an admin-UI affordance — so these
+   * assert the rule where an API client meets it, not where a form renders.
+   * (Payload evaluates the condition server-side and skips `required` with it:
+   * `payload/dist/fields/hooks/beforeChange/promise.js`.)
+   */
   describe('the per-type form requirement', () => {
+    /**
+     * The per-field messages a Payload `ValidationError` **buries**: its own
+     * `message` is composed from the field labels alone ("The following field
+     * is invalid: Form"), so `rejects.toThrow(/…/)` can only ever match a
+     * label. Reading `data.errors` is what tells "refused by this field, for
+     * this reason" apart from "refused by the write guard, three steps
+     * earlier" — every case below throws something.
+     */
+    const refusalFor = async (promise: Promise<unknown>): Promise<string[]> => {
+      try {
+        await promise
+      } catch (error) {
+        const { errors } =
+          (error as { data?: { errors?: { message?: string; path?: string }[] } }).data ?? {}
+        return (errors ?? []).map(({ message, path }) => `${path}: ${message}`)
+      }
+      throw new Error('Expected the submission to be refused; it was accepted.')
+    }
+
     it('refuses a contact submission with no form', async () => {
-      await expect(
-        send({
-          type: 'contact',
-          senderEmail: 'formless@example.com',
-          submissionData: [{ field: 'message', value: 'No form named.' }],
-        }),
-      ).rejects.toThrow()
+      expect(
+        await refusalFor(
+          send({
+            type: 'contact',
+            senderEmail: 'formless@example.com',
+            submissionData: [{ field: 'message', value: 'No form named.' }],
+          }),
+        ),
+      ).toEqual(['form: This field is required.'])
+    })
+
+    it('refuses a subscribe submission with neither a form nor an event', async () => {
+      // The exemption below is what a formless subscribe row rests on. With no
+      // event there is nothing to resolve a target list from, so `required`
+      // applies exactly as it does to a contact.
+      expect(
+        await refusalFor(
+          send({
+            type: 'subscribe',
+            senderEmail: 'unreachable@example.com',
+          }),
+        ),
+      ).toEqual(['form: This field is required.'])
+    })
+
+    it('accepts a formless subscribe row that carries an event', async () => {
+      // The exemption a registration opt-in relies on: the spawned consent row
+      // has no form of its own, and its `event` is both the link back to the
+      // registration and what resolves the target list at delivery
+      // (`hooks/spawnSubscribeFromRegistration.ts`). Asserted here as well as
+      // through the spawn path, because the spawn is what would break if the
+      // condition gating `required` lost this clause.
+      const event = await testData.createEvent(payload, { manager: manager.id })
+      const doc = await send({
+        type: 'subscribe',
+        event: event.id,
+        senderEmail: 'opted-in@example.com',
+      })
+
+      expect(doc.type).toBe('subscribe')
+      expect(doc.form).toBeFalsy()
     })
 
     it('refuses a registration that names a form', async () => {
+      // The half no condition can carry: a false condition skips validation
+      // rather than refusing a value, so this rule lives on `event`'s own
+      // validator, whose condition is true for exactly the types it covers.
       const event = await testData.createEvent(payload, { manager: manager.id })
-      await expect(
-        send({
-          type: 'registration',
-          event: event.id,
-          form: contactForm.id,
-          senderEmail: 'confused@example.com',
-        }),
-      ).rejects.toThrow()
+      expect(
+        await refusalFor(
+          send({
+            type: 'registration',
+            event: event.id,
+            form: contactForm.id,
+            senderEmail: 'confused@example.com',
+          }),
+        ),
+      ).toEqual(['event: A registration submission names an event, not a form.'])
+    })
+
+    it('refuses a proposal that names a form, and carries no event at all', async () => {
+      // The same prohibition on the type that may have no event either — so it
+      // is refused for naming a form, not for want of an event.
+      expect(
+        await refusalFor(
+          send({
+            type: 'proposal',
+            form: contactForm.id,
+            senderEmail: 'misfiled@example.com',
+            proposed: { title: 'Filed against a form' },
+          }),
+        ),
+      ).toEqual(['event: A proposal submission names an event, not a form.'])
     })
 
     it("keeps the plugin's own existence check", async () => {

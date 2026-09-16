@@ -69,14 +69,16 @@ export const BASE_SUBMISSION_KEYS = [
  * `spawnSubscribeFromRegistration`. This key is only the request saying which
  * way the box was ticked, so nothing queries it and nothing reads it after the
  * row exists.
- *
- * Any value `parseOptIn` reads as true counts — `'true'`, `'yes'`, `'on'`, `'1'`
- * — because the pair arrives as text from an HTML form, where a checkbox's
- * wire value is whatever the front end chose.
  */
 export const SUBSCRIBE_OPT_IN = 'subscribe'
 
-/** Whether an opt-in pair's text means yes. Absent or anything else means no. */
+/**
+ * Whether an opt-in pair's text means yes. Absent or anything else means no.
+ *
+ * Four spellings count — `'true'`, `'yes'`, `'on'`, `'1'` — because the pair
+ * arrives as text from an HTML form, where a checkbox's wire value is whatever
+ * the front end chose.
+ */
 export function parseOptIn(value: string | undefined): boolean {
   if (value == null) return false
   return ['true', 'yes', 'on', '1'].includes(value.trim().toLowerCase())
