@@ -61,17 +61,16 @@ export function isScreeningResult(value: unknown): value is SubmissionScreeningR
 /**
  * Whether **the machine** refused this row.
  *
- * ⚠ **The one rule that must never be re-derived from `status`.** The four
- * shared statuses fold a spam verdict and a human decline into one `rejected`,
- * which is what lets every type share a vocabulary — so a manager declining a
- * proposal reads as `rejected` exactly like a bot-sent message does. Counting
- * abuse off `status` would make a manager's judgement a spam strike against the
- * person who wrote in, and enough of those would refuse their next genuine
- * submission.
+ * ⚠ **`spam` and `rejected` are two statuses so this can be one comparison.**
+ * `rejected` is a manager's decline; counting it as abuse would make a
+ * manager's judgement a spam strike against the person who wrote in, and enough
+ * of those would refuse their next genuine submission. A row still `pending`
+ * has not been screened, and is not a strike either.
  *
- * A row with no verdict has not been screened yet, and is not a strike either.
+ * `status` is indexed, so unlike the verdict this is a predicate a query can
+ * reach — which is why `PurgeSubmissions` spells the same status in SQL rather
+ * than importing this. The generated union is what keeps the two honest.
  */
-export function isMachineSpam(submission: { screeningResult?: unknown }): boolean {
-  const result = submission.screeningResult
-  return isScreeningResult(result) && result.verdict !== 'ok'
+export function isMachineSpam(submission: { status?: UserSubmission['status'] | null }): boolean {
+  return submission.status === 'spam'
 }

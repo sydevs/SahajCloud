@@ -12,39 +12,36 @@ import { screenProposalContent } from '@/jobs/ScreenSubmissions/contentScreening
 import { hashSubmissionBody } from '@/jobs/ScreenSubmissions/senderHistory'
 import { isMachineSpam, isScreeningResult } from '@/jobs/ScreenSubmissions/verdicts'
 
-const screened = (verdict: string) => ({
-  screeningResult: { verdict, screenedAt: '2026-09-15T00:00:00.000Z' },
-})
-
 describe('isMachineSpam', () => {
   /**
-   * ⚠ The rule this file exists for. `status` folds a machine verdict and a
-   * manager's decline into one `rejected`, so anything counting abuse off
-   * `status` would make a manager's judgement a spam strike against the person
-   * who wrote in — and enough of those would refuse their next genuine
-   * submission. Nothing here may read `status`.
+   * ⚠ The rule this file exists for. `spam` and `rejected` are two statuses so
+   * abuse counting never has to guess whose refusal it read — counting a
+   * manager's decline would make their judgement a spam strike against the
+   * person who wrote in, and enough of those would refuse that person's next
+   * genuine submission.
    */
   it('counts a machine refusal', () => {
-    expect(isMachineSpam(screened('disposable_email'))).toBe(true)
-    expect(isMachineSpam(screened('repeat_sender'))).toBe(true)
+    expect(isMachineSpam({ status: 'spam' })).toBe(true)
   })
 
-  it('does not count a human decline, whatever the status says', () => {
-    // Exactly the shape a manager-declined proposal has: screening passed, and
-    // a person said no afterwards.
-    expect(isMachineSpam({ ...screened('ok'), status: 'rejected' } as never)).toBe(false)
+  it('does not count a human decline', () => {
+    // A manager-declined proposal: screening passed, and a person said no
+    // afterwards. Its verdict is `ok` and its status is `rejected`.
+    expect(isMachineSpam({ status: 'rejected' })).toBe(false)
   })
 
-  it('does not count an unscreened row', () => {
+  it('does not count a row nobody has refused', () => {
+    for (const status of ['pending', 'accepted', 'failed'] as const) {
+      expect(isMachineSpam({ status })).toBe(false)
+    }
     expect(isMachineSpam({})).toBe(false)
-    expect(isMachineSpam({ screeningResult: null })).toBe(false)
+    expect(isMachineSpam({ status: null })).toBe(false)
   })
 
   it('does not count a row this build did not write', () => {
     // The column is JSON, so anything could be in there. A verdict outside the
     // union means the row was written by something else, and guessing is worse
     // than not counting it.
-    expect(isMachineSpam(screened('something_else'))).toBe(false)
     expect(isScreeningResult({ verdict: 'something_else' })).toBe(false)
     expect(isScreeningResult('ok')).toBe(false)
   })

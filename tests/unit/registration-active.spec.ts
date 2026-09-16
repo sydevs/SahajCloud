@@ -12,7 +12,13 @@ import { activeRegistrationWhere, isActiveRegistration } from '@/lib/registratio
 import type { UserSubmission } from '@/payload-types'
 
 /** Every status, so a new one cannot be added without a decision being made. */
-const STATUSES: UserSubmission['status'][] = ['pending', 'accepted', 'rejected', 'failed']
+const STATUSES: UserSubmission['status'][] = [
+  'pending',
+  'accepted',
+  'rejected',
+  'spam',
+  'failed',
+]
 
 describe('isActiveRegistration', () => {
   it('counts a registration that is pending or accepted', () => {
@@ -22,10 +28,14 @@ describe('isActiveRegistration', () => {
 
   /**
    * The row is flagged, not deleted — it stands, and so does any email already
-   * sent. What `rejected` buys is exactly this: no more reminders, and no seat
-   * occupied.
+   * sent. What `spam` buys is exactly this: no more reminders, and no seat
+   * occupied. A manager declining one by hand (`rejected`) does the same.
    */
   it('drops a registration screening refused', () => {
+    expect(isActiveRegistration({ type: 'registration', status: 'spam' })).toBe(false)
+  })
+
+  it('drops a registration a manager declined', () => {
     expect(isActiveRegistration({ type: 'registration', status: 'rejected' })).toBe(false)
   })
 

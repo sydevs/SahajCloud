@@ -33,12 +33,12 @@ import { isScreeningResult, VERDICT_NOTES } from './verdicts'
  * 3. for a proposal alone, **content screening of the proposed patch**, which
  *    no create-time scan reaches.
  *
- * ⚠ **The verdict, not the status, is the machine's answer.** `status` folds a
- * spam verdict and a human decline into one `rejected`, so everything that
- * counts abuse reads `screeningResult.verdict` — see `verdicts.ts`.
+ * ⚠ **A machine refusal is `spam`, never `rejected`.** `rejected` is a
+ * manager's decline, and everything that counts abuse selects `spam` — see
+ * `verdicts.ts`. The verdict says which check refused; the status says who did.
  *
  * ⚠ **A refused registration is flagged, never unwound.** It becomes
- * `rejected`, which excludes it from reminders and fullness counts
+ * `spam`, which excludes it from reminders and fullness counts
  * (`src/lib/registrations/active.ts`), and nothing else happens: the row
  * stands, any email already sent stands, and no job ever recalls an email. A
  * manager unwinds a real mistake by hand.
@@ -106,7 +106,7 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
         screeningResult: result,
         // A pass leaves the row `pending` — delivery is what settles it. Only a
         // refusal is terminal here.
-        ...(passed ? {} : { status: 'rejected' as const }),
+        ...(passed ? {} : { status: 'spam' as const }),
         activityLog: appendLogEntry(asLog(submission.activityLog), {
           at: now.toISOString(),
           type: 'screening',
@@ -122,7 +122,7 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
       req,
     })
 
-    if (!passed) return { output: { verdict, status: 'rejected' } }
+    if (!passed) return { output: { verdict, status: 'spam' } }
 
     // Delivery is a separate task, not the rest of this handler: a transport
     // failure must earn its own retries without re-running the screening work,

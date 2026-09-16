@@ -176,10 +176,10 @@ describe('Submission screening', () => {
       const submission = await seed({ senderEmail: 'nobody@no-mx.example.com' })
 
       const output = await screen(submission.id)
-      expect(output).toEqual({ verdict: 'no_mx_records', status: 'rejected' })
+      expect(output).toEqual({ verdict: 'no_mx_records', status: 'spam' })
 
       const row = await reload(submission.id)
-      expect(row.status).toBe('rejected')
+      expect(row.status).toBe('spam')
       expect(row.screeningResult?.notes?.[0]).toContain('no mail servers')
       expect(await deliveryQueued(submission.id)).toBe(false)
     })
@@ -204,21 +204,21 @@ describe('Submission screening', () => {
   })
 
   /**
-   * ⚠ The rule the whole design turns on. `status` folds a machine verdict and
-   * a manager's decline into one `rejected`, so counting abuse off `status`
-   * would make a manager's judgement a spam strike against the person who wrote
-   * in — and enough of those would refuse their next genuine submission.
+   * ⚠ The rule the whole design turns on. `spam` is the machine's refusal and
+   * `rejected` is a manager's decline, so abuse counting can select a status
+   * without making a manager's judgement a spam strike against the person who
+   * wrote in — and enough of those would refuse their next genuine submission.
    */
-  describe('abuse counting reads the verdict, never the status', () => {
-    /** Six prior rows for one sender, all `rejected`, with the given verdict. */
-    const seedHistory = async (email: string, verdict: string) => {
+  describe('abuse counting reads the machine status, never a decline', () => {
+    /** Six prior refusals for one sender, under the given status. */
+    const seedHistory = async (email: string, status: 'spam' | 'rejected', verdict: string) => {
       for (let i = 0; i < 6; i += 1) {
         const row = await seed({ senderEmail: email })
         await payload.update({
           collection: 'user-submissions',
           id: row.id,
           data: {
-            status: 'rejected',
+            status,
             screeningResult: { verdict, screenedAt: new Date().toISOString() },
           } as never,
           overrideAccess: true,
@@ -229,20 +229,20 @@ describe('Submission screening', () => {
 
     it('refuses a sender the machine has refused repeatedly', async () => {
       const email = 'repeat@example.com'
-      await seedHistory(email, 'disposable_email')
+      await seedHistory(email, 'spam', 'disposable_email')
 
       const submission = await seed({ senderEmail: email })
       await expect(screen(submission.id)).resolves.toEqual({
         verdict: 'repeat_sender',
-        status: 'rejected',
+        status: 'spam',
       })
     })
 
     it('does not refuse a sender a manager has merely declined', async () => {
       const email = 'declined@example.com'
-      // Identical shape — six `rejected` rows — except screening passed each
-      // one and a person said no afterwards.
-      await seedHistory(email, 'ok')
+      // Identical shape — six refused rows — except screening passed each one
+      // and a person said no afterwards.
+      await seedHistory(email, 'rejected', 'ok')
 
       const submission = await seed({ senderEmail: email })
       await expect(screen(submission.id)).resolves.toEqual({ verdict: 'ok', status: 'pending' })
@@ -257,7 +257,7 @@ describe('Submission screening', () => {
       const second = await seed({ senderEmail: email, submissionData: body })
       await expect(screen(second.id)).resolves.toEqual({
         verdict: 'duplicate_body',
-        status: 'rejected',
+        status: 'spam',
       })
     })
   })
@@ -274,8 +274,8 @@ describe('Submission screening', () => {
 
     /**
      * ⚠ Flagged, never unwound. The row stands and so does any email already
-     * sent — no job ever recalls an email. What `rejected` buys is the
-     * exclusion below, and nothing else.
+     * sent — no job ever recalls an email. What `spam` buys is the exclusion
+     * below, and nothing else.
      */
     it('is flagged rather than deleted when screening refuses it', async () => {
       mxMock.mockResolvedValue(false)
@@ -285,7 +285,7 @@ describe('Submission screening', () => {
 
       const row = await reload(submission.id)
       expect(row.id).toBe(submission.id)
-      expect(row.status).toBe('rejected')
+      expect(row.status).toBe('spam')
       expect(row.event).toBe(event.id)
     })
 
@@ -377,7 +377,7 @@ describe('Submission screening', () => {
 
     await screen(submission.id)
 
-    expect((await reload(submission.id)).status).toBe('rejected')
+    expect((await reload(submission.id)).status).toBe('spam')
     expect(await deliveryQueued(submission.id)).toBe(false)
     expect(fetchMock).not.toHaveBeenCalled()
   })
@@ -403,7 +403,7 @@ describe('Submission screening', () => {
 
       await expect(screen(submission.id)).resolves.toEqual({
         verdict: 'content_rejected',
-        status: 'rejected',
+        status: 'spam',
       })
       expect((await reload(submission.id)).screeningResult?.diagnostic).toContain('title')
     })

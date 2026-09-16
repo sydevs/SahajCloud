@@ -13,13 +13,13 @@ import type { UserSubmission } from '@/payload-types'
 export const CONTACT_ACCEPTED_DAYS = 7
 
 /**
- * How long a **machine-refused** row is kept, whatever its type. Longer,
- * because a sender's history is the evidence a pattern is visible in. Bounded,
- * because abuse tracking has a shelf life.
+ * How long a **machine-refused** (`spam`) row is kept, whatever its type.
+ * Longer, because a sender's history is the evidence a pattern is visible in.
+ * Bounded, because abuse tracking has a shelf life.
  */
 export const MACHINE_SPAM_DAYS = 90
 
-/** How long a proposal is kept once it has been decided. */
+/** How long a proposal is kept once a manager has decided it, either way. */
 export const PROPOSAL_DAYS = 30
 
 /**
@@ -46,15 +46,10 @@ export interface PurgeWindow {
  * windows disjoint by construction rather than by reading two `status` clauses
  * together.
  *
- * ⚠ **Every window reads `status`, where abuse counting must read
- * `screeningResult.verdict`** — retention asks "has anyone finished with this
- * row", which is a different question from whose refusal it was.
- *
- * ⚠ **So a declined proposal is kept 90 days, not 30.** A decline is
- * `rejected`, which only `machineSpam` selects, and the verdict separating it
- * from a machine refusal lives in a JSON column nothing can `where` on cheaply
- * (`src/collections/AGENTS.md`). Erring long keeps the evidence; erring short
- * deletes it.
+ * ⚠ **A machine refusal is `spam` and a manager's decline is `rejected`**, so
+ * each reaches exactly one window. That separation is what lets a declined
+ * proposal go at 30 days with the rest of its type, rather than waiting out the
+ * spam window because nothing cheap could tell the two refusals apart.
  */
 export const PURGE_WINDOWS: PurgeWindow[] = [
   {
@@ -64,7 +59,7 @@ export const PURGE_WINDOWS: PurgeWindow[] = [
       // The one window naming no type otherwise, so it is the one that has to
       // say which types it does not reach.
       type: { not_in: [...DURABLE_TYPES] },
-      status: { equals: 'rejected' },
+      status: { equals: 'spam' },
       createdAt: { less_than: cutoff },
     }),
   },
@@ -82,7 +77,7 @@ export const PURGE_WINDOWS: PurgeWindow[] = [
     days: PROPOSAL_DAYS,
     where: (cutoff) => ({
       type: { equals: 'proposal' },
-      status: { in: ['accepted'] },
+      status: { in: ['accepted', 'rejected'] },
       createdAt: { less_than: cutoff },
     }),
   },

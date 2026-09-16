@@ -42,22 +42,25 @@ export const TYPE_LABELS: Record<UserSubmission['type'], string> = {
 }
 
 /**
- * One four-state vocabulary for every type, replacing three per-collection sets.
+ * One five-state vocabulary for every type, replacing three per-collection sets.
  *
  * `pending` → nothing has decided yet. That covers both "screening is still
  * running" and "screening passed, a human has not looked" — the two are told
- * apart by whether `screeningResult` exists, not by a fifth status.
+ * apart by whether `screeningResult` exists, not by a sixth status.
  *
- * `accepted` / `rejected` are terminal decisions, whoever made them. A machine
- * spam verdict and a human decline both land on `rejected`; which it was stays
- * queryable in `screeningResult`, so abuse counting can read the machine
- * verdict without counting a manager's judgement as a spam strike.
+ * `accepted` / `rejected` are terminal **human** decisions. `rejected` is a
+ * manager's decline and nothing else.
+ *
+ * ⚠ `spam` is the machine's refusal, and it is a separate status precisely so
+ * nothing has to re-derive who refused a row. Abuse counting selects it, and a
+ * manager's decline is never a spam strike against the person who wrote in.
+ * Which check refused stays in `screeningResult.verdict`, for the reader.
  *
  * `failed` is the retryable one, carried over from user-messages: the decision
  * went fine and the delivery did not. It is not terminal, and it is the state
  * nobody else would notice.
  */
-const SUBMISSION_STATUSES = ['pending', 'accepted', 'rejected', 'failed'] as const
+const SUBMISSION_STATUSES = ['pending', 'accepted', 'rejected', 'spam', 'failed'] as const
 
 /**
  * What each status is called, in the list column and the `status` select alike.
@@ -67,6 +70,7 @@ const STATUS_LABELS: Record<UserSubmission['status'], string> = {
   pending: 'Pending',
   accepted: 'Accepted',
   rejected: 'Rejected',
+  spam: 'Spam',
   failed: 'Failed',
 }
 
@@ -430,15 +434,13 @@ export const SUBMISSION_VERDICTS = [
 ] as const
 
 /**
- * Screening's verdict — and the only place the machine's judgement is
- * recorded, now that `status` folds spam and a human decline into `rejected`.
+ * **Which** check refused this row, and what to tell a manager about it.
  * Written by the (Phase 2) screening job alone.
  *
- * **This column, not `status`, is where the machine verdict lives.** The four
- * shared statuses fold a spam verdict and a human decline into one `rejected`,
- * which is what lets every type share a vocabulary — so abuse counting reads
- * `screeningResult.verdict` and never `status`, and a manager declining a
- * proposal is not a spam strike against its sender.
+ * ⚠ **Whether the machine refused it is `status: 'spam'`, not this column.**
+ * That is what abuse counting selects — an indexed column a query can reach,
+ * where a JSON path is not a cheap predicate. This column is the reason
+ * alongside it, for the reader and for triage.
  *
  * Closed (`z.strictObject`) because only that job writes here — an unknown key
  * is a bug in the job, never an older server meeting a newer client — and

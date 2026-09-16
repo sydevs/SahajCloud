@@ -2046,10 +2046,10 @@ export interface UserSubmission {
       }[]
     | null;
   /**
-   * Who sent this. Normalized, and what `user` is upserted from.
+   * Who sent this. Normalized.
    */
   senderEmail?: string | null;
-  status: 'pending' | 'accepted' | 'rejected' | 'failed';
+  status: 'pending' | 'accepted' | 'rejected' | 'spam' | 'failed';
   /**
    * The event this registration attends, this proposal targets, or this subscription came from.
    */

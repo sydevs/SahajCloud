@@ -72,11 +72,15 @@ describe('Submission retention', () => {
   })
 
   /**
-   * The docblock above `PURGE_WINDOWS` claimed a declined proposal purges at 30
-   * days. It purges at 90, because a decline is `rejected` and only the spam
-   * window selects that. Pinned so the prose and the windows cannot part again.
+   * ⚠ The whole return on spelling a machine refusal `spam`. A decline is
+   * `rejected` and goes with the rest of its type at 30 days; only a machine
+   * refusal waits out the 90-day evidence window. While both were `rejected`,
+   * nothing cheap could tell them apart and a decline got 90 days too.
+   *
+   * Each status reaching exactly one window is also what keeps the windows
+   * disjoint, so a row cannot be counted twice by a sweep.
    */
-  it('leaves a declined proposal to the spam window, not the proposal window', () => {
+  it('sends a declined proposal to the proposal window and a spam one to the spam window', () => {
     const selects = (name: string) => {
       const window = PURGE_WINDOWS.find((candidate) => candidate.name === name)
       const where = window?.where(new Date().toISOString()) as {
@@ -85,8 +89,9 @@ describe('Submission retention', () => {
       return where.status?.in ?? (where.status?.equals ? [where.status.equals] : [])
     }
 
-    expect(selects('proposals')).not.toContain('rejected')
-    expect(selects('machineSpam')).toContain('rejected')
+    expect(selects('proposals')).toContain('rejected')
+    expect(selects('proposals')).not.toContain('spam')
+    expect(selects('machineSpam')).toEqual(['spam'])
   })
 
   it('sweeps the longest window first, so the windows cannot overlap by accident', () => {

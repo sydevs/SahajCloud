@@ -26,9 +26,8 @@ export const REPEAT_SENDER_MAX = 5
 /**
  * How many of a sender's recent rows are loaded to judge them.
  *
- * A hard cap, because the verdict lives in a JSON column: nothing can `where`
- * on `screeningResult.verdict` cheaply, so the filtering happens in memory and
- * the query needs its own bound. Comfortably above `REPEAT_SENDER_MAX`, so the
+ * A hard cap, because the duplicate check compares bodies in memory and so
+ * needs the rows themselves. Comfortably above `REPEAT_SENDER_MAX`, so the
  * threshold is reachable, and small enough that a sender blasting thousands of
  * submissions costs one bounded read rather than a table scan.
  */
@@ -48,12 +47,11 @@ export interface SenderHistory {
  * and registrations is one history, and no per-collection design could express
  * that.
  *
- * ⚠ **Both counts are computed in memory, deliberately.** The machine verdict
- * lives in a `type: 'json'` column, and a JSON path is not a cheap predicate —
- * so the query selects a bounded page of the sender's recent rows by the
- * indexed `user` and `createdAt` columns, and answers both questions over that
- * page. Filtering by `status` in SQL instead would be cheaper and wrong: see
- * `isMachineSpam`.
+ * ⚠ **Both counts come off one bounded page**, selected by the indexed `user`
+ * and `createdAt` columns. The duplicate check has to compare bodies in memory,
+ * so the page is already loaded and counting `spam` over it costs nothing — a
+ * second `count` query on `status` would buy only exactness above
+ * `HISTORY_SCAN_LIMIT`, well past the threshold either way.
  *
  * ⚠ **The duplicate check is scoped to one sender**, unlike the cross-sender
  * check it descends from, which could see one payload blasted from many
@@ -84,11 +82,7 @@ export async function loadSenderHistory({
       createdAt: { greater_than: since.toISOString() },
       id: { not_equals: submissionId },
     },
-    // ⚠ `status` is deliberately unselected, as a second guard rather than a
-    // saving: a future edit that tried to count abuse off `status` would read
-    // `undefined` on every row and count nothing — a visibly wrong answer
-    // instead of a quiet one.
-    select: { screeningResult: true, submissionData: true },
+    select: { status: true, submissionData: true },
     limit: HISTORY_SCAN_LIMIT,
     depth: 0,
     pagination: false,

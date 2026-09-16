@@ -159,7 +159,7 @@ describe('Submission retention sweep', () => {
     it('keeps a refused row far longer than a delivered one', async () => {
       const row = await seed({
         senderEmail: 'refused@example.com',
-        status: 'rejected',
+        status: 'spam',
         screeningResult: { verdict: 'disposable_email', screenedAt: new Date().toISOString() },
       })
       const anchor = Date.now()
@@ -178,6 +178,29 @@ describe('Submission retention sweep', () => {
         senderEmail: 'proposer@example.com',
         proposed: { title: 'Thursday class' },
         status: 'accepted',
+      })
+      const anchor = Date.now()
+
+      await sweep(anchor, PROPOSAL_DAYS - 1)
+      expect(await exists('user-submissions', row.id)).toBe(true)
+
+      await sweep(anchor, PROPOSAL_DAYS + 1)
+      expect(await exists('user-submissions', row.id)).toBe(false)
+    })
+
+    /**
+     * ⚠ What spelling a machine refusal `spam` buys, in days. A manager's
+     * decline is `rejected`, so it goes with the rest of its type at 30 —
+     * where, while both refusals shared one status, it waited out the 90-day
+     * evidence window because nothing cheap could tell them apart.
+     */
+    it('purges a declined proposal on the proposal window, not the spam one', async () => {
+      const row = await seed({
+        type: 'proposal',
+        form: undefined,
+        senderEmail: 'declined@example.com',
+        proposed: { title: 'Thursday class' },
+        status: 'rejected',
       })
       const anchor = Date.now()
 
@@ -218,8 +241,8 @@ describe('Submission retention sweep', () => {
 
     /**
      * ⚠ The case above seeds `accepted` rows, and that is why it passed while
-     * the spam window deleted these two at 90 days: the window selects
-     * `rejected`, and named no `type` at all. A refused registration is
+     * the spam window deleted these two at 90 days: the window selects the
+     * machine refusal, and named no `type` at all. A refused registration is
      * flagged and kept — #724's own criterion — so "forever" has to be
      * asserted in the status the bug actually reached.
      */
@@ -229,14 +252,14 @@ describe('Submission retention sweep', () => {
         form: undefined,
         event: event.id,
         senderEmail: 'refused-attendee@example.com',
-        status: 'rejected',
+        status: 'spam',
       })
       const subscription = await seed({
         type: 'subscribe',
         form: undefined,
         event: event.id,
         senderEmail: 'refused-subscriber@example.com',
-        status: 'rejected',
+        status: 'spam',
       })
       const anchor = Date.now()
 
