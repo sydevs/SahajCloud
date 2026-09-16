@@ -7,12 +7,11 @@ import { describe, expect, it } from 'vitest'
 import {
   CONTACT_ACCEPTED_DAYS,
   DURABLE_TYPES,
-  HISTORY_WINDOW_HOURS,
   MACHINE_SPAM_DAYS,
   PROPOSAL_DAYS,
   PURGE_WINDOWS,
 } from '@/jobs/PurgeSubmissions/retention'
-import { REPEAT_SENDER_MAX } from '@/jobs/ScreenSubmissions/senderHistory'
+import { HISTORY_WINDOW_HOURS, REPEAT_SENDER_MAX } from '@/jobs/ScreenSubmissions/senderHistory'
 
 describe('Submission retention', () => {
   /**
