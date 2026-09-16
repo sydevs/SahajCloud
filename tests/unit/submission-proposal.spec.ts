@@ -2,16 +2,16 @@ import type { FlattenedField } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
-import { proposableEventFields } from '@/collections/EventSubmissions/hooks/validateProposal'
+import { proposableEventFields } from '@/collections/UserSubmissions/hooks/validateProposal'
 import {
   mergeProposal,
   newEventDefaults,
-} from '@/collections/EventSubmissions/lifecycle/mergeProposal'
+} from '@/collections/UserSubmissions/lifecycle/mergeProposal'
 import {
   buildProposedChanges,
   formatValue,
   labelForPath,
-} from '@/collections/EventSubmissions/lifecycle/proposedChanges'
+} from '@/collections/UserSubmissions/lifecycle/proposedChanges'
 import type { Event } from '@/payload-types'
 
 /**

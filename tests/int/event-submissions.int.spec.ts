@@ -1,6 +1,7 @@
+// The review cases moved with the code to `tests/int/user-submissions-review-lifecycle.int.spec.ts` (#796).
 /**
  * Integration tests for the EventSubmissions intake (write-guard plugin →
- * prepareSubmission gates → ScreenEventSubmissions job → applyReview op).
+ * prepareSubmission gates → ScreenEventSubmissions job).
  *
  * External dependencies stubbed: the Turnstile siteverify call, the MX lookup,
  * and the Mapbox geocoder. The mailer is spied (`payload.sendEmail`).
@@ -36,9 +37,8 @@ vi.mock('@/lib/mapbox/geocoder', async (importOriginal) => ({
 // Imported after the mocks so the modules pick up the stubs.
 const { ScreenEventSubmissions } =
   await import('@/jobs/ScreenEventSubmissions/ScreenEventSubmissions')
-const { applyReview } = await import('@/collections/EventSubmissions/lifecycle/review')
 const { proposableEventFields } =
-  await import('@/collections/EventSubmissions/hooks/validateProposal')
+  await import('@/collections/UserSubmissions/hooks/validateProposal')
 
 describe('Event submissions', () => {
   let payload: Payload
@@ -413,41 +413,6 @@ describe('Event submissions', () => {
       ])
     })
 
-    it('does not carry an unknown nested key through to the event', async () => {
-      // Validation is top-level only: a group's subfields are not individually
-      // checked. Payload drops unknown keys on the way into Events, but that
-      // is its behaviour, not ours — pin it, so a future change that starts
-      // honouring nested keys cannot quietly widen the intake.
-      const created = await submit({
-        ...baseSubmission,
-        country: countryId,
-        region: cityId,
-        address: { city: 'Novo Selo', street: '1 Main St', smuggled: 'nope' },
-        // No schedule ⇒ Accept creates a dormant listing, and Events requires
-        // a contact route on one. See `newEventDefaults`.
-        contactPhone: '+44 20 7000 0000',
-      })
-      await payload.update({
-        collection: 'event-submissions',
-        id: created.id,
-        data: { status: 'pending' },
-        overrideAccess: true,
-      })
-      const result = await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'accept',
-        managerId: regionManager.id,
-      })
-      const event = await payload.findByID({
-        collection: 'events',
-        id: result.eventId as number,
-        overrideAccess: true,
-      })
-      expect((event.address as Record<string, unknown>).smuggled).toBeUndefined()
-      expect((event.address as Record<string, unknown>).street).toBe('1 Main St')
-    })
-
     it('stores an accepted patch verbatim, keyed by Events field names', async () => {
       const created = await submit({
         ...baseSubmission,
@@ -459,49 +424,6 @@ describe('Event submissions', () => {
         eventType: 'offline',
         contactPhone: '+44 20 7777 0000',
       })
-    })
-  })
-
-  describe('review projections', () => {
-    it('diffs the proposal against its target and previews the result', async () => {
-      const target = await testData.createEvent(payload, {
-        contactPhone: '+44 20 0000 1111',
-        _status: 'published',
-      })
-      const { address: _a, ...noAddress } = baseSubmission
-      const created = await submit({
-        ...noAddress,
-        event: target.id,
-        contactPhone: '+44 20 2222 3333',
-      })
-
-      const fresh = await reload(created.id)
-      const changes = fresh.proposedChanges as {
-        label: string
-        before: string | null
-        after: string | null
-      }[]
-      const phone = changes.find((change) => change.label === 'Contact Phone Number')
-      expect(phone).toMatchObject({ before: '+44 20 0000 1111', after: '+44 20 2222 3333' })
-
-      // The preview is the merged event — the target's title survives, the
-      // proposal's phone number wins.
-      const preview = fresh.previewEvent as Record<string, unknown>
-      expect(preview.title).toBe(target.title)
-      expect(preview.contactPhone).toBe('+44 20 2222 3333')
-    })
-
-    it('skips both projections on a list read', async () => {
-      // 25 rows would otherwise mean 25 event lookups for values no list
-      // column renders.
-      await submit({ ...baseSubmission, country: countryId })
-      const list = await payload.find({
-        collection: 'event-submissions',
-        limit: 1,
-        overrideAccess: true,
-      })
-      expect(list.docs[0]?.proposedChanges).toBeNull()
-      expect(list.docs[0]?.previewEvent).toBeNull()
     })
   })
 
@@ -547,237 +469,6 @@ describe('Event submissions', () => {
         onlineUrl: 'https://meet.example.test/abc',
       })
       expect(created.title).toBe('New Event')
-    })
-  })
-
-  describe('reopen', () => {
-    const shelve = async (status: 'spam' | 'rejected') => {
-      const created = await submit({ ...baseSubmission, country: countryId })
-      await payload.update({
-        collection: 'event-submissions',
-        id: created.id,
-        data: { status, reviewedBy: regionManager.id, reviewedAt: new Date().toISOString() },
-        overrideAccess: true,
-      })
-      return created.id
-    }
-
-    it('returns a shelved submission to pending and clears the review stamp', async () => {
-      for (const status of ['spam', 'rejected'] as const) {
-        const id = await shelve(status)
-        const result = await applyReview({
-          payload,
-          submissionId: id,
-          action: 'reopen',
-          managerId: regionManager.id,
-        })
-        expect(result.status).toBe('pending')
-        const fresh = await reload(id)
-        // Cleared, not overwritten with the reopening manager — the submission
-        // is genuinely awaiting a decision again.
-        expect(fresh.reviewedBy).toBeNull()
-        expect(fresh.reviewedAt).toBeNull()
-      }
-    })
-
-    it('refuses to reopen a submission that already wrote to an event', async () => {
-      // Reopening `created` would invite a second Accept, and a duplicate
-      // listing with it.
-      const created = await submit({ ...baseSubmission, country: countryId })
-      await payload.update({
-        collection: 'event-submissions',
-        id: created.id,
-        data: { status: 'created' },
-        overrideAccess: true,
-      })
-      await expect(
-        applyReview({
-          payload,
-          submissionId: created.id,
-          action: 'reopen',
-          managerId: regionManager.id,
-        }),
-      ).rejects.toMatchObject({ status: 409, data: { code: 'not_reopenable' } })
-    })
-  })
-
-  describe('applyReview', () => {
-    it('accept on a new-event submission creates a published unverified event', async () => {
-      const created = await submit({
-        ...baseSubmission,
-        anchorRegion: cityId,
-        description: 'A weekly meditation class.\nAll welcome.',
-        // The real `scheduleFields` shape. The widget now sends this directly —
-        // there is no simplified one-off/weekly vocabulary to translate, so
-        // whatever arrives here is what Events validates on Accept.
-        schedule: {
-          firstDate: '2026-09-01T17:30:00.000Z',
-          firstDate_tz: 'Europe/London',
-          recurrenceType: 'WEEKLY',
-          interval: 1,
-          weekdays: ['TU'],
-        },
-      })
-      await payload.update({
-        collection: 'event-submissions',
-        id: created.id,
-        data: { region: cityId, status: 'pending' },
-        overrideAccess: true,
-      })
-
-      const result = await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'accept',
-        managerId: regionManager.id,
-      })
-      expect(result.status).toBe('created')
-      expect(result.eventId).toBeTruthy()
-
-      const event = await payload.findByID({
-        collection: 'events',
-        id: result.eventId as number,
-        overrideAccess: true,
-        depth: 0,
-      })
-      expect(event.verificationStage).toBe('unverified')
-      expect(event._status).toBe('published')
-      expect(event.manager ?? null).toBeNull()
-      expect(event.schedule?.recurrenceType).toBe('WEEKLY')
-
-      const after = await reload(created.id)
-      expect(after.status).toBe('created')
-      expect(typeof after.event === 'object' ? after.event?.id : after.event).toBe(result.eventId)
-      expect(typeof after.reviewedBy === 'object' ? after.reviewedBy?.id : after.reviewedBy).toBe(
-        regionManager.id,
-      )
-    })
-
-    it('accept with an assigned manager adopts and verifies the created event', async () => {
-      // The manager named on the *submission* — not the reviewer, who is
-      // `managerId` above and is deliberately not assigned to the event.
-      const owner = await testData.createManager(payload, { email: 'adopting@example.com' })
-      const created = await submit({
-        ...baseSubmission,
-        anchorRegion: cityId,
-        schedule: {
-          firstDate: '2026-09-01T17:30:00.000Z',
-          firstDate_tz: 'Europe/London',
-          recurrenceType: 'WEEKLY',
-          interval: 1,
-          weekdays: ['TU'],
-        },
-      })
-      await payload.update({
-        collection: 'event-submissions',
-        id: created.id,
-        data: { region: cityId, manager: owner.id, status: 'pending' },
-        overrideAccess: true,
-      })
-
-      const result = await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'accept',
-        managerId: regionManager.id,
-      })
-
-      const event = await payload.findByID({
-        collection: 'events',
-        id: result.eventId as number,
-        overrideAccess: true,
-        depth: 0,
-      })
-      expect(event.manager).toBe(owner.id)
-      expect(event.verificationStage).toBe('verified')
-      // The point of letting the verify hook run rather than stamping the
-      // stage ourselves: a verified event with no watermark would never come
-      // up for re-verification again.
-      expect(event.nextCheckAt).toBeTruthy()
-    })
-
-    it('accept on an update proposal patches the event and re-verifies it', async () => {
-      const eventManager = await testData.createManager(payload, {
-        email: 'patched-manager@example.com',
-      })
-      const event = await testData.createEvent(payload, {
-        manager: eventManager.id,
-        _status: 'published',
-        contactPhone: '+1-555-0100',
-      })
-      // Age the stage so the re-verify is observable.
-      await payload.update({
-        collection: 'events',
-        id: event.id,
-        data: { verificationStage: 'reminded' },
-        context: { skipVerifyHook: true },
-      })
-
-      const { address: _address, ...updateBase } = baseSubmission
-      const created = await submit({
-        ...updateBase,
-        event: event.id,
-        contactPhone: '+44 20 9999 0000',
-      })
-      const result = await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'accept',
-        managerId: regionManager.id,
-      })
-      expect(result.status).toBe('updated')
-
-      const after = await payload.findByID({
-        collection: 'events',
-        id: event.id,
-        overrideAccess: true,
-        depth: 0,
-      })
-      expect(after.contactPhone).toBe('+44 20 9999 0000')
-      // The accept is a manager save: the verify-on-save hook re-opens the cycle.
-      expect(after.verificationStage).toBe('verified')
-    })
-
-    it('reject shelves the submission without touching any event', async () => {
-      const created = await submit({ ...baseSubmission, anchorRegion: cityId })
-      const result = await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'reject',
-        managerId: regionManager.id,
-      })
-      expect(result.status).toBe('rejected')
-      expect(result.eventId).toBeUndefined()
-    })
-
-    it('is idempotent: a second review reports the terminal status unchanged', async () => {
-      const created = await submit({ ...baseSubmission, anchorRegion: cityId })
-      await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'reject',
-        managerId: regionManager.id,
-      })
-      const again = await applyReview({
-        payload,
-        submissionId: created.id,
-        action: 'accept',
-        managerId: regionManager.id,
-      })
-      expect(again.status).toBe('rejected')
-      expect(again.eventId).toBeUndefined()
-    })
-
-    it('refuses to accept a new event with no resolved region', async () => {
-      const created = await submit({ ...baseSubmission, country: countryId })
-      await expect(
-        applyReview({
-          payload,
-          submissionId: created.id,
-          action: 'accept',
-          managerId: regionManager.id,
-        }),
-      ).rejects.toMatchObject({ status: 409, data: { code: 'region_unresolved' } })
     })
   })
 
