@@ -18,9 +18,7 @@ import * as path from 'path'
 
 import { safeBufferFrom } from './runtime'
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
+// --- Constants ---
 
 /** Cloudflare Images file size limit (10 MB) */
 const FILE_SIZE_LIMIT = 10 * 1024 * 1024
@@ -31,9 +29,7 @@ const FILE_SIZE_LIMIT = 10 * 1024 * 1024
  */
 const CARRIERWAVE_SIZES = ['huge', 'large', 'medium', 'small', 'tiny'] as const
 
-// ============================================================================
-// URL TRANSFORMATION
-// ============================================================================
+// --- Url transformation ---
 
 /**
  * Transform CarrierWave preview URL to original quality URL.
@@ -65,9 +61,7 @@ function getVariantUrl(url: string, size: (typeof CARRIERWAVE_SIZES)[number]): s
   return url.replace(/\/([^/]+)$/, `/${size}_$1`)
 }
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// --- Types ---
 
 export interface MediaMetadata {
   alt?: string
@@ -86,9 +80,7 @@ export interface DownloadResult {
   originalFilename: string
 }
 
-// ============================================================================
-// MEDIA DOWNLOADER
-// ============================================================================
+// --- Media downloader ---
 
 export class MediaDownloader {
   private cacheDir: string
@@ -318,9 +310,7 @@ export class MediaDownloader {
   }
 }
 
-// ============================================================================
-// MEDIA URL EXTRACTOR
-// ============================================================================
+// --- Media url extractor ---
 
 /**
  * Extract all media URLs from EditorJS content

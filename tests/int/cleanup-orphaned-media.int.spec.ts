@@ -40,9 +40,7 @@ vi.mock('@/lib/lectures/nirmalaVidyaApi', async () => {
   }
 })
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// --- Types ---
 
 interface CleanupResult {
   permanentlyDeletedFiles: number
@@ -53,9 +51,7 @@ interface CleanupResult {
   errors: number
 }
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
+// --- Helper functions ---
 
 /**
  * Backdate createdAt to bypass grace period (24 hours)
@@ -191,9 +187,7 @@ async function imageInTrash(payload: Payload, id: number): Promise<boolean> {
   return result.docs.length > 0
 }
 
-// ============================================================================
-// TEST SUITE
-// ============================================================================
+// --- Test suite ---
 
 describe('CleanupOrphanedMedia Job', () => {
   let payload: Payload
@@ -209,9 +203,7 @@ describe('CleanupOrphanedMedia Job', () => {
     await cleanup()
   })
 
-  // ==========================================================================
-  // PHASE A: PERMANENT DELETION
-  // ==========================================================================
+  // --- Phase a: permanent deletion ---
 
   describe('Phase A: Permanent Deletion', () => {
     it('permanently deletes trashed files', async () => {
@@ -275,9 +267,7 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
 
-  // ==========================================================================
-  // PHASE B: FILE ORPHAN DETECTION
-  // ==========================================================================
+  // --- Phase b: file orphan detection ---
 
   describe('Phase B: File Orphan Detection', () => {
     it('trashes orphaned files (no references)', async () => {
@@ -339,9 +329,7 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
 
-  // ==========================================================================
-  // PHASE B: IMAGE ORPHAN DETECTION
-  // ==========================================================================
+  // --- Phase b: image orphan detection ---
 
   describe('Phase B: Image Orphan Detection', () => {
     it('trashes orphaned images (no references, only auto-generated orientation tags)', async () => {
@@ -508,9 +496,7 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
 
-  // ==========================================================================
-  // GRACE PERIOD
-  // ==========================================================================
+  // --- Grace period ---
 
   describe('Grace Period', () => {
     it('skips files created within grace period', async () => {
@@ -544,9 +530,7 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
 
-  // ==========================================================================
-  // EDGE CASES
-  // ==========================================================================
+  // --- Edge cases ---
 
   describe('Edge Cases', () => {
     it('handles empty database gracefully', async () => {
@@ -636,9 +620,7 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
 
-  // ==========================================================================
-  // DATE RANGE ROTATION
-  // ==========================================================================
+  // --- Date range rotation ---
 
   describe('Date Range Rotation', () => {
     it('processes 0-1 month range when month % 3 === 0', async () => {
@@ -796,9 +778,7 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
 
-  // ==========================================================================
-  // THROUGHPUT FIX: Pagination to exceed 250 cap
-  // ==========================================================================
+  // --- THROUGHPUT FIX: Pagination to exceed 250 cap ---
 
   describe('Phase B: Throughput (exceeds old 250 cap)', () => {
     it('trashes all orphans in window exceeding 250 limit via pagination', async () => {

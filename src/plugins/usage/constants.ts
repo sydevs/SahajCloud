@@ -6,9 +6,7 @@
 
 import type { CollectionSlug } from 'payload'
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
+// --- Constants ---
 
 /**
  * Daily request threshold for high usage alerts.

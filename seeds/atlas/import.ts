@@ -57,9 +57,7 @@ import {
 } from './helpers/venueRouter'
 import { buildImportVerification, importDeletedAt } from './helpers/verification'
 
-// ============================================================================
-// SOURCE DATA TYPES (shape of seeds/atlas/data/*.json)
-// ============================================================================
+// --- SOURCE DATA TYPES (shape of seeds/atlas/data/*.json) ---
 
 type GeoRef = { level: 'country' | 'region' | 'area'; legacyId: number }
 
@@ -172,9 +170,7 @@ interface AtlasData {
   pictures: AtlasPicture[]
 }
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
+// --- Constants ---
 
 /** Local shorthand — this file names the level three times. */
 type RegionLevel = Region['level']
@@ -285,9 +281,7 @@ const MERGED_EVENT_TARGETS: Record<number, number> = {
   5849: 5684,
 }
 
-// ============================================================================
-// ATLAS IMPORTER
-// ============================================================================
+// --- Atlas importer ---
 
 export class AtlasImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'Atlas'

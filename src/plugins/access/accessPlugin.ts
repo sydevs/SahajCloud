@@ -23,9 +23,7 @@ import { createHidden } from './visibility'
 // Re-export permission functions for public API
 export { hasPermission, hasAnyPermission } from './permissions'
 
-// ============================================================================
-// PLUGIN OPTIONS
-// ============================================================================
+// --- Plugin options ---
 
 export interface AccessPluginOptions {
   /** Whether to enable the plugin */
@@ -34,9 +32,7 @@ export interface AccessPluginOptions {
   bypassPermissions?: BypassPermissionFunction
 }
 
-// ============================================================================
-// MAIN PLUGIN EXPORT
-// ============================================================================
+// --- Main plugin export ---
 
 /**
  * Access Plugin for PayloadCMS

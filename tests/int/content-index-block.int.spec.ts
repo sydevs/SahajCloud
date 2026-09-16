@@ -8,9 +8,7 @@ import { uniqueId } from '../utils/lexicalTestHelpers'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-// =============================================================================
-// Pure function tests for computeApiEndpoint hook
-// =============================================================================
+// --- Pure function tests for computeApiEndpoint hook ---
 
 /**
  * Helper to invoke the hook with mock siblingData.
@@ -202,9 +200,7 @@ describe('computeApiEndpoint hook (pure)', () => {
   })
 })
 
-// =============================================================================
-// Integration test — virtual field computed through Payload
-// =============================================================================
+// --- Integration test — virtual field computed through Payload ---
 
 describe('ContentIndexBlock apiEndpoint (integration)', () => {
   let payload: Payload

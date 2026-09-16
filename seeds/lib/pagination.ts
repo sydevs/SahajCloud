@@ -6,9 +6,7 @@
  * multiple HTTP requests.
  */
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// --- Types ---
 
 /**
  * Options for paginated import execution
@@ -86,9 +84,7 @@ export interface PaginationResult {
   collection?: string
 }
 
-// ============================================================================
-// UTILITIES
-// ============================================================================
+// --- Utilities ---
 
 /**
  * Get default batch size based on upload requirements

@@ -7,9 +7,7 @@
 import type { Logger } from './logger'
 import type { Payload } from 'payload'
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// --- Types ---
 
 export interface ConversionContext {
   payload: Payload
@@ -27,9 +25,7 @@ export interface ConversionContext {
   meditationRailsTitleMap: Map<number, string> // Rails meditation ID → title (without duration)
 }
 
-// ============================================================================
-// MEDITATION TITLE MAPPING
-// ============================================================================
+// --- Meditation title mapping ---
 // Hard-coded mapping from Rails meditation titles to PayloadCMS meditation titles
 // This handles cases where titles do not match exactly between the two systems
 const RAILS_TO_PAYLOAD_MEDITATION_TITLES: Record<string, string> = {
@@ -74,9 +70,7 @@ export interface LexicalNode {
   [key: string]: any
 }
 
-// ============================================================================
-// HTML TO LEXICAL TEXT CONVERSION
-// ============================================================================
+// --- Html to lexical text conversion ---
 
 interface TextFormat {
   bold: boolean
@@ -308,9 +302,7 @@ function getTextFormat(format: TextFormat): number {
   return formatNum
 }
 
-// ============================================================================
-// LEXICAL NODE CREATORS
-// ============================================================================
+// --- Lexical node creators ---
 
 /**
  * Create a Lexical paragraph node
@@ -420,9 +412,7 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 11)
 }
 
-// ============================================================================
-// EDITORJS BLOCK CONVERTERS
-// ============================================================================
+// --- Editorjs block converters ---
 
 /**
  * Convert EditorJS paragraph block to Lexical
@@ -969,9 +959,7 @@ export function convertHeaderBlock(block: EditorJSBlock): LexicalNode | null {
   return createHeadingNode(text, tag)
 }
 
-// ============================================================================
-// MAIN CONVERSION FUNCTION
-// ============================================================================
+// --- Main conversion function ---
 
 /**
  * Convert EditorJS content to Lexical format

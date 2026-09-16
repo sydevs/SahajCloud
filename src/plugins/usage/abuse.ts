@@ -32,9 +32,7 @@ export const abuseScoreSchema = z.strictObject({
   }),
 })
 
-// ============================================================================
-// ABUSE SCORE CALCULATION
-// ============================================================================
+// --- Abuse score calculation ---
 
 /**
  * Calculate abuse score from usage data.

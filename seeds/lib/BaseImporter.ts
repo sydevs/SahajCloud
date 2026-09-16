@@ -31,9 +31,7 @@ import {
 import { ValidationReport } from './validationReport'
 import configPromise from '../../src/payload.config'
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// --- Types ---
 
 /**
  * Result of importing a single document
@@ -106,9 +104,7 @@ export interface SlugCollision {
 export type PreloadedDoc = { id: string | number; [key: string]: unknown }
 export type PreloadCache = Map<string, PreloadedDoc>
 
-// ============================================================================
-// BASE IMPORTER CLASS
-// ============================================================================
+// --- Base importer class ---
 
 export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImportOptions> {
   // Core dependencies (initialized in run())
@@ -143,9 +139,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     this.options = options
   }
 
-  // ============================================================================
-  // PUBLIC API
-  // ============================================================================
+  // --- Public api ---
 
   /**
    * Get the validation report for access to summary data
@@ -171,9 +165,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return this.currentOperation
   }
 
-  // ============================================================================
-  // PAGINATION METHODS
-  // ============================================================================
+  // --- Pagination methods ---
 
   /**
    * Get paginated slice of items
@@ -314,9 +306,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     // Default: no-op. Subclasses override to reconstruct their specific maps.
   }
 
-  // ============================================================================
-  // PRELOAD METHODS (for skip/update mode optimization)
-  // ============================================================================
+  // --- PRELOAD METHODS (for skip/update mode optimization) ---
 
   /**
    * Bulk fetch a collection for skip/update decisions. See the Preload
@@ -446,9 +436,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return this.preloadCache.get(collection)?.has(naturalKeyValue) ?? false
   }
 
-  // ============================================================================
-  // LIFECYCLE METHODS
-  // ============================================================================
+  // --- Lifecycle methods ---
 
   /**
    * Main entry point - handles initialization, execution, and cleanup
@@ -536,9 +524,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     }
   }
 
-  // ============================================================================
-  // INITIALIZATION
-  // ============================================================================
+  // --- Initialization ---
 
   private async setupCacheDirectory(): Promise<void> {
     await fs.mkdir(this.cacheDir, { recursive: true })
@@ -584,9 +570,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     await this.logger.success(`\nReport saved to: ${reportPath}`)
   }
 
-  // ============================================================================
-  // PROGRESS REPORTING
-  // ============================================================================
+  // --- Progress reporting ---
 
   /**
    * Send import event to callback (if provided)
@@ -657,9 +641,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     console.log(`  ${message}`)
   }
 
-  // ============================================================================
-  // IDEMPOTENT UPSERT OPERATIONS
-  // ============================================================================
+  // --- Idempotent upsert operations ---
 
   /**
    * Find or upsert a document by natural key(s)
@@ -1246,9 +1228,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     return undefined
   }
 
-  // ============================================================================
-  // RETRY & THROTTLING
-  // ============================================================================
+  // --- Retry & throttling ---
 
   /**
    * Small delay between database operations to reduce contention
@@ -1315,9 +1295,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     )
   }
 
-  // ============================================================================
-  // ERROR HANDLING
-  // ============================================================================
+  // --- Error handling ---
 
   /**
    * Add an error to the report and log it
@@ -1366,9 +1344,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     }
   }
 
-  // ============================================================================
-  // SUMMARY PRINTING
-  // ============================================================================
+  // --- Summary printing ---
 
   /**
    * Print summary using ValidationReport data
@@ -1404,9 +1380,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 }
 
-// ============================================================================
-// FACTORY FUNCTION
-// ============================================================================
+// --- Factory function ---
 
 /**
  * Helper to parse CLI args and create options object

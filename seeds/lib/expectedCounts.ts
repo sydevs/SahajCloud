@@ -147,9 +147,7 @@ export function verifyCountsForScript(
   return { results, allPassed }
 }
 
-// ============================================================================
-// COLLECTION METADATA FOR PAGINATION
-// ============================================================================
+// --- Collection metadata for pagination ---
 
 /**
  * Collection metadata per script (in dependency order)

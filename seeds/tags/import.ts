@@ -27,15 +27,11 @@ import * as path from 'path'
 import { BaseImporter, BaseImportOptions, readCacheText, writeCache } from '../lib'
 import { safeBufferFromUint8Array } from '../lib/runtime'
 
-// ============================================================================
-// CONFIGURATION
-// ============================================================================
+// --- Configuration ---
 
 const CACHE_DIR = path.resolve(process.cwd(), 'seeds/cache/tags')
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// --- Types ---
 
 interface TagData {
   title: string
@@ -45,9 +41,7 @@ interface TagData {
   timings?: ('morning' | 'afternoon' | 'evening' | 'night')[]
 }
 
-// ============================================================================
-// TAG DATA CONSTANTS
-// ============================================================================
+// --- Tag data constants ---
 
 const MEDITATION_TAGS: TagData[] = [
   {
@@ -293,17 +287,13 @@ const SONG_TAGS: TagData[] = [
   },
 ]
 
-// ============================================================================
-// TAGS IMPORTER CLASS
-// ============================================================================
+// --- Tags importer class ---
 
 export class TagsImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'Meditation & Song Tags'
   protected readonly cacheDir = CACHE_DIR
 
-  // ============================================================================
-  // STATIC FACTORY FOR MIGRATIONS
-  // ============================================================================
+  // --- Static factory for migrations ---
 
   /**
    * Run the importer from a migration with an external Payload instance
@@ -317,9 +307,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
     await importer.run()
   }
 
-  // ============================================================================
-  // LIFECYCLE
-  // ============================================================================
+  // --- Lifecycle ---
 
   /**
    * Preload collections for skip mode optimization.
@@ -335,18 +323,14 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
     ])
   }
 
-  // ============================================================================
-  // MAIN IMPORT LOGIC
-  // ============================================================================
+  // --- Main import logic ---
 
   protected async import(): Promise<void> {
     await this.importUserChoices()
     await this.importSongTags()
   }
 
-  // ============================================================================
-  // MEDITATION TAGS
-  // ============================================================================
+  // --- Meditation tags ---
 
   private async importUserChoices(): Promise<void> {
     const total = MEDITATION_TAGS.length
@@ -390,9 +374,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // SONG TAGS
-  // ============================================================================
+  // --- Song tags ---
 
   private async importSongTags(): Promise<void> {
     const total = SONG_TAGS.length
@@ -435,9 +417,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // SVG PROCESSING HELPERS
-  // ============================================================================
+  // --- Svg processing helpers ---
 
   /**
    * Download SVG from URL or load from local file (local: prefix)

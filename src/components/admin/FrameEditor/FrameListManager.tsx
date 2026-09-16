@@ -13,9 +13,7 @@ import { usePlaybackTime, useSeekToTime } from './hooks'
 import { baseStyles, listManagerStyles } from './styles'
 import { formatTime, getFrameDisplayLabel, parseTime, validateTimestamp } from './utils'
 
-// ============================================================================
-// FrameItem Subcomponent
-// ============================================================================
+// --- FrameItem Subcomponent ---
 
 interface FrameItemProps {
   frame: KeyframeData
@@ -104,9 +102,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
   )
 }
 
-// ============================================================================
-// FrameListManager Component
-// ============================================================================
+// --- FrameListManager Component ---
 
 /**
  * FrameListManager - Custom field component for managing meditation frames

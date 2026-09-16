@@ -10,9 +10,7 @@ import type { CollectionSlug, FieldAccess, GlobalSlug, Operation, TypedUser } fr
 import type { LocaleCode } from '@/lib/locales'
 import type { Client, Manager, RoleSlug } from '@/payload-types'
 
-// ============================================================================
-// Permission Level Type
-// ============================================================================
+// --- Permission Level Type ---
 
 /**
  * Permission operations supported by the access system
@@ -27,9 +25,7 @@ export type PermissionLevel = Operation | 'translate'
  */
 export type ContentSlug = CollectionSlug | GlobalSlug
 
-// ============================================================================
-// Bypass Permission Function
-// ============================================================================
+// --- Bypass Permission Function ---
 
 /**
  * Unified bypass permission function type.
@@ -48,9 +44,7 @@ export type BypassPermissionFunction = (
   },
 ) => 'allow' | 'deny' | 'continue'
 
-// ============================================================================
-// User Types
-// ============================================================================
+// --- User Types ---
 
 /**
  * Generic authenticated user type for access checking.
@@ -73,9 +67,7 @@ export type TypedAuthUser = TypedUser &
     roles?: RoleSlug[] | Record<LocaleCode, RoleSlug[]>
   }
 
-// ============================================================================
-// Permission Check Arguments
-// ============================================================================
+// --- Permission Check Arguments ---
 
 /**
  * Which of a manager's per-locale role sets a permission check evaluates.
@@ -114,9 +106,7 @@ export interface PermissionCheckArgs {
   field?: { localized?: boolean }
 }
 
-// ============================================================================
-// Field Access Config Type
-// ============================================================================
+// --- Field Access Config Type ---
 
 /**
  * Field access configuration type for field-level access control

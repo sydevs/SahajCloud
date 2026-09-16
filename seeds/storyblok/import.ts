@@ -35,15 +35,11 @@ import {
 } from '../lib'
 import { createBlockNode } from '../lib/lexicalConverter'
 
-// ============================================================================
-// CONFIGURATION
-// ============================================================================
+// --- Configuration ---
 
 const CACHE_DIR = path.resolve(process.cwd(), 'seeds/cache/storyblok')
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// --- Types ---
 
 interface StoryblokStory {
   id: number
@@ -60,9 +56,7 @@ interface StoryblokResponse {
   rels?: StoryblokStory[]
 }
 
-// ============================================================================
-// STORYBLOK IMPORTER CLASS
-// ============================================================================
+// --- Storyblok importer class ---
 
 export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'Storyblok Path Steps'
@@ -84,9 +78,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     this.token = token
   }
 
-  // ============================================================================
-  // STATIC FACTORY METHOD (for migration use)
-  // ============================================================================
+  // --- STATIC FACTORY METHOD (for migration use) ---
 
   /**
    * Run the importer from a PayloadCMS migration.
@@ -112,9 +104,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     await importer.run()
   }
 
-  // ============================================================================
-  // LIFECYCLE
-  // ============================================================================
+  // --- Lifecycle ---
 
   protected async setup(): Promise<void> {
     if (!this.options.dryRun) {
@@ -236,9 +226,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('✓ Image tags ready')
   }
 
-  // ============================================================================
-  // MAIN IMPORT LOGIC
-  // ============================================================================
+  // --- Main import logic ---
 
   /**
    * Reconstruct ID maps from database when resuming paginated import
@@ -271,9 +259,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // STORYBLOK API
-  // ============================================================================
+  // --- Storyblok api ---
 
   private async fetchStoryblokData(endpoint: string): Promise<StoryblokResponse> {
     const url = `https://api.storyblok.com/v2/cdn/${endpoint}${endpoint.includes('?') ? '&' : '?'}token=${this.token}`
@@ -318,9 +304,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     return responseData.story
   }
 
-  // ============================================================================
-  // LESSONS IMPORT
-  // ============================================================================
+  // --- Lessons import ---
 
   private async importLessons(stories: StoryblokStory[]): Promise<void> {
     // Apply pagination if enabled for lessons collection
@@ -566,9 +550,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // LECTURE HELPERS
-  // ============================================================================
+  // --- Lecture helpers ---
 
   /**
    * Upsert a Lecture keyed on the NV Vimeo URL. Returns the lecture ID for
@@ -602,9 +584,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     return lectureResult.doc.id
   }
 
-  // ============================================================================
-  // MEDIA HELPERS
-  // ============================================================================
+  // --- Media helpers ---
 
   private async createMediaFromUrl(
     url: string,
@@ -663,9 +643,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     return null
   }
 
-  // ============================================================================
-  // FILE ATTACHMENT HELPERS
-  // ============================================================================
+  // --- File attachment helpers ---
 
   /**
    * Creates a file attachment for audio, video, and image files.
@@ -728,9 +706,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // TEXT PROCESSING HELPERS
-  // ============================================================================
+  // --- Text processing helpers ---
 
   private processTextField(text: string): string {
     return text
@@ -764,9 +740,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       .replace(/\\'/g, "'")
   }
 
-  // ============================================================================
-  // MEDITATION LOOKUP
-  // ============================================================================
+  // --- Meditation lookup ---
 
   private findMeditationByTitle(title: string): number | null {
     const searchLower = title.toLowerCase()
@@ -790,9 +764,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     return null
   }
 
-  // ============================================================================
-  // SUBTITLE PARSING
-  // ============================================================================
+  // --- Subtitle parsing ---
 
   private async parseSubtitles(url: string): Promise<Subtitles | undefined> {
     const filename = path.basename(url.split('?')[0])
@@ -881,9 +853,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     return typeof value === 'object' && value !== null && !Array.isArray(value)
   }
 
-  // ============================================================================
-  // LEXICAL CONVERSION
-  // ============================================================================
+  // --- Lexical conversion ---
 
   private async convertLexicalBlocks(
     blocks: Record<string, unknown>[],
@@ -1038,9 +1008,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // UTILITY HELPERS
-  // ============================================================================
+  // --- Utility helpers ---
 
   private extractUnitFromSlug(slug: string): number {
     const match = slug.match(/step-(\d+)/)

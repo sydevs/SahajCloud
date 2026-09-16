@@ -47,9 +47,7 @@ import {
   writeCache,
 } from '../lib'
 
-// ============================================================================
-// FILE DATA TYPE
-// ============================================================================
+// --- File data type ---
 
 interface FileData {
   data: Buffer
@@ -58,9 +56,7 @@ interface FileData {
   mimetype: string
 }
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// --- Types ---
 
 interface ImportedData {
   tags: Array<{ id: number; name: string }>
@@ -106,9 +102,7 @@ interface ImportedData {
   }>
 }
 
-// ============================================================================
-// CONFIGURATION
-// ============================================================================
+// --- Configuration ---
 
 const CACHE_DIR = path.resolve(process.cwd(), 'seeds/cache/meditations')
 
@@ -117,9 +111,7 @@ const CACHE_DIR = path.resolve(process.cwd(), 'seeds/cache/meditations')
  */
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/sydevs/SahajCloud/main'
 
-// ============================================================================
-// TAG MAPPING CONSTANTS
-// ============================================================================
+// --- Tag mapping constants ---
 // Maps legacy tag names from PostgreSQL to predefined tag slugs from seeds/tags/import.ts
 // These mappings ensure meditations use the same tags that the tags import script creates
 
@@ -296,17 +288,13 @@ const LEGACY_TO_MUSIC_TAG_SLUG: Record<string, string> = {
   evening: 'evening',
 }
 
-// ============================================================================
-// MEDITATIONS IMPORTER CLASS
-// ============================================================================
+// --- Meditations importer class ---
 
 export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'Meditations'
   protected readonly cacheDir = CACHE_DIR
 
-  // ============================================================================
-  // STATIC FACTORY METHOD (for migration use)
-  // ============================================================================
+  // --- STATIC FACTORY METHOD (for migration use) ---
 
   /**
    * Run the importer from a PayloadCMS migration.
@@ -321,9 +309,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     await importer.run()
   }
 
-  // ============================================================================
-  // PRIVATE FIELDS
-  // ============================================================================
+  // --- Private fields ---
 
   private mediaUploader!: MediaUploader
   private placeholderMediaId: number | string | null = null
@@ -349,9 +335,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   // Preload cache for songs lookup (composite key: "title|albumId")
   private songCache: Map<string, number | string> = new Map()
 
-  // ============================================================================
-  // LIFECYCLE
-  // ============================================================================
+  // --- Lifecycle ---
 
   protected async setup(): Promise<void> {
     if (!this.options.dryRun) {
@@ -543,9 +527,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info(`✓ Rebuilt ${userChoiceMapped} user choices, ${musicMapped} music tags`)
   }
 
-  // ============================================================================
-  // MAIN IMPORT LOGIC
-  // ============================================================================
+  // --- Main import logic ---
 
   protected async import(): Promise<void> {
     // Load data from PostgreSQL
@@ -646,9 +628,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     )
   }
 
-  // ============================================================================
-  // DATA LOADING
-  // ============================================================================
+  // --- Data loading ---
 
   private async loadData(): Promise<ImportedData> {
     await this.logger.info('Loading data from JSON...')
@@ -690,9 +670,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     )
   }
 
-  // ============================================================================
-  // FILE OPERATIONS
-  // ============================================================================
+  // --- File operations ---
 
   /**
    * Download a file, caching to disk for faster re-runs.
@@ -811,9 +789,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       .filter(Boolean)
   }
 
-  // ============================================================================
-  // TAG SETUP
-  // ============================================================================
+  // --- Tag setup ---
 
   /**
    * Setup image tags for categorizing meditation thumbnails.
@@ -961,9 +937,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // NARRATORS IMPORT
-  // ============================================================================
+  // --- Narrators import ---
 
   private async importNarrators(): Promise<void> {
     await this.logger.info('\n=== Importing Narrators ===')
@@ -989,9 +963,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // TAG MAPPING
-  // ============================================================================
+  // --- Tag mapping ---
 
   private async importTags(
     tags: ImportedData['tags'],
@@ -1079,9 +1051,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     )
   }
 
-  // ============================================================================
-  // FRAMES IMPORT
-  // ============================================================================
+  // --- Frames import ---
 
   /**
    * Maps a legacy `category` string from the source data to the post-rename
@@ -1364,9 +1334,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // ALBUM HELPER
-  // ============================================================================
+  // --- Album helper ---
 
   /**
    * Load existing albums from wemeditate import into the albumsByArtist map.
@@ -1511,9 +1479,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // SONGS IMPORT
-  // ============================================================================
+  // --- Songs import ---
 
   private async importSongs(
     musics: ImportedData['musics'],
@@ -1646,9 +1612,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // ============================================================================
-  // MEDITATIONS IMPORT
-  // ============================================================================
+  // --- Meditations import ---
 
   /**
    * Generate a unique label for meditations that share the same base title.

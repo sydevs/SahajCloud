@@ -15,9 +15,7 @@ import type { ImageTag } from '@/types/tags'
 
 // (no runtime imports needed)
 
-// ============================================================================
-// ERRORS
-// ============================================================================
+// --- Errors ---
 
 /**
  * Custom error for media upload failures.
@@ -34,9 +32,7 @@ export class MediaUploadError extends Error {
   }
 }
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// --- Types ---
 
 export interface MediaUploadOptions {
   alt?: string
@@ -58,9 +54,7 @@ export interface MediaUploadResult {
   wasReused: boolean
 }
 
-// ============================================================================
-// MEDIA UPLOADER
-// ============================================================================
+// --- Media uploader ---
 
 export class MediaUploader {
   private payload: Payload

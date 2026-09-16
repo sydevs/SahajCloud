@@ -10,9 +10,7 @@ import { z } from 'zod'
 
 import { serverEnv } from '@/lib/env'
 
-// =============================================================================
-// Types
-// =============================================================================
+// --- Types ---
 
 export interface NirmalaVidyaVideoData {
   title: string
@@ -22,9 +20,7 @@ export interface NirmalaVidyaVideoData {
   duration: number | null
 }
 
-// =============================================================================
-// Response Validation Schema (Zod)
-// =============================================================================
+// --- Response Validation Schema (Zod) ---
 
 export const NirmalaVidyaResponseSchema = z.object({
   name: z.string(),
@@ -48,9 +44,7 @@ export const NirmalaVidyaResponseSchema = z.object({
   duration: z.number().optional(),
 })
 
-// =============================================================================
-// Utilities
-// =============================================================================
+// --- Utilities ---
 
 /**
  * Extracts the numeric Vimeo video ID from a Vimeo URL.

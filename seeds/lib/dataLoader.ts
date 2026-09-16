@@ -30,9 +30,7 @@ export interface AssetOptions {
   cachePath?: string
 }
 
-// ============================================================================
-// DATA FILE LOADING
-// ============================================================================
+// --- Data file loading ---
 
 /**
  * Load a data file (JSON, etc.) from the filesystem.
@@ -59,9 +57,7 @@ export async function loadJsonData<T>(source: DataSource): Promise<T> {
   return JSON.parse(content) as T
 }
 
-// ============================================================================
-// ASSET FETCHING
-// ============================================================================
+// --- Asset fetching ---
 
 /**
  * Fetch an asset (image, audio, etc.) with optional disk caching.
@@ -97,9 +93,7 @@ export async function fetchAsset(url: string, options?: AssetOptions): Promise<B
   return safeBufferFrom(await response.arrayBuffer())
 }
 
-// ============================================================================
-// CACHE UTILITIES
-// ============================================================================
+// --- Cache utilities ---
 
 /**
  * Check if a local cache file exists and has content.

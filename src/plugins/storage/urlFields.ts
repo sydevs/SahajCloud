@@ -15,9 +15,7 @@ import { getR2Url } from './r2NativeAdapter'
 const getLocalFallbackUrl = (collection: CollectionSlug, filename: string): string =>
   `/api/${collection}/file/${filename}`
 
-// ============================================================================
-// Types
-// ============================================================================
+// --- Types ---
 
 /**
  * Storage adapter type for URL generation

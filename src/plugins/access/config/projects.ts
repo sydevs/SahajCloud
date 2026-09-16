@@ -16,9 +16,7 @@ import type { CollectionSlug } from 'payload'
 
 import type { ProjectSlug } from '@/payload-types'
 
-// =============================================================================
-// Internal Configuration (NOT exported - use helper functions)
-// =============================================================================
+// --- Internal Configuration (NOT exported - use helper functions) ---
 
 /**
  * Project Configuration
@@ -100,9 +98,7 @@ const ADMIN_VIEW_LABEL = 'Sahaj Cloud'
 const ADMIN_VIEW_ICON = '/images/sahaj-cloud.svg'
 const ADMIN_VIEW_EMAIL_ICON = '/images/sahaj-cloud.png'
 
-// =============================================================================
-// Computed Lookup Tables (internal only, computed at module load)
-// =============================================================================
+// --- Computed Lookup Tables (internal only, computed at module load) ---
 
 /**
  * Project to collections mapping (includes globals)
@@ -153,9 +149,7 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
   return Array.from(allCollections)
 })()
 
-// =============================================================================
-// Restricted collections
-// =============================================================================
+// --- Restricted collections ---
 
 /**
  * Collections that carry personal data and must NEVER fall under the
@@ -184,9 +178,7 @@ export function isRestrictedCollection(collection: ContentSlug): boolean {
   return RESTRICTED_COLLECTIONS.has(collection)
 }
 
-// =============================================================================
-// Type Generation Helper
-// =============================================================================
+// --- Type Generation Helper ---
 
 /**
  * Get array of project slugs for TypeScript type generation
@@ -203,9 +195,7 @@ export function getProjectSlugs(): ProjectSlug[] {
   return Object.keys(PROJECTS) as ProjectSlug[]
 }
 
-// =============================================================================
-// UI/Branding Functions
-// =============================================================================
+// --- UI/Branding Functions ---
 
 /**
  * Get icon path for a project (or default for admin view)
@@ -276,9 +266,7 @@ export function isValidProject(value: string | null): value is ProjectSlug | nul
   return value === null || Object.hasOwn(PROJECTS, value)
 }
 
-// =============================================================================
-// Access Control Functions
-// =============================================================================
+// --- Access Control Functions ---
 
 /**
  * Get collections available in a project (includes globals)

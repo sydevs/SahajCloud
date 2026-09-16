@@ -9,9 +9,7 @@
  * - roles.ts: Role configuration and helpers
  */
 
-// =============================================================================
-// Project Configuration & Helpers
-// =============================================================================
+// --- Project Configuration & Helpers ---
 
 export {
   // Type generation
@@ -29,9 +27,7 @@ export {
   isRestrictedCollection,
 } from './projects'
 
-// =============================================================================
-// Role Configuration & Helpers
-// =============================================================================
+// --- Role Configuration & Helpers ---
 
 export {
   // Type generation
