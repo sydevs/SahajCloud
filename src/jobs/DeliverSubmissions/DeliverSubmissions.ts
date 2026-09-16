@@ -1,27 +1,12 @@
-import type { DeliveryContext, DeliveryOutcome } from './types'
 import type { TaskConfig } from 'payload'
 
 import { appendLogEntry, asLog } from '@/fields'
 import type { UserSubmission } from '@/payload-types'
 
-import { deliverContact } from './deliverContact'
-import { deliverProposal } from './deliverProposal'
-import { deliverRegistration } from './deliverRegistration'
-import { deliverSubscribe } from './deliverSubscribe'
+import { DELIVERERS } from './deliverers'
 
 /** How many attempts a retryable failure gets, beyond the first. */
 const RETRIES = 3
-
-/** One delivery per type. The dispatch is the whole of this table. */
-const DELIVERERS: Record<
-  UserSubmission['type'],
-  (context: DeliveryContext) => Promise<DeliveryOutcome>
-> = {
-  contact: deliverContact,
-  subscribe: deliverSubscribe,
-  registration: deliverRegistration,
-  proposal: deliverProposal,
-}
 
 /**
  * Deliver one screened submission, and record the attempt whatever it produced.
@@ -42,6 +27,11 @@ const DELIVERERS: Record<
  *   one that could not — see `DeliveryOutcome.retryable`;
  * - **a `failed` status that is not terminal.** It means the decision went fine
  *   and the delivery did not, which is the one state nobody else would notice.
+ *
+ * **Nothing below branches on the submission type.** The per-type work is a
+ * lookup in `DELIVERERS` (`./deliverers`), so everything in this handler is
+ * written once and a new type inherits all of it — see that table for what
+ * adding one costs.
  *
  * ⚠ **The row is marked before the throw**, so an admin sees `failed` *now*
  * while the throw still earns the retry. The job runner hands each task an
@@ -74,6 +64,8 @@ export const DeliverSubmissions: TaskConfig<'deliverSubmission'> = {
       return { output: { status: submission.status } }
     }
 
+    // Looked up, never branched on: the registry is total over the type union,
+    // so there is no "unknown type" case for this handler to get wrong.
     const outcome = await DELIVERERS[submission.type]({ req, submission })
 
     const entry: Record<string, string> = outcome.ok

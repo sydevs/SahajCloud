@@ -36,6 +36,15 @@ export async function deliverContact({ req, submission }: DeliveryContext): Prom
     // Every transport failure is retryable: the mail server being unavailable
     // is the failure this whole queue exists to survive, and there is no 4xx
     // equivalent from `payload.sendEmail` to tell a permanent refusal apart.
+    //
+    // ⚠ **A throw is the only signal there is, and Resend does not raise one.**
+    // `payload.sendEmail` resolves to `unknown`, so under the nodemailer/Mailpit
+    // adapter a dead transport throws and lands here, while in production
+    // `resendAdapter` logs, captures to Sentry and returns normally by design
+    // (`@/plugins/email/resendAdapter.ts:93`, `docs/rules/email.md`) — so a
+    // dropped message reads as delivered. Narrowing that is a change to the
+    // adapter's contract, not to this file; `DeliveryOutcome` is already the
+    // shape that would carry the answer.
     return {
       ok: false,
       detail: error instanceof Error ? error.message : String(error),
