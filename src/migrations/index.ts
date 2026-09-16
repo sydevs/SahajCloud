@@ -66,6 +66,7 @@ import * as migration_20260914_172100_user_submissions from './20260914_172100_u
 import * as migration_20260914_175014 from './20260914_175014';
 import * as migration_20260915_162816_mailing_list_config from './20260915_162816_mailing_list_config';
 import * as migration_20260916_045509_spam_submission_status from './20260916_045509_spam_submission_status';
+import * as migration_20260916_140157_port_proposal_review from './20260916_140157_port_proposal_review';
 
 export const migrations = [
   {
@@ -406,6 +407,11 @@ export const migrations = [
   {
     up: migration_20260916_045509_spam_submission_status.up,
     down: migration_20260916_045509_spam_submission_status.down,
-    name: '20260916_045509_spam_submission_status'
+    name: '20260916_045509_spam_submission_status',
+  },
+  {
+    up: migration_20260916_140157_port_proposal_review.up,
+    down: migration_20260916_140157_port_proposal_review.down,
+    name: '20260916_140157_port_proposal_review'
   },
 ];
