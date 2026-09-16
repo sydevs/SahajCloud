@@ -609,8 +609,14 @@ Three things the wrapper does that the plugin options cannot:
 
 ⚠ **Every collection-wide admin slot here serves four intakes.** The review
 components gate on `type === 'proposal'` themselves and fall through to the
-ordinary Save otherwise; `livePreview.url` returns no path for the other three.
-A new slot owes the same branch.
+ordinary Save otherwise; `livePreview.url` sends the other three to the
+explanation page, with a reason that fits a row nobody reviews. A new slot owes
+the same branch — the field hooks behind one included, since `admin.condition`
+hides a field without stopping its hooks.
+
+And an option that takes a **value** rather than a function cannot branch at
+all, so it has to suit the three rather than the one: `openByDefault` is absent
+for that reason, not by oversight.
 
 Default email `contact@sydevelopers.com` (the fallback recipient for a contact
 form with none set).
