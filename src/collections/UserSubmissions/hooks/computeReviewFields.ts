@@ -12,7 +12,7 @@ import { buildProposedChanges } from '../lifecycle/proposedChanges'
  *
  * - **`previewEvent`** — the event as this submission would leave it. Payload's
  *   live preview posts form state into the Atlas widget's iframe, so this field
- *   *is* the transport; the widget never reads `event-submissions` (it can't —
+ *   *is* the transport; the widget never reads the submission itself (it can't —
  *   the collection is restricted to create-only for API clients).
  * - **`proposedChanges`** — the same merge, diffed against the target, so the
  *   reviewer sees what would actually change rather than a wall of values.

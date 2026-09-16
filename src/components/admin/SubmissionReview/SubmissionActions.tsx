@@ -85,7 +85,7 @@ const SubmissionActions: React.FC = () => {
         if (action === 'accept' && modified) await submit()
         // No locale, no request. Sending one without it resolves the default
         // locale server-side and reproduces the #701 403 silently — see
-        // `eventSubmissionActionUrl`.
+        // `submissionActionUrl`.
         const url = submissionActionUrl(id, action, locale)
         if (!url) {
           toast.error('Could not apply that action.')

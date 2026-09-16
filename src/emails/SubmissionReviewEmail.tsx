@@ -9,7 +9,7 @@ export interface SubmissionReviewDetail {
   value: string
 }
 
-interface EventSubmissionReviewEmailProps {
+interface SubmissionReviewEmailProps {
   brand: EmailBrand
   /** `new-event` — creates a listing on accept; `event-update` — patches one. */
   kind: 'new-event' | 'event-update'
@@ -31,7 +31,7 @@ interface EventSubmissionReviewEmailProps {
  * mutates on this link (mail scanners prefetch URLs); the manager decides on
  * the page.
  */
-export function EventSubmissionReviewEmail({
+export function SubmissionReviewEmail({
   brand,
   kind,
   eventTitle,
@@ -39,7 +39,7 @@ export function EventSubmissionReviewEmail({
   submitterNote,
   details,
   reviewUrl,
-}: EventSubmissionReviewEmailProps) {
+}: SubmissionReviewEmailProps) {
   const heading = kind === 'new-event' ? 'New event submitted for review' : 'Event update proposed'
 
   return (
@@ -86,4 +86,4 @@ export function EventSubmissionReviewEmail({
   )
 }
 
-export default EventSubmissionReviewEmail
+export default SubmissionReviewEmail

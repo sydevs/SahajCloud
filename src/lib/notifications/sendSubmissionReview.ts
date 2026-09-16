@@ -2,8 +2,8 @@ import type { Payload } from 'payload'
 
 import { createElement } from 'react'
 
-import type { SubmissionReviewDetail } from '@/emails/EventSubmissionReviewEmail'
-import { EventSubmissionReviewEmail } from '@/emails/EventSubmissionReviewEmail'
+import type { SubmissionReviewDetail } from '@/emails/SubmissionReviewEmail'
+import { SubmissionReviewEmail } from '@/emails/SubmissionReviewEmail'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
@@ -35,6 +35,6 @@ export async function sendSubmissionReview(args: {
       props.kind === 'new-event'
         ? 'New event submission to review'
         : `Proposed changes to “${props.eventTitle ?? 'an event'}”`,
-    html: await renderEmail(createElement(EventSubmissionReviewEmail, { brand, ...props })),
+    html: await renderEmail(createElement(SubmissionReviewEmail, { brand, ...props })),
   })
 }

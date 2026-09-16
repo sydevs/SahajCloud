@@ -198,16 +198,13 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
       // Order matters: the reach check refuses a forbidden target before
       // `prepareUserSubmission` upserts a `users` row for its sender.
       //
-      // `validateProposal` is `event-submissions`' own gate, reused. `proposed`
-      // is a patch of real Events fields, so an ungated public POST stores what
-      // Phase 3's accept path would later apply to an Event with a manager's
+      // `proposed` is a patch of real Events fields, so an ungated public POST
+      // stores what the accept path later applies to an Event with a manager's
       // authority behind it — a submitter who could set `verificationStage` or
       // `registrationNotificationEmail` would be minting a verified listing, or
       // redirecting registrants' answers to an inbox of their choosing. The
       // gate derives its allowlist from the live Events config, so there is
-      // nothing here to keep in step. It moves to a shared home in Phase 3,
-      // when `event-submissions` is deleted; duplicating it now would give the
-      // rule two definitions to reconcile at that merge.
+      // nothing here to keep in step.
       hooks: {
         // `gateRegistration` before `prepareUserSubmission` — both are
         // `beforeValidate`, and Payload runs every one of those ahead of every
