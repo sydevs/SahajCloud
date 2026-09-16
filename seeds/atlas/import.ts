@@ -1385,10 +1385,8 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             status: 'accepted',
           },
           // These events ended, or went external, years ago, so every row here
-          // would trip the create gate — which is why that gate runs on a
-          // client caller only. A Local API import has no `req.user`, so it
-          // never reaches the gate, and `skipRegistrationGate` is the escape
-          // for a caller that would.
+          // would trip the create gate. It runs on a client caller only, and a
+          // Local API import carries no client user, so it never reaches it.
           { identifier: reg.uuid, current: offset + i + 1, total },
         )
       } catch (error) {
