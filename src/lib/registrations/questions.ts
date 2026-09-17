@@ -42,12 +42,11 @@ export interface RegistrationAnswer {
  * configured question names, each answer a string, no other keys allowed.
  * Derived from `EVENT_REGISTRATION_QUESTIONS` so it can't drift.
  *
- * ⚠ **Unwired since #801, and kept only because #809 was comment-only.** It was
- * `Registrations.questions`'s `jsonSchema`, which Payload used to BOTH validate
- * on write AND generate the field's TypeScript type. The intake stores answers
- * as `submissionData` pairs instead, bounded by `UserSubmissions/submissionData.ts`,
- * and refuses a bad one as `submission_data_invalid` (400). #811 decides whether
- * this goes.
+ * ⚠ **Unwired since #801.** It was `Registrations.questions`'s `jsonSchema`, which
+ * Payload used to BOTH validate on write AND generate the field's TypeScript type.
+ * The intake stores answers as `submissionData` pairs instead, bounded by
+ * `UserSubmissions/submissionData.ts`, and refuses a bad one as
+ * `submission_data_invalid` (400). #811 decides whether this goes.
  *
  * A schema wired this way compiles an Ajv `new Function()` validator — fine on
  * Railway/Node. Do not reinstate the old warning that it breaks under Cloudflare
