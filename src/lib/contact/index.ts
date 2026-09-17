@@ -16,12 +16,9 @@ export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'contact@s
  * Envelope `From` for mail whose recipient is a member of the public — a
  * registrant's confirmation, reminder, or follow-up.
  *
- * Separate from `CONTACT_EMAIL` because the two answer different questions. An
- * envelope sender must be a domain verified in Resend, which silently drops a
- * send from anything else (#790); the contact address is what a human is
- * invited to write to, and stays `contact@sydevelopers.com`. Splitting the
- * sender by audience is what lets seeker mail carry the We Meditate identity
- * while manager mail keeps the developers' one.
+ * Separate from `CONTACT_EMAIL` because a sender must be a domain verified in
+ * Resend, which silently drops a send from anything else (#790), while the
+ * contact address is only what a human is invited to write to.
  */
 export const USER_EMAIL_FROM = process.env.NEXT_PUBLIC_USER_EMAIL_FROM || 'admin@wemeditate.com'
 

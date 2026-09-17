@@ -12,7 +12,7 @@ The app switches email providers by environment:
 |---|---|---|
 | Development & PR previews | Mailpit, via `SMTP_URL` | Captures outbound mail. Nothing is delivered. Messages keep a stable `/view/<id>` link for **7 days**, so a PR reviewer can open them. `SMTP_URL` / `MAILPIT_URL` / `MAILPIT_UI_AUTH` live in `.env.claude.local`. From `dev@wemeditate.com`. |
 | Anywhere else, with no `SMTP_URL` | Disabled, with a warning | No silent fallback transport — see below. |
-| Production | Resend (transactional API) | Custom adapter at `src/plugins/email/resendAdapter.ts`. From `admin@wemeditate.com` (registrants) or `contact@sydevelopers.com` (managers) — see below. Free tier: 3,000 emails/month. |
+| Production | Resend (transactional API) | Custom adapter at `src/plugins/email/resendAdapter.ts`. `From` splits by audience — see below. Free tier: 3,000 emails/month. |
 | Test | Disabled | Avoids Payload model conflicts under parallel test runs. Test email logic separately, without a full Payload boot. |
 
 ## The envelope sender splits by audience, and is not the contact address
@@ -138,7 +138,7 @@ Email glue lives in the plugin (`@/plugins/email`). Only JSX templates live in `
 
 - **Branding is per-project** by default: `getEmailBrand(project)` composes `{ productName, colors, iconUrl }`, defaulting to `wemeditate-web`. A template takes branding as a prop, never a hardcoded color: either `project?: ProjectSlug` (resolved inside the template) when it is the only consumer, or `brand: EmailBrand` (resolved once by the sender and passed down) when the sender also needs it — e.g. for the `From` name — so header and body can't resolve to different brands.
 - **Registrant mail is branded per client service**: `getClientEmailBrand(client)` builds the same `EmailBrand` shape from a `Clients` doc, falling back field-by-field to the `sahaj-atlas` project brand. Read the client at `depth >= 1` — the logo needs an explicit `format=png` variant, since the default `auto` negotiates WebP/AVIF from headers an email client never sends, and Outlook renders neither.
-- **Sending as a client service is not possible.** Resend verifies senders per domain, so `From` stays one of the two sender constants with the client name as display name. The client's `supportEmail` rides on `Reply-To`.
+- **Sending as a client service is not possible.** Resend verifies senders per domain, so `From` stays a sender constant (above) with the client name as display name. The client's `supportEmail` rides on `Reply-To`.
 - **Preview**: render a template in a unit test (`tests/unit/email-templates.spec.ts`), or run `pnpm exec email dev` for the `react-email` CLI's local preview. To see a real message in a real client — subject, `From`, `Reply-To`, the plain-text part, attachments — use the Mailpit preview scripts, which drive the real send path so they can't drift from production:
 
   ```bash

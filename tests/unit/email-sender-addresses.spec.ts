@@ -1,39 +1,29 @@
 /**
  * Which envelope `From` each transactional sender uses.
  *
- * The addresses diverge by **audience**, and the `to:` of each send is what
- * decides it: registrant mail goes out as `USER_EMAIL_FROM`, manager and
- * reviewer mail as `MANAGER_EMAIL_FROM` (#790). Nothing else in the message
- * carries that distinction, so a repoint to the wrong constant is invisible
- * outside a header — hence a spec per sender rather than a shared helper.
- *
- * Pure: `payload` is a stub, so there is no bootstrap, no DB and no SMTP.
- * `findGlobal` rejects on purpose — `resolveEmailStrings` then falls back to
- * the English defaults, which is all these assertions need.
+ * The addresses diverge by **audience**, and the `to:` of each send decides it:
+ * registrant mail goes out as `USER_EMAIL_FROM`, manager and reviewer mail as
+ * `MANAGER_EMAIL_FROM` (#790). Nothing in the body carries that distinction, so
+ * a sender repointed at the wrong constant is invisible outside a header —
+ * every row below therefore asserts the recipient beside the sender, since the
+ * recipient is the reason the sender is what it is.
  */
-import { describe, expect, it, vi } from 'vitest'
+import type { Payload } from 'payload'
 
+import { describe, expect, it } from 'vitest'
+
+import { sendRegistrationDigest } from '@/jobs/RegistrationNotifications/sendRegistrationDigest'
+import { sendSessionReminder } from '@/jobs/RegistrationNotifications/sendSessionReminder'
 import { MANAGER_EMAIL_FROM, USER_EMAIL_FROM } from '@/lib/contact'
+import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
+import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
+import { sendSubmissionReview } from '@/lib/notifications/sendSubmissionReview'
 import type { Event } from '@/payload-types'
 
-type SentMessage = { to: string; from: string; subject: string }
+import { stubEmailPayload } from '../utils/sendEmailStub'
 
-/**
- * A stub `payload`. `secret` is a real-length string because
- * `signUnsubscribeToken` derives a key from it.
- */
-function fakePayload() {
-  const sendEmail = vi.fn(async (_message: SentMessage) => undefined)
-  const payload = {
-    sendEmail,
-    findGlobal: vi.fn(async () => {
-      throw new Error('no translations global in the unit lane')
-    }),
-    logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-    secret: 'test-secret-key-with-32-chars-minimum',
-  }
-  return { payload: payload as never, sendEmail }
-}
+const REGISTRANT = 'seeker@example.com'
+const MANAGER = 'manager@example.org'
 
 const event = {
   id: 7,
@@ -47,128 +37,104 @@ const event = {
   },
 } as unknown as Event
 
-const REGISTRANT = 'seeker@example.com'
-const MANAGER = 'manager@example.org'
-
-/** The address inside a `Name <addr>` header. */
-function envelope(from: string): string {
-  return from.replace(/^.*</, '').replace(/>$/, '')
+const recipient = {
+  destination: MANAGER,
+  name: 'Ravi',
+  channel: 'email' as const,
+  frequency: 'immediate',
 }
 
-describe('registrant-facing mail sends as USER_EMAIL_FROM', () => {
-  it('sends the registration confirmation from the user address', async () => {
-    const { sendRegistrationConfirmation } = await import(
-      '@/lib/notifications/sendRegistrationConfirmation'
-    )
-    const { payload, sendEmail } = fakePayload()
-
-    await sendRegistrationConfirmation({
-      payload,
-      event,
-      registrantName: 'Asha',
-      registrantEmail: REGISTRANT,
-    })
-
-    const message = sendEmail.mock.calls[0][0]
-    expect(message.to).toBe(REGISTRANT)
-    expect(envelope(message.from)).toBe(USER_EMAIL_FROM)
-  })
-
-  it('sends the session reminder from the user address', async () => {
-    const { sendSessionReminder } = await import(
-      '@/jobs/RegistrationNotifications/sendSessionReminder'
-    )
-    const { payload, sendEmail } = fakePayload()
-
-    await sendSessionReminder({
-      payload,
-      event,
-      registrantName: 'Asha',
-      registrantEmail: REGISTRANT,
-      submissionId: 12,
-      occurrenceIso: '2026-06-20T03:56:00.000Z',
-    })
-
-    const message = sendEmail.mock.calls[0][0]
-    expect(message.to).toBe(REGISTRANT)
-    expect(envelope(message.from)).toBe(USER_EMAIL_FROM)
-  })
-})
-
-describe('manager-facing mail sends as MANAGER_EMAIL_FROM', () => {
-  const recipient = {
-    destination: MANAGER,
-    name: 'Ravi',
-    channel: 'email' as const,
-    frequency: 'immediate',
-  }
-
-  it('sends the new-registration notice from the manager address', async () => {
-    const { sendRegistrationNotification } = await import(
-      '@/lib/notifications/sendRegistrationNotification'
-    )
-    const { payload, sendEmail } = fakePayload()
-
-    await sendRegistrationNotification({
-      payload,
-      recipient,
-      event: { id: event.id, title: event.title },
-      registrantName: 'Asha',
-      registrantEmail: REGISTRANT,
-    })
-
-    const message = sendEmail.mock.calls[0][0]
-    expect(message.to).toBe(MANAGER)
-    expect(envelope(message.from)).toBe(MANAGER_EMAIL_FROM)
-  })
-
-  it('sends the registration digest from the manager address', async () => {
-    const { sendRegistrationDigest } = await import(
-      '@/jobs/RegistrationNotifications/sendRegistrationDigest'
-    )
-    const { payload, sendEmail } = fakePayload()
-
-    await sendRegistrationDigest({
-      payload,
-      recipient,
-      period: 'day',
-      groups: [
-        {
-          eventTitle: 'Sunday meditation',
-          eventAdminUrl: 'https://cloud.example.org/admin/collections/events/7',
-          registrations: [{ registrantName: 'Asha', registrantEmail: REGISTRANT }],
-        },
-      ],
-    })
-
-    const message = sendEmail.mock.calls[0][0]
-    expect(message.to).toBe(MANAGER)
-    expect(envelope(message.from)).toBe(MANAGER_EMAIL_FROM)
-  })
-
-  it('sends the submission-review request from the manager address', async () => {
-    const { sendSubmissionReview } = await import('@/lib/notifications/sendSubmissionReview')
-    const { payload, sendEmail } = fakePayload()
-
-    await sendSubmissionReview({
-      payload,
+const CASES: { label: string; to: string; from: string; send: (payload: Payload) => Promise<void> }[] =
+  [
+    {
+      label: 'registration confirmation',
+      to: REGISTRANT,
+      from: USER_EMAIL_FROM,
+      send: (payload) =>
+        sendRegistrationConfirmation({
+          payload,
+          event,
+          registrantName: 'Asha',
+          registrantEmail: REGISTRANT,
+        }),
+    },
+    {
+      label: 'session reminder',
+      to: REGISTRANT,
+      from: USER_EMAIL_FROM,
+      send: (payload) =>
+        sendSessionReminder({
+          payload,
+          event,
+          registrantName: 'Asha',
+          registrantEmail: REGISTRANT,
+          submissionId: 12,
+          occurrenceIso: '2026-06-20T03:56:00.000Z',
+        }),
+    },
+    {
+      label: 'new-registration notice',
       to: MANAGER,
-      kind: 'new-event',
-      submitterName: 'Asha',
-      details: [],
-      reviewUrl: 'https://cloud.example.org/admin/collections/user-submissions/3',
-    })
+      from: MANAGER_EMAIL_FROM,
+      send: (payload) =>
+        sendRegistrationNotification({
+          payload,
+          recipient,
+          event: { id: event.id, title: event.title },
+          registrantName: 'Asha',
+          registrantEmail: REGISTRANT,
+        }),
+    },
+    {
+      label: 'registration digest',
+      to: MANAGER,
+      from: MANAGER_EMAIL_FROM,
+      send: (payload) =>
+        sendRegistrationDigest({
+          payload,
+          recipient,
+          period: 'day',
+          groups: [
+            {
+              eventTitle: 'Sunday meditation',
+              eventAdminUrl: 'https://cloud.example.org/admin/collections/events/7',
+              registrations: [{ registrantName: 'Asha', registrantEmail: REGISTRANT }],
+            },
+          ],
+        }),
+    },
+    {
+      label: 'submission-review request',
+      to: MANAGER,
+      from: MANAGER_EMAIL_FROM,
+      send: (payload) =>
+        sendSubmissionReview({
+          payload,
+          to: MANAGER,
+          kind: 'new-event',
+          submitterName: 'Asha',
+          details: [],
+          reviewUrl: 'https://cloud.example.org/admin/collections/user-submissions/3',
+        }),
+    },
+  ]
+
+describe('transactional senders pick their envelope by audience', () => {
+  it.each(CASES)('$label → $to, sent as $from', async ({ to, from, send }) => {
+    const { payload, sendEmail } = stubEmailPayload()
+
+    await send(payload)
 
     const message = sendEmail.mock.calls[0][0]
-    expect(message.to).toBe(MANAGER)
-    expect(envelope(message.from)).toBe(MANAGER_EMAIL_FROM)
+    expect(message.to).toBe(to)
+    // The angle brackets pin the address to the envelope rather than the display
+    // name, which also carries a brand string.
+    expect(message.from).toContain(`<${from}>`)
   })
-})
 
-describe('the two constants', () => {
-  it('differ, so a single-constant regression cannot pass the specs above', () => {
-    // Every assertion here compares against a constant rather than a literal, so
-    // it would stay green if both resolved to the same address.
+  it('uses two different addresses, so no row above can pass vacuously', () => {
+    // Every assertion in this file compares a constant against a constant, and
+    // would stay green if the split collapsed back to one address.
     expect(USER_EMAIL_FROM).not.toBe(MANAGER_EMAIL_FROM)
   })
 })

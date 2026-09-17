@@ -11,23 +11,11 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 
-import { CONTACT_EMAIL, MANAGER_EMAIL_FROM, USER_EMAIL_FROM } from '@/lib/contact'
+import { CONTACT_EMAIL, MANAGER_EMAIL_FROM } from '@/lib/contact'
 import type { SendUserMessageArgs } from '@/lib/notifications/sendUserMessage'
 import { sendUserMessage } from '@/lib/notifications/sendUserMessage'
 
-type SentMessage = {
-  to: string
-  from: string
-  subject: string
-  html: string
-  replyTo?: string
-}
-
-/** A fake `payload` whose only job is to record the message it was handed. */
-function fakePayload() {
-  const sendEmail = vi.fn(async (_message: SentMessage) => undefined)
-  return { payload: { sendEmail } as never, sendEmail }
-}
+import { stubEmailPayload } from '../utils/sendEmailStub'
 
 const baseArgs = {
   clientName: 'Atlas Widget',
@@ -37,7 +25,7 @@ const baseArgs = {
 }
 
 async function send(overrides: Partial<SendUserMessageArgs> = {}) {
-  const { payload, sendEmail } = fakePayload()
+  const { payload, sendEmail } = stubEmailPayload()
   await sendUserMessage({ payload, ...baseArgs, ...overrides })
   return sendEmail.mock.calls[0][0]
 }
@@ -52,7 +40,6 @@ describe('sendUserMessage', () => {
     // the name, this message is delivered to the admin inbox — so its sender is
     // the manager-side address, not the registrant-facing one (#790).
     expect(message.from).toContain(MANAGER_EMAIL_FROM)
-    expect(message.from).not.toContain(USER_EMAIL_FROM)
     expect(message.html).toContain('The venue for this class closed last month.')
   })
 

@@ -73,10 +73,11 @@ export const resendAdapter = (): EmailAdapter => {
 
     return {
       name: 'resend',
-      // These defaults apply to a send that names no `from` — in practice
-      // Payload's own auth mail, whose audience is managers. The display name
-      // is derived rather than written out so it cannot drift from the subject
-      // line `Managers.ts` builds from the same brand.
+      // Payload composes these two into a `From` for its own auth mail only; a
+      // `sendEmail` caller that omits `from` gets the bare address below. Both
+      // audiences are managers, hence the manager sender. The display name is
+      // derived so it cannot drift from the subject line `Managers.ts` builds
+      // from the same brand.
       defaultFromAddress: MANAGER_EMAIL_FROM,
       defaultFromName: getEmailBrand().productName,
 
