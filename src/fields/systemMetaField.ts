@@ -20,7 +20,7 @@ import { jsonField } from './jsonField'
  * That pair replaces the runtime `readCommunityFeedback`-style reader this
  * started as: a defensive parser can only tell you the data was already wrong,
  * whereas the schema stops it being written. Same trick as
- * `Registrations.questions` (`registrationQuestionsJsonSchema`).
+ * `communityFeedbackJsonSchema` (`@/lib/eventVerification/communityFeedback`).
  *
  * Never writable through the API, by anyone. System writers pass
  * `overrideAccess`, which skips field access entirely; for everyone else

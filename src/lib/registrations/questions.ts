@@ -1,12 +1,12 @@
 /**
  * The registration-questions contract, shared across owners: the Events
- * collection enables questions, the Registrations collection validates + types
- * the stored answers, the register endpoint shapes them, and the manager
+ * collection enables questions, the UserSubmissions collection validates the
+ * stored answers (`submissionData.ts`), the intake shapes them, and the manager
  * notification email forwards them.
  *
  * It lives in `src/lib/` rather than a collection folder precisely because it is
  * used by more than one owner — colocating it in `Events/` would force a
- * cross-collection import from `Registrations/` (see
+ * cross-collection import from `UserSubmissions/` (see
  * `src/AGENTS.md`).
  */
 
@@ -42,12 +42,16 @@ export interface RegistrationAnswer {
  * configured question names, each answer a string, no other keys allowed.
  * Derived from `EVENT_REGISTRATION_QUESTIONS` so it can't drift.
  *
- * Wired onto `Registrations.questions` via the field's `jsonSchema`, which
- * Payload uses to BOTH validate on write (an unknown key or non-string answer
- * throws a `ValidationError` → the register endpoint returns 400) AND generate
- * the field's TypeScript type in `payload-types.ts`. (This compiles an Ajv
- * `new Function()` validator — fine on Railway/Node; the old comments warning it
- * breaks under Cloudflare Workers predate the migration off Workers.)
+ * ⚠ **Unwired since #801, and kept only because #809 was comment-only.** It was
+ * `Registrations.questions`'s `jsonSchema`, which Payload used to BOTH validate
+ * on write AND generate the field's TypeScript type. The intake stores answers
+ * as `submissionData` pairs instead, bounded by `UserSubmissions/submissionData.ts`,
+ * and refuses a bad one as `submission_data_invalid` (400). #811 decides whether
+ * this goes.
+ *
+ * A schema wired this way compiles an Ajv `new Function()` validator — fine on
+ * Railway/Node. Do not reinstate the old warning that it breaks under Cloudflare
+ * Workers: that predates the migration off Workers.
  */
 export const registrationQuestionsJsonSchema: JSONSchema4 = {
   type: 'object',
