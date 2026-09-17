@@ -92,9 +92,10 @@ covers both the custom client endpoints and the built-in REST collection reads:
   an upload collection (`upload.staticDir` in `src/collections/UserChoices/UserChoices.ts`), so a
   prefix term would pull its SVG file routes into the rule as well — which nothing asked for. The
   only consumer is WeMeditateWeb's `meditations` content-index block, and it reads the list alone:
-  no findByID of this slug exists in any of the five repos. TODO: this term is not on the live rule
-  yet — a purge-scoped token cannot add it, so a human applies it in the dashboard and runs the
-  `cf-cache-status` check in #804. Delete this sentence once it is live.
+  no findByID of this slug exists in any of the five repos. TODO: not on the live rule yet.
+  `CLOUDFLARE_CACHE_PURGE_TOKEN` is purge-scoped, so applying it takes the dashboard or
+  `CLOUDFLARE_CLAUDE_KEY` from `.env.claude.local` (`docs/environment.md`) — which is local-only,
+  so no cloud session carries it. Delete this once the term is live and #804's check returns `HIT`.
 - **⚠️ The `Authorization`-present condition is mandatory — never match a bare `/api/*`.**
   `Vary: Authorization` partitions the cache per API-key *value*, but it does not isolate the
   *absent*-header case. Without requiring `Authorization` present, Cloudflare serves the cached
