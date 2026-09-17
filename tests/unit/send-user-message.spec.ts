@@ -11,7 +11,7 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 
-import { CONTACT_EMAIL } from '@/lib/contact'
+import { CONTACT_EMAIL, MANAGER_EMAIL_FROM, USER_EMAIL_FROM } from '@/lib/contact'
 import type { SendUserMessageArgs } from '@/lib/notifications/sendUserMessage'
 import { sendUserMessage } from '@/lib/notifications/sendUserMessage'
 
@@ -48,8 +48,11 @@ describe('sendUserMessage', () => {
 
     expect(message.to).toBe(CONTACT_EMAIL)
     expect(message.subject).toBe('[Atlas Widget] Issue report')
-    // Resend verifies senders per domain, so From cannot be the viewer.
-    expect(message.from).toContain(CONTACT_EMAIL)
+    // Resend verifies senders per domain, so From cannot be the viewer. Despite
+    // the name, this message is delivered to the admin inbox — so its sender is
+    // the manager-side address, not the registrant-facing one (#790).
+    expect(message.from).toContain(MANAGER_EMAIL_FROM)
+    expect(message.from).not.toContain(USER_EMAIL_FROM)
     expect(message.html).toContain('The venue for this class closed last month.')
   })
 

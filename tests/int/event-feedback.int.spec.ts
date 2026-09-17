@@ -12,6 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 
 import { SendPostEventFollowUps } from '@/jobs/RegistrationNotifications/SendPostEventFollowUps'
+import { USER_EMAIL_FROM } from '@/lib/contact'
 import { readCommunityFeedback } from '@/lib/eventVerification/communityFeedback'
 import type { Event, Manager, UserSubmission } from '@/payload-types'
 import { hasPermission } from '@/plugins/access'
@@ -287,8 +288,17 @@ describe('Event feedback (registrant voting)', () => {
       const first = await runJob(runStart)
       expect(first.sent).toBeGreaterThanOrEqual(1)
 
-      const message = sendEmail.mock.calls.at(-1)?.[0] as { to: string; html: string }
+      const message = sendEmail.mock.calls.at(-1)?.[0] as {
+        to: string
+        from: string
+        html: string
+      }
       expect(message.html).toContain('/registrations/feedback?token=')
+      // The recipient is a registrant, so this is registrant-facing mail and
+      // carries the user-facing sender, not the manager one (#790). `sendFollowUp`
+      // is unexported, so the job is the only seam its envelope is visible from.
+      expect(message.to).toBe(registration.senderEmail)
+      expect(message.from).toContain(USER_EMAIL_FROM)
 
       const after = (await payload.findByID({
         collection: 'user-submissions',

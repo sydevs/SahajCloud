@@ -21,7 +21,9 @@ vi.mock('resend', () => ({
   },
 }))
 
+import { MANAGER_EMAIL_FROM, USER_EMAIL_FROM } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
+import { getEmailBrand } from '@/plugins/email/brand'
 import { resendAdapter } from '@/plugins/email/resendAdapter'
 
 const env = serverEnv as { RESEND_API_KEY?: string }
@@ -126,5 +128,37 @@ describe('resendAdapter message mapping', () => {
 
     expect(sendMock).not.toHaveBeenCalled()
     expect(logger.error).toHaveBeenCalled()
+  })
+})
+
+describe('resendAdapter default sender', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    env.RESEND_API_KEY = 'test-key-that-is-long-enough'
+    sendMock.mockResolvedValue({ data: { id: 'msg_1' }, error: null })
+  })
+
+  it('defaults to the manager address, which Payload auth mail sends as', async () => {
+    // Nothing else sets `from` on a verification or password-reset send, so this
+    // default IS the auth mail's sender. It must be a Resend-verified domain or
+    // the send is dropped without an error reaching the caller (#790).
+    expect(buildAdapter().defaultFromAddress).toBe(MANAGER_EMAIL_FROM)
+    expect(buildAdapter().defaultFromAddress).not.toBe(USER_EMAIL_FROM)
+  })
+
+  it('names the sender from the brand the auth subject line uses', async () => {
+    expect(buildAdapter().defaultFromName).toBe(getEmailBrand().productName)
+  })
+
+  it('falls back to the manager address for a message that names no sender', async () => {
+    await buildAdapter().sendEmail(baseMessage)
+
+    expect(sendMock.mock.calls[0][0].from).toBe(MANAGER_EMAIL_FROM)
+  })
+
+  it('never overrides a sender the caller set', async () => {
+    await buildAdapter().sendEmail({ ...baseMessage, from: `Atlas <${USER_EMAIL_FROM}>` })
+
+    expect(sendMock.mock.calls[0][0].from).toBe(`Atlas <${USER_EMAIL_FROM}>`)
   })
 })
