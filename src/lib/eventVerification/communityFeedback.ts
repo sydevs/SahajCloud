@@ -12,7 +12,7 @@ import type { JSONSchema4 } from 'json-schema'
  * `event.systemMeta?.communityFeedback?.denials` is checked at compile time —
  * and validates it on write, so a malformed tally can't reach the column in the
  * first place. A defensive runtime reader could only report that the data was
- * already wrong. `systemMetaField` generalizes this, and points here.
+ * already wrong. `systemMetaField` generalizes this.
  */
 export const communityFeedbackJsonSchema: JSONSchema4 = {
   type: 'object',
