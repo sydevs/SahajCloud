@@ -80,14 +80,21 @@ covers both the custom client endpoints and the built-in REST collection reads:
   **not** carry `x-sahajcloud-preview-secret`, and **(c)** has a cacheable-read path:
   `/api/<slug>` (list) or `/api/<slug>/…` (findByID and the custom sub-endpoints) for
   `slug ∈ {meditations, lectures, songs, app-cards, regions, audiences, events, pages, images,
-  albums}`, plus root endpoints named individually (see the note below). Enumerated with `eq` /
+  albums}`, plus `http.request.uri.path eq "/api/user-choices"` (list only — see below) and root
+  endpoints named individually (see the note after this list). Enumerated with `eq` /
   `starts_with`, since the Free plan has no regex `matches` operator.
 - **This list is deliberately narrower than `CACHE_TTLS.collections`, and does not have to track
-  it.** `user-choices` sits in `CACHE_TTLS` so that slug is a `Cache-Tag` the lecture feeds may carry
-  and `cachePlugin` purges on write (#526) — the feeds embed a user choice's localized title, so
-  a rename has to invalidate them. Caching `GET /api/user-choices` itself was never the point.
-  Leaving it out of this rule just means that one read stays `DYNAMIC`, which is the fail-safe
-  direction. Add a slug here only when you intend its own REST read to be cached.
+  it.** A slug sits in `CACHE_TTLS` so it is a `Cache-Tag` that `cachePlugin` purges on write
+  (#526) — the lecture feeds embed a user choice's localized title, so a rename has to invalidate
+  them. Whether that slug's *own* REST read is cached is a separate decision, made here. Add a
+  slug only when you intend that read to be cached.
+- **⚠️ `user-choices` is matched with `eq`, never `starts_with "/api/user-choices/"` (#804).** It is
+  an upload collection (`upload.staticDir` in `src/collections/UserChoices/UserChoices.ts`), so a
+  prefix term would pull its SVG file routes into the rule as well — which nothing asked for. The
+  only consumer is WeMeditateWeb's `meditations` content-index block, and it reads the list alone:
+  no findByID of this slug exists in any of the five repos. TODO: this term is not on the live rule
+  yet — a purge-scoped token cannot add it, so a human applies it in the dashboard and runs the
+  `cf-cache-status` check in #804. Delete this sentence once it is live.
 - **⚠️ The `Authorization`-present condition is mandatory — never match a bare `/api/*`.**
   `Vary: Authorization` partitions the cache per API-key *value*, but it does not isolate the
   *absent*-header case. Without requiring `Authorization` present, Cloudflare serves the cached
