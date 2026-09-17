@@ -15,7 +15,7 @@ import type { Payload } from 'payload'
 import { createElement } from 'react'
 
 import { EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
-import { CONTACT_EMAIL } from '@/lib/contact'
+import { MANAGER_EMAIL_FROM } from '@/lib/contact'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Event } from '@/payload-types'
@@ -54,9 +54,8 @@ export async function sendRegistrationNotification(args: {
 
   await payload.sendEmail({
     to: recipient.destination,
-    // `From` stays CONTACT_EMAIL (Resend verifies senders per domain); the brand
-    // name carries the identity.
-    from: `${headerDisplayName(brand.productName)} <${CONTACT_EMAIL}>`,
+    // Resend verifies senders per domain; the brand name carries the identity.
+    from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
     // The event title is manager-authored free text; strip line breaks so it
     // can't inject a second header off the Subject line.
     subject: stripNewlines(`New registration: ${eventTitle}`),

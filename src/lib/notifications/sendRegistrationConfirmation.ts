@@ -18,7 +18,7 @@ import {
   RegistrationConfirmationEmail,
   registrationConfirmationText,
 } from '@/emails/RegistrationConfirmationEmail'
-import { CONTACT_EMAIL } from '@/lib/contact'
+import { USER_EMAIL_FROM } from '@/lib/contact'
 import type { LocaleCode } from '@/lib/locales'
 import { buildEventCalendar } from '@/lib/schedule/icsBuilder'
 import { interpolate, resolveEmailStrings } from '@/lib/translations/emailStrings'
@@ -79,10 +79,9 @@ export async function sendRegistrationConfirmation(args: {
 
   await payload.sendEmail({
     to: registrantEmail,
-    // `From` stays CONTACT_EMAIL — Resend verifies senders per domain, so we
-    // can't send as the client. The client's name carries the branding, and
-    // `Reply-To` routes replies to them.
-    from: `${headerDisplayName(brand.productName)} <${CONTACT_EMAIL}>`,
+    // Resend verifies senders per domain, so we can't send as the client. The
+    // client's name carries the branding, and `Reply-To` routes replies to them.
+    from: `${headerDisplayName(brand.productName)} <${USER_EMAIL_FROM}>`,
     ...(client?.supportEmail && { replyTo: client.supportEmail }),
     // The event title is manager-authored free text; strip line breaks so it
     // can't inject a second header off the Subject line.

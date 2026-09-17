@@ -46,11 +46,25 @@ export const ClientEnvSchema = z.object({
 
   /**
    * Public support / contact address shown in mailto links and used as the
-   * transactional from/to address. Read everywhere via `CONTACT_EMAIL`
+   * default transactional `To`. Read everywhere via `CONTACT_EMAIL`
    * (`@/lib/contact`), which falls back to `contact@sydevelopers.com` when
    * unset; this schema entry validates the format when it is set.
    */
   NEXT_PUBLIC_CONTACT_EMAIL: z.email().optional(),
+
+  /**
+   * Envelope `From` for registrant-facing mail, read via `USER_EMAIL_FROM`
+   * (`@/lib/contact`). Its domain must be verified in Resend, which drops a
+   * send from anything else. Defaults to `admin@wemeditate.com`.
+   */
+  NEXT_PUBLIC_USER_EMAIL_FROM: z.email().optional(),
+
+  /**
+   * Envelope `From` for manager-facing and Payload auth mail, read via
+   * `MANAGER_EMAIL_FROM` (`@/lib/contact`). Same verification requirement as
+   * `NEXT_PUBLIC_USER_EMAIL_FROM`. Defaults to `contact@sydevelopers.com`.
+   */
+  NEXT_PUBLIC_MANAGER_EMAIL_FROM: z.email().optional(),
 })
 
 // Type inference for TypeScript

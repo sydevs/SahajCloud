@@ -21,7 +21,7 @@ import {
   UserMessageEmail,
   type UserMessageContext,
 } from '@/emails/UserMessageEmail'
-import { CONTACT_EMAIL } from '@/lib/contact'
+import { CONTACT_EMAIL, MANAGER_EMAIL_FROM } from '@/lib/contact'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
@@ -54,10 +54,10 @@ export async function sendUserMessage(args: SendUserMessageArgs): Promise<void> 
 
   await payload.sendEmail({
     to,
-    // `From` stays CONTACT_EMAIL — Resend verifies senders per domain, so we
-    // can't send as the viewer. Their address rides on `Reply-To` instead, which
-    // is what makes replying to this email answer them directly.
-    from: `${headerDisplayName(brand.productName)} <${CONTACT_EMAIL}>`,
+    // Resend verifies senders per domain, so we can't send as the viewer. Their
+    // address rides on `Reply-To` instead, which is what makes replying to this
+    // email answer them directly.
+    from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
     // Omit `replyTo` entirely when the sender left no address — an empty string
     // would be an invalid header, and Resend 422s on one.
     ...(senderEmail ? { replyTo: senderEmail } : {}),

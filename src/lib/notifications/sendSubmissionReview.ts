@@ -4,7 +4,7 @@ import { createElement } from 'react'
 
 import type { SubmissionReviewDetail } from '@/emails/SubmissionReviewEmail'
 import { SubmissionReviewEmail } from '@/emails/SubmissionReviewEmail'
-import { CONTACT_EMAIL } from '@/lib/contact'
+import { MANAGER_EMAIL_FROM } from '@/lib/contact'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
 /**
@@ -30,7 +30,7 @@ export async function sendSubmissionReview(args: {
 
   await payload.sendEmail({
     to,
-    from: `${brand.productName} <${CONTACT_EMAIL}>`,
+    from: `${brand.productName} <${MANAGER_EMAIL_FROM}>`,
     subject:
       props.kind === 'new-event'
         ? 'New event submission to review'
