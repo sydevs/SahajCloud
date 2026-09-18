@@ -977,6 +977,39 @@ describe('Role-Based Access Control', () => {
       ).toBe(false)
     })
 
+    it('grants both web and atlas clients read on forms', () => {
+      // `forms` is in two projects (#813): We Meditate Web renders its own
+      // forms, and the atlas widget renders the report-issue form named on
+      // `sy-atlas-config`. The atlas half is the grant this pins — the
+      // form-builder plugin's `read: () => true` reaches the same rows without
+      // it, so nothing else would notice the collection leaving the list.
+      for (const role of ['wemeditate-web-client', 'sahaj-atlas-client'] as const) {
+        expect(
+          hasPermission(
+            {
+              user: testData.dummyUser('clients', { id: 17, roles: [role] }),
+              collection: 'forms',
+              operation: 'read',
+            },
+            bypassPermissions,
+          ),
+          role,
+        ).toBe(true)
+      }
+
+      // The other side of the same list: `wemeditate-app` never got `forms`.
+      expect(
+        hasPermission(
+          {
+            user: testData.dummyUser('clients', { id: 18, roles: ['wemeditate-app-client'] }),
+            collection: 'forms',
+            operation: 'read',
+          },
+          bypassPermissions,
+        ),
+      ).toBe(false)
+    })
+
     it('grants read access to Videos in both wemeditate projects', () => {
       // Note: video-tags collection removed - now inline enum strings on Videos collection
       // wemeditate-web-client should have read access to videos

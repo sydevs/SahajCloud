@@ -127,9 +127,6 @@ describe('Forms action types', () => {
     })
 
     it('saves a contact form with no recipient', async () => {
-      // Null on purpose: a null recipient falls back to CONTACT_EMAIL, which is
-      // how the widget's report-issue path — which has no form at all — keeps
-      // working. The two must agree.
       const form = await createForm({
         actionType: 'contact',
         fields: [EMAIL_FIELD, MESSAGE_FIELD],

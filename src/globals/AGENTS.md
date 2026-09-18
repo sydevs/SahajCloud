@@ -37,7 +37,9 @@ pages, required), `featuredPages` (hasMany 2–3), `featuredArticles`
 plus required `audio`/`subtitles` uploads).
 
 **Sahaj Atlas** (admin group: System) — `availableLocales`,
-`canonicalFallbackClient`, `defaultMapCenter` group (required
+`canonicalFallbackClient`, `reportIssueForm` (the contact form the widget
+renders behind "Report an issue", filtered to `actionType: 'contact'`. Nullable:
+unset hides that path in the widget), `defaultMapCenter` group (required
 `latitude`/`longitude`), `defaultZoomLevel` (1–20).
 
 **WeMeditate Web** also carries `availableLocales`, after `homePage`.

@@ -45,6 +45,22 @@ export const SahajAtlasConfig: GlobalConfig = {
       },
     },
     {
+      name: 'reportIssueForm',
+      label: 'Report an Issue Form',
+      type: 'relationship',
+      relationTo: 'forms',
+      // A `subscribe` form here would 400 every report at send time
+      // (`prepareUserSubmission.ts`), so the filter moves that refusal onto the
+      // operator at authoring time.
+      filterOptions: { actionType: { equals: 'contact' } },
+      admin: {
+        description:
+          'The contact form the widget renders behind “Report an issue”. Its authored fields are ' +
+          'what a visitor fills in, and its recipient is who the message reaches — blank recipient ' +
+          'sends to the system contact. Leave this empty to hide the report-issue path entirely.',
+      },
+    },
+    {
       name: 'defaultMapCenter',
       label: 'Default Map Center',
       type: 'group',
