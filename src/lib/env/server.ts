@@ -74,6 +74,22 @@ const ServerEnvSchema = ClientEnvSchema.extend({
     .transform((value) => value === 'true' || value === '1'),
 
   /**
+   * Run the nightly `ExpireEvents` sweep, or pause it (`src/jobs/ExpireEvents`).
+   * Defaults to on, so an existing deployment, which sets nothing, keeps
+   * today's behaviour. Case-insensitive, unlike `DB_QUERY_LOGGING` above: this
+   * one is an emergency pause, and `FALSE` reading as "run" would send the mail
+   * the operator meant to stop.
+   * @default true
+   */
+  EVENT_VERIFICATION_ENABLED: z
+    .string()
+    .optional()
+    .transform((value) => {
+      const flag = value?.trim().toLowerCase()
+      return flag !== 'false' && flag !== '0'
+    }),
+
+  /**
    * Nirmala Vidya API key. Fetches lecture metadata from Vimeo.
    * Optional at startup. The app validates it at the point of use, when it
    * creates or refreshes lectures.

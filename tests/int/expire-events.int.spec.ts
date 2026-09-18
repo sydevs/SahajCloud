@@ -1,7 +1,7 @@
 import type { Payload } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 
@@ -12,6 +12,15 @@ import { createTestEnvironment } from '../utils/testHelpers'
 // Hoisted so the vi.mock factory (hoisted above imports) can close over it, while
 // the tests can still assert what context the handler attached to the Sentry scope.
 const { setContextMock } = vi.hoisted(() => ({ setContextMock: vi.fn() }))
+
+// Mocking the helper rather than `@/lib/env` keeps the bootstrapped Payload
+// instance's own env intact. Default `true` leaves every other case here
+// running the job exactly as production does.
+const { isEnabledMock } = vi.hoisted(() => ({ isEnabledMock: vi.fn(() => true) }))
+
+vi.mock('@/jobs/ExpireEvents/featureFlag', () => ({
+  isEventVerificationEnabled: isEnabledMock,
+}))
 
 vi.mock('@sentry/nextjs', () => ({
   withScope: vi.fn((callback: (scope: { setContext: typeof setContextMock }) => void) =>
@@ -416,6 +425,42 @@ describe('ExpireEvents job', () => {
 
       const after = await reload(payload, event.id)
       expect(after.verificationStage).toBe('finished')
+      expect(after.deletedAt ?? null).toBeNull()
+    })
+  })
+
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('paused by EVENT_VERIFICATION_ENABLED', () => {
+    const reload = (payload: Payload, id: number) =>
+      payload.findByID({ collection: 'events', id, overrideAccess: true, depth: 0, trash: true })
+
+    it('leaves a due event byte-identical and sends nothing', async () => {
+      const event = await createDueEvent(payload, 'Paused')
+      const before = await reload(payload, event.id)
+
+      const sendEmail = vi.spyOn(payload, 'sendEmail').mockResolvedValue(undefined as never)
+      onTestFinished(() => sendEmail.mockRestore())
+      // `...Once` self-expires, so no reset is owed to the cases after this one.
+      isEnabledMock.mockReturnValueOnce(false)
+
+      const result = await runTask(payload)
+
+      // Zeroed, so `outputSchema` is unchanged by the pause.
+      expect(result).toEqual({
+        processed: 0,
+        finished: 0,
+        advanced: 0,
+        trashed: 0,
+        remindersSent: 0,
+        failed: 0,
+      })
+      expect(sendEmail).not.toHaveBeenCalled()
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe(before.verificationStage)
+      expect(after.nextCheckAt).toBe(before.nextCheckAt)
+      expect(after.activityLog).toEqual(before.activityLog)
+      expect(after._status).toBe(before._status)
       expect(after.deletedAt ?? null).toBeNull()
     })
   })

@@ -34,6 +34,25 @@ describe('serverEnv', () => {
     expect(serverEnv.PAYLOAD_SECRET).toBe(requiredEnv.PAYLOAD_SECRET)
   })
 
+  // The default has to be "run": an existing deployment sets nothing. `FALSE`
+  // and a padded value are covered because this flag is an emergency pause,
+  // where a typo reading as "run" sends the mail the operator meant to stop.
+  it.each([
+    [undefined, true],
+    ['true', true],
+    ['false', false],
+    ['0', false],
+    ['FALSE', false],
+    [' false ', false],
+    ['', true],
+  ])('parses EVENT_VERIFICATION_ENABLED=%s as %s', async (raw, expected) => {
+    process.env = { ...baseEnv, ...requiredEnv }
+    if (raw !== undefined) process.env.EVENT_VERIFICATION_ENABLED = raw
+    const { serverEnv } = await import('../../src/lib/env/server')
+
+    expect(serverEnv.EVENT_VERIFICATION_ENABLED).toBe(expected)
+  })
+
   it('throws a client-specific error if server variables are accessed in a browser bundle', async () => {
     process.env = { ...baseEnv }
     vi.stubGlobal('window', {})
