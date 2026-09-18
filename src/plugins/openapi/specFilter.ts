@@ -427,8 +427,9 @@ export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): Open
       }
 
       // Mark the auto-generated base-collection POST (create) unless the
-      // collection is in ALLOW_POST_FOR. Hand-authored custom POST subpaths
-      // (e.g. /api/events/register) are deliberately documented and stay visible.
+      // collection is in ALLOW_POST_FOR. A hand-authored custom POST subpath is
+      // never a base collection path, so this branch never marks one — whether
+      // such a subpath is documented at all is `CUSTOM_ENDPOINT_PATHS`' question.
       if (
         method === 'post' &&
         isBaseCollectionPath(path) &&

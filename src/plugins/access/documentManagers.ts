@@ -238,9 +238,9 @@ async function loadManagedDocIds(
  * ⚠ **The memo pins the managed set for the life of `req`.** A request that
  * writes a `managers` field and then makes a *second* access decision on the
  * same `req` reads the pre-write set. Payload evaluates access before the write,
- * and the only `overrideAccess: false` writes in `src/`
- * (`Events/endpoints/verifyEventAction.ts`, `registerForEvent.ts`) touch no
- * manager field — so the window is narrow, but it is new.
+ * and the only `overrideAccess: false` **write** in `src/`
+ * (`Events/endpoints/verifyEventAction.ts`) touches no manager field — every
+ * other such call site is a read — so the window is narrow, but it is new.
  *
  * ⚠ **Do not lift this memo to the access function.** That answer depends on
  * `id` and `data`, which this key does not carry: `createAccessConfig` returns a

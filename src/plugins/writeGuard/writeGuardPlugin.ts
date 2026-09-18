@@ -28,8 +28,8 @@ import { DEFAULT_WRITE_GUARD_POLICIES } from './policies'
  * - Managers/admins are trusted authors; their writes are never scanned.
  * - System writes (jobs, seeds, the accept op, test fixtures) run with no user
  *   or a manager `req` and pass untouched.
- * - An endpoint's internal write that **forwards the client `req`** (the
- *   register endpoint's user/registration upserts) is deliberately guarded:
+ * - An internal write that **forwards the client `req`** (`prepareUserSubmission`'s
+ *   `users` upsert, on a `user-submissions` create) is deliberately guarded:
  *   that's the client's content, whatever code path carried it.
  *
  * Escape hatch: `req.context.skipWriteGuard` — for an internal write that

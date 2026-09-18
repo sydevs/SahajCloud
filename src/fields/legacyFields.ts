@@ -1,9 +1,9 @@
 import type { Field } from 'payload'
 
 /**
- * Migration-only fields shared by the four Atlas collections (Events,
- * Registrations, Users, Regions). Populated by the Phase 3 importer and
- * dropped in a future migration once the import is verified.
+ * Migration-only fields shared by the five collections carrying imported Atlas
+ * rows (Clients, Events, Managers, Regions, Users). Populated by the Phase 3
+ * importer and dropped in a future migration once the import is verified.
  *
  * - `legacyId` — the source row's integer primary key, indexed for
  *   relationship rewiring and idempotent re-runs.
