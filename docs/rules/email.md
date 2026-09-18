@@ -12,8 +12,22 @@ The app switches email providers by environment:
 |---|---|---|
 | Development & PR previews | Mailpit, via `SMTP_URL` | Captures outbound mail. Nothing is delivered. Messages keep a stable `/view/<id>` link for **7 days**, so a PR reviewer can open them. `SMTP_URL` / `MAILPIT_URL` / `MAILPIT_UI_AUTH` live in `.env.claude.local`. From `dev@wemeditate.com`. |
 | Anywhere else, with no `SMTP_URL` | Disabled, with a warning | No silent fallback transport — see below. |
-| Production | Resend (transactional API) | Custom adapter at `src/plugins/email/resendAdapter.ts`. From `contact@sydevelopers.com`. Free tier: 3,000 emails/month. |
+| Production | Resend (transactional API) | Custom adapter at `src/plugins/email/resendAdapter.ts`. `From` splits by audience — see below. Free tier: 3,000 emails/month. |
 | Test | Disabled | Avoids Payload model conflicts under parallel test runs. Test email logic separately, without a full Payload boot. |
+
+## The envelope sender splits by audience, and is not the contact address
+
+Three addresses, three jobs. Confusing them is what #790 was:
+
+| Constant | Default | Used as |
+|---|---|---|
+| `USER_EMAIL_FROM` (`@/plugins/email`) | `admin@wemeditate.com` | `From` on registrant mail — confirmation, session reminder, post-event follow-up |
+| `MANAGER_EMAIL_FROM` (`@/plugins/email`) | `contact@sydevelopers.com` | `From` on manager, reviewer and admin-inbox mail, and the adapter's default (so Payload's own auth mail) |
+| `CONTACT_EMAIL` (`@/lib/contact`) | `contact@sydevelopers.com` | The `mailto:` shown to a human, and the default `To` for inbound forms and messages. **Never a `From`.** |
+
+**The `to:` of a send decides which sender it takes** — there is no audience flag to thread. `sendUserMessage` is the one that reads wrong: despite the name it delivers a *viewer's* message to the admin inbox, so it is manager-facing.
+
+⚠ **An envelope sender's domain must be verified in Resend.** Resend refuses a send from an unverified domain, and the adapter's non-throwing contract below turns that refusal into a Sentry event and nothing else — no admin error, no user-visible failure. Production sent nothing for weeks on a one-label mismatch: `cloud.sydevelopers.com` was verified while the sender resolved to the root domain. Adding a third sender means verifying its domain **first**.
 
 ## Resend adapter
 
@@ -94,7 +108,7 @@ The follow-up email once shipped missing four of these, which is why they're wri
 |---|---|---|
 | 1 | `brand = client ? getClientEmailBrand(client) : getEmailBrand('sahaj-atlas')` | Registrant mail is branded per **client service**, not per project. The project brand is a fallback. |
 | 2 | `strings = await resolveEmailStrings({ payload, locale, req })` | The registration stores a `locale` for this. Hardcoded English JSX ships English to every locale. |
-| 3 | `from: headerDisplayName(brand.productName) <CONTACT_EMAIL>` | Resend verifies senders per domain, so mail can't send *as* the client — the display name carries the brand. |
+| 3 | `from: headerDisplayName(brand.productName) <USER_EMAIL_FROM>` | Resend verifies senders per domain, so mail can't send *as* the client — the display name carries the brand. |
 | 4 | `replyTo: client.supportEmail` when set | Otherwise a reply reaches nobody who can answer. |
 | 5 | `subject: stripNewlines(...)` | An event title is manager-authored free text. A CR/LF starts a second header. |
 | 6 | `text: <template>Text(props)` | A message with no plain-text part scores worse with spam filters and renders as nothing in a text-only client. |
@@ -124,7 +138,7 @@ Email glue lives in the plugin (`@/plugins/email`). Only JSX templates live in `
 
 - **Branding is per-project** by default: `getEmailBrand(project)` composes `{ productName, colors, iconUrl }`, defaulting to `wemeditate-web`. A template takes branding as a prop, never a hardcoded color: either `project?: ProjectSlug` (resolved inside the template) when it is the only consumer, or `brand: EmailBrand` (resolved once by the sender and passed down) when the sender also needs it — e.g. for the `From` name — so header and body can't resolve to different brands.
 - **Registrant mail is branded per client service**: `getClientEmailBrand(client)` builds the same `EmailBrand` shape from a `Clients` doc, falling back field-by-field to the `sahaj-atlas` project brand. Read the client at `depth >= 1` — the logo needs an explicit `format=png` variant, since the default `auto` negotiates WebP/AVIF from headers an email client never sends, and Outlook renders neither.
-- **Sending as a client service is not possible.** Resend verifies senders per domain, so `From` stays `CONTACT_EMAIL` with the client name as display name. The client's `supportEmail` rides on `Reply-To`.
+- **Sending as a client service is not possible.** Resend verifies senders per domain, so `From` stays a sender constant (above) with the client name as display name. The client's `supportEmail` rides on `Reply-To`.
 - **Preview**: render a template in a unit test (`tests/unit/email-templates.spec.ts`), or run `pnpm exec email dev` for the `react-email` CLI's local preview. To see a real message in a real client — subject, `From`, `Reply-To`, the plain-text part, attachments — use the Mailpit preview scripts, which drive the real send path so they can't drift from production:
 
   ```bash

@@ -46,7 +46,7 @@ export const ClientEnvSchema = z.object({
 
   /**
    * Public support / contact address shown in mailto links and used as the
-   * transactional from/to address. Read everywhere via `CONTACT_EMAIL`
+   * default transactional `To`. Read everywhere via `CONTACT_EMAIL`
    * (`@/lib/contact`), which falls back to `contact@sydevelopers.com` when
    * unset; this schema entry validates the format when it is set.
    */

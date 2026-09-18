@@ -14,20 +14,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import type { SendUserMessageArgs } from '@/lib/notifications/sendUserMessage'
 import { sendUserMessage } from '@/lib/notifications/sendUserMessage'
+import { MANAGER_EMAIL_FROM } from '@/plugins/email'
 
-type SentMessage = {
-  to: string
-  from: string
-  subject: string
-  html: string
-  replyTo?: string
-}
-
-/** A fake `payload` whose only job is to record the message it was handed. */
-function fakePayload() {
-  const sendEmail = vi.fn(async (_message: SentMessage) => undefined)
-  return { payload: { sendEmail } as never, sendEmail }
-}
+import { stubEmailPayload } from '../utils/sendEmailStub'
 
 const baseArgs = {
   clientName: 'Atlas Widget',
@@ -37,7 +26,7 @@ const baseArgs = {
 }
 
 async function send(overrides: Partial<SendUserMessageArgs> = {}) {
-  const { payload, sendEmail } = fakePayload()
+  const { payload, sendEmail } = stubEmailPayload()
   await sendUserMessage({ payload, ...baseArgs, ...overrides })
   return sendEmail.mock.calls[0][0]
 }
@@ -48,8 +37,10 @@ describe('sendUserMessage', () => {
 
     expect(message.to).toBe(CONTACT_EMAIL)
     expect(message.subject).toBe('[Atlas Widget] Issue report')
-    // Resend verifies senders per domain, so From cannot be the viewer.
-    expect(message.from).toContain(CONTACT_EMAIL)
+    // Resend verifies senders per domain, so From cannot be the viewer. Despite
+    // the name, this message is delivered to the admin inbox — so its sender is
+    // the manager-side address, not the registrant-facing one (#790).
+    expect(message.from).toContain(MANAGER_EMAIL_FROM)
     expect(message.html).toContain('The venue for this class closed last month.')
   })
 

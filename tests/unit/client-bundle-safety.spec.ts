@@ -46,6 +46,10 @@ const SERVER_ONLY = new Map(
       'plugins/access/index.ts',
       'the access barrel — client code imports ./config, ./adminOnly or ./types',
     ],
+    [
+      'plugins/email/senders.ts',
+      'reads unprefixed env, which is not substituted into a client bundle (#790)',
+    ],
   ].map(([file, reason]) => [join(SRC, file), reason]),
 )
 
