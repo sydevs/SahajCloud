@@ -46,9 +46,9 @@ export const excludeFinishedEvents: CollectionBeforeOperationHook = ({ operation
   // `findByID` arrives as `read` too, but carries an `id` — leave it alone.
   if ('id' in args) return args
   if (args.req?.user?.collection !== 'clients') return args
-  // An endpoint's own forwarded lookup (asTrustedReq) must see the true state so
-  // it can answer precisely — `POST /api/events/{id}/register` needs to tell "no
-  // such event" (404) from "this event has ended" (409).
+  // A forwarded internal lookup (asTrustedReq) must see the true state so it can
+  // answer precisely — `gateRegistration`, on `POST /api/user-submissions`, tells
+  // "no such event" (404) from "this event has ended" (409).
   if (isTrustedReq(args.req)) return args
 
   const where = args.where as Where | undefined

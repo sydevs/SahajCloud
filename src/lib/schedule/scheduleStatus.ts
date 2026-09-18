@@ -1,7 +1,7 @@
 /**
  * Schedule-derived event status — the single definition of "this event has
  * finished", shared by the ExpireEvents job (which marks it `finished`), the
- * registration endpoint (which refuses to register for it), and the public
+ * registration gate (which refuses to register for it), and the public
  * event feeds (which drop it — see `notFinishedWhere` in
  * `@/collections/Events/lifecycle/finished`).
  *

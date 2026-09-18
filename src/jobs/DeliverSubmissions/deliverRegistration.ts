@@ -20,8 +20,6 @@ import { asTrustedReq } from '@/plugins/usage/hooks'
  * `registerForEvent` inside the 201 and logged-and-swallowed on failure — so a
  * mail hiccup lost a confirmation silently, and the registrant learned nothing.
  * Moving them here is what buys retries and an activity-log entry per attempt.
- * The registration create path itself re-points in Phase 3; until then this
- * runs for rows created directly against `user-submissions`.
  *
  * **The two sends are independent, and the outcome is the confirmation's.** A
  * manager notification that fails must not make the registrant's confirmation

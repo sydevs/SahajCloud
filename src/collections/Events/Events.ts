@@ -96,7 +96,7 @@ const eventDescriptionEditor = lexicalEditor({
  * `excludeFinishedEvents` and `notFinishedWhere`. The pinned contract: a
  * finished event stays readable by id, but is absent from the feeds.
  *
- * The register endpoint's gate (`event_ended`) refuses registration for a
+ * The `gateRegistration` hook (`event_ended`) refuses registration for a
  * finished, or otherwise elapsed, event. So the read staying open cannot leak
  * a registration into an event that has really ended.
  */
@@ -109,7 +109,7 @@ export const Events: CollectionConfig = {
   // `archived` terminal state.
   trash: true,
   // Computing the listing-quality report costs two extra reads. Nothing that
-  // hydrates an Event through a relationship (a Registration, the sidebar)
+  // hydrates an Event through a relationship (a registration row, the sidebar)
   // wants that report. Its `afterRead` also opts out of list reads. See the field.
   defaultPopulate: { qualityReport: false },
   admin: {
@@ -613,7 +613,8 @@ export const Events: CollectionConfig = {
               // [0, 1]. Null until the first vote. A real, indexed column,
               // unlike the raw tallies in `systemMeta`, because the Atlas
               // feeds sort and filter on it to rank unverified listings by
-              // confidence. Only the Registrations vote-sync hook writes it.
+              // confidence. Only the `user-submissions` vote-sync hook writes
+              // it (`UserSubmissions/hooks/eventFeedback.ts`).
               //
               // Shown for both pre-adoption stages. `unverified` is where
               // votes get collected, and on a `denied` event the score is
@@ -707,8 +708,8 @@ export const Events: CollectionConfig = {
           // count, so a public `sahaj-atlas-client` can select fullness
           // without learning exact registration numbers. Stored, not
           // computed per read, so the geojson feed and list reads stay O(1).
-          // The Registrations create and delete hooks maintain it
-          // (`syncEventRegistrationsFull`), and it recomputes here on a
+          // The `user-submissions` registration hooks maintain it on create
+          // and delete (`syncEventRegistrationsFull`), and it recomputes here on a
           // registrationMode or registrationLimit change (`syncEventFullness`
           // beforeChange). True only for `sahaj-atlas` mode with a set limit
           // the registration count has reached. False for `external` mode,
