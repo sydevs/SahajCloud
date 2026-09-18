@@ -5,8 +5,10 @@ import type { CreateEmailOptions } from 'resend'
 import * as Sentry from '@sentry/nextjs'
 import { Resend } from 'resend'
 
-import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
+
+import { getEmailBrand } from './brand'
+import { MANAGER_EMAIL_FROM } from './senders'
 
 /**
  * Map Payload's (nodemailer-shaped) attachments onto Resend's.
@@ -71,8 +73,13 @@ export const resendAdapter = (): EmailAdapter => {
 
     return {
       name: 'resend',
-      defaultFromAddress: CONTACT_EMAIL,
-      defaultFromName: 'We Meditate Admin',
+      // Payload composes these two into a `From` for its own auth mail only; a
+      // `sendEmail` caller that omits `from` gets the bare address below. Both
+      // audiences are managers, hence the manager sender. The display name is
+      // derived so it cannot drift from the subject line `Managers.ts` builds
+      // from the same brand.
+      defaultFromAddress: MANAGER_EMAIL_FROM,
+      defaultFromName: getEmailBrand().productName,
 
       async sendEmail(message) {
         // Every path below returns rather than throws — deliberately, because
@@ -105,7 +112,7 @@ export const resendAdapter = (): EmailAdapter => {
 
           // Convert Payload's SendEmailOptions to Resend's format
           const { data, error } = await resend.emails.send({
-            from: (message.from as string) || CONTACT_EMAIL,
+            from: (message.from as string) || MANAGER_EMAIL_FROM,
             to: Array.isArray(message.to) ? (message.to as string[]) : [message.to as string],
             subject: message.subject as string,
             html: message.html as string,

@@ -6,14 +6,13 @@ import { readSubmissionValue } from '@/collections/UserSubmissions/submissionDat
 import type { FollowUpSection } from '@/emails/PostEventFollowUpEmail'
 import { PostEventFollowUpEmail, postEventFollowUpText } from '@/emails/PostEventFollowUpEmail'
 import { appendLogEntry, asLog } from '@/fields'
-import { CONTACT_EMAIL } from '@/lib/contact'
 import type { LocaleCode } from '@/lib/locales'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import { buildFeedbackEmailLink, signFeedbackToken } from '@/lib/registrations/feedbackLinks'
 import { interpolate, resolveEmailStrings } from '@/lib/translations/emailStrings'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import type { Event, UserSubmission } from '@/payload-types'
-import { getClientEmailBrand, getEmailBrand, renderEmail } from '@/plugins/email'
+import { getClientEmailBrand, getEmailBrand, renderEmail, USER_EMAIL_FROM } from '@/plugins/email'
 
 const PAGINATION_LIMIT = 200
 
@@ -109,9 +108,9 @@ async function sendFollowUp(
 
   await payload.sendEmail({
     to: registrantEmail,
-    // `From` stays CONTACT_EMAIL — Resend verifies senders per domain, so we
-    // can't send as the client; the display name carries the branding.
-    from: `${headerDisplayName(brand.productName)} <${CONTACT_EMAIL}>`,
+    // Resend verifies senders per domain, so we can't send as the client; the
+    // display name carries the branding.
+    from: `${headerDisplayName(brand.productName)} <${USER_EMAIL_FROM}>`,
     ...(client?.supportEmail && { replyTo: client.supportEmail }),
     // The event title is manager-authored free text; strip line breaks so it
     // can't inject a second header off the Subject line.

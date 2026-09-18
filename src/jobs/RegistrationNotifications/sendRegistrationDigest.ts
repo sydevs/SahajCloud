@@ -15,10 +15,9 @@ import { createElement } from 'react'
 
 import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
 import { RegistrationDigestEmail, registrationDigestText } from '@/emails/RegistrationDigestEmail'
-import { CONTACT_EMAIL } from '@/lib/contact'
 import type { RegistrationRecipient } from '@/lib/notifications/registrationRecipient'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
-import { getEmailBrand, renderEmail } from '@/plugins/email'
+import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 
 export async function sendRegistrationDigest(args: {
   payload: Payload
@@ -45,9 +44,8 @@ export async function sendRegistrationDigest(args: {
 
   await payload.sendEmail({
     to: recipient.destination,
-    // `From` stays CONTACT_EMAIL (Resend verifies senders per domain); the brand
-    // name carries the identity.
-    from: `${headerDisplayName(brand.productName)} <${CONTACT_EMAIL}>`,
+    // Resend verifies senders per domain; the brand name carries the identity.
+    from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
     subject: stripNewlines(`Registration summary: ${total} new`),
     html: await renderEmail(createElement(RegistrationDigestEmail, templateProps)),
     text: registrationDigestText(templateProps),

@@ -22,7 +22,9 @@ vi.mock('resend', () => ({
 }))
 
 import { serverEnv } from '@/lib/env'
+import { getEmailBrand } from '@/plugins/email/brand'
 import { resendAdapter } from '@/plugins/email/resendAdapter'
+import { MANAGER_EMAIL_FROM, USER_EMAIL_FROM } from '@/plugins/email/senders'
 
 const env = serverEnv as { RESEND_API_KEY?: string }
 const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() }
@@ -126,5 +128,41 @@ describe('resendAdapter message mapping', () => {
 
     expect(sendMock).not.toHaveBeenCalled()
     expect(logger.error).toHaveBeenCalled()
+  })
+})
+
+describe('resendAdapter default sender', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    env.RESEND_API_KEY = 'test-key-that-is-long-enough'
+    sendMock.mockResolvedValue({ data: { id: 'msg_1' }, error: null })
+  })
+
+  it('defaults to the manager address, which Payload auth mail sends as', () => {
+    // Nothing else sets `from` on a verification or password-reset send, so this
+    // default IS the auth mail's sender. It must be a Resend-verified domain or
+    // the send is dropped without an error reaching the caller (#790).
+    expect(buildAdapter().defaultFromAddress).toBe(MANAGER_EMAIL_FROM)
+  })
+
+  it('names the sender from the brand the auth subject line uses', () => {
+    expect(buildAdapter().defaultFromName).toBe(getEmailBrand().productName)
+  })
+
+  it('falls back to a bare manager address for a message that names no sender', async () => {
+    // `defaultFromName` does NOT apply here — Payload composes it only for its
+    // own auth mail. A `payload.sendEmail` caller that omits `from` reaches this
+    // line instead and gets the address alone: today `VerifyEmbeds` and the
+    // event-verification reminder, both manager-facing, so the address is right
+    // and only the display name is missing.
+    await buildAdapter().sendEmail(baseMessage)
+
+    expect(sendMock.mock.calls[0][0].from).toBe(MANAGER_EMAIL_FROM)
+  })
+
+  it('never overrides a sender the caller set', async () => {
+    await buildAdapter().sendEmail({ ...baseMessage, from: `Atlas <${USER_EMAIL_FROM}>` })
+
+    expect(sendMock.mock.calls[0][0].from).toBe(`Atlas <${USER_EMAIL_FROM}>`)
   })
 })
