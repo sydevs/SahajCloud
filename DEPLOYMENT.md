@@ -64,65 +64,85 @@ of the trace — without it, a local `pnpm build` balloons `.next/standalone` to
 
 ## Edge Cache (Cloudflare Cache Rule)
 
-The app makes client-facing API reads edge-cacheable **at the app layer**: it emits
+Client-facing API reads are made edge-cacheable **at the app layer**: the app emits
 `Cache-Control: public, s-maxage=…`, `Vary: Authorization`, and `Cache-Tag` for cacheable reads
-(policy in `src/plugins/cache/`, applied by the `/api/**` middleware in `src/middleware.ts`).
-These headers do nothing on their own — Cloudflare treats any request carrying an `Authorization`
-header as private and serves it `cf-cache-status: DYNAMIC`, unless a **Cache Rule** marks the
-path "Eligible for cache". Caching activates only once the rule below exists. Absent or disabled,
-nothing is cached — that is a fail-safe, not a leak.
+(policy in `src/plugins/cache/`, applied by the `/api/**` middleware in `src/middleware.ts`). A
+single **Cache Rule** on the `sydevelopers.com` zone is what makes Cloudflare honour them — absent
+or disabled, nothing is cached, which is a fail-safe, not a leak.
 
-**Required Cache Rule** (Cloudflare dashboard → Caching → Cache Rules) — **live** on the
-`sydevelopers.com` zone as the enabled rule *"Client read edge cache (Vary: Authorization)"*. It
-covers both the custom client endpoints and the built-in REST collection reads:
+**The origin decides *what* is cached; the rule only decides *who may ask*.** The rule matches
+every `/api/**` read that could legitimately be cached and delegates the yes/no to the response
+headers, through Edge TTL **"Use cache-control header if present, bypass cache if not"**
+(`bypass_by_default` in the API). A path the app does not stamp sends no `Cache-Control` at all,
+so Cloudflare bypasses it. That makes `CACHE_TTLS` in `src/plugins/cache/policy.ts` the single
+source of truth: adding a collection, a global, or a root endpoint there is the entire change —
+**the dashboard never needs another edit.**
 
-- **Match** — a `GET` that **(a)** carries a non-empty `Authorization` header, **(b)** does
-  **not** carry `x-sahajcloud-preview-secret`, and **(c)** has a cacheable-read path:
-  `/api/<slug>` (list) or `/api/<slug>/…` (findByID and the custom sub-endpoints) for
-  `slug ∈ {meditations, lectures, songs, app-cards, regions, audiences, events, pages, images,
-  albums}`, plus root endpoints named individually (see the note below). Enumerated with `eq` /
-  `starts_with`, since the Free plan has no regex `matches` operator.
-- **This list is deliberately narrower than `CACHE_TTLS.collections`, and does not have to track
-  it.** `user-choices` sits in `CACHE_TTLS` so that slug is a `Cache-Tag` the lecture feeds may carry
-  and `cachePlugin` purges on write (#526) — the feeds embed a user choice's localized title, so
-  a rename has to invalidate them. Caching `GET /api/user-choices` itself was never the point.
-  Leaving it out of this rule just means that one read stays `DYNAMIC`, which is the fail-safe
-  direction. Add a slug here only when you intend its own REST read to be cached.
+> **Why it is not an allowlist any more.** The rule used to enumerate every cacheable path with
+> `eq` / `starts_with` terms, duplicating `CACHE_TTLS` in a place no one can see from the repo.
+> The two silently diverged three ways: the `/api/globals/` term that #710 records as live had
+> never been added, `/api/atlas/sitemap` was stamped but uncovered, and `/api/user-choices` (#804)
+> likewise — all three served `DYNAMIC` in production while this file said otherwise.
+
+**Live rule** (Cloudflare dashboard → Caching → Cache Rules) — enabled, named *"Client read edge
+cache (Vary: Authorization)"*, and the only rule in the zone's cache phase:
+
+```
+(http.request.method eq "GET"
+ and any(http.request.headers["authorization"][*] != "")
+ and not any(http.request.headers["x-sahajcloud-preview-secret"][*] != "")
+ and starts_with(http.request.uri.path, "/api/")
+ and not http.request.uri.path contains "/file/"
+ and not http.request.uri.query contains "draft=true")
+```
+
+- **`GET` with `Authorization` present** — caching applies to client API-key reads and nothing
+  else. Manager and admin reads are cookie-authenticated, carry no `Authorization`, and never
+  match; neither does any write.
 - **⚠️ The `Authorization`-present condition is mandatory — never match a bare `/api/*`.**
   `Vary: Authorization` partitions the cache per API-key *value*, but it does not isolate the
-  *absent*-header case. Without requiring `Authorization` present, Cloudflare serves the cached
-  **authed** response to an **unauthenticated** request — `cf-cache-status: HIT`, `200` — even
-  though the origin returns **403** for it. That is a verified production access-control bypass,
-  and it also skips edge rate limiting and usage tracking. Requiring the header makes unauth
-  reads fall through to the origin instead, matching the app's own middleware.
-- **Eligible for cache**: ON. **Edge TTL**: Respect origin (honor the origin `s-maxage`).
+  *absent*-header case. Without requiring the header, Cloudflare serves the cached **authed**
+  response to an **unauthenticated** request — `cf-cache-status: HIT`, `200` — even though the
+  origin returns **403** for it. That is a verified production access-control bypass, and it also
+  skips edge rate limiting and usage tracking.
+- **Preview bypass** — requests carrying `x-sahajcloud-preview-secret` are excluded at the edge,
+  and the app emits `private, no-store` for them as well. Live-preview reads are never cached.
+- **Draft bypass** — the app emits `private, no-store` for any truthy `?draft=` (`isDraftRead` in
+  `src/plugins/cache/policy.ts`); the `draft=true` term makes that bypass independent of the
+  origin header. The two conditions are independent: a caller may be authorised for drafts without
+  holding the preview secret, and `Vary: Authorization` would otherwise replay that response to
+  every request sharing the same API key.
+- **`/file/` exclusion** — Payload's upload routes (`/api/<slug>/file/<name>`) serve R2 objects
+  stamped `public, max-age=31536000` **without** `Vary: Authorization`
+  (`src/plugins/storage/r2NativeAdapter.ts`), so caching them would key a single entry shared
+  across every API key. They stay at the origin.
+- **Eligible for cache**: ON. **Edge TTL**: `bypass_by_default`, plus a **status-code override of
+  `-1` (no-store) for 400–599**. The middleware stamps headers onto `NextResponse.next()` before
+  the response status exists, so an error carries `public, s-maxage=600` too; without the override
+  a transient 500 would be cached for ten minutes. This was live — a `400` from
+  `GET /api/meditations?limit=1` returned `cf-cache-status: HIT` before the override was added.
 - **`vary.authorization = passthrough`** — critical: this is what makes Cloudflare key a
   separate cached variant per API key, so one client is never served another's cached response.
   Set `vary.default = passthrough` too, **not `bypass`** — Next.js also stamps `rsc` /
   `next-router-*` / `Sec-CH-Prefers-Color-Scheme` onto `Vary`, and a `bypass` default would
   bypass on those before `Authorization` is even considered.
-- **Preview bypass**: excluding requests that carry `x-sahajcloud-preview-secret` keeps
-  draft-bearing live-preview reads out of cache. The app also emits `private, no-store` for
-  those, as defense in depth.
-- **Draft bypass**: the app emits `private, no-store` for any read carrying a truthy `?draft=`,
-  whether or not a preview secret rides with it (`isDraftRead` in `src/plugins/cache/policy.ts`).
-  Edge TTL is "Respect origin", so that alone keeps drafts out of cache. ⚠ **Recommended
-  hardening**: add `not http.request.uri.query contains "draft=true"` to this rule, so the bypass
-  does not depend solely on an origin header. The two conditions are independent — a caller may be
-  authorised for drafts without holding the preview secret, and `Vary: Authorization` would
-  otherwise replay that response to every request sharing the same API key.
 
-Everything else stays `cf-cache-status: DYNAMIC` at the origin: writes, unauthenticated or
-invalid-key reads (→ `403`), preview reads, and non-cacheable collections (`clients`, `managers`,
-`users`, …).
+Everything else stays `cf-cache-status: BYPASS` or `DYNAMIC`: writes, unauthenticated or
+invalid-key reads (→ `403`), preview and draft reads, upload file routes, error responses, and
+every collection or global the app does not stamp (`clients`, `managers`, `users`,
+`wm-app-status`, …).
 
-> **⚠️ A root endpoint's path names no collection, so the slug list does not cover it by
-> default.** `GET /api/atlas/seo` emits the same cacheable headers as any other client read, but
-> `atlas` is not a collection slug, so it stayed `cf-cache-status: DYNAMIC` until
-> `http.request.uri.path eq "/api/atlas/seo"` was added **to this rule's own path group**. Add a
-> new root endpoint the same way — one more `eq` term on the existing rule, never a second rule.
-> A separate rule would not carry the `Authorization`-present condition, and would reopen the
-> same bypass.
+> **Adding a cacheable read needs no dashboard change.** A new collection, global, or root
+> endpoint becomes cacheable the moment it is listed in `CACHE_TTLS` (or stamps
+> `publicReadCacheHeaders` in-handler) and that code is deployed. To *stop* a read being cached,
+> remove it from `CACHE_TTLS` — the app then sends no cache header and the edge bypasses it.
+> Only a genuinely new **exclusion** — a path that stamps `public` without `Vary: Authorization`,
+> as the upload routes do — needs a term on the rule.
+
+**Editing the rule** takes the dashboard or a Cache-Rules-scoped API token. That token is
+`CLOUDFLARE_CLAUDE_KEY` in `.env.claude.local` (`docs/environment.md`), which is gitignored and
+local-only, so no cloud session carries it. `CLOUDFLARE_CACHE_PURGE_TOKEN` is purge-scoped and
+cannot edit rules.
 
 **Purge-on-write**: set `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_CACHE_PURGE_TOKEN` (scoped to
 `Cache Purge` on this zone) to enable best-effort `Cache-Tag` purge when a cached collection or
@@ -147,9 +167,12 @@ listed with their TTLs in `CACHE_TTLS.globals` (`src/plugins/cache/policy.ts`), 
 the cacheable collections live. `wm-app-status` is excluded: it is an operator readiness report
 read over cookie auth.
 
-This needed **one `starts_with "/api/globals/"` term added to the existing Cache Rule's path
-group** — never a second rule, for the reason in the note above: a separate rule would not carry
-the `Authorization`-present condition and would reopen the cached-403 bypass.
+⚠ **This did not actually work until the Cache Rule was made origin-controlled.** The rule
+enumerated collection paths only, so `/api/globals/*` was stamped `public, s-maxage=600` by the
+app and still served `cf-cache-status: DYNAMIC` in production — the `starts_with "/api/globals/"`
+term this section once described as added had never reached the zone. Under the current rule the
+globals are covered by `starts_with "/api/"` like everything else, and were verified `MISS` then
+`HIT`.
 
 Cloudflare keys on the full query string, so `?locale=fr` and each client's own `select` shape
 are separate cache entries, and one tag purge covers all of them.
@@ -158,7 +181,7 @@ are separate cache entries, and one tag purge covers all of them.
 keeps a read-through Cloudflare KV layer at 24h for `web-config:*` and `web-translations:*`, which
 no tag purge can reach, so a `wm-web-*` edit can take up to a day to reach that site. The fix
 belongs there, not here: a Worker's `fetch()` to another Cloudflare zone reads through that zone's
-cache, so once the Cache Rule above covers `/api/globals/`, the KV copy is redundant and can go.
+cache, and the Cache Rule above now covers `/api/globals/`, so the KV copy is redundant and can go.
 SahajAtlasWeb needs nothing either way — its only cache beyond the edge is a per-session React
 Query window, which a reload clears.
 
