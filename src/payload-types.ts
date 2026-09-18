@@ -8634,6 +8634,10 @@ export interface SyAtlasConfig {
    * The client that owns every atlas page no other client claims — normally We Meditate. It must be published, have canonical ownership switched on, and have a verified embed; until all three hold, those pages keep the built-in We Meditate URLs and appear in no sitemap. Once all three hold, this also moves those pages’ canonical URLs onto the address that client’s embed was last verified at, in place of the built-in one — most of the atlas at once, and with no preview. Leave this empty to keep the built-in behaviour.
    */
   canonicalFallbackClient?: (number | null) | Client;
+  /**
+   * The contact form the widget renders behind “Report an issue”. Its authored fields are what a visitor fills in, and its recipient is who the message reaches — blank recipient sends to the system contact. Leave this empty to hide the report-issue path entirely.
+   */
+  reportIssueForm?: (number | null) | Form;
   defaultMapCenter: {
     latitude: number;
     longitude: number;
@@ -9979,6 +9983,7 @@ export interface WmAppStatusSelect<T extends boolean = true> {
 export interface SyAtlasConfigSelect<T extends boolean = true> {
   availableLocales?: T;
   canonicalFallbackClient?: T;
+  reportIssueForm?: T;
   defaultMapCenter?:
     | T
     | {

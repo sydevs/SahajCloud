@@ -45,6 +45,27 @@ export const SahajAtlasConfig: GlobalConfig = {
       },
     },
     {
+      name: 'reportIssueForm',
+      label: 'Report an Issue Form',
+      type: 'relationship',
+      relationTo: 'forms',
+      // `filterOptions` moves a refusal the visitor would otherwise hit at send
+      // time onto the operator at authoring time: `prepareUserSubmission.ts`
+      // rejects a submission whose `type` disagrees with the form's
+      // `actionType` with a 400, and a `subscribe` form named here would fail
+      // every report the widget sends.
+      //
+      // Nullable on purpose. Unset is a live state — the widget hides its
+      // report-issue path rather than rendering a form it cannot post.
+      filterOptions: () => ({ actionType: { equals: 'contact' } }),
+      admin: {
+        description:
+          'The contact form the widget renders behind “Report an issue”. Its authored fields are ' +
+          'what a visitor fills in, and its recipient is who the message reaches — blank recipient ' +
+          'sends to the system contact. Leave this empty to hide the report-issue path entirely.',
+      },
+    },
+    {
       name: 'defaultMapCenter',
       label: 'Default Map Center',
       type: 'group',
