@@ -157,10 +157,16 @@ describe('User submission review lifecycle', () => {
     })
 
     it('populates the target event photographs the widget cannot read for itself', async () => {
-      const first = await testData.createImage(payload)
-      const second = await testData.createImage(payload)
+      const uploaded = await Promise.all([
+        testData.createImage(payload),
+        testData.createImage(payload),
+      ])
+      // Listed highest id first: the lead photo is the editor's choice, not
+      // the lowest row. (`readEventImages` owns the ordering, and
+      // `atlas-seo.int.spec.ts` pins it both ways round.)
+      const [lead, second] = uploaded.sort((a, b) => b.id - a.id)
       const target = await testData.createEvent(payload, {
-        images: [first.id, second.id],
+        images: [lead.id, second.id],
         _status: 'published',
       })
       const created = await createProposal({
@@ -170,9 +176,10 @@ describe('User submission review lifecycle', () => {
 
       const preview = (await reload(created.id)).previewEvent as Record<string, unknown>
       const images = preview.images as { id: number; url: string | null }[]
-      // The atlas client holds create-only on this collection (#723), so the
-      // projection is the only way a photograph reaches the preview iframe.
-      expect(images.map((image) => image.id)).toEqual([first.id, second.id])
+      // In the editor's order, and carrying a url — the widget holds
+      // create-only here (#723), so this projection is the only way a
+      // photograph reaches the preview iframe at all.
+      expect(images.map((image) => image.id)).toEqual([lead.id, second.id])
       for (const image of images) expect(image.url).toBeTruthy()
 
       // `region` stays a bare id: `loadTargetEvent` is shared with the diff
@@ -190,7 +197,7 @@ describe('User submission review lifecycle', () => {
       const preview = (await reload(created.id)).previewEvent as Record<string, unknown>
       // `images` is privileged, so a proposal can never carry one and there is
       // no target event to inherit any from.
-      expect(preview.images ?? []).toEqual([])
+      expect(preview.images).toBeUndefined()
       expect(preview.region).toBe(cityId)
 
       const result = await applyReview({

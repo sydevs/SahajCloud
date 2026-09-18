@@ -63,6 +63,22 @@ export function newEventDefaults(
 }
 
 /**
+ * The region a new listing is created in: the one a reviewer set, else the one
+ * screening anchored.
+ *
+ * Deliberately outside {@link newEventDefaults}. In the merge it would add a
+ * Region line to every new-event diff, so `previewEvent` mirrors the write
+ * through this function instead and `proposedChanges` is left as it was.
+ */
+export function submissionRegionId(submission: {
+  region?: unknown
+  regionHint?: unknown
+}): number | null {
+  const hint = (submission.regionHint ?? {}) as Record<string, unknown>
+  return relationId(submission.region) ?? relationId(hint.anchorRegion)
+}
+
+/**
  * Merge a proposal onto its target. `target` is the existing event for an
  * update proposal, or omitted for a new-event submission (which starts from
  * {@link NEW_EVENT_DEFAULTS}).

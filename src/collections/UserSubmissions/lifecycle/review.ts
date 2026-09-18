@@ -7,7 +7,7 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 
 import { OPEN_REVIEW_STATUSES, REOPENABLE_REVIEW_STATUSES } from '../statuses'
-import { newEventDefaults, type ProposedPatch } from './mergeProposal'
+import { newEventDefaults, type ProposedPatch, submissionRegionId } from './mergeProposal'
 
 /**
  * Shared review semantics for a `proposal` submission — the one place Accept
@@ -156,8 +156,7 @@ export async function applyReview(args: {
     return { status: 'accepted', outcome: 'updated', submission: updated, eventId: targetEventId }
   }
 
-  const hint = (submission.regionHint ?? {}) as Record<string, unknown>
-  const regionId = relationId(submission.region) ?? relationId(hint.anchorRegion)
+  const regionId = submissionRegionId(submission)
   if (regionId == null) {
     throw new APIError(
       'This submission has no resolved city/venue yet — set the Region field (or wait for screening) before accepting.',
