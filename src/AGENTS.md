@@ -80,7 +80,10 @@ No loose files at the root — every file lives in a named folder:
   `localeIsolatedReq` — gives a nested cross-locale read a copy so it can't
   repoint the caller's request, `versionsRead` — tells a `beforeOperation`
   hook whether its `read` is a versions read, which cannot carry a document
-  `where`, `url` — `originOf` for admin code deciding whether to trust a URL
+  `where`, `eventImages` — an event's photos as documents, in the order the
+  editor arranged them, with the `url` co-select that stops them arriving
+  blank (the atlas SEO endpoint and the proposal preview both read them),
+  `url` — `originOf` for admin code deciding whether to trust a URL
   the browser handed it, where an opaque origin reads as none. Parsing itself
   is `URL.parse`, the built-in that returns `null` rather than throwing —
   do not re-wrap it)
