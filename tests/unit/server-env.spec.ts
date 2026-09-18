@@ -34,6 +34,21 @@ describe('serverEnv', () => {
     expect(serverEnv.PAYLOAD_SECRET).toBe(requiredEnv.PAYLOAD_SECRET)
   })
 
+  // The flag pauses the nightly ExpireEvents sweep in production, so the
+  // default has to be "run" — an existing deployment sets nothing.
+  it.each([
+    [undefined, true],
+    ['true', true],
+    ['false', false],
+    ['0', false],
+  ])('parses EVENT_VERIFICATION_ENABLED=%s as %s', async (raw, expected) => {
+    process.env = { ...baseEnv, ...requiredEnv }
+    if (raw !== undefined) process.env.EVENT_VERIFICATION_ENABLED = raw
+    const { serverEnv } = await import('../../src/lib/env/server')
+
+    expect(serverEnv.EVENT_VERIFICATION_ENABLED).toBe(expected)
+  })
+
   it('throws a client-specific error if server variables are accessed in a browser bundle', async () => {
     process.env = { ...baseEnv }
     vi.stubGlobal('window', {})

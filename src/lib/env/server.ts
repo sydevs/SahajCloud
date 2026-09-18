@@ -74,6 +74,20 @@ const ServerEnvSchema = ClientEnvSchema.extend({
     .transform((value) => value === 'true' || value === '1'),
 
   /**
+   * Run the nightly `ExpireEvents` sweep, or pause it.
+   * Off, the job returns before it queries, so no verification reminder is
+   * sent and no event is unpublished, trashed or marked finished. The cron
+   * entry stays registered — flipping this variable and redeploying is the
+   * whole toggle. Only `false` or `0` pauses it; unset or anything else runs
+   * the job, so an existing deployment is unaffected.
+   * @default true
+   */
+  EVENT_VERIFICATION_ENABLED: z
+    .string()
+    .optional()
+    .transform((value) => value !== 'false' && value !== '0'),
+
+  /**
    * Nirmala Vidya API key. Fetches lecture metadata from Vimeo.
    * Optional at startup. The app validates it at the point of use, when it
    * creates or refreshes lectures.

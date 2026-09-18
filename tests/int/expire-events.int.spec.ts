@@ -13,6 +13,15 @@ import { createTestEnvironment } from '../utils/testHelpers'
 // the tests can still assert what context the handler attached to the Sentry scope.
 const { setContextMock } = vi.hoisted(() => ({ setContextMock: vi.fn() }))
 
+// The flag is read through a helper because `getServerEnv` caches its first
+// parse, so `vi.stubEnv` after boot cannot move it. Default `true` keeps every
+// other case in this file running the job exactly as production does.
+const { isEnabledMock } = vi.hoisted(() => ({ isEnabledMock: vi.fn(() => true) }))
+
+vi.mock('@/jobs/ExpireEvents/featureFlag', () => ({
+  isEventVerificationEnabled: isEnabledMock,
+}))
+
 vi.mock('@sentry/nextjs', () => ({
   withScope: vi.fn((callback: (scope: { setContext: typeof setContextMock }) => void) =>
     callback({ setContext: setContextMock }),
@@ -417,6 +426,50 @@ describe('ExpireEvents job', () => {
       const after = await reload(payload, event.id)
       expect(after.verificationStage).toBe('finished')
       expect(after.deletedAt ?? null).toBeNull()
+    })
+  })
+
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('paused by EVENT_VERIFICATION_ENABLED', () => {
+    const reload = (payload: Payload, id: number) =>
+      payload.findByID({ collection: 'events', id, overrideAccess: true, depth: 0, trash: true })
+
+    it('leaves a due event byte-identical and sends nothing', async () => {
+      const event = await createDueEvent(payload, 'Paused')
+      const before = await reload(payload, event.id)
+
+      const sent: unknown[] = []
+      const originalSend = payload.sendEmail.bind(payload)
+      payload.sendEmail = (async (message: Parameters<Payload['sendEmail']>[0]) => {
+        sent.push(message)
+        return originalSend(message)
+      }) as Payload['sendEmail']
+      isEnabledMock.mockReturnValue(false)
+
+      try {
+        const result = await runTask(payload)
+
+        // Zeroed, so `outputSchema` is unchanged by the pause.
+        expect(result).toEqual({
+          processed: 0,
+          finished: 0,
+          advanced: 0,
+          trashed: 0,
+          remindersSent: 0,
+          failed: 0,
+        })
+        expect(sent).toHaveLength(0)
+
+        const after = await reload(payload, event.id)
+        expect(after.verificationStage).toBe(before.verificationStage)
+        expect(after.nextCheckAt).toBe(before.nextCheckAt)
+        expect(after.activityLog).toEqual(before.activityLog)
+        expect(after._status).toBe(before._status)
+        expect(after.deletedAt ?? null).toBe(before.deletedAt ?? null)
+      } finally {
+        isEnabledMock.mockReturnValue(true)
+        payload.sendEmail = originalSend
+      }
     })
   })
 })
