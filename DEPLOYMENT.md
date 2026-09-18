@@ -259,6 +259,7 @@ Never paste a secret into git or email.
 | `DATABASE_URL` | `postgres://user:password@host:5432/dbname` — the only required database variable. |
 | `DATABASE_POOL_MAX` | Optional, default 10. `node-postgres` `pool.max`. Size it to the Railway Postgres connection limit divided by running instances, leaving headroom for in-process migrations and `psql`. |
 | `DB_QUERY_LOGGING` | Optional, default false, **local dev only** — force-disabled when `NODE_ENV=production` (every Railway build, previews included). Logs Drizzle SQL and bound params. ⚠️ It logs bound params — emails, tokens, API keys. Never enable it against real or cloned production data. Use Railway's `log_min_duration_statement` for server-side timings there instead. |
+| `EVENT_VERIFICATION_ENABLED` | Optional, default true. Set it to `false` (or `0`) to pause the nightly `ExpireEvents` sweep: no verification reminder is sent, and no event is unpublished, trashed or marked finished. The cron entry stays registered, so the variable plus a redeploy is the whole toggle. PR previews inherit production variables, so they pause too. |
 
 ### Storage and Cloudflare services
 
