@@ -30,6 +30,7 @@ import {
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import type { Event } from '@/payload-types'
 
+import { isEventVerificationEnabled } from './featureFlag'
 import { buildVerifyEmailLink } from './verifyUrl'
 
 
@@ -382,6 +383,11 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
       trashed: 0,
       remindersSent: 0,
       failed: 0,
+    }
+
+    if (!isEventVerificationEnabled()) {
+      req.payload.logger.info({ msg: 'ExpireEvents: disabled by EVENT_VERIFICATION_ENABLED' })
+      return { output: result }
     }
 
     const dueIds = await dueEventIds(payload, req, now)
