@@ -153,6 +153,23 @@ describe('Atlas report-issue form', () => {
       })
       expect((docs[0] as Form).recipient).toMatchObject({ id: recipient.id })
     })
+
+    it('never returns client, at any depth', async () => {
+      // The subscribe form, because it is the one that names a client. A
+      // populated `clients` document carries the plaintext `apiKey` (#822), so
+      // this lock is worth more than `recipient`'s, not less.
+      for (const depth of [0, 1]) {
+        const { docs } = await payload.find({
+          collection: 'forms',
+          where: { id: { equals: subscribeForm.id } },
+          select: { title: true, client: true },
+          depth,
+          user: atlasClient,
+          overrideAccess: false,
+        })
+        expect(docs[0], `depth ${depth}`).not.toHaveProperty('client')
+      }
+    })
   })
 
   describe('delivering a report', () => {

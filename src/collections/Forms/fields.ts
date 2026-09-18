@@ -98,11 +98,23 @@ const recipientField: Field = {
  * that adds a `NOT NULL` column to a table with rows aborts the boot migration
  * on every environment carrying cloned production data. The rule is per-action
  * anyway, which no column constraint can express.
+ *
+ * ⚠ **`managersOnlyFieldAccess` is the security boundary here too**, for the
+ * same reason as `recipient` above and with a worse payload. `clients` is not
+ * in `RESTRICTED_COLLECTIONS`, so without the lock a read at `depth >= 1`
+ * populates a whole `clients` document — plaintext `apiKey` included (#822).
+ * `deliverSubscribe` resolves this field with `overrideAccess: true`, so the
+ * lock cannot starve a subscription.
  */
 const clientField: Field = {
   name: 'client',
   type: 'relationship',
   relationTo: 'clients',
+  access: {
+    read: managersOnlyFieldAccess,
+    create: managersOnlyFieldAccess,
+    update: managersOnlyFieldAccess,
+  },
   admin: {
     condition: (_data, siblingData) => siblingData?.actionType === 'subscribe',
     description: 'Whose mailing list a subscriber joins.',
