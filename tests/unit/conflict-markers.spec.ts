@@ -30,21 +30,30 @@ const THEIRS = '>'.repeat(7)
 
 const CONFLICT_MARKER = `^(${OURS} |${SEPARATOR}$|${THEIRS} )`
 
-/** Matching `<path>:<line>:<text>` rows, or `[]` when nothing matches. */
-function grepConflictMarkers(cwd: string, { noIndex = false } = {}): string[] {
-  const scope = noIndex ? ['--no-index'] : []
+/**
+ * Matching `<path>:<line>:<text>` rows in `cwd`'s tracked files, or `[]`.
+ *
+ * `grep.column` is pinned because a contributor who sets it globally would
+ * otherwise get an extra column in every row. `-I` is deliberately absent: it
+ * skips whatever git calls binary, which includes a plain text file marked
+ * `-diff` in `.gitattributes`, and a guard should rather report a media file
+ * loudly than miss a real block quietly.
+ */
+function grepConflictMarkers(cwd: string): string[] {
   let out: string
   try {
-    out = execFileSync('git', ['grep', ...scope, '-I', '-n', '-E', CONFLICT_MARKER, '--', '.'], {
-      cwd,
-      encoding: 'utf8',
-    })
+    out = execFileSync(
+      'git',
+      ['-c', 'grep.column=false', 'grep', '-n', '-E', CONFLICT_MARKER, '--', '.'],
+      { cwd, encoding: 'utf8' },
+    )
   } catch (error) {
     // `git grep` exits 1 for "no match" and 2 or more for a real failure, so
     // reading every non-zero exit as "clean" is how this would go vacuous.
-    const { status, stderr } = error as { status?: number; stderr?: string }
+    const { status, stderr } = error as { status?: number | null; stderr?: string }
     if (status === 1) return []
-    throw new Error(`git grep exited ${String(status)}: ${stderr ?? '(no stderr)'}`)
+    const reported = status === null ? 'never ran — is git on PATH?' : `exited ${String(status)}`
+    throw new Error(`git grep ${reported}: ${stderr ?? '(no stderr)'}`)
   }
   return out.split('\n').filter(Boolean)
 }
@@ -57,16 +66,27 @@ describe('no tracked file carries an unresolved conflict block', () => {
   /**
    * A guard that has never matched anything has not been tested: a pattern
    * typo, a `git grep` that cannot see the tree, and an exit code read the
-   * wrong way all produce the same green a clean tree does. `--no-index` is
-   * what lets this ask — the sample sits in no repository at all, so git greps
-   * it the way plain `grep` would.
+   * wrong way all produce the same green a clean tree does.
+   *
+   * The fixture is a real repository with the file really tracked, because
+   * that is the only way to exercise the path the test above takes. Grepping a
+   * loose file with `--no-index` would prove the pattern while bypassing index
+   * enumeration, the pathspec and `.gitattributes` — every structural way the
+   * scan can come back empty.
    */
-  it('matches all three marker lines when one is present', () => {
+  it('matches all three marker lines in a tracked file', () => {
     const dir = mkdtempSync(join(tmpdir(), 'conflict-markers-'))
     onTestFinished(() => rmSync(dir, { recursive: true, force: true }))
-    writeFileSync(join(dir, 'sample.md'), `${OURS} HEAD\nours\n${SEPARATOR}\ntheirs\n${THEIRS} main\n`)
 
-    expect(grepConflictMarkers(dir, { noIndex: true })).toEqual([
+    writeFileSync(
+      join(dir, 'sample.md'),
+      `${OURS} HEAD\nours\n${SEPARATOR}\ntheirs\n${THEIRS} main\n`,
+    )
+    // `-f` on the add, in case a contributor's global excludes file ignores it.
+    execFileSync('git', ['-c', 'init.defaultBranch=main', 'init', '-q'], { cwd: dir })
+    execFileSync('git', ['add', '-f', 'sample.md'], { cwd: dir })
+
+    expect(grepConflictMarkers(dir)).toEqual([
       `sample.md:1:${OURS} HEAD`,
       `sample.md:3:${SEPARATOR}`,
       `sample.md:5:${THEIRS} main`,
