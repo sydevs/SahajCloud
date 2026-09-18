@@ -15,6 +15,7 @@ import { descendantRegionIds, getRegionTree } from '@/lib/atlas/regionTree'
 import { parseQuery, requireActiveClient } from '@/lib/endpoints'
 import type { LocaleCode } from '@/lib/locales'
 import { DEFAULT_LOCALE, isValidLocale, LOCALES } from '@/lib/locales'
+import { EVENT_IMAGE_LIMIT, readEventImages } from '@/lib/utilities/eventImages'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Region } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
@@ -68,18 +69,6 @@ const EVENT_SELECT: SelectType = {
   webPath: true,
   webUrl: true,
 }
-
-/**
- * Fields an image needs to render as `og:image` or an `<img>`.
- *
- * `filename` is co-selected because `url` is virtual and reads it — a select
- * naming `url` alone yields `null` and the image silently disappears rather
- * than erroring (see the co-select rule in `docs/rules/endpoints.md`).
- */
-const IMAGE_SELECT: SelectType = { url: true, alt: true, filename: true }
-
-/** Photos on a class, at most this many, matching the field's own `maxRows`. */
-const EVENT_IMAGE_LIMIT = 7
 
 /** The subset of the above a listing card needs — no description, no images. */
 const EVENT_CARD_SELECT: SelectType = {
@@ -265,34 +254,6 @@ async function regionSeo(
   })
 }
 
-/**
- * A class's photos, **in the order the editor arranged them**.
- *
- * `images` is an ordered `hasMany` upload field, and the first entry is the lead
- * photo — it becomes `og:image`, which is the one a social card unfurls. A
- * `where: { id: { in: [...] } }` read returns rows in *database* order, so the
- * ids have to be re-applied afterwards; without this an event whose editor put
- * image 42 first would unfurl image 7 simply because 7 sorts lower. (Payload's
- * own `depth: 1` populate preserves the order, which is why reading the images
- * separately — cheaper for the many classes that have none — has to restore it.)
- *
- * Ids with no surviving row (deleted, or not readable by this client) drop out
- * rather than leaving a hole.
- */
-async function readImages(req: PayloadRequest, imageIds: number[]): Promise<unknown[]> {
-  const { docs } = await req.payload.find({
-    collection: 'images',
-    where: { id: { in: imageIds } },
-    limit: EVENT_IMAGE_LIMIT,
-    depth: 0,
-    select: IMAGE_SELECT,
-    overrideAccess: false,
-    req,
-  })
-  const byId = new Map(docs.map((doc) => [doc.id, doc as unknown]))
-  return imageIds.map((id) => byId.get(id)).filter((doc) => doc !== undefined)
-}
-
 /** Answer a route that named an event. */
 async function eventSeo(
   req: PayloadRequest,
@@ -337,7 +298,9 @@ async function eventSeo(
   // nothing to fetch — most classes have no photos, and only a region-less
   // event has no ancestry.
   const [rawImages, breadcrumbs, locales] = await Promise.all([
-    imageIds.length === 0 ? Promise.resolve([]) : readImages(req, imageIds),
+    imageIds.length === 0
+      ? Promise.resolve([])
+      : readEventImages(imageIds, { payload: req.payload, overrideAccess: false, req }),
     regionId === null ? Promise.resolve([]) : regionBreadcrumbs(req, regionId),
     getAtlasLocales(req),
   ])

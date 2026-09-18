@@ -156,6 +156,73 @@ describe('User submission review lifecycle', () => {
       expect(preview.contactPhone).toBe('+44 20 2222 3333')
     })
 
+    it('populates the target event photographs the widget cannot read for itself', async () => {
+      const uploaded = await Promise.all([
+        testData.createImage(payload),
+        testData.createImage(payload),
+      ])
+      // Listed highest id first: the lead photo is the editor's choice, not
+      // the lowest row. (`readEventImages` owns the ordering, and
+      // `atlas-seo.int.spec.ts` pins it both ways round.)
+      const [lead, second] = uploaded.sort((a, b) => b.id - a.id)
+      const target = await testData.createEvent(payload, {
+        images: [lead.id, second.id],
+        _status: 'published',
+      })
+      const created = await createProposal({
+        event: target.id,
+        proposed: { eventType: 'offline', contactName: 'Aria' },
+      })
+
+      const preview = (await reload(created.id)).previewEvent as Record<string, unknown>
+      const images = preview.images as { id: number; url: string | null }[]
+      // In the editor's order, and carrying a url — the widget holds
+      // create-only here (#723), so this projection is the only way a
+      // photograph reaches the preview iframe at all.
+      expect(images.map((image) => image.id)).toEqual([lead.id, second.id])
+      for (const image of images) expect(image.url).toBeTruthy()
+
+      // `region` stays a bare id: `loadTargetEvent` is shared with the diff
+      // through the request memo, so populating relationships on that load
+      // would change what the reviewer reads.
+      expect(typeof preview.region).toBe('number')
+    })
+
+    it('previews a new-event proposal with the region Accept writes, and no photographs', async () => {
+      const created = await createProposal({
+        anchorRegion: cityId,
+        proposed: { ...BASE_PROPOSED, schedule: WEEKLY_SCHEDULE },
+      })
+
+      const preview = (await reload(created.id)).previewEvent as Record<string, unknown>
+      // `images` is privileged, so a proposal can never carry one and there is
+      // no target event to inherit any from.
+      expect(preview.images).toBeUndefined()
+      expect(preview.region).toBe(cityId)
+
+      const result = await applyReview({
+        payload,
+        submissionId: created.id,
+        action: 'accept',
+        managerId: regionManager.id,
+      })
+      const event = await payload.findByID({
+        collection: 'events',
+        id: result.eventId as number,
+        depth: 0,
+        overrideAccess: true,
+      })
+      // The preview promised a region. Accept has to write that same one.
+      expect(event.region).toBe(preview.region)
+    })
+
+    it('prefers a set region over the screening hint, as Accept does', async () => {
+      const created = await createProposal({ region: countryId, anchorRegion: cityId })
+
+      const preview = (await reload(created.id)).previewEvent as Record<string, unknown>
+      expect(preview.region).toBe(countryId)
+    })
+
     it('skips both projections on a list read', async () => {
       // 25 rows would otherwise mean 25 event lookups for values no list
       // column renders.
