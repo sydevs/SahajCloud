@@ -21,6 +21,10 @@ import type { Event } from '@/payload-types'
  * Arrays are replaced, not merged, because Payload replaces them: a proposed
  * `languages: ['de']` means those languages, not those plus the old ones. An
  * explicit `null` also wins — it is how a patch clears a value.
+ *
+ * **One field is deliberately outside the merge**: see {@link submissionRegionId}
+ * for the region a new listing is created in, which the preview and the write
+ * both name and the diff does not.
  */
 
 /** An Events data patch: keys are Events field names, validated on the way in. */
