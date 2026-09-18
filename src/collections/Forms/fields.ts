@@ -1,6 +1,7 @@
 import type { Field } from 'payload'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
+import { managersOnlyFieldAccess } from '@/plugins/access'
 
 /**
  * The `forms` field list, as `formOverrides.fields` hands it to us.
@@ -56,14 +57,29 @@ const actionTypeField: Field = {
 /**
  * Who a contact submission is delivered to.
  *
- * Nullable on purpose. A null recipient falls back to `CONTACT_EMAIL`, which is
- * how the Atlas widget's report-issue path keeps working — it posts with no
- * form at all, so it can have no recipient either, and the two must agree.
+ * Nullable on purpose. A null recipient falls back to `CONTACT_EMAIL`.
+ *
+ * ⚠ **`managersOnlyFieldAccess` is the security boundary here, not a nicety.**
+ * `forms` carries the form-builder plugin's own `read: () => true`, and
+ * `managers` is in no project — which implicit read treats as shared, not
+ * restrictive. Without the lock a read at `depth >= 1` hands a manager's name
+ * and email address to a browser. See `docs/rules/access.md`.
+ *
+ * ⚠ **This closes one door, not the class.** `managers` is not in
+ * `RESTRICTED_COLLECTIONS`, so a published client key still reads it directly,
+ * and `Events.manager` / `Regions.managers` carry no lock at all (#821). Do not
+ * read this field's access as evidence that a new `relationTo: 'managers'`
+ * field is safe without one.
  */
 const recipientField: Field = {
   name: 'recipient',
   type: 'relationship',
   relationTo: 'managers',
+  access: {
+    read: managersOnlyFieldAccess,
+    create: managersOnlyFieldAccess,
+    update: managersOnlyFieldAccess,
+  },
   admin: {
     condition: (_data, siblingData) => siblingData?.actionType === 'contact',
     description: `Who receives messages from this form. Leave blank to send to ${CONTACT_EMAIL}.`,
@@ -82,11 +98,23 @@ const recipientField: Field = {
  * that adds a `NOT NULL` column to a table with rows aborts the boot migration
  * on every environment carrying cloned production data. The rule is per-action
  * anyway, which no column constraint can express.
+ *
+ * ⚠ **`managersOnlyFieldAccess` is the security boundary here too**, for the
+ * same reason as `recipient` above and with a worse payload. `clients` is not
+ * in `RESTRICTED_COLLECTIONS`, so without the lock a read at `depth >= 1`
+ * populates a whole `clients` document — plaintext `apiKey` included (#822).
+ * `deliverSubscribe` resolves this field with `overrideAccess: true`, so the
+ * lock cannot starve a subscription.
  */
 const clientField: Field = {
   name: 'client',
   type: 'relationship',
   relationTo: 'clients',
+  access: {
+    read: managersOnlyFieldAccess,
+    create: managersOnlyFieldAccess,
+    update: managersOnlyFieldAccess,
+  },
   admin: {
     condition: (_data, siblingData) => siblingData?.actionType === 'subscribe',
     description: 'Whose mailing list a subscriber joins.',

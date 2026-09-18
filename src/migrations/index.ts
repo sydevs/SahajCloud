@@ -68,6 +68,7 @@ import * as migration_20260915_162816_mailing_list_config from './20260915_16281
 import * as migration_20260916_045509_spam_submission_status from './20260916_045509_spam_submission_status';
 import * as migration_20260916_140157_port_proposal_review from './20260916_140157_port_proposal_review';
 import * as migration_20260916_144804_drop_legacy_intake_collections from './20260916_144804_drop_legacy_intake_collections';
+import * as migration_20260918_172634_atlas_config_report_issue_form from './20260918_172634_atlas_config_report_issue_form';
 
 export const migrations = [
   {
@@ -418,6 +419,11 @@ export const migrations = [
   {
     up: migration_20260916_144804_drop_legacy_intake_collections.up,
     down: migration_20260916_144804_drop_legacy_intake_collections.down,
-    name: '20260916_144804_drop_legacy_intake_collections'
+    name: '20260916_144804_drop_legacy_intake_collections',
+  },
+  {
+    up: migration_20260918_172634_atlas_config_report_issue_form.up,
+    down: migration_20260918_172634_atlas_config_report_issue_form.down,
+    name: '20260918_172634_atlas_config_report_issue_form'
   },
 ];

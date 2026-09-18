@@ -80,7 +80,11 @@ const PROJECTS = {
     icon: '/images/sahaj-atlas.webp',
     emailIcon: '/images/sahaj-atlas.png',
     // `users` (registrants) is intentionally omitted — it stays admin-only.
-    collections: ['regions', 'events', 'images', 'files'],
+    // `forms` is here for the report-issue form named on `sy-atlas-config`.
+    // It changes the OpenAPI spec and the admin nav, not the widget's read:
+    // the form-builder plugin ships `forms` with `read: () => true`, which
+    // `accessPlugin` spreads last (`docs/rules/access.md`).
+    collections: ['regions', 'events', 'forms', 'images', 'files'],
     globals: ['sy-atlas-config', 'sy-atlas-translations'],
   },
   // `satisfies` pins the keys to the generated `ProjectSlug`, which
