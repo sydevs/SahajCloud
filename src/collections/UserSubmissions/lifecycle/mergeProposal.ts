@@ -21,6 +21,10 @@ import type { Event } from '@/payload-types'
  * Arrays are replaced, not merged, because Payload replaces them: a proposed
  * `languages: ['de']` means those languages, not those plus the old ones. An
  * explicit `null` also wins — it is how a patch clears a value.
+ *
+ * **One field is deliberately outside the merge**: see {@link submissionRegionId}
+ * for the region a new listing is created in, which the preview and the write
+ * both name and the diff does not.
  */
 
 /** An Events data patch: keys are Events field names, validated on the way in. */
@@ -60,6 +64,22 @@ export function newEventDefaults(
     inactive: (proposed ?? {}).schedule == null,
     _status: 'published',
   }
+}
+
+/**
+ * The region a new listing is created in: the one a reviewer set, else the one
+ * screening anchored.
+ *
+ * Deliberately outside {@link newEventDefaults}. In the merge it would add a
+ * Region line to every new-event diff, so `previewEvent` mirrors the write
+ * through this function instead and `proposedChanges` is left as it was.
+ */
+export function submissionRegionId(submission: {
+  region?: unknown
+  regionHint?: unknown
+}): number | null {
+  const hint = (submission.regionHint ?? {}) as Record<string, unknown>
+  return relationId(submission.region) ?? relationId(hint.anchorRegion)
 }
 
 /**

@@ -1,10 +1,11 @@
 import type { FieldHook, PayloadRequest } from 'payload'
 
+import { readEventImages, type EventImage } from '@/lib/utilities/eventImages'
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import type { Event } from '@/payload-types'
 
-import { mergeProposal } from '../lifecycle/mergeProposal'
+import { mergeProposal, submissionRegionId } from '../lifecycle/mergeProposal'
 import { buildProposedChanges } from '../lifecycle/proposedChanges'
 
 /**
@@ -90,7 +91,33 @@ async function resolveManager(req: PayloadRequest, value: unknown): Promise<unkn
   return (await loadManager(req, managerId)) ?? managerId
 }
 
-/** `previewEvent` — the merged event, for the live-preview iframe. */
+/**
+ * The merged event's photographs, at most once per request.
+ *
+ * Resolved after the merge rather than by raising `loadTargetEvent`'s depth:
+ * that load is shared with `computeProposedChanges`, where a populated
+ * relationship renders by name instead of by row id and would change the
+ * reviewer's diff. Same no-`req` rule as the two loads above.
+ */
+function loadImages(req: PayloadRequest, imageIds: number[]): Promise<EventImage[]> {
+  return memoizeOnRequest(req, `submissionImages:${imageIds.join(',')}`, () =>
+    readEventImages(imageIds, { payload: req.payload, overrideAccess: true }).catch(() => []),
+  )
+}
+
+/**
+ * `previewEvent` — the merged event, for the live-preview iframe.
+ *
+ * What the widget may rely on, given it can never read the collection back:
+ *
+ * - **`images`** — image documents carrying `url` and `alt`, in the event's
+ *   order, and only on an **update** proposal. `images` is privileged, so a
+ *   new-event proposal has none to show. An id whose row has gone drops out,
+ *   because the widget parses per entry and one bare number would cost it the
+ *   whole array.
+ * - **`region`** — on a new-event proposal, the id Accept will write.
+ * - **everything else** — as `mergeProposal` leaves it.
+ */
 export const computePreviewEvent: FieldHook = async ({ data, findMany, req }) => {
   if (findMany) return null
   if (data?.type !== 'proposal') return null
@@ -98,10 +125,19 @@ export const computePreviewEvent: FieldHook = async ({ data, findMany, req }) =>
   const proposed = data?.proposed as Record<string, unknown> | null | undefined
   const targetId = relationId(data?.event)
   if (targetId == null) {
-    return mergeProposal({ proposed, manager: await resolveManager(req, data?.manager) })
+    const merged = mergeProposal({ proposed, manager: await resolveManager(req, data?.manager) })
+    // Accept attaches the listing to this region, and a preview that promised
+    // a different one would be the disagreement `mergeProposal` exists to
+    // prevent.
+    const regionId = submissionRegionId({ region: data?.region, regionHint: data?.regionHint })
+    return regionId == null ? merged : { ...merged, region: regionId }
   }
 
-  return mergeProposal({ proposed, target: await loadTargetEvent(req, targetId) })
+  const merged = mergeProposal({ proposed, target: await loadTargetEvent(req, targetId) })
+  const imageIds = (Array.isArray(merged.images) ? merged.images : [])
+    .map(relationId)
+    .filter((id): id is number => id != null)
+  return imageIds.length === 0 ? merged : { ...merged, images: await loadImages(req, imageIds) }
 }
 
 /** `proposedChanges` — the field-by-field diff the reviewer reads. */
