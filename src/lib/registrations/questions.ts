@@ -10,8 +10,6 @@
  * `src/AGENTS.md`).
  */
 
-import type { JSONSchema4 } from 'json-schema'
-
 /**
  * Optional questions an event can ask registrants. Rendered as a group of
  * checkboxes on the Event (each label IS the question shown to the registrant);
@@ -35,32 +33,6 @@ export const EVENT_REGISTRATION_QUESTIONS = [
 export interface RegistrationAnswer {
   label: string
   value: string
-}
-
-/**
- * JSON Schema for the stored `questions` answers: an object keyed by the
- * configured question names, each answer a string, no other keys allowed.
- * Derived from `EVENT_REGISTRATION_QUESTIONS` so it can't drift.
- *
- * ⚠ **Unwired since #801.** It was `Registrations.questions`'s `jsonSchema`, which
- * Payload used to BOTH validate on write AND generate the field's TypeScript type.
- * The intake stores answers as `submissionData` pairs instead, bounded by
- * `UserSubmissions/submissionData.ts`, and refuses a bad one as
- * `submission_data_invalid` (400). #811 decides whether this goes.
- *
- * A schema wired this way compiles an Ajv `new Function()` validator — fine on
- * Railway/Node. Do not reinstate the old warning that it breaks under Cloudflare
- * Workers: that predates the migration off Workers.
- */
-export const registrationQuestionsJsonSchema: JSONSchema4 = {
-  type: 'object',
-  additionalProperties: false,
-  properties: Object.fromEntries(
-    EVENT_REGISTRATION_QUESTIONS.map((question) => [
-      question.name,
-      { type: 'string', description: question.label },
-    ]),
-  ),
 }
 
 const CONFIGURED_QUESTION_NAMES = new Set<string>(
