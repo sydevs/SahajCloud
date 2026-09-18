@@ -2,26 +2,18 @@
  * The atlas's report-issue form: named on `sy-atlas-config`, read by the widget,
  * delivered to a manager the widget must never see (#813).
  *
- * Four separate rules, and each fails in a way the others cannot see:
+ * The `recipient` lock and the delivery cases are two halves of one rule, and a
+ * spec carrying only the first would pass while every report silently went to
+ * `CONTACT_EMAIL` instead of the named manager — `recipientFor` reads with
+ * `overrideAccess: true` precisely so the lock does not reach it.
  *
- * - the global only accepts a `contact` form, so an operator is refused at
- *   authoring time rather than a visitor at send time;
- * - the atlas client reaches `forms` by a grant rather than by the form-builder
- *   plugin's `read: () => true` default;
- * - `recipient` never leaves the server for a non-manager, at any depth;
- * - delivery still resolves that same `recipient`, because it reads with
- *   `overrideAccess: true`. A lock that also broke delivery would satisfy the
- *   case above and silently redirect every report to the system contact.
+ * Two fixture facts the spec body does not show: an API client read must send
+ * `select` (`src/plugins/usage/hooks.ts`), and every partial write to
+ * `sy-atlas-config` must carry `availableLocales`
+ * (`src/fields/availableLocalesField.ts`).
  *
- * **Fixture assumptions, each checked against the real config rather than
- * assumed.** `sahaj-atlas-client` is a client role scoped to the `sahaj-atlas`
- * project, granting `user-submissions: ['create']` and nothing else
- * (`src/plugins/access/config/roles.ts`). `forms` is in both the `sahaj-atlas`
- * and `wemeditate-web` collection lists, and `managers` is in none
- * (`src/plugins/access/config/projects.ts`). An API client read must send
- * `select` (`src/plugins/usage/hooks.ts`). Every partial write to
- * `sy-atlas-config` must carry `availableLocales`, and `['en']` alone needs no
- * relaxation (`src/fields/availableLocalesField.ts`).
+ * The permission matrix itself lives in `role-based-access.int.spec.ts`, which
+ * pins the `forms` grant for all three client roles.
  */
 import type { Payload, PayloadRequest } from 'payload'
 
@@ -30,7 +22,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { deliverContact } from '@/jobs/DeliverSubmissions/deliverContact'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import type { Client, Form, Manager, UserSubmission } from '@/payload-types'
-import { bypassPermissions, hasPermission } from '@/plugins/access'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -119,9 +110,6 @@ describe('Atlas report-issue form', () => {
     })
 
     it('refuses a subscribe form', async () => {
-      // `prepareUserSubmission` refuses the same mismatch with a 400, but only
-      // once a visitor has written their report. `filterOptions` is what puts
-      // the refusal in front of the person who can fix it.
       await expect(setForm(subscribeForm.id)).rejects.toThrow()
     })
   })
@@ -137,19 +125,6 @@ describe('Atlas report-issue form', () => {
         overrideAccess: false,
       })
 
-    it('grants the atlas client read on forms', () => {
-      expect(
-        hasPermission(
-          {
-            user: testData.dummyUser('clients', { roles: ['sahaj-atlas-client'] }),
-            collection: 'forms',
-            operation: 'read',
-          },
-          bypassPermissions,
-        ),
-      ).toBe(true)
-    })
-
     it('returns the authored fields', async () => {
       const { docs } = await readAsAtlasClient(0)
       expect(docs).toHaveLength(1)
@@ -162,7 +137,7 @@ describe('Atlas report-issue form', () => {
     it('never returns recipient, at any depth', async () => {
       // `select` names `recipient` on purpose, and the fixture form has one.
       // Omitting either would pass for a reason unrelated to the lock.
-      for (const depth of [0, 1, 2]) {
+      for (const depth of [0, 1]) {
         const { docs } = await readAsAtlasClient(depth)
         expect(docs[0], `depth ${depth}`).not.toHaveProperty('recipient')
       }

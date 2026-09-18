@@ -127,8 +127,6 @@ describe('Forms action types', () => {
     })
 
     it('saves a contact form with no recipient', async () => {
-      // Null on purpose: a null recipient falls back to CONTACT_EMAIL, so an
-      // author who names nobody still gets their messages delivered.
       const form = await createForm({
         actionType: 'contact',
         fields: [EMAIL_FIELD, MESSAGE_FIELD],

@@ -39,10 +39,7 @@ export interface SendUserMessageArgs {
   context?: UserMessageContext
   /** When the message was received (ISO 8601). */
   receivedAt: string
-  /**
-   * Who reads it. Defaults to the system contact, which is where a contact
-   * form naming no `recipient` delivers.
-   */
+  /** Who reads it. Defaults to the system contact. */
   to?: string
 }
 
