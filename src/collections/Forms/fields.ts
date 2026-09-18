@@ -1,6 +1,7 @@
 import type { Field } from 'payload'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
+import { managersOnlyFieldAccess } from '@/plugins/access'
 
 /**
  * The `forms` field list, as `formOverrides.fields` hands it to us.
@@ -56,14 +57,27 @@ const actionTypeField: Field = {
 /**
  * Who a contact submission is delivered to.
  *
- * Nullable on purpose. A null recipient falls back to `CONTACT_EMAIL`, which is
- * how the Atlas widget's report-issue path keeps working — it posts with no
- * form at all, so it can have no recipient either, and the two must agree.
+ * Nullable on purpose. A null recipient falls back to `CONTACT_EMAIL`, so a
+ * form whose author never names one still has somewhere to deliver.
+ *
+ * ⚠ **`managersOnlyFieldAccess` is the security boundary here, not a nicety.**
+ * `forms` carries the form-builder plugin's own `read: () => true`, so any
+ * caller reads a form — and `managers` is in no project, which
+ * `isCollectionVisibleInProject` treats as shared rather than restrictive. A
+ * read at `depth >= 1` would therefore hand a manager's name and email address
+ * to a browser. Same lock, same reason, as `Clients.mailingList`
+ * (`docs/rules/access.md`). Delivery is unaffected: `recipientFor` resolves it
+ * server-side with `overrideAccess: true`.
  */
 const recipientField: Field = {
   name: 'recipient',
   type: 'relationship',
   relationTo: 'managers',
+  access: {
+    read: managersOnlyFieldAccess,
+    create: managersOnlyFieldAccess,
+    update: managersOnlyFieldAccess,
+  },
   admin: {
     condition: (_data, siblingData) => siblingData?.actionType === 'contact',
     description: `Who receives messages from this form. Leave blank to send to ${CONTACT_EMAIL}.`,

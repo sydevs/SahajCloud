@@ -40,8 +40,8 @@ export interface SendUserMessageArgs {
   /** When the message was received (ISO 8601). */
   receivedAt: string
   /**
-   * Who reads it. Defaults to the system contact, which is what the widget's
-   * report-issue path (no authored form, so no `recipient`) still resolves to.
+   * Who reads it. Defaults to the system contact, which is where a contact
+   * form naming no `recipient` delivers.
    */
   to?: string
 }

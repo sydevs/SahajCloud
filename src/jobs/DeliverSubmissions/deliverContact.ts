@@ -11,9 +11,9 @@ import { clientNameFor, contextFromSubmissionData } from './submissionContext'
  * Deliver a contact submission: email it to whoever the form names.
  *
  * **The recipient falls back to `CONTACT_EMAIL`, and that fallback is load-
- * bearing rather than defensive.** The widget's report-issue path has no
- * authored `forms` document at all, so a contact row can legitimately name no
- * form — and before the fallback there would be nowhere for it to go.
+ * bearing rather than defensive.** `Forms.recipient` is nullable, so a contact
+ * form whose author never named one is a legitimate form — and without the
+ * fallback its messages would have nowhere to go.
  *
  * Throws nothing. A transport failure comes back as a retryable outcome, which
  * is what earns the task its retry and the row its `failed` status.
