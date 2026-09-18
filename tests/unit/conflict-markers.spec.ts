@@ -6,19 +6,15 @@ import { join, resolve } from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
 
 /**
- * **Markdown is the one place a conflict marker is silent.** Every other format
- * this repo tracks fails loudly — the same lines break a parser or the
- * type-checker. Markdown renders them as ordinary text, and no lint covers
- * `docs/`, so a block sat in `docs/rules/access.md` through four merges, with
- * two later PRs editing prose *inside* it without seeing it (#787, #810). That
- * file is a `docs/rules/` rule, so both halves loaded into every agent session
- * reading `src/plugins/access/`, contradicting each other.
+ * **Markdown is the one place a conflict marker is silent.** Every other tracked
+ * format breaks a parser or the type-checker, and no lint covers `docs/`, so a
+ * block survived four merges inside a `docs/rules/` rule — loading both halves
+ * into every agent session that read it (#787, #810).
  *
  * ⚠ **Build the patterns by concatenation.** A literal marker at the start of a
  * line in this file would make the guard fail on the day it is added.
  *
- * Scope is tracked files, which is what can land on `main`, and `git grep`
- * answers that in one process.
+ * Scope is tracked files, which is what can land on `main`.
  */
 
 const ROOT = resolve(__dirname, '../..')
