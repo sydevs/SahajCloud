@@ -14,7 +14,6 @@ import type { Payload, PayloadRequest } from 'payload'
 import { createElement } from 'react'
 
 import { SessionReminderEmail, sessionReminderText } from '@/emails/SessionReminderEmail'
-import { USER_EMAIL_FROM } from '@/lib/contact'
 import type { LocaleCode } from '@/lib/locales'
 import { buildReminderEmailDetails } from '@/lib/notifications/registrationDetails'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
@@ -22,7 +21,7 @@ import { signUnsubscribeToken } from '@/lib/registrations/unsubscribeToken'
 import { interpolate, resolveEmailStrings } from '@/lib/translations/emailStrings'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import type { Event } from '@/payload-types'
-import { getClientEmailBrand, getEmailBrand, renderEmail } from '@/plugins/email'
+import { getClientEmailBrand, getEmailBrand, renderEmail, USER_EMAIL_FROM } from '@/plugins/email'
 
 import { buildUnsubscribeEmailLink } from './unsubscribeUrl'
 

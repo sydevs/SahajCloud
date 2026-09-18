@@ -15,10 +15,9 @@ import { createElement } from 'react'
 
 import type { DigestEventGroup, DigestPeriod } from '@/emails/RegistrationDigestEmail'
 import { RegistrationDigestEmail, registrationDigestText } from '@/emails/RegistrationDigestEmail'
-import { MANAGER_EMAIL_FROM } from '@/lib/contact'
 import type { RegistrationRecipient } from '@/lib/notifications/registrationRecipient'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
-import { getEmailBrand, renderEmail } from '@/plugins/email'
+import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 
 export async function sendRegistrationDigest(args: {
   payload: Payload

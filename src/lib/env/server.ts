@@ -211,6 +211,20 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   SMTP_URL: z.url().optional(),
 
+  /**
+   * Envelope `From` for registrant-facing mail, read via `USER_EMAIL_FROM`
+   * (`@/plugins/email`). Its domain must be verified in Resend, which drops a
+   * send from anything else. Defaults to `admin@wemeditate.com`.
+   */
+  USER_EMAIL_FROM: z.email().optional(),
+
+  /**
+   * Envelope `From` for manager-facing and Payload auth mail, read via
+   * `MANAGER_EMAIL_FROM` (`@/plugins/email`). Same verification requirement as
+   * `USER_EMAIL_FROM`. Defaults to `contact@sydevelopers.com`.
+   */
+  MANAGER_EMAIL_FROM: z.email().optional(),
+
   // --- Application urls ---
 
   /**

@@ -11,9 +11,10 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 
-import { CONTACT_EMAIL, MANAGER_EMAIL_FROM } from '@/lib/contact'
+import { CONTACT_EMAIL } from '@/lib/contact'
 import type { SendUserMessageArgs } from '@/lib/notifications/sendUserMessage'
 import { sendUserMessage } from '@/lib/notifications/sendUserMessage'
+import { MANAGER_EMAIL_FROM } from '@/plugins/email'
 
 import { stubEmailPayload } from '../utils/sendEmailStub'
 

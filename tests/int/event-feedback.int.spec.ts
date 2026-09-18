@@ -12,10 +12,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 
 import { SendPostEventFollowUps } from '@/jobs/RegistrationNotifications/SendPostEventFollowUps'
-import { USER_EMAIL_FROM } from '@/lib/contact'
 import { readCommunityFeedback } from '@/lib/eventVerification/communityFeedback'
 import type { Event, Manager, UserSubmission } from '@/payload-types'
 import { hasPermission } from '@/plugins/access'
+import { USER_EMAIL_FROM } from '@/plugins/email'
 
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData, type FixtureOverrides } from '../utils/testData'

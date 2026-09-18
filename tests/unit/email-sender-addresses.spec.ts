@@ -14,11 +14,11 @@ import { describe, expect, it } from 'vitest'
 
 import { sendRegistrationDigest } from '@/jobs/RegistrationNotifications/sendRegistrationDigest'
 import { sendSessionReminder } from '@/jobs/RegistrationNotifications/sendSessionReminder'
-import { MANAGER_EMAIL_FROM, USER_EMAIL_FROM } from '@/lib/contact'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
 import { sendSubmissionReview } from '@/lib/notifications/sendSubmissionReview'
 import type { Event } from '@/payload-types'
+import { MANAGER_EMAIL_FROM, USER_EMAIL_FROM } from '@/plugins/email'
 
 import { stubEmailPayload } from '../utils/sendEmailStub'
 

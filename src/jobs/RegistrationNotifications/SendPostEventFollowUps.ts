@@ -6,14 +6,13 @@ import { readSubmissionValue } from '@/collections/UserSubmissions/submissionDat
 import type { FollowUpSection } from '@/emails/PostEventFollowUpEmail'
 import { PostEventFollowUpEmail, postEventFollowUpText } from '@/emails/PostEventFollowUpEmail'
 import { appendLogEntry, asLog } from '@/fields'
-import { USER_EMAIL_FROM } from '@/lib/contact'
 import type { LocaleCode } from '@/lib/locales'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import { buildFeedbackEmailLink, signFeedbackToken } from '@/lib/registrations/feedbackLinks'
 import { interpolate, resolveEmailStrings } from '@/lib/translations/emailStrings'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import type { Event, UserSubmission } from '@/payload-types'
-import { getClientEmailBrand, getEmailBrand, renderEmail } from '@/plugins/email'
+import { getClientEmailBrand, getEmailBrand, renderEmail, USER_EMAIL_FROM } from '@/plugins/email'
 
 const PAGINATION_LIMIT = 200
 

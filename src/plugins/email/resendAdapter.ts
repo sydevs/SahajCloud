@@ -5,10 +5,10 @@ import type { CreateEmailOptions } from 'resend'
 import * as Sentry from '@sentry/nextjs'
 import { Resend } from 'resend'
 
-import { MANAGER_EMAIL_FROM } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
 
 import { getEmailBrand } from './brand'
+import { MANAGER_EMAIL_FROM } from './senders'
 
 /**
  * Map Payload's (nodemailer-shaped) attachments onto Resend's.

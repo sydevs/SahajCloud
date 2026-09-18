@@ -19,11 +19,11 @@ The app switches email providers by environment:
 
 Three addresses, three jobs. Confusing them is what #790 was:
 
-| Constant (`@/lib/contact`) | Default | Used as |
+| Constant | Default | Used as |
 |---|---|---|
-| `USER_EMAIL_FROM` | `admin@wemeditate.com` | `From` on registrant mail — confirmation, session reminder, post-event follow-up |
-| `MANAGER_EMAIL_FROM` | `contact@sydevelopers.com` | `From` on manager, reviewer and admin-inbox mail, and the adapter's default (so Payload's own auth mail) |
-| `CONTACT_EMAIL` | `contact@sydevelopers.com` | The `mailto:` shown to a human, and the default `To` for inbound forms and messages. **Never a `From`.** |
+| `USER_EMAIL_FROM` (`@/plugins/email`) | `admin@wemeditate.com` | `From` on registrant mail — confirmation, session reminder, post-event follow-up |
+| `MANAGER_EMAIL_FROM` (`@/plugins/email`) | `contact@sydevelopers.com` | `From` on manager, reviewer and admin-inbox mail, and the adapter's default (so Payload's own auth mail) |
+| `CONTACT_EMAIL` (`@/lib/contact`) | `contact@sydevelopers.com` | The `mailto:` shown to a human, and the default `To` for inbound forms and messages. **Never a `From`.** |
 
 **The `to:` of a send decides which sender it takes** — there is no audience flag to thread. `sendUserMessage` is the one that reads wrong: despite the name it delivers a *viewer's* message to the admin inbox, so it is manager-facing.
 

@@ -21,10 +21,10 @@ vi.mock('resend', () => ({
   },
 }))
 
-import { MANAGER_EMAIL_FROM, USER_EMAIL_FROM } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
 import { getEmailBrand } from '@/plugins/email/brand'
 import { resendAdapter } from '@/plugins/email/resendAdapter'
+import { MANAGER_EMAIL_FROM, USER_EMAIL_FROM } from '@/plugins/email/senders'
 
 const env = serverEnv as { RESEND_API_KEY?: string }
 const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() }

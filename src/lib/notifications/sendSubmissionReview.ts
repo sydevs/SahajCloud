@@ -4,8 +4,7 @@ import { createElement } from 'react'
 
 import type { SubmissionReviewDetail } from '@/emails/SubmissionReviewEmail'
 import { SubmissionReviewEmail } from '@/emails/SubmissionReviewEmail'
-import { MANAGER_EMAIL_FROM } from '@/lib/contact'
-import { getEmailBrand, renderEmail } from '@/plugins/email'
+import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 
 /**
  * Send the "please review this event submission" email. Throws on transport

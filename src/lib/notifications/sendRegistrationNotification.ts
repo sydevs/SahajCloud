@@ -15,11 +15,10 @@ import type { Payload } from 'payload'
 import { createElement } from 'react'
 
 import { EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
-import { MANAGER_EMAIL_FROM } from '@/lib/contact'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Event } from '@/payload-types'
-import { getEmailBrand, renderEmail } from '@/plugins/email'
+import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 
 import { formatLongDate } from './eventDetails'
 

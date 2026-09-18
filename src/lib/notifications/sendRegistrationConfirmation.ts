@@ -18,13 +18,12 @@ import {
   RegistrationConfirmationEmail,
   registrationConfirmationText,
 } from '@/emails/RegistrationConfirmationEmail'
-import { USER_EMAIL_FROM } from '@/lib/contact'
 import type { LocaleCode } from '@/lib/locales'
 import { buildEventCalendar } from '@/lib/schedule/icsBuilder'
 import { interpolate, resolveEmailStrings } from '@/lib/translations/emailStrings'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import type { Client, Event } from '@/payload-types'
-import { getClientEmailBrand, getEmailBrand, renderEmail } from '@/plugins/email'
+import { getClientEmailBrand, getEmailBrand, renderEmail, USER_EMAIL_FROM } from '@/plugins/email'
 
 import { buildRegistrationEmailDetails } from './registrationDetails'
 

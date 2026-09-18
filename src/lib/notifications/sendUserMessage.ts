@@ -21,9 +21,9 @@ import {
   UserMessageEmail,
   type UserMessageContext,
 } from '@/emails/UserMessageEmail'
-import { CONTACT_EMAIL, MANAGER_EMAIL_FROM } from '@/lib/contact'
+import { CONTACT_EMAIL } from '@/lib/contact'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
-import { getEmailBrand, renderEmail } from '@/plugins/email'
+import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 
 export interface SendUserMessageArgs {
   payload: Payload
