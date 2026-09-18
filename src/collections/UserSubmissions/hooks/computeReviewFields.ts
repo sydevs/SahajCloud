@@ -1,9 +1,9 @@
 import type { FieldHook, PayloadRequest } from 'payload'
 
-import { readEventImages } from '@/lib/utilities/eventImages'
+import { readEventImages, type EventImage } from '@/lib/utilities/eventImages'
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
-import type { Event, Image } from '@/payload-types'
+import type { Event } from '@/payload-types'
 
 import { mergeProposal, submissionRegionId } from '../lifecycle/mergeProposal'
 import { buildProposedChanges } from '../lifecycle/proposedChanges'
@@ -99,7 +99,7 @@ async function resolveManager(req: PayloadRequest, value: unknown): Promise<unkn
  * relationship renders by name instead of by row id and would change the
  * reviewer's diff. Same no-`req` rule as the two loads above.
  */
-function loadImages(req: PayloadRequest, imageIds: number[]): Promise<Image[]> {
+function loadImages(req: PayloadRequest, imageIds: number[]): Promise<EventImage[]> {
   return memoizeOnRequest(req, `submissionImages:${imageIds.join(',')}`, () =>
     readEventImages(imageIds, { payload: req.payload, overrideAccess: true }).catch(() => []),
   )

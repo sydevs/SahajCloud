@@ -11,6 +11,9 @@ import type { Image } from '@/payload-types'
  */
 export const IMAGE_SELECT: SelectType = { url: true, alt: true, filename: true }
 
+/** What {@link IMAGE_SELECT} actually returns — the rest of `Image` is absent. */
+export type EventImage = Pick<Image, 'id' | 'url' | 'alt' | 'filename'>
+
 /** Photos on a class, at most this many, matching the field's own `maxRows`. */
 export const EVENT_IMAGE_LIMIT = 7
 
@@ -36,7 +39,7 @@ export const EVENT_IMAGE_LIMIT = 7
 export async function readEventImages(
   imageIds: number[],
   access: { payload: Payload; overrideAccess: boolean; req?: PayloadRequest },
-): Promise<Image[]> {
+): Promise<EventImage[]> {
   const { docs } = await access.payload.find({
     collection: 'images',
     where: { id: { in: imageIds } },
@@ -46,6 +49,6 @@ export async function readEventImages(
     overrideAccess: access.overrideAccess,
     ...(access.req ? { req: access.req } : {}),
   })
-  const byId = new Map(docs.map((doc) => [doc.id, doc as Image]))
-  return imageIds.map((id) => byId.get(id)).filter((doc): doc is Image => doc !== undefined)
+  const byId = new Map(docs.map((doc) => [doc.id, doc as EventImage]))
+  return imageIds.map((id) => byId.get(id)).filter((doc): doc is EventImage => doc !== undefined)
 }
