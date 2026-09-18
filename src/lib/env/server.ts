@@ -74,18 +74,20 @@ const ServerEnvSchema = ClientEnvSchema.extend({
     .transform((value) => value === 'true' || value === '1'),
 
   /**
-   * Run the nightly `ExpireEvents` sweep, or pause it.
-   * Off, the job returns before it queries, so no verification reminder is
-   * sent and no event is unpublished, trashed or marked finished. The cron
-   * entry stays registered — flipping this variable and redeploying is the
-   * whole toggle. Only `false` or `0` pauses it; unset or anything else runs
-   * the job, so an existing deployment is unaffected.
+   * Run the nightly `ExpireEvents` sweep, or pause it (`src/jobs/ExpireEvents`).
+   * Defaults to on, so an existing deployment, which sets nothing, keeps
+   * today's behaviour. Case-insensitive, unlike `DB_QUERY_LOGGING` above: this
+   * one is an emergency pause, and `FALSE` reading as "run" would send the mail
+   * the operator meant to stop.
    * @default true
    */
   EVENT_VERIFICATION_ENABLED: z
     .string()
     .optional()
-    .transform((value) => value !== 'false' && value !== '0'),
+    .transform((value) => {
+      const flag = value?.trim().toLowerCase()
+      return flag !== 'false' && flag !== '0'
+    }),
 
   /**
    * Nirmala Vidya API key. Fetches lecture metadata from Vimeo.
