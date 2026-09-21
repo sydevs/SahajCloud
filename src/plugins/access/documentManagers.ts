@@ -151,6 +151,32 @@ function loadDoc(
   }) as Promise<Record<string, unknown> | null>
 }
 
+/**
+ * Ids matching `where`, and nothing else off the row.
+ *
+ * The `select` is the point: without it each row arrives whole and runs its
+ * full `afterRead` chain — on `clients` that decrypts every managed service's
+ * `apiKey`, server-side, to collect a primary key (#822). The casts are because
+ * the slug is only known at runtime, so both the `select` and the returned doc
+ * widen to a union of every collection's shape.
+ */
+async function findManagedIds(
+  req: PayloadRequest,
+  collection: ContentSlug,
+  where: Where,
+): Promise<number[]> {
+  const { docs } = (await req.payload.find({
+    collection: collection as CollectionSlug,
+    where,
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    select: { id: true } as never,
+    req,
+  })) as unknown as { docs: { id: number }[] }
+  return docs.map((doc) => doc.id)
+}
+
 /** Walk down the `parent` tree from `rootIds`, cycle-guarded. */
 async function walkDescendantsViaParent(
   req: PayloadRequest,
@@ -162,17 +188,9 @@ async function walkDescendantsViaParent(
   const visited = new Set<number>(rootIds)
   let frontier = rootIds
   while (frontier.length) {
-    const children = await req.payload.find({
-      collection: collection as CollectionSlug,
-      where: { [parentField]: { in: frontier } },
-      depth: 0,
-      pagination: false,
-      overrideAccess: true,
-      req,
-    })
+    const children = await findManagedIds(req, collection, { [parentField]: { in: frontier } })
     const next: number[] = []
-    for (const child of children.docs) {
-      const id = child.id as number
+    for (const id of children) {
       if (visited.has(id)) continue
       visited.add(id)
       found.add(id)
@@ -190,15 +208,7 @@ async function loadManagedDocIds(
   userId: number | string,
   fields: DocManagerFields,
 ): Promise<number[]> {
-  const roots = await req.payload.find({
-    collection: collection as CollectionSlug,
-    where: directManagerWhere(userId, fields),
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    req,
-  })
-  const rootIds = roots.docs.map((doc) => doc.id as number)
+  const rootIds = await findManagedIds(req, collection, directManagerWhere(userId, fields))
   if (!rootIds.length) return []
 
   let descendantIds: number[] = []
@@ -206,15 +216,7 @@ async function loadManagedDocIds(
     // One query: every doc whose breadcrumb trail contains a managed root.
     // A doc's own breadcrumbs include itself, so the roots come back here too —
     // harmless, since they're unioned with rootIds below.
-    const descendants = await req.payload.find({
-      collection: collection as CollectionSlug,
-      where: { 'breadcrumbs.doc': { in: rootIds } },
-      depth: 0,
-      pagination: false,
-      overrideAccess: true,
-      req,
-    })
-    descendantIds = descendants.docs.map((doc) => doc.id as number)
+    descendantIds = await findManagedIds(req, collection, { 'breadcrumbs.doc': { in: rootIds } })
   } else if (fields.parentField) {
     descendantIds = await walkDescendantsViaParent(req, collection, rootIds, fields.parentField)
   }
