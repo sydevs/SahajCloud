@@ -154,10 +154,11 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
 // --- Restricted collections ---
 
 /**
- * Collections that carry personal data and must NEVER fall under the
- * "not in any project → shared, readable by every role" rule. Implicit read
- * (`hasPermission` step 4a) skips these entirely; only an explicit `read`
- * grant in a role, or the admin bypass, reaches them.
+ * Collections that carry personal data or credentials and must NEVER fall
+ * under the "not in any project → shared, readable by every role" rule.
+ * Implicit read (`hasPermission` step 4a) skips these entirely; only an
+ * explicit `read` grant in a role, the admin bypass, or — for the caller's own
+ * document — self-access reaches them.
  *
  * - `users` — Atlas registrants (names + emails). Was implicitly readable by
  *   any published API client before this list existed — including the Atlas
@@ -169,10 +170,21 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   project and was therefore implicitly readable by every role in it; that
  *   membership is gone. Clients may create and never read. A manager's read is
  *   narrowed further, per row, in `accessConfigs.ts`.
+ * - ⚠ `clients` — every service's credentials and its origin allowlist, rate
+ *   limits and usage counters. Shared read let any published key scrape every
+ *   other service's decrypted `apiKey`, over `GET /api/clients` and through
+ *   `sy-atlas-config.canonicalFallbackClient` at `depth >= 1` (#822). The
+ *   policy is now admins and a service's own listed managers, who keep read and
+ *   update through the document-manager path in `accessConfigs.ts`. The one
+ *   deliberate exception is `GET /api/clients/me`: self-access answers it at
+ *   step 2, before this check, and the widget suspends on that read at every
+ *   boot. `Clients.apiKey` carries `managersOnlyFieldAccess` so that exception
+ *   still hands back no key.
  */
 const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'users',
   'user-submissions',
+  'clients',
 ])
 
 /** Whether implicit (project/shared) read must never apply to this collection. */
